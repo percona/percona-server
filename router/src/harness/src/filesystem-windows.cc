@@ -474,4 +474,21 @@ void make_file_readonly(const std::string &file_name) {
   }
 }
 
+stdx::expected<void, std::error_code> rename_file(const std::string &from,
+                                                  const std::string &to) {
+  // In Windows, rename fails if the file destination already exists, so ...
+  if (0 ==
+      MoveFileExA(
+          from.c_str(), to.c_str(),
+          MOVEFILE_REPLACE_EXISTING |  // override existing file
+              MOVEFILE_COPY_ALLOWED |  // allow copy of file to different drive
+              MOVEFILE_WRITE_THROUGH   // don't return until the operation is
+                                       // physically finished
+          )) {
+    return stdx::unexpected(std::error_code{static_cast<int>(GetLastError()),
+                                            std::system_category()});
+  }
+  return {};
+}
+
 }  // namespace mysql_harness

@@ -299,11 +299,11 @@ static inline bool row_upd_changes_ord_field_binary(
 }
 
 /** Checks if an FTS indexed column is affected by an UPDATE.
+ @param[in]  table      table
+ @param[in]  upd_field  clustered index field update
  @return offset within fts_t::indexes if FTS indexed column updated else
  ULINT_UNDEFINED */
-ulint row_upd_changes_fts_column(
-    dict_table_t *table,     /*!< in: table */
-    upd_field_t *upd_field); /*!< in: field to check */
+ulint row_upd_changes_fts_column(dict_table_t *table, upd_field_t *upd_field);
 /** Checks if an FTS Doc ID column is affected by an UPDATE.
  @return whether Doc ID column is affected */
 [[nodiscard]] bool row_upd_changes_doc_id(
@@ -353,12 +353,15 @@ void row_upd_rec_sys_fields_in_recovery(rec_t *rec, page_zip_des_t *page_zip,
                                         trx_id_t trx_id, roll_ptr_t roll_ptr);
 
 /** Parses the log data written by row_upd_index_write_log.
+ @param[in]   ptr         buffer
+ @param[in]   end_ptr     buffer end
+ @param[in]   heap        memory heap where update vector is built
+ @param[out]  update_out  update vector
+ @param[in]   index       the index corresponding to the update
  @return log data end or NULL */
-byte *row_upd_index_parse(const byte *ptr,     /*!< in: buffer */
-                          const byte *end_ptr, /*!< in: buffer end */
-                          mem_heap_t *heap,    /*!< in: memory heap where update
-                                               vector is    built */
-                          upd_t **update_out); /*!< out: update vector */
+byte *row_upd_index_parse(const byte *ptr, const byte *end_ptr,
+                          mem_heap_t *heap, upd_t **update_out,
+                          dict_index_t *index);
 
 /** Get the new autoinc counter from the update vector when there is
 an autoinc field defined in this table.
@@ -557,11 +560,6 @@ inline std::ostream &operator<<(std::ostream &out, const upd_field_t &obj) {
   return (obj.print(out));
 }
 
-/* check whether an update field is on virtual column */
-inline bool upd_fld_is_virtual_col(const upd_field_t *upd_fld) {
-  return upd_fld->is_virtual();
-}
-
 /* check whether an update field is on multi-value virtual column */
 inline bool upd_fld_is_multi_value_col(const upd_field_t *upd_fld) {
   return dfield_is_multi_value(&upd_fld->new_val);
@@ -629,14 +627,33 @@ struct upd_t {
   }
 
 #ifdef UNIV_DEBUG
-  bool validate() const {
+  void validate() const {
     for (ulint i = 0; i < n_fields; ++i) {
       dfield_t *field = &fields[i].new_val;
       if (dfield_is_ext(field)) {
-        ut_ad(dfield_get_len(field) >= BTR_EXTERN_FIELD_REF_SIZE);
+        ut_ad_le(BTR_EXTERN_FIELD_REF_SIZE, dfield_get_len(field));
       }
     }
-    return (true);
+  }
+
+  void validate_for_index(const dict_index_t *index) const {
+    validate();
+    /* For ROW_FORMAT=REDUNDANT, we don't log the number of fields in a
+    index. See log_index_column_counts(). So during recovery, the number of
+    fields in a index of ROW_FORMAT=REDUNDANT is always set to 1 in
+    parse_index_column_counts(). Hence, disable this assert during recovery
+    and if table format is REDUNDANT */
+    if (recv_recovery_on && !dict_table_is_comp(index->table)) return;
+
+    for (ulint i = 0; i < n_fields; ++i) {
+      const upd_field_t &field = fields[i];
+      ut_a(index->is_clustered() || !field.is_virtual());
+      if (!field.is_virtual()) {
+        ut_a_lt(field.field_no, dict_index_get_n_fields(index));
+      } else {
+        ut_a_lt(field.field_no, index->table->n_v_cols);
+      }
+    }
   }
 #endif  // UNIV_DEBUG
 

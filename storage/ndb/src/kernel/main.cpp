@@ -216,9 +216,6 @@ int real_main(int argc, char **argv) {
 
   g_eventLogger->setCategory("ndbd");
 
-  // Turn on max loglevel for startup messages
-  g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
-
   if (opt_no_daemon || opt_foreground) {
     // --nodaemon or --forground implies --daemon=0
     opt_daemon = 0;

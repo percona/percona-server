@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/13/2025
+.\"      Date: 09/11/2025
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.4
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "06/13/2025" "MySQL 8\&.4" "MySQL Database System"
+.TH "NDBD" "8" "09/11/2025" "MySQL 8\&.4" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -529,7 +529,7 @@ Requires
 EncryptedFileSystem = 1\&.
 .sp
 For more information, see
-Section\ \&25.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
+Section\ \&25.6.19.4, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -559,7 +559,7 @@ Requires
 EncryptedFileSystem = 1\&.
 .sp
 For more information, see
-Section\ \&25.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
+Section\ \&25.6.19.4, \(lqFile System Encryption for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1009,6 +1009,95 @@ Set connection string for connecting to
 NDB_CONNECTSTRING
 and
 my\&.cnf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-log\-timestamps\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-log-timestamps
+T}
+T{
+Introduced
+T}:T{
+8.4.6
+T}
+T{
+Type
+T}:T{
+Enumeration
+T}
+T{
+Default Value
+T}:T{
+LEGACY
+T}
+T{
+Valid Values
+T}:T{
+.PP
+LEGACY
+.PP
+UTC
+.PP
+SYSTEM
+T}
+.TE
+.sp 1
+Sets the format used for timestamps in node logs\&. This is one of the following values:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+LEGACY: The system timezone, with resolution in seconds\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+UTC:
+\m[blue]\fBRFC 3339\fR\m[]\&\s-2\u[1]\d\s+2
+format, with microsecond resolution\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SYSTEM: RFC 3339 format\&.
+.RE
+.sp
+LEGACY
+is the default in MySQL 8\&.4, for backwards compatibility with previous versions\&.
 .RE
 .sp
 .RS 4
@@ -1515,7 +1604,7 @@ TraceFile: ndb_2_trace\&.log\&.2
 Listings of possible
 \fBndbd\fR
 exit codes and messages generated when a data node process shuts down prematurely can be found in
-\m[blue]\fBData Node Error Messages\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBData Node Error Messages\fR\m[]\&\s-2\u[2]\d\s+2\&.
 .if n \{\
 .sp
 .\}
@@ -1668,6 +1757,11 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
+RFC 3339
+.RS 4
+\%https://datatracker.ietf.org/doc/html/rfc3339
+.RE
+.IP " 2." 4
 Data Node Error Messages
 .RS 4
 \%https://dev.mysql.com/doc/ndb-internals/en/ndb-node-error-messages.html

@@ -452,7 +452,7 @@ class Master_info : public Rpl_info {
 
  protected:
   char master_log_name[FN_REFLEN]{};
-  my_off_t master_log_pos;
+  my_off_t master_log_pos{0};
 
  public:
   inline const char *get_master_log_name() const { return master_log_name; }

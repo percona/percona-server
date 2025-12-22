@@ -32,7 +32,6 @@
 #include <BaseString.hpp>
 #include <EventLogger.hpp>
 #include <LogLevel.hpp>
-#include <signaldata/SetLogLevelOrd.hpp>
 #include "util/TlsKeyManager.hpp"
 
 #include <ConfigValues.hpp>
@@ -922,8 +921,6 @@ void MgmApiSession::setLogLevel(Parser<MgmApiSession>::Context &,
                                 Properties const &args) {
   Uint32 node = 0, level = 0, cat;
   BaseString errorString;
-  SetLogLevelOrd logLevel;
-  logLevel.clear();
   args.get("node", &node);
   args.get("category", &cat);
   args.get("level", &level);

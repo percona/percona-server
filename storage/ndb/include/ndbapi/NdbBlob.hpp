@@ -493,6 +493,8 @@ class NdbBlob {
   int theNullFlag;
   Uint64 theLength;
   Uint64 thePos;
+  // additional properties for the operations
+  Uint32 theAnyValue;
   // errors
   // Allow update error from const methods.
   mutable NdbError theError;
@@ -555,6 +557,7 @@ class NdbBlob {
   int setHeadInlineValue(NdbOperation *anOp);
   void setHeadPartitionId(NdbOperation *anOp);
   void setPartPartitionId(NdbOperation *anOp);
+  int setAnyValue(NdbOperation *anOp) const;
 
   // Blob async tasks
   int initBlobTask(NdbTransaction::ExecType anExecType);

@@ -863,6 +863,10 @@ Yacc_state::~Yacc_state() {
 }
 
 static bool consume_optimizer_hints(Lex_input_stream *lip) {
+  // Just return OK if there is nothing to scan/parse.
+  if (lip->eof()) {
+    return false;
+  }
   const my_lex_states *state_map = lip->query_charset->state_maps->main_map;
   int whitespace = 0;
   uchar c = lip->yyPeek();

@@ -107,6 +107,7 @@ SET(harness_source
   log_reopen_component.cc
   dynamic_config.cc
   section_config_exposer.cc
+  auto_cleaner.cc
   )
 
 IF(WIN32)

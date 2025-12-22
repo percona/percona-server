@@ -36,7 +36,7 @@
 
 %global release %{percona_server_version}.%{rpm_release}%{?dist}
 
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %global add_fido_plugins 1
 %else
 %global add_fido_plugins 0
@@ -69,6 +69,7 @@
 %{?el8:                          %global systemd 1}
 %{?el9:                          %global systemd 1}
 %{?el10:                         %global systemd 1}
+%{?amzn2023:                     %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 0}
 %{!?product_suffix:              %global product_suffix -80}
 %{!?feature_set:                 %global feature_set community}
@@ -95,7 +96,7 @@
 %endif
 
 # On rhel 5/6 we still have renamed library to libperconaserverclient
-%if 0%{?rhel} > 6
+%if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
   %global shared_lib_pri_name mysqlclient
   %global shared_lib_sec_name perconaserverclient
 %else
@@ -127,7 +128,7 @@
 %global __isa_bits            64
 %endif
 
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %global ps_telemetry          /usr/local/percona/telemetry/ps
 %endif
 
@@ -166,6 +167,7 @@ BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
 %{?el8:BuildRequires: perl(Env)}
 %{?el9:BuildRequires: perl(Env)}
+%{?amzn2023:BuildRequires: perl(Env)}
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)
@@ -211,7 +213,7 @@ BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap-devel
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 BuildRequires:  cmake >= 3.6.1
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -224,7 +226,7 @@ BuildRequires:  devtoolset-8-gcc-c++
 %endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-%if 0%{?rhel} > 6
+%if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
 %global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
@@ -256,7 +258,7 @@ Requires:       percona-server-client
 Requires:       percona-icu-data-files
 Requires:       curl
 Requires:       openssl
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 Requires:  percona-telemetry-agent
 %endif
 Obsoletes:     community-mysql-bench
@@ -379,7 +381,7 @@ Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56 Percona-Server-devel-57
 Conflicts:      percona-server-devel-pro
 Obsoletes:      mariadb-connector-c-devel
-%if 0%{?rhel} > 6
+%if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
 Obsoletes:      mariadb-devel
 %endif
 
@@ -401,7 +403,9 @@ Conflicts:      percona-server-shared-pro
 Provides:       mysql-shared
 %ifarch x86_64
 %if 0%{?rhel} < 9
+%if 0%{?amzn} != 2023
 Requires(pre):  percona-server-shared-compat
+%endif
 %endif
 %endif
 
@@ -598,7 +602,7 @@ mkdir debug
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
-%if 0%{?rhel} > 8
+%if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
 %endif
            %{?ssl_option} \
@@ -657,7 +661,7 @@ mkdir release
 %endif
            -DWITH_ENCRYPTION_UDF=ON \
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
-%if 0%{?rhel} > 8
+%if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
 %endif
            %{?ssl_option} \
@@ -707,7 +711,9 @@ install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 #%if 0%{?systemd}
 #%else
 %if 0%{?rhel} < 7
+%if 0%{?amzn} != 2023
   install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
+%endif
 %endif
 
 # Add libdir to linker
@@ -808,7 +814,7 @@ fi
   fi
 %endif
 
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 mkdir -p %{ps_telemetry}
 chown mysql:percona-telemetry %{ps_telemetry}
 chmod 775 %{ps_telemetry}
@@ -863,7 +869,7 @@ fi
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
   fi
 %endif
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 rm -rf %{ps_telemetry}
 %endif
 
@@ -879,7 +885,7 @@ if [ ! -d %{_datadir}/mysql ] && [ ! -L %{_datadir}/mysql ]; then
     ln -s %{_datadir}/percona-server %{_datadir}/mysql
 fi
 
-%if 0%{?rhel} >= 9
+%if 0%{?rhel} >= 9 || 0%{?amzn} >= 2023
 if [ -f /usr/lib/systemd/system/mysqld.service ]; then
   if [ ! -e /etc/systemd/system/mysql.service ] && [ -d /etc/systemd/system ]; then
     ln -s /usr/lib/systemd/system/mysqld.service /etc/systemd/system/mysql.service
@@ -1010,7 +1016,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %attr(644, root, root) %{_mandir}/man1/perror.1*
 %if 0%{?rhel} < 7
+%if 0%{?amzn} != 2023
 %attr(644, root, root) %{_mandir}/man1/mysql.server.1*
+%endif
 %endif
 
 %config(noreplace) %{_sysconfdir}/my.cnf
@@ -1144,7 +1152,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_percona_telemetry.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
@@ -1178,7 +1186,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_log_filter.so
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_metrics.so
@@ -1201,7 +1209,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_percona_telemetry.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
@@ -1235,7 +1243,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log_filter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
-%if 0%{?rhel} >= 8
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_metrics.so
@@ -1273,7 +1281,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 
-%if 0%{?rhel} > 6
+%if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_encryption_udf.so
 %endif

@@ -184,6 +184,14 @@ class NdbEventOperation {
    */
   void setFilterAnyvalueMySQLNoReplicaUpdates();
 
+  /**
+     Whether EventOperation should filter out potentially partial
+     data from epochs < the StartEpoch for this operation.
+
+     Automatically implied by mergeEvents.
+  */
+  void setFilterPreStartEpochs(bool flag);
+
   int isOverrun() const;
 
   /**
@@ -315,6 +323,16 @@ class NdbEventOperation {
    * and get the error.
    */
   bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type = nullptr);
+
+  /**
+   * Get first epoch value guaranteed to have all row change
+   * events for this event operation.
+   *
+   * Lower epochs may have a partial set of row change events.
+   *
+   * Only valid for executing EventOperations
+   */
+  Uint64 getStartEpoch() const;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** these are subject to change at any time */

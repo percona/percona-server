@@ -35,6 +35,7 @@ exec
   -Djava.library.path=$NDBCLIENT_LIB_DIR
   -Duser.timezone=$TZ
   -Djava.io.tmpdir=$MYSQLTEST_VARDIR/tmp
+  -XX:ErrorFile=$MYSQLTEST_VARDIR/tmp/clusterj_jvm_error.file
   -classpath $CLUSTERJ_TEST_JAR$SEP$CLUSTERJ_JAR$SEP$MTR_CLASSPATH
   testsuite.clusterj.AllTests
   $CLUSTERJ_TEST_JAR $ENABLE_DEBUG_TESTS

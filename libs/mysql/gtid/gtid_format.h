@@ -25,6 +25,7 @@
 #define MYSQL_GTID_GTID_FORMAT_H
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include "mysql/utils/enumeration_utils.h"

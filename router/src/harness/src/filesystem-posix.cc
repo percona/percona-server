@@ -378,4 +378,12 @@ void make_file_readonly(const std::string &file_name) {
   }
 }
 
+stdx::expected<void, std::error_code> rename_file(const std::string &from,
+                                                  const std::string &to) {
+  if (0 != rename(from.c_str(), to.c_str())) {
+    return stdx::unexpected(std::error_code{errno, std::generic_category()});
+  }
+  return {};
+}
+
 }  // namespace mysql_harness

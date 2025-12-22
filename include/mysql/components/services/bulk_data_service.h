@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <mysql/components/service.h>
 #include <stddef.h>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <limits>

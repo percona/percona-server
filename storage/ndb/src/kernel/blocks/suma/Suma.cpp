@@ -896,7 +896,7 @@ void Suma::check_wait_handover_timeout(Signal *signal) {
             LogLevel ll;
             ll.setLogLevel(LogLevel::llError, 15);
             g_eventLogger->log(NDB_LE_SubscriptionStatus, signal->theData,
-                               signal->getLength(), getOwnNodeId(), &ll);
+                               signal->getLength(), 0, &ll);
 
             /**
              * Force API_FAILREQ
@@ -3512,10 +3512,11 @@ void Suma::report_sub_start_conf(Signal *signal, Ptr<Subscription> subPtr) {
         conf->senderData = senderData;
         conf->subscriptionId = subPtr.p->m_subscriptionId;
         conf->subscriptionKey = subPtr.p->m_subscriptionKey;
-        conf->firstGCI = Uint32(gci >> 32);
+        conf->firstGCIhi = Uint32(gci >> 32);
         conf->part = SubscriptionData::TableData;
         conf->bucketCount = c_no_of_buckets;
         conf->nodegroup = c_nodeGroup;
+        conf->firstGCIlo = Uint32(gci);
         sendSignal(senderRef, GSN_SUB_START_CONF, signal,
                    SubStartConf::SignalLength, JBB);
 
@@ -6410,8 +6411,6 @@ void Suma::execSUMA_HANDOVER_CONF(Signal *signal) {
     tmp.getText(buf);
     infoEvent("Suma: handover from node %u gci: %u buckets: %s (%u)", nodeId,
               gci, buf, c_no_of_buckets);
-    g_eventLogger->info("Suma: handover from node %u gci: %u buckets: %s (%u)",
-                        nodeId, gci, buf, c_no_of_buckets);
     ndbassert(!m_active_buckets.overlaps(tmp));
     m_switchover_buckets.bitOR(tmp);
     ndbrequire(c_startup.m_handover_nodes.get(nodeId));
@@ -6433,8 +6432,6 @@ void Suma::execSUMA_HANDOVER_CONF(Signal *signal) {
     tmp.getText(buf);
     infoEvent("Suma: handover to node %u gci: %u buckets: %s (%u)", nodeId, gci,
               buf, c_no_of_buckets);
-    g_eventLogger->info("Suma: handover to node %u gci: %u buckets: %s (%u)",
-                        nodeId, gci, buf, c_no_of_buckets);
     m_active_buckets.bitANDC(tmp);
     m_switchover_buckets.bitOR(tmp);
     c_startup.m_handover_nodes.clear(nodeId);

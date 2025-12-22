@@ -1863,14 +1863,22 @@ TEST_P(MetadataUnavailableTest, MetadataUnavailable) {
   // down the accepting ports
   const std::string rw = std::to_string(router_port_rw);
   const std::string ro = std::to_string(router_port_ro);
+  // Fist error message will depend when the mock kill was noticed by the
+  // metadata-cache refresh. If it is when the Router is updating GR status
+  // it will be different. The imporant part is making sure the acceptors are
+  // stopped.
   const std::vector<std::string> expected_log_lines{
-      "ERROR .* Failed fetching metadata from any of the 3 metadata servers",
+      "(ERROR .* Failed fetching metadata from any of the 3 metadata "
+      "servers)|(ERROR .* Unable to fetch live group_replication member data "
+      "from any server in cluster)",
       "INFO .* Stop accepting connections for routing routing:test_default" +
           rw + " listening on 127.0.0.1:" + rw,
       "INFO .* Stop accepting connections for routing routing:test_default" +
           ro + " listening on 127.0.0.1:" + ro};
   for (const auto &expected_line : expected_log_lines) {
-    EXPECT_TRUE(wait_log_contains(router, expected_line, 5s));
+    EXPECT_TRUE(wait_log_contains(router, expected_line, 5s))
+        << "line: " << expected_line
+        << "\nlog: " << router.get_logfile_content();
   }
 
   verify_new_connection_fails(router_port_rw);

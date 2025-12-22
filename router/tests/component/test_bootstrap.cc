@@ -45,6 +45,12 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
+#if defined(_WIN32)
+// needed for BootstrapCertTest.CheckGeneratedCertDetails
+// OPENSSL_Uplink(00007FFD74D4CC88,08): no OPENSSL_Applink
+#include <openssl/applink.c>
+#endif
+
 #include "common.h"  // truncate_string
 #include "config_builder.h"
 #include "dim.h"

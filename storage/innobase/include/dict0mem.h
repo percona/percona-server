@@ -775,8 +775,8 @@ struct dict_col_t {
   bool assert_equal(const dtype_t *type) const {
     ut_ad(type);
 
-    ut_ad(mtype == type->mtype);
-    ut_ad(prtype == type->prtype);
+    ut_ad_eq(mtype, type->mtype);
+    ut_ad_eq((prtype | DATA_VIRTUAL), (type->prtype | DATA_VIRTUAL));
     // ut_ad(col->len == type->len);
 #ifndef UNIV_HOTBACKUP
     ut_ad(mbminmaxlen == type->mbminmaxlen);

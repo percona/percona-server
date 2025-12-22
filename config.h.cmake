@@ -320,7 +320,6 @@
  * NDB
  */
 #cmakedefine HAVE_GETRLIMIT 1
-#cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 
 /*

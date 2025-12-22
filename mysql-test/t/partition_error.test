@@ -2165,3 +2165,21 @@ PARTITION BY LIST ((SELECT c1 FROM t0)) (PARTITION p0 VALUES IN (0))
 AS TABLE t0;
 
 DROP TABLE t0;
+
+--echo #
+--echo # Bug #35451459 MySQL Server crashes when executing query
+--echo #
+
+#
+# unpack_partition_info() is called before allocating bitmaps,
+# which needs to be done prior to generated columns as
+# they will call fix_fields and functions might want to access bitmaps
+#
+
+--echo # DEFAULT() is not allowed in partitioning expression
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+
+CREATE TABLE v0 (
+    c1 INT
+)
+PARTITION BY HASH (DEFAULT(c1));

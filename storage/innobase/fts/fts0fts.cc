@@ -1833,11 +1833,15 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
     new_table = fts_create_in_mem_aux_table(fts_table_name, table,
                                             FTS_CONFIG_TABLE_NUM_COLS);
 
-    dict_mem_table_add_col(new_table, heap, "key", DATA_VARCHAR, 0,
-                           FTS_CONFIG_TABLE_KEY_COL_LEN, true);
+    dict_mem_table_add_col(
+        new_table, heap, "key", DATA_VARCHAR,
+        dtype_form_prtype(DATA_VARCHAR, data_mysql_default_charset_coll),
+        FTS_CONFIG_TABLE_KEY_COL_LEN, true);
 
     dict_mem_table_add_col(new_table, heap, "value", DATA_VARCHAR,
-                           DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
+                           dtype_form_prtype(DATA_NOT_NULL | DATA_VARCHAR,
+                                             data_mysql_default_charset_coll),
+                           FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
   }
 
   error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx, nullptr);
@@ -6089,6 +6093,7 @@ bool fts_load_stopword(
 cleanup:
   if (new_trx) {
     if (error == DB_SUCCESS) {
+      DEBUG_SYNC_C("fts_before_stopword_commit");
       fts_sql_commit(trx);
     } else {
       fts_sql_rollback(trx);

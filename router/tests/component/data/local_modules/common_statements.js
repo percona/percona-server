@@ -44,7 +44,6 @@ var defaults = {
     "primary_cluster_id": 0,
     "clusters": [
       {
-        "primary_node_id": 0,
         "uuid": "cluster-id-1",
         "name": "cluster-name-1",
         "role": "PRIMARY",
@@ -62,11 +61,9 @@ var defaults = {
             "http_port": 11013,
             "attributes": "{}"
           }
-        ],
-        "primary_node_id": 0
+        ]
       },
       {
-        "primary_node_id": 0,
         "uuid": "cluster-id-2",
         "name": "cluster-name-2",
         "role": "SECONDARY",
@@ -84,8 +81,7 @@ var defaults = {
             "http_port": 11017,
             "attributes": "{}"
           }
-        ],
-        "primary_node_id": 0
+        ]
       }
     ]
   },

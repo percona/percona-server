@@ -455,7 +455,8 @@ AcceptingEndpointTcpSocket::AcceptingEndpointTcpSocket(
 stdx::expected<void, std::error_code> AcceptingEndpointTcpSocket::setup() {
   net::ip::tcp::resolver resolver(io_ctx_);
 
-  auto resolve_res = resolver.resolve(address_, std::to_string(port_));
+  auto resolve_res = resolver.resolve(address_, std::to_string(port_),
+                                      net::ip::resolver_base::passive);
 
   if (!resolve_res) {
     return stdx::unexpected(resolve_res.error());

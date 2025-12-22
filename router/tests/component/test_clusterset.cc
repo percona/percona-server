@@ -1740,8 +1740,10 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
 
   ClusterSetOptions cs_options;
   cs_options.tracefile = "metadata_clusterset.js";
-  cs_options.router_options = R"({"target_cluster" : "primary",
-        "stats_updates_frequency": 1})";
+  cs_options.router_options =
+      R"({"target_cluster" : "primary", "stats_updates_frequency": 1,
+      "invalidated_cluster_policy" : ")" +
+      policy + "\" }";
   create_clusterset(cs_options);
 
   /* auto &router = */ launch_router(cs_options.topology);
@@ -1772,10 +1774,6 @@ TEST_P(PrimaryTargetClusterMarkedInvalidInTheMetadataTest,
 
   cs_options.view_id = ++view_id;
   cs_options.target_cluster_id = kPrimaryClusterId;
-  cs_options.router_options =
-      R"({"target_cluster" : "primary", "stats_updates_frequency": 1,
-      "invalidated_cluster_policy" : ")" +
-      policy + "\" }";
 
   set_mock_metadata_on_all_cs_nodes(cs_options);
 
@@ -1847,7 +1845,9 @@ TEST_P(ReplicaTargetClusterMarkedInvalidInTheMetadataTest,
   cs_options.tracefile = "metadata_clusterset.js";
   cs_options.router_options =
       R"({"target_cluster" : "00000000-0000-0000-0000-0000000000g2",
-          "stats_updates_frequency": 1})";
+          "stats_updates_frequency": 1,
+          "invalidated_cluster_policy" : ")" +
+      policy + "\" }";
   create_clusterset(cs_options);
 
   /* auto &router = */ launch_router(cs_options.topology);
@@ -2782,6 +2782,52 @@ INSTANTIATE_TEST_SUITE_P(
                 std::to_string(MYSQL_ROUTER_VERSION_MINOR) + "." +
                 std::to_string(MYSQL_ROUTER_VERSION_PATCH + 1),
             false, ""}));
+
+/**
+ * @test Checks that the Router still is operating as expected if the first node
+ * on the metadata servers list is lagging to replicate the metadata from the
+ * primary after the boostrap. (BUG#38132603)
+ */
+TEST_F(ClusterSetTest, FirstMdServerLagsReplicatingMetadata) {
+  const std::string target_cluster = "primary";
+  const auto target_cluster_id = 0;
+
+  /* create a clusterset where the first node (also a first metadata server) is
+   * a SECONDARY node */
+  ClusterSetOptions cs_options;
+  cs_options.target_cluster_id = target_cluster_id;
+  cs_options.tracefile = "metadata_clusterset.js";
+  cs_options.router_options =
+      R"({"target_cluster" : ")" + target_cluster + "\" }";
+  cs_options.primary_node_id = 1;
+  create_clusterset(cs_options);
+
+  /* instrument the first metadata server to return no rows when queried for
+   * options from the `routers` table. This emulates a scenario where this
+   * node is lagging in replicating the metadata from the primary node where the
+   * Router was bootstrapped. */
+  cs_options.simulate_router_options_no_rows = true;
+  set_mock_clusterset_metadata(
+      cs_options.topology.clusters[0].nodes[0].http_port,
+      /*this_cluster_id*/ 0,
+      /*this_node_id*/ 0, cs_options);
+
+  SCOPED_TRACE("// Launch the Router");
+  auto &router = launch_router(cs_options.topology);
+
+  const std::string warning =
+      "WARNING .* Failed determining the type of the cluster: No row in "
+      "v2_routers table "
+      "for router with id 1";
+
+  EXPECT_TRUE(wait_log_contains(router, warning, 5s));
+
+  auto conn_res = make_new_connection(router_port_rw);
+  ASSERT_NO_ERROR(conn_res);
+
+  conn_res = make_new_connection(router_port_ro);
+  ASSERT_NO_ERROR(conn_res);
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

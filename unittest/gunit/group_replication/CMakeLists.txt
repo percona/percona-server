@@ -41,9 +41,7 @@ SET(TESTS
   )
 
 FOREACH(test ${TESTS})
-  SET(SRC_FILES ${test}-t.cc)
-
-  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
     ADD_TEST ${test}
     ENABLE_EXPORTS
     LINK_LIBRARIES

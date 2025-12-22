@@ -41,6 +41,7 @@
 
 #include "my_sys.h"
 #include "mysql_com.h"
+#include "mysql_server_suffix.h"
 #include "mysql_version.h"
 #include "nulls.h"
 #include "strxmov.h"

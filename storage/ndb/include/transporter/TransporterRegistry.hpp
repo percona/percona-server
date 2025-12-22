@@ -556,6 +556,8 @@ class TransporterRegistry {
 
   Multi_Transporter *get_node_multi_transporter(NodeId node_id) const;
 
+  static bool is_permitted_halt_signal(const SignalHeader *signalHeader);
+
  private:
   TransporterCallback *const callbackObj;
   TransporterReceiveHandle *const receiveHandle;

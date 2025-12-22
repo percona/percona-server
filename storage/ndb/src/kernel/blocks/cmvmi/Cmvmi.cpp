@@ -51,7 +51,6 @@
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/GetConfig.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
-#include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/StartOrd.hpp>
 #include <signaldata/Sync.hpp>
 #include <signaldata/TamperOrd.hpp>
@@ -108,7 +107,7 @@ Cmvmi::Cmvmi(Block_context &ctx)
 
   // Add received signals
   addRecSignal(GSN_NDB_TAMPER, &Cmvmi::execNDB_TAMPER, true);
-  addRecSignal(GSN_SET_LOGLEVELORD, &Cmvmi::execSET_LOGLEVELORD);
+  addRecSignal(GSN_SET_LOGLEVELORD_v9_4_0, &Cmvmi::execSET_LOGLEVELORD);
   addRecSignal(GSN_EVENT_REP, &Cmvmi::execEVENT_REP);
   addRecSignal(GSN_STTOR, &Cmvmi::execSTTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Cmvmi::execREAD_CONFIG_REQ);
@@ -145,15 +144,6 @@ Cmvmi::Cmvmi(Block_context &ctx)
 
   subscriberPool.setSize(5);
   c_syncReqPool.setSize(5);
-
-  const ndb_mgm_configuration_iterator *db =
-      m_ctx.m_config.getOwnConfigIterator();
-  for (unsigned j = 0; j < LogLevel::LOGLEVEL_CATEGORIES; j++) {
-    Uint32 logLevel;
-    if (!ndb_mgm_get_int_parameter(db, CFG_MIN_LOGLEVEL + j, &logLevel)) {
-      clogLevel.setLogLevel((LogLevel::EventCategory)j, logLevel);
-    }
-  }
 
   ndb_mgm_configuration_iterator *iter =
       m_ctx.m_config.getClusterConfigIterator();
@@ -324,19 +314,13 @@ void Cmvmi::sendSYNC_REP(Signal *signal, Ptr<SyncRecord> ptr) {
 }
 
 void Cmvmi::execSET_LOGLEVELORD(Signal *signal) {
-  SetLogLevelOrd *const llOrd = (SetLogLevelOrd *)&signal->theData[0];
-  LogLevel::EventCategory category;
-  Uint32 level;
   jamEntry();
-
-  ndbrequire(llOrd->noOfEntries <= LogLevel::LOGLEVEL_CATEGORIES);
-
-  for (unsigned int i = 0; i < llOrd->noOfEntries; i++) {
-    category = (LogLevel::EventCategory)(llOrd->theData[i] >> 16);
-    level = llOrd->theData[i] & 0xFFFF;
-
-    clogLevel.setLogLevel(category, level);
-  }
+  /*
+   * Version 9.4.0 was the highest version supporting this signal.
+   * We still need to ignore it in newer versions as long as we support 9.4.0
+   * or lower version nodes to connect.
+   */
+  return;
 }  // execSET_LOGLEVELORD()
 
 struct SavedEvent {
@@ -598,15 +582,9 @@ void Cmvmi::execEVENT_REP(Signal *signal) {
     saveBuf = NDB_ARRAY_SIZE(m_saved_event_buffer) - 1;
   m_saved_event_buffer[saveBuf].save(data, sz);
 
-  if (clogLevel.getLogLevel(eventCategory) < threshold) {
-    if (num_sections > 0) {
-      releaseSections(handle);
-    }
-    return;
-  }
-
   // Print the event info
-  g_eventLogger->log(eventReport->getEventType(), data, sz, 0, 0);
+  Uint32 remoteNodeId = (nodeId == getOwnNodeId()) ? 0 : nodeId;
+  g_eventLogger->log(eventReport->getEventType(), data, sz, remoteNodeId);
 
   if (num_sections > 0) {
     releaseSections(handle);
@@ -815,12 +793,8 @@ void Cmvmi::execSTTOR(Signal *signal) {
       refresh_watch_dog(9);
       int res = NdbMem_MemLockAll(1);
       if (res != 0) {
-        char buf[100];
-        BaseString::snprintf(buf, sizeof(buf),
-                             "Failed to memlock pages, error: %d (%s)", errno,
-                             strerror(errno));
-        g_eventLogger->warning("%s", buf);
-        warningEvent("%s", buf);
+        warningEvent("Failed to memlock pages, error: %d (%s)", errno,
+                     strerror(errno));
       } else {
         g_eventLogger->info("Using locked memory");
       }
@@ -1378,7 +1352,6 @@ void Cmvmi::execDUMP_STATE_ORD(Signal *signal) {
                    (num_secs > 0) ? ptr[0].sz : 0,
                    (num_secs > 1) ? ptr[1].sz : 0,
                    (num_secs > 2) ? ptr[2].sz : 0, node_id, getOwnNodeId());
-          g_eventLogger->info("%s", msg);
           infoEvent("%s", msg);
           releaseSections(handle);
         } else if (val == DumpStateOrd::CmvmiSendDummySignal) {

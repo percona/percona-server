@@ -45,8 +45,6 @@ Package: percona-server-js
 Section: database
 Architecture: any
 Depends: percona-server-server (= ${binary:Version}), ${misc:Depends}
-Replaces: percona-server-js-pro
-Conflicts: percona-server-js-pro
 Description: Percona Server - JS stored routines language support package
  .
  Percona has introduced experimental support for Stored Programs in JavaScript (JS) within

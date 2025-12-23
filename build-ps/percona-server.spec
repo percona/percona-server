@@ -472,7 +472,6 @@ Group:          Applications/Databases
 Requires:       percona-server-server = %{version}-%{release}
 Requires:       percona-server-shared = %{version}-%{release}
 Requires:       percona-server-client = %{version}-%{release}
-Conflicts:      percona-server-js-pro
 
 %description -n percona-server-js
 This package contains JS language component for Percona Server %{version}-%{release}

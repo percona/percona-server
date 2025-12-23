@@ -276,7 +276,6 @@ Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
-Conflicts:      percona-server-server-pro
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -318,7 +317,6 @@ Group:          Applications/Databases
 Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
-Conflicts:      percona-server-client-pro
 
 %description -n percona-server-client
 This package contains the standard Percona Server client and administration tools.
@@ -363,7 +361,6 @@ Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
 Provides:       mysql-test%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55 Percona-Server-test-56 Percona-Server-test-57
-Conflicts:      percona-server-test-pro
 
 %description -n percona-server-test
 This package contains the Percona Server regression test suite.
@@ -379,7 +376,6 @@ Obsoletes:     mysql-connector-c-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55 Percona-Server-devel-56 Percona-Server-devel-57
-Conflicts:      percona-server-devel-pro
 Obsoletes:      mariadb-connector-c-devel
 %if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
 Obsoletes:      mariadb-devel
@@ -399,7 +395,6 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Obsoletes:      mariadb-libs
 Obsoletes:      mysql-connector-c-shared < 6.2
 Obsoletes:      mysql-libs < %{version}-%{release}
-Conflicts:      percona-server-shared-pro
 Provides:       mysql-shared
 %ifarch x86_64
 %if 0%{?rhel} < 9
@@ -464,7 +459,6 @@ Group:          Applications/Databases
 Requires:       percona-server-server = %{version}-%{release}
 Requires:       percona-server-shared = %{version}-%{release}
 Requires:       percona-server-client = %{version}-%{release}
-Conflicts:      percona-server-rocksdb-pro
 
 %description -n percona-server-rocksdb
 This package contains the RocksDB plugin for Percona Server %{version}-%{release}
@@ -478,7 +472,6 @@ Group:          Applications/Databases
 Requires:       percona-server-server = %{version}-%{release}
 Requires:       percona-server-shared = %{version}-%{release}
 Requires:       percona-server-client = %{version}-%{release}
-Conflicts:      percona-server-js-pro
 
 %description -n percona-server-js
 This package contains JS language component for Percona Server %{version}-%{release}
@@ -490,7 +483,6 @@ Group:         Applications/Databases
 Provides:      percona-mysql-router = %{version}-%{release}
 Obsoletes:     percona-mysql-router < %{version}-%{release}
 Provides:      mysql-router
-Conflicts:     percona-mysql-router-pro
 
 %description -n percona-mysql-router
 The Percona MySQL Router software delivers a fast, multi-threaded way of
@@ -501,7 +493,6 @@ Summary:        Development header files and libraries for Percona MySQL Router
 Group:          Applications/Databases
 Provides:       percona-mysql-router-devel = %{version}-%{release}
 Obsoletes:      mysql-router-devel
-Conflicts:      percona-mysql-router-devel-pro
 
 %description -n percona-mysql-router-devel
 This package contains the development header files and libraries

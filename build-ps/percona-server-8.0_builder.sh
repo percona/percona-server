@@ -30,7 +30,6 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
-        --enable_fipsmode           Build gated PS
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF

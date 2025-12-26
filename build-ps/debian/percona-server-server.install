@@ -133,8 +133,11 @@ usr/lib/mysql/private/libabsl_throw_delegate.so
 usr/lib/mysql/private/libabsl_time.so
 usr/lib/mysql/private/libabsl_time_zone.so
 # private data files
-usr/lib/mysql/private/icudt77l/*.icu
-usr/lib/mysql/private/icudt77l/brkitr/*
+usr/lib/mysql/private/icudt7?l/*.icu
+usr/lib/mysql/private/icudt7?l/brkitr/*
+usr/lib/mysql/private/libicui18n.so.*
+usr/lib/mysql/private/libicustubdata.so.*
+usr/lib/mysql/private/libicuuc.so.*
 # plugins
 usr/lib/mysql/plugin/adt_null.so
 usr/lib/mysql/plugin/auth_socket.so
@@ -143,8 +146,6 @@ usr/lib/mysql/plugin/locking_service.so
 usr/lib/mysql/plugin/mypluglib.so
 usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/rewriter.so
-usr/lib/mysql/plugin/semisync_master.so
-usr/lib/mysql/plugin/semisync_slave.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/connection_control.so
@@ -180,8 +181,6 @@ usr/lib/mysql/plugin/debug/locking_service.so
 usr/lib/mysql/plugin/debug/mypluglib.so
 usr/lib/mysql/plugin/debug/mysql_no_login.so
 usr/lib/mysql/plugin/debug/rewriter.so
-usr/lib/mysql/plugin/debug/semisync_master.so
-usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/keyring_udf.so

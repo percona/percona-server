@@ -271,7 +271,7 @@ get_sources(){
     tar xzf ${EXPORTED_TAR}
     rm -f ${EXPORTED_TAR}
 
-    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 9.0.28 packages
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
     if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
         git submodule deinit -f storage/tokudb/PerconaFT/
         rm -rf .git/modules/PerconaFT/
@@ -294,7 +294,7 @@ get_sources(){
     #
     cd ${PSDIR}
 
-    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 9.0.28 packages
+    # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
     if [ ${BUILD_TOKUDB_TOKUBACKUP} != 1 ]; then
         rm -rf storage/tokudb
         rm -rf plugin/tokudb-backup-plugin
@@ -340,6 +340,12 @@ get_system(){
         RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
         OS_NAME="el$RHEL"
+        OS="rpm"
+    elif [ -f /etc/amazon-linux-release ]; then
+        GLIBC_VER_TMP="$(rpm glibc -qa --qf %{VERSION})"
+        RHEL=$(rpm --eval %amzn)
+        ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
+        OS_NAME="amzn$RHEL"
         OS="rpm"
     else
 	GLIBC_VER_TMP="$(dpkg-query -W -f='${Version}' libc6 | awk -F'-' '{print $1}')"
@@ -396,32 +402,33 @@ install_deps() {
     CURPLACE=$(pwd)
 
     if [ "x$OS" = "xrpm" ]; then
-        RHEL=$(rpm --eval %rhel)
         ARCH=$(echo $(uname -m) | sed -e 's:i686:i386:g')
-        if [ "x${RHEL}" = "x7" -o "x${RHEL}" = "x8" ]; then
+        if [ "x${RHEL}" = "x7" ]; then
             switch_to_vault_repo
         fi
         if [ x"$ARCH" = "xx86_64" ]; then
             if [ "${RHEL}" -lt 9 ]; then
-              #  add_percona_yum_repo
                 yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
                 percona-release enable tools testing
-              #  percona-release enable tools experimental
             fi
-            yum -y install yum-utils
+        fi
+        yum -y install yum-utils
+        if [ "x${RHEL}" != "x2023" ]; then
             yum-config-manager --enable ol"${RHEL}"_codeready_builder
         else
             yum -y install yum-utils
-            yum-config-manager --enable ol"${RHEL}"_codeready_builder
         fi
         yum -y update
-        if [ $RHEL = 10 ]; then
-            yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
-        else
-            yum -y install epel-release
+        if [ "x${RHEL}" != "x2023" ]; then
+            if [ "x${RHEL}" = "x10" ]; then
+                dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+            else
+                yum -y install epel-release
+            fi
+            yum -y install libeatmydata
         fi
         yum -y install git numactl-devel rpm-build gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc zstd
-        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel libeatmydata jemalloc-devel pkg-config
+        yum -y install time zlib-devel libaio-devel bison cmake3 cmake pam-devel jemalloc-devel pkg-config
         yum -y install perl-Time-HiRes libcurl-devel openldap-devel unzip wget libcurl-devel patchelf systemd-devel
         yum -y install perl-Env perl-Data-Dumper perl-JSON perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 || true
         if [ "${RHEL}" -lt 8 ]; then
@@ -470,16 +477,7 @@ install_deps() {
 	    cp -p /usr/bin/cmake3 /usr/bin/cmake
         fi
         yum -y install libtirpc-devel
-        if [ "x$RHEL" = "x8" ]; then
-            yum -y install centos-release-stream
-            switch_to_vault_repo
-            yum -y install gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ gcc-toolset-13-binutils gcc-toolset-13-annobin-annocheck gcc-toolset-13-annobin-plugin-gcc gcc-toolset-13-libatomic-devel
-            if [ x"$ARCH" = "xx86_64" ]; then
-                yum -y remove centos-release-stream
-            fi
-            yum -y install MySQL-python
-        fi
-        if [ "x$RHEL" = "x9" ]; then
+        if [ "x$RHEL" = "x8" -o "x$RHEL" = "x9" ]; then
             yum -y install gcc-toolset-14-gcc gcc-toolset-14-gcc-c++ gcc-toolset-14-binutils gcc-toolset-14-annobin-annocheck gcc-toolset-14-annobin-plugin-gcc gcc-toolset-14-libatomic-devel
             if [ x"$ARCH" = "xx86_64" ]; then
                 pushd /opt/rh/gcc-toolset-14/root/usr/lib/gcc/x86_64-redhat-linux/14/plugin/
@@ -494,6 +492,11 @@ install_deps() {
         if [ "x$RHEL" = "x10" ]; then
             yum -y install gcc gcc-c++
             yum -y install libatomic
+        fi
+        if [ "x$RHEL" = "x2023" ]; then
+           yum -y install libtirpc-devel libatomic annobin-annocheck annobin-plugin-gcc
+           yum -y install pip mariadb105-devel python3-devel
+           pip install mysqlclient
         fi
     else
         apt-get update
@@ -797,9 +800,9 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .el${RHEL}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
     fi
 
     if [ $RHEL = 6 ]; then

@@ -1137,6 +1137,9 @@ fi
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
 %endif # add_fido_plugins
+%attr(755, root, root) %{_libdir}/mysql/private/libicui18n.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libicustubdata.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libicuuc.so.*
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -1687,6 +1690,9 @@ fi
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_server.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_mysql.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_client.so.*
+%{_libdir}/mysqlrouter/private/libicui18n.so.*
+%{_libdir}/mysqlrouter/private/libicustubdata.so.*
+%{_libdir}/mysqlrouter/private/libicuuc.so.*
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private
 %{_libdir}/mysqlrouter/*.so

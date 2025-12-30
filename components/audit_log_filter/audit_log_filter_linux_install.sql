@@ -31,7 +31,7 @@ SET @create_user = CONCAT(
     'username VARCHAR(32) NOT NULL,',
     'userhost VARCHAR(255) NOT NULL,',
     'filtername VARCHAR(255) NOT NULL,',
-    'PRIMARY KEY (username, userhost), FOREIGN KEY `filter_name` (filtername) REFERENCES ', @db_name, '.audit_log_filter(name)'
+    'PRIMARY KEY (username, userhost), FOREIGN KEY (filtername) REFERENCES ', @db_name, '.audit_log_filter(name)'
   ') Engine = InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci'
 );
 

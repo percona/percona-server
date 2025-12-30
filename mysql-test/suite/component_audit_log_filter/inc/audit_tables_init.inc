@@ -38,7 +38,7 @@ eval CREATE TABLE $audit_db_name.audit_log_user(
     userhost VARCHAR(255) NOT NULL,
     filtername VARCHAR(255) NOT NULL,
     PRIMARY KEY (username, userhost),
-    FOREIGN KEY `filter_name` (filtername) REFERENCES $audit_db_name.audit_log_filter(name)
+    FOREIGN KEY (filtername) REFERENCES $audit_db_name.audit_log_filter(name)
 ) Engine=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci;
 
 #SELECT audit_log_filter_flush();

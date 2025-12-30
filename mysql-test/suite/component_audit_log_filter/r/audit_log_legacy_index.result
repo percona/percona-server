@@ -1,0 +1,76 @@
+#
+# PS-10229: audit_log_filter: Fix foreign key index name compatibility
+# https://perconadev.atlassian.net/browse/PS-10229
+#
+#
+# Create filters
+#
+SELECT audit_log_filter_set_filter('filter_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('filter_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_filter('filter_empty', '{"filter": {} }');
+audit_log_filter_set_filter('filter_empty', '{"filter": {} }')
+OK
+SELECT audit_log_filter_set_filter('filter_con', '{"filter": { "class": [ { "name": "connection" } ] } }');
+audit_log_filter_set_filter('filter_con', '{"filter": { "class": [ { "name": "connection" } ] } }')
+OK
+include/assert.inc [mysql.audit_log_filter should have 3 rows]
+#
+# Assign filters to users
+#
+SELECT audit_log_filter_set_user('percona@localhost', 'filter_empty');
+audit_log_filter_set_user('percona@localhost', 'filter_empty')
+OK
+SELECT audit_log_filter_set_user('root@localhost', 'filter_all');
+audit_log_filter_set_user('root@localhost', 'filter_all')
+OK
+include/assert.inc [mysql.audit_log_user should have 2 rows]
+#
+# Verify we can remove the filter (triggering lookup by default index name)
+#
+SELECT audit_log_filter_remove_filter('filter_empty');
+audit_log_filter_remove_filter('filter_empty')
+OK
+include/assert.inc [mysql.audit_log_filter should have 2 rows]
+include/assert.inc [mysql.audit_log_user should have 1 row (user removed with 'filter_empty')]
+#
+# Show create table to verify index name
+#
+SHOW CREATE TABLE mysql.audit_log_user;
+Table	Create Table
+audit_log_user	CREATE TABLE `audit_log_user` (
+  `username` varchar(32) COLLATE utf8mb4_0900_as_ci NOT NULL,
+  `userhost` varchar(255) COLLATE utf8mb4_0900_as_ci NOT NULL,
+  `filtername` varchar(255) COLLATE utf8mb4_0900_as_ci NOT NULL,
+  PRIMARY KEY (`username`,`userhost`),
+  KEY `filtername` (`filtername`),
+  CONSTRAINT `audit_log_user_ibfk_1` FOREIGN KEY (`filtername`) REFERENCES `audit_log_filter` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci
+#
+# Rename index 'FILTERNAME' to legacy name 'FILTER_NAME' (simulation)
+#
+ALTER TABLE mysql.audit_log_user RENAME INDEX filtername TO filter_name;
+#
+# Show the table state after renaming index
+#
+SHOW CREATE TABLE mysql.audit_log_user;
+Table	Create Table
+audit_log_user	CREATE TABLE `audit_log_user` (
+  `username` varchar(32) COLLATE utf8mb4_0900_as_ci NOT NULL,
+  `userhost` varchar(255) COLLATE utf8mb4_0900_as_ci NOT NULL,
+  `filtername` varchar(255) COLLATE utf8mb4_0900_as_ci NOT NULL,
+  PRIMARY KEY (`username`,`userhost`),
+  KEY `filter_name` (`filtername`),
+  CONSTRAINT `audit_log_user_ibfk_1` FOREIGN KEY (`filtername`) REFERENCES `audit_log_filter` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_ci
+#
+# Verify we can remove the filter (triggering lookup by legacy index name)
+#
+SELECT audit_log_filter_remove_filter('filter_all');
+audit_log_filter_remove_filter('filter_all')
+OK
+include/assert.inc [mysql.audit_log_filter should have 1 rows]
+include/assert.inc [mysql.audit_log_user should have 0 rows (user removed with 'filter_all')]
+#
+# Cleanup
+#

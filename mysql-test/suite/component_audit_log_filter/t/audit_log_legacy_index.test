@@ -1,0 +1,76 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--echo #
+--echo # PS-10229: audit_log_filter: Fix foreign key index name compatibility
+--echo # https://perconadev.atlassian.net/browse/PS-10229
+--echo #
+
+--echo #
+--echo # Create filters
+--echo #
+SELECT audit_log_filter_set_filter('filter_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_filter('filter_empty', '{"filter": {} }');
+SELECT audit_log_filter_set_filter('filter_con', '{"filter": { "class": [ { "name": "connection" } ] } }');
+
+--let $assert_text = mysql.audit_log_filter should have 3 rows
+--let $assert_cond = [SELECT COUNT(*) from mysql.audit_log_filter] = 3
+--source include/assert.inc
+
+--echo #
+--echo # Assign filters to users
+--echo #
+SELECT audit_log_filter_set_user('percona@localhost', 'filter_empty');
+SELECT audit_log_filter_set_user('root@localhost', 'filter_all');
+
+--let $assert_text = mysql.audit_log_user should have 2 rows
+--let $assert_cond = [SELECT COUNT(*) from mysql.audit_log_user] = 2
+--source include/assert.inc
+
+--echo #
+--echo # Verify we can remove the filter (triggering lookup by default index name)
+--echo #
+SELECT audit_log_filter_remove_filter('filter_empty');
+
+--let $assert_text = mysql.audit_log_filter should have 2 rows
+--let $assert_cond = [SELECT COUNT(*) from mysql.audit_log_filter] = 2
+--source include/assert.inc
+
+--let $assert_text = mysql.audit_log_user should have 1 row (user removed with 'filter_empty')
+--let $assert_cond = [SELECT COUNT(*) from mysql.audit_log_user] = 1
+--source include/assert.inc
+
+--echo #
+--echo # Show create table to verify index name
+--echo #
+SHOW CREATE TABLE mysql.audit_log_user;
+
+--echo #
+--echo # Rename index 'FILTERNAME' to legacy name 'FILTER_NAME' (simulation)
+--echo #
+ALTER TABLE mysql.audit_log_user RENAME INDEX filtername TO filter_name;
+
+--echo #
+--echo # Show the table state after renaming index
+--echo #
+SHOW CREATE TABLE mysql.audit_log_user;
+
+--echo #
+--echo # Verify we can remove the filter (triggering lookup by legacy index name)
+--echo #
+SELECT audit_log_filter_remove_filter('filter_all');
+
+--let $assert_text = mysql.audit_log_filter should have 1 rows
+--let $assert_cond = [SELECT COUNT(*) from mysql.audit_log_filter] = 1
+--source include/assert.inc
+
+--let $assert_text = mysql.audit_log_user should have 0 rows (user removed with 'filter_all')
+--let $assert_cond = [SELECT COUNT(*) from mysql.audit_log_user] = 0
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

@@ -41,8 +41,16 @@ const size_t kAuditLogUserFieldsCount = 3;
 const TA_index_field_def key_filter_name_cols[] = {
     {"FILTERNAME", 10, true}, {"USERNAME", 8, true}, {"USERHOST", 8, true}};
 const size_t kKeyFilterNameNumcol = 3;
-const char *kKeyFilterNameName = "FILTER_NAME";
-const size_t kKeyFilterNameNameLength = 11;
+constexpr const char *kKeyFilterNameName = "FILTERNAME";
+constexpr size_t kKeyFilterNameNameLength =
+    std::char_traits<char>::length(kKeyFilterNameName);
+/*
+  Add support for index on FILTERNAME named `filtername` or `filter_name`
+  (legacy name for backward compatibility).
+*/
+constexpr const char *kKeyFilterNameLegacyName = "FILTER_NAME";
+constexpr size_t kKeyFilterNameLegacyNameLength =
+    std::char_traits<char>::length(kKeyFilterNameLegacyName);
 
 const TA_index_field_def key_primary_cols[] = {{"USERNAME", 8, true},
                                                {"USERHOST", 8, true}};
@@ -84,10 +92,17 @@ TableResult AuditLogUser::index_scan_locate_record_by_rule_name(
   if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
                       kKeyFilterNameName, kKeyFilterNameNameLength,
                       key_filter_name_cols, kKeyFilterNameNumcol, key)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init index access of %s table",
-                    get_table_name());
-    return TableResult::Fail;
+    // Fallback for backward compatibility where the index name is
+    // `filter_name` instead of `filtername`.
+    if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
+                        kKeyFilterNameLegacyName,
+                        kKeyFilterNameLegacyNameLength, key_filter_name_cols,
+                        kKeyFilterNameNumcol, key)) {
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to init index access of %s table",
+                      get_table_name());
+      return TableResult::Fail;
+    }
   }
 
   CHARSET_INFO_h utf8 = charset_srv->get_utf8mb4();

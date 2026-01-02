@@ -37,8 +37,8 @@ TEST(Time_val, MYSQL_TIME) {
   MYSQL_TIME mt = static_cast<MYSQL_TIME>(time1);
   Time_val time2 = Time_val(mt);
   EXPECT_EQ(0, time1.compare(time2));
-  MYSQL_TIME mytime(2023, 1, 30, 12, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME,
-                    0);
+  MYSQL_TIME mytime{2023, 1, 30, 12, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME,
+                    0};
   Time_val a(false, 12, 0, 0, 0);
   EXPECT_EQ(Time_val::strip_date(mytime), a);
   Time_val b{mt};

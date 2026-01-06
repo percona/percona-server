@@ -376,10 +376,10 @@ struct MDL_key {
     update m_namespace_to_wait_state_name array in mdl.cc!
 
     Different types of objects exist in different namespaces
-     - GLOBAL is used for the global read lock.
      - BACKUP_LOCK is to block any operations that could cause
        inconsistent backup. Such operations are most DDL statements,
        and some administrative statements.
+     - GLOBAL is used for the global read lock.
      - TABLESPACE is for tablespaces.
      - SCHEMA is for schemas (aka databases).
      - TABLE is for tables and views.
@@ -401,8 +401,8 @@ struct MDL_key {
     treatment - waiting is aborted if connection to client is lost.
   */
   enum enum_mdl_namespace {
-    GLOBAL = 0,
-    BACKUP_LOCK, /* Oracle LOCK INSTANCE FOR BACKUP */
+    BACKUP_LOCK = 0, /* Oracle LOCK INSTANCE FOR BACKUP */
+    GLOBAL,
     TABLESPACE,
     SCHEMA,
     TABLE,

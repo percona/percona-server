@@ -21186,6 +21186,51 @@ static void test_bug32391415()
   myquery2(mysql, rc);
 }
 
+
+static void test_bug36686351()
+{
+  MYSQL_STMT *stmt;
+  const char *stmt_text;
+  int rc;
+
+  stmt = mysql_stmt_init(mysql);
+  DIE_UNLESS(stmt != NULL);
+
+  /* Execute a SELECT statement */
+  stmt_text = "SELECT * FROM mysql.user";
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Create a table */
+  stmt_text = "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, n INT)";
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Insert data into the table */
+  stmt_text = "INSERT INTO t VALUES(1,5),(2,4),(3,3),(4,2),(5,1)";
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* Drop the table */
+  stmt_text = "DROP TABLE IF EXISTS t";
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  mysql_stmt_close(stmt);
+}
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -21480,6 +21525,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug25701141", test_bug25701141 },
   { "test_bug27443252", test_bug27443252 },
   { "test_bug32391415", test_bug32391415 },
+  { "test_bug36686351", test_bug36686351 },
   { 0, 0 }
 };
 

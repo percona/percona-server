@@ -56,6 +56,25 @@ Created 2011-05-26 Marko Makela
 #include <algorithm>
 #include <map>
 
+/** RAII interface to B-tree page cursor. Calls btr_pcur_close() on scope exit
+*/
+class Btr_pcur_guard {
+public:
+	/** Attach a pcur to the guard */
+	Btr_pcur_guard(btr_pcur_t *pcur) : m_pcur(pcur) {}
+
+	/** Call cursor close at the time of destruction. */
+	~Btr_pcur_guard() {
+		if (m_pcur != NULL) {
+			btr_pcur_close(m_pcur);
+		}
+	}
+
+private:
+	/** Btree page cursor object */
+	btr_pcur_t *m_pcur;
+};
+
 /** Table row modification operations during online table rebuild.
 Delete-marked records are not copied to the rebuilt table. */
 enum row_tab_op {
@@ -2116,6 +2135,9 @@ row_log_table_apply_delete(
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
 		      &pcur, &mtr);
+
+	Btr_pcur_guard pcur_guard(&pcur);
+
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
 	case BTR_CUR_DELETE_REF:
@@ -2269,6 +2291,9 @@ row_log_table_apply_update(
 	mtr.set_named_space(index->space);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE, &pcur, &mtr);
+
+	Btr_pcur_guard pcur_guard(&pcur);
+
 #ifdef UNIV_DEBUG
 	switch (btr_pcur_get_btr_cur(&pcur)->flag) {
 	case BTR_CUR_DELETE_REF:

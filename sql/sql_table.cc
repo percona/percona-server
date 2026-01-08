@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3911,7 +3911,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
     if (!(sql_field->flags & NOT_NULL_FLAG))
       null_fields++;
 
-    if (check_column_name(sql_field->field_name))
+    if (check_column_name(to_lex_cstring(sql_field->field_name)))
     {
       my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
       DBUG_RETURN(TRUE);
@@ -4729,7 +4729,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
       }
     }
     key_info->actual_flags= key_info->flags;
-    if (!key_info->name || check_column_name(key_info->name))
+    if (!key_info->name || check_column_name(to_lex_cstring(key_info->name)))
     {
       my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
       DBUG_RETURN(TRUE);

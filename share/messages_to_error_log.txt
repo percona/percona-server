@@ -307,7 +307,7 @@ ER_VERBOSE_REQUIRES_HELP
   eng "--verbose is for use with --help; did you mean --log-error-verbosity?"
 
 ER_POINTLESS_WITHOUT_SLOWLOG
-  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-replica-statements have no effect if --slow-query-log is not set"
+  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes, --log-slow-replica-statements and --log-query-errors have no effect if --slow-query-log is not set"
 
 ER_WASTEFUL_NET_BUFFER_SIZE
   eng "net_buffer_length (%lu) is set to be larger than max_allowed_packet (%lu). Please rectify."
@@ -340,28 +340,28 @@ ER_CANT_CREATE_SHUTDOWN_THREAD
   eng "Can't create thread to handle shutdown requests (errno= %d)"
 
 ER_SEC_FILE_PRIV_CANT_ACCESS_DIR
-  eng "Failed to access directory for --secure-file-priv. Please make sure that directory exists and is accessible by MySQL Server. Supplied value : %s"
+  eng "Failed to access directory for --%s. Please make sure that directory exists and is accessible by MySQL Server. Supplied value : %s"
 
 ER_SEC_FILE_PRIV_IGNORED
-  eng "Ignoring --secure-file-priv value as server is running with --initialize(-insecure)."
+  eng "Ignoring --%s value as server is running with --initialize(-insecure)."
 
 ER_SEC_FILE_PRIV_EMPTY
-  eng "Insecure configuration for --secure-file-priv: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path."
+  eng "Insecure configuration for --%s: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path."
 
 ER_SEC_FILE_PRIV_NULL
-  eng "--secure-file-priv is set to NULL. Operations related to importing and exporting data are disabled"
+  eng "--%s is set to NULL. Operations related to importing and exporting data are disabled"
 
 ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
-  eng "Insecure configuration for --secure-file-priv: %s is accessible through --secure-file-priv. Consider choosing a different directory."
+  eng "Insecure configuration for --%s: %s is accessible through --%s. Consider choosing a different directory."
 
 ER_SEC_FILE_PRIV_CANT_STAT
-  eng "Failed to get stat for directory pointed out by --secure-file-priv"
+  eng "Failed to get stat for directory pointed out by --%s"
 
 ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
-  eng "Insecure configuration for --secure-file-priv: Location is accessible to all OS users. Consider choosing a different directory."
+  eng "Insecure configuration for --%s: Location is accessible to all OS users. Consider choosing a different directory."
 
 ER_SEC_FILE_PRIV_ARGUMENT_TOO_LONG
-  eng "Value for --secure-file-priv is longer than maximum limit of %d"
+  eng "Value for --%s is longer than maximum limit of %d"
 
 ER_CANT_CREATE_NAMED_PIPES_THREAD
   eng "Can't create thread to handle named pipes (errno= %d)"
@@ -2761,7 +2761,7 @@ ER_FAILED_TO_FIND_DL_ENTRY
   eng "Can't find symbol '%-.128s' in library."
 
 ER_FAILED_TO_OPEN_SHARED_LIBRARY
-  eng "Can't open shared library '%-.192s' (errno: %d %-.128s)."
+  eng "Can't open shared library '%-.192s' (errno: %d %-.192s)."
 
 ER_THREAD_PRIORITY_IGNORED
   eng "Thread priority attribute setting in Resource Group SQL shall be ignored due to unsupported platform or insufficient privilege."
@@ -13811,6 +13811,12 @@ ER_AUDIT_UDF_SET_FILTER_FAILURE
 
 ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE
   eng "Unexpected event type for replace_field action"
+
+ER_SSL_FIPS_MODE_ENABLED
+  eng "A FIPS-approved version of the OpenSSL cryptographic library has been detected in the operating system with a properly configured FIPS module available for loading. Percona Server for MySQL will load this module and run in FIPS mode."
+
+ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE
+  eng "Wrong JSON filter '%s' format, the 'log' field must be of bool or object type"
 
 #
 # End of Percona Server 8.0 server error log messages

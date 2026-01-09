@@ -13251,6 +13251,12 @@ ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE
 ER_SSL_FIPS_MODE_ENABLED
   eng "A FIPS-approved version of the OpenSSL cryptographic library has been detected in the operating system with a properly configured FIPS module available for loading. Percona Server for MySQL will load this module and run in FIPS mode."
 
+ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE
+  eng "Wrong JSON filter '%s' format, the 'log' field must be of bool or object type"
+
+ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
+  eng "Invalid audit log filter file directory: %s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -361,7 +361,8 @@ install_deps() {
             yum -y install openssl-devel
             yum -y install epel-release
         fi
-        yum -y install patchelf
+        yum -y install patchelf libtirpc wget
+        yum -y install git which
         if [ ${RHEL} -lt 8 ]; then
             yum -y install https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
             percona-release enable origin release
@@ -410,16 +411,15 @@ install_deps() {
             yum -y install Percona-Server-shared-56  
         fi
     else
+        apt-get update
         apt-get -y install dirmngr || true
-      	apt-get update
-        apt-get -y install dirmngr || true
-        apt-get -y install lsb-release wget
+        apt-get -y install lsb-release wget curl rsync
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
         export DEBIAN_FRONTEND="noninteractive"
         export DIST="$(lsb_release -sc)"
-	    until sudo apt-get update; do
-    	    sleep 1
+        until apt-get update; do
+            sleep 5
             echo "waiting"
         done
         apt-get -y purge eatmydata || true
@@ -430,9 +430,7 @@ install_deps() {
         apt-get -y install lsb-release libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libeatmydata libc6-dbg valgrind libjson-perl libsasl2-dev
         apt-get -y install python-mysqldb
-        if [ "x${DIST}" = "xnoble" ]; then
-            apt-get -y install libtirpc-dev
-        fi
+        apt-get -y install libtirpc-dev
         apt-get -y install libmecab2 mecab mecab-ipadic
         apt-get -y install build-essential devscripts libnuma-dev
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot 

@@ -461,6 +461,7 @@ public:
 class Item_func_convex_hull: public Item_geometry_func
 {
   BG_result_buf_mgr bg_resbuf_mgr;
+  String tmp_value;
 
   template <typename Coordsys>
   bool bg_convex_hull(const Geometry *geom, String *wkb);

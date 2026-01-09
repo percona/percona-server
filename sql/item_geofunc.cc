@@ -2875,9 +2875,15 @@ String *Item_func_convex_hull::val_str(String *str)
   // str points to another buffer in next call of this function
   // (done in post_fix_result), or when str's owner Item_xxx node is destroyed.
   if (geom->get_type() == Geometry::wkb_point)
+  {
     str->takeover(*swkb);
-
-  return str;
+    return str;
+  }
+  // Return a different String pointer than the input argument. This shows our
+  // callers, in particular in_string::set(), that the result is not stored or
+  // maintained by 'str' and may need to be copied.
+  tmp_value.set(str->ptr(), str->length(), &my_charset_bin);
+  return &tmp_value;
 }
 
 

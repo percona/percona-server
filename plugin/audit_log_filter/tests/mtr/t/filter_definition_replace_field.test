@@ -245,6 +245,8 @@ call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong argument: inc
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'incorrect_rule' format, failed to parse 'print' replacement rule'");
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Event field 'general_command.str' cannot be replaced'");
 call mtr.add_suppression("Plugin audit_log_filter reported: 'Event field 'table_name.str' cannot be replaced'");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'incorrect_rule' format, bad format for 'print' replacement rule'");
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'incorrect_rule' format, the 'log' field must be of bool or object type'");
 #call mtr.add_suppression("Plugin audit_log_filter reported: 'Wrong JSON filter 'wrong_field_type' format, wrong function args format provided'");
 --enable_query_log
 
@@ -278,6 +280,45 @@ let $filter = {
         }
       }
     }
+  }
+};
+eval SELECT audit_log_filter_set_filter('incorrect_rule', '$filter');
+
+# Invalid replacement definition (wrong type)
+let $filter = {
+  "filter": {
+    "log": false,
+    "class": {
+      "log": true,
+      "name": "general",
+      "event": {
+        "name": "status",
+        "print": "true"
+      }
+    }
+  }
+};
+eval SELECT audit_log_filter_set_filter('incorrect_rule', '$filter');
+
+# Invalid replacement condition (wrong type)
+let $filter = {
+  "filter": {
+    "class": [
+      {
+        "name": "general",
+        "print": {
+          "field": {
+            "name": "general_query.str",
+            "print": [],
+            "replace": {
+              "function": {
+                "name": "query_digest"
+              }
+            }
+          }
+        }
+      }
+    ]
   }
 };
 eval SELECT audit_log_filter_set_filter('incorrect_rule', '$filter');

@@ -357,6 +357,74 @@ audit_log_filter_set_filter('incorrect_rule', '{
 }
 }')
 ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('incorrect_rule', '{
+"filter": {
+"log": false,
+"class": {
+"log": true,
+"name": "general",
+"event": {
+"name": "status",
+"print": "true"
+      }
+}
+}
+}');
+audit_log_filter_set_filter('incorrect_rule', '{
+"filter": {
+"log": false,
+"class": {
+"log": true,
+"name": "general",
+"event": {
+"name": "status",
+"print": "true"
+      }
+}
+}
+}')
+ERROR: Incorrect rule definition
+SELECT audit_log_filter_set_filter('incorrect_rule', '{
+"filter": {
+"class": [
+{
+"name": "general",
+"print": {
+"field": {
+"name": "query.str",
+"print": [],
+"replace": {
+"function": {
+"name": "query_digest"
+              }
+}
+}
+}
+}
+]
+}
+}');
+audit_log_filter_set_filter('incorrect_rule', '{
+"filter": {
+"class": [
+{
+"name": "general",
+"print": {
+"field": {
+"name": "query.str",
+"print": [],
+"replace": {
+"function": {
+"name": "query_digest"
+              }
+}
+}
+}
+}
+]
+}
+}')
+ERROR: Incorrect rule definition
 #
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';

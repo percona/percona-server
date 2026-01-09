@@ -373,10 +373,16 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
   actions_list.push_back(log_action);
 
   if (event_subclass_json.HasMember("print")) {
+    const auto &print_json = event_subclass_json["print"];
+    if (!print_json.IsObject()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EVENT_CLASS_BAD_PRINT_DEF,
+                      audit_rule->get_rule_name().c_str());
+      return false;
+    }
     // There may be a few actions modifying record content defined within
     // "print" tag
-    for (auto it = event_subclass_json["print"].MemberBegin();
-         it != event_subclass_json["print"].MemberEnd(); ++it) {
+    for (auto it = print_json.MemberBegin(); it != print_json.MemberEnd();
+         ++it) {
       const auto action_type =
           event_field_action::get_event_action_type(it->name.GetString());
 
@@ -449,10 +455,15 @@ EventFieldConditionType AuditRuleParser::get_condition_type(
    * "log": { "variable": { } }
    * "log": { "function": { } }
    */
-  assert(json.IsBool() || json.IsObject());
-
   if (json.IsBool()) {
     return EventFieldConditionType::Bool;
+  }
+
+  if (!json.IsObject()) {
+    LogComponentErr(ERROR_LEVEL,
+                    ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE,
+                    audit_rule->get_rule_name().c_str());
+    return EventFieldConditionType::Unknown;
   }
 
   if (json.MemberCount() != 1) {

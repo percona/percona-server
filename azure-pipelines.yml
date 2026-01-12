@@ -68,7 +68,7 @@ jobs:
     CCACHE_COMPRESS: 1
     CCACHE_COMPRESSLEVEL: 9
     CCACHE_CPP2: 1
-    CCACHE_MAXSIZE: 2G
+    CCACHE_MAXSIZE: 4G
     OS_NAME: $(Agent.OS)
     PARENT_BRANCH: trunk
     BUILD_PARAMS_TYPE: normal
@@ -234,6 +234,37 @@ jobs:
           BuildType: Debug
 
   steps:
+  - script: |
+      # Logic for Ubuntu 22.04 or 24.04
+      if [[ "$(imageName)" =~ ubuntu-(22|24).04 ]]; then
+        df -Th
+        echo "--- Performing Deep Clean for $(imageName) ---"
+
+        echo "1. Remove .NET (~4.0 GB)"
+        sudo rm -rf /usr/share/dotnet
+
+        echo "2. Remove Swift (~3.2 GB)"
+        sudo rm -rf /usr/share/swift
+
+        echo "3. Remove Tool Cache (CodeQL, Go, Ruby) (~3.0 GB)"
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo rm -rf /opt/hostedtoolcache/go
+        sudo rm -rf /opt/hostedtoolcache/Ruby
+
+        echo "4. Remove Julia (~1.0 GB)"
+        sudo rm -rf /usr/local/julia*
+
+        echo "5. Remove Android SDK (~9-12 GB)"
+        sudo rm -rf /usr/local/lib/android
+
+        echo "6. Clean up Docker images and volumes"
+        docker system prune -af --volumes
+
+        echo "--- Disk space after cleanup ---"
+        df -Th
+      fi
+    displayName: 'Clean Disk Space'
+
   - script: |
       uname -r
       df -Th

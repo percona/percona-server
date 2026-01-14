@@ -13815,6 +13815,9 @@ ER_SSL_FIPS_MODE_ENABLED
 ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE
   eng "Wrong JSON filter '%s' format, the 'log' field must be of bool or object type"
 
+ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
+  eng "Invalid audit log filter file directory: %s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -22,3 +22,5 @@ SELECT @@global.audit_log_filter.file;
 call mtr.add_suppression("Component audit_log_filter reported: 'Cannot open log writer, error: Permission denied'");
 call mtr.add_suppression("Initialization method provided by component 'component_audit_log_filter' failed");
 # restart: --audit-log-filter.file=/audit_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Invalid audit log filter file directory: /non_existent_dir'");
+# restart: --audit-log-filter.file=/non_existent_dir/audit_log

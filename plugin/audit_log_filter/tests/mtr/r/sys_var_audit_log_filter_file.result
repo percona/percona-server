@@ -23,3 +23,5 @@ call mtr.add_suppression("Plugin audit_log_filter reported: 'Cannot open log wri
 call mtr.add_suppression("Plugin 'audit_log_filter' init function returned error");
 call mtr.add_suppression("Plugin 'audit_log_filter' registration as a AUDIT failed");
 # restart: --audit-log-filter-file=/audit_log
+call mtr.add_suppression("Plugin audit_log_filter reported: 'Invalid audit log filter file directory: /non_existent_dir'");
+# restart: --audit-log-filter-file=/non_existent_dir/audit_log

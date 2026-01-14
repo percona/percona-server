@@ -46,4 +46,9 @@ call mtr.add_suppression("Initialization method provided by component 'component
 --let $restart_parameters="restart: --audit-log-filter.file='/audit_log'"
 --source include/restart_mysqld.inc
 
+# Non-existent log file directory, should not crash
+call mtr.add_suppression("Component audit_log_filter reported: 'Invalid audit log filter file directory: /non_existent_dir'");
+--let $restart_parameters="restart: --audit-log-filter.file='/non_existent_dir/audit_log'"
+--source include/restart_mysqld.inc
+
 --source ../inc/audit_tables_cleanup.inc

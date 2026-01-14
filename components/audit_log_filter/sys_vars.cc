@@ -824,6 +824,15 @@ bool SysVars::validate() noexcept {
     return false;
   }
 
+  // Check if log file directory points to a valid file system directory or if
+  // it is left at the default setting (empty).
+  if (!SysVars::get_file_dir().empty() &&
+      !std::filesystem::is_directory(SysVars::get_file_dir())) {
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY,
+                    SysVars::get_file_dir().c_str());
+    return false;
+  }
+
   if (log_max_size_source == COMPILED && SysVars::get_log_prune_seconds() > 0) {
     // Clean default settings for max_size in case non-zero value for
     // prune_seconds is provided

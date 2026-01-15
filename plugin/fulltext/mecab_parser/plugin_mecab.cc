@@ -205,6 +205,9 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
   if (param->mode == MYSQL_FTPARSER_FULL_BOOLEAN_INFO) {
     for (const MeCab::Node *node = mecab_lattice->bos_node(); node != NULL;
          node = node->next) {
+      if (node->stat == MECAB_BOS_NODE || node->stat == MECAB_EOS_NODE) {
+        continue;
+      }
       token_num += 1;
     }
 

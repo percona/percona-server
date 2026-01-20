@@ -743,7 +743,6 @@ bool SysVars::init() noexcept {
 
   if (status_var_registration_srv->register_variable(status_vars) == 1) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_STATUS_VAR_REGISTER_FAILURE);
-    SysVars::deinit();
     return false;
   }
 
@@ -754,7 +753,6 @@ bool SysVars::init() noexcept {
             var.first.check_arg, var.first.variable_value) == 1) {
       LogComponentErr(ERROR_LEVEL, ER_AUDIT_SYS_VAR_REGISTER_FAILURE,
                       kCompName.data(), var.first.name);
-      SysVars::deinit();
       return false;
     }
 

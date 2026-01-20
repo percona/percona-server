@@ -10,6 +10,14 @@ SELECT @@global.audit_log_filter.compression;
 --source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter.compression;
 
+# Invalid compression setting, should not crash
+call mtr.add_suppression("Error while setting value 'invalid-value' to 'audit-log-filter.compression'");
+call mtr.add_suppression("Parsing options for variable 'compression' failed");
+call mtr.add_suppression("Component audit_log_filter reported: 'Failed to register audit_log_filter.compression system variable'");
+call mtr.add_suppression("Initialization method provided by component 'component_audit_log_filter' failed");
+--let $restart_parameters="restart: --loose-audit-log-filter.compression='invalid-value'"
+--source include/restart_mysqld.inc
+
 # Restart with original value
 --let $restart_parameters="restart:"
 --source include/restart_mysqld.inc

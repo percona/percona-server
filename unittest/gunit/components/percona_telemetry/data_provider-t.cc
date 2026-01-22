@@ -293,7 +293,7 @@ TEST_F(DataProviderTest, collect_dbs_number_info_test) {
 TEST_F(DataProviderTest, collect_dbs_size_info_test) {
   const std::string query(std::string(
       "SELECT IFNULL(ROUND(SUM(data_length + index_length), 1), '0') "
-      "size_MB FROM information_schema.tables WHERE table_schema NOT "
+      "bytes FROM information_schema.tables WHERE table_schema NOT "
       "IN('mysql', 'information_schema', 'performance_schema', 'sys')"));
   const std::string expected_json_key("databases_size");
   collect_single_value_common(query, expected_json_key,

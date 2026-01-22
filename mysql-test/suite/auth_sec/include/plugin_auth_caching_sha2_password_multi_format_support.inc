@@ -1,8 +1,105 @@
+# Test the control variables for caching_sha2_password plugin.
+# Those variables are: caching_sha2_password_storage_format,
+# caching_sha2_password_enforce_storage_format.
+#
+# Short summary:
+# 1. Check if CREATE user uses selected storage format.
+# 2. Check if enforce storage format is set, then accounts with other storage
+#    format are forced to change the password (expired).
+# 3. Verify that fast auth doesn't work for accounts that have wrong storage
+#    format.
+#
+# Please note that those points apply only to caching_sha2_password plugin.
+
+#
+# $parameter_client_script -
+#    Set the application that will execute scripts in mysql-test language
+#
+# $parameter_client -
+#    Set the application that will execute single queries
+#
+# $parameter_test_second_password -
+#    Run the test part that operates on secondary account password
+#
+## Usage
+#
+# --let $parameter_client_script = $MYSQL_TEST --connect-expired-password
+# --let $parameter_client = $MYSQL --connect-expired-password
+# --let $parameter_test_second_password = 0
+# --source suite/auth_sec/include/plugin_auth_caching_sha2_password_multi_format_support.inc
+#
+
+if (`SELECT '$parameter_client_script' = ''`)
+{
+  --die "plugin_auth_caching_sha2_password_multi_format_support.inc" requires "parameter_client_script" parameter.
+}
+
+if (`SELECT '$parameter_client' = ''`)
+{
+  --die "plugin_auth_caching_sha2_password_multi_format_support.inc" requires "parameter_client" parameter.
+}
+
+if (`SELECT '$parameter_test_second_password' = ''`)
+{
+  --die "plugin_auth_caching_sha2_password_multi_format_support.inc" requires "parameter_test_second_password" parameter.
+}
+
 # Save initial setting
 SELECT @@global.caching_sha2_password_storage_format INTO @saved_storage_format;
 SELECT @@global.caching_sha2_password_enforce_storage_format INTO @saved_enforce_storage_format;
 
 SET GLOBAL caching_sha2_password_storage_format="CRYPT5";
+
+# -------------------------------------------------------------------
+# Prepare script files
+#
+# Please note that the language of mysqlxtest and mysqltest is similar but not
+# the same. To ensure compatibility, apply the following rules for those
+# scripts:
+#
+# * Don't use the "--" version of the commands.
+# * Variable substitution for queries for both tools is only done under "eval"
+#   command.
+# * Use "error" command to specify expected error returned by the server.
+# * Use env var to pass parameters from this file to the script.
+
+--let $query_account_file= $MYSQL_TMP_DIR/query_account_file.test
+--write_file $query_account_file
+SELECT CURRENT_USER();
+EOF
+
+--let $query_simple_file= $MYSQL_TMP_DIR/query_simple_file.test
+--write_file $query_simple_file
+SELECT 1;
+EOF
+
+
+--let $query_account_and_change_pwd_file= $MYSQL_TMP_DIR/query_account_and_change_pwd_file.test
+--write_file $query_account_and_change_pwd_file
+SELECT CURRENT_USER();
+
+eval SET PASSWORD = '$TEST_PARAM_PASS';
+
+EOF
+
+--let $query_simple_er_expired_file= $MYSQL_TMP_DIR/query_simple_er_expired_file.test
+--write_file $query_simple_er_expired_file
+error ER_MUST_CHANGE_PASSWORD;
+SELECT 1;
+EOF
+
+--let $query_simple_er_expired_change_pwd_file= $MYSQL_TMP_DIR/query_simple_er_expired_change_pwd_file.test
+--write_file $query_simple_er_expired_change_pwd_file
+error ER_MUST_CHANGE_PASSWORD;
+SELECT 1;
+
+eval SET PASSWORD = '$TEST_PARAM_PASS';
+
+SELECT 1;
+EOF
+
+# -------------------------------------------------------------------
+# The test begins here
 
 # Accounts with CRYPT5
 CREATE USER arthur IDENTIFIED WITH caching_sha2_password BY 'abcd';
@@ -17,41 +114,36 @@ CREATE USER ford IDENTIFIED WITH caching_sha2_password BY 'mnop';
 SELECT user, SUBSTRING(authentication_string, 1, 7) as format FROM mysql.user WHERE user IN ('arthur', 'marvin', 'zaphod', 'ford') ORDER BY user ASC;
 
 # Try connecting - Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+exec $parameter_client_script
+  --host=127.0.0.1 --ssl-mode=REQUIRED
+  -uarthur -pabcd
+  -x $query_account_file 2>&1;
 
 # Must succeed without TLS
---connect(conn_arthur_without_ssl, localhost, arthur, abcd,,,,)
-SELECT CURRENT_USER();
-
 # Set password - Must use PBKDF2_SHA512 format
-SET PASSWORD = 'abcde';
-
---connection default
---disconnect conn_arthur_without_ssl
+let TEST_PARAM_PASS=abcde;
+exec $parameter_client_script
+  --host=localhost --ssl-mode=DISABLED
+  -uarthur -pabcd
+  -x $query_account_and_change_pwd_file 2>&1;
 
 SELECT SUBSTRING(authentication_string, 1, 7) FROM mysql.user WHERE user = 'arthur';
 
 # Try connecting - Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthur -pabcde -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --ssl-mode=REQUIRED -uarthur -pabcde -e "SELECT CURRENT_USER()" 2>&1
 
 # Must succeed without TLS
---connect(conn_arthur_without_ssl, localhost, arthur, abcde,,,,)
-SELECT CURRENT_USER();
-
---connection default
---disconnect conn_arthur_without_ssl
+--exec $parameter_client --ssl-mode=DISABLED -uarthur -pabcde -e "SELECT CURRENT_USER()" 2>&1
 
 # Try connecting - Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
 # Must succeed without TLS
---connect(conn_zaphod_without_ssl, localhost, zaphod, ijkl,,,,)
-SELECT CURRENT_USER();
-
-SET PASSWORD = 'ijklm';
-
---connection default
---disconnect conn_zaphod_without_ssl
+let TEST_PARAM_PASS=ijklm;
+exec $parameter_client_script
+  --host=localhost --ssl-mode=DISABLED
+  -uzaphod -pijkl
+  -x $query_account_and_change_pwd_file 2>&1;
 
 SELECT SUBSTRING(authentication_string, 1, 7) FROM mysql.user WHERE user = 'zaphod';
 
@@ -61,16 +153,14 @@ SET GLOBAL caching_sha2_password_storage_format="CRYPT5";
 FLUSH PRIVILEGES;
 
 # Try connecting - Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uzaphod -pijklm -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pijklm -e "SELECT CURRENT_USER()" 2>&1
 
 # Must succeed without TLS
---connect(conn_zaphod_without_ssl, localhost, zaphod, ijklm,,,,)
-SELECT CURRENT_USER();
-
-SET PASSWORD = 'ijkl';
-
---connection default
---disconnect conn_zaphod_without_ssl
+let TEST_PARAM_PASS=ijkl;
+exec $parameter_client_script
+  --host=localhost --ssl-mode=DISABLED
+  -uzaphod -pijklm
+  -x $query_account_and_change_pwd_file 2>&1;
 
 # At this point we have
 # arthur, ford - Using PBKDF2_SHA512
@@ -80,7 +170,6 @@ SELECT user, SUBSTRING(authentication_string, 1, 7) as format FROM mysql.user WH
 
 # Dual password
 
---connection default
 DROP USER arthur, marvin, zaphod, ford;
 
 SET GLOBAL caching_sha2_password_storage_format="CRYPT5";
@@ -114,32 +203,38 @@ ALTER USER ford IDENTIFIED BY 'ijkl' RETAIN CURRENT PASSWORD;
 SELECT user, SUBSTRING(authentication_string, 1, 7) as first, SUBSTRING(JSON_EXTRACT(User_attributes, "$.additional_password"), 2, 7) as second FROM mysql.user WHERE user IN ('arthur', 'marvin', 'zaphod', 'ford') ORDER BY user ASC;
 
 # Try with first password
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthur -pefgh -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -umarvin -pabcd -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uzaphod -pmnop -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uford -pijkl -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uarthur -pefgh -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -umarvin -pabcd -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pmnop -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uford -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
-# Try with second password
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+if ($parameter_test_second_password)
+{
+  # Try with second password
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+}
 
 FLUSH PRIVILEGES;
 
 SET GLOBAL caching_sha2_password_storage_format="PBKDF2_SHA512";
 
 # Try with first password
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthur -pefgh -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -umarvin -pabcd -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uzaphod -pmnop -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uford -pijkl -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uarthur -pefgh -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -umarvin -pabcd -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pmnop -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uford -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
-# Try with second password
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+if ($parameter_test_second_password)
+{
+  # Try with second password
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+}
 
 # Tests for caching_sha2_password_enforce_format
 
@@ -150,203 +245,161 @@ SET GLOBAL caching_sha2_password_storage_format="PBKDF2_SHA512";
 # zaphod  mnop(1st)     ijkl(2nd)
 # ford    ijkl(1st)     mnop(2nd)
 
---connection default
 SET GLOBAL caching_sha2_password_storage_format="PBKDF2_SHA512";
 SET GLOBAL caching_sha2_password_enforce_storage_format=1;
 
-# Try connecting with password stored in non-compliant format
---connect(conn_arthur_first_pass, localhost, arthur, abcd,,,,SSL)
+if ($parameter_test_second_password)
+{
+  # Try connecting with password stored in non-compliant format
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -uarthur -pabcd
+    -x $query_simple_er_expired_file 2>&1;
 
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
-
---connection default
---disconnect conn_arthur_first_pass
-
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+}
 
 # Try connecing with password stored in compliant format
-
---connect(conn_marvin_second_pass, localhost, marvin, abcd,,,,SSL)
-
-SELECT 1;
-
---connection default
---disconnect conn_marvin_second_pass
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -umarvin -pabcd -e "SELECT 1" 2>&1
 
 # Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -umarvin -pabcd -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -umarvin -pabcd -e "SELECT CURRENT_USER()" 2>&1
 
 # Try with another password in compliant format
---connect(conn_arthur_second_pass, localhost, arthur, efgh,,,,SSL)
-
-SELECT 1;
-
---connection default
---disconnect conn_arthur_second_pass
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uarthur -pefgh -e "SELECT 1" 2>&1
 
 # Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uarthur -pefgh -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uarthur -pefgh -e "SELECT CURRENT_USER()" 2>&1
 
-# Try connecing with another password stored in non-compliant format
---connect(conn_marvin_first_pass, localhost, marvin, efgh,,,,SSL)
 
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
+if ($parameter_test_second_password)
+{
+  # Try connecing with another password stored in non-compliant format
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -umarvin -pefgh
+    -x $query_simple_er_expired_file 2>&1;
 
---connection default
---disconnect conn_marvin_first_pass
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
+}
 
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
+if ($parameter_test_second_password)
+{
+  # Try connecting with password stored in non-compliant format and reset password
+  --let TEST_PARAM_PASS=abcd
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -uarthur -pabcd
+    -x $query_simple_er_expired_change_pwd_file 2>&1;
 
-# Try connecting with password stored in non-compliant format and reset password
---connect(conn_arthur_first_pass, localhost, arthur, abcd,,,,SSL)
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
 
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
+  # Must succeed - secure channel
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
 
-SET PASSWORD = 'abcd';
+  # Must succeed with fast auth now - compliant password format
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
 
-SELECT 1;
+  # Try connecing with another password stored in non-compliant format and reset password
+  --let TEST_PARAM_PASS=efgh
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -umarvin -pefgh
+    -x $query_simple_er_expired_change_pwd_file 2>&1;
 
---connection default
---disconnect conn_arthur_first_pass
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
 
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+  # Must succeed - secure channel
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
 
-# Must succeed - secure channel
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED --protocol=TCP -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
+  # Must succeed with fast auth now - compliant password format
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
+}
 
-# Must succeed with fast auth now - compliant password format
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uarthur -pabcd -e "SELECT CURRENT_USER()" 2>&1
-
-# Try connecing with another password stored in non-compliant format and reset password
---connect(conn_marvin_first_pass, localhost, marvin, efgh,,,,SSL)
-
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
-
-SET PASSWORD='efgh';
-
-SELECT 1;
-
---connection default
---disconnect conn_marvin_first_pass
-
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
-
-# Must succeed - secure channel
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED --protocol=TCP -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
-
-# Must succeed with fast auth now - compliant password format
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -umarvin -pefgh -e "SELECT CURRENT_USER()" 2>&1
-
---connection default
 SET GLOBAL caching_sha2_password_storage_format="CRYPT5";
 SET GLOBAL caching_sha2_password_enforce_storage_format=1;
 
-# Try connecting with password stored in non-compliant format
---connect(conn_zaphod_second_pass, localhost, zaphod, ijkl,,,,SSL)
+if ($parameter_test_second_password)
+{
+  # Try connecting with password stored in non-compliant format
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -uzaphod -pijkl
+    -x $query_simple_er_expired_file 2>&1;
 
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
-
---connection default
---disconnect conn_zaphod_second_pass
-
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
+}
 
 # Try connecing with password stored in compliant format
 
---connect(conn_ford_first_pass, localhost, ford, ijkl,,,,SSL)
-
-SELECT 1;
-
---connection default
---disconnect conn_ford_first_pass
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uford -pijkl -e "SELECT 1" 2>&1
 
 # Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uford -pijkl -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uford -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
 # Try with another password in compliant format
---connect(conn_zaphod_first_pass, localhost, zaphod, mnop,,,,SSL)
-
-SELECT 1;
-
---connection default
---disconnect conn_zaphod_first_pass
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pmnop -e "SELECT 1" 2>&1
 
 # Must succeed
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uzaphod -pmnop -e "SELECT CURRENT_USER()" 2>&1
+--exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uzaphod -pmnop -e "SELECT CURRENT_USER()" 2>&1
 
-# Try connecing with another password stored in non-compliant format
---connect(conn_ford_second_pass, localhost, ford, mnop,,,,SSL)
+if ($parameter_test_second_password)
+{
+  # Try connecing with another password stored in non-compliant format
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -uford -pmnop
+    -x $query_simple_er_expired_file 2>&1;
 
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
 
---connection default
---disconnect conn_ford_second_pass
+  # Try connecting with password stored in non-compliant format and reset password
+  let TEST_PARAM_PASS=ijkl;
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -uzaphod -pijkl
+    -x $query_simple_er_expired_change_pwd_file 2>&1;
 
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
-# Try connecting with password stored in non-compliant format and reset password
---connect(conn_zaphod_second_pass, localhost, zaphod, ijkl,,,,SSL)
+  # Must succeed with fast auth now - compliant password format
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
+  # Must succeed with fast auth now - compliant password format
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
 
-SET PASSWORD = 'ijkl';
+  # Try connecing with another password stored in non-compliant format and reset password
+  let TEST_PARAM_PASS=mnop;
+  exec $parameter_client_script
+    --host=localhost --ssl-mode=REQUIRED
+    -uford -pmnop
+    -x $query_simple_er_expired_change_pwd_file 2>&1;
 
-SELECT 1;
 
---connection default
---disconnect conn_zaphod_second_pass
+  # Try using fast auth - Must fail
+  --error 1
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
 
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
+  # Must succeed with fast auth now - compliant password format
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=REQUIRED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
 
-# Must succeed with fast auth now - compliant password format
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED --protocol=TCP -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
-
-# Must succeed with fast auth now - compliant password format
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uzaphod -pijkl -e "SELECT CURRENT_USER()" 2>&1
-
-# Try connecing with another password stored in non-compliant format and reset password
---connect(conn_ford_second_pass, localhost, ford, mnop,,,,SSL)
-
---error ER_MUST_CHANGE_PASSWORD
-SELECT 1;
-
-SET PASSWORD='mnop';
-
-SELECT 1;
-
---connection default
---disconnect conn_ford_second_pass
-
-# Try using fast auth - Must fail
---error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
-
-# Must succeed with fast auth now - compliant password format
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED --protocol=TCP -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
-
-# Must succeed with fast auth now - compliant password format
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --protocol=TCP -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+  # Must succeed with fast auth now - compliant password format
+  --exec $parameter_client --host=127.0.0.1 --ssl-mode=DISABLED -uford -pmnop -e "SELECT CURRENT_USER()" 2>&1
+}
 
 # -------------------------------------------------------------------
 
@@ -356,3 +409,13 @@ DROP USER arthur, marvin, zaphod, ford;
 # Revert to initial setting
 SET GLOBAL caching_sha2_password_enforce_storage_format=@saved_enforce_storage_format;
 SET GLOBAL caching_sha2_password_storage_format=@saved_storage_format;
+
+--remove_file $query_account_and_change_pwd_file
+--remove_file $query_account_file
+--remove_file $query_simple_file
+--remove_file $query_simple_er_expired_file
+--remove_file $query_simple_er_expired_change_pwd_file
+
+--let $parameter_client_script=
+--let $parameter_client=
+--let $parameter_test_second_password=

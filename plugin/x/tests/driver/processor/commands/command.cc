@@ -237,6 +237,10 @@ Command::Command() {
       &Command::cmd_recv_with_stored_metadata;
   m_commands["clear_stored_metadata"] = &Command::cmd_clear_stored_metadata;
   m_commands["assert"] = &Command::cmd_assert;
+
+  // Added for mysqltest compatibility
+  m_commands["error"] = &Command::cmd_expecterror;
+  m_commands["eval"] = &Command::cmd_eval;
 }
 
 bool Command::is_command_registred(const std::string &command_line,
@@ -840,6 +844,16 @@ Command::Result Command::cmd_do_ssl_handshake(std::istream &input,
   }
 
   return Result::Continue;
+}
+
+Command::Result Command::cmd_eval(std::istream &input,
+                                  Execution_context *context,
+                                  const std::string &args) {
+  if (auto result = cmd_stmtsql(input, context, args);
+      Result::Continue != result)
+    return result;
+
+  return cmd_recvresult(input, context, "");
 }
 
 Command::Result Command::cmd_stmtsql(std::istream &input,
@@ -2719,6 +2733,8 @@ void print_help_commands() {
                "error other than specified occurred\n";
   std::cout
       << "  Works for: newsession, closesession, recvresult, recvok, SQL\n";
+  std::cout << "  Note: '-->error' is an alias for '-->expecterror' for "
+               "compatibility with 'mysqltest' and works in the same way.\n";
   std::cout << "-->newsession <name>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Create a new connection which is going to be authenticate"
                " using sequence of mechanisms (AUTO). Use '-' in place of"
@@ -2834,5 +2850,10 @@ void print_help_commands() {
   std::cout << "-->clear_stored_metadata\n";
   std::cout << "  Clear metadata information stored by the "
                "recvresult_store_metadata\n";
+  std::cout << "-->debug_stmt <STMT>\n";
+  std::cout << "  Specify MySQLxTEST statement to be executed at failed run\n";
+  std::cout << "-->eval SQL\n";
+  std::cout << "  Execute an SQL statement with variable substitution applied."
+               " Provided for compatibility with mysqltest.\n\n";
   std::cout << "# comment\n";
 }

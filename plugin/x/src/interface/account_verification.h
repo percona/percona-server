@@ -29,6 +29,9 @@
 #include <string>
 
 namespace xpl {
+
+enum class Digest_type { CRYPT5, PBKDF2_SHA512, LAST };
+
 namespace iface {
 
 class Account_verification {
@@ -48,7 +51,13 @@ class Account_verification {
   virtual const std::string &get_salt() const = 0;
   virtual bool verify_authentication_string(
       const std::string &user, const std::string &host,
-      const std::string &client_string, const std::string &db_string) const = 0;
+      const std::string &client_string, const std::string &db_string,
+      const bool can_update_cache) const = 0;
+  virtual bool is_cache2_password_compliant(
+      [[maybe_unused]] const std::string enforced_format,
+      [[maybe_unused]] const std::string &db_string) const {
+    return true;
+  }
   virtual ~Account_verification() = default;
 };
 

@@ -80,7 +80,7 @@ TEST_F(User_password_verification, native_plain_verification_pass) {
   EXPECT_CALL(*m_cache_mock.get(), upsert("user", "host", GOOD_PASSWD));
   Native_plain_verification verificator{m_cache_mock.get()};
   ASSERT_TRUE(verificator.verify_authentication_string(
-      "user", "host", GOOD_PASSWD, EXPECTED_NATIVE_HASH));
+      "user", "host", GOOD_PASSWD, EXPECTED_NATIVE_HASH, true));
 }
 
 TEST_F(User_password_verification, native_plain_verification_fail) {
@@ -88,7 +88,7 @@ TEST_F(User_password_verification, native_plain_verification_fail) {
   EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
   Native_plain_verification verificator{m_cache_mock.get()};
   ASSERT_FALSE(verificator.verify_authentication_string(
-      "user", "host", WRONG_PASSWD, EXPECTED_NATIVE_HASH));
+      "user", "host", WRONG_PASSWD, EXPECTED_NATIVE_HASH, true));
 }
 
 TEST_F(User_password_verification, native_verification_get_salt) {
@@ -110,7 +110,7 @@ TEST_F(User_password_verification, native_verification_pass) {
   EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
   ASSERT_TRUE(verificator.verify_authentication_string(
       "", "", get_hash(verificator.get_salt(), GOOD_PASSWD),
-      EXPECTED_NATIVE_HASH));
+      EXPECTED_NATIVE_HASH, true));
 }
 
 TEST_F(User_password_verification, native_verification_fail) {
@@ -119,7 +119,7 @@ TEST_F(User_password_verification, native_verification_fail) {
   EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
   ASSERT_FALSE(verificator.verify_authentication_string(
       "", "", get_hash(verificator.get_salt(), WRONG_PASSWD),
-      EXPECTED_NATIVE_HASH));
+      EXPECTED_NATIVE_HASH, true));
 }
 
 TEST_F(User_password_verification, sha256_plain_verification_get_salt) {
@@ -132,7 +132,7 @@ TEST_F(User_password_verification, sha256_plain_verification_pass) {
   EXPECT_CALL(*m_cache_mock.get(), upsert("user", "host", GOOD_PASSWD));
   Sha256_plain_verification verificator{m_cache_mock.get()};
   ASSERT_TRUE(verificator.verify_authentication_string(
-      "user", "host", GOOD_PASSWD, EXPECTED_SHA256_HASH));
+      "user", "host", GOOD_PASSWD, EXPECTED_SHA256_HASH, true));
 }
 
 TEST_F(User_password_verification, sha256_plain_verification_fail) {
@@ -140,7 +140,7 @@ TEST_F(User_password_verification, sha256_plain_verification_fail) {
   EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
   Sha256_plain_verification verificator{m_cache_mock.get()};
   ASSERT_FALSE(verificator.verify_authentication_string(
-      "user", "host", WRONG_PASSWD, EXPECTED_SHA256_HASH));
+      "user", "host", WRONG_PASSWD, EXPECTED_SHA256_HASH, true));
 }
 
 TEST_F(User_password_verification, sha256_memory_verification_get_salt) {
@@ -154,7 +154,7 @@ TEST_F(User_password_verification, sha256_memory_verification_pass) {
   mock::Cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).WillRepeatedly(ReturnRef(MADE_UP_SALT));
   ASSERT_TRUE(verificator.verify_authentication_string(
-      "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));
+      "user", "host", SHA256_MEMORY_CLIENT_STRING, "", true));
 }
 
 TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
@@ -163,7 +163,7 @@ TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
   mock::Cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).Times(0);
   ASSERT_FALSE(verificator.verify_authentication_string(
-      "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));
+      "user", "host", SHA256_MEMORY_CLIENT_STRING, "", true));
 }
 
 TEST_F(User_password_verification, sha256_memory_verification_fail) {
@@ -173,7 +173,7 @@ TEST_F(User_password_verification, sha256_memory_verification_fail) {
   mock::Cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).WillRepeatedly(ReturnRef(MADE_UP_SALT));
   ASSERT_FALSE(verificator.verify_authentication_string(
-      "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));
+      "user", "host", SHA256_MEMORY_CLIENT_STRING, "", true));
 }
 
 }  // namespace test

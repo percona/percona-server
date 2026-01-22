@@ -4859,11 +4859,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->copy_status_var(&query_start_status);
         }
 
-<<<<<<< HEAD
-        dispatch_sql_command(thd, &parser_state, true);
-||||||| 153abc27b7dd
-        dispatch_sql_command(thd, &parser_state);
-=======
         /// If an error occurs while executing the statement, and the error is
         /// to be ignored, the statement will not execute and hence will not be
         /// written to the binary log. But since we succeed (by suppressing the
@@ -4880,8 +4875,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
               return ignored_error_code(error_code);
             });
 
-        dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-8.0.45
+        dispatch_sql_command(thd, &parser_state, true);
 
         enum_sql_command command = thd->lex->sql_command;
 

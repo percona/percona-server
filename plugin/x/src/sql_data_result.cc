@@ -75,6 +75,18 @@ void Sql_data_result::get_next_field(std::string *value) {
     *value = *field_value->value.v_string;
 }
 
+void Sql_data_result::get_next_field(std::optional<std::string> *value) {
+  validate_field_index({MYSQL_TYPE_VARCHAR, MYSQL_TYPE_STRING,
+                        MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+                        MYSQL_TYPE_LONG_BLOB});
+
+  Field_value *field_value = get_value();
+
+  value->reset();
+  if (field_value && field_value->is_string)
+    *value = *field_value->value.v_string;
+}
+
 void Sql_data_result::get_next_field(char **value) {
   validate_field_index({MYSQL_TYPE_VARCHAR});
 

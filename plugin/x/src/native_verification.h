@@ -35,10 +35,11 @@ class Native_verification : public Challenge_response_verification {
  public:
   explicit Native_verification(iface::SHA256_password_cache *cache)
       : Challenge_response_verification(cache) {}
-  bool verify_authentication_string(
-      const std::string &user, const std::string &host,
-      const std::string &client_string,
-      const std::string &db_string) const override;
+  bool verify_authentication_string(const std::string &user,
+                                    const std::string &host,
+                                    const std::string &client_string,
+                                    const std::string &db_string,
+                                    const bool can_update_cache) const override;
 };
 
 }  // namespace xpl

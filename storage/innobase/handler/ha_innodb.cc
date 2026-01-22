@@ -15000,22 +15000,28 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
 
       file_per_table = dict_table_is_file_per_table(tab);
       dd_table_close(tab, thd, nullptr, false);
+    } else if (err == 4) {
+      /* Could not open existing table. Definition may contain bad SQL. */
+      error = DB_ERROR;
     }
   }
 
-  error = row_drop_table_for_mysql(norm_name, trx, true, handler);
+  /* Don't drop what we can't open; otherwise, we'll hit asserts later. */
+  if ((error == DB_SUCCESS) &&
+      ((error = row_drop_table_for_mysql(norm_name, trx, true, handler)) ==
+       DB_SUCCESS)) {
+    if (handler != nullptr) {
+      priv->unregister_table_handler(norm_name);
+    }
 
-  if (handler != nullptr && error == DB_SUCCESS) {
-    priv->unregister_table_handler(norm_name);
-  }
+    if (file_per_table) {
+      dd::Object_id dd_space_id = dd_first_index(dd_tab)->tablespace_id();
+      dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-  if (error == DB_SUCCESS && file_per_table) {
-    dd::Object_id dd_space_id = dd_first_index(dd_tab)->tablespace_id();
-    dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-    if (dd_drop_tablespace(client, dd_space_id)) {
-      error = DB_ERROR;
+      if (dd_drop_tablespace(client, dd_space_id)) {
+        error = DB_ERROR;
+      }
     }
   }
 
@@ -21396,11 +21402,10 @@ in status code only if no other resize is in progress */
 
     if (innodb_buffer_pool_size_validate(thd, requested_buffer_pool_size,
                                          aligned_buffer_pool_size)) {
-      os_event_set(srv_buf_resize_event);
-
       ib::info(ER_IB_MSG_573)
           << export_vars.innodb_buffer_pool_resize_status
           << " (new size: " << aligned_buffer_pool_size << " bytes)";
+      os_event_set(srv_buf_resize_event);
 
       *static_cast<longlong *>(var_ptr) = aligned_buffer_pool_size;
     } else {

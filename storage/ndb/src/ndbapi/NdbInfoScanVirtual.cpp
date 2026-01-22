@@ -26,8 +26,10 @@
 #include "NdbInfoScanVirtual.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "NdbInfo.hpp"
+#include "my_byteorder.h"
 #include "ndbapi/NdbApi.hpp"
 #include "util/OutputStream.hpp"
 #include "util/cstrbuf.h"
@@ -79,6 +81,8 @@ class VirtualTable {
     void write_string(const char *str);
     void write_number(Uint32 val);
     void write_number64(Uint64 val);
+    void write_null();
+    void write_blob(const void *data, Uint32 len);  // borrow data
 
    private:
     friend class NdbInfoScanVirtual;
@@ -135,6 +139,10 @@ class VirtualTable {
 
  protected:
   std::map<int, int> m_index;
+  struct free_deleter {
+    void operator()(void *ptr) const { ::free(ptr); }
+  };
+  mutable std::vector<std::unique_ptr<void, free_deleter>> m_pending_frees;
   static constexpr int column_buff_size = 512;
   static constexpr const char *TRUNCATION_MARK = ",...";
   static constexpr int TRUNCATE_AT = 508;  // 512 - TRUNCATION_MARK size
@@ -269,6 +277,45 @@ void VirtualTable::Row::write_number64(Uint64 val) {
   // copy value to buffer
   memcpy(m_curr, &val, clen);
   m_curr += clen;
+
+  DBUG_VOID_RETURN;
+}
+
+void VirtualTable::Row::write_null() {
+  DBUG_ENTER("write_null");
+  DBUG_PRINT("enter", ("%s", "NULL"));
+
+  const unsigned col_idx = m_col_counter++;
+  if (!m_owner->m_recAttrs.is_requested(col_idx)) DBUG_VOID_RETURN;
+
+  // setup RecAttr
+  m_owner->m_recAttrs.set_recattr(col_idx, nullptr, 0);
+
+  DBUG_VOID_RETURN;
+}
+
+void VirtualTable::Row::write_blob(const void *data, Uint32 len) {
+  DBUG_ENTER("write_blob");
+  DBUG_PRINT("enter", ("data: %p, length: %u", data, len));
+
+  assert(check_data_type(NdbInfo::Column::Blob));
+
+  const unsigned col_idx = m_col_counter++;
+  if (!m_owner->m_recAttrs.is_requested(col_idx)) DBUG_VOID_RETURN;
+
+  const size_t clen = 4 + 8;
+  if (!check_buffer_space(clen)) return;
+
+  // setup RecAttr
+  m_owner->m_recAttrs.set_recattr(col_idx, m_curr, clen);
+
+  /*
+   * Write data length and pointer to buffer without making a copy. That is,
+   * caller must ensure data pointer is valid as long as needed.
+   */
+  int4store(m_curr, len);
+  memcpy(m_curr + 4, static_cast<const void *>(&data), 8);
+  m_curr += 12;
 
   DBUG_VOID_RETURN;
 }
@@ -549,6 +596,10 @@ int NdbInfoScanVirtual::execute() {
           break;
         case NdbInfo::Column::String:
           buffer_size += VirtualTable::STRING_BUFFER;
+          break;
+        case NdbInfo::Column::Blob:
+          buffer_size += 12;
+          break;
       }
     }
 
@@ -1354,7 +1405,11 @@ class DictionaryTablesTable : public VirtualTable {
         !tab->addColumn(
             NdbInfo::Column("GCI_bits", 25, NdbInfo::Column::Number)) ||
         !tab->addColumn(
-            NdbInfo::Column("author_bits", 26, NdbInfo::Column::Number)))
+            NdbInfo::Column("author_bits", 26, NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("extra_metadata_version", 27,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(
+            NdbInfo::Column("extra_metadata", 28, NdbInfo::Column::Blob)))
       return nullptr;
     return tab;
   }
@@ -1436,6 +1491,18 @@ class DictionaryTablesTable : public VirtualTable {
       w.write_number(t->getForceVarPart());            // force_var_part
       w.write_number(t->getExtraRowGciBits());         // GCI_bits
       w.write_number(t->getExtraRowAuthorBits());      // author_bits
+      void *metadata = nullptr;
+      Uint32 metalen = 0;
+      Uint32 ver = 0;
+      if (t->getExtraMetadata(ver, &metadata, &metalen) == 0) {
+        m_pending_frees.emplace_back(metadata);
+        assert(metadata != nullptr);
+        w.write_number(ver);              // extra_metadata_version
+        w.write_blob(metadata, metalen);  // extra_metadata
+      } else {
+        w.write_null();  // extra_metadata_version
+        w.write_null();  // extra_metadata
+      }
     }
     return 1;
   }

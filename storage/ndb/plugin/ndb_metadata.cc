@@ -1659,8 +1659,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     tables. This makes the below check prone to failure with restore and
     auto sync/discovery
   */
-  // ctx.compare("fk_count", t1->foreign_keys().size(),
-  // t2->foreign_keys().size());
+  ctx.compare("fk_count", t1->foreign_keys().size(), t2->foreign_keys().size());
 
   dd::Table::Foreign_key_collection::const_iterator fk_it1(
       t1->foreign_keys().begin());

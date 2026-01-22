@@ -3844,6 +3844,15 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
   slave_proxy_id = thd_arg->variables.pseudo_thread_id;
   common_header->set_is_valid(query != nullptr);
 
+  DBUG_EXECUTE_IF("binlog_corrupt_query", {
+    /// Produce a corrupted query in the binary log by removing the first
+    /// character. Do this only for statements other than BEGIN and COMMIT.
+    if (strcmp(query, "BEGIN") != 0 && strcmp(query, "COMMIT") != 0) {
+      ++query;
+      --q_len;
+    }
+  });
+
   /*
   exec_time calculation has changed to use the same method that is used
   to fill out "thd_arg->start_time"
@@ -4850,7 +4859,29 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->copy_status_var(&query_start_status);
         }
 
+<<<<<<< HEAD
         dispatch_sql_command(thd, &parser_state, true);
+||||||| 153abc27b7dd
+        dispatch_sql_command(thd, &parser_state);
+=======
+        /// If an error occurs while executing the statement, and the error is
+        /// to be ignored, the statement will not execute and hence will not be
+        /// written to the binary log. But since we succeed (by suppressing the
+        /// error), we must track the GTID. The GTID will be written in the
+        /// invocation of gtid_end_transaction later in this function, but in
+        /// order for that to work, we must not rollback GTID ownership while
+        /// rolling back the statement. Therefore we register this checker,
+        /// which blocks the gtid rollback in case the error is ignored. The
+        /// returned object is a scope guard that will unregister the checker.
+        auto unregister_guard =
+            thd->register_skip_gtid_rollback_checker([](const THD &thd) {
+              int error_code{0};
+              if (thd.is_error()) error_code = thd.get_stmt_da()->mysql_errno();
+              return ignored_error_code(error_code);
+            });
+
+        dispatch_sql_command(thd, &parser_state);
+>>>>>>> mysql-8.0.45
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -5133,6 +5164,33 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
 
 end:
+  // Generate an empty GTID transaction if needed. This usually happens from
+  // within dispatch_sql_command: either during commit, if the transaction
+  // reaches commit, or after processing a potentially-committing statement,
+  // when mysql_execute_command invokes binlog_gtid_end_transaction. However,
+  // the generation of empty transactions in those places occurs only if the
+  // statement succeeds. If the statement fails and subsequently the error is
+  // ignored due to replica-skip-error, we need to call gtid_end_transaction
+  // here.
+  //
+  // The condition !thd->is_slave_error is needed so that we only generate empty
+  // GTID transactions when the error has been ignored.
+  //
+  // The condition that OPTION_BEGIN is clear is needed so that we do not
+  // generate empty GTID transactions while in the middle of processing a
+  // transaction.
+  //
+  // The condition !is_already_logged_transaction is needed so that we do not
+  // generate empty GTID transactions in the middle of auto-skipped
+  // transactions, in cases where the previous two conditions do not hold. One
+  // example of such a scenario is a GTID-skipped XA transaction, because the
+  // `XA START` statement (contrary to `BEGIN` in a non-XA transaction) will not
+  // execute and hence not open a new transaction.
+  if (!thd->is_slave_error &&
+      (thd->variables.option_bits & OPTION_BEGIN) == 0 &&
+      !is_already_logged_transaction(thd)) {
+    mysql_bin_log.gtid_end_transaction(thd);
+  }
 
   if (thd->temporary_tables) detach_temp_tables_worker(thd, rli);
   /*

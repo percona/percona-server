@@ -2108,12 +2108,14 @@ static void log_writer_write_failed(log_t &log, dberr_t err) {
   const auto file_path =
       log_file_path(log.m_files_ctx, log.m_current_file.m_id);
   switch (err) {
-    case DB_OUT_OF_DISK_SPACE:
-      ib::warn(ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE);
+    case DB_OUT_OF_DISK_SPACE: {
+      ib::warn(ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE_INFO,
+               srv_redo_log_capacity, srv_redo_log_capacity_used);
       log_writer_mutex_exit(log);
       log_files_wait_for_next_file_available(log);
       log_writer_mutex_enter(log);
       break;
+    }
     default:
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_LOG_WRITER_WRITE_FAILED,
                 static_cast<int>(err), file_path.c_str());

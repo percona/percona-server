@@ -32,6 +32,7 @@
 #include "../src/ndbapi/NdbInfo.hpp"
 
 #include "my_alloc.h"
+#include "my_byteorder.h"
 
 static int loops = 1;
 static int delay = 5;
@@ -149,6 +150,16 @@ int main(int argc, char **argv) {
               case NdbInfo::Column::Number64:
                 ndbout << recAttrs[i]->u_64_value();
                 break;
+              case NdbInfo::Column::Blob: {
+                auto data = static_cast<const char *>(recAttrs[i]->ptr());
+                Uint32 len;
+                const uchar *ptr;
+                len = uint4korr(data);
+                memcpy(&ptr, data + 4, 8);
+                ndbout << "0x";
+                for (Uint32 i = 0; i < len; i++) ndbout.print("%02x", ptr[i]);
+                break;
+              }
             }
           }
           ndbout << "\t";

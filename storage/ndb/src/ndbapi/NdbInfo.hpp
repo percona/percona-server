@@ -49,7 +49,7 @@ class NdbInfo {
 
   struct Column {
    public:
-    const enum Type { String = 1, Number = 2, Number64 = 3 } m_type;
+    const enum Type { String = 1, Number = 2, Number64 = 3, Blob = 4 } m_type;
 
     const Uint32 m_column_id;
     const BaseString m_name;

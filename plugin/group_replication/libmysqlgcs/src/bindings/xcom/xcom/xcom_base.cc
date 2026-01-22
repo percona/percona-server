@@ -2320,9 +2320,6 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
       IFDBG(D_CONS, FN; SYCEXP(outer_ep->msgno));
     }
 
-    // Update site to match synode
-    *site = proposer_site = find_site_def_rw(*msgno);
-
     // Update node set to get the latest state
     if (is_view(a->body.c_t)) {
       free_node_set(&a->body.app_u_u.present);
@@ -2344,6 +2341,10 @@ static int reserve_synode_number(synode_allocation_type *synode_allocation,
       }
 #endif
     }
+
+    // Update site to match synode
+    *site = proposer_site = find_site_def_rw(*msgno);
+
     // Filter out busy or ignored message numbers
   } while (is_busy(*msgno) || ignore_message(*msgno, *site, "proposer_task"));
   FINALLY

@@ -2642,7 +2642,12 @@ void Value_generator::print_expr(THD *thd, String *out) {
   Sql_mode_parse_guard parse_guard(thd);
   // Printing db and table name is useless
   auto flags = enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
-  expr_item->print(thd, out, flags);
+  if (expr_item != nullptr) {
+    expr_item->print(thd, out, flags);
+  } else if (expr_str.str != nullptr && expr_str.length > 0) {
+    // Fall back to serialized expression if the Item tree hasn't been unpacked
+    out->append(expr_str.str, expr_str.length);
+  }
 }
 
 bool unpack_value_generator(THD *thd, TABLE *table,

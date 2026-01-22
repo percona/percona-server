@@ -56,18 +56,6 @@
 #define TEST_UNRELIABLE_DISTRIBUTED_FILESYSTEM 0
 #endif
 
-#ifndef _WIN32
-static inline int get_last_os_error() { return errno; }
-
-static inline void set_last_os_error(int err) { errno = err; }
-
-#else
-static inline int get_last_os_error() { return GetLastError(); }
-
-static inline void set_last_os_error(int err) { SetLastError(err); }
-
-#endif
-
 class AsyncFile {
  public:
   AsyncFile(Ndbfs &fs);

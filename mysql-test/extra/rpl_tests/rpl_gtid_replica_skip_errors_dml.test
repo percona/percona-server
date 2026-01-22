@@ -1,0 +1,66 @@
+# ==== Purpose ====
+#
+# Test requirements 6 and 7 in rpl_gtid_replica_skip_errors, for a specified
+# engine.
+#
+# See rpl_gtid_replica_skip_errors.test
+#
+# ==== Usage ====
+#
+# --let $engine = [InnoDB|MyISAM]
+# --source extra/rpl_tests/rpl_gtid_replica_skip_errors_dml.test
+
+--let $case = 1
+
+--let $format_number = 0
+--let $format = ROW
+while ($format_number < 2) {
+  --echo #
+  --echo # R6.$case INSERT fails because row exists: $format ($engine)
+  --echo #
+
+  --source include/rpl_connection_master.inc
+  eval CREATE TABLE t (a INT PRIMARY KEY) ENGINE = $engine;
+  --source include/sync_slave_sql_with_master.inc
+  INSERT INTO t VALUES (1);
+
+  --source include/save_binlog_position.inc
+  --source include/rpl_connection_master.inc
+  INSERT INTO t VALUES (1);
+
+  # Replica will observe and ignore error 1062 = ER_DUP_ENTRY
+  --source include/sync_slave_sql_with_master.inc
+  # Replica will write empty transaction.
+  --let $event_sequence = Gtid # Query/BEGIN # Query/COMMIT
+  --source include/assert_binlog_events.inc
+  --source include/save_binlog_position.inc
+
+  # Reuse t in the next scenario
+
+  --echo #
+  --echo # R7.$case INSERT fails because table does not exist: $format ($engine)
+  --echo #
+
+  --source include/rpl_connection_slave.inc
+  DROP TABLE t;
+
+  --source include/save_binlog_position.inc
+  --source include/rpl_connection_master.inc
+  INSERT INTO t VALUES (2);
+
+  # Replica will observe and ignore error 1146 = ER_NO_SUCH_TABLE
+  --source include/sync_slave_sql_with_master.inc
+  # Replica will write empty transaction.
+  --let $event_sequence = Gtid # Query/BEGIN # Query/COMMIT
+  --source include/assert_binlog_events.inc
+
+  # Clean up
+  --source include/rpl_connection_master.inc
+  DROP TABLE IF EXISTS t;
+  --source include/sync_slave_sql_with_master.inc
+
+  --inc $case
+
+  --let $format = STATEMENT
+  --inc $format_number
+}

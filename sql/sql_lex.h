@@ -1243,6 +1243,9 @@ class Query_block : public Query_term {
       tr->set_readonly();
   }
 
+  /// @returns number of tables in query block
+  size_t table_count() const { return m_table_list.elements; }
+
   /// @returns a map of all tables references in the query block
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
 

@@ -49,7 +49,7 @@ if (`SELECT COUNT(*) != 1 FROM ndbinfo.index_columns WHERE index_name = 'idx_a'`
 
 ##########################################
 ## Use ndb_drop_index to drop the index idx_a.
---exec $NDB_DROP_INDEX -d test t1 idx_a
+--exec $NDB_DROP_INDEX -d test t1 idx_a >> $NDB_TOOLS_OUTPUT
 
 ## Check index does NOT exist in NDB
 if (`SELECT COUNT(*) != 0 FROM ndbinfo.index_columns WHERE index_name = 'idx_a'`)
@@ -105,4 +105,3 @@ DROP TABLE t1;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
-

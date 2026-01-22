@@ -223,6 +223,9 @@ bool NdbInfo::load_ndbinfo_tables(void) {
             case 3:
               type = Column::Number64;
               break;
+            case 4:
+              type = Column::Blob;
+              break;
             default: {
               DBUG_PRINT("error", ("Unknown columntype: %d", columnType));
               releaseScanOperation(scanOp);

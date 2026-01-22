@@ -2078,6 +2078,106 @@ int runBackupsUntilStopped(NDBT_Context *ctx, NDBT_Step *step) {
   return res;
 }
 
+int createCopy(NDBT_Context *ctx, NDBT_Step *step,
+               NdbDictionary::Object::PartitionBalance bal) {
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+
+  NdbDictionary::Table copy(*NDBT_Tables::getTable(ctx->getTableName(0)));
+
+  copy.setName("COPYT");
+  copy.setDefaultNoPartitionsFlag(true);
+  copy.setFragmentType(NdbDictionary::Object::FragAllLarge);
+  copy.setPartitionBalance(bal);
+  if (pDict->createTable(copy) != 0) {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+/**
+ * Check that the order of BACKUP_FRAGMENT_CONF and BACKUP_FRAGMENT_REF
+ * signal arrival at the master node does not affect the data node's
+ * normal behavior.
+ */
+int runBackupFragmentConsistency(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbBackup backup;
+  backup.set_default_encryption_password(
+      ctx->getProperty("BACKUP_PASSWORD", (char *)NULL), -1);
+  Ndb *pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  NdbRestarter res(nullptr, &ctx->m_cluster_connection);
+
+  int master = res.getNode(NdbRestarter::NS_MASTER);
+  int node = res.getNode(NdbRestarter::NS_NON_MASTER);
+  int num_ldm = res.getNumLdmThreads(node);
+  if (num_ldm < 2) {
+    ctx->stopTest();
+    g_err << "The test needs at least 2 LDM threads; only " << num_ldm
+          << " configured" << endl;
+    return NDBT_SKIPPED;
+  }
+
+  // New table, with twice the number of fragments, ensuring at least two
+  // fragments per LDM instance.
+  if (createCopy(ctx, step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDM) !=
+      NDBT_OK) {
+    return NDBT_FAILED;
+  }
+
+  g_err << "Victim node is: " << node << endl;
+  /**
+   * Send EI 10057 to delay BACKUP_FRAGMENT_REQ for some fragment in the
+   * target node.
+   * Abort the backup of the next fragment(s) of same table that would be
+   * done in the same node.
+   */
+  if (res.insertErrorInNode(node, 10057)) {
+    g_err << "Cannot insert error 10057 in master" << endl;
+    pDict->dropTable("COPYT");
+    return NDBT_FAILED;
+  }
+
+  unsigned backupId = 0;
+  if (backup.start(backupId, 1, 0, 1) == -1) {
+    g_err << "Failed to start backup nowait" << endl;
+    res.insertErrorInAllNodes(0);
+    pDict->dropTable("COPYT");
+    return NDBT_FAILED;
+  }
+
+  if (res.waitClusterStarted() != 0) {
+    res.insertErrorInAllNodes(0);
+    pDict->dropTable("COPYT");
+    return NDBT_FAILED;
+  }
+  pDict->dropTable("COPYT");
+
+  g_err << "Checking that master is still alive" << endl;
+  int newMaster = res.getNode(NdbRestarter::NS_MASTER);
+  if (newMaster != master) {
+    g_err << "Master node crashed during backup" << endl;
+    res.insertErrorInAllNodes(0);
+    return NDBT_FAILED;
+  }
+
+  res.insertErrorInAllNodes(0);
+
+  /**
+   * Run one more backup to confirm that all backup resources are cleaned.
+   */
+  if (backup.start(backupId, 1, 0, 1) == -1) {
+    g_err << "Failed to start backup nowait" << endl;
+    res.insertErrorInAllNodes(0);
+    pDict->dropTable("COPYT");
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne",
          "Test that backup and restore works on one table \n"
@@ -2370,6 +2470,16 @@ TESTCASE("BackupDuringRestart", "Test that backups succeed during restarts") {
   INITIALIZER(runLoadTable);
   STEP(restartDataNodes);
   STEP(runBackupsUntilStopped);
+  FINALIZER(runClearTable);
+}
+
+TESTCASE("BackupFragmentConsistency",
+         "Test fragment backup consistency when the arrival order of"
+         "BACKUP_FRAGMENT_CONF and BACKUP_FRAGMENT_REF signals at the master"
+         "node is altered") {
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  STEP(runBackupFragmentConsistency);
   FINALIZER(runClearTable);
 }
 

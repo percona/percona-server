@@ -6005,6 +6005,7 @@ void Ndbcntr::execFSREADREF(Signal *signal) {
         c_local_sysfile.m_state == LocalSysfile::READ_FILE_1) {
       jam();
       handle_read_refuse(signal);
+      return;
     }
     jamLine(c_local_sysfile.m_state);
     ndbabort();

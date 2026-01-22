@@ -2939,6 +2939,10 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
 
       mtr_start(&mtr);
 
+      if (index->table->is_temporary()) {
+        mtr.set_log_mode(MTR_LOG_NO_REDO);
+      }
+
       search_mode &= ~BTR_MODIFY_LEAF;
 
       search_mode |= BTR_MODIFY_TREE;

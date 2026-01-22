@@ -37,19 +37,25 @@
 
 namespace xpl {
 
-enum class Digest_type { CRYPT5, PBKDF2_SHA512, LAST };
-
 namespace {
 
 const unsigned int STORED_SHA256_DIGEST_LENGTH = 43;
 const size_t CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH = MAX_PLAINTEXT_LENGTH;
 const size_t PBKDF2_DIGEST_LENGTH = SHA512_DIGEST_LENGTH;
+
 constexpr size_t STORED_PBKDF2_DIGEST_LENGTH =
     4 * ((PBKDF2_DIGEST_LENGTH + 2) / 3);
 
 Digest_type get_digest_type(const std::string &text_with_algorithm_type) {
   if (text_with_algorithm_type == "A") return Digest_type::CRYPT5;
   if (text_with_algorithm_type == "B") return Digest_type::PBKDF2_SHA512;
+
+  return Digest_type::LAST;
+}
+
+Digest_type get_digest_from_name(const std::string &name) {
+  if (name == "CRYPT5") return Digest_type::CRYPT5;
+  if (name == "PBKDF2_SHA512") return Digest_type::PBKDF2_SHA512;
 
   return Digest_type::LAST;
 }
@@ -126,7 +132,8 @@ const std::string Sha2_plain_verification::k_empty_salt;
 
 bool Sha2_plain_verification::verify_authentication_string(
     const std::string &user, const std::string &host,
-    const std::string &client_string, const std::string &db_string) const {
+    const std::string &client_string, const std::string &db_string,
+    const bool can_update_cache) const {
   if (client_string.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
     return false;
 
@@ -175,11 +182,27 @@ bool Sha2_plain_verification::verify_authentication_string(
     }
   }
 
-  if (client_string_matches && m_sha256_password_cache) {
+  if (client_string_matches && m_sha256_password_cache && can_update_cache) {
     m_sha256_password_cache->upsert(user, host, client_string);
   }
 
   return client_string_matches;
+}
+
+bool is_cache2_password_compliant(const std::string enforced_format,
+                                  const std::string &db_string) {
+  std::string::size_type b = db_string.find('$');
+  if (b == std::string::npos) return false;
+
+  const auto enforced_type = get_digest_from_name(enforced_format);
+  const auto digest_type = get_digest_type(db_string.substr(b + 1, 1));
+
+  return enforced_type == digest_type;
+}
+
+bool Sha2_plain_verification::is_cache2_password_compliant(
+    const std::string enforced_format, const std::string &db_string) const {
+  return ::xpl::is_cache2_password_compliant(enforced_format, db_string);
 }
 
 }  // namespace xpl

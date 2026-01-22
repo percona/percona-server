@@ -132,6 +132,7 @@ class Sql_data_context : public iface::Sql_session {
 
   bool kill();
   bool is_acl_disabled();
+  void force_password_expired();
   void switch_to_local_user(const std::string &username);
   static bool wait_api_ready(std::function<bool()> exiting);
 

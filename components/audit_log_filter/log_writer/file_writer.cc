@@ -23,10 +23,6 @@ namespace audit_log_filter::log_writer {
 FileWriter::FileWriter(FileHandle &file_handle, bool sync_on_write)
     : m_file_handle{file_handle}, m_sync_on_write{sync_on_write} {}
 
-bool FileWriter::init() noexcept {
-  return true;  // nothing to do
-}
-
 bool FileWriter::open() noexcept {
   return true;  // nothing to do
 }

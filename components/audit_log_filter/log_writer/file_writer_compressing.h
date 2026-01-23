@@ -33,13 +33,6 @@ class FileWriterCompressing final : public FileWriterDecoratorBase {
   ~FileWriterCompressing() override;
 
   /**
-   * @brief Init file writer.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init() noexcept override;
-
-  /**
    * @brief Prepare writer for work with newly opened log file.
    *
    * @return true in case of success, false otherwise

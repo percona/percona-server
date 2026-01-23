@@ -25,13 +25,6 @@ class FileWriter : public FileWriterBase {
   explicit FileWriter(FileHandle &file_handle, bool sync_on_write);
 
   /**
-   * @brief Init file writer.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init() noexcept override;
-
-  /**
    * @brief Prepare writer for work with newly opened log file.
    *
    * @return true in case of success, false otherwise

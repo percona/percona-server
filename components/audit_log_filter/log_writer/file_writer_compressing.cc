@@ -25,10 +25,6 @@ FileWriterCompressing::FileWriterCompressing(
 
 FileWriterCompressing::~FileWriterCompressing() { deflateEnd(&m_strm); }
 
-bool FileWriterCompressing::init() noexcept {
-  return FileWriterDecoratorBase::init();
-}
-
 bool FileWriterCompressing::open() noexcept {
   m_strm.zalloc = Z_NULL;
   m_strm.zfree = Z_NULL;

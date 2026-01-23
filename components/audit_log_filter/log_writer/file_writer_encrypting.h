@@ -31,13 +31,6 @@ class FileWriterEncrypting final : public FileWriterDecoratorBase {
   ~FileWriterEncrypting() override;
 
   /**
-   * @brief Init file writer.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init() noexcept override;
-
-  /**
    * @brief Prepare writer for work with newly opened log file.
    *
    * @return true in case of success, false otherwise

@@ -23,6 +23,8 @@
 #include "my_systime.h"
 #include "template_utils.h"
 
+#include <stdexcept>
+
 namespace audit_log_filter::log_writer {
 namespace {
 #if defined(HAVE_PSI_INTERFACE)
@@ -39,45 +41,18 @@ PSI_cond_info cond_key_list[] = {
     {&key_log_flushed_cond, "audit_filter_buffer::flushed_cond",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 #endif
-
-void *buffer_flush_worker(void *arg) {
-  auto *buffer = static_cast<FileWriterBuffering *>(arg);
-
-  my_thread_init();
-  while (!buffer->check_flush_stopped()) {
-    buffer->flush_worker();
-  }
-  my_thread_end();
-
-  return nullptr;
-}
 }  // namespace
 
 FileWriterBuffering::FileWriterBuffering(
     std::unique_ptr<FileWriterBase> file_writer, size_t size, bool drop_if_full)
     : FileWriterDecoratorBase(std::move(file_writer)),
-      m_size{size},
       m_drop_if_full{drop_if_full},
-      m_buf{nullptr},
+      m_buf(size, Malloc_allocator<char>(key_memory_audit_log_filter_buffer)),
       m_write_pos{0},
       m_flush_pos{0},
       m_flush_worker_thread{0},
-      m_stop_flush_worker{false} {}
-
-FileWriterBuffering::~FileWriterBuffering() {
-  if (m_buf != nullptr) {
-    shutdown();
-  }
-}
-
-bool FileWriterBuffering::init() noexcept {
-  m_buf = static_cast<char *>(
-      my_malloc(key_memory_audit_log_filter_buffer, m_size, MY_ZEROFILL));
-
-  if (m_buf == nullptr) {
-    return false;
-  }
-
+      m_flush_worker_running{true},
+      m_state{FileBufferState::COMPLETE} {
 #ifdef HAVE_PSI_INTERFACE
   mysql_mutex_register(AUDIT_LOG_FILTER_PSI_CATEGORY, mutex_key_list,
                        array_elements(mutex_key_list));
@@ -85,18 +60,24 @@ bool FileWriterBuffering::init() noexcept {
                       array_elements(cond_key_list));
 #endif /* HAVE_PSI_INTERFACE */
 
-  m_state = FileBufferState::COMPLETE;
-  m_write_pos = 0;
-  m_flush_pos = 0;
-  m_stop_flush_worker = false;
-
   mysql_mutex_init(key_log_mutex, &m_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_log_flushed_cond, &m_flushed_cond);
   mysql_cond_init(key_log_written_cond, &m_written_cond);
-  pthread_create(&m_flush_worker_thread, nullptr, buffer_flush_worker, this);
-
-  return FileWriterDecoratorBase::init();
+  if (pthread_create(
+          &m_flush_worker_thread, nullptr,
+          [](void *arg) -> void * {
+            static_cast<FileWriterBuffering *>(arg)->flush_worker();
+            return nullptr;
+          },
+          this) != 0) {
+    mysql_cond_destroy(&m_written_cond);
+    mysql_cond_destroy(&m_flushed_cond);
+    mysql_mutex_destroy(&m_mutex);
+    throw std::runtime_error("failed to create file writer thread");
+  }
 }
+
+FileWriterBuffering::~FileWriterBuffering() { shutdown(); }
 
 bool FileWriterBuffering::open() noexcept {
   return FileWriterDecoratorBase::open();
@@ -114,17 +95,19 @@ void FileWriterBuffering::close() noexcept {
 }
 
 void FileWriterBuffering::shutdown() noexcept {
-  m_stop_flush_worker = true;
-
-  if (m_buf != nullptr) {
-    pthread_join(m_flush_worker_thread, nullptr);
-    mysql_cond_destroy(&m_flushed_cond);
-    mysql_cond_destroy(&m_written_cond);
-    mysql_mutex_destroy(&m_mutex);
-    my_free(m_buf);
-    m_buf = nullptr;
-    m_flush_worker_thread = 0;
+  mysql_mutex_lock(&m_mutex);
+  if (!m_flush_worker_running) {
+    mysql_mutex_unlock(&m_mutex);
+    return;
   }
+  m_flush_worker_running = false;
+  mysql_cond_signal(&m_written_cond);
+  mysql_mutex_unlock(&m_mutex);
+  pthread_join(m_flush_worker_thread, nullptr);
+  mysql_cond_destroy(&m_flushed_cond);
+  mysql_cond_destroy(&m_written_cond);
+  mysql_mutex_destroy(&m_mutex);
+  m_flush_worker_thread = 0;
 }
 
 void FileWriterBuffering::pause() noexcept {
@@ -136,56 +119,63 @@ void FileWriterBuffering::pause() noexcept {
 
 void FileWriterBuffering::resume() noexcept { mysql_mutex_unlock(&m_mutex); }
 
-bool FileWriterBuffering::check_flush_stopped() const noexcept {
-  return m_stop_flush_worker && m_flush_pos == m_write_pos;
-}
-
 void FileWriterBuffering::flush_worker() noexcept {
-  mysql_mutex_lock(&m_mutex);
+  my_thread_init();
 
-  while (m_flush_pos == m_write_pos) {
-    if (m_stop_flush_worker) {
-      mysql_mutex_unlock(&m_mutex);
-      return;
+  while (true) {
+    mysql_mutex_lock(&m_mutex);
+
+    // Wait for new data or until worker thread is stopped.
+    while (m_flush_worker_running && m_flush_pos == m_write_pos) {
+      timespec abs_time{};
+      set_timespec(&abs_time, 1);
+      mysql_cond_timedwait(&m_written_cond, &m_mutex, &abs_time);
     }
-    timespec abs_time{};
-    set_timespec(&abs_time, 1);
-    mysql_cond_timedwait(&m_written_cond, &m_mutex, &abs_time);
+
+    // End worker thread if it has been stopped and there is no more data to be
+    // flushed.
+    if (!m_flush_worker_running && m_flush_pos == m_write_pos) {
+      mysql_mutex_unlock(&m_mutex);
+      break;
+    }
+
+    if (m_flush_pos >= m_write_pos % m_buf.size()) {
+      m_state = (m_write_pos % m_buf.size() == 0) ? FileBufferState::COMPLETE
+                                                  : FileBufferState::INCOMPLETE;
+      mysql_mutex_unlock(&m_mutex);
+      FileWriterDecoratorBase::write(&m_buf[m_flush_pos],
+                                     m_buf.size() - m_flush_pos);
+      mysql_mutex_lock(&m_mutex);
+      m_flush_pos = 0;
+      m_write_pos %= m_buf.size();
+    } else {
+      const size_t flushlen = m_write_pos - m_flush_pos;
+      mysql_mutex_unlock(&m_mutex);
+      FileWriterDecoratorBase::write(&m_buf[m_flush_pos], flushlen);
+      mysql_mutex_lock(&m_mutex);
+      m_flush_pos += flushlen;
+      m_state = FileBufferState::COMPLETE;
+    }
+
+    assert(m_write_pos >= m_flush_pos);
+
+    mysql_cond_broadcast(&m_flushed_cond);
+    mysql_mutex_unlock(&m_mutex);
   }
 
-  if (m_flush_pos >= m_write_pos % m_size) {
-    m_state = (m_write_pos % m_size == 0) ? FileBufferState::COMPLETE
-                                          : FileBufferState::INCOMPLETE;
-    mysql_mutex_unlock(&m_mutex);
-    FileWriterDecoratorBase::write(m_buf + m_flush_pos, m_size - m_flush_pos);
-    mysql_mutex_lock(&m_mutex);
-    m_flush_pos = 0;
-    m_write_pos %= m_size;
-  } else {
-    const size_t flushlen = m_write_pos - m_flush_pos;
-    mysql_mutex_unlock(&m_mutex);
-    FileWriterDecoratorBase::write(m_buf + m_flush_pos, flushlen);
-    mysql_mutex_lock(&m_mutex);
-    m_flush_pos += flushlen;
-    m_state = FileBufferState::COMPLETE;
-  }
-
-  assert(m_write_pos >= m_flush_pos);
-
-  mysql_cond_broadcast(&m_flushed_cond);
-  mysql_mutex_unlock(&m_mutex);
+  my_thread_end();
 }
 
 void FileWriterBuffering::write(const char *record, size_t size) noexcept {
   DBUG_EXECUTE_IF("audit_log_write_full_buffer", {
-    if (size > m_size) {
-      size = m_size - m_write_pos;
+    if (size > m_buf.size()) {
+      size = m_buf.size() - m_write_pos;
     } else {
       return;
     }
   });
 
-  if (size > m_size) {
+  if (size > m_buf.size()) {
     if (!m_drop_if_full) {
       /* pause flushing thread and write out one record bypassing the buffer */
       pause();
@@ -204,11 +194,12 @@ void FileWriterBuffering::write(const char *record, size_t size) noexcept {
   mysql_mutex_lock(&m_mutex);
 
 loop:
-  if (m_write_pos + size <= m_flush_pos + m_size) {
-    const size_t wrlen = std::min(size, m_size - (m_write_pos % m_size));
-    memcpy(m_buf + (m_write_pos % m_size), record, wrlen);
+  if (m_write_pos + size <= m_flush_pos + m_buf.size()) {
+    const size_t wrlen =
+        std::min(size, m_buf.size() - (m_write_pos % m_buf.size()));
+    memcpy(&m_buf[m_write_pos % m_buf.size()], record, wrlen);
     if (wrlen < size) {
-      memcpy(m_buf, record + wrlen, size - wrlen);
+      memcpy(&m_buf[0], record + wrlen, size - wrlen);
     }
     m_write_pos = m_write_pos + size;
     assert(m_write_pos >= m_flush_pos);
@@ -223,7 +214,7 @@ loop:
     SysVars::update_event_max_drop_size(size);
   }
 
-  if (m_write_pos > m_flush_pos + m_size / 2) {
+  if (m_write_pos > m_flush_pos + m_buf.size() / 2) {
     mysql_cond_signal(&m_written_cond);
   }
 

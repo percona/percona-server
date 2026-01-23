@@ -17,8 +17,6 @@
 
 namespace audit_log_filter::log_writer {
 
-bool FileWriterDecoratorBase::init() noexcept { return m_file_writer->init(); }
-
 bool FileWriterDecoratorBase::open() noexcept { return m_file_writer->open(); }
 
 void FileWriterDecoratorBase::close() noexcept { m_file_writer->close(); }

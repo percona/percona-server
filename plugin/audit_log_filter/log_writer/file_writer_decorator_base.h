@@ -28,13 +28,6 @@ class FileWriterDecoratorBase : public FileWriterBase {
       : m_file_writer{std::move(file_writer)} {}
 
   /**
-   * @brief Init file writer.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init() noexcept override;
-
-  /**
    * @brief Prepare writer for work with newly opened log file.
    *
    * @return true in case of success, false otherwise

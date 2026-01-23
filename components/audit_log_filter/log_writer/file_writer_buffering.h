@@ -23,10 +23,11 @@
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "sql/malloc_allocator.h"
 
 #include <cstddef>
-#include <functional>
 #include <memory>
+#include <vector>
 
 namespace audit_log_filter::log_writer {
 
@@ -39,13 +40,6 @@ class FileWriterBuffering final : public FileWriterDecoratorBase {
   FileWriterBuffering(FileWriterBuffering &other) = delete;
   FileWriterBuffering(FileWriterBuffering &&other) = delete;
   ~FileWriterBuffering() final;
-
-  /**
-   * @brief Init file write buffer.
-   *
-   * @return true in case of success, false otherwise
-   */
-  bool init() noexcept override;
 
   /**
    * @brief Prepare writer for work with newly opened log file.
@@ -68,19 +62,12 @@ class FileWriterBuffering final : public FileWriterDecoratorBase {
    */
   void write(const char *record, size_t size) noexcept override;
 
-  /**
-   * @brief Check if flushing thread is stopped.
-   *
-   * @return true in case flushing thread is stopped, false otherwise
-   */
-  [[nodiscard]] inline bool check_flush_stopped() const noexcept;
-
+ private:
   /**
    * @brief Flush worker method used by flush thread.
    */
   void flush_worker() noexcept;
 
- private:
   /**
    * @brief Shutdown file write buffer.
    */
@@ -97,13 +84,12 @@ class FileWriterBuffering final : public FileWriterDecoratorBase {
   void resume() noexcept;
 
  private:
-  const size_t m_size;
   const bool m_drop_if_full;
-  char *m_buf;
+  std::vector<char, Malloc_allocator<char>> m_buf;
   size_t m_write_pos;
   size_t m_flush_pos;
   pthread_t m_flush_worker_thread;
-  bool m_stop_flush_worker;
+  bool m_flush_worker_running;
   mysql_mutex_t m_mutex;
   mysql_cond_t m_flushed_cond;
   mysql_cond_t m_written_cond;

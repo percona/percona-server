@@ -26,6 +26,7 @@
 #include "components/audit_log_filter/log_record_formatter/base.h"
 #include "components/audit_log_filter/sys_vars.h"
 
+#include <exception>
 #include <filesystem>
 #include <memory>
 #include <numeric>
@@ -43,30 +44,36 @@ FileWriterPtr get_file_writer(FileHandle &file_handle) {
    * SEMISYNCHRONOUS - log directly to file, do not flush and sync every event
    * SYNCHRONOUS - log directly to file, flush and sync every event.
    */
-  auto strategy_type = SysVars::get_file_strategy_type();
-  std::unique_ptr<FileWriterBase> writer = std::make_unique<FileWriter>(
-      file_handle, strategy_type == AuditLogStrategyType::Synchronous);
+  try {
+    auto strategy_type = SysVars::get_file_strategy_type();
+    std::unique_ptr<FileWriterBase> writer = std::make_unique<FileWriter>(
+        file_handle, strategy_type == AuditLogStrategyType::Synchronous);
 
-  if (SysVars::get_log_encryption_enabled()) {
-    writer = std::make_unique<FileWriterEncrypting>(std::move(writer));
+    if (SysVars::get_log_encryption_enabled()) {
+      writer = std::make_unique<FileWriterEncrypting>(std::move(writer));
+    }
+
+    if (SysVars::get_compression_type() == AuditLogCompressionType::Gzip) {
+      writer = std::make_unique<FileWriterCompressing>(std::move(writer));
+    }
+
+    if (strategy_type == AuditLogStrategyType::Asynchronous ||
+        strategy_type == AuditLogStrategyType::Performance) {
+      writer = std::make_unique<FileWriterBuffering>(
+          std::move(writer), SysVars::get_buffer_size(),
+          strategy_type == AuditLogStrategyType::Performance);
+    }
+
+    return writer;
+  } catch (std::exception &e) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to create Audit Log Filter file writer (%s)",
+                    e.what());
+  } catch (...) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to create Audit Log Filter file writer");
   }
-
-  if (SysVars::get_compression_type() == AuditLogCompressionType::Gzip) {
-    writer = std::make_unique<FileWriterCompressing>(std::move(writer));
-  }
-
-  if (strategy_type == AuditLogStrategyType::Asynchronous ||
-      strategy_type == AuditLogStrategyType::Performance) {
-    writer = std::make_unique<FileWriterBuffering>(
-        std::move(writer), SysVars::get_buffer_size(),
-        strategy_type == AuditLogStrategyType::Performance);
-  }
-
-  if (!writer->init()) {
-    return nullptr;
-  }
-
-  return writer;
+  return nullptr;
 }
 
 }  // namespace

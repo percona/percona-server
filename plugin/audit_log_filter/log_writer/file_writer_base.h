@@ -27,13 +27,6 @@ class FileWriterBase {
   virtual ~FileWriterBase() = default;
 
   /**
-   * @brief Init file writer.
-   *
-   * @return true in case of success, false otherwise
-   */
-  virtual bool init() noexcept = 0;
-
-  /**
    * @brief Prepare writer for work with newly opened log file.
    *
    * @return true in case of success, false otherwise

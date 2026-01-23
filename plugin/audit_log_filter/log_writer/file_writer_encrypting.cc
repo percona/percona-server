@@ -23,6 +23,7 @@
 
 #include <include/scope_guard.h>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 namespace audit_log_filter::log_writer {
@@ -32,16 +33,25 @@ const size_t kEvpKeyLength = 32;
 const size_t kEncryptChunkSize = 1024 * 1024;
 const char magic[] = "Salted__";
 
+const EVP_CIPHER *make_EVP_aes_256_cbc() {
+  auto cipher = EVP_aes_256_cbc();
+  if (!cipher) {
+    throw std::runtime_error("EVP_aes_256_cbc init failed");
+  }
+  return cipher;
+}
+
 }  // namespace
 
 FileWriterEncrypting::FileWriterEncrypting(
     std::unique_ptr<FileWriterBase> file_writer)
     : FileWriterDecoratorBase(std::move(file_writer)),
-      m_cipher{EVP_aes_256_cbc()},
+      m_cipher{make_EVP_aes_256_cbc()},
       m_ctx{nullptr},
-      m_key{nullptr},
-      m_iv{nullptr},
-      m_out_buff{nullptr} {}
+      m_key{std::make_unique<unsigned char[]>(kEvpKeyLength)},
+      m_iv{std::make_unique<unsigned char[]>(EVP_MAX_IV_LENGTH)},
+      m_out_buff{std::make_unique<unsigned char[]>(
+          kEncryptChunkSize + EVP_CIPHER_block_size(m_cipher))} {}
 
 FileWriterEncrypting::~FileWriterEncrypting() {
   if (m_ctx != nullptr) {
@@ -49,30 +59,6 @@ FileWriterEncrypting::~FileWriterEncrypting() {
     EVP_CIPHER_CTX_free(m_ctx);
     m_ctx = nullptr;
   }
-}
-
-bool FileWriterEncrypting::init() noexcept {
-  if (m_cipher == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "EVP_aes_256_cbc init failed");
-    return false;
-  }
-
-  m_key = std::make_unique<unsigned char[]>(kEvpKeyLength);
-  m_iv = std::make_unique<unsigned char[]>(EVP_MAX_IV_LENGTH);
-
-  if (m_key == nullptr || m_iv == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init key buffer");
-    return false;
-  }
-
-  m_out_buff = std::make_unique<unsigned char[]>(kEncryptChunkSize + EVP_CIPHER_block_size(m_cipher));
-
-  if (m_out_buff == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to init out buffer");
-    return false;
-  }
-
-  return FileWriterDecoratorBase::init();
 }
 
 bool FileWriterEncrypting::open() noexcept {
@@ -186,11 +172,14 @@ void FileWriterEncrypting::write(const char *record, size_t size) noexcept {
 
   while (encrypted_size < size) {
     int out_size = 0;
-    size_t chunk_size = size - encrypted_size > kEncryptChunkSize ? kEncryptChunkSize : size - encrypted_size;
+    size_t chunk_size = size - encrypted_size > kEncryptChunkSize
+                            ? kEncryptChunkSize
+                            : size - encrypted_size;
 
-    if (EVP_EncryptUpdate(m_ctx, m_out_buff.get(), &out_size,
-                          reinterpret_cast<const unsigned char *>(record + encrypted_size),
-                          chunk_size) != 1) {
+    if (EVP_EncryptUpdate(
+            m_ctx, m_out_buff.get(), &out_size,
+            reinterpret_cast<const unsigned char *>(record + encrypted_size),
+            chunk_size) != 1) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "EVP_EncryptUpdate error: %s",
                       ERR_error_string(ERR_peek_error(), nullptr));

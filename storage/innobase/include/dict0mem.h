@@ -67,8 +67,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 #include "dict/mem.h"
 #include "ut0new.h"
-
-#include "sql/sql_const.h" /* MAX_KEY_LENGTH */
 #include "sql/table.h"
 
 #include <algorithm>
@@ -1088,8 +1086,8 @@ struct dict_index_t {
   before it are known to be of a fixed size, 0 otherwise */
   unsigned trx_id_offset : MAX_KEY_LENGTH_BITS;
 
-  static_assert(1 << MAX_KEY_LENGTH_BITS >= MAX_KEY_LENGTH,
-                "1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH");
+  static_assert(1 << MAX_KEY_LENGTH_BITS >= INNODB_MAX_KEY_SIZE,
+                "1<<MAX_KEY_LENGTH_BITS) < INNODB_MAX_KEY_SIZE");
 
   /** number of columns the user defined to be in the index: in the internal
   representation we add more columns */

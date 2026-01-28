@@ -273,10 +273,13 @@ const constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 
 #define ROCKSDB_SIZEOF_AUTOINC_VALUE sizeof(longlong)
 
+#define ROCKSDB_MAX_KEY_LENGTH 49152 /* Max key length in bytes */
+
 /*
   Maximum index prefix length in bytes.
 */
-constexpr uint MAX_INDEX_COL_LEN = 3072;
+constexpr uint MAX_INDEX_COL_LEN_XLARGE = 49152;
+constexpr uint MAX_INDEX_COL_LEN_SMALL = 3072;
 
 /*
   MyRocks specific error codes. NB! Please make sure that you will update

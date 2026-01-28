@@ -44,7 +44,7 @@ constexpr const int MAX_ALIAS_NAME{256};
 
 constexpr const unsigned int MAX_KEY{MAX_INDEXES}; /* Max used keys */
 constexpr const unsigned int MAX_REF_PARTS{16};    /* Max parts used as ref */
-constexpr const unsigned int MAX_KEY_LENGTH{3072}; /* max possible key */
+constexpr const unsigned int MAX_KEY_LENGTH{49152}; /* max possible key */
 
 constexpr const int MAX_FIELD_CHARLENGTH{255};
 constexpr const int MAX_FIELD_VARCHARLENGTH{65535};

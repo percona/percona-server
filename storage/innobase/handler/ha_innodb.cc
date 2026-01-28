@@ -196,6 +196,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "trx0xa.h"
+#include "univ.i"
 #include "ut0mem.h"
 #include "ut0test.h"
 #include "ut0ut.h"
@@ -203,7 +204,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #else
 #include <typelib.h>
 #include "buf0types.h"
-#include "univ.i"
 #endif /* !UNIV_HOTBACKUP */
 
 #include "log0files_io.h"
@@ -7139,7 +7139,7 @@ uint ha_innobase::max_supported_key_length() const {
     case 8192:
       return (1536);
     default:
-      return (3500);
+      return (INNODB_MAX_KEY_SIZE);
   }
 }
 

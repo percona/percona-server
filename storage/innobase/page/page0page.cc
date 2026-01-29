@@ -48,12 +48,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 #include "lob0lob.h"
 
-/** A blob map to track the first page no of external LOB and its parent record
-which is the <page_no, heap_no>. This is used to find duplicate external LOB
-pages that is shared between two records. This can happen only on corruption
-(cause unknown yet). CHECK TABLE  t1 EXTENDED will use this map to report
-corruption and mark the table as corrupted */
-thread_local blob_ref_map *thread_local_blob_map = nullptr;
 
 /*                      THE INDEX PAGE
                         ==============
@@ -1734,47 +1728,49 @@ a clustered index
 @param[in] rec     physical record
 @param[in] index   index of the table
 @param[in] offsets the record offset array
+@param[in] blob_map Optional blob reference map for tracking, nullptr by
+default.
 @return true If OK else false if external LOB is found to be shared between two
 records, ie false on failure */
 bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
-                            const ulint *offsets) {
-  // this means reference check is not enabled. Enabled only via
-  // CHECK TABLE path
-  if (thread_local_blob_map == nullptr) {
+                            const ulint *offsets, blob_ref_map *blob_map) {
+  // This means reference check is not enabled. Enabled only via
+  // CHECK TABLE path.
+  if (blob_map == nullptr) {
     return true;
   }
 
-  // if index is not PRIMARY, return true
+  // If index is not PRIMARY, return true.
   if (!index->is_clustered()) {
     return true;
   }
 
-  // if page-level is not zero, return true because blob exists only on leaf
-  // level
+  // If page-level is not zero, return true because blob exists only on leaf
+  // level.
   const page_t *page = page_align(rec);
   if (!page_is_leaf(page)) {
     return true;
   }
 
-  // if rec is not user record, blobs dont exist, return true
+  // If rec is not user record, blobs dont exist, return true.
   if (!page_rec_is_user_rec(rec)) {
     return true;
   }
 
-  // if rec doesn't have any external LOB, return true
+  // If rec doesn't have any external LOB, return true.
   if (!rec_offs_any_extern(offsets)) {
     return true;
   }
 
-  // if rec is deleted marked, return true, we cannot validate the blob. the
-  // blob pages in the deleted marked records could be freed
+  // If rec is deleted marked, return true, we cannot validate the blob. The
+  // blob pages in the deleted marked records could be freed.
   if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
     return true;
   }
 
-  // if rec is not the owner of the blob, we cannot validate if blob page state
+  // If rec is not the owner of the blob, we cannot validate if blob page state
   // now validate that the blob first page is not marked as free from page
-  // bitmap
+  // bitmap.
 
   ulint n_fields = rec_offs_n_fields(offsets);
 
@@ -1786,8 +1782,7 @@ bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
           lob::btr_rec_get_field_ref(index, rec, offsets, i));
 
       lob::ref_t ref(field_ref);
-      if (!ref.is_owner() || ref.is_null() || ref.is_null_relaxed() ||
-          ref.is_being_modified()) {
+      if (!ref.is_owner() || ref.is_null_relaxed() || ref.is_being_modified()) {
         continue;
       }
 
@@ -1816,16 +1811,16 @@ bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
 
       DBUG_EXECUTE_IF(
           "simulate_lob_corruption",
-          // introduce corruption after 5 external LOB entries
-          if (thread_local_blob_map->size() >= 5) {
-            // we introduce a fake entry in the map
-            (*thread_local_blob_map)[blob_page_no] = std::make_pair(
+          // Introduce corruption after 5 external LOB entries.
+          if (blob_map->size() >= 5) {
+            // We introduce a fake entry in the map.
+            (*blob_map)[blob_page_no] = std::make_pair(
                 page_get_page_no(page) - 1, page_rec_get_heap_no(rec) - 1);
           });
 
-      auto it = thread_local_blob_map->find(blob_page_no);
-      if (it == thread_local_blob_map->end()) {
-        (*thread_local_blob_map)[blob_page_no] =
+      auto it = blob_map->find(blob_page_no);
+      if (it == blob_map->end()) {
+        (*blob_map)[blob_page_no] =
             std::make_pair(page_get_page_no(page), page_rec_get_heap_no(rec));
       } else {
         auto val = it->second;
@@ -2249,7 +2244,8 @@ bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index) {
   return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
 }
 
-bool page_validate(const page_t *page, dict_index_t *index) {
+bool page_validate(const page_t *page, dict_index_t *index,
+                   blob_ref_map *blob_map) {
   const page_dir_slot_t *slot;
   mem_heap_t *heap;
   byte *buf;
@@ -2360,7 +2356,8 @@ bool page_validate(const page_t *page, dict_index_t *index) {
       goto func_exit;
     }
 
-    if (!page_rec_blob_validate(const_cast<byte *>(rec), index, offsets)) {
+    if (!page_rec_blob_validate(const_cast<byte *>(rec), index, offsets,
+                                blob_map)) {
       goto func_exit;
     }
 

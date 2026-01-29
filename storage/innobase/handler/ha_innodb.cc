@@ -18940,18 +18940,16 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
       CHECK TABLE. */
       srv_fatal_semaphore_wait_extend.fetch_add(1);
 
+      blob_ref_map blob_map;
+      blob_ref_map *blob_map_ptr = nullptr;
+
       if (is_extended && index->is_clustered()) {
-        // Setup the thread local map for clustered index only
-        thread_local_blob_map = new blob_ref_map();
+        // Setup the blob map for clustered index only.
+        blob_map_ptr = &blob_map;
       }
 
-      auto blob_ref_clear_guard = create_scope_guard([]() {
-        if (!thread_local_blob_map) return;
-        delete thread_local_blob_map;
-        thread_local_blob_map = nullptr;
-      });
-
-      bool valid = btr_validate_index(index, m_prebuilt->trx, false);
+      bool valid =
+          btr_validate_index(index, m_prebuilt->trx, false, blob_map_ptr);
 
       /* Restore the fatal lock wait timeout after
       CHECK TABLE. */

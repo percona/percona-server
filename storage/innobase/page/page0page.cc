@@ -1787,7 +1787,7 @@ bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
       }
 
       if (ref.length() == 0) {
-        // LOB purged
+        // LOB purged.
         continue;
       }
 
@@ -1798,7 +1798,7 @@ bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
       bool is_free = fseg_page_is_free(nullptr, blob_space_id, blob_page_no);
       if (is_free) {
         // This should not be possible. A record that owns the BLOB shouldn't
-        // have the first page marked as free in page bitmap
+        // have the first page marked as free in page bitmap.
         ut_ad(0);
         ib::error() << "Invalid record. The record's blob reference is marked"
                     << " as free although the record owns it "
@@ -1828,13 +1828,14 @@ bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
                        "shared between "
                        "two records";
         ib::error() << "The external LOB first page is " << blob_page_id;
-        ib::error() << "The first occurence of the external LOB first page is "
+        ib::error() << "The first occurrence of the external LOB first page is "
                        "in record : page_no: "
                     << val.first << " with heap_no: " << val.second;
-        ib::error() << "The second occurence of the external LOB first page is "
-                       "in record: page_no: "
-                    << page_get_page_no(page)
-                    << " with heap no: " << page_rec_get_heap_no(rec);
+        ib::error()
+            << "The second occurrence of the external LOB first page is "
+               "in record: page_no: "
+            << page_get_page_no(page)
+            << " with heap no: " << page_rec_get_heap_no(rec);
         return false;
       }
     }

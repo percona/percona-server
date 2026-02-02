@@ -184,6 +184,7 @@ ulong srv_purge_rseg_truncate_frequency =
     static_cast<ulong>(undo::TRUNCATE_FREQUENCY);
 #endif /* !UNIV_HOTBACKUP */
 
+
 /** Enable or Disable Truncate of UNDO tablespace.
 Note: If enabled then UNDO tablespace will be selected for truncate.
 While Server waits for undo-tablespace to truncate if user disables
@@ -864,6 +865,11 @@ char *srv_buf_dump_filename;
 and/or load it during startup. */
 bool srv_buffer_pool_dump_at_shutdown = true;
 bool srv_buffer_pool_load_at_startup = true;
+
+#ifdef UNIV_LINUX
+/* The number of init threads */
+ulong srv_buffer_pool_parallel_init_threads = 0;
+#endif
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */
 static const ulint SRV_PURGE_SLOT = 1;

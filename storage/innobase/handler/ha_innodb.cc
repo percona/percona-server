@@ -23801,7 +23801,12 @@ static MYSQL_SYSVAR_ULONG(write_io_threads, srv_n_write_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "Number of background write I/O threads in InnoDB.",
                           nullptr, nullptr, 4, 1, 64, 0);
-
+#ifdef UNIV_LINUX
+static MYSQL_SYSVAR_ULONG(buffer_pool_parallel_init_threads, srv_buffer_pool_parallel_init_threads,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Maximum threads for parallel buffer pool initialization (0=auto)",
+                          nullptr, nullptr, 0, 0, 128, 0);
+#endif
 static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "Helps to save your data in case the disk image of "
@@ -24497,6 +24502,9 @@ static MYSQL_SYSVAR_BOOL(encrypt_online_alter_logs,
                          "Encrypt online alter logs.", nullptr, nullptr, false);
 
 static SYS_VAR *innobase_system_variables[] = {
+#ifdef UNIV_LINUX
+    MYSQL_SYSVAR(buffer_pool_parallel_init_threads),
+#endif
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),
     MYSQL_SYSVAR(autoextend_increment),

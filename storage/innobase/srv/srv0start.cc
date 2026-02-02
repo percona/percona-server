@@ -1851,10 +1851,10 @@ dberr_t srv_start(bool create_new_db) {
   char unit;
 
   if (srv_buf_pool_size >= 1024 * 1024 * 1024) {
-    size = ((double)srv_buf_pool_size) / (1024 * 1024 * 1024);
+    size = static_cast<double>(srv_buf_pool_size / (1024.0 * 1024 * 1024));
     unit = 'G';
   } else {
-    size = ((double)srv_buf_pool_size) / (1024 * 1024);
+    size = static_cast<double>(srv_buf_pool_size / (1024.0 * 1024));
     unit = 'M';
   }
 

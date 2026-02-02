@@ -8923,7 +8923,7 @@ ER_IB_MSG_1129
   eng "Cannot initialize AIO sub-system"
 
 ER_IB_MSG_1130
-  eng "Initializing buffer pool, total size = %lf%c, instances = %lu, chunk size =%lf%c "
+  eng "Initializing buffer pool, total size = %.3lf%c, instances = %lu, chunk size =%.3lf%c "
 
 ER_IB_MSG_1131
   eng "Cannot allocate memory for the buffer pool"
@@ -8942,6 +8942,18 @@ ER_IB_MSG_CPU_CORES_INFO
 
 ER_IB_MSG_BUFFER_POOL_INIT_THREADS_CAPPED
   eng "innodb_buffer_pool_parallel_init_threads (%lu) exceeds buffer pool instances (%lu). Capping to %lu threads."
+
+ER_IB_MSG_BUFFER_POOL_INSTANCE_INIT_PARAMS
+  eng "Parallel buffer pool initialization: instances=%lu, init threads=%lu, configured threads=%lu, buffer_pool_size=%.3lf%c"
+
+ER_IB_MSG_BUFFER_POOL_INSTANCE_INIT_COMPLETED
+  eng "Buffer pool instance %lu initialized in %d minutes %.3lf seconds"
+
+ER_IB_MSG_BUFFER_POOL_INIT_COMPLETED
+  eng "Buffer pool initialization completed in %d minutes %.3lf seconds. Speed: %.3lf GB/sec"
+
+ER_IB_MSG_BUFFER_POOL_INIT_FAILED
+  eng "Buffer pool initialization failed after %d minutes and %.3lf seconds"
 
 ER_IB_MSG_DATA_DIRECTORY_NOT_INITIALIZED_OR_CORRUPTED
   eng "Cannot create redo log files because data files are corrupt or the database was not shut down cleanly after creating the data files."

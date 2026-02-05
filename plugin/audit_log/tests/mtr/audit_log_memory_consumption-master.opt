@@ -1,0 +1,4 @@
+$AUDIT_LOG_OPT
+$AUDIT_LOG_LOAD
+--audit_log_file=test_audit.log
+--max-allowed-packet=1G

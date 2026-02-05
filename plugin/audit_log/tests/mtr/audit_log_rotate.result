@@ -1,0 +1,14 @@
+#
+# Rotate with "rotations" and "size" given as startup options
+#
+success
+#
+# PS-4950: Invalid audit log file size when audit_log_rotations is changed during runtime
+#
+SET @audit_log_rotations_orig = @@audit_log_rotations;
+SET @audit_log_rotate_on_size_orig = @@audit_log_rotate_on_size;
+SET GLOBAL audit_log_rotations = 3;
+SET GLOBAL audit_log_rotate_on_size = 4096;
+SET GLOBAL audit_log_rotations = @audit_log_rotations_orig;
+SET GLOBAL audit_log_rotate_on_size = @audit_log_rotate_on_size_orig;
+success

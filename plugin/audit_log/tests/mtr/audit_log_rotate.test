@@ -1,0 +1,67 @@
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+--echo #
+--echo # Rotate with "rotations" and "size" given as startup options
+--echo #
+
+--disable_result_log
+--disable_query_log
+--source audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
+--enable_query_log
+--enable_result_log
+
+perl;
+  eval "use JSON qw(decode_json); 1" or exit 0;
+  my @files = glob ($ENV{'MYSQLD_DATADIR'} . "/test_audit.log.[0-9][0-9]");
+  foreach (@files) {
+    open my $file, $_ or die "Could not open log: $!";
+    while (my $line = <$file>) {
+        decode_json($line);
+    }
+    close $file;
+  }
+  die "Rotation doesn't work!" unless scalar(@files) > 1
+EOF
+
+--echo success
+
+--echo #
+--echo # PS-4950: Invalid audit log file size when audit_log_rotations is changed during runtime
+--echo #
+
+SET @audit_log_rotations_orig = @@audit_log_rotations;
+SET @audit_log_rotate_on_size_orig = @@audit_log_rotate_on_size;
+SET GLOBAL audit_log_rotations = 3;
+SET GLOBAL audit_log_rotate_on_size = 4096;
+
+--remove_files_wildcard $MYSQLD_DATADIR test_audit.log.*
+
+--disable_result_log
+--disable_query_log
+--source audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
+--enable_query_log
+--enable_result_log
+
+perl;
+  my @files = glob ($ENV{'MYSQLD_DATADIR'} . "/test_audit.log.[0-9][0-9]");
+  foreach (@files) {
+    my $size = -s $_;
+    print $_;
+    die "Files are too small!" unless $size >= 4096;
+  }
+  die "Too many rotations!" unless scalar(@files) <= 3;
+EOF
+
+SET GLOBAL audit_log_rotations = @audit_log_rotations_orig;
+SET GLOBAL audit_log_rotate_on_size = @audit_log_rotate_on_size_orig;
+
+--remove_files_wildcard $MYSQLD_DATADIR test_audit.log*
+
+--echo success

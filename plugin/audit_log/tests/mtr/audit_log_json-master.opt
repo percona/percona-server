@@ -1,0 +1,3 @@
+--audit_log_file=test_audit.log
+--audit-log-format=JSON
+--audit_log_strategy=SEMISYNCHRONOUS

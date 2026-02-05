@@ -1,0 +1,20 @@
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $log_file=$MYSQLD_DATADIR/test_audit.log
+
+--remove_file $log_file
+SET GLOBAL audit_log_flush=ON;
+--disable_query_log
+--disable_result_log
+UPDATE performance_schema.setup_instruments
+SET ENABLED = 'YES'
+WHERE NAME LIKE 'memory/%';
+CREATE TABLE test (col1 LONGBLOB NOT NULL);
+# 10M query
+--let $very_long_text=`SELECT REPEAT('a', 10485760)`
+eval INSERT INTO test (col1) VALUES ('$very_long_text');
+--enable_query_log
+--enable_result_log
+--let $assert_text = Memory usage is less than 100M
+--let $assert_cond= "[SELECT current_alloc FROM sys.memory_global_by_current_bytes WHERE event_name = \'memory/sql/THD::variables\']" <= 100
+--source include/assert.inc
+DROP TABLE test;

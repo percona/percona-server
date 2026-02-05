@@ -1,0 +1,33 @@
+#
+# PS-1116 : Audit plugin reports "command_class=error" for server-side prepared statements
+#
+CREATE USER prepare_test  IDENTIFIED BY 'mysql';
+SET GLOBAL audit_log_flush=ON;
+SET GLOBAL audit_log_flush=ON;
+SET GLOBAL audit_log_exclude_commands= 'set_option,prepare_sql,execute_sql';
+PREPARE pstmt FROM 'SHOW GLOBAL VARIABLES WHERE Variable_name = ?';
+SET @pvar='max_allowed_packet';
+EXECUTE pstmt USING @pvar;
+Variable_name	Value
+max_allowed_packet	67108864
+SET GLOBAL audit_log_exclude_commands = NULL;
+SET GLOBAL audit_log_include_commands = NULL;
+PREPARE pstmt1 FROM 'SHOW GLOBAL VARIABLES WHERE Variable_name = ?';
+SET @pvar1 = 'max_allowed_packet';
+EXECUTE pstmt1 USING @pvar1;
+Variable_name	Value
+max_allowed_packet	67108864
+SET GLOBAL audit_log_flush=ON;
+set global audit_log_flush= ON;
+===================================================================
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_commands = NULL","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_commands = NULL","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","prepare_sql","<CONN_ID>",0,"PREPARE pstmt1 FROM ...","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET @pvar1 = 'max_allowed_packet'","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","execute_sql","<CONN_ID>",0,"SHOW GLOBAL VARIABLES WHERE Variable_name = 'max_allowed_packet'","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
+===================================================================
+DEALLOCATE PREPARE pstmt;
+DEALLOCATE PREPARE pstmt1;
+DROP USER prepare_test;

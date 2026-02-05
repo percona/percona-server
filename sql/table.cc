@@ -2103,9 +2103,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   assert(share->fields >= frm_context->stored_fields);
   assert(share->reclength >= share->stored_rec_length);
 
-  /* update zip dict info (name + data) from the handler */
-  if (share->has_compressed_columns())
-    handler_file->upgrade_update_field_with_zip_dict_info(thd, NULL);
 
   /* Use share mem root for zip dict name and data */
   for (uint i2 = 0; i2 < share->fields; ++i2) {

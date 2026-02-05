@@ -7596,21 +7596,6 @@ class handler {
 
   int get_lock_type() const { return m_lock_type; }
 
-  /**
-    This method is supposed to fill field definition objects with
-    compression dictionary info (name and data). This is used
-    only during upgrade from 5.7 to 8.0
-    If the handler does not support compression dictionaries
-    this method should be left empty (not overloaded).
-
-    @param    thd          Thread handle
-    @param    part_name    Full table name (including partition part).
-                           Optional.
-  */
-  virtual void upgrade_update_field_with_zip_dict_info(THD *thd
-                                                       [[maybe_unused]],
-                                                       const char *part_name
-                                                       [[maybe_unused]]) {}
 
  public:
   /* Read-free replication interface */

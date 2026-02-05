@@ -3019,7 +3019,6 @@ struct handlerton {
   notify_rename_table_t notify_rename_table;
   notify_truncate_table_t notify_truncate_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
-  upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
   redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;

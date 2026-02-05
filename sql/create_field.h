@@ -164,7 +164,7 @@ class Create_field {
   */
   uint pack_length_override{0};
 
-  LEX_CSTRING zip_dict_name(NULL_CSTR);  // Compression dictionary name
+  LEX_CSTRING zip_dict_name{NULL_CSTR};  // Compression dictionary name
 
   /// Generated column expression information.
   Value_generator *gcol_info{nullptr};

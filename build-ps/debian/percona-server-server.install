@@ -196,6 +196,8 @@ usr/lib/mysql/plugin/debug/authentication_webauthn_client.so
 usr/lib/mysql/plugin/debug/component_test_server_telemetry_metrics.so
 
 # Percona plugins
+usr/lib/mysql/plugin/audit_log.so
+usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/auth_pam.so
 usr/lib/mysql/plugin/debug/auth_pam.so
 usr/lib/mysql/plugin/auth_pam_compat.so

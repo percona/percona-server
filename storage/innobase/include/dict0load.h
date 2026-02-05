@@ -64,21 +64,4 @@ then table->data_dir_path will remain nullptr.
 @param[in]      filepath        filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath);
 
-/** This function parses a SYS_ZIP_DICT record, extracts necessary
-information from the record and returns to caller.
-@param[in,out]	heap		heap memory
-@param[in]	index		SYS_ZIP_DICT index definition
-@param[in]	rec		current SYS_ZIP_DICT record
-@param[out]	id		dict id
-@param[out]	name		dict name
-@param[out]	data		dict data
-@param[out]	data_len	dict data length
-@return error message, or NULL on success */
-[[nodiscard]]
-const char *dict_process_sys_zip_dict(mem_heap_t *heap,
-                                      const dict_index_t &index,
-                                      const rec_t *rec, ulint *id,
-                                      const char **name, ulint *name_len,
-                                      const char **data, ulint *data_len);
-
 #endif

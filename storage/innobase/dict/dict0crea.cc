@@ -766,25 +766,6 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
   return (table->first_index());
 }
 
-/** Fetch callback, just stores extracted zip_dict id in the external
-variable.
-@return TRUE if all OK */
-static bool dict_create_extract_int_aux(void *row,      /*!< in: sel_node_t* */
-                                        void *user_arg) /*!< in: int32 id */
-{
-  sel_node_t *node = static_cast<sel_node_t *>(row);
-  dfield_t *dfield = que_node_get_val(node->select_list);
-  dtype_t *type = dfield_get_type(dfield);
-  ulint len = dfield_get_len(dfield);
-
-  ut_a(dtype_get_mtype(type) == DATA_INT);
-  ut_a(len == sizeof(uint32_t));
-
-  memcpy(user_arg, dfield_get_data(dfield), sizeof(uint32_t));
-
-  return (true);
-}
-
 /** Get a single compression dictionary id for the given
 (table id, column pos) pair.
 @return error code or DB_SUCCESS */

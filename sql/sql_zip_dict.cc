@@ -123,32 +123,6 @@ bool bootstrap(THD *thd) {
   return false;
 }
 
-/** During upgrade from 5.7 to 8.0, transfer compression dicitonary
-data from 5.7 SYS_ZIP_DICT to 8.0 mysql.compression_dictionary table
-@param[in]   thd   Session context
-@return false on success, true on failure */
-bool upgrade_transfer_compression_dict_data(THD *thd) {
-  compression_dict_data_vec_t zip_dict_vec;
-  handlerton *hton = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  hton->upgrade_get_compression_dict_data(thd, zip_dict_vec);
-
-  for (const auto &elem : zip_dict_vec) {
-    const auto &name = elem.first;
-    const auto &data = elem.second;
-
-    int ret = create_zip_dict(thd, name.c_str(), name.length(), data.c_str(),
-                              data.length(), false, true);
-
-    if (ret != 0) {
-      return (true);
-    }
-
-    DBUG_LOG("zip_dict", "Compression dictionary Name is: "
-                             << name << " Data is: " << data);
-  }
-  return (false);
-}
-
 /** Acquire MDL on mysql.compression_dictionary table
 @param[in,out]  thd         Session object
 @param[in]      mdl_type    MDL type (like MDL_SHARED_READ etc)

@@ -5737,7 +5737,7 @@ static int innodb_init(void *p) {
   innobase_hton->page_track.get_status = innobase_page_track_get_status;
 
   innobase_hton->upgrade_get_compression_dict_data =
-      dd_upgrade_get_compression_dict_data;
+      nullptr;
 
   static_assert(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 

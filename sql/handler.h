@@ -2133,12 +2133,6 @@ typedef bool (*notify_truncate_table_t)(THD *thd, const MDL_key *mdl_key,
 */
 typedef bool (*rotate_encryption_master_key_t)(void);
 
-using compression_dict_data_vec_t =
-    std::vector<std::pair<std::string, std::string>>;
-
-using upgrade_get_compression_dict_data_t =
-    bool (*)(THD *thd, compression_dict_data_vec_t &names_vector);
-
 /**
   @brief
   Enable or Disable SE write ahead logging.

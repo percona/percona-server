@@ -1,0 +1,1 @@
+SET GLOBAL audit_log_flush=ON;

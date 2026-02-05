@@ -1,0 +1,31 @@
+#
+# Bug #1633988: Assertion `thd == _current_thd()' failed
+#
+# Test audit log handling of too many connections error
+#
+
+--disable_query_log
+call mtr.add_suppression("Too many connections");
+--enable_query_log
+
+--source include/count_sessions.inc
+
+SET @saved_max_connections = @@global.max_connections;
+SET GLOBAL max_connections = 2;
+
+--connect (con1, localhost, root)
+--connect (con2, localhost, root)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_CON_COUNT_ERROR
+--connect (con3, localhost, root)
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_CON_COUNT_ERROR
+--connect (con4, localhost, root)
+
+connection default;
+SET GLOBAL max_connections= @saved_max_connections;
+
+--disconnect con2
+--disconnect con1
+
+--source include/wait_until_count_sessions.inc

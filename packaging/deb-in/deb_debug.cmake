@@ -207,6 +207,7 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   # Add debug versions of commercial plugins, if enabled
   IF (DEFINED DEB_WITH_DEBUG)
     SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS "${DEB_INSTALL_DEBUG_SERVER_PLUGINS}
+usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_kerberos.so

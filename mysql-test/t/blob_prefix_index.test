@@ -1,0 +1,18 @@
+--echo PS-10396 Test if end-range scans on a table with prefix indexes
+--echo on BLOB columns causes any memory leaks.
+--echo
+
+CREATE TABLE tb (
+    a BLOB,
+    b INT,
+    INDEX i1(a(1)),
+    INDEX i(b),
+    INDEX i2(a(2))
+);
+
+INSERT INTO tb VALUES ('abc', 123);
+INSERT INTO tb VALUES ('abcd', 1234);
+
+SELECT * FROM tb WHERE a BETWEEN 'abc' AND 'abc';
+
+DROP TABLE tb;

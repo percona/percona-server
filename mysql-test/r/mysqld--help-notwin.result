@@ -260,12 +260,28 @@ The following options may be given as the first argument:
  --caching-sha2-password-digest-rounds=# 
  Number of SHA2 rounds to be done when storing a password
  hash onto disk.
+ --caching-sha2-password-enforce-storage-format 
+ Enforce storage format for credentials. If set to TRUE,
+ then accounts that are using caching_sha2_password and
+ have password transformation stored in format other than
+ what is specified by
+ --caching_sha2_password_storage_format, will be forced to
+ change their password upon login.
  --caching-sha2-password-private-key-path=name 
  A fully qualified path to the private RSA key used for
  authentication.
+ --caching-sha2-password-proxy-users 
+ If set to FALSE (the default), then the caching_sha2
+ authentication plugin will not signal for authenticated
+ users to be checked for mapping to proxy users. If set to
+ TRUE, the plugin will flag associated authenticated
+ accounts to be mapped to proxy users when the server
+ option check_proxy_users is enabled.
  --caching-sha2-password-public-key-path=name 
  A fully qualified path to the public RSA key used for
  authentication.
+ --caching-sha2-password-storage-format=name 
+ Storage format for credentials.
  --character-set-client-handshake 
  Deprecated. Don't ignore client side character set value
  sent during handshake.
@@ -1845,8 +1861,11 @@ buffered-error-log-filename
 buffered-error-log-size 0
 bulk-insert-buffer-size 8388608
 caching-sha2-password-digest-rounds 5000
+caching-sha2-password-enforce-storage-format FALSE
 caching-sha2-password-private-key-path private_key.pem
+caching-sha2-password-proxy-users FALSE
 caching-sha2-password-public-key-path public_key.pem
+caching-sha2-password-storage-format CRYPT5
 character-set-client-handshake TRUE
 character-set-filesystem binary
 character-set-server utf8mb4

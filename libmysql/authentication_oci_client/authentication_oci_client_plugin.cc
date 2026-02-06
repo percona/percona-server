@@ -41,8 +41,8 @@
 #include <iostream>
 #include <ostream>
 
+#include "base64_encode.h"
 #include "sql-common/oci/signing_key.h"
-#include "sql-common/oci/ssl.h"
 #include "sql-common/oci/utilities.h"
 
 static char *s_oci_config_location = nullptr;
@@ -182,12 +182,12 @@ static int oci_authenticate_client_plugin(MYSQL_PLUGIN_VIO *vio,
 static int initialize_plugin(char *, size_t, int, va_list) {
   s_oci_config_file = new (std::nothrow) oci::OCI_config_file{};
   if (s_oci_config_file == nullptr) return 1;
-    /*
-      Key file and security token file paths may have "~".
-      As per OCI SDK & CLI docs, "~" should be resolved to
-      $HOME on *nix/Mac OS and
-      %HOMEDRIVE%%HOMEPATH% on Windows
-    */
+  /*
+    Key file and security token file paths may have "~".
+    As per OCI SDK & CLI docs, "~" should be resolved to
+    $HOME on *nix/Mac OS and
+    %HOMEDRIVE%%HOMEPATH% on Windows
+  */
 #ifdef _WIN32
   if (getenv("HOMEDRIVE") && getenv("HOMEPATH")) {
     s_expanded_path += getenv("HOMEDRIVE");

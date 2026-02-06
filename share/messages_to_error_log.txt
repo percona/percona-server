@@ -13293,7 +13293,69 @@ ER_AUTOPILOT_OLTP_ADVISOR_WARNING
 ER_AUTOPILOT_OLTP_ADVISOR_ERROR
   eng "%s"
 
-<<<<<<< HEAD
+ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT
+  eng "An event of type %s is missing extra data and cannot be processed by the server's component plugin bridge. As a result plugins will not get the notification."
+
+ER_INVALID_PREVIOUS_DIAGNOSTICS_AREA_STATUS
+  eng "Invalid previous diagnostics area status '%.64s' when attempting to report status '%.64s'. This is a bug and the server will now abort. The previous error (if any) was '%.128s' and the requested error (if any) is '%.128s'."
+
+ER_CHECK_TABLE_FUNCTIONS_DOWNGRADED
+  eng "Error MY-%06d occurred while checking table-definitions: %s"
+
+ER_SERVER_ERROR_NO_CONTAINER_SUPPORT_IN_WIN
+   eng "Server does not support containers on Windows"
+
+ER_SERVER_ERROR_NOT_IN_CONTAINER
+   eng "Server is not running in a container but --container_aware is turned ON"
+
+ER_SERVER_WARN_CONTAINER_IGNORED
+   eng "Server ignores the discovered container restrictions as --container_aware is OFF"
+
+ER_AUDIT_LOG_COMPONENT_FILE_PRUNE_FAILED
+  eng "Failed to auto-prune file '%s'."
+
+ER_AUDIT_LOG_STATUS_VARIABLES_REGISTRATION_FAILED
+  eng "Failed to register status variables."
+
+ER_AUDIT_LOG_STATUS_VARIABLES_UNREGISTRATION_FAILED
+  eng "Failed to unregister status variables."
+
+ER_AUDIT_LOG_SYSTEM_VARIABLE_REGISTRATION_FAILED
+  eng "Failed to register %s.%s system variable."
+
+ER_AUDIT_LOG_SYSTEM_VARIABLE_UNREGISTRATION_FAILED
+  eng "Failed to unregister %s.%s system variable."
+
+ER_AUDIT_LOG_WRITE_TO_FILE_FAILED
+  eng "Error writing file \'%-.200s\'."
+
+ER_AUDIT_LOG_PASSWORD_GENERATED
+  eng "Encryption password has not been set; it will be generated automatically. Use %s to obtain the password or %s to set a new one."
+
+ER_AUDIT_LOG_INFO
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_WARNING
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_ERROR
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_FILE_PATH_TOO_LONG
+  eng "File path is too long (%zu). Absolute file path in the current configuration should not exceed %zu characters."
+
+ER_AUDIT_LOG_CANNOT_ALLOCATE_ASYNCHRONOUS_BUFFER
+  eng "Cannot allocate asynchronous write buffer of size: %zu bytes."
+
+ER_AUDIT_LOG_COMPONENT_PASSWORD_HAS_BEEN_COPIED
+  eng "'%s' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
+  eng "Database name is too long (%zu). Database name should not exceed %zu characters."
+
+ER_AUDIT_LOG_DATABASE_NAME_EMPTY
+  eng "Database name cannot be empty."
+
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13667,72 +13729,6 @@ ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
 #
 
 
-||||||| merged common ancestors
-=======
-ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT
-  eng "An event of type %s is missing extra data and cannot be processed by the server's component plugin bridge. As a result plugins will not get the notification."
-
-ER_INVALID_PREVIOUS_DIAGNOSTICS_AREA_STATUS
-  eng "Invalid previous diagnostics area status '%.64s' when attempting to report status '%.64s'. This is a bug and the server will now abort. The previous error (if any) was '%.128s' and the requested error (if any) is '%.128s'."
-
-ER_CHECK_TABLE_FUNCTIONS_DOWNGRADED
-  eng "Error MY-%06d occurred while checking table-definitions: %s"
-
-ER_SERVER_ERROR_NO_CONTAINER_SUPPORT_IN_WIN
-   eng "Server does not support containers on Windows"
-
-ER_SERVER_ERROR_NOT_IN_CONTAINER
-   eng "Server is not running in a container but --container_aware is turned ON"
-
-ER_SERVER_WARN_CONTAINER_IGNORED
-   eng "Server ignores the discovered container restrictions as --container_aware is OFF"
-
-ER_AUDIT_LOG_COMPONENT_FILE_PRUNE_FAILED
-  eng "Failed to auto-prune file '%s'."
-
-ER_AUDIT_LOG_STATUS_VARIABLES_REGISTRATION_FAILED
-  eng "Failed to register status variables."
-
-ER_AUDIT_LOG_STATUS_VARIABLES_UNREGISTRATION_FAILED
-  eng "Failed to unregister status variables."
-
-ER_AUDIT_LOG_SYSTEM_VARIABLE_REGISTRATION_FAILED
-  eng "Failed to register %s.%s system variable."
-
-ER_AUDIT_LOG_SYSTEM_VARIABLE_UNREGISTRATION_FAILED
-  eng "Failed to unregister %s.%s system variable."
-
-ER_AUDIT_LOG_WRITE_TO_FILE_FAILED
-  eng "Error writing file \'%-.200s\'."
-
-ER_AUDIT_LOG_PASSWORD_GENERATED
-  eng "Encryption password has not been set; it will be generated automatically. Use %s to obtain the password or %s to set a new one."
-
-ER_AUDIT_LOG_INFO
-  eng "Component component_audit_log reported: '%s'"
-
-ER_AUDIT_LOG_WARNING
-  eng "Component component_audit_log reported: '%s'"
-
-ER_AUDIT_LOG_ERROR
-  eng "Component component_audit_log reported: '%s'"
-
-ER_AUDIT_LOG_FILE_PATH_TOO_LONG
-  eng "File path is too long (%zu). Absolute file path in the current configuration should not exceed %zu characters."
-
-ER_AUDIT_LOG_CANNOT_ALLOCATE_ASYNCHRONOUS_BUFFER
-  eng "Cannot allocate asynchronous write buffer of size: %zu bytes."
-
-ER_AUDIT_LOG_COMPONENT_PASSWORD_HAS_BEEN_COPIED
-  eng "'%s' password has been copied into '%.32s' and will be removed with first purged password."
-
-ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
-  eng "Database name is too long (%zu). Database name should not exceed %zu characters."
-
-ER_AUDIT_LOG_DATABASE_NAME_EMPTY
-  eng "Database name cannot be empty."
-
->>>>>>> mysql-9.6.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

@@ -386,7 +386,11 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 }
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
-<<<<<<< HEAD
+
+bool thd_is_sql_fk_checks_enabled() {
+  if (current_thd == nullptr) return true;
+  return (is_sql_fk_checks_enabled(current_thd));
+}
 
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.
@@ -427,11 +431,3 @@ void thd_add_fragmentation_stats(THD *thd,
         stats.scan_deleted_recs_size;
   }
 }
-||||||| merged common ancestors
-=======
-
-bool thd_is_sql_fk_checks_enabled() {
-  if (current_thd == nullptr) return true;
-  return (is_sql_fk_checks_enabled(current_thd));
-}
->>>>>>> mysql-9.6.0

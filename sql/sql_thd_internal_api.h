@@ -292,7 +292,13 @@ bool thd_is_bootstrap_thread(THD *thd);
 bool thd_is_dd_update_stmt(const THD *thd);
 
 my_thread_id thd_thread_id(const THD *thd);
-<<<<<<< HEAD
+
+/**
+  Check if SQL Layer FK handling is enabled.
+
+  @retval true use SQL Layer FK handling, false otherwise.
+*/
+bool thd_is_sql_fk_checks_enabled();
 
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.
@@ -307,14 +313,4 @@ void thd_get_fragmentation_stats(const THD *thd,
 void thd_add_fragmentation_stats(THD *thd,
                                  const fragmentation_stats_t &stats) noexcept;
 
-||||||| merged common ancestors
-=======
-
-/**
-  Check if SQL Layer FK handling is enabled.
-
-  @retval true use SQL Layer FK handling, false otherwise.
-*/
-bool thd_is_sql_fk_checks_enabled();
->>>>>>> mysql-9.6.0
 #endif  // SQL_THD_INTERNAL_API_INCLUDED

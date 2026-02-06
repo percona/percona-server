@@ -1019,57 +1019,6 @@ extern dict_persist_t *dict_persist;
 /* Dictionary system struct */
 struct dict_sys_t {
 #ifndef UNIV_HOTBACKUP
-<<<<<<< HEAD
-  DictSysMutex mutex;          /*!< mutex protecting the data
-                               dictionary; protects also the
-                               disk-based dictionary system tables;
-                               this mutex serializes CREATE TABLE
-                               and DROP TABLE, as well as reading
-                               the dictionary data for a table from
-                               system tables */
-#endif                         /* !UNIV_HOTBACKUP */
-  row_id_t row_id;             /*!< the next row id to assign;
-                               NOTE that at a checkpoint this
-                               must be written to the dict system
-                               header and flushed to a file; in
-                               recovery this must be derived from
-                               the log records */
-  hash_table_t *table_hash;    /*!< hash table of the tables, based
-                               on name */
-  hash_table_t *table_id_hash; /*!< hash table of the tables, based
-                               on id */
-  size_t size;                 /*!< varying space in bytes occupied
-                               by the data dictionary table and
-                               index objects */
-||||||| merged common ancestors
-  DictSysMutex mutex;          /*!< mutex protecting the data
-                               dictionary; protects also the
-                               disk-based dictionary system tables;
-                               this mutex serializes CREATE TABLE
-                               and DROP TABLE, as well as reading
-                               the dictionary data for a table from
-                               system tables */
-#endif                         /* !UNIV_HOTBACKUP */
-  row_id_t row_id;             /*!< the next row id to assign;
-                               NOTE that at a checkpoint this
-                               must be written to the dict system
-                               header and flushed to a file; in
-                               recovery this must be derived from
-                               the log records */
-  hash_table_t *table_hash;    /*!< hash table of the tables, based
-                               on name */
-  hash_table_t *table_id_hash; /*!< hash table of the tables, based
-                               on id */
-  size_t size;                 /*!< varying space in bytes occupied
-                               by the data dictionary table and
-                               index objects */
-  /** Handler to sys_* tables, they're only for upgrade */
-  dict_table_t *sys_tables;  /*!< SYS_TABLES table */
-  dict_table_t *sys_columns; /*!< SYS_COLUMNS table */
-  dict_table_t *sys_indexes; /*!< SYS_INDEXES table */
-  dict_table_t *sys_fields;  /*!< SYS_FIELDS table */
-  dict_table_t *sys_virtual; /*!< SYS_VIRTUAL table */
-=======
   /** mutex protecting the data dictionary; protects also the disk-based
   dictionary system tables; this mutex serializes CREATE TABLE and DROP TABLE,
   as well as reading the dictionary data for a table from system tables */
@@ -1098,7 +1047,6 @@ struct dict_sys_t {
   /** varying space in bytes occupied by the data dictionary table and index
   objects  */
   size_t size;
->>>>>>> mysql-9.6.0
 
   /** Permanent handle to mysql.innodb_table_stats */
   dict_table_t *table_stats;

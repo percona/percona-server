@@ -1824,12 +1824,8 @@ connection-memory-chunk-size 8192
 connection-memory-limit 18446744073709551615
 connection-memory-status-limit 18446744073709551615
 console FALSE
-<<<<<<< HEAD
-coredumper (No default value)
-||||||| merged common ancestors
-=======
 container-aware FALSE
->>>>>>> mysql-9.6.0
+coredumper (No default value)
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
 daemonize FALSE

@@ -668,16 +668,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         // continue when IGNORE clause is used.
         continue;
       }
-<<<<<<< HEAD
-      int error = insert_table->file->ha_upsert(thd, update_field_list,
-                                                update_value_list);
-      if (error == ENOTSUP)
-        error = write_record(thd, insert_table, &info, &update);
-      if (error) {
-||||||| merged common ancestors
-
-      if (write_record(thd, insert_table, &info, &update)) {
-=======
 
       if (use_sql_fk_checks_for_table(thd, insert_table)) {
         if (check_all_parent_fk_ref(thd, insert_table,
@@ -690,9 +680,11 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
           continue;
         }
       }
-
-      if (write_record(thd, insert_table, &info, &update)) {
->>>>>>> mysql-9.6.0
+      int error = insert_table->file->ha_upsert(thd, update_field_list,
+                                                update_value_list);
+      if (error == ENOTSUP)
+        error = write_record(thd, insert_table, &info, &update);
+      if (error) {
         has_error = true;
         break;
       }

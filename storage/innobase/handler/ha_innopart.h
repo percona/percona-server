@@ -388,6 +388,7 @@ class ha_innopart : public ha_innobase,
 
   int discard_or_import_tablespace(bool discard, dd::Table *table_def) override;
 
+
   /** Compare key and rowid.
   Helper function for sorting records in the priority queue.
   a/b points to table->record[0] rows which must have the

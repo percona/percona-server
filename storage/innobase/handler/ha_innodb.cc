@@ -5793,29 +5793,15 @@ static int innodb_init(void *p) {
   innobase_hton->lock_hton_log = innobase_lock_hton_log;
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
-<<<<<<< HEAD
-  innobase_hton->flags =
-      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
-      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
-      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
-      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD |
-||||||| merged common ancestors
-  innobase_hton->flags =
-      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
-      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
-      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
-      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD;
-=======
   innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
                          HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
                          HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
                          HTON_SUPPORTS_TABLE_ENCRYPTION |
                          HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
-                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK;
->>>>>>> mysql-9.6.0
+                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK |
+                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
-      HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -15940,13 +15926,6 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   return 0;
 }
 
-<<<<<<< HEAD
-/** Set Engine specific data to dd::Table object for upgrade.
-@param[in,out]  thd             thread handle
-@param[in]      db_name         database name
-@param[in]      table_name      table name
-@param[in,out]  dd_table        data dictionary cache object
-@return 0 on success, non-zero on failure */
 bool ha_innobase::upgrade_table(THD * /*thd*/, const char * /*db_name*/,
                                 const char * /*table_name*/,
                                 dd::Table * /*dd_table*/) {
@@ -15957,28 +15936,6 @@ bool ha_innobase::upgrade_table(THD * /*thd*/, const char * /*db_name*/,
 #else
   return false;
 #endif
-||||||| merged common ancestors
-/** Set Engine specific data to dd::Table object for upgrade.
-@param[in,out]  thd             thread handle
-@param[in]      db_name         database name
-@param[in]      table_name      table name
-@param[in,out]  dd_table        data dictionary cache object
-@return 0 on success, non-zero on failure */
-bool ha_innobase::upgrade_table(THD *thd, const char *db_name,
-                                const char *table_name, dd::Table *dd_table) {
-  return (dd_upgrade_table(thd, db_name, table_name, dd_table, table));
-=======
-bool ha_innobase::upgrade_table(THD * /*thd*/, const char * /*db_name*/,
-                                const char * /*table_name*/,
-                                dd::Table * /*dd_table*/) {
-// TODO: get rid of upgrade_table from the interface, which is needed by NDB
-// only
-#ifdef UNIV_DEBUG
-  ut_error;
-#else
-  return false;
-#endif
->>>>>>> mysql-9.6.0
 }
 
 /** Get storage-engine private data for a data dictionary table.

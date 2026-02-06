@@ -3342,14 +3342,11 @@ class THD : public MDL_context_owner,
   */
   void init_query_mem_roots();
   void cleanup_connection(void);
-<<<<<<< HEAD
   void reset_stats(void) noexcept;
   void reset_diff_stats(void) noexcept;
   // ran_command is true when this is called immediately after a
   // command has been run.
   void update_stats(bool ran_command) noexcept;
-||||||| merged common ancestors
-=======
   /**
     Sets the THD::variables values that depend on the protocol
 
@@ -3361,7 +3358,6 @@ class THD : public MDL_context_owner,
        2. A reset connection or change_user is done
    */
   void set_protocol_dependent_variables(Protocol *proto);
->>>>>>> mysql-9.6.0
   void cleanup_after_query();
   void store_globals();
   void restore_globals();
@@ -5301,7 +5297,13 @@ class THD : public MDL_context_owner,
     defined behaviour when they aren't.
   */
   size_t m_opened_temptable_count{};
-<<<<<<< HEAD
+
+ private:
+  bool m_sql_foreign_keys{1};
+
+ public:
+  bool get_sql_foreign_keys() const;
+  void set_sql_foreign_keys(bool flag) { m_sql_foreign_keys = flag; }
 
  public:
   /**
@@ -5340,16 +5342,6 @@ class THD : public MDL_context_owner,
   */
   kill_handler_fn m_kill_handler_fn{nullptr};
   void *m_kill_handler_data{nullptr};
-||||||| merged common ancestors
-=======
-
- private:
-  bool m_sql_foreign_keys{1};
-
- public:
-  bool get_sql_foreign_keys() const;
-  void set_sql_foreign_keys(bool flag) { m_sql_foreign_keys = flag; }
->>>>>>> mysql-9.6.0
 };
 
 /**

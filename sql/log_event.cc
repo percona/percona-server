@@ -4639,11 +4639,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->copy_status_var(&query_start_status);
         }
 
-<<<<<<< HEAD
-        dispatch_sql_command(thd, &parser_state, true);
-||||||| merged common ancestors
-        dispatch_sql_command(thd, &parser_state);
-=======
         /// If an error occurs while executing the statement, and the error is
         /// to be ignored, the statement will not execute and hence will not be
         /// written to the binary log. But since we succeed (by suppressing the
@@ -4660,8 +4655,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
               return ignored_error_code(error_code);
             });
 
-        dispatch_sql_command(thd, &parser_state);
->>>>>>> mysql-9.6.0
+        dispatch_sql_command(thd, &parser_state, true);
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -12550,13 +12544,10 @@ int Delete_rows_log_event::do_after_row_operations(const Relay_log_info *const,
 int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
   int error;
   assert(m_table != nullptr);
-<<<<<<< HEAD
   if (m_rows_lookup_algorithm == ROW_LOOKUP_NOT_NEEDED) {
     error = unpack_current_row(rli, &m_cols, &m_local_cols, false, false);
     if (error) return error;
   }
-||||||| merged common ancestors
-=======
 
   /*
     OPTION_NO_FOREIGN_KEY_CHECKS is a table flag, value may be different per
@@ -12578,7 +12569,6 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
     DBUG_PRINT("fk", ("SE FK - Delete log event on table %s", m_table->alias));
   }
 
->>>>>>> mysql-9.6.0
   /* m_table->record[0] contains the BI */
   m_table->mark_columns_per_binlog_row_image(thd);
   error = m_table->file->ha_delete_row(m_table->record[0]);

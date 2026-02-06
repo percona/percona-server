@@ -5673,13 +5673,6 @@ sub run_testcase ($) {
           resfile_output($tinfo->{'check'}) if $opt_resfile;
           mtr_report_test_passed($tinfo);
         } else {
-<<<<<<< HEAD
-          # Testcase itself tell us to skip this one
-          $tinfo->{skip_reason} = MTR_SKIP_BY_TEST;
-||||||| merged common ancestors
-          # Testcase itself tell us to skip this one
-          $tinfo->{skip_detected_by_test} = 1;
-=======
           if ($res == MYSQLTEST_OPT_PASS) {
             # Extract reason from test log file and set comment, reuses
             # pre-existing routine which does this for skipped tests
@@ -5687,8 +5680,7 @@ sub run_testcase ($) {
             mtr_report_test_opt_passed($tinfo);
           } else {
             # Testcase itself tell us to skip this one
-            $tinfo->{skip_detected_by_test} = 1;
->>>>>>> mysql-9.6.0
+            $tinfo->{skip_reason} = MTR_SKIP_BY_TEST;
 
             # Try to get reason from test log file
             find_testcase_skipped_reason($tinfo);

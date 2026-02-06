@@ -593,7 +593,7 @@ bool File_query_log::open() {
 
   {
     char log_creation_time[iso8601_size];
-    make_iso8601_timestamp(log_creation_time, my_micro_time(),
+    Mysql_timestamp_imp::make_iso8601_timestamp(log_creation_time, my_micro_time(),
                            iso8601_sysvar_logtimestamps);
 
     char *end;
@@ -1618,24 +1618,13 @@ void Query_logger::cleanup() {
 }
 
 bool Query_logger::slow_log_write(THD *thd, const char *query,
-<<<<<<< HEAD
-                                  size_t query_length,
-                                  bool aggregate, ulonglong lock_usec,
-                                  ulonglong exec_usec) {
-  assert(thd->enable_slow_log);
-||||||| merged common ancestors
-                                  size_t query_length, bool aggregate,
-                                  ulonglong lock_usec, ulonglong exec_usec) {
-  assert(thd->enable_slow_log && opt_slow_log);
-=======
                                   size_t query_length, bool aggregate,
                                   ulonglong lock_usec, ulonglong exec_usec) {
   PSI_LogRecord rec(key_slow_query_logger, OTELLogLevel::TLOG_WARN,
                     (query != nullptr && *query != '\0') ? query : "none");
   const bool telemetry_log = rec.check_enabled();
-  const bool legacy_log = thd->enable_slow_log && opt_slow_log &&
-                          ((*slow_log_handler_list) != nullptr);
->>>>>>> mysql-9.6.0
+  const bool legacy_log =
+      thd->enable_slow_log && ((*slow_log_handler_list) != nullptr);
 
   if (!legacy_log && !telemetry_log) return false;
 
@@ -2044,84 +2033,77 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
     Do not log administrative statements unless the appropriate option is
     set.
   */
-<<<<<<< HEAD
-  if (!thd->enable_slow_log || !opt_slow_log) return false;
-||||||| merged common ancestors
-  if (thd->enable_slow_log && opt_slow_log) {
-    const bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
-=======
   PSI_LogRecord rec(key_slow_query_logger, OTELLogLevel::TLOG_WARN, "");
   const bool telemetry_log = rec.check_enabled();
   if ((thd->enable_slow_log && opt_slow_log) || telemetry_log) {
-    const bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
->>>>>>> mysql-9.6.0
+    /*
+      Copy all needed global variables into a session one before doing all
+      checks.
 
-  /*
-    Copy all needed global variables into a session one before doing all checks.
+      Low long_query_time value most likely means user is debugging stuff and
+      even though some thread's queries are not supposed to be logged b/c of the
+      rate limit, if one of them takes long enough (>= 1 second) it will be
+      sensible to make an exception and write to slow log anyway.
+    */
+    System_variables const &g = global_system_variables;
+    copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER, &g.log_slow_filter);
+    copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
+                           &g.log_slow_rate_limit);
+    copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
+                           &g.log_slow_verbosity);
+    copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME, &g.long_query_time);
+    copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+                           &g.min_examined_row_limit);
+    copy_global_to_session(thd, SLOG_UG_LOG_QUERY_ERRORS, &g.log_query_errors);
 
-    Low long_query_time value most likely means user is debugging stuff and even
-    though some thread's queries are not supposed to be logged b/c of the rate
-    limit, if one of them takes long enough (>= 1 second) it will be sensible
-    to make an exception and write to slow log anyway.
-  */
-  System_variables const &g = global_system_variables;
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER, &g.log_slow_filter);
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
-                         &g.log_slow_rate_limit);
-  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
-                         &g.log_slow_verbosity);
-  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME, &g.long_query_time);
-  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
-                         &g.min_examined_row_limit);
-  copy_global_to_session(thd, SLOG_UG_LOG_QUERY_ERRORS, &g.log_query_errors);
+    /* Follow the slow log filter configuration. */
+    if (thd->variables.log_slow_filter != 0 &&
+        !(thd->variables.log_slow_filter & thd->query_plan_flags))
+      return false;
 
-  /* Follow the slow log filter configuration. */
-  if (thd->variables.log_slow_filter != 0 &&
-      !(thd->variables.log_slow_filter & thd->query_plan_flags))
-	 return false;
-
-  /*
-    Don't log the CALL statement if slow statements logging
-    inside of stored procedures is enabled.
-  */
-  if (opt_log_slow_sp_statements > 0 && thd->lex) {
-    if (thd->lex->sql_command == SQLCOM_CALL) {
-      if (!thd->stmt_arena->is_regular()) {
-        assert(sp_sql_command != -1);
-        if (sp_sql_command == SQLCOM_CALL) return false;
-      } else
-        return false;
-    } else if (thd->lex->sql_command == SQLCOM_EXECUTE) {
-      Prepared_statement *stmt;
-      LEX_CSTRING *name = &thd->lex->prepared_stmt_name;
-      if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->m_lex &&
-          stmt->m_lex->sql_command == SQLCOM_CALL)
-        return false;
+    /*
+      Don't log the CALL statement if slow statements logging
+      inside of stored procedures is enabled.
+    */
+    if (opt_log_slow_sp_statements > 0 && thd->lex) {
+      if (thd->lex->sql_command == SQLCOM_CALL) {
+        if (!thd->stmt_arena->is_regular()) {
+          assert(sp_sql_command != -1);
+          if (sp_sql_command == SQLCOM_CALL) return false;
+        } else
+          return false;
+      } else if (thd->lex->sql_command == SQLCOM_EXECUTE) {
+        Prepared_statement *stmt;
+        LEX_CSTRING *name = &thd->lex->prepared_stmt_name;
+        if ((stmt = thd->stmt_map.find_by_name(*name)) != NULL && stmt->m_lex &&
+            stmt->m_lex->sql_command == SQLCOM_CALL)
+          return false;
+      }
     }
-  }
 
-  if (opt_slow_query_log_rate_type == SLOG_RT_QUERY &&
-      thd->variables.log_slow_rate_limit &&
-      my_rnd(&thd->slog_rand) * ((double)thd->variables.log_slow_rate_limit) >
-          1.0 &&
-      query_exec_time < slow_query_log_always_write_time &&
-      (thd->variables.long_query_time >= 1000000 ||
-       (ulong)query_exec_time < 1000000)) {
-	  return false;
-  }
-  if (opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
-      thd->variables.log_slow_rate_limit &&
-      thd->thread_id() % thd->variables.log_slow_rate_limit &&
-      query_exec_time < slow_query_log_always_write_time &&
-      (thd->variables.long_query_time >= 1000000 ||
-       (ulong)query_exec_time < 1000000)) {
-	  return false;
-  }
+    if (opt_slow_query_log_rate_type == SLOG_RT_QUERY &&
+        thd->variables.log_slow_rate_limit &&
+        my_rnd(&thd->slog_rand) * ((double)thd->variables.log_slow_rate_limit) >
+            1.0 &&
+        query_exec_time < slow_query_log_always_write_time &&
+        (thd->variables.long_query_time >= 1000000 ||
+         (ulong)query_exec_time < 1000000)) {
+      return false;
+    }
+    if (opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
+        thd->variables.log_slow_rate_limit &&
+        thd->thread_id() % thd->variables.log_slow_rate_limit &&
+        query_exec_time < slow_query_log_always_write_time &&
+        (thd->variables.long_query_time >= 1000000 ||
+         (ulong)query_exec_time < 1000000)) {
+      return false;
+    }
 
-  const bool suppress_logging =
+    const bool suppress_logging =
       log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
-  if (!suppress_logging && log_this_query) return true;
+    if (!suppress_logging && log_this_query) return true;
+  }
 
   return false;
 }

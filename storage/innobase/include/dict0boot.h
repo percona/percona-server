@@ -81,24 +81,8 @@ static inline void dict_sys_write_row_id(byte *field, row_id_t row_id);
 
 /** Creates and initializes the data dictionary at the server bootstrap.
  @return DB_SUCCESS or error code. */
-<<<<<<< HEAD
-[[nodiscard]] dberr_t dict_create(void);
-
-||||||| merged common ancestors
-[[nodiscard]] dberr_t dict_create(void);
-
-/** The ids for the basic system tables and their indexes */
-constexpr uint32_t DICT_TABLES_ID = 1;
-constexpr uint32_t DICT_COLUMNS_ID = 2;
-constexpr uint32_t DICT_INDEXES_ID = 3;
-constexpr uint32_t DICT_FIELDS_ID = 4;
-/* The following is a secondary index on SYS_TABLES */
-constexpr uint32_t DICT_TABLE_IDS_ID = 5;
-
-=======
 [[nodiscard]] dberr_t dict_create();
 
->>>>>>> mysql-9.6.0
 /** the ids for tables etc. start from this number, except for basic system
  tables and their above defined indexes; ibuf tables and indexes are assigned
  as the id the number DICT_IBUF_ID_MIN plus the space id */

@@ -92,16 +92,12 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_signal_handler_imp.cc
   applier_metrics_service_imp.cc
   mysql_library_imp.cc
-<<<<<<< HEAD
   mysql_thd_kill_handler_imp.cc
-||||||| merged common ancestors
-=======
   mysql_json_encode_imp.cc
   mysql_my_thread_imp.cc
   mysql_file_imp.cc
   mysql_server_attributes_imp.cc
   mysql_lock_free_hash_imp.cc
->>>>>>> mysql-9.6.0
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

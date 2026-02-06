@@ -3914,15 +3914,9 @@ void dict_persist_init() {
 }
 
 /** Clear the structure */
-<<<<<<< HEAD
-void dict_persist_close(void) {
+void dict_persist_close() {
   if (!dict_persist) return;
 
-||||||| merged common ancestors
-void dict_persist_close(void) {
-=======
-void dict_persist_close() {
->>>>>>> mysql-9.6.0
   ut::delete_(dict_persist->persisters);
 
 #ifndef UNIV_HOTBACKUP

@@ -83,21 +83,11 @@
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/check_stack.h"
 #include "sql/dd/cache/dictionary_client.h"
-<<<<<<< HEAD
 #include "sql/dd/dd.h"  // dd::get_dictionary()
-||||||| merged common ancestors
-=======
-#include "sql/dd/dd.h"
->>>>>>> mysql-9.6.0
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"       // dd::table_exists
 #include "sql/dd/dd_tablespace.h"  // dd::fill_table_and_parts_tablespace_name
-<<<<<<< HEAD
-#include "sql/dd/dictionary.h"
-||||||| merged common ancestors
-=======
 #include "sql/dd/dictionary.h"     // dd::get_dictionary
->>>>>>> mysql-9.6.0
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"

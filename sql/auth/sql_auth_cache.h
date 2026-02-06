@@ -890,11 +890,6 @@ class ACL_temporary_lock_state {
   const long m_daynr_locked;
 };
 
-<<<<<<< HEAD
-extern ACL_USER acl_utility_user;
-
-||||||| merged common ancestors
-=======
 size_t acl_users_size();
 
 class ACL_USER_visitor {
@@ -906,5 +901,6 @@ class ACL_USER_visitor {
 
 void acl_users_accept(ACL_USER_visitor *visitor);
 
->>>>>>> mysql-9.6.0
+extern ACL_USER acl_utility_user;
+
 #endif /* SQL_USER_CACHE_INCLUDED */

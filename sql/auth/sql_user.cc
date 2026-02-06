@@ -2885,12 +2885,13 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       return true;
     }
     while ((tmp_user_name = user_list++)) {
-    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
-                            nullptr)) {
-      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
-      result = true;
-      continue;
-    }
+      if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                              nullptr)) {
+        log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0,
+                 "Cannot create utility user");
+        result = true;
+        continue;
+      }
       bool history_check_done = false;
       I_multi_factor_auth *mfa = nullptr;
       /*
@@ -3197,7 +3198,8 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
     get_mandatory_roles(&mandatory_roles);
     while ((user = user_list++) != nullptr) {
       if (acl_is_utility_user(user->user.str, user->host.str, nullptr)) {
-        log_user(thd, &wrong_users, user, wrong_users.length() > 0);
+        log_user(thd, &wrong_users, user, wrong_users.length() > 0,
+                 "Cannot drop utility user");
         result = true;
         continue;
       }
@@ -3587,7 +3589,8 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
       if (acl_is_utility_user(tmp_user_from->user.str, tmp_user_from->host.str,
                               nullptr)) {
-        log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0);
+        log_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0,
+                 "Cannot alter utility user");
         result = 1;
         continue;
       }

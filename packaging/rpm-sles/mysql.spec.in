@@ -1032,13 +1032,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif # mecab
 %if 0%{?commercial}
-<<<<<<< HEAD
-||||||| merged common ancestors
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
-=======
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log.so
->>>>>>> mysql-9.6.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so

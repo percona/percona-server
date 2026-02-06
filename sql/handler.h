@@ -2149,9 +2149,6 @@ using fix_tablespaces_empty_uuid_t = bool (*)(void);
 */
 using fix_default_table_encryption_t = bool (*)(ulong value, bool is_starting);
 
-using compression_dict_data_vec_t =
-    std::vector<std::pair<std::string, std::string>>;
-
 /**
   @brief
   Enable or Disable SE write ahead logging.
@@ -7621,6 +7618,7 @@ class handler {
   void set_ha_table(TABLE *table_arg) { table = table_arg; }
 
   int get_lock_type() const { return m_lock_type; }
+
 
  public:
   /* Read-free replication interface */

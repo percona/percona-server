@@ -613,19 +613,11 @@ sub mtr_report_stats ($$;$) {
     } elsif ($tinfo->{'result'} eq 'MTR_RES_SKIPPED') {
       # Test was skipped (disabled not counted)
       $tot_skipped++ unless $tinfo->{'disable'};
-<<<<<<< HEAD
       $tot_skipdetect++
         if (defined $tinfo->{'skip_reason'}
             and $tinfo->{skip_reason} eq MTR_SKIP_BY_TEST);
-    } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED') {
-||||||| merged common ancestors
-      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
-    } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED') {
-=======
-      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
     } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED' or
              $tinfo->{'result'} eq 'MTR_RES_OPT_PASSED') {
->>>>>>> mysql-9.6.0
       # Test passed
       $tot_tests++;
       $tot_passed++;

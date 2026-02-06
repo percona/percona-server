@@ -164,15 +164,9 @@ class Create_field {
   */
   uint pack_length_override{0};
 
-<<<<<<< HEAD
-  LEX_CSTRING zip_dict_name;  // Compression dictionary name
+  LEX_CSTRING zip_dict_name{NULL_CSTR};  // Compression dictionary name
 
-  /* Generated column expression information */
-||||||| merged common ancestors
-  /* Generated column expression information */
-=======
   /// Generated column expression information.
->>>>>>> mysql-9.6.0
   Value_generator *gcol_info{nullptr};
   /**
     Indication that the field is phycically stored in tables
@@ -193,52 +187,14 @@ class Create_field {
     is filled in dd::Column::options and later used to fill TABLE_SHARE*
     zip_dict_name and zip_dict_data
   */
-  uint64_t zip_dict_id;
+  uint64_t zip_dict_id{0};
 
   LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
   LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
   /// Will be converted to m_engine_attribute for persistence
   LEX_CSTRING m_external_format = EMPTY_CSTR;
 
-<<<<<<< HEAD
-  Create_field()
-      : after(nullptr),
-        is_explicit_collation(false),
-        geom_type(Field::GEOM_GEOMETRY),
-        is_nullable(false),
-        is_zerofill(false),
-        is_unsigned(false),
-        /*
-          Initialize treat_bit_as_char for all field types even if
-          it is only used for MYSQL_TYPE_BIT. This avoids bogus
-          valgrind warnings in optimized builds.
-        */
-        treat_bit_as_char(false),
-        pack_length_override(0),
-        zip_dict_name(NULL_CSTR),
-        stored_in_db(false),
-        m_default_val_expr(nullptr),
-        zip_dict_id(0) {}
-||||||| merged common ancestors
-  Create_field()
-      : after(nullptr),
-        is_explicit_collation(false),
-        geom_type(Field::GEOM_GEOMETRY),
-        is_nullable(false),
-        is_zerofill(false),
-        is_unsigned(false),
-        /*
-          Initialize treat_bit_as_char for all field types even if
-          it is only used for MYSQL_TYPE_BIT. This avoids bogus
-          valgrind warnings in optimized builds.
-        */
-        treat_bit_as_char(false),
-        pack_length_override(0),
-        stored_in_db(false),
-        m_default_val_expr(nullptr) {}
-=======
   Create_field() = default;
->>>>>>> mysql-9.6.0
   Create_field(Field *field, Field *orig_field);
 
   /* Used to make a clone of this object for ALTER/CREATE TABLE */

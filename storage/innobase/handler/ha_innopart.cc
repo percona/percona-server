@@ -2900,6 +2900,7 @@ int ha_innopart::discard_or_import_tablespace(bool discard,
   return error;
 }
 
+
 /** Compare key and rowid.
 Helper function for sorting records in the priority queue.
 a/b points to table->record[0] rows which must have the

@@ -148,16 +148,8 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
           *((mysql_cstring_with_length *)inout_pvalue) = {sql_command.str,
                                                           sql_command.length};
         }
-<<<<<<< HEAD
-      } else if (!strcmp(name, "sql_command_id")) {
-        enum_sql_command cmd = SQLCOM_END;
-        if (t->lex != nullptr) cmd = t->lex->sql_command;
-        *((uint32_t *)inout_pvalue) = static_cast<uint32_t>(cmd);
-||||||| merged common ancestors
-=======
       } else if (!strcmp(name, "sql_command_id")) {
         *((enum_sql_command *)inout_pvalue) = t->lex->sql_command;
->>>>>>> mysql-9.6.0
       } else if (!strcmp(name, "command")) {
         const char *command = get_server_command_string(t->get_command());
         *((mysql_cstring_with_length *)inout_pvalue) = {command,

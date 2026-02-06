@@ -36,14 +36,8 @@
 #include "test_utils.h"
 
 #include <mysql/components/services/log_shared.h>
-<<<<<<< HEAD
 #include "sql/log.h"
-||||||| merged common ancestors
-#include "../sql/log.h"
-=======
-#include "../sql/log.h"
 #include "sql/server_component/mysql_timestamp_imp.h"
->>>>>>> mysql-9.6.0
 
 // CET: 32 bytes
 //   date (10), 'T', time (8), '.', microseconds (6), timezone offset (6)

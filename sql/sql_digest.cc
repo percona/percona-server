@@ -1026,3 +1026,27 @@ sql_digest_state *digest_adjust_by_numeric_column_token(sql_digest_state *state,
 
   return state;
 }
+
+void sql_digest_storage::prefix_and_copy(uint prefix_token,
+                                         const sql_digest_storage *from) {
+  reset();
+
+  if (m_token_array_length < SIZE_OF_A_TOKEN) {
+    return;
+  }
+
+  store_token(this, prefix_token);
+
+  const size_t byte_count_copy =
+      m_token_array_length - SIZE_OF_A_TOKEN < from->m_byte_count
+          ? m_token_array_length - SIZE_OF_A_TOKEN
+          : from->m_byte_count;
+
+  if (byte_count_copy > 0) {
+    m_byte_count += byte_count_copy;
+    m_charset_number = from->m_charset_number;
+    memcpy(m_token_array + SIZE_OF_A_TOKEN, from->m_token_array,
+           byte_count_copy);
+    compute_digest_hash(this, m_hash);
+  }
+}

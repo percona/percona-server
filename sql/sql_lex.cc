@@ -36,6 +36,7 @@
 #include "field_types.h"
 #include "m_string.h"
 #include "my_alloc.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
@@ -52,6 +53,7 @@
 #include "sql/lexer_yystype.h"
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/nested_join.h"
+#include "sql/olap.h"
 #include "sql/opt_hints.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_nodes.h"  // PT_with_clause
@@ -3464,18 +3466,49 @@ void Query_block::print_group_by(const THD *thd, String *str,
   // group by & olap
   if (group_list.elements) {
     str->append(STRING_WITH_LEN(" group by "));
-    if (olap == CUBE_TYPE) {
-      str->append(STRING_WITH_LEN("cube ("));
-    }
-    print_order(thd, str, group_list.first, query_type);
     switch (olap) {
-      case ROLLUP_TYPE:
-        str->append(STRING_WITH_LEN(" with rollup"));
+      case CUBE_TYPE: {
+        str->append(STRING_WITH_LEN("cube ("));
         break;
-      case CUBE_TYPE:
+      }
+      case GROUPING_SETS_TYPE: {
+        str->append(STRING_WITH_LEN("grouping sets ("));
+        break;
+      }
+      default:
+        break;
+    }
+    if (is_non_primitive_grouped() && olap == GROUPING_SETS_TYPE) {
+      for (int gs_num = 0; gs_num < m_num_grouping_sets; gs_num++) {
+        str->append(STRING_WITH_LEN("("));
+        bool is_first_element_in_set = true;
+        for (auto *grp = group_list.first; grp != nullptr; grp = grp->next) {
+          /* Check if the GROUP BY element is pat of the current grouping set */
+          if (bitmap_is_set(grp->grouping_set_info, gs_num)) {
+            if (is_first_element_in_set) {
+              is_first_element_in_set = false;
+            } else {
+              str->append(',');
+            }
+            grp->item[0]->print_for_order(thd, str, query_type,
+                                          grp->used_alias);
+          }
+        }
         str->append(STRING_WITH_LEN(")"));
-        break;
-      default:;  // satisfy compiler
+        if (gs_num + 1 < m_num_grouping_sets) {
+          str->append(',');
+        }
+      }
+    } else {
+      print_order(thd, str, group_list.first, query_type);
+    }
+
+    if (is_non_primitive_grouped()) {
+      if (olap == ROLLUP_TYPE) {
+        str->append(STRING_WITH_LEN(" with rollup"));
+      } else {
+        str->append(STRING_WITH_LEN(")"));
+      }
     }
   }
 }

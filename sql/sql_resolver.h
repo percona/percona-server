@@ -103,12 +103,14 @@ struct ReplaceResult {
   it's not safe to do this unconditionally under optimization. If adjusting the
   comparators is necessary, the caller of WalkAndReplace() will have to invoke
   set_cmp_func() manually.
+  @param[in]     thd          thread handle.
+  @param[in,out] item         Expression to look into.
+  @param         get_new_item Functor used to replace the expression.
 
   @return true on error.
  */
 bool WalkAndReplace(
     THD *thd, Item *item,
-    const std::function<ReplaceResult(Item *item, Item *parent,
-                                      unsigned argument_idx)> &get_new_item);
+    const std::function<ReplaceResult(Item *item)> &get_new_item);
 
 #endif /* SQL_RESOLVER_INCLUDED */

@@ -26,7 +26,6 @@
 #include <string>
 
 #include "mysql/gtid/gtid.h"
-#include "mysql/gtid/gtidset.h"
 #include "mysql/gtid/tag.h"
 
 namespace mysql::gtid::unittests {

@@ -722,12 +722,12 @@ EXPLAIN ANALYZE FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.a=x2.a AND x2.b=x3.b AND x3.c=x1.c;
 EXPLAIN
 -> Inner hash join (x1.a = x2.a), (x2.b = x3.b)  (rows=8) (actual rows=200 loops=1)
-    -> Inner hash join (x3.c = x1.c)  (rows=100) (actual rows=100 loops=1)
-        -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
-        -> Hash
-            -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
+    -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
     -> Hash
-        -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
+        -> Inner hash join (x3.c = x1.c)  (rows=100) (actual rows=100 loops=1)
+            -> Table scan on x3  (rows=100) (actual rows=100 loops=1)
+            -> Hash
+                -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT * FROM t1 JOIN num10 ON h=n;
 EXPLAIN
@@ -806,9 +806,9 @@ test.t3	analyze	status	OK
 EXPLAIN ANALYZE SELECT 1 FROM t2 JOIN t3 USING (x, y);
 EXPLAIN
 -> Inner hash join (t2.x = t3.x), (t2.y = t3.y)  (rows=4) (actual rows=4 loops=1)
-    -> Covering index scan on t2 using x  (rows=4) (actual rows=4 loops=1)
+    -> Table scan on t3  (rows=4) (actual rows=4 loops=1)
     -> Hash
-        -> Table scan on t3  (rows=4) (actual rows=4 loops=1)
+        -> Covering index scan on t2 using x  (rows=4) (actual rows=4 loops=1)
 
 DROP TABLE t1, t2, t3, num10;
 #
@@ -1625,13 +1625,13 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d LIMIT 1;
 EXPLAIN
 -> Limit: 1 row(s)  (rows=1)
-    -> Nested loop inner join  (rows=80)
-        -> Sort: x2.b  (rows=40)
-            -> Inner hash join (x1.b = x2.d)  (rows=40)
-                -> Table scan on x1  (rows=20)
-                -> Hash
-                    -> Table scan on x2  (rows=20)
-        -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=2)
+    -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=80)
+        -> Nested loop inner join  (rows=80)
+            -> Sort: x2.b  (rows=40)
+                -> Inner hash join (x1.b = x2.d)  (rows=40)
+                    -> Table scan on x1  (rows=20)
+                    -> Hash
+                        -> Table scan on x2  (rows=20)
             -> Index lookup on x3 using k1 (d = x2.b)  (rows=2)
 
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
@@ -1657,9 +1657,9 @@ WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=7.96)
     -> Inner hash join (t1.pk = t2.x)  (rows=12)
-        -> Table scan on t1  (rows=12)
+        -> Table scan on t2  (rows=12)
         -> Hash
-            -> Table scan on t2  (rows=12)
+            -> Table scan on t1  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1668,18 +1668,18 @@ EXPLAIN
     -> Table scan on <temporary>  (rows=7.96)
         -> Temporary table with deduplication  (rows=7.96)
             -> Inner hash join (t1.pk = t2.x)  (rows=12)
-                -> Table scan on t1  (rows=12)
+                -> Table scan on t2  (rows=12)
                 -> Hash
-                    -> Table scan on t2  (rows=12)
+                    -> Table scan on t1  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
 EXPLAIN
 -> Sort with duplicate removal: t1.x, t1.pk  (rows=9.36)
     -> Inner hash join (t1.pk = t2.x)  (rows=12)
-        -> Table scan on t1  (rows=12)
+        -> Table scan on t2  (rows=12)
         -> Hash
-            -> Table scan on t2  (rows=12)
+            -> Table scan on t1  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.x, t1.pk FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t1.x;
@@ -1688,18 +1688,18 @@ EXPLAIN
     -> Table scan on <temporary>  (rows=9.36)
         -> Temporary table with deduplication  (rows=9.36)
             -> Inner hash join (t1.pk = t2.x)  (rows=12)
-                -> Table scan on t1  (rows=12)
+                -> Table scan on t2  (rows=12)
                 -> Hash
-                    -> Table scan on t2  (rows=12)
+                    -> Table scan on t1  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
 EXPLAIN
 -> Sort with duplicate removal: t2.x  (rows=3.46)
     -> Inner hash join (t1.pk = t2.x)  (rows=12)
-        -> Covering index scan on t1 using PRIMARY  (rows=12)
+        -> Table scan on t2  (rows=12)
         -> Hash
-            -> Table scan on t2  (rows=12)
+            -> Covering index scan on t1 using PRIMARY  (rows=12)
 
 EXPLAIN FORMAT=TREE SELECT SQL_SMALL_RESULT DISTINCT t1.pk, t2.x FROM t AS t1, t AS t2
 WHERE t1.pk = t2.x ORDER BY t2.x;
@@ -1708,9 +1708,9 @@ EXPLAIN
     -> Table scan on <temporary>  (rows=3.46)
         -> Temporary table with deduplication  (rows=3.46)
             -> Inner hash join (t1.pk = t2.x)  (rows=12)
-                -> Covering index scan on t1 using PRIMARY  (rows=12)
+                -> Table scan on t2  (rows=12)
                 -> Hash
-                    -> Table scan on t2  (rows=12)
+                    -> Covering index scan on t1 using PRIMARY  (rows=12)
 
 DROP TABLE t;
 #
@@ -2446,3 +2446,51 @@ x	y
 7	This is the seventh blob.This is the seventh blob.This is the seventh blob.This is the seventh blob.
 SET tmp_table_size = DEFAULT;
 DROP TABLE t1, t2;
+#
+# Bug#38439704: SIG6 with hypergraph optimizer - assertion failure in
+#               RedundantThroughSargable at join_optimizer.cc
+#
+CREATE TABLE t(
+pk INT PRIMARY KEY, col1 INT, col2 INT, col3 INT, col4 INT, col5 INT,
+col6 INT, col7 INT, col8 INT, col9 INT, col10 INT, col11 INT, col12 INT,
+col13 INT, col14 INT, col15 INT, col16 INT, col17 INT, col18 INT, col19 INT,
+col20 INT, col21 INT, col22 INT, col23 INT, col24 INT, col25 INT, col26 INT,
+col27 INT, col28 INT, col29 INT, col30 INT, col31 INT, col32 INT, col33 INT,
+col34 INT, col35 INT, col36 INT, col37 INT, col38 INT, col39 INT, col40 INT,
+col41 INT, col42 INT, col43 INT, col44 INT, col45 INT, col46 INT, col47 INT,
+col48 INT, col49 INT, col50 INT, col51 INT, col52 INT, col53 INT, col54 INT,
+col55 INT, col56 INT, col57 INT, col58 INT, col59 INT, col60 INT, col61 INT,
+col62 INT, col63 INT, col64 INT
+);
+INSERT INTO t(pk) VALUES (1), (2);
+SELECT 1
+FROM t AS t1
+NATURAL JOIN t AS t2
+JOIN t AS t3 ON t2.pk = t3.pk
+WHERE t1.col1 <> t3.col1 AND t1.col2 <> t3.col2;
+1
+DROP TABLE t;
+#
+# Bug#38440648: Assertion `false && "Inconsistent row counts for
+#               different AccessPath objects."' failed.
+#
+CREATE TABLE t1 (col_int INT);
+CREATE TABLE t2 (col_int INT, col_varchar10 VARCHAR(10));
+CREATE TABLE t3 (pk INT PRIMARY KEY, col_varchar20 VARCHAR(20));
+SELECT 1 FROM t1, t2, t3
+WHERE t2.col_int = t3.pk AND
+t2.col_varchar10 = t3.col_varchar20 AND
+t1.col_int = t3.pk AND
+t1.col_int >= 8;
+1
+DROP TABLE t1, t2, t3;
+#
+# Bug#38557567: Assertion `IsEmpty(child.delayed_predicates)'
+#               failed|join_optimizer/cost_model.cc
+#
+CREATE TABLE t(i INT PRIMARY KEY);
+SELECT LAG (i) OVER () FROM t AS t1
+WHERE i IN (SELECT i FROM t AS t2)
+GROUP BY i;
+LAG (i) OVER ()
+DROP TABLE t;

@@ -6447,15 +6447,13 @@ Item *Item_sum_json_object::copy_or_same(THD *thd) {
 }
 
 /**
-  Resolve the fields in the GROUPING function.
-  The GROUPING function can only appear in SELECT list or
-  in HAVING clause and requires WITH ROLLUP. Check that this holds.
+  Resolve GROUPING function.
+  GROUPING function cannot appear in a WHERE clause or
+  in a JOIN condition. Check that this holds.
   We also need to check if all the arguments of the function
-  are present in GROUP BY clause. As GROUP BY columns are not
-  resolved at this time, we do it in Query_block::resolve_rollup().
-  However, if the GROUPING function is found in HAVING clause,
-  we can check here. Also, resolve_rollup() does not
-  check for items present in HAVING clause.
+  are present in GROUP BY clause. As GROUP BY expressions are not
+  resolved at this time, we postpone doing this validation until
+  the GROUP BY expressions are resolved.
 
   @param[in]     thd        current thread
   @param[in,out] ref        reference to place where item is
@@ -6467,10 +6465,8 @@ Item *Item_sum_json_object::copy_or_same(THD *thd) {
 
 */
 bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
-  /*
-    We do not allow GROUPING by position. However GROUP BY allows
-    it for now.
-  */
+  // We do not allow GROUPING by position. However GROUP BY allows
+  // it for now.
   Item **arg, **arg_end;
   for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
     if ((*arg)->type() == Item::INT_ITEM) {
@@ -6486,26 +6482,35 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
   // Make GROUPING function dependent upon all tables (prevents const-ness)
   used_tables_cache |= m_query_block->all_tables_map();
 
-  /*
-    More than 64 args cannot be supported as the bitmask which is
-    used to represent the result cannot accommodate.
-  */
+  // More than 64 args cannot be supported as the bitmask which is
+  // used to represent the result cannot accommodate.
   if (arg_count > 64) {
     my_error(ER_INVALID_NO_OF_ARGS, MYF(0), "GROUPING", arg_count, "64");
     return true;
   }
 
-  /*
-    GROUPING() is not allowed in a WHERE condition or a JOIN condition and
-    cannot be used without rollup.
-  */
-  if (!m_query_block->is_non_primitive_grouped() ||
+  // GROUPING() is not allowed if the query is not explicitly grouped.
+  // It is also not allowed in a WHERE condition or a JOIN condition.
+  if (!m_query_block->is_explicitly_grouped() ||
       m_query_block->resolve_place == Query_block::RESOLVE_JOIN_NEST ||
       m_query_block->resolve_place == Query_block::RESOLVE_CONDITION) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return true;
   }
+  return false;
+}
 
+// Checks if all arguments to GROUPING function can also be found in
+// GROUP BY clause.
+bool Item_func_grouping::check_args_found_in_group_by() const {
+  for (unsigned i = 0; i < arg_count; i++) {
+    if (m_query_block->find_in_group_list(unwrap_rollup_group(args[i]),
+                                          /*rollup_level=*/nullptr) ==
+        nullptr) {
+      my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), i + 1);
+      return true;
+    }
+  }
   return false;
 }
 

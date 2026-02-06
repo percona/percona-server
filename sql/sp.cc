@@ -2543,7 +2543,10 @@ static std::string binary_to_hex(std::string_view input) {
   std::stringstream ss;
   ss << std::hex << std::uppercase << std::setfill('0');
   for (char i : input) {
-    ss << std::setw(2) << static_cast<unsigned>(i);
+    // First convert it to unsigned to remove the signage but keep it 8 bit.
+    // Then convert it to int to be treated as a number, not a character.
+    ss << std::setw(2)
+       << static_cast<unsigned int>(static_cast<unsigned char>(i));
   }
   return ss.str();
 }

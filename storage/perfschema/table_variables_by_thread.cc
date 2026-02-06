@@ -224,7 +224,7 @@ int table_variables_by_thread::make_row(PFS_thread *thread,
 
   m_row.m_thread_internal_id = thread->m_thread_internal_id;
 
-  if (m_row.m_variable_name.make_row(system_var->m_name,
+  if (m_row.m_variable_name.make_row(system_var->m_name_str,
                                      system_var->m_name_length) != 0) {
     return HA_ERR_RECORD_DELETED;
   }

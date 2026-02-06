@@ -210,6 +210,7 @@ component_test_component_deinit_no_deadlock     plugin_output_directory  no  COM
 
 # init fail test component
 component_test_component_init_fail     plugin_output_directory  no  COMPONENT_TEST_COMPONENT_INIT_FAIL
+<<<<<<< HEAD
 
 # Percona additions
 auth_socket        plugin_output_directory  no  SOCKET_AUTH
@@ -227,3 +228,9 @@ component_encryption_udf            plugin_output_directory  no  ENCRYPTION_UDF_
 component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIONS_COMPONENT
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT
 component_js_lang                   plugin_output_directory  no  JS_LANG_COMPONENT
+||||||| merged common ancestors
+=======
+
+# component_test_mysql_file_service
+component_test_mysql_file_service     plugin_output_directory  no  COMPONENT_TEST_MYSQL_FILE_SERVICE
+>>>>>>> mysql-9.6.0

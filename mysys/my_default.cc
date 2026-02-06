@@ -882,15 +882,13 @@ static char *get_argument(const char *keyword, size_t kwlen, char *ptr,
   for (ptr += kwlen - 1; my_isspace(&my_charset_latin1, ptr[0]); ptr++) {
   }
 
-  /*
-    Trim trailing whitespace from directory name
-    The -1 below is for the newline added by fgets()
-    Note that my_isspace() is true for \r and \n
-  */
-  for (end = ptr + strlen(ptr) - 1; my_isspace(&my_charset_latin1, *(end - 1));
-       end--) {
+  // trim the comment at the end of the line
+  end = remove_end_comment(ptr);
+  // trim the whitespace prior to the comment at the end of the line, if any
+  if (end > ptr) {
+    while (my_isspace(&my_charset_latin1, *(end - 1))) end--;
+    end[0] = 0;
   }
-  end[0] = 0; /* Cut off end space */
 
   /* Print error msg if there is nothing after !include* directive */
   if (end <= ptr) {

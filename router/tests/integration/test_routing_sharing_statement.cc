@@ -2415,8 +2415,10 @@ static const StatementSharableParam statement_sharable_params[] = {
          auto query_res = query_one_result(cli, "prepare stmt from 'select 1'");
          ASSERT_NO_ERROR(query_res);
 
+         // the prepared stmt text is not really matching the original text
+         // anymore.
          expected_stmts.emplace_back(
-             Event::sql_prepare_sql("PREPARE `stmt` FROM ?"));
+             Event::sql_prepare_sql("PREPARE SELECT ?"));
        }
 
        // ... blocks sharing

@@ -32,6 +32,7 @@
 #include <string_view>
 
 #include <mysql.h>
+#include "my_sys.h"
 
 #include "mysql/harness/stdx/expected.h"
 
@@ -61,7 +62,7 @@ inline bool operator==(const MysqlError &a, const MysqlError &b) {
 }
 
 static inline MysqlError make_mysql_error_code(unsigned int e) {
-  return {e, ER_CLIENT(e), "HY000"};
+  return {e, e ? my_get_err_msg(e) : my_get_err_msg(CR_UNKNOWN_ERROR), "HY000"};
 }
 
 static inline MysqlError make_mysql_error_code(MYSQL *m) {

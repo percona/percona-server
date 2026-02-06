@@ -34,6 +34,7 @@
 #include <sstream>
 #include <string>
 
+#include "my_sys.h"
 #include "mysql.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "violite.h"
@@ -510,7 +511,9 @@ const std::error_category &mysql_category() noexcept {
   class category_impl : public std::error_category {
    public:
     const char *name() const noexcept override { return "mysql_client"; }
-    std::string message(int ev) const override { return ER_CLIENT(ev); }
+    std::string message(int ev) const override {
+      return ev ? my_get_err_msg(ev) : my_get_err_msg(CR_UNKNOWN_ERROR);
+    }
   };
 
   static category_impl instance;
@@ -518,7 +521,7 @@ const std::error_category &mysql_category() noexcept {
 }
 
 static MysqlError make_mysql_error_code(unsigned int e) {
-  return {e, ER_CLIENT(e), "HY000"};
+  return {e, e ? my_get_err_msg(e) : my_get_err_msg(CR_UNKNOWN_ERROR), "HY000"};
 }
 
 static MysqlError make_mysql_error_code(MYSQL *m) {

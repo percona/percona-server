@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  ***********************************************************************/
 
 #include <current_thd.h>
+#include <sql/sql_thd_internal_api.h>
 #include <sys/types.h>
 #include <new>
 
@@ -2447,12 +2448,29 @@ static fts_row_state fts_trx_row_get_new_state(
 
   /* The lookup table for transforming states. old_state is the
   Y-axis, event is the X-axis. */
-  static const fts_row_state table[4][4] = {
+  static const fts_row_state innodb_fk_table[4][4] = {
       /*    I            M            D            N */
       /* I */ {FTS_INVALID, FTS_INSERT, FTS_NOTHING, FTS_INVALID},
       /* M */ {FTS_INVALID, FTS_MODIFY, FTS_DELETE, FTS_INVALID},
       /* D */ {FTS_MODIFY, FTS_INVALID, FTS_INVALID, FTS_INVALID},
       /* N */ {FTS_INVALID, FTS_INVALID, FTS_INVALID, FTS_INVALID}};
+
+  /* For SQL layer foreign key processing, it's convenient to allow "double
+  deletion" i.e. when already in a FTS_DELETE state, an FTS_DELETE event
+  causes us to remain in a FTS_DELETE state. All other state transitions are
+  the same as those used in InnoDB foreign key processing.
+  */
+  static const fts_row_state sql_layer_fk_table[4][4] = {
+      /*    I            M            D            N */
+      /* I */ {FTS_INVALID, FTS_INSERT, FTS_NOTHING, FTS_INVALID},
+      /* M */ {FTS_INVALID, FTS_MODIFY, FTS_DELETE, FTS_INVALID},
+      /* D */ {FTS_MODIFY, FTS_INVALID, FTS_DELETE, FTS_INVALID},
+      /* N */ {FTS_INVALID, FTS_INVALID, FTS_INVALID, FTS_INVALID}};
+
+  auto table = sql_layer_fk_table;
+  if (!thd_is_sql_fk_checks_enabled()) {
+    table = innodb_fk_table;
+  }
 
   fts_row_state result;
 

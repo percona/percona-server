@@ -25,9 +25,13 @@ DISABLE_MISSING_PROFILE_WARNING()
 
 SET(MY_SYSTEM_SOURCES
   my_system.cc
-  my_system_api/my_system_api_cgroup.cc
   my_system_api/my_system_api_common.cc
 )
+
+IF(UNIX)
+  LIST(APPEND MY_SYSTEM_SOURCES
+    my_system_api/my_system_api_cgroup.cc)
+ENDIF()
 
 IF(LINUX)
   LIST(APPEND MY_SYSTEM_SOURCES

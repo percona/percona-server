@@ -139,6 +139,7 @@ int ndb_file::read_backward(void *buf, ndb_file::size_t count) const {
     ret = ::read(m_handle, buf, count);
   } while (ret == -1 && errno == EINTR);
   if (ret >= 0 && ret != off_count) {
+    clear_last_os_error();  // Partial read
     return -1;
   }
   offset = ::lseek(m_handle, -off_count, SEEK_CUR);
@@ -344,6 +345,7 @@ int ndb_file::set_direct_io(bool assume_implicit_datasync) {
   int ret = ::directio(m_handle, DIRECTIO_ON);
 #else
   int ret = -1;
+  errno = EINVAL;  // Not supported
 #endif
   if (ret == -1) {
     return -1;
@@ -439,6 +441,7 @@ int ndb_file::detect_direct_io_block_size_and_alignment() {
 
   if ((block_size % NDB_O_DIRECT_WRITE_ALIGNMENT) != 0) {
     // block size must be a multiple of alignment.
+    errno = EINVAL;
     return -1;
   }
 

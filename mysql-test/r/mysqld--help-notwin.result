@@ -308,6 +308,8 @@ The following options may be given as the first argument:
  status update
  --console           Write error output on screen; don't remove the console
  window on windows.
+ --container-aware   Determines if server adheres to container's resource
+ limits
  --core-file         Write core on errors.
  --coredumper[=name] Use coredumper library to generate coredumps. Specify a
  path for coredump otherwise it will be generated on
@@ -1822,7 +1824,12 @@ connection-memory-chunk-size 8192
 connection-memory-limit 18446744073709551615
 connection-memory-status-limit 18446744073709551615
 console FALSE
+<<<<<<< HEAD
 coredumper (No default value)
+||||||| merged common ancestors
+=======
+container-aware FALSE
+>>>>>>> mysql-9.6.0
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
 daemonize FALSE

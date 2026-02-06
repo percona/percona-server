@@ -529,6 +529,44 @@ ERROR HY000: Trying to persist a NULL into a variable 'report_host' that's setta
 SET PERSIST ssl_crl = NULL;
 RESET PERSIST ssl_crl;
 SET GLOBAL ssl_crl = DEFAULT;
+##
+## Bug#38680162 SET PERSIST creates duplicate variable entries across sections after upgrade
+##
+call mtr.add_suppression("Configuring persisted options failed: \"Variable 'disconnect_on_expired_password' is a read only variable\".");
+## Remove the config file.
+## Create a file with a variable in the invalid sections.
+## mysql_static_variables should be found.
+include/assert_grep.inc [mysql_static_variables/net_buffer_length found.]
+## mysql_dynamic_variables should be found.
+include/assert_grep.inc [mysql_dynamic_variables/disconnect_on_expired_password found.]
+## Restart the server.
+# restart:
+## First value in the config file should be taken.
+SELECT @@global.net_buffer_length;
+@@global.net_buffer_length
+1024
+SHOW VARIABLES LIKE 'disconnect_on_expired_password';
+Variable_name	Value
+disconnect_on_expired_password	ON
+## Replace the variable with the not existing value in the config file.
+SET PERSIST_ONLY net_buffer_length=8192;
+## mysql_static_variables should not be found.
+include/assert_grep.inc [mysql_static_variables/net_buffer_length not found.]
+## mysql_static_parse_early_variables variables should not be found.
+include/assert_grep.inc [mysql_static_parse_early_variables/net_buffer_length not found.]
+## mysql_static_sensitive_variables variables should not be found.
+include/assert_grep.inc [mysql_static_sensitive_variables/net_buffer_length not found.]
+## mysql_static_sensitive_variables variables should not be found.
+include/assert_grep.inc [mysql_dynamic_variables/disconnect_on_expired_password not found.]
+SET PERSIST_ONLY disconnect_on_expired_password = ON;
+## FOUND VARIABLES
+## mysql_dynamic_variables variables should be found.
+include/assert_grep.inc [mysql_dynamic_variables/net_buffer_length found.]
+## mysql_static_variables variables should be found.
+include/assert_grep.inc [mysql_dynamic_variables/disconnect_on_expired_password found.]
+## Remove the config file.
+## Restart the server.
+# restart:
 # End of the 8.0 tests
 #
 # Bug #36854635: Invalid variable error on restart

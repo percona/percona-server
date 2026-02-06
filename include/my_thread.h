@@ -161,6 +161,7 @@ inline bool operator!=(const my_thread_handle &a, const my_thread_handle &b) {
 
 int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
+void my_thread_handle_self(my_thread_handle *thread);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
 

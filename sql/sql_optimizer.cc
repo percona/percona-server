@@ -5666,6 +5666,31 @@ bool JOIN::propagate_dependencies() {
 }
 
 /**
+ * Check if a table can be safely marked as const during optimization.
+ *
+ * For regular base tables, always safe.
+ * For views and derived tables:
+ *   - If merged: check if it has stored programs in EXPLAIN mode
+ *   - If materialized: delegates to materializable_is_const() which checks
+ *     estimated row count, optimization flags, and stored programs in EXPLAIN
+ *
+ * @param thd   Thread handler
+ * @param tr    Table reference to check
+ * @return true if safe to mark as const, false otherwise
+ */
+static inline bool is_const_optimizable(THD *thd, Table_ref *tr) {
+  if (!tr->is_view_or_derived()) return true;
+
+  // For merged views/derived tables, check EXPLAIN mode + stored programs
+  if (!tr->uses_materialization()) {
+    return !(thd->lex->is_explain() && tr->has_stored_program());
+  }
+
+  // For materialized derived tables, use the comprehensive check
+  return tr->materializable_is_const(thd);
+}
+
+/**
   Extract const tables based on row counts.
 
   @returns false if success, true if error
@@ -5722,7 +5747,7 @@ bool JOIN::extract_const_tables() {
       case extract_empty_table:
         // Extract tables with zero rows, but only if statistics are exact
         if ((table->file->stats.records == 0 || all_partitions_pruned_away) &&
-            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) != 0u)
           mark_const_table(tab, nullptr);
         break;
 
@@ -5731,17 +5756,18 @@ bool JOIN::extract_const_tables() {
           Extract tables with zero or one rows, but do not extract tables that
            1. are dependent upon other tables, or
            2. have no exact statistics, or
-           3. are full-text searched
-           4. a derived table which has a stored function
+           3. are full-text searched, or
+           4. a derived table that cannot be safely treated as const
+              (e.g., materialized table with >1 row, or with stored programs
+              in EXPLAIN mode)
         */
-        const bool explain_mode = thd->lex->is_explain();
         if ((table->s->system || table->file->stats.records <= 1 ||
              all_partitions_pruned_away) &&
-            !tab->dependent &&                                              // 1
-            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&  // 2
-            !tl->is_fulltext_searched() &&                                  // 3
-            !(explain_mode && tl->is_view_or_derived() &&
-              tl->has_stored_program()))  // 4
+            !tab->dependent &&  // 1
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) !=
+                0u &&                       // 2
+            !tl->is_fulltext_searched() &&  // 3
+            is_const_optimizable(thd, tl))  // 4
           mark_const_table(tab, nullptr);
         break;
     }
@@ -5846,12 +5872,15 @@ bool JOIN::extract_func_dependent_tables() {
               has a real row or a null-extended row in the optimizer phase.
               We have no possibility to evaluate its join condition at
               execution time, when it is marked as a system table.
+           4. a derived table that can be safely treated as const
         */
         if (table->file->stats.records <= 1L &&                             // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&  // 1
             !tl->outer_join_nest() &&                                       // 2
-            !(tab->join_cond() && tab->join_cond()->cost().IsExpensive()))  // 3
-        {  // system table
+            !(tab->join_cond() != nullptr &&
+              tab->join_cond()->cost().IsExpensive()) &&  // 3
+            is_const_optimizable(thd, tl))                // 4
+        {                                                 // system table
           mark_const_table(tab, nullptr);
           const int status =
               join_read_const_table(tab, positions + const_tables - 1);
@@ -5890,23 +5919,27 @@ bool JOIN::extract_func_dependent_tables() {
              1. are full-text searched, or
              2. are part of nested outer join, or
              3. are part of semi-join, or
-             4. have an expensive outer join condition.
-             5. are blocked by handler for const table optimize.
+             4. have an expensive outer join condition, or
+             5. are blocked by handler for const table optimize, or
              6. are not going to be used, typically because they are streamed
                 instead of materialized
-                (see Query_expression::can_materialize_directly_into_result()).
-             7. key evaluated in stored program in EXPLAIN mode
+                (see Query_expression::can_materialize_directly_into_result()),
+            or
+             7. key evaluated in stored program in EXPLAIN mode, or
+             8. a derived table that cannot be safely treated as const
           */
+
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !tl->is_fulltext_searched() &&                            // 1
               !tl->outer_join_nest() &&                                 // 2
               !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&  // 3
-              !(tab->join_cond() &&
+              !(tab->join_cond() != nullptr &&
                 tab->join_cond()->cost().IsExpensive()) &&                // 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE) &&  // 5
               table->is_created() &&                                      // 6
               !(thd->lex->is_explain() &&
-                start_keyuse->val->has_stored_program())) {  // 7
+                start_keyuse->val->has_stored_program()) &&  // 7
+              is_const_optimizable(thd, tl)) {               // 8
             if (table->key_info[key].flags & HA_NOSAME) {
               if (const_ref == eq_part) {  // Found everything for ref.
                 ref_changed = true;

@@ -1199,6 +1199,12 @@ static Sys_var_bool Sys_use_separate_thread_for_admin(
     READ_ONLY NON_PERSIST GLOBAL_VAR(listen_admin_interface_in_separate_thread),
     CMD_LINE(OPT_ARG), DEFAULT(false));
 
+static Sys_var_bool Sys_container_aware(
+    "container_aware",
+    "Determines if server adheres to container's resource limits",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(container_aware), CMD_LINE(OPT_ARG),
+    DEFAULT(false));
+
 static Sys_var_ulonglong Sys_server_memory(
     "server_memory",
     "Memory (in bytes) used by the MySQL Server when auto-tuning the default "
@@ -2229,7 +2235,8 @@ static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     GLOBAL_VAR(binlog_expire_logs_seconds),
     CMD_LINE(REQUIRED_ARG, OPT_BINLOG_EXPIRE_LOGS_SECONDS),
     VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr,
+    sys_var::PARSE_EARLY);
 
 static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
     "binlog_expire_logs_auto_purge",
@@ -2237,7 +2244,8 @@ static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
     "files or not. If this variable is set to FALSE then the server will "
     "not purge binary log files automatically.",
     GLOBAL_VAR(opt_binlog_expire_logs_auto_purge), CMD_LINE(OPT_ARG),
-    DEFAULT(true));
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
 
 static Sys_var_bool Sys_flush(
     "flush", "Flush MyISAM tables to disk between SQL commands",
@@ -5485,18 +5493,18 @@ static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
     DEFAULT(TMP_TABLE_TEMPTABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_session_admin_no_super));
 
-/* Default is updated to min(3% of physical memory, 4 GB) */
+/* Default value set here is changed in init_common_variables() due to
+dependency on --container_aware startup option */
 static Sys_var_ulonglong Sys_temptable_max_ram(
     "temptable_max_ram",
     "Maximum amount of memory (in bytes) the TempTable storage engine is "
     "allowed to allocate from the main memory (RAM) before starting to "
     "store data on disk.",
     GLOBAL_VAR(temptable_max_ram), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX),
-    DEFAULT(std::clamp(ulonglong{3 * (my_physical_memory() / 100)},
-                       1ULL << 30 /* 1 GiB */, 1ULL << 32 /* 4 GiB */)),
+    VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */),
     BLOCK_SIZE(1));
 
+/* Default is updated to min(3% of physical memory, 4 GB) */
 void update_temptable_max_ram_default() {
   mysql_mutex_lock(&LOCK_global_system_variables);
 
@@ -8334,6 +8342,14 @@ Sys_var_bool Sys_restrict_fk_on_non_standard_key(
     NON_PERSIST SESSION_VAR(restrict_fk_on_non_standard_key), CMD_LINE(OPT_ARG),
     DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(restrict_fk_on_non_standard_key_check), ON_UPDATE(nullptr));
+
+Sys_var_bool Sys_innodb_native_foreign_keys(
+    "innodb_native_foreign_keys",
+    "Use InnoDB foreign key checks and cascade operations instead of "
+    "SQL level foreign key checks or cascade operations",
+    PERSIST_AS_READONLY READ_ONLY GLOBAL_VAR(innodb_native_foreign_keys),
+    CMD_LINE(OPT_ARG, OPT_INNODB_FOREIGN_KEYS), DEFAULT(false), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 }  // namespace
 
 #ifndef NDEBUG

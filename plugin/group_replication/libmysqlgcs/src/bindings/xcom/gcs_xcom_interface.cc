@@ -241,6 +241,18 @@ enum_gcs_error Gcs_xcom_interface::initialize_logging(
     const std::string *debug_file, const std::string *debug_path) {
   assert(m_default_sink == nullptr);
 
+  // At this point, if a clock timestamp provider was not injected, we
+  // use the default one. Either way, we initialize the clock timestamp
+  // provider here. A clock timestamp provider is injected in
+  // @c Gcs_xcom_interface::setup_runtime_resources
+  if (m_clock_timestamp_provider == nullptr) {
+    m_clock_timestamp_provider =
+        std::make_shared<Gcs_clock_timestamp_provider>();
+  }
+  if (m_clock_timestamp_provider->initialize()) {
+    return GCS_NOK;
+  }
+
 #ifndef XCOM_STANDALONE
   if (debug_file != nullptr && debug_path != nullptr)
     m_default_sink =
@@ -256,7 +268,8 @@ enum_gcs_error Gcs_xcom_interface::initialize_logging(
   /* purecov: end */
 
   if (Gcs_debug_manager::get_debugger() == nullptr) {
-    m_default_debugger = new Gcs_default_debugger(m_default_sink);
+    m_default_debugger =
+        new Gcs_default_debugger(m_default_sink, m_clock_timestamp_provider);
     if (Gcs_debug_manager::initialize(m_default_debugger))
       /* purecov: begin inspected */
       return GCS_NOK;
@@ -307,6 +320,14 @@ enum_gcs_error Gcs_xcom_interface::finalize_logging() {
     m_default_sink->finalize();
     delete m_default_sink;
     m_default_sink = nullptr;
+  }
+
+  // This can be the default clock provider or one injected. Either way
+  // we finalize here regardless, so that the lifecycle is clear. We initialize
+  // the clock timestamp provider in @c Gcs_xcom_interface::initialize_logging
+  // and finalize it in @c Gcs_xcom_interface::finalize_logging
+  if (m_clock_timestamp_provider != nullptr) {
+    m_clock_timestamp_provider->finalize();
   }
 
   return GCS_OK;
@@ -838,6 +859,8 @@ enum_gcs_error Gcs_xcom_interface::setup_runtime_resources(
   if (reqs.namespace_manager != nullptr)
     m_netns_manager = reqs.namespace_manager;
 
+  if (reqs.clock_timestamp_provider != nullptr)
+    m_clock_timestamp_provider = reqs.clock_timestamp_provider;
   return GCS_OK;
 }
 

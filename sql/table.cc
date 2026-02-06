@@ -2663,7 +2663,12 @@ void Value_generator::print_expr(THD *thd, String *out) {
   const Sql_mode_parse_guard parse_guard(thd);
   // Printing db and table name is useless
   auto flags = enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
-  expr_item->print(thd, out, flags);
+  if (expr_item != nullptr) {
+    expr_item->print(thd, out, flags);
+  } else if (expr_str.str != nullptr && expr_str.length > 0) {
+    // Fall back to serialized expression if the Item tree hasn't been unpacked
+    out->append(expr_str.str, expr_str.length);
+  }
 }
 
 bool unpack_value_generator(THD *thd, TABLE *table,
@@ -3415,7 +3420,9 @@ err:
     outparam->histograms = nullptr;
   }
   if (!error_reported) open_table_error(thd, share, error, my_errno());
-  ::destroy_at(outparam->file);
+  if (outparam->file != nullptr) {
+    ::destroy_at(outparam->file);
+  }
   if (outparam->part_info) free_items(outparam->part_info->item_list);
   if (outparam->vfield) {
     for (Field **vfield = outparam->vfield; *vfield; vfield++)
@@ -6708,6 +6715,39 @@ uint Table_ref::leaf_tables_count() const {
   return count;
 }
 
+#ifndef NDEBUG
+/**
+  Generate string describing number of records per key.
+  @param table Table which has the index
+  @param nr index of key for which string will be generated
+  @return string with the description number of records per key value
+*/
+static std::string str_records_per_key(const TABLE *table, size_t nr) {
+  std::ostringstream ss;
+  ss << table->s->db << "." << table->s->table_name << " " << table->alias
+     << " ";
+  auto keyinfo = table->key_info[nr];
+  if (keyinfo.supports_records_per_key()) {
+    ss << keyinfo.name << "(";
+    std::ostringstream counts;
+    for (uint part = 0; part < keyinfo.actual_key_parts; part++) {
+      if (keyinfo.has_records_per_key(part)) {
+        if (!counts.view().empty()) {
+          ss << ",";
+          counts << ",";
+        }
+        ss << keyinfo.key_part[part].field->field_name;
+
+        rec_per_key_t rec_per_key = keyinfo.records_per_key(part);
+        counts << std::to_string(rec_per_key);
+      }
+    }
+    ss << ") = (" << counts.view() << ")";
+  }
+  return ss.str();
+}
+#endif
+
 /**
   @brief
   Retrieve number of rows in the table
@@ -6755,10 +6795,22 @@ int Table_ref::fetch_number_of_rows(ha_rows fallback_estimate) {
                  // Recursive reference is never a const table
                  fallback_estimate);
   } else {
-    uint flags = HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK;
-    DBUG_EXECUTE_IF("fetch_number_of_rows_info_const",
-                    { flags |= HA_STATUS_CONST; });
+    uint flags =
+        HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK | HA_STATUS_CONST_WHEN_UPDATED;
+    DBUG_EXECUTE_IF("fetch_number_of_rows_info_const", {
+      flags |= HA_STATUS_CONST;
+      flags &= ~HA_STATUS_CONST_WHEN_UPDATED;
+    });
     int error = table->file->info(flags);
+
+    DBUG_EXECUTE_IF("print_records_per_key", {
+      for (uint nr = 0; nr < table->s->keys; nr++) {
+        push_warning_printf(table->in_use, Sql_condition::SL_NOTE,
+                            HA_ERR_GENERIC, "print_records_per_key: %s",
+                            str_records_per_key(table, nr).c_str());
+      }
+    });
+
     DBUG_EXECUTE_IF("bug35208539_raise_error", error = HA_ERR_GENERIC;);
     if (error) {
       return error;
@@ -7876,6 +7928,22 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   return LEX_USER::init(ret, thd, user_arg, host_arg);
 }
 
+void warn_user_trimmed(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg) {
+  const String user(user_arg->str, user_arg->length, system_charset_info);
+  const String host =
+      host_arg ? String(host_arg->str, host_arg->length, system_charset_info)
+               : String("%", 1, system_charset_info);
+  String account(user.length() + host.length() + sizeof("''@''"));
+
+  append_query_string(thd, system_charset_info, &user, &account);
+  account.append('@');
+  append_query_string(thd, system_charset_info, &host, &account);
+  account.append((char)0);
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_ACCOUNT_TRIMMED,
+                      ER_THD(thd, ER_WARN_ACCOUNT_TRIMMED), account.ptr(),
+                      account.ptr());
+}
+
 LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd [[maybe_unused]],
                          LEX_STRING *user_arg, LEX_STRING *host_arg) {
   ret->init();
@@ -7883,8 +7951,18 @@ LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd [[maybe_unused]],
     Trim whitespace as the values will go to a CHAR field
     when stored.
   */
+  auto untrimmed_len = user_arg->length;
   trim_whitespace(system_charset_info, user_arg);
-  if (host_arg) trim_whitespace(system_charset_info, host_arg);
+  bool username_trimmed{untrimmed_len > user_arg->length};
+  if (host_arg) {
+    untrimmed_len = host_arg->length;
+    trim_whitespace(system_charset_info, host_arg);
+    if (username_trimmed || untrimmed_len > host_arg->length) {
+      warn_user_trimmed(thd, user_arg, host_arg);
+    }
+  } else if (username_trimmed) {
+    warn_user_trimmed(thd, user_arg, host_arg);
+  }
 
   ret->user.str = user_arg->str;
   ret->user.length = user_arg->length;

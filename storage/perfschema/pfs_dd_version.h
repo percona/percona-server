@@ -286,8 +286,15 @@
    - Bug#31763497 PERFORMANCE DEGRADATION CAUSED BY MONITORING
      SYS.INNODB_LOCK_WAITS IN MYSQL 8.0
      - Table performance_schema.data_lock_waits, add PRIMARY KEY.
+
+  90600:
+
+   - WL#16803: Query Temporary Account Locking Status
+     - New table temporary_account_locks.
+     - New column host_cache.COUNT_ACCOUNT_LOCKED_ERRORS.
+     - New column host_cache.COUNT_TEMPORARY_ACCOUNT_LOCKED_ERRORS.
 */
 
-static const uint PFS_DD_VERSION = 90100;
+static const uint PFS_DD_VERSION = 90600;
 
 #endif /* PFS_DD_VERSION_H */

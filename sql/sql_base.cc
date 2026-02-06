@@ -83,11 +83,21 @@
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/check_stack.h"
 #include "sql/dd/cache/dictionary_client.h"
+<<<<<<< HEAD
 #include "sql/dd/dd.h"  // dd::get_dictionary()
+||||||| merged common ancestors
+=======
+#include "sql/dd/dd.h"
+>>>>>>> mysql-9.6.0
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"       // dd::table_exists
 #include "sql/dd/dd_tablespace.h"  // dd::fill_table_and_parts_tablespace_name
+<<<<<<< HEAD
 #include "sql/dd/dictionary.h"
+||||||| merged common ancestors
+=======
+#include "sql/dd/dictionary.h"     // dd::get_dictionary
+>>>>>>> mysql-9.6.0
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"
@@ -137,7 +147,8 @@
 #include "sql/sql_db.h"        // check_schema_readonly
 #include "sql/sql_error.h"     // Sql_condition
 #include "sql/sql_executor.h"  // unwrap_rollup_group
-#include "sql/sql_handler.h"   // mysql_ha_flush_tables
+#include "sql/sql_foreign_key_constraint.h"
+#include "sql/sql_handler.h"  // mysql_ha_flush_tables
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"    // is_update_query
@@ -169,19 +180,6 @@ using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::unordered_map;
-
-/**
-  The maximum length of a key in the table definition cache.
-
-  The key consists of the schema name, a '\0' character, the table
-  name and a '\0' character. Hence NAME_LEN * 2 + 1 + 1.
-
-  Additionally, the key can be suffixed with either 4 + 4 extra bytes
-  for slave tmp tables, or with a single extra byte for tables in a
-  secondary storage engine. Add 4 + 4 to account for either of these
-  suffixes.
-*/
-static constexpr const size_t MAX_DBKEY_LENGTH{NAME_LEN * 2 + 1 + 1 + 4 + 4};
 
 static constexpr long STACK_MIN_SIZE_FOR_OPEN{1024 * 80};
 
@@ -351,25 +349,8 @@ static bool tdc_open_view(THD *thd, Table_ref *table_list,
                           const char *cache_key, size_t cache_key_length);
 static bool add_view_place_holder(THD *thd, Table_ref *table_list);
 
-/**
-  Create a table cache/table definition cache key for a table. The
-  table is neither a temporary table nor a table in a secondary
-  storage engine.
-
-  @note
-    The table cache_key is created from:
-
-        db_name + \0
-        table_name + \0
-
-  @param[in]  db_name     the database name
-  @param[in]  table_name  the table name
-  @param[out] key         buffer for the key to be created (must be of
-                          size MAX_DBKEY_LENGTH)
-  @return the length of the key
-*/
-static size_t create_table_def_key(const char *db_name, const char *table_name,
-                                   char *key) {
+size_t create_table_def_key(const char *db_name, const char *table_name,
+                            char *key) {
   /*
     In theory caller should ensure that both db and table_name are
     not longer than NAME_LEN bytes. In practice we play safe to avoid
@@ -652,7 +633,6 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
   auto table_histograms_guard =
       create_scope_guard([table_histograms]() { table_histograms->destroy(); });
 
-  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   MDL_request_list mdl_requests;
   for (const auto column : table_def->columns()) {
     if (column->is_se_hidden()) continue;
@@ -675,6 +655,9 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     thd->mdl_context.release_locks(&histogram_mdl_releaser);
   });
 
+  // Define this AFTER the scope guard releasing locks so that locks are held
+  // until the Auto_releaser has run.
+  const dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   for (const auto column : table_def->columns()) {
     if (column->is_se_hidden()) continue;
 
@@ -1809,6 +1792,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr) {
       MDL_key::TABLE, table->s->db.str, table->s->table_name.str, MDL_SHARED));
   table->mdl_ticket = nullptr;
   table->pos_in_table_list = nullptr;
+  table->open_for_fk_name = nullptr;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
@@ -3610,6 +3594,9 @@ table_found:
   thd->set_open_tables(table);
 
   table->reginfo.lock_type = TL_READ; /* Assume read */
+  table->open_for_fk_name = table_list->open_for_fk_name;
+  DBUG_PRINT("fk", ("table handle fk_name set: %s %s", table->alias,
+                    table->open_for_fk_name));
 
 reset:
   table->reset();
@@ -4548,6 +4535,74 @@ thr_lock_type read_lock_type_for_table(THD *thd,
   return TL_READ;
 }
 
+bool add_fk_tables_to_table_list(THD *thd, Table_ref ***query_tables_last_ptr,
+                                 const char *db_name, size_t db_length,
+                                 const char *table_name, size_t table_length,
+                                 const char *fk_name, bool cascade,
+                                 uint8 dml_action, thr_lock_type lock_type,
+                                 enum_mdl_type mdl_type) {
+  if (!is_sql_fk_checks_enabled(thd)) return false;
+
+  const Prepared_stmt_arena_holder ps_holder(thd);
+  char *db_str = strmake_root(thd->mem_root, db_name, db_length);
+  char *tbl_str = strmake_root(thd->mem_root, table_name, table_length);
+  if (nullptr == db_str || nullptr == tbl_str) return true;  // OOM
+
+  if (lower_case_table_names == 2) {
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, db_str);
+    my_casedn_str(&my_charset_utf8mb3_tolower_ci, tbl_str);
+  }
+
+  if (is_foreign_key_table_opened(thd, db_str, tbl_str, fk_name)) {
+    DBUG_PRINT("fk",
+               ("add_fk_tables_to_table_list:Table %s.%s for foreign key %s "
+                "found in opentables",
+                db_str, tbl_str, fk_name));
+
+    // Tables locked under lock table mode need not be added again.
+    if (thd->locked_tables_mode == LTM_LOCK_TABLES) {
+      if (!cascade) {
+        if (!thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::TABLE, db_str, tbl_str, MDL_SHARED_READ_ONLY)) {
+          my_error(ER_TABLE_NOT_LOCKED, MYF(0), tbl_str);
+          return true;
+        }
+      } else {
+        if (!thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::TABLE, db_str, tbl_str, MDL_SHARED_NO_READ_WRITE)) {
+          my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), tbl_str);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  DBUG_PRINT("fk", ("add_fk_tables_to_table_list:Table %s.%s for foreign key "
+                    "%s not found. lock:%d",
+                    db_name, table_name, fk_name, lock_type));
+  Table_ref *table =
+      new (thd->mem_root) Table_ref(db_str, tbl_str, lock_type, mdl_type);
+  if (nullptr == table) return true;  // OOM
+
+  table->is_system_view = false;
+  assert(
+      !dd::get_dictionary()->is_system_view_name(table->db, table->table_name));
+  table->cacheable_table = true;
+  table->prelocking_placeholder = true;
+  table->open_type = OT_BASE_ONLY;
+  table->trg_event_map = dml_action;
+  table->open_for_fk_name = fk_name;
+
+  **query_tables_last_ptr = table;
+  table->prev_global = *query_tables_last_ptr;
+  *query_tables_last_ptr = &table->next_global;
+  DBUG_PRINT("fk", ("add_fk_tables_to_table_list:Table %s.%s is added for "
+                    "foreign key %s handling",
+                    db_name, table_name, fk_name));
+  return false;
+}
+
 /**
   Process table's foreign keys (if any) by prelocking algorithm.
 
@@ -4562,21 +4617,25 @@ thr_lock_type read_lock_type_for_table(THD *thd,
                                 from the table.
   @param  belong_to_view        Uppermost view which uses this table element
                                 (nullptr - if it is not used by a view).
+  @param  is_update_on_child    Indicates whether update is on child table.
   @param[out] need_prelocking   Set to true if method detects that prelocking
                                 required, not changed otherwise.
+  @return  false on success, true on error.
 */
-static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
+static bool process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
                               TABLE_SHARE *share, bool is_insert,
                               bool is_update, bool is_delete,
                               Table_ref *belong_to_view,
-                              bool *need_prelocking) {
+                              bool is_update_on_child, bool *need_prelocking) {
+  bool ret = false;
   if (!share->foreign_keys && !share->foreign_key_parents) {
     /*
       This table doesn't participate in any foreign keys, so nothing to
       process.
     */
-    return;
+    return ret;
   }
+  DBUG_PRINT("fk", ("process_table_fks for :%s", share->table_name.str));
 
   *need_prelocking = true;
 
@@ -4591,36 +4650,76 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
   const Sp_name_normalize_type name_normalize_type =
       (lower_case_table_names == 2) ? Sp_name_normalize_type::LOWERCASE_NAME
                                     : Sp_name_normalize_type::LEAVE_AS_IS;
+  bool is_lock_table_cmd = (prelocking_ctx->sql_command == SQLCOM_LOCK_TABLES);
 
-  if (is_insert || is_update) {
+  if (is_insert || (is_update_on_child && is_update)) {
     for (TABLE_SHARE_FOREIGN_KEY_INFO *fk = share->foreign_key;
          fk < share->foreign_key + share->foreign_keys; ++fk) {
-      (void)sp_add_used_routine(
-          prelocking_ctx, thd->stmt_arena,
-          Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK,
-          fk->referenced_table_db.str, fk->referenced_table_db.length,
-          fk->referenced_table_name.str, fk->referenced_table_name.length,
-          normalize_db_names, name_normalize_type, false, belong_to_view);
+      if (!is_sql_fk_checks_enabled(thd)) {
+        (void)sp_add_used_routine(
+            prelocking_ctx, thd->stmt_arena,
+            Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK,
+            fk->referenced_table_db.str, fk->referenced_table_db.length,
+            fk->referenced_table_name.str, fk->referenced_table_name.length,
+            normalize_db_names, name_normalize_type, false, belong_to_view);
+      } else {
+        bool is_self_ref_key =
+            my_strcasecmp(table_alias_charset, share->db.str,
+                          fk->referenced_table_db.str) == 0 &&
+            my_strcasecmp(table_alias_charset, share->table_name.str,
+                          fk->referenced_table_name.str) == 0;
+        if (!is_self_ref_key) {
+          // In case of self-referencing key, another table handle
+          // for the same table will be opened during check_all_XXX_fk_ref()
+          // during multi level delete cascade.
+          enum_mdl_type mdl_type = MDL_SHARED_READ;
+          if (is_lock_table_cmd) mdl_type = MDL_SHARED_READ_ONLY;
+          ret = add_fk_tables_to_table_list(
+              thd, &prelocking_ctx->query_tables_last,
+              fk->referenced_table_db.str, fk->referenced_table_db.length,
+              fk->referenced_table_name.str, fk->referenced_table_name.length,
+              fk->fk_name.str, false, 0, TL_READ_WITH_SHARED_LOCKS, mdl_type);
+          if (ret) break;
+        }
+      }
     }
   }
+  if (ret) return ret;
 
   if (is_update || is_delete) {
     for (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p = share->foreign_key_parent;
          fk_p < share->foreign_key_parent + share->foreign_key_parents;
          ++fk_p) {
+      bool is_self_ref_key =
+          my_strcasecmp(table_alias_charset, share->db.str,
+                        fk_p->referencing_table_db.str) == 0 &&
+          my_strcasecmp(table_alias_charset, share->table_name.str,
+                        fk_p->referencing_table_name.str) == 0;
       if ((is_update &&
            (fk_p->update_rule == dd::Foreign_key::RULE_NO_ACTION ||
             fk_p->update_rule == dd::Foreign_key::RULE_RESTRICT)) ||
           (is_delete &&
            (fk_p->delete_rule == dd::Foreign_key::RULE_NO_ACTION ||
             fk_p->delete_rule == dd::Foreign_key::RULE_RESTRICT))) {
-        (void)sp_add_used_routine(
-            prelocking_ctx, thd->stmt_arena,
-            Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK,
-            fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
-            fk_p->referencing_table_name.str,
-            fk_p->referencing_table_name.length, normalize_db_names,
-            name_normalize_type, false, belong_to_view);
+        if (!is_sql_fk_checks_enabled(thd)) {
+          (void)sp_add_used_routine(
+              prelocking_ctx, thd->stmt_arena,
+              Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK,
+              fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+              fk_p->referencing_table_name.str,
+              fk_p->referencing_table_name.length, normalize_db_names,
+              name_normalize_type, false, belong_to_view);
+        } else if (!is_self_ref_key) {
+          enum_mdl_type mdl_type = MDL_SHARED_READ;
+          if (is_lock_table_cmd) mdl_type = MDL_SHARED_READ_ONLY;
+          ret = add_fk_tables_to_table_list(
+              thd, &prelocking_ctx->query_tables_last,
+              fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+              fk_p->referencing_table_name.str,
+              fk_p->referencing_table_name.length, fk_p->fk_name.str, false, 0,
+              TL_READ_WITH_SHARED_LOCKS, mdl_type);
+          if (ret) break;
+        }
       }
 
       if ((is_update &&
@@ -4630,26 +4729,56 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
           (is_delete &&
            (fk_p->delete_rule == dd::Foreign_key::RULE_SET_NULL ||
             fk_p->delete_rule == dd::Foreign_key::RULE_SET_DEFAULT))) {
-        (void)sp_add_used_routine(
-            prelocking_ctx, thd->stmt_arena,
-            Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE,
-            fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
-            fk_p->referencing_table_name.str,
-            fk_p->referencing_table_name.length, normalize_db_names,
-            name_normalize_type, false, belong_to_view);
+        if (!is_sql_fk_checks_enabled(thd)) {
+          (void)sp_add_used_routine(
+              prelocking_ctx, thd->stmt_arena,
+              Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE,
+              fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+              fk_p->referencing_table_name.str,
+              fk_p->referencing_table_name.length, normalize_db_names,
+              name_normalize_type, false, belong_to_view);
+        } else if (!is_self_ref_key) {
+          enum_mdl_type mdl_type = MDL_SHARED_WRITE;
+          if (is_lock_table_cmd) mdl_type = MDL_SHARED_NO_READ_WRITE;
+          uint8 dml_action =
+              static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_UPDATE));
+          ret = add_fk_tables_to_table_list(
+              thd, &prelocking_ctx->query_tables_last,
+              fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+              fk_p->referencing_table_name.str,
+              fk_p->referencing_table_name.length, fk_p->fk_name.str, true,
+              dml_action, TL_WRITE, mdl_type);
+          if (ret) break;
+        }
       }
 
       if (is_delete && fk_p->delete_rule == dd::Foreign_key::RULE_CASCADE) {
-        (void)sp_add_used_routine(
-            prelocking_ctx, thd->stmt_arena,
-            Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE,
-            fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
-            fk_p->referencing_table_name.str,
-            fk_p->referencing_table_name.length, normalize_db_names,
-            name_normalize_type, false, belong_to_view);
+        if (!is_sql_fk_checks_enabled(thd)) {
+          (void)sp_add_used_routine(
+              prelocking_ctx, thd->stmt_arena,
+              Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE,
+              fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+              fk_p->referencing_table_name.str,
+              fk_p->referencing_table_name.length, normalize_db_names,
+              name_normalize_type, false, belong_to_view);
+        } else if (!is_self_ref_key) {
+          enum_mdl_type mdl_type = MDL_SHARED_WRITE;
+          if (is_lock_table_cmd) mdl_type = MDL_SHARED_NO_READ_WRITE;
+          uint8 dml_action =
+              static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE));
+          ret = add_fk_tables_to_table_list(
+              thd, &prelocking_ctx->query_tables_last,
+              fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+              fk_p->referencing_table_name.str,
+              fk_p->referencing_table_name.length, fk_p->fk_name.str, true,
+              dml_action, TL_WRITE, mdl_type);
+          if (ret) break;
+        }
       }
     }
   }
+  if (thd->is_error()) return true;
+  return ret;
 }
 
 /**
@@ -5041,8 +5170,12 @@ static bool open_and_process_routine(
           const bool is_delete =
               (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE);
 
-          process_table_fks(thd, prelocking_ctx, share, false, is_update,
-                            is_delete, rt->belong_to_view, need_prelocking);
+          DBUG_PRINT("fk",
+                     ("process_table_fks called:%s", share->table_name.str));
+          if (process_table_fks(thd, prelocking_ctx, share, false, is_update,
+                                is_delete, rt->belong_to_view, false,
+                                need_prelocking))
+            return true;
         }
       }
     } break;
@@ -6265,9 +6398,13 @@ restart:
       phase. It is OK to do so since during this phase no rows will be read
       anyway. And by doing this we avoid generation of extra warnings.
       EXECUTION phase will request SE to skip row locks if necessary.
+
+      Do not request SE to skip row lock if foreign key check is being
+      performed.
     */
     bool issue_warning_on_skipping_row_lock = false;
     if (tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS &&
+        tables->open_for_fk_name == nullptr &&
         !(flags & MYSQL_OPEN_FORCE_SHARED_MDL) &&
         is_acl_table_in_non_LTM(tables, thd->locked_tables_mode)) {
       tables->set_lock({TL_READ_DEFAULT, THR_DEFAULT});
@@ -6448,9 +6585,12 @@ bool DML_prelocking_strategy::handle_table(THD *thd,
           (table_list->trg_event_map &
            static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE)));
 
-      process_table_fks(thd, prelocking_ctx, table_list->table->s, is_insert,
-                        is_update, is_delete, table_list->belong_to_view,
-                        need_prelocking);
+      DBUG_PRINT("fk", ("DML_prelocking_strategy::handle_table called:%s",
+                        table_list->table->s->table_name.str));
+      if (process_table_fks(thd, prelocking_ctx, table_list->table->s,
+                            is_insert, is_update, is_delete,
+                            table_list->belong_to_view, true, need_prelocking))
+        return true;
     }
   }
   return false;
@@ -7051,8 +7191,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
           hton->notify_materialized_view_usage != nullptr &&
           hton->notify_materialized_view_usage(
               thd, tr->get_db_name(), tr->get_table_name(),
-              {tr->select_stmt.str, tr->select_stmt.length},
-              tr->mdl_request.ticket);
+              {tr->select_stmt.str, tr->select_stmt.length});
       if (!found_materialized_view) {
         thd->clear_error();
         push_warning_printf(
@@ -7564,11 +7703,16 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   /* Create the cache_key for temporary tables */
   key_length = create_table_def_key_tmp(thd, db, table_name, cache_key);
 
-  if (!(tmp_table = (TABLE *)my_malloc(
-            key_memory_TABLE,
-            sizeof(*tmp_table) + sizeof(*share) + strlen(path) + 1 + key_length,
-            MYF(MY_WME))))
+  const size_t alloc_length =
+      sizeof(*tmp_table) + sizeof(*share) + strlen(path) + 1 + key_length;
+  tmp_table = static_cast<TABLE *>(
+      my_malloc(key_memory_TABLE, alloc_length, MYF(MY_WME)));
+  if (tmp_table == nullptr) {
     return nullptr; /* purecov: inspected */
+  }
+
+  // Fill with garbage in debug to easier detect reading uninitialized memory.
+  TRASH(tmp_table, alloc_length);
 
 #ifndef NDEBUG
   // In order to let purge thread callback call open_table_uncached()
@@ -7598,10 +7742,19 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   init_tmp_table_share(thd, share, saved_cache_key, key_length,
                        strend(saved_cache_key) + 1, tmp_path, nullptr);
 
-  if (open_table_def(thd, share, table_def)) {
+  bool error = open_table_def(thd, share, table_def);
+  DBUG_EXECUTE_IF(
+      "bug38625494", if (!error) {
+        error = true;
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
+      });
+  if (error) {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
-    ::destroy_at(tmp_table);
+    // Note: Do not call the TABLE destructor here; tmp_table has not been
+    // constructed yet. It is raw memory allocated with my_malloc and the
+    // TABLE object is constructed later by open_table_from_share() on success.
+    // Free the allocation directly.
     my_free(tmp_table);
     return nullptr;
   }
@@ -10523,8 +10676,11 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   else
     table_cache_manager.assert_owner_all_and_tdc();
 
+  DEBUG_SYNC_C("rm_table_tdc_locked");
+
   assert(remove_type == TDC_RT_REMOVE_UNUSED ||
          remove_type == TDC_RT_MARK_FOR_REOPEN ||
+         remove_type == TDC_RT_MARK_FOR_REOPEN_AND_INVALIDATE_SHARE ||
          thd->mdl_context.owns_equal_or_stronger_lock(
              MDL_key::TABLE, db, table_name, MDL_EXCLUSIVE));
 
@@ -10569,7 +10725,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         share->clear_version();
       }
       table_cache_manager.free_table(thd, remove_type, share);
-    } else if (remove_type != TDC_RT_MARK_FOR_REOPEN) {
+    } else if (remove_type != TDC_RT_MARK_FOR_REOPEN &&
+               remove_type != TDC_RT_MARK_FOR_REOPEN_AND_INVALIDATE_SHARE) {
       // There are no TABLE objects associated, so just remove the
       // share immediately. (Assert: When called with
       // TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE, there should always be a

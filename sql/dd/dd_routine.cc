@@ -515,7 +515,7 @@ static bool fill_dd_library_info(sp_head *sp, const LEX_USER *definer,
   assert(!sp->is_sql());
 
   library->set_name(sp->m_name.str);
-  library->set_definition(sp->m_body.str);
+  library->set_definition(make_string_type(sp->m_body));
   library->set_definition_utf8(sp->m_body_utf8.str);
 
   // Set external language for show library operations.

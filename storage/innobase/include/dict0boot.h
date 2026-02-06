@@ -58,14 +58,10 @@ dict_hdr_t *dict_hdr_get(mtr_t *mtr); /*!< in: mtr */
 void dict_hdr_get_new_id(table_id_t *table_id, space_index_t *index_id,
                          space_id_t *space_id, const dict_table_t *table,
                          bool disable_redo);
-
-/** Writes the current value of the row id counter to the dictionary header file
- page. */
-void dict_hdr_flush_row_id(void);
 #ifndef UNIV_HOTBACKUP
 /** Returns a new row id.
  @return the new id */
-static inline row_id_t dict_sys_get_new_row_id(void);
+static inline row_id_t dict_sys_get_new_row_id();
 /** Reads a row id from a record or other 6-byte stored form.
  @return row id */
 static inline row_id_t dict_sys_read_row_id(
@@ -81,12 +77,28 @@ static inline void dict_sys_write_row_id(byte *field, row_id_t row_id);
 /** Initializes the data dictionary memory structures when the database is
  started. This function is also called when the data dictionary is created.
  @return DB_SUCCESS or error code. */
-[[nodiscard]] dberr_t dict_boot(void);
+[[nodiscard]] dberr_t dict_boot();
 
 /** Creates and initializes the data dictionary at the server bootstrap.
  @return DB_SUCCESS or error code. */
+<<<<<<< HEAD
 [[nodiscard]] dberr_t dict_create(void);
 
+||||||| merged common ancestors
+[[nodiscard]] dberr_t dict_create(void);
+
+/** The ids for the basic system tables and their indexes */
+constexpr uint32_t DICT_TABLES_ID = 1;
+constexpr uint32_t DICT_COLUMNS_ID = 2;
+constexpr uint32_t DICT_INDEXES_ID = 3;
+constexpr uint32_t DICT_FIELDS_ID = 4;
+/* The following is a secondary index on SYS_TABLES */
+constexpr uint32_t DICT_TABLE_IDS_ID = 5;
+
+=======
+[[nodiscard]] dberr_t dict_create();
+
+>>>>>>> mysql-9.6.0
 /** the ids for tables etc. start from this number, except for basic system
  tables and their above defined indexes; ibuf tables and indexes are assigned
  as the id the number DICT_IBUF_ID_MIN plus the space id */

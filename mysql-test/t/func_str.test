@@ -123,8 +123,6 @@ select null sounds like 'null';
 select 'null' sounds like null;
 select null sounds like null;
 select crc32("123");
-select sha('abc');
-select sha1('abc');
 select aes_decrypt(aes_encrypt('abc','1'),'1');
 select aes_decrypt(aes_encrypt('abc','1'),1);
 select aes_encrypt(NULL,"a");
@@ -568,8 +566,6 @@ drop table t7;
 
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 
-explain select sha('abc');
-explain select sha1('abc');
 explain select soundex('');
 explain select 'mood' sounds like 'mud';
 explain select aes_decrypt(aes_encrypt('abc','1'),'1');
@@ -923,9 +919,6 @@ select benchmark(-1, 1);
 # the binary representation of the string without charset/collation.
 # 2) These tests can not print the encoded text directly, because it's binary,
 # and doing this would cause problems with source control.
-# Instead, an md5() checksum is used, to verify the result indirectly.
-# 3) Each md5() result must be identical.
-# 4) The md5() result must never change, and must be stable across releases.
 #
 set @dec=5;
 select format(pi(), (1+1));
@@ -1512,7 +1505,7 @@ round(
       bit_count('')
     ) ),
     ( lpad( ( elt('01','}:K5')),
-              sha1('P'),
+              sha2('P',256),
               ( ( select '-9223372036854775808.1' > all (select '')))
           )
     )
@@ -2634,7 +2627,7 @@ SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;
 --echo #              Assertion `is_nullable()' failed.
 SET @@sql_mode='';
 --disable_warnings
-DO SPACE(SHA(UUID_SHORT()));
+DO SPACE(SHA2(UUID_SHORT(),256));
 --enable_warnings
 SET @@sql_mode = default;
 

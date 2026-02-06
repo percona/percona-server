@@ -708,3 +708,14 @@ SELECT CAST('21:07:58' / -1345980785 AS TIME) AS f;
 SELECT CAST('21:07:58' / -1345980785 AS TIME(6)) AS f;
 SELECT CAST(9 / '-1317798799' AS TIME) AS f;
 SELECT CAST(9 / '-1317798799' AS TIME(6)) AS f;
+
+--echo #
+--echo # Bug#38537045: Assertion failed: (*right)->data_type() ==
+--echo #     MYSQL_TYPE_TIME || (*right)->data_type() == MYSQL_TYPE_NULL
+--echo #
+
+CREATE TABLE t(c TIME);
+
+SELECT 1 FROM t WHERE DEFAULT(c) > c AND @f = c;
+
+DROP TABLE t;

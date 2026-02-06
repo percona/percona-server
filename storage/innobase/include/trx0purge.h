@@ -95,7 +95,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks to
 /** Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
 void trx_purge_stop(void);
 /** Resume purge, move to PURGE_STATE_RUN. */
-void trx_purge_run(void);
+void trx_purge_run();
 
 /** Purge states */
 enum purge_state_t {

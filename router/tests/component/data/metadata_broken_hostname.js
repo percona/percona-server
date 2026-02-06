@@ -44,7 +44,7 @@ var round = 0;
           "router_check_member_state",
           "router_select_members_count",
           "router_select_group_membership",
-          "router_update_last_check_in_v2",
+          "router_update_last_check_in_v2_4",
           "router_clusterset_present",
           "router_select_router_options_view",
           "router_commit",

@@ -97,6 +97,7 @@ bool MysqlHandler::verify_credential(const Credentials &credentials,
     // Restore default user
     out_cache->get()->change_user(default_auth_user.username,
                                   default_auth_user.password, "");
+    out_cache->get()->execute_initial_sqls();
 
     out_user->app_id = entry_.id;
 

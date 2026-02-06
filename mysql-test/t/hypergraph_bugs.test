@@ -2021,4 +2021,62 @@ ORDER BY t1.x, t2.x;
 SET tmp_table_size = DEFAULT;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#38439704: SIG6 with hypergraph optimizer - assertion failure in
+--echo #               RedundantThroughSargable at join_optimizer.cc
+--echo #
+
+CREATE TABLE t(
+  pk INT PRIMARY KEY, col1 INT, col2 INT, col3 INT, col4 INT, col5 INT,
+  col6 INT, col7 INT, col8 INT, col9 INT, col10 INT, col11 INT, col12 INT,
+  col13 INT, col14 INT, col15 INT, col16 INT, col17 INT, col18 INT, col19 INT,
+  col20 INT, col21 INT, col22 INT, col23 INT, col24 INT, col25 INT, col26 INT,
+  col27 INT, col28 INT, col29 INT, col30 INT, col31 INT, col32 INT, col33 INT,
+  col34 INT, col35 INT, col36 INT, col37 INT, col38 INT, col39 INT, col40 INT,
+  col41 INT, col42 INT, col43 INT, col44 INT, col45 INT, col46 INT, col47 INT,
+  col48 INT, col49 INT, col50 INT, col51 INT, col52 INT, col53 INT, col54 INT,
+  col55 INT, col56 INT, col57 INT, col58 INT, col59 INT, col60 INT, col61 INT,
+  col62 INT, col63 INT, col64 INT
+);
+
+INSERT INTO t(pk) VALUES (1), (2);
+
+SELECT 1
+FROM t AS t1
+     NATURAL JOIN t AS t2
+     JOIN t AS t3 ON t2.pk = t3.pk
+WHERE t1.col1 <> t3.col1 AND t1.col2 <> t3.col2;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#38440648: Assertion `false && "Inconsistent row counts for
+--echo #               different AccessPath objects."' failed.
+--echo #
+
+CREATE TABLE t1 (col_int INT);
+CREATE TABLE t2 (col_int INT, col_varchar10 VARCHAR(10));
+CREATE TABLE t3 (pk INT PRIMARY KEY, col_varchar20 VARCHAR(20));
+
+SELECT 1 FROM t1, t2, t3
+WHERE t2.col_int = t3.pk AND
+      t2.col_varchar10 = t3.col_varchar20 AND
+      t1.col_int = t3.pk AND
+      t1.col_int >= 8;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#38557567: Assertion `IsEmpty(child.delayed_predicates)'
+--echo #               failed|join_optimizer/cost_model.cc
+--echo #
+
+CREATE TABLE t(i INT PRIMARY KEY);
+
+SELECT LAG (i) OVER () FROM t AS t1
+WHERE i IN (SELECT i FROM t AS t2)
+GROUP BY i;
+
+DROP TABLE t;
+
 --source include/disable_hypergraph.inc

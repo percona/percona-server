@@ -43,11 +43,17 @@ while($schemas_to_remove)
 --let $router_test_schemas=
 
 DROP SCHEMA mysql_rest_service_metadata;
-DROP ROLE mysql_rest_service_admin;
-DROP ROLE mysql_rest_service_schema_admin;
-DROP ROLE mysql_rest_service_meta_provider;
-DROP ROLE mysql_rest_service_data_provider;
-DROP ROLE mysql_rest_service_dev;
+
+  DROP ROLE mysql_rest_service_admin;
+  DROP ROLE mysql_rest_service_schema_admin;
+if ($cleanup_keep_roles != 1)
+{
+  DROP ROLE mysql_rest_service_meta_provider;
+  DROP ROLE mysql_rest_service_data_provider;
+}
+
+  DROP ROLE mysql_rest_service_dev;
+
 
 if ($mrs_schema_version >= 4)
 {
@@ -97,14 +103,19 @@ while($schemas_to_remove)
   --echo DROP SCHEMA $schema;
 }
 --echo DROP SCHEMA mysql_rest_service_metadata;
---echo DROP ROLE mysql_rest_service_admin;
---echo DROP ROLE mysql_rest_service_schema_admin;
---echo DROP ROLE mysql_rest_service_meta_provider;
---echo DROP ROLE mysql_rest_service_data_provider;
---echo DROP ROLE mysql_rest_service_dev;
+
+  --echo DROP ROLE mysql_rest_service_admin;
+  --echo DROP ROLE mysql_rest_service_schema_admin;
+if ($cleanup_keep_roles != 1)
+{
+  --echo DROP ROLE mysql_rest_service_meta_provider;
+  --echo DROP ROLE mysql_rest_service_data_provider;
+}
+  --echo DROP ROLE mysql_rest_service_dev;
 }
 
 --enable_warnings
 
 --let $cleanup_arg_mrs_existing_service=
 --let $$cleanup_arg_mrs_skip_service_disable=
+--let $cleanup_keep_roles=

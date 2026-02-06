@@ -144,7 +144,8 @@ int table_variables_info::rnd_pos(const void *pos) {
 }
 
 int table_variables_info::make_row(const System_variable *system_var) {
-  memcpy(m_row.m_variable_name, system_var->m_name, system_var->m_name_length);
+  memcpy(m_row.m_variable_name, system_var->m_name_str,
+         system_var->m_name_length);
   m_row.m_variable_name_length = system_var->m_name_length;
 
   m_row.m_variable_source = system_var->m_source;

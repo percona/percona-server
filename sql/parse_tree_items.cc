@@ -133,10 +133,12 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   DBUG_TRACE;
 
   if (expr->type() == Item::SUBQUERY_ITEM) {
-    Item_subselect *expr2 = (Item_subselect *)expr;
+    Item_subselect *expr2 = down_cast<Item_subselect *>(expr);
+    if (expr2 == nullptr) return nullptr;
 
     if (expr2->subquery_type() == Item_subselect::SCALAR_SUBQUERY) {
       Item_singlerow_subselect *expr3 = (Item_singlerow_subselect *)expr2;
+      if (expr3 == nullptr) return nullptr;
       /*
         Implement the mandated change, by altering the semantic tree:
           left IN Item_singlerow_subselect(subselect)
@@ -146,20 +148,24 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
           Item_in_subselect(left, subselect)
       */
       Query_block *const qb = expr3->invalidate_and_restore_query_block();
+      if (qb == nullptr) return nullptr;
       result = new (pc->mem_root) Item_in_subselect(expr->m_pos, left, qb);
+      if (result == nullptr) return nullptr;
 
-      if (is_negation)
+      if (is_negation) {
         result =
             change_truth_value_of_condition(pc, result, Item::BOOL_NEGATED);
-
+      }
       return result;
     }
   }
 
-  if (is_negation)
+  if (is_negation) {
     result = new (pc->mem_root) Item_func_ne(expr->m_pos, left, expr);
-  else
+  } else {
     result = new (pc->mem_root) Item_func_eq(expr->m_pos, left, expr);
+  }
+  if (result == nullptr) return nullptr;
 #ifndef NDEBUG
   result->set_contextualized();
 #endif

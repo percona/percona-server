@@ -3160,9 +3160,9 @@ EXPLAIN
 -> Group aggregate: count(distinct t1_1.a)  (rows=5.66)
     -> Sort: t1_1.a  (rows=1024)
         -> Inner hash join (no condition)  (rows=1024)
-            -> Covering index scan on t1_1 using a  (rows=32)
+            -> Covering index scan on t1_2 using a  (rows=32)
             -> Hash
-                -> Covering index scan on t1_2 using a  (rows=32)
+                -> Covering index scan on t1_1 using a  (rows=32)
 
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 COUNT(DISTINCT t1_1.a)
@@ -3671,13 +3671,13 @@ explain format=tree SELECT t2.k FROM t1 out1, t2 WHERE t2.k = out1.k
 AND out1.pk<>3 AND out1.nk = (SELECT MAX(out1.k) FROM t1);
 EXPLAIN
 -> Inner hash join (t2.k = out1.k)  (rows=3)
-    -> Filter: ((out1.pk <> 3) and (out1.nk = (select #2)))  (rows=3)
-        -> Table scan on out1  (rows=3)
-        -> Select #2 (subquery in condition; dependent)
-            -> Aggregate: max(out1.k)  (rows=1)
-                -> Covering index scan on t1 using PRIMARY  (rows=3)
+    -> Table scan on t2  (rows=3)
     -> Hash
-        -> Table scan on t2  (rows=3)
+        -> Filter: ((out1.pk <> 3) and (out1.nk = (select #2)))  (rows=3)
+            -> Table scan on out1  (rows=3)
+            -> Select #2 (subquery in condition; dependent)
+                -> Aggregate: max(out1.k)  (rows=1)
+                    -> Covering index scan on t1 using PRIMARY  (rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.out1.k' of SELECT #2 was resolved in SELECT #1

@@ -192,3 +192,20 @@ ADDTIME(FROM_UNIXTIME(2985951232, "%y-%r-%i-%b-%x"), DATE('0000-00-00'))
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '64-05:53:52 PM-53-Aug-2064'
+#
+# Bug#38487675: Assertion failed: is_valid() && iv.year == 0 &&
+#               iv.month == 0 && iv.day == 0
+#
+SET TIMESTAMP = UNIX_TIMESTAMP('2025-10-11 00:00:00');
+SELECT INTERVAL '{"a":[1,2,3,4,5]}' DAY_MICROSECOND + TIME'11:22:33';
+INTERVAL '{"a":[1,2,3,4,5]}' DAY_MICROSECOND + TIME'11:22:33'
+2025-10-12 13:25:37.500000
+SET TIMESTAMP = DEFAULT;
+#
+# Bug#38487373: Assertion failed: time.time_type == MYSQL_TIMESTAMP_TIME
+#
+SET TIMESTAMP = UNIX_TIMESTAMP('2025-10-11 00:00:00');
+DO ADDTIME(TIME_FORMAT('-250:07:38.935647', '1974-10-18 08:57:35.681107'), 1);
+Warnings:
+Warning	1292	Incorrect datetime value: '-1974-10-18 08:57:35.681107'
+SET TIMESTAMP = DEFAULT;

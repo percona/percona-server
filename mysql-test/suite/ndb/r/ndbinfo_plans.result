@@ -55,7 +55,7 @@ SELECT table_name, table_rows, avg_row_length
 TABLE_NAME	TABLE_ROWS	AVG_ROW_LENGTH
 blobs	10	84
 dictionary_columns	200	84
-dictionary_tables	40	176
+dictionary_tables	40	192
 events	40	48
 foreign_keys	10	124
 index_columns	20	80

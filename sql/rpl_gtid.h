@@ -2265,6 +2265,27 @@ class Gtid_set {
   /// @return true in case gtid sets contain the same GTIDs
   bool equals(const Gtid_set *other) const;
 
+  /// Return the number of intervals for the given sidno.
+  int get_n_intervals(rpl_sidno sidno) const {
+    Const_interval_iterator ivit(this, sidno);
+    int ret = 0;
+    while (ivit.get() != nullptr) {
+      ret++;
+      ivit.next();
+    }
+    return ret;
+  }
+
+  /// Return the number of intervals in this Gtid_set.
+  int get_n_intervals() const {
+    if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();
+    rpl_sidno max_sidno = get_max_sidno();
+    int ret = 0;
+    for (rpl_sidno sidno = 1; sidno < max_sidno; sidno++)
+      ret += get_n_intervals(sidno);
+    return ret;
+  }
+
  private:
   /**
     Contains a list of intervals allocated by this Gtid_set.  When a
@@ -2290,26 +2311,6 @@ class Gtid_set {
   */
   bool sidno_equals(rpl_sidno sidno, const Gtid_set *other,
                     rpl_sidno other_sidno) const;
-
-  /// Return the number of intervals for the given sidno.
-  int get_n_intervals(rpl_sidno sidno) const {
-    Const_interval_iterator ivit(this, sidno);
-    int ret = 0;
-    while (ivit.get() != nullptr) {
-      ret++;
-      ivit.next();
-    }
-    return ret;
-  }
-  /// Return the number of intervals in this Gtid_set.
-  int get_n_intervals() const {
-    if (tsid_lock != nullptr) tsid_lock->assert_some_wrlock();
-    rpl_sidno max_sidno = get_max_sidno();
-    int ret = 0;
-    for (rpl_sidno sidno = 1; sidno < max_sidno; sidno++)
-      ret += get_n_intervals(sidno);
-    return ret;
-  }
 
   /// @brief Goes through recorded tsids. In case any of the TSIDs has a tag,
   /// this function will return Gtid_format::tagged. Otherwise, it will

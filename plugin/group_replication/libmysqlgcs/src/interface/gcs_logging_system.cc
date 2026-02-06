@@ -24,6 +24,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cerrno>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <sstream>
 #include <string>
 
@@ -328,8 +331,10 @@ void Gcs_default_logger::log_event(const gcs_log_level_t level,
   m_sink->produce_events(log.str());
 }
 
-Gcs_default_debugger::Gcs_default_debugger(Gcs_async_buffer *sink)
-    : m_sink(sink) {}
+Gcs_default_debugger::Gcs_default_debugger(
+    Gcs_async_buffer *sink,
+    std::shared_ptr<Clock_timestamp_interface> clock_timestamp_provider)
+    : m_sink(sink), m_clock_timestamp_provider(clock_timestamp_provider) {}
 
 enum_gcs_error Gcs_default_debugger::initialize() {
   return m_sink->initialize();
@@ -463,4 +468,34 @@ const std::string Gcs_file_sink::get_information() const {
 
   return std::string(file_name_buffer);
 }
+
+void Gcs_clock_timestamp_provider::get_timestamp_as_c_string(char *buffer,
+                                                             size_t *size) {
+  std::string ts{};
+  get_timestamp_as_string(ts);
+  size_t n = std::min(ts.size(), *size);
+  strncpy(buffer, ts.c_str(), n);
+  *size = n;
+}
+
+void Gcs_clock_timestamp_provider::get_timestamp_as_string(std::string &out) {
+  std::stringstream ss;
+  auto now{std::chrono::system_clock::now()};
+
+  // get the microseconds part (floor to the second and then diff it)
+  auto us{duration_cast<std::chrono::microseconds>(now.time_since_epoch())};
+  auto us_floored{duration_cast<std::chrono::microseconds>(
+      std::chrono::floor<std::chrono::seconds>(us))};
+  auto delta_us{us - us_floored};
+
+  // get 'now' in a format that we can pass to put_time
+  auto utc_time_t{std::chrono::system_clock::to_time_t(now)};
+  auto utc_time{std::gmtime(&utc_time_t)};
+
+  // print the line with 6 digits after the '.' and pad with zero if need be
+  ss << std::put_time(utc_time, "%FT%T.") << std::setfill('0') << std::setw(6)
+     << delta_us.count() << "Z";
+  out = ss.str();
+}
+
 #endif /* XCOM_STANDALONE */

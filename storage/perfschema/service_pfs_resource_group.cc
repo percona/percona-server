@@ -36,8 +36,8 @@
 
 int impl_pfs_set_thread_resource_group(const char *group_name,
                                        int group_name_len, void *user_data) {
-  return pfs_set_thread_resource_group_vc(group_name, group_name_len,
-                                          user_data);
+  return PSI_THREAD_CALL(set_thread_resource_group)(group_name, group_name_len,
+                                                    user_data);
 }
 
 int impl_pfs_set_thread_resource_group_by_id(PSI_thread *thread,
@@ -45,18 +45,19 @@ int impl_pfs_set_thread_resource_group_by_id(PSI_thread *thread,
                                              const char *group_name,
                                              int group_name_len,
                                              void *user_data) {
-  return pfs_set_thread_resource_group_by_id_vc(thread, thread_id, group_name,
-                                                group_name_len, user_data);
+  return PSI_THREAD_CALL(set_thread_resource_group_by_id)(
+      thread, thread_id, group_name, group_name_len, user_data);
 }
 
 int impl_pfs_get_thread_system_attrs(PSI_thread_attrs *thread_attrs) {
-  return pfs_get_thread_system_attrs_vc(thread_attrs);
+  return PSI_THREAD_CALL(get_thread_system_attrs)(thread_attrs);
 }
 
 int impl_pfs_get_thread_system_attrs_by_id(PSI_thread *thread,
                                            ulonglong thread_id,
                                            PSI_thread_attrs *thread_attrs) {
-  return pfs_get_thread_system_attrs_by_id_vc(thread, thread_id, thread_attrs);
+  return PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, thread_id,
+                                                        thread_attrs);
 }
 
 SERVICE_TYPE(pfs_resource_group_v3)

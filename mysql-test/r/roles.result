@@ -229,7 +229,7 @@ Note	3162	Authorization ID 'role'@'%' does not exist.
 Note	3162	Authorization ID 'role'@'host' does not exist.
 # ...unless this is what we want:
 DROP ROLE 'role';
-ERROR HY000: Operation DROP ROLE failed for 'role'@'%'
+ERROR HY000: Operation DROP ROLE failed for 'role'@'%' (User account does not exist)
 # Dropping roles should update the in memory roles graph
 # WL988.R-1.10
 # only count nodes and edges as the sorting order is depending on platform
@@ -1115,7 +1115,7 @@ SHOW CREATE USER u1;
 CREATE USER for u1@%
 CREATE USER `u1`@`%` IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 CREATE USER u1;
-ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
+ERROR HY000: Operation CREATE USER failed for 'u1'@'%' (User account already exists)
 # Same as before and don't crash.
 SHOW CREATE USER u1;
 CREATE USER for u1@%

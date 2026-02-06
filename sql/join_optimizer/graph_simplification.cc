@@ -259,7 +259,7 @@ RelationMetrics GetMetrics(THD *thd, NodeMap tables_to_join,
     component_cardinality[num_components] = rows;
 
     lateral_dependencies[num_components] = node.lateral_dependencies();
-    row_size += GetReadSetWidth(node.table());
+    row_size += node.read_set_width();
     ++num_components;
   }
 
@@ -389,7 +389,7 @@ RelationMetrics GetMetricsSingleJoin(THD *thd, NodeMap left, NodeMap right,
   double row_size{0.0};
   for (int node_idx : BitsSetIn(left | right)) {
     const JoinHypergraph::Node &node = graph.nodes[node_idx];
-    row_size += GetReadSetWidth(node.table());
+    row_size += node.read_set_width();
   }
 
   return {cardinality, row_size};

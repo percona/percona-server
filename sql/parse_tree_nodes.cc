@@ -23,7 +23,9 @@
 
 #include "sql/parse_tree_nodes.h"
 
+#include <math.h>
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <utility>
@@ -33,6 +35,7 @@
 #include "lex_string.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/strings/m_ctype.h"
@@ -56,13 +59,15 @@
 #include "sql/key_spec.h"
 #include "sql/lex.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"                   // global_system_variables
+#include "sql/mysqld.h"  // global_system_variables
+#include "sql/olap.h"
 #include "sql/opt_explain_json.h"         // Explain_format_JSON
 #include "sql/opt_explain_traditional.h"  // Explain_format_traditional
 #include "sql/parse_location.h"
 #include "sql/parse_tree_column_attrs.h"  // PT_field_def_base
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_items.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
 #include "sql/parse_tree_window.h"      // PT_window
 #include "sql/parser_yystype.h"
@@ -266,48 +271,346 @@ bool PT_set_names::do_contextualize(Parse_context *pc) {
   return false;
 }
 
-bool PT_group::do_contextualize(Parse_context *pc) {
-  if (super::do_contextualize(pc)) return true;
-
-  Query_block *select = pc->select;
-  select->parsing_place = CTX_GROUP_BY;
-
-  if (group_list->contextualize(pc)) return true;
-  assert(select == pc->select);
-
-  select->group_list = group_list->value;
-
-  // group by does not have to provide ordering
-  ORDER *group = select->group_list.first;
-  for (; group; group = group->next) group->direction = ORDER_NOT_RELEVANT;
-
-  // Ensure we're resetting parsing place of the right select
-  assert(select->parsing_place == CTX_GROUP_BY);
-  select->parsing_place = CTX_NONE;
-
+bool PT_group::set_olap_type(Parse_context *pc) {
+  Query_block *qb = pc->select;
   switch (olap) {
-    case UNSPECIFIED_OLAP_TYPE:
+    case UNSPECIFIED_OLAP_TYPE: {
       break;
-    case ROLLUP_TYPE:
-      if (select->linkage == GLOBAL_OPTIONS_TYPE) {
+    }
+    case ROLLUP_TYPE: {
+      if (qb->linkage == GLOBAL_OPTIONS_TYPE) {
         my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP",
                  "global union parameters");
         return true;
       }
-      select->olap = ROLLUP_TYPE;
+      qb->set_olap_type(ROLLUP_TYPE);
       break;
-    case CUBE_TYPE:
-      if (select->linkage == GLOBAL_OPTIONS_TYPE) {
+    }
+    case CUBE_TYPE: {
+      if (qb->linkage == GLOBAL_OPTIONS_TYPE) {
         my_error(ER_WRONG_USAGE, MYF(0), "CUBE", "global union parameters");
         return true;
       }
-      select->olap = CUBE_TYPE;
+      qb->set_olap_type(CUBE_TYPE);
+
+      break;
+    }
+    case GROUPING_SETS_TYPE: {
+      if (qb->linkage == GLOBAL_OPTIONS_TYPE) {
+        my_error(ER_WRONG_USAGE, MYF(0), "GROUPING SETS",
+                 "global union parameters");
+        return true;
+      }
+      qb->set_olap_type(GROUPING_SETS_TYPE);
+      break;
+    }
+    default: {
+      assert(!"unexpected OLAP type!");
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PT_group::set_num_grouping_sets(Parse_context *pc,
+                                     int &num_grouping_sets) {
+  Query_block *qb = pc->select;
+  num_grouping_sets = 0;
+  switch (olap) {
+    case ROLLUP_TYPE:
+    case CUBE_TYPE: {
+      auto num_group_by_elements = qb->group_list.elements;
+      assert(num_group_by_elements != 0);
+
+      auto max_group_by_elements = GetMaximumNumGrpByColsSupported(olap);
+      if (num_group_by_elements > static_cast<uint>(max_group_by_elements)) {
+        /*
+          The number of Grouping sets cannot be greater than INT_MAX as
+          IsBitSet take integer as the input bit
+        */
+        my_error(ER_TOO_MANY_GROUP_BY_MODIFIER_BRANCHES, MYF(0),
+                 GroupByModifierString(olap), max_group_by_elements);
+        return true;
+      }
+
+      num_grouping_sets = (olap == ROLLUP_TYPE)
+                              ? num_group_by_elements + 1
+                              : pow(static_cast<double>(2),
+                                    static_cast<double>(num_group_by_elements));
+
+      break;
+    }
+    case GROUPING_SETS_TYPE: {
+      num_grouping_sets = group_list.size();
+
+      auto max_group_by_elements = GetMaximumNumGrpByColsSupported(olap);
+      if (num_grouping_sets > max_group_by_elements) {
+        /*
+          The number of Grouping sets cannot be greater than INT_MAX as
+          IsBitSet take integer as the input bit
+        */
+        my_error(ER_TOO_MANY_GROUP_BY_MODIFIER_BRANCHES, MYF(0),
+                 GroupByModifierString(olap), max_group_by_elements);
+        return true;
+      }
+      break;
+    }
+    case UNSPECIFIED_OLAP_TYPE: {
+      assert(false);
+    }
+  }
+  qb->set_number_of_grouping_sets(num_grouping_sets);
+  return false;
+}
+
+void PT_group::check_if_execute_only_in_secondary_engine(
+    Parse_context *pc, int num_grouping_sets) {
+  switch (olap) {
+    case CUBE_TYPE: {
       pc->thd->lex->set_execute_only_in_secondary_engine(
           /*execute_only_in_secondary_engine_param=*/true, CUBE);
       break;
-    default:
-      assert(!"unexpected OLAP type!");
+    }
+    case GROUPING_SETS_TYPE: {
+      if (num_grouping_sets > 1) {
+        pc->thd->lex->set_execute_only_in_secondary_engine(
+            /*execute_only_in_secondary_engine_param=*/true, GROUPING_SETS);
+      }
+      break;
+    }
+    case ROLLUP_TYPE:
+    case UNSPECIFIED_OLAP_TYPE: {
+      break;
+    }
   }
+}
+
+bool PT_group::allocate_grouping_sets(Parse_context *pc,
+                                      int &num_grouping_sets) {
+  Query_block *qb = pc->select;
+  THD *thd = pc->thd;
+
+  if (set_num_grouping_sets(pc, num_grouping_sets)) {
+    return true;
+  }
+  check_if_execute_only_in_secondary_engine(pc, num_grouping_sets);
+
+  assert(num_grouping_sets != 0);
+  int num_gs = num_grouping_sets;
+  /*  Allocate bitmap for grouping sets. */
+  for (ORDER *grp = qb->group_list.first; grp != nullptr; grp = grp->next) {
+    grp->grouping_set_info =
+        pointer_cast<MY_BITMAP *>(thd->alloc(sizeof(MY_BITMAP)));
+    if (grp->grouping_set_info == nullptr) {
+      return true;
+    }
+    my_bitmap_map *bitbuf =
+        pointer_cast<my_bitmap_map *>(thd->alloc(bitmap_buffer_size(num_gs)));
+    if (bitbuf == nullptr) {
+      return true;
+    }
+    bitmap_init(grp->grouping_set_info, bitbuf, num_gs);
+  }
+  return false;
+}
+
+/**
+  Populate the grouping set bitvector if the query block has non-primitive
+  GROUPING SETS
+*/
+bool PT_group::populate_grouping_sets_fornon_primitive_grouping(
+    Parse_context *pc) {
+  Query_block *qb = pc->select;
+  size_t gs_num = 0;
+
+  /*
+     Iterate over each element in all the grouping sets and set the
+     corresponding bitfield.
+  */
+  for (auto *elem : group_list) {
+    // end_of_list is the location of the first element of the next grouping set
+    ORDER *end_of_list = (gs_num + 1 < group_list.size())
+                             ? group_list[gs_num + 1]->value.first
+                             : nullptr;
+    for (auto *grp = elem->value.first; grp != end_of_list; grp = grp->next) {
+      bitmap_set_bit(grp->grouping_set_info, gs_num);
+    }
+    gs_num++;
+  }
+
+  //  Raise an error if there are duplicate elements within a grouping set.
+  for (auto *group_outer = qb->group_list.first; group_outer != nullptr;
+       group_outer = group_outer->next) {
+    for (auto *group_inner = group_outer->next; group_inner != nullptr;
+         group_inner = group_inner->next) {
+      /*
+        If two elements in the group by list are equal and they belong to the
+        same grouping set, then raise error. e.g., if a query has
+        GROUPING SETS ((c1), (c2,c2))
+        'c2' is present twice in the second grouping set.
+      */
+      if (group_outer->item[0]->eq(group_inner->item[0])) {
+        if (bitmap_is_overlapping(group_inner->grouping_set_info,
+                                  group_outer->grouping_set_info)) {
+          const auto item_str =
+              ItemToQuerySubstr(group_inner->item[0], pc->thd->lex);
+          char buffer[512];
+          std::snprintf(buffer, sizeof(buffer),
+                        "GROUP BY with %s modifier and duplicate %s GROUP BY "
+                        "keys is not supported.",
+                        GroupByModifierString(qb->olap), item_str.c_str());
+          std::string error_msg(buffer);
+
+          my_error(ER_SECONDARY_ENGINE, MYF(0), error_msg.c_str());
+          return true;
+        }
+      }
+    }
+  }
+
+  /*
+    If the same element is present across multiple grouping sets, then create a
+    union of their bitfield and remove the duplicate. e.g., if a query has
+    GROUPING SETS ((c1), (c1,c2)), element 'c1' is present in two grouping sets.
+  */
+  SQL_I_List<ORDER> new_group_list_without_duplicates{};
+  for (ORDER *group_outer = qb->group_list.first; group_outer != nullptr;) {
+    bool match_found = false;
+    auto *next_grp_set = group_outer->next;
+    for (ORDER *group_inner = next_grp_set; group_inner != nullptr;
+         group_inner = group_inner->next) {
+      if (group_outer->item[0]->eq(group_inner->item[0])) {
+        match_found = true;
+        bitmap_union(group_inner->grouping_set_info,
+                     group_outer->grouping_set_info);
+      }
+    }
+
+    if (!match_found) {
+      new_group_list_without_duplicates.link_in_list(group_outer,
+                                                     &group_outer->next);
+    }
+    group_outer = next_grp_set;
+  }
+  qb->group_list = new_group_list_without_duplicates;
+  return false;
+}
+
+/**
+  Populate the grouping set bitvector if the query block has non-primitive
+  ROLLUP and CUBE grouping.
+*/
+void PT_group::populate_grouping_sets_rollup_cube(Parse_context *pc) {
+  Query_block *qb = pc->select;
+  int gby_idx = 0;
+  for (ORDER *grp = qb->group_list.first; grp != nullptr;
+       grp = grp->next, gby_idx++) {
+    for (int gs_num = 1; gs_num < qb->get_number_of_grouping_sets(); gs_num++) {
+      if ((olap == ROLLUP_TYPE && gby_idx < gs_num) ||
+          (olap == CUBE_TYPE && IsBitSet(gby_idx, gs_num))) {
+        bitmap_set_bit(grp->grouping_set_info, gs_num);
+      }
+    }
+  }
+}
+
+/**
+  Populate the grouping set bitvector if the query block has non-primitive
+  grouping.
+  Group by modifiers ROLLUP, CUBE and GROUPING SETS can be represented as
+  grouping sets, which are determined during query preparation. The
+  representation of the grouping set is done using a bitfield in the ORDER
+  object.
+  case ROLLUP : Say the query has GROUP BY ROLLUP (c1,c2)
+                then the grouping sets will be  () (c1) (c1,c2).
+  () represents implicit grouping.
+  Here there are 3 grouping sets ranging from 0 to 2.
+  where 0 is the implicit grouping.
+  The bitfield associated with Group by element 'c1'
+                        will be 6 (i,e. (2^2)+(2^1))
+  The bitfield associated with Group by element 'c2'
+                              will be 4 (i,e. (2^2))
+  as it is part of only set number 2
+
+  case CUBE: Say the query has GROUP BY CUBE (c1,c2)
+            then the grouping sets will be () (c2) (c1) (c1,c2)
+  The bitfield associated with Group by element 'c1'
+                          will be 12 (i,e. (2^3)+(2^2)).
+  The bitfield associated with
+  Group by element 'c2' will be 10 (i,e. (2^3)+(2^1)).
+
+  case GROUPING SETS: Say the query has
+         GROUP BY GROUPING SETS ((c1), (c1,c2), (), (c2))
+  then the grouping sets will be (c1), (c1,c2), (), (c2)
+  The number of grouping sets will be 4.
+  The bitfield associated with Group by element 'c1'
+                           will be 3 (i,e. (2^0)+(2^1)).
+  The bitfield associated with Group by element 'c2'
+                          will be 10 (i,e. (2^3)+(2^1)).
+*/
+bool PT_group::populate_grouping_sets(Parse_context *pc) {
+  Query_block *qb = pc->select;
+  if (!qb->is_non_primitive_grouped()) {
+    /* Nothing to do here */
+    return false;
+  }
+
+  int num_grouping_sets = 0;
+  if (allocate_grouping_sets(pc, num_grouping_sets)) {
+    return true;
+  }
+
+  assert(num_grouping_sets != 0 && qb->group_list.elements != 0);
+
+  if (olap == ROLLUP_TYPE || olap == CUBE_TYPE) {
+    populate_grouping_sets_rollup_cube(pc);
+  } else if (olap == GROUPING_SETS_TYPE &&
+             populate_grouping_sets_fornon_primitive_grouping(pc)) {
+    return true;
+  }
+  return false;
+}
+
+bool PT_group::do_contextualize(Parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
+  Query_block *qb = pc->select;
+  qb->parsing_place = CTX_GROUP_BY;
+
+  if (set_olap_type(pc)) {
+    return true;
+  }
+
+  for (auto *elem : group_list) {
+    if (elem->contextualize(pc)) return true;
+    /*
+       Link the elements from the grouping sets into the GROUP BY list.
+       e.g.: if a query has GROUPING SETS ((c1), (c1,c2)),
+       The group by list will be c1->c1->c2->NULL
+       Presence of duplicate 'c1' will be eliminated later.
+     */
+    for (ORDER *order_elem = elem->value.first; order_elem != nullptr;) {
+      auto *next_elem = order_elem->next;
+      qb->group_list.link_in_list(order_elem, &order_elem->next);
+      order_elem = next_elem;
+    }
+  }
+
+  if (populate_grouping_sets(pc)) {
+    return true;
+  }
+
+  assert(qb == pc->select);
+
+  // group by does not have to provide ordering
+  for (ORDER *group = qb->group_list.first; group != nullptr;
+       group = group->next) {
+    group->direction = ORDER_NOT_RELEVANT;
+  }
+
+  // Ensure we're resetting parsing place of the right select
+  assert(qb->parsing_place == CTX_GROUP_BY);
+  qb->parsing_place = CTX_NONE;
+
   return false;
 }
 
@@ -4150,6 +4453,11 @@ bool PT_table_factor_table_ident::do_contextualize(Parse_context *pc) {
 
   THD *thd = pc->thd;
   Yacc_state *yyps = &thd->m_parser_state->m_yacc;
+
+  if (pc->select->table_count() >= MAX_TABLES) {
+    my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
+    return true;
+  }
 
   m_table_ref = pc->select->add_table_to_list(
       thd, table_ident, opt_table_alias, 0, yyps->m_lock_type, yyps->m_mdl_type,

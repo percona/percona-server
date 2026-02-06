@@ -702,7 +702,6 @@ class User_table_schema_factory {
   virtual ~User_table_schema_factory() = default;
 };
 
-extern bool mysql_user_table_is_in_short_password_format;
 extern bool disconnect_on_expired_password;
 extern const char *any_db;  // Special symbol for check_access
 /** controls the extra checks on plugin availability for mysql.user records */
@@ -737,7 +736,8 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 #define USER_ATTRIBUTES (1L << 8) /* Request to update user attributes */
 
 /* sql_user */
-void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
+void log_user(THD *thd, String *str, LEX_USER *user, bool comma,
+              const char *reason);
 bool check_change_password(THD *thd, const char *host, const char *user,
                            bool retain_current_password);
 bool change_password(THD *thd, LEX_USER *user, const char *password,

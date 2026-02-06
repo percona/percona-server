@@ -29,6 +29,7 @@
 #include "sql_parser.h"
 
 #include <limits>
+#include <optional>
 #include <variant>
 
 #include "mysql/harness/stdx/expected.h"

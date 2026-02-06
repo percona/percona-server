@@ -26,13 +26,11 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <functional>  // std::function
-#include <iterator>    // std::distance
+#include <functional>            // std::function
+#include <iterator>              // std::distance
+#include "mysql/utils/concat.h"  // concat
 
-#include "mysql/math/bounded_arithmetic.h"
-#include "mysql/utils/concat.h"
-
-using mysql::utils::concat;
+using mysql::utils::throwing::concat;
 
 namespace mysql::containers::buffers {
 namespace managed_buffer::unittest {

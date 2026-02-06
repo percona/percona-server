@@ -322,7 +322,7 @@ ALTER USER must_change@localhost IDENTIFIED BY 'aha4';
 ALTER USER
 invalid_user@localhost,
 must_change@localhost PASSWORD EXPIRE;
-ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost'
+ERROR HY000: Operation ALTER USER failed for 'invalid_user'@'localhost' (User account does not exist)
 SELECT password_expired FROM mysql.user
 WHERE user='must_change' and host = 'localhost';
 password_expired

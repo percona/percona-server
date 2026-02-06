@@ -211,3 +211,8 @@ MYSQL_ADD_COMPONENT(test_session_var_service
   MODULE_ONLY
   TEST_ONLY
   )
+MYSQL_ADD_COMPONENT(test_mysql_file_service
+  test_mysql_file_service.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )

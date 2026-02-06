@@ -1013,7 +1013,6 @@ server_ssl_verify=DISABLED
   - @subpage PAGE_QUICK_START
   - @subpage PAGE_TESTCASE_CODING_GUIDELINES
   - @subpage PAGE_SAMPLE_TESTCASES
-  - @subpage PAGE_CLEANUP_PREVIOUS_TEST_RUN
   - @subpage PAGE_GENERATE_TESTCASE_RESULT_FILE
   - @subpage PAGE_CHECK_EXPECTED_ERRORS
   - @subpage PAGE_CONTROL_INFORMATION_PRODUCED_TESTCASE
@@ -1505,68 +1504,6 @@ server_ssl_verify=DISABLED
   can see the actual output from the last unsuccessful run of the test
   case in the reject file
   <b>mysql-test/var/log/<em>test_name</em>.reject</b>.
-*/
-
-###############################################################################
-
-
-
-## Cleaning Up from a Previous Test Run
-
-/**
-  @page PAGE_CLEANUP_PREVIOUS_TEST_RUN Cleaning Up from a Previous Test Run
-
-  For efficiency, the @ref PAGE_MYSQLTEST "mysqltest" test engine does
-  not start with a clean new database for running each test case, so a
-  test case generally starts with a “cleaning up section”. Assume that
-  a test case will use two tables named <b>t1</b> and <b>t2</b>.
-  The test case should begin by making sure that any old tables with
-  those names do not exist:
-
-  @verbatim
-  --disable_warnings
-  DROP TABLE IF EXISTS t1,t2;
-  --enable_warnings
-  @endverbatim
-
-  The <b>disable_warnings</b> command instructs the test engine not
-  to log any warnings until an <b>enable_warnings</b> command occurs
-  or the test case is ended. (MySQL generates a warning if the table
-  <b>t1</b> or <b>t2</b> does not exist.) Surrounding this part of
-  the test case with commands to disable and enable warnings makes its
-  output the same regardless of whether the tables exist before the
-  test is started. After ensuring that the tables do not exist, we are
-  free to put in any SQL statements that create and use the tables
-  <b>t1</b> and <b>t2</b>. The test case should also clean up at
-  the end of the test by dropping any tables that it creates.
-
-  Let's put in some SQL code into this test case:
-
-  @verbatim
-  --disable_warnings
-  DROP TABLE IF EXISTS t1,t2;
-  --enable_warnings
-  CREATE TABLE t1 (
-    Period SMALLINT(4) UNSIGNED ZEROFILL DEFAULT '0000' NOT NULL,
-    Varor_period SMALLINT(4) UNSIGNED DEFAULT '0' NOT NULL
-  );
-  CREATE TABLE t2 (Period SMALLINT);
-
-  INSERT INTO t1 VALUES (9410,9412);
-  INSERT INTO t2 VALUES (9410),(9411),(9412),(9413);
-
-  SELECT PERIOD FROM t1;
-  SELECT * FROM t1;
-  SELECT t1.* FROM t1;
-  SELECT * FROM t1 INNER JOIN t2 USING (Period);
-
-  DROP TABLE t1, t2;
-  @endverbatim
-
-  If a test case creates other objects such as stored programs or
-  user accounts, it should take care to also clean those up at the
-  beginning and end of the test. Temporary files should also be
-  removed, either at the end or just after they have been used.
 */
 
 ###############################################################################
@@ -2718,9 +2655,7 @@ server_ssl_verify=DISABLED
   @endverbatim
 
   For a description of the Debug Sync facility and how to use
-  synchronization points,
-  see [MySQL Source Code Documentation: Thread Synchronization]
-  (https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_THREAD_SYNCHRONIZATION.html).
+  synchronization points, see @ref PAGE_DEBUG_SYNC.
 */
 
 ###############################################################################
@@ -6164,6 +6099,10 @@ server_ssl_verify=DISABLED
 
             <li>
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
+            </li>
+
+            <li>
+              <tt>INTERACTIVE</tt>: Pass CLIENT_INTERACTIVE to mysql_real_connect()
             </li>
 
           </ul>

@@ -63,23 +63,29 @@ struct CHARSET_INFO;
 Create_field::Create_field(Field *old_field, Field *orig_field)
     : hidden(old_field->hidden()),
       field_name(old_field->field_name),
-      change(nullptr),
       comment(old_field->comment),
       sql_type(old_field->real_type()),
       decimals(old_field->decimals()),
       flags(old_field->all_flags()),
       auto_flags(old_field->auto_flags),
       charset(old_field->charset()),  // May be NULL ptr
-      is_explicit_collation(false),
-      geom_type(Field::GEOM_GEOMETRY),
       field(old_field),
       is_nullable(old_field->is_nullable()),
+<<<<<<< HEAD
       is_zerofill(false),  // Init to avoid UBSAN warnings
       is_unsigned(false),  // Init to avoid UBSAN warnings
       treat_bit_as_char(
           false),  // Init to avoid valgrind warnings in opt. build
       pack_length_override(0),
       zip_dict_name(old_field->zip_dict_name),
+||||||| merged common ancestors
+      is_zerofill(false),  // Init to avoid UBSAN warnings
+      is_unsigned(false),  // Init to avoid UBSAN warnings
+      treat_bit_as_char(
+          false),  // Init to avoid valgrind warnings in opt. build
+      pack_length_override(0),
+=======
+>>>>>>> mysql-9.6.0
       gcol_info(old_field->gcol_info),
       stored_in_db(old_field->stored_in_db),
       m_default_val_expr(old_field->m_default_val_expr),

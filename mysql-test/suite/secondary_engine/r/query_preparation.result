@@ -1098,12 +1098,12 @@ DROP TABLE t;
 # Bug#33390949: Execute a statement with secondary engine,
 #               two entries in performance schema
 #
-CREATE TABLE t(x INT);
-INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7);
-PREPARE ps FROM 'SELECT * FROM t';
+CREATE TABLE t_33390949(x INT);
+INSERT INTO t_33390949 VALUES (1), (2), (3), (4), (5), (6), (7);
+PREPARE ps FROM 'SELECT * FROM t_33390949';
 TRUNCATE TABLE performance_schema.prepared_statements_instances;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT * FROM t;
+SELECT * FROM t_33390949;
 x
 1
 2
@@ -1114,7 +1114,8 @@ x
 7
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'SELECT %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
 1	0	1
 EXECUTE ps;
@@ -1128,17 +1129,19 @@ x
 7
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'EXECUTE %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
+1	0	1
 1	0	1
 SELECT execution_engine, count_execute, count_secondary
 FROM performance_schema.prepared_statements_instances
 WHERE statement_name = 'ps';
 execution_engine	count_execute	count_secondary
 PRIMARY	1	0
-ALTER TABLE t SECONDARY_ENGINE MOCK;
+ALTER TABLE t_33390949 SECONDARY_ENGINE MOCK;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT * FROM t;
+SELECT * FROM t_33390949;
 x
 1
 2
@@ -1149,7 +1152,8 @@ x
 7
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'SELECT %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
 1	0	1
 EXECUTE ps;
@@ -1163,29 +1167,34 @@ x
 7
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'EXECUTE %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
+1	0	1
 1	0	1
 SELECT execution_engine, count_execute, count_secondary
 FROM performance_schema.prepared_statements_instances
 WHERE statement_name = 'ps';
 execution_engine	count_execute	count_secondary
 PRIMARY	2	0
-ALTER TABLE t SECONDARY_LOAD;
+ALTER TABLE t_33390949 SECONDARY_LOAD;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT * FROM t;
+SELECT * FROM t_33390949;
 x
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'SELECT %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
 1	1	1
 EXECUTE ps;
 x
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'EXECUTE %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
+1	1	1
 1	1	1
 SELECT execution_engine, count_execute, count_secondary
 FROM performance_schema.prepared_statements_instances
@@ -1206,9 +1215,11 @@ x
 SET @@use_secondary_engine = @saved_use_secondary_engine;
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'EXECUTE %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
 2	1	2
+1	1	1
 SELECT execution_engine, count_execute, count_secondary
 FROM performance_schema.prepared_statements_instances
 WHERE statement_name = 'ps';
@@ -1221,9 +1232,11 @@ x
 SET @@use_secondary_engine = @saved_use_secondary_engine;
 SELECT count_star, count_secondary, sum_select_scan
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text LIKE 'EXECUTE %';
+WHERE digest_text LIKE '%t_33390949%'
+ORDER BY digest_text;
 count_star	count_secondary	sum_select_scan
 3	2	3
+1	1	1
 SELECT execution_engine, count_execute, count_secondary
 FROM performance_schema.prepared_statements_instances
 WHERE statement_name = 'ps';
@@ -1240,9 +1253,9 @@ execution_engine	count_execute	count_secondary
 SECONDARY	6	3
 DROP PREPARE ps;
 FLUSH STATUS;
-CREATE TABLE tt AS SELECT * FROM t;
+CREATE TABLE tt AS SELECT * FROM t_33390949;
 SHOW STATUS LIKE 'Select_scan';
 Variable_name	Value
 Select_scan	2
 DROP TABLE tt;
-DROP TABLE t;
+DROP TABLE t_33390949;

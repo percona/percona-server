@@ -40,15 +40,15 @@ COLUMN `v_date` DATE GENERATED ALWAYS AS (
 CAST(`tm_ts` AS DATE)
 ) VIRTUAL,
 ADD
-COLUMN `s_hash` char(40) GENERATED ALWAYS AS (
-SHA(
-HEX(`data`)
+COLUMN `s_hash` char(64) GENERATED ALWAYS AS (
+SHA2(
+HEX(`data`), 256
 )
 ) STORED,
 ADD
-COLUMN `v_hash` char(40) GENERATED ALWAYS AS (
-SHA(
-HEX(`data`)
+COLUMN `v_hash` char(64) GENERATED ALWAYS AS (
+SHA2(
+HEX(`data`), 256
 )
 ) VIRTUAL,
 ADD
@@ -61,8 +61,6 @@ ADD
 KEY `k_s_hash`(s_hash),
 ADD
 KEY `k_v_hash`(v_hash);
-Warnings:
-Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 [connection master]
 INSERT INTO `log_data` (`series`, `tm_ts`, `data`)
 SELECT *

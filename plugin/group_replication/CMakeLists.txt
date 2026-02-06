@@ -36,6 +36,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/compatibility_module.cc
   src/consistency_manager.cc
   src/delayed_plugin_initialization.cc
+  src/mysql_gcs_timestamp_provider.cc
   src/gcs_event_handlers.cc
   src/gcs_logger.cc
   src/gcs_mysql_network_provider.cc

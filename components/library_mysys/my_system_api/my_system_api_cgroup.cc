@@ -21,6 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <unistd.h>
 #include <cassert>
 #include <climits>
 #include <cstdint>
@@ -30,10 +31,6 @@
 
 #include "my_config.h"  // HAVE_UNISTD_H
 #include "my_system_api.h"
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 /**
   @file components/library_mysys/my_system_api/my_system_api_cgroup.cc
@@ -156,6 +153,31 @@ std::optional<uint64_t> cgroup_v2_memory() {
   return memory;
 }
 } /* namespace */
+
+bool is_running_in_cgroup() {
+  return (cgroup_v1_memory().has_value() && cgroup_v1_cpu().has_value()) ||
+         (cgroup_v2_memory().has_value() && cgroup_v2_cpu().has_value());
+}
+
+bool does_cgroup_limit_resources() {
+  bool memory_restricted = false;
+  bool cpu_restricted = false;
+
+  /* Value less than 1 indicates no limits are set */
+  if (const auto v2_mem = cgroup_v2_memory(); v2_mem.has_value()) {
+    memory_restricted = (v2_mem.value() >= 1);
+  } else if (const auto v1_mem = cgroup_v1_memory(); v1_mem.has_value()) {
+    memory_restricted = (v1_mem.value() >= 1);
+  }
+
+  /* Value less than 1 indicates no limits are set */
+  if (const auto v2_cpu = cgroup_v2_cpu(); v2_cpu.has_value()) {
+    cpu_restricted = (v2_cpu.value() >= 1);
+  } else if (const auto v1_cpu = cgroup_v1_cpu(); v1_cpu.has_value()) {
+    cpu_restricted = (v1_cpu.value() >= 1);
+  }
+  return cpu_restricted || memory_restricted;
+}
 
 uint64_t my_cgroup_mem_limit() {
   if (const auto v2_mem = cgroup_v2_memory(); v2_mem.has_value()) {

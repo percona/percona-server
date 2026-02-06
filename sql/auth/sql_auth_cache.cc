@@ -138,7 +138,6 @@ Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = nullptr;
 Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
-Db_access_map acl_db_map;
 Default_roles *g_default_roles = nullptr;
 std::vector<Role_id> *g_mandatory_roles = nullptr;
 
@@ -2777,12 +2776,6 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value) {
   acl_proxy_users->insert(upper_bound, *new_value);
 }
 
-struct Free_grant_table {
-  void operator()(GRANT_TABLE *grant_table) const {
-    grant_table->~GRANT_TABLE();
-  }
-};
-
 /* Free grant array if possible */
 
 void grant_free(void) {
@@ -4429,3 +4422,22 @@ bool is_partial_revoke_exists(THD *thd) {
 }
 
 bool is_acl_inited() { return acl_cache_initialized; }
+
+size_t acl_users_size() {
+  assert(assert_acl_cache_read_lock(current_thd));
+
+  size_t size = (acl_users != nullptr) ? acl_users->size() : 0;
+
+  return size;
+}
+
+void acl_users_accept(ACL_USER_visitor *visitor) {
+  assert(assert_acl_cache_read_lock(current_thd));
+
+  if (acl_users != nullptr) {
+    for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
+         ++acl_user) {
+      visitor->visit(acl_user);
+    }
+  }
+}

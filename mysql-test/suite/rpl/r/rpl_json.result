@@ -1955,11 +1955,11 @@ JSON_MERGE_PATCH(t1.field1, t2.field1)
 ["pink", "floyd", "megadeth", "def", "leppard"]
 SELECT JSON_MERGE_PRESERVE(t1.field1, t2.field1) FROM json_data3 as t1, json_data4 as t2;
 JSON_MERGE_PRESERVE(t1.field1, t2.field1)
-["pink", "floyd", "megadeth", "def", "leppard", null]
 ["pink", "floyd", "megadeth", "def", "leppard", "[1, 2, 6, 7, 9]"]
 ["pink", "floyd", "megadeth", "def", "leppard", "[\"ears\", \"nose\", \"eyes\"]"]
-["pink", "floyd", "megadeth", "def", "leppard", null]
 ["pink", "floyd", "megadeth", "def", "leppard", "null"]
+["pink", "floyd", "megadeth", "def", "leppard", null]
+["pink", "floyd", "megadeth", "def", "leppard", null]
 [Connection Master]
 # Update values in the table
 UPDATE json_data SET jd = JSON_SET(jd, '$[1]', JSON_MERGE_PATCH(JSON_ARRAY(pk),JSON_ARRAY(td))) WHERE id IN (10,40);

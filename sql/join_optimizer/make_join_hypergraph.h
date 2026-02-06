@@ -120,10 +120,11 @@ struct JoinHypergraph {
 
   class Node final {
    public:
-    Node(MEM_ROOT *mem_root, TABLE *table)
+    Node(MEM_ROOT *mem_root, TABLE *table, int64_t read_set_width)
         : m_table{table},
           m_sargable_predicates{mem_root},
-          m_pushable_conditions(mem_root) {
+          m_pushable_conditions{mem_root},
+          m_read_set_width{read_set_width} {
       assert(mem_root != nullptr);
       assert(table != nullptr);
     }
@@ -173,6 +174,8 @@ struct JoinHypergraph {
       m_lateral_dependencies = dependencies;
     }
 
+    int64_t read_set_width() const { return m_read_set_width; }
+
     /* Estimated rows cardinality after table filters. */
     std::optional<double> cardinality;
 
@@ -201,6 +204,11 @@ struct JoinHypergraph {
     // table is on the inner side. This map may be set for LATERAL derived
     // tables and derived tables with outer references, and for table functions.
     hypergraph::NodeMap m_lateral_dependencies{0};
+
+    // The estimated size (in bytes) of a row. This is used when making cost
+    // estimates for hash joins. It is cached here to avoid computing it
+    // repeatedly.
+    int64_t m_read_set_width{0};
   };
   Mem_root_array<Node> nodes;
 

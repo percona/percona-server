@@ -108,8 +108,7 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   const ulint bytes_changed = upd_t::get_total_modified_bytes(*bdiff_vector);
 
   /* Whether the update to the LOB can be considered as a small change. */
-  const bool small_change =
-      (bytes_changed <= ref_t::LOB_SMALL_CHANGE_THRESHOLD);
+  const bool small_change = ref_t::is_small_change(bytes_changed, blobref);
 
   const upd_field_t *const uf = upd->get_field_by_field_no(field_no, index);
 

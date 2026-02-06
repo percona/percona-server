@@ -562,6 +562,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 
       if (dc->acquire(schema, tablename, &dd_table) || dd_table == nullptr) {
         if (mdl != nullptr) {
+          // This should be ok on the error path
           dd_mdl_release(thd, mdl);
         }
         return nullptr;
@@ -606,6 +607,14 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
       /* facts do not match, retry */
       if (!same_name) {
         if (mdl != nullptr) {
+          // We have acquired and locked the wrong name.
+          // Need to relase acquired dd object before releasing locks.
+          // If we had used an Auto_releaser in the loop scope, we would
+          // have needed a way to disable it when breaking out of the loop
+          // below, to ensure that the acquired dd objects are still valid also
+          // after the loop.
+          releaser.~Auto_releaser();
+          new (&releaser) dd::cache::Dictionary_client::Auto_releaser{dc};
           dd_mdl_release(thd, mdl);
         }
         continue;

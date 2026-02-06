@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"  // internal structs
                                // connection_events_loop_aborted()
+#include "sql/server_component/mysql_timestamp_imp.h"  //make_iso8601_timestamp
 
 #include "log_sink_buffer.h"
 #include "log_sink_perfschema.h"
@@ -48,7 +49,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_time.h"  // str_to_datetime()
 
 #include "sql/current_thd.h"  // current_thd
-#include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
+#include "sql/log.h"          // log_write_errstream,
                               // log_get_thread_id, mysql_errno_to_symbol,
                               // mysql_symbol_to_errno, log_vmessage,
                               // error_message_for_error_log
@@ -1227,8 +1228,8 @@ int log_line_submit(log_line *ll) {
       else
         previous_microtime = now;
 
-      make_iso8601_timestamp(local_time_buff, now,
-                             iso8601_sysvar_logtimestamps);
+      Mysql_timestamp_imp::make_iso8601_timestamp(local_time_buff, now,
+                                                  iso8601_sysvar_logtimestamps);
 
       d = log_line_item_set(ll, LOG_ITEM_LOG_TIMESTAMP);
       d->data_string.str = local_time_buff;
@@ -1449,76 +1450,6 @@ int log_line_submit(log_line *ll) {
   ll->iter = iter_save;
 
   return ll->count;
-}
-
-/**
-  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
-  Accepts the log_timestamps global variable in its third parameter.
-
-  @param buf       A buffer of at least iso8601_size bytes to store
-                   the timestamp in. The timestamp will be \0 terminated.
-  @param utime     Microseconds since the epoch
-  @param mode      if 0, use UTC; if 1, use local time
-
-  @retval          length of timestamp (excluding \0)
-*/
-int make_iso8601_timestamp(char *buf, ulonglong utime,
-                           enum enum_iso8601_tzmode mode) {
-  struct tm my_tm;
-  char tzinfo[8] = "Z";  // max 6 chars plus \0
-  size_t len;
-  time_t seconds;
-
-  seconds = utime / 1000000;
-  utime = utime % 1000000;
-
-  if (mode == iso8601_sysvar_logtimestamps)
-    mode = (opt_log_timestamps == 0) ? iso8601_utc : iso8601_system_time;
-
-  if (mode == iso8601_utc)
-    gmtime_r(&seconds, &my_tm);
-  else if (mode == iso8601_system_time) {
-    localtime_r(&seconds, &my_tm);
-
-#ifdef HAVE_TM_GMTOFF
-    /*
-      The field tm_gmtoff is the offset (in seconds) of the time represented
-      from UTC, with positive values indicating east of the Prime Meridian.
-      Originally a BSDism, this is also supported in glibc, so this should
-      cover the majority of our platforms.
-    */
-    long tim = -my_tm.tm_gmtoff;
-#else
-    /*
-      Work this out "manually".
-    */
-    struct tm my_gm;
-    long tim, gm;
-    gmtime_r(&seconds, &my_gm);
-    gm = (my_gm.tm_sec + 60 * (my_gm.tm_min + 60 * my_gm.tm_hour));
-    tim = (my_tm.tm_sec + 60 * (my_tm.tm_min + 60 * my_tm.tm_hour));
-    tim = gm - tim;
-#endif
-    char dir = '-';
-
-    if (tim < 0) {
-      dir = '+';
-      tim = -tim;
-    }
-    snprintf(tzinfo, sizeof(tzinfo), "%c%02u:%02u", dir,
-             (unsigned int)((tim / (60 * 60)) % 100),
-             (unsigned int)((tim / 60) % 60));
-  } else {
-    assert(false);
-  }
-
-  // length depends on whether timezone is "Z" or "+12:34" style
-  len = snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
-                 my_tm.tm_year + 1900, my_tm.tm_mon + 1, my_tm.tm_mday,
-                 my_tm.tm_hour, my_tm.tm_min, my_tm.tm_sec,
-                 (unsigned long)utime, tzinfo);
-
-  return std::min<int>((int)len, iso8601_size - 1);
 }
 
 /**

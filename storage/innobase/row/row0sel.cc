@@ -2596,6 +2596,18 @@ static void row_sel_store_row_id_to_prebuilt(
       const byte *field_ref =
           field_data + local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
+      /* TODO: The latest version of lob is available in lob_version.  The
+      version of the lob needed is available in field_ref. We need to
+      reconstruct the version of the lob needed from the latest lob.  For this
+      to be correctly done, we not only need the update vector from the undo
+      logs, but also the update vector in the lob itself (move from version 2
+      to version 1, for example).
+
+      Currently we only have the update vector from undo logs. Until we
+      implement the feature to obtain update vector from lob (the partial
+      update), we have to restrict the small partial update to version 1 of
+      the lob. This will avoid interaction between small partial updates and
+      the partial updates. */
       lob::ref_t ref(const_cast<byte *>(field_ref));
       lob_undo->apply(clust_index, field_no, const_cast<byte *>(data), len,
                       lob_version, ref.page_no());

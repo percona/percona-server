@@ -55,6 +55,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_grant_on_pfs_db",
       "router_grant_on_routers",
       "router_grant_on_v2_routers",
+      "router_grant_on_router_stats",
       "router_update_router_options_in_metadata",
       "router_select_config_defaults_stored_ar_cluster",
       "get_local_cluster_name",

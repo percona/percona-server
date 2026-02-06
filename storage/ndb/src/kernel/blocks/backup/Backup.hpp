@@ -93,7 +93,6 @@ class Backup : public SimulatedBlock {
   void execNODE_FAILREP(Signal *signal);
   void execINCL_NODEREQ(Signal *signal);
   void execCONTINUEB(Signal *signal);
-
   /**
    * Testing
    */
@@ -168,7 +167,7 @@ class Backup : public SimulatedBlock {
   void execFSWRITECONF(Signal *signal);
 
   /**
-   * Master functinallity
+   * Master functionality
    */
   void execBACKUP_REQ(Signal *signal);
   void execABORT_BACKUP_REQ(Signal *signal);
@@ -611,8 +610,8 @@ class Backup : public SimulatedBlock {
       noOfBytes = 0;
       for (Uint32 i = 0; i < BackupFormat::NDB_MAX_FILES_PER_LCP; i++) {
         dataFilePtr[i] = RNIL;
-        prepareDataFilePtr[i] = RNIL;
       }
+      prepareDataFilePtr = RNIL;
       idleFragWorkerCount = 0;
     }
 
@@ -820,7 +819,7 @@ class Backup : public SimulatedBlock {
     Uint32 logFilePtr;  // Ptr.i to log-file (Only backup)
     Uint32 dataFilePtr[BackupFormat::NDB_MAX_FILES_PER_LCP];
     // Ptr.i to first data-file (LCP and Backup)
-    Uint32 prepareDataFilePtr[BackupFormat::NDB_MAX_FILES_PER_LCP];  // Only LCP
+    Uint32 prepareDataFilePtr;    // Only LCP
     Uint32 prepareCtlFilePtr[2];  // Ptr.i to ctl-file for LCP prepare
 
     Uint32 backupDataLen;    // Used for (un)packing backup request

@@ -58,6 +58,7 @@ constexpr auto kEncodingParam = "encoding"sv;
 constexpr auto kDateFormatParam = "date_format"sv;
 constexpr auto kTimeFormatParam = "time_format"sv;
 constexpr auto kTimestampFormatParam = "timestamp_format"sv;
+constexpr auto kDatetimeFormatParam = "datetime_format"sv;
 constexpr auto kIsStrictModeParam = "is_strict_mode"sv;
 constexpr auto kConstraintCheckParam = "check_constraints"sv;
 constexpr auto kHasHeaderParam = "has_header"sv;

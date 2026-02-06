@@ -26,6 +26,8 @@
 #ifndef ROUTING_IMPLICIT_COMMIT_PARSER_INCLUDED
 #define ROUTING_IMPLICIT_COMMIT_PARSER_INCLUDED
 
+#include <optional>
+
 #include "sql_parser.h"
 
 #include "mysql/harness/stdx/expected.h"

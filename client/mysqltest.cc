@@ -542,6 +542,7 @@ enum enum_commands {
   Q_OUTPUT, /* redirect output to a file */
   Q_RESET_CONNECTION,
   Q_QUERY_ATTRIBUTES,
+  Q_SELECT_DB,
   Q_UNKNOWN, /* Unknown command.   */
   Q_COMMENT, /* Comments, ignored. */
   Q_COMMENT_WITH_COMMAND,
@@ -576,7 +577,7 @@ const char *command_names[] = {
     "list_files", "list_files_write_file", "list_files_append_file",
     "send_shutdown", "shutdown_server", "result_format", "move_file",
     "remove_files_wildcard", "copy_files_wildcard", "send_eval", "output",
-    "reset_connection", "query_attributes",
+    "reset_connection", "query_attributes", "select_db",
 
     nullptr};
 
@@ -616,6 +617,8 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *from,
 [[noreturn]] void die(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 [[noreturn]] void abort_not_supported_test(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
+[[noreturn]] void abort_partially_supported_test(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
 void verbose_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
@@ -1289,8 +1292,9 @@ void handle_error_and_die(const char *subject, const char *interpolated_query,
     message << "\nExpected error(s): " << expected_errors;
   }
   if (actual_errno != 0) {
-    message << "\nReturned error: " << actual_errno << " (" << actual_sqlstate
-            << "): " << actual_message;
+    message << "\nReturned error: " << get_errname_from_code(actual_errno)
+            << "(" << actual_errno << ") "
+            << "(" << actual_sqlstate << "): " << actual_message;
   }
   die("%s", message.str().c_str());
 }
@@ -1594,7 +1598,14 @@ static void cleanup_and_exit(int exit_code) {
   free_used_memory();
   my_end(my_end_arg);
 
-  enum test_exit_code { PASS, FAIL, SKIPPED = 62, NOSKIP_PASS, NOSKIP_FAIL };
+  enum test_exit_code {
+    PASS,
+    FAIL,
+    SKIPPED = 62,
+    NOSKIP_PASS,
+    NOSKIP_FAIL,
+    OPT_PASS = 66
+  };
   if (skip_ignored) {
     exit_code = (exit_code == PASS) ? NOSKIP_PASS : NOSKIP_FAIL;
   }
@@ -1615,6 +1626,9 @@ static void cleanup_and_exit(int exit_code) {
         break;
       case NOSKIP_FAIL:
         printf("noskip-failed\n");
+        break;
+      case OPT_PASS:
+        printf("opt-passed\n");
         break;
       default:
         printf("unknown exit code: %d\n", exit_code);
@@ -1728,6 +1742,29 @@ void abort_not_supported_test(const char *fmt, ...) {
   va_end(args);
 
   cleanup_and_exit(62);
+}
+
+void abort_partially_supported_test(const char *fmt, ...) {
+  va_list args;
+  DBUG_TRACE;
+
+  /* Print include filestack */
+  fprintf(stderr, "The test '%s' is not supported by this installation\n",
+          file_stack->file_name);
+  fprintf(stderr, "Detected in ");
+  print_file_stack();
+
+  /* Print error message */
+  va_start(args, fmt);
+  if (fmt) {
+    fprintf(stderr, "reason: ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+  }
+  va_end(args);
+
+  cleanup_and_exit(66);
 }
 
 void verbose_msg(const char *fmt, ...) {
@@ -2292,7 +2329,7 @@ static void check_result() {
       const bool ignored_diff =
           show_diff(nullptr, result_file_name, reject_file);
       if (ignored_diff) {
-        abort_not_supported_test(
+        abort_partially_supported_test(
             "Hypergraph optimizer did not support all queries.");
       }
       die("%s", mess);
@@ -4986,6 +5023,39 @@ static void do_change_user(struct st_command *command) {
 
 /*
   SYNOPSIS
+  do_select_db
+  command       called command
+
+  DESCRIPTION
+  select_db [<db>]
+  <db> - default database
+
+  Changes the database for the current connection by using the MySQL client
+  command mysql_select_db.
+
+*/
+
+static void do_select_db(struct st_command *command) {
+  MYSQL *mysql = &cur_con->mysql;
+  static DYNAMIC_STRING ds_db;
+  const struct command_arg select_db_args[] = {
+      {"database", ARG_STRING, false, &ds_db, "Database to select"},
+  };
+  check_command_args(command, command->first_argument, select_db_args,
+                     sizeof(select_db_args) / sizeof(struct command_arg), ',');
+
+  if (mysql_select_db(mysql, ds_db.str)) {
+    handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
+                 mysql_sqlstate(mysql), &ds_res);
+    mysql->reconnect = true;
+    mysql_reconnect(&cur_con->mysql);
+  }
+
+  dynstr_free(&ds_db);
+}
+
+/*
+  SYNOPSIS
   do_perl
   command	command handle
 
@@ -6672,12 +6742,13 @@ static void safe_connect(MYSQL *mysql, const char *name, const char *host,
 /// @param db      Database name
 /// @param port    Port number
 /// @param sock    Socket value
+/// @param is_interactive  Pass CLIENT_INTERACTIVE to mysql_real_connect()
 ///
 /// @retval 1 if connection succeeds, 0 otherwise
 static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
                                    const char *host, const char *user,
                                    const char *pass, const char *db, int port,
-                                   const char *sock) {
+                                   const char *sock, bool is_interactive) {
   DYNAMIC_STRING *ds;
   int failed_attempts = 0;
 
@@ -6714,9 +6785,9 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
   mysql_options(con, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
-  while (!mysql_real_connect_wrapper(con, host, user, pass, db, port,
-                                     sock ? sock : nullptr,
-                                     CLIENT_MULTI_STATEMENTS)) {
+  while (!mysql_real_connect_wrapper(
+      con, host, user, pass, db, port, sock ? sock : nullptr,
+      CLIENT_MULTI_STATEMENTS | (is_interactive ? CLIENT_INTERACTIVE : 0))) {
     /*
       If we have used up all our connections check whether this
       is expected (by --error). If so, handle the error right away.
@@ -6821,6 +6892,7 @@ static void do_connect(struct st_command *command) {
   const uint save_opt_ssl_mode = opt_ssl_mode;
   bool con_socket = false, con_tcp = false;
   unsigned int factor = 0;
+  bool is_interactive = false;
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -6942,9 +7014,8 @@ static void do_connect(struct st_command *command) {
     while (*end && !my_isspace(charset_info, *end)) end++;
 
     const size_t con_option_len = end - con_options;
-    char cur_con_option[10] = {};
-    strmake(cur_con_option, con_options, con_option_len);
-
+    std::string cur_option_str{con_options, con_option_len};
+    const char *cur_con_option = cur_option_str.c_str();
     if (!std::strcmp(cur_con_option, "SSL"))
       con_ssl = true;
     else if (!std::strcmp(cur_con_option, "COMPRESS"))
@@ -6959,6 +7030,8 @@ static void do_connect(struct st_command *command) {
       con_socket = true;
     else if (!std::strcmp(cur_con_option, "TCP"))
       con_tcp = true;
+    else if (!std::strcmp(cur_con_option, "INTERACTIVE"))
+      is_interactive = true;
     else
       die("Illegal option to connect: %s", cur_con_option);
 
@@ -7099,7 +7172,7 @@ static void do_connect(struct st_command *command) {
 
   if (connect_n_handle_errors(command, &con_slot->mysql, ds_host.str,
                               ds_user.str, ds_password1.str, ds_database.str,
-                              con_port, ds_sock.str)) {
+                              con_port, ds_sock.str, is_interactive)) {
     DBUG_PRINT("info", ("Inserting connection %s in connection pool",
                         ds_connection_name.str));
     my_free(con_slot->name);
@@ -10561,6 +10634,11 @@ int main(int argc, char **argv) {
           break;
         }
 
+        case Q_SELECT_DB: {
+          do_select_db(command);
+          break;
+        }
+
         default:
           processed = 0;
           break;
@@ -11760,26 +11838,6 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val) {
   replace_dynstr_append_mem(ds, buff, end - buff);
 }
 
-/*
-  Build a list of pointer to each line in ds_input, sort
-  the list and use the sorted list to append the strings
-  sorted to the output ds
-
-  SYNOPSIS
-  dynstr_append_sorted
-  ds - string where the sorted output will be appended
-  ds_input - string to be sorted
-  start_sort_column - column to start sorting from (0 for sorting
-    the entire line); a stable sort will be used
-*/
-
-class Comp_lines {
- public:
-  bool operator()(const char *a, const char *b) {
-    return std::strcmp(a, b) < 0;
-  }
-};
-
 static size_t length_of_n_first_columns(const std::string &str,
                                         int start_sort_column) {
   std::stringstream columns(str);
@@ -11795,6 +11853,18 @@ static size_t length_of_n_first_columns(const std::string &str,
   return size_of_columns;
 }
 
+/*
+  Build a list of pointer to each line in ds_input, sort
+  the list and use the sorted list to append the strings
+  sorted to the output ds
+
+  SYNOPSIS
+  dynstr_append_sorted
+  ds - string where the sorted output will be appended
+  ds_input - string to be sorted
+  start_sort_column - column to start sorting from (0 for sorting
+    the entire line); a stable sort will be used
+*/
 void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input,
                           int start_sort_column) {
   char *start = ds_input->str;

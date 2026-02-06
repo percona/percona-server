@@ -9147,7 +9147,7 @@ ER_IB_MSG_1203
 ER_IB_MSG_1204
   eng "%s"
 
-ER_IB_MSG_1205
+OBSOLETE_ER_IB_MSG_1205
   eng "%s"
 
 ER_IB_MSG_1206
@@ -10873,7 +10873,7 @@ ER_IB_ERR_RECOVERY_REDO_DISABLED
 ER_IB_WRN_FAST_SHUTDOWN_REDO_DISABLED
   eng "InnoDB cannot do cold shutdown 'innodb_fast_shutdown = 2' and is forcing 'innodb_fast_shutdown = 1' as redo logging is disabled. InnoDB would flush all dirty pages to ensure physical data consistency."
 
-ER_IB_WRN_REDO_DISABLED
+OBSOLETE_ER_IB_WRN_REDO_DISABLED
   eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash."
 
 ER_IB_WRN_REDO_ENABLED
@@ -11672,7 +11672,7 @@ ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE_AND_READ_ONLY_MODE
 ER_IB_MSG_LOG_WRITER_WRITE_FAILED
   eng "Error %d encountered when writing to the redo log file: %s."
 
-ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE
+OBSOLETE_ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE
   eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity."
 
 ER_IB_MSG_RECOVERY_CHECKPOINT_OUTSIDE_LOG_FILE
@@ -12354,6 +12354,12 @@ ER_IB_INSTANT_ADD_DROP_COLUMN_NOT_ALLOWED
 ER_IB_INSTANT_ADD_NOT_POSSIBLE
   eng "Cannot add %zu field(s) in table '%s' because after adding it, the record size would be %zu which is more than the maximum allowed size (%zu) for a record."
 
+ER_IB_WRN_REDO_DISABLED_INFO
+  eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash. Current lsn is %llu."
+
+ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE_INFO
+  eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity. The current log capacity is %llu bytes. The log capacity used is %llu bytes."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12853,6 +12859,9 @@ ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
 ER_TEMPTABLE_ENGINE_ERROR
   eng "Temptable: %s"
 
+ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
+   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -13284,6 +13293,7 @@ ER_AUTOPILOT_OLTP_ADVISOR_WARNING
 ER_AUTOPILOT_OLTP_ADVISOR_ERROR
   eng "%s"
 
+<<<<<<< HEAD
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.
 #
@@ -13657,6 +13667,72 @@ ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
 #
 
 
+||||||| merged common ancestors
+=======
+ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT
+  eng "An event of type %s is missing extra data and cannot be processed by the server's component plugin bridge. As a result plugins will not get the notification."
+
+ER_INVALID_PREVIOUS_DIAGNOSTICS_AREA_STATUS
+  eng "Invalid previous diagnostics area status '%.64s' when attempting to report status '%.64s'. This is a bug and the server will now abort. The previous error (if any) was '%.128s' and the requested error (if any) is '%.128s'."
+
+ER_CHECK_TABLE_FUNCTIONS_DOWNGRADED
+  eng "Error MY-%06d occurred while checking table-definitions: %s"
+
+ER_SERVER_ERROR_NO_CONTAINER_SUPPORT_IN_WIN
+   eng "Server does not support containers on Windows"
+
+ER_SERVER_ERROR_NOT_IN_CONTAINER
+   eng "Server is not running in a container but --container_aware is turned ON"
+
+ER_SERVER_WARN_CONTAINER_IGNORED
+   eng "Server ignores the discovered container restrictions as --container_aware is OFF"
+
+ER_AUDIT_LOG_COMPONENT_FILE_PRUNE_FAILED
+  eng "Failed to auto-prune file '%s'."
+
+ER_AUDIT_LOG_STATUS_VARIABLES_REGISTRATION_FAILED
+  eng "Failed to register status variables."
+
+ER_AUDIT_LOG_STATUS_VARIABLES_UNREGISTRATION_FAILED
+  eng "Failed to unregister status variables."
+
+ER_AUDIT_LOG_SYSTEM_VARIABLE_REGISTRATION_FAILED
+  eng "Failed to register %s.%s system variable."
+
+ER_AUDIT_LOG_SYSTEM_VARIABLE_UNREGISTRATION_FAILED
+  eng "Failed to unregister %s.%s system variable."
+
+ER_AUDIT_LOG_WRITE_TO_FILE_FAILED
+  eng "Error writing file \'%-.200s\'."
+
+ER_AUDIT_LOG_PASSWORD_GENERATED
+  eng "Encryption password has not been set; it will be generated automatically. Use %s to obtain the password or %s to set a new one."
+
+ER_AUDIT_LOG_INFO
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_WARNING
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_ERROR
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_FILE_PATH_TOO_LONG
+  eng "File path is too long (%zu). Absolute file path in the current configuration should not exceed %zu characters."
+
+ER_AUDIT_LOG_CANNOT_ALLOCATE_ASYNCHRONOUS_BUFFER
+  eng "Cannot allocate asynchronous write buffer of size: %zu bytes."
+
+ER_AUDIT_LOG_COMPONENT_PASSWORD_HAS_BEEN_COPIED
+  eng "'%s' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
+  eng "Database name is too long (%zu). Database name should not exceed %zu characters."
+
+ER_AUDIT_LOG_DATABASE_NAME_EMPTY
+  eng "Database name cannot be empty."
+
+>>>>>>> mysql-9.6.0
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

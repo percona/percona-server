@@ -10819,13 +10819,108 @@ ER_LH_INFER_COL_NAME_MISMATCH
   eng "Column '%s' found in file '%s', but not in file '%s' during column name matching."
 
 ER_LH_DELTA_SCHEMA_MISMATCH
-  eng "Detected schema mismatch for delta table: %s"
+  eng "Detected schema mismatch for delta table '%s'.'%s'. %s"
 
 ER_LH_DELTA_METADATA_READ_ERROR
   eng "Error while reading metadata for delta table: %s"
 
 ER_LH_DELTA_UNSUPPORTED_ERROR
   eng "Feature %s of delta tables is unsupported"
+
+ER_WARN_ACCOUNT_TRIMMED
+  eng "Leading or trailing spaces have been trimmed from user or host, account: %s."
+
+ER_LH_WARN_DATETIME_MULTIPLE_PARAM_USE
+  eng "Both 'datetime_format' and 'timestamp_format' are specified%s. Only 'datetime_format' will be considered."
+ER_LH_GENCOL_ERROR
+  eng "File %.*s: Error encountered during generated column evaluation"
+
+ER_TEMPORAL_FUNCTION_OVERFLOW 22008
+  eng "%s value is out of range in '%s'"
+
+ER_LH_INFER_COLUMN_MAX_ERR
+  eng "More than %u column(s) found in total."
+
+ER_LH_EXTRA_COLUMNS_IN_FILE
+  eng "%s: %u column(s) in file are not present in the table."
+
+ER_LH_PARQUET_COMPLEX_CONVERSION
+  eng "Column %d in %s: Cannot load column. %s."
+
+ER_AUDIT_LOG_DISABLED
+  eng "File output is disabled. Enable it with %s = false."
+
+ER_AUDIT_LOG_COMPONENT_JSON_FILTER_PARSING_ERROR
+  eng "%s"
+
+ER_AUDIT_LOG_FAILED_TO_OPEN_TABLES
+  eng "Failed to open the %s filter tables."
+
+ER_AUDIT_LOG_FAILED_TO_OPEN_TABLE
+  eng "Failed to open '%s.%s' %s table."
+
+ER_AUDIT_LOG_COMPONENT_JSON_FILTER_NAME_CANNOT_BE_EMPTY
+  eng "Filter name cannot be empty."
+
+ER_AUDIT_LOG_COMPONENT_USER_NAME_INVALID_CHARACTER
+  eng "Invalid character in the user name."
+
+ER_AUDIT_LOG_NO_KEYRING_INSTALLED
+  eng "No keyring installed."
+
+ER_AUDIT_LOG_COMPONENT_CANNOT_READ_PASSWORD
+  eng "Cannot read password: '%.32s'."
+
+ER_AUDIT_LOG_COMPONENT_HOST_NAME_INVALID_CHARACTER
+  eng "Invalid character in the host name."
+
+ER_AUDIT_LOG_COMPONENT_JSON_USER_NAME_CANNOT_BE_EMPTY
+  eng "User name cannot be empty."
+
+ER_AUDIT_LOG_COMPONENT_KEYRING_ID_TIMESTAMP_VALUE_IS_INVALID
+  eng "Keyring ID timestamp value is invalid: '%s'."
+
+ER_AUDIT_LOG_COMPONENT_UDF_INVALID_ARGUMENT_TYPE
+  eng "Invalid argument type."
+
+ER_AUDIT_LOG_COMPONENT_UDF_INVALID_ARGUMENT_COUNT
+  eng "Invalid number of arguments."
+
+ER_AUDIT_LOG_ABORT
+  eng "Statement was aborted by an audit log filter."
+
+ER_AUDIT_LOG_COULD_NOT_RELOAD_FILTERS
+  eng "Could not reload filters."
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_NULL
+  eng "Null value not supported."
+
+ER_AUDIT_LOG_MAX_SIZE_CLOSE_TO_ROTATE_ON_SIZE
+  eng "%s is not granular enough for the value of %s supplied. Should be at least %d times smaller."
+
+ER_AUDIT_LOG_MAX_SIZE_AND_PRUNE_SECONDS_PRECEDENCE
+  eng "Both %s and %s are set to non-zero. %s takes precedence and %s is ignored."
+
+ER_AUDIT_LOG_PASSWORD_HAS_NOT_BEEN_SET
+  eng "Encryption password has not been set. Use %s to set a new one."
+
+ER_AUDIT_LOG_INVALID_TABLE_DEFINITION
+  eng "Invalid table definition for '%s.%s'."
+
+ER_AUDIT_LOG_COMPONENT_FILTER_FAILED_TO_STORE_TABLE_FLDS
+  eng "Could not store field of the '%s.%s' table."
+
+ER_AUDIT_LOG_COMPONENT_FILTER_FAILED_TO_INIT_TABLE_FOR_READ
+  eng "Could not initialize '%s.%s' table for reading."
+
+ER_AUDIT_LOG_COMPONENT_FILTER_FAILED_TO_DELETE_FROM_TABLE
+  eng "Could not delete from '%s.%s' table."
+
+ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXIST_USER
+  eng "A filter cannot be assigned to user '%s'. The filter '%s' does not exist."
+
+ER_LH_CUSTOM_DATA_PLACEMENT_OVERRIDES
+  eng "Custom data placement set for '%s.%s' table overrides %s data placement."
 
 #
 #  End of 9.x error messages (server-to-client).

@@ -28,13 +28,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if !defined(NDEBUG)
 
-#define DBUG_EXECUTE_IF(keyword, a1)                                  \
-  do {                                                                \
-    extern REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_keyword_service); \
-    if (SERVICE_PLACEHOLDER(mysql_debug_keyword_service)              \
-            ->lookup_debug_keyword(keyword)) {                        \
-      a1                                                              \
-    }                                                                 \
+/**
+  Debug macro for conditional code execution.
+
+  @note Using this macro requires declaring extern mysql_debug_keyword_service
+        service reference:
+        extern REQUIRES_SERVICE_PLACEHOLDER(mysql_debug_keyword_service);
+*/
+#define DBUG_EXECUTE_IF(keyword, a1)                     \
+  do {                                                   \
+    if (SERVICE_PLACEHOLDER(mysql_debug_keyword_service) \
+            ->lookup_debug_keyword(keyword)) {           \
+      a1                                                 \
+    }                                                    \
   } while (0)
 
 #else

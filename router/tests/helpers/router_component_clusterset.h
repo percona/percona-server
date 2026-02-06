@@ -153,7 +153,7 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
     std::vector<size_t> gr_nodes_number{3, 3, 3};
     std::vector<size_t> read_replicas_number{};
     mysqlrouter::MetadataSchemaVersion metadata_version{
-        mysqlrouter::MetadataSchemaVersion{2, 3, 0}};
+        mysqlrouter::MetadataSchemaVersion{2, 4, 0}};
     ClusterSetTopology topology;
   };
 

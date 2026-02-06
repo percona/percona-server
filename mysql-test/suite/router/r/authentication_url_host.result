@@ -185,21 +185,21 @@ OK
 Date -> %DATE%
 Content-Type  ->  text/html; charset=ISO-8859-1
 Access-Control-Allow-Methods  ->  GET, POST, OPTIONS
-Location  ->  https://www.facebook.com/v12.0/dialog/oauth?response_type=code&state=first&client_id=c1&redirect_uri=https://NotMatchingHost/svc/authentication/login/svc/authentication/login?authApp=f
+Location  ->  https://www.facebook.com/v12.0/dialog/oauth?response_type=code&state=first&client_id=c1&redirect_uri=https://NotMatchingHost/svc/authentication/login?authApp=f
 Referrer-Policy  ->  no-referrer
 Content-Length  ->  0
 OK
 Date -> %DATE%
 Content-Type  ->  text/html; charset=ISO-8859-1
 Access-Control-Allow-Methods  ->  GET, POST, OPTIONS
-Location  ->  https://www.facebook.com/v12.0/dialog/oauth?response_type=code&state=first&client_id=c1&redirect_uri=http://HTTPHOST/svc/authentication/login/svc/authentication/login?authApp=f
+Location  ->  https://www.facebook.com/v12.0/dialog/oauth?response_type=code&state=first&client_id=c1&redirect_uri=http://HTTPHOST/svc/authentication/login?authApp=f
 Referrer-Policy  ->  no-referrer
 Content-Length  ->  0
 OK
 Date -> %DATE%
 Content-Type  ->  text/html; charset=ISO-8859-1
 Access-Control-Allow-Methods  ->  GET, POST, OPTIONS
-Location  ->  https://www.facebook.com/v12.0/dialog/oauth?response_type=code&state=first&client_id=c1&redirect_uri=https://HTTPSHOST/svc/authentication/login/svc/authentication/login?authApp=f
+Location  ->  https://www.facebook.com/v12.0/dialog/oauth?response_type=code&state=first&client_id=c1&redirect_uri=https://HTTPSHOST/svc/authentication/login?authApp=f
 Referrer-Policy  ->  no-referrer
 Content-Length  ->  0
 OK

@@ -367,9 +367,9 @@ struct BytesPerTableRow {
 };
 
 /**
-   Get an estimate of the row size of the read set of 'table'.
+   Calculate an estimate of the row size of the read set of 'table'.
 */
-int64_t GetReadSetWidth(const TABLE *table);
+int64_t CalculateReadSetWidth(const TABLE *table);
 
 /**
    Estimate the average number of bytes that we need to read from the

@@ -34,7 +34,6 @@
 #include "harness_assert.h"
 #include "mysqld_error.h"
 #include "random_generator.h"
-#include "sha1.h"  // compute_sha1_hash() from mysql's include/
 
 static const int kMetadataServerPasswordLength = 16;
 

@@ -1870,12 +1870,6 @@ prepare s from 'select MBRWithin(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["GEOMETRY", "GEOMETRY"]]
-prepare s from 'select MD5(?)';
-Warnings:
-Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
-select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
-json_extract(trace,"$.steps[*].statement_parameters")
-[["VARCHAR"]]
 prepare s from 'select MICROSECOND(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -2130,12 +2124,6 @@ prepare s from 'select SESSION_USER()';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 NULL
-prepare s from 'select SHA1(?)';
-Warnings:
-Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
-select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
-json_extract(trace,"$.steps[*].statement_parameters")
-[["VARCHAR"]]
 prepare s from 'select SHA2(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

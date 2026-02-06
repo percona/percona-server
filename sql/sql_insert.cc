@@ -90,6 +90,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_foreign_key_constraint.h"
 #include "sql/sql_gipk.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -667,11 +668,31 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
         // continue when IGNORE clause is used.
         continue;
       }
+<<<<<<< HEAD
       int error = insert_table->file->ha_upsert(thd, update_field_list,
                                                 update_value_list);
       if (error == ENOTSUP)
         error = write_record(thd, insert_table, &info, &update);
       if (error) {
+||||||| merged common ancestors
+
+      if (write_record(thd, insert_table, &info, &update)) {
+=======
+
+      if (use_sql_fk_checks_for_table(thd, insert_table)) {
+        if (check_all_parent_fk_ref(thd, insert_table,
+                                    enum_fk_dml_type::FK_INSERT)) {
+          if (thd->is_error()) {
+            has_error = true;
+            break;
+          }
+          // continue when IGNORE clause is used.
+          continue;
+        }
+      }
+
+      if (write_record(thd, insert_table, &info, &update)) {
+>>>>>>> mysql-9.6.0
         has_error = true;
         break;
       }
@@ -2021,6 +2042,16 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
             goto ok_or_after_trg_err;
           }
 
+          if (use_sql_fk_checks_for_table(thd, table)) {
+            if (check_all_child_fk_ref(thd, table,
+                                       enum_fk_dml_type::FK_UPDATE) ||
+                check_all_parent_fk_ref(thd, table,
+                                        enum_fk_dml_type::FK_UPDATE)) {
+              if (thd->is_error()) goto before_trg_err;
+              goto ok_or_after_trg_err;
+            }
+          }
+
           if ((error = table->file->ha_update_row(table->record[1],
                                                   table->record[0])) &&
               error != HA_ERR_RECORD_IS_THE_SAME) {
@@ -2129,6 +2160,16 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
               table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                                 TRG_ACTION_BEFORE, true))
             goto before_trg_err;
+
+          if (use_sql_fk_checks_for_table(thd, table)) {
+            // FK_DELETE_REPLACE is passed so that record[1] is used to
+            // populate search key instead of record[0]
+            if (check_all_child_fk_ref(thd, table,
+                                       enum_fk_dml_type::FK_DELETE_REPLACE)) {
+              return thd->is_error();
+            }
+          }
+
           if ((error = table->file->ha_delete_row(table->record[1]))) goto err;
           info->stats.deleted++;
           if (!table->file->has_transactions())
@@ -2385,6 +2426,11 @@ bool Query_result_insert::send_data(THD *thd,
   if (invoke_table_check_constraints(thd, table)) {
     // return false when IGNORE clause is used.
     return thd->is_error();
+  }
+
+  if (use_sql_fk_checks_for_table(thd, table)) {
+    if (check_all_parent_fk_ref(thd, table, enum_fk_dml_type::FK_INSERT))
+      return thd->is_error();
   }
 
   error = write_record(thd, table, &info, &update);
@@ -3136,6 +3182,30 @@ bool Query_result_create::send_eof(THD *thd) {
             adjust_fk_parents(thd, create_table->db, create_table->table_name,
                               true, nullptr))
           error = true;
+      }
+
+      /*
+        Invalidate TABLE_SHARE and mark TABLE instance of table being created if
+        it has self-referencing FKs. FK metadata in the TABLE_SHARE needs to be
+        adjusted in this case. Opening TABLE and TABLE_SHARE instance on next
+        access will populate FK metadata properly in TABLE_SHARE.
+      */
+      if (alter_info->flags & Alter_info::ADD_FOREIGN_KEY) {
+        TABLE_SHARE *ct_share = create_table->table->s;
+        assert(ct_share != nullptr);
+        for (uint idx = 0; idx < ct_share->foreign_keys; idx++) {
+          auto fk = ct_share->foreign_key[idx];
+          if (!my_strcasecmp(table_alias_charset, fk.referenced_table_db.str,
+                             create_table->db) &&
+              !my_strcasecmp(table_alias_charset, fk.referenced_table_name.str,
+                             create_table->table_name)) {
+            fk_invalidator.add(create_table->db, create_table->table_name,
+                               create_info->db_type,
+                               Foreign_key_parents_invalidator::
+                                   INVALIDATE_AND_MARK_FOR_REOPEN);
+            break;
+          }
+        }
       }
     }
   }

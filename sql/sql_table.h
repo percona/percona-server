@@ -124,11 +124,13 @@ bool mysql_discard_or_import_tablespace(THD *thd, Table_ref *table_list);
   data-dictionary cache entries and performing such invalidation.
 */
 class Foreign_key_parents_invalidator {
- private:
+ public:
   enum enum_invalidation_type {
     INVALIDATE_AND_CLOSE_TABLE,
     INVALIDATE_AND_MARK_FOR_REOPEN
   };
+
+ private:
   typedef std::map<std::pair<dd::String_type, dd::String_type>,
                    std::pair<handlerton *, enum_invalidation_type>>
       Parent_map;
@@ -476,7 +478,8 @@ bool mysql_compare_tables(THD *thd, TABLE *table, Alter_info *alter_info,
                           HA_CREATE_INFO *create_info, bool *metadata_equal);
 bool mysql_recreate_table(THD *thd, Table_ref *table_list, bool table_copy);
 bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
-                             HA_CREATE_INFO *create_info);
+                             HA_CREATE_INFO *create_info, uint open_flags = 0,
+                             bool skip_post_ddl_operations = false);
 bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                         const char *old_name, const char *old_fk_db,
                         const char *old_fk_name, const dd::Schema &new_schema,

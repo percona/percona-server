@@ -230,7 +230,7 @@ have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
 do not hold latches (log.free_check_limit_lsn). */
-static void dict_persist_update_log_margin(void);
+static void dict_persist_update_log_margin();
 
 /** Removes a table object from the dictionary cache. */
 static void dict_table_remove_from_cache_low(
@@ -300,10 +300,10 @@ ulint dict_get_db_name_len(const char *name) /*!< in: table name in the form
 
 #ifndef UNIV_HOTBACKUP
 /** Reserves the dictionary system mutex for MySQL. */
-void dict_mutex_enter_for_mysql(void) { dict_sys_mutex_enter(); }
+void dict_mutex_enter_for_mysql() { dict_sys_mutex_enter(); }
 
 /** Releases the dictionary system mutex for MySQL. */
-void dict_mutex_exit_for_mysql(void) { dict_sys_mutex_exit(); }
+void dict_mutex_exit_for_mysql() { dict_sys_mutex_exit(); }
 
 /** Allocate and init a dict_table_t's stats latch.
 This function must not be called concurrently on the same table object.
@@ -1065,15 +1065,11 @@ bool dict_table_col_in_clustered_key(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inits the data dictionary module. */
-void dict_init(void) {
+void dict_init() {
   dict_operation_lock = static_cast<rw_lock_t *>(ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_operation_lock)));
 
-  dict_sys = static_cast<dict_sys_t *>(
-      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_sys)));
-
-  UT_LIST_INIT(dict_sys->table_LRU);
-  UT_LIST_INIT(dict_sys->table_non_LRU);
+  dict_sys = ut::new_withkey<dict_sys_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   mutex_create(LATCH_ID_DICT_SYS, &dict_sys->mutex);
 
@@ -2516,20 +2512,21 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
     ut_ad(field->col->ord_part == 1);
   }
 
-  new_index->stat_n_diff_key_vals = static_cast<uint64_t *>(mem_heap_zalloc(
+  new_index->stats.n_diff_key_vals = static_cast<uint64_t *>(mem_heap_zalloc(
       new_index->heap, dict_index_get_n_unique(new_index) *
-                           sizeof(*new_index->stat_n_diff_key_vals)));
+                           sizeof(*new_index->stats.n_diff_key_vals)));
 
-  new_index->stat_n_sample_sizes = static_cast<uint64_t *>(mem_heap_zalloc(
+  new_index->stats.n_sample_sizes = static_cast<uint64_t *>(mem_heap_zalloc(
       new_index->heap, dict_index_get_n_unique(new_index) *
-                           sizeof(*new_index->stat_n_sample_sizes)));
+                           sizeof(*new_index->stats.n_sample_sizes)));
 
-  new_index->stat_n_non_null_key_vals = static_cast<uint64_t *>(mem_heap_zalloc(
-      new_index->heap, dict_index_get_n_unique(new_index) *
-                           sizeof(*new_index->stat_n_non_null_key_vals)));
+  new_index->stats.n_non_null_key_vals =
+      static_cast<uint64_t *>(mem_heap_zalloc(
+          new_index->heap, dict_index_get_n_unique(new_index) *
+                               sizeof(*new_index->stats.n_non_null_key_vals)));
 
-  new_index->stat_index_size = 1;
-  new_index->stat_n_leaf_pages = 1;
+  new_index->stats.index_size = 1;
+  new_index->stats.n_leaf_pages = 1;
 
   new_index->table = table;
   new_index->table_name = table->name.m_name;
@@ -3892,7 +3889,7 @@ void dict_print_info_on_foreign_key_in_create_format(FILE *file, trx_t *trx,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inits the structure for persisting dynamic metadata */
-void dict_persist_init(void) {
+void dict_persist_init() {
   dict_persist = static_cast<dict_persist_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_persist)));
 
@@ -3917,9 +3914,15 @@ void dict_persist_init(void) {
 }
 
 /** Clear the structure */
+<<<<<<< HEAD
 void dict_persist_close(void) {
   if (!dict_persist) return;
 
+||||||| merged common ancestors
+void dict_persist_close(void) {
+=======
+void dict_persist_close() {
+>>>>>>> mysql-9.6.0
   ut::delete_(dict_persist->persisters);
 
 #ifndef UNIV_HOTBACKUP
@@ -4398,7 +4401,7 @@ void dict_table_set_corrupt_by_space(space_id_t space_id,
 }
 
 /** Inits dict_ind_redundant. */
-void dict_ind_init(void) {
+void dict_ind_init() {
   dict_table_t *table;
 
   /* create dummy table and index for REDUNDANT infimum and supremum */
@@ -4415,7 +4418,7 @@ void dict_ind_init(void) {
 }
 
 /** Frees dict_ind_redundant. */
-void dict_ind_free(void) {
+void dict_ind_free() {
   dict_table_t *table;
 
   table = dict_ind_redundant->table;
@@ -4663,7 +4666,7 @@ void dict_set_corrupted(dict_index_t *index [[maybe_unused]]) {}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Closes the data dictionary module. */
-void dict_close(void) {
+void dict_close() {
   if (dict_sys == nullptr) {
     /* This should only happen if a failure occurred
     during redo log processing. */
@@ -4734,7 +4737,7 @@ void dict_close(void) {
 
   ut_ad(dict_sys->size == 0);
 
-  ut::free(dict_sys);
+  ut::delete_(dict_sys);
   dict_sys = nullptr;
 }
 
@@ -6020,6 +6023,60 @@ void dict_validate_no_purge_rollback_threads() {
   ut_ad(!srv_thread_is_active(srv_threads.m_trx_recovery_rollback));
 }
 #endif /* UNIV_DEBUG */
+
+static void dict_sys_set_min_id_on_disc(row_id_t needed_id) {
+  ut_a_eq(needed_id % DICT_HDR_ROW_ID_WRITE_MARGIN, 0);
+
+  /* Margin less than global row_id is already on disc */
+  if (needed_id < dict_sys->row_id.load()) {
+    return;
+  }
+
+  dict_sys_mutex_enter();
+
+  auto seen_in_ram = dict_sys->row_id.load();
+
+  /* Margin less than seen_in_ram is already on disc */
+  while (seen_in_ram <= needed_id) {
+    /* Bump the in-memory value to the rounded one we need to store. This should
+    also pause threads in dict_sys_get_new_row_id, as we hold the mutex. This is
+    important that they are paused, because we don't want anyone to use such
+    high ids until we write to disc. (Note in case seen_in_ram == needed_id this
+    will succeed, too) */
+    if (dict_sys->row_id.compare_exchange_weak(seen_in_ram, needed_id)) {
+      /* so, at the moment dict_sys->row_id == needed_id, and we hold the mutex,
+      so this can't change. The situation here is analogous to that in
+      dict_sys_get_new_row_id when we hold the mutex and see the row_id % MARGIN
+      == 0. So we do the same thing: store it, then bump it in ram */
+      dict_sys->dict_hdr_flush_row_id();
+      dict_sys->row_id.store(needed_id + 1, std::memory_order_release);
+      break;
+    }
+  }
+
+  dict_sys_mutex_exit();
+}
+
+static void dict_sys_set_min_id_in_ram(row_id_t needed_id) {
+  auto seen_in_ram = dict_sys->row_id.load();
+  while (seen_in_ram < needed_id) {
+    /* Both seen_in_ram and needed_id will fall within same margin */
+    ut_a_eq(seen_in_ram / DICT_HDR_ROW_ID_WRITE_MARGIN,
+            needed_id / DICT_HDR_ROW_ID_WRITE_MARGIN);
+
+    if (dict_sys->row_id.compare_exchange_weak(seen_in_ram, needed_id)) {
+      return;
+    }
+  }
+}
+
+void dict_sys_set_min_next_row_id(row_id_t next_id) {
+  const auto previous_margin =
+      next_id - (next_id % DICT_HDR_ROW_ID_WRITE_MARGIN);
+
+  dict_sys_set_min_id_on_disc(previous_margin);
+  dict_sys_set_min_id_in_ram(next_id);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded

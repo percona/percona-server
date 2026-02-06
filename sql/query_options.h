@@ -130,4 +130,7 @@
 */
 #define OPTION_NO_SUBQUERY_DURING_OPTIMIZATION (1ULL << 39)  // intern
 
+// Is set while thread is using SQL FOREIGN KEY handling instead of SE's.
+#define OPTION_USE_SQL_FOREIGN_KEY_HANDLING (1ULL << 40)  // THD, intern
+
 #endif /* QUERY_OPTIONS_INCLUDED */

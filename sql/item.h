@@ -970,6 +970,7 @@ class Item : public Parse_tree_node {
     INT_ITEM,            ///< An integer literal value.
     DECIMAL_ITEM,        ///< A decimal literal value.
     REAL_ITEM,           ///< A floating-point literal value.
+    JSON_ITEM,           ///< A JSON literal value.
     NULL_ITEM,           ///< A NULL value.
     HEX_BIN_ITEM,        ///< A hexadecimal or binary literal value.
     DEFAULT_VALUE_ITEM,  ///< A default value for a column.
@@ -7460,7 +7461,7 @@ class Item_json final : public Item_basic_constant {
   Item_json(unique_ptr_destroy_only<Json_wrapper> value,
             const Item_name_string &name);
   ~Item_json() override;
-  enum Type type() const override { return STRING_ITEM; }
+  enum Type type() const override { return JSON_ITEM; }
   void print(const THD *, String *str, enum_query_type) const override;
   uint64_t hash() override;
   bool val_json(Json_wrapper *result) override;

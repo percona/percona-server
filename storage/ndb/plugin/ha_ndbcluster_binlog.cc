@@ -6249,7 +6249,7 @@ static bool check_defined(MY_BITMAP *defined, const TABLE *const table) {
         const Field *const field = table->field[i];
 
         if (my_strcasecmp(system_charset_info, field->field_name,
-                          fk->column_name[c].str) == 0) {
+                          fk->referencing_column_names[c].str) == 0) {
           if (!bitmap_is_set(defined, field->field_index())) {
             assert(false);
             return false;

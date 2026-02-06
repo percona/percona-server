@@ -3987,7 +3987,7 @@ SELECT CAST('00:00:00' AS TIME) + INTERVAL 2000 HOUR;
 CAST('00:00:00' AS TIME) + INTERVAL 2000 HOUR
 NULL
 Warnings:
-Warning	1441	Datetime function: time field overflow
+Warning	6527	TIME value is out of range in '(cast('00:00:00' as time) + interval 2000 hour)'
 SELECT TIME(CAST('00:00:00' AS TIME) + INTERVAL 34 DAY);
 TIME(CAST('00:00:00' AS TIME) + INTERVAL 34 DAY)
 00:00:00
@@ -5499,12 +5499,12 @@ SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 10000000.1 SECOND);
 DATE_ADD(TIME'00:00:00.0', INTERVAL 10000000.1 SECOND)
 NULL
 Warnings:
-Warning	1441	Datetime function: time field overflow
+Warning	6527	TIME value is out of range in '(TIME'00:00:00.0' + interval 10000000.1 second)'
 SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 100000000000000000.1 SECOND);
 DATE_ADD(TIME'00:00:00.0', INTERVAL 100000000000000000.1 SECOND)
 NULL
 Warnings:
-Warning	1441	Datetime function: time field overflow
+Warning	6527	TIME value is out of range in '(TIME'00:00:00.0' + interval 100000000000000000.1 second)'
 SELECT DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND);
 DATE_ADD(TIME'00:00:00.0', INTERVAL 1000000000000000000000.1 SECOND)
 NULL
@@ -17118,10 +17118,10 @@ UPDATE t1 SET
 a= a - INTERVAL 999999 MICROSECOND, b= b - INTERVAL 1 MICROSECOND,
 c= c + INTERVAL 999999 MICROSECOND, d= d + INTERVAL 1 MICROSECOND;
 Warnings:
-Warning	1441	Datetime function: time field overflow
-Warning	1441	Datetime function: time field overflow
-Warning	1441	Datetime function: time field overflow
-Warning	1441	Datetime function: time field overflow
+Warning	6527	TIME value is out of range in '(`test`.`t1`.`a` - interval 999999 microsecond)'
+Warning	6527	TIME value is out of range in '(`test`.`t1`.`b` - interval 1 microsecond)'
+Warning	6527	TIME value is out of range in '(`test`.`t1`.`c` + interval 999999 microsecond)'
+Warning	6527	TIME value is out of range in '(`test`.`t1`.`d` + interval 1 microsecond)'
 SELECT * FROM t1;
 a	b	c	d
 NULL	NULL	NULL	NULL
@@ -17612,7 +17612,7 @@ SELECT ADDTIME(a, 100000) FROM t1;
 ADDTIME(a, 100000)
 NULL
 Warnings:
-Warning	1441	Datetime function: add_time field overflow
+Warning	6527	DATETIME value is out of range in 'addtime(`test`.`t1`.`a`,100000)'
 SET @@session.sql_buffer_result=default;
 DROP TABLE t1;
 #
@@ -17729,7 +17729,7 @@ a - INTERVAL(b) MICROSECOND
 NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '999999999999999999999999999999999999999999.9999999999999'
-Warning	1441	Datetime function: time field overflow
+Warning	6527	TIME value is out of range in '(`test`.`t`.`a` - interval `test`.`t`.`b` microsecond)'
 DROP TABLE t;
 #
 # Bug #30324587 	ASSERTION FAILED: (*REF)->IS_TEMPORAL()

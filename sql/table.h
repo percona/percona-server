@@ -680,6 +680,7 @@ typedef I_P_List<
     Wait_for_flush_list;
 
 typedef struct Table_share_foreign_key_info {
+  LEX_CSTRING fk_name;
   LEX_CSTRING referenced_table_db;
   LEX_CSTRING referenced_table_name;
   /**
@@ -689,15 +690,29 @@ typedef struct Table_share_foreign_key_info {
   LEX_CSTRING unique_constraint_name;
   dd::Foreign_key::enum_rule update_rule, delete_rule;
   uint columns;
+
   /**
-    Arrays with names of referencing columns of the FK.
+    Array with names of referencing columns of the FK.
   */
-  LEX_CSTRING *column_name;
+  LEX_CSTRING *referencing_column_names;
+
+  /**
+    Array with names of referenced columns of the FK.
+  */
+  LEX_CSTRING *referenced_column_names;
 } TABLE_SHARE_FOREIGN_KEY_INFO;
 
 typedef struct Table_share_foreign_key_parent_info {
+  /**
+    Since referenced_column_names and referencing_column_names are already
+    stored in TABLE_SHARE_FOREIGN_KEY_INFO, we avoid duplicating them here and
+    only add fk_name, allowing check_all_child_fk_ref() to use fk_name to
+    retrieve the column details from the child table share
+  */
+  LEX_CSTRING fk_name;
   LEX_CSTRING referencing_table_db;
   LEX_CSTRING referencing_table_name;
+
   dd::Foreign_key::enum_rule update_rule, delete_rule;
 } TABLE_SHARE_FOREIGN_KEY_PARENT_INFO;
 
@@ -1705,6 +1720,10 @@ struct TABLE {
   Table_ref *pos_in_locked_tables{nullptr};
   ORDER *group{nullptr};
   const char *alias{nullptr};  ///< alias or table name
+
+  /* foreign key name for which handle is open */
+  const char *open_for_fk_name{nullptr};
+
   uchar *null_flags{nullptr};  ///< Pointer to the null flags of record[0]
   uchar *null_flags_saved{
       nullptr};  ///< Saved null_flags while null_row is true
@@ -4055,6 +4074,12 @@ class Table_ref {
   mem_root_deque<Table_ref *> *join_list{nullptr};
   /// stop PS caching
   bool cacheable_table{false};
+  /**
+    Used to store foreign key name to identify correct table handle from
+    thd->open_tables during find_fk_table_from_open_tables() call
+  */
+  const char *open_for_fk_name{nullptr};
+
   /**
      Specifies which kind of table should be open for this element
      of table list.

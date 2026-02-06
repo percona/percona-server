@@ -25,6 +25,7 @@
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/components/services/mysql_timestamp.h>
 #include <mysql/service_rpl_transaction_write_set.h>
 #include "mutex_lock.h"
 #include "my_dbug.h"
@@ -164,6 +165,9 @@ Compatibility_module *compatibility_mgr = nullptr;
 /* Runtime error service */
 SERVICE_TYPE_NO_CONST(mysql_runtime_error) *mysql_runtime_error_service =
     nullptr;
+
+/* Timestamp service */
+SERVICE_TYPE_NO_CONST(mysql_timestamp) *mysql_timestamp_service = nullptr;
 
 Consensus_leaders_handler *consensus_leaders_handler = nullptr;
 Recovery_metadata_observer *recovery_metadata_observer = nullptr;
@@ -2098,6 +2102,14 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
       reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_runtime_error) *>(
           h_mysql_runtime_error_service);
 
+  // Initialize timestamp service.
+  my_h_service h_mysql_timestamp_service = nullptr;
+  if (lv.reg_srv->acquire("mysql_timestamp", &h_mysql_timestamp_service))
+    return 1; /* purecov: inspected */
+  mysql_timestamp_service =
+      reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_timestamp) *>(
+          h_mysql_timestamp_service);
+
   /*
     Acquire required server services once at plugin install.
   */
@@ -2419,6 +2431,12 @@ int plugin_group_replication_deinit(void *p) {
   lv.plugin_info_ptr = nullptr;
 
   server_services_references_finalize();
+
+  // Deinitialize timestamp service.
+  my_h_service h_mysql_timestamp_service =
+      reinterpret_cast<my_h_service>(mysql_timestamp_service);
+  lv.reg_srv->release(h_mysql_timestamp_service);
+  mysql_timestamp_service = nullptr;
 
   // Deinitialize runtime error service.
   my_h_service h_mysql_runtime_error_service =

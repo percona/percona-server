@@ -307,7 +307,10 @@ void vio_ssl_end() {
     ERR_remove_thread_state(nullptr);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     ERR_free_strings();
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+    /* Deprecated since openssl 1.1 */
     EVP_cleanup();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
     CRYPTO_cleanup_all_ex_data();
 
@@ -329,7 +332,10 @@ void ssl_start() {
 
     fips_init();
     SSL_library_init();
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+    /* Deprecated since openssl 1.1 */
     OpenSSL_add_all_algorithms();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     SSL_load_error_strings();
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L

@@ -145,6 +145,24 @@ bool ApplySecondaryEngineNrowsHook(
   return nrow_hook.value()(params);
 }
 
+AccessPath *NewStreamingAccessPath(THD *thd, AccessPath *child, JOIN *join,
+                                   Temp_table_param *temp_table_param,
+                                   TABLE *table, int ref_slice) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::STREAM;
+  path->stream().child = child;
+  path->stream().join = join;
+  path->stream().temp_table_param = temp_table_param;
+  path->stream().table = table;
+  path->stream().ref_slice = ref_slice;
+  // Will be set later if we get a weedout access path as parent.
+  path->stream().provide_rowid = false;
+  path->has_group_skip_scan = child->has_group_skip_scan;
+  path->ordering_state = child->ordering_state;
+  path->safe_for_rowid = child->safe_for_rowid;
+  return path;
+}
+
 AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
                               ORDER *order, bool count_examined_rows) {
   assert(child != nullptr);

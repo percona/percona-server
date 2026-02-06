@@ -395,17 +395,14 @@ Item_bool_func *Linear_comp_creator::create(const POS &pos, Item *a,
     List<Item> list;
     for (uint i = 0; i < a->cols(); ++i) {
       Item *col_item = create(pos, a->element_index(i), b->element_index(i));
+      if (col_item == nullptr) return nullptr;
+
       current_thd->add_item(col_item);
       list.push_back(col_item);
     }
     return combine(pos, list);
   }
-  Item_bool_func *item = create_scalar_predicate(pos, a, b);
-  if (item == nullptr) {
-    return nullptr;
-  }
-
-  return item;
+  return create_scalar_predicate(pos, a, b);
 }
 
 Item_bool_func *Eq_creator::create_scalar_predicate(const POS &pos, Item *a,
@@ -1204,17 +1201,18 @@ bool Arg_comparator::can_compare_as_dates(const Item *left, const Item *right) {
 }
 
 /**
-  Retrieves correct TIME value from the given item.
+  Evaluates the given item as a TIME value.
 
-  @param [in,out] item_arg    item to retrieve TIME value from
+  @param [in,out] item_arg    item to evaluate.
   @param [out] is_null        true <=> the item_arg is null
-
+                              NOTE: May be true even if item is not nullable,
+                              e.g strings are converted and cause NULL value.
+                              However, this value is never checked and may be
+                              removed.
   @returns obtained value
 
-  Retrieves the correct TIME value from given item for comparison by the
-  compare_datetime() function.
-  If item's result can be compared as longlong then its int value is used
-  and a value returned by get_time function is used otherwise.
+  Evaluates the given item as a TIME value and converts this to an integer
+  value which can be used for comparison.
 */
 
 static longlong get_time_internal(THD *, Item ***item_arg, Item **,
@@ -1236,6 +1234,7 @@ static longlong get_time_internal(THD *, Item ***item_arg, Item **,
     str = item->val_str(&buf);
     *is_null = item->null_value;
   }
+  // Note: This return value matches no non-NULL TIME values.
   if (*is_null) return ~(ulonglong)0;
 
   /*
@@ -1244,7 +1243,6 @@ static longlong get_time_internal(THD *, Item ***item_arg, Item **,
   if (str != nullptr) {
     Time_val time;
     if (str_to_time_with_warn(str, &time)) {
-      item->null_value = true;
       *is_null = true;
       return ~(ulonglong)0;
     }
@@ -2082,12 +2080,6 @@ int Arg_comparator::compare_time() {
     AND
       col_time_key = MAKEDATE(43, -2852);
   */
-  // Items may have been substituted with NULL values
-  assert((*left)->data_type() == MYSQL_TYPE_TIME ||
-         (*left)->data_type() == MYSQL_TYPE_NULL);
-  assert((*right)->data_type() == MYSQL_TYPE_TIME ||
-         (*right)->data_type() == MYSQL_TYPE_NULL);
-
   Time_val time1, time2;
   if ((*left)->val_time(&time1)) {
     if (set_null) owner->null_value = true;
@@ -2737,7 +2729,11 @@ longlong Item_func_equal::val_int() {
   assert(fixed);
   // Perform regular equality check first:
   const int value = cmp.compare();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    // Make sure null_value isn't set
+    null_value = false;
+    return 0;
+  }
   // If comparison is not NULL, we have a result:
   if (!null_value) return value == 0 ? 1 : 0;
   null_value = false;

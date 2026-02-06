@@ -847,9 +847,6 @@ DROP TABLE t;
 # Bug#28105241: WINDOWS FUNC + AGGREGATES: ASSERTION FAILED:
 #               HYBRID_TYPE == DECIMAL_RESULT
 #
-DO ST_CROSSES(@g,SUM(SHA(@g))OVER());
-Warnings:
-Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
 DO UNHEX(SUM(@g)OVER());
 DO BIT_LENGTH(AVG(@f)OVER());
 DO COMPRESS(SUM(' >')OVER());

@@ -100,6 +100,10 @@ struct row_host_cache {
   ulonglong m_count_init_connect_errors;
   /** Column COUNT_LOCAL_ERRORS. */
   ulonglong m_count_local_errors;
+  /** Column COUNT_ACCOUNT_LOCKED_ERRORS. */
+  ulonglong m_count_account_locked_errors;
+  /** Column COUNT_TEMPORARY_ACCOUNT_LOCKED_ERRORS. */
+  ulonglong m_count_temporary_account_locked_errors;
   /** Column COUNT_UNKNOWN_ERRORS. */
   ulonglong m_count_unknown_errors;
   /** Column FIRST_SEEN. */

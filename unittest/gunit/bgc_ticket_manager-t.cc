@@ -34,8 +34,6 @@
 
 namespace binlog::unittests {
 
-using ticket_t = binlog::BgcTicket::ValueType;
-
 /**
   Test for Bgc_ticket_manager API.
 

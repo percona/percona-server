@@ -24,6 +24,12 @@
 #ifndef MYSQL_GTID_GTIDSET_H
 #define MYSQL_GTID_GTIDSET_H
 
+#include "mysql/utils/deprecate_header.h"  // DEPRECATE_HEADER
+
+#ifndef NO_DEPRECATION_WARNING_FOR_HEADER_GTIDSET_H
+DEPRECATE_HEADER(libbinlogevents_include_gtids_gtidset)
+#endif
+
 #include <cstddef>
 #include <map>
 #include <set>

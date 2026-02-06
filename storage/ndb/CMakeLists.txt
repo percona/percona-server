@@ -152,6 +152,7 @@ IF(NOT WITHOUT_SERVER)
   NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
   NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
   NDB_ADD_TEST("ndb_binlog_index_rows-t" "plugin/ndb_binlog_index_rows.cc" LIBS ndbgeneral)
+  NDB_ADD_TEST("ndb_string_utils-t" "plugin/ndb_string_utils.cc" LIBS ndbgeneral)
 ELSEIF(NOT WITH_NDB)
   IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
     MESSAGE(WARNING "Skips building ndbcluster plugin, WITHOUT_SERVER=ON "

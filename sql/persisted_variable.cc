@@ -364,6 +364,62 @@ static bool check_boolean_value(const char *value, String &bool_str) {
 }
 
 /**
+  Remove persisted variable with a given name from a collection.
+
+  @param name      Name of the variable.
+  @param variables Variables collection.
+*/
+static inline void remove_persisted_variable(
+    const char *name, Persisted_variables_umap &variables) {
+  auto it = variables.find(name);
+  if (it != variables.end()) {
+    variables.erase(it);
+  }
+}
+
+/**
+  Remove persisted variable with a given name from a collection.
+
+  @param name      Name of the variable.
+  @param variables Variables collection.
+*/
+static inline void remove_persisted_variable(
+    const char *name, Persisted_variables_uset &variables) {
+  auto it = std::find_if(
+      variables.begin(), variables.end(),
+      [name](st_persist_var const &s) { return !strcmp(s.key.c_str(), name); });
+  if (it != variables.end()) {
+    variables.erase(it);
+  }
+}
+
+/**
+  Remove persisted variable from all collections.
+
+  @param name Name of the variable to be removed.
+              Make sure, the name is lowercase.
+*/
+void Persisted_variables_cache::remove_persisted_variable_from_all(
+    const char *name) {
+  assert_lock_owner();
+
+  /* Remove from static variable collections. */
+  remove_persisted_variable(name, m_persisted_static_sensitive_variables);
+  remove_persisted_variable(name, m_persisted_static_parse_early_variables);
+  remove_persisted_variable(name, m_persisted_static_variables);
+
+  /* Remove from dynamic variable collections. */
+  remove_persisted_variable(name, m_persisted_dynamic_parse_early_variables);
+  remove_persisted_variable(name, m_persisted_dynamic_sensitive_variables);
+  remove_persisted_variable(name, m_persisted_dynamic_variables);
+
+  /* Remove from plugin variable collections. */
+  remove_persisted_variable(name,
+                            m_persisted_dynamic_sensitive_plugin_variables);
+  remove_persisted_variable(name, m_persisted_dynamic_plugin_variables);
+}
+
+/**
   Retrieve variables name/value and update the in-memory copy with
   this new values. If value is default then remove this entry from
   in-memory copy, else update existing key with new value
@@ -452,6 +508,13 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
 
       /* modification to in-memory must be thread safe */
       lock();
+
+      /*
+        Before adding the variable into a collection, remove the variable from
+        all collections.
+      */
+      remove_persisted_variable_from_all(name);
+
       DEBUG_SYNC(thd, "in_set_persist_variables");
       if ((setvar->type == OPT_PERSIST_ONLY && system_var->is_readonly()) ||
           system_var->is_persist_readonly()) {
@@ -463,20 +526,6 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
                                 ? m_persisted_static_sensitive_variables
                                 : m_persisted_static_variables;
           variables[tmp_var.key] = tmp_var;
-          /**
-            If server was upgraded, it is possible that persisted variables were
-            initially read from an old format file. If so, all RO variables:
-            PARSE_EARLY or otherwise, persisted before the upgrade may be
-            present in m_persisted_static_parse_early_variables container.
-
-            This SET PERSIST/SET PERSIST_ONLY call may be setting one of those
-            variables. If so, remove those values from
-            m_persisted_static_parse_early_variables.
-          */
-          auto it = m_persisted_static_parse_early_variables.find(name);
-          if (it != m_persisted_static_parse_early_variables.end()) {
-            m_persisted_static_parse_early_variables.erase(it);
-          }
         }
       } else {
         /*
@@ -484,24 +533,11 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
        it again with new value.
         */
         if (system_var->is_parse_early()) {
-          m_persisted_dynamic_parse_early_variables.erase(tmp_var);
           m_persisted_dynamic_parse_early_variables.insert(tmp_var);
-          /*
-            If server was upgraded, it is possible that persisted variables were
-            initially read from an old format file. If so, all variables:
-            PARSE_EARLY or otherwise, persisted before the upgrade may be
-            present in m_persisted_dynamic_variables container.
-
-            This SET PERSIST/SET PERSIST_ONLY call may be setting one of those
-            variables. If so, remove those values from
-            m_persisted_dynamic_variables.
-          */
-          m_persisted_dynamic_variables.erase(tmp_var);
         } else {
           auto &variables = is_sensitive
                                 ? m_persisted_dynamic_sensitive_variables
                                 : m_persisted_dynamic_variables;
-          variables.erase(tmp_var);
           variables.insert(tmp_var);
           /*
             for plugin variables update m_persisted_dynamic_plugin_variables
@@ -512,18 +548,7 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
                 system_var->is_sensitive()
                     ? m_persisted_dynamic_sensitive_plugin_variables
                     : m_persisted_dynamic_plugin_variables;
-            plugin_variables.erase(tmp_var);
             plugin_variables.insert(tmp_var);
-          }
-          if (system_var->is_sensitive()) {
-            auto it = std::find_if(m_persisted_dynamic_variables.begin(),
-                                   m_persisted_dynamic_variables.end(),
-                                   [name](st_persist_var const &s) {
-                                     return !strcmp(s.key.c_str(), name);
-                                   });
-            if (it != m_persisted_dynamic_variables.end()) {
-              m_persisted_dynamic_variables.erase(it);
-            }
           }
         }
       }

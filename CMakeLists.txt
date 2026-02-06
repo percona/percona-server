@@ -101,6 +101,11 @@ ELSEIF(UNIX)
   ENDIF()
 ENDIF()
 
+IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_GENERATOR MATCHES "2019")
+  # An older version of Visual Studio.
+  SET(VS2019 1)
+ENDIF()
+
 # CMake 3.5 is needed for TARGET_SOURCES(... $<TARGET_OBJECTS:${LIB}_objlib>)
 # CMake 3.7 is needeed for VERSION_GREATER_EQUAL
 # For the set of currently supported platforms, we can bump up to:
@@ -2430,7 +2435,16 @@ ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 # Directory for MySQL Database libraries (Client/Server)
 ADD_SUBDIRECTORY(libs/mysql)
-ADD_SUBDIRECTORY(libchangestreams)
+IF(VS2019 AND WITHOUT_SERVER)
+  # MSVC 19.29 (VS16.11) has bugs, apparently, which make it incapable of
+  # building libs/mysql/sets. We don't need to build server, mysqlbinlog, or
+  # libchangestreams with that version, so in regression runs with this compiler
+  # we enable WITHOUT_SERVER and rely on the condition above to not build
+  # libchangestreams. The condition can be removed when we remove support for
+  # the platform. See also [**] in client/CMakeLists.txt
+ELSE()
+  ADD_SUBDIRECTORY(libchangestreams)
+ENDIF()
 ADD_SUBDIRECTORY(sql-common/oci)
 
 IF(NOT WITHOUT_SERVER)

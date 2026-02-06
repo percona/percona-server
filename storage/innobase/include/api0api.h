@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_config.h"
 
+#include "data0data.h"
 #include "db0err.h"
 
 /** Page number */
@@ -321,6 +322,8 @@ is a tuple for reading the entire row contents and another for searching
 on the index key. */
 typedef struct ib_tuple_t *ib_tpl_t;
 
+dtuple_t *ib_tuple_to_dtuple(ib_tpl_t tuple);
+
 /** InnoDB transaction handle, all database operations need to be covered
 by transactions. This handle represents a transaction. The handle can be
 created with ib_trx_begin(), you commit your changes with ib_trx_commit()
@@ -332,6 +335,9 @@ typedef struct trx_t *ib_trx_t;
 
 /** InnoDB cursor handle */
 typedef struct ib_cursor_t *ib_crsr_t;
+
+struct row_prebuilt_t;
+row_prebuilt_t *ib_cursor_get_row_prebuilt(ib_crsr_t cursor);
 
 /** This function is used to compare two data fields for which the data type
  is such that we must use the client code to compare them.

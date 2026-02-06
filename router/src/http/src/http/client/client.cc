@@ -97,33 +97,6 @@ V value_or(V value_users, V value_default) {
   return value_users;
 }
 
-static Client::Endpoint get_endpoint_from(const http::base::Uri &url) {
-  static const std::map<std::string, impl::ConfigSchema> k_protocol_ports{
-      {k_http, {false, 80}}, {k_https, {true, 8080}}};
-  Client::Endpoint result;
-
-  auto scheme = value_or(url.get_scheme(), k_http);
-
-  auto port_it = k_protocol_ports.find(scheme);
-  if (port_it == k_protocol_ports.end()) {
-    throw make_error_code(FailureCode::kInvalidScheme);
-  }
-
-  result.port = url.get_port();
-  result.port = result.port > 0 ? result.port : port_it->second.port;
-  result.is_tls = port_it->second.is_tls;
-  result.host = url.get_host();
-
-  // Remove the URL notation for ipv6 addresses.
-  if (!result.host.empty()) {
-    if (*result.host.begin() == '[' && *result.host.rbegin() == ']') {
-      result.host = result.host.substr(1, result.host.length() - 2);
-    }
-  }
-
-  return result;
-}
-
 static const std::string &get_method_as_string(
     http::base::method::key_type method) {
   // Use the 'namespace' for readability of enumeration of
@@ -295,6 +268,33 @@ Client::Client(io_context &io_context, const bool use_http2)
 
 Client::~Client() = default;
 
+Client::Endpoint Client::get_endpoint_from(const http::base::Uri &url) {
+  static const std::map<std::string, impl::ConfigSchema> k_protocol_ports{
+      {k_http, {false, 80}}, {k_https, {true, 443}}};
+  Client::Endpoint result;
+
+  auto scheme = impl::value_or(url.get_scheme(), k_http);
+
+  auto port_it = k_protocol_ports.find(scheme);
+  if (port_it == k_protocol_ports.end()) {
+    throw make_error_code(FailureCode::kInvalidScheme);
+  }
+
+  result.port = url.get_port();
+  result.port = url.get_port() > 0 ? result.port : port_it->second.port;
+  result.is_tls = port_it->second.is_tls;
+  result.host = url.get_host();
+
+  // Remove the URL notation for ipv6 addresses.
+  if (!result.host.empty()) {
+    if (*result.host.begin() == '[' && *result.host.rbegin() == ']') {
+      result.host = result.host.substr(1, result.host.length() - 2);
+    }
+  }
+
+  return result;
+}
+
 void Client::async_send_request(http::client::Request *request) {
   using namespace std::string_literals;
 
@@ -306,7 +306,7 @@ void Client::async_send_request(http::client::Request *request) {
 
     if (url.empty()) throw make_error_code(FailureCode::kInvalidUrl);
 
-    auto endpoint = impl::get_endpoint_from(url);
+    auto endpoint = get_endpoint_from(url);
 
     if (endpoint.host.empty())
       throw make_error_code(FailureCode::kInvalidHostname);

@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/19/2025
+.\"      Date: 12/12/2025
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 9.5
+.\"    Source: MySQL 9.6
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "09/19/2025" "MySQL 9\&.5" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "12/12/2025" "MySQL 9\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1750,7 +1750,7 @@ statements are written unless one of those options is specified\&.
 \fBNote\fR
 .ps -1
 .br
-In MySQL 9\&.5, the
+In MySQL 9\&.6, the
 mysql
 schema is considered a system schema that cannot be dropped by end users\&. If
 \fB\-\-add\-drop\-database\fR
@@ -3346,28 +3346,7 @@ T}
 T{
 Valid Values
 T}:T{
-.PP
 ansi
-.PP
-mysql323
-.PP
-mysql40
-.PP
-postgresql
-.PP
-oracle
-.PP
-mssql
-.PP
-db2
-.PP
-maxdb
-.PP
-no_key_options
-.PP
-no_table_options
-.PP
-no_key_options
 T}
 .TE
 .sp 1
@@ -4014,7 +3993,7 @@ description for information about an incompatibility of that option with
 \fB\-\-all\-databases\fR\&.
 .sp .5v
 .RE
-Prior to MySQL 9\&.5, the
+Prior to MySQL 9\&.6, the
 \fB\-\-routines\fR
 and
 \fB\-\-events\fR
@@ -4028,7 +4007,7 @@ system database, and therefore also the
 mysql\&.proc
 and
 mysql\&.event
-tables containing stored routine and event definitions\&. As of MySQL 9\&.5, the
+tables containing stored routine and event definitions\&. As of MySQL 9\&.6, the
 mysql\&.event
 and
 mysql\&.proc
@@ -5772,17 +5751,17 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 MySQL Shell dump utilities
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.5/en/mysql-shell-utilities-dump-instance-schema.html
+\%https://dev.mysql.com/doc/mysql-shell/9.6/en/mysql-shell-utilities-dump-instance-schema.html
 .RE
 .IP " 2." 4
 MySQL Shell load dump utilities
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.5/en/mysql-shell-utilities-load-dump.html
+\%https://dev.mysql.com/doc/mysql-shell/9.6/en/mysql-shell-utilities-load-dump.html
 .RE
 .IP " 3." 4
 here
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.5/en/mysql-shell-install.html
+\%https://dev.mysql.com/doc/mysql-shell/9.6/en/mysql-shell-install.html
 .RE
 .IP " 4." 4
 Downgrade Notes

@@ -181,8 +181,9 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t3;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
-# And delete from parent table is possible and doesn't cause asserts.
+# And delete from parent table fails and doesn't cause asserts.
 DELETE FROM t1;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
 UNLOCK TABLES;
 DROP TABLES t3, t1;
 #

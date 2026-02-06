@@ -2658,6 +2658,10 @@ KEY `k1` (`f2`,`f1`)
 );
 INSERT INTO t1 values(NULL, '');
 INSERT INTO t2 VALUES ('486878','WDT'),('486910','WDT');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
 EXPLAIN
 -> Group aggregate: avg(t2.f1)  (rows=1)

@@ -935,32 +935,17 @@ table_map CertainlyUsedTablesForCondition(const RelationalExpression &expr) {
   join tree (which we have presumably found out that we don't want).
  */
 bool IsCandidateForCycle(RelationalExpression *expr, Item *cond,
-                         std::span<Item *const> cycle_inducing_edges,
                          const CompanionSetCollection &companion_collection) {
   if (Overlaps(cond->used_tables(), PSEUDO_TABLE_BITS)) {
     return false;
   }
 
-  // 1) Always try to make cycle edges out of multi-equalities.
-  // 2) If we have already found a cycle-inducing edge using the exact same set
-  //    of tables, we can attach this predicate to the same edge, so we allow it
-  //    regardless of the item type.
-  if (!IsMultipleEquals(cond) &&  // 1
-      std::ranges::find(cycle_inducing_edges, cond->used_tables(),
-                        std::mem_fn(&Item::used_tables)) ==
-          cycle_inducing_edges.end())  // 2
-  {
-    // Don't try to make cycle edges out of hyperpredicates, at least for now;
-    // simple equalities and multi-equalities only.
-    if (cond->type() != Item::FUNC_ITEM) {
-      return false;
-    }
-    if (!down_cast<Item_func *>(cond)->contains_only_equi_join_condition()) {
-      return false;
-    }
-    if (popcount(cond->used_tables()) != 2) {
-      return false;
-    }
+  // We make cycle edges only out of predicates that reference exactly two
+  // tables. We also allow cycle edges from multi-equalities referencing many
+  // tables, as they can be split into multiple simple equalities referencing
+  // only two tables each.
+  if (!IsMultipleEquals(cond) && popcount(cond->used_tables()) != 2) {
+    return false;
   }
 
   // Check that we are not combining together anything that is not part of
@@ -1779,8 +1764,7 @@ void PushDownCondition(THD *thd, Item *cond, RelationalExpression *expr,
           thd, expr, cond, AssociativeRewritesAllowed::ANY,
           /*used_commutativity=*/false, &need_flatten)) {
     if (expr->type == RelationalExpression::INNER_JOIN &&
-        IsCandidateForCycle(expr, cond, *cycle_inducing_edges,
-                            companion_collection)) {
+        IsCandidateForCycle(expr, cond, companion_collection)) {
       // We couldn't push the condition to this join without broadening its
       // hyperedge, but we could add a simple edge (or multiple simple edges,
       // in the case of multiple equalities -- we defer the meshing of those
@@ -3252,7 +3236,9 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
     }
     if (cond->type() == Item::FUNC_ITEM &&
         down_cast<Item_func *>(cond)->contains_only_equi_join_condition()) {
-      expr->equijoin_conditions.push_back(down_cast<Item_eq_base *>(cond));
+      auto *eq_item = down_cast<Item_eq_base *>(cond);
+      expr->equijoin_conditions.push_back(eq_item);
+      expr->companion_set->AddEquijoinCondition(thd, *eq_item);
     } else {
       expr->join_conditions.push_back(cond);
     }
@@ -3311,8 +3297,6 @@ void PromoteCycleJoinPredicates(
                    root, graph);
     }
     expr->join_predicate_last = graph->predicates.size();
-    SortPredicates(graph->predicates.begin() + expr->join_predicate_first,
-                   graph->predicates.begin() + expr->join_predicate_last);
   }
 }
 
@@ -3333,8 +3317,15 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
     const Table_ref *const table_ref = expr->table;
     TABLE *const table = table_ref->table;
 
+    // The read set width of the table is costly to calculate, so we cache it in
+    // the node to avoid recalculating it. It is used for estimating hash join
+    // cost only, so we don't bother calculating it in single-table queries.
+    const int64_t read_set_width = graph->query_block()->leaf_table_count > 1
+                                       ? CalculateReadSetWidth(table)
+                                       : 0;
+
     graph->graph.AddNode();
-    graph->nodes.emplace_back(thd->mem_root, table);
+    graph->nodes.emplace_back(thd->mem_root, table, read_set_width);
 
     JoinHypergraph::Node &node = graph->nodes.back();
     for (const PushableJoinCondition &pushable : expr->pushable_conditions()) {
@@ -3386,11 +3377,6 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
                             graph->has_reordered_left_joins = true;
                           }
                         });
-  }
-
-  if (TraceStarted(thd)) {
-    Trace(thd) << StringPrintf("Selectivity of join %s:\n",
-                               GenerateExpressionLabel(expr).c_str());
   }
 
   const size_t estimated_bytes_per_row = EstimateRowWidthForJoin(*graph, expr);
@@ -3528,6 +3514,10 @@ void CompleteFullMeshForMultipleEqualities(
 void EstimateJoinConditionSelectivities(THD *thd, JoinHypergraph *graph) {
   for (JoinPredicate &edge : graph->edges) {
     RelationalExpression &expr = *edge.expr;
+    if (TraceStarted(thd)) {
+      Trace(thd) << StringPrintf("Selectivity of join %s:\n",
+                                 GenerateExpressionLabel(&expr).c_str());
+    }
     double join_selectivity = 1.0;
     expr.properties_for_equijoin_conditions.init(thd->mem_root);
     expr.properties_for_equijoin_conditions.reserve(
@@ -3555,19 +3545,25 @@ void EstimateJoinConditionSelectivities(THD *thd, JoinHypergraph *graph) {
     // Assign the same selectivities there.
     if (expr.join_predicate_first != expr.join_predicate_last) {
       int pred_idx = expr.join_predicate_first;
-      for (const CachedPropertiesForPredicate &properties :
-           expr.properties_for_equijoin_conditions) {
-        graph->predicates[pred_idx++].selectivity = properties.selectivity;
+      for (size_t i = 0; i < expr.properties_for_equijoin_conditions.size();
+           ++i) {
+        Predicate &predicate = graph->predicates[pred_idx++];
+        assert(predicate.condition == expr.equijoin_conditions[i]);
+        predicate.selectivity =
+            expr.properties_for_equijoin_conditions[i].selectivity;
       }
-      for (const CachedPropertiesForPredicate &properties :
-           expr.properties_for_join_conditions) {
-        graph->predicates[pred_idx++].selectivity = properties.selectivity;
+      for (size_t i = 0; i < expr.properties_for_join_conditions.size(); ++i) {
+        Predicate &predicate = graph->predicates[pred_idx++];
+        assert(predicate.condition == expr.join_conditions[i]);
+        predicate.selectivity =
+            expr.properties_for_join_conditions[i].selectivity;
       }
       assert(pred_idx == expr.join_predicate_last);
     }
 
     // Now that we have calculated the selectivity estimates, we can sort the
-    // predicates so that the most selective ones are evaluated first.
+    // predicates so that the most selective and least expensive ones are
+    // evaluated first.
     SortPredicates(graph->predicates.begin() + expr.join_predicate_first,
                    graph->predicates.begin() + expr.join_predicate_last);
   }

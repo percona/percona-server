@@ -176,6 +176,7 @@ table_status_by_thread.h
 table_status_by_user.h
 table_sync_instances.h
 table_table_handles.h
+table_temporary_account_locks.h
 table_threads.h
 table_tiws_by_index_usage.h
 table_tiws_by_table.h
@@ -353,6 +354,7 @@ table_status_by_thread.cc
 table_status_by_user.cc
 table_sync_instances.cc
 table_table_handles.cc
+table_temporary_account_locks.cc
 table_threads.cc
 table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
@@ -390,7 +392,8 @@ table_malloc_stats.h
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY
-  LINK_LIBRARIES extra::rapidjson ext::zlib mysql_gtid extra::unordered_dense
+  LINK_LIBRARIES extra::rapidjson extra::boost
+    ext::zlib mysql_gtid extra::unordered_dense
   )
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)

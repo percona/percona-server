@@ -86,6 +86,7 @@ Checks:
   -hicpp-no-malloc,
   -hicpp-signed-bitwise,
   -hicpp-vararg,
+  -hicpp-braces-around-statements,
   misc-*,
   -misc-const-correctness,
   -misc-include-cleaner,

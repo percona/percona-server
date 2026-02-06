@@ -2192,14 +2192,13 @@ bool Item_func_from_days::val_datetime(Datetime_val *dt,
                                        my_time_flags_t flags) {
   const longlong value = args[0]->val_int();
   if ((null_value = args[0]->null_value)) return true;
-  get_date_from_daynr(value, &dt->year, &dt->month, &dt->day);
+
+  uint32_t year, month, day;
+  get_date_from_daynr(value, &year, &month, &day);
+  *dt = Datetime_val(year, month, day);
 
   if (check_datetime_range(*dt)) {
-    // Value is out of range, cannot use our printing functions to output it.
-    push_warning_printf(
-        current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
-        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
-    null_value = true;
+    raise_temporal_overflow("DATE");
     return true;
   }
 
@@ -2207,7 +2206,6 @@ bool Item_func_from_days::val_datetime(Datetime_val *dt,
                     (dt->year == 0 || dt->month == 0 || dt->day == 0)))
     return true;
 
-  dt->time_type = MYSQL_TIMESTAMP_DATE;
   return false;
 }
 
@@ -2837,7 +2835,8 @@ bool Item_date_add_interval::resolve_type(THD *thd) {
     if ((m_interval_type >= INTERVAL_HOUR &&
          m_interval_type <= INTERVAL_MICROSECOND) ||
         (m_interval_type >= INTERVAL_HOUR_MINUTE &&
-         m_interval_type <= INTERVAL_SECOND_MICROSECOND)) {
+         m_interval_type <= INTERVAL_SECOND_MICROSECOND &&
+         m_interval_type != INTERVAL_DAY_MICROSECOND)) {
       uint8 dec = max<uint8>(args[0]->time_precision(), interval_dec);
       set_data_type_time(dec);
     } else {
@@ -2863,9 +2862,7 @@ bool Item_date_add_interval::get_datetime_internal(Datetime_val *dt,
   if (get_interval_value(args[1], m_interval_type, &value, &interval)) {
     // Do not warn about "overflow" for NULL
     if (!args[1]->null_value) {
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
-          ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
+      raise_temporal_overflow("DATETIME");
     }
     return (null_value = true);
   }
@@ -2896,10 +2893,7 @@ bool Item_date_add_interval::eval_time(Time_val *time) {
     return true;
   }
   if (time->add(interval, m_subtract)) {
-    push_warning_printf(
-        current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
-        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), "time");
-    null_value = true;
+    raise_temporal_overflow("TIME");
     return true;
   }
 
@@ -3302,10 +3296,9 @@ bool Item_func_makedate::val_datetime(Datetime_val *dt, my_time_flags_t) {
   /* Day number from year 0 to 9999-12-31 */
   if (days >= 0 && days <= MAX_DAY_NUMBER) {
     null_value = false;
-    get_date_from_daynr(days, &dt->year, &dt->month, &dt->day);
-    dt->neg = false;
-    dt->hour = dt->minute = dt->second = dt->second_part = 0;
-    dt->time_type = MYSQL_TIMESTAMP_DATE;
+    uint32_t yearno, month, day;
+    get_date_from_daynr(days, &yearno, &month, &day);
+    *dt = Datetime_val(yearno, month, day);
     return false;
   }
 
@@ -3402,10 +3395,11 @@ bool Item_func_add_time::eval_datetime(Datetime_val *dt,
   }
   if (is_time) {
     if (time1.add(time2, m_subtract)) {
+      raise_temporal_overflow("TIME");
+      if (thd->is_error()) return true;
+      // Special semantics: Return extreme value and no NULL on overflow
       time1.set_extreme_value(time1.is_negative());
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
-          ER_THD(thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
+      null_value = false;
     }
     *implicit_cast<MYSQL_TIME *>(dt) = MYSQL_TIME(time1);
     return false;
@@ -3447,11 +3441,7 @@ bool Item_func_add_time::eval_datetime(Datetime_val *dt,
   dt->time_type = MYSQL_TIMESTAMP_DATETIME;
 
   if (check_datetime_range(*dt)) {
-    // Value is out of range, cannot use our printing functions to output it.
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
-        ER_THD(thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
-    null_value = true;
+    raise_temporal_overflow("DATETIME");
     return true;
   }
   // The date 0000-00-00 is not valid
@@ -3474,10 +3464,7 @@ bool Item_func_add_time::eval_time(Time_val *time) {
     return true;
   }
   if (time1.add(time2, m_subtract)) {
-    push_warning_printf(
-        current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
-        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
-    null_value = true;
+    raise_temporal_overflow("TIME");
     return true;
   }
   *time = time1;

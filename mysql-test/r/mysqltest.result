@@ -9,7 +9,7 @@ otto
 select friedrich from (select 1 as otto) as t1;
 mysqltest: At line 1: Query failed.
 Query: 'select friedrich from (select 1 as otto) as t1'
-Returned error: 1054 (42S22): Unknown column 'friedrich' in 'field list'
+Returned error: ER_BAD_FIELD_ERROR(1054) (42S22): Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
@@ -29,7 +29,7 @@ ERROR 42S22: Unknown column 'friedrich' in 'field list'
 mysqltest: At line 1: Query failed with an error different from the expected error(s).
 Query: 'select friedrich from (select 1 as otto) as t1'
 Expected error(s): 00000
-Returned error: 1054 (42S22): Unknown column 'friedrich' in 'field list'
+Returned error: ER_BAD_FIELD_ERROR(1054) (42S22): Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -168,7 +168,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: Query failed with an error different from the expected error(s).
 Query: 'select 3 from t1'
 Expected error(s): 1000
-Returned error: 1146 (42S02): Table 'test.t1' doesn't exist
+Returned error: ER_NO_SUCH_TABLE(1146) (42S02): Table 'test.t1' doesn't exist
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
  is empty
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
@@ -186,7 +186,7 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 mysqltest: At line 1: Query failed with an error different from the expected error(s).
 Query: 'select 3 from t1'
 Expected error(s): 1064
-Returned error: 1146 (42S02): Table 'test.t1' doesn't exist
+Returned error: ER_NO_SUCH_TABLE(1146) (42S02): Table 'test.t1' doesn't exist
 garbage;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 2;
@@ -406,7 +406,7 @@ drop table t1;
 mysqltest: At line 1: Query failed.
 Query sent to server: 'failing query'
 Query generated from: 'let $var2= `failing query`'
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
 mysqltest: At line 1: Source directives are nesting too deep
@@ -429,7 +429,7 @@ included from <stdin>: 1
 garbage ;
 mysqltest: At line 1: Query failed.
 Query: 'garbage '
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 In included file MYSQLTEST_VARDIR/tmp/error.sql: 1
 included from <stdin>: 1
 
@@ -564,7 +564,7 @@ mysqltest: At line 1: Stray 'end' command - end of block before beginning
 {;
 mysqltest: At line 1: Query failed.
 Query: '{'
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
 mysqltest: At line 3: Missing end of block
 mysqltest: At line 3: Missing end of block
@@ -606,7 +606,7 @@ mysqltest: At line 1: Connection con2 doesn't exist for reconnect
 mysqltest: At line 1: Connection con2 doesn't exist for reconnect
 mysqltest: At line 1: Query failed.
 Query: 'connect  con2,localhost,root,,illegal_db'
-Returned error: 1049 (42000): Unknown database 'illegal_db'
+Returned error: ER_BAD_DB_ERROR(1049) (42000): Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 200 connects succeeded
@@ -685,14 +685,14 @@ Query: 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query''
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
 mysqltest: At line 2: Query failed.
 Query: 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query''
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
 Multi statement using expected error
 create table t1 (a int primary key);
@@ -1059,7 +1059,7 @@ value= No such row
 mysqltest: At line 1: Query failed.
 Query sent to server: 'SHOW COLNS FROM t1'
 Query generated from: 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)'
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
 a int YES -><- NULL 
@@ -1799,7 +1799,7 @@ Hello
 execute this invalid query;
 mysqltest: At line 7: Query failed.
 Query: 'execute this invalid query'
-Returned error: 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
+Returned error: ER_PARSE_ERROR(1064) (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
 #
 # BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
 #
@@ -1831,7 +1831,7 @@ REPLACE_STRING
 SELECT REPLACE_STRING FROM t1;
 mysqltest: At line 1: Query failed.
 Query: 'SELECT REPLACE_STRING FROM t1'
-Returned error: 1146 (42S02): Table 'test.t1' doesn't exist
+Returned error: ER_NO_SUCH_TABLE(1146) (42S02): Table 'test.t1' doesn't exist
 #
 # Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
 #

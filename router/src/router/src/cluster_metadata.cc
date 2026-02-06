@@ -1333,8 +1333,9 @@ std::string to_string(const ClusterType cluster_type) {
 }
 
 static std::vector<std::string> do_get_grant_statements(
+    const mysqlrouter::MetadataSchemaVersion &schema_version,
     const std::string &new_accounts) {
-  return {
+  std::vector<std::string> result{
       "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO " +
           new_accounts,
       "GRANT SELECT ON performance_schema.replication_group_members TO " +
@@ -1349,16 +1350,27 @@ static std::vector<std::string> do_get_grant_statements(
       "GRANT INSERT, UPDATE, DELETE ON "
       "mysql_innodb_cluster_metadata.v2_routers TO " +
           new_accounts};
+
+  if (schema_version >= mysqlrouter::kRouterStatsMetadataVersion) {
+    result.emplace_back(
+        "GRANT INSERT, UPDATE ON mysql_innodb_cluster_metadata.router_stats "
+        "TO" +
+        new_accounts);
+  }
+
+  return result;
 }
 
 std::vector<std::string> ClusterMetadataGRV2::get_grant_statements(
+    const mysqlrouter::MetadataSchemaVersion &schema_version,
     const std::string &new_accounts) const {
-  return do_get_grant_statements(new_accounts);
+  return do_get_grant_statements(schema_version, new_accounts);
 }
 
 std::vector<std::string> ClusterMetadataAR::get_grant_statements(
+    const mysqlrouter::MetadataSchemaVersion &schema_version,
     const std::string &new_accounts) const {
-  return do_get_grant_statements(new_accounts);
+  return do_get_grant_statements(schema_version, new_accounts);
 }
 
 // default SQL_MODE as of 8.0.19

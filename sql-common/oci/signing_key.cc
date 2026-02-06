@@ -39,11 +39,11 @@ static void SSL_memory_deallocator(void *p) { OPENSSL_free(p); }
 
 void log_error(const std::string &message) { std::cerr << message; }
 
-Data Signing_Key::sign(const std::string &message) {
+Data Signing_Key::sign(const std::string &message) const {
   return sign(message.c_str(), message.length());
 }
 
-Data Signing_Key::sign(const void *message, size_t length) {
+Data Signing_Key::sign(const void *message, size_t length) const {
   if (m_private_key == nullptr) return {};
 
   size_t slen = 0;

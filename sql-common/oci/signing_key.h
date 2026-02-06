@@ -53,11 +53,11 @@ class Signing_Key {
   Signing_Key(Signing_Key &&) = default;
   Signing_Key &operator=(Signing_Key &&) = delete;
   operator bool() const { return m_private_key.operator bool(); }
-  std::string get_public_key() { return m_public_key; }
+  std::string get_public_key() const { return m_public_key; }
 
   // main operation
-  Data sign(const std::string &message);
-  Data sign(const void *message, size_t length);
+  Data sign(const std::string &message) const;
+  Data sign(const void *message, size_t length) const;
 };
 }  // namespace oci
 #endif

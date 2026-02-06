@@ -92,7 +92,8 @@ bool IPCConfig::configureTransporters(Uint32 nodeId,
       // Transporter exist in TransporterRegistry but not
       // in configuration
       g_eventLogger->info(
-          "The connection to node %d could not be removed at this time", i);
+          "Node %u connection to node %d could not be removed at this time",
+          nodeId, i);
       result = false;  // Need restart
     }
   }
@@ -205,8 +206,9 @@ bool IPCConfig::configureTransporters(Uint32 nodeId,
           DBUG_PRINT("error", ("Failed to configure SHM Transporter "
                                "from %d to %d",
                                conf.localNodeId, conf.remoteNodeId));
-          g_eventLogger->info("Failed to configure SHM Transporter to node %d",
-                              conf.remoteNodeId);
+          g_eventLogger->info(
+              "Node %u failed to configure SHM transporter to node %u", nodeId,
+              conf.remoteNodeId);
           result = false;
         }
         DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
@@ -237,8 +239,9 @@ bool IPCConfig::configureTransporters(Uint32 nodeId,
         conf.type = tt_TCP_TRANSPORTER;
 
         if (!tr.configureTransporter(&conf)) {
-          g_eventLogger->info("Failed to configure TCP Transporter to node %d",
-                              conf.remoteNodeId);
+          g_eventLogger->info(
+              "Node %u failed to configure TCP transporter to node %u", nodeId,
+              conf.remoteNodeId);
           result = false;
         }
         DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
@@ -247,8 +250,8 @@ bool IPCConfig::configureTransporters(Uint32 nodeId,
         loopback_conf = conf;  // reuse it...
         break;
       default:
-        g_eventLogger->info("Unknown transporter type from: %u to: %u", nodeId,
-                            remoteNodeId);
+        g_eventLogger->info("Transporter from node %u to node %u: unknown type",
+                            nodeId, remoteNodeId);
         break;
     }  // switch
   }    // for
@@ -272,7 +275,8 @@ bool IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.requireTls = false;
 
     if (!tr.configureTransporter(&loopback_conf)) {
-      g_eventLogger->info("Failed to configure Loopback Transporter");
+      g_eventLogger->info("Node %u failed to configure loopback transporter",
+                          nodeId);
       result = false;
     }
   }

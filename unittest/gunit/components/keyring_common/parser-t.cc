@@ -34,29 +34,6 @@ namespace component_load_parser_unittest {
 
 class ComponentLoadParser_test : public ::testing::Test {};
 
-std::string group_separator = ";";
-std::string component_separator = ",";
-
-void get_next_group(std::string &groups, std::string &one_group) {
-  if (groups.find(group_separator) != std::string::npos) {
-    one_group = groups.substr(0, groups.find(group_separator));
-    groups.erase(0, groups.find(group_separator) + 1);
-  } else {
-    one_group = groups;
-    groups.clear();
-  }
-}
-
-void get_next_component(std::string &components, std::string &one_component) {
-  if (components.find(component_separator) != std::string::npos) {
-    one_component = components.substr(0, components.find(component_separator));
-    components.erase(0, components.find(component_separator) + 1);
-  } else {
-    one_component = components;
-    components.clear();
-  }
-}
-
 // Use myu::IsSpace rather than ::isspace to avoid linker warnings on MacOS.
 void remove_spaces(std::string &groups) {
   groups.erase(std::remove_if(groups.begin(), groups.end(), myu::IsSpace),

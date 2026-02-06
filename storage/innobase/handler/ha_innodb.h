@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "create_field.h"
 #include "field.h"
 #include "handler.h"
+#include "mysql/components/services/bulk_data_service.h"
 #include "mysql/components/services/clone_protocol_service.h"
 
 #include "row0pread-adapter.h"
@@ -476,6 +477,42 @@ class ha_innobase : public handler {
   @param[in] thd user session
   @return true iff bulk load can be done on the table. */
   bool bulk_load_check(THD *thd) const override;
+
+  /** Used during bulk load on a non-empty table, called after the CSV file
+  input is exhausted and we need to copy any existing data from the original
+  table to the duplicated one.
+  @param[in]  load_ctx      SE load context
+  @param[in]  thread_idx    loader thread index
+  @param[in]  wait_cbk      stat callbacks.
+  @return 0 if successful, HA_ERR_GENERIC otherwise. */
+  int bulk_load_copy_existing_data(
+      void *load_ctx, size_t thread_idx,
+      Bulk_load::Stat_callbacks &wait_cbk) const override;
+
+  /** Sets the source table data (table name and key range boundaries) for all
+  loaders.
+  @param[in,out]  load_ctx                SE load context
+  @param[in]      source_table_data  vector containing the source table data
+  @return true if successful, false otherwise. */
+  bool bulk_load_set_source_table_data(
+      void *load_ctx,
+      const std::vector<Bulk_load::Source_table_data> &source_table_data)
+      const override;
+
+  /** Generates a temporary table name to be used for table duplication during
+  bulk load.
+  @return a temporary table name. */
+  std::string bulk_load_generate_temporary_table_name() const override;
+
+  /** Get the row ID range of the table that we're bulk loading into. Only used
+  when the table has a generated clustered index and is not empty.
+  @param[out] min Minimum ROW_ID in table
+  @param[out] max Maximum ROW_ID in table
+  @return true if successful, false otherwise. */
+  bool bulk_load_get_row_id_range(size_t &min, size_t &max) const override;
+
+  /** Check whether the table is empty */
+  bool is_table_empty() const override;
 
   /** Get the total memory available for bulk load in innodb buffer pool.
   @param[in] thd user session

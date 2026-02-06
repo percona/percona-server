@@ -267,6 +267,18 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
   return true;
 }
 
+static sqlstring get_last_check_in_query(
+    const mysqlrouter::MetadataSchemaVersion &md_version) {
+  if (md_version >= mysqlrouter::kRouterStatsMetadataVersion) {
+    return "INSERT INTO mysql_innodb_cluster_metadata.router_stats(router_id, "
+           "last_check_in) VALUES (?, NOW()) ON DUPLICATE KEY UPDATE "
+           "last_check_in = NOW()";
+  } else {
+    return "UPDATE mysql_innodb_cluster_metadata.v2_routers set "
+           "last_check_in=NOW() where router_id = ?";
+  }
+}
+
 bool ClusterMetadata::update_router_attributes(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id,
@@ -284,11 +296,10 @@ bool ClusterMetadata::update_router_attributes(
   MySQLSession::Transaction transaction(connection.get());
   // throws metadata_cache::metadata_error and
   // MetadataUpgradeInProgressException
-  get_and_check_metadata_schema_version(*connection);
-
+  const auto md_version = get_and_check_metadata_schema_version(*connection);
   sqlstring query =
       "UPDATE mysql_innodb_cluster_metadata.v2_routers "
-      "SET version = ?, last_check_in = NOW(), attributes = "
+      "SET version = ?, attributes = "
       "JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET( "
       "IF(attributes IS NULL, '{}', attributes), "
       "'$.RWEndpoint', ?), "
@@ -307,6 +318,11 @@ bool ClusterMetadata::update_router_attributes(
         << mysql_harness::DynamicConfig::instance().get_json_as_string(
                mysql_harness::DynamicConfig::ValueType::ConfiguredValue)
         << router_id << sqlstring::end;
+
+  connection->execute(query);
+
+  query = get_last_check_in_query(md_version);
+  query << router_id << sqlstring::end;
 
   connection->execute(query);
 
@@ -331,12 +347,9 @@ bool ClusterMetadata::update_router_last_check_in(
   MySQLSession::Transaction transaction(connection.get());
   // throws metadata_cache::metadata_error and
   // MetadataUpgradeInProgressException
-  get_and_check_metadata_schema_version(*connection);
+  const auto md_version = get_and_check_metadata_schema_version(*connection);
 
-  sqlstring query =
-      "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in = "
-      "NOW() where router_id = ?";
-
+  sqlstring query = get_last_check_in_query(md_version);
   query << router_id << sqlstring::end;
   try {
     connection->execute(query);

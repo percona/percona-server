@@ -678,6 +678,7 @@ SELECT * FROM json_data4;
 
 SELECT JSON_MERGE_PATCH(t1.field1, t2.field1) FROM json_data2 as t1, json_data3 as t2;
 
+--sorted_result
 SELECT JSON_MERGE_PRESERVE(t1.field1, t2.field1) FROM json_data3 as t1, json_data4 as t2;
 
 --echo [Connection Master]

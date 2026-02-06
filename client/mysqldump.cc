@@ -2785,7 +2785,7 @@ static bool is_string_integer(const char *str, ulong str_len) {
 */
 static uint dump_events_for_db(char *db) {
   char query_buff[QUERY_LENGTH];
-  char db_name_buff[NAME_LEN * 2 + 3], name_buff[NAME_LEN * 2 + 3];
+  char name_buff[NAME_LEN * 2 + 3];
   char *event_name;
   char delimiter[QUERY_LENGTH];
   FILE *sql_file = md_result_file;
@@ -2797,9 +2797,6 @@ static uint dump_events_for_db(char *db) {
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s'", db));
-
-  mysql_real_escape_string_quote(mysql, db_name_buff, db, (ulong)strlen(db),
-                                 '\'');
 
   /* nice comments */
   bool freemem = false;
@@ -2820,8 +2817,7 @@ static uint dump_events_for_db(char *db) {
 
       /* Get database collation. */
 
-      if (fetch_db_collation(db_name_buff, db_cl_name, sizeof(db_cl_name)))
-        return 1;
+      if (fetch_db_collation(db, db_cl_name, sizeof(db_cl_name))) return 1;
     }
 
     if (switch_character_set_results(mysql, "binary")) return 1;
@@ -2863,8 +2859,8 @@ static uint dump_events_for_db(char *db) {
           fprintf(sql_file, "DELIMITER %s\n", delimiter);
 
           if (mysql_num_fields(event_res) >= 7) {
-            if (switch_db_collation(sql_file, db_name_buff, delimiter,
-                                    db_cl_name, row[6], &db_cl_altered)) {
+            if (switch_db_collation(sql_file, db, delimiter, db_cl_name, row[6],
+                                    &db_cl_altered)) {
               return 1;
             }
 
@@ -2909,8 +2905,7 @@ static uint dump_events_for_db(char *db) {
             restore_cs_variables(sql_file, delimiter);
 
             if (db_cl_altered) {
-              if (restore_db_collation(sql_file, db_name_buff, delimiter,
-                                       db_cl_name))
+              if (restore_db_collation(sql_file, db, delimiter, db_cl_name))
                 return 1;
             }
           }
@@ -3127,7 +3122,8 @@ static uint dump_libraries_for_db(char *db_name_buff) {
 static uint dump_routines_for_db(char *db) {
   char query_buff[QUERY_LENGTH];
   const char *routine_type[] = {"FUNCTION", "PROCEDURE"};
-  char db_name_buff[NAME_LEN * 2 + 3], name_buff[NAME_LEN * 2 + 3];
+  // The DB name to put in a quoted string
+  char db_name_string[NAME_LEN * 2 + 3], name_buff[NAME_LEN * 2 + 3];
   char *routine_name;
   int i;
   FILE *sql_file = md_result_file;
@@ -3140,7 +3136,7 @@ static uint dump_routines_for_db(char *db) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string_quote(mysql, db_name_buff, db, (ulong)strlen(db),
+  mysql_real_escape_string_quote(mysql, db_name_string, db, (ulong)strlen(db),
                                  '\'');
 
   /* nice comments */
@@ -3160,19 +3156,18 @@ static uint dump_routines_for_db(char *db) {
 
   /* Get database collation. */
 
-  if (fetch_db_collation(db_name_buff, db_cl_name, sizeof(db_cl_name)))
-    return 1;
+  if (fetch_db_collation(db, db_cl_name, sizeof(db_cl_name))) return 1;
 
   if (switch_character_set_results(mysql, "binary")) return 1;
 
   if (opt_xml) fputs("\t<routines>\n", sql_file);
 
-  if (dump_libraries_for_db(db_name_buff)) return 1;
+  if (dump_libraries_for_db(db_name_string)) return 1;
 
   /* 0, retrieve and dump functions, 1, procedures */
   for (i = 0; i <= 1; i++) {
     snprintf(query_buff, sizeof(query_buff), "SHOW %s STATUS WHERE Db = '%s'",
-             routine_type[i], db_name_buff);
+             routine_type[i], db_name_string);
 
     if (mysql_query_with_error_report(mysql, &routine_list_res, query_buff))
       return 1;
@@ -3183,17 +3178,17 @@ static uint dump_routines_for_db(char *db) {
             mysql, name_buff, routine_list_row[1],
             static_cast<ulong>(strlen(routine_list_row[1])), '\'');
 
-        if (has_missing_import(db_name_buff, name_buff, sql_file)) {
+        if (has_missing_import(db_name_string, name_buff, sql_file)) {
           // Any of the imported libraries does NOT exist.
           print_comment(
               sql_file, true,
               "\n-- One or more of the libraries used by %s.%s routine, do "
               "not exist. \n",
-              db_name_buff, name_buff);
+              db_name_string, name_buff);
           maybe_die(
               EX_MYSQLERR,
               "Routine %s.%s is missing one or more of its imported libraries.",
-              db_name_buff, name_buff);
+              db_name_string, name_buff);
           return 1;
         }
 
@@ -3243,8 +3238,8 @@ static uint dump_routines_for_db(char *db) {
                       routine_type[i], routine_name);
 
             if (mysql_num_fields(routine_res) >= 6) {
-              if (switch_db_collation(sql_file, db_name_buff, ";", db_cl_name,
-                                      row[5], &db_cl_altered)) {
+              if (switch_db_collation(sql_file, db, ";", db_cl_name, row[5],
+                                      &db_cl_altered)) {
                 return 1;
               }
 
@@ -3284,8 +3279,7 @@ static uint dump_routines_for_db(char *db) {
               restore_cs_variables(sql_file, ";");
 
               if (db_cl_altered) {
-                if (restore_db_collation(sql_file, db_name_buff, ";",
-                                         db_cl_name))
+                if (restore_db_collation(sql_file, db, ";", db_cl_name))
                   return 1;
               }
             }
@@ -6782,7 +6776,8 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
               table_name, table_name);
       continue;
     }
-    if (atoi(row[3]) < 1) break;
+    /* break if the index is not unique */
+    if (row[1] && *row[1] && atoi(row[1]) > 0) break;
     if (row[4] && *row[4]) order_by_part = quote_name(row[4], buff, false);
 #ifdef USABLE_EXPR_IN_SHOW_INDEX_BUG35273994
     else if (mysql_num_fields(res) > 14 && row[14] &&
@@ -6819,7 +6814,8 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
     while (nullptr != (row = mysql_fetch_row(res))) {
       unsigned const braces_length = 0;
       if (!row[3] || !*row[3]) continue;
-      if (atoi(row[3]) < 1) break;
+      /* break if the index is not unique */
+      if (row[1] && *row[1] && atoi(row[1]) > 0) break;
       if (row[4] && *row[4]) order_by_part = quote_name(row[4], buff, false);
 #ifdef USABLE_EXPR_IN_SHOW_INDEX_BUG35273994
       else if (mysql_num_fields(res) > 14 && row[14] && *row[14]) {

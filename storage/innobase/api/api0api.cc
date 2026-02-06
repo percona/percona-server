@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "rem0cmp.h"
 #include "row0ins.h"
+#include "row0mysql.h"
 #include "row0sel.h"
 #include "row0upd.h"
 #include "row0vers.h"
@@ -212,6 +213,12 @@ struct ib_tuple_t {
   dtuple_t *ptr; /*!< The internal tuple
                  instance */
 };
+
+dtuple_t *ib_tuple_to_dtuple(ib_tpl_t tuple) { return tuple->ptr; }
+
+row_prebuilt_t *ib_cursor_get_row_prebuilt(ib_crsr_t cursor) {
+  return cursor->prebuilt;
+}
 
 /** The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
@@ -417,6 +424,11 @@ static ib_tpl_t ib_key_tuple_new_low(
   }
 
   n_cmp_cols = dict_index_get_n_ordering_defined_by_user(index);
+
+  /* Is it a generated clustered index ? */
+  if (n_cmp_cols == 0) {
+    ++n_cmp_cols;
+  }
 
   dtuple_set_n_fields_cmp(tuple->ptr, n_cmp_cols);
 
@@ -807,10 +819,11 @@ ib_err_t ib_cursor_open_index_using_name(
 
 /** Open an InnoDB table and return a cursor handle to it.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
-                              ib_trx_t ib_trx,    /*!< in: Current transaction
-                                                  handle    can be NULL */
-                              ib_crsr_t *ib_crsr) /*!< out,own: InnoDB cursor */
+ib_err_t ib_cursor_open_table(
+    const char *name,      /*!< in: table name */
+    const ib_trx_t ib_trx, /*!< in: Current transaction
+                    handle    can be NULL */
+    ib_crsr_t *ib_crsr)    /*!< out,own: InnoDB cursor */
 {
   ib_err_t err;
   dict_table_t *table;
@@ -1707,6 +1720,11 @@ ib_err_t ib_cursor_moveto(ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
 
   n_fields = dict_index_get_n_ordering_defined_by_user(prebuilt->index);
 
+  if (n_fields == 0 && prebuilt->index->is_clustered() &&
+      prebuilt->clust_index_was_generated) {
+    n_fields = 1;
+  }
+
   if (n_fields > dtuple_get_n_fields(tuple->ptr)) {
     n_fields = dtuple_get_n_fields(tuple->ptr);
   }
@@ -2258,6 +2276,9 @@ ib_tpl_t ib_clust_search_tuple_create(
   index = cursor->prebuilt->table->first_index();
 
   n_cols = dict_index_get_n_ordering_defined_by_user(index);
+  if (n_cols == 0) {
+    n_cols = 1;
+  }
   return (ib_key_tuple_new(index, n_cols));
 }
 

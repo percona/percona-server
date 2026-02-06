@@ -2650,30 +2650,24 @@ void Item_func_json_duality_object::print(const THD *thd, String *str,
   str->append('(');
 
   if (table_tags() != 0) {
-    bool first_tag = true;
     str->append(" WITH (");
-    if (table_tags() & jdv::DVT_INSERT) {
-      first_tag = false;
-      str->append("INSERT");
-    }
 
-    if (table_tags() & jdv::DVT_UPDATE) {
-      if (first_tag) {
-        first_tag = false;
-      } else {
-        str->append(",");
+    bool first = true;
+    auto add_if_set = [&](int flag, const char *name) {
+      if (table_tags() & flag) {
+        if (!first) str->append(",");
+        str->append(name);
+        first = false;
       }
-      str->append("UPDATE");
-    }
+    };
 
-    if (table_tags() & jdv::DVT_DELETE) {
-      if (first_tag) {
-        first_tag = false;
-      } else {
-        str->append(",");
-      }
-      str->append("DELETE");
-    }
+    add_if_set(jdv::DVT_INSERT, "INSERT");
+    add_if_set(jdv::DVT_UPDATE, "UPDATE");
+    add_if_set(jdv::DVT_DELETE, "DELETE");
+    add_if_set(jdv::DVT_NOINSERT, "NO INSERT");
+    add_if_set(jdv::DVT_NOUPDATE, "NO UPDATE");
+    add_if_set(jdv::DVT_NODELETE, "NO DELETE");
+
     str->append(") ");
   }
 
@@ -2784,14 +2778,16 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
       const char *data = wrapper.get_data();
       const uint len = static_cast<uint>(wrapper.get_data_length());
       source_string->set_str_with_copy(data, len, &my_charset_utf8mb4_bin);
-      if (like_node->val_int()) {
+      const bool result = like_node->val_int() != 0;
+      if (current_thd->is_error()) return true;
+      if (result) {
         // Got a match with the LIKE node. Save the path of the JSON string.
         std::pair<String_set::iterator, bool> res =
             duplicates->insert_unique(std::string(path->ptr(), path->length()));
 
         if (res.second) {
           Json_string *jstr = new (std::nothrow) Json_string(*res.first);
-          if (!jstr || matches->push_back(jstr))
+          if (jstr == nullptr || matches->push_back(jstr))
             return true; /* purecov: inspected */
         }
       }

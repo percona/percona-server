@@ -161,6 +161,7 @@
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"  // sql_exchange
+#include "sql/sql_foreign_key_constraint.h"
 #include "sql/sql_gipk.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"        // I_List
@@ -3623,6 +3624,15 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
   slave_proxy_id = thd_arg->variables.pseudo_thread_id;
   common_header->set_is_valid(query != nullptr);
 
+  DBUG_EXECUTE_IF("binlog_corrupt_query", {
+    /// Produce a corrupted query in the binary log by removing the first
+    /// character. Do this only for statements other than BEGIN and COMMIT.
+    if (strcmp(query, "BEGIN") != 0 && strcmp(query, "COMMIT") != 0) {
+      ++query;
+      --q_len;
+    }
+  });
+
   /*
   exec_time calculation has changed to use the same method that is used
   to fill out "thd_arg->start_time"
@@ -4629,7 +4639,29 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           thd->copy_status_var(&query_start_status);
         }
 
+<<<<<<< HEAD
         dispatch_sql_command(thd, &parser_state, true);
+||||||| merged common ancestors
+        dispatch_sql_command(thd, &parser_state);
+=======
+        /// If an error occurs while executing the statement, and the error is
+        /// to be ignored, the statement will not execute and hence will not be
+        /// written to the binary log. But since we succeed (by suppressing the
+        /// error), we must track the GTID. The GTID will be written in the
+        /// invocation of gtid_end_transaction later in this function, but in
+        /// order for that to work, we must not rollback GTID ownership while
+        /// rolling back the statement. Therefore we register this checker,
+        /// which blocks the gtid rollback in case the error is ignored. The
+        /// returned object is a scope guard that will unregister the checker.
+        auto unregister_guard =
+            thd->register_skip_gtid_rollback_checker([](const THD &thd) {
+              int error_code{0};
+              if (thd.is_error()) error_code = thd.get_stmt_da()->mysql_errno();
+              return ignored_error_code(error_code);
+            });
+
+        dispatch_sql_command(thd, &parser_state);
+>>>>>>> mysql-9.6.0
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -4913,6 +4945,33 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
 
 end:
+  // Generate an empty GTID transaction if needed. This usually happens from
+  // within dispatch_sql_command: either during commit, if the transaction
+  // reaches commit, or after processing a potentially-committing statement,
+  // when mysql_execute_command invokes binlog_gtid_end_transaction. However,
+  // the generation of empty transactions in those places occurs only if the
+  // statement succeeds. If the statement fails and subsequently the error is
+  // ignored due to replica-skip-error, we need to call gtid_end_transaction
+  // here.
+  //
+  // The condition !thd->is_slave_error is needed so that we only generate empty
+  // GTID transactions when the error has been ignored.
+  //
+  // The condition that OPTION_BEGIN is clear is needed so that we do not
+  // generate empty GTID transactions while in the middle of processing a
+  // transaction.
+  //
+  // The condition !is_already_logged_transaction is needed so that we do not
+  // generate empty GTID transactions in the middle of auto-skipped
+  // transactions, in cases where the previous two conditions do not hold. One
+  // example of such a scenario is a GTID-skipped XA transaction, because the
+  // `XA START` statement (contrary to `BEGIN` in a non-XA transaction) will not
+  // execute and hence not open a new transaction.
+  if (!thd->is_slave_error &&
+      (thd->variables.option_bits & OPTION_BEGIN) == 0 &&
+      !is_already_logged_transaction(thd)) {
+    mysql_bin_log.gtid_end_transaction(thd);
+  }
 
   if (thd->temporary_tables) detach_temp_tables_worker(thd, rli);
   /*
@@ -7657,6 +7716,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     set_flags(NO_FOREIGN_KEY_CHECKS_F);
   if (thd_arg->variables.option_bits & OPTION_RELAXED_UNIQUE_CHECKS)
     set_flags(RELAXED_UNIQUE_CHECKS_F);
+  if (is_sql_fk_checks_enabled(thd_arg)) set_flags(USE_SQL_FOREIGN_KEY_F);
 #ifndef NDEBUG
   uchar extra_data[255];
   DBUG_EXECUTE_IF("extra_row_ndb_info_set_618",
@@ -9549,10 +9609,21 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       Make sure to set/clear them before executing the main body of
       the event.
     */
-    if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
+    if (get_flags(NO_FOREIGN_KEY_CHECKS_F)) {
+      DBUG_PRINT("fk", ("Rows log event. FOREIGN_KEY_CHECK = OFF"));
       thd->variables.option_bits |= OPTION_NO_FOREIGN_KEY_CHECKS;
-    else
+    } else {
+      DBUG_PRINT("fk", ("Rows log event. FOREIGN_KEY_CHECK = ON"));
       thd->variables.option_bits &= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+    }
+
+    if (get_flags(USE_SQL_FOREIGN_KEY_F)) {
+      DBUG_PRINT("fk", ("Rows log event. SQL FK Handling = ON"));
+      thd->variables.option_bits |= OPTION_USE_SQL_FOREIGN_KEY_HANDLING;
+    } else {
+      DBUG_PRINT("fk", ("Rows_log event. SQL FK Handling = OFF"));
+      thd->variables.option_bits &= ~OPTION_USE_SQL_FOREIGN_KEY_HANDLING;
+    }
 
     if (get_flags(RELAXED_UNIQUE_CHECKS_F))
       thd->variables.option_bits |= OPTION_RELAXED_UNIQUE_CHECKS;
@@ -12130,6 +12201,31 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
   if (invoke_table_check_constraints(thd, table))
     return ER_CHECK_CONSTRAINT_VIOLATED;
 
+  /*
+    OPTION_NO_FOREIGN_KEY_CHECKS is a table flag, value may be different per
+    table, thence needs to be evaluated per individual row operation.
+  */
+  if (get_flags(NO_FOREIGN_KEY_CHECKS_F)) {
+    DBUG_PRINT("fk", ("Insert log event. FOREIGN_KEY_CHECKS = OFF"));
+    thd->variables.option_bits |= OPTION_NO_FOREIGN_KEY_CHECKS;
+  } else {
+    DBUG_PRINT("fk", ("Insert log event. FOREIGN_KEY_CHECKS = ON"));
+    thd->variables.option_bits &= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+  }
+
+  /*
+    OPTION_USE_SQL_FOREIGN_KEY_HANDLING is a transaction flag, which value will
+    be the same on all row events of a transaction, thence it is sufficient to
+    read it once on Rows_log_event::do_apply_event().
+  */
+  if (use_sql_fk_checks_for_table(thd, m_table)) {
+    DBUG_PRINT("fk", ("SQL FK - Insert log event on table %s", m_table->alias));
+    if (check_all_parent_fk_ref(thd, m_table, enum_fk_dml_type::FK_INSERT))
+      return HA_ERR_NO_REFERENCED_ROW;
+  } else {
+    DBUG_PRINT("fk", ("SE FK - Insert log event on table %s", m_table->alias));
+  }
+
   if (m_curr_row == m_rows_buf) {
     /* this is the first row to be inserted, we estimate the rows with
        the size of the first row and use that value to initialize
@@ -12314,8 +12410,19 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
 
       goto error;
     } else {
-      DBUG_PRINT("info",
-                 ("Deleting offending row and trying to write new one again"));
+      if (use_sql_fk_checks_for_table(thd, table)) {
+        DBUG_PRINT("fk", ("SQL FK - Deleting offending row and trying to write"
+                          " new one on table %s",
+                          table->alias));
+        if (check_all_child_fk_ref(thd, table,
+                                   enum_fk_dml_type::FK_DELETE_REPLACE))
+          return HA_ERR_ROW_IS_REFERENCED;
+      } else {
+        DBUG_PRINT("fk", ("SE FK - Deleting offending row and trying to write"
+                          " new one on table %s",
+                          table->alias));
+      }
+
       if ((error = table->file->ha_delete_row(table->record[1]))) {
         DBUG_PRINT("info", ("ha_delete_row() returns error %d", error));
         table->file->print_error(error, MYF(0));
@@ -12443,10 +12550,35 @@ int Delete_rows_log_event::do_after_row_operations(const Relay_log_info *const,
 int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
   int error;
   assert(m_table != nullptr);
+<<<<<<< HEAD
   if (m_rows_lookup_algorithm == ROW_LOOKUP_NOT_NEEDED) {
     error = unpack_current_row(rli, &m_cols, &m_local_cols, false, false);
     if (error) return error;
   }
+||||||| merged common ancestors
+=======
+
+  /*
+    OPTION_NO_FOREIGN_KEY_CHECKS is a table flag, value may be different per
+    table, thence needs to be evaluated per individual row operation.
+  */
+  if (get_flags(NO_FOREIGN_KEY_CHECKS_F)) {
+    DBUG_PRINT("fk", ("Delete log event. FOREIGN_KEY_CHECKS = OFF"));
+    thd->variables.option_bits |= OPTION_NO_FOREIGN_KEY_CHECKS;
+  } else {
+    DBUG_PRINT("fk", ("Delete log event. FOREIGN_KEY_CHECKS = ON"));
+    thd->variables.option_bits &= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+  }
+
+  if (use_sql_fk_checks_for_table(thd, m_table)) {
+    DBUG_PRINT("fk", ("SQL FK - Delete log event on table %s", m_table->alias));
+    if (check_all_child_fk_ref(thd, m_table, enum_fk_dml_type::FK_DELETE))
+      return HA_ERR_ROW_IS_REFERENCED;
+  } else {
+    DBUG_PRINT("fk", ("SE FK - Delete log event on table %s", m_table->alias));
+  }
+
+>>>>>>> mysql-9.6.0
   /* m_table->record[0] contains the BI */
   m_table->mark_columns_per_binlog_row_image(thd);
   error = m_table->file->ha_delete_row(m_table->record[0]);
@@ -12615,6 +12747,29 @@ int Update_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
   // Invoke check constraints on the unpacked row.
   if (invoke_table_check_constraints(thd, m_table))
     return ER_CHECK_CONSTRAINT_VIOLATED;
+
+  /*
+    OPTION_NO_FOREIGN_KEY_CHECKS is a table flag, value may be different per
+    table, thence needs to be evaluated per individual row operation.
+  */
+  if (get_flags(NO_FOREIGN_KEY_CHECKS_F)) {
+    DBUG_PRINT("fk", ("Update log event. FOREIGN_KEY_CHECKS = OFF"));
+    thd->variables.option_bits |= OPTION_NO_FOREIGN_KEY_CHECKS;
+  } else {
+    DBUG_PRINT("fk", ("Update log event. FOREIGN_KEY_CHECKS = ON"));
+    thd->variables.option_bits &= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+  }
+
+  if (use_sql_fk_checks_for_table(thd, m_table)) {
+    DBUG_PRINT("fk", ("SQL FK - Update log event on table %s", m_table->alias));
+    if (check_all_parent_fk_ref(thd, m_table, enum_fk_dml_type::FK_UPDATE))
+      return HA_ERR_NO_REFERENCED_ROW;
+
+    if (check_all_child_fk_ref(thd, m_table, enum_fk_dml_type::FK_UPDATE))
+      return HA_ERR_ROW_IS_REFERENCED;
+  } else {
+    DBUG_PRINT("fk", ("SE FK - Update log event on table %s", m_table->alias));
+  }
 
   /*
     Now we have the right row to update.  The old row (the one we're
@@ -13569,6 +13724,7 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   return update_untagged_transaction_length();
 }
 
+#ifdef MYSQL_SERVER
 rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
   if (spec.gtid.sidno < 0) {
     if (need_lock)
@@ -13581,6 +13737,7 @@ rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
   }
   return spec.gtid.sidno;
 }
+#endif  // MYSQL_SERVER
 
 Gtid_specification Gtid_log_event::get_gtid_spec() { return spec; }
 
@@ -13893,7 +14050,6 @@ bool Transaction_context_log_event::write_data_set(
 
   return false;
 }
-#endif
 
 bool Transaction_context_log_event::read_snapshot_version() {
   DBUG_TRACE;
@@ -13908,6 +14064,7 @@ bool Transaction_context_log_event::read_snapshot_version() {
                                              encoded_snapshot_version_length) !=
          RETURN_STATUS_OK;
 }
+#endif
 
 size_t Transaction_context_log_event::get_snapshot_version_size() {
   DBUG_TRACE;

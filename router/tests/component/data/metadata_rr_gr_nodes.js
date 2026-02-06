@@ -111,7 +111,7 @@ if (mysqld.global.innodb_cluster_name === undefined) {
           "router_check_member_state",
           "router_select_members_count",
           "router_select_group_membership",
-          "router_update_last_check_in_v2",
+          "router_update_last_check_in_v2_4",
           "router_clusterset_present",
           "router_select_router_options_view",
           "get_routing_guidelines",
@@ -123,7 +123,7 @@ if (mysqld.global.innodb_cluster_name === undefined) {
     var common_responses_regex = common_stmts.prepare_statement_responses_regex(
         [
           "router_update_attributes_v2",
-          "router_update_last_check_in_v2",
+          "router_update_last_check_in_v2_4",
         ],
         options);
 

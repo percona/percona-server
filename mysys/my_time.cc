@@ -759,15 +759,16 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
   assert(status->warnings == 0 && status->fractional_digits == 0 &&
          status->nanoseconds == 0);
 
+  bool negated = false;
+
   l_time->time_type = MYSQL_TIMESTAMP_NONE;
-  l_time->neg = false;
   for (; str != end && isspace_char(*str); str++) {
     length--;
     status->set_deprecation(MYSQL_TIME_STATUS::DEPRECATION::DP_SUPERFLUOUS,
                             str_arg, end, str);
   }
   if (str != end && *str == '-') {
-    l_time->neg = true;
+    negated = true;
     str++;
     length--;
   }
@@ -781,6 +782,13 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
     MYSQL_TIME_STATUS tmpstatus;
     (void)str_to_datetime(str, length, l_time,
                           (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), &tmpstatus);
+    // DATE and DATETIME cannot be negative:
+    if (negated && (l_time->time_type == MYSQL_TIMESTAMP_DATE ||
+                    l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||
+                    l_time->time_type == MYSQL_TIMESTAMP_DATETIME_TZ)) {
+      l_time->time_type = MYSQL_TIMESTAMP_ERROR;
+      tmpstatus.warnings = MYSQL_TIME_WARN_TRUNCATED;
+    }
     if (l_time->time_type >= MYSQL_TIMESTAMP_ERROR) {
       *status = tmpstatus;
       const bool error = l_time->time_type == MYSQL_TIMESTAMP_ERROR;
@@ -900,6 +908,7 @@ fractional:
     return true;
   }
 
+  l_time->neg = negated;
   l_time->year = 0; /* For protocol::store_time */
   l_time->month = 0;
 

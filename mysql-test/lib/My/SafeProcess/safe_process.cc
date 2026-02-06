@@ -148,9 +148,9 @@ static void wait_pid(bool should_sigkill) {
     if (WIFEXITED(status)) {
       // Process has exited, collect return status
       exit_code = WEXITSTATUS(status);
-      // Print info about the exit_code except for 62 which occurs when
-      // test is skipped
-      if (exit_code != 0 && exit_code != 62)
+      // Print info about the exit_code except for 62 which occurs when a
+      // test is skipped and 66 which occurs if a test provisionally passes
+      if (exit_code != 0 && exit_code != 62 && exit_code != 66)
         print_message("Child process: %d, exit: %d",
                       static_cast<int>(child_pid), exit_code);
       else

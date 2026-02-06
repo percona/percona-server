@@ -29,8 +29,6 @@
 #include "storage/perfschema/pfs_global.h"
 
 bool pfs_initialized = false;
-size_t pfs_allocated_memory_size = 0;
-size_t pfs_allocated_memory_count = 0;
 
 bool stub_alloc_always_fails = true;
 bool stub_alloc_maybe_fails = true;

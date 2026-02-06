@@ -131,6 +131,7 @@ int ndb_file::read_backward(void *buf, ndb_file::size_t count) const {
     return -1;
   }
   if (dwBytesRead != size) {
+    SetLastError(0);  // Partial read
     return -1;
   }
 
@@ -362,6 +363,7 @@ bool ndb_file::avoid_direct_io_on_append() const { return false; }
 
 int ndb_file::set_direct_io(bool /* assume_implicit_datasync */) {
   // Not implemented.
+  SetLastError(ERROR_INVALID_DATA);
   return -1;
 }
 

@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file ha_innodb.cc */
 
+#include <exception>
 #ifndef UNIV_HOTBACKUP
 #include "my_config.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -1190,14 +1191,14 @@ static MYSQL_THDVAR_STR(tmpdir,
                         "Directory for temporary non-tablespace files.",
                         innodb_tmpdir_validate, nullptr, nullptr);
 
-static MYSQL_THDVAR_ULONG(
-    parallel_read_threads, PLUGIN_VAR_RQCMDARG,
-    "Number of threads to do parallel read.", nullptr, nullptr,
-    std::clamp(ulong{my_num_vcpus() / 8}, 4UL,
-               ulong{Parallel_reader::MAX_THREADS}), /* Default. */
-    1,                                               /* Minimum. */
-    Parallel_reader::MAX_THREADS,                    /* Maximum. */
-    0);
+/* Default value is updated later in innodb_init_params due to the dependency on
+--container_aware startup option */
+static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
+                          "Number of threads to do parallel read.", nullptr,
+                          nullptr, 4,                   /* Default. */
+                          1,                            /* Minimum. */
+                          Parallel_reader::MAX_THREADS, /* Maximum. */
+                          0);
 
 static MYSQL_THDVAR_BOOL(ft_ignore_stopwords, PLUGIN_VAR_OPCMDARG,
                          "Instruct FTS to ignore stopwords.", nullptr, nullptr,
@@ -4891,10 +4892,6 @@ static inline bool innodb_page_cleaners_is_set() {
   return innodb_variable_is_set("innodb_page_cleaners");
 }
 
-static inline bool innodb_io_capacity_max_is_set() {
-  return innodb_variable_is_set("innodb_io_capacity_max");
-}
-
 #ifndef _WIN32
 static inline bool innodb_flush_method_is_set() {
   return innodb_variable_is_set("innodb_flush_method");
@@ -5030,10 +5027,12 @@ static void innodb_redo_log_capacity_init() {
   ut_a(srv_redo_log_capacity_used % MB == 0);
 }
 
-/** Update the mysql_sysvar_io_capacity_max's default value
-@param [in] new_def  New default value */
-static void innodb_io_capacity_max_update_default(ulong new_def);
-
+/**
+  Auto tune the defaults of the InnoDB system variables based on the system
+  resources like number of logical CPUs and physical memory. This is done during
+  InnoDB initialization as the APIs used to fetch the system resources are
+  dependent on the sysvar --container_aware
+*/
 inline void update_sysvars_default();
 
 /** Initialize, validate and normalize the InnoDB startup parameters.
@@ -5165,13 +5164,6 @@ static int innodb_init_params() {
   assert(innodb_change_buffering <= IBUF_USE_ALL);
 
   update_sysvars_default();
-
-  /* Update innodb_io_capacity_max based on current io capacity */
-  if (!innodb_io_capacity_max_is_set()) {
-    srv_max_io_capacity = std::clamp(ulong{2 * srv_io_capacity}, 100UL,
-                                     ulong{SRV_MAX_IO_CAPACITY_LIMIT});
-    innodb_io_capacity_max_update_default(srv_max_io_capacity);
-  }
 
   /* Check that interdependent parameters have sane values. */
   if (srv_max_buf_pool_modified_pct < srv_max_dirty_pages_pct_lwm) {
@@ -5801,11 +5793,26 @@ static int innodb_init(void *p) {
   innobase_hton->lock_hton_log = innobase_lock_hton_log;
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
+<<<<<<< HEAD
   innobase_hton->flags =
       HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
       HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
       HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
       HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD |
+||||||| merged common ancestors
+  innobase_hton->flags =
+      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
+      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
+      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD;
+=======
+  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
+                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
+                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
+                         HTON_SUPPORTS_TABLE_ENCRYPTION |
+                         HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
+                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK;
+>>>>>>> mysql-9.6.0
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
       HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
@@ -6901,8 +6908,8 @@ static bool innobase_write_ddl_create_schema(handlerton *hton,
  @return 0 or error number */
 static int innobase_close_connection(
     handlerton *hton, /*!< in: innobase handlerton */
-    THD *thd)         /*!< in: handle to the MySQL thread of the user
-                      whose resources should be free'd */
+    THD *thd)         /*!< in: handle to the MySQL thread of the
+                      user whose resources should be free'd */
 {
   DBUG_TRACE;
   assert(hton == innodb_hton_ptr);
@@ -15221,22 +15228,28 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
 
       file_per_table = dict_table_is_file_per_table(tab);
       dd_table_close(tab, thd, nullptr, false);
+    } else if (err == 4) {
+      /* Could not open existing table. Definition may contain bad SQL. */
+      error = DB_ERROR;
     }
   }
 
-  error = row_drop_table_for_mysql(norm_name, trx, true, handler);
+  /* Don't drop what we can't open; otherwise, we'll hit asserts later. */
+  if ((error == DB_SUCCESS) &&
+      ((error = row_drop_table_for_mysql(norm_name, trx, true, handler)) ==
+       DB_SUCCESS)) {
+    if (handler != nullptr) {
+      priv->unregister_table_handler(norm_name);
+    }
 
-  if (handler != nullptr && error == DB_SUCCESS) {
-    priv->unregister_table_handler(norm_name);
-  }
+    if (file_per_table) {
+      dd::Object_id dd_space_id = dd_first_index(dd_tab)->tablespace_id();
+      dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-  if (error == DB_SUCCESS && file_per_table) {
-    dd::Object_id dd_space_id = dd_first_index(dd_tab)->tablespace_id();
-    dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-    if (dd_drop_tablespace(client, dd_space_id)) {
-      error = DB_ERROR;
+      if (dd_drop_tablespace(client, dd_space_id)) {
+        error = DB_ERROR;
+      }
     }
   }
 
@@ -15927,6 +15940,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   return 0;
 }
 
+<<<<<<< HEAD
 /** Set Engine specific data to dd::Table object for upgrade.
 @param[in,out]  thd             thread handle
 @param[in]      db_name         database name
@@ -15943,6 +15957,28 @@ bool ha_innobase::upgrade_table(THD * /*thd*/, const char * /*db_name*/,
 #else
   return false;
 #endif
+||||||| merged common ancestors
+/** Set Engine specific data to dd::Table object for upgrade.
+@param[in,out]  thd             thread handle
+@param[in]      db_name         database name
+@param[in]      table_name      table name
+@param[in,out]  dd_table        data dictionary cache object
+@return 0 on success, non-zero on failure */
+bool ha_innobase::upgrade_table(THD *thd, const char *db_name,
+                                const char *table_name, dd::Table *dd_table) {
+  return (dd_upgrade_table(thd, db_name, table_name, dd_table, table));
+=======
+bool ha_innobase::upgrade_table(THD * /*thd*/, const char * /*db_name*/,
+                                const char * /*table_name*/,
+                                dd::Table * /*dd_table*/) {
+// TODO: get rid of upgrade_table from the interface, which is needed by NDB
+// only
+#ifdef UNIV_DEBUG
+  ut_error;
+#else
+  return false;
+#endif
+>>>>>>> mysql-9.6.0
 }
 
 /** Get storage-engine private data for a data dictionary table.
@@ -17625,10 +17661,10 @@ int ha_innobase::records(ha_rows *num_rows) /*!< out: number of rows */
 
 ha_rows ha_innobase::records_in_range(
     uint keynr,         /*!< in: index number */
-    key_range *min_key, /*!< in: start key value of the
-                        range, may also be 0 */
-    key_range *max_key) /*!< in: range end key val, may
-                        also be 0 */
+    key_range *min_key, /*!< in: start key value of
+                        the range, may also be 0 */
+    key_range *max_key) /*!< in: range end key val,
+                        may also be 0 */
 {
   KEY *key;
   dict_index_t *index;
@@ -17762,7 +17798,7 @@ ha_rows ha_innobase::estimate_rows_upper_bound() {
 
   index = m_prebuilt->table->first_index();
 
-  ulint stat_n_leaf_pages = index->stat_n_leaf_pages;
+  ulint stat_n_leaf_pages = index->stats.n_leaf_pages;
 
   ut_a(stat_n_leaf_pages > 0);
 
@@ -17971,7 +18007,7 @@ rec_per_key_t innodb_rec_per_key(const dict_index_t *index, ulint i,
     return (1.0);
   }
 
-  n_diff = index->stat_n_diff_key_vals[i];
+  n_diff = index->stats.n_diff_key_vals[i];
 
   if (n_diff == 0) {
     rec_per_key = static_cast<rec_per_key_t>(records);
@@ -17979,7 +18015,7 @@ rec_per_key_t innodb_rec_per_key(const dict_index_t *index, ulint i,
     uint64_t n_null;
     uint64_t n_non_null;
 
-    n_non_null = index->stat_n_non_null_key_vals[i];
+    n_non_null = index->stats.n_non_null_key_vals[i];
 
     /* In theory, index->stat_n_non_null_key_vals[i]
     should always be less than the number of records.
@@ -18110,7 +18146,7 @@ static void calculate_index_size_stats(const dict_table_t *ib_table,
 @return a real number in [0.0, 1.0] designating the percentage of cached pages
 */
 inline double index_pct_cached(const dict_index_t *index) {
-  const ulint n_leaf = index->stat_n_leaf_pages;
+  const ulint n_leaf = index->stats.n_leaf_pages;
 
   if (n_leaf == 0) {
     return (0.0);
@@ -18200,10 +18236,24 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
         ib_table->update_time.load());
   }
 
+  /* Piggyback fetching constant statistics when it has been updated and
+  up-to-date constant statistics where requested. */
+  if (!is_analyze && (flag & HA_STATUS_CONST_WHEN_UPDATED) &&
+      ib_table->stats_updated.exchange(false)) {
+    flag |= HA_STATUS_CONST;
+  }
+
   ulint stat_clustered_index_size{0};
   ulint stat_sum_of_other_index_sizes{0};
 
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
+    /* Constant statistics will be copied to the table. So subsequent calls
+    with HA_STATUS_CONST_WHEN_UPDATED do not have to repeat it unless
+    statistics were updated in the meantime. */
+    if (flag & HA_STATUS_CONST) {
+      ib_table->stats_updated.store(false);
+    }
+
     dict_table_stats_lock(ib_table, RW_S_LATCH);
 
     info_low_table_stats(flag, ib_table, n_rows, stat_clustered_index_size,
@@ -19376,6 +19426,13 @@ int ha_innobase::extra(enum ha_extra_function operation)
       break;
     case HA_EXTRA_NO_AUTOINC_LOCKING:
       m_prebuilt->no_autoinc_locking = true;
+      break;
+    case HA_EXTRA_ENABLE_LOCKING_RECORD:
+      m_stored_select_lock_type = m_prebuilt->select_lock_type;
+      m_prebuilt->select_lock_type = LOCK_S;
+      break;
+    case HA_EXTRA_RESET_LOCKING_RECORD:
+      m_prebuilt->select_lock_type = m_stored_select_lock_type;
       break;
     default: /* Do nothing */
         ;
@@ -21550,11 +21607,10 @@ in status code only if no other resize is in progress */
 
     if (innodb_buffer_pool_size_validate(thd, requested_buffer_pool_size,
                                          aligned_buffer_pool_size)) {
-      os_event_set(srv_buf_resize_event);
-
       ib::info(ER_IB_MSG_573)
           << export_vars.innodb_buffer_pool_resize_status
           << " (new size: " << aligned_buffer_pool_size << " bytes)";
+      os_event_set(srv_buf_resize_event);
 
       *static_cast<longlong *>(var_ptr) = aligned_buffer_pool_size;
     } else {
@@ -22682,6 +22738,7 @@ is a no-op. This function is registered as a callback with MySQL.
 @param[in]  save      immediate result from check function */
 static void purge_run_now_set(THD *, SYS_VAR *, void *, const void *save) {
   if (*(bool *)save && trx_purge_state() != PURGE_STATE_DISABLED) {
+    clone_sys->get_gtid_persistor().wait_flush(false, false, nullptr);
     trx_purge_run();
   }
 }
@@ -22919,11 +22976,12 @@ static void innodb_log_buffer_size_update(THD *, SYS_VAR *, void *,
 @param[in]      save      immediate result from check function */
 static void innodb_log_writer_threads_update(THD *, SYS_VAR *, void *var_ptr,
                                              const void *save) {
-  *static_cast<ulong *>(var_ptr) = *static_cast<const ulong *>(save);
+  ulong &current_value = *static_cast<ulong *>(var_ptr);
+  const ulong &new_value = *static_cast<const ulong *>(save);
+  ut_ad_le(new_value, 1);
 
-  ulong new_val = *static_cast<ulong *>(var_ptr);
-  ut_ad_le(new_val, 1);
-  srv_log_writer_threads = static_cast<bool>(new_val);
+  current_value = new_value;
+  srv_log_writer_threads = static_cast<bool>(new_value);
 
   /* pause/resume the log writer threads based on innodb_log_writer_threads
   value. */
@@ -23130,10 +23188,6 @@ static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
                           SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
                           SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
-static void innodb_io_capacity_max_update_default(ulong new_def) {
-  mysql_sysvar_io_capacity_max.def_val = new_def;
-}
-
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(background_drop_list_empty,
                          innodb_background_drop_list_empty, PLUGIN_VAR_OPCMDARG,
@@ -23193,15 +23247,16 @@ static MYSQL_SYSVAR_ULONG(
     1,                     /* Minimum value */
     5000, 0);              /* Maximum value */
 
-/* Many purge threads may waste CPU - set default to 1 on small shapes */
+/* Default value is updated later in innodb_init_params due to the dependency on
+--container_aware startup option */
 static MYSQL_SYSVAR_ULONG(
     purge_threads, srv_n_purge_threads,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Purge threads can be from 1 to 32. Default is 1 if number of available "
     "CPUs is 16 or less, 4 otherwise.",
-    nullptr, nullptr, (my_num_vcpus() <= 16 ? 1UL : 4UL), /* Default setting */
-    1,                                                    /* Minimum value */
-    MAX_PURGE_THREADS, 0);                                /* Maximum value */
+    nullptr, nullptr, 4,   /* Default setting */
+    1,                     /* Minimum value */
+    MAX_PURGE_THREADS, 0); /* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(sync_array_size, srv_sync_array_size,
                           PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -23726,11 +23781,12 @@ static MYSQL_SYSVAR_BOOL(optimize_fulltext_only, innodb_optimize_fulltext_only,
                          "Only optimize the Fulltext index of the table",
                          nullptr, nullptr, false);
 
+/* Default value is updated later in innodb_init_params due to the dependency on
+--container_aware startup option */
 static MYSQL_SYSVAR_ULONG(read_io_threads, srv_n_read_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "Number of background read I/O threads in InnoDB.",
-                          nullptr, nullptr,
-                          std::clamp(my_num_vcpus() / 2, 4U, 64U), 1, 64, 0);
+                          nullptr, nullptr, 4, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(write_io_threads, srv_n_write_io_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -23793,7 +23849,8 @@ static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
                           INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
                           OS_FILE_LOG_BLOCK_SIZE);
 
-/* Default updated in innodb_init_params */
+/* Default value is updated later in innodb_init_params due to the dependency on
+--container_aware startup option */
 static MYSQL_SYSVAR_ENUM(
     log_writer_threads, srv_log_writer_threads_ulong, PLUGIN_VAR_RQCMDARG,
     "Whether the log writer threads should be activated (ON), or write/flush "
@@ -23849,6 +23906,8 @@ inline void update_sysvars_default() {
   DBUG_EXECUTE_IF("innodb_simulate_vcpus_equals_4", { num_vcpus = 4; });
   DBUG_EXECUTE_IF("innodb_simulate_vcpus_equals_32", { num_vcpus = 32; });
 
+  mysql_mutex_lock(&LOCK_global_system_variables);
+
   if (sysvar_binlog.has_value() && sysvar_binlog.value()) {
     /* With binlog enabled, enable log_writer_threads if vcpu >= 32 */
     mysql_sysvar_log_writer_threads.def_val = (num_vcpus >= 32);
@@ -23862,6 +23921,29 @@ inline void update_sysvars_default() {
   }
   ut_ad_le(srv_log_writer_threads_ulong, 1);
   srv_log_writer_threads = static_cast<bool>(srv_log_writer_threads_ulong);
+
+  mysql_sysvar_parallel_read_threads.def_val = std::clamp(
+      ulong{num_vcpus / 8}, 4UL, ulong{Parallel_reader::MAX_THREADS});
+
+  /* Many purge threads may waste CPU - set default to 1 on small shapes */
+  mysql_sysvar_purge_threads.def_val = (num_vcpus <= 16 ? 1UL : 4UL);
+  if (!innodb_variable_is_set("innodb_purge_threads")) {
+    srv_n_purge_threads = mysql_sysvar_purge_threads.def_val;
+  }
+
+  mysql_sysvar_read_io_threads.def_val = std::clamp(num_vcpus / 2, 4U, 64U);
+  if (!innodb_variable_is_set("innodb_read_io_threads")) {
+    srv_n_read_io_threads = mysql_sysvar_read_io_threads.def_val;
+  }
+
+  mysql_sysvar_io_capacity_max.def_val = std::clamp(
+      ulong{2 * srv_io_capacity}, 100UL, ulong{SRV_MAX_IO_CAPACITY_LIMIT});
+  /* Update innodb_io_capacity_max based on current io capacity */
+  if (!innodb_variable_is_set("innodb_io_capacity_max")) {
+    srv_max_io_capacity = mysql_sysvar_io_capacity_max.def_val;
+  }
+
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 }
 
 static MYSQL_SYSVAR_UINT(

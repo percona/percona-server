@@ -157,7 +157,7 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
                                           Acl_cache_lock_mode::WRITE_MODE);
       DBUG_EXECUTE_IF("bug34594035_simulate_lock_failure",
                       DBUG_SET("+d,bug34594035_fail_acl_cache_lock"););
-      acl_cache_lock.lock();
+      if (!acl_cache_lock.lock()) return true;
       /* do a best effort erase from the deprecations too */
       get_dynamic_privilege_deprecations()->erase(priv);
 

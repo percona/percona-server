@@ -218,7 +218,6 @@ bool TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]]) {
 
 #if defined(HAVE_EPOLL_CREATE)
   if (m_epoll_fd != -1) {
-    bool add = true;
     struct epoll_event event_poll;
     memset(&event_poll, 0, sizeof(event_poll));
     ndb_socket_t sock_fd = t->getSocket();
@@ -233,32 +232,23 @@ bool TransporterReceiveData::epoll_add(Transporter *t [[maybe_unused]]) {
         epoll_ctl(m_epoll_fd, op, ndb_socket_get_native(sock_fd), &event_poll);
     if (likely(!ret_val)) goto ok;
     error = errno;
-    if (error == ENOENT && !add) {
-      /*
-       * Could be that socket was closed premature to this call.
-       * Not a problem that this occurs.
-       */
-      goto ok;
-    }
     const int node_id = t->getRemoteNodeId();
-    if (!add || (add && (error != ENOMEM))) {
+    if (error != ENOMEM) {
       /*
        * Serious problems, we are either using wrong parameters,
        * have permission problems or the socket doesn't support
        * epoll!!
        */
       g_eventLogger->info(
-          "Failed to %s epollfd: %u fd: %d "
-          " transporter id:%u -> node %u to epoll-set,"
-          " errno: %u %s",
-          add ? "ADD" : "DEL", m_epoll_fd, ndb_socket_get_native(sock_fd),
-          trp_id, node_id, error, strerror(error));
+          "Node %u transporter to node %u (id %u): failed to ADD epollfd %u fd "
+          "%d, errno: %u %s",
+          t->getLocalNodeId(), node_id, trp_id, m_epoll_fd,
+          ndb_socket_get_native(sock_fd), error, strerror(error));
       abort();
     }
     g_eventLogger->info(
-        "We lacked memory to add the socket for "
-        "transporter id:%u -> node id %u",
-        trp_id, node_id);
+        "Node %u transporter to node %u (id %u): lacked memory to add socket",
+        t->getLocalNodeId(), node_id, trp_id);
     return false;
   }
 
@@ -2097,6 +2087,7 @@ bool TransporterRegistry::start_disconnecting(TrpId trp_id, int errnum,
                                               bool send_source) {
   DEBUG_FPRINTF((stderr, "(%u)REG:start_disconnecting(trp:%u, %d)\n",
                  localNodeId, trp_id, errnum));
+  const char *previous_state_note = "";
   switch (performStates[trp_id]) {
     case DISCONNECTED: {
       return true;
@@ -2106,8 +2097,9 @@ bool TransporterRegistry::start_disconnecting(TrpId trp_id, int errnum,
     }
     case CONNECTING:
       /**
-       * This is a correct transition if a failure happen while connecting.
+       * This is a correct transition if a failure happens while connecting.
        */
+      previous_state_note = "(was connecting)";
       break;
     case DISCONNECTING: {
       return true;
@@ -2118,23 +2110,23 @@ bool TransporterRegistry::start_disconnecting(TrpId trp_id, int errnum,
     if (m_disconnect_enomem_error[trp_id] < 10) {
       NdbSleep_MilliSleep(40);
       g_eventLogger->info(
-          "Socket error %d on transporter %u to node %u"
-          " in state: %u",
-          errnum, trp_id, allTransporters[trp_id]->getRemoteNodeId(),
-          performStates[trp_id]);
+          "Node %u socket error %d on transporter to node %u (id %u) %s",
+          localNodeId, errnum, allTransporters[trp_id]->getRemoteNodeId(),
+          trp_id, previous_state_note);
       return false;
     }
   }
   if (errnum == 0) {
-    g_eventLogger->info("Transporter %u to node %u disconnected in state: %u",
-                        trp_id, allTransporters[trp_id]->getRemoteNodeId(),
-                        performStates[trp_id]);
+    g_eventLogger->info(
+        "Node %u transporter to node %u (id %u) disconnected %s", localNodeId,
+        allTransporters[trp_id]->getRemoteNodeId(), trp_id,
+        previous_state_note);
   } else {
     g_eventLogger->info(
-        "Transporter %u to node %u disconnected in %s"
-        " with errnum: %d in state: %u",
-        trp_id, allTransporters[trp_id]->getRemoteNodeId(),
-        send_source ? "send" : "recv", errnum, performStates[trp_id]);
+        "Node %u transporter to node %u (id %u) disconnected in %s"
+        " with errnum: %d %s",
+        localNodeId, allTransporters[trp_id]->getRemoteNodeId(), trp_id,
+        send_source ? "send" : "recv", errnum, previous_state_note);
   }
   DBUG_ENTER("TransporterRegistry::start_disconnecting");
   DBUG_PRINT("info", ("performStates[trp:%u]=DISCONNECTING", trp_id));
@@ -3234,8 +3226,8 @@ NdbSocket TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h) {
   DBUG_PRINT("info", ("Converting handle to transporter"));
   NdbSocket socket = ndb_mgm_convert_to_transporter(h);
   if (!socket.is_valid()) {
-    g_eventLogger->error("Failed to convert to transporter (%s: %d)", __FILE__,
-                         __LINE__);
+    g_eventLogger->error("Node %u failed to convert to transporter (%s: %d)",
+                         localNodeId, __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
   DBUG_RETURN(socket);

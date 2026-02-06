@@ -3061,3 +3061,11 @@ f
 SELECT CAST(9 / '-1317798799' AS TIME(6)) AS f;
 f
 00:00:00.000000
+#
+# Bug#38537045: Assertion failed: (*right)->data_type() ==
+#     MYSQL_TYPE_TIME || (*right)->data_type() == MYSQL_TYPE_NULL
+#
+CREATE TABLE t(c TIME);
+SELECT 1 FROM t WHERE DEFAULT(c) > c AND @f = c;
+1
+DROP TABLE t;

@@ -99,6 +99,7 @@
 #include "sql/sql_delete.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_foreign_key_constraint.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -951,6 +952,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           continue;
         }
 
+<<<<<<< HEAD
         bool is_row_changed = false;
         if (fill_record_n_invoke_before_triggers(
                 thd, &update, query_block->fields, *update_value_list, table,
@@ -961,6 +963,23 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         found_rows++;
 
         if (is_row_changed) {
+||||||| merged common ancestors
+        if (will_batch) {
+=======
+        if (use_sql_fk_checks_for_table(thd, table)) {
+          if (check_all_child_fk_ref(thd, table, enum_fk_dml_type::FK_UPDATE) ||
+              check_all_parent_fk_ref(thd, table,
+                                      enum_fk_dml_type::FK_UPDATE)) {
+            if (thd->is_error()) {
+              error = 1;
+              break;
+            }
+            // continue when IGNORE clause is used.
+            continue;
+          }
+        }
+        if (will_batch) {
+>>>>>>> mysql-9.6.0
           /*
             Default function and default expression values are filled before
             evaluating the view check option. Check option on view using
@@ -2575,6 +2594,19 @@ bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
           continue;
         }
 
+        if (use_sql_fk_checks_for_table(thd(), table)) {
+          if (check_all_child_fk_ref(thd(), table,
+                                     enum_fk_dml_type::FK_UPDATE) ||
+              check_all_parent_fk_ref(thd(), table,
+                                      enum_fk_dml_type::FK_UPDATE)) {
+            if (thd()->is_error()) {
+              return true;
+            }
+            // continue when IGNORE clause is used.
+            continue;
+          }
+        }
+
         if (m_updated_rows == 0) {
           /*
             Inform the main table that we are going to update the table even
@@ -2870,6 +2902,17 @@ bool UpdateRowsIterator::DoDelayedUpdates(bool *trans_safe,
           if (thd()->is_error()) goto err;
           // continue when IGNORE clause is used.
           continue;
+        }
+
+        if (use_sql_fk_checks_for_table(thd(), table)) {
+          if (check_all_child_fk_ref(thd(), table,
+                                     enum_fk_dml_type::FK_UPDATE) ||
+              check_all_parent_fk_ref(thd(), table,
+                                      enum_fk_dml_type::FK_UPDATE)) {
+            if (thd()->is_error()) goto err;
+            // continue when IGNORE clause is used.
+            continue;
+          }
         }
 
         local_error =

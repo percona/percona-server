@@ -184,11 +184,11 @@ join_order
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_SUFFIX(t4,t5,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 SELECT join_order(@expl) join_order;
 join_order
-"t6", "t3", "t1", "t4", "t5", "t2"
+"t3", "t1", "t6", "t4", "t5", "t2"
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_SUFFIX(t3,t2) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 SELECT join_order(@expl) join_order;
 join_order
-"t6", "t5", "t4", "t1", "t3", "t2"
+"t4", "t1", "t5", "t6", "t3", "t2"
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_SUFFIX(t1,t3,t2,t5,t4) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 SELECT join_order(@expl) join_order;
 join_order
@@ -197,7 +197,7 @@ JOIN_ORDER hint
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_ORDER(t6,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 SELECT join_order(@expl) join_order;
 join_order
-"t5", "t4", "t3", "t2", "t6", "t1"
+"t2", "t6", "t3", "t4", "t5", "t1"
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_ORDER(t4,t6,t3,t5,t1) */ COUNT(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 SELECT join_order(@expl) join_order;
 join_order
@@ -257,7 +257,7 @@ join_order
 EXPLAIN FORMAT=JSON INTO @expl  SELECT /*+ JOIN_ORDER(t3,t2) JOIN_ORDER(t1,t2,t5) */ count(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5;
 SELECT join_order(@expl) join_order;
 join_order
-"t4", "t1", "t3", "t2", "t5"
+"t1", "t3", "t2", "t4", "t5"
 EXPLAIN FORMAT=JSON INTO @expl  SELECT /*+ JOIN_ORDER(t3,t2,t1,t6) JOIN_ORDER(t4,t2,t5,t1) */ count(*) FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 JOIN t6;
 SELECT join_order(@expl) join_order;
 join_order
@@ -330,7 +330,7 @@ Warnings:
 Warning	3515	Hints aren't supported in hypergraph: first table in join order cannot be semijoin/antijoin nest
 SELECT join_order(@expl) join_order;
 join_order
-"ta2", "ta1", "t3", "t2"
+"ta1", "ta2", "t3", "t2"
 Lateral joins with hints
 # Applicable hint
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_PREFIX(t1) */ 1 FROM t1,LATERAL (SELECT DISTINCT t2.val FROM t2 WHERE t1.val = t2.val) AS dt;
@@ -519,7 +519,7 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=JSON INTO @expl SELECT /*+ JOIN_ORDER(alias3,alias3,alias1) */  alias1.c1 AS field1 FROM t1 AS alias1 INNER JOIN t1 AS alias2 INNER JOIN t1 AS alias3 INNER JOIN t1 AS alias4 ON alias3.c2 >= alias4.c3 ON alias2.c4 != alias4.c5 ON alias1.c6 <= alias4.c7  LEFT OUTER JOIN t1 AS alias5 ON alias2.c8 = alias5.c9 WHERE alias3.pk <= 3 HAVING (field1 < 8 AND field1 != 8) ORDER BY field1;
 SELECT join_order(@expl) join_order;
 join_order
-"alias5", "alias4", "alias2", "alias3", "alias1"
+"alias5", "alias4", "alias3", "alias2", "alias1"
 DROP TABLE t1;
 Bug#36622538 WL#15853:: Assertion `table_num_to_node_num[table_num] != -1' failed.
 CREATE TABLE t1 (pk integer auto_increment, col_int int, col_int_key int, col_varchar_10_character_set_latin1 varchar(10) character set latin1, col_varchar_10_character_set_latin1_key varchar(10) character set latin1, primary key(pk));
@@ -554,7 +554,7 @@ JOIN t10 AS alias10 JOIN t11 AS alias11 ON alias10.f1 = alias11.f1
 ON alias4.f2 = alias11.f2;
 SELECT join_order(@expl) join_order;
 join_order
-"alias8", "alias7", "alias11", "alias6", "alias5", "alias4", "alias10"
+"alias10", "alias11", "alias8", "alias7", "alias5", "alias6", "alias4"
 DROP TABLES t2, t4, t5, t6, t7, t10, t11;
 DROP FUNCTION join_order;
 DROP PROCEDURE build_join_order;

@@ -53,15 +53,12 @@ constexpr char default_catalog[] = "def";
 */
 void visit_tree(jdv::Content_tree_node *root, auto &&visit_single_node) {
   std::stack<jdv::Content_tree_node *> nodes_left;
-  uint node_id{0};
-  root->set_tmp_table_id(node_id++);
   nodes_left.push(root);
   while (!nodes_left.empty()) {
     jdv::Content_tree_node *cur_node = nodes_left.top();
     nodes_left.pop();
     if (visit_single_node(cur_node)) return;
     for (auto *child : *cur_node->children()) {
-      child->set_tmp_table_id(node_id++);
       nodes_left.push(child);
     }
   }
@@ -77,15 +74,16 @@ void get_json_duality_views(Document *doc, jdv::Content_tree_node *root) {
 
   visit_tree(root, [&allow](const jdv::Content_tree_node *node) -> bool {
     // Allow actions based on table tags.
-    allow.ins = (node->table_tags() & jdv::DVT_INSERT) != 0;
-    allow.upd = (node->table_tags() & jdv::DVT_UPDATE) != 0;
-    allow.del = (node->table_tags() & jdv::DVT_DELETE) != 0;
+    allow.ins |= (node->table_tags() & jdv::DVT_INSERT) != 0;
+    allow.upd |= (node->table_tags() & jdv::DVT_UPDATE) != 0;
+    allow.del |= (node->table_tags() & jdv::DVT_DELETE) != 0;
 
     /*
       The view is considered updatable if there is some
       column that is updatable.
     */
     if (!allow.upd) {
+      // Otherwise check if there is some column that is updatable
       for (auto &kc : node->key_column_map()) {
         if (node->key_column_info_list().at(kc.second).allows_update()) {
           allow.upd = true;
@@ -133,9 +131,8 @@ void get_json_duality_views(Document *doc, jdv::Content_tree_node *root) {
 void get_json_duality_view_tables(Document *doc, jdv::Content_tree_node *root) {
   visit_tree(root, [&doc](const jdv::Content_tree_node *node) -> bool {
     // Save the tmp id that was assigned.
-    Value table_id(node->tmp_table_id());
-    Value parent_table_id(
-        node->is_root_object() ? 0 : node->parent()->tmp_table_id());
+    Value table_id(node->id());
+    Value parent_table_id(node->is_root_object() ? 0 : node->parent()->id());
 
     /*
       Relationship is either "singleton" or "nested". We do not use
@@ -197,7 +194,7 @@ void get_json_duality_view_tables(Document *doc, jdv::Content_tree_node *root) {
 void get_json_duality_view_columns(Document *doc,
                                    jdv::Content_tree_node *root) {
   visit_tree(root, [&doc](jdv::Content_tree_node *node) -> bool {
-    Value table_id(node->tmp_table_id());
+    Value table_id(node->id());
     Value catalog(default_catalog, strlen(default_catalog),
                   doc->GetAllocator());
     Value schema(node->table_ref()->get_db_name(),

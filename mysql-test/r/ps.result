@@ -2651,7 +2651,7 @@ call proc_1();
 drop user pstest_xyz@localhost;
 call proc_1();
 call proc_1();
-ERROR HY000: Operation CREATE USER failed for 'pstest_xyz'@'localhost'
+ERROR HY000: Operation CREATE USER failed for 'pstest_xyz'@'localhost' (User account already exists)
 drop user pstest_xyz@localhost;
 call proc_1();
 drop user pstest_xyz@localhost;
@@ -2667,7 +2667,7 @@ execute abc;
 drop user pstest_xyz@localhost;
 execute abc;
 execute abc;
-ERROR HY000: Operation CREATE USER failed for 'pstest_xyz'@'localhost'
+ERROR HY000: Operation CREATE USER failed for 'pstest_xyz'@'localhost' (User account already exists)
 drop user pstest_xyz@localhost;
 execute abc;
 drop user pstest_xyz@localhost;

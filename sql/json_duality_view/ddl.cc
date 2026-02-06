@@ -369,28 +369,24 @@ namespace jdv {
     return false;
   }
 
-  // V1-Rule: Table tags should enforce all DML operations on the object or none
-  //          (read-only object).
-  //          Exception: For singleton descendent, DELETE tag is not allowed.
+  // Rule: Any combination of tags is allowed unless it is a singleton
+  // descendant object. For singleton descendant objects,
+  // DELETE tag is not allowed.
   if (node->table_tags() != 0) {
     bool is_singleton_child_joined_with_pk =
         node->is_singleton_child() &&
         node->join_column_index() == node->primary_key_column_index();
-    Duality_view_tags tags_to_match;
-    if (is_singleton_child_joined_with_pk) {
-      tags_to_match = static_cast<Duality_view_tags>(DVT_INSERT | DVT_UPDATE);
-    } else {
-      tags_to_match =
-          static_cast<Duality_view_tags>(DVT_INSERT | DVT_UPDATE | DVT_DELETE);
-    }
 
-    if (node->table_tags() != tags_to_match) {
-      my_error(is_singleton_child_joined_with_pk
-                   ? ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ
-                   : ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_NESTED_OBJ,
-               MYF(0), node->name().data());
-      return false;
+    if (is_singleton_child_joined_with_pk) {
+      // For singleton descendant objects, check if DELETE tag is present
+      if (node->table_tags() & DVT_DELETE) {
+        my_error(ER_JDV_INVALID_TABLE_ANNOTATIONS_FOR_SINGLETON_OBJ, MYF(0),
+                 node->name().data());
+        return false;
+      }
+      // Any other combination (INSERT, UPDATE, INSERT|UPDATE) is allowed
     }
+    // For non-singleton objects, any combination of tags is allowed
   }
 
   // Rule: If a table is projected multiple times, then set of columns projected

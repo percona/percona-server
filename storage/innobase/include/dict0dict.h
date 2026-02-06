@@ -127,16 +127,16 @@ void dict_table_close_and_drop(
     trx_t *trx,           /*!< in: data dictionary transaction */
     dict_table_t *table); /*!< in/out: table */
 /** Inits the data dictionary module. */
-void dict_init(void);
+void dict_init();
 
 /** Closes the data dictionary module. */
-void dict_close(void);
+void dict_close();
 
 /** Inits the structure for persisting dynamic metadata */
-void dict_persist_init(void);
+void dict_persist_init();
 
 /** Clear the structure */
-void dict_persist_close(void);
+void dict_persist_close();
 
 #ifndef UNIV_HOTBACKUP
 /** Write back the dirty persistent dynamic metadata of the table
@@ -842,7 +842,7 @@ static inline void dict_index_set_space(dict_index_t *index, space_id_t space);
  relevant only in the case of many consecutive inserts, as updates
  which make the records bigger might fragment the index.
  @return number of free bytes on page, reserved for updates */
-static inline ulint dict_index_get_space_reserve(void);
+static inline ulint dict_index_get_space_reserve();
 
 /* Online index creation @{ */
 /** Gets the status of online index creation.
@@ -870,9 +870,9 @@ static inline void dict_index_set_online_status(
 [[nodiscard]] ulint dict_index_calc_min_rec_len(
     const dict_index_t *index); /*!< in: index */
 /** Reserves the dictionary system mutex for MySQL. */
-void dict_mutex_enter_for_mysql(void);
+void dict_mutex_enter_for_mysql();
 /** Releases the dictionary system mutex for MySQL. */
-void dict_mutex_exit_for_mysql(void);
+void dict_mutex_exit_for_mysql();
 
 #ifndef UNIV_HOTBACKUP
 /** Create a dict_table_t's stats latch or delay for lazy creation.
@@ -1019,6 +1019,7 @@ extern dict_persist_t *dict_persist;
 /* Dictionary system struct */
 struct dict_sys_t {
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
   DictSysMutex mutex;          /*!< mutex protecting the data
                                dictionary; protects also the
                                disk-based dictionary system tables;
@@ -1040,6 +1041,64 @@ struct dict_sys_t {
   size_t size;                 /*!< varying space in bytes occupied
                                by the data dictionary table and
                                index objects */
+||||||| merged common ancestors
+  DictSysMutex mutex;          /*!< mutex protecting the data
+                               dictionary; protects also the
+                               disk-based dictionary system tables;
+                               this mutex serializes CREATE TABLE
+                               and DROP TABLE, as well as reading
+                               the dictionary data for a table from
+                               system tables */
+#endif                         /* !UNIV_HOTBACKUP */
+  row_id_t row_id;             /*!< the next row id to assign;
+                               NOTE that at a checkpoint this
+                               must be written to the dict system
+                               header and flushed to a file; in
+                               recovery this must be derived from
+                               the log records */
+  hash_table_t *table_hash;    /*!< hash table of the tables, based
+                               on name */
+  hash_table_t *table_id_hash; /*!< hash table of the tables, based
+                               on id */
+  size_t size;                 /*!< varying space in bytes occupied
+                               by the data dictionary table and
+                               index objects */
+  /** Handler to sys_* tables, they're only for upgrade */
+  dict_table_t *sys_tables;  /*!< SYS_TABLES table */
+  dict_table_t *sys_columns; /*!< SYS_COLUMNS table */
+  dict_table_t *sys_indexes; /*!< SYS_INDEXES table */
+  dict_table_t *sys_fields;  /*!< SYS_FIELDS table */
+  dict_table_t *sys_virtual; /*!< SYS_VIRTUAL table */
+=======
+  /** mutex protecting the data dictionary; protects also the disk-based
+  dictionary system tables; this mutex serializes CREATE TABLE and DROP TABLE,
+  as well as reading the dictionary data for a table from system tables */
+  DictSysMutex mutex;
+
+  /** Writes the current value of the row id counter to the dictionary header
+  file page. */
+  virtual void dict_hdr_flush_row_id();
+
+  virtual ~dict_sys_t() = default;
+#endif /* !UNIV_HOTBACKUP */
+
+  /** the next row id to assign; NOTE: we only update the DICT_HDR_ROW_ID header
+  once for every DICT_HDR_ROW_ID_WRITE_MARGIN increments, which means that after
+  crash recovery the value found in this header might be smaller than the value
+  in some of the rows. This is why we add DICT_HDR_ROW_ID_WRITE_MARGIN to it
+  after recovery to prevent duplicates. */
+  std::atomic<row_id_t> row_id;
+
+  /** hash table of the tables, based on name */
+  hash_table_t *table_hash;
+
+  /** hash table of the tables, based on id*/
+  hash_table_t *table_id_hash;
+
+  /** varying space in bytes occupied by the data dictionary table and index
+  objects  */
+  size_t size;
+>>>>>>> mysql-9.6.0
 
   /** Permanent handle to mysql.innodb_table_stats */
   dict_table_t *table_stats;
@@ -1243,7 +1302,7 @@ struct dict_persist_t {
 extern dict_index_t *dict_ind_redundant;
 
 /** Inits dict_ind_redundant. */
-void dict_ind_init(void);
+void dict_ind_init();
 
 /** Converts a database and table name from filesystem encoding (e.g.
 "@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
@@ -1292,7 +1351,7 @@ class DDTableBuffer {
 
   /** Truncate the table. We can call it after all the dynamic
   metadata has been written back to DD table */
-  void truncate(void);
+  void truncate();
 
   /** Get the buffered metadata for a specific table, the caller
   has to delete the returned std::string object by ut::delete_
@@ -1709,6 +1768,12 @@ bool dict_index_validate_max_rec_size(const dict_table_t *table,
                                       const size_t page_rec_max,
                                       const size_t page_ptr_max,
                                       size_t &rec_max_size);
+
+#ifndef UNIV_HOTBACKUP
+/** Ensure that new row id generated by dict_sys is at least the specified one
+@param[in]  next_id  Minimum row id to use from now on to avoid conflict */
+void dict_sys_set_min_next_row_id(row_id_t next_id);
+#endif /* !UNIV_HOTBACKUP */
 
 #include "dict0dict.ic"
 

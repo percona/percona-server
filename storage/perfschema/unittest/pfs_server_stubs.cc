@@ -41,7 +41,6 @@ ulong max_connections;
 struct System_status_var global_status_var;
 
 struct sql_digest_storage;
-volatile bool ready_to_exit = false;
 
 uint lower_case_table_names = 0;
 CHARSET_INFO *files_charset_info = nullptr;
@@ -66,8 +65,6 @@ void thd_mem_cnt_alloc(THD *, size_t) {}
 #endif
 
 void thd_mem_cnt_free(THD *, size_t) {}
-
-unsigned int mysql_errno_to_sqlstate_index(unsigned int) { return 0; }
 
 SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
 

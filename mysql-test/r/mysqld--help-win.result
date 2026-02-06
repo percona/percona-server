@@ -295,6 +295,8 @@ The following options may be given as the first argument:
  status update
  --console           Write error output on screen; don't remove the console
  window on windows.
+ --container-aware   Determines if server adheres to container's resource
+ limits
  --core-file         Write core on errors.
  --create-admin-listener-thread 
  Use a dedicated thread for listening incoming connections
@@ -1694,6 +1696,7 @@ connection-memory-chunk-size 8192
 connection-memory-limit 18446744073709551615
 connection-memory-status-limit 18446744073709551615
 console FALSE
+container-aware FALSE
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
 default-password-lifetime 0

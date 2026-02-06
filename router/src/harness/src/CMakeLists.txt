@@ -72,7 +72,7 @@ LIST(APPEND ROUTER_MYSQLCLIENT_EXPORTS
 # mysqlclient symbols
 IF(WIN32)
   LIST(APPEND ROUTER_MYSQLCLIENT_EXPORTS
-    ?client_errors@@3PAPEBDA
+    my_get_err_msg
   )
 ENDIF()
 

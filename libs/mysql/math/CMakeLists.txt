@@ -22,6 +22,9 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(TARGET_HEADERS
+  bounded_arithmetic.h
+  int_pow.h
+  summation.h
 )
 
 SET(TARGET_SRCS

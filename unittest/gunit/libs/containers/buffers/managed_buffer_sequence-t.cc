@@ -30,9 +30,9 @@
 #include <iterator>    // std::distance
 
 #include "mysql/math/bounded_arithmetic.h"
-#include "mysql/utils/concat.h"
+#include "mysql/utils/concat.h"  // concat
 
-using mysql::utils::concat;
+using mysql::utils::throwing::concat;
 
 namespace mysql::containers::buffers {
 namespace managed_buffer_sequence::unittest {

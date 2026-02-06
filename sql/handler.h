@@ -2735,9 +2735,7 @@ using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
  * @param[in]     db_name     view database
  * @param[in]     table_name  view name
  * @param[in]     view_def    view definition query
- * @param[in]     mdl_ticket  the mdl ticket on the view to upgrade shared
- *                            lock to exclusive lock in case of
- *                            re-materialization.
+ *
  * @return :
  *  @retval true The materialized view is found and can be used.
  *  @retval false The materialzied view is not available and cannot be used.
@@ -2745,8 +2743,7 @@ using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
 using notify_materialized_view_usage_t = bool (*)(THD *thd,
                                                   std::string_view db_name,
                                                   std::string_view table_name,
-                                                  std::string_view view_def,
-                                                  MDL_ticket *mdl_ticket);
+                                                  std::string_view view_def);
 
 /**
   Secondary engine hook called after PRIMARY_TENTATIVELY optimization is
@@ -3333,6 +3330,10 @@ inline constexpr const decltype(handlerton::flags)
 inline bool hton_is_secondary_engine(const handlerton *hton) {
   return hton != nullptr && (hton->flags & HTON_IS_SECONDARY_ENGINE) != 0U;
 }
+
+/* Disable foreign keys in storage engine and handle it in SQL Layer. */
+inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_SQL_FK{1
+                                                                        << 25};
 
 /* Whether the secondary engine handlerton supports DDLs */
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
@@ -5357,6 +5358,53 @@ class handler {
   virtual bool bulk_load_check(THD *thd [[maybe_unused]]) const {
     return false;
   }
+
+  /** Used during bulk load on a non-empty table, called after the CSV file
+  input is exhausted and we need to copy any existing data from the original
+  table to the duplicated one.
+  @param[in]  load_ctx      SE load context
+  @param[in]  thread_idx    loader thread index
+  @param[in]  wait_cbk      stat callbacks.
+  @return 0 if successful, HA_ERR_GENERIC otherwise. */
+  virtual int bulk_load_copy_existing_data(void *load_ctx [[maybe_unused]],
+                                           size_t thread_idx [[maybe_unused]],
+                                           Bulk_load::Stat_callbacks &wait_cbk
+                                           [[maybe_unused]]) const {
+    return 0;
+  }
+
+  /** Generates a temporary table name to be used for table duplication during
+  bulk load.
+  @return a temporary table name. */
+  virtual std::string bulk_load_generate_temporary_table_name() const {
+    return "";
+  }
+
+  /** Sets the source table data (table name and key range boundaries) for all
+  loaders.
+  @param[in,out]  load_ctx                SE load context
+  @param[in]      source_table_data  vector containing the source table data
+  @return true if successful, false otherwise. */
+  virtual bool bulk_load_set_source_table_data(
+      void *load_ctx [[maybe_unused]],
+      const std::vector<Bulk_load::Source_table_data> &source_table_data
+      [[maybe_unused]]) const {
+    return true;
+  }
+
+  /** Get the row ID range of the table that we're bulk loading into. Only used
+  when the table has a generated clustered index and is not empty.
+  @param[out] min Minimum ROW_ID in table
+  @param[out] max Maximum ROW_ID in table
+  @return true if successful, false otherwise. */
+  virtual bool bulk_load_get_row_id_range(size_t &min [[maybe_unused]],
+                                          size_t &max [[maybe_unused]]) const {
+    return false;
+  }
+
+  /** Determines whether the table this handler was opened on is empty.
+  @return true if table empty. */
+  virtual bool is_table_empty() const { return false; }
 
   /** Get the total memory available for bulk load in SE.
    @param[in] thd user session

@@ -61,6 +61,28 @@
   } while (0)
 #endif
 
+namespace {
+/**
+ * @brief Return human-readable transporter type name.
+ *
+ * Maps TransporterType enum to a short string used in logs and diagnostics.
+ *
+ * @param t transporter type.
+ * @return transporter type name.
+ */
+static inline const char *transporter_type_name(TransporterType t) {
+  const int v = static_cast<int>(t);
+  switch (v) {
+    case tt_TCP_TRANSPORTER:
+      return "TCP";
+    case tt_SHM_TRANSPORTER:
+      return "SHM";
+    default:
+      return "UNKNOWN";
+  }
+}
+}  // namespace
+
 Transporter::Transporter(TransporterRegistry &t_reg, TrpId transporter_index,
                          TransporterType _type, const char *lHostName,
                          const char *rHostName, int s_port,
@@ -116,9 +138,9 @@ Transporter::Transporter(TransporterRegistry &t_reg, TrpId transporter_index,
   } else {
     if (!isServer) {
       g_eventLogger->info(
-          "Unable to setup transporter. Node %u must have hostname."
-          " Update configuration.",
-          rNodeId);
+          "Node %u transporter to node %u: missing hostname. "
+          "Update configuration.",
+          localNodeId, rNodeId);
       exit(-1);
     }
     remoteHostName[0] = 0;
@@ -401,8 +423,9 @@ bool Transporter::connect_client(NdbSocket &&socket) {
   const int OldMaxHandshakeBytesLimit = 23; /* 24 - 1 for \n */
   if (unlikely(helloLen > OldMaxHandshakeBytesLimit)) {
     /* Cannot send this many bytes to older versions */
-    g_eventLogger->info("Failed handshake string length %u : \"%s\"", helloLen,
-                        helloBuf);
+    g_eventLogger->info(
+        "Node %u transporter to node %u: failed handshake length %u: \"%s\"",
+        localNodeId, remoteNodeId, helloLen, helloBuf);
     abort();
   }
 
@@ -443,8 +466,8 @@ bool Transporter::connect_client(NdbSocket &&socket) {
 
   // Check nodeid
   if (nodeId != remoteNodeId) {
-    g_eventLogger->error("Connected to wrong nodeid: %d, expected: %d", nodeId,
-                         remoteNodeId);
+    g_eventLogger->error("Node %u connected to wrong nodeid: %d, expected: %d",
+                         localNodeId, nodeId, remoteNodeId);
     socket.close();
     DBUG_RETURN(false);
   }
@@ -452,9 +475,13 @@ bool Transporter::connect_client(NdbSocket &&socket) {
   // Check transporter type
   if (remote_transporter_type != -1 && remote_transporter_type != m_type) {
     g_eventLogger->error(
-        "Connection to node: %d uses different transporter "
-        "type: %d, expected type: %d",
-        nodeId, remote_transporter_type, m_type);
+        "Node %u connection to node %d uses different transporter "
+        "type: %s (%d), expected type: %s (%d)",
+        localNodeId, nodeId,
+        transporter_type_name(
+            static_cast<TransporterType>(remote_transporter_type)),
+        remote_transporter_type, transporter_type_name(m_type),
+        static_cast<int>(m_type));
     socket.close();
     DBUG_RETURN(false);
   }

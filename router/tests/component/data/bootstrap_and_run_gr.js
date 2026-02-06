@@ -51,7 +51,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "get_guidelines_router_info",
       "router_select_metadata_v2_gr",
       "router_update_attributes_v2",
-      "router_update_last_check_in_v2",
+      "router_update_last_check_in_v2_4",
       "get_local_cluster_name",
       "router_select_group_membership",
       "router_select_metadata_v2_gr_account_verification",
@@ -64,7 +64,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
       "router_insert_into_routers", "router_create_user_if_not_exists",
       "router_grant_on_metadata_db", "router_grant_on_pfs_db",
       "router_grant_on_routers", "router_grant_on_v2_routers",
-      "router_update_routers_in_metadata",
+      "router_grant_on_router_stats", "router_update_routers_in_metadata",
       "router_update_router_options_in_metadata", "router_update_attributes_v2",
       "router_update_local_cluster_in_metadata",
       "router_select_config_defaults_stored_gr_cluster"

@@ -466,5 +466,11 @@ bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
 
   if (notification_guard.notify()) return true;
 
+  if (m_alter_info->validation_only && m_alter_info->validate_num_rows == 0) {
+    // There is nothing to do
+    my_ok(thd);
+    return false;
+  }
+
   return mysql_secondary_load_or_unload(thd, table_list);
 }

@@ -64,7 +64,6 @@ struct row_setup_loggers {
 /** Table PERFORMANCE_SCHEMA.SETUP_LOGGERS. */
 class table_setup_loggers : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
-  typedef Prealloced_array<row_setup_loggers, LOGGERS_PREALLOC> Loggers_array;
 
  public:
   /** Table share. */

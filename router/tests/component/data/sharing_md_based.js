@@ -119,7 +119,7 @@ function increment_event(event_name) {
           "router_select_group_membership",
           "router_clusterset_present",
           "router_select_router_options_view",
-          "router_update_last_check_in_v2",
+          "router_update_last_check_in_v2_4",
           "get_routing_guidelines_version",
           "get_guidelines_router_info",
           "get_routing_guidelines",

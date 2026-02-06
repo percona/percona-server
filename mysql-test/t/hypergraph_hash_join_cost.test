@@ -146,6 +146,39 @@ DROP TABLE t1,t2;
 
 DROP FUNCTION root_cost;
 
+# Test of rewrite semijoin to inner join with deduplicated inner side.
+CREATE VIEW num_1e4 AS
+WITH RECURSIVE qn(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<9999) SELECT n FROM qn;
+
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY,
+  a INT,
+  KEY ka(a)
+);
+
+CREATE TABLE t2 (
+  pk INT PRIMARY KEY,
+  a INT
+);
+
+INSERT INTO t1 SELECT n, n%10 FROM  num_1e4 LIMIT 400;
+INSERT INTO t2 SELECT n, n%10 FROM  num_1e4 LIMIT 100;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON a;
+ANALYZE TABLE t1, t2;
+
+--echo # Rewrite to inner join with deduplicated t1.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT * FROM t2 WHERE a IN (SELECT a FROM t1);
+
+--echo # No rewrite to inner join.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE SELECT * FROM t2 WHERE a IN (SELECT a FROM t2);
+
+DROP TABLE t1, t2;
+DROP VIEW num_1e4;
+
 SET @@join_buffer_size=@old_join_buffer_size;
 SET @@cte_max_recursion_depth=@old_cte_max_recursion_depth;
 SET @@histogram_generation_max_mem_size=@old_histogram_generation_max_mem_size;

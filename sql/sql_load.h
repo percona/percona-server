@@ -122,6 +122,9 @@ class Sql_cmd_load_table final : public Sql_cmd {
   /// Maximum memory size to be used in bytes
   ulonglong m_memory_size;
 
+  /// Loading non empty table
+  bool m_non_empty_table{};
+
  public:
   const On_duplicate m_on_duplicate;
   Table_ident *const m_table;
@@ -151,7 +154,18 @@ class Sql_cmd_load_table final : public Sql_cmd {
   bool validate_table_for_bulk_load(THD *thd, Table_ref *const table_ref,
                                     dd::Table *table_def, handlerton **hton);
 
-  bool bulk_driver_service(THD *thd, const TABLE *table, size_t &affected_rows);
+  bool rename_table_for_incremental_bulk_load(
+      THD *thd, const std::string &schema_name,
+      const std::string &old_table_name, const std::string &new_table_name);
+
+  bool duplicate_table_for_bulk_load(THD *thd, std::string &temp_name,
+                                     const std::string &schema_name,
+                                     Table_ref *new_table_ref);
+
+  bool bulk_driver_service(THD *thd, const TABLE *sql_table,
+                           const TABLE *duplicate_table,
+                           const Bulk_load_file_info &info, Bulk_source src,
+                           size_t &affected_rows);
 
   bool read_fixed_length(THD *thd, COPY_INFO &info, Table_ref *table_list,
                          READ_INFO &read_info, ulong skip_lines);

@@ -373,6 +373,7 @@ SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
+--sorted_result
 SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
 SHOW STATUS LIKE 'handler_read%';
 
@@ -1265,6 +1266,7 @@ CREATE TABLE t2 (
 );
 INSERT INTO t1 values(NULL, '');
 INSERT INTO t2 VALUES ('486878','WDT'),('486910','WDT');
+ANALYZE TABLE t1, t2;
 --replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
 

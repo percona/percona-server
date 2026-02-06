@@ -35,7 +35,9 @@ enum Duality_view_tags : int {
   DVT_INSERT = 1,
   DVT_UPDATE = 2,
   DVT_DELETE = 4,
-  DVT_NOUPDATE = 8
+  DVT_NOINSERT = 8,
+  DVT_NOUPDATE = 16,
+  DVT_NODELETE = 32
 };
 
 constexpr std::size_t VOID_COLUMN_INDEX =
@@ -125,8 +127,8 @@ class Content_tree_node {
   /// descendents.
   std::string_view m_name;
 
-  /// Temporary id created for I_S.
-  uint m_tmp_table_id{0};
+  /// Node id. Displayed in I_S.
+  uint m_id{0};
 
   /// Object query expression.
   const Query_expression *m_query_expression{nullptr};
@@ -184,10 +186,10 @@ class Content_tree_node {
   const std::string_view &name() const { return m_name; }
 
   /////////////////////////////////////////////////////////////////////////////
-  // Table id.
+  // Node id (Table_id in I_S)
   /////////////////////////////////////////////////////////////////////////////
-  void set_tmp_table_id(uint id) { m_tmp_table_id = id; }
-  uint tmp_table_id() const { return m_tmp_table_id; }
+  void set_id(uint id) { m_id = id; }
+  uint id() const { return m_id; }
 
   /////////////////////////////////////////////////////////////////////////////
   // Query expression.
@@ -227,20 +229,20 @@ class Content_tree_node {
   // Table tags.
   /////////////////////////////////////////////////////////////////////////////
   void set_table_tags(Duality_view_tags table_tags) {
+    assert(!((table_tags & DVT_INSERT && table_tags & DVT_NOINSERT) ||
+             (table_tags & DVT_UPDATE && table_tags & DVT_NOUPDATE) ||
+             (table_tags & DVT_DELETE && table_tags & DVT_NODELETE)));
     m_table_tags = table_tags;
   }
   Duality_view_tags table_tags() const { return m_table_tags; }
-  bool allows_insert() const {
-    return static_cast<bool>(table_tags() & DVT_INSERT);
-  }
-  bool allows_update() const {
-    return static_cast<bool>(table_tags() & DVT_UPDATE);
-  }
-  bool allows_delete() const {
-    return static_cast<bool>(table_tags() & DVT_DELETE);
-  }
+  bool allows_insert() const { return (table_tags() & DVT_INSERT) != 0; }
+
+  bool allows_update() const { return (table_tags() & DVT_UPDATE) != 0; }
+
+  bool allows_delete() const { return (table_tags() & DVT_DELETE) != 0; }
+
   bool read_only() const {
-    return (!(table_tags() & (DVT_INSERT | DVT_UPDATE | DVT_DELETE)));
+    return !allows_insert() && !allows_update() && !allows_delete();
   }
 
   /////////////////////////////////////////////////////////////////////////////

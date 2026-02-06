@@ -25,9 +25,22 @@
 
 #include <cstring>
 
+#include <openssl/evp.h>
+#include "my_ssl_algo_cache.h"
+#include "my_sys.h"
 #include "mysql_com.h"  // octet2hex
 #include "plugin/x/src/helper/generate_hash.h"
-#include "sha1.h"  // for SHA1_HASH_SIZE
+
+#define SHA1_HASH_SIZE 20 /* Hash size in bytes */
+
+static void compute_sha1_hash(uint8 *digest, const char *buf, size_t len) {
+  EVP_MD_CTX *sha1_context = EVP_MD_CTX_create();
+  EVP_DigestInit_ex(sha1_context, my_EVP_sha1(), nullptr);
+  EVP_DigestUpdate(sha1_context, buf, len);
+  EVP_DigestFinal_ex(sha1_context, digest, nullptr);
+  EVP_MD_CTX_destroy(sha1_context);
+  sha1_context = nullptr;
+}
 
 static void compute_two_stage_hash(const char *input, size_t input_len,
                                    uint8 *output) {

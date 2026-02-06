@@ -224,10 +224,11 @@ ulint trx_undo_lists_init(
     ulint type);              /*!< in: TRX_UNDO_INSERT or
                              TRX_UNDO_UPDATE */
 /** Sets the state of the undo log segment at a transaction finish.
- @return undo log segment header page, x-latched */
-page_t *trx_undo_set_state_at_finish(
-    trx_undo_t *undo, /*!< in: undo log memory copy */
-    mtr_t *mtr);      /*!< in: mtr */
+ @param[in] undo    undo log memory copy
+ @param[in] mtr     Mini-transaction
+ @return undo log segment header page, x-latched
+ */
+page_t *trx_undo_set_state_at_finish(trx_undo_t *undo, mtr_t *mtr);
 
 /** Set the state of the undo log segment at a XA PREPARE or XA ROLLBACK.
 @param[in,out]  trx             Transaction

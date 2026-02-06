@@ -112,6 +112,13 @@ error_return:
 #endif
 }
 
+void my_thread_handle_self(my_thread_handle *thread) {
+  thread->thread = my_thread_self();
+#ifdef _WIN32
+  thread->handle = GetCurrentThread();
+#endif
+}
+
 int my_thread_join(my_thread_handle *thread, void **value_ptr) {
 #ifndef _WIN32
   return pthread_join(thread->thread, value_ptr);

@@ -746,7 +746,8 @@ bool log_and_commit_acl_ddl(
                 (command == SQLCOM_CREATE_USER ||
                  extra_user->first_factor_auth_info
                      .uses_identified_by_clause)) {
-              log_user(thd, &warn_user, extra_user, comma);
+              log_user(thd, &warn_user, extra_user, comma,
+                       "No IDENTIFIED WITH clause used");
               comma = true;
               log_warning = true;
             }

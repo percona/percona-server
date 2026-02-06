@@ -24,6 +24,18 @@
 #pragma once
 
 /**
+  Determines if the current process is running in a container.
+  @return true if running in either cgroup v1 or cgroup v2, false otherwise
+*/
+bool is_running_in_cgroup();
+
+/**
+  Determines if cgroup restricts resources
+  @return true if cgroup restricts resources like CPU or memory
+*/
+bool does_cgroup_limit_resources();
+
+/**
   Read the memory limit set by the container. Try cgroup v2, and then cgroup v1
   @return memory limit set by cgroup v2 or cgroup v1; or 0
   @note Return value of 0 implies either no limits are set or server is not

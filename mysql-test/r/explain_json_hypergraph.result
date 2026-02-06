@@ -299,6 +299,9 @@ set optimizer_switch=@old_opt_switch;
 # Index lookup. Nested loop join. Filter.
 CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (-100,1),(1,6);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 CREATE TABLE t2 (
 col_int_key INT,
 col_varchar VARCHAR(100) NOT NULL DEFAULT "DEFAULT",
@@ -306,6 +309,9 @@ pk INT NOT NULL,
 PRIMARY KEY (pk),
 KEY (col_int_key)
 ) ENGINE=InnoDB STATS_PERSISTENT=0;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 INSERT INTO t2
 WITH RECURSIVE qn(n) AS
 (SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<99)
@@ -313,10 +319,10 @@ SELECT n, "XXX", n FROM qn;
 EXPLAIN FORMAT=TREE SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join  (rows=0.667)
+-> Nested loop inner join  (rows=0.803)
     -> Table scan on t1  (rows=2)
-    -> Filter: (t2.pk < t1.pk)  (rows=0.333)
-        -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int)  (rows=1)
+    -> Filter: (t2.pk < t1.pk)  (rows=0.402)
+        -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int)  (rows=1.2)
 
 EXPLAIN FORMAT=JSON SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;

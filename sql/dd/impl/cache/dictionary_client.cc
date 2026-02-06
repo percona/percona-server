@@ -720,9 +720,9 @@ bool Dictionary_client::acquire(const K &key, const T **object,
     // Check proper MDL lock.
     if constexpr (HAS_MDL_KEY<T>()) {
       if (!m_thd->is_dd_system_thread()) {
-        m_current_releaser->m_release_locks.emplace_back(
-            make_mdl_descriptor<READ_LOCK_MDL_TYPE<T>()>(m_thd, **object),
-            *object);
+        m_current_releaser->m_release_locks.push_back(
+            {make_mdl_descriptor<READ_LOCK_MDL_TYPE<T>()>(m_thd, **object),
+             *object});
 
         DBUG_LOG("dd_release_lock", "Making release descriptor for ("
                                         << (*object)->id() << ","

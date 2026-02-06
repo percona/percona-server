@@ -189,15 +189,18 @@ inline auto make_compound_parse_options() {
 }
 template <Is_format Format_t>
 auto make_compound_parse_options(const Format_t &format) {
-  return Compound_parse_options<std::tuple<Format_t>>(format);
+  return Compound_parse_options<std::tuple<Format_t>>{
+      std::tuple<Format_t>(format)};
 }
 template <Is_repeat Repeat_t>
 auto make_compound_parse_options(const Repeat_t &repeat) {
-  return Compound_parse_options<std::tuple<Repeat_t>>(repeat);
+  return Compound_parse_options<std::tuple<Repeat_t>>{
+      std::tuple<Repeat_t>(repeat)};
 }
 template <Is_checker Checker_t>
 auto make_compound_parse_options(const Checker_t &checker) {
-  return Compound_parse_options<std::tuple<Checker_t>>(checker);
+  return Compound_parse_options<std::tuple<Checker_t>>{
+      std::tuple<Checker_t>(checker)};
 }
 auto make_compound_parse_options(const Is_compound_parse_options auto &opt) {
   return opt;
@@ -208,9 +211,9 @@ auto make_compound_parse_options(const Is_compound_parse_options auto &opt) {
 /// Combine two Parse Options objects into one.
 template <Is_parse_options Opt1, Is_parse_options Opt2>
 auto operator|(const Opt1 &opt1, const Opt2 &opt2) {
-  return Compound_parse_options(
+  return Compound_parse_options{
       std::tuple_cat(detail::make_compound_parse_options(opt1).m_tuple,
-                     detail::make_compound_parse_options(opt2).m_tuple));
+                     detail::make_compound_parse_options(opt2).m_tuple)};
 }
 
 }  // namespace mysql::strconv

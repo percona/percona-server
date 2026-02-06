@@ -54,7 +54,6 @@
 #include "sql/table.h"
 /* For show status */
 #include "storage/perfschema/pfs_column_values.h"
-#include "storage/perfschema/table_account_failed_login_lock_status.h"
 #include "storage/perfschema/table_accounts.h"
 #include "storage/perfschema/table_binary_log_transaction_compression_stats.h"
 #include "storage/perfschema/table_data_lock_waits.h"
@@ -619,8 +618,6 @@ static PFS_engine_table_share *all_shares[] = {
     &table_malloc_stats::m_share,
 
     &table_keyring_component_status::m_share,
-
-    &table_account_failed_login_lock_status::m_share,
 
     nullptr};
 

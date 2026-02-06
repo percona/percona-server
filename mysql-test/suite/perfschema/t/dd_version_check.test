@@ -145,10 +145,6 @@ insert into test.pfs_published_schema
         "b56610322b2a64779b7cfe96976cd0b5c6542a098bec88dacb0bb8a1fe7be458");
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.44", 80044,
-        "23597793699f839711b1b4f4920151ffd855a02f115ed9188db13673b41a948b");
-
-insert into test.pfs_published_schema
  values("MySQL 8.2.0", 80200,
         "a0a5ec52fc2e8aaf0fde0d304c3647ef54ea34cbe9e286c72e9874ca7f0815e6");
 
@@ -171,20 +167,12 @@ insert into test.pfs_published_schema
         "ffec29dba39f7ebbd15ace21cafbd8784312834fbb1226504d435af0c1dddcd5");
 
 insert into test.pfs_published_schema
- values("MySQL 8.4.7", 80407,
-        "34e8b2c9f761fb1056a0ba3d98fd663d0610544a13536c916ed26af5b95fc9d1");
-
-insert into test.pfs_published_schema
  values("MySQL 9.0.0", 90000,
         "fefb8c85575ab81e8c5a9517b11d21180bf8ae90213740e8636ef0ebf59cfe94");
 
 insert into test.pfs_published_schema
  values("MySQL 9.1.0", 90100,
         "a7112d114ab99a14040b0269aa44b7c6e231574d01fce0ada74954189cec0c07");
-
-insert into test.pfs_published_schema
- values("MySQL 9.5.0", 90500,
-        "2da363f7d5ba003644ee052db700562b50c44c7dd9f5bee8a98ebd1c4d8a7710");
 
 create table test.pfs_check_table
   (id int NOT NULL AUTO_INCREMENT,

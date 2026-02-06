@@ -42,12 +42,6 @@ extern bool skip_bootstrap;
 @return false on success, true on failure */
 bool bootstrap(THD *thd);
 
-/** During upgrade from 5.7 to 8.0, transfer compression dicitonary
-data from 5.7 SYS_ZIP_DICT to 8.0 mysql.compression_dictionary table
-@param[in]   thd   Session context
-@return false on success, true on failure */
-bool upgrade_transfer_compression_dict_data(THD *thd);
-
 /** @return true if the table is a hardcoded compression dictionary table
 @param[in] schema     schema name
 @param[in] table_name table name */

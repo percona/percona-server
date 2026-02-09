@@ -24,7 +24,7 @@ include/rpl/reset.inc
 # Adding debug point 'dec_event_time_by_1_hour' to @@GLOBAL.debug
 CREATE TABLE t1 (a INT);
 include/rpl/sync_to_replica.inc
-include/assert.inc [Seconds_Behind_Source must be 0]
+include/rpl/wait_for_replica_status.inc [Seconds_Behind_Source]
 LOCK TABLE t1 WRITE;
 INSERT INTO t1 VALUES (3);
 include/assert.inc [Seconds_Behind_Source must be greater or equal than 'lower_bound']

@@ -1,4 +1,10 @@
 !include suite/rpl/t/rpl_row_img.cnf
 
 [mysqld]
-replica_parallel_workers=1
+loose-rocksdb_lock_wait_timeout=50
+
+[mysqld.2]
+#!use-slave-opt
+
+[mysqld.3]
+#!use-slave-opt

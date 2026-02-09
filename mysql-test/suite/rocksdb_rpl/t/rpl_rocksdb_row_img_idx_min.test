@@ -19,6 +19,18 @@
 #   WL#5096 Tests.
 # 
 
+-- connection server_2
+-- let $assert_text= replica_parallel_workers must be 1
+-- let $assert_cond= [SELECT @@global.replica_parallel_workers] = 1
+-- source include/assert.inc
+
+-- connection server_3
+-- let $assert_text= replica_parallel_workers must be 1
+-- let $assert_cond= [SELECT @@global.replica_parallel_workers] = 1
+-- source include/assert.inc
+
+-- connection server_1
+
 #
 # Tests MINIMAL image against a mix of MyISAM and InnoDB engines on
 # each of the three servers.

@@ -29,16 +29,13 @@ WHILE i <= 10000 DO
 INSERT INTO tab (k, c, pad)
 VALUES (
 i,
-CONCAT('c_', SUBSTRING(MD5(RAND()), 1, 20)),
-CONCAT('p_', SUBSTRING(MD5(RAND()), 1, 10))
+CONCAT('c_', SUBSTRING(UUID(), 1, 20)),
+CONCAT('p_', SUBSTRING(UUID(), 1, 10))
 );
 SET i = i + 1;
 END WHILE;
 COMMIT;
 END$$
-Warnings:
-Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
-Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 CALL insert_10k_rows;
 SELECT COUNT(*) FROM tab;
 COUNT(*)
@@ -53,15 +50,12 @@ UPDATE tab SET k = FLOOR(RAND()*10000) WHERE id = FLOOR(RAND()*10000);
 DELETE FROM tab WHERE id = FLOOR(RAND()*10000);
 INSERT INTO tab (k, c, pad)
 VALUES (FLOOR(RAND()*10000),
-SUBSTRING(MD5(RAND()),1,20),
-SUBSTRING(MD5(RAND()),1,10));
+SUBSTRING(UUID(),1,20),
+SUBSTRING(UUID(),1,10));
 COMMIT;
 SET elapsed = TIMESTAMPDIFF(SECOND, t_start, NOW());
 END WHILE;
 END$$
-Warnings:
-Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
-Warning	1287	'MD5' is deprecated and will be removed in a future release. Please use SHA2 instead
 #
 # Running 10 concurrent sysbench_like_write() calls
 #

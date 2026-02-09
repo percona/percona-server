@@ -12158,8 +12158,6 @@ static void test_datetime_ranges() {
     printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
            mysql_stmt_error(stmt));
 
-  mysql_stmt_close(stmt);
-
   stmt_text = "drop table t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);

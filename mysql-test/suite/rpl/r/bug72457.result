@@ -16,6 +16,9 @@ CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on devi
 # Restart master with a custom error log
 include/rpl/restart_server.inc [server_number=1]
                                [parameters: --log-error=ERROR_LOG_FILE]
+[connection slave]
+STOP REPLICA;
+[connection master]
 include/rpl/reset.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 CREATE TABLE t1(f1 TEXT) ENGINE=MyISAM;

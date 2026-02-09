@@ -23,6 +23,16 @@ CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on devi
 --source include/rpl/restart_server.inc
 --exec echo "                               [parameters: --log-error=ERROR_LOG_FILE]"
 
+# After master restart, the replica IO thread may be in 'Connecting' state.
+# Explicitly stop all replica threads to prevent a race condition where
+# the IO thread reconnects between stop and reset phases in rpl/reset.inc
+# (stop_replica.inc with $rpl_only_running_threads treats 'Connecting' as
+# not running, so only the SQL thread gets stopped, and the IO thread can
+# reconnect before RESET REPLICA is executed).
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+--source include/rpl/connection_source.inc
+
 --let $rpl_only_running_threads= 1
 --source include/rpl/reset.inc
 

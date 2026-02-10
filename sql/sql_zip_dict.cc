@@ -542,7 +542,20 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
       HA_WHOLE_KEY, HA_READ_KEY_EXACT);
 
   if (error == 0) {
+    /*
+      Temporarily disable SQL-layer FK handling so that InnoDB performs the
+      FK constraint check itself.  With HTON_SUPPORTS_SQL_FK the engine
+      normally skips its own FK verification and relies on the SQL layer to
+      call check_all_child_fk_ref() around DML.  Since we are doing a direct
+      ha_delete_row() here (not going through the regular SQL DELETE path),
+      we need InnoDB to check the FK on compression_dictionary_cols =>
+      compression_dictionary itself and return HA_ERR_ROW_IS_REFERENCED
+      when the dictionary is still in use.
+    */
+    const ulonglong saved_option_bits = thd->variables.option_bits;
+    thd->variables.option_bits &= ~OPTION_USE_SQL_FOREIGN_KEY_HANDLING;
     error = table->file->ha_delete_row(table->record[0]);
+    thd->variables.option_bits = saved_option_bits;
   }
 
   switch (error) {

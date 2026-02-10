@@ -170,6 +170,7 @@ usr/lib/mysql/plugin/component_test_server_telemetry_logs_client.so
 usr/lib/mysql/plugin/component_test_server_telemetry_logs_export.so
 usr/lib/mysql/plugin/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/component_connection_control.so
+usr/lib/mysql/plugin/component_classic_hashing.so
 
 usr/lib/mysql/plugin/debug/component_mysqlbackup.so
 usr/lib/mysql/plugin/debug/component_percona_telemetry.so
@@ -205,6 +206,7 @@ usr/lib/mysql/plugin/debug/component_test_server_telemetry_logs_client.so
 usr/lib/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
 usr/lib/mysql/plugin/debug/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/debug/component_connection_control.so
+usr/lib/mysql/plugin/debug/component_classic_hashing.so
 
 # Percona plugins
 usr/lib/mysql/plugin/auth_pam.so

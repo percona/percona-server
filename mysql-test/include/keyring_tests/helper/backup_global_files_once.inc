@@ -50,9 +50,15 @@ if (! $GLOBAL_BACKUP_SUFFIX) {
 --copy_file $CONFIG_FILE_PATH $BACKUP_CONFIG_FILE_PATH
 
 # backup global manifest
---let $MYSQLD_EXT_LEN = `SELECT LENGTH(SUBSTRING_INDEX("$MYSQLD", "mysqld", -1))`
---let $MYSQLD_FULL_LEN = `SELECT LENGTH("$MYSQLD")`
---let $MYSQLD_NO_EXT = `SELECT LEFT("$MYSQLD", $MYSQLD_FULL_LEN - $MYSQLD_EXT_LEN)`
---let $MANIFEST_FILE_PATH = $MYSQLD_NO_EXT.my
---let $BACKUP_MANIFEST_FILE_PATH = $MANIFEST_FILE_PATH.$GLOBAL_BACKUP_SUFFIX
---copy_file $MANIFEST_FILE_PATH $BACKUP_MANIFEST_FILE_PATH
+--perl
+  use strict;
+  use File::Basename;
+  use File::Copy;
+  my $manifest_file_ext = ".my";
+  my $backup_suffix = $ENV{'GLOBAL_BACKUP_SUFFIX'} || "global_backup";
+  my ($exename, $path, $suffix) = fileparse($ENV{'MYSQLD'}, qr/\.[^.]*/);
+  my $manifest_file_path = $path.$exename.$manifest_file_ext;
+  my $backup_manifest_file_path = $manifest_file_path.".".$backup_suffix;
+  copy($manifest_file_path, $backup_manifest_file_path)
+    or die "Could not copy $manifest_file_path to $backup_manifest_file_path: $!";
+EOF

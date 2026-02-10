@@ -1203,6 +1203,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_fail.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_init_then_register.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_aggregate.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_file_service.so
 
 
 %dir %{_libdir}/mysql/plugin/debug
@@ -1260,6 +1262,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_fail.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_init_then_register.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_aggregate.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_file_service.so
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif

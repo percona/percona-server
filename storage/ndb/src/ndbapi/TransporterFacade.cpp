@@ -99,7 +99,8 @@ void TransporterFacade::reportError(NodeId nodeId, TransporterError errorCode,
         "Node %u disconnecting from node %u due to transporter error %u %s",
         ownId(), nodeId, errorCode, info ? info : "");
     if (nodeId == ownId()) {
-      g_eventLogger->info("Error on loopback transporter is fatal.");
+      g_eventLogger->info("Node %u loopback transporter: error is fatal",
+                          ownId());
       abort();
     }
     DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n", ownId(), nodeId,

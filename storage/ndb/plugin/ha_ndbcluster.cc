@@ -15623,7 +15623,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
   }
 
   const bool field_fk_reference =
-      has_fk_dependency(dict, m_table->getColumn(field_position));
+      has_fk_dependency(dict, m_table_map->getColumn(field_position));
 
   // Check if table field properties are changed
   const enum_alter_inplace_result field_change_result =
@@ -15773,6 +15773,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
   Ndb *ndb = get_thd_ndb(thd)->ndb;
   NDBDICT *dict = ndb->getDictionary();
   NdbDictionary::Table new_tab = *old_tab;
+  Ndb_table_map new_tab_map{altered_table};
 
   /**
    * Check whether altering column properties can be performed inplace
@@ -15803,7 +15804,8 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       Field *new_field = altered_table->field[i];
       if (strcmp(field->field_name, new_field->field_name) != 0 &&
           !field->is_virtual_gcol()) {
-        NDBCOL *ndbCol = new_tab.getColumn(new_field->field_index());
+        NDBCOL *ndbCol = new_tab.getColumn(
+            new_tab_map.get_column_for_field(new_field->field_index()));
         ndbCol->setName(new_field->field_name);
       }
     }
@@ -16375,14 +16377,15 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
   if (alter_flags & Alter_inplace_info::ALTER_COLUMN_NAME) {
     DBUG_PRINT("info", ("Finding renamed field"));
     /* Find the renamed field */
+    Ndb_table_map new_tab_map{altered_table};
     for (uint i = 0; i < table->s->fields; i++) {
       Field *old_field = table->field[i];
       Field *new_field = altered_table->field[i];
       if (strcmp(old_field->field_name, new_field->field_name) != 0) {
         DBUG_PRINT("info", ("Found field %s renamed to %s",
                             old_field->field_name, new_field->field_name));
-        NdbDictionary::Column *ndbCol =
-            new_tab->getColumn(new_field->field_index());
+        NdbDictionary::Column *ndbCol = new_tab->getColumn(
+            new_tab_map.get_column_for_field(new_field->field_index()));
         ndbCol->setName(new_field->field_name);
       }
     }
@@ -18195,7 +18198,7 @@ bool opt_ndb_log_bin;
 static MYSQL_SYSVAR_BOOL(
     log_bin,         /* name */
     opt_ndb_log_bin, /* var */
-    PLUGIN_VAR_OPCMDARG,
+    PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
     "Log NDB tables in the binary log. Option only has meaning if "
     "the binary log has been turned on for the server.",
     nullptr, /* check func. */

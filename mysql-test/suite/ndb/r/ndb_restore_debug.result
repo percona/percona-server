@@ -116,3 +116,43 @@ Count of error message 1
 select * from ndb_restore_output where @msgcount != 1;
 a
 drop table test.t1;
+----------------
+Test hint option
+----------------
+Create backup with good amount of DATA + LOG content
+create table t1(id int primary key, val int) engine=ndb;
+Cause backup stall
+Starting backup
+Backup started
+update t1 set val=val+1;
+Waiting for backup to complete
+Backup completed
+Show transactions balanced across nodes by default
+(based on optimized node selection on localhost)
+Transaction balance of node 1 restore
+Expect balance ~ 50% : 50% (1 : 1)
+n1_trans
+1
+n2_trans
+1
+Transaction balance of node 2 restore
+Expect balance ~ 50% : 50% (1 : 1)
+n1_trans
+1
+n2_trans
+1
+Show that --hint causes each restore to use transactions
+hinted towards the specific node
+Transaction balance of node 1 hinted restore
+Expect balance ~ 100% : 0% (2 : 0)
+n1_trans
+2
+n2_trans
+0
+Transaction balance of node 2 hinted restore
+Expect balance ~ 0% : 100% (0 : 2)
+n1_trans
+0
+n2_trans
+2
+drop table t1;

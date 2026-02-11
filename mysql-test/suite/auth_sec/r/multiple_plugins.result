@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("from authentication policy cannot be used for initial handshake");
 # Check with caching_sha2_password as default first authentication factor
 # Restart the server with --authentication_policy=*:caching_sha2_password,,
 # Create users

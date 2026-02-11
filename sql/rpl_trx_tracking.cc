@@ -143,6 +143,7 @@ static bool is_trx_unsafe_for_parallel_slave(const THD *thd) {
 */
 [[nodiscard]] static bool is_create_table_as_query_block(THD *thd) {
   return ((thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+           (thd->lex->query_block != nullptr) &&
            !thd->lex->query_block->field_list_is_empty()) ||
           thd->m_transactional_ddl.inited());
 }

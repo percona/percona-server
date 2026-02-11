@@ -372,6 +372,7 @@ NdbBlob *NdbEventOperationImpl::getBlobHandle(const NdbColumnImpl *tAttrInfo,
 
       // pointer to main table op
       tBlobOp->theMainOp = this;
+      tBlobOp->m_requestInfo = this->m_requestInfo;
       tBlobOp->m_mergeEvents = m_mergeEvents;
       tBlobOp->m_filterPreStartEpochs = m_filterPreStartEpochs;  // true!
       tBlobOp->theBlobVersion = tAttrInfo->m_blobVersion;

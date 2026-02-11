@@ -27,6 +27,7 @@
 
 #include <ctype.h>
 #include <algorithm>
+#include <atomic>
 #include <sstream>
 
 #include "mysql/components/services/log_builtins.h"
@@ -40,6 +41,8 @@
 #include "sql/sql_plugin.h"
 #include "sql/strfunc.h"
 #include "sql_string.h"
+
+extern std::atomic<char *> initial_auth_plugin_name;
 
 namespace authentication_policy {
 
@@ -62,6 +65,16 @@ st_mysql_auth *Policy::get_mysql_auth(const std::string &plugin_name) {
 
   plugin_refs.push_back(plugin);
   return (st_mysql_auth *)plugin_decl(plugin)->info;
+}
+
+Policy::~Policy() {
+  if (own_init_plugin) {
+    char *old_init_plugin_name = initial_auth_plugin_name;
+    initial_auth_plugin_name = nullptr;
+    free(old_init_plugin_name);
+    own_init_plugin = false;
+  }
+  release_plugin_refs();
 }
 
 bool Policy::parse(const std::string &new_policy_value,
@@ -206,6 +219,30 @@ bool Policy::update(const char *new_policy_value) {
   verified_policy_value.clear();
 
   ret = false;
+
+  /*
+  Update default plugin name (taking value from 1st factor)
+  to be used for initial server authentication package.
+  Only the following two plugins are supported in that context:
+   - mysql_native_password
+   - caching_sha2_password
+  so if the default plugin is neither of these,
+  use caching_sha2_password (default).
+*/
+  {
+    const char *name = factors[0].get_mandatory_or_default_plugin().c_str();
+    if (0 != strcmp(name, "mysql_native_password") &&
+        0 != strcmp(name, "caching_sha2_password")) {
+      LogErr(WARNING_LEVEL, ER_AUTH_INITIAL_PLUGIN_OVERRIDE, name,
+             "caching_sha2_password");
+      name = "caching_sha2_password";
+    }
+    char *old_init_plugin_name = nullptr;
+    if (own_init_plugin) old_init_plugin_name = initial_auth_plugin_name;
+    initial_auth_plugin_name = strdup(name);
+    if (old_init_plugin_name != nullptr) free(old_init_plugin_name);
+    own_init_plugin = true;
+  }
 
 end:
   release_plugin_refs();

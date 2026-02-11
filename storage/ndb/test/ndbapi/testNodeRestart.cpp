@@ -5973,7 +5973,7 @@ int runChangeNumLogPartsINR(NDBT_Context *ctx, NDBT_Step *step) {
 }
 
 static int get_num_exec_threads(Ndb_cluster_connection *connection,
-                                Uint32 nodeId) {
+                                Uint32 nodeId, bool *is_ndbmtd = nullptr) {
   NdbInfo ndbinfo(connection, "ndbinfo/");
   if (!ndbinfo.init()) {
     g_err << "ndbinfo.init failed" << endl;
@@ -6002,6 +6002,7 @@ static int get_num_exec_threads(Ndb_cluster_connection *connection,
 
   const NdbInfoRecAttr *node_id_col = scanOp->getValue("node_id");
   const NdbInfoRecAttr *thr_no_col = scanOp->getValue("thr_no");
+  const NdbInfoRecAttr *thr_name_col = scanOp->getValue("thread_name");
 
   if (scanOp->execute() != 0) {
     g_err << "scanOp->execute failed" << endl;
@@ -6020,15 +6021,20 @@ static int get_num_exec_threads(Ndb_cluster_connection *connection,
       ndbinfo.releaseScanOperation(scanOp);
       ndbinfo.closeTable(table);
       return -1;
-    } else if (scan_next_result == 0) {
+    }
+    if (scan_next_result == 0) {
       // All ndbinfo records processed
       ndbinfo.releaseScanOperation(scanOp);
       ndbinfo.closeTable(table);
       if (!found_node_id) return 0;
-      if (thread_no == 0)
-        g_err << "Single threaded data node" << endl;
-      else
-        g_err << "Multi threaded data node" << endl;
+      if (thread_no == 0 && is_ndbmtd != nullptr) {
+        /*
+         * Only one thread, thread name is:
+         * ndbd: 'main'
+         * ndbmtd: 'main_rep_recv'
+         */
+        *is_ndbmtd = !strcmp(thr_name_col->c_str(), "main_rep_recv");
+      }
       return thread_no + 1;
 
     } else {
@@ -6055,16 +6061,21 @@ int runChangeNumLDMsNR(NDBT_Context *ctx, NDBT_Step *step) {
     return NDBT_FAILED;
   }
 
+  bool is_ndbmtd1 = false;
+  bool is_ndbmtd2 = false;
   int node1_no_threads =
-      get_num_exec_threads(&ctx->m_cluster_connection, node_1);
-  int node2_no_threads =
-      get_num_exec_threads(&ctx->m_cluster_connection, node_2);
-  g_err << node_1 << " " << node1_no_threads << endl;
-  g_err << node_2 << " " << node2_no_threads << endl;
+      get_num_exec_threads(&ctx->m_cluster_connection, node_1, &is_ndbmtd1);
 
-  if (node1_no_threads < 2 || node2_no_threads < 2) {
+  int node2_no_threads =
+      get_num_exec_threads(&ctx->m_cluster_connection, node_2, &is_ndbmtd2);
+  g_err << "Node: " << node_1 << ", num exec threads: " << node1_no_threads
+        << ", is ndbmtd: " << is_ndbmtd1 << endl;
+  g_err << "Node: " << node_2 << ", num exec threads: " << node2_no_threads
+        << ", is ndbmtd: " << is_ndbmtd2 << endl;
+
+  if (!(is_ndbmtd1 && is_ndbmtd2)) {
     g_err << "[SKIPPED] Test is useful only for clusters running multi threaded"
-             "data node (ndbmtd)"
+             " data node (ndbmtd)"
           << endl;
     ctx->stopTest();
     return NDBT_SKIPPED;

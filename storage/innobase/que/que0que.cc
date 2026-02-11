@@ -1002,12 +1002,15 @@ loop:
   ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
 
   que_run_threads_low(thr);
+  IF_DEBUG(if (thr->graph->sym_tab) { DEBUG_SYNC_C("after_low_with_lock"); });
 
   switch (thr->state) {
     case QUE_THR_RUNNING:
       /* There probably was a lock wait, but it already ended
       before we came here: continue running thr */
 
+      ut_ad(thr_get_trx(thr)->error_state == DB_LOCK_WAIT);
+      thr_get_trx(thr)->error_state = DB_SUCCESS;
       goto loop;
 
     case QUE_THR_LOCK_WAIT:

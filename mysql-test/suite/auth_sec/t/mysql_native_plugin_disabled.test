@@ -14,5 +14,27 @@ ALTER USER wl15667@localhost IDENTIFIED WITH 'mysql_native_password' BY 'foo';
 
 DROP USER wl15667@localhost;
 
-
 --echo # End of 8.0 tests
+
+--echo #
+--echo # Bug #36527984: Wrong authentication error message after disabling mysql_native_password
+--echo #
+
+--error 1
+--exec $MYSQL --protocol=TCP --user=foo --password= 2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=foob --password=  2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=fooba --password=  2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=foobar --password=  2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=foobarb --password=  2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=foobarba --password=  2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=foobarbaz --password=  2>&1
+--error 1
+--exec $MYSQL --protocol=TCP --user=foobazbar --password=  2>&1
+
+--echo # End of 8.4 tests

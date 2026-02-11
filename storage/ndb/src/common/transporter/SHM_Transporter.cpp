@@ -300,7 +300,10 @@ bool SHM_Transporter::connect_server_impl(NdbSocket &&sockfd) {
       DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n", localNodeId,
                      remoteNodeId, __LINE__));
       if (setupBuffers()) {
-        g_eventLogger->info("Shared memory not supported on this platform");
+        g_eventLogger->info(
+            "Node %u transporter to node %u: SHM not supported on this "
+            "platform; disconnecting",
+            localNodeId, remoteNodeId);
         detach_shm(false);
         break;
       }
@@ -454,7 +457,10 @@ bool SHM_Transporter::connect_client_impl(NdbSocket &&sockfd) {
       DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n", localNodeId,
                      remoteNodeId, __LINE__));
       if (setupBuffers()) {
-        g_eventLogger->info("Shared memory not supported on this platform");
+        g_eventLogger->info(
+            "Node %u transporter to node %u: SHM not supported on this "
+            "platform; disconnecting",
+            localNodeId, remoteNodeId);
         detach_shm(false);
         break;
       }

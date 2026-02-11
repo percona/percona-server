@@ -6505,7 +6505,8 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
               table_name, table_name);
       continue;
     }
-    if (atoi(row[3]) < 1) break;
+    /* break if the index is not unique */
+    if (row[1] && *row[1] && atoi(row[1]) > 0) break;
     if (row[4] && *row[4]) order_by_part = quote_name(row[4], buff, false);
 #ifdef USABLE_EXPR_IN_SHOW_INDEX_BUG35273994
     else if (mysql_num_fields(res) > 14 && row[14] &&
@@ -6542,7 +6543,8 @@ static char *primary_key_fields(const char *table_name, const bool desc) {
     while (nullptr != (row = mysql_fetch_row(res))) {
       unsigned braces_length = 0;
       if (!row[3] || !*row[3]) continue;
-      if (atoi(row[3]) < 1) break;
+      /* break if the index is not unique */
+      if (row[1] && *row[1] && atoi(row[1]) > 0) break;
       if (row[4] && *row[4]) order_by_part = quote_name(row[4], buff, false);
 #ifdef USABLE_EXPR_IN_SHOW_INDEX_BUG35273994
       else if (mysql_num_fields(res) > 14 && row[14] && *row[14]) {

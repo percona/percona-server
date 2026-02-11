@@ -1268,6 +1268,16 @@ bool Query_block::setup_tables(THD *thd, Table_ref *tables,
       first_query_block_table = nullptr;
       tableno = 0;
     }
+
+    /*
+      The parser already checks table counts based on syntactic structure,
+      but the resolver check is still necessary because:
+
+      1. View expansion: A view may expand into many leaf tables
+      2. Derived tables: Complex subqueries add tables not visible in parser
+      3. Recursive CTEs: Expansion happens at resolution time
+      4. The parser counts syntactic tables; we count actual leaf tables here
+    */
     if (tableno >= MAX_TABLES) {
       my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
       return true;

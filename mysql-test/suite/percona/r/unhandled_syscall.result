@@ -1,0 +1,5 @@
+#
+# Check for "WARNING: unhandled amd64-linux syscall" in mysqld output (Valgrind-generated warning)
+#
+Checking mysqld error log...
+unhandled syscall errors=0

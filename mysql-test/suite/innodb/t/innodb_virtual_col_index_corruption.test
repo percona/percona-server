@@ -1,0 +1,33 @@
+SET @innodb_file_per_table_orig = @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table=on;
+
+CREATE TABLE `t1` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` varchar(2) CHARACTER SET latin1 COLLATE latin1_german2_ci DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d2` VARCHAR(2) GENERATED ALWAYS AS (UPPER(b)) VIRTUAL,
+  `d` varchar(2) CHARACTER SET latin1 COLLATE latin1_german2_ci  GENERATED ALWAYS AS (b) VIRTUAL,
+  PRIMARY KEY (`a`),
+  KEY `d` (`d`)
+) ENGINE=InnoDB AUTO_INCREMENT=4096 DEFAULT CHARSET=utf8mb3 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES(1,'SS',1, default,default);
+
+SELECT HEX(d),a FROM t1 USE INDEX (d) WHERE a = 1;
+SELECT HEX(d),a FROM t1 WHERE a = 1;
+
+# In german collation 'ß' and 'SS' are same as per collation
+# but they are different in binary. Although we deleted 'SS'
+# record, and inserting 'ß' is executed as insert by modify on secondary
+# indexes. This is because the collation equivalent delete marked record 'SS'
+# exists.
+
+DELETE FROM t1 WHERE a=1;
+INSERT INTO t1 VALUES(1,_latin1 0xdf,1, default, default);
+
+# We expect same output from the secondary index on virtual col and from clustered index
+# for field d.
+SELECT HEX(d),a FROM t1 USE INDEX (d) WHERE a = 1;
+SELECT HEX(d),a FROM t1 WHERE a = 1;
+
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table = @innodb_file_per_table_orig;

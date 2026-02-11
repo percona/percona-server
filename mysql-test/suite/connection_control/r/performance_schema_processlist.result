@@ -9,8 +9,8 @@ SET @@global.connection_control_failed_connections_threshold = 1;
 SET @@global.connection_control_min_connection_delay = 2000;
 # processlist output
 select * from performance_schema.processlist where user='unauthenticated_user';
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	EXECUTION_ENGINE
-<Id>	unauthenticated_user	<Host>	NULL	<Command>	<Time>	<State>	NULL	PRIMARY
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS	ROWS_SENT	ROWS_EXAMINED	EXECUTION_ENGINE
+<Id>	unauthenticated_user	<Host>	NULL	<Command>	<Time>	<State>	NULL	<Time_ms>	<Rows_sent>	<Rows_examined>	PRIMARY
 # Cleanup
 SET @@global.connection_control_failed_connections_threshold = @saved_connections_threshold;
 SET @@global.connection_control_min_connection_delay = @saved_min_delay;

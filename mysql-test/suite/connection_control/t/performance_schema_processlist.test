@@ -22,7 +22,7 @@ SET @@global.connection_control_min_connection_delay = 2000;
 --sleep 2
 
 --echo # processlist output
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State> 9 <Time_ms> 10 <Rows_sent> 11 <Rows_examined>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
 select * from performance_schema.processlist where user='unauthenticated_user';
 

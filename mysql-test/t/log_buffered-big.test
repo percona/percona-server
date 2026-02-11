@@ -145,6 +145,14 @@ SELECT "[ PASS ] Server has restarted.";
    my $file_trad= $ENV{'LOG_FILE_TRAD'};
    my $file_conv= $ENV{'LOG_FILE_JSON_TO_TRAD'};
 
+   # Two messages with timestamps differing by microseconds may arrive
+   # in reverse order in the two sinks — even though both are correct and complete.
+   # To avoid false failures, sort both logs before comparing.
+   system("sort $file_trad -o $file_trad.sorted") == 0 or die "sort failed for $file_trad";
+   rename("$file_trad.sorted", $file_trad) or die "rename failed for $file_trad: $!";
+   system("sort $file_conv -o $file_conv.sorted") == 0 or die "sort failed for $file_conv";
+   rename("$file_conv.sorted", $file_conv) or die "rename failed for $file_conv: $!";
+
    my $compare = compare($file_conv, $file_trad);
 
    if ($compare == 0) {

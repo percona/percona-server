@@ -11,7 +11,7 @@ INSERT INTO t1 VALUES (1);
 
 BEGIN;
 INSERT INTO t1 VALUES (2);
-SET SESSION debug="d,crash_commit_after_prepare";
+SET SESSION debug="d,crash_after_flush_engine_log";
 --exec echo "wait" > $restart_file
 --error CR_SERVER_GONE_ERROR, CR_SERVER_LOST
 COMMIT;
@@ -28,7 +28,7 @@ SELECT * FROM t1;
 
 BEGIN;
 INSERT INTO t1 VALUES (2);
-SET SESSION debug="d,crash_commit_after_prepare";
+SET SESSION debug="d,crash_after_flush_engine_log";
 --exec echo "wait" > $restart_file
 --error CR_SERVER_GONE_ERROR, CR_SERVER_LOST
 COMMIT;

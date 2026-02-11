@@ -2,7 +2,7 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 BEGIN;
 INSERT INTO t1 VALUES (2);
-SET SESSION debug="d,crash_commit_after_prepare";
+SET SESSION debug="d,crash_after_flush_engine_log";
 COMMIT;
 Got one of the listed errors
 Restarting with --tc-heuristic-recover=ROLLBACK
@@ -12,7 +12,7 @@ a
 1
 BEGIN;
 INSERT INTO t1 VALUES (2);
-SET SESSION debug="d,crash_commit_after_prepare";
+SET SESSION debug="d,crash_after_flush_engine_log";
 COMMIT;
 Got one of the listed errors
 Restarting with --tc-heuristic-recover=COMMIT

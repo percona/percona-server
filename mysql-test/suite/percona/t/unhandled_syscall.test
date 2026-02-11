@@ -1,0 +1,7 @@
+--echo #
+--echo # Check for "WARNING: unhandled amd64-linux syscall" in mysqld output (Valgrind-generated warning)
+--echo #
+
+--echo Checking mysqld error log...
+
+--exec echo "unhandled syscall errors=`grep -c 'WARNING: unhandled amd64-linux syscall' $MYSQLTEST_VARDIR/log/mysqld.1.err 2>/dev/null || :`"

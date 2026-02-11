@@ -1,0 +1,57 @@
+Bug#37792010 Test if accessing performance_schema.data_locks table
+concurrently when FTS tables are being configured causes any issue
+CREATE TABLE my_stopwords(value VARCHAR(30)) ENGINE = INNODB;
+INSERT INTO my_stopwords(value) VALUES ('Ishmael');
+CREATE TABLE opening_lines (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+opening_line TEXT(500),
+author VARCHAR(200),
+title VARCHAR(200)
+) ENGINE=InnoDB;
+INSERT INTO opening_lines(opening_line,author,title) VALUES
+('Call me Ishmael.','Herman Melville','Moby-Dick'),
+('A screaming comes across the sky.','Thomas Pynchon','Gravity\'s Rainbow'),
+('I am an invisible man.','Ralph Ellison','Invisible Man'),
+('Where now? Who now? When now?','Samuel Beckett','The Unnamable'),
+('It was love at first sight.','Joseph Heller','Catch-22'),
+('All this happened, more or less.','Kurt Vonnegut','Slaughterhouse-Five'),
+('Mrs. Dalloway said she would buy the flowers herself.','Virginia Woolf','Mrs. Dalloway'),
+('It was a pleasure to burn.','Ray Bradbury','Fahrenheit 451');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/my_stopwords';
+SET DEBUG_SYNC= 'fts_before_stopword_commit SIGNAL opened WAIT_FOR continue1';
+CREATE FULLTEXT INDEX idx ON opening_lines(opening_line);
+SET DEBUG_SYNC='now WAIT_FOR opened';
+select * from performance_schema.data_locks;
+select 'MASKED' AS object_name FROM performance_schema.data_locks;
+object_name
+MASKED
+MASKED
+MASKED
+MASKED
+MASKED
+MASKED
+SET DEBUG_SYNC='now SIGNAL continue1';
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SET GLOBAL innodb_ft_aux_table='test/opening_lines';
+SELECT word FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE LIMIT 15;
+word
+across
+all
+burn
+buy
+call
+comes
+dalloway
+first
+flowers
+happened
+herself
+invisible
+less
+love
+man
+DROP TABLE my_stopwords;
+DROP TABLE opening_lines;
+SET GLOBAL innodb_ft_server_stopword_table=default;
+SET GLOBAL innodb_ft_aux_table=default;

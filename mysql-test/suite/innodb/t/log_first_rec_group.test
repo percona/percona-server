@@ -30,9 +30,11 @@ while ($pass != 2) {
 
   --echo # Initialization - create table, resets autoincrement value.
   CREATE TABLE t (a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB;
-  INSERT INTO t (a) VALUES (97);
+
+  # 98 and 99 added by Percona to make sure all happens within the single log block
   INSERT INTO t (a) VALUES (98);
   INSERT INTO t (a) VALUES (99);
+
   INSERT INTO t (a) VALUES (100);
 
   # Enable all METRICS within log module

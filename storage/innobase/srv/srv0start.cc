@@ -111,6 +111,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0meb.h"
 #include "os0event.h"
 #include "os0proc.h"
+#include "os0cpu.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -1701,6 +1702,40 @@ dberr_t srv_start(bool create_new_db) {
   srv_start_has_been_called = true;
 
   srv_is_being_started = true;
+
+#ifdef UNIV_LINUX
+  /* Log CPU topology at InnoDB startup. */
+  os_cpu_topology_init(&os_cpu_topology);
+
+  ib::info(ER_IB_MSG_CPU_CORES_INFO)
+    << "CPU topology: sockets=" << (ulong) os_cpu_topology.sockets.size()
+    << ", logical CPUs=" << (ulong) os_cpu_topology.logical_cpus
+    << ", physical cores=" << (ulong) os_cpu_topology.physical_cores
+    << ", threads per core=" << (ulong) os_cpu_topology.threads_per_core
+    << ", HyperThreading="
+    << (os_cpu_topology.hyperthreading_on ? "ON" : "OFF");
+
+  for (const auto &socket : os_cpu_topology.sockets) {
+    ib::info(ER_IB_MSG_CPU_CORES_INFO)
+      << "\tsocket " << socket.socket_id
+      << ": cores=" << (ulong) socket.cores.size();
+
+    for (const auto &core : socket.cores) {
+      std::ostringstream threads_str;
+      for (size_t i = 0; i < core.threads.size(); ++i) {
+        if (i > 0) {
+          threads_str << ",";
+        }
+        threads_str << core.threads[i].cpu_id;
+      }
+
+      ib::info(ER_IB_MSG_CPU_CORES_INFO)
+        << "\t\tcore " << core.core_id
+        << ": threads=" << core.threads.size()
+        << " [cpu_ids=" << threads_str.str() << "]";
+    }
+  }
+#endif /* UNIV_LINUX */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
   /* Register performance schema stages before any real work has been

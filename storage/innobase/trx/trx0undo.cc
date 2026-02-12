@@ -597,7 +597,19 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   auto undo_ptr = &trx->rsegs.m_redo;
 
   /* If update undo is already allocated, nothing to do. */
-  if (!alloc || undo_ptr->is_update()) {
+  if (undo_ptr->is_update()) {
+    /* If we need to persist GTID, but space is not allocated in the existing
+    undo, we cannot persist GTID. This can happen for a recovered prepared XA
+    transaction whose undo was written without GTID flags (e.g. crash between
+    trx_prepare_low and trx_set_prepared_in_tc_low). Reset persists_gtid to
+    avoid a later assertion in trx_undo_gtid_set. */
+    if (alloc && !undo_ptr->update_undo->gtid_allocated(prepare)) {
+      trx->persists_gtid = false;
+    }
+    return (DB_SUCCESS);
+  }
+
+  if (!alloc) {
     return (DB_SUCCESS);
   }
 

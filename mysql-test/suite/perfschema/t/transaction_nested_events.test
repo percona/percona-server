@@ -238,7 +238,7 @@ DELIMITER ;|
 --echo
 --echo ## Expect 0 transactions
 --connection default
-SELECT COUNT(*) FROM performance_schema.events_transactions_history;
+SELECT COUNT(*) FROM performance_schema.events_transactions_history WHERE THREAD_ID = @con1_thread_id;
 --connection con1
 
 --echo
@@ -250,7 +250,7 @@ SELECT fn_err1();
 --echo
 --echo ## Expect 0 transactions
 --connection default
-SELECT COUNT(*) FROM performance_schema.events_transactions_history;
+SELECT COUNT(*) FROM performance_schema.events_transactions_history WHERE THREAD_ID = @con1_thread_id;
 --connection con1
 
 --echo
@@ -270,7 +270,7 @@ SELECT fn_err2();
 --echo
 --echo ## Expect 0 transactions
 --connection default
-SELECT COUNT(*) FROM performance_schema.events_transactions_history;
+SELECT COUNT(*) FROM performance_schema.events_transactions_history WHERE THREAD_ID = @con1_thread_id;
 
 --echo
 --echo ## Clear transaction and statement tables

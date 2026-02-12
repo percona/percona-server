@@ -168,6 +168,54 @@ static SEL_TREE *get_ne_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
   @param op         The 'in' operator itself.
   @param is_negated If true, the operator is NOT IN, otherwise IN.
 */
+
+/**
+  Try to extract the Field and constant value from a multiple equality.
+
+  Constant propagation rewrites simple col = const to MULT_EQUAL during
+  optimization. Subquery conditions for instance are not rewritten,
+  but that narrow case is out of scope for the oversized-value check.
+
+  @param      func       The predicate to extract from.
+  @param[out] out_field  Set to the Field on success.
+  @param[out] out_value  Set to the constant value on success.
+
+  @return false on success (field and value extracted), true on failure.
+*/
+static bool get_eq_field_and_value(const Item_func *func,
+                                   const Field **out_field, Item **out_value) {
+  if (func->functype() == Item_func::MULT_EQUAL_FUNC) {
+    auto *item_equal = down_cast<const Item_equal *>(func);
+    Item *value = item_equal->const_arg();
+    if (value != nullptr) {
+      auto it = item_equal->get_fields().begin();
+      if (it == item_equal->get_fields().end()) return true;
+      *out_field = it->field;
+      *out_value = value;
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+  Check whether a string value exceeds the column's character capacity.
+  No row can match such a value, so callers can safely skip it instead
+  of letting the nullptr poison the tree via tree_or(valid, nullptr).
+
+  @param field  The column to check against.
+  @param value  The value to check.
+
+  @return true if the value exceeds the column's character capacity.
+*/
+static bool is_oversized_string_for_field(const Field *field, Item *value) {
+  if (!is_string_type(field->type()) || value->result_type() != STRING_RESULT)
+    return false;
+  String buf;
+  String *s = value->val_str(&buf);
+  return s != nullptr && s->numchars() > field->char_length();
+}
+
 static SEL_TREE *get_func_mm_tree_from_in_predicate(
     THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     table_map read_tables, bool remove_jump_scans, Item *predicand,
@@ -365,16 +413,28 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
   if (predicand->type() == Item::FIELD_ITEM) {
     // The expression is (<column>) IN (...)
     Field *field = down_cast<Item_field *>(predicand)->field;
-    SEL_TREE *tree =
-        get_mm_parts(thd, param, prev_tables, read_tables, op, field,
-                     Item_func::EQ_FUNC, op->arguments()[1]);
-    if (tree) {
-      Item **arg, **end;
-      for (arg = op->arguments() + 2, end = arg + op->argument_count() - 2;
-           arg < end; arg++) {
-        tree = tree_or(param, remove_jump_scans, tree,
-                       get_mm_parts(thd, param, prev_tables, read_tables, op,
-                                    field, Item_func::EQ_FUNC, *arg));
+    SEL_TREE *tree = nullptr;
+    for (Item **arg = op->arguments() + 1,
+              **end = arg + op->argument_count() - 1;
+         arg < end; arg++) {
+      if (SEL_TREE *val_tree =
+              get_mm_parts(thd, param, prev_tables, read_tables, op, field,
+                           Item_func::EQ_FUNC, *arg);
+          val_tree == nullptr) {
+        /*
+          Bug#118009: An oversized string poisons the tree via
+          tree_or(valid, nullptr). Skip it -- no row can match. We check
+          against the field's char_length(), not the key_part's prefix
+          clone. For non-string types, nullptr is genuine "always true"
+          so we bail out.
+        */
+        if (is_oversized_string_for_field(field, *arg)) continue;
+        return nullptr;
+      } else {
+        tree = tree == nullptr
+                   ? val_tree
+                   : tree_or(param, remove_jump_scans, tree, val_tree);
+        if (tree == nullptr) return nullptr;
       }
     }
     return tree;
@@ -860,6 +920,21 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
       SEL_TREE *new_tree = get_mm_tree(thd, param, prev_tables, read_tables,
                                        current_table, remove_jump_scans, &item);
       if (param->has_errors()) return nullptr;
+      /*
+        Bug#119867: An oversized equality branch poisons the tree via
+        tree_or(valid, nullptr). Skip it -- no row can match. This must
+        run before the first-branch assignment below to avoid poisoning
+        all subsequent branches.
+      */
+      if (functype != Item_func::COND_AND_FUNC && new_tree == nullptr &&
+          item.type() == Item::FUNC_ITEM) {
+        const Field *eq_field;
+        Item *eq_value;
+        if (!get_eq_field_and_value(down_cast<Item_func *>(&item), &eq_field,
+                                    &eq_value) &&
+            is_oversized_string_for_field(eq_field, eq_value))
+          continue;
+      }
       if (first) {
         tree = new_tree;
         first = false;
@@ -1588,7 +1663,17 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
       down_cast<Field_geom *>(field)->geom_type = save_geom_type;
     }
 
-    if (always_true_or_false) goto end;
+    if (always_true_or_false) {
+      /*
+        Bug#119770: For EQ_FUNC on a prefix key, the truncated value is
+        a valid prefix lookup. Fall through with inexact=true so the
+        filter rechecks full equality.
+      */
+      if (type == Item_func::EQ_FUNC && (key_part->flag & HA_PART_KEY_SEG))
+        *inexact = true;
+      else
+        goto end;
+    }
   }
 
   /*

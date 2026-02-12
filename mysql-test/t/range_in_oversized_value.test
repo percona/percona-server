@@ -1,0 +1,341 @@
+--source include/elide_costs.inc
+
+--echo #
+--echo # Bug#118009: Full table scan instead of index range scan when IN()
+--echo #             contains a value longer than VARCHAR column length
+--echo #
+--echo # Also covers Bug#118486 (same root cause) and Bug#119770
+--echo # (prefix index variant).
+--echo #
+
+--echo # ---------------------------------------------------------------
+--echo # Test 1: Basic case - IN() with oversized value on PK
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t1 (
+  pk VARCHAR(16) NOT NULL PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t1 VALUES ('abc'), ('def'), ('ghi'), ('jkl'), ('mno');
+ANALYZE TABLE t1;
+
+--echo # Must use range/index scan, not full table scan
+EXPLAIN SELECT * FROM t1
+  WHERE pk IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--sorted_result
+SELECT * FROM t1
+  WHERE pk IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--echo # Single oversized value - should not cause errors
+EXPLAIN SELECT * FROM t1
+  WHERE pk IN ('this_value_is_way_too_long_for_varchar16');
+
+--echo # All oversized values
+EXPLAIN SELECT * FROM t1
+  WHERE pk IN ('this_value_is_way_too_long_for_varchar16',
+               'another_oversized_value_here_xxxx');
+
+DROP TABLE t1;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 2: Bug#35169384 non-regression - collation contractions
+--echo # ---------------------------------------------------------------
+
+--echo # In utf8mb4_0900_ai_ci: 'ae'='æ', 'ss'='ß', SOFT HYPHEN is ignored.
+--echo # These results MUST be correct (not regressed by the fix).
+
+CREATE TABLE t2 (x VARCHAR(1), KEY (x))
+  DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t2 VALUES ('a'), ('b'), ('æ'), ('ß'), ('s');
+INSERT INTO t2 SELECT 'x' FROM t2;
+INSERT INTO t2 SELECT 'x' FROM t2;
+ANALYZE TABLE t2;
+
+--echo # 'ae' matches 'æ', 'ss' matches 'ß', SOFT_HYPHEN+'b' matches 'b'
+--echo # Expected: b, ß, æ
+EXPLAIN SELECT * FROM t2
+  WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
+
+--sorted_result
+SELECT * FROM t2
+  WHERE x IN ('ae', 'ss', CONCAT(_utf16 x'00AD', 'b'));
+
+--echo # Range predicates must still be abandoned (not just EQ_FUNC)
+--echo # x <= 'ae' should match 'a' and 'æ' (not just 'a')
+EXPLAIN SELECT * FROM t2 WHERE x <= 'ae';
+
+--sorted_result
+SELECT * FROM t2 WHERE x <= 'ae';
+
+--echo # x BETWEEN 'r' AND 'ss' should match 's' and 'ß'
+EXPLAIN SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
+
+--sorted_result
+SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
+
+--echo # Mixed: valid value + oversized contraction value on small column
+--echo # Known limitation: 'æ' is missed because 'ae' (2 chars) exceeds
+--echo # VARCHAR(1) and is skipped, leaving only range for 'a'. The sort key
+--echo # for 'æ' differs from 'a' so it's not in the range. The filter can't
+--echo # recheck rows that were never scanned. This matches 8.0 behavior
+--echo # (Bug#35169384) and is acceptable for the Bug#118009 fix.
+--echo # Expected: a (known: æ is missed in this mixed contraction case)
+EXPLAIN SELECT * FROM t2 WHERE x IN ('a', 'ae');
+
+--sorted_result
+SELECT * FROM t2 WHERE x IN ('a', 'ae');
+
+DROP TABLE t2;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 3: Oversized IN() value on secondary index
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t3 (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c VARCHAR(16) NOT NULL,
+  KEY idx_c (c)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t3 (c) VALUES ('abc'), ('def'), ('ghi');
+ANALYZE TABLE t3;
+
+--echo # Must use index range scan on idx_c, not full table scan
+EXPLAIN SELECT * FROM t3
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--sorted_result
+SELECT * FROM t3
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+DROP TABLE t3;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 4: Binary collation not affected (already works correctly)
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t4 (
+  c VARCHAR(16) NOT NULL PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+INSERT INTO t4 VALUES ('abc'), ('def');
+ANALYZE TABLE t4;
+
+--echo # Binary collation: should use range scan (already worked before fix)
+EXPLAIN SELECT * FROM t4
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--sorted_result
+SELECT * FROM t4
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+DROP TABLE t4;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 5: Nullable column
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t5 (
+  c VARCHAR(16),
+  KEY idx_c (c)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t5 VALUES ('abc'), ('def'), (NULL);
+ANALYZE TABLE t5;
+
+EXPLAIN SELECT * FROM t5
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--sorted_result
+SELECT * FROM t5
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+DROP TABLE t5;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 6: Multiple oversized values mixed with normal values
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t6 (
+  c VARCHAR(8) NOT NULL PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t6 VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd'),
+  ('eee'), ('fff'), ('ggg'), ('hhh'), ('iii'), ('jjj'),
+  ('kkk'), ('lll'), ('mmm'), ('nnn'), ('ooo'), ('ppp');
+ANALYZE TABLE t6;
+
+--echo # Two normal + two oversized: must still find the normal values
+EXPLAIN SELECT * FROM t6
+  WHERE c IN ('aaa', 'oversized_value_one', 'ccc', 'oversized_value_two');
+
+--sorted_result
+SELECT * FROM t6
+  WHERE c IN ('aaa', 'oversized_value_one', 'ccc', 'oversized_value_two');
+
+DROP TABLE t6;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 7: Prefix index with values exceeding column length
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t7 (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  c VARCHAR(16) NOT NULL,
+  KEY idx_c_prefix (c(8))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t7 (c) VALUES ('abc'), ('def'), ('ghi');
+ANALYZE TABLE t7;
+
+--echo # 'abc' fits, oversized value exceeds VARCHAR(16) - must use range
+EXPLAIN SELECT * FROM t7
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--sorted_result
+SELECT * FROM t7
+  WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+DROP TABLE t7;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 8: Bug#119770 - Prefix index, values exceed prefix but fit
+--echo #         in the column. Must use range scan on the prefix index.
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t8 (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  uniq_name VARCHAR(64) NOT NULL,
+  KEY idx_prefix (uniq_name(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t8 (uniq_name) VALUES
+  ('short'), ('another'), ('testval'),
+  ('abcdefghijklmnopqrstuvwxyz0123456789');
+ANALYZE TABLE t8;
+
+--echo # Values exceed prefix(10) but fit in VARCHAR(64) - must use range
+EXPLAIN SELECT * FROM t8
+  WHERE uniq_name IN ('short', 'abcdefghijklmnopqrstuvwxyz0123456789', 'another');
+
+--sorted_result
+SELECT * FROM t8
+  WHERE uniq_name IN ('short', 'abcdefghijklmnopqrstuvwxyz0123456789', 'another');
+
+DROP TABLE t8;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 9: Bug#119867 - OR across different indexed columns with
+--echo #         oversized value must preserve index merge optimization.
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t9 (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c1 VARCHAR(2),
+  c2 VARCHAR(2),
+  c3 VARCHAR(2),
+  KEY idx_c1 (c1),
+  KEY idx_c2 (c2),
+  KEY idx_c3 (c3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t9 (c1, c2, c3) VALUES
+  ('a','x','x'),('b','y','y'),('c','z','z'),
+  ('d','a','a'),('e','b','b'),('f','c','c'),
+  ('g','d','d'),('h','e','e'),('i','f','f'),
+  ('j','g','g'),('k','h','h'),('l','i','i');
+ANALYZE TABLE t9;
+
+--echo # Must use index_merge, not full table scan
+EXPLAIN SELECT * FROM t9 WHERE c1 = 'a' OR c2 = 'b' OR c3 = 'abc';
+
+--echo # Oversized branch first: must still use index_merge
+EXPLAIN SELECT * FROM t9 WHERE c3 = 'abc' OR c1 = 'a' OR c2 = 'b';
+
+--echo # Verify correct results (only c1='a' and c2='b' match)
+--sorted_result
+SELECT * FROM t9 WHERE c1 = 'a' OR c2 = 'b' OR c3 = 'abc';
+
+DROP TABLE t9;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 10: Bug#119867 - OR with multi-field multiple equality
+--echo #          (equality propagation creates MULT_EQUAL across columns)
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t10 (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c1 VARCHAR(2),
+  c2 VARCHAR(2),
+  c3 VARCHAR(2),
+  c4 VARCHAR(2),
+  KEY idx_c1 (c1),
+  KEY idx_c2 (c2),
+  KEY idx_c3 (c3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t10 (c1, c2, c3, c4) VALUES
+  ('a','x','x','x'),('b','y','y','y'),('c','z','z','z'),
+  ('d','a','a','a'),('e','b','b','b'),('f','c','c','c'),
+  ('g','d','d','d'),('h','e','e','e'),('i','f','f','f'),
+  ('j','g','g','g'),('k','h','h','h'),('l','i','i','i');
+ANALYZE TABLE t10;
+
+--echo # c4 = 'abc' AND c3 = c4 creates MULT_EQUAL('abc', c3, c4).
+--echo # 'abc' is oversized for both VARCHAR(2) columns.
+--echo # Must use index_merge on the non-oversized branches.
+EXPLAIN SELECT * FROM t10 WHERE c1 = 'a' OR c2 = 'b' OR (c4 = 'abc' AND c3 = c4);
+
+--echo # Verify correct results (only c1='a' and c2='b' match)
+--sorted_result
+SELECT * FROM t10 WHERE c1 = 'a' OR c2 = 'b' OR (c4 = 'abc' AND c3 = c4);
+
+DROP TABLE t10;
+
+--echo # ---------------------------------------------------------------
+--echo # Test 11: View expansion - oversized detection works through
+--echo #          views (conditions go through constant propagation).
+--echo # ---------------------------------------------------------------
+
+CREATE TABLE t11 (
+  pk VARCHAR(16) NOT NULL PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t11 VALUES ('abc'), ('def'), ('ghi'), ('jkl'), ('mno');
+ANALYZE TABLE t11;
+
+CREATE VIEW v11 AS SELECT * FROM t11;
+
+--echo # Through view: must use range scan, not full table scan
+EXPLAIN SELECT * FROM v11
+  WHERE pk IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--sorted_result
+SELECT * FROM v11
+  WHERE pk IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
+
+--echo # View with OR and oversized equality (Bug#119867 path)
+CREATE TABLE t11b (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  c1 VARCHAR(2),
+  c2 VARCHAR(2),
+  KEY idx_c1 (c1),
+  KEY idx_c2 (c2)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t11b (c1, c2) VALUES
+  ('a','x'),('b','y'),('c','z'),('d','a'),('e','b'),('f','c'),
+  ('g','d'),('h','e'),('i','f'),('j','g'),('k','h'),('l','i');
+ANALYZE TABLE t11b;
+
+CREATE VIEW v11b AS SELECT * FROM t11b;
+
+--echo # Through view: must use index_merge, not full table scan
+EXPLAIN SELECT * FROM v11b WHERE c1 = 'a' OR c2 = 'abc';
+
+--sorted_result
+SELECT * FROM v11b WHERE c1 = 'a' OR c2 = 'abc';
+
+DROP VIEW v11, v11b;
+DROP TABLE t11, t11b;

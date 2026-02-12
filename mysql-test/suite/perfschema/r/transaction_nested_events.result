@@ -489,7 +489,7 @@ CREATE FUNCTION fn_err1() RETURNS VARCHAR(10) BEGIN START TRANSACTION ; RETURN i
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 
 ## Expect 0 transactions
-SELECT COUNT(*) FROM performance_schema.events_transactions_history;
+SELECT COUNT(*) FROM performance_schema.events_transactions_history WHERE THREAD_ID = @con1_thread_id;
 COUNT(*)
 0
 
@@ -499,7 +499,7 @@ SELECT fn_err1();
 ERROR 42000: FUNCTION db.fn_err1 does not exist
 
 ## Expect 0 transactions
-SELECT COUNT(*) FROM performance_schema.events_transactions_history;
+SELECT COUNT(*) FROM performance_schema.events_transactions_history WHERE THREAD_ID = @con1_thread_id;
 COUNT(*)
 0
 
@@ -514,7 +514,7 @@ SELECT fn_err2();
 ERROR 42000: FUNCTION db.fn_err2 does not exist
 
 ## Expect 0 transactions
-SELECT COUNT(*) FROM performance_schema.events_transactions_history;
+SELECT COUNT(*) FROM performance_schema.events_transactions_history WHERE THREAD_ID = @con1_thread_id;
 COUNT(*)
 0
 

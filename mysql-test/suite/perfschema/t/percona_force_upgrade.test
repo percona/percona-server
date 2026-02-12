@@ -52,7 +52,7 @@ let $FILELIST = $MYSQLTEST_VARDIR/tmp/perfschema.force_upgrade.filelist;
 # Restart with force upgrade
 --echo # Restart with force upgrade
 --let $restart_parameters = restart: --upgrade=FORCE
---let $wait_counter = 3000
+--let $wait_counter = 10000
 --source include/restart_mysqld.inc
 
 # The SDI file should be recreated

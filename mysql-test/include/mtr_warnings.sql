@@ -384,6 +384,12 @@ INSERT INTO global_suppressions VALUES
  */
  ("'--ssl-fips-mode' is deprecated and will be removed in a future release."),
 
+ /*
+   Container awareness warning when running in an environment with cgroup
+   resource limits but --container_aware is OFF (the default)
+ */
+ ("Server ignores the discovered container restrictions as --container_aware is OFF"),
+
  ("THE_LAST_SUPPRESSION");
 
 

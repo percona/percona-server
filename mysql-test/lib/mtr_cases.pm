@@ -1435,7 +1435,7 @@ sub collect_one_test_case {
   # only-big-test option.
   if ($::opt_only_big_test) {
     if ((!$tinfo->{'no_valgrind_without_big'} and !$tinfo->{'big_test'}) or
-        ($tinfo->{'no_valgrind_without_big'} and !$::opt_valgrind)) {
+        ($tinfo->{'no_valgrind_without_big'} and !$tinfo->{'big_test'} and !$::opt_valgrind)) {
       skip_test($tinfo, "Not a big test");
       return $tinfo;
     }

@@ -425,27 +425,44 @@ on the io_type */
 #define MONITOR_RW_COUNTER(io_type, counter) \
   ((io_type == BUF_IO_READ) ? (counter##_READ) : (counter##_WRITTEN))
 
-/** Registers a chunk to buf_pool_chunk_map
-@param[in]      chunk   chunk of buffers */
+/** Registers a chunk to buf_pool_chunk_map and global rw_lock_list.
+@param[in]  chunk   chunk of buffers */
 static void buf_pool_register_chunk(buf_chunk_t *chunk) {
+  // Register the chunk in the chunk map as before.
   buf_chunk_map_reg->insert(
       buf_pool_chunk_map_t::value_type(chunk->blocks->frame, chunk));
+
+  // Bulk registration of buffer block rw-locks for this chunk.
+  // This avoids taking rw_lock_list_mutex inside buf_block_init()
+  // for every single block and significantly reduces contention
+  // during buffer pool initialization.
+
+  std::vector<rw_lock_t *> locks;
+  locks.reserve(chunk->size * 2); // block->lock + debug_latch
+
+  buf_block_t *block = chunk->blocks;
+
+  for (ulint i = 0; i < chunk->size; ++i, ++block) {
+    locks.push_back(&block->lock);
+    ut_d(locks.push_back(&block->debug_latch));
+  }
+
+  rw_lock_register_bulk(locks.data(), locks.size());
 }
 
 ulint buf_get_flush_list_len(const buf_pool_t *buf_pool) {
   ulint pages = 0;
+
   if (buf_pool == nullptr) {
     for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-      buf_pool_t *buf_pool_instance;
-
-      buf_pool_instance = buf_pool_from_array(i);
-
+      buf_pool_t *buf_pool_instance = buf_pool_from_array(i);
       pages += UT_LIST_GET_LEN(buf_pool_instance->flush_list);
     }
   } else {
     pages = UT_LIST_GET_LEN(buf_pool->flush_list);
   }
-  return (pages);
+
+  return pages;
 }
 
 lsn_t buf_pool_get_oldest_modification_approx(void) {
@@ -873,30 +890,34 @@ static void buf_block_init(
   mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
 #if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-  /* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
-  of buffer block rwlock with performance schema.
+  /* Initialize buffer block rw-locks without registering them
+  in rw_lock_list. Registration is done in bulk from
+  buf_pool_register_chunk(). */
+  rw_lock_init_only(&block->lock, UT_LOCATION_HERE);
 
-  If PFS_GROUP_BUFFER_SYNC is defined, skip the registration
-  since buffer block rwlock will be registered later in
-  pfs_register_buffer_block(). */
-
-  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
+  ut_d(rw_lock_init_only(&block->debug_latch, UT_LOCATION_HERE));
 
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
-  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  /* Same as above, but with performance schema instrumentation keys
+  passed to rw_lock_create() macro previously. The keys are not used
+  by rw_lock_init_only(). */
+  rw_lock_init_only(&block->lock, UT_LOCATION_HERE);
 
-  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
+  ut_d(rw_lock_init_only(&block->debug_latch, UT_LOCATION_HERE));
 
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
+
+#ifdef UNIV_DEBUG
+  /* Restore latch ids for buffer block rw-locks in debug builds. */
+  block->lock.m_id = LATCH_ID_BUF_BLOCK_LOCK;
+  block->debug_latch.m_id = LATCH_ID_BUF_BLOCK_DEBUG;
+#endif /* UNIV_DEBUG */
 
   block->lock.is_block_lock = true;
 
   ut_ad(rw_lock_validate(&(block->lock)));
+
 }
 /* We maintain our private view of innobase_should_madvise_buf_pool() which we
 initialize at the beginning of buf_pool_init() and then update when the

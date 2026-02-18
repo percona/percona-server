@@ -50,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "sync0debug.h"
+#include "sync0rw.h"
 
 /*
         IMPLEMENTATION OF THE RW_LOCK
@@ -188,16 +189,29 @@ static rw_lock_debug_t *rw_lock_debug_create(void) {
 static void rw_lock_debug_free(rw_lock_debug_t *info) { ut::free(info); }
 #endif /* UNIV_DEBUG */
 
-void rw_lock_create_func(rw_lock_t *lock,
-                         IF_DEBUG(latch_id_t id, ) ut::Location clocation) {
+void rw_lock_register_bulk(rw_lock_t **locks, ulint count) {
+  if (count == 0) {
+    return;
+  }
+
+  mutex_enter(&rw_lock_list_mutex);
+
+  for (ulint i = 0; i < count; ++i) {
+    rw_lock_t *lock = locks[i];
+
+    ut_ad(lock->magic_n == rw_lock_t::MAGIC_N);
+
+    UT_LIST_ADD_FIRST(rw_lock_list, lock);
+  }
+
+  mutex_exit(&rw_lock_list_mutex);
+}
+
+void rw_lock_init_only(rw_lock_t *lock, ut::Location clocation) {
 #if !defined(UNIV_PFS_RWLOCK)
-  /* It should have been created in pfs_rw_lock_create_func() */
   new (lock) rw_lock_t();
 #endif /* !UNIV_PFS_RWLOCK */
   ut_ad(lock->magic_n == rw_lock_t::MAGIC_N);
-
-  /* If this is the very first time a synchronization object is
-  created, then the following call initializes the sync system. */
 
   lock->lock_word = X_LOCK_DECR;
   lock->waiters = false;
@@ -208,17 +222,11 @@ void rw_lock_create_func(rw_lock_t *lock,
 
 #ifdef UNIV_DEBUG
   lock->m_rw_lock = true;
-
-  lock->m_id = id;
-  ut_a(lock->m_id != LATCH_ID_NONE);
-
+  lock->m_id = LATCH_ID_NONE; // caller may override
 #endif /* UNIV_DEBUG */
 
   lock->clocation = clocation;
 
-  /* This should hold in practice. If it doesn't then we need to
-  split the source file anyway. Or create the locks on lines
-  less than 65536. cline is uint16_t. */
   ut_ad(clocation.line <=
         std::numeric_limits<decltype(lock->clocation.line)>::max());
 
@@ -231,6 +239,10 @@ void rw_lock_create_func(rw_lock_t *lock,
   lock->wait_ex_event = os_event_create();
 
   lock->is_block_lock = false;
+}
+
+void rw_lock_create_func(rw_lock_t *lock, ut::Location clocation) {
+  rw_lock_init_only(lock, clocation);
 
   mutex_enter(&rw_lock_list_mutex);
 

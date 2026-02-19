@@ -129,6 +129,7 @@ class Assign_gtids_to_anonymous_transactions_info {
   // The sidno corresponding to the UUID value.
   rpl_sidno m_sidno;
 };
+
 /*******************************************************************************
 Replication SQL Thread
 

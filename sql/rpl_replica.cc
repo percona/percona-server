@@ -110,6 +110,7 @@
 #include "sql/binlog.h"
 #include "sql/binlog_reader.h"
 #include "sql/clone_handler.h"  // is_provisioning
+#include "sql/cpu_binding.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"   // DEBUG_SYNC
 #include "sql/derror.h"       // ER_THD
@@ -516,7 +517,8 @@ void ReplicaInitializer::start_threads() {
     if (Master_info::is_configured(mi) && mi->rli->inited) {
       /* same as in start_slave() cache the global var values into rli's
        * members */
-      mi->rli->opt_replica_parallel_workers = opt_mts_replica_parallel_workers;
+      mi->rli->opt_replica_parallel_workers =
+        opt_mts_replica_parallel_workers;
       mi->rli->checkpoint_group = opt_mta_checkpoint_group;
       if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
         mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
@@ -2014,6 +2016,18 @@ bool start_slave_thread(PSI_thread_key thread_key, my_start_routine h_func,
     my_error(ER_REPLICA_THREAD, MYF(0));
     goto err;
   }
+
+#ifdef __linux__
+  {
+    ThreadRole role = ThreadRole::REPLICA_IO;
+
+    if (thread_key == key_thread_replica_sql) {
+      role = ThreadRole::REPLICA_APPLIER;
+    }
+    cpu_binding_apply_for_role(role, th.thread, 1);
+  }
+#endif
+
   if (start_cond && cond_lock)  // caller has cond_lock
   {
     THD *thd = current_thd;
@@ -4085,6 +4099,7 @@ int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
                   simulate_error |= (1 << SLAVE_THD_IO););
   DBUG_EXECUTE_IF("simulate_sql_replica_error_on_init",
                   simulate_error |= (1 << SLAVE_THD_SQL););
+
   thd->store_globals();
 #if !defined(NDEBUG)
   if (simulate_error & (1 << thd_type)) {
@@ -6706,6 +6721,14 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
     error = 1;
     goto err;
   }
+
+#ifdef __linux__
+  {
+    ThreadRole role = ThreadRole::REPLICA_WORKER;
+    cpu_binding_apply_for_role(role, th.thread, opt_mts_replica_parallel_workers);
+  }
+#endif
+
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::NOT_RUNNING)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
@@ -8987,6 +9010,7 @@ bool start_slave(THD *thd, LEX_REPLICA_CONNECTION *connection_param,
           mi->rli->slave_skip_counter = sql_replica_skip_counter;
         sql_replica_skip_counter = 0;
         mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
+
         /*
           To cache the MTS system var values and used them in the following
           runtime. The system vars can change meanwhile but having no other

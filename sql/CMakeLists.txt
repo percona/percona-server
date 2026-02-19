@@ -367,6 +367,7 @@ SET(SQL_SHARED_SOURCES
   check_stack.cc
   conn_handler/connection_handler_manager.cc
   clone_handler.cc
+  cpu_binding.cc
   cpu_topology.cc
   create_field.cc
   current_thd.cc

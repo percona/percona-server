@@ -38,6 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <time.h>
 
+#include "sql/cpu_binding.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
 #include "buf0checksum.h"
@@ -88,6 +90,8 @@ static uint buf_flush_lsn_scan_factor = 3;
 
 /** Target oldest LSN for the requested flush_sync */
 static lsn_t buf_flush_sync_lsn = 0;
+
+extern char *opt_thread_affinity_bp_lru;
 
 #ifdef UNIV_DEBUG
 /** Get the lsn up to which data pages are to be synchronously flushed.
@@ -2814,6 +2818,11 @@ void buf_flush_page_cleaner_init() {
 
   /* Make sure page cleaner is active. */
   ut_a(buf_flush_page_cleaner_is_active());
+
+  /* Register CPU binding option for buffer pool page cleaner threads.
+    This covers both the coordinator and all worker threads. */
+  cpu_binding_register_option(ThreadRole::BUFPOOL_LRU_T,
+                              opt_thread_affinity_bp_lru);
 }
 
 /**
@@ -3146,6 +3155,12 @@ static void buf_flush_page_coordinator_thread() {
   THD *thd = create_internal_thd();
 
 #ifdef UNIV_LINUX
+  /* Apply CPU binding for this page cleaner coordinator thread.
+    plannedthreads = m_page_cleaner_workers_n covers coordinator + all workers. */
+  cpu_binding_apply_for_role(ThreadRole::BUFPOOL_LRU_T,
+                             pthread_self(),
+                             srv_threads.m_page_cleaner_workers_n);
+
   /* linux might be able to set different setting for each thread.
   worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {
@@ -3563,6 +3578,12 @@ thread_exit:
 /** Worker thread of page_cleaner. */
 static void buf_flush_page_cleaner_thread() {
 #ifdef UNIV_LINUX
+  /* Apply CPU binding for this page cleaner worker thread.
+    plannedthreads = m_page_cleaner_workers_n covers coordinator + all workers. */
+  cpu_binding_apply_for_role(ThreadRole::BUFPOOL_LRU_T,
+                             pthread_self(),
+                             srv_threads.m_page_cleaner_workers_n);
+
   /* linux might be able to set different setting for each thread
   worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {

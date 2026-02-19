@@ -54,6 +54,7 @@
 #include "sql/auth/auth_acls.h"  // SUPER_ACL
 #include "sql/auth/roles.h"      // Roles::Role_activation
 #include "sql/auth/sql_auth_cache.h"
+#include "sql/cpu_topology.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/log_event.h"  // Log_event

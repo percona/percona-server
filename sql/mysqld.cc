@@ -791,6 +791,7 @@ MySQL clients support the protocol:
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 #include "sql/conn_handler/socket_connection.h"  // stmt_info_new_packet
+#include "sql/cpu_binding.h"
 #include "sql/current_thd.h"                     // current_thd
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/debug_sync.h"  // debug_sync_end
@@ -1202,6 +1203,13 @@ static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used = false;
 
 LEX_STRING opt_init_connect, opt_init_replica;
+
+#ifdef MYSQL_SERVER
+  extern char *opt_thread_affinity_main;
+  extern char *opt_thread_affinity_rpl;
+  extern char *opt_thread_affinity_client;
+  extern char *opt_thread_affinity_bp_lru;
+#endif
 
 /* Global variables */
 
@@ -3591,9 +3599,8 @@ static bool network_init(void) {
 
     if (mysqld_socket_acceptor->init_connection_acceptor())
       return true;  // mysqld_socket_acceptor would be freed in unireg_abort.
-
+    
     if (report_port == 0) report_port = mysqld_port;
-
     if (!opt_disable_networking) assert(report_port != 0);
   }
 #ifdef _WIN32
@@ -8784,6 +8791,12 @@ static int init_server_components() {
 
   if (is_help_or_validate_option()) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
+  cpu_binding_register_option(ThreadRole::MAIN_THREAD,    opt_thread_affinity_main);
+  cpu_binding_register_option(ThreadRole::REPLICA_IO,      opt_thread_affinity_rpl);
+  cpu_binding_register_option(ThreadRole::REPLICA_APPLIER, opt_thread_affinity_rpl);
+  cpu_binding_register_option(ThreadRole::REPLICA_WORKER,  opt_thread_affinity_rpl);
+  cpu_binding_register_option(ThreadRole::CLIENT_THREAD, opt_thread_affinity_client);
+
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!my_default_lc_messages->errmsgs->is_loaded()) {
     LogErr(ERROR_LEVEL, ER_CANT_READ_ERRMSGS);
@@ -10127,6 +10140,8 @@ int mysqld_main(int argc, char **argv)
 
   if (init_ssl_communication()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init()) unireg_abort(MYSQLD_ABORT_EXIT);
+
+  cpu_binding_apply_for_role(ThreadRole::MAIN_THREAD, pthread_self(), 1);  // one main thread
 
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&

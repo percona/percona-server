@@ -52,6 +52,7 @@
 #include "sql/conn_handler/channel_info.h"  // Channel_info
 #include "sql/conn_handler/connection_handler_impl.h"
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
+#include "sql/cpu_binding.h"
 #include "sql/debug_sync.h"
 #include "sql/log.h"                 // Error_log_throttle
 #include "sql/mysqld.h"              // max_connections
@@ -245,6 +246,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
 
 extern "C" {
 static void *handle_connection(void *arg) {
+
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   Connection_handler_manager *handler_manager =
       Connection_handler_manager::get_instance();
@@ -439,6 +441,8 @@ handle_error:
     Connection_handler_manager::dec_connection_count();
     return true;
   }
+
+  cpu_binding_apply_for_role(ThreadRole::CLIENT_THREAD, id.thread, 1);
 
   Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_PRINT("info", ("Thread created"));

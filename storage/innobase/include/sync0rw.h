@@ -122,10 +122,8 @@ extern ib_mutex_t rw_lock_list_mutex;
  to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
  is necessary only if the memory block containing it is freed.
  @param[in] lock pointer to memory
- @param[in] id latch_id
  @param[in] clocation location where created */
-void rw_lock_create_func(rw_lock_t *lock,
-                         IF_DEBUG(latch_id_t id, ) ut::Location clocation);
+void rw_lock_create_func(rw_lock_t *lock, ut::Location clocation);
 
 /** Initialize an rw_lock_t without registering it in the global rw_lock_list. */
 void rw_lock_init_only(rw_lock_t *lock, ut::Location clocation);

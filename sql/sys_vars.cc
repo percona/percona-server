@@ -529,6 +529,42 @@ static Sys_var_bool Sys_lo_debug_missing_key(
 
 #endif /* WITH_LOCK_ORDER */
 
+/* Sys_thread_affinity_main */
+
+char *opt_thread_affinity_main = nullptr;
+static Sys_var_charptr Sys_thread_affinity_main(
+    "thread_affinity_main",
+    "CPU binding for main server thread: socket,core,thread; "
+    "each field can be a number or 'any'.",
+    READ_ONLY GLOBAL_VAR(opt_thread_affinity_main),
+    CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+
+/* Sys_thread_affinity_main */
+
+char *opt_thread_affinity_rpl = nullptr;
+static Sys_var_charptr Sys_thread_affinity_rpl(
+  "thread_affinity_rpl",
+  "CPU binding for all replication threads: socket,core,thread; "
+  "each field can be a number or 'any/sparse'.",
+  GLOBAL_VAR(opt_thread_affinity_rpl),
+  CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+
+char *opt_thread_affinity_client = nullptr;
+static Sys_var_charptr Sys_thread_affinity_client(
+  "thread_affinity_client",
+  "CPU binding for client connection threads: socket,core,thread; "
+  "each field can be a number or 'any/sparse'.",
+  READ_ONLY GLOBAL_VAR(opt_thread_affinity_client),
+  CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+
+char *opt_thread_affinity_bp_lru = nullptr;
+static Sys_var_charptr Sys_thread_affinity_bp_lru(
+  "thread_affinity_bp_lru",
+  "CPU binding for Buffer Pool LRU threads: socket,core,thread; "
+  "each field can be a number or 'any/sparse'.",
+  READ_ONLY GLOBAL_VAR(opt_thread_affinity_bp_lru),
+  CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 #define PFS_TRAILING_PROPERTIES                                         \
@@ -1700,6 +1736,7 @@ static Sys_var_bool Sys_explicit_defaults_for_timestamp(
 
 static bool replica_parallel_workers_update(sys_var *, THD *thd,
                                             enum_var_type) {
+
   if (opt_mts_replica_parallel_workers == 0) {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,

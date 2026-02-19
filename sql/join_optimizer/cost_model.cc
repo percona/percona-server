@@ -799,6 +799,14 @@ static void SetDistinctGroupByOutputRowsAndSubqueryCosts(
   }
   // else for DISTINCT, it's always preset.
 
+  if (path->materialize().param->deduplication_reason ==
+          MaterializePathParameters::DEDUP_FOR_DISTINCT &&
+      path->materialize().param->limit_rows != HA_POS_ERROR) {
+    path->set_num_output_rows(
+        std::min(path->num_output_rows(),
+                 static_cast<double>(path->materialize().param->limit_rows)));
+  }
+
   *subquery_cost = *cost_for_cacheable = 0;
   AddOperandCosts(operand, subquery_cost, cost_for_cacheable);
 }

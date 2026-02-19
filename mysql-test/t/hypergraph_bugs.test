@@ -2797,4 +2797,59 @@ SELECT * FROM cte1 WHERE v1 = 4;
 
 DROP TABLE t0;
 
+--echo #
+--echo # Bug 36720017 - Hypergraph optimizer uses slow full deduplication
+--echo #                in DISTINCT + LIMIT queries
+--echo #
+
+CREATE TABLE t(x INT, y INT);
+
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6,6), (7,7);
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+
+ANALYZE TABLE t;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_BIG_RESULT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 3 OFFSET 2;
+
+DELETE FROM t WHERE x <> 1;
+ANALYZE TABLE t;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS DISTINCT x
+FROM t AS t1
+LIMIT 5 OFFSET 15;
+SELECT FOUND_ROWS() AS total_distinct_x;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2
+WHERE t1.x = t2.x
+ORDER BY t1.y LIMIT 5 OFFSET 10;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT * FROM (
+  SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+  WHERE t1.x = t2.x LIMIT 5
+) s ORDER BY s.x;
+
+DROP TABLE t;
+
 --source include/disable_hypergraph.inc

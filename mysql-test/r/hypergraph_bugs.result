@@ -3298,3 +3298,102 @@ EXPLAIN
                 -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=31.6)
 
 DROP TABLE t0;
+#
+# Bug 36720017 - Hypergraph optimizer uses slow full deduplication
+#                in DISTINCT + LIMIT queries
+#
+CREATE TABLE t(x INT, y INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6,6), (7,7);
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+INSERT INTO t SELECT x, y FROM t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
+    -> Table scan on <temporary>  (rows=1) (actual rows=1 loops=1)
+        -> Temporary table with deduplication  (rows=1) (actual rows=1 loops=1)
+            -> Limit table size: 1 unique row(s)
+                -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=1 loops=1)
+                    -> Table scan on t1  (rows=56) (actual rows=1 loops=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_BIG_RESULT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (rows=1) (actual rows=1 loops=1)
+    -> Sort with duplicate removal: t1.x, limit input to 1 row(s) per chunk  (rows=1) (actual rows=1 loops=1)
+        -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=448 loops=1)
+            -> Table scan on t1  (rows=56) (actual rows=56 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 3 OFFSET 2;
+EXPLAIN
+-> Limit/Offset: 3/2 row(s)  (rows=3) (actual rows=3 loops=1)
+    -> Table scan on <temporary>  (rows=5) (actual rows=5 loops=1)
+        -> Temporary table with deduplication  (rows=5) (actual rows=5 loops=1)
+            -> Limit table size: 5 unique row(s)
+                -> Inner hash join (t1.x = t2.x)  (rows=314) (actual rows=33 loops=1)
+                    -> Table scan on t1  (rows=56) (actual rows=5 loops=1)
+                    -> Hash
+                        -> Table scan on t2  (rows=56) (actual rows=56 loops=1)
+
+DELETE FROM t WHERE x <> 1;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS DISTINCT x
+FROM t AS t1
+LIMIT 5 OFFSET 15;
+EXPLAIN
+-> Limit/Offset: 5/15 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (rows=0) (actual rows=0 loops=1)
+    -> Sort with duplicate removal: t1.x  (rows=2.83) (actual rows=1 loops=1)
+        -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+SELECT FOUND_ROWS() AS total_distinct_x;
+total_distinct_x
+1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT DISTINCT t1.x, t1.y
+FROM t AS t1, t AS t2
+WHERE t1.x = t2.x
+ORDER BY t1.y LIMIT 5 OFFSET 10;
+EXPLAIN
+-> Limit/Offset: 5/10 row(s)  (rows=0) (actual rows=0 loops=1)
+    -> Sort with duplicate removal: t1.y, t1.x  (rows=2.53) (actual rows=1 loops=1)
+        -> Inner hash join (t1.x = t2.x)  (rows=6.4) (actual rows=64 loops=1)
+            -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+            -> Hash
+                -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
+
+EXPLAIN ANALYZE FORMAT=TREE
+SELECT * FROM (
+SELECT DISTINCT t1.x FROM t AS t1, t AS t2
+WHERE t1.x = t2.x LIMIT 5
+) s ORDER BY s.x;
+EXPLAIN
+-> Sort: s.x  (rows=2.53) (actual rows=1 loops=1)
+    -> Table scan on s  (rows=2.53) (actual rows=1 loops=1)
+        -> Materialize  (rows=2.53) (actual rows=1 loops=1)
+            -> Limit: 5 row(s)  (rows=2.53) (actual rows=1 loops=1)
+                -> Sort with duplicate removal: t1.x, limit input to 5 row(s) per chunk  (rows=2.53) (actual rows=1 loops=1)
+                    -> Inner hash join (t1.x = t2.x)  (rows=6.4) (actual rows=64 loops=1)
+                        -> Table scan on t1  (rows=8) (actual rows=8 loops=1)
+                        -> Hash
+                            -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
+
+DROP TABLE t;

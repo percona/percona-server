@@ -468,6 +468,8 @@ bool JOIN::optimize(bool finalize_access_paths) {
   }
   if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
 
+  // select_limit_cnt already includes offset_limit_cnt, so this can only
+  // happen for LIMIT 0.
   if (query_expression()->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";
     best_rowcount = 0;

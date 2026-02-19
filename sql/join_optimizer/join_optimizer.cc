@@ -7181,6 +7181,39 @@ AccessPath *GetSafePathToSort(THD *thd, const JoinHypergraph &graph, JOIN *join,
 }
 
 /**
+  Compute the effective upper bound on the number of distinct rows needed from
+  a DISTINCT deduplication step.
+
+  We only return a limit when all of the following hold:
+    - The query block has an explicit LIMIT
+    - There is no ORDER BY in this query block
+    - SQL_CALC_FOUND_ROWS is not in use
+
+  The value returned is based on select_limit_cnt, which in the optimizer
+  already accounts for OFFSET as well; thus it is effectively OFFSET + LIMIT,
+  i.e. the maximum number of distinct rows the consumer can ever see.
+
+  If OFFSET >= LIMIT, the DISTINCT output is entirely skipped and we return 0.
+*/
+static std::optional<ha_rows> EffectiveDedupLimit(
+    const JOIN &join, const Query_block &query_block) {
+  const Query_expression *query_expression = join.query_expression();
+  if (query_expression == nullptr) return std::nullopt;
+
+  if (join.calc_found_rows || query_block.order_list.elements > 0 ||
+      query_expression->select_limit_cnt == HA_POS_ERROR) {
+    return std::nullopt;
+  }
+
+  if (query_expression->offset_limit_cnt >=
+      query_expression->select_limit_cnt) {
+    return ha_rows{0};
+  }
+
+  return query_expression->select_limit_cnt;
+}
+
+/**
   Sets up an access path for materializing the results returned from a path in a
   temporary table.
 
@@ -7202,6 +7235,12 @@ AccessPath *CreateMaterializationPath(
   AccessPath *table_path =
       NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
 
+  ha_rows limit_rows = HA_POS_ERROR;
+  if (dedup_reason == MaterializePathParameters::DEDUP_FOR_DISTINCT) {
+    if (auto limit = EffectiveDedupLimit(*join, *join->query_block); limit) {
+      limit_rows = *limit;
+    }
+  }
   AccessPath *materialize_path = NewMaterializeAccessPath(
       thd,
       SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
@@ -7209,8 +7248,7 @@ AccessPath *CreateMaterializationPath(
       /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
       /*unit=*/nullptr, ref_slice,
       /*rematerialize=*/true,
-      /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false,
-      dedup_reason);
+      /*limit_rows=*/limit_rows, /*reject_multiple_rows=*/false, dedup_reason);
   SecondaryEngineNrowsParameters secondary_engine_nrows_params{
       thd, materialize_path, &graph};
   bool found_cached_nrows =
@@ -8097,6 +8135,10 @@ AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
   sort_path.sort().remove_duplicates = true;
   sort_path.sort().unwrap_rollup = false;
   sort_path.sort().limit = HA_POS_ERROR;
+  if (auto limit = EffectiveDedupLimit(*query_block->join, *query_block);
+      limit) {
+    sort_path.sort().limit = *limit;
+  }
   sort_path.sort().force_sort_rowids = false;
   sort_path.has_group_skip_scan = root_path->has_group_skip_scan;
   sort_path.count_examined_rows = true;

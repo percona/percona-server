@@ -211,7 +211,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"
 
-#include "os0cpu.h"
+#include "cpu_topology.h"
 #include "os0enc.h"
 #include "os0file.h"
 
@@ -4964,19 +4964,19 @@ static void innodb_buffer_pool_size_init() {
 
   {
   /* CPU-based adjustment of buffer pool instances. */
-  os_cpu_topology_init(&os_cpu_topology);
+ sql_cpu_topology_init(&sql_cpu_topology);
 
-  if (os_cpu_topology.physical_cores != 0) {
-    if (srv_buf_pool_instances > os_cpu_topology.physical_cores) {
+  if (sql_cpu_topology.physical_cores != 0) {
+    if (srv_buf_pool_instances > sql_cpu_topology.physical_cores) {
       ulong old = srv_buf_pool_instances;
       srv_buf_pool_instances =
-        static_cast<ulong>(os_cpu_topology.physical_cores);
+        static_cast<ulong>(sql_cpu_topology.physical_cores);
 
       ib::info(ER_IB_MSG_CPU_CORES_INFO)
         << "Adjusting innodb_buffer_pool_instances from "
         << old << " to " << srv_buf_pool_instances
         << " based on physical CPU cores "
-        << (ulong) os_cpu_topology.physical_cores;
+        << (ulong)sql_cpu_topology.physical_cores;
     }
   } else {
     ib::warn(ER_IB_MSG_CPU_CORES_INFO)

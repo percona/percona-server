@@ -79,6 +79,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysqld.h"
+#include "cpu_topology.h"
 
 #include "ddl0fts.h"
 #include "os0file.h"
@@ -111,7 +112,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0meb.h"
 #include "os0event.h"
 #include "os0proc.h"
-#include "os0cpu.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -1705,17 +1705,17 @@ dberr_t srv_start(bool create_new_db) {
 
 #ifdef UNIV_LINUX
   /* Log CPU topology at InnoDB startup. */
-  os_cpu_topology_init(&os_cpu_topology);
+  sql_cpu_topology_init(&sql_cpu_topology);
 
   ib::info(ER_IB_MSG_CPU_CORES_INFO)
-    << "CPU topology: sockets=" << (ulong) os_cpu_topology.sockets.size()
-    << ", logical CPUs=" << (ulong) os_cpu_topology.logical_cpus
-    << ", physical cores=" << (ulong) os_cpu_topology.physical_cores
-    << ", threads per core=" << (ulong) os_cpu_topology.threads_per_core
+    << "CPU topology: sockets=" << (ulong) sql_cpu_topology.sockets.size()
+    << ", logical CPUs=" << (ulong) sql_cpu_topology.logical_cpus
+    << ", physical cores=" << (ulong) sql_cpu_topology.physical_cores
+    << ", threads per core=" << (ulong) sql_cpu_topology.threads_per_core
     << ", HyperThreading="
-    << (os_cpu_topology.hyperthreading_on ? "ON" : "OFF");
+    << (sql_cpu_topology.hyperthreading_on ? "ON" : "OFF");
 
-  for (const auto &socket : os_cpu_topology.sockets) {
+  for (const auto &socket : sql_cpu_topology.sockets) {
     ib::info(ER_IB_MSG_CPU_CORES_INFO)
       << "\tsocket " << socket.socket_id
       << ": cores=" << (ulong) socket.cores.size();

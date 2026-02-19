@@ -203,7 +203,6 @@ SET(INNOBASE_SOURCES
   mach/mach0data.cc
   mtr/mtr0log.cc
   mtr/mtr0mtr.cc
-  os/os0cpu.cc
   os/os0file.cc
   os/os0enc.cc
   os/os0proc.cc

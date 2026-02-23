@@ -19,7 +19,7 @@ test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE pk IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	66	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	66	NULL	5	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`pk` in ('abc','this_value_is_way_too_long_for_varchar16','def'))
 SELECT * FROM t1
@@ -47,7 +47,6 @@ DROP TABLE t1;
 # Test 2: Bug#35169384 non-regression - collation contractions
 # ---------------------------------------------------------------
 # In utf8mb4_0900_ai_ci: 'ae'='æ', 'ss'='ß', SOFT HYPHEN is ignored.
-# These results MUST be correct (not regressed by the fix).
 CREATE TABLE t2 (x VARCHAR(1), KEY (x))
 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 INSERT INTO t2 VALUES ('a'), ('b'), ('æ'), ('ß'), ('s');
@@ -91,21 +90,25 @@ SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
 x
 s
 ß
-# Mixed: valid value + oversized contraction value on small column
-# Known limitation: 'æ' is missed because 'ae' (2 chars) exceeds
-# VARCHAR(1) and is skipped, leaving only range for 'a'. The sort key
-# for 'æ' differs from 'a' so it's not in the range. The filter can't
-# recheck rows that were never scanned. This matches 8.0 behavior
-# (Bug#35169384) and is acceptable for the Bug#118009 fix.
-# Expected: a (known: æ is missed in this mixed contraction case)
 EXPLAIN SELECT * FROM t2 WHERE x IN ('a', 'ae');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	x	x	7	NULL	1	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	x	x	7	NULL	20	20.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x` from `test`.`t2` where (`test`.`t2`.`x` in ('a','ae'))
 SELECT * FROM t2 WHERE x IN ('a', 'ae');
 x
 a
+æ
+EXPLAIN
+SELECT * FROM t2 WHERE x IN ('ae', 'a');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	x	x	7	NULL	20	20.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x` from `test`.`t2` where (`test`.`t2`.`x` in ('ae','a'))
+SELECT * FROM t2 WHERE x IN ('ae', 'a');
+x
+a
+æ
 DROP TABLE t2;
 # ---------------------------------------------------------------
 # Test 3: Oversized IN() value on secondary index
@@ -123,7 +126,7 @@ test.t3	analyze	status	OK
 EXPLAIN SELECT * FROM t3
 WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	idx_c	idx_c	66	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	index	idx_c	idx_c	66	NULL	3	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`id` AS `id`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` in ('abc','this_value_is_way_too_long_for_varchar16','def'))
 SELECT * FROM t3
@@ -169,7 +172,7 @@ test.t5	analyze	status	OK
 EXPLAIN SELECT * FROM t5
 WHERE c IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	NULL	range	idx_c	idx_c	67	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t5	NULL	index	idx_c	idx_c	67	NULL	3	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` where (`test`.`t5`.`c` in ('abc','this_value_is_way_too_long_for_varchar16','def'))
 SELECT * FROM t5
@@ -194,7 +197,7 @@ test.t6	analyze	status	OK
 EXPLAIN SELECT * FROM t6
 WHERE c IN ('aaa', 'oversized_value_one', 'ccc', 'oversized_value_two');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t6	NULL	range	PRIMARY	PRIMARY	34	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t6	NULL	index	PRIMARY	PRIMARY	34	NULL	16	40.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t6`.`c` AS `c` from `test`.`t6` where (`test`.`t6`.`c` in ('aaa','oversized_value_one','ccc','oversized_value_two'))
 SELECT * FROM t6
@@ -348,7 +351,7 @@ CREATE VIEW v11 AS SELECT * FROM t11;
 EXPLAIN SELECT * FROM v11
 WHERE pk IN ('abc', 'this_value_is_way_too_long_for_varchar16', 'def');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t11	NULL	range	PRIMARY	PRIMARY	66	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t11	NULL	index	PRIMARY	PRIMARY	66	NULL	5	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`pk` AS `pk` from `test`.`t11` where (`test`.`t11`.`pk` in ('abc','this_value_is_way_too_long_for_varchar16','def'))
 SELECT * FROM v11

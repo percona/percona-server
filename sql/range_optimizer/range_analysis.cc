@@ -429,8 +429,9 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
           clone. For non-string types, nullptr is genuine "always true"
           so we bail out.
         */
-        if (is_oversized_string_for_field(field, *arg)) continue;
-        return nullptr;
+        if (is_oversized_string_for_field(field, *arg)) {
+          return nullptr;
+        }
       } else {
         tree = tree == nullptr
                    ? val_tree

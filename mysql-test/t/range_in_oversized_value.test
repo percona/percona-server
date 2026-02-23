@@ -43,7 +43,6 @@ DROP TABLE t1;
 --echo # ---------------------------------------------------------------
 
 --echo # In utf8mb4_0900_ai_ci: 'ae'='æ', 'ss'='ß', SOFT HYPHEN is ignored.
---echo # These results MUST be correct (not regressed by the fix).
 
 CREATE TABLE t2 (x VARCHAR(1), KEY (x))
   DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -74,17 +73,14 @@ EXPLAIN SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
 --sorted_result
 SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
 
---echo # Mixed: valid value + oversized contraction value on small column
---echo # Known limitation: 'æ' is missed because 'ae' (2 chars) exceeds
---echo # VARCHAR(1) and is skipped, leaving only range for 'a'. The sort key
---echo # for 'æ' differs from 'a' so it's not in the range. The filter can't
---echo # recheck rows that were never scanned. This matches 8.0 behavior
---echo # (Bug#35169384) and is acceptable for the Bug#118009 fix.
---echo # Expected: a (known: æ is missed in this mixed contraction case)
 EXPLAIN SELECT * FROM t2 WHERE x IN ('a', 'ae');
 
 --sorted_result
 SELECT * FROM t2 WHERE x IN ('a', 'ae');
+
+EXPLAIN
+SELECT * FROM t2 WHERE x IN ('ae', 'a');
+SELECT * FROM t2 WHERE x IN ('ae', 'a');
 
 DROP TABLE t2;
 

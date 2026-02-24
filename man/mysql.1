@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/08/2025
+.\"      Date: 12/11/2025
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "09/08/2025" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL" "1" "12/11/2025" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -160,6 +160,40 @@ T}
 .TE
 .sp 1
 Display a help message and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-authentication\-oci\-client\-config\-profile\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--authentication-oci-client-config-profile=profileName
+T}
+T{
+Introduced
+T}:T{
+8.0.33
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Specify the name of the OCI configuration profile to use\&. If not set, the default profile is used\&.
 .RE
 .sp
 .RS 4

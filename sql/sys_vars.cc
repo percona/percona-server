@@ -2276,7 +2276,7 @@ static Sys_var_ulong Sys_expire_logs_days(
     GLOBAL_VAR(expire_logs_days), CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS),
     VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_expire_logs_days), ON_UPDATE(nullptr),
-    DEPRECATED_VAR("binlog_expire_logs_seconds"));
+    DEPRECATED_VAR("binlog_expire_logs_seconds"), sys_var::PARSE_EARLY);
 
 static Sys_var_ulonglong Sys_binlog_space_limit(
     "binlog_space_limit",
@@ -2294,7 +2294,8 @@ static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     GLOBAL_VAR(binlog_expire_logs_seconds),
     CMD_LINE(REQUIRED_ARG, OPT_BINLOG_EXPIRE_LOGS_SECONDS),
     VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(2592000), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(nullptr));
+    NOT_IN_BINLOG, ON_CHECK(check_expire_logs_seconds), ON_UPDATE(nullptr),
+    nullptr, sys_var::PARSE_EARLY);
 
 static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
     "binlog_expire_logs_auto_purge",
@@ -2302,7 +2303,8 @@ static Sys_var_bool Sys_binlog_expire_logs_auto_purge(
     "files or not. If this variable is set to FALSE then the server will "
     "not purge binary log files automatically.",
     GLOBAL_VAR(opt_binlog_expire_logs_auto_purge), CMD_LINE(OPT_ARG),
-    DEFAULT(true));
+    DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), nullptr, sys_var::PARSE_EARLY);
 
 static Sys_var_bool Sys_flush(
     "flush", "Flush MyISAM tables to disk between SQL commands",

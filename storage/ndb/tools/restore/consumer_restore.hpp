@@ -257,8 +257,8 @@ class BackupRestore : public BackupConsumer {
   Uint64 m_logBytes;
   Uint64 m_dataBytes;
 
-  Uint32 m_logCount;
-  Uint32 m_dataCount;
+  Uint64 m_logCount;
+  Uint64 m_dataCount;
 
   static const Uint32 INSTANCE_ID_LEN = 20;
   char m_instance_name[INSTANCE_ID_LEN];

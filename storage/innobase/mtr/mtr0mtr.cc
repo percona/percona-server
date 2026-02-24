@@ -981,7 +981,8 @@ int mtr_t::Logging::disable(THD *) {
     ut_ad(srv_is_being_started);
   }
 
-  ib::warn(ER_IB_WRN_REDO_DISABLED);
+  ulonglong current_lsn = log_get_lsn(*log_sys);
+  ib::warn(ER_IB_WRN_REDO_DISABLED_INFO, current_lsn);
   m_state.store(DISABLED);
 
   return 0;

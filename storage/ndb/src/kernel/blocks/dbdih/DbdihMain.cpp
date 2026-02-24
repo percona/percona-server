@@ -8720,6 +8720,10 @@ void Dbdih::readingGcpLab(Signal *signal, FileRecordPtr filePtr,
   /*     WE ALSO COPY TO OUR OWN NODE. TO ENABLE US TO DO THIS PROPERLY WE   */
   /*     START BY CLOSING THIS FILE.                                         */
   /* ----------------------------------------------------------------------- */
+  if (bytes_read == 0) {
+    readingGcpErrorLab(signal, filePtr);
+    return;
+  }
   // Assume all file is read in once.
   Uint32 cdata_size_in_words = bytes_read / 4;
   ndbrequire(cdata_size_in_words > Sysfile::MAGIC_SIZE_v2);

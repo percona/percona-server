@@ -759,6 +759,7 @@ void CommandInterpreter::printError() {
  */
 #define make_uint64(a, b) (((Uint64)(a)) + (((Uint64)(b)) << 32))
 #define Q64(a) make_uint64(event->EVENT.a##_lo, event->EVENT.a##_hi)
+#define Q64_B(a) make_uint64(event->EVENT.a, event->EVENT.a##_hi)
 #define R event->source_nodeid
 #define Q(a) event->EVENT.a
 #define QVERSION \
@@ -800,10 +801,11 @@ static void printLogEvent(struct ndb_logevent *event) {
       ndbout_c(
           "Node %u: Backup %u started from node %u completed\n"
           " StartGCP: %u StopGCP: %u\n"
-          " #Records: %u #LogRecords: %u\n"
-          " Data: %u bytes Log: %u bytes",
+          " #Records: %llu #LogRecords: %llu\n"
+          " Data: %llu bytes Log: %llu bytes",
           R, Q(backup_id), Q(starting_node), Q(start_gci), Q(stop_gci),
-          Q(n_records), Q(n_log_records), Q(n_bytes), Q(n_log_bytes));
+          Q64_B(n_records), Q64_B(n_log_records), Q64_B(n_bytes),
+          Q64_B(n_log_bytes));
       break;
 #undef EVENT
 #define EVENT BackupAborted

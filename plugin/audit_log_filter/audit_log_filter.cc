@@ -480,43 +480,17 @@ int AuditLogFilter::notify_event(MYSQL_THD thd, mysql_event_class_t event_class,
 }
 
 void AuditLogFilter::send_audit_start_event() noexcept {
-  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
-
-  MYSQL_THD thd;
-
-  if (thd_reader_srv->get(&thd)) {
-    return;
-  }
-
-  if (thd == nullptr) {
-    return;
-  }
-
   auto event = audit_filter_event_internal_audit{
       audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT,
-      thd->server_id};
+      static_cast<uint32>(::server_id)};
   m_log_writer->write(get_audit_record(
       audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_AUDIT, &event));
 }
 
 void AuditLogFilter::send_audit_stop_event() noexcept {
-  my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
-      "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
-
-  MYSQL_THD thd;
-
-  if (thd_reader_srv->get(&thd)) {
-    return;
-  }
-
-  if (thd == nullptr) {
-    return;
-  }
-
   auto event = audit_filter_event_internal_noaudit{
       audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT,
-      thd->server_id};
+      static_cast<uint32>(::server_id)};
   m_log_writer->write(get_audit_record(
       audit_filter_event_subclass_t::AUDIT_FILTER_INTERNAL_NOAUDIT, &event));
 }

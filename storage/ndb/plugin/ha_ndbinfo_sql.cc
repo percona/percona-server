@@ -747,7 +747,9 @@ static struct lookup {
         "single_user_mode enum('locked','read_only','read_write') NOT NULL, "
         "force_var_part INT UNSIGNED NOT NULL, "
         "GCI_bits INT UNSIGNED NOT NULL, "
-        "author_bits INT UNSIGNED NOT NULL",
+        "author_bits INT UNSIGNED NOT NULL, "
+        "extra_metadata_version enum('FRM', 'SDI'), "
+        "extra_metadata LONGBLOB",
     },
     {"ndbinfo", "events",
      "event_id INT UNSIGNED NOT NULL PRIMARY KEY, "

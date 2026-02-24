@@ -44,6 +44,8 @@
 #include <sys/types.h>
 #include <atomic>
 #include <bitset>
+#include <functional>  // function
+#include <list>        // list
 #include <memory>
 #include <new>
 #include <string>
@@ -85,6 +87,7 @@
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
+#include "scope_guard.h"                // Scope_guard
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
 #include "sql/dd/string_type.h"      // dd::string_type
@@ -4222,6 +4225,33 @@ class THD : public MDL_context_owner,
     server). When this flag is set, a call to gtid_rollback() will do nothing.
   */
   bool skip_gtid_rollback;
+
+ private:
+  /// Callback functions that determine if GTID rollback shall be skipped.
+  std::list<std::function<bool(const THD &)>> m_skip_gtid_rollback_checkers;
+
+ public:
+  /// Invoke the callback functions that determine if GTID rollback shall be
+  /// skipped, and return true as soon as one of them returns true; otherwise
+  /// return false.
+  bool shall_skip_gtid_rollback() const {
+    for (const auto &func : m_skip_gtid_rollback_checkers)
+      if (func(*this)) return true;
+    return false;
+  }
+
+  /// Register a callback function that will determine if a subsequent GTID
+  /// rollback shall be skipped. Returns a (moveable, but not copyable) object
+  /// whose destructor will will unregister the callback.
+  template <class Function_t>
+  [[nodiscard]] auto register_skip_gtid_rollback_checker(
+      const Function_t &shall_skip) {
+    m_skip_gtid_rollback_checkers.emplace_back(shall_skip);
+    auto it = std::prev(m_skip_gtid_rollback_checkers.end());
+    return Scope_guard{
+        [this, it] { this->m_skip_gtid_rollback_checkers.erase(it); }};
+  }
+
   /*
     There are some statements (like DROP DATABASE that fails on rmdir
     and gets rewritten to multiple DROP TABLE statements) that may

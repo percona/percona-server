@@ -785,6 +785,9 @@ bool Gtid_state::update_gtids_impl_check_skip_gtid_rollback(THD *thd) {
                         "thd->skip_gtid_rollback is set"));
     return true;
   }
+  if (thd->shall_skip_gtid_rollback()) {
+    return true;
+  }
   return false;
 }
 

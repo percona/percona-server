@@ -124,6 +124,8 @@ class BackupProxy : public LocalProxy {
       return ((BackupProxy *)proxy)->c_ss_STOP_BACKUP_REQ;
     }
     Uint32 masterRef;
+    Uint64 logRecords;
+    Uint64 logBytes;
   };
   SsPool<Ss_STOP_BACKUP_REQ> c_ss_STOP_BACKUP_REQ;
   void execSTOP_BACKUP_REQ(Signal *);

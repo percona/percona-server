@@ -476,9 +476,9 @@ CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY,
                        index(node_id)) ENGINE = ndbinfo;
 ERROR 42000: Too many keys specified; max 1 keys allowed
 
-## 5) Table with blobs not supported
+## 5) Table with blobs now supported
 CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
-ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE ndb$test;
 
 ## 6) Table with autoincrement not supported
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;

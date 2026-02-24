@@ -143,6 +143,8 @@ class NdbRestarter {
 
   int getNodeConnectCount(int nodeId);
 
+  int getNumLdmThreads(int nodeId);
+
  protected:
   int waitClusterState(ndb_mgm_node_status _status, unsigned int _timeout,
                        int _startphase = -1);

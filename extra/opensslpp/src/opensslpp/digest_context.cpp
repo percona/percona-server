@@ -30,14 +30,13 @@
 namespace opensslpp {
 
 #ifdef EVP_MD_FLAG_XOF
-static std::size_t get_xof_output_length(EVP_MD_CTX *ctx,
-                                         const EVP_MD *md) noexcept {
+static std::size_t get_xof_output_length(const EVP_MD *md
+                                         [[maybe_unused]]) noexcept {
+#if defined(NID_shake128) && defined(NID_shake256)
   constexpr std::size_t kShake128DefaultDigestSize = 16;
   constexpr std::size_t kShake256DefaultDigestSize = 32;
-  (void)ctx;
 
   auto md_type = EVP_MD_type(md);
-#if defined(NID_shake128) && defined(NID_shake256)
   if (md_type == NID_shake128) return kShake128DefaultDigestSize;
   if (md_type == NID_shake256) return kShake256DefaultDigestSize;
 #endif
@@ -94,7 +93,7 @@ std::size_t digest_context::get_size_in_bytes() const noexcept {
 #ifdef EVP_MD_FLAG_XOF
   const auto *md = EVP_MD_CTX_md(ctx);
   if (md != nullptr && (EVP_MD_flags(md) & EVP_MD_FLAG_XOF)) {
-    auto xof_len = get_xof_output_length(ctx, md);
+    auto xof_len = get_xof_output_length(md);
     if (xof_len > 0) return xof_len;
   }
 #endif
@@ -117,7 +116,7 @@ std::string digest_context::finalize() {
 #ifdef EVP_MD_FLAG_XOF
   const auto *md = EVP_MD_CTX_md(ctx);
   if (md != nullptr && (EVP_MD_flags(md) & EVP_MD_FLAG_XOF)) {
-    auto xof_len = get_xof_output_length(ctx, md);
+    auto xof_len = get_xof_output_length(md);
     if (xof_len == 0) throw core_error{"cannot determine XOF output length"};
 
     std::string res(xof_len, '\0');

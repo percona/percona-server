@@ -21,9 +21,20 @@ INSERT INTO t1 VALUES(4, repeat('-',12));
 INSERT INTO t1 VALUES(5, repeat('.',12));
 COMMIT WORK;
 
+--echo # Wait for purge to complete
+--source include/wait_innodb_all_purged.inc
+
+SET GLOBAL innodb_monitor_enable = module_log;
+
 --echo # Ensure that dirty pages of table t1 is flushed.
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
+
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
 
 SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'open_table test/t1';
@@ -42,11 +53,31 @@ SET SESSION innodb_interpreter = @cmd;
 SELECT @@session.innodb_interpreter_output INTO @page_type;
 SELECT @page_type;
 
-SET SESSION innodb_interpreter = 'corrupt_ondisk_root_page test/t1';
+SET SESSION innodb_interpreter = 'find_tablespace_file_name test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+
 SET SESSION innodb_interpreter = 'destroy';
 
---replace_result $PLUGIN_DIR_OPT PLUGIN_DIR_OPT
---source include/kill_and_restart_mysqld.inc
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let PAGE_NUM=`select @page_no`;
+let FILE_NAME=`select @space_file_name`;
+let INNODB_PAGE_SIZE=`select @space_page_size`;
+
+# Wait till generated REDOs are synced to disk
+--let $wait_condition = SELECT COUNT =(SELECT COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_current')  FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME = 'log_lsn_last_flush'
+--source include/wait_condition.inc
+
+--source include/kill_mysqld.inc
+
+--echo # Corrupt the root page of table t1 in the user tablespace.
+--let IBD_FILE=$MYSQLD_DATADIR/$FILE_NAME
+--let ALL_ZEROES=1
+--source ../include/corrupt_page.inc
+
+--source include/start_mysqld_no_echo.inc
 
 SET SESSION innodb_interpreter = 'init';
 SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';

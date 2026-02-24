@@ -93,9 +93,6 @@ class Reload_keyring : public Alter_instance {
   */
   bool execute() override;
   virtual ~Reload_keyring() override = default;
-
- private:
-  const static size_t s_error_message_length;
 };
 
 #endif /* SQL_ALTER_INSTANCE_INCLUDED */

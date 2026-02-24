@@ -34,6 +34,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <thread>
 
 #include "my_config.h"  // HAVE_UNISTD_H
@@ -49,8 +50,64 @@
 #endif
 
 namespace {
+bool *should_use_container_config = nullptr;
 ulonglong configured_memory{0};
+
+inline bool string_to_bool(const std::string &input) {
+  using namespace std::string_literals;
+  if (input == "ON"s) {
+    return true;
+  }
+  return false;
+}
+
+inline std::optional<ulonglong> string_to_ull(const std::string &input) {
+  if (input[0] == '-') {
+    return std::nullopt;
+  }
+
+  try {
+    errno = 0;
+    ulonglong result = std::stoull(input);
+
+    if (errno != 0) return std::nullopt;
+    return result;
+  } catch (...) {
+  }
+  return std::nullopt;
+}
 }  // anonymous namespace
+
+bool has_container_resource_limits() {
+#ifndef _WIN32
+  return does_cgroup_limit_resources();
+#endif /* !_WIN32 */
+
+  return false;
+}
+
+bool init_container_aware(const std::string &is_container_aware) noexcept {
+  return init_container_aware(string_to_bool(is_container_aware));
+}
+
+bool init_container_aware(const bool is_container_aware) noexcept {
+  should_use_container_config = new bool{is_container_aware};
+
+#ifndef _WIN32
+  if (should_use_container_config && *should_use_container_config &&
+      !is_running_in_cgroup()) {
+    return false;
+  }
+  return true;
+#endif /* !_WIN32 */
+
+  return !is_container_aware;
+}
+
+void deinit_container_aware() noexcept {
+  delete should_use_container_config;
+  should_use_container_config = nullptr;
+}
 
 /**
   Get the total physical memory accessible to the server. Tries to read cgroup
@@ -67,11 +124,13 @@ static inline uint64_t total_physical_memory() noexcept {
     GlobalMemoryStatusEx(&ms);
     mem = ms.ullTotalPhys;
 #elif defined(HAVE_UNISTD_H) /* _WIN32 */
-    mem = my_cgroup_mem_limit();
-    if (mem != 0) {
-      return mem;
+    assert(should_use_container_config);
+    if (*should_use_container_config) {
+      mem = my_cgroup_mem_limit();
+      if (mem != 0) {
+        return mem;
+      }
     }
-
     long pages = sysconf(_SC_PHYS_PAGES);
     long pagesize = sysconf(_SC_PAGESIZE);
     if (pages > 0 && pagesize > 0) {
@@ -85,6 +144,12 @@ static inline uint64_t total_physical_memory() noexcept {
   } catch (...) {
     return 0;
   }
+}
+
+bool init_my_physical_memory(const std::string &memory) {
+  const auto server_memory = string_to_ull(memory);
+  assert(server_memory.has_value());
+  return init_my_physical_memory(server_memory.value());
 }
 
 bool init_my_physical_memory(ulonglong memory) {
@@ -101,6 +166,7 @@ bool init_my_physical_memory(ulonglong memory) {
 }
 
 uint64_t my_physical_memory() noexcept {
+  assert(should_use_container_config);
   if (configured_memory != 0) {
     return configured_memory;
   }
@@ -108,13 +174,16 @@ uint64_t my_physical_memory() noexcept {
 }
 
 uint32_t my_num_vcpus() noexcept {
+  assert(should_use_container_config);
   try {
     uint32_t n_vcpus = 0;
 
 #ifndef _WIN32
-    n_vcpus = my_cgroup_vcpu_limit();
-    if (n_vcpus != 0) {
-      return n_vcpus;
+    if (should_use_container_config && *should_use_container_config) {
+      n_vcpus = my_cgroup_vcpu_limit();
+      if (n_vcpus != 0) {
+        return n_vcpus;
+      }
     }
 #endif
 

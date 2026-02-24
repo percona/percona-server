@@ -562,6 +562,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 
       if (dc->acquire(schema, tablename, &dd_table) || dd_table == nullptr) {
         if (mdl != nullptr) {
+          // This should be ok on the error path
           dd_mdl_release(thd, mdl);
         }
         return nullptr;
@@ -606,6 +607,14 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
       /* facts do not match, retry */
       if (!same_name) {
         if (mdl != nullptr) {
+          // We have acquired and locked the wrong name.
+          // Need to relase acquired dd object before releasing locks.
+          // If we had used an Auto_releaser in the loop scope, we would
+          // have needed a way to disable it when breaking out of the loop
+          // below, to ensure that the acquired dd objects are still valid also
+          // after the loop.
+          releaser.~Auto_releaser();
+          new (&releaser) dd::cache::Dictionary_client::Auto_releaser{dc};
           dd_mdl_release(thd, mdl);
         }
         continue;
@@ -637,11 +646,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
 @retval 0 on success (DD_SUVCCESS) */
 [[nodiscard]] static int dd_check_corrupted(dict_table_t *&table) {
   if (table->is_corrupted()) {
-    if (dict_table_is_sdi(table->id)
-#ifndef UNIV_HOTBACKUP
-        || dict_table_is_system(table->id)
-#endif /* !UNIV_HOTBACKUP */
-    ) {
+    if (dict_table_is_sdi(table->id)) {
 #ifndef UNIV_HOTBACKUP
       my_error(ER_TABLE_CORRUPT, MYF(0), "", table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
@@ -7743,13 +7748,6 @@ static void get_table_parts(const std::string &dict_name, std::string &schema,
 
     /* Extract partition details converting to system cs. */
     get_partition(partition, true, part, sub_part);
-
-    /* During upgrade from 5.7 it is possible to have upper case
-    names from SYS tables. */
-    if (srv_is_upgrade_mode) {
-      to_lower(part);
-      to_lower(sub_part);
-    }
 
 #ifdef UNIV_DEBUG
     /* Validate that the names are in lower case. */

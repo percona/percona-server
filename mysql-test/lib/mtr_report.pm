@@ -43,6 +43,7 @@ our @EXPORT = qw(
   mtr_report_stats
   mtr_report_test
   mtr_report_test_passed
+  mtr_report_test_opt_passed
   mtr_report_test_skipped
   mtr_summary_file_init
   mtr_verbose
@@ -168,6 +169,12 @@ sub mtr_report_test_skipped ($) {
   mtr_report_test($tinfo);
 }
 
+sub mtr_report_test_opt_passed ($) {
+  my ($tinfo) = @_;
+  $tinfo->{'result'} = 'MTR_RES_OPT_PASSED';
+  mtr_report_test($tinfo);
+}
+
 sub mtr_report_test_passed ($) {
   my ($tinfo) = @_;
 
@@ -202,6 +209,7 @@ sub mtr_report_test ($) {
   my $retry    = $tinfo->{'retries'} ? "retry-" : "";
   my $warnings = $tinfo->{'warnings'};
   my $skip_ignored   = $tinfo->{'skip_ignored'};
+  my $opt_pass = $tinfo->{'opt_pass'};
 
   if ($::opt_test_progress and $tinfo->{'name'} and !$retry) {
     $tests_completed = $tests_completed + 1;
@@ -277,6 +285,20 @@ sub mtr_report_test ($) {
         mtr_buffered_report(sprintf("%-60s%-s", $report, "[ skipped ]"));
       } else {
         mtr_report($report, "[ skipped ]");
+      }
+    }
+  } elsif ($result eq 'MTR_RES_OPT_PASSED') {
+    if ($comment) {
+      if ($::opt_quiet) {
+        mtr_buffered_report(sprintf("%-60s%-s", $report, "[ opt-pass ]"));
+      } else {
+        mtr_report($report, "[ opt-pass ]  $comment");
+      }
+    } else {
+      if ($::opt_quiet) {
+        mtr_buffered_report(sprintf("%-60s%-s", $report, "[ opt-pass ]"));
+      } else {
+        mtr_report($report, "[ opt-pass ]");
       }
     }
   } elsif ($result eq 'MTR_RES_PASSED') {
@@ -594,7 +616,8 @@ sub mtr_report_stats ($$;$) {
       $tot_skipdetect++
         if (defined $tinfo->{'skip_reason'}
             and $tinfo->{skip_reason} eq MTR_SKIP_BY_TEST);
-    } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED') {
+    } elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED' or
+             $tinfo->{'result'} eq 'MTR_RES_OPT_PASSED') {
       # Test passed
       $tot_tests++;
       $tot_passed++;

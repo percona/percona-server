@@ -1286,6 +1286,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_connection_control.so
@@ -1313,6 +1314,9 @@ fi
 %if 0%{?commercial}
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_uninstall.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_log.so
+%attr(644, root, root) %{_datadir}/mysql-*/audit_log_component_filter_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/audit_log_component_filter_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
@@ -1390,6 +1394,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_connection_control.so
@@ -1414,6 +1419,7 @@ fi
 %endif # mecab
 
 %if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %if 0%{?ssl_default}
 %if 0%{?add_fido_plugins}
@@ -1783,6 +1789,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_a.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_b.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_event_tracking_consumer_c.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_file_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %if 0%{?ssl_default}
@@ -1907,6 +1914,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_file_service.so
 
 %if 0%{?rhel} == 7
 %files embedded-compat
@@ -2045,6 +2053,10 @@ fi
 %endif # with_router
 
 %changelog
+* Thu Oct  9 2025 Marek Szymczak <marek.szymczak@oracle.com> - 9.6.0-1
+- Added component_audit_log
+- Added component_test_mysql_file_service
+
 * Fri Aug  1 2025 Marc Alff <marc.alff@oracle.com> - 9.5.0-1
 - Added component_test_telemetry_resource_provider
 - Added component_test_telemetry_secret_provider

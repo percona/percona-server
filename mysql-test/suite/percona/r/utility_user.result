@@ -3,9 +3,9 @@ call mtr.add_suppression("Wrong password");
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 user
 CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
-ERROR HY000: Operation CREATE USER failed for 'frank'@'localhost'
+ERROR HY000: Operation CREATE USER failed for 'frank'@'localhost' (Cannot create utility user)
 CREATE USER 'frank'@'%' IDENTIFIED BY 'password';
-ERROR HY000: Operation CREATE USER failed for 'frank'@'%'
+ERROR HY000: Operation CREATE USER failed for 'frank'@'%' (Cannot create utility user)
 SET PASSWORD FOR 'frank'@'localhost' = '';
 ERROR 42000: Can't find any matching row in the user table
 SET PASSWORD FOR 'frank'@'%' = '';
@@ -32,9 +32,9 @@ ERROR HY000: Can't revoke all privileges for one or more of the requested users
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'%';
 ERROR 42000: There is no such grant defined for user 'frank' on host '%'
 DROP USER 'frank'@'localhost';
-ERROR HY000: Operation DROP USER failed for 'frank'@'localhost'
+ERROR HY000: Operation DROP USER failed for 'frank'@'localhost' (Cannot drop utility user)
 DROP USER 'frank'@'%';
-ERROR HY000: Operation DROP USER failed for 'frank'@'%'
+ERROR HY000: Operation DROP USER failed for 'frank'@'%' (Cannot drop utility user)
 CREATE USER 'mysqltest_1'@'localhost';
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 user
@@ -101,7 +101,7 @@ DROP USER plug;
 # Interaction with ALTER USER
 #
 ALTER USER 'frank'@'localhost' PASSWORD EXPIRE;
-ERROR HY000: Operation ALTER USER failed for 'frank'@'localhost'
+ERROR HY000: Operation ALTER USER failed for 'frank'@'localhost' (Cannot alter utility user)
 #
 # 5.7 tests
 #
@@ -126,7 +126,7 @@ SET @@global.offline_mode = @global_saved_tmp;
 # Interaction with SHOW CREATE USER
 #
 SHOW CREATE USER 'frank'@'localhost';
-ERROR HY000: Operation SHOW CREATE USER failed for 'frank'@'localhost'
+ERROR HY000: Operation SHOW CREATE USER failed for 'frank'@'localhost' (User account does not exist)
 # restart
 SHOW GLOBAL STATUS LIKE "Threads%";
 Variable_name	Value

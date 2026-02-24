@@ -3,40 +3,39 @@
 
 CREATE TEMPORARY TABLE table_list (id INT AUTO_INCREMENT, PRIMARY KEY (id)) AS
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA='performance_schema' AND
-# Exclude Percona-specific tables from the list to reduce merge conflicts.
-# We will test them separately below.
-TABLE_NAME != 'account_failed_login_lock_status'
-  ORDER BY TABLE_NAME;
+WHERE TABLE_SCHEMA='performance_schema' ORDER BY TABLE_NAME;
 SELECT COUNT(*) FROM table_list INTO @table_count;
 
 # For each table in the performance schema, attempt HANDLER...OPEN,
 # which should fail with an error 1031, ER_ILLEGAL_HA.
 
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=118;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=119;
 HANDLER performance_schema.variables_metadata OPEN;
 ERROR HY000: Table storage engine for 'variables_metadata' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=117;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=118;
 HANDLER performance_schema.variables_info OPEN;
 ERROR HY000: Table storage engine for 'variables_info' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=116;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=117;
 HANDLER performance_schema.variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'variables_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=115;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=116;
 HANDLER performance_schema.users OPEN;
 ERROR HY000: Table storage engine for 'users' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=114;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=115;
 HANDLER performance_schema.user_variables_by_thread OPEN;
 ERROR HY000: Table storage engine for 'user_variables_by_thread' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=113;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=114;
 HANDLER performance_schema.user_defined_functions OPEN;
 ERROR HY000: Table storage engine for 'user_defined_functions' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=112;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=113;
 HANDLER performance_schema.tls_channel_status OPEN;
 ERROR HY000: Table storage engine for 'tls_channel_status' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=111;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=112;
 HANDLER performance_schema.threads OPEN;
 ERROR HY000: Table storage engine for 'threads' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=111;
+HANDLER performance_schema.temporary_account_locks OPEN;
+ERROR HY000: Table storage engine for 'temporary_account_locks' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=110;
 HANDLER performance_schema.table_lock_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_lock_waits_summary_by_table' doesn't have this option
@@ -367,6 +366,4 @@ ERROR HY000: Table storage engine for 'binary_log_transaction_compression_stats'
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=1;
 HANDLER performance_schema.accounts OPEN;
 ERROR HY000: Table storage engine for 'accounts' doesn't have this option
-HANDLER performance_schema.account_failed_login_lock_status OPEN;
-ERROR HY000: Table storage engine for 'account_failed_login_lock_status' doesn't have this option
 DROP TEMPORARY TABLE table_list;

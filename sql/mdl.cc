@@ -4154,7 +4154,10 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) {
   MDL_key key_for_hton;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db=%s name=%s", lock->key.db_name(), lock->key.name()));
-
+  DBUG_LOG("dd_release_lock", "Releasing MDL("
+                                  << (int)ticket->get_key()->mdl_namespace()
+                                  << "," << ticket->get_key()->db_name() << "."
+                                  << ticket->get_key()->name() << ")");
   assert(this == ticket->get_ctx());
   mysql_mutex_assert_not_owner(&LOCK_open);
 

@@ -879,20 +879,17 @@ try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
   /* Cannot call dd_table_open_on_id() before server is fully up */
-  if (!dict_table_is_system(table_id)) {
-    while (!mysqld_server_started) {
-      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
-        return (false);
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+  while (!mysqld_server_started) {
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
+      return (false);
     }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   /* SDI tables are hidden tables and are not registered with global
   dictionary. Open the table internally. Also acquire shared MDL
   of SDI tables. Concurrent DROP TABLE/TABLESPACE would acquire
   exclusive MDL on SDI tables */
-  ut_ad(!dict_table_is_system(table_id));
 
   if (dict_table_is_sdi(table_id)) {
     if (dict_table_is_sdi(table_id)) {

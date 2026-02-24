@@ -3020,12 +3020,12 @@ static void row_import_discard_changes(
     ulint len;
     const byte *field;
     mem_heap_t *heap = nullptr;
-    ulint offsets_[1 + REC_OFFS_HEADER_SIZE];
+    ulint offsets_array[1 + REC_OFFS_HEADER_SIZE];
     ulint *offsets;
 
-    rec_offs_init(offsets_);
+    rec_offs_init(offsets_array);
 
-    offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
+    offsets = rec_get_offsets(rec, index, offsets_array, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
 
     field = rec_get_nth_field(index, rec, offsets,
@@ -3063,15 +3063,7 @@ static void row_import_discard_changes(
   } else if (row_id > 0) {
     /* Update the system row id if the imported index row id is
     greater than the max system row id. */
-
-    dict_sys_mutex_enter();
-
-    if (row_id >= dict_sys->row_id) {
-      dict_sys->row_id = row_id + 1;
-      dict_hdr_flush_row_id();
-    }
-
-    dict_sys_mutex_exit();
+    dict_sys_set_min_next_row_id(row_id + 1);
   }
 
   return (DB_SUCCESS);

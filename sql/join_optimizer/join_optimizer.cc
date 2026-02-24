@@ -163,6 +163,8 @@ AccessPath *CreateMaterializationPath(
     MaterializePathParameters::DedupType dedup_reason =
         MaterializePathParameters::NO_DEDUP);
 
+NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph);
+
 /**
   A pair of bitsets representing the predicates applied by an index access, and
   which of the predicates are applied fully. The bits map to the predicate with
@@ -447,7 +449,14 @@ class CostingReceiver {
     due to the use of a union.
    */
   struct AccessPathSet {
-    AccessPathArray paths;
+    AccessPathSet(const JoinHypergraph &graph, NodeMap nodes,
+                  FunctionalDependencySet functional_dependencies,
+                  OrderingSet obsolete_orderings_arg)
+        : active_functional_dependencies{functional_dependencies},
+          obsolete_orderings{obsolete_orderings_arg},
+          reachable_nodes{FindReachableTablesFrom(nodes, graph)} {}
+
+    AccessPathArray paths{PSI_NOT_INSTRUMENTED};
     FunctionalDependencySet active_functional_dependencies{0};
 
     // Once-interesting orderings that we don't care about anymore,
@@ -462,6 +471,10 @@ class CostingReceiver {
     // and never merged with the relevant-at-end orderings), this
     // should not happen.
     OrderingSet obsolete_orderings{0};
+
+    // The set of tables that can be joined directly with this subplan,
+    // with no intermediate join being performed first.
+    NodeMap reachable_nodes{0};
 
     // True if the join of the tables in this set has been found to be always
     // empty (typically because of an impossible WHERE clause).
@@ -4481,9 +4494,6 @@ bool LateralDependenciesAreSatisfied(int node_idx, NodeMap tables,
   to check conflict rules, and our handling of hyperedges with more than one
   table on the other side may also be a bit too strict (this may need
   adjustments when we get FULL OUTER JOIN).
-
-  If this calculation turns out to be slow, we could probably cache it in
-  AccessPathSet, or even try to build it incrementally.
  */
 NodeMap FindReachableTablesFrom(NodeMap tables, const JoinHypergraph &graph) {
   const Mem_root_array<Node> &nodes = graph.graph.nodes;
@@ -4920,8 +4930,8 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   bool wrote_trace = false;
 
-  const NodeMap left_reachable = FindReachableTablesFrom(left, *m_graph);
-  const NodeMap right_reachable = FindReachableTablesFrom(right, *m_graph);
+  const NodeMap left_reachable = left_it->second.reachable_nodes;
+  const NodeMap right_reachable = right_it->second.reachable_nodes;
   for (AccessPath *right_path : right_it->second.paths) {
     assert(BitsetsAreCommitted(right_path));
     if (edge->expr->join_conditions_reject_all_rows &&
@@ -4962,59 +4972,44 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       }
 
       assert(BitsetsAreCommitted(left_path));
-      // For inner joins and full outer joins, the order does not matter.
-      //
-      // In lieu of a more precise cost model, always keep the one that hashes
-      // the fewest rows. With the current rudimentary cost model for hash
-      // joins, we always get the lowest total cost by choosing the table with
-      // the lowest row estimate as the build table. When a better cost model is
-      // implemented, which takes into account the size of the rows and not only
-      // the number of rows, it might make sense to propose both join orders.
-      //
-      // If the join is under a LIMIT, having a lower init cost may be just as
-      // important as a having a lower total cost, so in that case we propose
-      // both join orders and let the tournament decide which to keep.
-      //
-      // For secondary engines, we propose only a single join order, as they
-      // decide on their own which table to use as probe and which table to use
-      // as build.
-      //
-      // Finally, if either of the sides are parameterized on something
-      // external, flipping the order will not necessarily be allowed (and would
-      // cause us to not give a hash join for these tables at all).
-      if (is_commutative &&
-          (!IsSubset(left | right, m_nodes_under_limit) ||
-           IsSecondaryEngineOptimization()) &&
-          !Overlaps(left_path->parameter_tables | right_path->parameter_tables,
-                    RAND_TABLE_BIT)) {
-        if (left_path->num_output_rows() < right_path->num_output_rows()) {
-          ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
-        } else {
-          ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
+
+      // Propose with left_path as the 'build' (and right_path as 'probe').
+      const auto propose_left_build{[&](bool rewrite) {
+        ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
+                        new_obsolete_orderings, rewrite, &wrote_trace);
+      }};
+
+      // Propose with right_path as the 'build' (and left_path as 'probe').
+      const auto propose_right_build{[&]() {
+        ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
+                        new_obsolete_orderings, /*rewrite_semi_to_inner=*/false,
+                        &wrote_trace);
+      }};
+
+      if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+        // STRAIGHT_JOIN requires the table on the left side of the join to
+        // be read first. Since the 'build' table is read first, propose a
+        // hash join with the left-side table as the build table and the
+        // right-side table as the 'probe' table.
+        assert(!is_reorderable);
+        propose_left_build(false);
+      } else if (IsSecondaryEngineOptimization()) {
+        if (can_rewrite_semi_to_inner) {
+          propose_left_build(true);
         }
+        // For secondary engines, we propose only a single join order, as
+        // they decide on their own which table to use as probe and which
+        // table to use as build for inner joins and full outer joins (when
+        // implemented). For left joins, the right side must be proposed as
+        // 'build' to keep track of what is the inner and outer side of the
+        // left outer join.
+        propose_right_build();
       } else {
-        if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
-          // STRAIGHT_JOIN requires the table on the left side of the join to
-          // be read first. Since the 'build' table is read first, propose a
-          // hash join with the left-side table as the build table and the
-          // right-side table as the 'probe' table.
-          ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
-        } else {
-          ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
-        }
+        propose_right_build();
         if (is_reorderable) {
-          ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
-                          new_obsolete_orderings,
-                          /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner,
-                          &wrote_trace);
+          // For inner joins and full outer joins (when implemented), both
+          // orders are valid and we propose both.
+          propose_left_build(can_rewrite_semi_to_inner);
         }
       }
 
@@ -5241,17 +5236,11 @@ bool CostingReceiver::AllowHashJoin(NodeMap left, NodeMap right,
   return true;
 }
 
-int64_t GetJoinRowWidth(const AccessPath *path) {
+int64_t GetJoinRowWidth(NodeMap nodes, const JoinHypergraph &graph) {
   int64_t width{0};
-
-  WalkTablesUnderAccessPath(
-      path,
-      [&](const TABLE *table) {
-        width += GetReadSetWidth(table);
-        return false;
-      },
-      /*include_pruned_tables=*/true);
-
+  for (int node_idx : BitsSetIn(nodes)) {
+    width += graph.nodes[node_idx].read_set_width();
+  }
   return width;
 }
 
@@ -5386,13 +5375,14 @@ void CostingReceiver::ProposeHashJoin(
 
   const HashJoinCost join_cost{
       m_thd,
-      HashJoinMetrics{
-          .build_rows = right_path->num_output_rows(),
-          .build_row_size = static_cast<double>(GetJoinRowWidth(right_path)),
-          .key_size = key_width,
-          .probe_rows = left_path->num_output_rows(),
-          .probe_row_size = static_cast<double>(GetJoinRowWidth(left_path)),
-          .result_rows = num_output_rows}};
+      HashJoinMetrics{.build_rows = right_path->num_output_rows(),
+                      .build_row_size =
+                          static_cast<double>(GetJoinRowWidth(right, *m_graph)),
+                      .key_size = key_width,
+                      .probe_rows = outer->num_output_rows(),
+                      .probe_row_size =
+                          static_cast<double>(GetJoinRowWidth(left, *m_graph)),
+                      .result_rows = num_output_rows}};
 
   // Note: This isn't strictly correct if the non-equijoin conditions
   // have selectivities far from 1.0; the cost should be calculated
@@ -5532,11 +5522,15 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
       right_path->delayed_predicates);
   delayed_predicates.ClearBits(join_predicate_first, join_predicate_last);
 
+  // The selectivity of the delayed predicates that get applied now.
+  double filter_selectivity = 1.0;
+
   // Predicates that were delayed, but that we need to check now.
   // (We don't need to allocate a MutableOverflowBitset for this.)
   const NodeMap ready_tables = left | right;
   for (int pred_idx : BitsSetInBoth(left_path->delayed_predicates,
                                     right_path->delayed_predicates)) {
+    assert(std::cmp_less(pred_idx, m_graph->num_where_predicates));
     if (pred_idx >= join_predicate_first && pred_idx < join_predicate_last) {
       continue;
     }
@@ -5558,8 +5552,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
                                 cost.cost_if_not_materialized);
           }
           if (!already_applied_as_sargable) {
-            join_path->set_num_output_rows(join_path->num_output_rows() *
-                                           pred.selectivity);
+            filter_selectivity *= pred.selectivity;
             filter_predicates.SetBit(pred_idx);
           }
         }
@@ -5583,9 +5576,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
         // sargable (predicates like the one we are considering right now),
         // in order to force them into being representative for their multiple
         // equality.
-        if (pred.selectivity > 1e-6) {
-          SetNumOutputRowsAfterFilter(
-              join_path, join_path->num_output_rows() / pred.selectivity);
+        if (pred.selectivity != 0) {
+          filter_selectivity /= pred.selectivity;
         }
       }
       *new_fd_set |= pred.functional_dependencies;
@@ -5595,6 +5587,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   }
   join_path->filter_predicates = std::move(filter_predicates);
   join_path->delayed_predicates = std::move(delayed_predicates);
+  SetNumOutputRowsAfterFilter(
+      join_path, join_path->num_output_rows() * filter_selectivity);
   SecondaryEngineNrowsParameters secondary_engine_nrows_params{m_thd, join_path,
                                                                m_graph};
   ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params);
@@ -6793,9 +6787,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
   AccessPathSet *path_set;
   // Insert an empty array if none exists.
   {
-    const auto [it, inserted] = m_access_paths.emplace(
-        nodes, AccessPathSet{AccessPathArray{PSI_NOT_INSTRUMENTED}, fd_set,
-                             obsolete_orderings});
+    const auto [it, inserted] = m_access_paths.try_emplace(
+        nodes, *m_graph, nodes, fd_set, obsolete_orderings);
     path_set = &it->second;
     if (!inserted) {
       assert(fd_set == path_set->active_functional_dependencies);
@@ -6925,6 +6918,19 @@ bool CheckSupportedQuery(THD *thd) {
   return false;
 }
 
+// Check if an access path has any remaining delayed predicates.
+[[maybe_unused]] bool HasDelayedPredicates(const AccessPath &path,
+                                           const JoinHypergraph &graph) {
+  // Only the num_where_predicates first bits of delayed_predicates represent
+  // delayed predicates. The higher bits represent subsumed sargable predicates.
+  // So there is a delayed predicate only if the lowest set bit in
+  // delayed_predicates is less than num_where_predicates.
+  for (size_t node_idx : BitsSetIn(path.delayed_predicates)) {
+    return node_idx < graph.num_where_predicates;
+  }
+  return false;
+}
+
 /**
   Set up an access path for streaming or materializing through a temporary
   table. If none is needed (because earlier iterators already materialize
@@ -6944,6 +6950,11 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd,
   if (!IteratorsAreNeeded(thd, path) || IsMaterializationPath(path)) {
     return path;
   }
+
+  // Streaming and materialization paths are usually added after all filters
+  // have been applied, so we don't expect any delayed predicates. If there are
+  // any, we need to copy them into the returned path.
+  assert(!HasDelayedPredicates(*path, graph));
 
   // See if later sorts will need row IDs from us or not.
   if (!need_rowid) {
@@ -7497,6 +7508,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, const JoinHypergraph &graph,
   aggregate_path.aggregate().child = child_path;
   aggregate_path.aggregate().olap = olap;
   aggregate_path.set_num_output_rows(row_estimate);
+  aggregate_path.ordering_state = child_path->ordering_state;
   secondary_engine_nrows_params.access_path = &aggregate_path;
   ApplySecondaryEngineNrowsHook(secondary_engine_nrows_params);
   aggregate_path.has_group_skip_scan = child_path->has_group_skip_scan;
@@ -8925,7 +8937,7 @@ static void CacheCostInfoForJoinConditions(THD *thd,
     for (CachedPropertiesForPredicate *properties_it =
              edge.expr->properties_for_join_conditions.begin();
          Item * cond : edge.expr->join_conditions) {
-      CachedPropertiesForPredicate &properties = *properties_it;
+      CachedPropertiesForPredicate &properties = *properties_it++;
       properties.contained_subqueries.init(thd->mem_root);
       properties.redundant_against_sargable_predicates =
           OverflowBitset::EmptySet(thd->mem_root, graph->predicates.size());
@@ -9455,15 +9467,11 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     }
   }
 
-  // All the delayed predicates should have been applied by now. (Only the
-  // num_where_predicates first bits of delayed_predicates actually represent
-  // delayed predicates, so we only check those).
-  assert(all_of(root_candidates.begin(), root_candidates.end(),
-                [&graph](const AccessPath *root_path) {
-                  return IsEmpty(root_path->delayed_predicates) ||
-                         *BitsSetIn(root_path->delayed_predicates).begin() >=
-                             graph.num_where_predicates;
-                }));
+  // All the delayed predicates should have been applied by now.
+  assert(std::ranges::none_of(root_candidates,
+                              [&graph](const AccessPath *root_path) {
+                                return HasDelayedPredicates(*root_path, graph);
+                              }));
 
   // Now we have one or more access paths representing joining all the tables
   // together. (There may be multiple ones because they can be better at

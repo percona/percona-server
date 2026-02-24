@@ -1616,6 +1616,8 @@ typedef const char *(*get_tablespace_filename_ext_t)();
 /**
   Get the tablespace data from SE and insert it into Data dictionary
 
+  @deprecated Was used to upgrade from 5.7.
+
   @param    thd         Thread context
 
   @return Operation status.
@@ -1626,6 +1628,8 @@ typedef int (*upgrade_tablespace_t)(THD *thd);
 
 /**
   Get the tablespace data from SE and insert it into Data dictionary
+
+  @deprecated Was used to upgrade from 5.7.
 
   @param[in]  tablespace     tablespace object
 
@@ -1640,6 +1644,8 @@ typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
   This includes resetting flags to indicate upgrade process
   and cleanup after upgrade.
 
+  @deprecated Was used to upgrade from 5.7.
+
   @param    thd      Thread context
   @param failed_upgrade True if the upgrade failed.
 
@@ -1652,6 +1658,8 @@ typedef int (*finish_upgrade_t)(THD *thd, bool failed_upgrade);
 /**
   Upgrade logs after the checkpoint from where upgrade
   process can only roll forward.
+
+  @deprecated Was used to upgrade from 5.7.
 
   @param    thd      Thread context
 
@@ -2140,12 +2148,6 @@ using fix_tablespaces_empty_uuid_t = bool (*)(void);
  @param is_starting True if the server is starting
 */
 using fix_default_table_encryption_t = bool (*)(ulong value, bool is_starting);
-
-using compression_dict_data_vec_t =
-    std::vector<std::pair<std::string, std::string>>;
-
-using upgrade_get_compression_dict_data_t =
-    bool (*)(THD *thd, compression_dict_data_vec_t &names_vector);
 
 /**
   @brief
@@ -2730,9 +2732,7 @@ using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
  * @param[in]     db_name     view database
  * @param[in]     table_name  view name
  * @param[in]     view_def    view definition query
- * @param[in]     mdl_ticket  the mdl ticket on the view to upgrade shared
- *                            lock to exclusive lock in case of
- *                            re-materialization.
+ *
  * @return :
  *  @retval true The materialized view is found and can be used.
  *  @retval false The materialzied view is not available and cannot be used.
@@ -2740,8 +2740,7 @@ using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
 using notify_materialized_view_usage_t = bool (*)(THD *thd,
                                                   std::string_view db_name,
                                                   std::string_view table_name,
-                                                  std::string_view view_def,
-                                                  MDL_ticket *mdl_ticket);
+                                                  std::string_view view_def);
 
 /**
   Secondary engine hook called after PRIMARY_TENTATIVELY optimization is
@@ -2956,11 +2955,15 @@ struct handlerton {
   is_valid_tablespace_name_t is_valid_tablespace_name;
   alter_tablespace_t alter_tablespace;
   get_tablespace_filename_ext_t get_tablespace_filename_ext;
+  /** @deprecated Was used to upgrade from 5.7. */
   upgrade_tablespace_t upgrade_tablespace;
+  /** @deprecated Was used to upgrade from 5.7. */
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
   get_tablespace_type_by_name_t get_tablespace_type_by_name;
+  /** @deprecated Was used to upgrade from 5.7. */
   upgrade_logs_t upgrade_logs;
+  /** @deprecated Was used to upgrade from 5.7. */
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
@@ -3034,7 +3037,6 @@ struct handlerton {
   rotate_encryption_master_key_t rotate_encryption_master_key;
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;
-  upgrade_get_compression_dict_data_t upgrade_get_compression_dict_data;
   redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;
@@ -3325,6 +3327,10 @@ inline constexpr const decltype(handlerton::flags)
 inline bool hton_is_secondary_engine(const handlerton *hton) {
   return hton != nullptr && (hton->flags & HTON_IS_SECONDARY_ENGINE) != 0U;
 }
+
+/* Disable foreign keys in storage engine and handle it in SQL Layer. */
+inline constexpr const decltype(handlerton::flags) HTON_SUPPORTS_SQL_FK{1
+                                                                        << 25};
 
 /* Whether the secondary engine handlerton supports DDLs */
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
@@ -5349,6 +5355,53 @@ class handler {
   virtual bool bulk_load_check(THD *thd [[maybe_unused]]) const {
     return false;
   }
+
+  /** Used during bulk load on a non-empty table, called after the CSV file
+  input is exhausted and we need to copy any existing data from the original
+  table to the duplicated one.
+  @param[in]  load_ctx      SE load context
+  @param[in]  thread_idx    loader thread index
+  @param[in]  wait_cbk      stat callbacks.
+  @return 0 if successful, HA_ERR_GENERIC otherwise. */
+  virtual int bulk_load_copy_existing_data(void *load_ctx [[maybe_unused]],
+                                           size_t thread_idx [[maybe_unused]],
+                                           Bulk_load::Stat_callbacks &wait_cbk
+                                           [[maybe_unused]]) const {
+    return 0;
+  }
+
+  /** Generates a temporary table name to be used for table duplication during
+  bulk load.
+  @return a temporary table name. */
+  virtual std::string bulk_load_generate_temporary_table_name() const {
+    return "";
+  }
+
+  /** Sets the source table data (table name and key range boundaries) for all
+  loaders.
+  @param[in,out]  load_ctx                SE load context
+  @param[in]      source_table_data  vector containing the source table data
+  @return true if successful, false otherwise. */
+  virtual bool bulk_load_set_source_table_data(
+      void *load_ctx [[maybe_unused]],
+      const std::vector<Bulk_load::Source_table_data> &source_table_data
+      [[maybe_unused]]) const {
+    return true;
+  }
+
+  /** Get the row ID range of the table that we're bulk loading into. Only used
+  when the table has a generated clustered index and is not empty.
+  @param[out] min Minimum ROW_ID in table
+  @param[out] max Maximum ROW_ID in table
+  @return true if successful, false otherwise. */
+  virtual bool bulk_load_get_row_id_range(size_t &min [[maybe_unused]],
+                                          size_t &max [[maybe_unused]]) const {
+    return false;
+  }
+
+  /** Determines whether the table this handler was opened on is empty.
+  @return true if table empty. */
+  virtual bool is_table_empty() const { return false; }
 
   /** Get the total memory available for bulk load in SE.
    @param[in] thd user session
@@ -7566,21 +7619,6 @@ class handler {
 
   int get_lock_type() const { return m_lock_type; }
 
-  /**
-    This method is supposed to fill field definition objects with
-    compression dictionary info (name and data). This is used
-    only during upgrade from 5.7 to 8.0
-    If the handler does not support compression dictionaries
-    this method should be left empty (not overloaded).
-
-    @param    thd          Thread handle
-    @param    part_name    Full table name (including partition part).
-                           Optional.
-  */
-  virtual void upgrade_update_field_with_zip_dict_info(THD *thd
-                                                       [[maybe_unused]],
-                                                       const char *part_name
-                                                       [[maybe_unused]]) {}
 
  public:
   /* Read-free replication interface */

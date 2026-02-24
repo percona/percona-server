@@ -2072,6 +2072,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         Nested acquiring of LOCK_thd_data is fine (see below).
       */
       const Security_context save_security_ctx(*(thd->security_context()));
+      /* clean up the security context so that authenticate checkout new acl
+       * maps */
+      thd->security_context()->logout();
 
       MUTEX_LOCK(grd_secctx, &thd->LOCK_thd_security_ctx);
 
@@ -2082,6 +2085,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         *thd->security_context() = save_security_ctx;
         thd->set_user_connect(save_user_connect);
         thd->reset_db(save_db);
+        thd->security_context()->checkout_access_maps();
 
         my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
                  thd->security_context()->user().str,
@@ -5968,7 +5972,7 @@ bool Alter_info::add_field(
           break;
         case MYSQL_TYPE_TIMESTAMP2:
         case MYSQL_TYPE_DATETIME2:
-          json_key = external_table::kTimestampFormatParam;
+          json_key = external_table::kDatetimeFormatParam;
           break;
         default:
           my_error(ER_EXTERNAL_FORMAT_NOT_SUPPORTED, MYF(0), field_name->str);
@@ -7448,12 +7452,12 @@ class Parser_oom_handler : public Internal_error_handler {
     rc= parse_sql(the, &parser_state, ctx);
     if (! rc)
     {
-      unsigned char md5[MD5_HASH_SIZE];
+      unsigned char hash[SHA256_DIGEST_LENGTH];
       char digest_text[1024];
       bool truncated;
       const sql_digest_storage *digest= & thd->m_digest->m_digest_storage;
 
-      compute_digest_md5(digest, & md5[0]);
+      compute_digest_hash(digest, & hash[0]);
       compute_digest_text(digest, & digest_text[0], sizeof(digest_text), &
   truncated);
     }

@@ -1287,13 +1287,14 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     auto text_index = col_meta.m_field_index;
     Field *field = nullptr;
 
-    assert(text_index < table_share->fields);
-
     /* The table_share does not know about the generated clustered
     index.  But text_rows contain the generated row id. The variable is_rowid
     indicates whether the current column is the generated row id. */
     const bool is_rowid =
         metadata.dbrowid_is_pk && col_meta.m_field_name == "DB_ROW_ID";
+
+    assert(text_index < table_share->fields ||
+           (is_rowid && text_index == UINT16_MAX));
 
     if (is_rowid) {
       text_index = 0;
@@ -2207,6 +2208,7 @@ static bool add_index_columns(TABLE_SHARE *table_share, const KEY &key,
     row_meta.dbrowid_is_pk = true;
     Column_meta col_meta;
     col_meta.m_field_name = "DB_ROW_ID";
+    col_meta.m_field_index = UINT16_MAX;
     col_meta.m_is_pk = false;
     col_meta.m_is_key = true;
     col_meta.m_is_prefix_key = false;
@@ -2537,6 +2539,8 @@ DEFINE_METHOD(bool, get_table_metadata,
     table_meta.m_n_keys++;
     table_meta.m_keynr_pk = 0;
     table_meta.dbrowid_is_pk = true;
+    table->file->bulk_load_get_row_id_range(table_meta.min_row_id_value,
+                                            table_meta.max_row_id_value);
   }
 
   return true;
@@ -2720,6 +2724,22 @@ bool check_for_deprecated_use(Field *field) {
 
 DEFINE_METHOD(size_t, get_se_memory_size, (THD * thd, const TABLE *table)) {
   return table->file->bulk_load_available_memory(thd);
+}
+
+DEFINE_METHOD(bool, copy_existing_data,
+              (void *ctx, const TABLE *duplicate_table, size_t thread,
+               Bulk_load::Stat_callbacks &wait_cbks)) {
+  int err = duplicate_table->file->bulk_load_copy_existing_data(ctx, thread,
+                                                                wait_cbks);
+  return err == 0;
+}
+
+DEFINE_METHOD(
+    bool, set_source_table_data,
+    (void *ctx, const TABLE *duplicate_table,
+     const std::vector<Bulk_load::Source_table_data> &source_table_data)) {
+  return duplicate_table->file->bulk_load_set_source_table_data(
+      ctx, source_table_data);
 }
 
 DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table)) {

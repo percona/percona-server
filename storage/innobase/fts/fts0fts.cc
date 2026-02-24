@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  ***********************************************************************/
 
 #include <current_thd.h>
+#include <sql/sql_thd_internal_api.h>
 #include <sys/types.h>
 #include <new>
 
@@ -145,8 +146,6 @@ const char *FTS_SUFFIX_DELETED_CACHE = fts_common_tables[4];
 const char *fts_common_tables_5_7[] = {"BEING_DELETED", "BEING_DELETED_CACHE",
                                        "CONFIG",        "DELETED",
                                        "DELETED_CACHE", nullptr};
-
-const char *FTS_SUFFIX_CONFIG_5_7 = fts_common_tables_5_7[2];
 
 /** FTS auxiliary INDEX split intervals. */
 const fts_index_selector_t fts_index_selector[] = {
@@ -2449,12 +2448,29 @@ static fts_row_state fts_trx_row_get_new_state(
 
   /* The lookup table for transforming states. old_state is the
   Y-axis, event is the X-axis. */
-  static const fts_row_state table[4][4] = {
+  static const fts_row_state innodb_fk_table[4][4] = {
       /*    I            M            D            N */
       /* I */ {FTS_INVALID, FTS_INSERT, FTS_NOTHING, FTS_INVALID},
       /* M */ {FTS_INVALID, FTS_MODIFY, FTS_DELETE, FTS_INVALID},
       /* D */ {FTS_MODIFY, FTS_INVALID, FTS_INVALID, FTS_INVALID},
       /* N */ {FTS_INVALID, FTS_INVALID, FTS_INVALID, FTS_INVALID}};
+
+  /* For SQL layer foreign key processing, it's convenient to allow "double
+  deletion" i.e. when already in a FTS_DELETE state, an FTS_DELETE event
+  causes us to remain in a FTS_DELETE state. All other state transitions are
+  the same as those used in InnoDB foreign key processing.
+  */
+  static const fts_row_state sql_layer_fk_table[4][4] = {
+      /*    I            M            D            N */
+      /* I */ {FTS_INVALID, FTS_INSERT, FTS_NOTHING, FTS_INVALID},
+      /* M */ {FTS_INVALID, FTS_MODIFY, FTS_DELETE, FTS_INVALID},
+      /* D */ {FTS_MODIFY, FTS_INVALID, FTS_DELETE, FTS_INVALID},
+      /* N */ {FTS_INVALID, FTS_INVALID, FTS_INVALID, FTS_INVALID}};
+
+  auto table = sql_layer_fk_table;
+  if (!thd_is_sql_fk_checks_enabled()) {
+    table = innodb_fk_table;
+  }
 
   fts_row_state result;
 
@@ -6341,234 +6357,4 @@ func_exit:
   }
 
   return true;
-}
-
-/** Rename old FTS common and aux tables with the new table_id
-@param[in]      old_name        old name of FTS AUX table
-@param[in]      new_name        new name of FTS AUX table
-@return new fts table if success, else nullptr on failure */
-static dict_table_t *fts_upgrade_rename_aux_table_low(const char *old_name,
-                                                      const char *new_name) {
-  dict_sys_mutex_enter();
-
-  dict_table_t *old_aux_table =
-      dict_table_open_on_name(old_name, true, false, DICT_ERR_IGNORE_NONE);
-
-  ut_ad(old_aux_table != nullptr);
-  dict_table_close(old_aux_table, true, false);
-  dberr_t err = dict_table_rename_in_cache(old_aux_table, new_name, false);
-  if (err != DB_SUCCESS) {
-    dict_sys_mutex_exit();
-    return (nullptr);
-  }
-
-  dict_table_t *new_aux_table =
-      dict_table_open_on_name(new_name, true, false, DICT_ERR_IGNORE_NONE);
-  ut_ad(new_aux_table != nullptr);
-  dict_sys_mutex_exit();
-
-  return (new_aux_table);
-}
-
-/** Rename old FTS common and aux tables with the new table_id
-@param[in]      old_name        old name of FTS AUX table
-@param[in]      new_name        new name of FTS AUX table
-@param[in]      rollback        if true, do the rename back
-                                else mark original AUX tables
-                                evictable */
-static void fts_upgrade_rename_aux_table(const char *old_name,
-                                         const char *new_name, bool rollback) {
-  dict_table_t *new_table = nullptr;
-
-  if (rollback) {
-    new_table = fts_upgrade_rename_aux_table_low(old_name, new_name);
-
-  } else {
-    new_table =
-        dict_table_open_on_name(old_name, false, false, DICT_ERR_IGNORE_NONE);
-  }
-
-  if (new_table == nullptr) {
-    return;
-  }
-
-  dict_sys_mutex_enter();
-  dict_table_allow_eviction(new_table);
-  dict_table_close(new_table, true, false);
-  dict_sys_mutex_exit();
-}
-
-/** During upgrade, tables are moved by DICT_MAX_DD_TABLES
-offset, remove this offset to get 5.7 fts aux table names
-@param[in]      table_id        8.0 table id */
-inline table_id_t fts_upgrade_get_5_7_table_id(table_id_t table_id) {
-  return (table_id - DICT_MAX_DD_TABLES);
-}
-
-/** Upgrade FTS AUX Tables. The FTS common and aux tables are
-renamed because they have table_id in their name. We move table_ids
-by DICT_MAX_DD_TABLES offset. Aux tables are registered into DD
-after rename.
-@param[in]      table           InnoDB table object
-@return DB_SUCCESS or error code */
-dberr_t fts_upgrade_aux_tables(dict_table_t *table) {
-  fts_table_t fts_old_table;
-
-  ut_ad(srv_is_upgrade_mode);
-
-  FTS_INIT_FTS_TABLE(&fts_old_table, nullptr, FTS_COMMON_TABLE, table);
-  fts_table_t fts_new_table = fts_old_table;
-
-  fts_old_table.table_id = fts_upgrade_get_5_7_table_id(fts_old_table.table_id);
-
-  /* Rename common auxiliary tables */
-  for (ulint i = 0; fts_common_tables_5_7[i] != nullptr; ++i) {
-    fts_old_table.suffix = fts_common_tables_5_7[i];
-
-    bool is_config = fts_old_table.suffix == FTS_SUFFIX_CONFIG_5_7;
-    char old_name[MAX_FULL_NAME_LEN];
-    char new_name[MAX_FULL_NAME_LEN];
-
-    fts_get_table_name_5_7(&fts_old_table, old_name);
-
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_484)
-                                      << "Old fts table name is " << old_name;);
-
-    fts_new_table.suffix = fts_common_tables[i];
-    fts_get_table_name(&fts_new_table, new_name);
-
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_485)
-                                      << "New fts table name is " << new_name;);
-
-    dict_table_t *new_table =
-        fts_upgrade_rename_aux_table_low(old_name, new_name);
-
-    if (new_table == nullptr) {
-      return (DB_ERROR);
-    }
-
-    dict_sys_mutex_enter();
-    dict_table_prevent_eviction(new_table);
-    dict_sys_mutex_exit();
-
-    if (!dd_create_fts_common_table(table, new_table, is_config)) {
-      dict_table_close(new_table, false, false);
-      return (DB_FAIL);
-    }
-    dict_table_close(new_table, false, false);
-  }
-
-  fts_t *fts = table->fts;
-
-  /* Rename index specific auxiliary tables */
-  for (ulint i = 0; fts->indexes != nullptr && i < ib_vector_size(fts->indexes);
-       ++i) {
-    dict_index_t *index;
-
-    index = static_cast<dict_index_t *>(ib_vector_getp(fts->indexes, i));
-
-    FTS_INIT_INDEX_TABLE(&fts_old_table, nullptr, FTS_INDEX_TABLE, index);
-    fts_new_table = fts_old_table;
-
-    fts_old_table.table_id =
-        fts_upgrade_get_5_7_table_id(fts_old_table.table_id);
-
-    for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
-      fts_old_table.suffix = fts_get_suffix_5_7(j);
-
-      char old_name[MAX_FULL_NAME_LEN];
-      char new_name[MAX_FULL_NAME_LEN];
-
-      fts_get_table_name_5_7(&fts_old_table, old_name);
-
-      fts_new_table.suffix = fts_get_suffix(j);
-      fts_get_table_name(&fts_new_table, new_name);
-
-      dict_table_t *new_table =
-          fts_upgrade_rename_aux_table_low(old_name, new_name);
-
-      if (new_table == nullptr) {
-        return (DB_ERROR);
-      }
-
-      dict_sys_mutex_enter();
-      dict_table_prevent_eviction(new_table);
-      dict_sys_mutex_exit();
-
-      CHARSET_INFO *charset = fts_get_charset(index->get_field(0)->col->prtype);
-
-      if (!dd_create_fts_index_table(table, new_table, charset)) {
-        dict_table_close(new_table, false, false);
-        return (DB_FAIL);
-      }
-      dict_table_close(new_table, false, false);
-    }
-  }
-
-  return (DB_SUCCESS);
-}
-
-/** Rename FTS AUX tablespace name from 8.0 format to 5.7 format.
-This will be done on upgrade failure
-@param[in]      table           parent table
-@param[in]      rollback        rollback the rename from 8.0 to 5.7
-                                if true, rename to 5.7 format
-                                if false, mark the table as evictable
-@return DB_SUCCESS on success, DB_ERROR on error */
-dberr_t fts_upgrade_rename(const dict_table_t *table, bool rollback) {
-  fts_table_t fts_old_table;
-
-  ut_ad(srv_is_upgrade_mode);
-
-  FTS_INIT_FTS_TABLE(&fts_old_table, nullptr, FTS_COMMON_TABLE, table);
-
-  fts_table_t fts_new_table = fts_old_table;
-
-  fts_new_table.table_id = fts_upgrade_get_5_7_table_id(fts_new_table.table_id);
-
-  /* Rename common auxiliary tables */
-  for (ulint i = 0; fts_common_tables[i] != nullptr; ++i) {
-    fts_old_table.suffix = fts_common_tables[i];
-
-    char old_name[MAX_FULL_NAME_LEN];
-    char new_name[MAX_FULL_NAME_LEN];
-
-    fts_get_table_name(&fts_old_table, old_name);
-
-    fts_new_table.suffix = fts_common_tables_5_7[i];
-    fts_get_table_name_5_7(&fts_new_table, new_name);
-
-    fts_upgrade_rename_aux_table(old_name, new_name, rollback);
-  }
-
-  fts_t *fts = table->fts;
-
-  /* Rename index specific auxiliary tables */
-  for (ulint i = 0; fts->indexes != nullptr && i < ib_vector_size(fts->indexes);
-       ++i) {
-    dict_index_t *index;
-
-    index = static_cast<dict_index_t *>(ib_vector_getp(fts->indexes, i));
-
-    FTS_INIT_INDEX_TABLE(&fts_old_table, nullptr, FTS_INDEX_TABLE, index);
-    fts_new_table = fts_old_table;
-
-    fts_new_table.table_id =
-        fts_upgrade_get_5_7_table_id(fts_new_table.table_id);
-
-    for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
-      fts_old_table.suffix = fts_get_suffix(j);
-
-      char old_name[MAX_FULL_NAME_LEN];
-      char new_name[MAX_FULL_NAME_LEN];
-
-      fts_get_table_name(&fts_old_table, old_name);
-
-      fts_new_table.suffix = fts_get_suffix_5_7(j);
-      fts_get_table_name_5_7(&fts_new_table, new_name);
-
-      fts_upgrade_rename_aux_table(old_name, new_name, rollback);
-    }
-  }
-  return (DB_SUCCESS);
 }

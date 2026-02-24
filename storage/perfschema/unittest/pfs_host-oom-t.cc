@@ -40,8 +40,6 @@
 #include "storage/perfschema/unittest/stub_telemetry_metrics.h"
 #include "unittest/mytap/tap.h"
 
-extern struct PSI_bootstrap PFS_bootstrap;
-
 static void test_oom() {
   int rc;
   PFS_global_param param;

@@ -139,6 +139,7 @@ usr/lib/mysql/plugin/component_test_event_tracking_producer_b.so
 usr/lib/mysql/plugin/component_test_event_tracking_consumer_a.so
 usr/lib/mysql/plugin/component_test_event_tracking_consumer_b.so
 usr/lib/mysql/plugin/component_test_event_tracking_consumer_c.so
+usr/lib/mysql/plugin/component_test_mysql_file_service.so
 # test suite
 usr/lib/mysql-test/*
 # legal

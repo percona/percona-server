@@ -597,7 +597,19 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
   auto undo_ptr = &trx->rsegs.m_redo;
 
   /* If update undo is already allocated, nothing to do. */
-  if (!alloc || undo_ptr->is_update()) {
+  if (undo_ptr->is_update()) {
+    /* If we need to persist GTID, but space is not allocated in the existing
+    undo, we cannot persist GTID. This can happen for a recovered prepared XA
+    transaction whose undo was written without GTID flags (e.g. crash between
+    trx_prepare_low and trx_set_prepared_in_tc_low). Reset persists_gtid to
+    avoid a later assertion in trx_undo_gtid_set. */
+    if (alloc && !undo_ptr->update_undo->gtid_allocated(prepare)) {
+      trx->persists_gtid = false;
+    }
+    return (DB_SUCCESS);
+  }
+
+  if (!alloc) {
     return (DB_SUCCESS);
   }
 
@@ -1794,29 +1806,32 @@ func_exit:
   return (err);
 }
 
-/** Sets the state of the undo log segment at a transaction finish.
- @return undo log segment header page, x-latched */
-page_t *trx_undo_set_state_at_finish(
-    trx_undo_t *undo, /*!< in: undo log memory copy */
-    mtr_t *mtr)       /*!< in: mtr */
-{
-  trx_usegf_t *seg_hdr;
-  trx_upagef_t *page_hdr;
-  page_t *undo_page;
-  ulint state;
+/** Checks if undo log is reusable and can be cached.
+@param[in]  undo        undo log memory copy
+@param[in]  page_hdr    page header of page of the undo log
+@return true if undo log state should be set as cached */
+static bool trx_undo_reusable(const trx_undo_t *undo,
+                              const trx_upagef_t *page_hdr) {
+  return undo->size == 1 && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE) <
+                                TRX_UNDO_PAGE_REUSE_LIMIT;
+}
 
+/** Sets the state of the undo log segment at a transaction finish.
+@param[in] undo    undo log memory copy
+@param[in] mtr     Mini-transaction
+@return undo log segment header page, x-latched */
+page_t *trx_undo_set_state_at_finish(trx_undo_t *undo, mtr_t *mtr) {
   ut_a(undo->id < TRX_RSEG_N_SLOTS);
 
-  undo_page = trx_undo_page_get(page_id_t(undo->space, undo->hdr_page_no),
-                                undo->page_size, mtr);
+  page_t *undo_page = trx_undo_page_get(
+      page_id_t(undo->space, undo->hdr_page_no), undo->page_size, mtr);
 
-  seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-  page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
+  trx_usegf_t *seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
+  trx_upagef_t *page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 
-  if (undo->size == 1 && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE) <
-                             TRX_UNDO_PAGE_REUSE_LIMIT) {
+  ulint state;
+  if (trx_undo_reusable(undo, page_hdr)) {
     state = TRX_UNDO_CACHED;
-
   } else if (undo->type == TRX_UNDO_INSERT) {
     state = TRX_UNDO_TO_FREE;
   } else {

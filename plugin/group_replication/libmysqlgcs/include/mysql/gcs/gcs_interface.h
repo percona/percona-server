@@ -50,6 +50,12 @@ struct Gcs_interface_runtime_requirements {
    *
    */
   Network_namespace_manager *namespace_manager;
+
+  /**
+   * @brief A class that provides the textual representation of the timestamps
+   * in the debug/trace log created by GCS.
+   */
+  std::shared_ptr<Clock_timestamp_interface> clock_timestamp_provider;
 };
 
 /**

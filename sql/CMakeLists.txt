@@ -399,6 +399,7 @@ SET(SQL_SHARED_SOURCES
   histograms/value_map.cc
   hostname_cache.cc
   init.cc
+  lib_glue/gtids.cc
   log_resource.cc
   item.cc
   item_buff.cc
@@ -576,6 +577,7 @@ SET(SQL_SHARED_SOURCES
   sql_error.cc
   sql_exception_handler.cc
   sql_executor.cc
+  sql_foreign_key_constraint.cc
   sql_get_diagnostics.cc
   sql_gipk.cc
   sql_handler.cc
@@ -666,7 +668,7 @@ SET(SQL_SHARED_SOURCES
   reference_caching_setup.cc
   sql_event_tracking_to_audit_event_mapping.cc
   command_mapping.cc
-  )
+)
 
 IF(BUILD_IS_SINGLE_CONFIG)
   GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)

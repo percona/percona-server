@@ -258,7 +258,9 @@ CREATE TABLE `t1` (
   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1(a) VALUES (1), (2), (3);
+SET FOREIGN_KEY_CHECKS=1;
 
 --exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
 

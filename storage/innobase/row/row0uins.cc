@@ -91,7 +91,6 @@ introduced where a call to log_free_check() is bypassed. */
   online = dict_index_is_online_ddl(index);
   if (online) {
     ut_ad(node->trx.dict_operation_lock_mode != RW_X_LATCH);
-    ut_ad(node->table->id != DICT_INDEXES_ID);
     mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
   }
 

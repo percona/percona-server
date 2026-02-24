@@ -399,4 +399,8 @@ max-time: 120
 
 cmd: testBackup
 args: -n BackupDuringRestart T1
+max-time: 360
+
+cmd: testBackup
+args: -n BackupFragmentConsistency T1
 max-time: 240

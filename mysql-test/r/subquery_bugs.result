@@ -837,13 +837,13 @@ ST_POINTFROMTEXT(
 ST_ASWKT(
 NOT EXISTS(
 SELECT 1 FROM t1
-WHERE IS_UUID(CAST(SHA(a>>0xA7FE1B22)AS JSON)) WINDOW w1 AS()
+WHERE IS_UUID(CAST(SHA2(a>>0xA7FE1B22,256)AS JSON)) WINDOW w1 AS()
 ),'AXIS-ORDER=SRID-DEFINED'
       ),1,'AXIS-ORDER=LONG-LAT'
     )
 )
 );
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 4.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not be followed by other values." at position 6.
 DROP TABLE t1;
 #
 # Bug#29669840 REGRESSION: CRASH IN DECIMAL_ADD()

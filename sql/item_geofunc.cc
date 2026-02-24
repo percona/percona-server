@@ -206,18 +206,16 @@ bool is_colinear(const Point_range &ls) {
 
   @param[in] arg Item that holds the SRID
   @param[out] srid Where to store the SRID
-  @param[out] null_value Where to store the null_value
   @param[in] func_name Function name to use in error messages
 
-  @retval true An error has occurred
-  @retval false Success
+  @returns true if an error has occurred, or null value set, otherwise false.
 */
-static bool validate_srid_arg(Item *arg, gis::srid_t *srid, bool *null_value,
+static bool validate_srid_arg(Item *arg, gis::srid_t *srid,
                               const char *func_name) {
   const longlong arg_srid = arg->val_int();
 
-  if ((*null_value = arg->null_value)) {
-    return false;
+  if (arg->null_value) {
+    return true;
   }
 
   if (arg_srid < 0 || arg_srid > UINT_MAX32) {
@@ -448,13 +446,8 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   Gis_read_stream trs(current_thd, wkt->charset(), wkt->ptr(), wkt->length());
   gis::srid_t srid = 0;
 
-  if (arg_count >= 2) {
-    if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
-      return error_str();
-    if (null_value) {
-      assert(is_nullable());
-      return nullptr;
-    }
+  if (arg_count > 1 && validate_srid_arg(args[1], &srid, func_name())) {
+    return error_str();
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
@@ -685,13 +678,10 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
   bool is_geographic = false;
   bool lat_long = false;
 
-  if (arg_count >= 2) {
-    if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
-      return error_str();
-    if (null_value) {
-      assert(is_nullable());
-      return nullptr;
-    }
+  null_value = false;
+
+  if (arg_count > 1 && validate_srid_arg(args[1], &srid, func_name())) {
+    return error_str();
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
@@ -901,13 +891,9 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
       Check and parse the SRID parameter. If this is set to a valid value,
       any CRS member in the GeoJSON document will be ignored.
     */
-    if (validate_srid_arg(args[2], &m_user_srid, &null_value, func_name()))
+    if (validate_srid_arg(args[2], &m_user_srid, func_name())) {
       return error_str();
-    if (null_value) {
-      assert(is_nullable());
-      return nullptr;
     }
-
     m_user_provided_srid = true;
 
     if (verify_srid_is_defined(m_user_srid)) return error_str();
@@ -2605,25 +2591,28 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg) {
 */
 bool Item_func_geohash::fill_and_check_fields() {
   longlong geohash_length_arg = -1;
+  null_value = false;
+
   if (arg_count == 2) {
-    Geometry *geom = nullptr;
-    Geometry_buffer geometry_buffer;
     // First argument is point, second argument is geohash output length.
     String string_buffer;
     String *swkb = args[0]->val_str(&string_buffer);
+    if (swkb == nullptr) return (null_value = true);
     geohash_length_arg = args[1]->val_int();
 
-    if ((null_value = args[0]->null_value || args[1]->null_value || !swkb)) {
+    if ((null_value = args[1]->null_value)) {
       return true;
-    } else {
-      if (!(geom = Geometry::construct(&geometry_buffer, swkb))) {
-        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-        return true;
-      } else if (geom->get_type() != Geometry::wkb_point ||
-                 geom->get_x(&longitude) || geom->get_y(&latitude)) {
-        my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
-        return true;
-      }
+    }
+    Geometry_buffer geometry_buffer;
+    Geometry *geom = Geometry::construct(&geometry_buffer, swkb);
+    if (geom == nullptr) {
+      my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+      return true;
+    }
+    if (geom->get_type() != Geometry::wkb_point || geom->get_x(&longitude) ||
+        geom->get_y(&latitude)) {
+      my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+      return true;
     }
 
     if (geom != nullptr && geom->get_srid() != 0) {
@@ -2651,12 +2640,11 @@ bool Item_func_geohash::fill_and_check_fields() {
       and third argument is geohash output length.
     */
     longitude = args[0]->val_real();
+    if (args[0]->null_value) return (null_value = true);
     latitude = args[1]->val_real();
+    if (args[1]->null_value) return (null_value = true);
     geohash_length_arg = args[2]->val_int();
-
-    if ((null_value =
-             args[0]->null_value || args[1]->null_value || args[2]->null_value))
-      return true;
+    if (args[2]->null_value) return (null_value = true);
   }
 
   // Check if supplied arguments are within allowed range.
@@ -4264,14 +4252,15 @@ String *Item_func_point::val_str(String *str) {
   }
 
   const double x = args[0]->val_real();
+  if (args[0]->null_value || current_thd->is_error()) return error_str();
   const double y = args[1]->val_real();
+  if (args[1]->null_value || current_thd->is_error()) return error_str();
+
   gis::srid_t srid = 0;
 
-  if ((null_value =
-           (args[0]->null_value || args[1]->null_value ||
-            str->mem_realloc(4 /*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2))))
-    return nullptr;
-
+  if (str->mem_realloc(4 /*SRID*/ + 1 + 4 + SIZEOF_STORED_DOUBLE * 2)) {
+    return error_str();
+  }
   str->set_charset(&my_charset_bin);
   str->length(0);
   q_append(srid, str);
@@ -4338,16 +4327,17 @@ bool Item_func_pointfromgeohash::resolve_type(THD *thd) {
 String *Item_func_pointfromgeohash::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   String argument_value;
   String *geohash = args[0]->val_str_ascii(&argument_value);
+  if (geohash == nullptr) return error_str();
+
   gis::srid_t srid = 0;
 
-  if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
+  if (validate_srid_arg(args[1], &srid, func_name())) {
     return error_str();
-
-  // Return null if one or more of the input arguments is null.
-  if ((null_value = (args[0]->null_value || args[1]->null_value)))
-    return nullptr;
+  }
 
   if (verify_srid_is_defined(srid)) return error_str();
 
@@ -5443,22 +5433,17 @@ longlong Item_func_st_srid_observer::val_int() {
 
 String *Item_func_st_srid_mutator::val_str(String *str) {
   assert(fixed);
+
+  null_value = false;
+
   String *swkb = args[0]->val_str(str);
-  gis::srid_t target_srid = 0;
-  if (validate_srid_arg(args[1], &target_srid, &null_value, func_name()))
+  if (swkb == nullptr) {
     return error_str();
-
-  if ((null_value = (args[0]->null_value || args[1]->null_value)))
-    return nullptr;
-
-  if (!swkb) {
-    /* purecov: begin deadcode */
-    assert(false);
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_str();
-    /* purecov: end */
   }
-
+  gis::srid_t target_srid = 0;
+  if (validate_srid_arg(args[1], &target_srid, func_name())) {
+    return error_str();
+  }
   if (target_srid != 0) {
     bool srs_exists = false;
     if (Srs_fetcher::srs_exists(current_thd, target_srid, &srs_exists))

@@ -639,6 +639,7 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
   trx->will_lock = 0;
 
   trx_validate_state_before_free(trx);
+  trx_init(trx);
   trx_free(trx);
 }
 
@@ -841,11 +842,12 @@ void trx_clear_resurrected_table_ids() { resurrected_trx_tables.clear(); }
 
 /** Resurrect the transactions that were doing inserts at the time of the
  crash, they need to be undone.
+ @param[in]  undo           entry to UNDO
+ @param[in]  rseg           rollback segment
+ @param[out] trxs_committed vector of already committed transactions
  @return trx_t instance */
-static trx_t *trx_resurrect_insert(
-    trx_undo_t *undo, /*!< in: entry to UNDO */
-    trx_rseg_t *rseg) /*!< in: rollback segment */
-{
+static trx_t *trx_resurrect_insert(trx_undo_t *undo, trx_rseg_t *rseg,
+                                   ut::vector<trx_t *> &trxs_committed) {
   trx_t *trx;
 
   trx = trx_allocate_for_background();
@@ -857,7 +859,6 @@ static trx_t *trx_resurrect_insert(
   trx->rsegs.m_redo.rseg = rseg;
   *trx->xid = undo->xid;
   trx->id = undo->trx_id;
-  trx_sys_rw_trx_add(trx);
   trx->rsegs.m_redo.insert_undo = undo;
   trx->is_recovered = true;
 
@@ -872,15 +873,8 @@ static trx_t *trx_resurrect_insert(
       ib::info(ER_IB_MSG_1204) << "Transaction " << trx_get_id_for_print(trx)
                                << " was in the XA prepared state.";
 
-      if (srv_force_recovery == 0) {
-        trx->state.store(TRX_STATE_PREPARED, std::memory_order_relaxed);
-        ++trx_sys->n_prepared_trx;
-      } else {
-        ib::info(ER_IB_MSG_1205) << "Since innodb_force_recovery"
-                                    " > 0, we will force a rollback.";
-
-        trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
-      }
+      trx->state.store(TRX_STATE_PREPARED, std::memory_order_relaxed);
+      ++trx_sys->n_prepared_trx;
     } else {
       trx->state.store(TRX_STATE_COMMITTED_IN_MEMORY,
                        std::memory_order_relaxed);
@@ -911,6 +905,17 @@ static trx_t *trx_resurrect_insert(
                           std::memory_order_relaxed);
   }
 
+  /* Don't add already commited transactions to list of active ones in
+  active_rw_trxs. Store them in trxs_committed. They will be added to
+  trx_sys->rw_trx_list to be later taken care of in
+  trx_rollback_or_clean_recovered. */
+  if (trx->state.load(std::memory_order_relaxed) !=
+      TRX_STATE_COMMITTED_IN_MEMORY) {
+    trx_sys_rw_trx_add(trx);
+  } else {
+    trxs_committed.push_back(trx);
+  }
+
   trx->ddl_operation = undo->dict_operation;
 
   if (undo->dict_operation) {
@@ -926,31 +931,40 @@ static trx_t *trx_resurrect_insert(
 }
 
 /** Prepared transactions are left in the prepared state waiting for a
- commit or abort decision from MySQL */
-static void trx_resurrect_update_in_prepared_state(
-    trx_t *trx,             /*!< in,out: transaction */
-    const trx_undo_t *undo) /*!< in: update UNDO record */
-{
+ commit or abort decision from MySQL
+ @param[in,out] trx     transaction
+ @param[in]     undo    update UNDO record */
+static void trx_resurrect_update_in_prepared_state(trx_t *trx,
+                                                   const trx_undo_t *undo) {
   /* This is single-threaded startup code, we do not need the
   protection of trx->mutex or trx_sys->mutex here. */
 
-  if (undo->is_prepared()) {
-    ib::info(ER_IB_MSG_1206) << "Transaction " << trx_get_id_for_print(trx)
-                             << " was in the XA prepared state.";
+  /* UNDO record has to be in one of the prepared states. Explanation is
+  following. It cannot be:
+  TRX_UNDO_ACTIVE - It is managed separately in trx_resurrect_update.
+  TRX_UNDO_CACHED - Update UNDO records with this state are stored in
+  update_undo_cached and are not resurrected by trx_resurrect.
+  TRX_UNDO_TO_FREE - It is used only for insert undo log. See
+  trx_undo_set_state_at_finish.
+  TRX_UNDO_TO_PURGE - Cannot happen because it is immediately cleaned up in
+  trx_undo_update_cleanup after trx_undo_set_state_at_finish in
+  trx_write_serialisation_history for an UNDO record. All happens in one mtr.
+  Thus, it should not end up in update_undo_list. */
+  ut_ad(undo->is_prepared());
 
-    ut_ad(trx->state.load(std::memory_order_relaxed) !=
-          TRX_STATE_FORCED_ROLLBACK);
+  ib::info(ER_IB_MSG_1206) << "Transaction " << trx_get_id_for_print(trx)
+                           << " was in the XA prepared state.";
 
-    if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
-      ++trx_sys->n_prepared_trx;
-    } else {
-      ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-    }
+  ut_ad(trx->state.load(std::memory_order_relaxed) !=
+        TRX_STATE_FORCED_ROLLBACK);
 
-    trx->state.store(TRX_STATE_PREPARED, std::memory_order_relaxed);
+  if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
+    ++trx_sys->n_prepared_trx;
   } else {
-    trx->state.store(TRX_STATE_COMMITTED_IN_MEMORY, std::memory_order_relaxed);
+    ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
   }
+
+  trx->state.store(TRX_STATE_PREPARED, std::memory_order_relaxed);
 }
 
 /** Resurrect the transactions that were doing updates the time of the
@@ -1026,14 +1040,17 @@ static void trx_resurrect_update(
 
 /** Resurrect the transactions that were doing inserts and updates at
 the time of a crash, they need to be undone.
-@param[in]      rseg    rollback segment */
-static void trx_resurrect(trx_rseg_t *rseg) {
+@param[in]      rseg             rollback segment
+@param[out]     trxs_committed   vector of already commited transactions that
+                                 were found during resurrection */
+static void trx_resurrect(trx_rseg_t *rseg,
+                          ut::vector<trx_t *> &trxs_committed) {
   ut_ad(rseg != nullptr);
   ulong ins_trx_count = 0;
   ulong upd_trx_count = 0;
   /* Resurrect transactions that were doing inserts. */
   for (auto undo : rseg->insert_undo_list) {
-    auto trx = trx_resurrect_insert(undo, rseg);
+    auto trx = trx_resurrect_insert(undo, rseg, trxs_committed);
     ins_trx_count++;
     ib::info(ER_IB_RESURRECT_TRX_INSERT, ulong(trx->id));
     trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
@@ -1041,7 +1058,7 @@ static void trx_resurrect(trx_rseg_t *rseg) {
   if (ins_trx_count > 0) {
     ib::info(ER_IB_RESURRECT_TRX_INSERT_COMPLETE, ins_trx_count);
   }
-  /* Ressurrect transactions that were doing updates. */
+  /* Resurrect transactions that were doing updates. */
   for (auto undo : rseg->update_undo_list) {
     /* Check the active_rw_trxs.by_id first. */
 
@@ -1097,21 +1114,25 @@ void trx_lists_init_at_db_start(void) {
 
   /* Look through the rollback segments in each RSEG_ARRAY for
   transaction undo logs. */
+  ut::vector<trx_t *> trxs;
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
     undo_space->rsegs()->s_lock();
     for (auto rseg : *undo_space->rsegs()) {
-      trx_resurrect(rseg);
+      trx_resurrect(rseg, trxs);
     }
     undo_space->rsegs()->s_unlock();
   }
   undo::spaces->s_unlock();
 
-  ut::vector<trx_t *> trxs;
   for (auto &shard : trx_sys->shards) {
     shard.active_rw_trxs.latch_and_execute(
         [&](const Trx_by_id_with_min &trx_by_id_with_min) {
           for (const auto &trx_track : trx_by_id_with_min.by_id()) {
+            /* There should be no already committed transactions in
+            active_rw_trxs. */
+            ut_ad_ne(trx_track.second->state.load(std::memory_order_relaxed),
+                     TRX_STATE_COMMITTED_IN_MEMORY);
             trxs.emplace_back(trx_track.second);
           }
         },

@@ -36,8 +36,8 @@ BEGIN
     INSERT INTO tab (k, c, pad)
     VALUES (
       i,
-      CONCAT('c_', SUBSTRING(MD5(RAND()), 1, 20)),
-      CONCAT('p_', SUBSTRING(MD5(RAND()), 1, 10))
+      CONCAT('c_', SUBSTRING(UUID(), 1, 20)),
+      CONCAT('p_', SUBSTRING(UUID(), 1, 10))
     );
     SET i = i + 1;
   END WHILE;
@@ -61,8 +61,8 @@ BEGIN
       DELETE FROM tab WHERE id = FLOOR(RAND()*10000);
       INSERT INTO tab (k, c, pad)
       VALUES (FLOOR(RAND()*10000),
-              SUBSTRING(MD5(RAND()),1,20),
-              SUBSTRING(MD5(RAND()),1,10));
+              SUBSTRING(UUID(),1,20),
+              SUBSTRING(UUID(),1,10));
     COMMIT;
     SET elapsed = TIMESTAMPDIFF(SECOND, t_start, NOW());
   END WHILE;

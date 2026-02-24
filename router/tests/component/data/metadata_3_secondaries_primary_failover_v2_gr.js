@@ -99,7 +99,7 @@ if (mysqld.global.connects === undefined) {
           "router_select_router_options_view",
           "get_guidelines_router_info",
           "get_routing_guidelines",
-          "router_update_last_check_in_v2",
+          "router_update_last_check_in_v2_4",
         ],
         options);
 

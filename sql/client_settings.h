@@ -23,9 +23,6 @@
 
 #ifndef CLIENT_SETTINGS_INCLUDED
 #define CLIENT_SETTINGS_INCLUDED
-#else
-#error You have already included an client_settings.h and it should not be included twice
-#endif /* CLIENT_SETTINGS_INCLUDED */
 
 #include "sql_common.h"
 
@@ -49,3 +46,5 @@
 #define mysql_server_end() mysql_client_plugin_deinit()
 
 void slave_io_thread_detach_vio();
+
+#endif /* CLIENT_SETTINGS_INCLUDED */

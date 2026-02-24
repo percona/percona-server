@@ -131,32 +131,6 @@ bool bootstrap(THD *thd) {
   return false;
 }
 
-/** During upgrade from 5.7 to 8.0, transfer compression dicitonary
-data from 5.7 SYS_ZIP_DICT to 8.0 mysql.compression_dictionary table
-@param[in]   thd   Session context
-@return false on success, true on failure */
-bool upgrade_transfer_compression_dict_data(THD *thd) {
-  compression_dict_data_vec_t zip_dict_vec;
-  handlerton *hton = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  hton->upgrade_get_compression_dict_data(thd, zip_dict_vec);
-
-  for (const auto &elem : zip_dict_vec) {
-    const auto &name = elem.first;
-    const auto &data = elem.second;
-
-    int ret = create_zip_dict(thd, name.c_str(), name.length(), data.c_str(),
-                              data.length(), false, true);
-
-    if (ret != 0) {
-      return (true);
-    }
-
-    DBUG_LOG("zip_dict", "Compression dictionary Name is: "
-                             << name << " Data is: " << data);
-  }
-  return (false);
-}
-
 /** Acquire MDL on mysql.compression_dictionary table
 @param[in,out]  thd         Session object
 @param[in]      mdl_type    MDL type (like MDL_SHARED_READ etc)
@@ -576,7 +550,20 @@ int drop_zip_dict(THD *thd, const char *name, ulong name_len, bool if_exists) {
       HA_WHOLE_KEY, HA_READ_KEY_EXACT);
 
   if (error == 0) {
+    /*
+      Temporarily disable SQL-layer FK handling so that InnoDB performs the
+      FK constraint check itself.  With HTON_SUPPORTS_SQL_FK the engine
+      normally skips its own FK verification and relies on the SQL layer to
+      call check_all_child_fk_ref() around DML.  Since we are doing a direct
+      ha_delete_row() here (not going through the regular SQL DELETE path),
+      we need InnoDB to check the FK on compression_dictionary_cols =>
+      compression_dictionary itself and return HA_ERR_ROW_IS_REFERENCED
+      when the dictionary is still in use.
+    */
+    const ulonglong saved_option_bits = thd->variables.option_bits;
+    thd->variables.option_bits &= ~OPTION_USE_SQL_FOREIGN_KEY_HANDLING;
     error = table->file->ha_delete_row(table->record[0]);
+    thd->variables.option_bits = saved_option_bits;
   }
 
   switch (error) {

@@ -370,7 +370,8 @@ void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
         }
       }
 #endif
-      if (remove_type == TDC_RT_MARK_FOR_REOPEN) {
+      if (remove_type == TDC_RT_MARK_FOR_REOPEN ||
+          remove_type == TDC_RT_MARK_FOR_REOPEN_AND_INVALIDATE_SHARE) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
         TABLE *table;
         while ((table = it2++)) {

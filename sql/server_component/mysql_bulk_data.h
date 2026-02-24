@@ -62,9 +62,11 @@ DEFINE_METHOD(bool, get_table_metadata,
 
 namespace Bulk_data_load {
 
-DEFINE_METHOD(void *, begin,
-              (THD * thd, const TABLE *table, size_t data_size, size_t memory,
-               size_t num_threads));
+DEFINE_METHOD(
+    void *, begin,
+    (THD * thd, const TABLE *table, size_t data_size, size_t memory,
+     size_t num_threads,
+     const std::vector<Bulk_load::Source_table_data> &source_table_data));
 
 /* Load data to an index. */
 DEFINE_METHOD(void *, begin,
@@ -95,5 +97,14 @@ DEFINE_METHOD(bool, end,
 DEFINE_METHOD(bool, is_table_supported, (THD * thd, const TABLE *table));
 
 DEFINE_METHOD(size_t, get_se_memory_size, (THD * thd, const TABLE *table));
+
+DEFINE_METHOD(bool, copy_existing_data,
+              (void *ctx, const TABLE *duplicate_table, size_t thread,
+               Bulk_load::Stat_callbacks &wait_cbks));
+
+DEFINE_METHOD(
+    bool, set_source_table_data,
+    (void *ctx, const TABLE *duplicate_table,
+     const std::vector<Bulk_load::Source_table_data> &source_table_data));
 
 }  // namespace Bulk_data_load

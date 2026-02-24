@@ -216,9 +216,6 @@ PFS_ALIGNED PFS_instr_class global_idle_class;
 PFS_ALIGNED PFS_instr_class global_metadata_class;
 PFS_ALIGNED PFS_error_class global_error_class;
 PFS_ALIGNED PFS_transaction_class global_transaction_class;
-PFS_ALIGNED PFS_meter_class global_meter_class;
-PFS_ALIGNED PFS_metric_class global_metric_class;
-PFS_ALIGNED PFS_logger_class global_logger_class;
 
 /**
   Hash index for instrumented table shares.

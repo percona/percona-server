@@ -577,6 +577,95 @@ RESET PERSIST ssl_crl;
 SET GLOBAL ssl_crl = DEFAULT;
 
 
+--echo ##
+--echo ## Bug#38680162 SET PERSIST creates duplicate variable entries across sections after upgrade
+--echo ##
+
+call mtr.add_suppression("Configuring persisted options failed: \"Variable 'disconnect_on_expired_password' is a read only variable\".");
+
+--echo ## Remove the config file.
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo ## Create a file with a variable in the invalid sections.
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{"Version": 2, "mysql_static_variables": {"net_buffer_length": {"Value": "1024", "Metadata": {"Host": "localhost", "User": "root", "Timestamp": 1764614615844946}}}, "mysql_static_parse_early_variables": {"net_buffer_length": {"Value": "2048", "Metadata": {"Host": "localhost", "User": "root", "Timestamp": 1764614615844947}}}, "mysql_static_sensitive_variables": {"net_buffer_length": {"Value": "4096", "Metadata": {"Host": "localhost", "User": "root", "Timestamp": 1764614615844948}}}, "mysql_dynamic_variables": {"disconnect_on_expired_password": {"Value": "OFF", "Metadata": {"Host": "localhost", "User": "root", "Timestamp": 1764614615844949}}}}
+EOF
+
+--echo ## mysql_static_variables should be found.
+--let $assert_select="mysql_static_variables": \{"net_buffer_length"
+--let $assert_count=1
+--let $assert_text=mysql_static_variables/net_buffer_length found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## mysql_dynamic_variables should be found.
+--let $assert_select="mysql_dynamic_variables": \{"disconnect_on_expired_password"
+--let $assert_count=1
+--let $assert_text=mysql_dynamic_variables/disconnect_on_expired_password found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## Restart the server.
+--source include/restart_mysqld.inc
+
+--echo ## First value in the config file should be taken.
+SELECT @@global.net_buffer_length;
+SHOW VARIABLES LIKE 'disconnect_on_expired_password';
+
+--echo ## Replace the variable with the not existing value in the config file.
+SET PERSIST_ONLY net_buffer_length=8192;
+
+--echo ## mysql_static_variables should not be found.
+--let $assert_select="mysql_static_variables": \{"net_buffer_length"
+--let $assert_count=0
+--let $assert_text=mysql_static_variables/net_buffer_length not found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## mysql_static_parse_early_variables variables should not be found.
+--let $assert_select="mysql_static_parse_early_variables": \{"net_buffer_length"
+--let $assert_count=0
+--let $assert_text=mysql_static_parse_early_variables/net_buffer_length not found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## mysql_static_sensitive_variables variables should not be found.
+--let $assert_select="mysql_static_sensitive_variables": \{"net_buffer_length"
+--let $assert_count=0
+--let $assert_text=mysql_static_sensitive_variables/net_buffer_length not found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## mysql_static_sensitive_variables variables should not be found.
+--let $assert_select="mysql_dynamic_variables": \{"disconnect_on_expired_password"
+--let $assert_count=0
+--let $assert_text=mysql_dynamic_variables/disconnect_on_expired_password not found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+SET PERSIST_ONLY disconnect_on_expired_password = ON;
+
+--echo ## FOUND VARIABLES
+
+--echo ## mysql_dynamic_variables variables should be found.
+--let $assert_select="mysql_dynamic_variables": \{"net_buffer_length"
+--let $assert_count=1
+--let $assert_text=mysql_dynamic_variables/net_buffer_length found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## mysql_static_variables variables should be found.
+--let $assert_select="mysql_static_variables": \{"disconnect_on_expired_password"
+--let $assert_count=1
+--let $assert_text=mysql_dynamic_variables/disconnect_on_expired_password found.
+--let $assert_file=$MYSQLD_DATADIR/mysqld-auto.cnf
+--source include/assert_grep.inc
+
+--echo ## Remove the config file.
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo ## Restart the server.
+--source include/restart_mysqld.inc
+
 --echo # End of the 8.0 tests
 
 

@@ -84,6 +84,7 @@
 #include "sql/mdl.h"  // MDL_SHARED_READ
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
+#include "sql/olap.h"
 #include "sql/opt_hints.h"
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
@@ -315,9 +316,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     for (Item *item : fields) {
       mark_item_as_maybe_null_if_non_primitive_grouped(item);
       item->update_used_tables();
-    }
-    if (populate_grouping_sets(thd)) {
-      return true;
     }
   }
 
@@ -633,6 +631,24 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   // Eliminate unused window definitions, redundant sorts etc.
   if (!m_windows.is_empty()) Window::eliminate_unused_objects(&m_windows);
 
+  // Check if all arguments to a GROUPING function are present
+  // in GROUP BY clause.
+  if (is_explicitly_grouped()) {
+    for (Item *item : fields) {
+      if (item->has_grouping_func() &&
+          WalkItem(item, enum_walk::PREFIX, [](Item *inner_item) {
+            if (is_function_of_type(inner_item, Item_func::GROUPING_FUNC) &&
+                down_cast<Item_func_grouping *>(inner_item)
+                    ->check_args_found_in_group_by()) {
+              return true;
+            }
+            return false;
+          })) {
+        return true;
+      }
+    }
+  }
+
   // Replace group by field references inside window functions with references
   // in the presence of ROLLUP.
   if (olap == ROLLUP_TYPE && resolve_rollup_wfs(thd))
@@ -641,21 +657,41 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   // If CUBE is present in the query, all expressions that include
   // any GROUP BY expression need to be marked as dependent on
   // grouping set.
-  if (olap == CUBE_TYPE) {
+  if (olap == CUBE_TYPE || olap == GROUPING_SETS_TYPE) {
     for (Item *item : fields) {
       bool is_updated = false;
-      WalkItem(item, enum_walk::POSTFIX, [this, &is_updated](Item *inner_item) {
-        if (find_in_group_list(inner_item, /*rollup_level=*/nullptr) !=
+
+      /* The argument of GROUPING function should be part of the Group By list
+       */
+      auto update_gby_modifier = [this, &is_updated](Item *walk_item) {
+        if (walk_item->type() == Item::FUNC_ITEM) {
+          auto *item_func = down_cast<Item_func *>(walk_item);
+          if (item_func->functype() == Item_func::GROUPING_FUNC) {
+            for (uint idx = 0; idx < item_func->argument_count(); idx++) {
+              if (!find_in_group_list(item_func->arguments()[idx],
+                                      /*rollup_level=*/nullptr)) {
+                my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (idx + 1));
+                return true;
+              }
+            }
+          }
+        }
+
+        if (find_in_group_list(walk_item, /*rollup_level=*/nullptr) !=
             nullptr) {
-          inner_item->set_group_by_modifier();
+          walk_item->set_group_by_modifier();
           is_updated = true;
         }
+
         return false;
-      });
+      };
+
+      if (WalkItem(item, enum_walk::POSTFIX, update_gby_modifier)) {
+        return true;
+      }
       if (is_updated) item->update_used_tables();
     }
   }
-
   assert(!thd->is_error());
   return false;
 }
@@ -1278,6 +1314,16 @@ bool Query_block::setup_tables(THD *thd, Table_ref *tables,
       first_query_block_table = nullptr;
       tableno = 0;
     }
+
+    /*
+      The parser already checks table counts based on syntactic structure,
+      but the resolver check is still necessary because:
+
+      1. View expansion: A view may expand into many leaf tables
+      2. Derived tables: Complex subqueries add tables not visible in parser
+      3. Recursive CTEs: Expansion happens at resolution time
+      4. The parser counts syntactic tables; we count actual leaf tables here
+    */
     if (tableno >= MAX_TABLES) {
       my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
       return true;
@@ -2638,75 +2684,6 @@ bool Query_block::decorrelate_condition(Semijoin_decorrelation &sj_decor,
         join_nest->set_join_cond(new Item_func_true());
     }
   }
-  return false;
-}
-
-bool Query_block::allocate_grouping_sets(THD *thd) {
-  auto max_group_by_elements = GetMaximumNumGrpByColsSupported(olap);
-
-  if (group_list.elements > static_cast<uint>(max_group_by_elements)) {
-    /* The number of Grouping sets cannot be greater than INT_MAX as IsBitSet
-     * take integer as the input bit*/
-    my_error(ER_TOO_MANY_GROUP_BY_MODIFIER_BRANCHES, MYF(0),
-             GroupByModifierString(olap), max_group_by_elements);
-    return true;
-  }
-  m_num_grouping_sets = (olap == ROLLUP_TYPE)
-                            ? group_list.elements + 1
-                            : pow(static_cast<double>(2),
-                                  static_cast<double>(group_list.elements));
-
-  assert(m_num_grouping_sets != 0);
-
-  /*  Allocate bitmap for grouping sets. */
-  for (ORDER *grp = group_list.first; grp != nullptr; grp = grp->next) {
-    grp->grouping_set_info =
-        pointer_cast<MY_BITMAP *>(thd->alloc(sizeof(MY_BITMAP)));
-    if (grp->grouping_set_info == nullptr) {
-      return true;
-    }
-    my_bitmap_map *bitbuf = pointer_cast<my_bitmap_map *>(
-        thd->alloc(bitmap_buffer_size(m_num_grouping_sets)));
-    bitmap_init(grp->grouping_set_info, bitbuf, m_num_grouping_sets);
-  }
-  return false;
-}
-
-/**
-  Populate the grouping set bitvector if the query block has non-primitive
-  grouping. If the non-primitive grouping is ROLLUP or CUBE, the grouping sets
-  have to be computed. The representation of the grouping set is done using a
-  bitfield in the ORDER object.
-  case ROLLUP : Say the query has GROUP BY ROLLUP (a,b) then the grouping sets
-  will be (a,b) (a) () where () represents single group aggregate without any
-  grouping. Here there are 3 grouping sets ranging from 0 to 2 and 0 is the
-  single group aggregate. The bitfield associated with GROUP BY element 'a'
-  will be 3 (i,e. 2+1) The bitfield associated with Group by element 'b' will
-  be 2 as it is part of only set number 2.
-  case CUBE: Say the query has GROUP BY CUBE (a,b) then the grouping sets
-  will be (a,b) (a) (b) (). The number of grouping sets will be (2^n)
-  where n is the number of elements in the GROUP BY list. The bitfield
-  associated with Group by element 'a' will be 6 (i.e. 4+2).
-  The bitfield associated with Group by element 'b' will be 1.
-*/
-bool Query_block::populate_grouping_sets(THD *thd) {
-  assert(group_list.elements != 0 && olap != UNSPECIFIED_OLAP_TYPE);
-
-  if (allocate_grouping_sets(thd)) {
-    return true;
-  }
-
-  bool rollup = (olap == ROLLUP_TYPE);
-  int gby_idx = 0;
-  for (ORDER *grp = group_list.first; grp != nullptr;
-       grp = grp->next, gby_idx++) {
-    for (int gs = 1; gs < m_num_grouping_sets; gs++) {
-      if ((rollup && gby_idx < gs) || (!rollup && IsBitSet(gby_idx, gs))) {
-        bitmap_set_bit(grp->grouping_set_info, gs);
-      }
-    }
-  }
-
   return false;
 }
 
@@ -4090,12 +4067,14 @@ bool Query_block::remove_redundant_subquery_clauses(THD *thd) {
 
   /*
     Remove GROUP BY if there are no aggregate functions, no HAVING clause,
-    no non-primitive grouping and no windowing functions.
+    no non-primitive grouping, no windowing functions and no GROUPING function.
   */
 
-  if ((possible_changes & REMOVE_GROUP) && group_list.elements &&
-      !agg_func_used() && !having_cond() && olap == UNSPECIFIED_OLAP_TYPE &&
-      m_windows.elements == 0) {
+  if ((possible_changes & REMOVE_GROUP) && is_grouped() && !agg_func_used() &&
+      having_cond() == nullptr && olap == UNSPECIFIED_OLAP_TYPE &&
+      m_windows.elements == 0 &&
+      !std::any_of(fields.begin(), fields.end(),
+                   [](Item *item) { return item->has_grouping_func(); })) {
     changelog |= REMOVE_GROUP;
     for (ORDER *g = group_list.first; g != nullptr; g = g->next) {
       if (g->is_item_original()) {
@@ -4490,12 +4469,18 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
 
   for (uint number = 1; order; order = order->next, number++) {
     Item *order_item = *order->item;
-    if (order_item->fixed && !order_item->const_item()) {
-      // If a non constant expression in order by is already
-      // resolved, it must have been merged from a derived table.
+    if (order_item->fixed && (!order_item->const_item() ||
+                              (order_item->type() == Item::REF_ITEM &&
+                               down_cast<Item_ref *>(order_item)->ref_type() ==
+                                   Item_ref::VIEW_REF))) {
+      // If an expression in order by is already resolved, it
+      // must have been merged from a derived table.
       // So, we do not need to re-resolve in this query block. Add
       // a hidden item if not present in the visible fields list.
       // Update with the correct ref item.
+      // const expressions are exceptions. However, if a const
+      // expression is a view reference it must be from merged derived
+      // table as well. So we do not re-resolve.
       uint counter = fields->size();
       for (uint i = 0; i < fields->size(); i++) {
         if (order_item->real_item()->eq(ref_item_array[i]->real_item())) {
@@ -4672,6 +4657,22 @@ bool Query_block::setup_group(THD *thd) {
       return true;
   }
 
+  if (olap == GROUPING_SETS_TYPE && get_number_of_grouping_sets() == 1) {
+    /*
+      A GROUPING SETS specification with a single grouping set can be
+      transformed to a simple GROUP BY operation with the same grouping set
+      expressions.
+    */
+    set_olap_type(UNSPECIFIED_OLAP_TYPE);
+    set_number_of_grouping_sets(0);
+    if (group_list_size() == 1) {
+      Item *group_item = group_list.first->item[0];
+      if (group_item->const_item() && group_item->is_null()) {
+        group_list.clear();
+      }
+    }
+  }
+
   return false;
 }
 
@@ -4736,8 +4737,8 @@ bool Query_block::has_wfs() {
   Item_rollup_group_item around it and replaces the reference to it with that
   item.
  */
-static ReplaceResult wrap_grouped_expressions_for_rollup(
-    Query_block *select, Item *item, Item *parent, unsigned argument_idx) {
+static ReplaceResult wrap_grouped_expressions_for_rollup(Query_block *select,
+                                                         Item *item) {
   if (is_rollup_group_wrapper(item->real_item())) {
     // This item must already be a group item, or we wouldn't have
     // wrapped it earlier. No need to do anything more about it,
@@ -4758,11 +4759,6 @@ static ReplaceResult wrap_grouped_expressions_for_rollup(
       group->rollup_item = new_item;
     }
     return {ReplaceResult::REPLACE, new_item};
-  } else if (parent != nullptr && parent->type() == Item::FUNC_ITEM &&
-             down_cast<Item_func *>(parent)->functype() ==
-                 Item_func::GROUPING_FUNC) {
-    my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (argument_idx + 1));
-    return {ReplaceResult::ERROR, nullptr};
   }
 
   return {ReplaceResult::KEEP_TRAVERSING, nullptr};
@@ -4774,11 +4770,9 @@ static ReplaceResult wrap_grouped_expressions_for_rollup(
    of "child_ref" otherwise.
  */
 static bool WalkAndReplaceInner(
-    THD *thd, Item *parent, unsigned argument_idx,
-    const function<ReplaceResult(Item *item, Item *parent,
-                                 unsigned argument_idx)> &get_new_item,
+    THD *thd, const function<ReplaceResult(Item *item)> &get_new_item,
     Item **child_ref) {
-  ReplaceResult result = get_new_item(*child_ref, parent, argument_idx);
+  ReplaceResult result = get_new_item(*child_ref);
   if (result.action == ReplaceResult::ERROR) {
     return true;
   } else if (result.action == ReplaceResult::DONE) {
@@ -4797,10 +4791,8 @@ static bool WalkAndReplaceInner(
   return WalkAndReplace(thd, *child_ref, get_new_item);
 }
 
-bool WalkAndReplace(
-    THD *thd, Item *item,
-    const function<ReplaceResult(Item *item, Item *parent,
-                                 unsigned argument_idx)> &get_new_item) {
+bool WalkAndReplace(THD *thd, Item *item,
+                    const function<ReplaceResult(Item *item)> &get_new_item) {
   if (item->type() == Item::FUNC_ITEM ||
       (item->type() == Item::SUM_FUNC_ITEM && item->m_is_window_function)) {
     Item **args = down_cast<Item_func *>(item)->arguments();
@@ -4812,8 +4804,7 @@ bool WalkAndReplace(
     }
     const unsigned arg_count = down_cast<Item_func *>(item)->argument_count();
     for (unsigned argument_idx = 0; argument_idx < arg_count; argument_idx++) {
-      if (WalkAndReplaceInner(thd, item, argument_idx, get_new_item,
-                              &args[argument_idx])) {
+      if (WalkAndReplaceInner(thd, get_new_item, &args[argument_idx])) {
         return true;
       }
     }
@@ -4827,7 +4818,7 @@ bool WalkAndReplace(
     Item_row *row_item = down_cast<Item_row *>(item);
     for (unsigned argument_idx = 0; argument_idx < row_item->cols();
          argument_idx++) {
-      if (WalkAndReplaceInner(thd, item, argument_idx, get_new_item,
+      if (WalkAndReplaceInner(thd, get_new_item,
                               row_item->addr(argument_idx))) {
         return true;
       }
@@ -4835,10 +4826,8 @@ bool WalkAndReplace(
   } else if (item->type() == Item::COND_ITEM) {
     Item_cond *cond_item = down_cast<Item_cond *>(item);
     List_iterator<Item> li(*cond_item->argument_list());
-    unsigned argument_idx = 0;
     for (Item *arg = li++; arg != nullptr; arg = li++) {
-      if (WalkAndReplaceInner(thd, item, argument_idx++, get_new_item,
-                              li.ref())) {
+      if (WalkAndReplaceInner(thd, get_new_item, li.ref())) {
         return true;
       }
     }
@@ -4850,7 +4839,7 @@ bool WalkAndReplace(
     if (subquery_type == Item_subselect::IN_SUBQUERY ||
         subquery_type == Item_subselect::ALL_SUBQUERY ||
         subquery_type == Item_subselect::ANY_SUBQUERY) {
-      if (WalkAndReplaceInner(thd, item, /*argument_idx=*/0, get_new_item,
+      if (WalkAndReplaceInner(thd, get_new_item,
                               &down_cast<Item_in_subselect *>(item)->left_expr))
         return true;
     }
@@ -4867,41 +4856,34 @@ bool WalkAndReplace(
            down_cast<Item_subselect *>(item)->query_expr()->query_terms<>()) {
         Query_block *const qb = qt->query_block();
         for (auto &it : qb->fields) {
-          if (WalkAndReplaceInner(thd, item, 0, get_new_item, &it)) return true;
+          if (WalkAndReplaceInner(thd, get_new_item, &it)) return true;
         }
         if (qb->where_cond() != nullptr &&
-            WalkAndReplaceInner(thd, item, 0, get_new_item,
-                                qb->where_cond_ref()))
+            WalkAndReplaceInner(thd, get_new_item, qb->where_cond_ref()))
           return true;
         if (qb->having_cond() != nullptr &&
-            WalkAndReplaceInner(thd, item, 0, get_new_item,
-                                qb->having_cond_ref()))
+            WalkAndReplaceInner(thd, get_new_item, qb->having_cond_ref()))
           return true;
         if (qb->qualify_cond() != nullptr &&
-            WalkAndReplaceInner(thd, item, 0, get_new_item,
-                                qb->qualify_cond_ref()))
+            WalkAndReplaceInner(thd, get_new_item, qb->qualify_cond_ref()))
           return true;
         for (ORDER *o = qb->group_list.first; o != nullptr; o = o->next) {
-          if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
-            return true;
+          if (WalkAndReplaceInner(thd, get_new_item, o->item)) return true;
         }
         for (ORDER *o = qb->order_list.first; o != nullptr; o = o->next) {
-          if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
-            return true;
+          if (WalkAndReplaceInner(thd, get_new_item, o->item)) return true;
         }
         for (auto &win : qb->m_windows) {
           if (win.effective_order_by() != nullptr) {
             for (ORDER *o = win.effective_order_by()->value.first; o != nullptr;
                  o = o->next) {
-              if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
-                return true;
+              if (WalkAndReplaceInner(thd, get_new_item, o->item)) return true;
             }
           }
           if (win.effective_partition_by() != nullptr) {
             for (ORDER *o = win.effective_partition_by()->value.first;
                  o != nullptr; o = o->next) {
-              if (WalkAndReplaceInner(thd, item, 0, get_new_item, o->item))
-                return true;
+              if (WalkAndReplaceInner(thd, get_new_item, o->item)) return true;
             }
           }
         }
@@ -4998,8 +4980,7 @@ static bool refresh_comparators_after_rollup(Item *item) {
   @returns the new item, or nullptr on error
 */
 Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
-  ReplaceResult result =
-      wrap_grouped_expressions_for_rollup(this, item, nullptr, 0);
+  ReplaceResult result = wrap_grouped_expressions_for_rollup(this, item);
   if (result.action == ReplaceResult::ERROR) {
     return nullptr;
   } else if (result.action == ReplaceResult::DONE) {
@@ -5009,15 +4990,14 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
     return result.replacement;
   }
   bool changed = false;
-  bool error = WalkAndReplace(
-      thd, item,
-      [this, &changed](Item *inner_item, Item *parent, unsigned argument_idx) {
-        ReplaceResult inner_result = wrap_grouped_expressions_for_rollup(
-            this, inner_item, parent, argument_idx);
+  if (WalkAndReplace(thd, item, [this, &changed](Item *inner_item) {
+        ReplaceResult inner_result =
+            wrap_grouped_expressions_for_rollup(this, inner_item);
         changed |= (inner_result.action == ReplaceResult::REPLACE);
         return inner_result;
-      });
-  if (error) return nullptr;
+      })) {
+    return nullptr;
+  }
   if (changed) {
     if (refresh_comparators_after_rollup(item)) {
       return nullptr;

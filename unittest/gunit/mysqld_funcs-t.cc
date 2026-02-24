@@ -23,12 +23,16 @@
 
 #include <gtest/gtest.h>
 #include <string.h>
+#include <filesystem>
 #include "my_config.h"
 #include "sql/manifest_file_option_parser_helper.h"
 
 #ifdef HAVE_GETPWNAM
 #include "my_getpwnam.h"  // PasswdValue
 #endif                    /* HAVE_GETPWNAM */
+
+extern char *mysql_home_ptr;
+extern char mysql_home[];
 
 // Unit tests for functions in mysqld.cc.
 namespace mysqld_funcs_unit_test {
@@ -56,37 +60,172 @@ TEST(MysqldFuncs, CheckUser) {
 }
 #endif /* HAVE_GETPWNAM */
 
-constexpr const char *lorem_ipsum_510 =
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ut "
-    "perspiciatis unde omnis iste natus error sit voluptatem accusantium "
-    "doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo "
-    "inventore veritatis et quasi architecto beatae vitae dicta sunt "
-    "explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut "
-    "odit aut fugit, sed quia consequuntur magni dolores eos qui ratione "
-    "voluptatem sequi nesciunt. Neque porro quisquam.";
-
-TEST(MysqldFuncs, CheckManifestFileOptionParserHelper) {
-  const char *argv[] = {"path", "--datadir=d", "--plugin-dir=p"};
-  constexpr int argc = std::size(argv);
-
-  strncpy(mysql_real_data_home, lorem_ipsum_510,
-          std::size(mysql_real_data_home));
-  strncpy(opt_plugin_dir, lorem_ipsum_510, std::size(opt_plugin_dir));
-
-  {
-    Manifest_file_option_parser_helper obj{argc, const_cast<char **>(argv)};
+class ManifestFileOptionParserHelper : public ::testing::Test {
+ protected:
 #ifdef _WIN32
-    EXPECT_TRUE(strcmp(mysql_real_data_home, "d\\") == 0);
-    EXPECT_TRUE(strcmp(opt_plugin_dir, "\\p\\") == 0);
+  const std::string mysql_binary_dir{std::filesystem::current_path().string() +
+                                     "\\"};
+  const char *default_opt_plugin_dir{"lib\\plugin\\"};
+  const char *default_real_data_home{"data\\"};
 #else
-    EXPECT_TRUE(strcmp(mysql_real_data_home, "d/") == 0);
-    EXPECT_TRUE(strcmp(opt_plugin_dir, "/p/") == 0);
+  const std::string mysql_binary_dir{std::filesystem::current_path().string() +
+                                     "/"};
+  const char *default_real_data_home{"data/"};
+  const char *default_opt_plugin_dir{"lib/plugin/"};
 #endif
+  const char *initial_real_data_home{"data"};
+  const char *initial_opt_plugin_dir{"blahblahblah"};
+
+  std::string save_mysql_home;
+  std::string save_mysql_real_data_home;
+  std::string save_opt_plugin_dir;
+
+  void SetUp() override {
+    mysql_home_ptr = mysql_home;
+    save_mysql_home = mysql_home;
+    strcpy(mysql_home, mysql_binary_dir.c_str());
+    save_mysql_real_data_home = mysql_real_data_home;
+    strcpy(mysql_real_data_home, initial_real_data_home);
+    save_opt_plugin_dir = opt_plugin_dir;
+    strcpy(opt_plugin_dir, initial_opt_plugin_dir);
+  }
+  void TearDown() override {
+    strcpy(mysql_home, save_mysql_home.c_str());
+    strcpy(mysql_real_data_home, save_mysql_real_data_home.c_str());
+    strcpy(opt_plugin_dir, save_opt_plugin_dir.c_str());
   }
 
-  // mysql_real_data_home and opt_plugin_dir must be preserved
-  EXPECT_TRUE(strcmp(mysql_real_data_home, lorem_ipsum_510) == 0);
-  EXPECT_TRUE(strcmp(opt_plugin_dir, lorem_ipsum_510) == 0);
+  void test_options(int argc, const char **argv,
+                    const std::string &expect_datadir,
+                    const std::string &expect_plugindir) {
+    {
+      Manifest_file_option_parser_helper obj{argc, const_cast<char **>(argv)};
+      EXPECT_STREQ(mysql_real_data_home, expect_datadir.c_str());
+      EXPECT_STREQ(opt_plugin_dir, expect_plugindir.c_str());
+    }
+
+    // mysql_real_data_home and opt_plugin_dir must be preserved
+    EXPECT_STREQ(mysql_real_data_home, initial_real_data_home);
+    EXPECT_STREQ(opt_plugin_dir, initial_opt_plugin_dir);
+  }
+};
+
+TEST_F(ManifestFileOptionParserHelper, AbsoluteOption) {
+#ifdef _WIN32
+  std::string expect_datadir{"C:\\somedir\\ddd\\"};
+  std::string expect_plugindir{"C:\\somedir\\ppp\\"};
+  const char *argv[] = {"path", "--datadir=C:\\somedir\\ddd\\",
+                        "--plugin-dir=C:\\somedir\\ppp\\"};
+#else
+  std::string expect_datadir{"/somedir/ddd/"};
+  std::string expect_plugindir{"/somedir/ppp/"};
+  const char *argv[] = {"path", "--datadir=/somedir/ddd",
+                        "--plugin-dir=/somedir/ppp"};
+#endif
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, RelativeOptionAbsoluteBasedir) {
+#ifdef _WIN32
+  std::string basedir{"d:\\somedir\\mysql\\"};
+  std::string expect_datadir{basedir + "ddd\\"};
+  std::string expect_plugindir{basedir + "ppp\\"};
+  const char *argv[] = {"path", "--basedir=d:\\somedir\\mysql", "--datadir=ddd",
+                        "--plugin-dir=ppp"};
+#else
+  std::string basedir{"/somedir/mysql/"};
+  std::string expect_datadir{basedir + "ddd/"};
+  std::string expect_plugindir{basedir + "ppp/"};
+  const char *argv[] = {"path", "--basedir=/somedir/mysql", "--datadir=ddd",
+                        "--plugin-dir=ppp"};
+#endif
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, RelativeOptionRelativeBasedir) {
+#ifdef _WIN32
+  std::string basedir{"somedir\\"};
+  std::string expect_datadir{mysql_binary_dir + basedir + "ddd\\"};
+  std::string expect_plugindir{mysql_binary_dir + basedir + "ppp\\"};
+#else
+  std::string basedir{"somedir/"};
+  std::string expect_datadir{basedir + "ddd/"};
+  std::string expect_plugindir{basedir + "ppp/"};
+#endif
+  const char *argv[] = {"path", "--basedir=somedir", "--datadir=ddd",
+                        "--plugin-dir=ppp"};
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, RelativeOptionNoBasedir) {
+#ifdef _WIN32
+  std::string expect_datadir{mysql_binary_dir + "ddd\\"};
+  std::string expect_plugindir{mysql_binary_dir + "ppp\\"};
+#else
+  std::string expect_datadir{mysql_binary_dir + "ddd/"};
+  std::string expect_plugindir{mysql_binary_dir + "ppp/"};
+#endif
+  const char *argv[] = {"path", "--datadir=ddd", "--plugin-dir=ppp"};
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, NoOptionAbsoluteBasedir) {
+#ifdef _WIN32
+  std::string basedir{"d:\\somedir\\mysql\\"};
+  const char *argv[] = {"path", "--basedir=d:\\somedir\\mysql"};
+#else
+  std::string basedir{"/somedir/mysql/"};
+  const char *argv[] = {"path", "--basedir=/somedir/mysql"};
+#endif
+  std::string expect_datadir{basedir + default_real_data_home};
+  std::string expect_plugindir{basedir + default_opt_plugin_dir};
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, NoOptionRelativeBasedir) {
+#ifdef _WIN32
+  std::string basedir{"somedir\\"};
+  std::string expect_datadir{mysql_binary_dir + basedir +
+                             default_real_data_home};
+  std::string expect_plugindir{mysql_binary_dir + basedir +
+                               default_opt_plugin_dir};
+#else
+  std::string basedir{"somedir/"};
+  std::string expect_datadir{basedir + default_real_data_home};
+  std::string expect_plugindir{basedir + default_opt_plugin_dir};
+#endif
+  const char *argv[] = {"path", "--basedir=somedir"};
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, NoOptionNoBasedir) {
+  std::string expect_datadir{mysql_binary_dir + default_real_data_home};
+  std::string expect_plugindir{mysql_binary_dir + default_opt_plugin_dir};
+  const char *argv[] = {"path"};
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
+}
+
+TEST_F(ManifestFileOptionParserHelper, ShortAbsoluteOptions) {
+#ifdef _WIN32
+  std::string expect_datadir{"C:\\somedir\\ddd\\"};
+  std::string basedir{"d:\\somedir\\mysql\\"};
+  const char *argv[] = {"path", "-h", "C:\\somedir\\ddd\\", "-b",
+                        "d:\\somedir\\mysql"};
+#else
+  std::string expect_datadir{"/somedir/ddd/"};
+  std::string basedir{"/somedir/mysql/"};
+  const char *argv[] = {"path", "-h", "/somedir/ddd", "-b", "/somedir/mysql"};
+#endif
+  std::string expect_plugindir{basedir + default_opt_plugin_dir};
+  constexpr int argc = std::size(argv);
+  test_options(argc, argv, expect_datadir, expect_plugindir);
 }
 
 }  // namespace mysqld_funcs_unit_test

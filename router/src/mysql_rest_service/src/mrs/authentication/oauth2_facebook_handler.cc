@@ -70,7 +70,7 @@ std::string Oauth2FacebookHandler::get_url_location(GenericSessionData *session,
                          ? entry_.url
                          : "https://www.facebook.com/v12.0/dialog/oauth"};
 
-  std::string uri = session->redirection_host + url->get_path();
+  std::string uri = session->redirection_host;
 
   if (url->get_query().length()) {
     url->remove_query_parameter("onCompletionRedirect");

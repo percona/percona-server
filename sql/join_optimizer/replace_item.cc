@@ -62,9 +62,18 @@ static Item *possibly_outerize_replacement(THD *thd, Item *sub_item,
             new Item_ref(down_cast<Item_ref *>(sub_item)->context,
                          ref_replacement, res->field_name);
         view_ref->depended_from = res->depended_from;
+        if (sub_item->hidden) {
+          view_ref->hidden = true;
+        }
         return view_ref;
       }
       replacement = res;
+    }
+    // For window functions, since the replacement is found without the
+    // exact match (see FindReplacementItem()), hidden flag is not copied.
+    // So we copy the flag here.
+    if (sub_item->hidden) {
+      replacement->hidden = true;
     }
   }
   return replacement;
@@ -180,8 +189,8 @@ void ReplaceMaterializedItems(THD *thd, Item *item,
                               bool need_exact_match, bool window_frame_buffer) {
   bool modified = false;
   const auto replace_functor =
-      [thd, &modified, &items_to_copy, need_exact_match, window_frame_buffer](
-          Item *sub_item, Item *, unsigned) -> ReplaceResult {
+      [thd, &modified, &items_to_copy, need_exact_match,
+       window_frame_buffer](Item *sub_item) -> ReplaceResult {
     Item *replacement = FindReplacementItem(sub_item->real_item(),
                                             items_to_copy, need_exact_match);
     if (replacement != nullptr) {

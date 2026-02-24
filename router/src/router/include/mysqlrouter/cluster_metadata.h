@@ -99,6 +99,9 @@ constexpr MetadataSchemaVersion kClusterSetsMetadataVersion{2, 1, 0};
 //  Version that introduced support for Routing guidelines
 constexpr MetadataSchemaVersion kRoutingGuidelinesMetadataVersion{2, 3, 0};
 
+// Version that introduced router_stats table
+constexpr MetadataSchemaVersion kRouterStatsMetadataVersion{2, 4, 0};
+
 // Version that will be is set while the metadata is being updated
 constexpr MetadataSchemaVersion kUpgradeInProgressMetadataVersion{0, 0, 0};
 
@@ -348,6 +351,7 @@ class ClusterMetadata {
   virtual InstanceType fetch_current_instance_type() = 0;
 
   virtual std::vector<std::string> get_grant_statements(
+      const mysqlrouter::MetadataSchemaVersion &schema_version,
       const std::string &new_accounts) const = 0;
 
   virtual std::vector<std::tuple<std::string, unsigned long>>
@@ -427,6 +431,7 @@ class ClusterMetadataGRV2 : public ClusterMetadataGR {
                            const std::string &hostname_override = "") override;
 
   std::vector<std::string> get_grant_statements(
+      const mysqlrouter::MetadataSchemaVersion &schema_version,
       const std::string &new_accounts) const override;
 
  protected:
@@ -526,6 +531,7 @@ class ClusterMetadataAR : public ClusterMetadata {
                            const std::string &hostname_override = "") override;
 
   std::vector<std::string> get_grant_statements(
+      const mysqlrouter::MetadataSchemaVersion &schema_version,
       const std::string &new_accounts) const override;
 
   std::vector<std::tuple<std::string, unsigned long>> fetch_cluster_hosts()

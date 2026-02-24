@@ -1451,7 +1451,7 @@ DROP DATABASE gis_ogs;
 --echo #
 
 --error ER_GIS_INVALID_DATA
-SELECT ST_Union('', ''), md5(1);
+SELECT ST_Union('', ''), SHA2(1,256);
 
 --echo #
 --echo # Bug#18413646: SINCE 5.7 ERROR 1416 IS CONSIDERED FATAL,

@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <sql_string.h>
 #include "sql/command_mapping.h"
 #include "sql/current_thd.h"
+#include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest.h"
 #include "sql/sql_lex.h"
@@ -45,7 +46,9 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
       if (t == nullptr) t = current_thd;
       if (t == nullptr) return true;
 
-      if (!strcmp(name, "thd_status")) {
+      if (!strcmp(name, "thread_id")) {
+        *((uint32_t *)inout_pvalue) = t->thread_id();
+      } else if (!strcmp(name, "thd_status")) {
         *((uint16_t *)inout_pvalue) = [](auto state) {
           switch (state) {
             case THD::killed_state::NOT_KILLED:
@@ -98,6 +101,17 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
           res->append(t->query().str, t->query().length, t->charset());
         }
         *((my_h_string *)inout_pvalue) = (my_h_string)res;
+      } else if (!strcmp(name, "sql_text_string")) {
+        if (t->rewritten_query().length() == 0) mysql_rewrite_query(t);
+
+        if (t->rewritten_query().length() > 0) {
+          *reinterpret_cast<LEX_CSTRING *>(inout_pvalue) = {
+              t->rewritten_query().ptr(), t->rewritten_query().length()};
+        } else if (t->query().length > 0) {
+          *reinterpret_cast<LEX_CSTRING *>(inout_pvalue) = t->query();
+        }
+      } else if (!strcmp(name, "sql_text_charset")) {
+        *reinterpret_cast<const CHARSET_INFO **>(inout_pvalue) = t->charset();
       } else if (!strcmp(name, "host_or_ip")) {
         Security_context *ctx = t->security_context();
         const char *host = (ctx != nullptr && ctx->host_or_ip().length)
@@ -126,18 +140,16 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
                                              strlen(collation_charset)};
         *((mysql_cstring_with_length *)inout_pvalue) = val;
       } else if (!strcmp(name, "sql_command")) {
-        const char *sql_command = get_sql_command_string(t->lex->sql_command);
         if (t->lex->sql_command == SQLCOM_END &&
             t->get_command() != COM_QUERY) {
-          *((mysql_cstring_with_length *)inout_pvalue) = {"", strlen("")};
+          *((mysql_cstring_with_length *)inout_pvalue) = {STRING_WITH_LEN("")};
         } else {
-          *((mysql_cstring_with_length *)inout_pvalue) = {sql_command,
-                                                          strlen(sql_command)};
+          LEX_CSTRING sql_command = sql_statement_names[t->lex->sql_command];
+          *((mysql_cstring_with_length *)inout_pvalue) = {sql_command.str,
+                                                          sql_command.length};
         }
       } else if (!strcmp(name, "sql_command_id")) {
-        enum_sql_command cmd = SQLCOM_END;
-        if (t->lex != nullptr) cmd = t->lex->sql_command;
-        *((uint32_t *)inout_pvalue) = static_cast<uint32_t>(cmd);
+        *((enum_sql_command *)inout_pvalue) = t->lex->sql_command;
       } else if (!strcmp(name, "command")) {
         const char *command = get_server_command_string(t->get_command());
         *((mysql_cstring_with_length *)inout_pvalue) = {command,
@@ -170,6 +182,8 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
               return STATUS_DA_OK;
           }
         }(t->get_stmt_da()->status());
+      } else if (!strcmp(name, "is_global_read_lock_acquired")) {
+        *((bool *)inout_pvalue) = t->global_read_lock.is_acquired();
       } else
         return true; /* invalid option */
     }

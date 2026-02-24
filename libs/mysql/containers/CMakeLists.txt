@@ -24,6 +24,8 @@
 DISABLE_MISSING_PROFILE_WARNING()
 
 SET(TARGET_HEADERS
+  basic_container_wrapper.h
+  map_or_set_assign.h
 )
 
 SET(TARGET_SRCS

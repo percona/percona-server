@@ -293,6 +293,13 @@ bool thd_is_dd_update_stmt(const THD *thd);
 
 my_thread_id thd_thread_id(const THD *thd);
 
+/**
+  Check if SQL Layer FK handling is enabled.
+
+  @retval true use SQL Layer FK handling, false otherwise.
+*/
+bool thd_is_sql_fk_checks_enabled();
+
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.
 @param[in]  thd   the calling thread

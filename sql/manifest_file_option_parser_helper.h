@@ -50,11 +50,12 @@ class Manifest_file_option_parser_helper final {
   static constexpr size_t mysql_real_data_home_size{
       std::size(mysql_real_data_home)};
   static constexpr size_t opt_plugin_dir_size{std::size(opt_plugin_dir)};
-  char *datadir_;
-  char *plugindir_;
-  char save_homedir_[mysql_real_data_home_size];
+  char save_datadir_[mysql_real_data_home_size];
   char save_plugindir_[opt_plugin_dir_size];
   bool valid_;
+
+  static bool get_one_option(int optid, const struct my_option *opt,
+                             char *argument);
 };
 
 #endif  // MANIFEST_FILE_OPTION_PARSER_HELPER_INCLUDED

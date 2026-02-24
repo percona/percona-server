@@ -1705,12 +1705,6 @@ static void trx_purge_truncate_history(purge_iter_t *limit) {
 /** Select an undo tablespace to truncate, make sure it is empty of undo logs,
 then finally truncate it. */
 static void trx_purge_truncate_undo_spaces() {
-  /* If the server has been started for the purpose of upgrading from a
-  previous version, do not do undo truncation. */
-  if (srv_is_upgrade_mode) {
-    return;
-  }
-
   auto &undo_trunc = purge_sys->undo_trunc;
 
   /* Truncate as many undo spaces as can be truncated.
@@ -2592,11 +2586,7 @@ void trx_purge_stop(void) {
 }
 
 /** Resume purge, move to PURGE_STATE_RUN. */
-void trx_purge_run(void) {
-  /* Flush any GTIDs to disk so that purge can proceed immediately. */
-  auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.wait_flush(false, false, nullptr);
-
+void trx_purge_run() {
   rw_lock_x_lock(&purge_sys->latch, UT_LOCATION_HERE);
 
   switch (purge_sys->state) {

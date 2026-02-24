@@ -38,6 +38,7 @@
 #ifndef LOG_H
 #define LOG_H
 
+#include <mysql/components/common/iso8601_tzmode.h>
 #include <mysql/components/services/log_shared.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -260,12 +261,15 @@ static const uint LOG_FILE = 2;
 static const uint LOG_TABLE = 4;
 
 class Log_to_file_event_handler;
+class Log_to_telemetry_event_handler;
 
 /** Class which manages slow and general log event handlers. */
 class Query_logger {
   /**
-     Currently we have only 2 kinds of logging functions: old-fashioned
+     Currently we have 2 main kinds of logging functions: old-fashioned
      file logs and csv logging routines.
+     Additional open telemetry log export is completely independent of
+     these and does not depend on their configuration.
   */
   static const uint MAX_LOG_HANDLERS_NUM = 2;
 
@@ -279,6 +283,7 @@ class Query_logger {
   /** Available log handlers. */
   Log_to_csv_event_handler table_log_handler;
   Log_to_file_event_handler *file_log_handler;
+  Log_to_telemetry_event_handler *telemetry_log_handler;
 
   /** NULL-terminated arrays of log handlers. */
   Log_event_handler *slow_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];
@@ -1441,31 +1446,6 @@ int log_line_submit(log_line *ll);
 */
 void log_line_set_flag(log_line *ll, log_line_flags_mask mask,
                        log_line_flags_mask value);
-
-/**
-  Whether to generate a UTC timestamp, or one following system-time.
-  These values are not arbitrary; they must correspond to the range
-  and meaning of opt_log_timestamps.
-*/
-enum enum_iso8601_tzmode {
-  iso8601_sysvar_logtimestamps = -1, /**< use value of opt_log_timestamps */
-  iso8601_utc = 0,                   /**< create UTC timestamp */
-  iso8601_system_time = 1            /**< use system time */
-};
-
-/**
-  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
-  Accepts the log_timestamps global variable in its third parameter.
-
-  @param buf       A buffer of at least iso8601_size bytes to store
-                   the timestamp in. The timestamp will be \0 terminated.
-  @param utime     Microseconds since the epoch
-  @param mode      if 0, use UTC; if 1, use local time
-
-  @retval          length of timestamp (excluding \0)
-*/
-int make_iso8601_timestamp(char *buf, ulonglong utime,
-                           enum enum_iso8601_tzmode mode);
 
 /**
   Parse a ISO8601 timestamp and return the number of microseconds

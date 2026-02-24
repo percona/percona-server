@@ -392,7 +392,7 @@ FieldSizeEstimator::FieldSizeEstimator(const TABLE *table) {
   }
 }
 
-int64_t GetReadSetWidth(const TABLE *table) {
+int64_t CalculateReadSetWidth(const TABLE *table) {
   int64_t width{0};
 
   for (const FieldSizeEstimator estimator{table};
@@ -1597,7 +1597,6 @@ void EstimateAggregateCost(THD *thd, AccessPath *path,
 
   path->num_output_rows_before_filter = path->num_output_rows();
   path->set_cost_before_filter(path->cost());
-  path->ordering_state = child->ordering_state;
 }
 
 double EstimateSkipScanCost(TABLE *table, uint key_idx, uint num_subrange_scans,
@@ -1666,12 +1665,6 @@ void EstimateStreamCost(THD *thd, AccessPath *path) {
   path->set_init_once_cost(0.0);  // Never recoverable across query blocks.
   path->num_output_rows_before_filter = path->num_output_rows();
   path->set_cost_before_filter(path->cost());
-  path->ordering_state = child.ordering_state;
-  path->safe_for_rowid = child.safe_for_rowid;
-  // Streaming paths are usually added after all filters have been applied, so
-  // we don't expect any delayed predicates. If there are any, we need to copy
-  // them into path.
-  assert(IsEmpty(child.delayed_predicates));
 }
 
 void EstimateLimitOffsetCost(AccessPath *path) {

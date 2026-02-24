@@ -215,9 +215,9 @@ statements_digest	?	CREATE TABLE `dup_table` ( `c` CHARACTER (?) )	2
 statements_digest	?	DROP TABLE `dup_table`	1
 statements_digest	?	INSERT IGNORE INTO `t11` VALUES (?)	1
 statements_digest	?	SHOW WARNINGS	2
-statements_digest	?	PREPARE `stmt` FROM ?	1
-statements_digest	?	EXECUTE `stmt`	2
-statements_digest	?	DEALLOCATE PREPARE `stmt`	1
+statements_digest	?	PREPARE SELECT * FROM `t12`	1
+statements_digest	?	EXECUTE SELECT * FROM `t12`	2
+statements_digest	?	DEALLOCATE SELECT * FROM `t12`	1
 statements_digest	?	CREATE PROCEDURE `p1` ( ) BEGIN SELECT * FROM `t12` ; END	1
 statements_digest	?	CALL `p1` ( )	2
 statements_digest	?	DROP PROCEDURE `p1`	1

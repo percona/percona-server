@@ -844,7 +844,6 @@ extern unsigned long rpl_semi_sync_source_no_transactions;
 extern unsigned long rpl_semi_sync_source_off_times;
 extern unsigned long rpl_semi_sync_source_wait_timeouts;
 extern unsigned long rpl_semi_sync_source_timefunc_fails;
-extern unsigned long rpl_semi_sync_source_num_timeouts;
 extern unsigned long rpl_semi_sync_source_wait_sessions;
 extern unsigned long rpl_semi_sync_source_wait_pos_backtraverse;
 extern unsigned long rpl_semi_sync_source_avg_trx_wait_time;

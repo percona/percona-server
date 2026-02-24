@@ -425,6 +425,17 @@ static void compute_tokens() {
   set_start_expr_token(LIKE);
   set_start_expr_token(REGEXP);
 
+  set_start_expr_token(EQ);         // =
+  set_start_expr_token(EQUAL_SYM);  // <=>
+  set_start_expr_token(NE);         // != and <>
+  set_start_expr_token(LT);         // <
+  set_start_expr_token(GT_SYM);     // >
+  set_start_expr_token(LE);         // <=
+  set_start_expr_token(GE);         // >=
+
+  set_start_expr_token(THEN_SYM);  // CASE WHEN ... THEN expr
+  set_start_expr_token(ELSE);      // CASE ... ELSE expr
+
   set_start_expr_token('|');
   set_start_expr_token('&');
   set_start_expr_token(SHIFT_LEFT);

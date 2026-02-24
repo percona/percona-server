@@ -264,7 +264,9 @@ SET @@lock_wait_timeout= @old_lock_wait_timeout;
 --enable_ps_protocol
 
 connection default;
---echo # And delete from parent table is possible and doesn't cause asserts.
+--echo # And delete from parent table fails and doesn't cause asserts.
+#with SQL FK, delete stmt opens child table during preexecution phase and fails.
+--error ER_TABLE_NOT_LOCKED
 DELETE FROM t1;
 UNLOCK TABLES;
 DROP TABLES t3, t1;

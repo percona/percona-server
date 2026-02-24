@@ -24,12 +24,11 @@
 #ifndef TEMPLATE_UTILS_INCLUDED
 #define TEMPLATE_UTILS_INCLUDED
 
-#include <assert.h>
-#include <ctype.h>
-#include <stddef.h>
 #include <algorithm>
+#include <cassert>
+#include <cctype>
+#include <cstddef>
 #include <iterator>
-#include <optional>
 #include <type_traits>
 
 /**
@@ -146,7 +145,6 @@ inline To implicit_cast(To x) {
 
 /**
    Utility to allow returning values from functions which can fail
-   (until we have std::optional).
  */
 template <class VALUE_TYPE>
 struct ReturnValueOrError {

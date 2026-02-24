@@ -2016,7 +2016,6 @@ void Log_DDL::replay_rename_table_log(const char *old_name,
     we may consider to do this in row_rename_table_for_mysql,
     so no need to worry this rename here */
     char errstr[512];
-
     dict_stats_rename_table(old_name, new_name, errstr, sizeof(errstr));
   }
 }

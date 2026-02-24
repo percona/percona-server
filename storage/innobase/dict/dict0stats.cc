@@ -261,9 +261,9 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
  dict_index_t::n_uniq (copied)
  dict_index_t::fields[] (newly created, only first n_uniq, only fields[i].name)
  dict_index_t::indexes<> (newly created)
- dict_index_t::stat_n_diff_key_vals[] (only allocated, left uninitialized)
- dict_index_t::stat_n_sample_sizes[] (only allocated, left uninitialized)
- dict_index_t::stat_n_non_null_key_vals[] (only allocated, left uninitialized)
+ dict_index_t::stats::n_diff_key_vals[] (only allocated, left uninitialized)
+ dict_index_t::stats::n_sample_sizes[] (only allocated, left uninitialized)
+ dict_index_t::stats::n_non_null_key_vals[] (only allocated, left uninitialized)
  dict_index_t::magic_n
  The returned object should be freed with dict_stats_table_clone_free()
  when no longer needed.
@@ -295,9 +295,9 @@ static dict_table_t *dict_stats_table_clone_create(
     for (ulint i = 0; i < n_uniq; i++) {
       heap_size += strlen(index->fields[i].name) + 1;
     }
-    heap_size += n_uniq * sizeof(index->stat_n_diff_key_vals[0]);
-    heap_size += n_uniq * sizeof(index->stat_n_sample_sizes[0]);
-    heap_size += n_uniq * sizeof(index->stat_n_non_null_key_vals[0]);
+    heap_size += n_uniq * sizeof(index->stats.n_diff_key_vals[0]);
+    heap_size += n_uniq * sizeof(index->stats.n_sample_sizes[0]);
+    heap_size += n_uniq * sizeof(index->stats.n_non_null_key_vals[0]);
   }
 
   /* Allocate the memory and copy the members */
@@ -366,14 +366,14 @@ static dict_table_t *dict_stats_table_clone_create(
     /* hook idx into t->indexes */
     UT_LIST_ADD_LAST(t->indexes, idx);
 
-    idx->stat_n_diff_key_vals = (uint64_t *)mem_heap_alloc(
-        heap, idx->n_uniq * sizeof(idx->stat_n_diff_key_vals[0]));
+    idx->stats.n_diff_key_vals = (uint64_t *)mem_heap_alloc(
+        heap, idx->n_uniq * sizeof(idx->stats.n_diff_key_vals[0]));
 
-    idx->stat_n_sample_sizes = (uint64_t *)mem_heap_alloc(
-        heap, idx->n_uniq * sizeof(idx->stat_n_sample_sizes[0]));
+    idx->stats.n_sample_sizes = (uint64_t *)mem_heap_alloc(
+        heap, idx->n_uniq * sizeof(idx->stats.n_sample_sizes[0]));
 
-    idx->stat_n_non_null_key_vals = (uint64_t *)mem_heap_alloc(
-        heap, idx->n_uniq * sizeof(idx->stat_n_non_null_key_vals[0]));
+    idx->stats.n_non_null_key_vals = (uint64_t *)mem_heap_alloc(
+        heap, idx->n_uniq * sizeof(idx->stats.n_non_null_key_vals[0]));
     ut_d(idx->magic_n = DICT_INDEX_MAGIC_N);
   }
 
@@ -404,13 +404,13 @@ static void dict_stats_empty_index(dict_index_t *index) /*!< in/out: index */
   ulint n_uniq = index->n_uniq;
 
   for (ulint i = 0; i < n_uniq; i++) {
-    index->stat_n_diff_key_vals[i] = 0;
-    index->stat_n_sample_sizes[i] = 1;
-    index->stat_n_non_null_key_vals[i] = 0;
+    index->stats.n_diff_key_vals[i] = 0;
+    index->stats.n_sample_sizes[i] = 1;
+    index->stats.n_non_null_key_vals[i] = 0;
   }
 
-  index->stat_index_size = 1;
-  index->stat_n_leaf_pages = 1;
+  index->stats.index_size = 1;
+  index->stats.n_leaf_pages = 1;
 }
 
 /** Write all zeros (or 1 where it makes sense) into a table and its indexes'
@@ -437,46 +437,76 @@ static void dict_stats_empty_table(dict_table_t *table) /*!< in/out: table */
     dict_stats_empty_index(index);
   }
 
+  /* Just ensure initialized for exceptional cases. */
+  table->stats_updated.store(false);
+
   table->stat_initialized = true;
 
   dict_table_stats_unlock(table, RW_X_LATCH);
 }
 
-/** Check whether table's stats are initialized (assert if they are not). */
-static void dict_stats_assert_initialized(
-    const dict_table_t *table) /*!< in: table */
-{
-  ut_a(table->stat_initialized);
+/** Check whether statistics are initialized (assert if they are not). Only
+ in valgrind mode.
+ @param[in] stats_container   structure holding dict_index_stats_t in stats
+ field which are expected to be initialized. Like dict_index_t or
+ dict_index_constructed_stats_t. */
+template <typename T>
+static void dict_stats_assert_initialized(const T &stats_container
+                                          [[maybe_unused]]) {
+  UNIV_MEM_ASSERT_RW_ABORT(
+      stats_container.stats.n_diff_key_vals,
+      stats_container.n_uniq *
+          sizeof(stats_container.stats.n_diff_key_vals[0]));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stats_last_recalc,
-                           sizeof(table->stats_last_recalc));
+  UNIV_MEM_ASSERT_RW_ABORT(
+      stats_container.stats.n_sample_sizes,
+      stats_container.n_uniq * sizeof(stats_container.stats.n_sample_sizes[0]));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stat_persistent,
-                           sizeof(table->stat_persistent));
+  UNIV_MEM_ASSERT_RW_ABORT(
+      stats_container.stats.n_non_null_key_vals,
+      stats_container.n_uniq *
+          sizeof(stats_container.stats.n_non_null_key_vals[0]));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stats_auto_recalc,
-                           sizeof(table->stats_auto_recalc));
+  UNIV_MEM_ASSERT_RW_ABORT(&stats_container.stats.index_size,
+                           sizeof(stats_container.stats.index_size));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stats_sample_pages,
-                           sizeof(table->stats_sample_pages));
+  UNIV_MEM_ASSERT_RW_ABORT(&stats_container.stats.n_leaf_pages,
+                           sizeof(stats_container.stats.n_leaf_pages));
+}
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stat_n_rows, sizeof(table->stat_n_rows));
+/** Check whether table's stats are initialized (assert if they are not).
+ @param[in] table   table to check */
+static void dict_stats_assert_initialized(const dict_table_t &table) {
+  ut_a(table.stat_initialized);
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stat_clustered_index_size,
-                           sizeof(table->stat_clustered_index_size));
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stats_last_recalc,
+                           sizeof(table.stats_last_recalc));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stat_sum_of_other_index_sizes,
-                           sizeof(table->stat_sum_of_other_index_sizes));
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stat_persistent,
+                           sizeof(table.stat_persistent));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stat_modified_counter,
-                           sizeof(table->stat_modified_counter));
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stats_auto_recalc,
+                           sizeof(table.stats_auto_recalc));
 
-  UNIV_MEM_ASSERT_RW_ABORT(&table->stats_bg_flag, sizeof(table->stats_bg_flag));
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stats_sample_pages,
+                           sizeof(table.stats_sample_pages));
 
-  for (const dict_index_t *index = table->first_index(); index != nullptr;
-       index = index->next()) {
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stat_n_rows, sizeof(table.stat_n_rows));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stat_clustered_index_size,
+                           sizeof(table.stat_clustered_index_size));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stat_sum_of_other_index_sizes,
+                           sizeof(table.stat_sum_of_other_index_sizes));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stat_modified_counter,
+                           sizeof(table.stat_modified_counter));
+
+  UNIV_MEM_ASSERT_RW_ABORT(&table.stats_bg_flag, sizeof(table.stats_bg_flag));
+
+  for (const auto *index : table.indexes) {
     if (!dict_stats_should_ignore_index(index)) {
-      index->assert_stats_initialized();
+      dict_stats_assert_initialized(*index);
     }
   }
 }
@@ -491,6 +521,7 @@ static void dict_stats_assert_initialized(
 static void dict_stats_copy(dict_table_t *dst, /*!< in/out: destination table */
                             const dict_table_t *src) /*!< in: source table */
 {
+  dst->stats_updated.store(src->stats_updated.load());
   dst->stats_last_recalc = src->stats_last_recalc;
   dst->stat_n_rows = src->stat_n_rows;
   dst->stat_clustered_index_size = src->stat_clustered_index_size;
@@ -540,19 +571,19 @@ static void dict_stats_copy(dict_table_t *dst, /*!< in/out: destination table */
       n_copy_el = dst_idx->n_uniq;
     }
 
-    memmove(dst_idx->stat_n_diff_key_vals, src_idx->stat_n_diff_key_vals,
-            n_copy_el * sizeof(dst_idx->stat_n_diff_key_vals[0]));
+    memmove(dst_idx->stats.n_diff_key_vals, src_idx->stats.n_diff_key_vals,
+            n_copy_el * sizeof(dst_idx->stats.n_diff_key_vals[0]));
 
-    memmove(dst_idx->stat_n_sample_sizes, src_idx->stat_n_sample_sizes,
-            n_copy_el * sizeof(dst_idx->stat_n_sample_sizes[0]));
+    memmove(dst_idx->stats.n_sample_sizes, src_idx->stats.n_sample_sizes,
+            n_copy_el * sizeof(dst_idx->stats.n_sample_sizes[0]));
 
-    memmove(dst_idx->stat_n_non_null_key_vals,
-            src_idx->stat_n_non_null_key_vals,
-            n_copy_el * sizeof(dst_idx->stat_n_non_null_key_vals[0]));
+    memmove(dst_idx->stats.n_non_null_key_vals,
+            src_idx->stats.n_non_null_key_vals,
+            n_copy_el * sizeof(dst_idx->stats.n_non_null_key_vals[0]));
 
-    dst_idx->stat_index_size = src_idx->stat_index_size;
+    dst_idx->stats.index_size = src_idx->stats.index_size;
 
-    dst_idx->stat_n_leaf_pages = src_idx->stat_n_leaf_pages;
+    dst_idx->stats.n_leaf_pages = src_idx->stats.n_leaf_pages;
   }
 
   dst->stat_initialized = true;
@@ -570,11 +601,11 @@ dict_table_t::stat_n_rows
 dict_table_t::stat_clustered_index_size
 dict_table_t::stat_sum_of_other_index_sizes
 dict_table_t::stat_modified_counter
-dict_index_t::stat_n_diff_key_vals[]
-dict_index_t::stat_n_sample_sizes[]
-dict_index_t::stat_n_non_null_key_vals[]
-dict_index_t::stat_index_size
-dict_index_t::stat_n_leaf_pages
+dict_index_t::stats::n_diff_key_vals[]
+dict_index_t::stats::n_sample_sizes[]
+dict_index_t::stats::n_non_null_key_vals[]
+dict_index_t::stats::index_size
+dict_index_t::stats::n_leaf_pages
 The returned object should be freed with dict_stats_snapshot_free()
 when no longer needed.
 @param[in]      table   table whose stats to copy
@@ -584,7 +615,7 @@ static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
 
   dict_table_stats_lock(table, RW_S_LATCH);
 
-  dict_stats_assert_initialized(table);
+  dict_stats_assert_initialized(*table);
 
   dict_table_t *t;
 
@@ -595,7 +626,8 @@ static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
   t->stat_persistent = table->stat_persistent;
   t->stats_auto_recalc = table->stats_auto_recalc;
   t->stats_sample_pages = table->stats_sample_pages;
-  t->stats_bg_flag = table->stats_bg_flag;
+  t->stats_bg_flag.store(table->stats_bg_flag.load(),
+                         std::memory_order_relaxed);
 
   dict_table_stats_unlock(table, RW_S_LATCH);
 
@@ -613,23 +645,22 @@ static void dict_stats_snapshot_free(
 }
 
 /** Empty index statistics structure values.
-@param[in,out]  index_stats   index statistics to empty
-@param[in]      index         index to get number of unique fields */
-static void dict_stats_empty_index_stats(dict_index_stats_t *index_stats,
-                                         dict_index_t *index) {
-  ut_ad(!(index->type & DICT_FTS));
-  ut_ad(!(index->type & DICT_IBUF));
+@param[in,out]  index_stats   index statistics to empty */
+static void dict_stats_empty_index_stats(
+    dict_index_constructed_stats_t *index_stats) {
+  ut_ad(!(index_stats->type & DICT_FTS));
+  ut_ad(!(index_stats->type & DICT_IBUF));
 
-  const size_t n_uniq = index->n_uniq;
+  const size_t n_uniq = index_stats->n_uniq;
 
   for (size_t i = 0; i < n_uniq; i++) {
-    index_stats->n_diff_key_vals[i] = 0;
-    index_stats->n_sample_sizes[i] = 1;
-    index_stats->n_non_null_key_vals[i] = 0;
+    index_stats->stats.n_diff_key_vals[i] = 0;
+    index_stats->stats.n_sample_sizes[i] = 1;
+    index_stats->stats.n_non_null_key_vals[i] = 0;
   }
 
-  index_stats->index_size = 1;
-  index_stats->n_leaf_pages = 1;
+  index_stats->stats.index_size = 1;
+  index_stats->stats.n_leaf_pages = 1;
 }
 
 /**
@@ -668,17 +699,17 @@ static size_t dict_stats_index_stats_heap_size(const dict_table_t *table) {
 
 /** This function creates a dict_index_stats_t object and initializes
 its members based on index. Outside caller should provide heap and assumes
-ownership of the returned dict_index_stats_t object.
+ownership of the returned dict_index_constructed_stats_t object.
 @param[in]  index   template index to create dict_index_stats_t from
 @param[in]  heap    heap to be used by the dict_index_stats_t
 */
-static dict_index_stats_t *dict_stats_create_index_stats(
+static dict_index_constructed_stats_t *dict_stats_create_index_stats(
     const dict_index_t *index, mem_heap_t *heap) {
   ut_a(heap);
   const size_t n_uniq = dict_index_get_n_unique(index);
 
-  auto index_stats =
-      (dict_index_stats_t *)mem_heap_alloc(heap, sizeof(dict_index_stats_t));
+  auto index_stats = (dict_index_constructed_stats_t *)mem_heap_alloc(
+      heap, sizeof(dict_index_constructed_stats_t));
   index_stats->type = index->type;
   index_stats->n_uniq = n_uniq;
 
@@ -686,9 +717,11 @@ static dict_index_stats_t *dict_stats_create_index_stats(
     using Element = std::remove_reference_t<decltype(arr[0])>;
     arr = (Element *)mem_heap_alloc(heap, n_uniq * sizeof(Element));
   };
-  alloc_n_uniq_elements(index_stats->n_diff_key_vals);
-  alloc_n_uniq_elements(index_stats->n_sample_sizes);
-  alloc_n_uniq_elements(index_stats->n_non_null_key_vals);
+  alloc_n_uniq_elements(index_stats->stats.n_diff_key_vals);
+  alloc_n_uniq_elements(index_stats->stats.n_sample_sizes);
+  alloc_n_uniq_elements(index_stats->stats.n_non_null_key_vals);
+
+  dict_stats_empty_index_stats(index_stats);
 
   return index_stats;
 }
@@ -697,13 +730,14 @@ static dict_index_stats_t *dict_stats_create_index_stats(
 @param[in,out]  dst_idx         destination index
 @param[in]      src_idx_stats   source index stats
 */
-static void dict_stats_copy_index(dict_index_t *dst_idx,
-                                  const dict_index_stats_t *src_idx_stats) {
+static void dict_stats_copy_index(
+    dict_index_t *dst_idx,
+    const dict_index_constructed_stats_t *src_idx_stats) {
   const size_t n_copy_el = dst_idx->n_uniq;
   ut_a_eq(dst_idx->n_uniq, src_idx_stats->n_uniq);
 
-  memmove(dst_idx->stat_n_diff_key_vals, src_idx_stats->n_diff_key_vals,
-          n_copy_el * sizeof(dst_idx->stat_n_diff_key_vals[0]));
+  memmove(dst_idx->stats.n_diff_key_vals, src_idx_stats->stats.n_diff_key_vals,
+          n_copy_el * sizeof(dst_idx->stats.n_diff_key_vals[0]));
 
 #ifdef UNIV_DEBUG
   if (!(dst_idx->type & DICT_CLUSTERED)) {
@@ -711,17 +745,18 @@ static void dict_stats_copy_index(dict_index_t *dst_idx,
   }
 #endif /* UNIV_DEBUG */
 
-  memmove(dst_idx->stat_n_sample_sizes, src_idx_stats->n_sample_sizes,
-          n_copy_el * sizeof(dst_idx->stat_n_sample_sizes[0]));
+  memmove(dst_idx->stats.n_sample_sizes, src_idx_stats->stats.n_sample_sizes,
+          n_copy_el * sizeof(dst_idx->stats.n_sample_sizes[0]));
 
-  memmove(dst_idx->stat_n_non_null_key_vals, src_idx_stats->n_non_null_key_vals,
-          n_copy_el * sizeof(dst_idx->stat_n_non_null_key_vals[0]));
+  memmove(dst_idx->stats.n_non_null_key_vals,
+          src_idx_stats->stats.n_non_null_key_vals,
+          n_copy_el * sizeof(dst_idx->stats.n_non_null_key_vals[0]));
 
-  dst_idx->stat_index_size = src_idx_stats->index_size;
+  dst_idx->stats.index_size = src_idx_stats->stats.index_size;
 
-  dst_idx->stat_n_leaf_pages = src_idx_stats->n_leaf_pages;
+  dst_idx->stats.n_leaf_pages = src_idx_stats->stats.n_leaf_pages;
 
-  dst_idx->assert_stats_initialized();
+  dict_stats_assert_initialized(*dst_idx);
 }
 
 /** Calculates new estimates for index statistics. This function is
@@ -831,7 +866,7 @@ static void dict_stats_update_transient(
   dict_table_stats_compute_lock(table);
 
   /* Will store newly calculated stats for all indexes of the table. */
-  std::vector<dict_index_stats_t *> stats{};
+  std::vector<dict_index_constructed_stats_t *> stats{};
 
   for (; index != nullptr; index = index->next()) {
     ut_ad(!dict_index_is_ibuf(index));
@@ -846,29 +881,27 @@ static void dict_stats_update_transient(
     }
 #endif /* UNIV_DEBUG */
 
-    dict_index_stats_t *statistics =
-        dict_stats_create_index_stats(index, scoped_heap.get());
-    dict_stats_empty_index_stats(statistics, index);
-    dict_stats_update_transient_for_index(index, statistics);
+    auto *statistics = dict_stats_create_index_stats(index, scoped_heap.get());
+    dict_stats_update_transient_for_index(index, &statistics->stats);
     stats.push_back(statistics);
 
-    sum_of_index_sizes += statistics->index_size;
+    sum_of_index_sizes += statistics->stats.index_size;
   }
 
   dict_table_stats_lock(table, RW_X_LATCH);
 
   /* First copy table statistics. */
   index = table->first_index();
-  dict_index_stats_t *statistics = stats.front();
+  auto *pk_stats = stats.front();
 
   ulint n_unique = dict_index_get_n_unique(index);
 
-  table->stat_n_rows = statistics->n_diff_key_vals[n_unique - 1];
+  table->stat_n_rows = pk_stats->stats.n_diff_key_vals[n_unique - 1];
 
-  table->stat_clustered_index_size = statistics->index_size;
+  table->stat_clustered_index_size = pk_stats->stats.index_size;
 
   table->stat_sum_of_other_index_sizes =
-      sum_of_index_sizes - statistics->index_size;
+      sum_of_index_sizes - pk_stats->stats.index_size;
 
   table->stats_last_recalc = std::chrono::steady_clock::now();
 
@@ -892,6 +925,8 @@ static void dict_stats_update_transient(
     dict_stats_copy_index(index, *stats_it);
     stats_it++;
   }
+
+  table->stats_updated.store(true);
 
   dict_table_stats_unlock(table, RW_X_LATCH);
 
@@ -1762,7 +1797,7 @@ static bool dict_stats_analyze_index_for_n_prefix(
 @param[in,out]  index_stats     index_stats whose n_diff_key_vals[] to set */
 static inline void dict_stats_index_set_n_diff(
     const n_diff_data_t *n_diff_data, dict_index_t *index,
-    dict_index_stats_t *index_stats) {
+    dict_index_constructed_stats_t *index_stats) {
   for (ulint n_prefix = index->n_uniq; n_prefix >= 1; n_prefix--) {
     /* n_diff_all_analyzed_pages can be 0 here if
     all the leaf pages sampled contained only
@@ -1792,19 +1827,20 @@ static inline void dict_stats_index_set_n_diff(
       that the total number of ordinary leaf pages is
       T * D / (D + E). */
       n_ordinary_leaf_pages =
-          index_stats->n_leaf_pages * data->n_leaf_pages_to_analyze /
+          index_stats->stats.n_leaf_pages * data->n_leaf_pages_to_analyze /
           (data->n_leaf_pages_to_analyze + data->n_external_pages_sum);
     }
 
     /* See REF01 for an explanation of the algorithm */
-    index_stats->n_diff_key_vals[n_prefix - 1] =
+    index_stats->stats.n_diff_key_vals[n_prefix - 1] =
         n_ordinary_leaf_pages
 
         * data->n_diff_on_level / data->n_recs_on_level
 
         * data->n_diff_all_analyzed_pages / data->n_leaf_pages_to_analyze;
 
-    index_stats->n_sample_sizes[n_prefix - 1] = data->n_leaf_pages_to_analyze;
+    index_stats->stats.n_sample_sizes[n_prefix - 1] =
+        data->n_leaf_pages_to_analyze;
 
     DEBUG_PRINTF(
         "    %s(): n_diff=" UINT64PF
@@ -1834,13 +1870,12 @@ sample. and suggested next value to retry if aborted.
 @param[in]      index index to analyze.
 @param[out]     index_stats calculated index statistics
 @return false if aborted */
-static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
-                                         uint64_t &n_tickets, bool &no_delay,
+static bool dict_stats_analyze_index_low(
+    uint64_t &n_sample_pages, uint64_t &n_tickets, bool &no_delay,
 #ifdef UNIV_DEBUG
-                                         bool &simulate_tree_change,
+    bool &simulate_tree_change,
 #endif /* UNIV_DEBUG */
-                                         dict_index_t *index,
-                                         dict_index_stats_t *index_stats) {
+    dict_index_t *index, dict_index_constructed_stats_t *index_stats) {
   ulint root_level;
   ulint level;
   bool level_is_analyzed;
@@ -1883,7 +1918,7 @@ static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
                   { size = ULINT_UNDEFINED; });
 
   if (size != ULINT_UNDEFINED) {
-    index_stats->index_size = size;
+    index_stats->stats.index_size = size;
     size = btr_get_size(index, BTR_N_LEAF_PAGES, &mtr);
   }
 
@@ -1908,7 +1943,7 @@ static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
       size = 1;
   }
 
-  index_stats->n_leaf_pages = size;
+  index_stats->stats.n_leaf_pages = size;
 
   mtr_start(&mtr);
 
@@ -1934,8 +1969,9 @@ static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
   (which is needed for scans on level>0) for too long, so we prefer a slower
   full scan without the SX_LOCK to a faster scan under SX_LOCK over 1e6+ pages.
   */
-  if (root_level == 0 || n_sample_pages * n_uniq >
-                             std::min<ulint>(index_stats->n_leaf_pages, 1e6)) {
+  if (root_level == 0 ||
+      n_sample_pages * n_uniq >
+          std::min<ulint>(index_stats->stats.n_leaf_pages, 1e6)) {
     if (root_level == 0) {
       DEBUG_PRINTF(
           "  %s(): just one page,"
@@ -1952,17 +1988,17 @@ static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
     into the index */
 
     (void)dict_stats_analyze_index_level(
-        index, 0 /* leaf level */, index_stats->n_diff_key_vals, &total_recs,
-        &total_pages, nullptr /* boundaries not needed */, wait_start_time,
-        &mtr);
+        index, 0 /* leaf level */, index_stats->stats.n_diff_key_vals,
+        &total_recs, &total_pages, nullptr /* boundaries not needed */,
+        wait_start_time, &mtr);
 
     for (ulint i = 0; i < n_uniq; i++) {
-      index_stats->n_sample_sizes[i] = total_pages;
+      index_stats->stats.n_sample_sizes[i] = total_pages;
     }
 
     mtr_commit(&mtr);
 
-    index_stats->assert_initialized();
+    dict_stats_assert_initialized(*index_stats);
 
     return true;
   }
@@ -2186,7 +2222,7 @@ end:
   ut::delete_arr(n_diff_data);
 
   if (succeeded) {
-    index_stats->assert_initialized();
+    dict_stats_assert_initialized(*index_stats);
   }
 
   return succeeded;
@@ -2196,8 +2232,9 @@ end:
  members stat_n_diff_key_vals[], stat_n_sample_sizes[], stat_index_size and
  stat_n_leaf_pages. This function could be slow. */
 static void dict_stats_analyze_index(
-    dict_index_t *index,             /*!< in/out: index to analyze */
-    dict_index_stats_t *index_stats) /*!< out: computed index statistics */
+    dict_index_t *index, /*!< in/out: index to analyze */
+    dict_index_constructed_stats_t
+        *index_stats) /*!< out: computed index statistics */
 {
   ut_ad(index);
   ut_ad(index->table->stats_compute_mutex_created);
@@ -2272,12 +2309,10 @@ static dberr_t dict_stats_update_persistent(dict_table_t *table) {
   Scoped_heap scoped_heap(heap_size, UT_LOCATION_HERE);
 
   /* Will store newly calculated stats for all indexes of the table. */
-  std::vector<dict_index_stats_t *> stats{};
+  std::vector<dict_index_constructed_stats_t *> stats{};
 
-  dict_index_stats_t *statistics =
-      dict_stats_create_index_stats(index, scoped_heap.get());
-  dict_stats_empty_index_stats(statistics, index);
-  dict_stats_analyze_index(index, statistics);
+  auto *pk_stats = dict_stats_create_index_stats(index, scoped_heap.get());
+  dict_stats_analyze_index(index, pk_stats);
 
   /* analyze other indexes from the table, if any */
   for (index = index->next(); index != nullptr; index = index->next()) {
@@ -2287,13 +2322,11 @@ static dberr_t dict_stats_update_persistent(dict_table_t *table) {
       continue;
     }
 
-    if (!(table->stats_bg_flag & BG_STAT_SHOULD_QUIT)) {
-      dict_index_stats_t *statistics =
-          dict_stats_create_index_stats(index, scoped_heap.get());
-      dict_stats_empty_index_stats(statistics, index);
+    auto *statistics = dict_stats_create_index_stats(index, scoped_heap.get());
+    if (!(table->stats_bg_flag.load() & BG_STAT_SHOULD_QUIT)) {
       dict_stats_analyze_index(index, statistics);
-      stats.push_back(statistics);
     }
+    stats.push_back(statistics);
   }
 
   CONDITIONAL_SYNC_POINT_TIMEOUT("completed_stats_computation", 5);
@@ -2303,13 +2336,13 @@ static dberr_t dict_stats_update_persistent(dict_table_t *table) {
 
   /* Copy table statistics */
   index = table->first_index();
-  dict_stats_copy_index(index, statistics);
+  dict_stats_copy_index(index, pk_stats);
 
   ulint n_unique = dict_index_get_n_unique(index);
 
-  table->stat_n_rows = index->stat_n_diff_key_vals[n_unique - 1];
+  table->stat_n_rows = index->stats.n_diff_key_vals[n_unique - 1];
 
-  table->stat_clustered_index_size = index->stat_index_size;
+  table->stat_clustered_index_size = index->stats.index_size;
 
   table->stat_sum_of_other_index_sizes = 0;
 
@@ -2331,21 +2364,21 @@ static dberr_t dict_stats_update_persistent(dict_table_t *table) {
       continue;
     }
 
-    if (!(table->stats_bg_flag & BG_STAT_SHOULD_QUIT)) {
-      dict_stats_copy_index(index, *stats_it);
-      stats_it++;
-    }
+    dict_stats_copy_index(index, *stats_it);
+    stats_it++;
 
-    table->stat_sum_of_other_index_sizes += index->stat_index_size;
+    table->stat_sum_of_other_index_sizes += index->stats.index_size;
   }
 
   table->stats_last_recalc = std::chrono::steady_clock::now();
 
   table->stat_modified_counter = 0;
 
+  table->stats_updated.store(true);
+
   table->stat_initialized = true;
 
-  dict_stats_assert_initialized(table);
+  dict_stats_assert_initialized(*table);
 
   dict_table_stats_unlock(table, RW_X_LATCH);
 
@@ -2617,8 +2650,8 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
       }
 
       ret = dict_stats_save_index_stat(
-          index, now, stat_name, index->stat_n_diff_key_vals[i],
-          &index->stat_n_sample_sizes[i], stat_description, trx, silent);
+          index, now, stat_name, index->stats.n_diff_key_vals[i],
+          &index->stats.n_sample_sizes[i], stat_description, trx, silent);
 
       if (ret != DB_SUCCESS) {
         return ret;
@@ -2626,7 +2659,7 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
     }
 
     ret = dict_stats_save_index_stat(index, now, "n_leaf_pages",
-                                     index->stat_n_leaf_pages, nullptr,
+                                     index->stats.n_leaf_pages, nullptr,
                                      "Number of leaf pages "
                                      "in the index",
                                      trx, silent);
@@ -2634,8 +2667,8 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
       return ret;
     }
 
-    ret = dict_stats_save_index_stat(index, now, "size", index->stat_index_size,
-                                     nullptr,
+    ret = dict_stats_save_index_stat(index, now, "size",
+                                     index->stats.index_size, nullptr,
                                      "Number of pages "
                                      "in the index",
                                      trx, silent);
@@ -2873,12 +2906,12 @@ static bool dict_stats_fetch_index_stats_step(
 
   if (stat_name_len == 4 /* strlen("size") */
       && native_strncasecmp("size", stat_name, stat_name_len) == 0) {
-    index->stat_index_size = (ulint)stat_value;
+    index->stats.index_size = (ulint)stat_value;
     arg->stats_were_modified = true;
   } else if (stat_name_len == 12 /* strlen("n_leaf_pages") */
              && native_strncasecmp("n_leaf_pages", stat_name, stat_name_len) ==
                     0) {
-    index->stat_n_leaf_pages = (ulint)stat_value;
+    index->stats.n_leaf_pages = (ulint)stat_value;
     arg->stats_were_modified = true;
   } else if (stat_name_len > PFX_LEN /* e.g. stat_name=="n_diff_pfx01" */
              && native_strncasecmp(PFX, stat_name, PFX_LEN) == 0) {
@@ -2940,17 +2973,17 @@ static bool dict_stats_fetch_index_stats_step(
     }
     /* else */
 
-    index->stat_n_diff_key_vals[n_pfx - 1] = stat_value;
+    index->stats.n_diff_key_vals[n_pfx - 1] = stat_value;
 
     if (sample_size != UINT64_UNDEFINED) {
-      index->stat_n_sample_sizes[n_pfx - 1] = sample_size;
+      index->stats.n_sample_sizes[n_pfx - 1] = sample_size;
     } else {
       /* hmm, strange... the user must have UPDATEd the
       table manually and SET sample_size = NULL */
-      index->stat_n_sample_sizes[n_pfx - 1] = 0;
+      index->stats.n_sample_sizes[n_pfx - 1] = 0;
     }
 
-    index->stat_n_non_null_key_vals[n_pfx - 1] = 0;
+    index->stats.n_non_null_key_vals[n_pfx - 1] = 0;
 
     arg->stats_were_modified = true;
   } else {
@@ -3096,9 +3129,7 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
 
   dict_table_stats_compute_lock(index->table);
 
-  dict_index_stats_t *statistics =
-      dict_stats_create_index_stats(index, scoped_heap.get());
-  dict_stats_empty_index_stats(statistics, index);
+  auto *statistics = dict_stats_create_index_stats(index, scoped_heap.get());
 
   if (dict_stats_is_persistent_enabled(index->table)) {
     dict_stats_analyze_index(index, statistics);
@@ -3112,7 +3143,7 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
     return;
   }
 
-  dict_stats_update_transient_for_index(index, statistics);
+  dict_stats_update_transient_for_index(index, &statistics->stats);
   dict_table_stats_lock(index->table, RW_X_LATCH);
   dict_stats_copy_index(index, statistics);
   dict_table_stats_unlock(index->table, RW_X_LATCH);
@@ -3163,8 +3194,7 @@ dberr_t dict_stats_update(dict_table_t *table,
   switch (stats_upd_option) {
     dberr_t err;
 
-    case DICT_STATS_RECALC_PERSISTENT:
-
+    case DICT_STATS_RECALC_PERSISTENT: {
       if (srv_read_only_mode) {
         break;
       }
@@ -3190,7 +3220,12 @@ dberr_t dict_stats_update(dict_table_t *table,
         return (err);
       }
 
-      return (dict_stats_save(table, nullptr, trx, silent));
+      dberr_t result = dict_stats_save(table, nullptr, trx, silent);
+
+      CONDITIONAL_SYNC_POINT_TIMEOUT("completed_stats_update", 5);
+
+      return result;
+    }
 
     case DICT_STATS_RECALC_TRANSIENT:
       break;
@@ -3198,6 +3233,13 @@ dberr_t dict_stats_update(dict_table_t *table,
     case DICT_STATS_EMPTY_TABLE:
 
       dict_stats_empty_table(table);
+
+      /* DICT_STATS_EMPTY_TABLE is invoked only when truncating intrinsic
+      tables or creating new tables. Non-intrinsic tables are truncated by
+      recreation and the table definition cache is invalidated with
+      TDC_RT_REMOVE_ALL. In all these cases the server never gets stale stats,
+      so here just sets to a meaningful state. */
+      table->stats_updated.store(true);
 
       /* If table is using persistent stats,
       then save the stats on disk */
@@ -3227,6 +3269,7 @@ dberr_t dict_stats_update(dict_table_t *table,
 
       err = dict_stats_fetch_from_ps(t);
 
+      t->stats_updated.store(true);
       t->stats_last_recalc = table->stats_last_recalc;
       t->stat_modified_counter = 0;
 
@@ -3237,7 +3280,7 @@ dberr_t dict_stats_update(dict_table_t *table,
 
           dict_stats_copy(table, t);
 
-          dict_stats_assert_initialized(table);
+          dict_stats_assert_initialized(*table);
 
           dict_table_stats_unlock(table, RW_X_LATCH);
 

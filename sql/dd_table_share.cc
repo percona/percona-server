@@ -53,7 +53,9 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/aggregated_stats.h"
+#include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/collection.h"
+#include "sql/dd/dd.h"             // dd::get_dictionary
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name
 #include "sql/dd/dd_trigger.h"     // dd::load_triggers
@@ -2125,7 +2127,6 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   //
 
   partition_element *curr_part_elem;
-  List_iterator<partition_element> part_elem_it;
 
   /* Partitions are sorted first on level and then on number. */
 
@@ -2263,6 +2264,9 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
                              fk->referenced_table_name().c_str(),
                              fk->referenced_table_name().length()))
         return true;
+      if (lex_string_strmake(&share->mem_root, &share->foreign_key[i].fk_name,
+                             fk->name().c_str(), fk->name().length()))
+        return true;
       if (lex_string_strmake(&share->mem_root,
                              &share->foreign_key[i].unique_constraint_name,
                              fk->unique_constraint_name().c_str(),
@@ -2273,7 +2277,11 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
       share->foreign_key[i].delete_rule = fk->delete_rule();
 
       share->foreign_key[i].columns = fk->elements().size();
-      if (!(share->foreign_key[i].column_name =
+      if (!(share->foreign_key[i].referencing_column_names =
+                (LEX_CSTRING *)share->mem_root.Alloc(
+                    share->foreign_key[i].columns * sizeof(LEX_CSTRING))))
+        return true;
+      if (!(share->foreign_key[i].referenced_column_names =
                 (LEX_CSTRING *)share->mem_root.Alloc(
                     share->foreign_key[i].columns * sizeof(LEX_CSTRING))))
         return true;
@@ -2281,15 +2289,22 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
       uint j = 0;
 
       for (const dd::Foreign_key_element *fk_el : fk->elements()) {
-        if (lex_string_strmake(&share->mem_root,
-                               &share->foreign_key[i].column_name[j],
-                               fk_el->column().name().c_str(),
-                               fk_el->column().name().length()))
+        if (lex_string_strmake(
+                &share->mem_root,
+                &share->foreign_key[i].referencing_column_names[j],
+                fk_el->column().name().c_str(),
+                fk_el->column().name().length()))
+          return true;
+        if (lex_string_strmake(
+                &share->mem_root,
+                &share->foreign_key[i].referenced_column_names[j],
+                fk_el->referenced_column_name().c_str(),
+                fk_el->referenced_column_name().length()))
+
           return true;
 
         ++j;
       }
-
       ++i;
     }
   }
@@ -2317,6 +2332,10 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
         return true;
       share->foreign_key_parent[i].update_rule = fk_p->update_rule();
       share->foreign_key_parent[i].delete_rule = fk_p->delete_rule();
+      if (lex_string_strmake(&share->mem_root,
+                             &share->foreign_key_parent[i].fk_name,
+                             fk_p->fk_name().c_str(), fk_p->fk_name().length()))
+        return true;
       ++i;
     }
   }

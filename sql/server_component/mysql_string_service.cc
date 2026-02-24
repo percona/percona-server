@@ -57,10 +57,6 @@ struct st_string_iterator {
 };
 }  // namespace
 
-struct my_h_string_imp {};
-
-struct my_h_string_iterator_imp {};
-
 static const CHARSET_INFO *from_api(CHARSET_INFO_h api) {
   return reinterpret_cast<const CHARSET_INFO *>(api);
 }

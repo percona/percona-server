@@ -59,9 +59,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER USER foo@localhost COMMENT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 ALTER USER u4@sdasd ATTRIBUTE '{}';
-ERROR HY000: Operation ALTER USER failed for 'u4'@'sdasd'
+ERROR HY000: Operation ALTER USER failed for 'u4'@'sdasd' (User account does not exist)
 ALTER USER fff@asdasd COMMENT '';
-ERROR HY000: Operation ALTER USER failed for 'fff'@'asdasd'
+ERROR HY000: Operation ALTER USER failed for 'fff'@'asdasd' (User account does not exist)
 ALTER USER USER() COMMENT 'test';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COMMENT 'test'' at line 1
 CREATE USER foo2@localhost IDENTIFIED BY 'foo' COMMENT 'xxx';

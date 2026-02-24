@@ -862,6 +862,19 @@ DEFINE_BOOL_METHOD(Event_authentication_bridge_implementation::notify,
     auto event_information =
         static_cast<Event_tracking_authentication_information *>(
             thd->get_event_tracking_data().second);
+    // if there's no event information we log a warning and return OK
+    if (event_information == nullptr) {
+      LogEvent()
+          .prio(WARNING_LEVEL)
+          .errcode(ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT)
+          .subsys("Event_authentication_bridge")
+          .component("MySQL Server")
+          .source_line(__LINE__)
+          .source_file(__FILE__)
+          .lookup(ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT,
+                  "Authentication");
+      return false;
+    }
 
     mysql_event_authentication plugin_data;
 
@@ -992,6 +1005,17 @@ DEFINE_BOOL_METHOD(Event_general_bridge_implementation::notify,
 
     auto event_information = static_cast<Event_tracking_general_information *>(
         thd->get_event_tracking_data().second);
+    if (event_information == nullptr) {
+      LogEvent()
+          .prio(WARNING_LEVEL)
+          .errcode(ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT)
+          .subsys("Event_general_bridge")
+          .component("MySQL Server")
+          .source_line(__LINE__)
+          .source_file(__FILE__)
+          .lookup(ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT, "General");
+      return false;
+    }
 
     mysql_event_general plugin_data;
 
@@ -1225,20 +1249,23 @@ DEFINE_BOOL_METHOD(Event_parse_bridge_implementation::notify,
         break;
     }
 
-    mysql_event_parse_rewrite_plugin_flag plugin_flag;
-    switch (*(data->flags)) {
-      case EVENT_TRACKING_PARSE_REWRITE_NONE:
-        plugin_flag = MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
-        break;
-      case EVENT_TRACKING_PARSE_REWRITE_QUERY_REWRITTEN:
-        plugin_flag = MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
-        break;
-      case EVENT_TRACKING_PARSE_REWRITE_IS_PREPARED_STATEMENT:
-        plugin_flag = MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT;
-        break;
-      default:
-        assert(false);
-        break;
+    mysql_event_parse_rewrite_plugin_flag plugin_flag =
+        MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
+    if (data->flags) {
+      switch (*(data->flags)) {
+        case EVENT_TRACKING_PARSE_REWRITE_NONE:
+          plugin_flag = MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
+          break;
+        case EVENT_TRACKING_PARSE_REWRITE_QUERY_REWRITTEN:
+          plugin_flag = MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
+          break;
+        case EVENT_TRACKING_PARSE_REWRITE_IS_PREPARED_STATEMENT:
+          plugin_flag = MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT;
+          break;
+        default:
+          assert(false);
+          break;
+      }
     }
 
     LEX_CSTRING rewritten_query{nullptr, 0};

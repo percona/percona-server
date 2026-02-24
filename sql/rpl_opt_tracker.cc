@@ -167,6 +167,7 @@ void Rpl_opt_tracker::worker() {
 
     mysql_mutex_lock(&LOCK_rpl_opt_tracker);
     if (m_stop_worker || thd->killed) {
+      mysql_mutex_unlock(&LOCK_rpl_opt_tracker);
       break;
     }
 
@@ -189,14 +190,13 @@ void Rpl_opt_tracker::worker() {
     }
 
     if (m_stop_worker || thd->killed) {
+      mysql_mutex_unlock(&LOCK_rpl_opt_tracker);
+      THD_EXIT_COND(thd, nullptr);
       break;
     }
     mysql_mutex_unlock(&LOCK_rpl_opt_tracker);
     THD_EXIT_COND(thd, nullptr);
   }
-
-  mysql_mutex_unlock(&LOCK_rpl_opt_tracker);
-  THD_EXIT_COND(thd, nullptr);
 
   thd->release_resources();
   thd->restore_globals();

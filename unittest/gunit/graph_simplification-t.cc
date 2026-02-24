@@ -33,6 +33,7 @@
 #include "sql/handler.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/graph_simplification.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
@@ -135,7 +136,7 @@ using NodeGuard = Scope_guard<DestroyNodes>;
     snprintf(alias, 20, "t%d", i + 1);
     table->alias = alias;
 
-    g->nodes.emplace_back(mem_root, table);
+    g->nodes.emplace_back(mem_root, table, CalculateReadSetWidth(table));
     g->graph.AddNode();
   }
 

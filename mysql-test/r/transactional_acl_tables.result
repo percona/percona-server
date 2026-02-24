@@ -734,15 +734,15 @@ DROP USER user2@localhost;
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
 DROP USER no_user@localhost;
-ERROR HY000: Operation DROP USER failed for 'no_user'@'localhost'
+ERROR HY000: Operation DROP USER failed for 'no_user'@'localhost' (User account does not exist)
 SHOW WARNINGS;
 Level	Code	Message
-Error	1396	Operation DROP USER failed for 'no_user'@'localhost'
+Error	1396	Operation DROP USER failed for 'no_user'@'localhost' (User account does not exist)
 CREATE USER user2@localhost, user3@localhost;
 DROP USER no_user@localhost, user3@localhost,
 no_user1@localhost, user2@localhost,
 no_user2@localhost;
-ERROR HY000: Operation DROP USER failed for 'no_user'@'localhost','no_user1'@'localhost','no_user2'@'localhost'
+ERROR HY000: Operation DROP USER failed for 'no_user'@'localhost' (User account does not exist),'no_user1'@'localhost' (User account does not exist),'no_user2'@'localhost' (User account does not exist)
 DROP USER user2@localhost, user3@localhost;
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
@@ -811,12 +811,12 @@ DROP USER user7@localhost;
 ####################################################################
 CREATE USER user2@localhost;
 CREATE USER user2@localhost;
-ERROR HY000: Operation CREATE USER failed for 'user2'@'localhost'
+ERROR HY000: Operation CREATE USER failed for 'user2'@'localhost' (User account already exists)
 CREATE USER user3@localhost, user2@localhost, user4@localhost;
-ERROR HY000: Operation CREATE USER failed for 'user3'@'localhost','user2'@'localhost'
+ERROR HY000: Operation CREATE USER failed for 'user3'@'localhost' (User account already exists),'user2'@'localhost' (User account already exists)
 SHOW WARNINGS;
 Level	Code	Message
-Error	1396	Operation CREATE USER failed for 'user3'@'localhost','user2'@'localhost'
+Error	1396	Operation CREATE USER failed for 'user3'@'localhost' (User account already exists),'user2'@'localhost' (User account already exists)
 SELECT user, host FROM mysql.user where user like 'user%';
 user	host
 user2	localhost
@@ -832,12 +832,12 @@ SELECT user, password_lifetime FROM mysql.user where USER like 'u_';
 user	password_lifetime
 u2	5
 ALTER USER u3@l PASSWORD EXPIRE INTERVAL 5 DAY;
-ERROR HY000: Operation ALTER USER failed for 'u3'@'l'
+ERROR HY000: Operation ALTER USER failed for 'u3'@'l' (User account does not exist)
 ALTER USER u3@l, u2@l, u4@l PASSWORD EXPIRE INTERVAL 7 DAY;
-ERROR HY000: Operation ALTER USER failed for 'u3'@'l','u4'@'l'
+ERROR HY000: Operation ALTER USER failed for 'u3'@'l' (User account does not exist),'u4'@'l' (User account does not exist)
 SHOW WARNINGS;
 Level	Code	Message
-Error	1396	Operation ALTER USER failed for 'u3'@'l','u4'@'l'
+Error	1396	Operation ALTER USER failed for 'u3'@'l' (User account does not exist),'u4'@'l' (User account does not exist)
 SELECT user, password_lifetime FROM mysql.user WHERE user LIKE 'u_';
 user	password_lifetime
 u2	5

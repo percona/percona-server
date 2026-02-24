@@ -41,7 +41,6 @@ class Named_pipe_listener {
   SECURITY_ATTRIBUTES *mp_sa_pipe_security;
   HANDLE m_pipe_handle;
   char m_pipe_path_name[512];
-  HANDLE h_connected_pipe;
   OVERLAPPED m_connect_overlapped;
 
  public:

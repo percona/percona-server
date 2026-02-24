@@ -29,12 +29,36 @@
 
 namespace cs::reader::codec::pb::example {
 
-/**
- * @brief A stringstream class that encodes a State object using
- * according to the protobuf specification.
- *
- */
-class stringstream : public std::basic_stringstream<char> {
+/// This was an experiment only. Do not use it.
+///
+/// Problems:
+///
+/// - This uses a non-standard serialization format for Gtid sets. This format
+///   is inefficient, and a decoder cannot distingiush the format from other
+///   formats.
+///
+/// - It has the function prototypes of a stream, but does not follow stream
+///   idioms; in particular, it reads until the end of the stream.
+///
+/// - It does not sanity-check the input size; large enough input will make it
+///   over-use memory.
+///
+/// - It inherits from std::basic_stringstream, which does not have a virtual
+///   destructor. This should not even be a new class; we should just have
+///   overloaded the operators on std::stringstream should have been overloaded.
+///
+/// - It duplicates the input, and uses a quadratic-time algorithm to do so.
+///
+/// - Not all error conditions have been tested.
+///
+/// The class also does not provide any new functionality. Use
+/// `mysql::strconv::encode(Gtid_set)` and
+/// `mysql::strconv::decode(Gtid_set)` instead.
+///
+/// It may be used by third parties, so we keep it until it has been deprecated
+/// during a major version.
+class [[deprecated("This class will be removed in the future.")]] stringstream
+    : public std::basic_stringstream<char> {
  public:
   stringstream() = default;
   virtual ~stringstream() = default;

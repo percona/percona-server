@@ -189,9 +189,6 @@ constexpr uint32_t DICT_POOL_PER_TABLE_HASH = 512;
 /** Identifies generated InnoDB foreign key names */
 static char dict_ibfk[] = "_ibfk_";
 
-/** Array to store table_ids of INNODB_SYS_* TABLES */
-static table_id_t dict_sys_table_id[SYS_NUM_SYSTEM_TABLES];
-
 /** Tries to find column names for the index and sets the col field of the
 index.
 @param[in]      table   table
@@ -233,7 +230,7 @@ have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
 do not hold latches (log.free_check_limit_lsn). */
-static void dict_persist_update_log_margin(void);
+static void dict_persist_update_log_margin();
 
 /** Removes a table object from the dictionary cache. */
 static void dict_table_remove_from_cache_low(
@@ -259,10 +256,6 @@ and unique key errors. Only created if !srv_read_only_mode */
 FILE *dict_foreign_err_file = nullptr;
 /* mutex protecting the foreign and unique error buffers */
 ib_mutex_t dict_foreign_err_mutex;
-
-/** SYS_ZIP_DICT and SYS_ZIP_DICT_COLS will be missing when upgrading
-mysql-5.7 to PS-8.0 */
-bool dict_upgrade_zip_dict_missing = false;
 
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
@@ -307,10 +300,10 @@ ulint dict_get_db_name_len(const char *name) /*!< in: table name in the form
 
 #ifndef UNIV_HOTBACKUP
 /** Reserves the dictionary system mutex for MySQL. */
-void dict_mutex_enter_for_mysql(void) { dict_sys_mutex_enter(); }
+void dict_mutex_enter_for_mysql() { dict_sys_mutex_enter(); }
 
 /** Releases the dictionary system mutex for MySQL. */
-void dict_mutex_exit_for_mysql(void) { dict_sys_mutex_exit(); }
+void dict_mutex_exit_for_mysql() { dict_sys_mutex_exit(); }
 
 /** Allocate and init a dict_table_t's stats latch.
 This function must not be called concurrently on the same table object.
@@ -508,6 +501,7 @@ void dict_table_stats_compute_unlock(dict_table_t *table) {
   mutex_exit(table->stats_compute_mutex);
 }
 
+#ifndef UNIV_DEBUG
 /** Try to drop any indexes after an aborted index creation.
  This can also be after a server kill during DROP INDEX. */
 static void dict_table_try_drop_aborted(
@@ -547,29 +541,8 @@ static void dict_table_try_drop_aborted(
   row_mysql_unlock_data_dictionary(trx);
   trx_free_for_background(trx);
 }
+#endif /* !UNIV_DEBUG */
 
-/** When opening a table,
- try to drop any indexes after an aborted index creation.
- Release the dict_sys->mutex. */
-static void dict_table_try_drop_aborted_and_mutex_exit(
-    dict_table_t *table, /*!< in: table (may be NULL) */
-    bool try_drop)       /*!< in: false if should try to
-                         drop indexes whose online creation
-                         was aborted */
-{
-  if (try_drop && table != nullptr && table->drop_aborted &&
-      table->get_ref_count() == 1 && table->first_index()) {
-    /* Attempt to drop the indexes whose online creation
-    was aborted. */
-    table_id_t table_id = table->id;
-
-    dict_sys_mutex_exit();
-
-    dict_table_try_drop_aborted(table, table_id, 1);
-  } else {
-    dict_sys_mutex_exit();
-  }
-}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Decrements the count of open handles to a table.
@@ -1092,15 +1065,11 @@ bool dict_table_col_in_clustered_key(
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inits the data dictionary module. */
-void dict_init(void) {
+void dict_init() {
   dict_operation_lock = static_cast<rw_lock_t *>(ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_operation_lock)));
 
-  dict_sys = static_cast<dict_sys_t *>(
-      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_sys)));
-
-  UT_LIST_INIT(dict_sys->table_LRU);
-  UT_LIST_INIT(dict_sys->table_non_LRU);
+  dict_sys = ut::new_withkey<dict_sys_t>(UT_NEW_THIS_FILE_PSI_KEY);
 
   mutex_create(LATCH_ID_DICT_SYS, &dict_sys->mutex);
 
@@ -1138,76 +1107,6 @@ void dict_move_to_mru(dict_table_t *table) /*!< in: table to move to MRU */
   UT_LIST_ADD_FIRST(dict_sys->table_LRU, table);
 
   ut_ad(dict_lru_validate());
-}
-
-/** Returns a table object and increment its open handle count.
- NOTE! This is a high-level function to be used mainly from outside the
- 'dict' module. Inside this directory dict_table_get_low
- is usually the appropriate function.
- @return table, NULL if does not exist */
-dict_table_t *dict_table_open_on_name(
-    const char *table_name,       /*!< in: table name */
-    bool dict_locked,             /*!< in: true=data dictionary locked */
-    bool try_drop,                /*!< in: true=try to drop any orphan
-                                  indexes after an aborted online
-                                  index creation */
-    dict_err_ignore_t ignore_err) /*!< in: error to be ignored when
-                                  loading a table definition */
-{
-  dict_table_t *table;
-  DBUG_TRACE;
-  DBUG_PRINT("dict_table_open_on_name", ("table: '%s'", table_name));
-
-  if (!dict_locked) {
-    dict_sys_mutex_enter();
-  }
-
-  ut_ad(table_name);
-  ut_ad(dict_sys_mutex_own());
-
-  std::string table_str(table_name);
-  /* Check and convert 5.7 table name. We always keep 8.0 format name in cache
-  during upgrade. */
-  if (dict_name::is_partition(table_name)) {
-    dict_name::rebuild(table_str);
-  }
-  table = dict_table_check_if_in_cache_low(table_str.c_str());
-
-  if (table == nullptr) {
-    table = dict_load_table(table_name, true, ignore_err);
-  }
-
-  ut_ad(!table || table->cached);
-
-  if (table != nullptr) {
-    if (ignore_err == DICT_ERR_IGNORE_NONE && table->is_corrupted()) {
-      /* Make life easy for drop table. */
-      dict_table_prevent_eviction(table);
-
-      if (!dict_locked) {
-        dict_sys_mutex_exit();
-      }
-
-      ib::info(ER_IB_MSG_175) << "Table " << table->name
-                              << " is corrupted. Please drop the table"
-                                 " and recreate it";
-      return nullptr;
-    }
-
-    if (table->can_be_evicted) {
-      dict_move_to_mru(table);
-    }
-
-    table->acquire();
-  }
-
-  ut_ad(dict_lru_validate());
-
-  if (!dict_locked) {
-    dict_table_try_drop_aborted_and_mutex_exit(table, try_drop);
-  }
-
-  return table;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2613,20 +2512,21 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
     ut_ad(field->col->ord_part == 1);
   }
 
-  new_index->stat_n_diff_key_vals = static_cast<uint64_t *>(mem_heap_zalloc(
+  new_index->stats.n_diff_key_vals = static_cast<uint64_t *>(mem_heap_zalloc(
       new_index->heap, dict_index_get_n_unique(new_index) *
-                           sizeof(*new_index->stat_n_diff_key_vals)));
+                           sizeof(*new_index->stats.n_diff_key_vals)));
 
-  new_index->stat_n_sample_sizes = static_cast<uint64_t *>(mem_heap_zalloc(
+  new_index->stats.n_sample_sizes = static_cast<uint64_t *>(mem_heap_zalloc(
       new_index->heap, dict_index_get_n_unique(new_index) *
-                           sizeof(*new_index->stat_n_sample_sizes)));
+                           sizeof(*new_index->stats.n_sample_sizes)));
 
-  new_index->stat_n_non_null_key_vals = static_cast<uint64_t *>(mem_heap_zalloc(
-      new_index->heap, dict_index_get_n_unique(new_index) *
-                           sizeof(*new_index->stat_n_non_null_key_vals)));
+  new_index->stats.n_non_null_key_vals =
+      static_cast<uint64_t *>(mem_heap_zalloc(
+          new_index->heap, dict_index_get_n_unique(new_index) *
+                               sizeof(*new_index->stats.n_non_null_key_vals)));
 
-  new_index->stat_index_size = 1;
-  new_index->stat_n_leaf_pages = 1;
+  new_index->stats.index_size = 1;
+  new_index->stats.n_leaf_pages = 1;
 
   new_index->table = table;
   new_index->table_name = table->name.m_name;
@@ -3989,7 +3889,7 @@ void dict_print_info_on_foreign_key_in_create_format(FILE *file, trx_t *trx,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Inits the structure for persisting dynamic metadata */
-void dict_persist_init(void) {
+void dict_persist_init() {
   dict_persist = static_cast<dict_persist_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*dict_persist)));
 
@@ -4014,7 +3914,7 @@ void dict_persist_init(void) {
 }
 
 /** Clear the structure */
-void dict_persist_close(void) {
+void dict_persist_close() {
   if (!dict_persist) return;
 
   ut::delete_(dict_persist->persisters);
@@ -4085,7 +3985,7 @@ static bool dict_table_apply_dynamic_metadata(
 
     } else {
       /* In some cases, we could only load some indexes
-      of a table but not all(See dict_load_indexes()).
+      of a table but not all (TODO: when is it reachable?).
       So we might not find it here */
       ib::info(ER_IB_MSG_184)
           << "Failed to find the index: " << index_id.m_index_id
@@ -4495,7 +4395,7 @@ void dict_table_set_corrupt_by_space(space_id_t space_id,
 }
 
 /** Inits dict_ind_redundant. */
-void dict_ind_init(void) {
+void dict_ind_init() {
   dict_table_t *table;
 
   /* create dummy table and index for REDUNDANT infimum and supremum */
@@ -4512,7 +4412,7 @@ void dict_ind_init(void) {
 }
 
 /** Frees dict_ind_redundant. */
-void dict_ind_free(void) {
+void dict_ind_free() {
   dict_table_t *table;
 
   table = dict_ind_redundant->table;
@@ -4760,7 +4660,7 @@ void dict_set_corrupted(dict_index_t *index [[maybe_unused]]) {}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Closes the data dictionary module. */
-void dict_close(void) {
+void dict_close() {
   if (dict_sys == nullptr) {
     /* This should only happen if a failure occurred
     during redo log processing. */
@@ -4831,7 +4731,7 @@ void dict_close(void) {
 
   ut_ad(dict_sys->size == 0);
 
-  ut::free(dict_sys);
+  ut::delete_(dict_sys);
   dict_sys = nullptr;
 }
 
@@ -5976,17 +5876,6 @@ void dict_sdi_remove_from_cache(space_id_t space_id, dict_table_t *sdi_table,
   }
 }
 
-/** @return true if table is InnoDB SYS_* table
-@param[in]      table_id        table id  */
-bool dict_table_is_system(table_id_t table_id) {
-  for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
-    if (table_id == dict_sys_table_id[i]) {
-      return (true);
-    }
-  }
-  return (false);
-}
-
 dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
                                      MDL_ticket **sdi_mdl) {
   /* Exclusive MDL always need trx context and is
@@ -6128,64 +6017,61 @@ void dict_validate_no_purge_rollback_threads() {
   ut_ad(!srv_thread_is_active(srv_threads.m_trx_recovery_rollback));
 }
 #endif /* UNIV_DEBUG */
+
+static void dict_sys_set_min_id_on_disc(row_id_t needed_id) {
+  ut_a_eq(needed_id % DICT_HDR_ROW_ID_WRITE_MARGIN, 0);
+
+  /* Margin less than global row_id is already on disc */
+  if (needed_id < dict_sys->row_id.load()) {
+    return;
+  }
+
+  dict_sys_mutex_enter();
+
+  auto seen_in_ram = dict_sys->row_id.load();
+
+  /* Margin less than seen_in_ram is already on disc */
+  while (seen_in_ram <= needed_id) {
+    /* Bump the in-memory value to the rounded one we need to store. This should
+    also pause threads in dict_sys_get_new_row_id, as we hold the mutex. This is
+    important that they are paused, because we don't want anyone to use such
+    high ids until we write to disc. (Note in case seen_in_ram == needed_id this
+    will succeed, too) */
+    if (dict_sys->row_id.compare_exchange_weak(seen_in_ram, needed_id)) {
+      /* so, at the moment dict_sys->row_id == needed_id, and we hold the mutex,
+      so this can't change. The situation here is analogous to that in
+      dict_sys_get_new_row_id when we hold the mutex and see the row_id % MARGIN
+      == 0. So we do the same thing: store it, then bump it in ram */
+      dict_sys->dict_hdr_flush_row_id();
+      dict_sys->row_id.store(needed_id + 1, std::memory_order_release);
+      break;
+    }
+  }
+
+  dict_sys_mutex_exit();
+}
+
+static void dict_sys_set_min_id_in_ram(row_id_t needed_id) {
+  auto seen_in_ram = dict_sys->row_id.load();
+  while (seen_in_ram < needed_id) {
+    /* Both seen_in_ram and needed_id will fall within same margin */
+    ut_a_eq(seen_in_ram / DICT_HDR_ROW_ID_WRITE_MARGIN,
+            needed_id / DICT_HDR_ROW_ID_WRITE_MARGIN);
+
+    if (dict_sys->row_id.compare_exchange_weak(seen_in_ram, needed_id)) {
+      return;
+    }
+  }
+}
+
+void dict_sys_set_min_next_row_id(row_id_t next_id) {
+  const auto previous_margin =
+      next_id - (next_id % DICT_HDR_ROW_ID_WRITE_MARGIN);
+
+  dict_sys_set_min_id_on_disc(previous_margin);
+  dict_sys_set_min_id_in_ram(next_id);
+}
 #endif /* !UNIV_HOTBACKUP */
-/** Get single compression dictionary id for the given
-(table id, column pos) pair.
-@param[in]	table_id	table id
-@param[in]	column_pos	column position
-@param[out]	dict_id		zip_dict id
-@retval	DB_SUCCESS		if OK
-@retval	DB_RECORD_NOT_FOUND	if not found */
-dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
-                                      ulint *dict_id) {
-  ut_ad(srv_is_upgrade_mode);
-  ut_ad(!mutex_own(&dict_sys->mutex));
-
-  trx_t *const trx = trx_allocate_for_background();
-  trx->op_info = "get zip dict id by composite key";
-  trx->dict_operation_lock_mode = RW_S_LATCH;
-  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
-
-  const dberr_t err = dict_create_get_zip_dict_id_by_reference(
-      table_id, column_pos, dict_id, trx);
-
-  trx_commit_for_mysql(trx);
-  trx->dict_operation_lock_mode = 0;
-  trx_free_for_background(trx);
-
-  return err;
-}
-
-/** Get compression dictionary info (name and data) for the given id.
-Allocates memory in name->str and data->str on success.
-Must be freed with mem_free().
-@param[in]	dict_id		dictionary id
-@param[out]	name		dictionary name
-@param[out]	name_len	dictionary name length
-@param[out]	data		dictionary data
-@param[out]	data_len	dictionary data lenght
-@retval	DB_SUCCESS		if OK
-@retval	DB_RECORD_NOT_FOUND	if not found */
-dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
-                                       ulint *name_len, char **data,
-                                       ulint *data_len) {
-  ut_ad(srv_is_upgrade_mode);
-  ut_ad(!mutex_own(&dict_sys->mutex));
-
-  trx_t *const trx = trx_allocate_for_background();
-  trx->op_info = "get zip dict name and data by id";
-  trx->dict_operation_lock_mode = RW_S_LATCH;
-  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
-
-  const dberr_t err = dict_create_get_zip_dict_info_by_id(
-      dict_id, name, name_len, data, data_len, trx);
-
-  trx_commit_for_mysql(trx);
-  trx->dict_operation_lock_mode = 0;
-  trx_free_for_background(trx);
-
-  return err;
-}
 
 /** Reads mysql.ibd's page0 from buffer if the tablespace is already loaded
 into Fil_system cache

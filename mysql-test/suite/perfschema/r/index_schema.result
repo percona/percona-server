@@ -4,7 +4,6 @@ where TABLE_SCHEMA = "performance_schema" and SEQ_IN_INDEX = 1
 order by TABLE_NAME COLLATE utf8mb3_general_ci, INDEX_NAME;
 TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	INDEX_TYPE	INDEX_COMMENT
 accounts	0	performance_schema	ACCOUNT	HASH	
-account_failed_login_lock_status	0	performance_schema	ACCOUNT	HASH	
 cond_instances	1	performance_schema	NAME	HASH	
 cond_instances	0	performance_schema	PRIMARY	HASH	
 data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	HASH	
@@ -132,6 +131,7 @@ table_handles	0	performance_schema	PRIMARY	HASH
 table_io_waits_summary_by_index_usage	0	performance_schema	OBJECT	HASH	
 table_io_waits_summary_by_table	0	performance_schema	OBJECT	HASH	
 table_lock_waits_summary_by_table	0	performance_schema	OBJECT	HASH	
+temporary_account_locks	0	performance_schema	ACCOUNT	HASH	
 threads	1	performance_schema	NAME	HASH	
 threads	0	performance_schema	PRIMARY	HASH	
 threads	1	performance_schema	PROCESSLIST_ACCOUNT	HASH	
@@ -151,8 +151,6 @@ where TABLE_SCHEMA = "performance_schema"
 TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	CARDINALITY	NULLABLE
 accounts	0	performance_schema	ACCOUNT	1	USER	NULL	YES
 accounts	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
-account_failed_login_lock_status	0	performance_schema	ACCOUNT	1	USER	NULL	YES
-account_failed_login_lock_status	0	performance_schema	ACCOUNT	2	HOST	NULL	YES
 cond_instances	1	performance_schema	NAME	1	NAME	NULL	
 cond_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
 data_locks	1	performance_schema	ENGINE_TRANSACTION_ID	1	ENGINE_TRANSACTION_ID	NULL	YES
@@ -369,6 +367,8 @@ table_io_waits_summary_by_table	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	Y
 table_lock_waits_summary_by_table	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	YES
 table_lock_waits_summary_by_table	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
 table_lock_waits_summary_by_table	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	YES
+temporary_account_locks	0	performance_schema	ACCOUNT	1	USER	NULL	
+temporary_account_locks	0	performance_schema	ACCOUNT	2	HOST	NULL	
 threads	1	performance_schema	NAME	1	NAME	NULL	
 threads	0	performance_schema	PRIMARY	1	THREAD_ID	NULL	
 threads	1	performance_schema	PROCESSLIST_ACCOUNT	1	PROCESSLIST_USER	NULL	YES

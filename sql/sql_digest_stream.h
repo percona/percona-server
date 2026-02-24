@@ -55,7 +55,7 @@ struct sql_digest_state {
     m_digest_storage.reset(token_array, length);
   }
 
-  inline bool is_empty() { return m_digest_storage.is_empty(); }
+  inline bool is_empty() const { return m_digest_storage.is_empty(); }
 };
 typedef struct sql_digest_state sql_digest_state;
 

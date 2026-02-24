@@ -1745,6 +1745,9 @@ static unique_ptr<Json_object> SetObjectMembers(
         } else if (path->aggregate().olap == CUBE_TYPE) {
           error |= AddMemberToObject<Json_boolean>(obj, "cube", true);
           description = "Group aggregate with cube: ";
+        } else if (path->aggregate().olap == GROUPING_SETS_TYPE) {
+          error |= AddMemberToObject<Json_boolean>(obj, "grouping sets", true);
+          description = "Group aggregate with grouping sets: ";
         } else {
           description = "Group aggregate: ";
         }

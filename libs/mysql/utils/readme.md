@@ -35,12 +35,19 @@ Code documentation: @ref GroupLibsMysqlUtils.
 
 This is a header-only library, containing various utility functions, such as:
 
-- bounded_arithmetic.h: multiplication and addition, capped at a max value
+- call_and_catch.h: protect function calls from exceptions, returning a status
+  instead.
+- char_cast.h: the function `char_cast`, which safely casts from pointers or
+  references of `unsigned char`, `char`, or `std::byte`, to pointers or
+  references of `char`. This is a subset of the `reinterpet_cast` operation
+  that is safe with respect to C++ aliasing rules.
 - concat.h: vararg function to concatenate many values to a string
 - deprecate_header.h: macro deprecating a header
+- is_same_object.h: predicate to determine if two references of possibly
+  unrelated types refer to the same object.
 - enumeration_utils.h: to_underlying (backported from C++23), to_enumeration
 - error.h: definition of Error - base class for (C++) error handling
-- is_specialization.h: utility to determine if a template is a specialization
-  of another.
+- forward_like.h: forward_like (backported from C++23)
 - return_status.h: enum { ok, error }
-- type_traits.h: general-purpose type traits and concepts
+- tuple_find.h: using type predicates to locate and count matching elements in
+  a tuple

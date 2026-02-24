@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 4/20/1996 Heikki Tuuri
  *******************************************************/
 
+#include <sql/sql_thd_internal_api.h>
 #include <sys/types.h>
 
 #include "btr0btr.h"
@@ -2941,6 +2942,10 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
 
       mtr_start(&mtr);
 
+      if (index->table->is_temporary()) {
+        mtr.set_log_mode(MTR_LOG_NO_REDO);
+      }
+
       search_mode &= ~BTR_MODIFY_LEAF;
 
       search_mode |= BTR_MODIFY_TREE;
@@ -3140,7 +3145,8 @@ and return. don't execute actual insert. */
 
   DBUG_TRACE;
 
-  if (!index->table->foreign_set.empty()) {
+  if (!thd_is_sql_fk_checks_enabled() && !index->table->foreign_set.empty()) {
+    DBUG_PRINT("fk", ("InnoDB FK on table %s", index->table->name.m_name));
     err = row_ins_check_foreign_constraints(index->table, index, entry, thr);
     if (err != DB_SUCCESS) {
       return err;
@@ -3240,7 +3246,9 @@ and return. don't execute actual insert. */
     }
   });
 
-  if (!index->table->foreign_set.empty()) {
+  if (!thd_is_sql_fk_checks_enabled() && !index->table->foreign_set.empty()) {
+    DBUG_PRINT("fk", ("InnoDB FK on table %s", index->table->name.m_name));
+
     err = row_ins_check_foreign_constraints(index->table, index, entry, thr);
     if (err != DB_SUCCESS) {
       return (err);

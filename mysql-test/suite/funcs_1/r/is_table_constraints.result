@@ -94,7 +94,6 @@ def	mysql	PRIMARY	mysql	time_zone_name
 def	mysql	PRIMARY	mysql	time_zone_transition
 def	mysql	PRIMARY	mysql	time_zone_transition_type
 def	mysql	PRIMARY	mysql	user
-def	performance_schema	ACCOUNT	performance_schema	account_failed_login_lock_status
 def	performance_schema	ACCOUNT	performance_schema	accounts
 def	performance_schema	PRIMARY	performance_schema	cond_instances
 def	performance_schema	PRIMARY	performance_schema	data_lock_waits
@@ -186,6 +185,7 @@ def	performance_schema	PRIMARY	performance_schema	table_handles
 def	performance_schema	OBJECT	performance_schema	table_io_waits_summary_by_index_usage
 def	performance_schema	OBJECT	performance_schema	table_io_waits_summary_by_table
 def	performance_schema	OBJECT	performance_schema	table_lock_waits_summary_by_table
+def	performance_schema	ACCOUNT	performance_schema	temporary_account_locks
 def	performance_schema	PRIMARY	performance_schema	threads
 def	performance_schema	PRIMARY	performance_schema	user_defined_functions
 def	performance_schema	PRIMARY	performance_schema	user_variables_by_thread

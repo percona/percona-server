@@ -6232,10 +6232,6 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value) const {
   return decimal_value;
 }
 
-struct Check_field_param {
-  const Field *field;
-};
-
 bool Field_string::compatible_field_size(uint field_metadata,
                                          Relay_log_info *rli_arg, uint16 mflags,
                                          int *order_var) const {

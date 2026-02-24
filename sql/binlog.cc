@@ -1161,6 +1161,12 @@ class binlog_cache_mngr {
   std::string m_incident;
 
  public:
+#ifndef NDEBUG
+  /// The number of times that the incident status has been set due to the
+  /// debug symbol binlog_inject_incident.
+  int m_injected_incident_count{0};
+#endif
+
   binlog_cache_mngr(ulong *ptr_binlog_stmt_cache_use_arg,
                     ulong *ptr_binlog_stmt_cache_disk_use_arg,
                     ulong *ptr_binlog_cache_use_arg,
@@ -1556,6 +1562,17 @@ int binlog_cache_data::write_event(Log_event *ev) {
   DBUG_TRACE;
 
   if (ev != nullptr) {
+    DBUG_EXECUTE_IF("binlog_inject_incident", {
+      // Set the incident status only once per session. Without this limitation,
+      // it usually gets sets first for the transaction cache and then, when
+      // writing the Incident_log_event, set again from the statement cache.
+      // When an incident occurs while writing an incident, it results in
+      // binlog_error_action, which is not our intention here.
+      if (m_cache_mngr.m_injected_incident_count == 0) {
+        set_incident();
+        ++m_cache_mngr.m_injected_incident_count;
+      }
+    });
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                     { DBUG_SET("+d,simulate_file_write_error"); });
 

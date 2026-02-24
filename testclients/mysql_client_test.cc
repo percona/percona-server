@@ -1486,6 +1486,82 @@ static void test_prepare() {
   mysql_stmt_close(stmt);
 }
 
+static void test_prepare_text_and_digest_dump() {
+  static const char *pfs_last_statement_query =
+      "SELECT THREAD_ID, EVENT_ID, EVENT_NAME, SQL_TEXT, DIGEST, DIGEST_TEXT, "
+      "MYSQL_ERRNO, MESSAGE_TEXT "
+      "FROM performance_schema.events_statements_history_long "
+      "WHERE THREAD_ID = ps_current_thread_id() ORDER BY EVENT_ID DESC;";
+
+  static const char *pfs_ps_instances_query =
+      "SELECT * from performance_schema.prepared_statements_instances;";
+
+  int rc = mysql_query(mysql, pfs_last_statement_query);
+  myquery(rc);
+
+  MYSQL_RES *result = mysql_use_result(mysql);
+  mytest(result);
+
+  (void)my_process_result_set(result);
+  mysql_free_result(result);
+
+  rc = mysql_query(mysql, pfs_ps_instances_query);
+  myquery(rc);
+
+  result = mysql_use_result(mysql);
+  mytest(result);
+
+  (void)my_process_result_set(result);
+  mysql_free_result(result);
+}
+
+static void test_prepare_text_and_digest() {
+  MYSQL_STMT *stmt;
+  int rc;
+  char query[MAX_TEST_QUERY_LENGTH];
+  myheader("test_prepare_text_and_digest");
+
+  /* prepare, broken text */
+  my_stpcpy(query, "broken statement that will not prepare");
+  stmt = mysql_simple_prepare(mysql, query);
+  mytest_r(stmt);
+
+  test_prepare_text_and_digest_dump();
+
+  /* prepare, valid syntax, but can not be prepared */
+  my_stpcpy(query, "SHOW WARNINGS");
+  stmt = mysql_simple_prepare(mysql, query);
+  mytest_r(stmt);
+
+  test_prepare_text_and_digest_dump();
+
+  /* prepare, valid syntax, query_text to capture */
+  my_stpcpy(query, "SELECT 'I am prepared' as marker;");
+  stmt = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt);
+
+  test_prepare_text_and_digest_dump();
+
+  verify_param_count(stmt, 0);
+  rc = mysql_stmt_execute(stmt);
+
+  check_execute(stmt, rc);
+
+  do {
+    rc = mysql_stmt_fetch(stmt);
+  } while (rc != MYSQL_NO_DATA);
+
+  test_prepare_text_and_digest_dump();
+
+  mysql_stmt_close(stmt);
+
+  test_prepare_text_and_digest_dump();
+
+  /* now fetch the results ..*/
+  rc = mysql_commit(mysql);
+  myquery(rc);
+}
+
 /* Test double comparison */
 
 static void test_double_compare() {
@@ -12082,8 +12158,6 @@ static void test_datetime_ranges() {
     printf("\n\n  Expected error: [%d] %s", mysql_stmt_errno(stmt),
            mysql_stmt_error(stmt));
 
-  mysql_stmt_close(stmt);
-
   stmt_text = "drop table t1";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
@@ -12091,6 +12165,8 @@ static void test_datetime_ranges() {
   stmt_text = "create table t1 (t time)";
   rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
   myquery(rc);
+
+  mysql_stmt_close(stmt);
 
   /*
     Again we reuse what we can from previous part of test.
@@ -21063,7 +21139,7 @@ static void test_wl13510() {
     2. Receive the response from the server which must be same as sent by the
        client.
     3. To verify the veracity of the string:
-       (a) Calculate the MD5 digest of the received the string
+       (a) Calculate the SHA2 digest of the received the string
        (b) Get the digest from the server directly for the similar length string
        (c) Test fails if the digests mismatch
   */
@@ -21136,9 +21212,9 @@ static void test_wl13510() {
     DIE_IF(!select_row[0]);
 
     /* Determine the digest of the string client has received. */
-    query.assign("SELECT MD5('");
+    query.assign("SELECT SHA2('");
     query.append(select_row[0]);
-    query.append("')");
+    query.append("', 256)");
 
     status = mysql_real_query_nonblocking(mysql_local, query.c_str(),
                                           (ulong)query.length());
@@ -21168,7 +21244,7 @@ static void test_wl13510() {
     fprintf(stdout, "\n digest : %s\n", select_row[0]);
 
     /* Get the digest directly from server */
-    query = "SELECT MD5(REPEAT('X'," + std::to_string(packet_size) + "))";
+    query = "SELECT SHA2(REPEAT('X'," + std::to_string(packet_size) + "), 256)";
     myquery(
         mysql_real_query(mysql_local, query.c_str(), (ulong)query.length()));
     digest_result = mysql_store_result(mysql_local);
@@ -23902,6 +23978,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bind_result", test_bind_result},
     {"test_prepare_simple", test_prepare_simple},
     {"test_prepare", test_prepare},
+    {"test_prepare_text_and_digest", test_prepare_text_and_digest},
     {"test_null", test_null},
     {"test_debug_example", test_debug_example},
     {"test_update", test_update},

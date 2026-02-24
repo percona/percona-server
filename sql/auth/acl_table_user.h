@@ -196,10 +196,6 @@ class Acl_user_attributes {
   Json_dom_ptr m_user_attributes_json;
 };
 
-// Forward and alias declarations
-using acl_table_user_writer_status =
-    std::pair<Table_op_error_code, struct timeval>;
-
 /**
   mysql.user table writer. It updates or drop a one single row from the table.
 */

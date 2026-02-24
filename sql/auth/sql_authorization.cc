@@ -553,10 +553,8 @@ static bool is_dynamic_privilege_registered(const std::string &privilege) {
 Granted_roles_graph *g_granted_roles = nullptr;
 Role_index_map *g_authid_to_vertex = nullptr;
 static char g_active_dummy_user[] = "active dummy user";
-extern bool initialized;
 extern Default_roles *g_default_roles;
-typedef boost::graph_traits<Granted_roles_graph>::adjacency_iterator
-    Role_adjacency_iterator;
+extern bool initialized;
 User_to_dynamic_privileges_map *g_dynamic_privileges_map = nullptr;
 const char *any_db = "*any*";  // Special symbol for check_access
 
@@ -3344,11 +3342,6 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
   return false;
 }
 
-bool has_dynamic_privilege_grant_option(Security_context *sctx,
-                                        std::string priv) {
-  return sctx->has_global_grant(priv.c_str(), priv.length()).second;
-}
-
 /**
   Search if an auth_id (search_for\@search_for_host) is granted either directly
   or indirectly to an auth_id (start\@start_host) or to one of the mandatory
@@ -4816,7 +4809,6 @@ void get_privilege_access_maps(
     Restrictions &restrictions, bool effective_grants) {
   DBUG_TRACE;
   assert(assert_acl_cache_read_lock(current_thd));
-  List_of_auth_id_refs activated_roles_ref;
   boost::graph_traits<Granted_roles_graph>::edge_iterator ei, ei_end;
   /* First we check the current users access control */
   // Get global access
@@ -4848,7 +4840,6 @@ void get_privilege_access_maps(
     generating an Acl_map.
   */
   std::vector<Role_id> mandatory_roles;
-  std::vector<Role_vertex_descriptor> mandatory_roles_vertex_ids;
   get_mandatory_roles(&mandatory_roles);
 
   /* Only check roles if there are any granted roles at all */

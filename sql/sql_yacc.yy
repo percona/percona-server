@@ -1485,6 +1485,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> MATERIALIZED_SYM      1236     /* MYSQL */
 
 %token<lexer.keyword> GUIDED_SYM      1237     /* MYSQL */
+%token<lexer.keyword> SETS_SYM        1238   /* SQL-1999-N */
+%token<lexer.keyword> VALIDATE_SYM    1239     /* MYSQL */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -1712,6 +1714,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <item_num> NUM_literal
         int64_literal
+        opt_validation_only
+        opt_validation_row_limit
 
 %type <item_list>
         when_list
@@ -1880,6 +1884,9 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
       alter_order_list opt_partition_clause opt_window_order_by_clause
+      empty_grouping_set
+
+%type<group_list_array> simple_grouping_expr_list grouping_set_list
 
 %type<tablesample> opt_tablesample_clause
 
@@ -9077,9 +9084,9 @@ standalone_alter_commands:
           {
             $$= NEW_PTN PT_alter_table_import_partition_tablespace(@$, $3);
           }
-        | SECONDARY_LOAD_SYM opt_use_partition opt_guided
+        | SECONDARY_LOAD_SYM opt_use_partition opt_validation_only opt_guided
           {
-            $$= NEW_PTN PT_alter_table_secondary_load(@$, $3, $2);
+            $$= NEW_PTN PT_alter_table_secondary_load(@$, $3, $4, $2);
           }
         | SECONDARY_UNLOAD_SYM opt_use_partition
           {
@@ -9106,6 +9113,29 @@ with_validation:
 all_or_alt_part_name_list:
           ALL                   { $$= nullptr; }
         | ident_string_list
+        ;
+
+opt_validation_only:
+          %empty { $$ = nullptr; }
+        | VALIDATE_SYM opt_validation_row_limit ONLY_SYM
+          {
+            $$ = $2;
+          }
+        ;
+
+opt_validation_row_limit:
+          %empty
+          {
+            $$ = NEW_PTN Item_uint(ULLONG_MAX);
+          }
+        | int64_literal ROWS_SYM
+          {
+            $$ = $1;
+          }
+        | ALL ROWS_SYM
+          {
+            $$ = NEW_PTN Item_uint(ULLONG_MAX);
+          }
         ;
 
 opt_guided:
@@ -10791,6 +10821,7 @@ simple_expr:
         | CAST_SYM '(' expr AT_SYM LOCAL_SYM AS cast_type opt_array_cast ')'
           {
             my_error(ER_NOT_SUPPORTED_YET, MYF(0), "AT LOCAL");
+            MYSQL_YYABORT;
           }
         | CAST_SYM '(' expr AT_SYM TIME_SYM ZONE_SYM opt_interval
           TEXT_STRING_literal AS DATETIME_SYM type_datetime_precision ')'
@@ -11015,20 +11046,33 @@ opt_jdv_table_tags:
 jdv_table_tag:
           INSERT_SYM           { $$ = jdv::DVT_INSERT; }
         | UPDATE_SYM           { $$ = jdv::DVT_UPDATE; }
-        | DELETE_SYM           { $$ = jdv::DVT_DELETE; }
-        ;
+        | DELETE_SYM           { $$ = jdv::DVT_DELETE; }      
+        | NO_SYM INSERT_SYM    { $$ = jdv::DVT_NOINSERT; }
+        | NO_SYM UPDATE_SYM    { $$ = jdv::DVT_NOUPDATE; }
+        | NO_SYM DELETE_SYM    { $$ = jdv::DVT_NODELETE; }
+        ;   
 
 jdv_table_tags:
         jdv_table_tag { $$= $1; }
-      | jdv_table_tags ',' jdv_table_tag
-        {
-          if ($$ & $3) {
-            my_error(ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS, MYF(0));
-            MYSQL_YYABORT;
+        | jdv_table_tags ',' jdv_table_tag
+          {
+            // Reject conflicting or duplicate tags
+            if (($$ & $3) ||
+            (
+              ($3 == jdv::DVT_INSERT && $$ & jdv::DVT_NOINSERT) ||
+              ($3 == jdv::DVT_NOINSERT && $$ & jdv::DVT_INSERT) ||
+              ($3 == jdv::DVT_UPDATE && $$ & jdv::DVT_NOUPDATE) ||
+              ($3 == jdv::DVT_NOUPDATE && $$ & jdv::DVT_UPDATE) ||
+              ($3 == jdv::DVT_DELETE && $$ & jdv::DVT_NODELETE) ||
+              ($3 == jdv::DVT_NODELETE && $$ & jdv::DVT_DELETE)
+            )) 
+            {
+                my_error(ER_JDV_INVALID_DEFINITION_WRONG_ANNOTATIONS, MYF(0));
+                MYSQL_YYABORT;
+            }
+            $$ |= $3;
           }
-          $$ |= $3;
-        }
-      ;
+        ;
 
 jdv_name_value_list:
         jdv_name_value
@@ -12927,17 +12971,21 @@ window_definition:
 
 opt_group_clause:
           %empty { $$= nullptr; }
-        | GROUP_SYM BY group_list olap_opt
+        | GROUP_SYM BY simple_grouping_expr_list olap_opt
           {
             $$= NEW_PTN PT_group(@$, $3, $4);
           }
-        | GROUP_SYM BY ROLLUP_SYM '(' group_list ')'
+        | GROUP_SYM BY ROLLUP_SYM '(' simple_grouping_expr_list ')'
           {
             $$= NEW_PTN PT_group(@$, $5, ROLLUP_TYPE);
           }
-        | GROUP_SYM BY CUBE_SYM '(' group_list ')'
+        | GROUP_SYM BY CUBE_SYM '(' simple_grouping_expr_list ')'
           {
             $$= NEW_PTN PT_group(@$, $5, CUBE_TYPE);
+          }
+        | GROUP_SYM BY GROUPING_SYM SETS_SYM '(' grouping_set_list ')'
+          {
+            $$= NEW_PTN PT_group(@$, $6, GROUPING_SETS_TYPE);
           }
         ;
 
@@ -12957,6 +13005,48 @@ group_list:
           }
         ;
 
+simple_grouping_expr_list:
+        group_list
+        {
+          $$.init(YYMEM_ROOT);
+          if ($$.push_back($1))
+            MYSQL_YYABORT; // OOM
+        };
+
+empty_grouping_set:
+        '(' ')'
+        {
+          PT_order_expr *empty_item = NEW_PTN PT_order_expr(@$, NEW_PTN Item_null(@$), ORDER_NOT_RELEVANT);
+          if (empty_item == nullptr)
+            MYSQL_YYABORT;
+
+          $$=NEW_PTN PT_order_list(@$);
+          if ($$ == nullptr)
+            MYSQL_YYABORT;
+          $$->push_back(empty_item);
+        };
+
+grouping_set_list:
+          grouping_set_list ',' '(' group_list ')'
+          {
+            if ($$.push_back($4))
+              MYSQL_YYABORT; // OOM
+          }
+        | grouping_set_list ',' empty_grouping_set
+          {
+            if ($$.push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        | '(' simple_grouping_expr_list ')'
+          {
+            $$=$2;
+          }
+        | empty_grouping_set
+          {
+            $$.init(YYMEM_ROOT);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          };
 
 olap_opt:
           %empty { $$= UNSPECIFIED_OLAP_TYPE; }
@@ -16430,6 +16520,7 @@ ident_keywords_unambiguous:
         | USER
         | USER_STATS_SYM
         | USE_FRM
+        | VALIDATE_SYM
         | VALIDATION_SYM
         | VALUE_SYM
         | VARIABLES

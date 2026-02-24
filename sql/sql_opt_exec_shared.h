@@ -175,8 +175,6 @@ struct Index_lookup {
   }
 };
 
-struct CACHE_FIELD;
-class QEP_operation;
 class Filesort;
 class Semijoin_mat_exec;
 

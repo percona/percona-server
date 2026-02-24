@@ -174,7 +174,7 @@ binlog.000001	472	Query	1	600	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY) EN
 binlog.000001	600	Anonymous_Gtid	1	679	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 binlog.000001	679	Query	1	754	BEGIN
 binlog.000001	754	Table_map	1	802	table_id: # (test.t2)
-binlog.000001	802	Write_rows	1	842	table_id: # flags: STMT_END_F
+binlog.000001	802	Write_rows	1	842	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
 binlog.000001	842	Query	1	918	COMMIT
 binlog.000001	918	Anonymous_Gtid	1	997	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 binlog.000001	997	Query	1	1079	BEGIN
@@ -183,7 +183,7 @@ binlog.000001	1185	Xid	1	1216	COMMIT /* XID */
 binlog.000001	1216	Anonymous_Gtid	1	1295	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 binlog.000001	1295	Query	1	1370	BEGIN
 binlog.000001	1370	Table_map	1	1418	table_id: # (test.t2)
-binlog.000001	1418	Write_rows	1	1458	table_id: # flags: STMT_END_F
+binlog.000001	1418	Write_rows	1	1458	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
 binlog.000001	1458	Query	1	1534	COMMIT
 binlog.000001	1534	Anonymous_Gtid	1	1613	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
 binlog.000001	1613	Query	1	1695	BEGIN

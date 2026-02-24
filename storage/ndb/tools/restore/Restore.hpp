@@ -405,7 +405,8 @@ class BackupFile {
 
   void setName(const char *path, const char *name);
 
-  BackupFile(void (*free_data_callback)(void *) = nullptr, void *ctx = nullptr);
+  BackupFile(void (*free_data_callback)(void *) = nullptr, void *ctx = nullptr,
+             Uint32 bufferSz = DEFAULT_BUFFER_SIZE);
   virtual ~BackupFile();
 
  public:
@@ -433,7 +434,7 @@ class BackupFile {
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code);
 #endif
-  static const Uint32 BUFFER_SIZE = 128 * 1024;
+  static const Uint32 DEFAULT_BUFFER_SIZE = 128 * 1024;
 
  private:
   void twiddle_atribute(const AttributeDesc *attr_desc,
@@ -494,7 +495,8 @@ class RestoreDataIterator : public BackupFile {
  public:
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
-                      void (*free_data_callback)(void *), void *);
+                      void (*free_data_callback)(void *), void *,
+                      Uint32 bufferSz);
   ~RestoreDataIterator() override;
 
   // Read data file fragment header
@@ -576,7 +578,7 @@ class RestoreLogIterator : public BackupFile {
    * not including log entry header.
    * No harm in require space for a few extra words to header too.
    */
-  static_assert(BackupFile::BUFFER_SIZE >=
+  static_assert(BackupFile::DEFAULT_BUFFER_SIZE >=
                 BackupFormat::LogFile::LogEntry::MAX_SIZE);
 
  private:

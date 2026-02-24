@@ -36,6 +36,7 @@
 #include <concepts>
 #include <limits>
 #include "my_byteorder.h"
+#include "mysql/serialization/byte_order_helpers.h"  // htole64
 
 /// @addtogroup GroupLibsMysqlSerialization
 /// @{

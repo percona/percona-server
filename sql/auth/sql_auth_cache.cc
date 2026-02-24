@@ -138,7 +138,6 @@ Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *acl_users = nullptr;
 Prealloced_array<ACL_PROXY_USER, ACL_PREALLOC_SIZE> *acl_proxy_users = nullptr;
 Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs = nullptr;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts = nullptr;
-Db_access_map acl_db_map;
 Default_roles *g_default_roles = nullptr;
 std::vector<Role_id> *g_mandatory_roles = nullptr;
 
@@ -436,35 +435,6 @@ void ACL_USER::Password_locked_state::set_parameters(
 }
 
 /**
-  Calculates how many days locked account should remain locked.
-
-  @param now_day  Current day number.
-
-  @retval -1 - if account lock should never expire.
-  @retval  0 - if account lock has expired.
-  @retval >0 - days remaining if account lock has not expired yet.
-*/
-long ACL_USER::Password_locked_state::get_remaining_days_locked(
-    long now_day) const {
-  /* We assume that account is locked. */
-  assert(m_daynr_locked != 0);
-
-  /* UNBOUNDED lock should never expire. */
-  if (m_daynr_locked > 0 && m_password_lock_time_days < 0) return -1;
-
-  if (now_day - m_daynr_locked < (long)m_password_lock_time_days) {
-    /*
-      Account lock time has not expired yet.
-      Return number of days remaining.
-    */
-    return ((long)m_password_lock_time_days) - (now_day - m_daynr_locked);
-  } else {
-    /* Account lock time has expired. */
-    return 0;
-  }
-}
-
-/**
   Updates the password locked state based on the time of day fetched from the
   THD
 
@@ -512,24 +482,25 @@ bool ACL_USER::Password_locked_state::update(THD *thd, bool successful_login,
     return true;
   };
 
-  long days_remaining = get_remaining_days_locked(now_day);
+  /* if the lock should never expire we stop here */
+  if (m_daynr_locked > 0 && m_password_lock_time_days < 0) return true;
 
-  if (days_remaining < 0) {
-    /* If the lock should never expire simply return true. */
+  /* check if the account is still to be locked */
+  if (now_day - m_daynr_locked < (long)m_password_lock_time_days) {
+    *ret_days_remaining =
+        ((long)m_password_lock_time_days) - (now_day - m_daynr_locked);
     return true;
-  } else if (days_remaining > 0) {
-    /*
-      The lock has not expired yet. Return number of days
-      remaining as out-parameter.
-    */
-    *ret_days_remaining = days_remaining;
-    return true;
-  } else {
-    /* Reset the account lock if the time has expired. */
+  }
+  /* reset the account lock if the time has expired */
+  if (now_day - m_daynr_locked >= (long)m_password_lock_time_days) {
     m_daynr_locked = 0;
     m_remaining_login_attempts = m_failed_login_attempts;
     return false;
   }
+
+  /* it should never get to here */
+  assert(false);
+  return false;
 }
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
@@ -2805,12 +2776,6 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value) {
   acl_proxy_users->insert(upper_bound, *new_value);
 }
 
-struct Free_grant_table {
-  void operator()(GRANT_TABLE *grant_table) const {
-    grant_table->~GRANT_TABLE();
-  }
-};
-
 /* Free grant array if possible */
 
 void grant_free(void) {
@@ -4457,3 +4422,22 @@ bool is_partial_revoke_exists(THD *thd) {
 }
 
 bool is_acl_inited() { return acl_cache_initialized; }
+
+size_t acl_users_size() {
+  assert(assert_acl_cache_read_lock(current_thd));
+
+  size_t size = (acl_users != nullptr) ? acl_users->size() : 0;
+
+  return size;
+}
+
+void acl_users_accept(ACL_USER_visitor *visitor) {
+  assert(assert_acl_cache_read_lock(current_thd));
+
+  if (acl_users != nullptr) {
+    for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
+         ++acl_user) {
+      visitor->visit(acl_user);
+    }
+  }
+}

@@ -38,9 +38,9 @@ SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 EXPLAIN
 -> Sort: t1.col1  (rows=3.6)
     -> Inner hash join (cast(t1.col1 as double) = cast(t2.col1 as double))  (rows=3.6)
-        -> Table scan on t1  (rows=6)
+        -> Table scan on t2  (rows=6)
         -> Hash
-            -> Table scan on t2  (rows=6)
+            -> Table scan on t1  (rows=6)
 
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 col1	col1
@@ -109,9 +109,9 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a=b;
 EXPLAIN
 -> Inner hash join (t1.a = cast(t2.b as datetime(6)))  (rows=3.6)
-    -> Table scan on t1  (rows=6)
+    -> Table scan on t2  (rows=6)
     -> Hash
-        -> Table scan on t2  (rows=6)
+        -> Table scan on t1  (rows=6)
 
 SELECT * FROM t1, t2 WHERE a=b;
 a	b
@@ -121,9 +121,9 @@ Warning	4095	Delimiter '#' in position 4 in datetime value '2001#01#01' at row 1
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a<=>b;
 EXPLAIN
 -> Inner hash join (t1.a <=> cast(t2.b as datetime(6)))  (rows=3.6)
-    -> Table scan on t1  (rows=6)
+    -> Table scan on t2  (rows=6)
     -> Hash
-        -> Table scan on t2  (rows=6)
+        -> Table scan on t1  (rows=6)
 
 SELECT * FROM t1, t2 WHERE a<=>b;
 a	b
@@ -859,9 +859,9 @@ EXPLAIN
             -> Inner hash join (no condition)  (rows=10000)
                 -> Inner hash join (no condition)  (rows=1000)
                     -> Inner hash join (no condition)  (rows=100)
-                        -> Table scan on t1  (rows=10)
+                        -> Table scan on t2  (rows=10)
                         -> Hash
-                            -> Table scan on t2  (rows=10)
+                            -> Table scan on t1  (rows=10)
                     -> Hash
                         -> Table scan on t3  (rows=10)
                 -> Hash
@@ -1002,10 +1002,10 @@ EXPLAIN FORMAT=tree SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
 EXPLAIN
 -> Inner hash join (no condition)  (rows=10)
-    -> Table scan on t2  (rows=5)
+    -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=2)
+        -> Index range scan on t1 using mv_idx over ('1' MEMBER OF (json_extract(col_json,_utf8mb4'$[*]')))  (rows=2)
     -> Hash
-        -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=2)
-            -> Index range scan on t1 using mv_idx over ('1' MEMBER OF (json_extract(col_json,_utf8mb4'$[*]')))  (rows=2)
+        -> Table scan on t2  (rows=5)
 
 SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
@@ -1153,9 +1153,9 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
 -> Inner hash join (t1.col1 = t2.col1)  (rows=0.1)
-    -> Table scan on t1  (rows=1)
+    -> Table scan on t2  (rows=1)
     -> Hash
-        -> Table scan on t2  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 col1	col1
@@ -1182,9 +1182,9 @@ Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will 
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
 -> Inner hash join (t1.col1 = t2.col1)  (rows=0.1)
-    -> Table scan on t1  (rows=1)
+    -> Table scan on t2  (rows=1)
     -> Hash
-        -> Table scan on t2  (rows=1)
+        -> Table scan on t1  (rows=1)
 
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 col1	col1
@@ -4790,9 +4790,9 @@ EXPLAIN
                 -> Table scan on <temporary>  (rows=5) (never executed)
                     -> Aggregate using temporary table  (rows=5) (never executed)
                         -> Inner hash join (no condition), extra conditions: (x1.b < x2.b)  (rows=133) (never executed)
-                            -> Table scan on x1  (rows=20) (never executed)
+                            -> Table scan on x2  (rows=20) (never executed)
                             -> Hash
-                                -> Table scan on x2  (rows=20) (never executed)
+                                -> Table scan on x1  (rows=20) (never executed)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1 WHERE b IN
 (SELECT c FROM t1 x2 WHERE b>0) AND x1.c*2<0;
@@ -4844,3 +4844,56 @@ EXPLAIN
 
 DROP TABLE large_tab;
 DROP TABLE small_tab;
+#
+# Bug#38385568	Hypergraph: inefficient join order for hash join
+#
+CREATE TABLE narrow (a INT);
+CREATE TABLE wide (a INT, c VARCHAR(2048));
+INSERT INTO narrow
+WITH RECURSIVE qn(n) AS (
+SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n < 256
+)
+SELECT n FROM qn;
+INSERT INTO wide SELECT a, REPEAT('X', 2048) FROM narrow LIMIT 240;
+ANALYZE TABLE narrow,wide;
+Table	Op	Msg_type	Msg_text
+test.narrow	analyze	status	OK
+test.wide	analyze	status	OK
+# Use 'narrow' as the build-relation, since that is smaller.
+EXPLAIN FORMAT=TREE SELECT wide.c FROM narrow,wide WHERE narrow.a=wide.a;
+EXPLAIN
+-> Inner hash join (narrow.a = wide.a)  (...)
+    -> Table scan on wide  (...)
+    -> Hash
+        -> Table scan on narrow  (...)
+
+# Use 'wide' as the build-relation, since that is smaller.
+EXPLAIN FORMAT=TREE SELECT 1 FROM narrow,wide WHERE narrow.a=wide.a;
+EXPLAIN
+-> Inner hash join (narrow.a = wide.a)  (...)
+    -> Table scan on narrow  (...)
+    -> Hash
+        -> Table scan on wide  (...)
+
+DROP TABLE narrow,wide;
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @old_threshold = @@session.secondary_engine_cost_threshold;
+SET secondary_engine_cost_threshold = 0;
+CREATE TABLE t1 (x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET SESSION OPTIMIZER_TRACE="enabled=on";
+# We should only propose one join order to a secondary engine.
+SELECT 1 FROM t1 x1 JOIN t1 x2 ON x1.x=x2.x;
+1
+SELECT REGEXP_SUBSTR(trace, "- [{]HASH_JOIN",1,1,'n') IS NULL first,
+REGEXP_SUBSTR(trace, "- [{]HASH_JOIN",1,2,'n') IS NULL second
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+first	second
+0	1
+SET SESSION OPTIMIZER_TRACE="enabled=off";
+DROP TABLE t1;
+UNINSTALL PLUGIN mock;
+SET @@session.secondary_engine_cost_threshold = @old_threshold;

@@ -33,7 +33,7 @@
 #include "mysql/binlog/event/compression/zstd_dec.h"
 #include "mysql/utils/concat.h"
 
-using mysql::utils::concat;
+using mysql::utils::throwing::concat;
 
 namespace mysql::binlog::event::compression::unittests {
 

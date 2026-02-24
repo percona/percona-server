@@ -195,7 +195,7 @@ static const ErrStruct errArray[] = {
     {NDBD_EXIT_AFS_ALREADY_OPEN, XIE, "File has already been opened"},
 
     {NDBD_EXIT_AFS_ENVIRONMENT, XIE, "Environment error using file"},
-    {NDBD_EXIT_AFS_TEMP_NO_ACCESS, XIE, "Temporary on access to file"},
+    {NDBD_EXIT_AFS_TEMP_NO_ACCESS, XIE, "Temporary error on access to file"},
     {NDBD_EXIT_AFS_DISK_FULL, XFF, "The file system is full"},
     {NDBD_EXIT_AFS_PERMISSION_DENIED, XCE,
      "Received permission denied for file"},

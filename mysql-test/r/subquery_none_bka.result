@@ -1836,13 +1836,12 @@ Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `te
 drop table t1,t2;
 create table t1 (a int);
 insert into t1 values (1);
-explain select benchmark(1000, (select a from t1 where a=sha(rand())));
+explain select benchmark(1000, (select a from t1 where a=sha2(rand(),256)));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Warning	1287	'SHA1' is deprecated and will be removed in a future release. Please use SHA2 instead
-Note	1003	/* select#1 */ select benchmark(1000,(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (cast(`test`.`t1`.`a` as double) = cast(sha(rand()) as double)))) AS `benchmark(1000, (select a from t1 where a=sha(rand())))`
+Note	1003	/* select#1 */ select benchmark(1000,(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (cast(`test`.`t1`.`a` as double) = cast(sha2(rand(),256) as double)))) AS `benchmark(1000, (select a from t1 where a=sha2(rand(),256)))`
 drop table t1;
 create table t1(id int);
 create table t2(id int);

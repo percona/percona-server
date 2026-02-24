@@ -571,8 +571,7 @@ bool UpdateReferencesToMaterializedItems(
       // rollup functions, so we get inconsistency.
       //
       // Thus, unwrap the remaining layer here.
-      const auto replace_functor = [](Item *sub_item, Item *,
-                                      unsigned) -> ReplaceResult {
+      const auto replace_functor = [](Item *sub_item) -> ReplaceResult {
         if (is_rollup_group_wrapper(sub_item)) {
           return {ReplaceResult::REPLACE, unwrap_rollup_group(sub_item)};
         } else {

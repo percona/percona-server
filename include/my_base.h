@@ -421,7 +421,11 @@ enum ha_extra_function {
   */
   HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER,
   /* Disable and free unique record filter. */
-  HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER
+  HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER,
+  /* Enable locking read. Used for foreign key check */
+  HA_EXTRA_ENABLE_LOCKING_RECORD,
+  /* Reset locking read. */
+  HA_EXTRA_RESET_LOCKING_RECORD
 };
 
 /* Compatible option, to be deleted in 6.0 */
@@ -841,7 +845,7 @@ is the global server default. */
   have been disabled.
 
   The most important parameters set here is records per key on
-  all indexes. block_size and primar key ref_length.
+  all indexes. block_size and primary key ref_length.
 
   For each index there is an array of rec_per_key.
   As an example if we have an index with three attributes a,b and c
@@ -887,6 +891,13 @@ is the global server default. */
   also when only HA_STATUS_VARIABLE but it won't be used.
 */
 #define HA_STATUS_VARIABLE_EXTRA 128
+/*
+  Get the same statistics as HA_STATUS_CONST, but only if those statistics
+  where updated since open_table_for_share i.e. by the background statistics
+  thread. Do not ask for HA_STATUS_CONST otherwise. This way the optimizer can
+  make sure its statistics are always up-to-date with engine ones.
+*/
+#define HA_STATUS_CONST_WHEN_UPDATED 256
 
 /*
   Errorcodes given by handler functions

@@ -43,6 +43,7 @@ ENDIF()
 
 SET(TESTS
   #example
+  dict0boot
   fil_path
   fts0vlc
   ha_innodb

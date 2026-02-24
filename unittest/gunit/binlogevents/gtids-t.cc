@@ -26,6 +26,11 @@
 #include <string>
 
 #include "mysql/gtid/gtid.h"
+
+// Suppress the deprecation warning for gtidset.h, because this tests the
+// deprecated functionality. When we remove the feature, remove this entire
+// file.
+#define NO_DEPRECATION_WARNING_FOR_HEADER_GTIDSET_H
 #include "mysql/gtid/gtidset.h"
 
 namespace mysql::gtid::unittests {

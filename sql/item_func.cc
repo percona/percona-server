@@ -748,6 +748,21 @@ void Item_func::update_used_tables() {
   }
 }
 
+void Item_func::raise_temporal_overflow(const char *type_name) {
+  THD *thd = current_thd;
+  char buf[256];
+  String str(buf, sizeof(buf), system_charset_info);
+  str.length(0);
+  print(thd, &str, QT_NO_DATA_EXPANSION);
+  str.append('\0');
+  push_warning_printf(
+      thd, Sql_condition::SL_WARNING, ER_TEMPORAL_FUNCTION_OVERFLOW,
+      ER_THD(thd, ER_TEMPORAL_FUNCTION_OVERFLOW), type_name, str.ptr());
+  if (!thd->is_error()) {
+    null_value = true;
+  }
+}
+
 void Item_func::print(const THD *thd, String *str,
                       enum_query_type query_type) const {
   str->append(func_name());
@@ -5936,27 +5951,31 @@ longlong Item_func_benchmark::val_int() {
     case REAL_RESULT:
       for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_real();
+        if (thd->is_error()) return error_int();
       }
       break;
     case INT_RESULT:
       for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_int();
+        if (thd->is_error()) return error_int();
       }
       break;
     case STRING_RESULT:
       for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_str(&tmp);
+        if (thd->is_error()) return error_int();
       }
       break;
     case DECIMAL_RESULT:
       for (ulonglong loop = 0; loop < loop_count && !thd->killed; loop++) {
         (void)args[1]->val_decimal(&tmp_decimal);
+        if (thd->is_error()) return error_int();
       }
       break;
     case ROW_RESULT:
     default:
       // This case should never be chosen
-      assert(0);
+      assert(false);
       return 0;
   }
   return 0;

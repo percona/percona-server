@@ -252,6 +252,9 @@ class Persisted_variables_cache final {
   /** Helper function to handle changes in option type */
   void handle_option_type_change();
 
+  /** Remove persisted variable from all collections. */
+  void remove_persisted_variable_from_all(const char *name);
+
  private:
   /* Helper functions for file IO */
   void clear_sensitive_blob_and_iv();

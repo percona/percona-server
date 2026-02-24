@@ -7806,7 +7806,7 @@ bool Item::send(Protocol *protocol, String *buffer) {
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_JSON: {
       const String *res = val_str(buffer);
-      assert(null_value == (res == nullptr));
+      if (current_thd->is_error()) return true;
       if (res != nullptr)
         return protocol->store_string(res->ptr(), res->length(),
                                       res->charset());

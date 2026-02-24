@@ -99,6 +99,7 @@
 #include "sql/sql_delete.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_foreign_key_constraint.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -1002,6 +1003,19 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             continue;
           }
 
+          if (use_sql_fk_checks_for_table(thd, table)) {
+            if (check_all_child_fk_ref(thd, table,
+                                       enum_fk_dml_type::FK_UPDATE) ||
+                check_all_parent_fk_ref(thd, table,
+                                        enum_fk_dml_type::FK_UPDATE)) {
+              if (thd->is_error()) {
+                error = 1;
+                break;
+              }
+              // continue when IGNORE clause is used.
+              continue;
+            }
+          }
           if (will_batch) {
             /*
               Typically a batched handler can execute the batched jobs when:
@@ -2575,6 +2589,19 @@ bool UpdateRowsIterator::DoImmediateUpdatesAndBufferRowIds(
           continue;
         }
 
+        if (use_sql_fk_checks_for_table(thd(), table)) {
+          if (check_all_child_fk_ref(thd(), table,
+                                     enum_fk_dml_type::FK_UPDATE) ||
+              check_all_parent_fk_ref(thd(), table,
+                                      enum_fk_dml_type::FK_UPDATE)) {
+            if (thd()->is_error()) {
+              return true;
+            }
+            // continue when IGNORE clause is used.
+            continue;
+          }
+        }
+
         if (m_updated_rows == 0) {
           /*
             Inform the main table that we are going to update the table even
@@ -2870,6 +2897,17 @@ bool UpdateRowsIterator::DoDelayedUpdates(bool *trans_safe,
           if (thd()->is_error()) goto err;
           // continue when IGNORE clause is used.
           continue;
+        }
+
+        if (use_sql_fk_checks_for_table(thd(), table)) {
+          if (check_all_child_fk_ref(thd(), table,
+                                     enum_fk_dml_type::FK_UPDATE) ||
+              check_all_parent_fk_ref(thd(), table,
+                                      enum_fk_dml_type::FK_UPDATE)) {
+            if (thd()->is_error()) goto err;
+            // continue when IGNORE clause is used.
+            continue;
+          }
         }
 
         local_error =

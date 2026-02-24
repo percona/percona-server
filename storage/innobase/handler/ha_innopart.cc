@@ -2900,26 +2900,6 @@ int ha_innopart::discard_or_import_tablespace(bool discard,
   return error;
 }
 
-/** This function reads zip dict-related info from the base class.
-@param    thd          Thread handler
-@param    part_name    Must be always NULL.
-*/
-void ha_innopart::upgrade_update_field_with_zip_dict_info(
-    THD *thd, const char *part_name) {
-  DBUG_ENTER("ha_innopart::upgrade_update_field_with_zip_dict_info");
-  char partition_name[FN_REFLEN];
-  bool res = get_first_partition_name(
-      thd, this, table_share->normalized_path.str,
-      table_share->partition_info_str, table_share->partition_info_str_len,
-      partition_name);
-  if (res) {
-    ut_ad(0);
-    DBUG_VOID_RETURN;
-  }
-
-  ha_innobase::upgrade_update_field_with_zip_dict_info(thd, partition_name);
-  DBUG_VOID_RETURN;
-}
 
 /** Compare key and rowid.
 Helper function for sorting records in the priority queue.
@@ -3482,7 +3462,7 @@ ha_rows ha_innopart::estimate_rows_upper_bound() {
     m_prebuilt->table = m_part_share->get_table_part(i);
     index = m_prebuilt->table->first_index();
 
-    stat_n_leaf_pages = index->stat_n_leaf_pages;
+    stat_n_leaf_pages = index->stats.n_leaf_pages;
 
     ut_ad(stat_n_leaf_pages > 0);
 
@@ -3562,7 +3542,7 @@ in various fields of the handle object.
 @param[in]      is_analyze      True if called from "::analyze()".
 @return HA_ERR_* error code or 0. */
 int ha_innopart::info_low(uint flag, bool is_analyze) {
-  dict_table_t *ib_table;
+  dict_table_t *ib_table = nullptr;
   uint64_t max_rows = 0;
   uint biggest_partition = 0;
   int error = 0;
@@ -3746,7 +3726,13 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
     }
   }
 
-  if ((flag & HA_STATUS_CONST) != 0) {
+  bool proactively_update_const =
+      !is_analyze && (flag & HA_STATUS_CONST_WHEN_UPDATED);
+
+  /* Find which partition is the biggest. It is needed both for constant
+  statistics and for proactive check whether constant statistics where
+  updated. */
+  if ((flag & HA_STATUS_CONST) != 0 || proactively_update_const) {
     /* Find max rows and biggest partition. */
     for (uint i = 0; i < m_tot_parts; i++) {
       /* Skip partitions from above. */
@@ -3760,6 +3746,21 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
       }
     }
     ib_table = m_part_share->get_table_part(biggest_partition);
+  }
+
+  /* Piggyback fetching constant statistics when it has been updated and
+  up-to-date constant statistics where requested. */
+  if (proactively_update_const && ib_table != nullptr &&
+      ib_table->stats_updated.exchange(false)) {
+    flag |= HA_STATUS_CONST;
+  }
+
+  if ((flag & HA_STATUS_CONST) != 0) {
+    /* Constant statistics will be copied to the table. So subsequent calls
+    with HA_STATUS_CONST_WHEN_UPDATED do not have to repeat it unless
+    statistics were updated in the meantime. */
+    ib_table->stats_updated.store(false);
+
     /* Verify the number of index in InnoDB and MySQL
     matches up. If m_prebuilt->clust_index_was_generated
     holds, InnoDB defines GEN_CLUST_INDEX internally. */

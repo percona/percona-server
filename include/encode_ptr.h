@@ -72,7 +72,6 @@ struct EVP_MD_CTX_deleter {
 
 using BIO_ptr = std::unique_ptr<BIO, BIO_deleter>;
 using X509_ptr = std::unique_ptr<X509, X509_deleter>;
-using ASN1_TIME_ptr = std::unique_ptr<ASN1_TIME, ASN1_TIME_deleter>;
 using EVP_PKEY_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEY_deleter>;
 using EVP_MD_CTX_ptr = std::unique_ptr<EVP_MD_CTX, EVP_MD_CTX_deleter>;
 

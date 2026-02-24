@@ -92,7 +92,6 @@
 #include "router_config.h"
 #include "routing_guidelines/routing_guidelines.h"
 #include "scope_guard.h"
-#include "sha1.h"  // compute_sha1_hash() from mysql's include/
 IMPORT_LOG_FUNCTIONS()
 
 #include "mysqlrouter/cluster_aware_session.h"
@@ -2949,8 +2948,9 @@ void ConfigGenerator::give_grants_to_users(const std::string &new_accounts) {
   // give GRANTs to new accounts
   if (!new_accounts.empty()) {
     // run GRANT stantements
+    assert(schema_version_);
     const std::vector<std::string> statements =
-        metadata_->get_grant_statements(new_accounts);
+        metadata_->get_grant_statements(*schema_version_, new_accounts);
     for (const auto &s : statements) {
       try {
         mysql_->execute(s);  // throws MySQLSession::Error, std::logic_error

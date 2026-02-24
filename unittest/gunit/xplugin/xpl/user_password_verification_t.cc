@@ -26,7 +26,6 @@
 #include <memory>
 
 #include "mysql_com.h"  // NOLINT(build/include_subdir)
-#include "sha1.h"       // for SHA1_HASH_SIZE NOLINT(build/include_subdir)
 
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/native_plain_verification.h"
@@ -36,6 +35,7 @@
 #include "unittest/gunit/xplugin/xpl/mock/sha256_password_cache.h"
 
 #define PVERSION41_CHAR '*'
+#define SHA1_HASH_SIZE 20 /* Hash size in bytes */
 
 // stub function just to make it buildable
 void scramble(char *, const char *, const char *) {}

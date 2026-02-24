@@ -293,6 +293,7 @@ extern char *my_bind_addr_str;
 extern char *my_admin_bind_addr_str;
 extern uint mysqld_admin_port;
 extern bool listen_admin_interface_in_separate_thread;
+extern bool container_aware;
 extern ulonglong server_memory;
 extern char glob_hostname[HOSTNAME_LENGTH + 1];
 extern char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
@@ -412,6 +413,7 @@ extern char *opt_protocol_compression_algorithms;
 /** The size of the host_cache. */
 extern uint host_cache_size;
 extern ulong log_error_verbosity;
+extern bool innodb_native_foreign_keys;
 
 extern char *utility_user;
 extern char *utility_user_password;

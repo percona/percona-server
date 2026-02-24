@@ -954,13 +954,13 @@ SELECT ADDTIME('500:00:00', '416:40:00');
 ADDTIME('500:00:00', '416:40:00')
 838:59:59
 Warnings:
-Warning	1441	Datetime function: add_time field overflow
+Warning	6527	TIME value is out of range in 'addtime('500:00:00','416:40:00')'
 SELECT ADDTIME('916:40:00', '416:40:00');
 ADDTIME('916:40:00', '416:40:00')
 838:59:59
 Warnings:
 Warning	1292	Truncated incorrect time value: '916:40:00'
-Warning	1441	Datetime function: add_time field overflow
+Warning	6527	TIME value is out of range in 'addtime('916:40:00','416:40:00')'
 SELECT SUBTIME('916:40:00', '416:40:00');
 SUBTIME('916:40:00', '416:40:00')
 422:19:59
@@ -971,7 +971,7 @@ SUBTIME('-916:40:00', '416:40:00')
 -838:59:59
 Warnings:
 Warning	1292	Truncated incorrect time value: '-916:40:00'
-Warning	1441	Datetime function: add_time field overflow
+Warning	6527	TIME value is out of range in 'subtime('-916:40:00','416:40:00')'
 SELECT MAKETIME(916,0,0);
 MAKETIME(916,0,0)
 838:59:59
@@ -1932,7 +1932,7 @@ timestampadd(quarter,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
 NULL
 Warnings:
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05 06:32:20.859724' + interval 1.212208e+308 quarter)'
 SELECT
 timestampadd(month ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
@@ -1944,7 +1944,7 @@ timestampadd(week,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
 NULL
 Warnings:
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05 06:32:20.859724' + interval 1.212208e+308 week)'
 SELECT
 timestampadd(day ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
@@ -1970,7 +1970,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '1.212208'
 Warning	1292	Truncated incorrect DECIMAL value: '99999999999999999999999999999999999999999999999999999999999999999'
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05 06:32:20.859724' + interval 1.212208e+308 second)'
 SELECT
 timestampadd(microsecond ,1.212208e+308,'1995-01-05 06:32:20.859724') as result;
 result
@@ -1982,27 +1982,27 @@ date_add('1995-01-05', INTERVAL '9223372036854775807-02' YEAR_MONTH) as result;
 result
 NULL
 Warnings:
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05' + interval '9223372036854775807-02' year_month)'
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775808-02' YEAR_MONTH) as result;
 result
 NULL
 Warnings:
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05' + interval '9223372036854775808-02' year_month)'
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775808-02' DAY) as result;
 result
 NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '9223372036854775808-02'
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05' + interval '9223372036854775808-02' day)'
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775808-02' WEEK) as result;
 result
 NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '9223372036854775808-02'
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05' + interval '9223372036854775808-02' week)'
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775808-02' SECOND) as result;
 result
@@ -2010,7 +2010,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808-02'
 Warning	1292	Truncated incorrect DECIMAL value: '9223372036854775808'
-Warning	1441	Datetime function: date_add_interval field overflow
+Warning	6527	DATETIME value is out of range in '('1995-01-05' + interval '9223372036854775808-02' second)'
 SELECT
 date_add('1995-01-05', INTERVAL '9223372036854775700-02' YEAR_MONTH) as result;
 result

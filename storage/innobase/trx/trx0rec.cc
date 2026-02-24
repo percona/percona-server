@@ -1031,8 +1031,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
   const ulint bytes_changed = upd_t::get_total_modified_bytes(*bdiff_v);
 
   /* Whether the update to the LOB can be considered as a small change. */
-  const bool small_change =
-      (bytes_changed <= lob::ref_t::LOB_SMALL_CHANGE_THRESHOLD);
+  const bool small_change = lob::ref_t::is_small_change(bytes_changed, ref);
 
   if (!small_change) {
     /* This is not a small change.  So write the size of the vector as

@@ -6,4 +6,4 @@ loose-thread_pool_size= 2
 loose-thread_pool_max_threads= 2 
 
 [client]
-connect-timeout=  2 
+connect-timeout=  10

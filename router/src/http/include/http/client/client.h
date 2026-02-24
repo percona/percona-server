@@ -82,6 +82,8 @@ class HTTP_CLIENT_EXPORT Client {
   const Statistics &statistics() const;
   class CallbacksImpl;
 
+  static Client::Endpoint get_endpoint_from(const http::base::Uri &url);
+
  private:
   void start_http_flow();
 

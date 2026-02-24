@@ -629,8 +629,8 @@ class Trx_by_id_with_min {
     }
   }
   void erase(trx_id_t trx_id) {
-    ut_ad(1 == m_by_id.count(trx_id));
-    m_by_id.erase(trx_id);
+    ut_d(const auto erased =) m_by_id.erase(trx_id);
+    ut_ad_eq(erased, 1);
     if (m_min_id.load(std::memory_order_relaxed) == trx_id) {
       if (m_by_id.empty()) {
         /* Note that this value is not equal to shard id modulo TRX_SHARDS_N,

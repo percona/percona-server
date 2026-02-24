@@ -710,9 +710,9 @@ EXPLAIN SELECT t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -720,9 +720,9 @@ EXPLAIN SELECT /*+ NO_BNL() */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -730,9 +730,9 @@ EXPLAIN SELECT /*+ NO_BNL(t2, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -740,9 +740,9 @@ EXPLAIN SELECT /*+ NO_BNL(t1, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -751,9 +751,9 @@ EXPLAIN SELECT t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -761,9 +761,9 @@ EXPLAIN SELECT /*+ BNL() */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -771,9 +771,9 @@ EXPLAIN SELECT /*+ BNL(t2, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -781,9 +781,9 @@ EXPLAIN SELECT /*+ BNL(t1, t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -791,9 +791,9 @@ EXPLAIN SELECT /*+ BNL(t2) BNL(t3) */t1.* FROM t1,t2,t3;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=8)
     -> Inner hash join (no condition)  (rows=4)
-        -> Table scan on t1  (rows=2)
+        -> Table scan on t2  (rows=2)
         -> Hash
-            -> Table scan on t2  (rows=2)
+            -> Table scan on t1  (rows=2)
     -> Hash
         -> Table scan on t3  (rows=2)
 
@@ -1133,12 +1133,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t1) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1146,12 +1146,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1159,12 +1159,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1172,12 +1172,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1185,12 +1185,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1198,12 +1198,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1211,12 +1211,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 EXPLAIN SELECT /*+ BNL(t2, t3, t4) */ 1 FROM t t1 LEFT JOIN (t t2 LEFT JOIN t t3 ON 1 INNER JOIN t t4 ON 1) ON 1;
 EXPLAIN
@@ -1224,12 +1224,12 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Hash
         -> Inner hash join (no condition)  (rows=1)
-            -> Left hash join (no condition)  (rows=1)
-                -> Table scan on t2  (rows=1)
-                -> Hash
-                    -> Table scan on t3  (rows=1)
+            -> Table scan on t4  (rows=1)
             -> Hash
-                -> Table scan on t4  (rows=1)
+                -> Left hash join (no condition)  (rows=1)
+                    -> Table scan on t2  (rows=1)
+                    -> Hash
+                        -> Table scan on t3  (rows=1)
 
 DROP TABLE t;
 CREATE TABLE t(a INT, b INT, KEY k(a));
@@ -2238,11 +2238,11 @@ explain select /*+ no_merge(dt) merge(dt2) */ *
 from (select * from t1) as dt, (select * from t2) as dt2;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=1)
-    -> Table scan on dt  (rows=1)
-        -> Materialize  (rows=1)
-            -> Table scan on t1  (rows=1)
+    -> Table scan on t2  (rows=1)
     -> Hash
-        -> Table scan on t2  (rows=1)
+        -> Table scan on dt  (rows=1)
+            -> Materialize  (rows=1)
+                -> Table scan on t1  (rows=1)
 
 # Or to all:
 explain select /*+ no_merge() */ *
@@ -2266,11 +2266,11 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; run only once)
         -> Inner hash join (no condition)  (rows=1)
-            -> Table scan on dt  (rows=1)
-                -> Materialize  (rows=1)
-                    -> Table scan on t1  (rows=1)
+            -> Table scan on t2  (rows=1)
             -> Hash
-                -> Table scan on t2  (rows=1)
+                -> Table scan on dt  (rows=1)
+                    -> Materialize  (rows=1)
+                        -> Table scan on t1  (rows=1)
 
 # with another syntax:
 explain select /*+ no_merge(@qb1 dt) merge(@qb1 dt2) */ * from t1 where a =
@@ -2281,11 +2281,11 @@ EXPLAIN
     -> Table scan on t1  (rows=1)
     -> Select #2 (subquery in condition; run only once)
         -> Inner hash join (no condition)  (rows=1)
-            -> Table scan on dt  (rows=1)
-                -> Materialize  (rows=1)
-                    -> Table scan on t1  (rows=1)
+            -> Table scan on t2  (rows=1)
             -> Hash
-                -> Table scan on t2  (rows=1)
+                -> Table scan on dt  (rows=1)
+                    -> Materialize  (rows=1)
+                        -> Table scan on t1  (rows=1)
 
 # A hint can list more than one table
 explain select /*+ merge(dt2) no_merge(dt,dt3) */ *
@@ -2294,11 +2294,11 @@ from (select * from t1) as dt, (select * from t2) as dt2,
 EXPLAIN
 -> Inner hash join (no condition)  (rows=1)
     -> Inner hash join (no condition)  (rows=1)
-        -> Table scan on dt  (rows=1)
-            -> Materialize  (rows=1)
-                -> Table scan on t1  (rows=1)
+        -> Table scan on t2  (rows=1)
         -> Hash
-            -> Table scan on t2  (rows=1)
+            -> Table scan on dt  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Table scan on t1  (rows=1)
     -> Hash
         -> Table scan on dt3  (rows=1)
             -> Materialize  (rows=1)
@@ -2325,11 +2325,11 @@ EXPLAIN
                 -> Group aggregate: sum(t2.b)  (rows=1)
                     -> Sort: t2.a  (rows=1)
                         -> Inner hash join (no condition)  (rows=1)
-                            -> Table scan on dt  (rows=1)
-                                -> Materialize  (rows=1)
-                                    -> Rows fetched before execution  (rows=1)
+                            -> Table scan on t2  (rows=1)
                             -> Hash
-                                -> Table scan on t2  (rows=1)
+                                -> Table scan on dt  (rows=1)
+                                    -> Materialize  (rows=1)
+                                        -> Rows fetched before execution  (rows=1)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -2351,11 +2351,11 @@ EXPLAIN
         -> Group aggregate: sum(t2.b)  (rows=1)
             -> Sort: t2.a  (rows=1)
                 -> Inner hash join (no condition)  (rows=1)
-                    -> Table scan on dt  (rows=1)
-                        -> Materialize  (rows=1)
-                            -> Rows fetched before execution  (rows=1)
+                    -> Table scan on t2  (rows=1)
                     -> Hash
-                        -> Table scan on t2  (rows=1)
+                        -> Table scan on dt  (rows=1)
+                            -> Materialize  (rows=1)
+                                -> Rows fetched before execution  (rows=1)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
@@ -2468,9 +2468,9 @@ explain update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 EXPLAIN
 -> Update t3 (buffered)  (rows=4)
     -> Inner hash join (no condition), extra conditions: ((t3.a - t1.a) = 0)  (rows=4)
-        -> Table scan on t3  (rows=2)
+        -> Table scan on t1  (rows=2)
         -> Hash
-            -> Table scan on t1  (rows=2)
+            -> Table scan on t3  (rows=2)
 
 update t3, (select * from t1) dt set t3.a=dt.a+10 where t3.a-dt.a=0;
 select * from t3;
@@ -2711,15 +2711,18 @@ KEY `k1` (`f2`,`f1`)
 );
 INSERT INTO t1 values(NULL, '');
 INSERT INTO t2 VALUES ('486878','WDT'),('486910','WDT');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
 EXPLAIN
 -> Group aggregate: avg(t2.f1)  (rows=1)
     -> Sort: t1.f1  (rows=1)
         -> Inner hash join (no condition)  (rows=1)
-            -> Covering index scan on t1 using PRIMARY  (rows=1)
+            -> Covering index range scan on t2 using k1 over (f2 = 'SIR')  (rows=1)
             -> Hash
-                -> Filter: (t2.f2 = 'SIR')  (rows=1)
-                    -> Covering index lookup on t2 using k1 (f2 = 'SIR')  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=1)
 
 # SELECT SQL_BUFFER_RESULT should use temporary table
 EXPLAIN FORMAT=TREE SELECT SQL_BUFFER_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
@@ -2729,10 +2732,9 @@ EXPLAIN
         -> Group aggregate: avg(t2.f1)  (rows=1)
             -> Sort: t1.f1  (rows=1)
                 -> Inner hash join (no condition)  (rows=1)
-                    -> Covering index scan on t1 using PRIMARY  (rows=1)
+                    -> Covering index range scan on t2 using k1 over (f2 = 'SIR')  (rows=1)
                     -> Hash
-                        -> Filter: (t2.f2 = 'SIR')  (rows=1)
-                            -> Covering index lookup on t2 using k1 (f2 = 'SIR')  (rows=1)
+                        -> Covering index scan on t1 using PRIMARY  (rows=1)
 
 # SELECT SQL_BIG_RESULT should not use temporary table
 EXPLAIN FORMAT=TREE SELECT SQL_BIG_RESULT avg(t2.f1) FROM t1, t2 where t2.f2 = 'SIR' GROUP BY t1.f1;
@@ -2740,10 +2742,9 @@ EXPLAIN
 -> Group aggregate: avg(t2.f1)  (rows=1)
     -> Sort: t1.f1  (rows=1)
         -> Inner hash join (no condition)  (rows=1)
-            -> Covering index scan on t1 using PRIMARY  (rows=1)
+            -> Covering index range scan on t2 using k1 over (f2 = 'SIR')  (rows=1)
             -> Hash
-                -> Filter: (t2.f2 = 'SIR')  (rows=1)
-                    -> Covering index lookup on t2 using k1 (f2 = 'SIR')  (rows=1)
+                -> Covering index scan on t1 using PRIMARY  (rows=1)
 
 DROP TABLE t1, t2;
 #

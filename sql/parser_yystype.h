@@ -437,6 +437,7 @@ union MY_SQL_PARSER_STYPE {
   PT_item_list *item_list2;
   PT_order_expr *order_expr;
   PT_order_list *order_list;
+  Mem_root_array_YY<PT_order_list *> group_list_array;
   Limit_options limit_options;
   Query_options select_options;
   PT_limit_clause *limit_clause;

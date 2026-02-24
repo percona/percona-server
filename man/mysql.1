@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/19/2025
+.\"      Date: 12/12/2025
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 9.5
+.\"    Source: MySQL 9.6
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "09/19/2025" "MySQL 9\&.5" "MySQL Database System"
+.TH "MYSQL" "1" "12/12/2025" "MySQL 9\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ mysql_store_result()\&.
 .br
 .PP
 Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
-\m[blue]\fBMySQL Shell 9\&.5\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBMySQL Shell 9\&.6\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp .5v
 .RE
 .PP
@@ -170,6 +170,57 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-authentication\-oci\-client\-config\-profile\fR
+.TS
+allbox tab(:);
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--authentication-oci-client-config-profile=profileName
+T}
+T{
+Type
+T}:T{
+String
+T}
+.TE
+.sp 1
+Specify the name of the OCI configuration profile to use\&. If not set, the default profile is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-authentication\-openid\-connect\-client\-id\-token\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--authentication-openid-connect-client-id-token-file
+T}
+.TE
+.sp 1
+For OpenID Connect, this sets the required Identity token to authenticate with a mapped MySQL user\&. It\*(Aqs a full filepath to the Identity token file used when connecting to the MySQL server\&. For additional information, see
+Section\ \&8.4.1.9, \(lqOpenID Connect Pluggable Authentication\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-auto\-rehash\fR
 .TS
 allbox tab(:);
@@ -219,29 +270,6 @@ library\&. Typically, the
 library is not available on Windows\&.
 .sp .5v
 .RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-authentication\-openid\-connect\-client\-id\-token\-file\fR
-.TS
-allbox tab(:);
-lB l.
-T{
-Command-Line Format
-T}:T{
---authentication-openid-connect-client-id-token-file
-T}
-.TE
-.sp 1
-For OpenID Connect, this sets the required Identity token to authenticate with a mapped MySQL user\&. It\*(Aqs a full filepath to the Identity token file used when connecting to the MySQL server\&. For additional information, see
-Section\ \&8.4.1.9, \(lqOpenID Connect Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -5186,7 +5214,7 @@ system \fIcommand\fR,
 .sp
 Execute the given command using your default command interpreter\&.
 .sp
-In MySQL 9\&.5, this command is disabled by default\&. You can enable it by starting the client with
+In MySQL 9\&.6, this command is disabled by default\&. You can enable it by starting the client with
 \fB\-\-system\-command=ON\fR\&.
 .RE
 .sp
@@ -7056,29 +7084,29 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-MySQL Shell 9.5
+MySQL Shell 9.6
 .RS 4
-\%https://dev.mysql.com/doc/mysql-shell/9.5/en/
+\%https://dev.mysql.com/doc/mysql-shell/9.6/en/
 .RE
 .IP " 2." 4
 C API Basic Data Structures
 .RS 4
-\%https://dev.mysql.com/doc/c-api/9.5/en/c-api-data-structures.html
+\%https://dev.mysql.com/doc/c-api/9.6/en/c-api-data-structures.html
 .RE
 .IP " 3." 4
 Multiple Statement Execution Support
 .RS 4
-\%https://dev.mysql.com/doc/c-api/9.5/en/c-api-multiple-queries.html
+\%https://dev.mysql.com/doc/c-api/9.6/en/c-api-multiple-queries.html
 .RE
 .IP " 4." 4
 mysql_change_user()
 .RS 4
-\%https://dev.mysql.com/doc/c-api/9.5/en/mysql-change-user.html
+\%https://dev.mysql.com/doc/c-api/9.6/en/mysql-change-user.html
 .RE
 .IP " 5." 4
 Automatic Reconnection Control
 .RS 4
-\%https://dev.mysql.com/doc/c-api/9.5/en/c-api-auto-reconnect.html
+\%https://dev.mysql.com/doc/c-api/9.6/en/c-api-auto-reconnect.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

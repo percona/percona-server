@@ -456,6 +456,15 @@ class Gcs_xcom_interface : public Gcs_interface {
    */
   Gcs_xcom_statistics_storage_impl *m_xcom_stats_storage;
 
+ protected:
+  /**
+    The clock timestamp provider used. This can point to the default
+    timestamp provider or to one injected by the application. If no
+    external provider is injected, this is initialized to the default
+    provider.
+   */
+  std::shared_ptr<Clock_timestamp_interface> m_clock_timestamp_provider;
+
  private:
   /*
     Disabling the copy constructor and assignment operator.

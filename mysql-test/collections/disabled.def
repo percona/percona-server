@@ -49,6 +49,7 @@ innodb.slow_shutdown                              : Bug#31763837 mtr hits this d
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
 innodb.set_concurrency_in_readonly                : Bug#35573783 innodb.set_concurrency_in_readonly is failing in trunk
+innodb.innodb_upd_stats_if_needed_not_inited      : WL#11249 SQL Engine foreign key replaces InnoDB FK handling.
 
 # innodb_fts suite test
 innodb_fts.sync_block : BUG#2232 percona https://jira.percona.com/browse/PS-2232
@@ -214,3 +215,6 @@ group_replication.gr_xa_prepare_failure_before_gtid_externalization @windows : B
 group_replication.gr_xa_rollback_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
 
 rpl_nogtid.rpl_nogtid_rollback_on_anonymous_gtid : Bug#37582501 Replication tests break MTA asserts with user viable scenarios
+
+#Daily test failures
+rpl.rpl_row_idempotency : WL#11249 old error - timeout

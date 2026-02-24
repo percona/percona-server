@@ -759,8 +759,10 @@ void MetadataCache::update_router_attributes() {
               "Updating the router attributes in metadata failed: %s (%u)\n"
               "Make sure to follow the correct steps to upgrade your "
               "metadata.\n"
-              "Run the dba.upgradeMetadata() then launch the new Router "
-              "version when prompted",
+              "In MySQL Shell, run dba.upgradeMetadata(), then launch the new "
+              "Router version when prompted.\n"
+              "If the MySQL account used by MySQL Router is missing "
+              "privileges, run dba.setupRouterAccount() to update its grants.",
               e.message().c_str(), e.code());
         }
       } else {

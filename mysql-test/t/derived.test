@@ -643,6 +643,7 @@ SHOW STATUS LIKE 'Handler_read%';
 EXPLAIN
   SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
@@ -2072,7 +2073,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (0),(1),(2);
 
 let query=
-SELECT SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
+SELECT SHA2(pk,256) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
 
 eval explain $query;
 eval $query;

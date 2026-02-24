@@ -33,6 +33,7 @@
 #include "mysql.h"
 #include "mysql/binlog/event/binlog_event.h"
 #include "mysql/binlog/event/control_events.h"
+#include "mysql/gtids/gtids.h"  // Gtid_set
 
 namespace cs::reader::binary {
 
@@ -58,7 +59,7 @@ class Mysql_protocol : public cs::reader::Reader {
  private:
   void reset();
   bool setup();
-  bool encode_gtid_set_to_mysql_protocol(const mysql::gtid::Gtid_set &gtid_set,
+  bool encode_gtid_set_to_mysql_protocol(const mysql::gtids::Gtid_set &gtid_set,
                                          std::string &output) const;
 
  public:

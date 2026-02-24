@@ -3067,6 +3067,9 @@ static void *pfs_spawn_thread(void *arg) {
   /* Then, execute the user code for this thread. */
   (*user_start_routine)(user_arg);
 
+  /* Last, cleanup the thread instrumentation. */
+  pfs_delete_current_thread_vc();
+
   return nullptr;
 }
 }  // extern "C"

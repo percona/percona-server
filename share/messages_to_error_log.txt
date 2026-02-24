@@ -6057,7 +6057,7 @@ ER_IB_MSG_173
 ER_IB_MSG_174
   eng "%s"
 
-ER_IB_MSG_175
+OBSOLETE_ER_IB_MSG_175
   eng "%s"
 
 OBSOLETE_ER_IB_MSG_176
@@ -6093,82 +6093,82 @@ OBSOLETE_ER_IB_MSG_185
 OBSOLETE_ER_IB_MSG_186
   eng "%s"
 
-ER_IB_MSG_187
+OBSOLETE_ER_IB_MSG_187
   eng "%s"
 
-ER_IB_MSG_188
+OBSOLETE_ER_IB_MSG_188
   eng "%s"
 
-ER_IB_MSG_189
+OBSOLETE_ER_IB_MSG_189
   eng "%s"
 
-ER_IB_MSG_190
+OBSOLETE_ER_IB_MSG_190
   eng "%s"
 
-ER_IB_MSG_191
+OBSOLETE_ER_IB_MSG_191
   eng "%s"
 
-ER_IB_MSG_192
+OBSOLETE_ER_IB_MSG_192
   eng "%s"
 
-ER_IB_MSG_193
+OBSOLETE_ER_IB_MSG_193
   eng "%s"
 
-ER_IB_MSG_194
+OBSOLETE_ER_IB_MSG_194
   eng "%s"
 
-ER_IB_MSG_195
+OBSOLETE_ER_IB_MSG_195
   eng "%s"
 
-ER_IB_MSG_196
+OBSOLETE_ER_IB_MSG_196
   eng "%s"
 
-ER_IB_MSG_197
+OBSOLETE_ER_IB_MSG_197
   eng "%s"
 
-ER_IB_MSG_198
+OBSOLETE_ER_IB_MSG_198
   eng "%s"
 
-ER_IB_MSG_199
+OBSOLETE_ER_IB_MSG_199
   eng "%s"
 
-ER_IB_MSG_200
+OBSOLETE_ER_IB_MSG_200
   eng "%s"
 
-ER_IB_MSG_201
+OBSOLETE_ER_IB_MSG_201
   eng "%s"
 
-ER_IB_MSG_202
+OBSOLETE_ER_IB_MSG_202
   eng "%s"
 
-ER_IB_MSG_203
+OBSOLETE_ER_IB_MSG_203
   eng "%s"
 
-ER_IB_MSG_204
+OBSOLETE_ER_IB_MSG_204
   eng "%s"
 
-ER_IB_MSG_205
+OBSOLETE_ER_IB_MSG_205
   eng "%s"
 
-ER_IB_MSG_206
+OBSOLETE_ER_IB_MSG_206
   eng "%s"
 
-ER_IB_MSG_207
+OBSOLETE_ER_IB_MSG_207
   eng "%s"
 
-ER_IB_MSG_208
+OBSOLETE_ER_IB_MSG_208
   eng "%s"
 
-ER_IB_MSG_209
+OBSOLETE_ER_IB_MSG_209
   eng "%s"
 
-ER_IB_MSG_210
+OBSOLETE_ER_IB_MSG_210
   eng "%s"
 
-ER_IB_MSG_211
+OBSOLETE_ER_IB_MSG_211
   eng "%s"
 
-ER_IB_MSG_212
+OBSOLETE_ER_IB_MSG_212
   eng "%s"
 
 ER_IB_MSG_213
@@ -6219,115 +6219,115 @@ OBSOLETE_ER_IB_MSG_227
 OBSOLETE_ER_IB_MSG_228
   eng "%s"
 
-ER_IB_MSG_229
+OBSOLETE_ER_IB_MSG_229
   eng "%s"
 
-ER_IB_MSG_230
+OBSOLETE_ER_IB_MSG_230
   eng "%s"
 
-ER_IB_MSG_231
+OBSOLETE_ER_IB_MSG_231
   eng "%s"
 
-ER_IB_MSG_232
+OBSOLETE_ER_IB_MSG_232
   eng "%s"
 
-ER_IB_MSG_233
+OBSOLETE_ER_IB_MSG_233
   eng "%s"
 
-ER_IB_MSG_234
+OBSOLETE_ER_IB_MSG_234
   eng "%s"
 
-ER_IB_MSG_235
+OBSOLETE_ER_IB_MSG_235
   eng "%s"
 
-ER_IB_MSG_236
+OBSOLETE_ER_IB_MSG_236
   eng "%s"
 
-ER_IB_MSG_237
+OBSOLETE_ER_IB_MSG_237
   eng "%s"
 
-ER_IB_MSG_238
+OBSOLETE_ER_IB_MSG_238
   eng "%s"
 
-ER_IB_MSG_239
+OBSOLETE_ER_IB_MSG_239
   eng "%s"
 
-ER_IB_MSG_240
+OBSOLETE_ER_IB_MSG_240
   eng "%s"
 
-ER_IB_MSG_241
+OBSOLETE_ER_IB_MSG_241
   eng "%s"
 
-ER_IB_MSG_242
+OBSOLETE_ER_IB_MSG_242
   eng "%s"
 
-ER_IB_MSG_243
+OBSOLETE_ER_IB_MSG_243
   eng "%s"
 
-ER_IB_MSG_244
+OBSOLETE_ER_IB_MSG_244
   eng "%s"
 
-ER_IB_MSG_245
+OBSOLETE_ER_IB_MSG_245
   eng "%s"
 
-ER_IB_MSG_246
+OBSOLETE_ER_IB_MSG_246
   eng "%s"
 
-ER_IB_MSG_247
+OBSOLETE_ER_IB_MSG_247
   eng "%s"
 
-ER_IB_MSG_248
+OBSOLETE_ER_IB_MSG_248
   eng "%s"
 
-ER_IB_MSG_249
+OBSOLETE_ER_IB_MSG_249
   eng "%s"
 
-ER_IB_MSG_250
+OBSOLETE_ER_IB_MSG_250
   eng "%s"
 
-ER_IB_MSG_251
+OBSOLETE_ER_IB_MSG_251
   eng "%s"
 
-ER_IB_MSG_252
+OBSOLETE_ER_IB_MSG_252
   eng "%s"
 
-ER_IB_MSG_253
+OBSOLETE_ER_IB_MSG_253
   eng "%s"
 
-ER_IB_MSG_254
+OBSOLETE_ER_IB_MSG_254
   eng "%s"
 
-ER_IB_MSG_255
+OBSOLETE_ER_IB_MSG_255
   eng "%s"
 
-ER_IB_MSG_256
+OBSOLETE_ER_IB_MSG_256
   eng "%s"
 
-ER_IB_MSG_257
+OBSOLETE_ER_IB_MSG_257
   eng "%s"
 
-ER_IB_MSG_258
+OBSOLETE_ER_IB_MSG_258
   eng "%s"
 
-ER_IB_MSG_259
+OBSOLETE_ER_IB_MSG_259
   eng "%s"
 
-ER_IB_MSG_260
+OBSOLETE_ER_IB_MSG_260
   eng "%s"
 
-ER_IB_MSG_261
+OBSOLETE_ER_IB_MSG_261
   eng "%s"
 
-ER_IB_MSG_262
+OBSOLETE_ER_IB_MSG_262
   eng "%s"
 
-ER_IB_MSG_263
+OBSOLETE_ER_IB_MSG_263
   eng "%s"
 
-ER_IB_MSG_264
+OBSOLETE_ER_IB_MSG_264
   eng "%s"
 
-ER_IB_MSG_265
+OBSOLETE_ER_IB_MSG_265
   eng "%s"
 
 ER_IB_MSG_266
@@ -6984,10 +6984,10 @@ ER_IB_MSG_482
 ER_IB_MSG_483
   eng "%s"
 
-ER_IB_MSG_484
+OBSOLETE_ER_IB_MSG_484
   eng "%s"
 
-ER_IB_MSG_485
+OBSOLETE_ER_IB_MSG_485
   eng "%s"
 
 ER_IB_MSG_486
@@ -8280,7 +8280,7 @@ ER_IB_MSG_914
 ER_IB_MSG_915
   eng "%s"
 
-ER_IB_MSG_916
+OBSOLETE_ER_IB_MSG_916
   eng "%s"
 
 ER_IB_MSG_917
@@ -8862,10 +8862,10 @@ ER_IB_MSG_1108
 ER_IB_MSG_1109
   eng "Size of InnoDB's ulint is %zu but size of void* is %zu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
 
-ER_IB_MSG_1110
+OBSOLETE_ER_IB_MSG_1110
   eng "Database upgrade cannot be accomplished in read-only mode."
 
-ER_IB_MSG_1111
+OBSOLETE_ER_IB_MSG_1111
   eng "Database upgrade cannot be accomplished with innodb_force_recovery > 0"
 
 ER_IB_MSG_1112
@@ -9147,7 +9147,7 @@ ER_IB_MSG_1203
 ER_IB_MSG_1204
   eng "%s"
 
-ER_IB_MSG_1205
+OBSOLETE_ER_IB_MSG_1205
   eng "%s"
 
 ER_IB_MSG_1206
@@ -9213,13 +9213,13 @@ ER_IB_MSG_1225
 ER_IB_MSG_1226
   eng "%s"
 
-ER_IB_MSG_1227
+OBSOLETE_ER_IB_MSG_1227
   eng "%s"
 
 ER_IB_MSG_1228
   eng "%s"
 
-ER_IB_MSG_1229
+OBSOLETE_ER_IB_MSG_1229
   eng "%s"
 
 OBSOLETE_ER_IB_MSG_1230
@@ -9659,7 +9659,7 @@ ER_IB_MSG_1280
 ER_IB_MSG_1281
   eng "%s"
 
-ER_IB_MSG_1282
+OBSOLETE_ER_IB_MSG_1282
   eng "%s"
 
 ER_IB_MSG_1283
@@ -10645,7 +10645,7 @@ ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
 ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
   eng "Table name '%s.%s' containing upper case characters, used by foreign key '%s' in table '%s.%s', is not allowed with lower_case_table_names = 1."
 
-ER_IB_MSG_DICT_PARTITION_NOT_FOUND
+OBSOLETE_ER_IB_MSG_DICT_PARTITION_NOT_FOUND
   eng "Table Partition: %s is not found in InnoDB dictionary"
 
 ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
@@ -10786,7 +10786,7 @@ ER_IB_MSG_DBLWR_1327
 ER_IB_MSG_GTID_FLUSH_AT_SHUTDOWN
   eng "Could not flush all GTIDs during slow shutdown. Will recover GTIDs when server restarts."
 
-ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL
+OBSOLETE_ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 stat tablespace: %s during upgrade"
 
 ER_NDBINFO_UPGRADING_SCHEMA
@@ -10873,7 +10873,7 @@ ER_IB_ERR_RECOVERY_REDO_DISABLED
 ER_IB_WRN_FAST_SHUTDOWN_REDO_DISABLED
   eng "InnoDB cannot do cold shutdown 'innodb_fast_shutdown = 2' and is forcing 'innodb_fast_shutdown = 1' as redo logging is disabled. InnoDB would flush all dirty pages to ensure physical data consistency."
 
-ER_IB_WRN_REDO_DISABLED
+OBSOLETE_ER_IB_WRN_REDO_DISABLED
   eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash."
 
 ER_IB_WRN_REDO_ENABLED
@@ -10888,7 +10888,7 @@ ER_TLS_CONFIGURATION_REUSED
 ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED
   eng "Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!"
 
-ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
+OBSOLETE_ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
   eng "Upgrade failed because database contains discarded tablespaces."
 
 ER_USERNAME_TRUNKATED
@@ -11260,7 +11260,7 @@ ER_NOTE_KEYRING_COMPONENT_METADATA_ITERATOR_INVALID_OUT_PARAM
 ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE
   eng "Innodb could not acquire service : %s"
 
-ER_IB_WRN_OLD_GEOMETRY_TYPE
+OBSOLETE_ER_IB_WRN_OLD_GEOMETRY_TYPE
   eng "Column %s of type GEOMETRY is in old (5.6) format which could be deprecated in the future. To change the format to latest, please consider rebuilding the table after the upgrade."
 
 ER_NET_WAIT_ERROR2
@@ -11672,7 +11672,7 @@ ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE_AND_READ_ONLY_MODE
 ER_IB_MSG_LOG_WRITER_WRITE_FAILED
   eng "Error %d encountered when writing to the redo log file: %s."
 
-ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE
+OBSOLETE_ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE
   eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity."
 
 ER_IB_MSG_RECOVERY_CHECKPOINT_OUTSIDE_LOG_FILE
@@ -12354,6 +12354,12 @@ ER_IB_INSTANT_ADD_DROP_COLUMN_NOT_ALLOWED
 ER_IB_INSTANT_ADD_NOT_POSSIBLE
   eng "Cannot add %zu field(s) in table '%s' because after adding it, the record size would be %zu which is more than the maximum allowed size (%zu) for a record."
 
+ER_IB_WRN_REDO_DISABLED_INFO
+  eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash. Current lsn is %llu."
+
+ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE_INFO
+  eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity. The current log capacity is %llu bytes. The log capacity used is %llu bytes."
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12853,6 +12859,9 @@ ER_RPL_MTA_ALLOW_COMMIT_OUT_OF_ORDER
 ER_TEMPTABLE_ENGINE_ERROR
   eng "Temptable: %s"
 
+ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
+   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
@@ -13283,6 +13292,69 @@ ER_AUTOPILOT_OLTP_ADVISOR_WARNING
 
 ER_AUTOPILOT_OLTP_ADVISOR_ERROR
   eng "%s"
+
+ER_WARN_EVENT_TRACKING_BRIDGE_INVALID_EVENT
+  eng "An event of type %s is missing extra data and cannot be processed by the server's component plugin bridge. As a result plugins will not get the notification."
+
+ER_INVALID_PREVIOUS_DIAGNOSTICS_AREA_STATUS
+  eng "Invalid previous diagnostics area status '%.64s' when attempting to report status '%.64s'. This is a bug and the server will now abort. The previous error (if any) was '%.128s' and the requested error (if any) is '%.128s'."
+
+ER_CHECK_TABLE_FUNCTIONS_DOWNGRADED
+  eng "Error MY-%06d occurred while checking table-definitions: %s"
+
+ER_SERVER_ERROR_NO_CONTAINER_SUPPORT_IN_WIN
+   eng "Server does not support containers on Windows"
+
+ER_SERVER_ERROR_NOT_IN_CONTAINER
+   eng "Server is not running in a container but --container_aware is turned ON"
+
+ER_SERVER_WARN_CONTAINER_IGNORED
+   eng "Server ignores the discovered container restrictions as --container_aware is OFF"
+
+ER_AUDIT_LOG_COMPONENT_FILE_PRUNE_FAILED
+  eng "Failed to auto-prune file '%s'."
+
+ER_AUDIT_LOG_STATUS_VARIABLES_REGISTRATION_FAILED
+  eng "Failed to register status variables."
+
+ER_AUDIT_LOG_STATUS_VARIABLES_UNREGISTRATION_FAILED
+  eng "Failed to unregister status variables."
+
+ER_AUDIT_LOG_SYSTEM_VARIABLE_REGISTRATION_FAILED
+  eng "Failed to register %s.%s system variable."
+
+ER_AUDIT_LOG_SYSTEM_VARIABLE_UNREGISTRATION_FAILED
+  eng "Failed to unregister %s.%s system variable."
+
+ER_AUDIT_LOG_WRITE_TO_FILE_FAILED
+  eng "Error writing file \'%-.200s\'."
+
+ER_AUDIT_LOG_PASSWORD_GENERATED
+  eng "Encryption password has not been set; it will be generated automatically. Use %s to obtain the password or %s to set a new one."
+
+ER_AUDIT_LOG_INFO
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_WARNING
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_ERROR
+  eng "Component component_audit_log reported: '%s'"
+
+ER_AUDIT_LOG_FILE_PATH_TOO_LONG
+  eng "File path is too long (%zu). Absolute file path in the current configuration should not exceed %zu characters."
+
+ER_AUDIT_LOG_CANNOT_ALLOCATE_ASYNCHRONOUS_BUFFER
+  eng "Cannot allocate asynchronous write buffer of size: %zu bytes."
+
+ER_AUDIT_LOG_COMPONENT_PASSWORD_HAS_BEEN_COPIED
+  eng "'%s' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_AUDIT_LOG_DATABASE_NAME_TOO_LONG
+  eng "Database name is too long (%zu). Database name should not exceed %zu characters."
+
+ER_AUDIT_LOG_DATABASE_NAME_EMPTY
+  eng "Database name cannot be empty."
 
 #
 # End of MySQL 9.x error messages intended to be written to the server error log.

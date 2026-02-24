@@ -68,8 +68,6 @@
 #include "my_dbug.h"
 #include "my_dir.h"  // For my_stat
 #include "my_io.h"
-#include "my_md5.h"  // MD5_HASH_SIZE
-#include "my_md5_size.h"
 #include "my_rnd.h"  // my_rand_buffer
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"
@@ -88,7 +86,6 @@
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "nulls.h"
-#include "sha1.h"  // SHA1_HASH_SIZE
 #include "sha2.h"
 #include "sql-common/json_hash.h"
 #include "sql-common/my_decimal.h"
@@ -195,99 +192,19 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   return decimal_value;
 }
 
-String *Item_func_md5::val_str_ascii(String *str) {
-  assert(fixed);
-  String *sptr = args[0]->val_str(str);
-  str->set_charset(&my_charset_bin);
-  if (sptr) {
-    uchar digest[MD5_HASH_SIZE] = {0};
-
-    null_value = false;
-    const int retval =
-        compute_md5_hash((char *)digest, sptr->ptr(), sptr->length());
-    if (retval == 1) {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_DA_SSL_FIPS_MODE_ERROR,
-                          ER_THD(current_thd, ER_DA_SSL_FIPS_MODE_ERROR),
-                          "FIPS mode ON/STRICT: MD5 digest is not supported.");
-    }
-    if (str->alloc(32))  // Ensure that memory is free
-    {
-      null_value = true;
-      return nullptr;
-    }
-    array_to_hex(str->ptr(), digest, MD5_HASH_SIZE);
-    str->length((uint)32);
-    return str;
-  }
-  null_value = true;
-  return nullptr;
-}
-
 /*
-  The MD5()/SHA() functions treat their parameter as being a case sensitive.
-  Thus we set binary collation on it so different instances of MD5() will be
-  compared properly.
+  Convert an array of bytes to a hexadecimal representation.
+
+  Used to generate a hexadecimal representation of a message digest.
 */
-static CHARSET_INFO *get_checksum_charset(const char *csname) {
-  CHARSET_INFO *cs = get_charset_by_csname(csname, MY_CS_BINSORT, MYF(0));
-  if (!cs) {
-    // Charset has no binary collation: use my_charset_bin.
-    cs = &my_charset_bin;
+static inline void array_to_hex(char *to, const unsigned char *str,
+                                unsigned len) {
+  static const char *hex_lower = "0123456789abcdef";
+  for (unsigned i = 0; i < len; ++i) {
+    const unsigned offset = 2 * i;
+    to[offset] = hex_lower[str[i] >> 4];
+    to[offset + 1] = hex_lower[str[i] & 0x0F];
   }
-  return cs;
-}
-
-Item_func_md5::Item_func_md5(const POS &pos, Item *a)
-    : Item_str_ascii_func(pos, a) {
-  THD *thd = current_thd;
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "MD5", "SHA2");
-}
-
-bool Item_func_md5::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, -1)) return true;
-  CHARSET_INFO *cs = get_checksum_charset(args[0]->collation.collation->csname);
-  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
-  set_data_type_string(32, default_charset());
-  return false;
-}
-
-Item_func_sha::Item_func_sha(const POS &pos, Item *a)
-    : Item_str_ascii_func(pos, a) {
-  THD *thd = current_thd;
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "SHA1", "SHA2");
-}
-
-String *Item_func_sha::val_str_ascii(String *str) {
-  assert(fixed);
-  String *sptr = args[0]->val_str(str);
-  str->set_charset(&my_charset_bin);
-  if (sptr) /* If we got value different from NULL */
-  {
-    /* Temporary buffer to store 160bit digest */
-    uint8 digest[SHA1_HASH_SIZE];
-    compute_sha1_hash(digest, sptr->ptr(), sptr->length());
-    /* Ensure that memory is free */
-    if (!(str->alloc(SHA1_HASH_SIZE * 2))) {
-      array_to_hex(str->ptr(), digest, SHA1_HASH_SIZE);
-      str->length((uint)SHA1_HASH_SIZE * 2);
-      null_value = false;
-      return str;
-    }
-  }
-  null_value = true;
-  return nullptr;
-}
-
-bool Item_func_sha::resolve_type(THD *thd) {
-  if (param_type_is_default(thd, 0, 1)) return true;
-  CHARSET_INFO *cs = get_checksum_charset(args[0]->collation.collation->csname);
-  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
-  // size of hex representation of hash
-  set_data_type_string(SHA1_HASH_SIZE * 2, default_charset());
-  return false;
 }
 
 /*
@@ -368,6 +285,15 @@ String *Item_func_sha2::val_str_ascii(String *str) {
 
   null_value = false;
   return str;
+}
+
+static CHARSET_INFO *get_checksum_charset(const char *csname) {
+  CHARSET_INFO *cs = get_charset_by_csname(csname, MY_CS_BINSORT, MYF(0));
+  if (!cs) {
+    // Charset has no binary collation: use my_charset_bin.
+    cs = &my_charset_bin;
+  }
+  return cs;
 }
 
 bool Item_func_sha2::resolve_type(THD *thd) {

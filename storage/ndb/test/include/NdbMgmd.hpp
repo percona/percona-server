@@ -139,7 +139,7 @@ class NdbMgmd {
   }
 
   bool connect(const char *connect_string = NULL, int num_retries = 12,
-               int retry_delay_in_seconds = 5, bool use_tls = true) {
+               int retry_delay_in_seconds = 5, bool try_tls = true) {
     require(m_handle == NULL);
 
     m_handle = ndb_mgm_create_handle();
@@ -161,7 +161,7 @@ class NdbMgmd {
     }
 
     int connect_status = -1;
-    if (m_tls_path) {
+    if (m_tls_path && try_tls) {
       TlsKeyManager tlsKeyManager;
       tlsKeyManager.init_mgm_client(m_tls_path);
       ndb_mgm_set_ssl_ctx(m_handle, tlsKeyManager.ctx());

@@ -40,9 +40,15 @@ Libraries defined on this level:
 - \subpage PageLibsMysqlAllocators
 - \subpage PageLibsMysqlBinlog
 - \subpage PageLibsMysqlContainers
+- \subpage PageLibsMysqlDebugging
 - \subpage PageLibsMysqlGtid
+- \subpage PageLibsMysqlIterators
 - \subpage PageLibsMysqlMath
+- \subpage PageLibsMysqlMeta
+- \subpage PageLibsMysqlRanges
 - \subpage PageLibsMysqlSerialization
+- \subpage PageLibsMysqlSets
+- \subpage PageLibsMysqlStrconv
 - \subpage PageLibsMysqlUtils
 
 
@@ -56,11 +62,26 @@ Libraries defined on this level:
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlContainers Containers
 \ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlDebugging Debugging
+\ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlGtid GTID
+\ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlGtids Gtids
+\ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlIterators Iterators
 \ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlMath Math
 \ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlMeta Meta
+\defgroup GroupLibsMysqlRanges Ranges
+\ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlSerialization Serialization
 \ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlSets Sets
+\ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlStrconv Strconv
+\ingroup GroupLibsMysql
 \defgroup GroupLibsMysqlUtils Utils
+\ingroup GroupLibsMysql
+\defgroup GroupLibsMysqlUuids Uuids
 \ingroup GroupLibsMysql

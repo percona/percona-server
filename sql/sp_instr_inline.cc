@@ -584,21 +584,19 @@ class sp_inline_instr_stmt : public sp_inline_instr {
     auto *stmt_instr = down_cast<sp_instr_stmt *>(lex_instr);
     stmt_instr->get_query(&sql_query);
 
-    LEX *tmp_lex = thd->lex;
-    LEX *new_lex = new (thd->mem_root) st_lex_local;
-    thd->lex = new_lex;
+    LEX *orig_lex = thd->lex;
+    thd->lex = new (thd->mem_root) st_lex_local;
     lex_start(thd);
 
-    auto cleanup = [&]() {
-      thd->lex->set_secondary_engine_execution_context(nullptr);
-      thd->lex->set_sp_current_parsing_ctx(nullptr);
+    auto guard = create_scope_guard([thd, orig_lex] {
       lex_end(thd->lex);
-      thd->lex = tmp_lex;
-    };
+      thd->lex->set_secondary_engine_execution_context(nullptr);
+      std::destroy_at(thd->lex);
+      thd->lex = orig_lex;
+    });
 
     Parser_state parser_state;
     if (parser_state.init(thd, sql_query.ptr(), sql_query.length())) {
-      cleanup();
       return true;
     }
 
@@ -610,7 +608,6 @@ class sp_inline_instr_stmt : public sp_inline_instr {
       if (thd->is_error()) {
         err_reason.append(thd->get_stmt_da()->message_text());
       }
-      cleanup();
       return true;
     }
 
@@ -619,11 +616,9 @@ class sp_inline_instr_stmt : public sp_inline_instr {
 
     if (thd->is_error() ||
         thd->lex->unit->first_query_block()->prepare(thd, nullptr)) {
-      cleanup();
       return true;
     }
 
-    cleanup();
     return false;
   }
 
@@ -731,9 +726,7 @@ class sp_inline_instr_freturn : public sp_inline_instr {
 
     enum_field_types return_type = m_return_field_def->sql_type;
     if (ret->data_type() != m_return_field_def->sql_type) {
-      if ((ret->const_item() ||
-           (ret->const_for_execution() && thd->lex->is_exec_started())) &&
-          ret->type() != Item::FUNC_ITEM) {
+      if (ret->basic_const_item() && ret->type() != Item::FUNC_ITEM) {
         /* Convert return charset to the one required by the return field. This
          * is done only for simple constants. */
 
@@ -1192,15 +1185,16 @@ Item_singlerow_subselect *sp_inline_instr::create_and_inline_subquery(
   }
   LEX *lex_orig = thd->lex;
 
-  LEX *lex_new = new (thd->mem_root) st_lex_local;
+  thd->lex = new (thd->mem_root) st_lex_local;
+  lex_start(thd);
 
-  auto guard = create_scope_guard([lex_new] {
-    lex_new->set_secondary_engine_execution_context(nullptr);
-    lex_end(lex_new);
+  auto guard = create_scope_guard([thd, lex_orig] {
+    lex_end(thd->lex);
+    thd->lex->set_secondary_engine_execution_context(nullptr);
+    std::destroy_at(thd->lex);
+    thd->lex = lex_orig;
   });
 
-  thd->lex = lex_new;
-  lex_start(thd);
   /*
     Setting this context ensures that variables are represented as item type
     ROUTINE_FIELD_ITEM rather than FIELD_ITEM.
@@ -1211,7 +1205,7 @@ Item_singlerow_subselect *sp_inline_instr::create_and_inline_subquery(
   parse_sql(thd, &parser_state, nullptr);
   thd->lex->set_sp_current_parsing_ctx(nullptr);
   thd->lex->sphead = nullptr;
-  Query_block *query_block_new_lex = lex_new->current_query_block();
+  Query_block *query_block_new_lex = thd->lex->current_query_block();
   if (query_block_new_lex == nullptr) {
     assert(false);
     return nullptr;
@@ -1255,25 +1249,23 @@ Item_singlerow_subselect *sp_inline_instr::create_and_inline_subquery(
     open_tables_for_query(thd, thd->lex->query_tables, 0);
 
     if (lex_orig->query_tables->is_view() &&
-        !lex_new->query_tables->is_view() &&
+        !thd->lex->query_tables->is_view() &&
         sp_name_resolution_ctx->first_name_resolution_table != nullptr) {
       thd->lex->query_tables->grant =
           sp_name_resolution_ctx->first_name_resolution_table->grant;
     } else {
-      check_table_access(thd, SELECT_ACL, lex_new->query_tables, false,
+      check_table_access(thd, SELECT_ACL, thd->lex->query_tables, false,
                          UINT_MAX, false);
     }
   }
 
   if (thd->is_error()) {
-    thd->lex = lex_orig;
     return nullptr;
   }
 
   Item_singlerow_subselect *subquery =
       new Item_singlerow_subselect(query_block_new_lex);
 
-  thd->lex = lex_orig;
   if (thd->is_error()) {
     return nullptr;
   }

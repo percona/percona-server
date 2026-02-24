@@ -105,7 +105,9 @@ Host_errors::Host_errors()
       m_max_user_connection_per_hour(0),
       m_default_database(0),
       m_init_connect(0),
-      m_local(0) {}
+      m_local(0),
+      m_account_locked(0),
+      m_temporary_account_locked(0) {}
 
 void Host_errors::reset() {
   m_connect = 0;
@@ -129,6 +131,8 @@ void Host_errors::reset() {
   m_default_database = 0;
   m_init_connect = 0;
   m_local = 0;
+  m_account_locked = 0;
+  m_temporary_account_locked = 0;
 }
 
 void Host_errors::aggregate(const Host_errors *errors) {
@@ -153,6 +157,8 @@ void Host_errors::aggregate(const Host_errors *errors) {
   m_default_database += errors->m_default_database;
   m_init_connect += errors->m_init_connect;
   m_local += errors->m_local;
+  m_account_locked += errors->m_account_locked;
+  m_temporary_account_locked += errors->m_temporary_account_locked;
 }
 
 static size_t hostname_cache_max_size;

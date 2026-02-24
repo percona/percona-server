@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_thd_internal_api.h>
 #include <sys/types.h>
+#include "btr0btr.h"
 #include "ha_prototypes.h"
 
 #include "db0err.h"
@@ -82,18 +83,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0chkp.h"
 
 #include "log0ddl.h"
+#include "mem0mem.h"
+#include "mtr0mtr.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "mysql/components/services/bulk_data_service.h"
 #include "mysql/strings/m_ctype.h"
 
+#include "api0api.h"
+#include "btr0cur.h"
 #include "clone0api.h"
 #include "ddl0ddl.h"
 #include "lock0lock.h"
 #include "mysqld_error.h"
 #include "pars0pars.h"
+#include "rem/rec.h"
 #include "rem0types.h"
 #include "row0ins.h"
 #include "row0log.h"
+#include "row0mysql.h"
 #include "row0sel.h"
 #include "sql/create_field.h"
 #include "srv0mon.h"
@@ -106,16 +114,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innopart.h"
 #include "partition_info.h"
 
-#ifdef WLOG
-#undef WLOG
-#endif
-
-#define WLOG(x)                                                           \
-  {                                                                       \
-    std::cout << "[WL17016] thread=" << std::this_thread::get_id() << ":" \
-              << __func__ << ":" << strrchr(__FILE__, '/') + 1 << ":"     \
-              << __LINE__ << ": " << x << std::endl;                      \
-  }
 /** Function to convert the Instant_Type to a comparable int */
 inline uint16_t instant_type_to_int(Instant_Type type) {
   return (static_cast<typename std::underlying_type<Log_Type>::type>(type));
@@ -6792,14 +6790,11 @@ but do not touch the data dictionary cache.
       }
     }
 
-    /* During upgrade, inserts into SYS_* should be avoided. */
-    if (!srv_is_upgrade_mode) {
-      DBUG_EXECUTE_IF("innodb_test_cannot_add_fk_system", error = DB_ERROR;);
+    DBUG_EXECUTE_IF("innodb_test_cannot_add_fk_system", error = DB_ERROR;);
 
-      if (error != DB_SUCCESS) {
-        my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0), fk->id);
-        return true;
-      }
+    if (error != DB_SUCCESS) {
+      my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0), fk->id);
+      return true;
     }
   }
   DBUG_EXECUTE_IF("ib_drop_foreign_error",
@@ -11227,11 +11222,6 @@ bool ha_innobase::bulk_load_check(THD *) const {
     return false;
   }
 
-  if (!btr_is_index_empty(table->first_index())) {
-    my_error(ER_TABLE_NOT_EMPTY, MYF(0), table->name.m_name);
-    return false;
-  }
-
   if (!table->foreign_set.empty()) {
     my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "TABLE WITH FOREIGN KEYS",
              "LOAD DATA ALGORITHM = BULK");
@@ -11241,10 +11231,113 @@ bool ha_innobase::bulk_load_check(THD *) const {
   return true;
 }
 
+int ha_innobase::bulk_load_copy_existing_data(
+    void *load_ctx, size_t thread_idx,
+    Bulk_load::Stat_callbacks &wait_cbk) const {
+  ut_d(auto trx = m_prebuilt->trx);
+  ut_ad(trx_is_started(trx));
+
+  auto *loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+
+  auto db_err = loader->copy_existing_data(m_prebuilt, thread_idx, wait_cbk);
+
+  ut_ad(trx_is_started(trx));
+
+  /* Avoid convert_error_code_to_mysql here as it raises my_error(). This
+  interface is not called on main session thread. We raise the saved error
+  later in main thread when bulk_load_end() is called. Any non zero error
+  code is fine here. */
+  return (db_err == DB_SUCCESS) ? 0 : HA_ERR_GENERIC;
+}
+
+std::string ha_innobase::bulk_load_generate_temporary_table_name() const {
+  mem_heap_t *heap = mem_heap_create(FN_REFLEN, UT_LOCATION_HERE);
+  std::string retval = dict_mem_create_temporary_tablename(
+      heap, m_prebuilt->table->name.m_name, m_prebuilt->table->id);
+  mem_heap_free(heap);
+  return retval;
+}
+
+bool ha_innobase::bulk_load_set_source_table_data(
+    void *load_ctx,
+    const std::vector<Bulk_load::Source_table_data> &source_table_data) const {
+  auto *loader = static_cast<ddl_bulk::Loader *>(load_ctx);
+  return loader->set_source_table_data(m_prebuilt, source_table_data);
+}
+
+bool ha_innobase::is_table_empty() const {
+  dict_table_t *table = m_prebuilt->table;
+  return btr_is_index_empty(table->first_index());
+}
+
 size_t ha_innobase::bulk_load_available_memory(THD *) const {
   /* Occupy up to 25% of buffer pool memory. */
   const size_t max_memory = srv_buf_pool_size / 4;
   return max_memory;
+}
+
+bool ha_innobase::bulk_load_get_row_id_range(size_t &min, size_t &max) const {
+  auto *table = m_prebuilt->table;
+
+  if (!row_table_got_default_clust_index(table)) {
+    return false;
+  }
+
+  auto *clust = table->first_index();
+
+  ut_a(clust && clust->is_clustered());
+
+  const ulint rowid_pos = clust->get_sys_col_pos(DATA_ROW_ID);
+  ut_a(rowid_pos != ULINT_UNDEFINED);
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  btr_pcur_t min_pcur;
+  min_pcur.open_at_side(true, clust, BTR_SEARCH_LEAF, true, 0, &mtr);
+  min_pcur.move_to_next_on_page();
+
+  const rec_t *min_rec = min_pcur.get_rec();
+
+  if (page_rec_is_supremum(min_rec)) {
+    /* Empty table, use [0,0> to represent empty range. */
+    min = 0;
+    max = 0;
+    mtr_commit(&mtr);
+    return true;
+  }
+
+  ulint len;
+  const byte *field;
+  mem_heap_t *heap = nullptr;
+  ulint *offsets;
+
+  offsets = rec_get_offsets(min_rec, clust, nullptr, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
+  field = rec_get_nth_field(clust, min_rec, offsets, rowid_pos, &len);
+  min = mach_read_from_6(field);
+
+  min_pcur.close();
+  mtr_commit(&mtr);
+  mtr_start(&mtr);
+
+  btr_pcur_t max_pcur;
+  max_pcur.open_at_side(false, clust, BTR_SEARCH_LEAF, true, 0, &mtr);
+  max_pcur.move_to_prev_on_page();
+  /* Step left to last user record, skip supremum */
+  const rec_t *max_rec = max_pcur.get_rec();
+
+  offsets = rec_get_offsets(max_rec, clust, nullptr, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
+  field = rec_get_nth_field(clust, max_rec, offsets, rowid_pos, &len);
+  max = mach_read_from_6(field) + 1;
+
+  if (heap != nullptr) {
+    mem_heap_free(heap);
+  }
+
+  mtr_commit(&mtr);
+  return true;
 }
 
 void *ha_innobase::bulk_load_begin(THD *thd, size_t keynr, size_t data_size,
@@ -11265,7 +11358,6 @@ void *ha_innobase::bulk_load_begin(THD *thd, size_t keynr, size_t data_size,
   /* Build the template to convert between the two database formats */
   if (m_prebuilt->mysql_template == nullptr ||
       m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
-    WLOG("BUILDING TEMPLATE");
     build_template(true);
   }
 
@@ -11474,7 +11566,7 @@ int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
 
         auto savept = trx_savept_take(trx);
         const bool silent = true;
-        updated = dict_stats_update(innodb_table, option, trx, silent);
+        updated = dict_stats_update(innodb_table, option, nullptr, silent);
 
         if (updated != DB_SUCCESS) {
           LogErr(INFORMATION_LEVEL, ER_IB_BULK_LOAD_STATS_WARN,
@@ -11511,5 +11603,6 @@ int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
   ut::delete_(loader);
 
   /* We raise the error in report_error. */
-  return (db_err == DB_SUCCESS) ? 0 : HA_ERR_GENERIC;
+  bool any_error = is_error || db_err != DB_SUCCESS;
+  return any_error ? HA_ERR_GENERIC : 0;
 }

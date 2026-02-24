@@ -133,3 +133,24 @@ SELECT ADDTIME(TIME'00:20:08',
 --echo #
 
 SELECT ADDTIME(FROM_UNIXTIME(2985951232, "%y-%r-%i-%b-%x"), DATE('0000-00-00'));
+
+--echo #
+--echo # Bug#38487675: Assertion failed: is_valid() && iv.year == 0 &&
+--echo #               iv.month == 0 && iv.day == 0
+--echo #
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2025-10-11 00:00:00');
+
+SELECT INTERVAL '{"a":[1,2,3,4,5]}' DAY_MICROSECOND + TIME'11:22:33';
+
+SET TIMESTAMP = DEFAULT;
+
+--echo #
+--echo # Bug#38487373: Assertion failed: time.time_type == MYSQL_TIMESTAMP_TIME
+--echo #
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2025-10-11 00:00:00');
+
+DO ADDTIME(TIME_FORMAT('-250:07:38.935647', '1974-10-18 08:57:35.681107'), 1);
+
+SET TIMESTAMP = DEFAULT;

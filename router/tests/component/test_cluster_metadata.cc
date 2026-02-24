@@ -557,8 +557,10 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnAttributesUpdate) {
   const std::string log_content = router.get_logfile_content();
   const std::string needle =
       "Make sure to follow the correct steps to upgrade your metadata.\n"
-      "Run the dba.upgradeMetadata() then launch the new Router version "
-      "when prompted";
+      "In MySQL Shell, run dba.upgradeMetadata(), then launch the new Router "
+      "version when prompted.\n"
+      "If the MySQL account used by MySQL Router is missing privileges, "
+      "run dba.setupRouterAccount() to update its grants.";
   EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 
   SCOPED_TRACE(
@@ -1175,6 +1177,7 @@ TEST_P(StatsUpdatesFrequencyTest, Verify) {
   if (GetParam().cluster_type == ClusterType::GR_CS) {
     ClusterSetOptions cs_options;
     cs_options.tracefile = "metadata_clusterset.js";
+    cs_options.metadata_version = GetParam().metadata_version;
     cs_options.router_options = GetParam().router_options_json;
     create_clusterset(cs_options);
 
@@ -1223,12 +1226,29 @@ TEST_P(StatsUpdatesFrequencyTest, Verify) {
   const auto last_check_in_count = get_int_global_value(
       primary_node_http_port, "update_last_check_in_count");
 
+  const auto old_last_check_in_count = get_int_global_value(
+      primary_node_http_port, "old_update_last_check_in_count");
+
   if (GetParam().expect_updates) {
     // last_check_in updates expected
-    EXPECT_GT(last_check_in_count, 0);
+    if (GetParam().metadata_version >=
+        mysqlrouter::MetadataSchemaVersion{2, 4, 0}) {
+      EXPECT_GT(last_check_in_count, 1);
+      EXPECT_EQ(old_last_check_in_count, 0);
+    } else {
+      EXPECT_GT(old_last_check_in_count, 1);
+      EXPECT_EQ(last_check_in_count, 0);
+    }
   } else {
-    // no last_check_in updates expected
-    EXPECT_EQ(0, last_check_in_count);
+    // no periodic last_check_in updates expected, only the initial-one
+    if (GetParam().metadata_version >=
+        mysqlrouter::MetadataSchemaVersion{2, 4, 0}) {
+      EXPECT_EQ(1, last_check_in_count);
+      EXPECT_EQ(0, old_last_check_in_count);
+    } else {
+      EXPECT_EQ(0, last_check_in_count);
+      EXPECT_EQ(1, old_last_check_in_count);
+    }
   }
 
   const std::string log_content = router.get_logfile_content();
@@ -1249,7 +1269,7 @@ INSTANTIATE_TEST_SUITE_P(
             "router_options.stats_updates_frequency=0 - ClusterSet",
             /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
             /*cluster_type*/ ClusterType::GR_CS,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         // explicit 0 - InnoDBCluster
@@ -1258,7 +1278,7 @@ INSTANTIATE_TEST_SUITE_P(
             "router_options.stats_updates_frequency=0 - InnoDBCluster",
             /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
             /*cluster_type*/ ClusterType::GR_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         // explicit 0 - ReplicaSet
@@ -1267,7 +1287,7 @@ INSTANTIATE_TEST_SUITE_P(
             "router_options.stats_updates_frequency=0 - ReplicaSet",
             /*router_options_json*/ R"({"stats_updates_frequency" : 0})",
             /*cluster_type*/ ClusterType::RS_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1276,7 +1296,7 @@ INSTANTIATE_TEST_SUITE_P(
             "- ClusterSet - default is never do updates",
             /*router_options_json*/ "{}",
             /*cluster_type*/ ClusterType::GR_CS,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{"cluster_options_empty_json",
@@ -1286,7 +1306,7 @@ INSTANTIATE_TEST_SUITE_P(
                                    "default is do updates every 10th TTL",
                                    /*router_options_json*/ "{}",
                                    /*cluster_type*/ ClusterType::GR_V2,
-                                   /*metadata_version*/ {2, 2, 0},
+                                   /*metadata_version*/ {2, 4, 0},
                                    /*expect_updates*/ true,
                                    /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{"replicaset_options_empty_json",
@@ -1296,7 +1316,7 @@ INSTANTIATE_TEST_SUITE_P(
                                    "default is do updates every 10th TTL",
                                    /*router_options_json*/ "{}",
                                    /*cluster_type*/ ClusterType::RS_V2,
-                                   /*metadata_version*/ {2, 2, 0},
+                                   /*metadata_version*/ {2, 4, 0},
                                    /*expect_updates*/ true,
                                    /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{"clusterset_options_empty_string",
@@ -1305,7 +1325,7 @@ INSTANTIATE_TEST_SUITE_P(
                                    "ClusterSet - default is never do updates",
                                    /*router_options_json*/ "",
                                    /*cluster_type*/ ClusterType::GR_CS,
-                                   /*metadata_version*/ {2, 2, 0},
+                                   /*metadata_version*/ {2, 4, 0},
                                    /*expect_updates*/ false,
                                    /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1314,7 +1334,7 @@ INSTANTIATE_TEST_SUITE_P(
             "updates every 10th TTL",
             /*router_options_json*/ "",
             /*cluster_type*/ ClusterType::GR_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1323,7 +1343,7 @@ INSTANTIATE_TEST_SUITE_P(
             "updates every 10th TTL",
             /*router_options_json*/ "",
             /*cluster_type*/ ClusterType::RS_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1333,7 +1353,7 @@ INSTANTIATE_TEST_SUITE_P(
             "ClusterSet - default is never do updates",
             /*router_options_json*/ R"({"stats_updates_frequency" : "aaa"})",
             /*cluster_type*/ ClusterType::GR_CS,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ true},
         StatsUpdatesFrequencyParam{
@@ -1342,7 +1362,7 @@ INSTANTIATE_TEST_SUITE_P(
             "InnoDBCluster - default is do updates every 10th TTL",
             /*router_options_json*/ R"({"stats_updates_frequency" : "aaa"})",
             /*cluster_type*/ ClusterType::GR_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ true},
         StatsUpdatesFrequencyParam{
@@ -1352,7 +1372,7 @@ INSTANTIATE_TEST_SUITE_P(
             "ReplicaSet - default is do updates every 10th TTL",
             /*router_options_json*/ R"({"stats_updates_frequency" : -1})",
             /*cluster_type*/ ClusterType::RS_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ true},
         StatsUpdatesFrequencyParam{
@@ -1361,7 +1381,7 @@ INSTANTIATE_TEST_SUITE_P(
             "at least 1 update is expected",
             /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
             /*cluster_type*/ ClusterType::GR_CS,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1370,7 +1390,7 @@ INSTANTIATE_TEST_SUITE_P(
             "at least 1 update is expected",
             /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
             /*cluster_type*/ ClusterType::GR_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1379,7 +1399,7 @@ INSTANTIATE_TEST_SUITE_P(
             "at least 1 update is expected",
             /*router_options_json*/ R"({"stats_updates_frequency" : 1})",
             /*cluster_type*/ ClusterType::RS_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ true,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1388,7 +1408,7 @@ INSTANTIATE_TEST_SUITE_P(
             "update is expected",
             /*router_options_json*/ R"({"stats_updates_frequency" : 5})",
             /*cluster_type*/ ClusterType::GR_CS,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1397,7 +1417,7 @@ INSTANTIATE_TEST_SUITE_P(
             "update is expected",
             /*router_options_json*/ R"({"stats_updates_frequency" : 5})",
             /*cluster_type*/ ClusterType::GR_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
@@ -1406,7 +1426,7 @@ INSTANTIATE_TEST_SUITE_P(
             "update is expected",
             /*router_options_json*/ R"({"stats_updates_frequency" : 5})",
             /*cluster_type*/ ClusterType::RS_V2,
-            /*metadata_version*/ {2, 2, 0},
+            /*metadata_version*/ {2, 4, 0},
             /*expect_updates*/ false,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{"replicaset_options_invalid_json",
@@ -1416,7 +1436,7 @@ INSTANTIATE_TEST_SUITE_P(
                                    "parsing error should be logged",
                                    /*router_options_json*/ "aaabc",
                                    /*cluster_type*/ ClusterType::RS_V2,
-                                   /*metadata_version*/ {2, 2, 0},
+                                   /*metadata_version*/ {2, 4, 0},
                                    /*expect_updates*/ true,
                                    /*expect_parsing_error*/ true},
         StatsUpdatesFrequencyParam{
@@ -1439,7 +1459,7 @@ INSTANTIATE_TEST_SUITE_P(
             /*expect_updates*/ true,
             /*expect_parsing_error*/ false},
         StatsUpdatesFrequencyParam{
-            "clusterset_metadata_2_1_0_updates_frequency_0s", "FR2",
+            "cluster_metadata_2_1_0_updates_frequency_0s", "FR2",
             "Standalone Cluster, metadata vesion 2.1.0 (before "
             "v2_router_options view was added), even though "
             "v2_router_cs_options has '0' configured so we don't use it for "

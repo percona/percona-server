@@ -1135,13 +1135,13 @@ FROM (SELECT MAX(2) AS a1 FROM t) as dt1,
 WHERE dt1.a1 <= dt2.a2;
 EXPLAIN
 -> Inner hash join (no condition)  (rows=1)
-    -> Table scan on dt1  (rows=1)
-        -> Materialize  (rows=1)
-            -> Filter: (max(2) <= <cache>((@a)))  (rows=1)
-                -> Aggregate: max(2)  (rows=1)
-                    -> Table scan on t  (rows=1)
+    -> Table scan on t  (rows=1)
     -> Hash
-        -> Table scan on t  (rows=1)
+        -> Table scan on dt1  (rows=1)
+            -> Materialize  (rows=1)
+                -> Filter: (max(2) <= <cache>((@a)))  (rows=1)
+                    -> Aggregate: max(2)  (rows=1)
+                        -> Table scan on t  (rows=1)
 
 SELECT a1, a2
 FROM (SELECT MAX(f1) AS a1 FROM t) as dt1,

@@ -76,6 +76,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_foreign_key_constraint.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -121,6 +122,12 @@ bool DeleteCurrentRowAndProcessTriggers(THD *thd, TABLE *table,
                                           TRG_ACTION_BEFORE,
                                           /*old_row_is_record1=*/false)) {
       return true;
+    }
+  }
+
+  if (use_sql_fk_checks_for_table(thd, table)) {
+    if (check_all_child_fk_ref(thd, table, enum_fk_dml_type::FK_DELETE)) {
+      return thd->is_error();
     }
   }
 

@@ -45,8 +45,6 @@ using keyring_reader_with_status_t =
     SERVICE_TYPE_NO_CONST(keyring_reader_with_status);
 using keyring_writer_t = SERVICE_TYPE_NO_CONST(keyring_writer);
 
-using const_registry_type_t = SERVICE_TYPE(registry);
-using const_dynamic_loader_type_t = SERVICE_TYPE(dynamic_loader);
 using const_keyring_keys_metadata_iterator_t =
     SERVICE_TYPE(keyring_keys_metadata_iterator);
 using const_keyring_load_t = SERVICE_TYPE(keyring_load);

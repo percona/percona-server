@@ -19,12 +19,19 @@ if (mysqld.global.update_attributes_count === undefined) {
   mysqld.global.update_attributes_count = 0;
 }
 
+// how many times the router_stats.last_check_in was updated
 if (mysqld.global.update_last_check_in_count === undefined) {
   mysqld.global.update_last_check_in_count = 0;
 }
 
+// how many times the router.last_check_in was updated (this was updated)
+// in schema pre-2.4 version
+if (mysqld.global.old_update_last_check_in_count === undefined) {
+  mysqld.global.old_update_last_check_in_count = 0;
+}
+
 if (mysqld.global.metadata_schema_version === undefined) {
-  mysqld.global.metadata_schema_version = [2, 2, 0];
+  mysqld.global.metadata_schema_version = [2, 4, 0];
 }
 
 if (mysqld.global.routing_guidelines === undefined) {
@@ -108,6 +115,9 @@ if (mysqld.global.routing_guidelines === undefined) {
         common_stmts.get("router_update_attributes_v2", options);
 
     var router_update_last_check_in =
+        common_stmts.get("router_update_last_check_in_v2_4", options);
+
+    var router_update_last_check_in_old =
         common_stmts.get("router_update_last_check_in_v2", options);
 
     var router_bootstrap_target_type =
@@ -123,6 +133,9 @@ if (mysqld.global.routing_guidelines === undefined) {
     } else if (stmt === router_update_last_check_in.stmt) {
       mysqld.global.update_last_check_in_count++;
       return router_update_last_check_in;
+    } else if (stmt === router_update_last_check_in_old.stmt) {
+      mysqld.global.old_update_last_check_in_count++;
+      return router_update_last_check_in_old;
     } else if (
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {

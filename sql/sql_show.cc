@@ -2099,6 +2099,8 @@ static bool generate_sql_from_file_format_object(
           enum_json_type::J_ERROR ||
       file_format_obj.lookup(external_table::kTimestampFormatParam).type() !=
           enum_json_type::J_ERROR ||
+      file_format_obj.lookup(external_table::kDatetimeFormatParam).type() !=
+          enum_json_type::J_ERROR ||
       file_format_obj.lookup(external_table::kNullValueParam).type() !=
           enum_json_type::J_ERROR ||
       file_format_obj.lookup(external_table::kEmptyValueParam).type() !=
@@ -2120,8 +2122,13 @@ static bool generate_sql_from_file_format_object(
                          external_table::kDateFormatParam);
     append_string_option(packet, file_format_obj, "TIME FORMAT",
                          external_table::kTimeFormatParam);
-    append_string_option(packet, file_format_obj, "DATETIME FORMAT",
-                         external_table::kTimestampFormatParam);
+    if (!file_format_obj.lookup(external_table::kDatetimeFormatParam).empty()) {
+      append_string_option(packet, file_format_obj, "DATETIME FORMAT",
+                           external_table::kDatetimeFormatParam);
+    } else {
+      append_string_option(packet, file_format_obj, "DATETIME FORMAT",
+                           external_table::kTimestampFormatParam);
+    }
     append_string_option(packet, file_format_obj, "NULL AS",
                          external_table::kNullValueParam);
     append_string_option(packet, file_format_obj, "EMPTY VALUE",
@@ -2192,7 +2199,7 @@ static bool can_use_sql_for_engine_attribute(Json_object *engine_attr_obj) {
       kEncodingParam,        kDateFormatParam,      kTimeFormatParam,
       kTimestampFormatParam, kIsStrictModeParam,    kConstraintCheckParam,
       kHasHeaderParam,       kAllowMissingParam,    kNullValueParam,
-      kEmptyValueParam,      kCompressionParam};
+      kEmptyValueParam,      kCompressionParam,     kDatetimeFormatParam};
   auto *file_format_dom = engine_attr_obj->get(kDialectParam);
   if (file_format_dom != nullptr) {
     if (file_format_dom->json_type() != enum_json_type::J_OBJECT) {
@@ -2646,32 +2653,37 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       if (engine_attr != nullptr &&
           engine_attr->json_type() == enum_json_type::J_OBJECT) {
         auto *engine_attr_obj = down_cast<Json_object *>(engine_attr.get());
-        std::string json_key;
+        Json_dom *format_dom = nullptr;
         switch (field->type()) {
           case MYSQL_TYPE_DATE:
-            json_key = "date_format";
+            format_dom = engine_attr_obj->get(external_table::kDateFormatParam);
             break;
           case MYSQL_TYPE_TIME:
-            json_key = "time_format";
+            format_dom = engine_attr_obj->get(external_table::kTimeFormatParam);
             break;
           case MYSQL_TYPE_TIMESTAMP:
           case MYSQL_TYPE_DATETIME:
-            json_key = "timestamp_format";
+            // kDatetimeFormatParam has a higher precedence over
+            // kTimestampFormatParam.
+            format_dom =
+                engine_attr_obj->get(external_table::kDatetimeFormatParam);
+            if (format_dom == nullptr) {
+              format_dom =
+                  engine_attr_obj->get(external_table::kTimestampFormatParam);
+            }
             break;
           default:
             engine_attribute_error = true;
         }
-        if (!engine_attribute_error) {
-          auto *format_dom = engine_attr_obj->get(json_key);
-          if (format_dom != nullptr &&
-              format_dom->json_type() == enum_json_type::J_STRING) {
-            auto *format = down_cast<Json_string *>(format_dom);
-            packet->append(STRING_WITH_LEN(" /*!90300 EXTERNAL_FORMAT "));
-            append_unescaped(packet, format->value().data(), format->size());
-            packet->append(STRING_WITH_LEN(" */"));
-          } else {
-            engine_attribute_error = true;
-          }
+
+        if (!engine_attribute_error && format_dom != nullptr &&
+            format_dom->json_type() == enum_json_type::J_STRING) {
+          auto *format = down_cast<Json_string *>(format_dom);
+          packet->append(STRING_WITH_LEN(" /*!90300 EXTERNAL_FORMAT "));
+          append_unescaped(packet, format->value().data(), format->size());
+          packet->append(STRING_WITH_LEN(" */"));
+        } else if (!engine_attribute_error) {
+          engine_attribute_error = true;
         }
       } else {
         engine_attribute_error = true;
@@ -6126,11 +6138,6 @@ bool do_fill_information_schema_table(THD *thd, Table_ref *table_list,
 
   return res;
 }
-
-struct run_hton_fill_schema_table_args {
-  Table_ref *tables;
-  Item *cond;
-};
 
 ST_FIELD_INFO engines_fields_info[] = {
     {"ENGINE", 64, MYSQL_TYPE_STRING, 0, 0, "Engine", 0},

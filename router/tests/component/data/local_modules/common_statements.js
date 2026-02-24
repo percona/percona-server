@@ -1,7 +1,7 @@
 var defaults = {
   version_comment: "community",
   account_user: "root",
-  metadata_schema_version: [2, 3, 0],
+  metadata_schema_version: [2, 4, 0],
   exec_time: 0.0,
   // array-of-array
   // - server-uuid
@@ -549,6 +549,13 @@ function get_response(stmt_key, options) {
             options.user_host_pattern,
         "ok": {}
       };
+    case "router_grant_on_router_stats":
+      return {
+        "stmt_regex":
+            "^GRANT INSERT, UPDATE ON mysql_innodb_cluster_metadata\\.router_stats.*" +
+            options.user_host_pattern,
+        "ok": {}
+      };
     case "router_update_routers_in_metadata":
       return {
         "stmt_regex":
@@ -805,7 +812,7 @@ function get_response(stmt_key, options) {
     case "router_update_attributes_v2":
       return {
         "stmt_regex": "UPDATE mysql_innodb_cluster_metadata\\.v2_routers" +
-            " SET version = '(.*)', last_check_in = NOW\\(\\), attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
+            " SET version = '(.*)', attributes = JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(" +
             " IF\\(attributes IS NULL, '\\{\\}', attributes\\)," +
             " '\\$\\.RWEndpoint', '(.*)'\\), '\\$\\.ROEndpoint', '(.*)'\\), '\\$\\.RWSplitEndpoint', '(.*)'\\), '\\$\\.RWXEndpoint', '(.*)'\\)," +
             " '\\$\\.ROXEndpoint', '(.*)'\\), '\\$\\.MetadataUser', '(.*)'\\), '\\$.Configuration', CAST\\('(.*)' as JSON\\)\\) WHERE router_id = (.*)",
@@ -814,8 +821,17 @@ function get_response(stmt_key, options) {
     case "router_update_last_check_in_v2":
       return {
         "stmt":
-            "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in = " +
+            "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in=" +
             "NOW() where router_id = " + options.router_id,
+        "ok": {}
+      };
+    case "router_update_last_check_in_v2_4":
+      return {
+        "stmt":
+            "INSERT INTO mysql_innodb_cluster_metadata.router_stats(router_id, " +
+            "last_check_in) VALUES (" + options.router_id +
+            ", NOW()) ON DUPLICATE KEY UPDATE " +
+            "last_check_in = NOW()",
         "ok": {}
       };
     case "router_set_session_options":

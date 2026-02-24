@@ -142,9 +142,6 @@ struct PFS_global_param {
   bool m_consumer_thread_instrumentation_enabled;
   bool m_consumer_statement_digest_enabled;
 
-  /** True if SHOW PROCESSLIST is enabeld in the performance schema. */
-  bool m_processlist_enabled;
-
   /** Default instrument configuration option. */
   char *m_pfs_instrument;
 

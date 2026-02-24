@@ -66,8 +66,8 @@ extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
 extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
 extern bool debug_sync_update(THD *thd, char *val_str);
 extern uchar *debug_sync_value_ptr(THD *thd);
-extern void conditional_sync_point_for_timestamp(std::string name);
-extern void conditional_sync_point(std::string name,
+extern void conditional_sync_point_for_timestamp(const std::string &name);
+extern void conditional_sync_point(const std::string &name,
                                    unsigned short timeout = 0);
 
 /**
@@ -110,8 +110,8 @@ extern void conditional_sync_point(std::string name,
     the name should relate to what the server does and not the test
     scenario.
 
-  @param[in] TIMEOUT Timeout to use during conditional wait_for.
-*/
+    @param[in] TIMEOUT Timeout to use during conditional wait_for.
+  */
 #define CONDITIONAL_SYNC_POINT_TIMEOUT(NAME, TIMEOUT) \
   conditional_sync_point(NAME, TIMEOUT)
 

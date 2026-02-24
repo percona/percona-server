@@ -3900,9 +3900,9 @@ EXPLAIN
                                 -> Materialize  (rows=1)
                                     -> Aggregate: max(c_sq1_alias1.pk), count(0)  (rows=1)
                                         -> Inner hash join (no condition)  (rows=1)
-                                            -> Table scan on c_sq1_alias1  (rows=1)
+                                            -> Table scan on c_sq1_alias2  (rows=1)
                                             -> Hash
-                                                -> Table scan on c_sq1_alias2  (rows=1)
+                                                -> Table scan on c_sq1_alias1  (rows=1)
 
 DROP TABLE t1;
 #
@@ -4003,9 +4003,9 @@ x AS table2);
 EXPLAIN
 -> Filter: (x.col_int_key <= (select #3))  (rows=1)
     -> Inner hash join (no condition)  (rows=1)
-        -> Table scan on x  (rows=1)
+        -> Table scan on table2  (rows=1)
         -> Hash
-            -> Table scan on table2  (rows=1)
+            -> Table scan on x  (rows=1)
     -> Select #3 (subquery in condition; uncacheable)
         -> Aggregate: sum(x.col_int_key)  (rows=1)
             -> Filter: (x.col_int_key < <cache>((@var1)))  (rows=0.333)
@@ -4075,19 +4075,19 @@ t1
 ON 1);
 EXPLAIN
 -> Inner hash join (no condition)  (rows=1)
-    -> Inner hash join (no condition)  (rows=1)
-        -> Inner hash join (no condition)  (rows=1)
-            -> Table scan on a1  (rows=1)
-            -> Hash
-                -> Table scan on derived_3_4  (rows=1)
-                    -> Materialize  (rows=1)
-                        -> Filter: (1 <> count(0))  (rows=1)
-                            -> Aggregate: count(0)  (rows=1)
-                                -> Table scan on t1  (rows=1)
-        -> Hash
-            -> Table scan on a2  (rows=1)
+    -> Table scan on t1  (rows=1)
     -> Hash
-        -> Table scan on t1  (rows=1)
+        -> Inner hash join (no condition)  (rows=1)
+            -> Table scan on a2  (rows=1)
+            -> Hash
+                -> Inner hash join (no condition)  (rows=1)
+                    -> Table scan on a1  (rows=1)
+                    -> Hash
+                        -> Table scan on derived_3_4  (rows=1)
+                            -> Materialize  (rows=1)
+                                -> Filter: (1 <> count(0))  (rows=1)
+                                    -> Aggregate: count(0)  (rows=1)
+                                        -> Table scan on t1  (rows=1)
 -> Select #2 (subquery in projection; dependent)
     -> Aggregate: count(0)  (rows=1)
         -> Filter: (1 <> a2.col_varchar)  (rows=1)
@@ -4290,12 +4290,12 @@ EXPLAIN
                                                                     -> Table scan on n  (rows=1)
                                         -> Hash
                                             -> Inner hash join (no condition), extra conditions: (table2.i <= derived_8_13.`MAX(``n``.``i``)`)  (rows=0.333)
-                                                -> Table scan on derived_8_13  (rows=1)
-                                                    -> Materialize  (rows=1)
-                                                        -> Aggregate: max(n.i)  (rows=1)
-                                                            -> Table scan on n  (rows=1)
+                                                -> Table scan on table2  (rows=1)
                                                 -> Hash
-                                                    -> Table scan on table2  (rows=1)
+                                                    -> Table scan on derived_8_13  (rows=1)
+                                                        -> Materialize  (rows=1)
+                                                            -> Aggregate: max(n.i)  (rows=1)
+                                                                -> Table scan on n  (rows=1)
     -> Hash
         -> Table scan on derived_1_14  (rows=1)
             -> Materialize  (rows=1)
@@ -4350,12 +4350,12 @@ EXPLAIN
                                                         -> Table scan on n  (rows=1)
                             -> Hash
                                 -> Inner hash join (no condition), extra conditions: (table2.i <= derived_6_9.`MAX(``n``.``i``)`)  (rows=0.333)
-                                    -> Table scan on derived_6_9  (rows=1)
-                                        -> Materialize  (rows=1)
-                                            -> Aggregate: max(n.i)  (rows=1)
-                                                -> Table scan on n  (rows=1)
+                                    -> Table scan on table2  (rows=1)
                                     -> Hash
-                                        -> Table scan on table2  (rows=1)
+                                        -> Table scan on derived_6_9  (rows=1)
+                                            -> Materialize  (rows=1)
+                                                -> Aggregate: max(n.i)  (rows=1)
+                                                    -> Table scan on n  (rows=1)
                         -> Hash
                             -> Table scan on derived_6_7  (rows=0.333)
                                 -> Materialize  (rows=0.333)
@@ -4429,12 +4429,12 @@ EXPLAIN
                                                                     -> Table scan on n  (rows=1)
                                         -> Hash
                                             -> Inner hash join (no condition), extra conditions: (table2.i <= derived_8_13.`MAX(``n``.``i``)`)  (rows=0.333)
-                                                -> Table scan on derived_8_13  (rows=1)
-                                                    -> Materialize  (rows=1)
-                                                        -> Aggregate: max(n.i)  (rows=1)
-                                                            -> Table scan on n  (rows=1)
+                                                -> Table scan on table2  (rows=1)
                                                 -> Hash
-                                                    -> Table scan on table2  (rows=1)
+                                                    -> Table scan on derived_8_13  (rows=1)
+                                                        -> Materialize  (rows=1)
+                                                            -> Aggregate: max(n.i)  (rows=1)
+                                                                -> Table scan on n  (rows=1)
     -> Hash
         -> Table scan on derived_1_14  (rows=1)
             -> Materialize  (rows=1)
@@ -4506,12 +4506,12 @@ EXPLAIN
                                                                                         -> Table scan on n  (rows=1)
                                                             -> Hash
                                                                 -> Inner hash join (no condition), extra conditions: (table2.i <= derived_10_17.`MAX(``n``.``i``)`)  (rows=0.333)
-                                                                    -> Table scan on derived_10_17  (rows=1)
-                                                                        -> Materialize  (rows=1)
-                                                                            -> Aggregate: max(n.i)  (rows=1)
-                                                                                -> Table scan on n  (rows=1)
+                                                                    -> Table scan on table2  (rows=1)
                                                                     -> Hash
-                                                                        -> Table scan on table2  (rows=1)
+                                                                        -> Table scan on derived_10_17  (rows=1)
+                                                                            -> Materialize  (rows=1)
+                                                                                -> Aggregate: max(n.i)  (rows=1)
+                                                                                    -> Table scan on n  (rows=1)
                                                         -> Hash
                                                             -> Table scan on derived_10_14  (rows=0.1)
                                                                 -> Materialize  (rows=0.1)
@@ -4589,12 +4589,12 @@ EXPLAIN
             -> Aggregate: count(table1.pk)  (rows=1)
                 -> Inner hash join (no condition)  (rows=1)
                     -> Inner hash join (no condition)  (rows=1)
-                        -> Inner hash join (no condition)  (rows=1)
-                            -> Table scan on table1  (rows=1)
-                            -> Hash
-                                -> Table scan on cc1  (rows=1)
+                        -> Table scan on table3  (rows=1)
                         -> Hash
-                            -> Table scan on table3  (rows=1)
+                            -> Inner hash join (no condition)  (rows=1)
+                                -> Table scan on cc1  (rows=1)
+                                -> Hash
+                                    -> Table scan on table1  (rows=1)
                     -> Hash
                         -> Table scan on derived_4_5  (rows=1)
                             -> Materialize  (rows=1)
@@ -4631,12 +4631,12 @@ EXPLAIN
                 -> Aggregate: count(table1.pk)  (rows=1)
                     -> Inner hash join (no condition)  (rows=1)
                         -> Inner hash join (no condition)  (rows=1)
-                            -> Inner hash join (no condition)  (rows=1)
-                                -> Table scan on table1  (rows=1)
-                                -> Hash
-                                    -> Table scan on cc1  (rows=1)
+                            -> Table scan on table3  (rows=1)
                             -> Hash
-                                -> Table scan on table3  (rows=1)
+                                -> Inner hash join (no condition)  (rows=1)
+                                    -> Table scan on cc1  (rows=1)
+                                    -> Hash
+                                        -> Table scan on table1  (rows=1)
                         -> Hash
                             -> Table scan on derived_4_5  (rows=1)
                                 -> Materialize  (rows=1)
@@ -4842,9 +4842,9 @@ EXPLAIN
                             -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (rows=20)
                             -> Hash
                                 -> Inner hash join (cc.col_int_key = subquery1_t2.col_int), (cc.col_varchar = subquery1_t2.col_varchar_key)  (rows=1.25)
-                                    -> Table scan on subquery1_t2  (rows=20)
+                                    -> Table scan on cc  (rows=20)
                                     -> Hash
-                                        -> Table scan on cc  (rows=20)
+                                        -> Table scan on subquery1_t2  (rows=20)
 
 DROP VIEW view_cc;
 DROP TABLE cc;
@@ -5055,9 +5055,9 @@ EXPLAIN
             -> Materialize  (rows=1)
                 -> Aggregate: max(subquery1_t1.pk)  (rows=1)
                     -> Inner hash join (subquery1_t2.col_varchar_key = subquery1_t1.col_varchar_key)  (rows=0.1)
-                        -> Table scan on subquery1_t1  (rows=1)
+                        -> Table scan on subquery1_t2  (rows=1)
                         -> Hash
-                            -> Table scan on subquery1_t2  (rows=1)
+                            -> Table scan on subquery1_t1  (rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #4 was resolved in SELECT #1
@@ -5412,15 +5412,15 @@ EXPLAIN
                 -> Covering index scan on alias3 using idx_cc_col_date_key  (rows=1)
         -> Hash
             -> Inner hash join (no condition), extra conditions: (alias2.col_int >= derived_2_4.sq1_field1)  (rows=0.333)
-                -> Table scan on derived_2_4  (rows=1)
-                    -> Materialize  (rows=1)
-                        -> Aggregate: min(sq1_alias1.col_int)  (rows=1)
-                            -> Inner hash join (no condition)  (rows=1)
-                                -> Table scan on sq1_alias1  (rows=1)
-                                -> Hash
-                                    -> Covering index scan on sq1_alias2 using idx_cc_col_date_key  (rows=1)
+                -> Table scan on alias2  (rows=1)
                 -> Hash
-                    -> Table scan on alias2  (rows=1)
+                    -> Table scan on derived_2_4  (rows=1)
+                        -> Materialize  (rows=1)
+                            -> Aggregate: min(sq1_alias1.col_int)  (rows=1)
+                                -> Inner hash join (no condition)  (rows=1)
+                                    -> Table scan on sq1_alias1  (rows=1)
+                                    -> Hash
+                                        -> Covering index scan on sq1_alias2 using idx_cc_col_date_key  (rows=1)
 
 DROP VIEW view_c;
 DROP TABLE c;
@@ -5490,22 +5490,22 @@ ON true;
 EXPLAIN
 -> Filter: <cache>((1 >= (select #5)))  (rows=1)
     -> Inner hash join (no condition)  (rows=1)
-        -> Inner hash join (no condition)  (rows=1)
-            -> Nested loop inner join (FirstMatch)  (rows=1)
-                -> Limit: 1 row(s)  (rows=1)
-                    -> Table scan on sub2_t1  (rows=1)
-                -> Inner hash join (no condition)  (rows=1)
-                    -> Table scan on a  (rows=1)
-                    -> Hash
-                        -> Filter: <in_optimizer>(sub1_t2.col_varchar_key,<exists>(select #3))  (rows=1)
-                            -> Table scan on sub1_t2  (rows=1)
-                            -> Select #3 (subquery in condition; dependent)
-                                -> Filter: (<cache>(sub1_t2.col_varchar_key) = a.col_varchar_key)  (rows=0.1)
-                                    -> Table scan on a  (rows=1)
-            -> Hash
-                -> Table scan on table2  (rows=1)
+        -> Table scan on a  (rows=1)
         -> Hash
-            -> Table scan on a  (rows=1)
+            -> Inner hash join (no condition)  (rows=1)
+                -> Table scan on table2  (rows=1)
+                -> Hash
+                    -> Nested loop inner join (FirstMatch)  (rows=1)
+                        -> Limit: 1 row(s)  (rows=1)
+                            -> Table scan on sub2_t1  (rows=1)
+                        -> Inner hash join (no condition)  (rows=1)
+                            -> Table scan on a  (rows=1)
+                            -> Hash
+                                -> Filter: <in_optimizer>(sub1_t2.col_varchar_key,<exists>(select #3))  (rows=1)
+                                    -> Table scan on sub1_t2  (rows=1)
+                                    -> Select #3 (subquery in condition; dependent)
+                                        -> Filter: (<cache>(sub1_t2.col_varchar_key) = a.col_varchar_key)  (rows=0.1)
+                                            -> Table scan on a  (rows=1)
     -> Select #5 (subquery in condition; run only once)
         -> Aggregate: min(a.col_varchar_key)  (rows=1)
             -> Table scan on a  (rows=1)
@@ -5602,9 +5602,9 @@ EXPLAIN
                     -> Hash
                         -> Left hash join (no condition)  (rows=1)
                             -> Inner hash join (no condition)  (rows=1)
-                                -> Table scan on alias1  (rows=1)
+                                -> Table scan on alias2  (rows=1)
                                 -> Hash
-                                    -> Table scan on alias2  (rows=1)
+                                    -> Table scan on alias1  (rows=1)
                             -> Hash
                                 -> Table scan on derived_1_2  (rows=1)
                                     -> Materialize  (rows=1)
@@ -5973,18 +5973,18 @@ EXPLAIN
 -> Delete from ot (buffered)  (rows=1)
     -> Filter: ((ot.b < 0) or (derived_1_3.Name_exp_1 is not null))  (rows=1)
         -> Inner hash join (no condition)  (rows=1)
-            -> Nested loop left join  (rows=1)
-                -> Table scan on ot  (rows=1)
-                -> Filter: (ot.a = derived_1_3.Name_exp_1)  (rows=0.0693)
-                    -> Covering index lookup on derived_1_3 using <auto_key0> (Name_exp_1 = ot.a)  (rows=0.693)
-                        -> Materialize  (rows=6.93)
-                            -> Table scan on <temporary>  (rows=6.93)
-                                -> Temporary table with deduplication  (rows=6.93)
-                                    -> Table scan on it  (rows=48)
+            -> Table scan on dummy  (rows=1)
+                -> Materialize  (rows=1)
+                    -> Rows fetched before execution  (rows=1)
             -> Hash
-                -> Table scan on dummy  (rows=1)
-                    -> Materialize  (rows=1)
-                        -> Rows fetched before execution  (rows=1)
+                -> Nested loop left join  (rows=1)
+                    -> Table scan on ot  (rows=1)
+                    -> Filter: (ot.a = derived_1_3.Name_exp_1)  (rows=0.0693)
+                        -> Covering index lookup on derived_1_3 using <auto_key0> (Name_exp_1 = ot.a)  (rows=0.693)
+                            -> Materialize  (rows=6.93)
+                                -> Table scan on <temporary>  (rows=6.93)
+                                    -> Temporary table with deduplication  (rows=6.93)
+                                        -> Table scan on it  (rows=48)
 
 DELETE ot.* FROM t1 ot, (SELECT 1) AS dummy
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);

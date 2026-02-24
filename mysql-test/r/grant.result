@@ -242,7 +242,7 @@ drop_user3@localhost, drop_user4@localhost;
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
 drop user drop_user1@localhost, drop_user2@localhost, drop_user3@localhost,
 drop_user4@localhost;
-ERROR HY000: Operation DROP USER failed for 'drop_user1'@'localhost','drop_user2'@'localhost','drop_user3'@'localhost','drop_user4'@'localhost'
+ERROR HY000: Operation DROP USER failed for 'drop_user1'@'localhost' (User account does not exist),'drop_user2'@'localhost' (User account does not exist),'drop_user3'@'localhost' (User account does not exist),'drop_user4'@'localhost' (User account does not exist)
 drop table t1;
 create user mysqltest_1@localhost identified by "password";
 grant select, update, insert on test.* to mysqltest_1@localhost;
@@ -750,11 +750,11 @@ create user mysqltest_8@'';
 create user mysqltest_8;
 create user mysqltest_8@host8;
 create user mysqltest_8@'';
-ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@''
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'' (User account already exists)
 create user mysqltest_8;
-ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'%'
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'%' (User account already exists)
 create user mysqltest_8@host8;
-ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'host8'
+ERROR HY000: Operation CREATE USER failed for 'mysqltest_8'@'host8' (User account already exists)
 select user, QUOTE(host) from mysql.user where user="mysqltest_8";
 user	QUOTE(host)
 mysqltest_8	''

@@ -37,6 +37,7 @@
 #include <NdbRestarter.hpp>
 #include <NodeBitmask.hpp>
 #include <ndb_cluster_connection.hpp>
+#include <storage/ndb/src/ndbapi/NdbInfo.hpp>
 #include "util/require.h"
 
 #define MGMERR(h)                                          \
@@ -1144,6 +1145,69 @@ int NdbRestarter::getNodeConnectCount(int nodeId) {
     if (ndbNodes[n].node_id == nodeId) return ndbNodes[n].connect_count;
   }
   return -1;
+}
+
+int NdbRestarter::getNumLdmThreads(int nodeId) {
+  NdbInfo ndbinfo(m_cluster_connection, "ndbinfo/");
+  if (!ndbinfo.init()) {
+    g_err << "ndbinfo.init failed" << endl;
+    return -1;
+  }
+
+  const NdbInfo::Table *table;
+  if (ndbinfo.openTable("ndbinfo/threads", &table) != 0) {
+    g_err << "Failed to openTable(threads)" << endl;
+    return -1;
+  }
+
+  NdbInfoScanOperation *scanOp = nullptr;
+  if (ndbinfo.createScanOperation(table, &scanOp)) {
+    g_err << "No NdbInfoScanOperation" << endl;
+    ndbinfo.closeTable(table);
+    return -1;
+  }
+
+  if (scanOp->readTuples() != 0) {
+    g_err << "scanOp->readTuples failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    ndbinfo.closeTable(table);
+    return -1;
+  }
+
+  const NdbInfoRecAttr *node_id_col = scanOp->getValue("node_id");
+  const NdbInfoRecAttr *thr_name_col = scanOp->getValue("thread_name");
+
+  if (scanOp->execute() != 0) {
+    g_err << "scanOp->execute failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    ndbinfo.closeTable(table);
+    return -1;
+  }
+
+  Uint32 ldm_count = 0;
+  int scan_next_result;
+  // Iterate through the result list
+  do {
+    scan_next_result = scanOp->nextResult();
+    if (scan_next_result == -1) {
+      g_err << "Failure to process ndbinfo records" << endl;
+      ndbinfo.releaseScanOperation(scanOp);
+      ndbinfo.closeTable(table);
+      return -1;
+    }
+    // Check thread_name of records from given nodeId
+    const Uint32 node_id_record = node_id_col->u_32_value();
+    if (node_id_record != static_cast<uint>(nodeId) && scan_next_result != 0) {
+      continue;
+    }
+    if (!strcmp(thr_name_col->c_str(), "ldm")) {
+      ldm_count++;
+    }
+  } while (scan_next_result != 0);
+  // All ndbinfo records processed
+  ndbinfo.releaseScanOperation(scanOp);
+  ndbinfo.closeTable(table);
+  return ldm_count;
 }
 
 template class Vector<ndb_mgm_node_state>;

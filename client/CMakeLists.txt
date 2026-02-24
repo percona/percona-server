@@ -264,11 +264,20 @@ ELSE()
   LIST(APPEND MYSQLBINLOG_LIBRARIES json_binlog_static)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqlbinlog
-  ${MYSQLBINLOG_SOURCES}
-  DEPENDENCIES GenError
-  LINK_LIBRARIES ext::xxhash ${MYSQLBINLOG_LIBRARIES}
-  )
+IF(VS2019 AND WITHOUT_SERVER)
+  # MSVC 19.29 (VS16.11) has bugs, apparently, which make it incapable of
+  # building libs/mysql/sets. We don't need to build server, mysqlbinlog, or
+  # libchangestreams with that version, so in regression runs with this compiler
+  # we enable WITHOUT_SERVER and rely on the condition above to not build
+  # mysqlbinlog. The condition can be removed when we remove support for
+  # the platform. See also [**] below and in ../CMakeLists.txt
+ELSE()
+  MYSQL_ADD_EXECUTABLE(mysqlbinlog
+    ${MYSQLBINLOG_SOURCES}
+    DEPENDENCIES GenError
+    LINK_LIBRARIES ext::xxhash ${MYSQLBINLOG_LIBRARIES}
+    )
+ENDIF()
 
 # __builtin_strncpy specified bound depends on the length of the source argument
 # mysqlbinlog.cc:2169:22: note: length computed here
@@ -291,8 +300,12 @@ IF(WITH_JSON_BINLOG_LIBRARY)
   ENDIF()
 ENDIF()
 
-TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
-TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
+IF(VS2019 AND WITHOUT_SERVER)
+  # See [**] above.
+ELSE()
+  TARGET_COMPILE_DEFINITIONS(mysqlbinlog PRIVATE DISABLE_PSI_MUTEX)
+  TARGET_INCLUDE_DIRECTORIES(mysqlbinlog PRIVATE ${CMAKE_SOURCE_DIR}/sql)
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqladmin
   mysqladmin.cc

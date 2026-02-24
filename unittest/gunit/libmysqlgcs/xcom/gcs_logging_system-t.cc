@@ -47,7 +47,9 @@ class LoggingDebuggingSystemTest : public GcsBaseTestNoLogging {
   void SetUp() override {
     common_sink = new Gcs_async_buffer(new Mock_gcs_log_sink());
     logger = new Gcs_default_logger(common_sink);
-    debugger = new Gcs_default_debugger(common_sink);
+    clock_timestamp_provider = std::make_shared<Gcs_clock_timestamp_provider>();
+    clock_timestamp_provider->initialize();
+    debugger = new Gcs_default_debugger(common_sink, clock_timestamp_provider);
   }
 
   void TearDown() override {
@@ -63,11 +65,14 @@ class LoggingDebuggingSystemTest : public GcsBaseTestNoLogging {
 
     delete common_sink;
     common_sink = nullptr;
+
+    clock_timestamp_provider->finalize();
   }
 
   Gcs_async_buffer *common_sink;
   Gcs_default_logger *logger;
   Gcs_default_debugger *debugger;
+  std::shared_ptr<Gcs_clock_timestamp_provider> clock_timestamp_provider;
 };
 
 TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {

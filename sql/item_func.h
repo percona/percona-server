@@ -580,6 +580,8 @@ class Item_func : public Item_result_field {
   Field *tmp_table_field(TABLE *t_arg) override;
   Item *get_tmp_table_item(THD *thd) override;
 
+  void raise_temporal_overflow(const char *type_name);
+
   my_decimal *val_decimal(my_decimal *) override;
 
   /*

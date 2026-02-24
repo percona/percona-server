@@ -33,9 +33,9 @@ EXPLAIN
                             -> Table scan on <temporary>  (rows=17)
                                 -> Aggregate using temporary table  (rows=17)
                                     -> Inner hash join (x1.c = x2.c)  (rows=785)
-                                        -> Table scan on x1  (rows=101)
+                                        -> Table scan on x2  (rows=101)
                                         -> Hash
-                                            -> Table scan on x2  (rows=101)
+                                            -> Table scan on x1  (rows=101)
 
 Warnings:
 Note	1276	Field or reference 'test.y2.d' of SELECT #2 was resolved in SELECT #1
@@ -68,9 +68,9 @@ EXPLAIN
                                 -> Table scan on <temporary>  (rows=17)
                                     -> Aggregate using temporary table  (rows=17)
                                         -> Inner hash join (x1.c = x2.c)  (rows=785)
-                                            -> Table scan on x1  (rows=101)
+                                            -> Table scan on x2  (rows=101)
                                             -> Hash
-                                                -> Table scan on x2  (rows=101)
+                                                -> Table scan on x1  (rows=101)
                         -> Select #4 (subquery in condition; dependent)
                             -> Aggregate: avg(d2.v2)  (rows=1)
                                 -> Filter: (d1.v3 = d2.v1)  (rows=1.7)
@@ -104,9 +104,9 @@ EXPLAIN
                 -> Table scan on <temporary>  (rows=17)
                     -> Aggregate using temporary table  (rows=17)
                         -> Inner hash join (x1.c = x2.c)  (rows=785)
-                            -> Table scan on x1  (rows=101)
+                            -> Table scan on x2  (rows=101)
                             -> Hash
-                                -> Table scan on x2  (rows=101)
+                                -> Table scan on x1  (rows=101)
         -> Index lookup on d2 using <auto_key1> (v2 = 3)  (rows=1.7)
             -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=17)
 

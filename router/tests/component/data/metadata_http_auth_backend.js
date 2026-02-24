@@ -61,7 +61,7 @@ var members = gr_memberships.gr_members(
           "router_select_members_count",
           "router_select_group_membership",
           "router_select_metadata_v2_gr",
-          "router_update_last_check_in_v2",
+          "router_update_last_check_in_v2_4",
           "router_select_router_options_view",
           "get_guidelines_router_info",
           "get_routing_guidelines",

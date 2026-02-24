@@ -108,6 +108,7 @@ usr/bin/mysqldm
   # Plugins that are in both community and commercial should NOT be added here
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
+usr/lib/mysql/plugin/component_audit_log.so
 usr/lib/mysql/plugin/authentication_kerberos.so
 usr/lib/mysql/plugin/authentication_openid_connect.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so

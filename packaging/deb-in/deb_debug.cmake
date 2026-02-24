@@ -91,6 +91,7 @@ usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
+usr/lib/mysql/plugin/debug/component_classic_hashing.so
 ")
 
 SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
@@ -208,12 +209,14 @@ usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
 usr/lib/mysql/plugin/debug/component_test_event_tracking_producer_a.so
 usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer.so
 usr/lib/mysql/plugin/debug/component_test_event_tracking_producer_b.so
+usr/lib/mysql/plugin/debug/component_test_mysql_file_service.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")
   # Add debug versions of commercial plugins, if enabled
   IF (DEFINED DEB_WITH_DEBUG)
     SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS "${DEB_INSTALL_DEBUG_SERVER_PLUGINS}
+usr/lib/mysql/plugin/debug/component_audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_kerberos.so

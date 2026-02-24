@@ -50,6 +50,8 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_mutex_service.cc
   mysql_psi_system_service.cc
   mysql_runtime_error.cc
+  mysql_runtime_warning.cc
+  mysql_timestamp_imp.cc
   mysql_rwlock_service.cc
   mysql_server_runnable_imp.cc
   mysql_string_service.cc
@@ -91,6 +93,11 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   applier_metrics_service_imp.cc
   mysql_library_imp.cc
   mysql_thd_kill_handler_imp.cc
+  mysql_json_encode_imp.cc
+  mysql_my_thread_imp.cc
+  mysql_file_imp.cc
+  mysql_server_attributes_imp.cc
+  mysql_lock_free_hash_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

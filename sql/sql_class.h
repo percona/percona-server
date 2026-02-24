@@ -44,6 +44,9 @@
 #include <sys/types.h>
 #include <atomic>
 #include <bitset>
+#include <concepts>    // invocable
+#include <functional>  // function
+#include <list>        // list
 #include <memory>
 #include <new>
 #include <stack>
@@ -88,6 +91,7 @@
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
+#include "scope_guard.h"                // Scope_guard
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
 #include "sql/dd/string_type.h"      // dd::string_type
@@ -3343,6 +3347,17 @@ class THD : public MDL_context_owner,
   // ran_command is true when this is called immediately after a
   // command has been run.
   void update_stats(bool ran_command) noexcept;
+  /**
+    Sets the THD::variables values that depend on the protocol
+
+    Some THD::variable values take different default based on properties of the
+    protocol, e.g. capabilities etc. This function sets these values.
+
+    Called when:
+       1. A new connection is established
+       2. A reset connection or change_user is done
+   */
+  void set_protocol_dependent_variables(Protocol *proto);
   void cleanup_after_query();
   void store_globals();
   void restore_globals();
@@ -4316,6 +4331,32 @@ class THD : public MDL_context_owner,
     server). When this flag is set, a call to gtid_rollback() will do nothing.
   */
   bool skip_gtid_rollback;
+
+ private:
+  /// Callback functions that determine if GTID rollback shall be skipped.
+  std::list<std::function<bool(const THD &)>> m_skip_gtid_rollback_checkers;
+
+ public:
+  /// Invoke the callback functions that determine if GTID rollback shall be
+  /// skipped, and return true as soon as one of them returns true; otherwise
+  /// return false.
+  bool shall_skip_gtid_rollback() const {
+    for (const auto &func : m_skip_gtid_rollback_checkers)
+      if (func(*this)) return true;
+    return false;
+  }
+
+  /// Register a callback function that will determine if a subsequent GTID
+  /// rollback shall be skipped. Returns a (moveable, but not copyable) object
+  /// whose destructor will will unregister the callback.
+  [[nodiscard]] auto register_skip_gtid_rollback_checker(
+      const std::invocable<const THD &> auto &shall_skip) {
+    m_skip_gtid_rollback_checkers.emplace_back(shall_skip);
+    auto it = std::prev(m_skip_gtid_rollback_checkers.end());
+    return Scope_guard{
+        [this, it] { this->m_skip_gtid_rollback_checkers.erase(it); }};
+  }
+
   /*
     There are some statements (like DROP DATABASE that fails on rmdir
     and gets rewritten to multiple DROP TABLE statements) that may
@@ -5257,6 +5298,13 @@ class THD : public MDL_context_owner,
   */
   size_t m_opened_temptable_count{};
 
+ private:
+  bool m_sql_foreign_keys{1};
+
+ public:
+  bool get_sql_foreign_keys() const;
+  void set_sql_foreign_keys(bool flag) { m_sql_foreign_keys = flag; }
+
  public:
   /**
     Install/remove handler to be invoked then this connection or statement
@@ -5398,4 +5446,29 @@ inline bool is_rpl_source_older(const THD *thd, uint version) {
           thd->variables.original_server_version < version);
 }
 
+/**
+ * @brief Check if foreign handling at SQL is enabled.
+ *
+ * @param thd        Thread Handle.
+ *
+ * @return true      If enabled.
+ * @return false     Otherwise.
+ */
+inline bool is_sql_fk_checks_enabled(THD *thd) {
+  DBUG_EXECUTE_IF("force_innodb_fk", return false;);
+  DBUG_EXECUTE_IF("force_sql_fk", return true;);
+  assert(thd != nullptr);
+  return thd->variables.option_bits & OPTION_USE_SQL_FOREIGN_KEY_HANDLING;
+}
+
+/**
+ * @brief Check if SQL foreign key handling can be used for a table.
+ *
+ * @param thd              Thread Handle.
+ * @param table            TABLE instance of a table.
+ *
+ * @return true            if SQL FK checks supported for SE.
+ * @return false           Otherwise.
+ */
+bool use_sql_fk_checks_for_table(THD *thd, TABLE *table);
 #endif /* SQL_CLASS_INCLUDED */

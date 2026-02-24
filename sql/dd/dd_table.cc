@@ -3554,6 +3554,8 @@ bool uses_functions(const Table *table_def, const char *schema_name,
       ss << "}; ";
     }
 
+    ss << "ENGINE = \"" << table_def->engine() << "\"; ";
+
     ss << "};";
 
     *debug = ss.str();

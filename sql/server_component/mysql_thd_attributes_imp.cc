@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <sql_string.h>
 #include "sql/command_mapping.h"
 #include "sql/current_thd.h"
+#include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest.h"
 #include "sql/sql_lex.h"
@@ -127,6 +128,18 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         } else {
           *((mysql_cstring_with_length *)inout_pvalue) = {sql_command,
                                                           strlen(sql_command)};
+        }
+      } else if (!strcmp(name, "percona_sql_command_9.6")) {
+        // This attribute is meant to be compatible with changes introduced to
+        // "sql_command" in Oracle MySQL 9.6 (WL#12716). It will be removed in
+        // Percona Server 9.6.0. For Percona internal use only.
+        if (t->lex->sql_command == SQLCOM_END &&
+            t->get_command() != COM_QUERY) {
+          *((mysql_cstring_with_length *)inout_pvalue) = {STRING_WITH_LEN("")};
+        } else {
+          LEX_CSTRING sql_command = sql_statement_names[t->lex->sql_command];
+          *((mysql_cstring_with_length *)inout_pvalue) = {sql_command.str,
+                                                          sql_command.length};
         }
       } else if (!strcmp(name, "sql_command_id")) {
         enum_sql_command cmd = SQLCOM_END;

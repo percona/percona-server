@@ -194,6 +194,10 @@ class AuditLogFilter {
   bool set_extended_info(MYSQL_THD thd, Security_context_handle sctx,
                          AuditRecordTableAccess &record);
   bool set_extended_info(MYSQL_THD thd, Security_context_handle sctx,
+                         AuditRecordQuery &record);
+  bool set_extended_info(MYSQL_THD thd, Security_context_handle sctx,
+                         AuditRecordMessage &record);
+  bool set_extended_info(MYSQL_THD thd, Security_context_handle sctx,
                          AuditRecordGeneral &record);
 
   /**

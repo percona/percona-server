@@ -45,12 +45,14 @@ void LogWriterBase::write(const AuditRecordVariant &record) noexcept {
     const std::string_view event_subclass_name = std::visit(
         [](const auto &rec) { return rec.event_subclass_name; }, record);
 
-    m_formatter->apply_debug_info(event_class_name, event_subclass_name,
-                                  record_str);
+    if (!record_str.empty()) {
+      m_formatter->apply_debug_info(event_class_name, event_subclass_name,
+                                    record_str);
+    }
   });
 
   {
-    std::lock_guard<std::mutex> write_guaard{m_write_mutex};
+    std::lock_guard<std::mutex> write_guard{m_write_mutex};
     write(record_str, true);
   }
 }

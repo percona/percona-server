@@ -144,6 +144,13 @@ class LogRecordFormatter<AuditLogFormatType::New>
    */
   [[nodiscard]] std::string extra_attrs_to_string(
       const ExtendedInfo &info) const noexcept override;
+
+  /**
+   * @brief Get string representation of user information.
+   * @param info Extended record info
+   * @return Formatted string
+   */
+  [[nodiscard]] std::string user_info_to_string(const ExtendedInfo &info) const;
 };
 
 using LogRecordFormatterNew = LogRecordFormatter<AuditLogFormatType::New>;

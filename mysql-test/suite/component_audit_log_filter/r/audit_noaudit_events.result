@@ -1,1 +1,1 @@
-Tag <NAME>(?:Startup|Shutdown)</NAME> Ok
+Tag <NAME>(?:Audit|NoAudit)</NAME> Ok

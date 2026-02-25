@@ -175,6 +175,14 @@ void deinit_abort_exempt_privilege() {
   }
 }
 
+mysql_service_status_t get_sql_command(MYSQL_THD thd,
+                                       mysql_cstring_with_length &sql_command) {
+  return !mysql_service_mysql_thd_attributes->get(
+             thd, "percona_sql_command_9.6", &sql_command) ||
+         !mysql_service_mysql_thd_attributes->get(thd, "sql_command",
+                                                  &sql_command);
+}
+
 }  // namespace
 
 AuditLogFilter *get_audit_log_filter_instance() noexcept {
@@ -569,6 +577,14 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     set_extended_info(thd, sctx, *rec);
   }
 
+  if (auto rec = std::get_if<AuditRecordQuery>(&record)) {
+    set_extended_info(thd, sctx, *rec);
+  }
+
+  if (auto rec = std::get_if<AuditRecordMessage>(&record)) {
+    set_extended_info(thd, sctx, *rec);
+  }
+
   if (auto rec = std::get_if<AuditRecordTableAccess>(&record)) {
     set_extended_info(thd, sctx, *rec);
   }
@@ -899,8 +915,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   extra.query = get_sql_text(thd);
 
   mysql_cstring_with_length sql_command;
-  if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command",
-                                               &sql_command)) {
+  if (get_sql_command(thd, sql_command)) {
     extra.sql_command = {sql_command.str, sql_command.length};
   }
 
@@ -921,6 +936,35 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   return true;
 }
 
+bool AuditLogFilter::set_extended_info(MYSQL_THD, Security_context_handle sctx,
+                                       AuditRecordQuery &record) {
+  if (!sctx) return false;
+
+  auto &extra = record.extended_info;
+
+  get_security_context_option(sctx, "user", extra.user);
+  get_security_context_option(sctx, "host", extra.host);
+  get_security_context_option(sctx, "ip", extra.ip);
+  get_security_context_option(sctx, "external_user", extra.external_user);
+  get_security_context_option(sctx, "proxy_user", extra.proxy_user);
+
+  return true;
+}
+
+bool AuditLogFilter::set_extended_info(MYSQL_THD thd, Security_context_handle,
+                                       AuditRecordMessage &record) {
+  if (!thd) return false;
+
+  auto &extra = record.extended_info;
+
+  mysql_cstring_with_length sql_command;
+  if (get_sql_command(thd, sql_command)) {
+    extra.sql_command = {sql_command.str, sql_command.length};
+  }
+
+  return true;
+}
+
 bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
                                        Security_context_handle sctx,
                                        AuditRecordTableAccess &record) {
@@ -936,8 +980,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   extra.query = get_sql_text(thd);
 
   mysql_cstring_with_length sql_command;
-  if (!mysql_service_mysql_thd_attributes->get(thd, "sql_command",
-                                               &sql_command)) {
+  if (get_sql_command(thd, sql_command)) {
     extra.sql_command = {sql_command.str, sql_command.length};
   }
 

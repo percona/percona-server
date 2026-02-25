@@ -57,7 +57,7 @@ const std::string_view kAuditEventNameGeneralResult{"Result"};
 const std::string_view kAuditEventNameGeneralStatus{"Status"};
 
 const std::string_view kAuditEventNameConnect{"Connect"};
-const std::string_view kAuditEventNameDisconnect{"Disconnect"};
+const std::string_view kAuditEventNameDisconnect{"Quit"};
 const std::string_view kAuditEventNameChangeUser{"Change user"};
 const std::string_view kAuditEventNamePreAuth{"Pre Authenticate"};
 
@@ -100,8 +100,8 @@ const std::string_view kAuditEventNameMessageUser{"User"};
 const std::string_view kAuditEventNameParsePreparse{"Preparse"};
 const std::string_view kAuditEventNameParsePostparse{"Postparse"};
 
-const std::string_view kAuditEventNameAuditStart{"Startup"};
-const std::string_view kAuditEventNameAuditStop{"Shutdown"};
+const std::string_view kAuditEventNameAuditStart{"Audit"};
+const std::string_view kAuditEventNameAuditStop{"NoAudit"};
 
 const std::string_view kAuditNameUnknown{"unknown"};
 

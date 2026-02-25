@@ -50,6 +50,7 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"
 #include "sql/item_row.h"
+#include "sql/item_strfunc.h"
 #include "sql/key.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_trace.h"
@@ -68,6 +69,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "strings/str_uca_type.h"
 #include "template_utils.h"
 
 /*
@@ -184,7 +186,22 @@ static SEL_TREE *get_ne_mm_tree(THD *thd, RANGE_OPT_PARAM *param,
 */
 static bool get_eq_field_and_value(const Item_func *func,
                                    const Field **out_field, Item **out_value) {
-  if (func->functype() == Item_func::MULT_EQUAL_FUNC) {
+  if ((func->functype() == Item_func::EQ_FUNC ||
+       func->functype() == Item_func::EQUAL_FUNC) &&
+      func->argument_count() == 2) {
+    Item *left = func->arguments()[0]->real_item();
+    Item *right = func->arguments()[1];
+    if (left->type() == Item::FIELD_ITEM && right->const_item()) {
+      *out_field = down_cast<Item_field *>(left)->field;
+      *out_value = right;
+      return false;
+    }
+    if (right->real_item()->type() == Item::FIELD_ITEM && left->const_item()) {
+      *out_field = down_cast<Item_field *>(right->real_item())->field;
+      *out_value = func->arguments()[0];
+      return false;
+    }
+  } else if (func->functype() == Item_func::MULT_EQUAL_FUNC) {
     auto *item_equal = down_cast<const Item_equal *>(func);
     Item *value = item_equal->const_arg();
     if (value != nullptr) {
@@ -214,6 +231,20 @@ static bool is_oversized_string_for_field(const Field *field, Item *value) {
   String buf;
   String *s = value->val_str(&buf);
   return s != nullptr && s->numchars() > field->char_length();
+}
+
+static bool is_binary_collated(const Item &item) {
+  return item.collation.collation == &my_charset_bin ||
+         item.collation.collation == &my_charset_utf8mb3_bin ||
+         item.collation.collation == &my_charset_utf8mb4_bin;
+  // if (item.type() == Item::FUNC_ITEM) {
+  //   if (down_cast<Item_func &>(item).functype() == Item_func::COLLATE_FUNC) {
+  //     auto &set_collation = down_cast<Item_func_set_collation &>(item);
+  //     if (set_collation.collation.collation == &my_charset_utf8mb4_bin)
+  //       return true;
+  //   }
+  // }
+  // return false;
 }
 
 static SEL_TREE *get_func_mm_tree_from_in_predicate(
@@ -923,19 +954,20 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
                                        current_table, remove_jump_scans, &item);
       if (param->has_errors()) return nullptr;
       /*
-        Bug#119867: An oversized equality branch poisons the tree via
-        tree_or(valid, nullptr). Skip it -- no row can match. This must
-        run before the first-branch assignment below to avoid poisoning
-        all subsequent branches.
+        If the creation of a SEL_TREE failed because the value was too
+        large for the column data type and the comparison uses a binary
+        collation, no row can match it, hence we can just ignore this OR branch.
       */
-      if (functype != Item_func::COND_AND_FUNC && new_tree == nullptr &&
+      if (new_tree == nullptr && functype != Item_func::COND_AND_FUNC &&
           item.type() == Item::FUNC_ITEM) {
+        auto &item_func = down_cast<Item_func &>(item);
         const Field *eq_field;
         Item *eq_value;
-        if (!get_eq_field_and_value(down_cast<Item_func *>(&item), &eq_field,
-                                    &eq_value) &&
-            is_oversized_string_for_field(eq_field, eq_value))
+        if (!get_eq_field_and_value(&item_func, &eq_field, &eq_value) &&
+            is_oversized_string_for_field(eq_field, eq_value) &&
+            is_binary_collated(*eq_value)) {
           continue;
+        }
       }
       if (first) {
         tree = new_tree;
@@ -1107,7 +1139,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
                                       field_item, cond_func, value, inv);
       }
     }  // end case default
-  }    // end switch
+  }  // end switch
 
   dbug_print_tree("tree_returned", ftree, param);
   return ftree;

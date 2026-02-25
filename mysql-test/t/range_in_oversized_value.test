@@ -62,25 +62,36 @@ SELECT * FROM t2
 
 --echo # Range predicates must still be abandoned (not just EQ_FUNC)
 --echo # x <= 'ae' should match 'a' and 'æ' (not just 'a')
-EXPLAIN SELECT * FROM t2 WHERE x <= 'ae';
+EXPLAIN SELECT * FROM t2 WHERE x <= 'ae' COLLATE utf8mb4_bin;
 
 --sorted_result
-SELECT * FROM t2 WHERE x <= 'ae';
+SELECT * FROM t2 WHERE x <= 'ae' COLLATE utf8mb4_bin;
 
 --echo # x BETWEEN 'r' AND 'ss' should match 's' and 'ß'
-EXPLAIN SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
+EXPLAIN SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss' COLLATE utf8mb4_bin;
 
 --sorted_result
-SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss';
+SELECT * FROM t2 WHERE x BETWEEN 'r' AND 'ss' COLLATE utf8mb4_bin;
 
-EXPLAIN SELECT * FROM t2 WHERE x IN ('a', 'ae');
+EXPLAIN SELECT * FROM t2 WHERE x IN ('a', 'ae') COLLATE utf8mb4_bin;
 
 --sorted_result
-SELECT * FROM t2 WHERE x IN ('a', 'ae');
+SELECT * FROM t2 WHERE x IN ('a', 'ae') COLLATE utf8mb4_bin;
 
 EXPLAIN
-SELECT * FROM t2 WHERE x IN ('ae', 'a');
-SELECT * FROM t2 WHERE x IN ('ae', 'a');
+SELECT * FROM t2 WHERE x IN ('ae', 'a') COLLATE utf8mb4_bin;
+--sorted_result
+SELECT * FROM t2 WHERE x IN ('ae', 'a') COLLATE utf8mb4_bin;
+
+EXPLAIN
+SELECT * FROM t2 WHERE x ='ae' OR x = 'a' COLLATE utf8mb4_bin;
+--sorted_result
+SELECT * FROM t2 WHERE x ='ae' OR x = 'a' COLLATE utf8mb4_bin;
+
+EXPLAIN
+SELECT * FROM t2 WHERE x ='a' OR x = 'ae' COLLATE utf8mb4_bin;
+--sorted_result
+SELECT * FROM t2 WHERE x ='a' OR x = 'ae' COLLATE utf8mb4_bin;
 
 DROP TABLE t2;
 

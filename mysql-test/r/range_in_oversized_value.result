@@ -109,6 +109,26 @@ SELECT * FROM t2 WHERE x IN ('ae', 'a');
 x
 a
 æ
+EXPLAIN
+SELECT * FROM t2 WHERE x ='ae' OR x = 'a' COLLATE utf8mb4_bin;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	x	x	7	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x` from `test`.`t2` where ((`test`.`t2`.`x` = 'ae') or (`test`.`t2`.`x` = 'a'))
+SELECT * FROM t2 WHERE x ='ae' OR x = 'a' COLLATE utf8mb4_bin;
+x
+a
+æ
+EXPLAIN
+SELECT * FROM t2 WHERE x ='a' OR x = 'ae' COLLATE utf8mb4_bin;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	x	x	7	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x` from `test`.`t2` where ((`test`.`t2`.`x` = 'a') or (`test`.`t2`.`x` = 'ae'))
+SELECT * FROM t2 WHERE x ='a' OR x = 'ae' COLLATE utf8mb4_bin;
+x
+a
+æ
 DROP TABLE t2;
 # ---------------------------------------------------------------
 # Test 3: Oversized IN() value on secondary index
@@ -282,19 +302,19 @@ ANALYZE TABLE t9;
 Table	Op	Msg_type	Msg_text
 test.t9	analyze	status	OK
 # Must use index_merge, not full table scan
-EXPLAIN SELECT * FROM t9 WHERE c1 = 'a' OR c2 = 'b' OR c3 = 'abc';
+EXPLAIN SELECT * FROM t9 WHERE c1 = 'a' OR c2 = 'b' OR c3 = 'abc' COLLATE utf8mb4_bin;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t9	NULL	index_merge	idx_c1,idx_c2,idx_c3	idx_c1,idx_c2	11,11	NULL	2	100.00	Using union(idx_c1,idx_c2); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t9`.`id` AS `id`,`test`.`t9`.`c1` AS `c1`,`test`.`t9`.`c2` AS `c2`,`test`.`t9`.`c3` AS `c3` from `test`.`t9` where ((`test`.`t9`.`c1` = 'a') or (`test`.`t9`.`c2` = 'b') or (`test`.`t9`.`c3` = 'abc'))
 # Oversized branch first: must still use index_merge
-EXPLAIN SELECT * FROM t9 WHERE c3 = 'abc' OR c1 = 'a' OR c2 = 'b';
+EXPLAIN SELECT * FROM t9 WHERE c3 = 'abc' OR c1 = 'a' OR c2 = 'b' COLLATE utf8mb4_bin;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t9	NULL	index_merge	idx_c1,idx_c2,idx_c3	idx_c1,idx_c2	11,11	NULL	2	100.00	Using union(idx_c1,idx_c2); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t9`.`id` AS `id`,`test`.`t9`.`c1` AS `c1`,`test`.`t9`.`c2` AS `c2`,`test`.`t9`.`c3` AS `c3` from `test`.`t9` where ((`test`.`t9`.`c3` = 'abc') or (`test`.`t9`.`c1` = 'a') or (`test`.`t9`.`c2` = 'b'))
 # Verify correct results (only c1='a' and c2='b' match)
-SELECT * FROM t9 WHERE c1 = 'a' OR c2 = 'b' OR c3 = 'abc';
+SELECT * FROM t9 WHERE c1 = 'a' OR c2 = 'b' OR c3 = 'abc'  COLLATE utf8mb4_bin;
 id	c1	c2	c3
 1	a	x	x
 5	e	b	b

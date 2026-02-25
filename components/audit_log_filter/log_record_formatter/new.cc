@@ -26,6 +26,7 @@
 #include <mysql/components/services/defs/event_tracking_query_defs.h>
 #include <mysql/components/services/defs/event_tracking_stored_program_defs.h>
 #include <mysql/components/services/defs/event_tracking_table_access_defs.h>
+#include <sql/mysqld.h>
 
 #include <cassert>
 #include <chrono>
@@ -38,23 +39,29 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::stringstream result;
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
+  const auto &sqltext = (audit_record.extended_info.digest.empty()
+                             ? audit_record.extended_info.query
+                             : audit_record.extended_info.digest);
+
   /* clang-format off */
-  // TODO: For AuditRecordGeneral with JSON format, we added "command" and "sql_command" fields.
-  //       We also need to update the fields according to https://perconadev.atlassian.net/browse/PS-10339.
-  //       Same as JSON format: user field appears as "root" for upstream.
   result << "  <AUDIT_RECORD>\n"
-         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
+         << "    <NAME>" << audit_record.extended_info.command << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
+         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
          << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
          << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
+         << "    <OS_LOGIN>" << make_escaped_string(audit_record.extended_info.external_user) << "</OS_LOGIN>\n"
          << "    <STATUS>" << audit_record.event->error_code << "</STATUS>\n"
-         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
-                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
-         << "  </AUDIT_RECORD>\n";
+         << "    <STATUS_CODE>" << (audit_record.event->error_code ? 1 : 0) << "</STATUS_CODE>\n";
+
+  if (!sqltext.empty()) {
+    result << "    <SQLTEXT>" << make_escaped_string(sqltext) << "</SQLTEXT>\n";
+  }
+
+  result << "  </AUDIT_RECORD>\n";;
   /* clang-format on */
 
   return result.str();
@@ -70,19 +77,24 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
+         << "    <COMMAND_CLASS>connect</COMMAND_CLASS>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
          << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
          << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
          << "    <OS_LOGIN>" << make_escaped_string(&audit_record.event->external_user) << "</OS_LOGIN>\n"
-         << "    <PRIV_USER>" << make_escaped_string(&audit_record.event->priv_user) << "</PRIV_USER>\n"
-         << "    <PROXY_USER>" << make_escaped_string(&audit_record.event->proxy_user) << "</PROXY_USER>\n"
-         << "    <DB>" << make_escaped_string(&audit_record.event->database) << "</DB>\n"
          << "    <STATUS>" << audit_record.event->status << "</STATUS>\n"
-         << "    <CONNECTION_TYPE>" << connection_type_name_to_string(audit_record.event->connection_type) << "</CONNECTION_TYPE>\n"
-         << extra_attrs_to_string(audit_record.extended_info) << "\n"
-         << "  </AUDIT_RECORD>\n";
+         << "    <STATUS_CODE>" << (audit_record.event->status ? 1 : 0) << "</STATUS_CODE>\n"
+         << "    <CONNECTION_TYPE>" << connection_type_name_to_string(audit_record.event->connection_type) << "</CONNECTION_TYPE>\n";
+
+  if (audit_record.event->event_subclass == EVENT_TRACKING_CONNECTION_CONNECT) {
+    result << extra_attrs_to_string(audit_record.extended_info) << "\n"
+           << "    <PRIV_USER>" << make_escaped_string(&audit_record.event->priv_user) << "</PRIV_USER>\n"
+           << "    <PROXY_USER>" << make_escaped_string(&audit_record.event->proxy_user) << "</PROXY_USER>\n"
+           << "    <DB>" << make_escaped_string(&audit_record.event->database) << "</DB>\n";
+  }
+
+  result << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
   return result.str();
@@ -94,19 +106,20 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
-  // TODO: For AuditRecordTableAccess with JSON format, we added <HOST>, <IP>, <USER>, and <PROXY_USER>.
-  //       We also need to update the fields according to https://perconadev.atlassian.net/browse/PS-10339.
-  //       Unlike JSON format, the user field appears as "root[root] @ localhost [127.0.0.1]" for upstream.
   result << "  <AUDIT_RECORD>\n"
          << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
+         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
                                                                           : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
          << "    <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
          << "    <TABLE>" << make_escaped_string(&audit_record.event->table_name) << "</TABLE>\n"
+         << user_info_to_string(audit_record.extended_info)
+         << "    <OS_LOGIN>" << make_escaped_string(audit_record.extended_info.external_user) << "</OS_LOGIN>\n"
+         << "    <HOST>" << make_escaped_string(audit_record.extended_info.host) << "</HOST>\n"
+         << "    <IP>" << make_escaped_string(audit_record.extended_info.ip) << "</IP>\n"
          << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
@@ -224,7 +237,7 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
+         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "    <COMPONENT>" << make_escaped_string(&audit_record.event->component) << "</COMPONENT>\n"
          << "    <PRODUCER>" << make_escaped_string(&audit_record.event->producer) << "</PRODUCER>\n"
@@ -283,9 +296,29 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
-         << "    <SERVER_ID>" << audit_record.event->server_id << "</SERVER_ID>\n"
-         << "  </AUDIT_RECORD>\n";
+         << "    <SERVER_ID>" << audit_record.event->server_id << "</SERVER_ID>\n";
+
+
+  if (audit_record.event->event_subclass == INTERNAL_EVENT_TRACKING_AUDIT_AUDIT)
+  {
+    std::stringstream startup_options;
+
+    for (int i = 0; i < orig_argc; ++i) {
+      if (orig_argv[i]) {
+        startup_options << orig_argv[i] << " ";
+      }
+    }
+
+    std::string startup_options_str = startup_options.str();
+    startup_options_str.pop_back();
+
+    result << "    <VERSION>1</VERSION>\n"
+           << "    <STARTUP_OPTIONS>" << make_escaped_string(startup_options_str) << "</STARTUP_OPTIONS>\n"
+           << "    <MYSQL_VERSION>" << server_version << "</MYSQL_VERSION>\n"
+           << "    <OS_VERSION>" << MACHINE_TYPE << "-" << SYSTEM_TYPE << "</OS_VERSION>\n";
+  }
+
+  result << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
   return result.str();
@@ -326,6 +359,18 @@ std::string LogRecordFormatterNew::extra_attrs_to_string(
     result << "    </CONNECTION_ATTRIBUTES>";
   }
   /* clang-format on */
+
+  return result.str();
+}
+
+std::string LogRecordFormatterNew::user_info_to_string(
+    const ExtendedInfo &info) const {
+  std::stringstream result;
+
+  result << "    <USER>" << make_escaped_string(info.user) << "["
+         << make_escaped_string(info.user) << "] @ "
+         << make_escaped_string(info.host) << " ["
+         << make_escaped_string(info.ip) << "]</USER>\n";
 
   return result.str();
 }

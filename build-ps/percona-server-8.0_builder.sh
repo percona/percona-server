@@ -827,6 +827,13 @@ build_rpm(){
     if [ $return_code != 0 ]; then
         exit $return_code
     fi
+
+    # Verify RPMs were actually produced
+    if [ -z "$(find ${WORKDIR}/rpmbuild/RPMS -name '*.rpm' 2>/dev/null)" ]; then
+        echo "ERROR: rpmbuild succeeded but no RPM files were generated!"
+        exit 1
+    fi
+
     mkdir -p ${WORKDIR}/rpm
     mkdir -p ${CURDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${WORKDIR}/rpm

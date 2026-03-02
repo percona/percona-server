@@ -1165,6 +1165,10 @@ void log_print(const log_t &log, FILE *file) {
   log_files_mutex_exit(log);
 
   fprintf(file,
+          "Log capacity                 " LSN_PF
+          "\n"
+          "Log capacity used            " LSN_PF
+          "\n"
           "Log sequence number          " LSN_PF
           "\n"
           "Log buffer assigned up to    " LSN_PF
@@ -1184,6 +1188,7 @@ void log_print(const log_t &log, FILE *file) {
           "Log minimum file id is       " UINT64PF
           "\n"
           "Log maximum file id is       " UINT64PF "\n",
+          (uint64_t)srv_redo_log_capacity, (uint64_t)srv_redo_log_capacity_used,
           current_lsn, max_assigned_lsn, ready_for_write_lsn, write_lsn,
           flush_lsn, dirty_pages_added_up_to_lsn, oldest_lsn,
           last_checkpoint_lsn, file_min_id, file_max_id);

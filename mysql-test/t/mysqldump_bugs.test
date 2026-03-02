@@ -185,5 +185,33 @@ DROP DATABASE B35205310;
 
 --echo # End of 8.0 tests
 
+--echo #
+--echo # Bug #38284832: mysqldump --order-by-primary is sorting by
+--echo #   all table indices instead of just the primary key
+--echo #
+
+CREATE DATABASE B38284832;
+
+CREATE TABLE B38284832.foo (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `col1` INT UNSIGNED NOT NULL,
+  `col2` INT UNSIGNED NOT NULL,
+  `data` JSON DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_col1` (`col1`),
+  KEY `idx_col2` (`col2`)
+);
+
+INSERT INTO B38284832.foo (`col1`, `col2`, `data`)
+  VALUES (111, 222, JSON_OBJECT('data', REPEAT('LotsOfData', 250000)));
+--echo # Test: should not produce an execution error
+--exec $MYSQL_DUMP --order-by-primary --result-file=$MYSQLTEST_VARDIR/tmp/b38284832.sql B38284832 2>&1
+
+DROP DATABASE B38284832;
+--remove_file $MYSQLTEST_VARDIR/tmp/b38284832.sql
+
+
+--echo # End of 8.4 tests
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

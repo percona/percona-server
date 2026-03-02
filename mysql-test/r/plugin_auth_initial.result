@@ -1,0 +1,13 @@
+CALL mtr.add_suppression("from authentication policy cannot be used for initial handshake");
+# 1. Test server picks correct initial auth plugin (given in policy)
+SET GLOBAL DEBUG="+d,acl_expect_native_initial_auth_plugin";
+SET GLOBAL DEBUG="-d,acl_expect_native_initial_auth_plugin";
+# Restart server with auth policy without two possible initial plugin defaults
+# restart:--authentication_policy=*:sha256_password --mysql-native-password=ON
+# 2. Test server picks correct initial auth plugin (not given in policy)
+SET GLOBAL DEBUG="+d,acl_expect_sha2_initial_auth_plugin";
+SET GLOBAL DEBUG="-d,acl_expect_sha2_initial_auth_plugin";
+# 3. Test server refreshes initial auth plugin (policy set at runtime)
+SET GLOBAL authentication_policy="*:mysql_native_password";
+SET GLOBAL DEBUG="+d,acl_expect_native_initial_auth_plugin";
+SET GLOBAL DEBUG="-d,acl_expect_native_initial_auth_plugin";

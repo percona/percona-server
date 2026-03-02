@@ -28,6 +28,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include "ndb_types.h"
 
 class NdbInfoRecAttr {
  public:
@@ -109,7 +110,7 @@ class NdbInfoRecAttrCollection {
 
     attr->m_data = data;
     attr->m_len = len;
-    attr->m_defined = true;
+    attr->m_defined = (data != nullptr);
   }
 
   void reset_recattrs(void) const {

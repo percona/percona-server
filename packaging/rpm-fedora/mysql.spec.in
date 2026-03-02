@@ -294,6 +294,8 @@ Obsoletes:      mysql-errmsg < %{version}-%{release}
 Obsoletes:      mysql-common < %{version}-%{release}
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
+Provides:       user(mysql)
+Provides:       group(mysql)
 Obsoletes:      mysql8.4-common < %{version}-%{release}
 Obsoletes:      mysql8.4-errmsg < %{version}-%{release}
 

@@ -820,3 +820,30 @@ LENGTH(authentication_string)
 70
 DROP USER 'user1'@'localhost';
 SET sql_mode= DEFAULT;
+#
+# Bug#38235957: failure to DROP TABLE with an invalid CONSTRAINT
+#
+
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Server\\] Incorrect information in file: '.frm'");
+SET sql_mode='';
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+a TIMESTAMP NOT NULL,
+CONSTRAINT `t1_con`
+  CHECK (GET_FORMAT(DATETIME, 'internal') <=> ('0000-00-00 00:00:00' <= a))
+) ENGINE=InnoDB;
+
+# Restart server. Not only do we want sql_mode back to DEFAULT (which we
+# could do manually), we also need for the table not to be cached for
+# this issue to show.
+# restart
+
+# t1_con is not valid, so we can't open the table, and so can't DROP it.
+DROP DATABASE test;
+ERROR HY000: Incorrect TIMESTAMP value: '0000-00-00 00:00:00'
+DROP TABLE t1;
+ERROR HY000: Incorrect TIMESTAMP value: '0000-00-00 00:00:00'
+
+# Change sql_mode so t1_con is valid again, then DROP TABLE t1.
+SET sql_mode='';
+DROP TABLE t1;

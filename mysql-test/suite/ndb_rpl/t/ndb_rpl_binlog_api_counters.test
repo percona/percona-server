@@ -1,0 +1,129 @@
+################################################################################
+# Test the NDB Event API counters for the binlog injector consumer. Each test
+# assesses that counters match the expected intervals
+################################################################################
+
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+--echo #####################################################################
+--echo # With sql_log_bin=0, data events are not sent to the binlog injector
+--echo #####################################################################
+
+SET sql_log_bin=0;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b BLOB, lb LONGBLOB, lt LONGTEXT) ENGINE = NDB;
+
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Ndb_api_event_bytes_count_injector' INTO @start_event_bytes;
+
+INSERT INTO t1 VALUES (1, repeat('!', 4096), repeat('@', 65536), repeat('lorem', 65536)),
+                      (2, repeat('#', 4096), repeat('$', 65536), repeat('ipsum', 65536));
+# Wait for gci to close and move
+--save_master_pos
+
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Ndb_api_event_bytes_count_injector' INTO @end_event_bytes;
+
+if (`SELECT @end_event_bytes - @start_event_bytes >= 4096`)
+{
+  echo # More than 4096 bytes of event data was received.;
+  let $start_value=`SELECT @start_event_bytes`;
+  let $end_value=`SELECT @end_event_bytes`;
+  echo start value: $start_value;
+  echo end value: $end_value;
+  die "Expected less than 4096 bytes of data for the events received";
+}
+--echo # No more than 4096 bytes of event data was received
+
+DROP TABLE t1;
+SET sql_log_bin=1;
+
+--echo #####################################################################
+--echo # With log-replica-updates=OFF, data events are filtered out and thus
+--echo # updates applied by a replica server are not sent to the injector.
+--echo #####################################################################
+
+# SETUP: Server 1 does not log-replica-updates.
+# Replica cluster contains servers 1 and 2, Source cluster contains server 3.
+# Server 2 is the applier at Replica cluster.
+--let $rpl_server_count= 3
+--let $rpl_topology= 3->2
+--source include/rpl/init.inc
+
+--let $rpl_connection_name= server.1
+--let $rpl_server_number= 1
+--source include/rpl/connect.inc
+
+--let $rpl_connection_name= replica
+--let $rpl_server_number= 2
+--source include/rpl/connect.inc
+
+--let $rpl_connection_name= source
+--let $rpl_server_number= 3
+--source include/rpl/connect.inc
+
+
+--let $rpl_connection_name= server.1
+--source include/connection.inc
+# Server 1 must have log_replica_updates=OFF
+SELECT @@log_replica_updates;
+--echo # Save Server.1 start counter
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Ndb_api_event_bytes_count_injector' INTO @start_event_bytes;
+
+--let $rpl_connection_name= replica
+--source include/connection.inc
+--echo # Save Replica start counter
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Ndb_api_event_bytes_count_injector' INTO @start_event_bytes;
+
+--let $rpl_connection_name= source
+--source include/connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b BLOB, mb MEDIUMBLOB) ENGINE = NDB;
+
+INSERT INTO t1 VALUES (1, repeat(0x41, 8192), repeat(0x42, 65536)),
+                      (2, repeat(0x43, 8192), repeat(0x44, 65536)),
+                      (3, repeat(0x45, 8192), repeat(0x46, 65536)),
+                      (4, repeat(0x47, 8192), repeat(0x48, 65536));
+--save_master_pos
+
+--sync_slave_with_master replica
+--let $rpl_connection_name= replica
+--source include/connection.inc
+SELECT LENGTH(b), LENGTH(mb) FROM t1;
+
+--let $rpl_connection_name= server.1
+--source include/connection.inc
+--echo # Save Server.1 end counter
+--save_master_pos
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Ndb_api_event_bytes_count_injector' INTO @end_event_bytes;
+
+if (`SELECT @end_event_bytes - @start_event_bytes > 8192`)
+{
+  echo # Should not have received any row event data.;
+  let $start_value=`SELECT @start_event_bytes`;
+  let $end_value=`SELECT @end_event_bytes`;
+  echo start value: $start_value;
+  echo end value: $end_value;
+  die "Expected no more than 8192 bytes of data for the events received";
+}
+--echo # No row event data was received
+
+--let $rpl_connection_name= replica
+--source include/connection.inc
+--save_master_pos
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name = 'Ndb_api_event_bytes_count_injector' INTO @end_event_bytes;
+
+# Must be more than 294912 (4*8192 + 4*65536)
+if (`SELECT @end_event_bytes - @start_event_bytes <= 294912`)
+{
+  echo # Should have received all row event data.;
+  let $start_value=`SELECT @start_event_bytes`;
+  let $end_value=`SELECT @end_event_bytes`;
+  echo start value: $start_value;
+  echo end value: $end_value;
+  die "Expected more than 294912 bytes of data (all event data received)";
+}
+--echo # All row event data was received
+
+--let $rpl_connection_name= source
+--source include/connection.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

@@ -3970,6 +3970,11 @@ bool PT_table_factor_table_ident::do_contextualize(Parse_context *pc) {
   THD *thd = pc->thd;
   Yacc_state *yyps = &thd->m_parser_state->m_yacc;
 
+  if (pc->select->table_count() >= MAX_TABLES) {
+    my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
+    return true;
+  }
+
   m_table_ref = pc->select->add_table_to_list(
       thd, table_ident, opt_table_alias, 0, yyps->m_lock_type, yyps->m_mdl_type,
       opt_key_definition, opt_use_partition, nullptr, pc);

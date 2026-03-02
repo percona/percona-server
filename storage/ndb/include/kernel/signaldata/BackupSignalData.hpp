@@ -228,7 +228,8 @@ class BackupCompleteRep {
   friend bool printBACKUP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
  public:
-  static constexpr Uint32 SignalLength = 12;
+  static constexpr Uint32 SignalLength_LogLow_9_6_0 = 12;
+  static constexpr Uint32 SignalLength = 14;
 
  private:
   Uint32 senderData;
@@ -237,11 +238,13 @@ class BackupCompleteRep {
   Uint32 stopGCP;
   Uint32 noOfBytesLow;
   Uint32 noOfRecordsLow;
-  Uint32 noOfLogBytes;
-  Uint32 noOfLogRecords;
+  Uint32 noOfLogBytesLow;
+  Uint32 noOfLogRecordsLow;
   Uint32 unused[2];
   Uint32 noOfBytesHigh;
   Uint32 noOfRecordsHigh;
+  Uint32 noOfLogBytesHigh;
+  Uint32 noOfLogRecordsHigh;
 };
 
 /**

@@ -33,6 +33,7 @@
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "scope_guard.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/field.h"
@@ -270,6 +271,9 @@ static void generate_sql(const NdbInfo::Table *ndb_tab, BaseString &sql) {
       case NdbInfo::Column::String:
         sql.appfmt("VARCHAR(512)");
         break;
+      case NdbInfo::Column::Blob:
+        sql.appfmt("LONGBLOB");
+        break;
       default:
         sql.appfmt("UNKNOWN");
         assert(false);
@@ -424,6 +428,10 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
         if (field->type() == MYSQL_TYPE_VARCHAR) compatible = true;
         stats.mean_rec_length += 16;
         break;
+      case NdbInfo::Column::Blob:
+        if (field->type() == MYSQL_TYPE_BLOB) compatible = true;
+        stats.mean_rec_length += 12;
+        break;
       default:
         assert(false);
         break;
@@ -441,9 +449,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   }
 
   /* Increase "ref_length" to allow a whole row to be stored in "ref" */
-  ref_length = 0;
-  for (uint i = 0; i < table->s->fields; i++)
-    ref_length += table->field[i]->pack_length();
+  ref_length = table->s->rec_buff_length;
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
   // Mark table as opened
@@ -649,7 +655,6 @@ int ha_ndbinfo::rnd_pos(uchar *buf, uchar *pos) {
 
   /* Copy the saved row into "buf" and set all fields to not null */
   memcpy(buf, pos, ref_length);
-  for (uint i = 0; i < table->s->fields; i++) table->field[i]->set_notnull();
 
   return 0;
 }
@@ -698,11 +703,13 @@ int ha_ndbinfo::unpack_record(uchar *dst_row) {
     Field *field = table->field[i];
     const NdbInfoRecAttr *record = m_impl.m_columns[i];
     if (!record || record->isNULL()) {
-      field->set_null();
+      field->set_null(dst_offset);
       continue;
     }
-    field->set_notnull();
     field->move_field_offset(dst_offset);
+    auto restore_offset_on_return =
+        create_scope_guard([&]() { field->move_field_offset(-dst_offset); });
+    field->set_notnull();
     switch (field->type()) {
       case (MYSQL_TYPE_VARCHAR): {
         DBUG_PRINT("info", ("str: %s", record->c_str()));
@@ -755,17 +762,21 @@ int ha_ndbinfo::unpack_record(uchar *dst_row) {
         break;
       }
 
+      case MYSQL_TYPE_BLOB: {
+        memcpy(field->field_ptr(), record->ptr(), field->pack_length());
+        assert(field->pack_length() == 12);
+        break;
+      }
+
       default:
         return unpack_unexpected_field(field);
     }
-
-    field->move_field_offset(-dst_offset);
   }
   return 0;
 }
 
 ulonglong ha_ndbinfo::table_flags() const {
-  ulonglong flags = HA_NO_TRANSACTIONS | HA_NO_BLOBS | HA_NO_AUTO_INCREMENT;
+  ulonglong flags = HA_NO_TRANSACTIONS | HA_NO_AUTO_INCREMENT;
 
   // m_table could be null; sometimes table_flags() is called prior to open()
   if (m_impl.m_table != nullptr && m_impl.m_table->rowCountIsExact())

@@ -397,7 +397,7 @@ Uint32 RestoreMetaData::readMetaTableList() {
   if (m_error_insert == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER) {
     // clear error insert
     m_error_insert = 0;
-    m_buffer_sz = BUFFER_SIZE;
+    m_buffer_sz = DEFAULT_BUFFER_SIZE;
   }
 #endif
   return tabCount;
@@ -839,8 +839,8 @@ bool RestoreMetaData::parseTableDescriptor(const Uint32 *data, Uint32 len) {
 // Constructor
 RestoreDataIterator::RestoreDataIterator(const RestoreMetaData &md,
                                          void (*_free_data_callback)(void *),
-                                         void *ctx)
-    : BackupFile(_free_data_callback, ctx),
+                                         void *ctx, Uint32 bufferSz)
+    : BackupFile(_free_data_callback, ctx, bufferSz),
       m_metaData(md),
       m_current_table_has_transforms(false) {
   restoreLogger.log_debug("RestoreDataIterator constructor");
@@ -1394,12 +1394,13 @@ int RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
   return 0;
 }
 
-BackupFile::BackupFile(void (*_free_data_callback)(void *), void *ctx)
+BackupFile::BackupFile(void (*_free_data_callback)(void *), void *ctx,
+                       Uint32 bufferSz)
     : free_data_callback(_free_data_callback), m_ctx(ctx) {
   m_path[0] = 0;
   m_fileName[0] = 0;
 
-  m_buffer_sz = BUFFER_SIZE;
+  m_buffer_sz = MAX(bufferSz, DEFAULT_BUFFER_SIZE);
   m_buffer = malloc(m_buffer_sz);
   m_buffer_ptr = m_buffer;
   m_buffer_data_left = 0;
@@ -1863,6 +1864,7 @@ void BackupFile::error_insert(unsigned int code) {
     // Reduce size of buffer to test buffer overflow
     // handling. The buffer must still be large enough to
     // accommodate the file header.
+    require(m_buffer_sz == DEFAULT_BUFFER_SIZE);
     m_buffer_sz = 256;
   }
 }

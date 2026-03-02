@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <atomic>
 #include <string> /* std::string */
 #include <utility>
 #include <vector> /* std::vector */
@@ -1166,6 +1167,7 @@ const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
                          {STRING_WITH_LEN("sha256_password")}};
 
 LEX_CSTRING default_auth_plugin_name{STRING_WITH_LEN("caching_sha2_password")};
+std::atomic<char *> initial_auth_plugin_name{nullptr};
 
 /**
   Use known pointers for cached plugins to improve comparison time
@@ -1200,6 +1202,9 @@ Cached_authentication_plugins::Cached_authentication_plugins() {
       /* It's OK to not find mysql_native */
       if (!cached_plugins[i] && i != PLUGIN_MYSQL_NATIVE_PASSWORD)
         m_valid = false;
+      if (cached_plugins[i] &&
+          plugin_load_option(cached_plugins[i]) != PLUGIN_OFF)
+        enabled_plugins.push_back((cached_plugins_enum)i);
     } else
       cached_plugins[i] = nullptr;
   }
@@ -2232,7 +2237,11 @@ ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
     } else {
       const int DECIMAL_SHIFT = 1000;
       const int random_number = static_cast<int>(my_rnd(rand) * DECIMAL_SHIFT);
-      uint plugin_num = (uint)(random_number % ((uint)PLUGIN_LAST));
+      uint plugin_inx =
+          (uint)(random_number %
+                 g_cached_authentication_plugins->enabled_plugins.size());
+      uint plugin_num =
+          (uint)g_cached_authentication_plugins->enabled_plugins[plugin_inx];
       user->plugin =
           Cached_authentication_plugins::cached_plugins_names[plugin_num];
       unknown_accounts->clear_if_greater(MAX_UNKNOWN_ACCOUNTS);
@@ -3970,7 +3979,18 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   int res = CR_OK;
   int ret = 1;
   MPVIO_EXT mpvio;
-  LEX_CSTRING auth_plugin_name = default_auth_plugin_name;
+  LEX_CSTRING auth_plugin_name =
+      initial_auth_plugin_name
+          ? LEX_CSTRING{STRING_WITH_LEN(initial_auth_plugin_name)}
+          : default_auth_plugin_name;
+
+  DBUG_EXECUTE_IF("acl_expect_native_initial_auth_plugin", {
+    assert(0 == strcmp(auth_plugin_name.str, "mysql_native_password"));
+  });
+  DBUG_EXECUTE_IF("acl_expect_sha2_initial_auth_plugin", {
+    assert(0 == strcmp(auth_plugin_name.str, "caching_sha2_password"));
+  });
+
   Thd_charset_adapter charset_adapter(thd);
 
   DBUG_TRACE;

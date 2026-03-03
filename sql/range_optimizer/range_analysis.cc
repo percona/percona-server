@@ -1350,9 +1350,32 @@ static bool save_value_and_handle_conversion(
       // to c <= 's' to fit in the column type, it will not match 'ß'. For such
       // predicates, we assume the predicate is always true, and let a filter
       // decide the outcome.
-      return is_string_type(field->type()) &&
-             !my_binary_compare(field->charset()) &&
-             use_strnxfrm(field->charset());
+      if (is_string_type(field->type()) &&
+          !my_binary_compare(field->charset()) &&
+          use_strnxfrm(field->charset())) {
+        String buf;
+        auto *str = value->val_str(&buf);
+        const CHARSET_INFO *cs = field->charset();
+        size_t col_len = field->field_length;
+        size_t key_buf_len = cs->coll->strnxfrmlen(cs, col_len * cs->mbmaxlen);
+        size_t key_image_null_offset = field->is_nullable() ? 1 : 0;
+        size_t key_image_offset = key_image_null_offset + 2;
+        size_t key_image_len = key_image_offset + key_buf_len;
+        auto key_buf = static_cast<char *>(memroot->Alloc(key_image_len));
+        // handle nullptr
+        // my_strnxfrm(cs, key_buf, key_buf_len,
+        //             reinterpret_cast<const uchar *>(str->ptr()), col_len);
+        const char *well_formed_error_pos;
+        const char *cannot_convert_error_pos;
+        const char *from_end_pos;
+        auto copy_length = well_formed_copy_nchars(
+            field->charset(), key_buf + key_image_offset, col_len, field->charset(), str->ptr(),
+            str->length(), key_buf_len / field->charset()->mbmaxlen,
+            &well_formed_error_pos, &cannot_convert_error_pos, &from_end_pos);
+        int2store(key_buf + key_image_null_offset, copy_length);
+        return false;
+      }
+      return true;
     case TYPE_WARN_INVALID_STRING:
       /*
         An invalid string does not produce any rows when used with

@@ -2913,7 +2913,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE A(col_int INT);
 INSERT INTO A VALUES (1), (2), (3), (4), (5);
-SELECT  /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+SELECT
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
 FROM A;
 PERCENT_RANK() OVER ( ORDER BY SEC_TO_TIME(3600) RANGE INTERVAL 7 QUARTER PRECEDING )
@@ -3397,3 +3397,108 @@ EXPLAIN
                             -> Table scan on t2  (rows=8) (actual rows=8 loops=1)
 
 DROP TABLE t;
+#
+# Bug#37152269 - REDUNDANT FILTER PATHS ON BETWEEN RANGE SCANS IN HYPERGRAPH
+#
+CREATE TABLE t1 (
+f1 int NOT NULL, f2 int NOT NULL,
+f3 int DEFAULT NULL,
+PRIMARY KEY (f1,f2), KEY f3 (f3));
+INSERT INTO t1 (f1, f2, f3) VALUES
+(1, 1, 1), (1, 2, 3), (2, 2, 3),
+(3, 2, 3), (4, 2, 3), (5, 2, 3), (6, 2, 3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using f3 over (f3 = 3 AND 2 <= f1 <= 4)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f3 = 3 AND f1 BETWEEN 2 AND 4;
+COUNT(*)
+3
+SET @low = 2;
+SET @high = 4;
+PREPARE stmt FROM
+'EXPLAIN FORMAT = TREE SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+EXECUTE stmt USING @low, @high;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using f3 over (f3 = 3 AND 2 <= f1 <= 4)  (rows=3)
+
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM
+'SELECT COUNT(*) FROM t1
+ WHERE f3 = 3 AND f1 BETWEEN ? AND ?';
+EXECUTE stmt USING @low, @high;
+COUNT(*)
+3
+DEALLOCATE PREPARE stmt;
+INSERT INTO t1 VALUES (100, 1, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (2 <= f1 <= 4)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND 4;
+COUNT(*)
+3
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 between 2 and t1.f2)  (rows=0.889)
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND f2;
+COUNT(*)
+1
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (2 <= f1 <= 4)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 BETWEEN 2 AND (1+3);
+COUNT(*)
+3
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Filter: (t1.f1 not between 100 and t1.f2)  (rows=7.11)
+        -> Covering index scan on t1 using PRIMARY  (rows=8)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 100 AND f2;
+COUNT(*)
+8
+INSERT INTO t1 (f1, f2, f3)
+WITH RECURSIVE seq(n) AS (
+SELECT 7 UNION ALL SELECT n + 1 FROM seq WHERE n < 1000)
+SELECT n, 1, NULL FROM seq WHERE n <> 100;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN  FORMAT = TREE SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+EXPLAIN
+-> Aggregate: count(0)  (rows=1)
+    -> Covering index range scan on t1 using PRIMARY over (f1 < 2) OR (999 < f1)  (rows=3)
+
+SELECT COUNT(*) FROM t1
+WHERE f1 NOT BETWEEN 2 AND 999;
+COUNT(*)
+3
+DROP TABLE t1;

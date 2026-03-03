@@ -1389,3 +1389,189 @@ SELECT t1.`*`, t1.* FROM t1;
 SELECT test.t1.`*`, test.t1.* FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#38573285: CPU-eating Denial_of_Service query
+--echo #
+
+CREATE TABLE t(pk INT);
+
+--echo #
+--echo # 1) Simple comma-separated list exceeding MAX_TABLES (assume MAX_TABLES=61)
+--echo # Expect ER_TOO_MANY_TABLES raised by parser.
+--echo #
+
+CREATE TABLE t1(a INT);
+
+--error ER_TOO_MANY_TABLES
+SELECT 1
+FROM t1 x,t1 x0,t1 x1,t1 x2,t1 x3,t1 x4,t1 x5,t1 x6,t1 x7,t1 x8,t1 x9,t1 x10,
+t1 x11,t1 x12,t1 x13,t1 x14,t1 x15,t1 x16,t1 x17,t1 x18,t1 x19,t1 x20,
+t1 x21,t1 x22,t1 x23,t1 x24,t1 x25,t1 x26,t1 x27,t1 x28,t1 x29,t1 x30,
+t1 x31,t1 x32,t1 x33,t1 x34,t1 x35,t1 x36,t1 x37,t1 x38,t1 x39,t1 x40,
+t1 x41,t1 x42,t1 x43,t1 x44,t1 x45,t1 x46,t1 x47,t1 x48,t1 x49,t1 x50,
+t1 x51,t1 x52,t1 x53,t1 x54,t1 x55,t1 x56,t1 x57,t1 x58,t1 x59,t1 x60,
+t1 x61,t1 x62,t1 x63;
+
+DROP TABLE t1;
+
+--echo #
+--echo # 2) Long CROSS JOIN chain exceeding MAX_TABLES
+--echo # Expect ER_TOO_MANY_TABLES from parser.
+--echo #
+
+--error ER_TOO_MANY_TABLES
+SELECT 1 FROM
+  t as t1
+  CROSS JOIN t AS t2
+  CROSS JOIN t AS t3
+  CROSS JOIN t AS t4
+  CROSS JOIN t AS t5
+  CROSS JOIN t AS t6
+  CROSS JOIN t AS t7
+  CROSS JOIN t AS t8
+  CROSS JOIN t AS t9
+  CROSS JOIN t AS t10
+  CROSS JOIN t AS t11
+  CROSS JOIN t AS t12
+  CROSS JOIN t AS t13
+  CROSS JOIN t AS t14
+  CROSS JOIN t AS t15
+  CROSS JOIN t AS t16
+  CROSS JOIN t AS t17
+  CROSS JOIN t AS t18
+  CROSS JOIN t AS t19
+  CROSS JOIN t AS t20
+  CROSS JOIN t AS t21
+  CROSS JOIN t AS t22
+  CROSS JOIN t AS t23
+  CROSS JOIN t AS t24
+  CROSS JOIN t AS t25
+  CROSS JOIN t AS t26
+  CROSS JOIN t AS t27
+  CROSS JOIN t AS t28
+  CROSS JOIN t AS t29
+  CROSS JOIN t AS t30
+  CROSS JOIN t AS t31
+  CROSS JOIN t AS t32
+  CROSS JOIN t AS t33
+  CROSS JOIN t AS t34
+  CROSS JOIN t AS t35
+  CROSS JOIN t AS t36
+  CROSS JOIN t AS t37
+  CROSS JOIN t AS t38
+  CROSS JOIN t AS t39
+  CROSS JOIN t AS t40
+  CROSS JOIN t AS t41
+  CROSS JOIN t AS t42
+  CROSS JOIN t AS t43
+  CROSS JOIN t AS t44
+  CROSS JOIN t AS t45
+  CROSS JOIN t AS t46
+  CROSS JOIN t AS t47
+  CROSS JOIN t AS t48
+  CROSS JOIN t AS t49
+  CROSS JOIN t AS t50
+  CROSS JOIN t AS t51
+  CROSS JOIN t AS t52
+  CROSS JOIN t AS t53
+  CROSS JOIN t AS t54
+  CROSS JOIN t AS t55
+  CROSS JOIN t AS t56
+  CROSS JOIN t AS t57
+  CROSS JOIN t AS t58
+  CROSS JOIN t AS t59
+  CROSS JOIN t AS t60
+  CROSS JOIN t AS t61
+  CROSS JOIN t AS t62
+  CROSS JOIN t AS t63;
+
+--echo #
+--echo # 3) Mixed comma and JOIN groups exceeding MAX_TABLES
+--echo # Using CROSS JOIN inside parentheses to avoid ON-clause verbosity.
+--echo # Expect ER_TOO_MANY_TABLES from parser.
+--echo #
+
+--error ER_TOO_MANY_TABLES
+SELECT 1 FROM
+  (t AS t1 CROSS JOIN t AS t2),   (t AS t3 CROSS JOIN t AS t4),
+  (t AS t5 CROSS JOIN t AS t6),   (t AS t7 CROSS JOIN t AS t8),
+  (t AS t9 CROSS JOIN t AS t10),  (t AS t11 CROSS JOIN t AS t12),
+  (t AS t13 CROSS JOIN t AS t14), (t AS t15 CROSS JOIN t AS t16),
+  (t AS t17 CROSS JOIN t AS t18), (t AS t19 CROSS JOIN t AS t20),
+  (t AS t21 CROSS JOIN t AS t22), (t AS t23 CROSS JOIN t AS t24),
+  (t AS t25 CROSS JOIN t AS t26), (t AS t27 CROSS JOIN t AS t28),
+  (t AS t29 CROSS JOIN t AS t30), (t AS t31 CROSS JOIN t AS t32),
+  (t AS t33 CROSS JOIN t AS t34), (t AS t35 CROSS JOIN t AS t36),
+  (t AS t37 CROSS JOIN t AS t38), (t AS t39 CROSS JOIN t AS t40),
+  (t AS t41 CROSS JOIN t AS t42), (t AS t43 CROSS JOIN t AS t44),
+  (t AS t45 CROSS JOIN t AS t46), (t AS t47 CROSS JOIN t AS t48),
+  (t AS t49 CROSS JOIN t AS t50), (t AS t51 CROSS JOIN t AS t52),
+  (t AS t53 CROSS JOIN t AS t54), (t AS t55 CROSS JOIN t AS t56),
+  (t AS t57 CROSS JOIN t AS t58), (t AS t59 CROSS JOIN t AS t60),
+  (t AS t61 CROSS JOIN t AS t62);
+
+--echo #
+--echo # 4) Nested joins exceeding MAX_TABLES
+--echo # Build a deeply nested expression; expect ER_TOO_MANY_TABLES from parser.
+--echo #
+
+--error ER_TOO_MANY_TABLES
+SELECT 1 FROM
+  ((((t AS t1 CROSS JOIN t AS t2) CROSS JOIN t AS t3) CROSS JOIN t AS t4)
+    CROSS JOIN ((((t AS t5 CROSS JOIN t AS t6) CROSS JOIN t AS t7) CROSS JOIN t AS t8)
+      CROSS JOIN ((((t AS t9 CROSS JOIN t AS t10) CROSS JOIN t AS t11) CROSS JOIN t AS t12)
+        CROSS JOIN ((((t AS t13 CROSS JOIN t AS t14) CROSS JOIN t AS t15) CROSS JOIN t AS t16)
+          CROSS JOIN ((((t AS t17 CROSS JOIN t AS t18) CROSS JOIN t AS t19) CROSS JOIN t AS t20)
+            CROSS JOIN ((((t AS t21 CROSS JOIN t AS t22) CROSS JOIN t AS t23) CROSS JOIN t AS t24)
+              CROSS JOIN ((((t AS t25 CROSS JOIN t AS t26) CROSS JOIN t AS t27) CROSS JOIN t AS t28)
+                CROSS JOIN ((((t AS t29 CROSS JOIN t AS t30) CROSS JOIN t AS t31) CROSS JOIN t AS t32)
+                  CROSS JOIN ((((t AS t33 CROSS JOIN t AS t34) CROSS JOIN t AS t35) CROSS JOIN t AS t36)
+                    CROSS JOIN ((((t AS t37 CROSS JOIN t AS t38) CROSS JOIN t AS t39) CROSS JOIN t AS t40)
+                      CROSS JOIN ((((t AS t41 CROSS JOIN t AS t42) CROSS JOIN t AS t43) CROSS JOIN t AS t44)
+                        CROSS JOIN ((((t AS t45 CROSS JOIN t AS t46) CROSS JOIN t AS t47) CROSS JOIN t AS t48)
+                          CROSS JOIN ((((t AS t49 CROSS JOIN t AS t50) CROSS JOIN t AS t51) CROSS JOIN t AS t52)
+                            CROSS JOIN ((((t AS t53 CROSS JOIN t AS t54) CROSS JOIN t AS t55) CROSS JOIN t AS t56)
+                              CROSS JOIN (t AS t57 CROSS JOIN t AS t58 CROSS JOIN t AS t59
+                              CROSS JOIN t AS t60 CROSS JOIN t AS t61 CROSS JOIN t AS t62 CROSS JOIN t AS t63)))))))))))))));
+
+--echo #
+
+SELECT COUNT(*) = 0 FROM
+  (SELECT t1.pk FROM
+     t AS t1, t AS t2, t AS t3, t AS t4, t AS t5,
+     t AS t6, t AS t7, t AS t8, t AS t9, t AS t10,
+     t AS t11, t AS t12, t AS t13, t AS t14, t AS t15,
+     t AS t16, t AS t17, t AS t18, t AS t19, t AS t20,
+     t AS t21, t AS t22, t AS t23, t AS t24, t AS t25,
+     t AS t26, t AS t27, t AS t28, t AS t29, t AS t30) AS d1
+, (SELECT t31.pk FROM
+     t AS t31, t AS t32, t AS t33, t AS t34, t AS t35,
+     t AS t36, t AS t37, t AS t38, t AS t39, t AS t40,
+     t AS t41, t AS t42, t AS t43, t AS t44, t AS t45,
+     t AS t46, t AS t47, t AS t48, t AS t49, t AS t50,
+     t AS t51, t AS t52, t AS t53, t AS t54, t AS t55,
+     t AS t56, t AS t57, t AS t58, t AS t59, t AS t60) AS d2;
+
+--echo #
+
+--error ER_TOO_MANY_TABLES
+SELECT 1 FROM t AS t1
+WHERE EXISTS (
+  SELECT 1 FROM
+    t AS t1, t AS t2, t AS t3, t AS t4, t AS t5,
+    t AS t6, t AS t7, t AS t8, t AS t9, t AS t10,
+    t AS t11, t AS t12, t AS t13, t AS t14, t AS t15,
+    t AS t16, t AS t17, t AS t18, t AS t19, t AS t20,
+    t AS t21, t AS t22, t AS t23, t AS t24, t AS t25,
+    t AS t26, t AS t27, t AS t28, t AS t29, t AS t30,
+    t AS t31, t AS t32, t AS t33, t AS t34, t AS t35,
+    t AS t36, t AS t37, t AS t38, t AS t39, t AS t40,
+    t AS t41, t AS t42, t AS t43, t AS t44, t AS t45,
+    t AS t46, t AS t47, t AS t48, t AS t49, t AS t50,
+    t AS t51, t AS t52, t AS t53, t AS t54, t AS t55,
+    t AS t56, t AS t57, t AS t58, t AS t59, t AS t60,
+    t AS t61, t AS t62, t AS t63
+);
+
+DROP TABLE t;

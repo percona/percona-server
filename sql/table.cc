@@ -3615,10 +3615,10 @@ int closefrm(TABLE *table, bool free_share)
   KEY *key_info= table->key_info;
   if (key_info)
   {
-    KEY_PART_INFO *key_part= key_info->key_part;
     for (KEY *key_info_end= key_info + table->s->keys; key_info < key_info_end;
          key_info++)
     {
+      KEY_PART_INFO *key_part= key_info->key_part;
       for (KEY_PART_INFO *key_part_end= key_part + key_info->actual_key_parts;
            key_part < key_part_end; key_part++)
       {

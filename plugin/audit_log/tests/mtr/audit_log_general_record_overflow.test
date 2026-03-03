@@ -1,0 +1,51 @@
+# Test that audit_log_general_record correctly handles queries with characters
+# that expand significantly during XML escaping, so the escaped scratch area
+# plus the snprintf output exceed the 4096-byte stack buffer.
+#
+# Each '&' expands to '&amp;' (5x) in OLD XML format. With 500 '&' characters
+# in a ~510 byte query, the escaped query is ~2500 bytes. The scratch area
+# (raw query + escaped strings) plus the snprintf output (which re-includes
+# the escaped strings) would total ~5800 bytes, exceeding the 4096-byte buffer.
+# Without the fix, this crashes (RelWithDebInfo) or triggers (Debug):
+#   Assertion `endptr + *outlen <= buf + buflen' failed.
+
+--echo #
+--echo # PS-10593: audit_log plugin segfaults on memcpy
+--echo # https://perconadev.atlassian.net/browse/PS-10593
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+--disable_query_log
+--disable_result_log
+let $amp_str= `SELECT REPEAT('&', 500)`;
+eval SELECT '$amp_str';
+--enable_result_log
+--enable_query_log
+
+SELECT 'Server alive after escaped query' as status;
+
+--move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_overflow.log
+SET GLOBAL audit_log_flush=ON;
+
+perl;
+  my $log_file = "$ENV{MYSQLD_DATADIR}/test_audit_overflow.log";
+  open(my $fh, "<", $log_file) or die "Can't open $log_file: $!";
+  my $content = do { local $/; <$fh> };
+  close($fh);
+
+  my $count = () = $content =~ /&amp;/g;
+  if ($count >= 500) {
+    print "Escaped ampersands found: Ok\n";
+  } else {
+    print "Expected >= 500 escaped ampersands, found $count\n";
+  }
+EOF
+
+--remove_file $MYSQLD_DATADIR/test_audit_overflow.log
+--remove_file $MYSQLD_DATADIR/test_audit.log

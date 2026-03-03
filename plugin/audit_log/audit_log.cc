@@ -541,7 +541,8 @@ static char *audit_log_general_record(char *buf, size_t buflen,
                      strlen(name) + event.general_sql_command.length +
                      20 + /* general_thread_id */
                      20 + /* status */
-                     MAX_RECORD_ID_SIZE + MAX_TIMESTAMP_SIZE;
+                     MAX_RECORD_ID_SIZE + MAX_TIMESTAMP_SIZE +
+                     static_cast<size_t>(endptr - buf);
   if (buflen_estimated > buflen) {
     *outlen = buflen_estimated;
     return NULL;

@@ -1,0 +1,54 @@
+--echo #
+--echo # Bug#118009: SELECT query on primary key column deteriorates to full
+--echo #             table scan when filter involves too long string
+--echo #
+
+--let charset=utf8mb4
+--let collation=utf8mb4_0900_ai_ci
+--source include/oversized_varchar_key.inc
+
+--let charset=utf16
+--let collation=utf16_unicode_520_ci
+--source include/oversized_varchar_key.inc
+
+CREATE TABLE t1 (
+    a VARCHAR(3),
+    KEY(a)
+);
+
+INSERT INTO t1 VALUES ('aaa'), ('bbb'), ('ccc');
+
+DELIMITER //;
+
+CREATE FUNCTION bad_str() RETURNS VARBINARY(10) DETERMINISTIC NO SQL
+BEGIN
+  RETURN concat('aaaaaaaaaa', UNHEX('73C080'));  # invalid overlong UTF-8 NUL
+END //
+
+DELIMITER ;//
+
+--error ER_DATA_TOO_LONG
+SELECT * FROM t1 WHERE a < bad_str();
+
+DROP FUNCTION bad_str;
+DROP TABLE t1;
+
+SET NAMES utf8 COLLATE utf8_general_ci;
+
+
+CREATE TABLE t1 (
+  a VARCHAR(2) CHARACTER SET utf8mb3,
+  KEY ( a )
+);
+
+INSERT INTO t1 VALUES ( 'a' ), ( 'b' );
+
+EXPLAIN
+SELECT a FROM t1 WHERE a < 'a😊';
+SELECT a FROM t1 WHERE a < 'a😊';
+
+EXPLAIN
+SELECT a FROM t1 FORCE KEY ( a ) WHERE a < CHAR( 'a😊' USING utf8mb3 ) ORDER BY a;
+SELECT a FROM t1 FORCE KEY ( a ) WHERE a < CHAR( 'a😊' USING utf8mb3 ) ORDER BY a;
+
+DROP TABLE t1;

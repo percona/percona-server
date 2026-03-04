@@ -92,7 +92,7 @@ void emit(bool p, const char *dir, const char *fmt, std::va_list ap) {
   cstrbuf<100> line;
   require(line.appendf("%s %d %s%s ", p ? "ok" : "not ok", globalTestInfo.run,
                        (dir ? "# " : "-"), (dir ? dir : "")) != -1);
-  require(line.appendf(fmt, ap) != -1);
+  require(line.vappendf(fmt, ap) != -1);
   line.replace_end_if_truncated("...");
   puts(line.c_str());
   if (globalTestInfo.run == opt_last_test) exit(exit_status());

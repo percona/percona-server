@@ -151,6 +151,9 @@ IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES}
     COMPILE_FLAGS
     "-Wno-conditional-uninitialized")
+  ADD_COMPILE_FLAGS(${GCS_SOURCES}
+    COMPILE_FLAGS
+    "-Wno-missing-format-attribute")
 ENDIF()
 
 # disabling warnings for generated code

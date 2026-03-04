@@ -369,6 +369,10 @@ static int fill_uint16(uint16_t *a, unsigned size, const char *str,
   return 0;
 }
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-format-attribute"
+#endif
 static int tailoring_append(MY_XML_PARSER *st, const char *fmt, size_t len,
                             const char *attr) {
   auto *i = (struct my_cs_file_info *)st->user_data;
@@ -396,6 +400,9 @@ static int tailoring_append2(MY_XML_PARSER *st, const char *fmt, size_t len1,
   }
   return MY_XML_ERROR;
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 static size_t scan_one_character(const char *s, const char *e, my_wc_t *wc) {
   CHARSET_INFO *cs = &my_charset_utf8mb3_general_ci;

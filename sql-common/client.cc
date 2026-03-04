@@ -9469,7 +9469,7 @@ static net_async_status native_password_auth_client_nonblocking(
     MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result) {
   DBUG_TRACE;
   int io_result;
-  uchar *pkt;
+  uchar *pkt = nullptr;
   mysql_async_auth *ctx = ASYNC_DATA(mysql)->connect_context->auth_context;
 
   switch (static_cast<client_auth_native_password_plugin_status>(

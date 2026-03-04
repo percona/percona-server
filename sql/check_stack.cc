@@ -122,7 +122,8 @@ bool check_stack_overrun(const THD *thd, long margin, unsigned char *buf) {
   }
 #endif
 
-  long stack_used =
+  long stack_used = 0;
+  stack_used =
       used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));
   if (stack_used >= static_cast<long>(my_thread_stack_size - margin) ||
       DBUG_EVALUATE_IF("simulate_stack_overrun", true, false)) {

@@ -4342,7 +4342,7 @@ int MgmtSrvr::setDbParameter(int node, int param, const char *value,
   int p_type;
   unsigned val_32;
   Uint64 val_64 = 0;
-  const char *val_char;
+  const char *val_char = nullptr;
   do {
     p_type = 0;
     if (iter.get(param, &val_32) == 0) {

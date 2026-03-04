@@ -626,6 +626,10 @@ class Gcs_default_debugger {
      @param [in] args Arguments This includes the c-style string and arguments
      to fill it in
     */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-format-attribute"
+#endif
   template <typename... Args>
   inline void log_event(const int64_t options, Args... args) {
     if (Gcs_debug_options::test_debug_options(options)) {
@@ -643,6 +647,9 @@ class Gcs_default_debugger {
       notify_entry(event);
     }
   }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
  private:
   /**

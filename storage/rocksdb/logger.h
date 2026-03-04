@@ -28,6 +28,10 @@
 
 namespace myrocks {
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-format-attribute"
+#endif
 class Rdb_logger : public rocksdb::Logger {
  public:
   explicit Rdb_logger(const rocksdb::InfoLogLevel log_level =
@@ -88,5 +92,8 @@ class Rdb_logger : public rocksdb::Logger {
   std::shared_ptr<rocksdb::Logger> m_logger;
   rocksdb::InfoLogLevel m_mysql_log_level;
 };
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 }  // namespace myrocks

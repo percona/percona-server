@@ -181,6 +181,11 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-range-loop-analysis FILES rocksdb/db/db_impl/db_impl_compaction_flush.cc)
 ENDIF()
 
+# Suppress warnings for clang-21 or newer
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 21)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-format-attribute FILES rocksdb/env/file_system.cc rocksdb/env/env.cc rocksdb/env/mock_env.cc rocksdb/logging/auto_roll_logger.cc rocksdb/util/stderr_logger.cc rocksdb/logging/log_buffer.cc)
+ENDIF()
+
 # Suppress warnings for clang-15 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-unused-but-set-variable FILES rocksdb/db/version_set.cc rocksdb/db/version_edit_handler.cc rocksdb/cache/lru_cache.cc rocksdb/db/internal_stats.cc)

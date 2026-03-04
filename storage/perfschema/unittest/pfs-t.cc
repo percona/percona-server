@@ -2420,7 +2420,7 @@ static void test_file_operations() {
 
   PFS_file_class *file_class;
   PSI_thread *thread_A, *thread_B;
-  PSI_file_locker *locker_A, *locker_B;
+  PSI_file_locker *locker_A = nullptr, *locker_B = nullptr;
   PSI_file_locker_state state_A, state_B;
   File fd1, fd2;
   const char *filename1, *filename2;

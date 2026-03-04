@@ -33,7 +33,7 @@ class Memory_backend final {
  public:
   Memory_backend() = default;
 
-  virtual ~Memory_backend() = default;
+  ~Memory_backend() = default;
 
   bool get(const keyring_common::meta::Metadata &metadata,
            keyring_common::data::Data &data) const {

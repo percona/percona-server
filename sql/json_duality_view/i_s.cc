@@ -48,8 +48,8 @@ constexpr char default_catalog[] = "def";
   to be repeatable as long as the view does not change. The tree nodes cannot
   be const since we assign tmp ids.
 
-  @param root
-  @param visit_single_node
+  @param root Root node of the content tree to traverse.
+  @param visit_single_node Callback invoked for each node; return true to stop.
 */
 void visit_tree(jdv::Content_tree_node *root, auto &&visit_single_node) {
   std::stack<jdv::Content_tree_node *> nodes_left;

@@ -2087,7 +2087,7 @@ void Dbdict::readSchemaConf(Signal *signal, FsConnectRecordPtr fsPtr) {
   for (Uint32 n = 0; n < xsf->noOfPages; n++) {
     SchemaFile *sf = &xsf->schemaPage[n];
     bool ok = false;
-    const char *reason;
+    const char *reason = nullptr;
     if (memcmp(sf->Magic, NDB_SF_MAGIC, sizeof(sf->Magic)) != 0) {
       jam();
       reason = "magic code";

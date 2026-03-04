@@ -16,6 +16,10 @@ static const char *stderror_get_name(void) {
 static void stderror_logger_log(EXTENSION_LOG_LEVEL severity,
                                 const void* client_cookie,
                                 const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+static void stderror_logger_log(EXTENSION_LOG_LEVEL severity,
+                                const void* client_cookie,
+                                const char *fmt, ...)
 {
     if (severity >= current_log_level) {
         (void)client_cookie;

@@ -63,6 +63,10 @@ static void WRITE_STR(const char *format) {
   my_write(outfile, (uchar *)buffer, strlen(buffer), MYF(0));
 }
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-format-attribute"
+#endif
 template <typename T>
 void WRITE_VAL(const char *format, T value) {
   char buffer[STRING_BUFFER_SIZE];
@@ -76,6 +80,9 @@ void WRITE_VAL(const char *format, T1 value1, T2 value2) {
   snprintf(buffer, sizeof(buffer), format, value1, value2);
   my_write(outfile, (uchar *)buffer, strlen(buffer), MYF(0));
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 struct st_send_field_n {
   char db_name[256];

@@ -5575,7 +5575,8 @@ static bool print_stats(THD *const thd, std::string const &type,
                     status.c_str(), status.size());
 }
 
-static std::string format_string(const char *const format, ...) {
+static std::string MY_ATTRIBUTE((format(printf, 1, 2)))
+    format_string(const char *const format, ...) {
   std::string res;
   va_list args;
   va_list args_copy;
@@ -5733,12 +5734,12 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
       THD *thd = tx->get_thd();
       char buffer[1024];
       thd_security_context(thd, buffer, sizeof buffer, 0);
-      m_data += format_string(
-          "---SNAPSHOT, ACTIVE %lld sec\n"
-          "%s\n"
-          "lock count %llu, write count %llu\n",
-          curr_time - snapshot_timestamp, buffer, tx->get_row_lock_count(),
-          tx->get_write_count());
+      m_data += format_string("---SNAPSHOT, ACTIVE %" PRId64
+                              " sec\n"
+                              "%s\n"
+                              "lock count %llu, write count %llu\n",
+                              curr_time - snapshot_timestamp, buffer,
+                              tx->get_row_lock_count(), tx->get_write_count());
     }
   }
 

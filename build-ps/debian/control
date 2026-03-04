@@ -254,7 +254,7 @@ Package: percona-server-test
 Architecture: any
 Depends: percona-server-client (= ${binary:Version}),
          percona-server-server (= ${binary:Version}),
-         libperconaserverclient22-dev (= ${binary:Version}),
+         libperconaserverclient24-dev (= ${binary:Version}),
          perl, ${misc:Depends}, ${shlibs:Depends}
 Replaces: percona-server-server, percona-server-client
 Description: Percona Server database test suite

@@ -13456,6 +13456,7 @@ ER_WARN_AUDIT_LOG_SYSVAR_DISCARDED
 
 
 
+
 #
 # Start of Percona Server 8.0 server error log messages
 #
@@ -13473,10 +13474,10 @@ ER_XB_MSG_1
 ER_COMPRESSION_DICTIONARY_NO_CREATE
   eng "Cannot create compression dictionary tables in %s%sread-only mode."
 
-ER_XB_UNUSED_1
+ER_UNUSED_48004
   eng "%s"
 
-ER_XB_UNUSED_2
+ER_UNUSED_48005
   eng "%s"
 
 ER_XB_MSG_4
@@ -13488,13 +13489,14 @@ ER_XB_MSG_5
 ER_XB_MSG_WAIT_FOR_KEYRING_ENCRYPT_THREAD
   eng "Waiting for keyring encryption threads to exit"
 
-ER_XB_UNUSED_3
+ER_UNUSED_48009
   eng "%s"
 
+# 48010
 ER_XB_MSG_6
   eng "Key rotation of encrypted session temporary tablespace %s failed"
 
-ER_XB_UNUSED_4
+ER_UNUSED_48011
   eng "%s"
 
 ER_UPGRADE_KEYRING_UNSUPPORTED_VERSION_ENCRYPTION
@@ -13521,6 +13523,7 @@ ER_REDO_ENCRYPTION_CANT_PARSE_KEY
 ER_REDO_ENCRYPTION_KEYRING
   eng "Redo log cannot be encrypted if the keyring is not loaded."
 
+# 48020
 ER_UNDO_NO_KEYRING
   eng "Undo log can't be encrypted if the keyring is not loaded."
 
@@ -13551,6 +13554,13 @@ ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LTFB
 ER_XPLUGIN_SSL_RELOAD_REGISTER_FAILED
   eng "X plugin failed to register SSL reload callback. ALTER INSTANCE RELOAD TLS will have no effect on the plugin."
 
+# 48030
+ER_UNUSED_48030
+  eng "deprecated ER_IB_MSG_INNODB_PARALLEL_DOUBLEWRITE_PATH"
+
+ER_UNUSED_48031
+  eng "deprecated ER_IB_MSG_INNODB_PARALLEL_DBLWR_ENCRYPT"
+
 ER_KEYRING_COMPONENT_NO_CONFIG
   eng "Keyring configuration doesn't exists: %s"
 
@@ -13575,6 +13585,7 @@ ER_RPL_ENABLE_EVENT_ADD_WILD_PATTERN_FAILED
 ER_GRP_RPL_FLOW_CONTROL_TIMEOUT
   eng "Flow control auto evict timeout reached. The server will now leave the group."
 
+# 48040
 ER_PERCONA_IGNORE_TMP_TABLE_SIZE
   eng "Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning."
 
@@ -13589,6 +13600,19 @@ ER_CONN_CONTROL_DELAYED_CONN_STATS
 
 ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH
   eng "The --secure-file-path is configured, %s must be set accordingly."
+
+ER_SSL_FIPS_MODE_ENABLED
+  eng "A FIPS-approved version of the OpenSSL cryptographic library has been detected in the operating system with a properly configured FIPS module available for loading. Percona Server for MySQL will load this module and run in FIPS mode."
+
+#
+# End of Percona Server 8.0 server error log messages
+#
+
+
+#
+# Start of Audit Log Filter error log messages
+#
+start-error-number 48100
 
 ER_AUDIT_INIT_STARTED
   eng "Initializing Audit Event Filter..."
@@ -13620,6 +13644,7 @@ ER_AUDIT_INIT_WRITER_INIT_FAILURE
 ER_AUDIT_INIT_WRITER_OPEN_FAILURE
   eng "Cannot open log writer, error: %s"
 
+# 48110
 ER_AUDIT_INIT_READER_INIT_FAILURE
   eng "Failed to create log reader instance"
 
@@ -13650,6 +13675,7 @@ ER_AUDIT_SET_USER_UDF_FAIL
 ER_AUDIT_REMOVE_USER_UDF_FAIL
   eng "Failed to remove filter for user '%s@%s' from users table"
 
+# 48120
 ER_AUDIT_LOG_ROTATE_UDF_FAIL
   eng "Log rotation failed: '%s'"
 
@@ -13680,6 +13706,7 @@ ER_AUDIT_PARSE_EVENT_CLASS_BAD_CLASS_TYPE
 ER_AUDIT_PARSE_EVENT_CLASS_NO_CLASS_NAME
   eng "Wrong JSON filter '%s' format, no name provided for event class"
 
+# 48130
 ER_AUDIT_PARSE_EVENT_CLASS_BAD_ABORT_DEF
   eng "Wrong JSON filter '%s' format, 'abort' condition should be set for subclass only"
 
@@ -13710,6 +13737,7 @@ ER_AUDIT_PARSE_EVENT_SUBCLASS_BAD_SUBCLASS_TYPE
 ER_AUDIT_PARSE_ACTION_BAD_ABORT_TYPE
   eng "Wrong JSON filter '%s' format, 'abort' must be of bool or object type"
 
+# 48140
 ER_AUDIT_PARSE_ACTION_BAD_REPLACE
   eng "Event field '%s' cannot be replaced"
 
@@ -13740,6 +13768,7 @@ ER_AUDIT_PARSE_CONDITION_BAD_AND_COND_OPERANDS
 ER_AUDIT_PARSE_CONDITION_BAD_OR_COND_TYPE
   eng "Wrong JSON filter '%s' format, condition definition 'or' must be of array type"
 
+# 48150
 ER_AUDIT_PARSE_CONDITION_BAD_OR_COND_FORMAT
   eng "Wrong JSON filter '%s' format, a member of 'or' condition must be of object type"
 
@@ -13770,6 +13799,7 @@ ER_AUDIT_PARSE_FUNCTION_BAD_ARGS_FORMAT
 ER_AUDIT_PARSE_FUNCTION_BAD_ARGS
   eng "Wrong JSON filter '%s' format, invalid arguments for '%s' function"
 
+# 48160
 ER_AUDIT_PARSE_NO_SUBCLASS_NAME
   eng "Wrong JSON filter '%s' format, no name provided for event subclass"
 
@@ -13800,6 +13830,7 @@ ER_AUDIT_UDF_SET_FILTER_BAD_DEFINITION
 ER_AUDIT_UDF_SET_FILTER_UNIQUE_CHECK_FAIL
   eng "Failed to check filtering rule name existence"
 
+# 48170
 ER_AUDIT_UDF_SET_FILTER_NAME_EXISTS
   eng "Filtering rule with the name '%s' already exists"
 
@@ -13808,9 +13839,6 @@ ER_AUDIT_UDF_SET_FILTER_FAILURE
 
 ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE
   eng "Unexpected event type for replace_field action"
-
-ER_SSL_FIPS_MODE_ENABLED
-  eng "A FIPS-approved version of the OpenSSL cryptographic library has been detected in the operating system with a properly configured FIPS module available for loading. Percona Server for MySQL will load this module and run in FIPS mode."
 
 ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE
   eng "Wrong JSON filter '%s' format, the 'log' field must be of bool or object type"
@@ -13834,7 +13862,27 @@ ER_AUDIT_PARSE_UNEXPECTED_KEY
   eng "Wrong JSON filter '%s' format, unexpected key '%s'"
 
 #
-# End of Percona Server 8.0 server error log messages
+# End of Audit Log Filter error log messages
+#
+
+
+#
+# Start of Percona Server 8.4 error log messages
+#
+start-error-number 48200
+
+#
+# End of Percona Server 8.4 error log messages
+#
+
+
+#
+# Start of Percona Server 9.7 error log messages
+#
+start-error-number 48300
+
+#
+# End of Percona Server 9.7 error log messages
 #
 
 

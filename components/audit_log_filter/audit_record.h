@@ -20,6 +20,7 @@
 #include "my_sqlcommand.h"  // enum_sql_command
 
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -313,6 +314,17 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordAudit &record);
  * @return Fields list, @ref AuditRecordFieldsList
  */
 AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record);
+
+/**
+ * @brief Check if a field name is valid for the given event class.
+ *
+ * @param event_class_name Audit event class name (e.g. "table_access")
+ * @param field_name Field name to validate (e.g. "table_name.str")
+ * @return true if the field name is recognized for the event class,
+ *         false otherwise
+ */
+bool is_valid_event_field_name(const std::string &event_class_name,
+                               const std::string &field_name);
 
 }  // namespace audit_log_filter
 

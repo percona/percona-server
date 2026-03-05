@@ -13821,6 +13821,9 @@ ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE
 ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
   eng "Invalid audit log filter file directory: %s"
 
+ER_AUDIT_PARSE_CONDITION_FIELD_NAME_NOT_FOUND
+  eng "Wrong JSON filter '%s' format, field name '%s' is not valid for event class '%s'"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

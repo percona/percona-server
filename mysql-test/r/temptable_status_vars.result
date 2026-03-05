@@ -243,7 +243,7 @@ TempTable_count_hit_max_ram	9
 connection con1;
 SET @@SESSION.tmp_table_size=2*1024;
 Warnings:
-Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@GLOBAL.temptable_max_ram=default;
 FLUSH STATUS;
 
@@ -270,7 +270,7 @@ TempTable_count_hit_max_ram	9
 connection con2;
 SET @@SESSION.tmp_table_size=2*1024;
 Warnings:
-Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@GLOBAL.temptable_max_ram=default;
 FLUSH STATUS;
 
@@ -315,7 +315,7 @@ SET @@SESSION.tmp_table_size=default
 #
 SET @@SESSION.tmp_table_size=2*1024;
 Warnings:
-Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 SET @@GLOBAL.temptable_max_ram=2*1024*1024;
 CALL print_status_variables('global');
 Variable_name	Value
@@ -465,7 +465,7 @@ SET @@SESSION.max_heap_table_size=default;
 #
 SET @@SESSION.tmp_table_size=2*1024;
 Warnings:
-Warning	48038	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 FLUSH STATUS;
 
 WITH RECURSIVE cte (c) as

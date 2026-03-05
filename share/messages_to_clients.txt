@@ -11107,6 +11107,18 @@ ER_DYNAMIC_ROLE
 
 
 #
+# Start of Percona Server 8.4/9.7 error messages to be sent to client
+#
+
+start-error-number 7100
+
+#
+# End of Percona Server 8.4/9.7 client messages
+#
+
+
+
+#
 # Start of MyRocks specific messages to be sent to client
 #
 

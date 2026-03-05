@@ -546,6 +546,9 @@ AuditRecordFieldsList get_audit_record_fields(
       {"general_sql_command.str", extra.sql_command},
       {"general_sql_command.length",
        std::to_string(extra.sql_command.length())},
+      {"general_external_user.str", extra.external_user},
+      {"general_external_user.length",
+       std::to_string(extra.external_user.length())},
       {"general_ip.str", extra.ip},
       {"general_ip.length", std::to_string(extra.ip.length())},
   };
@@ -706,6 +709,59 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordAudit &record
 AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record
                                               [[maybe_unused]]) {
   return {};
+}
+
+bool is_valid_event_field_name(const std::string &event_class_name,
+                               const std::string &field_name) {
+  using FieldSet = std::set<std::string>;
+  static const std::unordered_map<std::string, FieldSet> valid_fields_map{
+      {"general",
+       {"general_error_code", "general_thread_id", "general_connection_id",
+        "general_user.str", "general_user.length", "general_command.str",
+        "general_command.length", "general_query.str", "general_query.length",
+        "general_host.str", "general_host.length", "general_sql_command.str",
+        "general_sql_command.length", "general_external_user.str",
+        "general_external_user.length", "general_ip.str", "general_ip.length"}},
+      {"connection",
+       {"status", "connection_id", "user.str", "user.length", "priv_user.str",
+        "priv_user.length", "external_user.str", "external_user.length",
+        "proxy_user.str", "proxy_user.length", "host.str", "host.length",
+        "ip.str", "ip.length", "database.str", "database.length",
+        "connection_type"}},
+      {"table_access",
+       {"connection_id", "sql_command_id", "query.str", "query.length",
+        "table_database.str", "table_database.length", "table_name.str",
+        "table_name.length"}},
+      {"global_variable",
+       {"connection_id", "variable_name.str", "variable_name.length",
+        "variable_value.str", "variable_value.length"}},
+      {"server_startup", {}},
+      {"server_shutdown", {"exit_code", "reason"}},
+      {"command", {"status", "connection_id", "command.str", "command.length"}},
+      {"query",
+       {"status", "connection_id", "sql_command_id", "query.str",
+        "query.length", "query_charset"}},
+      {"stored_program",
+       {"connection_id", "database.str", "database.length", "name.str",
+        "name.length"}},
+      {"authentication",
+       {"status", "connection_id", "user.str", "user.length", "host.str",
+        "host.length"}},
+      {"message",
+       {"connection_id", "component.str", "component.length", "producer.str",
+        "producer.length", "message.str", "message.length"}},
+      {"parse",
+       {"connection_id", "flags", "query.str", "query.length",
+        "rewritten_query.str", "rewritten_query.length"}},
+      {"audit", {"server_id"}},
+  };
+
+  const auto class_it = valid_fields_map.find(event_class_name);
+  if (class_it == valid_fields_map.cend()) {
+    return false;
+  }
+
+  return class_it->second.count(field_name) > 0;
 }
 
 }  // namespace audit_log_filter

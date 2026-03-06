@@ -13165,7 +13165,7 @@ ER_AUDIT_PARSE_CONDITION_BAD_FIELD_TYPE
   eng "Wrong JSON filter '%s' format, condition definition 'field' must be of object type"
 
 ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE
-  eng "Wrong JSON filter '%s' format, event field definition 'field' must have field 'name' and 'value' provided as strings"
+  eng "Wrong JSON filter '%s' format, event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer"
 
 ER_AUDIT_PARSE_CONDITION_BAD_AND_COND_TYPE
   eng "Wrong JSON filter '%s' format, condition definition 'and' must be of array type"

@@ -310,8 +310,14 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
   if (!AuditRuleParser::parse(udf_args->args[1], rule.get())) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_UDF_SET_FILTER_BAD_DEFINITION,
                     udf_args->args[1]);
-    std::snprintf(result, MYSQL_ERRMSG_SIZE,
-                  "ERROR: Incorrect rule definition");
+    if (rule->get_parse_error().empty()) {
+      std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                    "ERROR: Incorrect rule definition");
+    } else {
+      std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                    "ERROR: Incorrect rule definition: %s",
+                    rule->get_parse_error().c_str());
+    }
     *length = std::strlen(result);
     return result;
   }

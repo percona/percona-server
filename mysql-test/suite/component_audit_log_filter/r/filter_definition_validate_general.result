@@ -1,0 +1,1229 @@
+#
+# Valid: general_error_code (integer)
+SELECT audit_log_filter_set_filter('filter_gen_errorCode', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": 0 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_errorCode', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": 0 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_thread_id (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_threadId', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": 1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_threadId', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": 1 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_user.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_userStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.str", "value": "root[root] @ localhost [127.0.0.1]" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_userStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.str", "value": "root[root] @ localhost [127.0.0.1]" }
+
+OK
+#
+# Valid: general_user.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_userLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.length", "value": 33 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_userLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.length", "value": 33 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_command.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_cmdStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": "Query" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_cmdStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": "Query" }
+        }
+      }
+  }
+] } }
+OK
+#
+# Valid: general_command.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_cmdLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.length", "value": 5 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_cmdLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.length", "value": 5 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_query.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_queryStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.str", "value": "SELECT 1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_queryStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.str", "value": "SELECT 1" }
+        }
+      }
+  }
+] 
+OK
+#
+# Valid: general_query.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_queryLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.length", "value": 8 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_queryLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.length", "value": 8 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_host.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_hostStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.str", "value": "localhost" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_hostStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.str", "value": "localhost" }
+        }
+      }
+  }
+] }
+OK
+#
+# Valid: general_host.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_hostLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.length", "value": 9 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_hostLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.length", "value": 9 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_sql_command.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_sqlCmdStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.str", "value": "select" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_sqlCmdStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.str", "value": "select" }
+        }
+      }
+ 
+OK
+#
+# Valid: general_sql_command.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_sqlCmdLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.length", "value": 6 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_sqlCmdLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.length", "value": 6 }
+        }
+      }
+  }
+]
+OK
+#
+# Valid: general_external_user.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_extUserStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.str", "value": "" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_extUserStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.str", "value": "" }
+        }
+      }
+  }
+
+OK
+#
+# Valid: general_external_user.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_extUserLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.length", "value": 0 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_extUserLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.length", "value": 0 }
+        }
+      }
+  
+OK
+#
+# Valid: general_ip.str (string)
+SELECT audit_log_filter_set_filter('filter_gen_ipStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.str", "value": "127.0.0.1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_ipStr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.str", "value": "127.0.0.1" }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: general_ip.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_gen_ipLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.length", "value": 9 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_ipLen', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.length", "value": 9 }
+        }
+      }
+  }
+] } }')
+OK
+#
+# Valid: all general fields combined with "and"
+SELECT audit_log_filter_set_filter('filter_gen_allFields', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+            { "field": { "name": "general_thread_id", "value": 1 } },
+            { "field": { "name": "general_user.str", "value": "root[root] @ localhost [127.0.0.1]" } },
+            { "field": { "name": "general_user.length", "value": 33 } },
+            { "field": { "name": "general_command.str", "value": "Query" } },
+            { "field": { "name": "general_command.length", "value": 5 } },
+            { "field": { "name": "general_query.str", "value": "SELECT 1" } },
+            { "field": { "name": "general_query.length", "value": 8 } },
+            { "field": { "name": "general_host.str", "value": "localhost" } },
+            { "field": { "name": "general_host.length", "value": 9 } },
+            { "field": { "name": "general_sql_command.str", "value": "select" } },
+            { "field": { "name": "general_sql_command.length", "value": 6 } },
+            { "field": { "name": "general_external_user.str", "value": "" } },
+            { "field": { "name": "general_external_user.length", "value": 0 } },
+            { "field": { "name": "general_ip.str", "value": "127.0.0.1" } },
+            { "field": { "name": "general_ip.length", "value": 9 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_allFields', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+     
+OK
+#
+# Valid: all general fields combined with "or"
+SELECT audit_log_filter_set_filter('filter_gen_anyField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "or": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+            { "field": { "name": "general_thread_id", "value": 1 } },
+            { "field": { "name": "general_user.str", "value": "root[root] @ localhost [127.0.0.1]" } },
+            { "field": { "name": "general_user.length", "value": 33 } },
+            { "field": { "name": "general_command.str", "value": "Query" } },
+            { "field": { "name": "general_command.length", "value": 5 } },
+            { "field": { "name": "general_query.str", "value": "SELECT 1" } },
+            { "field": { "name": "general_query.length", "value": 8 } },
+            { "field": { "name": "general_host.str", "value": "localhost" } },
+            { "field": { "name": "general_host.length", "value": 9 } },
+            { "field": { "name": "general_sql_command.str", "value": "select" } },
+            { "field": { "name": "general_sql_command.length", "value": 6 } },
+            { "field": { "name": "general_external_user.str", "value": "" } },
+            { "field": { "name": "general_external_user.length", "value": 0 } },
+            { "field": { "name": "general_ip.str", "value": "127.0.0.1" } },
+            { "field": { "name": "general_ip.length", "value": 9 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_gen_anyField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "or": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+       
+OK
+#
+# Backward compatible: string "0" for integer field general_error_code
+SELECT audit_log_filter_set_filter('filter_broken_gen_errorCode_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": "0" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_errorCode_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": "0" }
+        }
+      }
+
+OK
+#
+# Backward compatible: string "1" for unsigned integer field general_thread_id
+SELECT audit_log_filter_set_filter('filter_broken_gen_threadId_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": "1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_threadId_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": "1" }
+        }
+      }
+  
+OK
+#
+# Backward compatible: string "33" for unsigned integer field general_user.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_userLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.length", "value": "33" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_userLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.length", "value": "33" }
+        }
+      }
+
+OK
+#
+# Backward compatible: string "5" for unsigned integer field general_command.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_cmdLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.length", "value": "5" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_cmdLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.length", "value": "5" }
+        }
+      }
+OK
+#
+# Backward compatible: string "8" for unsigned integer field general_query.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_queryLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.length", "value": "8" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_queryLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.length", "value": "8" }
+        }
+      }
+OK
+#
+# Backward compatible: string "9" for unsigned integer field general_host.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_hostLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.length", "value": "9" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_hostLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.length", "value": "9" }
+        }
+      }
+ 
+OK
+#
+# Backward compatible: string "6" for unsigned integer field general_sql_command.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_sqlCmdLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.length", "value": "6" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_sqlCmdLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.length", "value": "6" }
+        }
+
+OK
+#
+# Backward compatible: string "0" for unsigned integer field general_external_user.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_extUserLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.length", "value": "0" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_extUserLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.length", "value": "0" }
+       
+OK
+#
+# Backward compatible: string "9" for unsigned integer field general_ip.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_ipLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.length", "value": "9" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_ipLen_str', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.length", "value": "9" }
+        }
+      }
+  }
+]
+OK
+#
+# Broken: non-numeric string "abc" for integer field general_error_code
+SELECT audit_log_filter_set_filter('filter_broken_gen_errorCode_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": "abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_errorCode_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": "abc" }
+        }
+ERROR: Incorrect rule definition: field 'general_error_code' is an integer field; string value 'abc' is not a valid number
+#
+# Broken: non-numeric string "abc" for unsigned integer field general_thread_id
+SELECT audit_log_filter_set_filter('filter_broken_gen_threadId_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": "abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_threadId_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": "abc" }
+        }
+ 
+ERROR: Incorrect rule definition: field 'general_thread_id' is an integer field; string value 'abc' is not a valid number
+#
+# Broken: non-numeric string "aa8" for unsigned integer field general_query.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_queryLen_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.length", "value": "aa8" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_queryLen_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.length", "value": "aa8" }
+        
+ERROR: Incorrect rule definition: field 'general_query.length' is an integer field; string value 'aa8' is not a valid number
+#
+# Broken: negative string "-1" for unsigned integer field general_thread_id
+SELECT audit_log_filter_set_filter('filter_broken_gen_threadId_negstr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": "-1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_threadId_negstr', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": "-1" }
+        }
+      
+ERROR: Incorrect rule definition: field 'general_thread_id' is an integer field; string value '-1' is not a valid number
+#
+# Broken: empty string "" for unsigned integer field general_command.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_cmdLen_empty', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.length", "value": "" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_cmdLen_empty', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.length", "value": "" }
+        }
+      
+ERROR: Incorrect rule definition: field 'general_command.length' is an integer field; string value '' is not a valid number
+#
+# Broken: trailing text "8abc" for unsigned integer field general_host.length
+SELECT audit_log_filter_set_filter('filter_broken_gen_hostLen_trailing', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.length", "value": "8abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_hostLen_trailing', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.length", "value": "8abc" }
+        }
+ 
+ERROR: Incorrect rule definition: field 'general_host.length' is an integer field; string value '8abc' is not a valid number
+#
+# Broken: integer value for string field general_user.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_userStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_userStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_user.str", "value": 42 }
+        }
+      }
+  }
+]
+ERROR: Incorrect rule definition: field 'general_user.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field general_command.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_cmdStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": 99 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_cmdStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": 99 }
+        }
+      }
+  }
+ERROR: Incorrect rule definition: field 'general_command.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field general_query.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_queryStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.str", "value": 77 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_queryStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_query.str", "value": 77 }
+        }
+      }
+  }
+ERROR: Incorrect rule definition: field 'general_query.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field general_host.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_hostStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_hostStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_host.str", "value": 42 }
+        }
+      }
+  }
+]
+ERROR: Incorrect rule definition: field 'general_host.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field general_sql_command.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_sqlCmdStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_sqlCmdStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_sql_command.str", "value": 42 }
+        }
+    
+ERROR: Incorrect rule definition: field 'general_sql_command.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field general_external_user.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_extUserStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_extUserStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_external_user.str", "value": 42 }
+        }
+ 
+ERROR: Incorrect rule definition: field 'general_external_user.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field general_ip.str
+SELECT audit_log_filter_set_filter('filter_broken_gen_ipStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_ipStr_int', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_ip.str", "value": 42 }
+        }
+      }
+  }
+] } }
+ERROR: Incorrect rule definition: field 'general_ip.str' is not an integer field; 'value' must be a string
+#
+# Broken: nonexistent field name
+SELECT audit_log_filter_set_filter('filter_broken_gen_badField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "NONEXISTENT.str", "value": "x" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_badField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "NONEXISTENT.str", "value": "x" }
+        }
+      }
+  }
+] } 
+ERROR: Incorrect rule definition: field name 'NONEXISTENT.str' is not valid for event class 'general'
+#
+# Broken: field from wrong class (connection_type belongs to "connection")
+SELECT audit_log_filter_set_filter('filter_broken_gen_wrongClass', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "connection_type", "value": 1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_wrongClass', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "connection_type", "value": 1 }
+        }
+      }
+  }
+] } 
+ERROR: Incorrect rule definition: field name 'connection_type' is not valid for event class 'general'
+#
+# Broken: missing "value" key
+SELECT audit_log_filter_set_filter('filter_broken_gen_noValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_noValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str" }
+        }
+      }
+  }
+] } }')
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+#
+# Broken: missing "name" key
+SELECT audit_log_filter_set_filter('filter_broken_gen_noName', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "value": "Query" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_noName', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "value": "Query" }
+        }
+      }
+  }
+] } }')
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+#
+# Broken: empty field object
+SELECT audit_log_filter_set_filter('filter_broken_gen_emptyField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_emptyField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { }
+        }
+      }
+  }
+] } }')
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+#
+# Broken: null value for string field
+SELECT audit_log_filter_set_filter('filter_broken_gen_nullValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": null }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_nullValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": null }
+        }
+      }
+  
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: boolean value for unsigned integer field
+SELECT audit_log_filter_set_filter('filter_broken_gen_boolValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": true }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_boolValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": true }
+        }
+      }
+  }
+
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: negative value for unsigned integer field general_thread_id
+SELECT audit_log_filter_set_filter('filter_broken_gen_threadId_neg', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": -1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_threadId_neg', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_thread_id", "value": -1 }
+        }
+      }
+  }
+ERROR: Incorrect rule definition: field 'general_thread_id' is an unsigned integer field; 'value' must not be negative
+#
+# Broken: float value for integer field general_error_code
+SELECT audit_log_filter_set_filter('filter_broken_gen_errorCode_float', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": 1.5 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_errorCode_float', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_error_code", "value": 1.5 }
+        }
+      
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: array value for string field
+SELECT audit_log_filter_set_filter('filter_broken_gen_arrayValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": ["Query", "Execute"] }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_arrayValue', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": { "name": "general_command.str", "value": ["Query", "Execute"] }
+   
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: "and" with nonexistent field name
+SELECT audit_log_filter_set_filter('filter_broken_gen_and_badField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+            { "field": { "name": "NONEXISTENT.str", "value": "x" } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_and_badField', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 
+ERROR: Incorrect rule definition: field name 'NONEXISTENT.str' is not valid for event class 'general'
+#
+# Broken: "and" with field from wrong class
+SELECT audit_log_filter_set_filter('filter_broken_gen_and_wrongClass', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+            { "field": { "name": "connection_type", "value": 1 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_and_wrongClass', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 
+ERROR: Incorrect rule definition: field name 'connection_type' is not valid for event class 'general'
+#
+# Broken: "and" with integer value for string field
+SELECT audit_log_filter_set_filter('filter_broken_gen_and_strAsInt', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+            { "field": { "name": "general_command.str", "value": 42 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_and_strAsInt', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 
+ERROR: Incorrect rule definition: field 'general_command.str' is not an integer field; 'value' must be a string
+#
+# Broken: "and" with non-numeric string for integer field
+SELECT audit_log_filter_set_filter('filter_broken_gen_and_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 0 } },
+            { "field": { "name": "general_thread_id", "value": "xyz" } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_gen_and_nonnumeric', '{"filter": { "class": [
+  { "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "and": [
+            { "field": { "name": "general_error_code", "value": 
+ERROR: Incorrect rule definition: field 'general_thread_id' is an integer field; string value 'xyz' is not a valid number
+#
+# Cleanup

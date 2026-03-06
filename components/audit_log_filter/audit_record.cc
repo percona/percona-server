@@ -334,7 +334,52 @@ inline std::string mysql_cstring_len_to_string(
   return str != nullptr ? std::to_string(str->length) : "0";
 }
 
+inline uint64_t mysql_cstring_len_to_uint64(
+    const mysql_cstring_with_length *str) {
+  return str != nullptr ? static_cast<uint64_t>(str->length) : 0;
+}
+
 }  // namespace
+
+std::string field_value_to_string(const AuditRecordFieldValue &value) {
+  return std::visit(
+      [](const auto &v) -> std::string {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, std::string>)
+          return v;
+        else
+          return std::to_string(v);
+      },
+      value);
+}
+
+bool field_value_matches(const AuditRecordFieldValue &value,
+                         const std::string &expected) {
+  return std::visit(
+      [&expected](const auto &v) -> bool {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, std::string>) {
+          return v == expected;
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+          try {
+            size_t pos = 0;
+            int64_t num = std::stoll(expected, &pos);
+            return pos == expected.size() && v == num;
+          } catch (...) {
+            return false;
+          }
+        } else {
+          try {
+            size_t pos = 0;
+            uint64_t num = std::stoull(expected, &pos);
+            return pos == expected.size() && v == num;
+          } catch (...) {
+            return false;
+          }
+        }
+      },
+      value);
+}
 
 AuditRecordVariant get_audit_record(audit_event_class_t event_class,
                                     const void *event) {
@@ -525,32 +570,37 @@ void update_connection_type_pseudo_to_numeric(std::string &type) {
   }
 }
 
+bool is_valid_connection_type_value(const std::string &value) {
+  static const std::set<std::string> valid_values{"0", "1", "2", "3", "4", "5"};
+  return valid_values.count(value) != 0;
+}
+
 AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordGeneral &record) {
   const auto *event = record.event;
   const auto &extra = record.extended_info;
 
   return {
-      {"general_error_code", std::to_string(event->error_code)},
+      {"general_error_code", static_cast<int64_t>(event->error_code)},
       // alias for general_connection_id
-      {"general_thread_id", std::to_string(event->connection_id)},
-      {"general_connection_id", std::to_string(event->connection_id)},
+      {"general_thread_id", static_cast<uint64_t>(event->connection_id)},
+      {"general_connection_id", static_cast<uint64_t>(event->connection_id)},
       {"general_user.str", extra.user},
-      {"general_user.length", std::to_string(extra.user.length())},
+      {"general_user.length", static_cast<uint64_t>(extra.user.length())},
       {"general_command.str", extra.command},
-      {"general_command.length", std::to_string(extra.command.length())},
+      {"general_command.length", static_cast<uint64_t>(extra.command.length())},
       {"general_query.str", extra.query},
-      {"general_query.length", std::to_string(extra.query.length())},
+      {"general_query.length", static_cast<uint64_t>(extra.query.length())},
       {"general_host.str", extra.host},
-      {"general_host.length", std::to_string(extra.host.length())},
+      {"general_host.length", static_cast<uint64_t>(extra.host.length())},
       {"general_sql_command.str", extra.sql_command},
       {"general_sql_command.length",
-       std::to_string(extra.sql_command.length())},
+       static_cast<uint64_t>(extra.sql_command.length())},
       {"general_external_user.str", extra.external_user},
       {"general_external_user.length",
-       std::to_string(extra.external_user.length())},
+       static_cast<uint64_t>(extra.external_user.length())},
       {"general_ip.str", extra.ip},
-      {"general_ip.length", std::to_string(extra.ip.length())},
+      {"general_ip.length", static_cast<uint64_t>(extra.ip.length())},
   };
 }
 
@@ -558,24 +608,24 @@ AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordConnection &record) {
   const auto *event = record.event;
   return {
-      {"status", std::to_string(event->status)},
-      {"connection_id", std::to_string(event->connection_id)},
+      {"status", static_cast<int64_t>(event->status)},
+      {"connection_id", static_cast<uint64_t>(event->connection_id)},
       {"user.str", mysql_cstring_to_string(&event->user)},
-      {"user.length", mysql_cstring_len_to_string(&event->user)},
+      {"user.length", mysql_cstring_len_to_uint64(&event->user)},
       {"priv_user.str", mysql_cstring_to_string(&event->priv_user)},
-      {"priv_user.length", mysql_cstring_len_to_string(&event->priv_user)},
+      {"priv_user.length", mysql_cstring_len_to_uint64(&event->priv_user)},
       {"external_user.str", mysql_cstring_to_string(&event->external_user)},
       {"external_user.length",
-       mysql_cstring_len_to_string(&event->external_user)},
+       mysql_cstring_len_to_uint64(&event->external_user)},
       {"proxy_user.str", mysql_cstring_to_string(&event->proxy_user)},
-      {"proxy_user.length", mysql_cstring_len_to_string(&event->proxy_user)},
+      {"proxy_user.length", mysql_cstring_len_to_uint64(&event->proxy_user)},
       {"host.str", mysql_cstring_to_string(&event->host)},
-      {"host.length", mysql_cstring_len_to_string(&event->host)},
+      {"host.length", mysql_cstring_len_to_uint64(&event->host)},
       {"ip.str", mysql_cstring_to_string(&event->ip)},
-      {"ip.length", mysql_cstring_len_to_string(&event->ip)},
+      {"ip.length", mysql_cstring_len_to_uint64(&event->ip)},
       {"database.str", mysql_cstring_to_string(&event->database)},
-      {"database.length", mysql_cstring_len_to_string(&event->database)},
-      {"connection_type", std::to_string(event->connection_type)},
+      {"database.length", mysql_cstring_len_to_uint64(&event->database)},
+      {"connection_type", static_cast<int64_t>(event->connection_type)},
   };
 }
 
@@ -585,15 +635,15 @@ AuditRecordFieldsList get_audit_record_fields(
   const auto &extra = record.extended_info;
 
   return {
-      {"connection_id", std::to_string(event->connection_id)},
-      {"sql_command_id", std::to_string(extra.sql_command_id)},
+      {"connection_id", static_cast<uint64_t>(event->connection_id)},
+      {"sql_command_id", static_cast<int64_t>(extra.sql_command_id)},
       {"query.str", extra.query},
-      {"query.length", std::to_string(extra.query.length())},
+      {"query.length", static_cast<uint64_t>(extra.query.length())},
       {"table_database.str", mysql_cstring_to_string(&event->table_database)},
       {"table_database.length",
-       mysql_cstring_len_to_string(&event->table_database)},
+       mysql_cstring_len_to_uint64(&event->table_database)},
       {"table_name.str", mysql_cstring_to_string(&event->table_name)},
-      {"table_name.length", mysql_cstring_len_to_string(&event->table_name)},
+      {"table_name.length", mysql_cstring_len_to_uint64(&event->table_name)},
   };
 }
 
@@ -762,6 +812,53 @@ bool is_valid_event_field_name(const std::string &event_class_name,
   }
 
   return class_it->second.count(field_name) > 0;
+}
+
+EventFieldValueType get_event_field_value_type(
+    const std::string &event_class_name, const std::string &field_name) {
+  using FieldTypeMap = std::map<std::string, EventFieldValueType>;
+  static const std::unordered_map<std::string, FieldTypeMap> field_type_map{
+      {"connection",
+       {{"status", EventFieldValueType::SignedInteger},
+        {"connection_id", EventFieldValueType::UnsignedInteger},
+        {"user.length", EventFieldValueType::UnsignedInteger},
+        {"priv_user.length", EventFieldValueType::UnsignedInteger},
+        {"external_user.length", EventFieldValueType::UnsignedInteger},
+        {"proxy_user.length", EventFieldValueType::UnsignedInteger},
+        {"host.length", EventFieldValueType::UnsignedInteger},
+        {"ip.length", EventFieldValueType::UnsignedInteger},
+        {"database.length", EventFieldValueType::UnsignedInteger},
+        {"connection_type", EventFieldValueType::SignedInteger}}},
+      {"general",
+       {{"general_error_code", EventFieldValueType::SignedInteger},
+        {"general_thread_id", EventFieldValueType::UnsignedInteger},
+        {"general_connection_id", EventFieldValueType::UnsignedInteger},
+        {"general_user.length", EventFieldValueType::UnsignedInteger},
+        {"general_command.length", EventFieldValueType::UnsignedInteger},
+        {"general_query.length", EventFieldValueType::UnsignedInteger},
+        {"general_host.length", EventFieldValueType::UnsignedInteger},
+        {"general_sql_command.length", EventFieldValueType::UnsignedInteger},
+        {"general_external_user.length", EventFieldValueType::UnsignedInteger},
+        {"general_ip.length", EventFieldValueType::UnsignedInteger}}},
+      {"table_access",
+       {{"connection_id", EventFieldValueType::UnsignedInteger},
+        {"sql_command_id", EventFieldValueType::SignedInteger},
+        {"query.length", EventFieldValueType::UnsignedInteger},
+        {"table_database.length", EventFieldValueType::UnsignedInteger},
+        {"table_name.length", EventFieldValueType::UnsignedInteger}}},
+  };
+
+  const auto class_it = field_type_map.find(event_class_name);
+  if (class_it == field_type_map.cend()) {
+    return EventFieldValueType::String;
+  }
+
+  const auto field_it = class_it->second.find(field_name);
+  if (field_it == class_it->second.cend()) {
+    return EventFieldValueType::String;
+  }
+
+  return field_it->second;
 }
 
 }  // namespace audit_log_filter

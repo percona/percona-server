@@ -85,6 +85,16 @@ void AuditRule::add_action_for_event(
   }
 }
 
+void AuditRule::set_parse_error(const std::string &error) noexcept {
+  if (m_parse_error.empty()) {
+    m_parse_error = error;
+  }
+}
+
+const std::string &AuditRule::get_parse_error() const noexcept {
+  return m_parse_error;
+}
+
 bool AuditRule::has_actions_for(
     std::string_view event_class_name,
     std::string_view event_subclass_name) const noexcept {

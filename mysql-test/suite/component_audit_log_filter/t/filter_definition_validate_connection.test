@@ -1,0 +1,795 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+--enable_query_log
+
+# ---------------------------------------------------------------
+# Valid filters: individual connection event fields
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Valid: status (integer)
+SELECT audit_log_filter_set_filter('filter_con_status', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "status", "value": 0 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: connection_id (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_connId', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_id", "value": 1 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: user.str (string)
+SELECT audit_log_filter_set_filter('filter_con_userStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.str", "value": "root" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: user.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_userLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.length", "value": 4 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: priv_user.str (string)
+SELECT audit_log_filter_set_filter('filter_con_privUserStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "priv_user.str", "value": "root" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: priv_user.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_privUserLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "priv_user.length", "value": 4 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: external_user.str (string)
+SELECT audit_log_filter_set_filter('filter_con_extUserStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "external_user.str", "value": "" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: external_user.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_extUserLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "external_user.length", "value": 0 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: proxy_user.str (string)
+SELECT audit_log_filter_set_filter('filter_con_proxyUserStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "proxy_user.str", "value": "" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: proxy_user.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_proxyUserLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "proxy_user.length", "value": 0 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: host.str (string)
+SELECT audit_log_filter_set_filter('filter_con_hostStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "host.str", "value": "localhost" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: host.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_hostLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "host.length", "value": 9 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: ip.str (string)
+SELECT audit_log_filter_set_filter('filter_con_ipStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "ip.str", "value": "127.0.0.1" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: ip.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_ipLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "ip.length", "value": 9 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: database.str (string)
+SELECT audit_log_filter_set_filter('filter_con_dbStr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "database.str", "value": "test" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: database.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_con_dbLen', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "database.length", "value": 4 }
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Valid: combined filters using "and" / "or"
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Valid: all connection fields combined with "and"
+SELECT audit_log_filter_set_filter('filter_con_allFields', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "and": [
+            { "field": { "name": "status", "value": 0 } },
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "user.str", "value": "root" } },
+            { "field": { "name": "user.length", "value": 4 } },
+            { "field": { "name": "priv_user.str", "value": "root" } },
+            { "field": { "name": "priv_user.length", "value": 4 } },
+            { "field": { "name": "external_user.str", "value": "" } },
+            { "field": { "name": "external_user.length", "value": 0 } },
+            { "field": { "name": "proxy_user.str", "value": "" } },
+            { "field": { "name": "proxy_user.length", "value": 0 } },
+            { "field": { "name": "host.str", "value": "localhost" } },
+            { "field": { "name": "host.length", "value": 9 } },
+            { "field": { "name": "ip.str", "value": "127.0.0.1" } },
+            { "field": { "name": "ip.length", "value": 9 } },
+            { "field": { "name": "database.str", "value": "test" } },
+            { "field": { "name": "database.length", "value": 4 } },
+            { "field": { "name": "connection_type", "value": 1 } }
+          ]
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: all connection fields combined with "or"
+SELECT audit_log_filter_set_filter('filter_con_anyField', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "or": [
+            { "field": { "name": "status", "value": 0 } },
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "user.str", "value": "root" } },
+            { "field": { "name": "user.length", "value": 4 } },
+            { "field": { "name": "priv_user.str", "value": "root" } },
+            { "field": { "name": "priv_user.length", "value": 4 } },
+            { "field": { "name": "external_user.str", "value": "" } },
+            { "field": { "name": "external_user.length", "value": 0 } },
+            { "field": { "name": "proxy_user.str", "value": "" } },
+            { "field": { "name": "proxy_user.length", "value": 0 } },
+            { "field": { "name": "host.str", "value": "localhost" } },
+            { "field": { "name": "host.length", "value": 9 } },
+            { "field": { "name": "ip.str", "value": "127.0.0.1" } },
+            { "field": { "name": "ip.length", "value": 9 } },
+            { "field": { "name": "database.str", "value": "test" } },
+            { "field": { "name": "database.length", "value": 4 } },
+            { "field": { "name": "connection_type", "value": 1 } }
+          ]
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Backward compatible: string values for integer fields (expect OK)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Backward compatible: string "0" for integer field status
+SELECT audit_log_filter_set_filter('filter_broken_con_status_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "status", "value": "0" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "1" for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_con_connId_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "1" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "4" for unsigned integer field user.length
+SELECT audit_log_filter_set_filter('filter_broken_con_userLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.length", "value": "4" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "4" for unsigned integer field priv_user.length
+SELECT audit_log_filter_set_filter('filter_broken_con_privUserLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "priv_user.length", "value": "4" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "0" for unsigned integer field external_user.length
+SELECT audit_log_filter_set_filter('filter_broken_con_extUserLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "external_user.length", "value": "0" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "0" for unsigned integer field proxy_user.length
+SELECT audit_log_filter_set_filter('filter_broken_con_proxyUserLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "proxy_user.length", "value": "0" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "9" for unsigned integer field host.length
+SELECT audit_log_filter_set_filter('filter_broken_con_hostLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "host.length", "value": "9" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "9" for unsigned integer field ip.length
+SELECT audit_log_filter_set_filter('filter_broken_con_ipLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "ip.length", "value": "9" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Backward compatible: string "4" for unsigned integer field database.length
+SELECT audit_log_filter_set_filter('filter_broken_con_dbLen_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "database.length", "value": "4" }
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Broken: non-numeric string value for integer fields (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: non-numeric string "abc" for integer field status
+SELECT audit_log_filter_set_filter('filter_broken_con_status_nonnumeric', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "status", "value": "abc" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: non-numeric string "abc" for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_con_connId_nonnumeric', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "abc" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: non-numeric string "aa8" for unsigned integer field user.length
+SELECT audit_log_filter_set_filter('filter_broken_con_userLen_nonnumeric', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.length", "value": "aa8" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: negative string "-1" for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_con_connId_negstr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "-1" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: empty string "" for unsigned integer field database.length
+SELECT audit_log_filter_set_filter('filter_broken_con_dbLen_empty', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "database.length", "value": "" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: trailing text "8abc" for unsigned integer field host.length
+SELECT audit_log_filter_set_filter('filter_broken_con_hostLen_trailing', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "host.length", "value": "8abc" }
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Broken: integer value for string fields (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: integer value for string field user.str
+SELECT audit_log_filter_set_filter('filter_broken_con_userStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: integer value for string field priv_user.str
+SELECT audit_log_filter_set_filter('filter_broken_con_privUserStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "priv_user.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: integer value for string field external_user.str
+SELECT audit_log_filter_set_filter('filter_broken_con_extUserStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "external_user.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: integer value for string field proxy_user.str
+SELECT audit_log_filter_set_filter('filter_broken_con_proxyUserStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "proxy_user.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: integer value for string field host.str
+SELECT audit_log_filter_set_filter('filter_broken_con_hostStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "host.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: integer value for string field ip.str
+SELECT audit_log_filter_set_filter('filter_broken_con_ipStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "ip.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: integer value for string field database.str
+SELECT audit_log_filter_set_filter('filter_broken_con_dbStr_int', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "database.str", "value": 99 }
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Broken: nonexistent / wrong-class field names (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: nonexistent field name
+SELECT audit_log_filter_set_filter('filter_broken_con_badField', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "NONEXISTENT.str", "value": "x" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: field from wrong class (general_command.str belongs to "general")
+SELECT audit_log_filter_set_filter('filter_broken_con_wrongClass', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "general_command.str", "value": "Query" }
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Broken: structural errors in field definition (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: missing "value" key
+SELECT audit_log_filter_set_filter('filter_broken_con_noValue', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.str" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: missing "name" key
+SELECT audit_log_filter_set_filter('filter_broken_con_noName', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "value": "root" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: empty field object
+SELECT audit_log_filter_set_filter('filter_broken_con_emptyField', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: null value for string field
+SELECT audit_log_filter_set_filter('filter_broken_con_nullValue', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.str", "value": null }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: boolean value for unsigned integer field
+SELECT audit_log_filter_set_filter('filter_broken_con_boolValue', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_id", "value": true }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: negative value for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_con_connId_neg', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_id", "value": -1 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: float value for integer field status
+SELECT audit_log_filter_set_filter('filter_broken_con_status_float', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "status", "value": 1.5 }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: array value for string field
+SELECT audit_log_filter_set_filter('filter_broken_con_arrayValue', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "user.str", "value": ["root", "admin"] }
+        }
+      }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Broken: multi-field "and" with invalid second field (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: "and" with nonexistent field name
+SELECT audit_log_filter_set_filter('filter_broken_con_and_badField', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "and": [
+            { "field": { "name": "status", "value": 0 } },
+            { "field": { "name": "NONEXISTENT.str", "value": "x" } }
+          ]
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: "and" with field from wrong class
+SELECT audit_log_filter_set_filter('filter_broken_con_and_wrongClass', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "and": [
+            { "field": { "name": "status", "value": 0 } },
+            { "field": { "name": "general_command.str", "value": "Query" } }
+          ]
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: "and" with integer value for string field
+SELECT audit_log_filter_set_filter('filter_broken_con_and_strAsInt', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "and": [
+            { "field": { "name": "status", "value": 0 } },
+            { "field": { "name": "user.str", "value": 42 } }
+          ]
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Broken: "and" with non-numeric string for integer field
+SELECT audit_log_filter_set_filter('filter_broken_con_and_nonnumeric', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "and": [
+            { "field": { "name": "status", "value": 0 } },
+            { "field": { "name": "connection_id", "value": "xyz" } }
+          ]
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

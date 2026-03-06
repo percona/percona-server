@@ -1,0 +1,837 @@
+#
+# Valid: connection_id (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_tab_connId', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": 1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_connId', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": 1 }
+  
+OK
+#
+# Valid: sql_command_id (integer)
+SELECT audit_log_filter_set_filter('filter_tab_sqlCmdId', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": 0 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_sqlCmdId', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": 0 }
+OK
+#
+# Valid: query.str (string)
+SELECT audit_log_filter_set_filter('filter_tab_queryStr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "query.str", "value": "SELECT 1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_queryStr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "query.str", "value": "SELECT 
+OK
+#
+# Valid: query.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_tab_queryLen', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "query.length", "value": 8 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_queryLen', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "query.length", "value": 8 }
+ 
+OK
+#
+# Valid: table_database.str (string)
+SELECT audit_log_filter_set_filter('filter_tab_dbStr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_database.str", "value": "test" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_dbStr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_database.str", "value": "t
+OK
+#
+# Valid: table_database.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_tab_dbLen', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_database.length", "value": 4 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_dbLen', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_database.length", "value":
+OK
+#
+# Valid: table_name.str (string)
+SELECT audit_log_filter_set_filter('filter_tab_tblStr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": "t1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_tblStr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": "t1" 
+OK
+#
+# Valid: table_name.length (unsigned integer)
+SELECT audit_log_filter_set_filter('filter_tab_tblLen', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_name.length", "value": 2 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_tblLen', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "field": { "name": "table_name.length", "value": 2 
+OK
+#
+# Valid: all table_access fields combined with "and"
+SELECT audit_log_filter_set_filter('filter_tab_allFields', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "sql_command_id", "value": 0 } },
+            { "field": { "name": "query.str", "value": "SELECT * FROM t1" } },
+            { "field": { "name": "query.length", "value": 16 } },
+            { "field": { "name": "table_database.str", "value": "test" } },
+            { "field": { "name": "table_database.length", "value": 4 } },
+            { "field": { "name": "table_name.str", "value": "t1" } },
+            { "field": { "name": "table_name.length", "value": 2 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_allFields', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "conne
+OK
+#
+# Valid: all table_access fields combined with "or"
+SELECT audit_log_filter_set_filter('filter_tab_anyField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "or": [
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "sql_command_id", "value": 0 } },
+            { "field": { "name": "query.str", "value": "SELECT * FROM t1" } },
+            { "field": { "name": "query.length", "value": 16 } },
+            { "field": { "name": "table_database.str", "value": "test" } },
+            { "field": { "name": "table_database.length", "value": 4 } },
+            { "field": { "name": "table_name.str", "value": "t1" } },
+            { "field": { "name": "table_name.length", "value": 2 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_tab_anyField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "insert", "update", "delete", "read" ],
+        "log": {
+          "or": [
+            { "field": { "name": "connect
+OK
+#
+# Backward compatible: string "1" for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_connId_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_connId_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "1" }
+        }
+      }
+  }
+]
+OK
+#
+# Backward compatible: string "0" for integer field sql_command_id
+SELECT audit_log_filter_set_filter('filter_broken_sqlCmdId_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": "0" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_sqlCmdId_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": "0" }
+        }
+      }
+  
+OK
+#
+# Backward compatible: string "8" for unsigned integer field query.length
+SELECT audit_log_filter_set_filter('filter_broken_queryLen_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "query.length", "value": "8" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_queryLen_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "query.length", "value": "8" }
+        }
+      }
+  }
+
+OK
+#
+# Backward compatible: string "4" for unsigned integer field table_database.length
+SELECT audit_log_filter_set_filter('filter_broken_dbLen_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_database.length", "value": "4" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_dbLen_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_database.length", "value": "4" }
+        }
+      
+OK
+#
+# Backward compatible: string "2" for unsigned integer field table_name.length
+SELECT audit_log_filter_set_filter('filter_broken_tblLen_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.length", "value": "2" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_tblLen_str', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.length", "value": "2" }
+        }
+      }
+ 
+OK
+#
+# Broken: non-numeric string "aa8" for unsigned integer field query.length
+SELECT audit_log_filter_set_filter('filter_broken_queryLen_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "query.length", "value": "aa8" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_queryLen_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "query.length", "value": "aa8" }
+        }
+   
+ERROR: Incorrect rule definition: field 'query.length' is an integer field; string value 'aa8' is not a valid number
+#
+# Broken: non-numeric string "abc" for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_connId_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_connId_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "abc" }
+        }
+    
+ERROR: Incorrect rule definition: field 'connection_id' is an integer field; string value 'abc' is not a valid number
+#
+# Broken: non-numeric string "abc" for integer field sql_command_id
+SELECT audit_log_filter_set_filter('filter_broken_sqlCmdId_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": "abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_sqlCmdId_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": "abc" }
+        }
+ 
+ERROR: Incorrect rule definition: field 'sql_command_id' is an integer field; string value 'abc' is not a valid number
+#
+# Broken: negative string "-1" for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_connId_negstr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "-1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_connId_negstr', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": "-1" }
+        }
+      }
+ 
+ERROR: Incorrect rule definition: field 'connection_id' is an integer field; string value '-1' is not a valid number
+#
+# Broken: empty string "" for unsigned integer field table_name.length
+SELECT audit_log_filter_set_filter('filter_broken_tblLen_empty', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.length", "value": "" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_tblLen_empty', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.length", "value": "" }
+        }
+      }
+
+ERROR: Incorrect rule definition: field 'table_name.length' is an integer field; string value '' is not a valid number
+#
+# Broken: trailing text "8abc" for unsigned integer field table_database.length
+SELECT audit_log_filter_set_filter('filter_broken_dbLen_trailing', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_database.length", "value": "8abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_dbLen_trailing', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_database.length", "value": "8abc" }
+        
+ERROR: Incorrect rule definition: field 'table_database.length' is an integer field; string value '8abc' is not a valid number
+#
+# Broken: integer value for string field query.str
+SELECT audit_log_filter_set_filter('filter_broken_queryStr_int', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "query.str", "value": 42 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_queryStr_int', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "query.str", "value": 42 }
+        }
+      }
+  }
+] } 
+ERROR: Incorrect rule definition: field 'query.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field table_database.str
+SELECT audit_log_filter_set_filter('filter_broken_dbStr_int', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_database.str", "value": 99 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_dbStr_int', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_database.str", "value": 99 }
+        }
+      }
+  
+ERROR: Incorrect rule definition: field 'table_database.str' is not an integer field; 'value' must be a string
+#
+# Broken: integer value for string field table_name.str
+SELECT audit_log_filter_set_filter('filter_broken_tblStr_int', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": 77 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_tblStr_int', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": 77 }
+        }
+      }
+  }
+]
+ERROR: Incorrect rule definition: field 'table_name.str' is not an integer field; 'value' must be a string
+#
+# Broken: nonexistent field name
+SELECT audit_log_filter_set_filter('filter_broken_badField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "NONEXISTENT.str", "value": "x" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_badField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "NONEXISTENT.str", "value": "x" }
+        }
+      }
+  }
+]
+ERROR: Incorrect rule definition: field name 'NONEXISTENT.str' is not valid for event class 'table_access'
+#
+# Broken: field from wrong class (general_command.str belongs to "general")
+SELECT audit_log_filter_set_filter('filter_broken_wrongClass', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "general_command.str", "value": "Query" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_wrongClass', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "general_command.str", "value": "Query" }
+        }
+   
+ERROR: Incorrect rule definition: field name 'general_command.str' is not valid for event class 'table_access'
+#
+# Broken: missing "value" key
+SELECT audit_log_filter_set_filter('filter_broken_noValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_noValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str" }
+        }
+      }
+  }
+] } }')
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+#
+# Broken: missing "name" key
+SELECT audit_log_filter_set_filter('filter_broken_noName', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "value": "t1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_noName', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "value": "t1" }
+        }
+      }
+  }
+] } }')
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+#
+# Broken: empty field object
+SELECT audit_log_filter_set_filter('filter_broken_emptyField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_emptyField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { }
+        }
+      }
+  }
+] } }')
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+#
+# Broken: null value for string field
+SELECT audit_log_filter_set_filter('filter_broken_nullValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": null }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_nullValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": null }
+        }
+      }
+  }
+
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: boolean value for unsigned integer field
+SELECT audit_log_filter_set_filter('filter_broken_boolValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": true }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_boolValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": true }
+        }
+      }
+  }
+]
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: negative value for unsigned integer field connection_id
+SELECT audit_log_filter_set_filter('filter_broken_connId_neg', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": -1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_connId_neg', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "connection_id", "value": -1 }
+        }
+      }
+  }
+] 
+ERROR: Incorrect rule definition: field 'connection_id' is an unsigned integer field; 'value' must not be negative
+#
+# Broken: float value for integer field sql_command_id
+SELECT audit_log_filter_set_filter('filter_broken_sqlCmdId_float', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": 1.5 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_sqlCmdId_float', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "sql_command_id", "value": 1.5 }
+        }
+      }
+
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: array value for string field
+SELECT audit_log_filter_set_filter('filter_broken_arrayValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": ["t1", "t2"] }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_arrayValue', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "field": { "name": "table_name.str", "value": ["t1", "t2"] }
+        }
+   
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Broken: "and" with nonexistent field name
+SELECT audit_log_filter_set_filter('filter_broken_and_badField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "NONEXISTENT.str", "value": "x" } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_and_badField', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } 
+ERROR: Incorrect rule definition: field name 'NONEXISTENT.str' is not valid for event class 'table_access'
+#
+# Broken: "and" with field from wrong class
+SELECT audit_log_filter_set_filter('filter_broken_and_wrongClass', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "general_command.str", "value": "Query" } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_and_wrongClass', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 
+ERROR: Incorrect rule definition: field name 'general_command.str' is not valid for event class 'table_access'
+#
+# Broken: "and" with integer value for string field
+SELECT audit_log_filter_set_filter('filter_broken_and_strAsInt', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "query.str", "value": 42 } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_and_strAsInt', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } 
+ERROR: Incorrect rule definition: field 'query.str' is not an integer field; 'value' must be a string
+#
+# Broken: "and" with non-numeric string for integer field
+SELECT audit_log_filter_set_filter('filter_broken_and_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 } },
+            { "field": { "name": "query.length", "value": "xyz" } }
+          ]
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_and_nonnumeric', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": {
+        "name": [ "read" ],
+        "log": {
+          "and": [
+            { "field": { "name": "connection_id", "value": 1 
+ERROR: Incorrect rule definition: field 'query.length' is an integer field; string value 'xyz' is not a valid number
+#
+# Cleanup

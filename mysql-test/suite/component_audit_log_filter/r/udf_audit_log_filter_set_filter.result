@@ -31,10 +31,10 @@ ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argu
 # Filter validity check, incorrect JSON
 SELECT audit_log_filter_set_filter('filter_1', '{}');
 audit_log_filter_set_filter('filter_1', '{}')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: missing or invalid 'filter' object
 SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}}');
 audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "connection"}}}}')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: JSON parse error
 SELECT * FROM mysql.audit_log_filter;
 filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;

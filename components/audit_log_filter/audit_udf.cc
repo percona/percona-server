@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#define ALLOW_COMPONENT_INCLUDE // for plugin.h
+#define ALLOW_COMPONENT_INCLUDE  // for plugin.h
 #include "components/audit_log_filter/audit_udf.h"
 #include "components/audit_log_filter/audit_error_log.h"
 
@@ -31,7 +31,7 @@
 
 #include "rapidjson/document.h"
 
-#include <mysql/components/services/bits/my_err_bits.h> // MYSQL_ERRMSG_SIZE
+#include <mysql/components/services/bits/my_err_bits.h>  // MYSQL_ERRMSG_SIZE
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
 #include <mysql/components/services/security_context.h>
@@ -312,8 +312,14 @@ char *AuditUdf::audit_log_filter_set_filter_udf(
   if (!AuditRuleParser::parse(udf_args->args[1], rule.get())) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_UDF_SET_FILTER_BAD_DEFINITION,
                     udf_args->args[1]);
-    std::snprintf(result, MYSQL_ERRMSG_SIZE,
-                  "ERROR: Incorrect rule definition");
+    if (rule->get_parse_error().empty()) {
+      std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                    "ERROR: Incorrect rule definition");
+    } else {
+      std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                    "ERROR: Incorrect rule definition: %s",
+                    rule->get_parse_error().c_str());
+    }
     *length = std::strlen(result);
     return result;
   }

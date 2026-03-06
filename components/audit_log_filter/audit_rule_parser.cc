@@ -29,6 +29,7 @@
 #include "components/audit_log_filter/event_field_condition/or.h"
 #include "components/audit_log_filter/event_field_condition/variable.h"
 
+#include <limits>
 #include <memory>
 
 namespace audit_log_filter {
@@ -591,19 +592,35 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
 
       if (!condition_json["field"].HasMember("name") ||
           !condition_json["field"].HasMember("value") ||
-          !condition_json["field"]["name"].IsString() ||
-          !condition_json["field"]["value"].IsString()) {
+          !condition_json["field"]["name"].IsString()) {
         LogComponentErr(ERROR_LEVEL,
                         ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
                         audit_rule->get_rule_name().c_str());
         audit_rule->set_parse_error(
-            "event field definition 'field' must have field 'name' and "
-            "'value' provided as strings");
+            "event field definition 'field' must have field 'name' "
+            "provided as a string and 'value' as a string or integer");
         return nullptr;
       }
 
+      const auto &value_json = condition_json["field"]["value"];
       std::string field_name{condition_json["field"]["name"].GetString()};
-      std::string field_value{condition_json["field"]["value"].GetString()};
+      std::string field_value;
+
+      if (value_json.IsString()) {
+        field_value = value_json.GetString();
+      } else if (value_json.IsInt64()) {
+        field_value = std::to_string(value_json.GetInt64());
+      } else if (value_json.IsUint64()) {
+        field_value = std::to_string(value_json.GetUint64());
+      } else {
+        LogComponentErr(ERROR_LEVEL,
+                        ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
+                        audit_rule->get_rule_name().c_str());
+        audit_rule->set_parse_error(
+            "event field definition 'field' 'value' must be "
+            "a string or integer");
+        return nullptr;
+      }
 
       if (!class_name.empty() &&
           !is_valid_event_field_name(class_name, field_name)) {
@@ -615,6 +632,83 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
                                     "' is not valid for event class '" +
                                     class_name + "'");
         return nullptr;
+      }
+
+      if (!value_json.IsString() && !class_name.empty()) {
+        auto field_type = get_event_field_value_type(class_name, field_name);
+
+        if (field_type == EventFieldValueType::String) {
+          LogComponentErr(ERROR_LEVEL,
+                          ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
+                          audit_rule->get_rule_name().c_str());
+          audit_rule->set_parse_error(
+              "field '" + field_name +
+              "' is not an integer field; 'value' must be a string");
+          return nullptr;
+        }
+
+        if (field_type == EventFieldValueType::UnsignedInteger &&
+            value_json.IsInt64() && value_json.GetInt64() < 0) {
+          LogComponentErr(ERROR_LEVEL,
+                          ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
+                          audit_rule->get_rule_name().c_str());
+          audit_rule->set_parse_error(
+              "field '" + field_name +
+              "' is an unsigned integer field; 'value' must not be negative");
+          return nullptr;
+        }
+
+        if (field_type == EventFieldValueType::SignedInteger &&
+            value_json.IsUint64() &&
+            value_json.GetUint64() >
+                static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+          LogComponentErr(ERROR_LEVEL,
+                          ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
+                          audit_rule->get_rule_name().c_str());
+          audit_rule->set_parse_error(
+              "field '" + field_name +
+              "' is a signed integer field; 'value' must not exceed " +
+              std::to_string(std::numeric_limits<int64_t>::max()));
+          return nullptr;
+        }
+      }
+
+      if (value_json.IsString() && !class_name.empty() &&
+          field_name != CONNECTION_TYPE_FIELD_NAME) {
+        auto field_type = get_event_field_value_type(class_name, field_name);
+
+        if (field_type != EventFieldValueType::String) {
+          bool valid = false;
+          try {
+            size_t pos = 0;
+            if (field_type == EventFieldValueType::UnsignedInteger) {
+              if (!field_value.empty() && field_value[0] == '-') {
+                valid = false;
+              } else {
+                (void)std::stoull(field_value, &pos);
+                valid = (pos == field_value.size());
+              }
+            } else if (field_type == EventFieldValueType::SignedInteger) {
+              (void)std::stoll(field_value, &pos);
+              valid = (pos == field_value.size());
+            } else {
+              assert(false);
+            }
+          } catch (...) {
+            valid = false;
+          }
+
+          if (!valid) {
+            LogComponentErr(ERROR_LEVEL,
+                            ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
+                            audit_rule->get_rule_name().c_str());
+            audit_rule->set_parse_error(
+                "field '" + field_name +
+                "' is an integer field; string value '" + field_value +
+                "' is not a valid number");
+            return nullptr;
+          }
+        }
       }
 
       if (field_name == CONNECTION_TYPE_FIELD_NAME) {
@@ -630,6 +724,18 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
          *   5 or "::shared_memory": Shared memory
          */
         update_connection_type_pseudo_to_numeric(field_value);
+
+        if (!is_valid_connection_type_value(field_value)) {
+          LogComponentErr(ERROR_LEVEL,
+                          ER_AUDIT_PARSE_CONDITION_BAD_FIELD_NAME_AND_VALUE,
+                          audit_rule->get_rule_name().c_str());
+          audit_rule->set_parse_error(
+              "invalid 'connection_type' value '" + field_value +
+              "'; expected integer 0..5 or one of "
+              "\"::undefined\", \"::tcp/ip\", \"::socket\", "
+              "\"::named_pipe\", \"::ssl\", \"::shared_memory\"");
+          return nullptr;
+        }
       }
 
       return std::make_shared<EventFieldConditionField>(std::move(field_name),

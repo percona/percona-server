@@ -113,6 +113,20 @@ class AuditRule {
       const std::string &event_class_name,
       const std::string &event_subclass_name = "") noexcept;
 
+  /**
+   * @brief Set parse error description (only stores the first error).
+   *
+   * @param error Human-readable parse error description
+   */
+  void set_parse_error(const std::string &error) noexcept;
+
+  /**
+   * @brief Get parse error description, empty if no error.
+   *
+   * @return Parse error description string
+   */
+  [[nodiscard]] const std::string &get_parse_error() const noexcept;
+
  private:
   uint64_t m_filter_id;
   std::string m_rule_name;
@@ -123,6 +137,7 @@ class AuditRule {
       m_matched_event_to_action_map;
 
   AuditRule *m_replacement_rule;
+  std::string m_parse_error;
 };
 
 }  // namespace audit_log_filter

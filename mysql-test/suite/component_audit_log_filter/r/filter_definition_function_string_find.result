@@ -127,7 +127,7 @@ audit_log_filter_set_filter('missing_args', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: invalid arguments for 'string_find' function
 SELECT audit_log_filter_set_filter('one_missing_arg', '{
 "filter": {
 "class": {
@@ -164,7 +164,7 @@ audit_log_filter_set_filter('one_missing_arg', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: invalid arguments for 'string_find' function
 SELECT audit_log_filter_set_filter('wrong_pattern_type', '{
 "filter": {
 "class": {
@@ -199,7 +199,7 @@ audit_log_filter_set_filter('wrong_pattern_type', '{
 ]
 }
 }
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: wrong function args format provided
 SELECT audit_log_filter_set_filter('wrong_field_type', '{
 "filter": {
 "class": {
@@ -238,7 +238,7 @@ audit_log_filter_set_filter('wrong_field_type', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: wrong function args format provided
 #
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';

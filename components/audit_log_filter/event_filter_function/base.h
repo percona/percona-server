@@ -104,7 +104,7 @@ class EventFilterFunctionBase {
     } else if (m_args[arg_index].source_type == FunctionArgSourceType::Field) {
       const auto it = event_fields.find(m_args[arg_index].value);
       if (it != event_fields.cend()) {
-        return it->second;
+        return field_value_to_string(it->second);
       }
     }
 

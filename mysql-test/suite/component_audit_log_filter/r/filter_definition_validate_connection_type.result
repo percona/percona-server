@@ -1,0 +1,496 @@
+#
+# Valid: connection_type integer JSON value
+SELECT audit_log_filter_set_filter('filter_con_connType', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": 1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": 1 
+OK
+#
+# Valid: connection_type "::undefined" (alias for 0)
+SELECT audit_log_filter_set_filter('filter_con_connType_undefined', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::undefined" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_undefined', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "
+OK
+#
+# Valid: connection_type "::tcp/ip" (alias for 1)
+SELECT audit_log_filter_set_filter('filter_con_connType_tcpip', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::tcp/ip" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_tcpip', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "valu
+OK
+#
+# Valid: connection_type "::socket" (alias for 2)
+SELECT audit_log_filter_set_filter('filter_con_connType_socket', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::socket" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_socket', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "val
+OK
+#
+# Valid: connection_type "::named_pipe" (alias for 3)
+SELECT audit_log_filter_set_filter('filter_con_connType_namedPipe', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::named_pipe" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_namedPipe', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "
+OK
+#
+# Valid: connection_type "::ssl" (alias for 4)
+SELECT audit_log_filter_set_filter('filter_con_connType_ssl', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::ssl" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_ssl', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value"
+OK
+#
+# Valid: connection_type "::shared_memory" (alias for 5)
+SELECT audit_log_filter_set_filter('filter_con_connType_sharedMem', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::shared_memory" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_sharedMem', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "
+OK
+#
+# Backward compatible: string value "1" for integer field connection_type (OK)
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_str', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", 
+OK
+#
+# Backward compatible: string "0" for integer field connection_type
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_str0', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "0" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_str0', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type",
+OK
+#
+# Invalid: non-numeric string "abc" for connection_type
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_nonnumeric', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_nonnumeric', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_
+ERROR: Incorrect rule definition: invalid 'connection_type' value 'abc'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: trailing text "1abc" for connection_type
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_trailing', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "1abc" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_trailing', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_ty
+ERROR: Incorrect rule definition: invalid 'connection_type' value '1abc'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: empty string for connection_type
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_empty', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_empty', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type"
+ERROR: Incorrect rule definition: invalid 'connection_type' value ''; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: string "-1" for connection_type
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_negstr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "-1" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_negstr', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type
+ERROR: Incorrect rule definition: invalid 'connection_type' value '-1'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: string "6" for connection_type (out of range)
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_str6', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "6" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_str6', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type",
+ERROR: Incorrect rule definition: invalid 'connection_type' value '6'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: unknown "::"-prefixed alias
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_invalidAlias', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::invalid" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_invalidAlias', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connectio
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::invalid'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: "::TCP/IP" wrong case
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_wrongCase', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::TCP/IP" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_wrongCase', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_t
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::TCP/IP'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: "::tcpip" missing slash
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_noSlash', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::tcpip" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_noSlash', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_typ
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::tcpip'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: "::named pipe" space instead of underscore
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_space', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::named pipe" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_space', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::named pipe'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: "::shared" truncated alias
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_truncated', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::shared" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_truncated', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_t
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::shared'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: "socket" missing "::" prefix
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_noPrefix', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "socket" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_noPrefix', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_ty
+ERROR: Incorrect rule definition: invalid 'connection_type' value 'socket'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: out-of-range integer (6, max valid is 5)
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_outOfRange', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": 6 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_outOfRange', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_
+ERROR: Incorrect rule definition: invalid 'connection_type' value '6'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: negative integer
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_neg', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": -1 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_neg', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", 
+ERROR: Incorrect rule definition: invalid 'connection_type' value '-1'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+#
+# Invalid: float value
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_float', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": 1.5 }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_float', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type"
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Invalid: boolean value
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_bool', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": true }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_bool', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type",
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Invalid: null value
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_null', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": null }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_null', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type",
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Invalid: array value
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_array', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": [0, 1] }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_con_connType_array', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type"
+ERROR: Incorrect rule definition: event field definition 'field' 'value' must be a string or integer
+#
+# Cleanup

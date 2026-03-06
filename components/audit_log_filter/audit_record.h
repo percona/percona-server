@@ -19,6 +19,7 @@
 #include "components/audit_log_filter/audit_event_class_internal.h"
 #include "my_sqlcommand.h"  // enum_sql_command
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -41,7 +42,10 @@ struct mysql_event_tracking_parse_data;
 
 namespace audit_log_filter {
 
-using AuditRecordFieldsList = std::map<std::string, std::string>;
+using AuditRecordFieldValue = std::variant<std::string, int64_t, uint64_t>;
+using AuditRecordFieldsList = std::map<std::string, AuditRecordFieldValue>;
+
+enum class EventFieldValueType { String, SignedInteger, UnsignedInteger };
 
 constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
@@ -197,6 +201,16 @@ AuditRecordVariant get_audit_record(audit_event_class_t event_class,
 void update_connection_type_pseudo_to_numeric(std::string &type);
 
 /**
+ * @brief Check if connection_type value is valid.
+ *
+ * Valid values are "0" through "5" (after pseudo-to-numeric conversion).
+ *
+ * @param value Connection type value to validate
+ * @return true if the value is a valid connection type, false otherwise
+ */
+bool is_valid_connection_type_value(const std::string &value);
+
+/**
  * @brief Get fields list from AuditRecordGeneral event record.
  *
  * @param record Audit event record
@@ -316,6 +330,21 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordAudit &record);
 AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record);
 
 /**
+ * @brief Convert an AuditRecordFieldValue to its string representation.
+ */
+std::string field_value_to_string(const AuditRecordFieldValue &value);
+
+/**
+ * @brief Compare an AuditRecordFieldValue against a string expected value.
+ *
+ * For string alternatives the comparison is direct. For integer alternatives
+ * the expected string is parsed to the matching integer type first; returns
+ * false on parse failure.
+ */
+bool field_value_matches(const AuditRecordFieldValue &value,
+                         const std::string &expected);
+
+/**
  * @brief Check if a field name is valid for the given event class.
  *
  * @param event_class_name Audit event class name (e.g. "table_access")
@@ -325,6 +354,17 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record);
  */
 bool is_valid_event_field_name(const std::string &event_class_name,
                                const std::string &field_name);
+
+/**
+ * @brief Get the expected value type for a field in the given event class.
+ *
+ * @param event_class_name Audit event class name (e.g. "table_access")
+ * @param field_name Field name to check (e.g. "connection_id")
+ * @return EventFieldValueType indicating String, SignedInteger, or
+ *         UnsignedInteger
+ */
+EventFieldValueType get_event_field_value_type(
+    const std::string &event_class_name, const std::string &field_name);
 
 }  // namespace audit_log_filter
 

@@ -145,7 +145,7 @@ audit_log_filter_set_filter('query_attrs_no_tag', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'query_attributes' action
 SELECT audit_log_filter_set_filter('query_attrs_bad_tag', '{
 "filter": {
 "class": {
@@ -184,7 +184,7 @@ audit_log_filter_set_filter('query_attrs_bad_tag', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'query_attributes' action
 #
 # Wrong format, missing "element" or invalid format
 SELECT audit_log_filter_set_filter('query_attrs_no_element', '{
@@ -217,7 +217,7 @@ audit_log_filter_set_filter('query_attrs_no_element', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'query_attributes' action
 SELECT audit_log_filter_set_filter('query_attrs_element_not_arr', '{
 "filter": {
 "class": {
@@ -250,7 +250,7 @@ audit_log_filter_set_filter('query_attrs_element_not_arr', '{
 "name": "attr1",
 "name": "attr2"
          
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'query_attributes' action
 SELECT audit_log_filter_set_filter('query_attrs_element_empty', '{
 "filter": {
 "class": {
@@ -283,7 +283,7 @@ audit_log_filter_set_filter('query_attrs_element_empty', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'query_attributes' action
 SELECT audit_log_filter_set_filter('query_attrs_element_bad_args', '{
 "filter": {
 "class": {
@@ -320,7 +320,7 @@ audit_log_filter_set_filter('query_attrs_element_bad_args', '{
 }
 }
 
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'query_attributes' action
 #
 # Cleanup
 DROP TABLE t1;

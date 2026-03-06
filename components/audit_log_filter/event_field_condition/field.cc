@@ -24,7 +24,8 @@ EventFieldConditionField::EventFieldConditionField(std::string name,
 bool EventFieldConditionField::check_applies(
     const AuditRecordFieldsList &fields) const noexcept {
   const auto field = fields.find(m_name);
-  return field != fields.cend() && field->second == m_expected_value;
+  return field != fields.cend() &&
+         field_value_matches(field->second, m_expected_value);
 }
 
 }  // namespace audit_log_filter::event_field_condition

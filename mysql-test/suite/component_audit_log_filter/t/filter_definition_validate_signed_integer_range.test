@@ -1,0 +1,29 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+--enable_query_log
+
+# ---------------------------------------------------------------
+# Broken: out-of-range unsigned JSON integer for signed fields
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: Uint64 overflow for signed integer field connection.status
+SELECT audit_log_filter_set_filter('filter_broken_con_status_u64overflow', '{"filter":{"class":[{"name":"connection","event":{"name":["connect","change_user","disconnect"],"log":{"field":{"name":"status","value":18446744073709551615}}}}]}}');
+
+--echo #
+--echo # Broken: Uint64 overflow for signed integer field general_error_code
+SELECT audit_log_filter_set_filter('filter_broken_gen_errorCode_u64overflow', '{"filter":{"class":[{"name":"general","event":{"name":"status","log":{"field":{"name":"general_error_code","value":18446744073709551615}}}}]}}');
+
+--echo #
+--echo # Broken: Uint64 overflow for signed integer field table_access.sql_command_id
+SELECT audit_log_filter_set_filter('filter_broken_tab_sqlCmdId_u64overflow', '{"filter":{"class":[{"name":"table_access","event":{"name":["read"],"log":{"field":{"name":"sql_command_id","value":18446744073709551615}}}}]}}');
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

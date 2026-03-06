@@ -327,7 +327,7 @@ audit_log_filter_set_filter('incorrect_rule', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: event field 'status' cannot be replaced
 SELECT audit_log_filter_set_filter('incorrect_rule', '{
 "filter": {
 "class": {
@@ -356,7 +356,7 @@ audit_log_filter_set_filter('incorrect_rule', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: event field 'connection_id' cannot be replaced
 SELECT audit_log_filter_set_filter('incorrect_rule', '{
 "filter": {
 "log": false,
@@ -383,7 +383,7 @@ audit_log_filter_set_filter('incorrect_rule', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: failed to parse 'print' replacement rule
 SELECT audit_log_filter_set_filter('incorrect_rule', '{
 "filter": {
 "class": [
@@ -424,7 +424,7 @@ audit_log_filter_set_filter('incorrect_rule', '{
 ]
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: the 'log' field must be of bool or object type
 #
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';

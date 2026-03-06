@@ -129,7 +129,7 @@ audit_log_filter_set_filter('query_stats_no_tag', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'service' action
 SELECT audit_log_filter_set_filter('query_stats_bad_tag', '{
 "filter": {
 "class": {
@@ -166,7 +166,7 @@ audit_log_filter_set_filter('query_stats_bad_tag', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'service' action
 #
 # Wrong format, missing "element" or invalid format
 SELECT audit_log_filter_set_filter('query_stats_no_element', '{
@@ -199,7 +199,7 @@ audit_log_filter_set_filter('query_stats_no_element', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'service' action
 SELECT audit_log_filter_set_filter('query_stats_element_not_arr', '{
 "filter": {
 "class": {
@@ -234,7 +234,7 @@ audit_log_filter_set_filter('query_stats_element_not_arr', '{
             }
 }
 }
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'service' action
 SELECT audit_log_filter_set_filter('query_stats_element_empty', '{
 "filter": {
 "class": {
@@ -267,7 +267,7 @@ audit_log_filter_set_filter('query_stats_element_empty', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'service' action
 SELECT audit_log_filter_set_filter('query_stats_element_bad_args', '{
 "filter": {
 "class": {
@@ -304,7 +304,7 @@ audit_log_filter_set_filter('query_stats_element_bad_args', '{
 }
 }
 }')
-ERROR: Incorrect rule definition
+ERROR: Incorrect rule definition: bad format for 'service' action
 #
 # Cleanup
 DROP TABLE t1;

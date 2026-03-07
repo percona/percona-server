@@ -9074,6 +9074,35 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
   return nullptr;
 }
 
+/**
+  Store item value into field and check whether the value survived the
+  round-trip without truncation.  Field_num::store_decimal() silently
+  drops fractional digits when storing a decimal value into an integer
+  field and returns TYPE_OK, so the caller cannot rely on the return
+  status alone.  This helper re-reads the stored value and compares it
+  with the original to detect such silent truncation.
+
+  @param item   The item whose value is stored.
+  @param field  The target field.
+
+  @returns TYPE_OK if the value survived storage unchanged, or
+           TYPE_NOTE_TRUNCATED if the stored value differs from the
+           original.
+*/
+static type_conversion_status save_in_field_check_truncation(Item *item,
+                                                             Field *field) {
+  type_conversion_status res = item->save_in_field_no_warnings(field, true);
+  if (res != TYPE_OK) return res;
+  // Round-trip check: did the value survive storage?
+  if (item->result_type() == DECIMAL_RESULT) {
+    my_decimal orig_buf, stored_buf;
+    my_decimal *orig = item->val_decimal(&orig_buf);
+    field->val_decimal(&stored_buf);
+    if (my_decimal_cmp(orig, &stored_buf) != 0) return TYPE_NOTE_TRUNCATED;
+  }
+  return TYPE_OK;
+}
+
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
                                     bool can_evaluate, bool *subsumes) {
   *subsumes = false;
@@ -9132,7 +9161,7 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
           field->binary()) &&
         !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
     {
-      *subsumes = !right_item->save_in_field_no_warnings(field, true);
+      *subsumes = save_in_field_check_truncation(right_item, field) == TYPE_OK;
       if (thd->is_error()) return true;
     }
   }

@@ -2713,4 +2713,37 @@ eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#36448705 Wrong results for ref access with decimal-to-int truncation
+--echo #
+--echo # Decimal value gets truncated to integer 0 during index key construction,
+--echo # and the optimizer incorrectly removes the post-filter predicate.
+--echo #
+
+CREATE TABLE t0 (
+  c2 SMALLINT UNSIGNED NOT NULL,
+  UNIQUE KEY i0 (c2)
+);
+INSERT INTO t0 VALUES (0),(1);
+
+--echo # With UNIQUE KEY - should return empty set
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+--echo # Verify with explicit decimal comparison
+SELECT t0.c2 FROM t0 WHERE t0.c2 = 0.335691025520639;
+
+--echo # Verify correct result with table scan (no index hint)
+SELECT t0.c2 FROM t0 IGNORE INDEX (i0) WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+--echo # Non-unique key variant
+ALTER TABLE t0 DROP KEY i0, ADD KEY i0 (c2);
+
+SET SESSION optimizer_switch="hypergraph_optimizer=off";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+SET SESSION optimizer_switch="hypergraph_optimizer=on";
+SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
+
+DROP TABLE t0;
+
 --source include/disable_hypergraph.inc

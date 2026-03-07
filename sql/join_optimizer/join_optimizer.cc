@@ -5373,7 +5373,6 @@ void CostingReceiver::ProposeHashJoin(
   join_path.hash_join().store_rowids = false;
   join_path.hash_join().rewrite_semi_to_inner = rewrite_semi_to_inner;
   join_path.hash_join().tables_to_get_rowid_for = 0;
-  join_path.hash_join().allow_spill_to_disk = true;
   join_path.has_group_skip_scan =
       left_path->has_group_skip_scan || right_path->has_group_skip_scan;
 
@@ -5461,80 +5460,177 @@ void CostingReceiver::ProposeHashJoin(
     return width;
   }()};
 
-  const HashJoinCost join_cost{
-      m_thd,
-      HashJoinMetrics{.build_rows = right_path->num_output_rows(),
-                      .build_row_size =
-                          static_cast<double>(GetJoinRowWidth(right, *m_graph)),
-                      .key_size = key_width,
-                      .probe_rows = outer->num_output_rows(),
-                      .probe_row_size =
-                          static_cast<double>(GetJoinRowWidth(left, *m_graph)),
-                      .result_rows = num_output_rows}};
+  const HashJoinMetrics metrics{
+      .build_rows = right_path->num_output_rows(),
+      .build_row_size = static_cast<double>(GetJoinRowWidth(right, *m_graph)),
+      .key_size = key_width,
+      .probe_rows = outer->num_output_rows(),
+      .probe_row_size = static_cast<double>(GetJoinRowWidth(left, *m_graph)),
+      .result_rows = num_output_rows};
 
-  // Note: This isn't strictly correct if the non-equijoin conditions
-  // have selectivities far from 1.0; the cost should be calculated
-  // on the number of rows after the equijoin conditions, but before
-  // the non-equijoin conditions.
-  // NOTE: Keep this in sync with SimulateJoin().
-  const double cost{join_cost.cost() + right_path->cost() + outer->cost() +
-                    num_output_rows * edge->expr->join_conditions.size() *
-                        kApplyOneFilterCost};
+  // The spill-allowed plan handles both cases: when the build side fits
+  // in memory (no spill occurs, single probe pass) and when it doesn't
+  // (Grace hash join partitions both sides to disk, single probe pass
+  // per chunk). This plan is always proposed.
+  //
+  // The no-spill plan (hash table refills with multiple full probe passes)
+  // is only worth proposing when the join can benefit from early
+  // termination. Without early termination, all rows must be produced,
+  // and spill-to-disk is strictly better: it scans the probe side once,
+  // while no-spill scans it ceil(build_size / buffer) times.
+  //
+  // Early termination is possible when there is a LIMIT and nothing
+  // above the join needs to consume the full join result before
+  // producing output. ORDER BY, GROUP BY, and window functions all
+  // materialize/buffer the join output before LIMIT applies, so they
+  // defeat early termination. SQL_CALC_FOUND_ROWS likewise forces the
+  // full result to be counted regardless of LIMIT.
+  //
+  // In the early-termination case, the no-spill plan can start returning
+  // rows immediately from the first build batch, and may satisfy the
+  // LIMIT before needing to refill the hash table — avoiding the spill
+  // startup cost entirely.
+  const Query_block *query_block = m_graph->query_block();
+  const Query_expression *query_expression =
+      query_block->master_query_expression();
+  const bool has_limit = query_expression->select_limit_cnt != HA_POS_ERROR;
+  const bool needs_full_result =
+      query_block->is_ordered() || query_block->is_grouped() ||
+      query_block->has_windows() ||
+      (query_block->active_options() & OPTION_FOUND_ROWS) != 0;
+  // Restrict to inner joins: for other join types the refill path writes
+  // a probe-row-saving file to disk, which the no-spill cost model does
+  // not account for. Also restrict to simple query expressions: if this
+  // block is one branch of a UNION/INTERSECT/EXCEPT, the set operation
+  // must consume the full block result before the outer LIMIT applies,
+  // so early termination is not possible.
+  const bool may_benefit_from_no_spill =
+      has_limit && !needs_full_result && query_expression->is_simple() &&
+      (edge->expr->type == RelationalExpression::INNER_JOIN ||
+       edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN);
 
-  join_path.num_output_rows_before_filter = num_output_rows;
-  join_path.set_cost_before_filter(cost);
-  join_path.set_cost(cost);
-  join_path.set_num_output_rows(num_output_rows);
-  join_path.set_init_cost(join_cost.init_cost() + right_path->cost() +
-                          outer->init_cost());
+  // Propose a hash join plan with the given cost model and spill setting.
+  // This lambda captures the surrounding state and proposes the plan
+  // (with and without subquery materialization) to the tournament.
+  auto propose_hash_join_plan = [&](const HashJoinCost &join_cost,
+                                    bool allow_spill) {
+    join_path.hash_join().allow_spill_to_disk = allow_spill;
 
-  const double reuse_buffer_probability{
-      // right_path has external dependencies, so the buffer cannot be reused.
-      right_path->parameter_tables > 0
-          ? 0.0
-          : 1.0 - join_cost.spill_to_disk_probability()};
+    // Note: This isn't strictly correct if the non-equijoin conditions
+    // have selectivities far from 1.0; the cost should be calculated
+    // on the number of rows after the equijoin conditions, but before
+    // the non-equijoin conditions.
+    // NOTE: Keep this in sync with SimulateJoin().
+    //
+    // When spill-to-disk is not allowed, the probe input is re-Init()'d
+    // and re-scanned for each hash table refill (HashJoinIterator calls
+    // InitProbeIterator() on refill). The first pass costs outer->cost();
+    // each subsequent pass costs outer->rescan_cost().
+    const double probe_iterations = join_cost.probe_iterations();
+    const double rescan_count = probe_iterations - 1.0;
+    const double outer_passes_cost =
+        allow_spill ? outer->cost()
+                    : outer->cost() + rescan_count * outer->rescan_cost();
+    const double cost{join_cost.cost() + right_path->cost() +
+                      outer_passes_cost +
+                      num_output_rows * edge->expr->join_conditions.size() *
+                          kApplyOneFilterCost};
 
-  join_path.set_init_once_cost(
-      outer->init_once_cost() +
-      std::lerp(right_path->init_once_cost(),
-                join_cost.init_cost() + right_path->cost(),
-                reuse_buffer_probability));
+    join_path.num_output_rows_before_filter = num_output_rows;
+    join_path.set_cost_before_filter(cost);
+    join_path.set_cost(cost);
+    join_path.set_num_output_rows(num_output_rows);
+    // For the no-spill variant the iterator stops reading the build input
+    // as soon as the join buffer is full, so only ~1/probe_iterations of
+    // right_path's run cost is incurred before the first output row.
+    const double build_run_cost = right_path->cost() - right_path->init_cost();
+    const double build_init_cost =
+        allow_spill
+            ? right_path->cost()
+            : right_path->init_cost() + build_run_cost / probe_iterations;
+    join_path.set_init_cost(join_cost.init_cost() + build_init_cost +
+                            outer->init_cost());
 
-  // For each scan, hash join will read the left side once and the right side
-  // once, so we are as safe as the least safe of the two. (This isn't true
-  // if we set spill_to_disk = false, but we never do that in the hypergraph
-  // optimizer.) Note that if the right side fits entirely in RAM, we don't
-  // scan it the second time (so we could make the operation _more_ safe
-  // than the right side, and we should consider both ways of doing
-  // an inner join), but we cannot know that when planning.
-  join_path.safe_for_rowid =
-      std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
-
-  // Only trace once; the rest ought to be identical.
-  if (TraceStarted(m_thd) && !*wrote_trace) {
-    Trace(m_thd) << PrintSubgraphHeader(edge, join_path, left, right);
-    *wrote_trace = true;
-  }
-
-  for (bool materialize_subqueries : {false, true}) {
-    AccessPath new_path = join_path;
-    FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last, materialize_subqueries, &new_path,
-        &filter_fd_set);
-    // Hash join destroys all ordering information (even from the left side,
-    // since we may have spill-to-disk).
-    new_path.ordering_state = m_orderings->ApplyFDs(m_orderings->SetOrder(0),
-                                                    new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &new_path,
-                                   materialize_subqueries ? "mat. subq." : "");
-
-    if (!Overlaps(new_path.filter_predicates,
-                  m_graph->materializable_predicates)) {
-      break;
+    // HashJoinIterator::DoInit() reuses the in-memory hash table only for
+    // IN_MEMORY or empty SPILL_TO_DISK, not for
+    // IN_MEMORY_WITH_HASH_TABLE_REFILL. So a no-spill plan that is
+    // expected to refill (probe_iterations > 1) cannot reuse the buffer on
+    // rescan. When the build is expected to fit (probe_iterations == 1),
+    // use the same overflow-uncertainty curve as the spill plan.
+    double reuse_buffer_probability;
+    if (right_path->parameter_tables > 0) {
+      // right_path has external dependencies; buffer cannot be reused.
+      reuse_buffer_probability = 0.0;
+    } else if (!allow_spill && probe_iterations > 1.0) {
+      reuse_buffer_probability = 0.0;
+    } else {
+      reuse_buffer_probability = 1.0 - join_cost.overflow_probability();
     }
+
+    join_path.set_init_once_cost(
+        outer->init_once_cost() +
+        std::lerp(right_path->init_once_cost(),
+                  join_cost.init_cost() + build_init_cost,
+                  reuse_buffer_probability));
+
+    // For each scan, hash join will read the left side once and the right
+    // side once, so we are as safe as the least safe of the two. Note that
+    // when spill_to_disk is false, the probe side may be re-scanned via
+    // hash table refills, but this does not affect row ID safety since the
+    // probe iterator is simply re-Init()'d.
+    join_path.safe_for_rowid =
+        std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
+
+    // Only trace once; the rest ought to be identical.
+    if (TraceStarted(m_thd) && !*wrote_trace) {
+      Trace(m_thd) << PrintSubgraphHeader(edge, join_path, left, right);
+      *wrote_trace = true;
+    }
+
+    for (bool materialize_subqueries : {false, true}) {
+      AccessPath new_path = join_path;
+      FunctionalDependencySet filter_fd_set;
+      ApplyDelayedPredicatesAfterJoin(
+          left, right, left_path, right_path, edge->expr->join_predicate_first,
+          edge->expr->join_predicate_last, materialize_subqueries, &new_path,
+          &filter_fd_set);
+      // Hash join destroys all ordering information (even from the left
+      // side, since we may have spill-to-disk or hash table refills).
+      new_path.ordering_state = m_orderings->ApplyFDs(
+          m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
+      ProposeAccessPathWithOrderings(
+          left | right, new_fd_set | filter_fd_set, new_obsolete_orderings,
+          &new_path, materialize_subqueries ? "mat. subq." : "");
+
+      if (!Overlaps(new_path.filter_predicates,
+                    m_graph->materializable_predicates)) {
+        break;
+      }
+    }
+  };
+
+  // Always propose the spill-allowed plan.
+  const HashJoinCost spill_cost{m_thd, metrics, /*allow_spill_to_disk=*/true};
+  propose_hash_join_plan(spill_cost, /*allow_spill=*/true);
+
+  // Propose the no-spill plan only when early termination is possible
+  // and the build side is estimated not to fit in the join buffer
+  // (non-zero spill probability). If the build side fits, both plans
+  // model a single in-memory probe pass and are identical, so there is
+  // nothing extra to propose.
+  if (may_benefit_from_no_spill &&
+      spill_cost.spill_to_disk_probability() > 0.0) {
+    const HashJoinCost no_spill_cost{m_thd, metrics,
+                                     /*allow_spill_to_disk=*/false};
+    if (TraceStarted(m_thd)) {
+      Trace(m_thd) << " - also proposing allow_spill_to_disk=false:"
+                   << " spill_probability="
+                   << spill_cost.spill_to_disk_probability()
+                   << " probe_iterations=" << no_spill_cost.probe_iterations()
+                   << " no_spill_init_cost=" << no_spill_cost.init_cost()
+                   << " spill_init_cost=" << spill_cost.init_cost() << "\n";
+    }
+    propose_hash_join_plan(no_spill_cost, /*allow_spill=*/false);
   }
 }
 
@@ -6447,6 +6543,10 @@ string PrintAccessPath(THD *thd, AccessPath &path, const JoinHypergraph &graph,
     str += " via stats cache";
   }
   if (!join_order.empty()) str += ", join_order=" + join_order;
+  if (path.type == AccessPath::HASH_JOIN &&
+      !path.hash_join().allow_spill_to_disk) {
+    str += ", allow_spill_to_disk=false";
+  }
 
   // Print parameter tables, if any.
   if (path.parameter_tables != 0) {

@@ -3241,3 +3241,60 @@ SET SESSION optimizer_switch="hypergraph_optimizer=on";
 SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641);
 c2
 DROP TABLE t0;
+#
+# Bug#36957877 Building rarely used index on derived table is inefficient
+#
+CREATE TABLE t0 (a INT PRIMARY KEY, b INT, c INT, d INT);
+INSERT INTO t0
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<999)
+SELECT n, n%100, n%100, n%100 FROM qn;
+ANALYZE TABLE t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+SELECT SUM(b) v1, c v2, d v3 FROM t0 GROUP BY c, d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=64)
+    -> Union materialize with deduplication  (rows=64)
+        -> Filter: (cte1.v2 = 5)  (rows=32)
+            -> Table scan on cte1  (rows=320)
+                -> Materialize CTE cte1 if needed  (rows=320)
+                    -> Group aggregate: sum(t0.b)  (rows=320)
+                        -> Sort: t0.c, t0.d  (rows=1000)
+                            -> Index scan on t0 using PRIMARY  (rows=1000)
+        -> Filter: (cte1.v1 = 4)  (rows=32)
+            -> Table scan on cte1  (rows=320)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=320)
+
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+SELECT SUM(x1.b + x2.b) v1, x1.d v2
+FROM t0 x1 JOIN t0 x2 ON x1.c = x2.c
+GROUP BY x1.d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+EXPLAIN
+-> Table scan on <union temporary>  (rows=6.32)
+    -> Union materialize with deduplication  (rows=6.32)
+        -> Filter: (cte1.v2 = 5)  (rows=3.16)
+            -> Table scan on cte1  (rows=31.6)
+                -> Materialize CTE cte1 if needed  (rows=31.6)
+                    -> Table scan on <temporary>  (rows=31.6)
+                        -> Aggregate using temporary table  (rows=31.6)
+                            -> Inner hash join (x1.c = x2.c)  (rows=100000)
+                                -> Index scan on x1 using PRIMARY  (rows=1000)
+                                -> Hash
+                                    -> Index scan on x2 using PRIMARY  (rows=1000)
+        -> Filter: (cte1.v1 = 4)  (rows=3.16)
+            -> Table scan on cte1  (rows=31.6)
+                -> Materialize CTE cte1 if needed (query plan printed elsewhere)  (rows=31.6)
+
+DROP TABLE t0;

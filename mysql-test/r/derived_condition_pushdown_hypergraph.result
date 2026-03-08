@@ -1212,9 +1212,10 @@ EXPLAIN FORMAT=tree SELECT *
 FROM (SELECT f1, (@rownum_r := @rownum_r + 1) AS r FROM t1) AS dt
 WHERE dt.f1 = 300;
 EXPLAIN
--> Index lookup on dt using <auto_key0> (f1 = 300)  (rows=0.5)
-    -> Materialize  (rows=5)
-        -> Table scan on t1  (rows=5)
+-> Filter: (dt.f1 = 300)  (rows=0.5)
+    -> Table scan on dt  (rows=5)
+        -> Materialize  (rows=5)
+            -> Table scan on t1  (rows=5)
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.

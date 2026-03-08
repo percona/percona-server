@@ -1613,6 +1613,15 @@ ProposeResult RefAccessBuilder::ProposePath() const {
     materialize_path->set_num_output_rows(rows);
     materialize_path->num_output_rows_before_filter = rows;
 
+    // Add the one-time cost of building the index on the materialized
+    // temp table.
+    const double index_build_cost =
+        EstimateIndexBuildCost(materialize.subquery_rows);
+    materialize_path->set_init_cost(materialize_path->init_cost() +
+                                    index_build_cost);
+    materialize_path->set_cost(materialize_path->cost() + index_build_cost);
+    materialize_path->set_cost_before_filter(materialize_path->cost());
+
     path = *materialize_path;
   }
 

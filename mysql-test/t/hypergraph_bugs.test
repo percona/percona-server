@@ -2746,4 +2746,55 @@ SELECT t0.c2 FROM t0 WHERE t0.c2 = IFNULL(0.335691025520639, 0.6008055594894641)
 
 DROP TABLE t0;
 
+--echo #
+--echo # Bug#36957877 Building rarely used index on derived table is inefficient
+--echo #
+
+# The optimizer should account for the cost of building an index on a
+# materialized derived table (CTE). Without the fix, the optimizer builds
+# auto_key indexes for each CTE reference and uses "Index lookup on cte1
+# using <auto_key>". With the fix, the index build cost (O(N log N)) is
+# included in the access path cost, so for ~100 rows with only 1-2 lookups
+# the optimizer correctly chooses "Table scan on cte1" + Filter instead.
+
+CREATE TABLE t0 (a INT PRIMARY KEY, b INT, c INT, d INT);
+
+INSERT INTO t0
+WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n+1 FROM qn WHERE n<999)
+SELECT n, n%100, n%100, n%100 FROM qn;
+
+ANALYZE TABLE t0;
+
+# Test 1: Few lookups — index build cost exceeds benefit.
+# CTE has ~100 rows, only 2 equality lookups (one per UNION branch).
+# Expected: Table scan + Filter on cte1 (no auto_key index).
+# Without fix: Index lookup on cte1 using <auto_key0>/<auto_key1>.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+  SELECT SUM(b) v1, c v2, d v3 FROM t0 GROUP BY c, d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+
+# Test 2: Expensive CTE — index build cost is negligible vs materialization.
+# Self-join produces ~100K intermediate rows; the CTE materialization cost
+# dwarfs the index build cost on ~32 result rows, so the optimizer correctly
+# keeps the auto_key index for the 2 lookups.
+# Expected: Index lookup on cte1 using <auto_key0>/<auto_key1>.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+WITH cte1 AS (
+  SELECT SUM(x1.b + x2.b) v1, x1.d v2
+  FROM t0 x1 JOIN t0 x2 ON x1.c = x2.c
+  GROUP BY x1.d
+)
+SELECT * FROM cte1 WHERE v2 = 5
+UNION
+SELECT * FROM cte1 WHERE v1 = 4;
+
+DROP TABLE t0;
+
 --source include/disable_hypergraph.inc

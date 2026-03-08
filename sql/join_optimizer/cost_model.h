@@ -25,6 +25,7 @@
 #define SQL_JOIN_OPTIMIZER_COST_MODEL_H_
 
 #include <algorithm>  // std::clamp
+#include <cmath>      // std::log2, std::max
 #include <span>
 
 #include "my_base.h"
@@ -743,6 +744,27 @@ inline double EstimateRefAccessCost(const TABLE *table, unsigned key_idx,
   return (1.0 - kRefAccessCostDiscount) *
          EstimateIndexRangeScanCost(table, key_idx, RangeScanType::kSingleRange,
                                     1.0, num_output_rows);
+}
+
+/**
+   Estimates the one-time cost of building a B-tree index on a materialized
+   temporary table. Uses the same cost model as EstimateSortCost():
+   an O(N) per-row insertion component plus an O(N * log2(N)) comparison
+   component.
+
+   @param num_rows Number of rows in the materialized table.
+
+   @returns The estimated cost of building the index.
+*/
+inline double EstimateIndexBuildCost(double num_rows) {
+  if (num_rows <= 1.0) return 0.0;
+  // Per-row cost of inserting into the B-tree (memory allocation, copying
+  // row data into index nodes). Analogous to kSortOneRowCost in sort.
+  const double insertion_cost = kSortOneRowCost * num_rows;
+  // O(N log N) cost of key comparisons to maintain B-tree ordering.
+  const double comparison_cost =
+      kSortComparisonCost * num_rows * std::log2(num_rows);
+  return insertion_cost + comparison_cost;
 }
 
 /**

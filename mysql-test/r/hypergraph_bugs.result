@@ -3502,3 +3502,88 @@ WHERE f1 NOT BETWEEN 2 AND 999;
 COUNT(*)
 3
 DROP TABLE t1;
+#
+# Bug#36578540 Sorting on function with side effects results in
+# more function calls
+#
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE FUNCTION f1(p INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+INSERT INTO t1 VALUES (p);
+RETURN p + 1;
+END|
+SELECT f1(x) AS f FROM t2 ORDER BY f;
+f
+2
+3
+4
+SELECT COUNT(*) AS should_be_3 FROM t1;
+should_be_3
+3
+SELECT * FROM t1 ORDER BY x;
+x
+1
+2
+3
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+CREATE TABLE t3 (x INT);
+INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+EXPLAIN
+-> Sort: r  (rows=5)
+    -> Stream results  (rows=5)
+        -> Table scan on t3  (rows=5)
+
+SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+x	r
+2	0.15164413689788817
+4	0.3925059534539524
+5	0.6540667979550239
+1	0.6629110161800972
+3	0.7694876666827943
+DROP TABLE t3;
+CREATE TABLE t4 (x INT, y INT);
+INSERT INTO t4 VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0);
+UPDATE t4 SET y = 1 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_5 FROM t4 WHERE y = 1;
+should_be_5
+5
+DELETE FROM t4 ORDER BY RAND() LIMIT 2;
+SELECT COUNT(*) AS should_be_3 FROM t4;
+should_be_3
+3
+DELETE FROM t4 WHERE x > 0 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_0 FROM t4;
+should_be_0
+0
+DROP TABLE t4;
+CREATE TABLE t5 (a INT);
+INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
+INSERT INTO t6 VALUES (1, 0);
+EXPLAIN FORMAT=TREE
+DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+EXPLAIN
+-> Delete from t6 (immediate)  (rows=1)
+    -> Filter: (t6.y > (select #2))  (rows=1)
+        -> Index scan on t6 using PRIMARY  (rows=1)
+        -> Select #2 (subquery in condition; uncacheable)
+            -> Sort: r, limit input to 1 row(s) per chunk  (rows=1)
+                -> Stream results  (rows=5)
+                    -> Table scan on t5  (rows=5)
+
+EXPLAIN FORMAT=TREE
+UPDATE t6 SET y = 1 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+EXPLAIN
+-> Update t6 (immediate)  (rows=1)
+    -> Filter: (t6.y > (select #2))  (rows=1)
+        -> Index scan on t6 using PRIMARY  (rows=1)
+        -> Select #2 (subquery in condition; uncacheable)
+            -> Sort: r, limit input to 1 row(s) per chunk  (rows=1)
+                -> Stream results  (rows=5)
+                    -> Table scan on t5  (rows=5)
+
+DROP TABLE t5, t6;

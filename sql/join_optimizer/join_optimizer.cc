@@ -7971,6 +7971,25 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 bool ForceMaterializationBeforeSort(const Query_block &query_block,
                                     bool need_rowid) {
   const JOIN &join{*query_block.join};
+
+  // Materialize when ORDER BY has stored-program or RAND_TABLE_BIT items,
+  // so filesort evaluates them once. The outermost DML block is exempt
+  // (a STREAM path there has no table for FinalizeUpdateOrDelete()), as is
+  // secondary-engine optimization.
+  const bool is_outer_dml_block =
+      query_block.outer_query_block() == nullptr &&
+      (IsUpdateStatement(join.thd) || IsDeleteStatement(join.thd));
+  if (!is_outer_dml_block && join.thd->secondary_engine_optimization() !=
+                                 Secondary_engine_optimization::SECONDARY) {
+    for (ORDER *ord = query_block.order_list.first; ord != nullptr;
+         ord = ord->next) {
+      if (((*ord->item)->used_tables() & RAND_TABLE_BIT) != 0 ||
+          (*ord->item)->has_stored_program()) {
+        return true;
+      }
+    }
+  }
+
   // Also materialize before sorting of table value constructors. Filesort needs
   // a table, and a table value constructor has no associated TABLE object, so
   // we have to stream the rows through a temporary table before sorting them.

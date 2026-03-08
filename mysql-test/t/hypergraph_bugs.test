@@ -2951,4 +2951,74 @@ eval $query;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#36578540 Sorting on function with side effects results in
+--echo # more function calls
+--echo #
+
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (x INT);
+INSERT INTO t2 VALUES (1), (2), (3);
+
+DELIMITER |;
+
+CREATE FUNCTION f1(p INT) RETURNS INT DETERMINISTIC MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t1 VALUES (p);
+  RETURN p + 1;
+END|
+
+DELIMITER ;|
+
+SELECT f1(x) AS f FROM t2 ORDER BY f;
+
+# Verify: exactly 3 rows should have been inserted
+SELECT COUNT(*) AS should_be_3 FROM t1;
+SELECT * FROM t1 ORDER BY x;
+
+DROP FUNCTION f1;
+DROP TABLE t1, t2;
+
+# RAND() in ORDER BY
+CREATE TABLE t3 (x INT);
+INSERT INTO t3 VALUES (1), (2), (3), (4), (5);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+SELECT x, RAND(42) AS r FROM t3 ORDER BY r;
+
+DROP TABLE t3;
+
+# UPDATE/DELETE outermost ORDER BY (no streaming step)
+CREATE TABLE t4 (x INT, y INT);
+INSERT INTO t4 VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0);
+
+UPDATE t4 SET y = 1 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_5 FROM t4 WHERE y = 1;
+
+DELETE FROM t4 ORDER BY RAND() LIMIT 2;
+SELECT COUNT(*) AS should_be_3 FROM t4;
+
+DELETE FROM t4 WHERE x > 0 ORDER BY RAND();
+SELECT COUNT(*) AS should_be_0 FROM t4;
+
+DROP TABLE t4;
+
+# Subquery inside DML (streaming step still required)
+CREATE TABLE t5 (a INT);
+INSERT INTO t5 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t6 (id INT PRIMARY KEY, y DOUBLE);
+INSERT INTO t6 VALUES (1, 0);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+DELETE FROM t6 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+UPDATE t6 SET y = 1 WHERE y > (SELECT RAND() AS r FROM t5 ORDER BY r LIMIT 1);
+
+DROP TABLE t5, t6;
+
+
 --source include/disable_hypergraph.inc

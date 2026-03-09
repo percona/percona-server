@@ -1,0 +1,159 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+--enable_query_log
+
+# ---------------------------------------------------------------
+# Broken: empty arrays (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: empty "class" array
+SELECT audit_log_filter_set_filter('filter_broken_emptyClassArr', '{"filter": { "class": [] } }');
+
+--echo #
+--echo # Broken: empty "name" array at class level
+SELECT audit_log_filter_set_filter('filter_broken_emptyNameArr', '{"filter": { "class": [ { "name": [], "log": true } ] } }');
+
+--echo #
+--echo # Broken: empty "event" array
+SELECT audit_log_filter_set_filter('filter_broken_emptyEventArr', '{"filter": { "class": [ { "name": "connection", "event": [] } ] } }');
+
+--echo #
+--echo # Broken: empty "name" array at subclass level
+SELECT audit_log_filter_set_filter('filter_broken_emptySubNameArr', '{"filter": { "class": [ { "name": "connection", "event": { "name": [] } } ] } }');
+
+# ---------------------------------------------------------------
+# Broken: unknown keys (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken: unknown key "clss" in filter (typo for "class")
+SELECT audit_log_filter_set_filter('filter_broken_unknownFilterKey', '{"filter": { "clss": [ { "name": "connection" } ] } }');
+
+--echo #
+--echo # Broken: unknown key "evnt" in class (typo for "event")
+SELECT audit_log_filter_set_filter('filter_broken_unknownClassKey', '{"filter": { "class": [ { "name": "connection", "evnt": { "name": "connect" } } ] } }');
+
+--echo #
+--echo # Broken: unknown key "logg" in event (typo for "log")
+SELECT audit_log_filter_set_filter('filter_broken_unknownEventKey', '{"filter": { "class": [ { "name": "connection", "event": { "name": "connect", "logg": true } } ] } }');
+
+# ---------------------------------------------------------------
+# Broken: invalid class names (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken class name: "connection1" (typo, no such class)
+SELECT audit_log_filter_set_filter('filter_broken_badClassName', '{"filter": { "class": [
+  { "name": "connection1",
+      "event": { "name": "connect" }
+  }
+] } }');
+
+--echo #
+--echo # Broken class name: "Table_Access" (wrong case)
+SELECT audit_log_filter_set_filter('filter_broken_wrongCase', '{"filter": { "class": [
+  { "name": "Table_Access",
+      "event": { "name": "read" }
+  }
+] } }');
+
+--echo #
+--echo # Broken class name: empty string
+SELECT audit_log_filter_set_filter('filter_broken_emptyClassName', '{"filter": { "class": [
+  { "name": "",
+      "event": { "name": "status" }
+  }
+] } }');
+
+--echo #
+--echo # Broken class name as array element: ["general1"]
+SELECT audit_log_filter_set_filter('filter_broken_badClassNameArr', '{"filter": { "class": [
+  { "name": [ "general1" ], "log": true }
+] } }');
+
+--echo #
+--echo # Broken class name: "authorization" exists in record naming, but is not filterable
+SELECT audit_log_filter_set_filter('filter_broken_authorizationClass', '{"filter": { "class": [
+  { "name": "authorization",
+      "event": { "name": "authid_create" }
+  }
+] } }');
+
+--echo #
+--echo # Broken class name: "audit" is written directly, outside the filter pipeline
+SELECT audit_log_filter_set_filter('filter_broken_internalAuditClass', '{"filter": { "class": [
+  { "name": "audit",
+      "event": { "name": "startup" }
+  }
+] } }');
+
+--echo #
+--echo # Broken class name: "server_startup" is not supported by filter validation
+SELECT audit_log_filter_set_filter('filter_broken_serverStartupClass', '{"filter": { "class": [
+  { "name": "server_startup",
+      "event": { "name": "startup" }
+  }
+] } }');
+
+--echo #
+--echo # Broken class name: "server_shutdown" is not supported by filter validation
+SELECT audit_log_filter_set_filter('filter_broken_serverShutdownClass', '{"filter": { "class": [
+  { "name": "server_shutdown",
+      "event": { "name": "shutdown" }
+  }
+] } }');
+
+# ---------------------------------------------------------------
+# Broken: invalid event names (expect ERROR)
+# ---------------------------------------------------------------
+
+--echo #
+--echo # Broken event name: "read1" (typo, no such subclass)
+SELECT audit_log_filter_set_filter('filter_broken_badEventName', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": { "name": "read1" }
+  }
+] } }');
+
+--echo #
+--echo # Broken event name: "Connect" (wrong case)
+SELECT audit_log_filter_set_filter('filter_broken_eventWrongCase', '{"filter": { "class": [
+  { "name": "connection",
+      "event": { "name": "Connect" }
+  }
+] } }');
+
+--echo #
+--echo # Broken event name: empty string
+SELECT audit_log_filter_set_filter('filter_broken_emptyEventName', '{"filter": { "class": [
+  { "name": "general",
+      "event": { "name": "" }
+  }
+] } }');
+
+--echo #
+--echo # Broken event name from wrong class: "read" belongs to table_access, not connection
+SELECT audit_log_filter_set_filter('filter_broken_wrongClassEvent', '{"filter": { "class": [
+  { "name": "connection",
+      "event": { "name": "read" }
+  }
+] } }');
+
+--echo #
+--echo # Broken: event name array with one bad entry
+SELECT audit_log_filter_set_filter('filter_broken_badEventArr', '{"filter": { "class": [
+  { "name": "general",
+      "event": { "name": [ "status", "nonexistent" ] }
+  }
+] } }');
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

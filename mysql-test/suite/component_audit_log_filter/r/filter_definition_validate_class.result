@@ -1,0 +1,202 @@
+#
+# Broken: empty "class" array
+SELECT audit_log_filter_set_filter('filter_broken_emptyClassArr', '{"filter": { "class": [] } }');
+audit_log_filter_set_filter('filter_broken_emptyClassArr', '{"filter": { "class": [] } }')
+ERROR: Incorrect rule definition: 'class' must not be an empty array
+#
+# Broken: empty "name" array at class level
+SELECT audit_log_filter_set_filter('filter_broken_emptyNameArr', '{"filter": { "class": [ { "name": [], "log": true } ] } }');
+audit_log_filter_set_filter('filter_broken_emptyNameArr', '{"filter": { "class": [ { "name": [], "log": true } ] } }')
+ERROR: Incorrect rule definition: class 'name' must not be an empty array
+#
+# Broken: empty "event" array
+SELECT audit_log_filter_set_filter('filter_broken_emptyEventArr', '{"filter": { "class": [ { "name": "connection", "event": [] } ] } }');
+audit_log_filter_set_filter('filter_broken_emptyEventArr', '{"filter": { "class": [ { "name": "connection", "event": [] } ] } }')
+ERROR: Incorrect rule definition: 'event' must not be an empty array
+#
+# Broken: empty "name" array at subclass level
+SELECT audit_log_filter_set_filter('filter_broken_emptySubNameArr', '{"filter": { "class": [ { "name": "connection", "event": { "name": [] } } ] } }');
+audit_log_filter_set_filter('filter_broken_emptySubNameArr', '{"filter": { "class": [ { "name": "connection", "event": { "name": [] } } ] } }')
+ERROR: Incorrect rule definition: event subclass 'name' must not be an empty array
+#
+# Broken: unknown key "clss" in filter (typo for "class")
+SELECT audit_log_filter_set_filter('filter_broken_unknownFilterKey', '{"filter": { "clss": [ { "name": "connection" } ] } }');
+audit_log_filter_set_filter('filter_broken_unknownFilterKey', '{"filter": { "clss": [ { "name": "connection" } ] } }')
+ERROR: Incorrect rule definition: unexpected key 'clss' in 'filter' definition
+#
+# Broken: unknown key "evnt" in class (typo for "event")
+SELECT audit_log_filter_set_filter('filter_broken_unknownClassKey', '{"filter": { "class": [ { "name": "connection", "evnt": { "name": "connect" } } ] } }');
+audit_log_filter_set_filter('filter_broken_unknownClassKey', '{"filter": { "class": [ { "name": "connection", "evnt": { "name": "connect" } } ] } }')
+ERROR: Incorrect rule definition: unexpected key 'evnt' in 'class' definition
+#
+# Broken: unknown key "logg" in event (typo for "log")
+SELECT audit_log_filter_set_filter('filter_broken_unknownEventKey', '{"filter": { "class": [ { "name": "connection", "event": { "name": "connect", "logg": true } } ] } }');
+audit_log_filter_set_filter('filter_broken_unknownEventKey', '{"filter": { "class": [ { "name": "connection", "event": { "name": "connect", "logg": true } } ] } }')
+ERROR: Incorrect rule definition: unexpected key 'logg' in 'event' definition
+#
+# Broken class name: "connection1" (typo, no such class)
+SELECT audit_log_filter_set_filter('filter_broken_badClassName', '{"filter": { "class": [
+  { "name": "connection1",
+      "event": { "name": "connect" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_badClassName', '{"filter": { "class": [
+  { "name": "connection1",
+      "event": { "name": "connect" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'connection1'
+#
+# Broken class name: "Table_Access" (wrong case)
+SELECT audit_log_filter_set_filter('filter_broken_wrongCase', '{"filter": { "class": [
+  { "name": "Table_Access",
+      "event": { "name": "read" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_wrongCase', '{"filter": { "class": [
+  { "name": "Table_Access",
+      "event": { "name": "read" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'Table_Access'
+#
+# Broken class name: empty string
+SELECT audit_log_filter_set_filter('filter_broken_emptyClassName', '{"filter": { "class": [
+  { "name": "",
+      "event": { "name": "status" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_emptyClassName', '{"filter": { "class": [
+  { "name": "",
+      "event": { "name": "status" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name ''
+#
+# Broken class name as array element: ["general1"]
+SELECT audit_log_filter_set_filter('filter_broken_badClassNameArr', '{"filter": { "class": [
+  { "name": [ "general1" ], "log": true }
+] } }');
+audit_log_filter_set_filter('filter_broken_badClassNameArr', '{"filter": { "class": [
+  { "name": [ "general1" ], "log": true }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'general1'
+#
+# Broken class name: "authorization" exists in record naming, but is not filterable
+SELECT audit_log_filter_set_filter('filter_broken_authorizationClass', '{"filter": { "class": [
+  { "name": "authorization",
+      "event": { "name": "authid_create" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_authorizationClass', '{"filter": { "class": [
+  { "name": "authorization",
+      "event": { "name": "authid_create" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'authorization'
+#
+# Broken class name: "audit" is written directly, outside the filter pipeline
+SELECT audit_log_filter_set_filter('filter_broken_internalAuditClass', '{"filter": { "class": [
+  { "name": "audit",
+      "event": { "name": "startup" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_internalAuditClass', '{"filter": { "class": [
+  { "name": "audit",
+      "event": { "name": "startup" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'audit'
+#
+# Broken class name: "server_startup" is not supported by filter validation
+SELECT audit_log_filter_set_filter('filter_broken_serverStartupClass', '{"filter": { "class": [
+  { "name": "server_startup",
+      "event": { "name": "startup" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_serverStartupClass', '{"filter": { "class": [
+  { "name": "server_startup",
+      "event": { "name": "startup" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'server_startup'
+#
+# Broken class name: "server_shutdown" is not supported by filter validation
+SELECT audit_log_filter_set_filter('filter_broken_serverShutdownClass', '{"filter": { "class": [
+  { "name": "server_shutdown",
+      "event": { "name": "shutdown" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_serverShutdownClass', '{"filter": { "class": [
+  { "name": "server_shutdown",
+      "event": { "name": "shutdown" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event class name 'server_shutdown'
+#
+# Broken event name: "read1" (typo, no such subclass)
+SELECT audit_log_filter_set_filter('filter_broken_badEventName', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": { "name": "read1" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_badEventName', '{"filter": { "class": [
+  { "name": "table_access",
+      "event": { "name": "read1" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event subclass name 'read1' for class 'table_access'
+#
+# Broken event name: "Connect" (wrong case)
+SELECT audit_log_filter_set_filter('filter_broken_eventWrongCase', '{"filter": { "class": [
+  { "name": "connection",
+      "event": { "name": "Connect" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_eventWrongCase', '{"filter": { "class": [
+  { "name": "connection",
+      "event": { "name": "Connect" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event subclass name 'Connect' for class 'connection'
+#
+# Broken event name: empty string
+SELECT audit_log_filter_set_filter('filter_broken_emptyEventName', '{"filter": { "class": [
+  { "name": "general",
+      "event": { "name": "" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_emptyEventName', '{"filter": { "class": [
+  { "name": "general",
+      "event": { "name": "" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event subclass name '' for class 'general'
+#
+# Broken event name from wrong class: "read" belongs to table_access, not connection
+SELECT audit_log_filter_set_filter('filter_broken_wrongClassEvent', '{"filter": { "class": [
+  { "name": "connection",
+      "event": { "name": "read" }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_wrongClassEvent', '{"filter": { "class": [
+  { "name": "connection",
+      "event": { "name": "read" }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event subclass name 'read' for class 'connection'
+#
+# Broken: event name array with one bad entry
+SELECT audit_log_filter_set_filter('filter_broken_badEventArr', '{"filter": { "class": [
+  { "name": "general",
+      "event": { "name": [ "status", "nonexistent" ] }
+  }
+] } }');
+audit_log_filter_set_filter('filter_broken_badEventArr', '{"filter": { "class": [
+  { "name": "general",
+      "event": { "name": [ "status", "nonexistent" ] }
+  }
+] } }')
+ERROR: Incorrect rule definition: unknown event subclass name 'nonexistent' for class 'general'
+#
+# Cleanup

@@ -28,64 +28,76 @@
 #include <mysql/components/services/event_tracking_stored_program_service.h>
 #include <mysql/components/services/event_tracking_table_access_service.h>
 
+#include <algorithm>
+#include <array>
 #include <cstring>
 #include <unordered_map>
 
 namespace audit_log_filter {
 namespace {
-const std::string_view kClassNameGeneral{"general"};
-const std::string_view kClassNameConnection{"connection"};
-const std::string_view kClassNameAuthorization{"authorization"};
-const std::string_view kClassNameTableAccess{"table_access"};
-const std::string_view kClassNameGlobalVariable{"global_variable"};
-const std::string_view kClassNameServerStartup{"server_startup"};
-const std::string_view kClassNameServerShutdown{"server_shutdown"};
-const std::string_view kClassNameCommand{"command"};
-const std::string_view kClassNameQuery{"query"};
-const std::string_view kClassNameStoredProgram{"stored_program"};
-const std::string_view kClassNameAuthentication{"authentication"};
-const std::string_view kClassNameMessage{"message"};
-const std::string_view kClassNameParse{"parse"};
-const std::string_view kClassNameInternalAudit{"audit"};
+constexpr std::string_view kClassNameGeneral{"general"};
+constexpr std::string_view kClassNameConnection{"connection"};
+constexpr std::string_view kClassNameAuthorization{"authorization"};
+constexpr std::string_view kClassNameTableAccess{"table_access"};
+constexpr std::string_view kClassNameGlobalVariable{"global_variable"};
+constexpr std::string_view kClassNameServerStartup{"server_startup"};
+constexpr std::string_view kClassNameServerShutdown{"server_shutdown"};
+constexpr std::string_view kClassNameCommand{"command"};
+constexpr std::string_view kClassNameQuery{"query"};
+constexpr std::string_view kClassNameStoredProgram{"stored_program"};
+constexpr std::string_view kClassNameAuthentication{"authentication"};
+constexpr std::string_view kClassNameMessage{"message"};
+constexpr std::string_view kClassNameParse{"parse"};
+constexpr std::string_view kClassNameInternalAudit{"audit"};
 
-const std::string_view kSubclassNameGeneralLog{"log"};
-const std::string_view kSubclassNameGeneralError{"error"};
-const std::string_view kSubclassNameGeneralResult{"result"};
-const std::string_view kSubclassNameGeneralStatus{"status"};
-const std::string_view kSubclassNameUser{"user"};
-const std::string_view kSubclassNameRead{"read"};
-const std::string_view kSubclassNameInsert{"insert"};
-const std::string_view kSubclassNameUpdate{"update"};
-const std::string_view kSubclassNameDelete{"delete"};
-const std::string_view kSubclassNameGet{"get"};
-const std::string_view kSubclassNameSet{"set"};
-const std::string_view kSubclassNameStartup{"startup"};
-const std::string_view kSubclassNameShutdown{"shutdown"};
-const std::string_view kSubclassNameEnd{"end"};
-const std::string_view kSubclassNameStart{"start"};
-const std::string_view kSubclassNameNestedStart{"nested_start"};
-const std::string_view kSubclassNameStatusEnd{"status_end"};
-const std::string_view kSubclassNameNestedStatusEnd{"nested_status_end"};
-const std::string_view kSubclassNameExecute{"execute"};
-const std::string_view kSubclassNameFlush{"flush"};
-const std::string_view kSubclassNameAuthidCreate{"authid_create"};
-const std::string_view kSubclassNameCredentialChange{"credential_change"};
-const std::string_view kSubclassNameAuthidRename{"authid_rename"};
-const std::string_view kSubclassNameAuthidDrop{"authid_drop"};
-const std::string_view kSubclassNameConnect{"connect"};
-const std::string_view kSubclassNameDisconnect{"disconnect"};
-const std::string_view kSubclassNameChangeUser{"change_user"};
-const std::string_view kSubclassNamePreAuthenticate{"pre_authenticate"};
-const std::string_view kSubclassNameMessageInternal{"internal"};
-const std::string_view kSubclassNameInternalAudit{"audit"};
-const std::string_view kSubclassNameInternalNoAudit{"noaudit"};
-const std::string_view kSubclassNameParseRewriteNone{"rewrite_none"};
-const std::string_view kSubclassNameParseRewriteQueryRewritten{
+constexpr std::string_view kSubclassNameGeneralLog{"log"};
+constexpr std::string_view kSubclassNameGeneralError{"error"};
+constexpr std::string_view kSubclassNameGeneralResult{"result"};
+constexpr std::string_view kSubclassNameGeneralStatus{"status"};
+constexpr std::string_view kSubclassNameUser{"user"};
+constexpr std::string_view kSubclassNameRead{"read"};
+constexpr std::string_view kSubclassNameInsert{"insert"};
+constexpr std::string_view kSubclassNameUpdate{"update"};
+constexpr std::string_view kSubclassNameDelete{"delete"};
+constexpr std::string_view kSubclassNameGet{"get"};
+constexpr std::string_view kSubclassNameSet{"set"};
+constexpr std::string_view kSubclassNameStartup{"startup"};
+constexpr std::string_view kSubclassNameShutdown{"shutdown"};
+constexpr std::string_view kSubclassNameEnd{"end"};
+constexpr std::string_view kSubclassNameStart{"start"};
+constexpr std::string_view kSubclassNameNestedStart{"nested_start"};
+constexpr std::string_view kSubclassNameStatusEnd{"status_end"};
+constexpr std::string_view kSubclassNameNestedStatusEnd{"nested_status_end"};
+constexpr std::string_view kSubclassNameExecute{"execute"};
+constexpr std::string_view kSubclassNameFlush{"flush"};
+constexpr std::string_view kSubclassNameAuthidCreate{"authid_create"};
+constexpr std::string_view kSubclassNameCredentialChange{"credential_change"};
+constexpr std::string_view kSubclassNameAuthidRename{"authid_rename"};
+constexpr std::string_view kSubclassNameAuthidDrop{"authid_drop"};
+constexpr std::string_view kSubclassNameConnect{"connect"};
+constexpr std::string_view kSubclassNameDisconnect{"disconnect"};
+constexpr std::string_view kSubclassNameChangeUser{"change_user"};
+constexpr std::string_view kSubclassNamePreAuthenticate{"pre_authenticate"};
+constexpr std::string_view kSubclassNameMessageInternal{"internal"};
+constexpr std::string_view kSubclassNameInternalAudit{"audit"};
+constexpr std::string_view kSubclassNameInternalNoAudit{"noaudit"};
+constexpr std::string_view kSubclassNameParseRewriteNone{"rewrite_none"};
+constexpr std::string_view kSubclassNameParseRewriteQueryRewritten{
     "rewrite_query_rewritten"};
-const std::string_view kSubclassNameParseRewritePreparedStatement{
+constexpr std::string_view kSubclassNameParseRewritePreparedStatement{
     "rewrite_prepared_statement"};
 
-const std::string_view kNameUnknown{"unknown"};
+template <typename Container>
+bool contains_string_view(std::string_view value,
+                          const Container &valid_values) {
+  return std::find(valid_values.cbegin(), valid_values.cend(), value) !=
+         valid_values.cend();
+}
+
+template <typename>
+struct UnsupportedFieldValueType : std::false_type {};
+
+constexpr std::string_view kNameUnknown{"unknown"};
 
 std::string_view event_class_to_string(audit_event_class_t event_class) {
   switch (event_class) {
@@ -368,7 +380,7 @@ bool field_value_matches(const AuditRecordFieldValue &value,
           } catch (...) {
             return false;
           }
-        } else {
+        } else if constexpr (std::is_same_v<T, uint64_t>) {
           try {
             size_t pos = 0;
             uint64_t num = std::stoull(expected, &pos);
@@ -376,6 +388,9 @@ bool field_value_matches(const AuditRecordFieldValue &value,
           } catch (...) {
             return false;
           }
+        } else {
+          static_assert(UnsupportedFieldValueType<T>::value,
+                        "Unsupported AuditRecordFieldValue alternative");
         }
       },
       value);
@@ -570,9 +585,8 @@ void update_connection_type_pseudo_to_numeric(std::string &type) {
   }
 }
 
-bool is_valid_connection_type_value(const std::string &value) {
-  static const std::set<std::string> valid_values{"0", "1", "2", "3", "4", "5"};
-  return valid_values.count(value) != 0;
+bool is_valid_connection_type_value(std::string_view value) {
+  return value.size() == 1 && value[0] >= '0' && value[0] <= '5';
 }
 
 AuditRecordFieldsList get_audit_record_fields(
@@ -761,49 +775,162 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record
   return {};
 }
 
-bool is_valid_event_field_name(const std::string &event_class_name,
-                               const std::string &field_name) {
-  using FieldSet = std::set<std::string>;
-  static const std::unordered_map<std::string, FieldSet> valid_fields_map{
-      {"general",
+bool is_valid_event_class_name(std::string_view class_name) {
+  // Filter definitions intentionally accept only the supported subset of
+  // class names. That excludes authorization, internal audit lifecycle,
+  // and server startup/shutdown lifecycle classes.
+  static constexpr std::array<std::string_view, 10> valid_classes{{
+      kClassNameGeneral,
+      kClassNameConnection,
+      kClassNameTableAccess,
+      kClassNameGlobalVariable,
+      kClassNameCommand,
+      kClassNameQuery,
+      kClassNameStoredProgram,
+      kClassNameAuthentication,
+      kClassNameMessage,
+      kClassNameParse,
+  }};
+  return contains_string_view(class_name, valid_classes);
+}
+
+bool is_valid_event_subclass_name(std::string_view class_name,
+                                  std::string_view subclass_name) {
+  if (class_name == kClassNameGeneral) {
+    static constexpr std::array<std::string_view, 4> valid_subclasses{{
+        kSubclassNameGeneralLog,
+        kSubclassNameGeneralError,
+        kSubclassNameGeneralResult,
+        kSubclassNameGeneralStatus,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameConnection) {
+    static constexpr std::array<std::string_view, 4> valid_subclasses{{
+        kSubclassNameConnect,
+        kSubclassNameDisconnect,
+        kSubclassNameChangeUser,
+        kSubclassNamePreAuthenticate,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameTableAccess) {
+    static constexpr std::array<std::string_view, 4> valid_subclasses{{
+        kSubclassNameRead,
+        kSubclassNameInsert,
+        kSubclassNameUpdate,
+        kSubclassNameDelete,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameGlobalVariable) {
+    static constexpr std::array<std::string_view, 2> valid_subclasses{{
+        kSubclassNameGet,
+        kSubclassNameSet,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameCommand) {
+    static constexpr std::array<std::string_view, 2> valid_subclasses{{
+        kSubclassNameStart,
+        kSubclassNameEnd,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameQuery) {
+    static constexpr std::array<std::string_view, 4> valid_subclasses{{
+        kSubclassNameStart,
+        kSubclassNameNestedStart,
+        kSubclassNameStatusEnd,
+        kSubclassNameNestedStatusEnd,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameStoredProgram) {
+    static constexpr std::array<std::string_view, 1> valid_subclasses{{
+        kSubclassNameExecute,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameAuthentication) {
+    static constexpr std::array<std::string_view, 5> valid_subclasses{{
+        kSubclassNameFlush,
+        kSubclassNameAuthidCreate,
+        kSubclassNameCredentialChange,
+        kSubclassNameAuthidRename,
+        kSubclassNameAuthidDrop,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameMessage) {
+    static constexpr std::array<std::string_view, 2> valid_subclasses{{
+        kSubclassNameMessageInternal,
+        kSubclassNameUser,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  if (class_name == kClassNameParse) {
+    static constexpr std::array<std::string_view, 3> valid_subclasses{{
+        kSubclassNameParseRewriteNone,
+        kSubclassNameParseRewriteQueryRewritten,
+        kSubclassNameParseRewritePreparedStatement,
+    }};
+    return contains_string_view(subclass_name, valid_subclasses);
+  }
+
+  return false;
+}
+
+bool is_valid_event_field_name(std::string_view event_class_name,
+                               std::string_view field_name) {
+  using FieldVec = std::vector<std::string_view>;
+  static const std::unordered_map<std::string_view, FieldVec> valid_fields_map{
+      {kClassNameGeneral,
        {"general_error_code", "general_thread_id", "general_connection_id",
         "general_user.str", "general_user.length", "general_command.str",
         "general_command.length", "general_query.str", "general_query.length",
         "general_host.str", "general_host.length", "general_sql_command.str",
         "general_sql_command.length", "general_external_user.str",
         "general_external_user.length", "general_ip.str", "general_ip.length"}},
-      {"connection",
+      {kClassNameConnection,
        {"status", "connection_id", "user.str", "user.length", "priv_user.str",
         "priv_user.length", "external_user.str", "external_user.length",
         "proxy_user.str", "proxy_user.length", "host.str", "host.length",
         "ip.str", "ip.length", "database.str", "database.length",
         "connection_type"}},
-      {"table_access",
+      {kClassNameTableAccess,
        {"connection_id", "sql_command_id", "query.str", "query.length",
         "table_database.str", "table_database.length", "table_name.str",
         "table_name.length"}},
-      {"global_variable",
+      {kClassNameGlobalVariable,
        {"connection_id", "variable_name.str", "variable_name.length",
         "variable_value.str", "variable_value.length"}},
-      {"server_startup", {}},
-      {"server_shutdown", {"exit_code", "reason"}},
-      {"command", {"status", "connection_id", "command.str", "command.length"}},
-      {"query",
+      {kClassNameCommand,
+       {"status", "connection_id", "command.str", "command.length"}},
+      {kClassNameQuery,
        {"status", "connection_id", "sql_command_id", "query.str",
         "query.length", "query_charset"}},
-      {"stored_program",
+      {kClassNameStoredProgram,
        {"connection_id", "database.str", "database.length", "name.str",
         "name.length"}},
-      {"authentication",
+      {kClassNameAuthentication,
        {"status", "connection_id", "user.str", "user.length", "host.str",
         "host.length"}},
-      {"message",
+      {kClassNameMessage,
        {"connection_id", "component.str", "component.length", "producer.str",
         "producer.length", "message.str", "message.length"}},
-      {"parse",
+      {kClassNameParse,
        {"connection_id", "flags", "query.str", "query.length",
         "rewritten_query.str", "rewritten_query.length"}},
-      {"audit", {"server_id"}},
   };
 
   const auto class_it = valid_fields_map.find(event_class_name);
@@ -811,42 +938,45 @@ bool is_valid_event_field_name(const std::string &event_class_name,
     return false;
   }
 
-  return class_it->second.count(field_name) > 0;
+  return contains_string_view(field_name, class_it->second);
 }
 
 EventFieldValueType get_event_field_value_type(
-    const std::string &event_class_name, const std::string &field_name) {
-  using FieldTypeMap = std::map<std::string, EventFieldValueType>;
-  static const std::unordered_map<std::string, FieldTypeMap> field_type_map{
-      {"connection",
-       {{"status", EventFieldValueType::SignedInteger},
-        {"connection_id", EventFieldValueType::UnsignedInteger},
-        {"user.length", EventFieldValueType::UnsignedInteger},
-        {"priv_user.length", EventFieldValueType::UnsignedInteger},
-        {"external_user.length", EventFieldValueType::UnsignedInteger},
-        {"proxy_user.length", EventFieldValueType::UnsignedInteger},
-        {"host.length", EventFieldValueType::UnsignedInteger},
-        {"ip.length", EventFieldValueType::UnsignedInteger},
-        {"database.length", EventFieldValueType::UnsignedInteger},
-        {"connection_type", EventFieldValueType::SignedInteger}}},
-      {"general",
-       {{"general_error_code", EventFieldValueType::SignedInteger},
-        {"general_thread_id", EventFieldValueType::UnsignedInteger},
-        {"general_connection_id", EventFieldValueType::UnsignedInteger},
-        {"general_user.length", EventFieldValueType::UnsignedInteger},
-        {"general_command.length", EventFieldValueType::UnsignedInteger},
-        {"general_query.length", EventFieldValueType::UnsignedInteger},
-        {"general_host.length", EventFieldValueType::UnsignedInteger},
-        {"general_sql_command.length", EventFieldValueType::UnsignedInteger},
-        {"general_external_user.length", EventFieldValueType::UnsignedInteger},
-        {"general_ip.length", EventFieldValueType::UnsignedInteger}}},
-      {"table_access",
-       {{"connection_id", EventFieldValueType::UnsignedInteger},
-        {"sql_command_id", EventFieldValueType::SignedInteger},
-        {"query.length", EventFieldValueType::UnsignedInteger},
-        {"table_database.length", EventFieldValueType::UnsignedInteger},
-        {"table_name.length", EventFieldValueType::UnsignedInteger}}},
-  };
+    std::string_view event_class_name, std::string_view field_name) {
+  using FieldTypeMap = std::map<std::string_view, EventFieldValueType>;
+  static const std::unordered_map<std::string_view, FieldTypeMap>
+      field_type_map{
+          {kClassNameConnection,
+           {{"status", EventFieldValueType::SignedInteger},
+            {"connection_id", EventFieldValueType::UnsignedInteger},
+            {"user.length", EventFieldValueType::UnsignedInteger},
+            {"priv_user.length", EventFieldValueType::UnsignedInteger},
+            {"external_user.length", EventFieldValueType::UnsignedInteger},
+            {"proxy_user.length", EventFieldValueType::UnsignedInteger},
+            {"host.length", EventFieldValueType::UnsignedInteger},
+            {"ip.length", EventFieldValueType::UnsignedInteger},
+            {"database.length", EventFieldValueType::UnsignedInteger},
+            {"connection_type", EventFieldValueType::SignedInteger}}},
+          {kClassNameGeneral,
+           {{"general_error_code", EventFieldValueType::SignedInteger},
+            {"general_thread_id", EventFieldValueType::UnsignedInteger},
+            {"general_connection_id", EventFieldValueType::UnsignedInteger},
+            {"general_user.length", EventFieldValueType::UnsignedInteger},
+            {"general_command.length", EventFieldValueType::UnsignedInteger},
+            {"general_query.length", EventFieldValueType::UnsignedInteger},
+            {"general_host.length", EventFieldValueType::UnsignedInteger},
+            {"general_sql_command.length",
+             EventFieldValueType::UnsignedInteger},
+            {"general_external_user.length",
+             EventFieldValueType::UnsignedInteger},
+            {"general_ip.length", EventFieldValueType::UnsignedInteger}}},
+          {kClassNameTableAccess,
+           {{"connection_id", EventFieldValueType::UnsignedInteger},
+            {"sql_command_id", EventFieldValueType::SignedInteger},
+            {"query.length", EventFieldValueType::UnsignedInteger},
+            {"table_database.length", EventFieldValueType::UnsignedInteger},
+            {"table_name.length", EventFieldValueType::UnsignedInteger}}},
+      };
 
   const auto class_it = field_type_map.find(event_class_name);
   if (class_it == field_type_map.cend()) {

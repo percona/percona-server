@@ -31,9 +31,26 @@
 
 #include <limits>
 #include <memory>
+#include <set>
+#include <string_view>
 
 namespace audit_log_filter {
-namespace {}  // namespace
+namespace {
+
+std::string find_unknown_key(const rapidjson::Value &json_obj,
+                             const std::set<std::string_view> &allowed_keys) {
+  for (auto it = json_obj.MemberBegin(); it != json_obj.MemberEnd(); ++it) {
+    if (it->name.IsString()) {
+      std::string_view key{it->name.GetString(), it->name.GetStringLength()};
+      if (allowed_keys.count(key) == 0) {
+        return std::string{key};
+      }
+    }
+  }
+  return {};
+}
+
+}  // namespace
 
 bool AuditRuleParser::parse(const char *rule_str,
                             AuditRule *audit_rule) noexcept {
@@ -61,6 +78,19 @@ bool AuditRuleParser::parse(rapidjson::Document &json_doc,
   if (!json_doc.HasMember("filter") || !json_doc["filter"].IsObject()) {
     audit_rule->set_parse_error("missing or invalid 'filter' object");
     return false;
+  }
+
+  if (!json_doc["filter"].ObjectEmpty()) {
+    static const std::set<std::string_view> allowed_filter_keys{"id", "log",
+                                                                "class"};
+    auto unknown = find_unknown_key(json_doc["filter"], allowed_filter_keys);
+    if (!unknown.empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_UNEXPECTED_KEY,
+                      audit_rule->get_rule_name().c_str(), unknown.c_str());
+      audit_rule->set_parse_error("unexpected key '" + unknown +
+                                  "' in 'filter' definition");
+      return false;
+    }
   }
 
   if (!parse_default_log_action_json(json_doc, audit_rule)) {
@@ -146,6 +176,13 @@ bool AuditRuleParser::parse_event_class_json(
   if (ev_class_json.IsObject()) {
     return parse_event_class_obj_json(ev_class_json, audit_rule);
   } else if (ev_class_json.IsArray()) {
+    if (ev_class_json.Empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EMPTY_ARRAY,
+                      audit_rule->get_rule_name().c_str());
+      audit_rule->set_parse_error("'class' must not be an empty array");
+      return false;
+    }
+
     for (const auto *it = ev_class_json.Begin(); it != ev_class_json.End();
          ++it) {
       if (!it->IsObject()) {
@@ -180,6 +217,19 @@ bool AuditRuleParser::parse_event_class_obj_json(
                     audit_rule->get_rule_name().c_str());
     audit_rule->set_parse_error("no name provided for event class");
     return false;
+  }
+
+  {
+    static const std::set<std::string_view> allowed_class_keys{
+        "name", "log", "event", "print", "abort"};
+    auto unknown = find_unknown_key(event_class_json, allowed_class_keys);
+    if (!unknown.empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_UNEXPECTED_KEY,
+                      audit_rule->get_rule_name().c_str(), unknown.c_str());
+      audit_rule->set_parse_error("unexpected key '" + unknown +
+                                  "' in 'class' definition");
+      return false;
+    }
   }
 
   if (event_class_json.HasMember("abort")) {
@@ -224,6 +274,15 @@ bool AuditRuleParser::parse_event_class_obj_json(
   if (event_class_json["name"].IsString()) {
     const std::string event_class_name = event_class_json["name"].GetString();
 
+    if (!is_valid_event_class_name(event_class_name)) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_INVALID_EVENT_CLASS_NAME,
+                      audit_rule->get_rule_name().c_str(),
+                      event_class_name.c_str());
+      audit_rule->set_parse_error("unknown event class name '" +
+                                  event_class_name + "'");
+      return false;
+    }
+
     if (event_class_json.HasMember("event")) {
       if (replace_field != nullptr) {
         LogComponentErr(ERROR_LEVEL,
@@ -252,6 +311,13 @@ bool AuditRuleParser::parse_event_class_obj_json(
       audit_rule->add_action_for_event(replace_field, event_class_name);
     }
   } else if (event_class_json["name"].IsArray()) {
+    if (event_class_json["name"].Empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EMPTY_ARRAY,
+                      audit_rule->get_rule_name().c_str());
+      audit_rule->set_parse_error("class 'name' must not be an empty array");
+      return false;
+    }
+
     // There may be no event subclass specified in case event class name is
     // defined as an array { "name": [ "class_name_1", "class_name_2" ] }
     if (event_class_json.HasMember("event")) {
@@ -280,6 +346,16 @@ bool AuditRuleParser::parse_event_class_obj_json(
       }
 
       const std::string event_class_name = it->GetString();
+
+      if (!is_valid_event_class_name(event_class_name)) {
+        LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_INVALID_EVENT_CLASS_NAME,
+                        audit_rule->get_rule_name().c_str(),
+                        event_class_name.c_str());
+        audit_rule->set_parse_error("unknown event class name '" +
+                                    event_class_name + "'");
+        return false;
+      }
+
       audit_rule->add_action_for_event(log_action, event_class_name);
 
       if (replace_field != nullptr) {
@@ -322,6 +398,13 @@ bool AuditRuleParser::parse_event_subclass_json(
       return false;
     }
   } else if (event_subclass_json.IsArray()) {
+    if (event_subclass_json.Empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EMPTY_ARRAY,
+                      audit_rule->get_rule_name().c_str());
+      audit_rule->set_parse_error("'event' must not be an empty array");
+      return false;
+    }
+
     for (const auto *it = event_subclass_json.Begin();
          it != event_subclass_json.End(); ++it) {
       if (!it->IsObject()) {
@@ -361,11 +444,32 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
     return false;
   }
 
+  {
+    static const std::set<std::string_view> allowed_event_keys{
+        "name", "log", "abort", "print", "filter"};
+    auto unknown = find_unknown_key(event_subclass_json, allowed_event_keys);
+    if (!unknown.empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_UNEXPECTED_KEY,
+                      audit_rule->get_rule_name().c_str(), unknown.c_str());
+      audit_rule->set_parse_error("unexpected key '" + unknown +
+                                  "' in 'event' definition");
+      return false;
+    }
+  }
+
   std::vector<std::string> subclass_names;
 
   if (event_subclass_json["name"].IsString()) {
     subclass_names.emplace_back(event_subclass_json["name"].GetString());
   } else if (event_subclass_json["name"].IsArray()) {
+    if (event_subclass_json["name"].Empty()) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EMPTY_ARRAY,
+                      audit_rule->get_rule_name().c_str());
+      audit_rule->set_parse_error(
+          "event subclass 'name' must not be an empty array");
+      return false;
+    }
+
     for (const auto *it = event_subclass_json["name"].Begin();
          it != event_subclass_json["name"].End(); ++it) {
       if (!it->IsString()) {
@@ -385,6 +489,17 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
         "event subclass name type must be either string or an array of "
         "strings");
     return false;
+  }
+
+  for (const auto &name : subclass_names) {
+    if (!is_valid_event_subclass_name(class_name, name)) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_INVALID_EVENT_SUBCLASS_NAME,
+                      audit_rule->get_rule_name().c_str(), name.c_str(),
+                      class_name.c_str());
+      audit_rule->set_parse_error("unknown event subclass name '" + name +
+                                  "' for class '" + class_name + "'");
+      return false;
+    }
   }
 
   const auto has_log_tag = event_subclass_json.HasMember("log");

@@ -13821,6 +13821,18 @@ ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
 ER_AUDIT_PARSE_CONDITION_FIELD_NAME_NOT_FOUND
   eng "Wrong JSON filter '%s' format, field name '%s' is not valid for event class '%s'"
 
+ER_AUDIT_PARSE_INVALID_EVENT_CLASS_NAME
+  eng "Wrong JSON filter '%s' format, unknown event class name '%s'"
+
+ER_AUDIT_PARSE_INVALID_EVENT_SUBCLASS_NAME
+  eng "Wrong JSON filter '%s' format, unknown event subclass name '%s' for class '%s'"
+
+ER_AUDIT_PARSE_EMPTY_ARRAY
+  eng "Wrong JSON filter '%s' format, empty array is not allowed"
+
+ER_AUDIT_PARSE_UNEXPECTED_KEY
+  eng "Wrong JSON filter '%s' format, unexpected key '%s'"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

@@ -208,7 +208,7 @@ void update_connection_type_pseudo_to_numeric(std::string &type);
  * @param value Connection type value to validate
  * @return true if the value is a valid connection type, false otherwise
  */
-bool is_valid_connection_type_value(const std::string &value);
+bool is_valid_connection_type_value(std::string_view value);
 
 /**
  * @brief Get fields list from AuditRecordGeneral event record.
@@ -345,18 +345,40 @@ bool field_value_matches(const AuditRecordFieldValue &value,
                          const std::string &expected);
 
 /**
- * @brief Check if a field name is valid for the given event class.
+ * @brief Check if an event class name is supported by filter definitions.
+ *
+ * @param class_name Event class name to validate (e.g. "connection")
+ * @return true if the class name is accepted by filter-rule validation,
+ *         false otherwise
+ */
+bool is_valid_event_class_name(std::string_view class_name);
+
+/**
+ * @brief Check if an event subclass name is valid for a filterable class.
+ *
+ * @param class_name Event class name (e.g. "connection")
+ * @param subclass_name Event subclass name to validate (e.g. "connect")
+ * @return true if the subclass name is recognized for the class by
+ *         filter-rule validation,
+ *         false otherwise
+ */
+bool is_valid_event_subclass_name(std::string_view class_name,
+                                  std::string_view subclass_name);
+
+/**
+ * @brief Check if a field name is valid for a filterable event class.
  *
  * @param event_class_name Audit event class name (e.g. "table_access")
  * @param field_name Field name to validate (e.g. "table_name.str")
- * @return true if the field name is recognized for the event class,
+ * @return true if the field name is recognized for the event class by
+ *         filter-rule validation,
  *         false otherwise
  */
-bool is_valid_event_field_name(const std::string &event_class_name,
-                               const std::string &field_name);
+bool is_valid_event_field_name(std::string_view event_class_name,
+                               std::string_view field_name);
 
 /**
- * @brief Get the expected value type for a field in the given event class.
+ * @brief Get the expected value type for a field in a filterable event class.
  *
  * @param event_class_name Audit event class name (e.g. "table_access")
  * @param field_name Field name to check (e.g. "connection_id")
@@ -364,7 +386,7 @@ bool is_valid_event_field_name(const std::string &event_class_name,
  *         UnsignedInteger
  */
 EventFieldValueType get_event_field_value_type(
-    const std::string &event_class_name, const std::string &field_name);
+    std::string_view event_class_name, std::string_view field_name);
 
 }  // namespace audit_log_filter
 

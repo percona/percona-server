@@ -10,5 +10,6 @@ Audit_log_filter_direct_writes	0
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
 Variable_name	Value
 Audit_log_filter_direct_writes	2
+File format Ok
 #
 # Cleanup

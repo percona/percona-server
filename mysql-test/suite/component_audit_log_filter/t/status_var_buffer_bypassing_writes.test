@@ -15,6 +15,12 @@ SELECT "4IHYyOZMEAUJcURiOO9nLoceKvbRi3HSZZObmonjTjv4IHYyOZMEAUJcURiOO9nLoceKvbRi
 
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter_direct_writes';
 
+--let $audit_filter_log_check_one = `SELECT audit_log_rotate()`
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let $audit_filter_log_format = xml
+--source validate_logs_format.inc
+
 --echo #
 --echo # Cleanup
 --source ../inc/audit_comp_uninstall.inc

@@ -1,0 +1,52 @@
+#
+# Test Threadpool statistics display, no attempt to create a high load
+#
+DROP TABLE IF EXISTS t1;
+# Create test table and data
+CREATE TABLE t1 (id INT PRIMARY KEY, val CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,'a'), (2,'b'), (3,'c'), (4,'d'), (5,'e');
+# Show initial threadpool status
+SHOW STATUS LIKE 'Threadpool_%';
+Variable_name	Value
+Threadpool_average_hp_queue_wait_us	<value>
+Threadpool_average_queue_wait_us	<value>
+Threadpool_idle_threads	<value>
+Threadpool_requests_starved_in_queue	<value>
+Threadpool_requests_waiting_in_hp_queue	<value>
+Threadpool_requests_waiting_in_queue	<value>
+Threadpool_threads	<value>
+include/assert.inc [Threadpool_threads should be greater than 0 initially.]
+# Establish connections
+# Connection 1: Start transaction and lock a row
+BEGIN;
+SELECT * FROM t1 WHERE id=1 FOR UPDATE;
+id	val
+1	a
+# Connection 2: Attempt to update locked row (will block)
+UPDATE t1 SET val='Con2' WHERE id=1;
+# Connection 3: Attempt to update locked row (will block)
+UPDATE t1 SET val='Con3' WHERE id=1;
+# Connection 4: Sleep (occupy thread if pool is small)
+SELECT SLEEP(2);
+# Wait a moment for threads to be busy/queued
+# Show threadpool status during activity
+SHOW STATUS LIKE 'Threadpool_%';
+Variable_name	Value
+Threadpool_average_hp_queue_wait_us	<value>
+Threadpool_average_queue_wait_us	<value>
+Threadpool_idle_threads	<value>
+Threadpool_requests_starved_in_queue	<value>
+Threadpool_requests_waiting_in_hp_queue	<value>
+Threadpool_requests_waiting_in_queue	<value>
+Threadpool_threads	<value>
+include/assert.inc [Threadpool_threads should be greater than 0 during activity.]
+# Unblock connections
+COMMIT;
+# Connection 1 committed
+# Connection 2 reaped
+# Connection 3 reaped
+SLEEP(2)
+0
+# Connection 4 reaped
+# Cleanup
+DROP TABLE t1;

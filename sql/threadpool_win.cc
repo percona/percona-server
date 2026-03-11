@@ -676,3 +676,7 @@ void tp_wait_end(THD *thd) { /* Do we need to do anything ? */
  thus function always returns 0.
 */
 int tp_get_idle_thread_count() noexcept { return 0; }
+
+LiveStats::Stats tp_get_average_queue_wait_stats() noexcept { return {}; }
+
+LiveStats::Stats tp_get_average_hp_queue_wait_stats() noexcept { return {}; }

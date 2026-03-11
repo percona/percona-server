@@ -12138,9 +12138,58 @@ static int show_threadpool_idle_threads(THD *thd [[maybe_unused]],
                                         SHOW_VAR *var, char *buff) {
   var->type = SHOW_INT;
   var->value = buff;
-  *(int *)buff = tp_get_idle_thread_count();
+  *(uint32_t *)buff = tp_get_idle_thread_count();
   return 0;
 }
+
+static int show_threadpool_requests_waiting_in_queue(THD *thd [[maybe_unused]],
+                                                     SHOW_VAR *var,
+                                                     char *buff) {
+  var->type = SHOW_INT;
+  var->value = buff;
+  *(uint32_t *)buff = tp_get_requests_waiting_in_queue_count();
+  return 0;
+}
+
+static int show_threadpool_requests_waiting_in_hp_queue(THD *thd
+                                                        [[maybe_unused]],
+                                                        SHOW_VAR *var,
+                                                        char *buff) {
+  var->type = SHOW_INT;
+  var->value = buff;
+  *(uint32_t *)buff = tp_get_requests_waiting_in_hp_queue_count();
+  return 0;
+}
+
+static int show_threadpool_requests_starved_in_queue(THD *thd [[maybe_unused]],
+                                                     SHOW_VAR *var,
+                                                     char *buff) {
+  var->type = SHOW_INT;
+  var->value = buff;
+  *(uint32_t *)buff = tp_get_threadpool_requests_starved_in_queue();
+  return 0;
+}
+
+static int show_threadpool_average_queue_wait_us(THD *thd [[maybe_unused]],
+                                                 SHOW_VAR *var, char *buff) {
+  var->type = SHOW_CHAR;
+  var->value = buff;
+  auto stat = tp_get_average_queue_wait_stats();
+  sprintf(buff, "avg: %.3f, min: %.3f, max: %.3f, dev: %.3f, cnt: %ld",
+          stat.average, stat.min, stat.max, stat.deviation, stat.count);
+  return 0;
+}
+
+static int show_threadpool_average_hp_queue_wait_us(THD *thd [[maybe_unused]],
+                                                    SHOW_VAR *var, char *buff) {
+  var->type = SHOW_CHAR;
+  var->value = buff;
+  auto stat = tp_get_average_hp_queue_wait_stats();
+  sprintf(buff, "avg: %.3f, min: %.3f, max: %.3f, dev: %.3f, cnt: %ld",
+          stat.average, stat.min, stat.max, stat.deviation, stat.count);
+  return 0;
+}
+
 #endif
 
 static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
@@ -12661,8 +12710,23 @@ SHOW_VAR status_vars[] = {
     {"Tc_log_page_waits", (char *)&tc_log_page_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
 #ifdef HAVE_POOL_OF_THREADS
+    {"Threadpool_average_hp_queue_wait_us",
+     (char *)&show_threadpool_average_hp_queue_wait_us, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Threadpool_average_queue_wait_us",
+     (char *)&show_threadpool_average_queue_wait_us, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Threadpool_idle_threads", (char *)&show_threadpool_idle_threads,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Threadpool_requests_starved_in_queue",
+     (char *)&show_threadpool_requests_starved_in_queue, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Threadpool_requests_waiting_in_hp_queue",
+     (char *)&show_threadpool_requests_waiting_in_hp_queue, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Threadpool_requests_waiting_in_queue",
+     (char *)&show_threadpool_requests_waiting_in_queue, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Threadpool_threads", (char *)&tp_stats.num_worker_threads, SHOW_INT,
      SHOW_SCOPE_GLOBAL},
 #endif

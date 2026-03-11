@@ -1,0 +1,88 @@
+--source include/have_pool_of_threads.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Test Threadpool statistics display, no attempt to create a high load
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo # Create test table and data
+CREATE TABLE t1 (id INT PRIMARY KEY, val CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,'a'), (2,'b'), (3,'c'), (4,'d'), (5,'e');
+
+--echo # Show initial threadpool status
+--replace_column 2 <value>
+SHOW STATUS LIKE 'Threadpool_%';
+
+--let $assert_text= Threadpool_threads should be greater than 0 initially.
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME=\"Threadpool_threads\"]" > 0
+--source include/assert.inc
+
+--echo # Establish connections
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connect (con4,localhost,root,,);
+connect (con5,localhost,root,,);
+
+connection con1;
+--echo # Connection 1: Start transaction and lock a row
+BEGIN;
+SELECT * FROM t1 WHERE id=1 FOR UPDATE;
+
+connection con2;
+--echo # Connection 2: Attempt to update locked row (will block)
+--send UPDATE t1 SET val='Con2' WHERE id=1
+
+connection con3;
+--echo # Connection 3: Attempt to update locked row (will block)
+--send UPDATE t1 SET val='Con3' WHERE id=1
+
+connection con4;
+--echo # Connection 4: Sleep (occupy thread if pool is small)
+--send SELECT SLEEP(2)
+
+connection default;
+--echo # Wait a moment for threads to be busy/queued
+let $wait_condition= SELECT COUNT(*) >= 2 FROM information_schema.processlist WHERE INFO LIKE 'UPDATE t1%';
+--source include/wait_condition.inc
+
+--echo # Show threadpool status during activity
+--replace_column 2 <value>
+SHOW STATUS LIKE 'Threadpool_%';
+
+--let $assert_text= Threadpool_threads should be greater than 0 during activity.
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME=\"Threadpool_threads\"]" > 0
+--source include/assert.inc
+
+--echo # Unblock connections
+connection con1;
+COMMIT;
+--echo # Connection 1 committed
+
+connection con2;
+--reap
+--echo # Connection 2 reaped
+
+connection con3;
+--reap
+--echo # Connection 3 reaped
+
+connection con4;
+--reap
+--echo # Connection 4 reaped
+
+connection default;
+--echo # Cleanup
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
+disconnect con5;
+
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc
+

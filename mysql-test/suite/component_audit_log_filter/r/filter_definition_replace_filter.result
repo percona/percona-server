@@ -65,6 +65,51 @@ UPDATE temp_1, temp_2 SET temp_1.id=21, temp_2.id=23;
 INSERT INTO temp_3 VALUES (1);
 Tag [<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>.*<SQLTEXT>UPDATE temp_1, temp_2 SET temp_1.id=21, temp_2.id=23</SQLTEXT>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>temp_3</TABLE>] Ok
 #
+# Invalid nested replacement rule returns inner parse error
+SELECT audit_log_filter_set_filter('filter_replace_invalid', '{
+"filter": {
+"id": "main",
+"class": {
+"name": "table_access",
+"event": {
+"name": "update",
+"log": false,
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"log": {
+"field": { "name": "connection_id", "value": "1" }
+},
+"filter": { "ref": "main" }
+}
+},
+"activate": {
+"field": { "name": "table_name.str", "value": "temp_1" }
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('filter_replace_invalid', '{
+"filter": {
+"id": "main",
+"class": {
+"name": "table_access",
+"event": {
+"name": "update",
+"log": false,
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"log": {
+"field": { "na
+ERROR: Incorrect rule definition: field name 'connection_id' is not valid for event class 'general'
+#
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';

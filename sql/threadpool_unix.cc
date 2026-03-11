@@ -15,6 +15,7 @@
    USA */
 
 #include <atomic>
+#include <cstdint>
 
 #include <time.h>
 #include "my_sys.h"
@@ -118,18 +119,21 @@ struct connection_t {
   bool bound_to_poll_descriptor;
   bool waiting;
   uint tickets;
+  ulonglong queue_enter_time;
 };
 
 typedef I_P_List<connection_t,
                  I_P_List_adapter<connection_t, &connection_t::next_in_queue,
                                   &connection_t::prev_in_queue>,
-                 I_P_List_null_counter, I_P_List_fast_push_back<connection_t>>
+                 I_P_List_counter, I_P_List_fast_push_back<connection_t>>
     connection_queue_t;
 
 struct alignas(128) thread_group_t {
   mysql_mutex_t mutex;
   connection_queue_t queue;
   connection_queue_t high_prio_queue;
+  LiveStats queue_wait_stats;
+  LiveStats hp_queue_wait_stats;
   worker_list_t waiting_threads;
   worker_thread_t *listener;
   pthread_attr_t *pthread_attr;
@@ -145,7 +149,7 @@ struct alignas(128) thread_group_t {
   int shutdown_pipe[2];
   bool shutdown;
   bool stalled;
-  char padding[328];
+  char padding[248];
 };
 
 static_assert(sizeof(thread_group_t) == 512,
@@ -405,6 +409,20 @@ inline bool connection_is_high_prio(const connection_t &c) noexcept {
            c.thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE)));
 }
 
+inline void mark_queue_enter(connection_t *c) noexcept {
+  c->queue_enter_time = my_microsecond_getsystime();
+}
+
+inline void record_queue_wait(LiveStats &stats, connection_t *c) noexcept {
+  if (!c->queue_enter_time) return;
+
+  const ulonglong now = my_microsecond_getsystime();
+  const ulonglong wait_us =
+      (now >= c->queue_enter_time) ? (now - c->queue_enter_time) : 0;
+  c->queue_enter_time = 0;
+  stats.addValue(static_cast<double>(wait_us));
+}
+
 }  // namespace
 
 /* Dequeue element from a workqueue */
@@ -416,6 +434,7 @@ static connection_t *queue_get(thread_group_t *thread_group) noexcept {
 
   if ((c = thread_group->high_prio_queue.front())) {
     thread_group->high_prio_queue.remove(c);
+    record_queue_wait(thread_group->hp_queue_wait_stats, c);
   }
   /*
     Don't pick events from the low priority queue if there are too many
@@ -424,6 +443,7 @@ static connection_t *queue_get(thread_group_t *thread_group) noexcept {
   else if (!too_many_busy_threads(*thread_group) &&
            (c = thread_group->queue.front())) {
     thread_group->queue.remove(c);
+    record_queue_wait(thread_group->queue_wait_stats, c);
   }
   DBUG_RETURN(c);
 }
@@ -713,6 +733,7 @@ static connection_t *listener(thread_group_t *thread_group) {
     */
     for (int i = (listener_picks_event) ? 1 : 0; i < cnt; i++) {
       connection_t *c = (connection_t *)native_event_get_userdata(&ev[i]);
+      mark_queue_enter(c);
       if (connection_is_high_prio(*c)) {
         c->tickets--;
         thread_group->high_prio_queue.push_back(c);
@@ -725,6 +746,13 @@ static connection_t *listener(thread_group_t *thread_group) {
     if (listener_picks_event) {
       /* Handle the first event. */
       retval = (connection_t *)native_event_get_userdata(&ev[0]);
+      // record 0 wait time to the corresponding stats because we handled event
+      // here
+      if (connection_is_high_prio(*retval)) {
+        thread_group->hp_queue_wait_stats.addValue(0.0);
+      } else {
+        thread_group->queue_wait_stats.addValue(0.0);
+      }
       mysql_mutex_unlock(&thread_group->mutex);
       break;
     }
@@ -994,6 +1022,7 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection) {
 
   mysql_mutex_lock(&thread_group->mutex);
   connection->tickets = connection->thd->variables.threadpool_high_prio_tickets;
+  mark_queue_enter(connection);
   // put new admin connection into high prio queue instead of normal
   // to be able to login when threadpool is exhausted
   if (connection->thd->is_admin_connection()) {
@@ -1071,7 +1100,6 @@ static connection_t *get_event(worker_thread_t *current_thread,
       if (io_poll_wait(thread_group->pollfd, &nev, 1, 0) == 1) {
         thread_group->io_event_count++;
         connection = (connection_t *)native_event_get_userdata(&nev);
-
         /*
           Since we are going to perform an out-of-order event processing for the
           connection, first check whether it is eligible for high priority
@@ -1089,11 +1117,18 @@ static connection_t *get_event(worker_thread_t *current_thread,
 
           connection->tickets =
               connection->thd->variables.threadpool_high_prio_tickets;
+          mark_queue_enter(connection);
           thread_group->queue.push_back(connection);
           connection = nullptr;
         }
 
         if (connection) {
+          /* Add 0-wait to statistics */
+          if (connection_is_high_prio(*connection)) {
+            thread_group->hp_queue_wait_stats.addValue(0.0);
+          } else {
+            thread_group->queue_wait_stats.addValue(0.0);
+          }
           thread_group->queue_event_count++;
           break;
         }
@@ -1196,6 +1231,7 @@ static connection_t *alloc_connection(THD *thd) noexcept {
     connection->bound_to_poll_descriptor = false;
     connection->abs_wait_timeout = ULLONG_MAX;
     connection->tickets = 0;
+    connection->queue_enter_time = 0;
   }
   DBUG_RETURN(connection);
 }
@@ -1565,6 +1601,93 @@ int tp_get_idle_thread_count() noexcept {
     sum += (all_groups[i].thread_count - all_groups[i].active_thread_count);
   }
   return sum;
+}
+
+/* Count requests waiting in all normal queues */
+int tp_get_requests_waiting_in_queue_count() noexcept {
+  int count = 0;
+
+  /* Iterate through all thread groups */
+  for (uint i = 0; i < group_count; i++) {
+    thread_group_t *group = &all_groups[i];
+
+    mysql_mutex_lock(&group->mutex);
+
+    /* Count elements in low priority queue */
+    count += group->queue.elements();
+
+    mysql_mutex_unlock(&group->mutex);
+  }
+
+  return count;
+}
+
+/* Count requests waiting in all high priority queues */
+int tp_get_requests_waiting_in_hp_queue_count() noexcept {
+  int count = 0;
+
+  /* Iterate through all thread groups */
+  for (uint i = 0; i < group_count; i++) {
+    thread_group_t *group = &all_groups[i];
+
+    mysql_mutex_lock(&group->mutex);
+
+    /* Count elements in high priority queue */
+    count += group->high_prio_queue.elements();
+
+    mysql_mutex_unlock(&group->mutex);
+  }
+
+  return count;
+}
+
+/* Count requests starved in queue */
+int tp_get_threadpool_requests_starved_in_queue() noexcept {
+  int count = 0;
+
+  /*
+    Soft saturation model: if low-priority queue cannot be drained due to
+    too_many_busy_threads(), treat those queued requests as not-entered-yet.
+  */
+  for (uint i = 0; i < group_count; i++) {
+    thread_group_t *group = &all_groups[i];
+
+    mysql_mutex_lock(&group->mutex);
+
+    if (too_many_busy_threads(*group)) {
+      count += group->queue.elements();
+    }
+
+    mysql_mutex_unlock(&group->mutex);
+  }
+
+  return count;
+}
+
+LiveStats::Stats tp_get_average_queue_wait_stats() noexcept {
+  LiveStats combined_stats;
+
+  for (uint i = 0; i < group_count; i++) {
+    thread_group_t *group = &all_groups[i];
+    mysql_mutex_lock(&group->mutex);
+    combined_stats.join(group->queue_wait_stats);
+    mysql_mutex_unlock(&group->mutex);
+  }
+
+  return combined_stats.getStats();
+}
+
+LiveStats::Stats tp_get_average_hp_queue_wait_stats() noexcept {
+  LiveStats combined_stats;
+
+  for (uint i = 0; i < group_count; i++) {
+    thread_group_t *group = &all_groups[i];
+    mysql_mutex_lock(&group->mutex);
+    combined_stats.join(group->hp_queue_wait_stats);
+    mysql_mutex_unlock(&group->mutex);
+  }
+
+  return combined_stats.getStats();
 }
 
 /* Report threadpool problems */

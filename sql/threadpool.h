@@ -17,8 +17,8 @@
 #define THREADPOOL_INCLUDED
 
 #include <atomic>
-
 #include "conn_handler/connection_handler_manager.h"
+#include "sql-common/live_stats.h"
 
 struct SHOW_VAR;
 
@@ -63,6 +63,15 @@ extern THD_event_functions tp_event_functions;
 
 /* Used in SHOW for threadpool_idle_thread_count */
 extern int tp_get_idle_thread_count() noexcept;
+/* Count of requests waiting in normal priority queues */
+extern int tp_get_requests_waiting_in_queue_count() noexcept;
+/* Count of requests waiting in high priority queues */
+extern int tp_get_requests_waiting_in_hp_queue_count() noexcept;
+/* Count of requests starved in a queue */
+extern int tp_get_threadpool_requests_starved_in_queue() noexcept;
+/* Aggregated queue wait stats across all thread groups */
+extern LiveStats::Stats tp_get_average_queue_wait_stats() noexcept;
+extern LiveStats::Stats tp_get_average_hp_queue_wait_stats() noexcept;
 
 /*
   Threadpool statistics

@@ -1,0 +1,627 @@
+SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}')
+OK
+SELECT audit_log_filter_set_filter('log_pre_auth',
+'{"filter":{"class":{"name":"connection","event":{"name":"pre_authenticate","log":true}}}}');
+audit_log_filter_set_filter('log_pre_auth',
+'{"filter":{"class":{"name":"connection","event":{"name":"pre_authenticate","log":true}}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_pre_auth');
+audit_log_filter_set_user('%', 'log_pre_auth')
+OK
+SELECT audit_log_filter_set_user('audit_user@localhost', 'log_all');
+audit_log_filter_set_user('audit_user@localhost', 'log_all')
+OK
+--- audit/startup ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "audit",
+  "event": "startup",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "root",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "root",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "startup_data": {
+    "args": [
+      "<hidden>"
+    ],
+    "mysql_version": "<hidden>",
+    "os_version": "<hidden>",
+    "server_id": <hidden>
+  }
+}
+
+--- general/log ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "general",
+  "event": "log",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "general_data": {
+    "command": "Query",
+    "sql_command": "select",
+    "query": "SELECT 1",
+    "status": 0
+  }
+}
+
+--- general/error ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "general",
+  "event": "error",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "general_data": {
+    "command": "Query",
+    "sql_command": "select",
+    "query": "SELECT * FROM missing_table_for_audit",
+    "status": 1146
+  }
+}
+
+--- general/result ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "general",
+  "event": "result",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "general_data": {
+    "command": "Query",
+    "sql_command": "select",
+    "query": "SELECT 1",
+    "status": 0
+  }
+}
+
+--- general/status ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "general",
+  "event": "status",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "general_data": {
+    "command": "Query",
+    "sql_command": "select",
+    "query": "SELECT 1",
+    "status": 0
+  }
+}
+
+--- connection/connect ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "connect",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": "test"
+  },
+  "connection_attributes": {
+    "_pid": "<hidden>",
+    "_platform": "<hidden>",
+    "_os": "<hidden>",
+    "_client_name": "<hidden>",
+    "_client_version": "<hidden>",
+    "program_name": "<hidden>"
+  }
+}
+
+--- connection/disconnect ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "disconnect",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": ""
+  },
+  "connection_attributes": {
+    "_pid": "<hidden>",
+    "_platform": "<hidden>",
+    "_os": "<hidden>",
+    "_client_name": "<hidden>",
+    "_client_version": "<hidden>",
+    "program_name": "<hidden>"
+  }
+}
+
+--- connection/change_user ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "change_user",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": ""
+  },
+  "connection_attributes": {
+    "_pid": "<hidden>",
+    "_platform": "<hidden>",
+    "_os": "<hidden>",
+    "_client_name": "<hidden>",
+    "_client_version": "<hidden>",
+    "program_name": "<hidden>"
+  }
+}
+
+--- connection/pre_authenticate ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "pre_authenticate",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": ""
+  }
+}
+
+--- table_access/read ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "read",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "select",
+    "query": "SELECT * FROM t_events WHERE id = 1",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- table_access/insert ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "insert",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "insert",
+    "query": "INSERT INTO t_events VALUES (3, 'three')",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- table_access/update ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "update",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "update",
+    "query": "UPDATE t_events SET val = 'THREE' WHERE id = 3",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- table_access/delete ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "delete",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "delete",
+    "query": "DELETE FROM t_events WHERE id = 3",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- global_variable/variable_get ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "global_variable",
+  "event": "variable_get",
+  "connection_id": <hidden>,
+  "global_variable_data": {
+    "sql_command": "select",
+    "name": "default_password_lifetime",
+    "value": "100"
+  }
+}
+
+--- global_variable/variable_set ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "global_variable",
+  "event": "variable_set",
+  "connection_id": <hidden>,
+  "global_variable_data": {
+    "sql_command": "set_option",
+    "name": "default_password_lifetime",
+    "value": "101"
+  }
+}
+
+--- command/command_start ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "command",
+  "event": "command_start",
+  "connection_id": <hidden>,
+  "command_data": {
+    "command": "Query",
+    "status": 0,
+    "name": "command_start"
+  }
+}
+
+--- command/command_end ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "command",
+  "event": "command_end",
+  "connection_id": <hidden>,
+  "command_data": {
+    "command": "Query",
+    "status": 0,
+    "name": "command_end"
+  }
+}
+
+--- query/query_start ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "query",
+  "event": "query_start",
+  "connection_id": <hidden>,
+  "query_data": {
+    "sql_command": "select",
+    "query": "SELECT 1",
+    "status": 0
+  }
+}
+
+--- query/query_nested_start ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "query",
+  "event": "query_nested_start",
+  "connection_id": <hidden>,
+  "query_data": {
+    "sql_command": "select",
+    "query": "SELECT x",
+    "status": 0
+  }
+}
+
+--- query/query_status_end ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "query",
+  "event": "query_status_end",
+  "connection_id": <hidden>,
+  "query_data": {
+    "sql_command": "select",
+    "query": "SELECT 1",
+    "status": 0
+  }
+}
+
+--- query/query_nested_status_end ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "query",
+  "event": "query_nested_status_end",
+  "connection_id": <hidden>,
+  "query_data": {
+    "sql_command": "select",
+    "query": "SELECT x",
+    "status": 0
+  }
+}
+
+--- stored_program/execute ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "stored_program",
+  "event": "execute",
+  "connection_id": <hidden>,
+  "stored_program_data": {
+    "db": "test",
+    "name": "p_nested"
+  }
+}
+
+--- authentication/auth_flush ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "authentication",
+  "event": "auth_flush",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "",
+    "host": ""
+  },
+  "authentication_data": {
+    "status": 0
+  }
+}
+
+--- authentication/auth_authid_create ---
+MISSING: authentication/auth_authid_create
+
+--- authentication/auth_credential_change ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "authentication",
+  "event": "auth_credential_change",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "auth_evt_user",
+    "host": "localhost"
+  },
+  "authentication_data": {
+    "status": 0
+  }
+}
+
+--- authentication/auth_authid_rename ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "authentication",
+  "event": "auth_authid_rename",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "auth_evt_user",
+    "host": "localhost"
+  },
+  "authentication_data": {
+    "status": 0
+  }
+}
+
+--- authentication/auth_authid_drop ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "authentication",
+  "event": "auth_authid_drop",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "auth_evt_user2",
+    "host": "localhost"
+  },
+  "authentication_data": {
+    "status": 0
+  }
+}
+
+--- message/internal ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "message",
+  "event": "internal",
+  "connection_id": <hidden>,
+  "message_data": {
+    "component": "test_audit_api_message",
+    "producer": "test_audit_api_message",
+    "message": "test_audit_api_message_internal",
+    "message_attributes": {
+      "my_numeric_key": -9223372036854775808
+    }
+  }
+}
+
+--- message/user ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "message",
+  "event": "user",
+  "connection_id": <hidden>,
+  "message_data": {
+    "component": "test_audit_api_message",
+    "producer": "test_audit_api_message",
+    "message": "test_audit_api_message_user",
+    "message_attributes": {
+      "my_string_key": "my_string_value"
+    }
+  }
+}
+
+--- parse/query_rewritten ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "parse",
+  "event": "query_rewritten",
+  "connection_id": <hidden>,
+  "parse_data": {
+    "query": "CREATE TABLE t_parse_rewrite (id INT) ENGINE = InnoDB, ENCRYPTION = 'N'",
+    "rewritten_query": "CREATE TABLE t_parse_rewrite (id INT) ENGINE = InnoDB ",
+    "flags": 1
+  }
+}
+
+--- parse/prepared_statement ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "parse",
+  "event": "prepared_statement",
+  "connection_id": <hidden>,
+  "parse_data": {
+    "query": "CREATE TABLE t_parse_ps (id INT) ENGINE = InnoDB",
+    "rewritten_query": "",
+    "flags": 2
+  }
+}
+
+--- audit/shutdown ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "audit",
+  "event": "shutdown",
+  "connection_id": <hidden>,
+  "shutdown_data": {
+    "server_id": <hidden>
+  }
+}
+

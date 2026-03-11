@@ -322,7 +322,14 @@ typedef std::map<const byte *, buf_chunk_t *, std::less<const byte *>,
                  ut::allocator<std::pair<const byte *const, buf_chunk_t *>>>
     buf_pool_chunk_map_t;
 
-static buf_pool_chunk_map_t *buf_chunk_map_reg;
+// Number of shards for chunk map (should be power of two)
+constexpr size_t CHUNK_MAP_SHARDS = 64;
+
+// Sharded chunk maps to reduce contention during parallel initialization
+static buf_pool_chunk_map_t *buf_chunk_map_shards[CHUNK_MAP_SHARDS];
+
+// Mutexes for each shard
+static std::mutex chunk_map_mutexes[CHUNK_MAP_SHARDS];
 
 /** Container for how many pages from each index are contained in the buffer
 pool(s). */
@@ -425,8 +432,16 @@ on the io_type */
 /** Registers a chunk to buf_pool_chunk_map
 @param[in]      chunk   chunk of buffers */
 static void buf_pool_register_chunk(buf_chunk_t *chunk) {
-  buf_chunk_map_reg->insert(
+  // Calculate shard index based on frame address
+  size_t shard_idx = reinterpret_cast<uintptr_t>(chunk->blocks->frame) %
+                     CHUNK_MAP_SHARDS;
+
+  buf_chunk_map_shards[shard_idx]->insert(
       buf_pool_chunk_map_t::value_type(chunk->blocks->frame, chunk));
+
+  // Do not register block rw-locks here: they are created and, if needed,
+  // registered later during actual latch initialization in
+  // buf_block_ensure_latches_initialized().
 }
 
 ulint buf_get_flush_list_len(const buf_pool_t *buf_pool) {
@@ -828,16 +843,50 @@ static void pfs_register_buffer_block(
 }
 #endif /* PFS_GROUP_BUFFER_SYNC */
 
-/** Initializes a buffer control block when the buf_pool is created. */
-static void buf_block_init(
-    buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-    buf_block_t *block,   /*!< in: pointer to control block */
-    byte *frame)          /*!< in: pointer to buffer frame */
+/** Ensure that latches for a buffer block are initialized exactly once. */
+inline void
+buf_block_ensure_latches_initialized(buf_block_t *block) {
+  if (block->latches_initialized.load(std::memory_order_acquire)) {
+    return;
+  }
+
+  bool expected = false;
+  if (!block->latches_initialized.compare_exchange_strong(
+          expected, true, std::memory_order_acq_rel)) {
+    /* Another thread did the initialization. */
+    return;
+  }
+
+  mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
+
+#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
+  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
+                      LATCH_ID_BUF_BLOCK_DEBUG));
+#else
+  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
+                      LATCH_ID_BUF_BLOCK_DEBUG));
+#endif
+
+#ifdef UNIV_DEBUG
+  block->lock.m_id = LATCH_ID_BUF_BLOCK_LOCK;
+  block->debug_latch.m_id = LATCH_ID_BUF_BLOCK_DEBUG;
+#endif /* UNIV_DEBUG */
+
+  block->lock.is_block_lock = true;
+
+  ut_ad(rw_lock_validate(&block->lock));
+}
+
+/** Lightweight initialization of a buffer control block: no latches created. */
+static void buf_block_init_light(
+    buf_pool_t *buf_pool,
+    buf_block_t *block,
+    byte *frame)
 {
   UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
-  /* This function should only be executed at database startup or by
-  buf_pool_resize(). Either way, adaptive hash index must not exist. */
   block->ahi.assert_empty_on_init();
 
   block->frame = frame;
@@ -867,34 +916,10 @@ static void buf_block_init(
 
   page_zip_des_init(&block->page.zip);
 
-  mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
-
-#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-  /* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
-  of buffer block rwlock with performance schema.
-
-  If PFS_GROUP_BUFFER_SYNC is defined, skip the registration
-  since buffer block rwlock will be registered later in
-  pfs_register_buffer_block(). */
-
-  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
-
-#else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
-
-#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-  block->lock.is_block_lock = true;
-
-  ut_ad(rw_lock_validate(&(block->lock)));
+  /* Latches are NOT initialized here. */
+  block->latches_initialized.store(false, std::memory_order_relaxed);
 }
+
 /* We maintain our private view of innobase_should_madvise_buf_pool() which we
 initialize at the beginning of buf_pool_init() and then update when the
 @@global.innodb_buffer_pool_in_core_file changes.
@@ -1080,8 +1105,7 @@ static buf_chunk_t *buf_chunk_init(
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
     ulonglong mem_size,   /*!< in: requested size in bytes */
-    bool populate,        /*!< in: virtual page preallocation */
-    std::mutex *mutex)    /*!< in,out: Mutex protecting chunk map. */
+    bool populate)        /*!< in: virtual page preallocation */
 {
   buf_block_t *block;
   byte *frame;
@@ -1143,10 +1167,10 @@ static buf_chunk_t *buf_chunk_init(
   block = chunk->blocks;
 
   for (i = chunk->size; i--;) {
-    buf_block_init(buf_pool, block, frame);
+    buf_block_init_light(buf_pool, block, frame);
     UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-    /* Add the block to the free list */
+  /* Add the block to the free list */
     UT_LIST_ADD_LAST(buf_pool->free, &block->page);
 
     ut_d(block->page.in_free_list = true);
@@ -1157,19 +1181,20 @@ static buf_chunk_t *buf_chunk_init(
     frame += UNIV_PAGE_SIZE;
   }
 
-  if (mutex != nullptr) {
-    mutex->lock();
+size_t shard_idx = reinterpret_cast<uintptr_t>(chunk->blocks->frame) % CHUNK_MAP_SHARDS;
+  std::lock_guard<std::mutex> lock(chunk_map_mutexes[shard_idx]);
+
+  if (buf_chunk_map_shards[shard_idx] == nullptr) {
+    buf_chunk_map_shards[shard_idx] =
+        ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   buf_pool_register_chunk(chunk);
 
-  if (mutex != nullptr) {
-    mutex->unlock();
-  }
-
 #ifdef PFS_GROUP_BUFFER_SYNC
   pfs_register_buffer_block(chunk);
 #endif /* PFS_GROUP_BUFFER_SYNC */
+
   return (chunk);
 }
 
@@ -1280,11 +1305,10 @@ static void buf_pool_set_sizes(void) {
 @param[in]      buf_pool            buffer pool instance
 @param[in]      buf_pool_size size in bytes
 @param[in]      instance_no   id of the instance
-@param[in,out]  mutex         Mutex to protect common data structures
 @param[out]     err           DB_SUCCESS if all goes well
 @param[in]      populate      virtual page preallocation */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
-                            ulint instance_no, std::mutex *mutex, dberr_t &err,
+                            ulint instance_no, dberr_t &err,
                             bool populate) {
   ulint i;
   ulint chunk_size;
@@ -1360,7 +1384,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     chunk = buf_pool->chunks;
 
     do {
-      if (!buf_chunk_init(buf_pool, chunk, chunk_size, populate, mutex)) {
+      if (!buf_chunk_init(buf_pool, chunk, chunk_size, populate)) {
         while (--chunk >= buf_pool->chunks) {
           buf_block_t *block = chunk->blocks;
 
@@ -1494,6 +1518,16 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   ut::free(buf_pool->watch);
   buf_pool->watch = nullptr;
   mutex_enter(&buf_pool->chunks_mutex);
+
+  /* Save frame addresses before freeing blocks */
+  std::vector<byte*> frame_addrs;
+  frame_addrs.reserve(buf_pool->n_chunks);
+  chunk = buf_pool->chunks;
+
+  for (ulint i = buf_pool->n_chunks; i--; chunk++) {
+    frame_addrs.push_back(chunk->blocks->frame);
+  }
+
   chunks = buf_pool->chunks;
   chunk = chunks + buf_pool->n_chunks;
 
@@ -1501,13 +1535,23 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
     buf_block_t *block = chunk->blocks;
 
     for (ulint i = chunk->size; i--; block++) {
-      mutex_free(&block->mutex);
-      rw_lock_free(&block->lock);
-
-      ut_d(rw_lock_free(&block->debug_latch));
+      if (block->latches_initialized.load(std::memory_order_acquire)) {
+        mutex_free(&block->mutex);
+        rw_lock_free(&block->lock);
+        ut_d(rw_lock_free(&block->debug_latch));
+      }
     }
-
     buf_pool->deallocate_chunk(chunk);
+  }
+
+/* Now unregister chunks from map using saved addresses */
+  for (auto frame_addr : frame_addrs) {
+    size_t shard_idx =
+        reinterpret_cast<uintptr_t>(frame_addr) % CHUNK_MAP_SHARDS;
+    std::lock_guard<std::mutex> lock(chunk_map_mutexes[shard_idx]);
+    if (buf_chunk_map_shards[shard_idx] != nullptr) {
+      buf_chunk_map_shards[shard_idx]->erase(frame_addr);
+    }
   }
 
   for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
@@ -1527,8 +1571,13 @@ static void buf_pool_free() {
   btr_search_sys_free();
   ut::delete_(buf_stat_per_index);
 
-  ut::delete_(buf_chunk_map_reg);
-  buf_chunk_map_reg = nullptr;
+  // Free all sharded chunk maps
+  for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
+    if (buf_chunk_map_shards[i] != nullptr) {
+      ut::delete_(buf_chunk_map_shards[i]);
+      buf_chunk_map_shards[i] = nullptr;
+    }
+  }
 
   ut::free(buf_pool_ptr);
   buf_pool_ptr = nullptr;
@@ -1560,8 +1609,10 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
   buf_pool_ptr = (buf_pool_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, n_instances * sizeof *buf_pool_ptr);
 
-  buf_chunk_map_reg =
-      ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  // Initialize sharded chunk maps (lazy initialization in register_chunk)
+  for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
+    buf_chunk_map_shards[i] = nullptr;
+  }
 
   std::vector<dberr_t> errs;
 
@@ -2460,9 +2511,13 @@ withdraw_retry:
   }
   buf_resize_status_progress_update(7, 7);
 
-  ut::delete_(buf_chunk_map_reg);
-  buf_chunk_map_reg =
-      ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
+// Reinitialize sharded chunk maps for resize
+  for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
+      if (buf_chunk_map_shards[i] != nullptr) {
+          ut::delete_(buf_chunk_map_shards[i]);
+          buf_chunk_map_shards[i] = nullptr;
+      }
+  }
 
   buf_resize_status_progress_reset();
   buf_resize_status(BUF_POOL_RESIZE_IN_PROGRESS, "Starting pool resize");
@@ -2562,7 +2617,7 @@ withdraw_retry:
         ulonglong unit = srv_buf_pool_chunk_unit;
 
         if (!buf_chunk_init(buf_pool, chunk, unit,
-                            static_cast<bool>(srv_numa_interleave), nullptr)) {
+                            static_cast<bool>(srv_numa_interleave))) {
           ib::error(ER_IB_MSG_65) << "buffer pool " << i
                                   << " : failed to allocate"
                                      " new memory.";
@@ -3569,7 +3624,24 @@ This function does not return if the block is not identified.
 buf_block_t *buf_block_from_ahi(const byte *ptr) {
   buf_pool_chunk_map_t::iterator it;
 
-  buf_pool_chunk_map_t *chunk_map = buf_chunk_map_reg;
+// Calculate which shard to search
+  size_t shard_idx = reinterpret_cast<uintptr_t>(ptr) % CHUNK_MAP_SHARDS;
+
+  buf_pool_chunk_map_t *chunk_map = buf_chunk_map_shards[shard_idx];
+  if (chunk_map == nullptr) {
+    // Shard not initialized, search all shards
+    for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
+      if (buf_chunk_map_shards[i] != nullptr) {
+        auto it = buf_chunk_map_shards[i]->upper_bound(ptr);
+        if (it != buf_chunk_map_shards[i]->begin()) {
+          chunk_map = buf_chunk_map_shards[i];
+          break;
+        }
+      }
+    }
+    if (chunk_map == nullptr) return nullptr;
+  }
+
   ut_ad(!buf_pool_resizing);
 
   buf_chunk_t *chunk;
@@ -4890,6 +4962,8 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
   ut_ad(rw_lock_own(buf_page_hash_lock_get(buf_pool, page_id), RW_LOCK_X));
 
+  buf_block_ensure_latches_initialized(block);
+
   /* Set the state of the block */
   buf_block_set_file_page(block, page_id);
 
@@ -4984,6 +5058,8 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     ut_ad(block);
     ut_ad(!block->page.someone_has_io_responsibility());
     ut_ad(buf_pool_from_block(block) == buf_pool);
+
+    buf_block_ensure_latches_initialized(block);
   }
 
   buf_page_t *bpage = nullptr;
@@ -5225,6 +5301,8 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
   block = free_block;
 
   buf_page_init(buf_pool, page_id, page_size, block);
+
+  buf_block_ensure_latches_initialized(block);
 
   buf_block_buf_fix_inc(block, UT_LOCATION_HERE);
 

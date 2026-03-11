@@ -1930,6 +1930,8 @@ struct buf_block_t {
   or (3) the block must belong to an intrinsic table */
   uint64_t modify_clock;
 
+  std::atomic<bool> latches_initialized{};
+
   /** @} */
 
   /** mutex protecting this block: state (also protected by the buffer
@@ -2052,6 +2054,10 @@ static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
 static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
   return buf_pool_hash_zip_frame(b->frame);
 }
+
+/* Lazy latch initialization for buffer blocks. */
+  void buf_block_ensure_latches_initialized(buf_block_t *block);
+
 /** @} */
 
 /** A "Hazard Pointer" class used to iterate over page lists

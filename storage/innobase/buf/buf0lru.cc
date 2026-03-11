@@ -1235,6 +1235,9 @@ buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool) {
 
       ut_ad(buf_pool_from_block(block) == buf_pool);
 
+      /* Lazy init of latches for this block taken from the free list. */
+      buf_block_ensure_latches_initialized(block);
+
       return (block);
     }
 

@@ -1,0 +1,3 @@
+--loose-audit_log_filter.file=audit_event_classes_subclasses_json.log
+--loose-audit_log_filter.format=JSON
+$DDL_REWRITER_OPT

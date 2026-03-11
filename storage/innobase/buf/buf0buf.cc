@@ -83,6 +83,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0trx.h"
+#include "ut0cpu_cache.h"
 #include "ut0new.h"
 
 #include "scope_guard.h"
@@ -828,16 +829,52 @@ static void pfs_register_buffer_block(
 }
 #endif /* PFS_GROUP_BUFFER_SYNC */
 
-/** Initializes a buffer control block when the buf_pool is created. */
-static void buf_block_init(
-    buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-    buf_block_t *block,   /*!< in: pointer to control block */
-    byte *frame)          /*!< in: pointer to buffer frame */
+/** Initialize latches for a buffer block. */
+void buf_block_initialize_latches(buf_block_t *block) {
+  ut_a(!block->latches_initialized);
+
+  /* This runs in one of three race-free contexts:
+   - eager init during chunk creation: at startup, or under free_list_mutex
+     for resize (see buf_chunk_init);
+   - lazy init on first use: the block has just been taken from the free list
+     and is owned exclusively by this thread (BUF_BLOCK_READY_FOR_USE), so it
+     is not yet reachable by any other thread. */
+  ut_ad(srv_is_being_started ||
+        mutex_own(&buf_pool_from_block(block)->free_list_mutex) ||
+        buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
+
+  mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
+
+#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
+  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
+                      LATCH_ID_BUF_BLOCK_DEBUG));
+#else
+  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
+                      LATCH_ID_BUF_BLOCK_DEBUG));
+#endif
+
+#ifdef UNIV_DEBUG
+  block->lock.m_id = LATCH_ID_BUF_BLOCK_LOCK;
+  block->debug_latch.m_id = LATCH_ID_BUF_BLOCK_DEBUG;
+#endif /* UNIV_DEBUG */
+
+  block->lock.is_block_lock = true;
+
+  ut_ad(rw_lock_validate(&block->lock));
+
+  block->latches_initialized = true;
+}
+
+/** Lightweight initialization of a buffer control block: no latches created. */
+static void buf_block_init_light(
+    buf_pool_t *buf_pool,
+    buf_block_t *block,
+    byte *frame)
 {
   UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
-  /* This function should only be executed at database startup or by
-  buf_pool_resize(). Either way, adaptive hash index must not exist. */
   block->ahi.assert_empty_on_init();
 
   block->frame = frame;
@@ -867,34 +904,13 @@ static void buf_block_init(
 
   page_zip_des_init(&block->page.zip);
 
-  mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
-
-#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-  /* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
-  of buffer block rwlock with performance schema.
-
-  If PFS_GROUP_BUFFER_SYNC is defined, skip the registration
-  since buffer block rwlock will be registered later in
-  pfs_register_buffer_block(). */
-
-  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
-
-#else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
-
-#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-  block->lock.is_block_lock = true;
-
-  ut_ad(rw_lock_validate(&(block->lock)));
+  /* Latches are NOT initialized here. Block creation happens either at
+  startup (no concurrency on this instance yet) or, for resize, under the
+  instance's free_list_mutex. */
+  ut_ad(srv_is_being_started || mutex_own(&buf_pool->free_list_mutex));
+  block->latches_initialized = false;
 }
+
 /* We maintain our private view of innobase_should_madvise_buf_pool() which we
 initialize at the beginning of buf_pool_init() and then update when the
 @@global.innodb_buffer_pool_in_core_file changes.
@@ -1081,7 +1097,8 @@ static buf_chunk_t *buf_chunk_init(
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
     ulonglong mem_size,   /*!< in: requested size in bytes */
     bool populate,        /*!< in: virtual page preallocation */
-    std::mutex *mutex)    /*!< in,out: Mutex protecting chunk map. */
+    std::mutex *mutex)    /*!< in,out: mutex protecting the chunk map, or
+                          nullptr when no concurrency is possible */
 {
   buf_block_t *block;
   byte *frame;
@@ -1143,7 +1160,15 @@ static buf_chunk_t *buf_chunk_init(
   block = chunk->blocks;
 
   for (i = chunk->size; i--;) {
-    buf_block_init(buf_pool, block, frame);
+    buf_block_init_light(buf_pool, block, frame);
+
+    /* When lazy latch initialization is disabled, create the latches now
+    (eager initialization, the original behavior). When enabled, they are
+    created on first use in buf_LRU_get_free_only(). */
+    if (!srv_buf_pool_lazy_latch_init) {
+      buf_block_initialize_latches(block);
+    }
+
     UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
     /* Add the block to the free list */
@@ -1157,6 +1182,9 @@ static buf_chunk_t *buf_chunk_init(
     frame += UNIV_PAGE_SIZE;
   }
 
+  /* buf_pool instances are created in parallel during buf_pool_init(), so the
+  caller passes a mutex to serialize inserts into the shared chunk map. During
+  resize there is no concurrency and mutex is nullptr. */
   if (mutex != nullptr) {
     mutex->lock();
   }
@@ -1170,6 +1198,7 @@ static buf_chunk_t *buf_chunk_init(
 #ifdef PFS_GROUP_BUFFER_SYNC
   pfs_register_buffer_block(chunk);
 #endif /* PFS_GROUP_BUFFER_SYNC */
+
   return (chunk);
 }
 
@@ -1280,7 +1309,8 @@ static void buf_pool_set_sizes(void) {
 @param[in]      buf_pool            buffer pool instance
 @param[in]      buf_pool_size size in bytes
 @param[in]      instance_no   id of the instance
-@param[in,out]  mutex         Mutex to protect common data structures
+@param[in,out]  mutex         mutex protecting the shared chunk map while
+                              instances are created in parallel
 @param[out]     err           DB_SUCCESS if all goes well
 @param[in]      populate      virtual page preallocation */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
@@ -1361,14 +1391,18 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
     do {
       if (!buf_chunk_init(buf_pool, chunk, chunk_size, populate, mutex)) {
+        /* Failure cleanup at startup, under chunks_mutex. */
+        ut_ad(mutex_own(&buf_pool->chunks_mutex));
         while (--chunk >= buf_pool->chunks) {
           buf_block_t *block = chunk->blocks;
 
           for (i = chunk->size; i--; block++) {
-            mutex_free(&block->mutex);
-            rw_lock_free(&block->lock);
-
-            ut_d(rw_lock_free(&block->debug_latch));
+            /* Only blocks whose latches were lazily created need freeing. */
+            if (block->latches_initialized) {
+              mutex_free(&block->mutex);
+              rw_lock_free(&block->lock);
+              ut_d(rw_lock_free(&block->debug_latch));
+            }
           }
           buf_pool->deallocate_chunk(chunk);
         }
@@ -1497,14 +1531,20 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   chunks = buf_pool->chunks;
   chunk = chunks + buf_pool->n_chunks;
 
+  /* Teardown reads latches_initialized under chunks_mutex with no concurrent
+  writers. */
+  ut_ad(mutex_own(&buf_pool->chunks_mutex));
+
   while (--chunk >= chunks) {
     buf_block_t *block = chunk->blocks;
 
     for (ulint i = chunk->size; i--; block++) {
-      mutex_free(&block->mutex);
-      rw_lock_free(&block->lock);
-
-      ut_d(rw_lock_free(&block->debug_latch));
+      /* Only blocks whose latches were lazily created need to be freed. */
+      if (block->latches_initialized) {
+        mutex_free(&block->mutex);
+        rw_lock_free(&block->lock);
+        ut_d(rw_lock_free(&block->debug_latch));
+      }
     }
 
     buf_pool->deallocate_chunk(chunk);
@@ -1593,13 +1633,16 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
 
     std::vector<IB_thread> threads;
 
-    std::mutex m;
+    /* Shared by the worker threads of this batch to serialize chunk-map
+    inserts. Placed in its own cache line so the contended lock word does not
+    false-share with neighbouring stack data. */
+    ut::Cacheline_aligned<std::mutex> m;
 
     for (ulint id = i; id < n; ++id) {
       threads.emplace_back(os_thread_create(buf_pool_create_thread_key, 0,
                                             buf_pool_create, &buf_pool_ptr[id],
-                                            size, id, &m, std::ref(errs[id]),
-                                            populate));
+                                            size, id, static_cast<std::mutex *>(&m),
+                                            std::ref(errs[id]), populate));
       threads[id - i].start();
     }
 
@@ -2460,6 +2503,9 @@ withdraw_retry:
   }
   buf_resize_status_progress_update(7, 7);
 
+  /* Rebuild the chunk map from scratch. AHI lookups (buf_block_from_ahi)
+  are excluded while buf_pool_resizing is set, so it is safe to drop and
+  repopulate the map here. */
   ut::delete_(buf_chunk_map_reg);
   buf_chunk_map_reg =
       ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -2485,20 +2531,24 @@ withdraw_retry:
 
       ulint sum_freed = 0;
 
+      /* Resize holds the instance's free_list_mutex (and runs with
+      buf_pool_resizing set), so reading latches_initialized here is safe. */
+      ut_ad(buf_pool_resizing);
+      ut_ad(mutex_own(&buf_pool->free_list_mutex));
+
       while (chunk < echunk) {
         buf_block_t *block = chunk->blocks;
 
         for (ulint j = chunk->size; j--; block++) {
-          mutex_free(&block->mutex);
-          rw_lock_free(&block->lock);
-
-          ut_d(rw_lock_free(&block->debug_latch));
+          if (block->latches_initialized) {
+            mutex_free(&block->mutex);
+            rw_lock_free(&block->lock);
+            ut_d(rw_lock_free(&block->debug_latch));
+          }
         }
 
         buf_pool->deallocate_chunk(chunk);
-
         sum_freed += chunk->size;
-
         ++chunk;
       }
 
@@ -2542,6 +2592,8 @@ withdraw_retry:
 
       memcpy(new_chunks, buf_pool->chunks, n_chunks_copy * sizeof(*chunk));
 
+      /* The map was just rebuilt empty above, so a plain insert per chunk
+      repopulates it for the chunks being carried over. */
       for (ulint j = 0; j < n_chunks_copy; j++) {
         buf_pool_register_chunk(&new_chunks[j]);
       }
@@ -2562,7 +2614,8 @@ withdraw_retry:
         ulonglong unit = srv_buf_pool_chunk_unit;
 
         if (!buf_chunk_init(buf_pool, chunk, unit,
-                            static_cast<bool>(srv_numa_interleave), nullptr)) {
+                            static_cast<bool>(srv_numa_interleave),
+                            nullptr)) {
           ib::error(ER_IB_MSG_65) << "buffer pool " << i
                                   << " : failed to allocate"
                                      " new memory.";
@@ -3591,7 +3644,7 @@ buf_block_t *buf_block_from_ahi(const byte *ptr) {
 
   buf_block_t *block = &chunk->blocks[offs];
 
-  /* The function buf_chunk_init() invokes buf_block_init() so that
+  /* The function buf_chunk_init() invokes buf_block_init_light() so that
   block[n].frame == block->frame + n * UNIV_PAGE_SIZE.  Check it. */
   ut_ad(block->frame == page_align(ptr));
   /* Read the state of the block without holding a mutex.

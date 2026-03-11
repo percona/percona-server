@@ -1908,6 +1908,17 @@ struct buf_block_t {
   single thread. */
   bool made_dirty_with_no_latch;
 
+
+  /** Whether this block's latches (mutex, lock, debug_latch) have been
+  created. See buf_block_initialize_latches().
+
+  Not atomic: every false->true transition happens while the block is owned
+  exclusively by a single thread (just removed from the free list, not yet in
+  the page hash or LRU), and its visibility to threads that later reuse the
+  block is carried by the buf_pool->free_list_mutex release/acquire handoff.
+  Reads during teardown happen under chunks_mutex with no concurrent writers. */
+  bool latches_initialized{false};
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
   /** @name Debug fields */
@@ -2052,6 +2063,10 @@ static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
 static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
   return buf_pool_hash_zip_frame(b->frame);
 }
+
+/* Lazy latch initialization for buffer block. */
+void buf_block_initialize_latches(buf_block_t *block);
+
 /** @} */
 
 /** A "Hazard Pointer" class used to iterate over page lists

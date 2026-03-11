@@ -247,6 +247,7 @@ call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filte
 call mtr.add_suppression("Component audit_log_filter reported: 'Event field 'status' cannot be replaced'");
 call mtr.add_suppression("Component audit_log_filter reported: 'Event field 'connection_id' cannot be replaced'");
 call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'incorrect_rule' format, the 'log' field must be of bool or object type'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'incorrect_rule' format, field name 'query_charset' is not valid for event class 'parse''");
 #call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'wrong_field_type' format, wrong function args format provided'");
 --enable_query_log
 
@@ -310,6 +311,34 @@ let $filter = {
           "field": {
             "name": "query.str",
             "print": [],
+            "replace": {
+              "function": {
+                "name": "query_digest"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+};
+eval SELECT audit_log_filter_set_filter('incorrect_rule', '$filter');
+
+# Invalid replacement condition for one class in class-name array
+let $filter = {
+  "filter": {
+    "class": [
+      {
+        "name": ["query", "parse"],
+        "print": {
+          "field": {
+            "name": "query.str",
+            "print": {
+              "field": {
+                "name": "query_charset",
+                "value": "utf8mb4"
+              }
+            },
             "replace": {
               "function": {
                 "name": "query_digest"

@@ -253,23 +253,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
   }
 
   std::shared_ptr<EventFieldActionBase> replace_field;
-
-  const std::string early_class_name =
-      event_class_json["name"].IsString() ? event_class_json["name"].GetString()
-                                          : std::string{};
-
-  if (event_class_json.HasMember("print")) {
-    replace_field =
-        parse_action_json(EventActionType::ReplaceField, event_class_json,
-                          early_class_name, audit_rule);
-
-    if (replace_field == nullptr) {
-      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EVENT_CLASS_BAD_PRINT_DEF,
-                      audit_rule->get_rule_name().c_str());
-      audit_rule->set_parse_error("failed to parse 'print' replacement rule");
-      return false;
-    }
-  }
+  const bool has_print = event_class_json.HasMember("print");
 
   if (event_class_json["name"].IsString()) {
     const std::string event_class_name = event_class_json["name"].GetString();
@@ -281,6 +265,19 @@ bool AuditRuleParser::parse_event_class_obj_json(
       audit_rule->set_parse_error("unknown event class name '" +
                                   event_class_name + "'");
       return false;
+    }
+
+    if (has_print) {
+      replace_field =
+          parse_action_json(EventActionType::ReplaceField, event_class_json,
+                            event_class_name, audit_rule);
+
+      if (replace_field == nullptr) {
+        LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EVENT_CLASS_BAD_PRINT_DEF,
+                        audit_rule->get_rule_name().c_str());
+        audit_rule->set_parse_error("failed to parse 'print' replacement rule");
+        return false;
+      }
     }
 
     if (event_class_json.HasMember("event")) {
@@ -358,8 +355,21 @@ bool AuditRuleParser::parse_event_class_obj_json(
 
       audit_rule->add_action_for_event(log_action, event_class_name);
 
-      if (replace_field != nullptr) {
-        audit_rule->add_action_for_event(replace_field, event_class_name);
+      if (has_print) {
+        auto replace_field_for_class =
+            parse_action_json(EventActionType::ReplaceField, event_class_json,
+                              event_class_name, audit_rule);
+
+        if (replace_field_for_class == nullptr) {
+          LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EVENT_CLASS_BAD_PRINT_DEF,
+                          audit_rule->get_rule_name().c_str());
+          audit_rule->set_parse_error(
+              "failed to parse 'print' replacement rule");
+          return false;
+        }
+
+        audit_rule->add_action_for_event(replace_field_for_class,
+                                         event_class_name);
       }
     }
   } else {
@@ -1348,7 +1358,7 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
       }
 
       auto replacement_rule =
-          make_replacement_rule(action_json["filter"]["class"]);
+          make_replacement_rule(action_json["filter"]["class"], audit_rule);
 
       if (replacement_rule == nullptr) {
         return nullptr;
@@ -1495,7 +1505,7 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
 }
 
 std::shared_ptr<AuditRule> AuditRuleParser::make_replacement_rule(
-    const rapidjson::Value &rule_json) noexcept {
+    const rapidjson::Value &rule_json, AuditRule *audit_rule) noexcept {
   rapidjson::Document d;
   d.SetObject();
   d.AddMember("filter", rapidjson::Value{rapidjson::kObjectType},
@@ -1504,10 +1514,16 @@ std::shared_ptr<AuditRule> AuditRuleParser::make_replacement_rule(
                         d.GetAllocator());
   d["filter"]["class"].CopyFrom(rule_json, d.GetAllocator());
 
-  auto rule = std::make_shared<AuditRule>();
+  const auto rule_name =
+      audit_rule != nullptr ? audit_rule->get_rule_name() : std::string{};
+  auto rule = std::make_shared<AuditRule>(rule_name.c_str());
 
   if (AuditRuleParser::parse(d, rule.get())) {
     return rule;
+  }
+
+  if (audit_rule != nullptr && !rule->get_parse_error().empty()) {
+    audit_rule->set_parse_error(rule->get_parse_error());
   }
 
   return nullptr;

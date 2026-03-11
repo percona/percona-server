@@ -194,10 +194,11 @@ class AuditRuleParser {
    * @brief Build replacement filtering rule.
    *
    * @param rule_json JSON definition of replacement filtering rule
+   * @param audit_rule Parent filtering rule collecting parse errors
    * @return Replacement filtering rule instance
    */
   [[nodiscard]] static std::shared_ptr<AuditRule> make_replacement_rule(
-      const rapidjson::Value &rule_json) noexcept;
+      const rapidjson::Value &rule_json, AuditRule *audit_rule) noexcept;
 };
 
 }  // namespace audit_log_filter

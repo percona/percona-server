@@ -65,6 +65,44 @@ INSERT INTO temp_3 VALUES (1);
 --source check_all_events_with_tag.inc
 
 --echo #
+--echo # Invalid nested replacement rule returns inner parse error
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'filter_replace_invalid' format, failed to parse 'filter' replacement rule'");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter 'filter_replace_invalid' format, field name 'connection_id' is not valid for event class 'general''");
+--enable_query_log
+
+let $filter = {
+  "filter": {
+    "id": "main",
+    "class": {
+      "name": "table_access",
+      "event": {
+        "name": "update",
+        "log": false,
+        "filter": {
+          "class": {
+            "name": "general",
+            "event": {
+              "name": "status",
+              "log": {
+                "field": { "name": "connection_id", "value": "1" }
+              },
+              "filter": { "ref": "main" }
+            }
+          },
+          "activate": {
+            "field": { "name": "table_name.str", "value": "temp_1" }
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('filter_replace_invalid', '$filter');
+
+--echo #
 --echo # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';

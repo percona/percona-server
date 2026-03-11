@@ -425,6 +425,48 @@ audit_log_filter_set_filter('incorrect_rule', '{
 }
 }')
 ERROR: Incorrect rule definition: the 'log' field must be of bool or object type
+SELECT audit_log_filter_set_filter('incorrect_rule', '{
+"filter": {
+"class": [
+{
+"name": ["query", "parse"],
+"print": {
+"field": {
+"name": "query.str",
+"print": {
+"field": {
+"name": "query_charset",
+"value": "utf8mb4"
+              }
+},
+"replace": {
+"function": {
+"name": "query_digest"
+              }
+}
+}
+}
+}
+]
+}
+}');
+audit_log_filter_set_filter('incorrect_rule', '{
+"filter": {
+"class": [
+{
+"name": ["query", "parse"],
+"print": {
+"field": {
+"name": "query.str",
+"print": {
+"field": {
+"name": "query_charset",
+"value": "utf8mb4"
+              }
+},
+"replace": {
+"function": 
+ERROR: Incorrect rule definition: field name 'query_charset' is not valid for event class 'parse'
 #
 # Cleanup
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';

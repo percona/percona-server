@@ -199,4 +199,14 @@ audit_log_filter_set_filter('filter_broken_badEventArr', '{"filter": { "class": 
 ] } }')
 ERROR: Incorrect rule definition: unknown event subclass name 'nonexistent' for class 'general'
 #
+# Broken parse event name: rewrite flag name is not an event subclass
+SELECT audit_log_filter_set_filter('filter_broken_parseRewriteNone', '{"filter": { "class": [ { "name": "parse", "event": { "name": "rewrite_none" } } ] } }');
+audit_log_filter_set_filter('filter_broken_parseRewriteNone', '{"filter": { "class": [ { "name": "parse", "event": { "name": "rewrite_none" } } ] } }')
+ERROR: Incorrect rule definition: unknown event subclass name 'rewrite_none' for class 'parse'
+#
+# Broken parse event name: rewrite flag name is not an event subclass
+SELECT audit_log_filter_set_filter('filter_broken_parseRewritePreparedStmt', '{"filter": { "class": [ { "name": "parse", "event": { "name": "rewrite_prepared_statement" } } ] } }');
+audit_log_filter_set_filter('filter_broken_parseRewritePreparedStmt', '{"filter": { "class": [ { "name": "parse", "event": { "name": "rewrite_prepared_statement" } } ] } }')
+ERROR: Incorrect rule definition: unknown event subclass name 'rewrite_prepared_statement' for class 'parse'
+#
 # Cleanup

@@ -507,50 +507,54 @@ struct TTASEventMutex {
   @param[in]    filename        from where called
   @param[in]    line            within filename */
   void spin_and_try_lock(uint32_t max_spins, uint32_t max_delay,
-                         const char *filename, uint32_t line) UNIV_NOTHROW {
-    uint32_t n_spins = 0;
-    uint32_t n_waits = 0;
-    const uint32_t step = max_spins;
+                       const char *filename, uint32_t line) UNIV_NOTHROW {
+  uint32_t n_spins = 0;
+  uint32_t n_waits = 0;
 
-    for (;;) {
-      /* If the lock was free then try and acquire it. */
+  const uint32_t step = max_spins;
 
-      if (is_free(max_spins, max_delay, n_spins)) {
-        if (try_lock()) {
-          break;
-        } else {
-          continue;
-        }
+  /* How long we are willing to purely spin before involving the scheduler. */
+  const uint32_t active_spin_limit = max_spins * 4;
 
-      } else {
-        max_spins = n_spins + step;
-      }
-
-      ++n_waits;
-
-      std::this_thread::yield();
-
-      /* The 4 below is a heuristic that has existed for a
-      very long time now. It is unclear if changing this
-      value will make a difference.
-
-      NOTE: There is a delay that happens before the retry,
-      finding a free slot in the sync arary and the yield
-      above. Otherwise we could have simply done the extra
-      spin above. */
-
-      if (wait(filename, line, 4)) {
-        n_spins += 4;
-
+  for (;;) {
+    /* If the lock was free then try and acquire it. */
+    if (is_free(max_spins, max_delay, n_spins)) {
+      if (try_lock()) {
         break;
+      } else {
+        continue;
       }
+
+    } else {
+      max_spins = n_spins + step;
     }
 
-    /* Waits and yields will be the same number in our
-    mutex design */
+    ++n_waits;
 
-    m_policy.add(n_spins, n_waits);
+    /* Phase 1: pure spinning, no context switch at all. */
+    if (n_spins < active_spin_limit) {
+      /* Small pause to reduce contention on the cache line. */
+      ut_delay(1);  // or equivalent pause instruction
+      continue;
+    }
+
+    /* Phase 2: light backoff – occasional yields, still no sleep. */
+    if (n_waits % 8 != 0) {
+      /* Yield rarely, not on every unsuccessful attempt. */
+      std::this_thread::yield();
+      continue;
+    }
+
+    /* Phase 3: rare, but guaranteed context switch via wait(). */
+    if (wait(filename, line, 4)) {
+      n_spins += 4;
+      break;
+    }
   }
+
+  m_policy.add(n_spins, n_waits);
+}
+
 
   /** Note that there are threads waiting on the mutex */
   void set_waiters() UNIV_NOTHROW { m_waiters.store(true); }

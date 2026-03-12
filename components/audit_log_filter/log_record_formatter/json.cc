@@ -85,11 +85,8 @@ const std::string_view kAuditEventNameStoredProgramExecute{"execute"};
 const std::string_view kAuditEventNameMessageInternal{"internal"};
 const std::string_view kAuditEventNameMessageUser{"user"};
 
-const std::string_view kAuditEventNameParseRewriteNone{"no_rewrite"};
-const std::string_view kAuditEventNameParseRewriteQueryRewritten{
-    "query_rewritten"};
-const std::string_view kAuditEventNameParseRewritePreparedStatement{
-    "prepared_statement"};
+const std::string_view kAuditEventNameParsePreparse{"preparse"};
+const std::string_view kAuditEventNameParsePostparse{"postparse"};
 
 const std::string_view kAuditNameShutdownReasonShutdown{"shutdown"};
 const std::string_view kAuditNameShutdownReasonAbort{"abort"};
@@ -286,12 +283,10 @@ std::string_view LogRecordFormatterJson::event_subclass_to_string(
 std::string_view LogRecordFormatterJson::event_subclass_to_string(
     const mysql_event_tracking_parse_data *event) const noexcept {
   switch (event->event_subclass) {
-    case EVENT_TRACKING_PARSE_REWRITE_NONE:
-      return kAuditEventNameParseRewriteNone;
-    case EVENT_TRACKING_PARSE_REWRITE_QUERY_REWRITTEN:
-      return kAuditEventNameParseRewriteQueryRewritten;
-    case EVENT_TRACKING_PARSE_REWRITE_IS_PREPARED_STATEMENT:
-      return kAuditEventNameParseRewritePreparedStatement;
+    case EVENT_TRACKING_PARSE_PREPARSE:
+      return kAuditEventNameParsePreparse;
+    case EVENT_TRACKING_PARSE_POSTPARSE:
+      return kAuditEventNameParsePostparse;
     default:
       assert(false);
   }

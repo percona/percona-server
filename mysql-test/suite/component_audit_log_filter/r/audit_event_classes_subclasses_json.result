@@ -585,12 +585,12 @@ MISSING: authentication/auth_authid_create
   }
 }
 
---- parse/query_rewritten ---
+--- parse/preparse ---
 {
   "timestamp": "<hidden>",
   "id": <hidden>,
   "class": "parse",
-  "event": "query_rewritten",
+  "event": "preparse",
   "connection_id": <hidden>,
   "parse_data": {
     "query": "CREATE TABLE t_parse_rewrite (id INT) ENGINE = InnoDB, ENCRYPTION = 'N'",
@@ -599,12 +599,12 @@ MISSING: authentication/auth_authid_create
   }
 }
 
---- parse/prepared_statement ---
+--- parse/postparse ---
 {
   "timestamp": "<hidden>",
   "id": <hidden>,
   "class": "parse",
-  "event": "prepared_statement",
+  "event": "postparse",
   "connection_id": <hidden>,
   "parse_data": {
     "query": "CREATE TABLE t_parse_ps (id INT) ENGINE = InnoDB",

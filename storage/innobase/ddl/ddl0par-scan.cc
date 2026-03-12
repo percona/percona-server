@@ -35,9 +35,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "ut0stage.h"
 
-#ifdef UNIV_DEBUG
 #include <current_thd.h>
-#endif /* UNIV_DEBUG */
+#include <sql/sql_class.h>
+#include <sql_thd_internal_api.h>
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 namespace ddl {
 
@@ -259,26 +263,55 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
   size_t nr{};
 
-  /* current_thread is a thread local variable. Set current_thd it
-  to the user thread's THD  instance so that the debug sync calls
-  will trigger for the spawned threads too. */
-  IF_DEBUG(reader.set_start_callback([&](Thread_ctx *thread_ctx) {
+  /* current_thd is thread-local. In sync mode, worker callbacks run on the
+  caller thread (which already has a THD). For spawned worker threads, create
+  an internal THD and clean it up at thread finish. */
+  reader.set_start_callback([&](Thread_ctx *thread_ctx) {
     if (thread_ctx->get_state() == Parallel_reader::State::THREAD) {
-      current_thd = m_ctx.thd();
+      if (!reader.is_sync()) {
+        ut_ad(current_thd == nullptr);
+        auto thd = create_internal_thd();
+        if (thd == nullptr) {
+          return DB_OUT_OF_MEMORY;
+        }
+        auto caller_thd = m_ctx.thd();
+        ut_ad_ne(caller_thd, nullptr);
+        ut_ad_eq(current_thd, thd);
+        /* Worker scan threads call Field::date_flags() when reporting
+        duplicates (via Dup::report()), which needs the caller thread's
+        sql_mode, so we only copy this from the caller thread. */
+#ifdef HAVE_ASAN
+        ASAN_POISON_MEMORY_REGION((void *)&thd->variables,
+                                  sizeof(thd->variables));
+        ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables.sql_mode,
+                                    sizeof(thd->variables.sql_mode));
+#endif
+        thd->variables.sql_mode = caller_thd->variables.sql_mode;
+      }
     }
     return DB_SUCCESS;
-  });)
+  });
 
   /* Called when a thread finishes traversing a page and when it completes. */
   reader.set_finish_callback([&](Thread_ctx *thread_ctx) {
+    const auto state = thread_ctx->get_state();
     if (reader.is_error_set()) {
+      if (state == Parallel_reader::State::THREAD && !reader.is_sync()) {
+        auto thd = current_thd;
+        ut_ad_ne(thd, nullptr);
+#ifdef HAVE_ASAN
+        ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
+                                    sizeof(thd->variables));
+#endif
+        destroy_internal_thd(thd);
+      }
       return reader.get_error_state();
     }
 
     dberr_t err{DB_SUCCESS};
     const auto thread_id = thread_ctx->m_thread_id;
 
-    switch (thread_ctx->get_state()) {
+    switch (state) {
       case Parallel_reader::State::PAGE:
         if (!batch_insert.empty()) {
           err = batch_inserter(thread_ctx);
@@ -302,6 +335,9 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
         return err;
 
       case Parallel_reader::State::THREAD: {
+        auto thd = current_thd;
+        ut_a(thd != nullptr);
+
         ut_a(n_rows[thread_id] == 0);
 
         /* End of index scan. */
@@ -311,7 +347,15 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
         m_eof = true;
 
-        return bulk_inserter(thread_ctx, row);
+        err = bulk_inserter(thread_ctx, row);
+        if (!reader.is_sync()) {
+#ifdef HAVE_ASAN
+          ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
+                                      sizeof(thd->variables));
+#endif
+          destroy_internal_thd(thd);
+        }
+        return err;
       }
 
       case Parallel_reader::State::CTX:

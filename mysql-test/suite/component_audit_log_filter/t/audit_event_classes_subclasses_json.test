@@ -15,7 +15,7 @@
 #   authentication: flush, authid_create (currently missing),
 #                   credential_change, authid_rename, authid_drop
 #   message: internal, user
-#   parse: query_rewritten, prepared_statement
+#   parse: preparse, postparse
 #
 --source suite/query_rewrite_plugins/include/have_ddl_rewriter.inc
 --source include/have_component_audit_log.inc
@@ -94,8 +94,8 @@ CALL p_nested();
 INSERT INTO trg_src VALUES (1);
 SELECT test_audit_api_message_internal();
 SELECT test_audit_api_message_user();
-# ddl_rewriter fills rewritten_query for query_rewritten. The paired
-# prepared_statement record still exposes the rewritten SQL via query.
+# Keep an interesting preparse sample with rewritten_query populated.
+# Keep an interesting postparse sample with the prepared-statement flag set.
 CREATE TABLE t_parse_rewrite (id INT) ENGINE = InnoDB, ENCRYPTION = 'N';
 DROP TABLE t_parse_rewrite;
 PREPARE stmt_parse_ddl
@@ -312,8 +312,8 @@ perl;
   sub sample_score {
     my ($key, $event) = @_;
     return 0 if !defined $event;
-    return 0 if $key ne 'parse/query_rewritten' &&
-                $key ne 'parse/prepared_statement';
+    return 0 if $key ne 'parse/preparse' &&
+                $key ne 'parse/postparse';
 
     my $parse_data = $event->{parse_data};
     return 0 if ref $parse_data ne 'HASH';
@@ -371,8 +371,8 @@ perl;
     'authentication/auth_authid_drop',
     'message/internal',
     'message/user',
-    'parse/query_rewritten',
-    'parse/prepared_statement',
+    'parse/preparse',
+    'parse/postparse',
     'audit/shutdown',
   );
 

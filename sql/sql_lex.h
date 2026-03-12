@@ -793,6 +793,9 @@ public:
   /// @return the active query options
   ulonglong active_options() const { return m_active_options; }
 
+  /// @returns number of tables in query block
+  size_t table_count() const { return table_list.elements; }
+
 private:
   /**
     Intrusive double-linked list of all query blocks within the same

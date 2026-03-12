@@ -2972,6 +2972,9 @@ row_ins_sec_index_entry_low(
 			rtr_info_update_btr(&cursor, &rtr_info);
 			mtr_start(&mtr);
 			mtr.set_named_space(index->space);
+			if (dict_table_is_temporary(index->table)) {
+				mtr.set_log_mode(MTR_LOG_NO_REDO);
+			}
 			search_mode &= ~BTR_MODIFY_LEAF;
 			search_mode |= BTR_MODIFY_TREE;
 			err = btr_cur_search_to_nth_level(

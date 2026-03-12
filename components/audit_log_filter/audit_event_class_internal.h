@@ -50,6 +50,7 @@ typedef unsigned long internal_event_tracking_audit_subclass_t;
 struct internal_event_tracking_audit_data {
   internal_event_tracking_audit_subclass_t event_subclass;
   uint32 server_id;
+  unsigned long connection_id;
 };
 
 }  // namespace audit_log_filter

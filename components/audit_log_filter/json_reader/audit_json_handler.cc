@@ -42,8 +42,7 @@ AuditJsonHandler::AuditJsonHandler(
       m_out_buff_size{out_buff_size},
       m_used_buff_size{0},
       m_printed_events_count{0},
-      m_reading_start_reached{false},
-      m_is_first_field{false} {}
+      m_reading_start_reached{false} {}
 
 char *AuditJsonHandler::get_result_buffer_ptr() noexcept {
   return m_out_buff.get();
@@ -80,38 +79,48 @@ void AuditJsonHandler::iterative_parse_close(bool with_null_tag) noexcept {
 
 // --- Value Handlers ---
 
-bool AuditJsonHandler::Null() { return true; }
+bool AuditJsonHandler::Null() {
+  before_value();
+  m_event_str << "null";
+  return true;
+}
 
 bool AuditJsonHandler::Bool(bool value) {
+  before_value();
   m_event_str << (value ? "true" : "false");
   return true;
 }
 
 bool AuditJsonHandler::Int(int value) {
   update_bookmark(static_cast<uint64_t>(value));
+  before_value();
   m_event_str << value;
   return true;
 }
 
 bool AuditJsonHandler::Uint(unsigned value) {
   update_bookmark(static_cast<uint64_t>(value));
+  before_value();
   m_event_str << value;
   return true;
 }
 
 bool AuditJsonHandler::Int64(int64_t value) {
   update_bookmark(static_cast<uint64_t>(value));
+  before_value();
   m_event_str << value;
   return true;
 }
 
 bool AuditJsonHandler::Uint64(uint64_t value) {
   update_bookmark(value);
+  before_value();
   m_event_str << value;
   return true;
 }
 
 bool AuditJsonHandler::Double(double value) {
+  before_value();
   m_event_str << value;
   return true;
 }
@@ -120,6 +129,7 @@ bool AuditJsonHandler::String(const char *value, rapidjson::SizeType length,
                               bool copy [[maybe_unused]]) {
   std::string s_value(value, length);
   update_bookmark(s_value);
+  before_value();
   m_event_str << "\"" << s_value << "\"";
   return true;
 }
@@ -127,25 +137,26 @@ bool AuditJsonHandler::String(const char *value, rapidjson::SizeType length,
 // --- Structure Handlers ---
 
 bool AuditJsonHandler::StartObject() {
+  before_value();
   ++m_obj_level;
   m_event_str << "{";
-  // Reset flag: the first key encountered will not have a comma separator
-  m_is_first_field = true;
+  m_context_stack.push_back({ContainerType::Object, true});
   return true;
 }
 
 bool AuditJsonHandler::Key(const char *str, rapidjson::SizeType length,
                            bool copy [[maybe_unused]]) {
   m_current_key_name.assign(str, length);
+  assert(!m_context_stack.empty());
+  assert(m_context_stack.back().type == ContainerType::Object);
 
-  // Manage comma separation and state before appending the key.
-  if (m_is_first_field) {
-    m_is_first_field = false;  // This is the first field, so unset the flag
+  auto &context = m_context_stack.back();
+  if (context.is_first_element) {
+    context.is_first_element = false;
   } else {
-    m_event_str << ", ";  // Prepend separator if a previous field exists
+    m_event_str << ", ";
   }
 
-  // Append key and colon
   m_event_str << "\"" << str << "\": ";
   return true;
 }
@@ -156,13 +167,10 @@ bool AuditJsonHandler::EndObject(rapidjson::SizeType memberCount
     --m_obj_level;
   }
 
-  // Append the closing brace.
   m_event_str << "}";
-
-  // If closing an inner object (m_obj_level is now > 0), or the top-level
-  // object, ensure the m_is_first_field is false, so the next Key() call
-  // (if any, in the parent) correctly prepends a comma.
-  m_is_first_field = false;
+  assert(!m_context_stack.empty());
+  assert(m_context_stack.back().type == ContainerType::Object);
+  m_context_stack.pop_back();
 
   // Handle the completed top-level event object.
   if (m_obj_level == 0) {
@@ -195,9 +203,14 @@ bool AuditJsonHandler::EndObject(rapidjson::SizeType memberCount
 }
 
 bool AuditJsonHandler::StartArray() {
-  // If we ever to support such arrays (i.e. non top-level) we need to rethink
-  // and change comma separation logic between arrays and objects elements.
-  assert(m_arr_level == 0);
+  const bool is_top_level_array = (m_arr_level == 0 && m_obj_level == 0);
+
+  if (!is_top_level_array) {
+    before_value();
+    m_event_str << "[";
+    m_context_stack.push_back({ContainerType::Array, true});
+  }
+
   ++m_arr_level;
   return true;
 }
@@ -205,12 +218,41 @@ bool AuditJsonHandler::StartArray() {
 bool AuditJsonHandler::EndArray(rapidjson::SizeType elementCount
                                 [[maybe_unused]]) {
   if (m_arr_level > 0) {
+    if (!(m_arr_level == 1 && m_obj_level == 0)) {
+      m_event_str << "]";
+      assert(!m_context_stack.empty());
+      assert(m_context_stack.back().type == ContainerType::Array);
+      m_context_stack.pop_back();
+    }
+
     --m_arr_level;
   }
   return true;
 }
 
-void AuditJsonHandler::clear_current_event() { m_event_str.str(std::string()); }
+void AuditJsonHandler::before_value() {
+  if (m_context_stack.empty()) {
+    return;
+  }
+
+  auto &context = m_context_stack.back();
+  if (context.type != ContainerType::Array) {
+    return;
+  }
+
+  if (context.is_first_element) {
+    context.is_first_element = false;
+  } else {
+    m_event_str << ", ";
+  }
+}
+
+void AuditJsonHandler::clear_current_event() {
+  m_event_str.str(std::string());
+  m_event_str.clear();
+  m_current_key_name.clear();
+  m_current_event_bookmark = {};
+}
 
 bool AuditJsonHandler::check_reading_start_reached() {
   if (!m_reading_start_reached) {

@@ -554,14 +554,57 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 
 void AuditLogFilter::send_audit_start_event() noexcept {
   auto event = internal_event_tracking_audit_data{
-      INTERNAL_EVENT_TRACKING_AUDIT_AUDIT, static_cast<uint32>(::server_id)};
-  m_log_writer->write(get_audit_record(
-      audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event));
+      INTERNAL_EVENT_TRACKING_AUDIT_AUDIT, static_cast<uint32>(::server_id), 0};
+
+  MYSQL_THD thd = nullptr;
+  if (mysql_service_mysql_current_thread_reader->get(&thd) == 0 &&
+      thd != nullptr) {
+    event.connection_id = static_cast<unsigned long>(thd->thread_id());
+  }
+
+  auto audit_record =
+      get_audit_record(audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event);
+
+  Security_context_handle sctx{};
+  if (thd != nullptr && m_security_context_srv != nullptr &&
+      m_security_context_opts_srv != nullptr &&
+      m_security_context_srv->get(thd, &sctx) == 0 && sctx != nullptr) {
+    auto load_security_context_option = [this, &sctx](const char *name,
+                                                      std::string &value) {
+      MYSQL_LEX_CSTRING raw_value{"", 0};
+      if (m_security_context_opts_srv->get(sctx, name, &raw_value) == 0 &&
+          raw_value.str != nullptr && raw_value.length > 0) {
+        value.assign(raw_value.str, raw_value.length);
+      } else {
+        value.clear();
+      }
+    };
+
+    if (auto *record = std::get_if<AuditRecordAudit>(&audit_record)) {
+      load_security_context_option("user", record->extended_info.user);
+      load_security_context_option("host", record->extended_info.host);
+      load_security_context_option("ip", record->extended_info.ip);
+      load_security_context_option("external_user",
+                                   record->extended_info.external_user);
+      load_security_context_option("proxy_user",
+                                   record->extended_info.proxy_user);
+    }
+  }
+
+  m_log_writer->write(audit_record);
 }
 
 void AuditLogFilter::send_audit_stop_event() noexcept {
-  auto event = internal_event_tracking_audit_data{
-      INTERNAL_EVENT_TRACKING_AUDIT_NOAUDIT, static_cast<uint32>(::server_id)};
+  auto event =
+      internal_event_tracking_audit_data{INTERNAL_EVENT_TRACKING_AUDIT_NOAUDIT,
+                                         static_cast<uint32>(::server_id), 0};
+
+  MYSQL_THD thd = nullptr;
+  if (mysql_service_mysql_current_thread_reader->get(&thd) == 0 &&
+      thd != nullptr) {
+    event.connection_id = static_cast<unsigned long>(thd->thread_id());
+  }
+
   m_log_writer->write(get_audit_record(
       audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event));
 }

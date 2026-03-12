@@ -112,8 +112,8 @@ const std::string_view kAuditEventNameParseRewriteQueryRewritten{
 const std::string_view kAuditEventNameParseRewritePreparedStatement{
     "Prepared Statement"};
 
-const std::string_view kAuditEventNameAuditStart{"Audit"};
-const std::string_view kAuditEventNameAuditStop{"NoAudit"};
+const std::string_view kAuditEventNameAuditStart{"Startup"};
+const std::string_view kAuditEventNameAuditStop{"Shutdown"};
 
 const std::string_view kAuditNameUnknown{"unknown"};
 

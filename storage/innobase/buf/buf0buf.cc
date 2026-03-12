@@ -1394,27 +1394,18 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
       if (!buf_chunk_init(buf_pool, chunk, chunk_size, populate)) {
         while (--chunk >= buf_pool->chunks) {
           buf_block_t *block = chunk->blocks;
-
-          for (i = chunk->size; i--; block++) {
-            if (block->latches_initialized.load(
-                    std::memory_order_acquire)) {
-              mutex_free(&block->mutex);
-              rw_lock_free(&block->lock);
-              ut_d(rw_lock_free(&block->debug_latch));
-            }
+          for (ulint i = chunk->size; i--; block++) {
+            buf_pool->deallocate_chunk(chunk);
           }
-          buf_pool->deallocate_chunk(chunk);
         }
-        ut::free(buf_pool->chunks);
-        buf_pool->chunks = nullptr;
-
-        err = DB_ERROR;
         mutex_exit(&buf_pool->chunks_mutex);
+        err = DB_ERROR;
         return;
       }
-
       buf_pool->curr_size += chunk->size;
     } while (++chunk < buf_pool->chunks + buf_pool->n_chunks);
+
+
     mutex_exit(&buf_pool->chunks_mutex);
 
     buf_pool->instance_no = instance_no;

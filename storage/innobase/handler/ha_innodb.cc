@@ -23816,7 +23816,6 @@ static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
                           "Helps to save your data in case the disk image of "
                           "the database becomes corrupt.",
                           nullptr, nullptr, 0, 0, 6, 0);
-
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

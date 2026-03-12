@@ -118,7 +118,7 @@ constexpr ulint MAX_PAGE_HASH_LOCKS = 1024;
 extern buf_pool_t *buf_pool_ptr;
 
 #ifdef UNIV_LINUX
-extern ulong srv_buffer_pool_parallel_init_threads;
+  extern ulong srv_buffer_pool_parallel_init_threads;
 #endif
 
 #ifdef UNIV_HOTBACKUP

@@ -1,0 +1,62 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+
+--source clean_current_audit_log.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_comp_install.inc
+--let $audit_filter_rotate_name = `SELECT audit_log_rotate()`
+
+--let $audit_filter_log_check_one =
+--let $audit_filter_log_format = json
+--source validate_logs_format.inc
+
+perl;
+  use strict;
+  use warnings;
+  use File::Spec;
+
+  my $log_path = $ENV{'audit_filter_log_path'};
+  my $log_name = $ENV{'audit_filter_log_name'};
+  my $base_file_name = $log_name =~ s/\..*$//r;
+
+  opendir(my $dh, $log_path)
+    or die "Could not open '$log_path': $!";
+
+  my @log_files = sort grep { /$base_file_name\.\d{8}T\d{6}/ } readdir($dh);
+  closedir($dh);
+
+  die "Could not find rotated audit logs in '$log_path'\n" if (!@log_files);
+
+  my $content = '';
+  for my $file_name (@log_files) {
+    my $file_path = File::Spec->catfile($log_path, $file_name);
+    open(my $fh, '<:encoding(UTF-8)', $file_path)
+      or die "Could not open '$file_path': $!";
+
+    local $/;
+    $content .= <$fh>;
+    close($fh);
+  }
+
+  if ($content =~ /"class": "audit".*?"event": "shutdown".*?"connection_id": \d+.*?"shutdown_data": \{ "server_id": \d+ \}/s) {
+    print "OK: audit/shutdown payload\n";
+  } else {
+    die "MISSING: audit/shutdown payload\n";
+  }
+
+  if ($content =~ /"class": "audit".*?"event": "startup".*?"connection_id": \d+.*?"account": \{ "user": ".*?", "host": ".*?" \}.*?"login": \{ "user": ".*?", "os": ".*?", "ip": ".*?", "proxy": ".*?" \}.*?"startup_data": \{.*?"server_id": \d+.*?"os_version": ".*?".*?"mysql_version": ".*?".*?"args": \[.*?\]\s*\}/s) {
+    print "OK: audit/startup payload\n";
+  } else {
+    die "MISSING: audit/startup payload\n";
+  }
+
+  print "\nLifecycle audit JSON payloads observed.\n";
+EOF
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

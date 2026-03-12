@@ -79,8 +79,8 @@ constexpr std::string_view kSubclassNameDisconnect{"disconnect"};
 constexpr std::string_view kSubclassNameChangeUser{"change_user"};
 constexpr std::string_view kSubclassNamePreAuthenticate{"pre_authenticate"};
 constexpr std::string_view kSubclassNameMessageInternal{"internal"};
-constexpr std::string_view kSubclassNameInternalAudit{"audit"};
-constexpr std::string_view kSubclassNameInternalNoAudit{"noaudit"};
+constexpr std::string_view kSubclassNameInternalStartup{"startup"};
+constexpr std::string_view kSubclassNameInternalShutdown{"shutdown"};
 constexpr std::string_view kSubclassNameParseRewriteNone{"rewrite_none"};
 constexpr std::string_view kSubclassNameParseRewriteQueryRewritten{
     "rewrite_query_rewritten"};
@@ -324,9 +324,9 @@ std::string_view event_subclass_to_string(
     const internal_event_tracking_audit_data *event) {
   switch (event->event_subclass) {
     case INTERNAL_EVENT_TRACKING_AUDIT_AUDIT:
-      return kSubclassNameInternalAudit;
+      return kSubclassNameInternalStartup;
     case INTERNAL_EVENT_TRACKING_AUDIT_NOAUDIT:
-      return kSubclassNameInternalNoAudit;
+      return kSubclassNameInternalShutdown;
     default:
       assert(false);
   }

@@ -17,6 +17,7 @@
 #include "components/audit_log_filter/sys_vars.h"
 
 #include "my_dbug.h"
+#include "sql/mysqld.h"
 
 #include <mysql/components/services/defs/event_tracking_authentication_defs.h>
 #include <mysql/components/services/defs/event_tracking_command_defs.h>
@@ -100,8 +101,8 @@ const std::string_view kAuditConnectionTypeNamePipe{"named_pipe"};
 const std::string_view kAuditConnectionTypeNameSsl{"ssl"};
 const std::string_view kAuditConnectionTypeNameShared{"shared_memory"};
 
-const std::string_view kAuditEventNameAuditStart{"audit"};
-const std::string_view kAuditEventNameAuditStop{"noaudit"};
+const std::string_view kAuditEventNameAuditStart{"startup"};
+const std::string_view kAuditEventNameAuditStop{"shutdown"};
 
 auto make_unix_timestamp(
     const std::chrono::system_clock::time_point time_point) noexcept {
@@ -799,6 +800,17 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
+  const auto escaped_user =
+      make_escaped_string(audit_record.extended_info.user);
+  const auto escaped_host =
+      make_escaped_string(audit_record.extended_info.host);
+  const auto escaped_ip = make_escaped_string(audit_record.extended_info.ip);
+  const auto escaped_external_user =
+      make_escaped_string(audit_record.extended_info.external_user);
+  const auto escaped_proxy_user =
+      make_escaped_string(audit_record.extended_info.proxy_user);
+  const auto escaped_server_version = make_escaped_string(server_version);
+  const auto event_name = event_subclass_to_string(audit_record.event);
 
   /* clang-format off */
   result << "  {\n"
@@ -810,9 +822,42 @@ AuditRecordString LogRecordFormatterJson::apply(
 
   result << R"(    "id": )" << rec_id << ",\n"
          << R"(    "class": "audit",)" << "\n"
-         << R"(    "event": ")" << event_subclass_to_string(audit_record.event) << "\",\n"
-         << R"(    "server_id": )" << audit_record.event->server_id
-         << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
+         << R"(    "event": ")" << event_name << "\"";
+
+  if (audit_record.event->event_subclass == INTERNAL_EVENT_TRACKING_AUDIT_AUDIT) {
+    result << ",\n"
+           << R"(    "connection_id": )" << audit_record.event->connection_id << ",\n"
+           << R"(    "account": { "user": ")" << escaped_user
+           << R"(", "host": ")" << escaped_host << R"(" },)" << "\n"
+           << R"(    "login": { "user": ")" << escaped_user
+           << R"(", "os": ")" << escaped_external_user
+           << R"(", "ip": ")" << escaped_ip
+           << R"(", "proxy": ")" << escaped_proxy_user << R"(" },)" << "\n"
+           << R"(    "startup_data": {)" << "\n"
+           << R"(      "server_id": )" << audit_record.event->server_id << ",\n"
+           << R"(      "os_version": ")" << MACHINE_TYPE "-" SYSTEM_TYPE << "\",\n"
+           << R"(      "mysql_version": ")" << escaped_server_version << "\",\n"
+           << R"(      "args": [)" << "\n";
+
+    for (int i = 0; i < orig_argc; ++i) {
+      if (orig_argv[i] != nullptr) {
+        result << ((i == 0) ? "" : ",\n") << R"(        ")"
+               << make_escaped_string(orig_argv[i]) << "\"";
+      }
+    }
+
+    result << "\n"
+           << R"(      ])" << "\n"
+           << R"(    })";
+  } else {
+    result << ",\n"
+           << R"(    "connection_id": )" << audit_record.event->connection_id
+           << ",\n"
+           << R"(    "shutdown_data": { "server_id": )"
+           << audit_record.event->server_id << " }";
+  }
+
+  result << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
   /* clang-format on */
 
   SysVars::update_log_bookmark(rec_id, timestamp);
@@ -843,7 +888,7 @@ const EscapeRulesContainer &LogRecordFormatterJson::get_escape_rules()
       {20, "\\u0014"}, {21, "\\u0015"}, {22, "\\u0016"}, {23, "\\u0017"},
       {24, "\\u0018"}, {25, "\\u0019"}, {26, "\\u001A"}, {27, "\\u001B"},
       {28, "\\u001C"}, {29, "\\u001D"}, {30, "\\u001E"}, {31, "\\u001F"},
-      {'\\', "\\\\"},  {'"', "\\\""},   {'/', "\\/"}};
+      {'\\', "\\\\"},  {'"', "\\\""}};
 
   return escape_rules;
 }

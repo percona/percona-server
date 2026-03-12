@@ -81,11 +81,8 @@ constexpr std::string_view kSubclassNamePreAuthenticate{"pre_authenticate"};
 constexpr std::string_view kSubclassNameMessageInternal{"internal"};
 constexpr std::string_view kSubclassNameInternalStartup{"startup"};
 constexpr std::string_view kSubclassNameInternalShutdown{"shutdown"};
-constexpr std::string_view kSubclassNameParseRewriteNone{"rewrite_none"};
-constexpr std::string_view kSubclassNameParseRewriteQueryRewritten{
-    "rewrite_query_rewritten"};
-constexpr std::string_view kSubclassNameParseRewritePreparedStatement{
-    "rewrite_prepared_statement"};
+constexpr std::string_view kSubclassNameParsePreparse{"preparse"};
+constexpr std::string_view kSubclassNameParsePostparse{"postparse"};
 
 template <typename Container>
 bool contains_string_view(std::string_view value,
@@ -307,12 +304,10 @@ std::string_view event_subclass_to_string(
 std::string_view event_subclass_to_string(
     const mysql_event_tracking_parse_data *event) {
   switch (event->event_subclass) {
-    case EVENT_TRACKING_PARSE_REWRITE_NONE:
-      return kSubclassNameParseRewriteNone;
-    case EVENT_TRACKING_PARSE_REWRITE_QUERY_REWRITTEN:
-      return kSubclassNameParseRewriteQueryRewritten;
-    case EVENT_TRACKING_PARSE_REWRITE_IS_PREPARED_STATEMENT:
-      return kSubclassNameParseRewritePreparedStatement;
+    case EVENT_TRACKING_PARSE_PREPARSE:
+      return kSubclassNameParsePreparse;
+    case EVENT_TRACKING_PARSE_POSTPARSE:
+      return kSubclassNameParsePostparse;
     default:
       assert(false);
   }
@@ -879,10 +874,9 @@ bool is_valid_event_subclass_name(std::string_view class_name,
   }
 
   if (class_name == kClassNameParse) {
-    static constexpr std::array<std::string_view, 3> valid_subclasses{{
-        kSubclassNameParseRewriteNone,
-        kSubclassNameParseRewriteQueryRewritten,
-        kSubclassNameParseRewritePreparedStatement,
+    static constexpr std::array<std::string_view, 2> valid_subclasses{{
+        kSubclassNameParsePreparse,
+        kSubclassNameParsePostparse,
     }};
     return contains_string_view(subclass_name, valid_subclasses);
   }

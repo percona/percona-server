@@ -23,6 +23,7 @@
 #include "rapidjson/reader.h"
 
 #include <sstream>
+#include <vector>
 
 namespace audit_log_filter {
 
@@ -69,6 +70,14 @@ class AuditJsonHandler
   bool EndArray(rapidjson::SizeType elementCount);
 
  private:
+  enum class ContainerType { Object, Array };
+
+  struct ContainerState {
+    ContainerType type;
+    bool is_first_element;
+  };
+
+  void before_value();
   void clear_current_event();
   bool check_reading_start_reached();
   void update_bookmark(uint64_t id);
@@ -83,6 +92,7 @@ class AuditJsonHandler
   std::stringstream m_event_str;
   int m_obj_level;
   int m_arr_level;
+  std::vector<ContainerState> m_context_stack;
 
   std::unique_ptr<char, std::function<void(char *)>> m_out_buff;
   char *m_current_buff;
@@ -90,7 +100,6 @@ class AuditJsonHandler
   ulong m_used_buff_size;
   ulong m_printed_events_count;
   bool m_reading_start_reached;
-  bool m_is_first_field;
 
   LogBookmark m_current_event_bookmark;
 };

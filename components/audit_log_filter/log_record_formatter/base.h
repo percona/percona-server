@@ -18,8 +18,6 @@
 
 #include "components/audit_log_filter/audit_event_class_internal.h"
 
-#include <mysql/components/services/defs/event_tracking_lifecycle_defs.h>
-
 #include <atomic>
 #include <chrono>
 #include <sstream>
@@ -31,8 +29,6 @@ struct mysql_event_tracking_general_data;
 struct mysql_event_tracking_connection_data;
 struct mysql_event_tracking_table_access_data;
 struct mysql_event_tracking_global_variable_data;
-struct mysql_event_tracking_startup_data;
-struct mysql_event_tracking_shutdown_data;
 struct mysql_event_tracking_command_data;
 struct mysql_event_tracking_query_data;
 struct mysql_event_tracking_stored_program_data;
@@ -47,8 +43,6 @@ struct AuditRecordGeneral;
 struct AuditRecordConnection;
 struct AuditRecordTableAccess;
 struct AuditRecordGlobalVariable;
-struct AuditRecordServerStartup;
-struct AuditRecordServerShutdown;
 struct AuditRecordCommand;
 struct AuditRecordQuery;
 struct AuditRecordStoredProgram;
@@ -110,24 +104,6 @@ class LogRecordFormatterBase {
    */
   [[nodiscard]] virtual AuditRecordString apply(
       const AuditRecordGlobalVariable &audit_record) const noexcept = 0;
-
-  /**
-   * @brief Apply formatting to AuditRecordServerStartup audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordServerStartup &audit_record) const noexcept = 0;
-
-  /**
-   * @brief Apply formatting to AuditRecordServerShutdown audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordServerShutdown &audit_record) const noexcept = 0;
 
   /**
    * @brief Apply formatting to AuditRecordCommand audit record.
@@ -374,24 +350,6 @@ class LogRecordFormatterBase {
    * @return String representation of audit event subclass name
    */
   [[nodiscard]] virtual std::string_view event_subclass_to_string(
-      const mysql_event_tracking_startup_data *event) const noexcept;
-
-  /**
-   * @brief Get string representation of audit event subclass name.
-   *
-   * @param event Audit event
-   * @return String representation of audit event subclass name
-   */
-  [[nodiscard]] virtual std::string_view event_subclass_to_string(
-      const mysql_event_tracking_shutdown_data *event) const noexcept;
-
-  /**
-   * @brief Get string representation of audit event subclass name.
-   *
-   * @param event Audit event
-   * @return String representation of audit event subclass name
-   */
-  [[nodiscard]] virtual std::string_view event_subclass_to_string(
       const mysql_event_tracking_stored_program_data *event) const noexcept;
 
   /**
@@ -420,15 +378,6 @@ class LogRecordFormatterBase {
    */
   [[nodiscard]] virtual std::string_view connection_type_name_to_string(
       int connection_type) const noexcept;
-
-  /**
-   * @brief Get string representation of shutdown reason.
-   *
-   * @param reason Shutdown reason
-   * @return String representation of shutdown reason
-   */
-  [[nodiscard]] virtual std::string_view shutdown_reason_to_string(
-      mysql_event_tracking_shutdown_reason_t reason) const noexcept;
 
  private:
   /**

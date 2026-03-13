@@ -20,8 +20,6 @@
 
 #include "components/audit_log_filter/audit_record.h"
 
-#include <mysql/components/services/defs/event_tracking_lifecycle_defs.h>
-
 #include <string_view>
 
 namespace audit_log_filter::log_record_formatter {
@@ -65,24 +63,6 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    */
   [[nodiscard]] AuditRecordString apply(
       const AuditRecordGlobalVariable &audit_record) const noexcept override;
-
-  /**
-   * @brief Apply formatting to AuditRecordServerStartup audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] AuditRecordString apply(
-      const AuditRecordServerStartup &audit_record) const noexcept override;
-
-  /**
-   * @brief Apply formatting to AuditRecordServerShutdown audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] AuditRecordString apply(
-      const AuditRecordServerShutdown &audit_record) const noexcept override;
 
   /**
    * @brief Apply formatting to AuditRecordCommand audit record.
@@ -265,24 +245,6 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representation of audit event subclass name
    */
   [[nodiscard]] std::string_view event_subclass_to_string(
-      const mysql_event_tracking_startup_data *event) const noexcept override;
-
-  /**
-   * @brief Get string representation of audit event subclass name.
-   *
-   * @param event Audit event
-   * @return String representation of audit event subclass name
-   */
-  [[nodiscard]] std::string_view event_subclass_to_string(
-      const mysql_event_tracking_shutdown_data *event) const noexcept override;
-
-  /**
-   * @brief Get string representation of audit event subclass name.
-   *
-   * @param event Audit event
-   * @return String representation of audit event subclass name
-   */
-  [[nodiscard]] std::string_view event_subclass_to_string(
       const mysql_event_tracking_stored_program_data *event)
       const noexcept override;
 
@@ -321,15 +283,6 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    */
   [[nodiscard]] std::string_view connection_type_name_to_string(
       int connection_type) const noexcept override;
-
-  /**
-   * @brief Get string representation of shutdown reason.
-   *
-   * @param reason Shutdown reason
-   * @return String representation of shutdown reason
-   */
-  [[nodiscard]] std::string_view shutdown_reason_to_string(
-      mysql_event_tracking_shutdown_reason_t reason) const noexcept override;
 
   /**
    * @brief Get escape rules.

@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -31,8 +32,6 @@ struct mysql_event_tracking_general_data;
 struct mysql_event_tracking_connection_data;
 struct mysql_event_tracking_table_access_data;
 struct mysql_event_tracking_global_variable_data;
-struct mysql_event_tracking_startup_data;
-struct mysql_event_tracking_shutdown_data;
 struct mysql_event_tracking_command_data;
 struct mysql_event_tracking_query_data;
 struct mysql_event_tracking_stored_program_data;
@@ -92,22 +91,6 @@ struct AuditRecordGlobalVariable {
   std::string_view event_subclass_name;
   audit_event_class_t event_class;
   const mysql_event_tracking_global_variable_data *event;
-  ExtendedInfo extended_info;
-};
-
-struct AuditRecordServerStartup {
-  std::string_view event_class_name;
-  std::string_view event_subclass_name;
-  audit_event_class_t event_class;
-  const mysql_event_tracking_startup_data *event;
-  ExtendedInfo extended_info;
-};
-
-struct AuditRecordServerShutdown {
-  std::string_view event_class_name;
-  std::string_view event_subclass_name;
-  audit_event_class_t event_class;
-  const mysql_event_tracking_shutdown_data *event;
   ExtendedInfo extended_info;
 };
 
@@ -178,7 +161,6 @@ struct AuditRecordUnknown {
 using AuditRecordVariant =
     std::variant<AuditRecordGeneral, AuditRecordConnection,
                  AuditRecordTableAccess, AuditRecordGlobalVariable,
-                 AuditRecordServerStartup, AuditRecordServerShutdown,
                  AuditRecordCommand, AuditRecordQuery, AuditRecordStoredProgram,
                  AuditRecordAuthentication, AuditRecordMessage,
                  AuditRecordParse, AuditRecordAudit, AuditRecordUnknown>;
@@ -188,10 +170,11 @@ using AuditRecordVariant =
  *
  * @param event_class Received audit event class
  * @param event Received audit event
- * @return An instance of AuditRecordVariant representing audit event
+ * @return An instance of AuditRecordVariant representing audit event,
+ *         or std::nullopt when the event should be ignored
  */
-AuditRecordVariant get_audit_record(audit_event_class_t event_class,
-                                    const void *event);
+std::optional<AuditRecordVariant> get_audit_record(
+    audit_event_class_t event_class, const void *event);
 
 /**
  * @brief Convert connection_type pseudo-constant to numeric value.
@@ -244,24 +227,6 @@ AuditRecordFieldsList get_audit_record_fields(
  */
 AuditRecordFieldsList get_audit_record_fields(
     const AuditRecordGlobalVariable &record);
-
-/**
- * @brief Get fields list from AuditRecordServerStartup event record.
- *
- * @param record Audit event record
- * @return Fields list, @ref AuditRecordFieldsList
- */
-AuditRecordFieldsList get_audit_record_fields(
-    const AuditRecordServerStartup &record);
-
-/**
- * @brief Get fields list from AuditRecordServerShutdown event record.
- *
- * @param record Audit event record
- * @return Fields list, @ref AuditRecordFieldsList
- */
-AuditRecordFieldsList get_audit_record_fields(
-    const AuditRecordServerShutdown &record);
 
 /**
  * @brief Get fields list from AuditRecordCommand event record.

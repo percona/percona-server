@@ -145,11 +145,26 @@ bool LogWriterFile::do_open_file() noexcept {
     file_path += suffix.str();
   }
 
-  bool is_new_file = !std::filesystem::exists(file_path);
+  std::error_code ec;
+  const bool file_exists = std::filesystem::exists(file_path, ec);
+  if (ec) {
+    const auto file_path_str = file_path.string();
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to inspect audit filter log path '%s': %s",
+                    file_path_str.c_str(), ec.message().c_str());
+    return false;
+  }
+  bool is_new_file = !file_exists;
 
   if (!is_new_file) {
-    FileHandle::remove_file_footer(file_path,
-                                   get_formatter()->get_file_footer());
+    if (!FileHandle::remove_file_footer(file_path,
+                                        get_formatter()->get_file_footer())) {
+      const auto file_path_str = file_path.string();
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to prepare audit filter log '%s' for appending",
+                      file_path_str.c_str());
+      return false;
+    }
   }
 
   if (!m_file_handle.open_file(file_path)) {

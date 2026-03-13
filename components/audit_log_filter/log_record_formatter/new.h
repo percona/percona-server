@@ -61,24 +61,6 @@ class LogRecordFormatter<AuditLogFormatType::New>
       const AuditRecordGlobalVariable &audit_record) const noexcept override;
 
   /**
-   * @brief Apply formatting to AuditRecordServerStartup audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] AuditRecordString apply(
-      const AuditRecordServerStartup &audit_record) const noexcept override;
-
-  /**
-   * @brief Apply formatting to AuditRecordServerShutdown audit record.
-   *
-   * @param [in] audit_record Audit record
-   * @return String representing formatted audit record
-   */
-  [[nodiscard]] AuditRecordString apply(
-      const AuditRecordServerShutdown &audit_record) const noexcept override;
-
-  /**
    * @brief Apply formatting to AuditRecordCommand audit record.
    *
    * @param [in] audit_record Audit record

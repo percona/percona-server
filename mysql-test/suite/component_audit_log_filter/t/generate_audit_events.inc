@@ -54,7 +54,6 @@ connection default;
 DROP USER user1;
 --source include/wait_until_count_sessions.inc
 
-# AuditRecordServerShutdown
 #--source include/restart_mysqld.inc
 
 --enable_query_log

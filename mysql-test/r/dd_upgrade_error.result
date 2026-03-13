@@ -30,7 +30,8 @@ Pattern "Table mismatch_frms/t1_col_name is not found in InnoDB dictionary" foun
 # Upgrade fails for the case where the general tablespace file is removed.
 Pattern "Error in fixing SE data for tablespace.t3" found
 # Upgrade fails for the case where the file per tablespace is removed.
-Pattern "Got error 197 from SE while migrating tablespaces" found
+Pattern "Got error 197\(Tablespace cannot be accessed\) from SE while migrating tablespaces" found
+Pattern "Tablespace file .* is missing" found
 # Remove copied files
 # ------------------------------------------------------------------
 # Check upgrade of tables and stored programs using long enum elements.

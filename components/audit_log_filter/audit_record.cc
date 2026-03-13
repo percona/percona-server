@@ -21,7 +21,6 @@
 #include <mysql/components/services/event_tracking_connection_service.h>
 #include <mysql/components/services/event_tracking_general_service.h>
 #include <mysql/components/services/event_tracking_global_variable_service.h>
-#include <mysql/components/services/event_tracking_lifecycle_service.h>
 #include <mysql/components/services/event_tracking_message_service.h>
 #include <mysql/components/services/event_tracking_parse_service.h>
 #include <mysql/components/services/event_tracking_query_service.h>
@@ -40,8 +39,6 @@ constexpr std::string_view kClassNameConnection{"connection"};
 constexpr std::string_view kClassNameAuthorization{"authorization"};
 constexpr std::string_view kClassNameTableAccess{"table_access"};
 constexpr std::string_view kClassNameGlobalVariable{"global_variable"};
-constexpr std::string_view kClassNameServerStartup{"server_startup"};
-constexpr std::string_view kClassNameServerShutdown{"server_shutdown"};
 constexpr std::string_view kClassNameCommand{"command"};
 constexpr std::string_view kClassNameQuery{"query"};
 constexpr std::string_view kClassNameStoredProgram{"stored_program"};
@@ -61,8 +58,6 @@ constexpr std::string_view kSubclassNameUpdate{"update"};
 constexpr std::string_view kSubclassNameDelete{"delete"};
 constexpr std::string_view kSubclassNameGet{"get"};
 constexpr std::string_view kSubclassNameSet{"set"};
-constexpr std::string_view kSubclassNameStartup{"startup"};
-constexpr std::string_view kSubclassNameShutdown{"shutdown"};
 constexpr std::string_view kSubclassNameEnd{"end"};
 constexpr std::string_view kSubclassNameStart{"start"};
 constexpr std::string_view kSubclassNameNestedStart{"nested_start"};
@@ -108,10 +103,6 @@ std::string_view event_class_to_string(audit_event_class_t event_class) {
       return kClassNameTableAccess;
     case audit_event_class_t::AUDIT_GLOBAL_VARIABLE_CLASS:
       return kClassNameGlobalVariable;
-    case audit_event_class_t::AUDIT_SERVER_STARTUP_CLASS:
-      return kClassNameServerStartup;
-    case audit_event_class_t::AUDIT_SERVER_SHUTDOWN_CLASS:
-      return kClassNameServerShutdown;
     case audit_event_class_t::AUDIT_COMMAND_CLASS:
       return kClassNameCommand;
     case audit_event_class_t::AUDIT_QUERY_CLASS:
@@ -192,30 +183,6 @@ std::string_view event_subclass_to_string(
       return kSubclassNameGet;
     case EVENT_TRACKING_GLOBAL_VARIABLE_SET:
       return kSubclassNameSet;
-    default:
-      assert(false);
-  }
-
-  return kNameUnknown;
-}
-
-std::string_view event_subclass_to_string(
-    const mysql_event_tracking_startup_data *event) {
-  switch (event->event_subclass) {
-    case EVENT_TRACKING_STARTUP_STARTUP:
-      return kSubclassNameStartup;
-    default:
-      assert(false);
-  }
-
-  return kNameUnknown;
-}
-
-std::string_view event_subclass_to_string(
-    const mysql_event_tracking_shutdown_data *event) {
-  switch (event->event_subclass) {
-    case EVENT_TRACKING_SHUTDOWN_SHUTDOWN:
-      return kSubclassNameShutdown;
     default:
       assert(false);
   }
@@ -391,166 +358,114 @@ bool field_value_matches(const AuditRecordFieldValue &value,
       value);
 }
 
-AuditRecordVariant get_audit_record(audit_event_class_t event_class,
-                                    const void *event) {
+std::optional<AuditRecordVariant> get_audit_record(
+    audit_event_class_t event_class, const void *event) {
   switch (event_class) {
+    case audit_event_class_t::AUDIT_SERVER_STARTUP_CLASS:
+    case audit_event_class_t::AUDIT_SERVER_SHUTDOWN_CLASS:
+      return std::nullopt;
     case audit_event_class_t::AUDIT_GENERAL_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<0>,
-          AuditRecordGeneral{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_general_data *>(
-                      event)),
-              event_class,
-              static_cast<const mysql_event_tracking_general_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordGeneral{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
+              static_cast<const mysql_event_tracking_general_data *>(event)),
+          event_class,
+          static_cast<const mysql_event_tracking_general_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_CONNECTION_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<1>,
-          AuditRecordConnection{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_connection_data *>(
-                      event)),
-              event_class,
-              static_cast<const mysql_event_tracking_connection_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordConnection{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
+              static_cast<const mysql_event_tracking_connection_data *>(event)),
+          event_class,
+          static_cast<const mysql_event_tracking_connection_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_TABLE_ACCESS_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<2>,
-          AuditRecordTableAccess{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_table_access_data *>(
-                      event)),
-              event_class,
+      return AuditRecordVariant{AuditRecordTableAccess{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
               static_cast<const mysql_event_tracking_table_access_data *>(
-                  event),
-              {}}};
+                  event)),
+          event_class,
+          static_cast<const mysql_event_tracking_table_access_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_GLOBAL_VARIABLE_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<3>,
-          AuditRecordGlobalVariable{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_global_variable_data
-                                  *>(event)),
-              event_class,
+      return AuditRecordVariant{AuditRecordGlobalVariable{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
               static_cast<const mysql_event_tracking_global_variable_data *>(
-                  event),
-              {}}};
-    }
-    case audit_event_class_t::AUDIT_SERVER_STARTUP_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<4>,
-          AuditRecordServerStartup{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_startup_data *>(
-                      event)),
-              event_class,
-              static_cast<const mysql_event_tracking_startup_data *>(event),
-              {}}};
-    }
-    case audit_event_class_t::AUDIT_SERVER_SHUTDOWN_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<5>,
-          AuditRecordServerShutdown{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_shutdown_data *>(
-                      event)),
-              event_class,
-              static_cast<const mysql_event_tracking_shutdown_data *>(event),
-              {}}};
+                  event)),
+          event_class,
+          static_cast<const mysql_event_tracking_global_variable_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_COMMAND_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<6>,
-          AuditRecordCommand{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_command_data *>(
-                      event)),
-              event_class,
-              static_cast<const mysql_event_tracking_command_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordCommand{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
+              static_cast<const mysql_event_tracking_command_data *>(event)),
+          event_class,
+          static_cast<const mysql_event_tracking_command_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_QUERY_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<7>,
-          AuditRecordQuery{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_query_data *>(event)),
-              event_class,
-              static_cast<const mysql_event_tracking_query_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordQuery{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
+              static_cast<const mysql_event_tracking_query_data *>(event)),
+          event_class,
+          static_cast<const mysql_event_tracking_query_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_STORED_PROGRAM_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<8>,
-          AuditRecordStoredProgram{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_stored_program_data *>(
-                      event)),
-              event_class,
+      return AuditRecordVariant{AuditRecordStoredProgram{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
               static_cast<const mysql_event_tracking_stored_program_data *>(
-                  event),
-              {}}};
+                  event)),
+          event_class,
+          static_cast<const mysql_event_tracking_stored_program_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_AUTHENTICATION_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<9>,
-          AuditRecordAuthentication{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_authentication_data *>(
-                      event)),
-              event_class,
+      return AuditRecordVariant{AuditRecordAuthentication{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
               static_cast<const mysql_event_tracking_authentication_data *>(
-                  event),
-              {}}};
+                  event)),
+          event_class,
+          static_cast<const mysql_event_tracking_authentication_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_MESSAGE_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<10>,
-          AuditRecordMessage{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_message_data *>(
-                      event)),
-              event_class,
-              static_cast<const mysql_event_tracking_message_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordMessage{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
+              static_cast<const mysql_event_tracking_message_data *>(event)),
+          event_class,
+          static_cast<const mysql_event_tracking_message_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_PARSE_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<11>,
-          AuditRecordParse{
-              event_class_to_string(event_class),
-              event_subclass_to_string(
-                  static_cast<const mysql_event_tracking_parse_data *>(event)),
-              event_class,
-              static_cast<const mysql_event_tracking_parse_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordParse{
+          event_class_to_string(event_class),
+          event_subclass_to_string(
+              static_cast<const mysql_event_tracking_parse_data *>(event)),
+          event_class,
+          static_cast<const mysql_event_tracking_parse_data *>(event),
+          {}}};
     }
     case audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS: {
-      return AuditRecordVariant{
-          std::in_place_index<12>,
-          AuditRecordAudit{
-              kClassNameInternalAudit,
-              event_subclass_to_string(
-                  static_cast<const internal_event_tracking_audit_data *>(
-                      event)),
-              audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS,
-              static_cast<const internal_event_tracking_audit_data *>(event),
-              {}}};
+      return AuditRecordVariant{AuditRecordAudit{
+          kClassNameInternalAudit,
+          event_subclass_to_string(
+              static_cast<const internal_event_tracking_audit_data *>(event)),
+          audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS,
+          static_cast<const internal_event_tracking_audit_data *>(event),
+          {}}};
     }
     default:
       break;
@@ -559,7 +474,6 @@ AuditRecordVariant get_audit_record(audit_event_class_t event_class,
   assert(false);
 
   return AuditRecordVariant{
-      std::in_place_index<13>,
       AuditRecordUnknown{kNameUnknown,
                          kNameUnknown,
                          audit_event_class_t::AUDIT_INTERNAL_UNKNOWN_CLASS,
@@ -667,20 +581,6 @@ AuditRecordFieldsList get_audit_record_fields(
       {"variable_value.str", mysql_cstring_to_string(&event->variable_value)},
       {"variable_value.length",
        mysql_cstring_len_to_string(&event->variable_value)},
-  };
-}
-
-AuditRecordFieldsList get_audit_record_fields(
-    const AuditRecordServerStartup &record [[maybe_unused]]) {
-  return {};
-}
-
-AuditRecordFieldsList get_audit_record_fields(
-    const AuditRecordServerShutdown &record) {
-  const auto *event = record.event;
-  return {
-      {"exit_code", std::to_string(event->exit_code)},
-      {"reason", std::to_string(event->reason)},
   };
 }
 

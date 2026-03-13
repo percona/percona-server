@@ -466,6 +466,11 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     return 0;
   }
 
+  if (event_class == audit_event_class_t::AUDIT_SERVER_STARTUP_CLASS ||
+      event_class == audit_event_class_t::AUDIT_SERVER_SHUTDOWN_CLASS) {
+    return 0;
+  }
+
   MYSQL_THD thd = nullptr;
   if (mysql_service_mysql_current_thread_reader->get(&thd) == 1 ||
       thd == nullptr) {
@@ -503,26 +508,30 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   SysVars::set_session_filter_id(thd, filter_rule->get_filter_id());
 
   // Get actual event info based on event class
-  AuditRecordVariant audit_record = get_audit_record(event_class, event_data);
+  auto audit_record = get_audit_record(event_class, event_data);
+  if (!audit_record.has_value()) {
+    return 0;
+  }
+  auto &record = *audit_record;
 
-  if (std::holds_alternative<AuditRecordUnknown>(audit_record)) {
+  if (std::holds_alternative<AuditRecordUnknown>(record)) {
     LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Unsupported audit event class with ID %i received",
                     event_class);
     return 0;
   }
 
-  if (auto rec = std::get_if<AuditRecordGeneral>(&audit_record)) {
+  if (auto rec = std::get_if<AuditRecordGeneral>(&record)) {
     set_extended_info(thd, sctx, *rec);
   }
 
-  if (auto rec = std::get_if<AuditRecordTableAccess>(&audit_record)) {
+  if (auto rec = std::get_if<AuditRecordTableAccess>(&record)) {
     set_extended_info(thd, sctx, *rec);
   }
 
   // Apply filtering rule
   AuditAction filter_result =
-      AuditEventFilter::apply(filter_rule.get(), audit_record);
+      AuditEventFilter::apply(filter_rule.get(), record);
 
   if (filter_result == AuditAction::Skip) {
     SysVars::inc_events_filtered();
@@ -535,7 +544,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
         [](const auto &rec) -> std::string_view {
           return rec.event_class_name;
         },
-        audit_record);
+        record);
     LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Blocked audit event '%s' with class %i", ev_name.data(),
                     event_class);
@@ -543,10 +552,10 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   }
 
   if (event_class == audit_event_class_t::AUDIT_CONNECTION_CLASS) {
-    get_connection_attrs(thd, audit_record);
+    get_connection_attrs(thd, record);
   }
 
-  m_log_writer->write(audit_record);
+  m_log_writer->write(record);
   SysVars::inc_events_written();
 
   return 0;
@@ -564,6 +573,9 @@ void AuditLogFilter::send_audit_start_event() noexcept {
 
   auto audit_record =
       get_audit_record(audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event);
+  if (!audit_record.has_value()) {
+    return;
+  }
 
   Security_context_handle sctx{};
   if (thd != nullptr && m_security_context_srv != nullptr &&
@@ -580,7 +592,7 @@ void AuditLogFilter::send_audit_start_event() noexcept {
       }
     };
 
-    if (auto *record = std::get_if<AuditRecordAudit>(&audit_record)) {
+    if (auto *record = std::get_if<AuditRecordAudit>(&*audit_record)) {
       load_security_context_option("user", record->extended_info.user);
       load_security_context_option("host", record->extended_info.host);
       load_security_context_option("ip", record->extended_info.ip);
@@ -591,7 +603,7 @@ void AuditLogFilter::send_audit_start_event() noexcept {
     }
   }
 
-  m_log_writer->write(audit_record);
+  m_log_writer->write(*audit_record);
 }
 
 void AuditLogFilter::send_audit_stop_event() noexcept {
@@ -605,8 +617,13 @@ void AuditLogFilter::send_audit_stop_event() noexcept {
     event.connection_id = static_cast<unsigned long>(thd->thread_id());
   }
 
-  m_log_writer->write(get_audit_record(
-      audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event));
+  auto audit_record =
+      get_audit_record(audit_event_class_t::AUDIT_INTERNAL_AUDIT_CLASS, &event);
+  if (!audit_record.has_value()) {
+    return;
+  }
+
+  m_log_writer->write(*audit_record);
 }
 
 bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {

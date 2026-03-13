@@ -1,1 +1,3 @@
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Tablespace .* is set as DISCARDED\. Upgrade will stop, please make sure there are no discarded Tables/Partitions before upgrading\." found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Tablespace .* Subpartition .* is set as DISCARDED\. Upgrade will stop, please make sure there are no discarded Tables/Partitions before upgrading\." found
 Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Upgrade failed because database contains discarded tablespaces\." found

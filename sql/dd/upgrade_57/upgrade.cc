@@ -729,7 +729,10 @@ static bool ha_migrate_tablespaces(THD *thd, plugin_ref plugin, void *) {
     }
 
     if (error) {
-      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED, error);
+      char errbuf[MYSYS_STRERROR_SIZE];
+      const char *errtxt = my_strerror(errbuf, sizeof(errbuf), error);
+      LogErr(ERROR_LEVEL, ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED, error,
+             errtxt);
       return true;
     }
   }

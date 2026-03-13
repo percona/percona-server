@@ -1565,7 +1565,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     }
 
     if (flags2 & DICT_TF2_DISCARDED) {
-      ib::info(ER_IB_MSG_193)
+      ib::error(ER_IB_MSG_193)
           << "Tablespace " << table_name
           << " is set as DISCARDED. Upgrade will stop, please make sure "
              "there are no discarded Tables/Partitions before upgrading.";

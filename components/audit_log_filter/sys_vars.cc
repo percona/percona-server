@@ -824,8 +824,9 @@ bool SysVars::validate() noexcept {
 
   // Check if log file directory points to a valid file system directory or if
   // it is left at the default setting (empty).
+  std::error_code ec;
   if (!SysVars::get_file_dir().empty() &&
-      !std::filesystem::is_directory(SysVars::get_file_dir())) {
+      !std::filesystem::is_directory(SysVars::get_file_dir(), ec)) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY,
                     SysVars::get_file_dir().c_str());
     return false;

@@ -27,27 +27,39 @@ LogFileTimestamp::LogFileTimestamp(const std::filesystem::path &path) {
   //    with rotation or encryption key timestamp.
   static const std::regex pattern(
       R"(^.*?\.(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(-(\d+))?(\.enc)?.*)");
-
-  auto filename = path.filename().string();
+  std::string filename;
   std::smatch match;
-  if (!std::regex_match(filename, match, pattern) || match[9].length() != 0) {
-    // If we weren't able to find any timestamp, or we were able to find
-    // only timestamp of an encryption key, we create empty (non-rotated)
-    // timestamp.
+
+  try {
+    filename = path.filename().string();
+    if (!std::regex_match(filename, match, pattern)) return;
+  } catch (...) {
     return;
   }
 
-  std::tm tm = {};
-  tm.tm_year = std::stoi(match[1]) - 1900;
-  tm.tm_mon = std::stoi(match[2]) - 1;
-  tm.tm_mday = std::stoi(match[3]);
-  tm.tm_hour = std::stoi(match[4]);
-  tm.tm_min = std::stoi(match[5]);
-  tm.tm_sec = std::stoi(match[6]);
-  tm.tm_isdst = -1;
+  if (match[9].length() != 0) {
+    // Only an encryption key timestamp, not a rotation timestamp.
+    return;
+  }
 
-  timestamp = std::chrono::system_clock::from_time_t(std::mktime(&tm));
-  seq = match[8].length() != 0 ? std::stoul(match[8]) : 0;
+  // Regex matched, so the file IS rotated.  If value conversion fails
+  // below, use epoch as a sentinel so is_rotated() still returns true.
+  try {
+    std::tm tm = {};
+    tm.tm_year = std::stoi(match[1]) - 1900;
+    tm.tm_mon = std::stoi(match[2]) - 1;
+    tm.tm_mday = std::stoi(match[3]);
+    tm.tm_hour = std::stoi(match[4]);
+    tm.tm_min = std::stoi(match[5]);
+    tm.tm_sec = std::stoi(match[6]);
+    tm.tm_isdst = -1;
+
+    timestamp = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+    seq = match[8].length() != 0 ? std::stoul(match[8]) : 0;
+  } catch (...) {
+    timestamp = std::chrono::system_clock::time_point{};
+    seq = 0;
+  }
 }
 
 bool operator<(const LogFileTimestamp &lhs,

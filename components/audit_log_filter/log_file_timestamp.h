@@ -32,6 +32,7 @@ namespace audit_log_filter {
  * - rotated files with timestamp collisions (seq != 0)
  */
 struct LogFileTimestamp {
+  LogFileTimestamp() = default;
   LogFileTimestamp(const std::filesystem::path &path);
 
   friend bool operator<(const LogFileTimestamp &lhs,

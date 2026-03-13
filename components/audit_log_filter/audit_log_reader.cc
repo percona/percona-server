@@ -15,6 +15,7 @@
 
 #include "components/audit_log_filter/audit_log_reader.h"
 
+#include "components/audit_log_filter/audit_error_log.h"
 #include "components/audit_log_filter/audit_keyring.h"
 #include "components/audit_log_filter/audit_psi_info.h"
 
@@ -70,8 +71,6 @@ bool AuditLogReader::init() noexcept {
     return true;
   }
 
-  m_reload_requested = false;
-
   my_service<SERVICE_TYPE(mysql_current_thread_reader)> thd_reader_srv(
       "mysql_current_thread_reader", SysVars::get_comp_registry_srv());
 
@@ -96,18 +95,34 @@ bool AuditLogReader::init() noexcept {
   }
 
   std::vector<std::string> all_files;
-  std::vector<std::string> new_files;
-  std::vector<std::string> removed_files;
+  bool have_complete_file_snapshot = true;
 
-  for (const auto &entry :
-       std::filesystem::directory_iterator{SysVars::get_file_dir()}) {
+  std::error_code ec;
+  auto it = std::filesystem::directory_iterator{SysVars::get_file_dir(), ec};
+
+  if (ec) {
+    return false;
+  }
+
+  for (; it != std::filesystem::directory_iterator{}; it.increment(ec)) {
+    const auto &entry = *it;
     auto log_name = entry.path().filename().string();
 
-    if (entry.is_regular_file() &&
+    std::error_code entry_ec;
+    if (entry.is_regular_file(entry_ec) && !entry_ec &&
         log_name.find(log_base_file_name) != std::string::npos) {
       all_files.push_back(std::move(log_name));
+    } else if (entry_ec) {
+      have_complete_file_snapshot = false;
     }
   }
+
+  if (ec) {
+    have_complete_file_snapshot = false;
+  }
+
+  std::vector<std::string> new_files;
+  std::vector<std::string> removed_files;
 
   std::copy_if(std::cbegin(all_files), std::cend(all_files),
                std::back_inserter(new_files), [this](const auto &name) {
@@ -118,16 +133,19 @@ bool AuditLogReader::init() noexcept {
                                      });
                });
 
-  std::for_each(std::cbegin(m_timestamp_to_file_map),
-                std::cend(m_timestamp_to_file_map),
-                [&all_files, &removed_files](const auto &pair) {
-                  if (!std::any_of(std::cbegin(all_files), std::cend(all_files),
-                                   [&pair](const auto &name) {
-                                     return name == pair.second->name;
-                                   })) {
-                    removed_files.push_back(pair.second->name);
-                  }
-                });
+  if (have_complete_file_snapshot) {
+    std::for_each(
+        std::cbegin(m_timestamp_to_file_map),
+        std::cend(m_timestamp_to_file_map),
+        [&all_files, &removed_files](const auto &pair) {
+          if (!std::any_of(std::cbegin(all_files), std::cend(all_files),
+                           [&pair](const auto &name) {
+                             return name == pair.second->name;
+                           })) {
+            removed_files.push_back(pair.second->name);
+          }
+        });
+  }
 
   for (const auto &log_name : new_files) {
     bool is_current_log =
@@ -182,8 +200,18 @@ bool AuditLogReader::init() noexcept {
     file_info->first_timestamp =
         first_event->GetObject()["timestamp"].GetString();
 
-    m_timestamp_to_file_map.emplace(LogFileTimestamp(log_name),
-                                    std::move(file_info));
+    try {
+      auto ts = LogFileTimestamp(log_name);
+      m_timestamp_to_file_map.emplace(std::move(ts), std::move(file_info));
+    } catch (const std::exception &e) {
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Skipping audit log file with unparseable name '%s': %s",
+                      log_name.c_str(), e.what());
+    } catch (...) {
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Skipping audit log file with unparseable name '%s'",
+                      log_name.c_str());
+    }
   }
 
   for (const auto &log_name : removed_files) {
@@ -197,6 +225,11 @@ bool AuditLogReader::init() noexcept {
     }
   }
 
+  if (!have_complete_file_snapshot) {
+    return false;
+  }
+
+  m_reload_requested = false;
   return true;
 }
 

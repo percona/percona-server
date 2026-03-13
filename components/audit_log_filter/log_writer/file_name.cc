@@ -22,7 +22,6 @@ namespace audit_log_filter::log_writer {
 FileName FileName::from_path(std::filesystem::path filename) noexcept {
   bool is_compressed{false};
   bool is_encrypted{false};
-
   std::string key_id_str;
 
   if (filename.has_extension() && filename.extension().compare(".enc") == 0) {
@@ -37,7 +36,11 @@ FileName FileName::from_path(std::filesystem::path filename) noexcept {
     filename.replace_extension();
   }
 
-  auto timestamp = LogFileTimestamp(filename);
+  LogFileTimestamp timestamp;
+  try {
+    timestamp = LogFileTimestamp(filename);
+  } catch (...) {
+  }
 
   while (filename.has_extension()) {
     filename.replace_extension();

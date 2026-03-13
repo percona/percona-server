@@ -13,7 +13,9 @@ filter-definition validation through `audit_log_filter_set_filter()`.
   are not explicitly typed in `get_event_field_value_type()`.
 - Filter-definition validation only accepts the class names documented below.
 - Lifecycle-related records with class names `audit`, `server_startup`, and
-  `server_shutdown` are not valid filter-definition targets.
+  `server_shutdown` are not valid filter-definition targets. Startup and
+  shutdown lifecycle events are ignored by the audit log filter if they are
+  received.
 - For `connection.connection_type`, the validator accepts numeric values `0..5`
   and the pseudo-constants `::undefined`, `::tcp/ip`, `::socket`,
   `::named_pipe`, `::ssl`, and `::shared_memory`.

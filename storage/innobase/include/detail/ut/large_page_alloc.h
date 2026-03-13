@@ -51,6 +51,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 extern const size_t large_page_default_size;
 
+#ifdef UNIV_LINUX
+  extern bool innodb_large_page_populate;
+#else
+  static constexpr bool innodb_large_page_populate = true;
+#endif
+
 namespace ut {
 namespace detail {
 
@@ -112,7 +118,8 @@ struct Large_page_alloc : public allocator_traits<false> {
   static inline void *alloc(std::size_t size, bool populate) {
     auto total_len = round_to_next_multiple(
         size + page_allocation_metadata::len, large_page_default_size);
-    auto mem = large_page_aligned_alloc(total_len, populate);
+    bool do_populate = populate && innodb_large_page_populate;
+    auto mem = large_page_aligned_alloc(total_len, do_populate);
     if (unlikely(!mem)) return nullptr;
     page_allocation_metadata::datalen(mem, total_len);
     page_allocation_metadata::page_type(mem, Page_type::large_page);
@@ -249,7 +256,8 @@ struct Large_page_alloc_pfs : public allocator_traits<true> {
       page_allocation_metadata::pfs_metadata::pfs_memory_key_t key) {
     auto total_len = round_to_next_multiple(
         size + page_allocation_metadata::len, large_page_default_size);
-    auto mem = large_page_aligned_alloc(total_len, populate);
+    bool do_populate = populate && innodb_large_page_populate;
+    auto mem = large_page_aligned_alloc(total_len, do_populate);
     if (unlikely(!mem)) return nullptr;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE

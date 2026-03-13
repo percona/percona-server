@@ -57,6 +57,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "storage/innobase/include/os0populate.h"
 #include "storage/innobase/include/ut0log.h"
 
+#ifdef UNIV_LINUX
+  extern bool innodb_large_page_populate;
+#endif
+
 namespace ut {
 namespace detail {
 
@@ -79,11 +83,12 @@ inline void *page_aligned_alloc(size_t n_bytes, bool populate) {
     return nullptr;
   }
 #else
+  bool do_populate = populate && innodb_large_page_populate;
   // With addr set to nullptr, mmap will internally round n_bytes to the
   // multiple of system page size if it is not already
   void *ptr =
       mmap(nullptr, n_bytes, PROT_READ | PROT_WRITE,
-           MAP_PRIVATE | MAP_ANON | (populate ? OS_MAP_POPULATE : 0), -1, 0);
+           MAP_PRIVATE | MAP_ANON | (do_populate ? OS_MAP_POPULATE : 0), -1, 0);
   if (unlikely(ptr == (void *)-1)) {
     ib::log_warn(ER_IB_MSG_856) << "page_aligned_alloc mmap(" << n_bytes
                                 << " bytes) failed;"
@@ -93,7 +98,7 @@ inline void *page_aligned_alloc(size_t n_bytes, bool populate) {
   }
 #endif
 
-  if (populate) prefault_if_not_map_populate(ptr, n_bytes);
+  if (do_populate) prefault_if_not_map_populate(ptr, n_bytes);
 
   return ptr;
 }

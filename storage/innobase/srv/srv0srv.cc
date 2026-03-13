@@ -867,8 +867,9 @@ bool srv_buffer_pool_dump_at_shutdown = true;
 bool srv_buffer_pool_load_at_startup = true;
 
 #ifdef UNIV_LINUX
-/* The number of init threads */
-ulong srv_buffer_pool_parallel_init_threads = 0;
+    /* The number of init threads */
+    ulong srv_buffer_pool_parallel_init_threads = 0;
+    bool innodb_large_page_populate = false;
 #endif
 
 /** Slot index in the srv_sys->sys_threads array for the purge thread. */

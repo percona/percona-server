@@ -125,51 +125,6 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordServerStartup &audit_record) const noexcept {
-  std::stringstream result;
-  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
-  std::stringstream startup_options;
-
-  for (unsigned int i = 0; i < audit_record.event->argc; ++i) {
-    if (audit_record.event->argv[i] != nullptr) {
-      startup_options << audit_record.event->argv[i] << " ";
-    }
-  }
-
-  std::string startup_options_str = startup_options.str();
-  startup_options_str.pop_back();
-
-  /* clang-format off */
-  result << "  <AUDIT_RECORD\n"
-         << "    NAME=\"" << event_subclass_to_string(audit_record.event) << "\"\n"
-         << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"
-         << "    TIMESTAMP=\"" << make_timestamp(tp) << "\"\n"
-         << "    COMMAND_CLASS=\"" << event_class_to_string(audit_record.event_class) << "\"\n"
-         << "    STARTUP_OPTIONS=\"" << make_escaped_string(startup_options_str) << "\"/>\n";
-  /* clang-format on */
-
-  return result.str();
-}
-
-AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordServerShutdown &audit_record) const noexcept {
-  std::stringstream result;
-  std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
-
-  /* clang-format off */
-  result << "  <AUDIT_RECORD\n"
-         << "    NAME=\"" << event_subclass_to_string(audit_record.event) << "\"\n"
-         << "    RECORD_ID=\"" << make_record_id(tp) << "\"\n"
-         << "    TIMESTAMP=\"" << make_timestamp(tp) << "\"\n"
-         << "    COMMAND_CLASS=\"" << event_class_to_string(audit_record.event_class) << "\"\n"
-         << "    STATUS=\"" << audit_record.event->exit_code << "\"\n"
-         << "    SHUTDOWN_REASON=\"" << shutdown_reason_to_string(audit_record.event->reason) << "\"/>\n";
-  /* clang-format on */
-
-  return result.str();
-}
-
-AuditRecordString LogRecordFormatterOld::apply(
     const AuditRecordCommand &audit_record) const noexcept {
   std::stringstream result;
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();

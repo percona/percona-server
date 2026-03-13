@@ -27,13 +27,18 @@ LogFileTimestamp::LogFileTimestamp(const std::filesystem::path &path) {
   //    with rotation or encryption key timestamp.
   static const std::regex pattern(
       R"(^.*?\.(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(-(\d+))?(\.enc)?.*)");
-
-  auto filename = path.filename().string();
+  std::string filename;
   std::smatch match;
-  if (!std::regex_match(filename, match, pattern) || match[9].length() != 0) {
-    // If we weren't able to find any timestamp, or we were able to find
-    // only timestamp of an encryption key, we create empty (non-rotated)
-    // timestamp.
+
+  try {
+    filename = path.filename().string();
+    if (!std::regex_match(filename, match, pattern)) return;
+  } catch (...) {
+    return;
+  }
+
+  if (match[9].length() != 0) {
+    // Only an encryption key timestamp, not a rotation timestamp.
     return;
   }
 

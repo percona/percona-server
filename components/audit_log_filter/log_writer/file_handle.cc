@@ -15,6 +15,7 @@
 
 #define ALLOW_COMPONENT_INCLUDE // for plugin.h
 #include "components/audit_log_filter/log_writer/file_handle.h"
+#include "components/audit_log_filter/audit_error_log.h"
 #include "components/audit_log_filter/audit_psi_info.h"
 #include "components/audit_log_filter/log_writer/file_name.h"
 #include "components/audit_log_filter/sys_vars.h"
@@ -29,6 +30,42 @@
 
 namespace {
 const std::string kRotationTimeFormat{"%Y%m%dT%H%M%S"};
+
+bool is_regular_file(const std::filesystem::directory_entry &entry) noexcept {
+  std::error_code ec;
+  return entry.is_regular_file(ec) && !ec;
+}
+
+bool get_entry_file_size(const std::filesystem::directory_entry &entry,
+                         uintmax_t *size) noexcept {
+  std::error_code ec;
+  *size = entry.file_size(ec);
+  if (ec) {
+    *size = 0;
+    return false;
+  }
+  return true;
+}
+
+template <typename Callback>
+void for_each_directory_entry(const std::string &working_dir_name,
+                              Callback callback) noexcept {
+  std::error_code ec;
+  auto it = std::filesystem::directory_iterator(working_dir_name, ec);
+  const auto end = std::filesystem::directory_iterator{};
+
+  if (ec) {
+    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to list audit log directory '%s': %s",
+                    working_dir_name.c_str(), ec.message().c_str());
+  }
+
+  for (; !ec && it != end; it.increment(ec)) {
+    if (!callback(*it)) {
+      break;
+    }
+  }
+}
 }
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -87,11 +124,9 @@ void FileHandle::write_file(const char *record, const size_t size) noexcept {
 
 uint64_t FileHandle::get_file_size() const noexcept {
   assert(m_file.is_open());
-  try {
-    return std::filesystem::file_size(m_path);
-  } catch (const std::filesystem::filesystem_error &) {
-    return 0;
-  }
+  std::error_code ec;
+  auto size = std::filesystem::file_size(m_path, ec);
+  return ec ? 0 : size;
 }
 
 std::filesystem::path FileHandle::get_file_path() const noexcept {
@@ -109,17 +144,23 @@ std::filesystem::path FileHandle::get_not_rotated_file_path(
     const std::string &file_name) noexcept {
   const auto base_file_name = FileName::from_path(file_name).get_base_name();
 
-  for (const auto &entry :
-       std::filesystem::directory_iterator(working_dir_name)) {
-    if (entry.is_regular_file() &&
+  if (base_file_name.empty()) {
+    return {};
+  }
+
+  std::filesystem::path result;
+  for_each_directory_entry(working_dir_name, [&](const auto &entry) {
+    if (is_regular_file(entry) &&
         entry.path().filename().string().find(base_file_name) !=
             std::string::npos &&
         !FileName::from_path(entry.path().filename()).is_rotated()) {
-      return entry.path();
+      result = entry.path();
+      return false;
     }
-  }
+    return true;
+  });
 
-  return {};
+  return result;
 }
 
 uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
@@ -129,20 +170,26 @@ uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
     base_name.replace_extension();
   }
 
-  uint64_t size = 0;
+  if (base_name.empty()) {
+    return 0;
+  }
 
-  for (const auto &entry :
-       std::filesystem::directory_iterator(working_dir_name)) {
+  uint64_t size = 0;
+  for_each_directory_entry(working_dir_name, [&](const auto &entry) {
     auto entry_file_name = entry.path().filename();
 
     while (entry_file_name.has_extension()) {
       entry_file_name.replace_extension();
     }
 
-    if (entry.is_regular_file() && entry_file_name == base_name) {
-      size += entry.file_size();
+    if (is_regular_file(entry) && entry_file_name == base_name) {
+      uintmax_t fsize = 0;
+      if (get_entry_file_size(entry, &fsize)) {
+        size += fsize;
+      }
     }
-  }
+    return true;
+  });
 
   return size;
 }
@@ -152,7 +199,7 @@ bool FileHandle::remove_file(const std::filesystem::path &path) noexcept {
   return std::filesystem::remove(path, ec);
 }
 
-void FileHandle::remove_file_footer(
+bool FileHandle::remove_file_footer(
     const std::filesystem::path &file_path,
     const std::string &expected_footer) noexcept {
   assert(expected_footer.length() > 0);
@@ -161,14 +208,14 @@ void FileHandle::remove_file_footer(
   file.open(file_path, std::ios::in);
 
   if (!file.is_open()) {
-    return;
+    return false;
   }
 
   file.seekg(-expected_footer.length(), std::ios_base::end);
 
   if (file.fail()) {
     file.close();
-    return;
+    return true;
   }
 
   std::string file_footer;
@@ -176,7 +223,7 @@ void FileHandle::remove_file_footer(
 
   if (file.fail()) {
     file.close();
-    return;
+    return true;
   }
 
   file.close();
@@ -185,17 +232,35 @@ void FileHandle::remove_file_footer(
     file_footer.push_back('\n');
   }
 
-  if (expected_footer == file_footer) {
-    std::filesystem::resize_file(
-        file_path,
-        std::filesystem::file_size(file_path) - expected_footer.size());
+  if (expected_footer != file_footer) {
+    return true;
   }
+
+  std::error_code ec;
+  auto current_size = std::filesystem::file_size(file_path, ec);
+  if (!ec && current_size >= expected_footer.size()) {
+    std::filesystem::resize_file(file_path,
+                                 current_size - expected_footer.size(), ec);
+  }
+  if (ec) {
+    const auto path_str = file_path.string();
+    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to remove footer from audit log '%s': %s",
+                    path_str.c_str(), ec.message().c_str());
+    return false;
+  }
+
+  return true;
 }
 
 void FileHandle::rotate(const std::filesystem::path &current_file_path,
                         FileRotationResult *result) noexcept {
-  if (!std::filesystem::exists(current_file_path)) {
-    result->error_code = 0;
+  std::error_code ec;
+  if (!std::filesystem::exists(current_file_path, ec)) {
+    result->error_code = ec.value();
+    if (ec) {
+      result->status_string = ec.message();
+    }
     return;
   }
 
@@ -220,7 +285,6 @@ void FileHandle::rotate(const std::filesystem::path &current_file_path,
     extensions_str = filename_str.substr(first_ext_pos);
   }
 
-  std::error_code ec;
   std::filesystem::path new_file_path;
   std::string new_file_name_str;
   std::size_t seq = 0;
@@ -243,6 +307,12 @@ void FileHandle::rotate(const std::filesystem::path &current_file_path,
     new_file_path.replace_filename(new_file_name_str);
   } while (std::filesystem::exists(new_file_path, ec));
 
+  if (ec) {
+    result->error_code = ec.value();
+    result->status_string = ec.message();
+    return;
+  }
+
   std::filesystem::rename(current_file_path, new_file_path, ec);
 
   result->error_code = ec.value();
@@ -258,7 +328,13 @@ PruneFilesList FileHandle::get_prune_files(
     const std::string &working_dir_name,
     const std::string &file_name) noexcept {
   PruneFilesList prune_files;
+
   const auto base_file_name = FileName::from_path(file_name).get_base_name();
+
+  if (base_file_name.empty()) {
+    return prune_files;
+  }
+
   auto time_now = std::chrono::system_clock::now();
 
   DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
@@ -268,19 +344,22 @@ PruneFilesList FileHandle::get_prune_files(
     time_now = SysVars::get_debug_time_point_for_rotation();
   });
 
-  for (const auto &entry :
-       std::filesystem::directory_iterator{working_dir_name}) {
-    if (entry.is_regular_file() && entry.path().filename().string().find(
-                                       base_file_name) != std::string::npos) {
+  for_each_directory_entry(working_dir_name, [&](const auto &entry) {
+    if (is_regular_file(entry) &&
+        entry.path().filename().string().find(base_file_name) !=
+            std::string::npos) {
       auto parsed_file_name = FileName::from_path(entry.path().filename());
 
       if (parsed_file_name.is_rotated()) {
         auto timestamp = parsed_file_name.get_rotation_time().timestamp.value();
-        prune_files.push_back(
-            {entry.path(), entry.file_size(), time_now - timestamp});
+        uintmax_t fsize = 0;
+        if (get_entry_file_size(entry, &fsize)) {
+          prune_files.push_back({entry.path(), fsize, time_now - timestamp});
+        }
       }
     }
-  }
+    return true;
+  });
 
   return prune_files;
 }
@@ -289,18 +368,23 @@ std::vector<std::string> FileHandle::get_log_names_list(
     const std::string &working_dir_name,
     const std::string &file_name) noexcept {
   std::vector<std::string> list;
+
   auto base_file_name =
       std::filesystem::path{file_name}.replace_extension().string();
 
-  for (const auto &entry :
-       std::filesystem::directory_iterator{working_dir_name}) {
+  if (base_file_name.empty()) {
+    return list;
+  }
+
+  for_each_directory_entry(working_dir_name, [&](const auto &entry) {
     const auto name = entry.path().filename().string();
 
-    if (entry.is_regular_file() &&
+    if (is_regular_file(entry) &&
         name.find(base_file_name) != std::string::npos) {
       list.push_back(name);
     }
-  }
+    return true;
+  });
 
   return list;
 }

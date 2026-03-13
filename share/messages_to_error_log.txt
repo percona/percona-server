@@ -3076,7 +3076,7 @@ ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED
   eng "Could not close the upgrade info file '%s' in the MySQL servers datadir, errno: %d."
 
 ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED
-  eng "Got error %d from SE while migrating tablespaces."
+  eng "Got error %d(%s) from SE while migrating tablespaces."
 
 ER_DD_UPGRADE_FAILED_TO_CREATE_TABLE_STATS
   eng "Error in creating TABLE statistics entry. Fix statistics data by using ANALYZE command."
@@ -12517,6 +12517,9 @@ ER_CONN_CONTROL_DELAYED_CONN_STATS
 
 ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH
   eng "The --secure-file-path is configured, %s must be set accordingly."
+
+ER_IB_MISSING_TABLESPACE_FILE
+  eng "Tablespace file %s is missing."
 
 #
 # End of Percona Server 8.0 server error log messages

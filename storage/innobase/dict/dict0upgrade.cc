@@ -1223,6 +1223,7 @@ int dd_upgrade_tablespace(THD *thd) {
           Datafile df;
           df.set_filepath(orig_name.c_str());
           if (df.open_read_only(false) != DB_SUCCESS) {
+            ib::error(ER_IB_MISSING_TABLESPACE_FILE, orig_name.c_str());
             mem_heap_free(heap);
             pcur.close();
             return HA_ERR_TABLESPACE_MISSING;

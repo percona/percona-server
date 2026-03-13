@@ -77,10 +77,6 @@ const std::string_view kAuditEventNameAuthCredentialChange{
 const std::string_view kAuditEventNameAuthAuthidRename{"auth_authid_rename"};
 const std::string_view kAuditEventNameAuthAuthidDrop{"auth_authid_drop"};
 
-const std::string_view kAuditEventNameServerStartupStartup{"startup"};
-
-const std::string_view kAuditEventNameServerShutdownShutdown{"shutdown"};
-
 const std::string_view kAuditEventNameStoredProgramExecute{"execute"};
 
 const std::string_view kAuditEventNameMessageInternal{"internal"};
@@ -88,9 +84,6 @@ const std::string_view kAuditEventNameMessageUser{"user"};
 
 const std::string_view kAuditEventNameParsePreparse{"preparse"};
 const std::string_view kAuditEventNameParsePostparse{"postparse"};
-
-const std::string_view kAuditNameShutdownReasonShutdown{"shutdown"};
-const std::string_view kAuditNameShutdownReasonAbort{"abort"};
 
 const std::string_view kAuditConnectionTypeNameUndef{"undefined"};
 const std::string_view kAuditConnectionTypeNameTcpip{"tcp/ip"};
@@ -232,30 +225,6 @@ std::string_view LogRecordFormatterJson::event_subclass_to_string(
 }
 
 std::string_view LogRecordFormatterJson::event_subclass_to_string(
-    const mysql_event_tracking_startup_data *event) const noexcept {
-  switch (event->event_subclass) {
-    case EVENT_TRACKING_STARTUP_STARTUP:
-      return kAuditEventNameServerStartupStartup;
-    default:
-      assert(false);
-  }
-
-  return kAuditNameUnknown;
-}
-
-std::string_view LogRecordFormatterJson::event_subclass_to_string(
-    const mysql_event_tracking_shutdown_data *event) const noexcept {
-  switch (event->event_subclass) {
-    case EVENT_TRACKING_SHUTDOWN_SHUTDOWN:
-      return kAuditEventNameServerShutdownShutdown;
-    default:
-      assert(false);
-  }
-
-  return kAuditNameUnknown;
-}
-
-std::string_view LogRecordFormatterJson::event_subclass_to_string(
     const mysql_event_tracking_stored_program_data *event) const noexcept {
   switch (event->event_subclass) {
     case EVENT_TRACKING_STORED_PROGRAM_EXECUTE:
@@ -324,20 +293,6 @@ std::string_view LogRecordFormatterJson::connection_type_name_to_string(
       return kAuditConnectionTypeNameSsl;
     case 5:
       return kAuditConnectionTypeNameShared;
-    default:
-      assert(false);
-  }
-
-  return kAuditNameUnknown;
-}
-
-std::string_view LogRecordFormatterJson::shutdown_reason_to_string(
-    mysql_event_tracking_shutdown_reason_t reason) const noexcept {
-  switch (reason) {
-    case EVENT_TRACKING_SHUTDOWN_REASON_SHUTDOWN:
-      return kAuditNameShutdownReasonShutdown;
-    case EVENT_TRACKING_SHUTDOWN_REASON_ABORT:
-      return kAuditNameShutdownReasonAbort;
     default:
       assert(false);
   }
@@ -502,71 +457,6 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(      "name": ")" << make_escaped_string(&audit_record.event->variable_name) << "\",\n"
          << R"(      "value": ")" << make_escaped_string(&audit_record.event->variable_value) << "\",\n"
          << R"(      "sql_command": ")" << make_escaped_string(audit_record.event->sql_command) << "\"}"
-         << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
-  /* clang-format on */
-
-  SysVars::update_log_bookmark(rec_id, timestamp);
-
-  return result.str();
-}
-
-AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordServerStartup &audit_record) const noexcept {
-  std::stringstream result;
-  const auto time_now = std::chrono::system_clock::now();
-  const auto timestamp = make_timestamp(time_now);
-  const auto rec_id = make_record_id();
-
-  /* clang-format off */
-  result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n";
-
-  if (SysVars::get_format_unix_timestamp()) {
-    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
-  }
-
-  result << R"(    "id": )" << rec_id << ",\n"
-         << R"(    "class": "server_startup",)" << "\n"
-         << R"(    "event": ")" << event_subclass_to_string(audit_record.event) << "\",\n"
-         << R"(    "args": [)"
-         << "\n";
-  for (unsigned int i = 0; i < audit_record.event->argc; ++i) {
-    if (audit_record.event->argv[i] != nullptr) {
-      result << ((i == 0) ? "" : ",\n") << R"(      ")"
-             << make_escaped_string(audit_record.event->argv[i]) << "\"";
-    }
-  }
-
-  result << "\n     ]" << extra_attrs_to_string(audit_record.extended_info)
-         << "\n  }";
-  /* clang-format on */
-
-  SysVars::update_log_bookmark(rec_id, timestamp);
-
-  return result.str();
-}
-
-AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordServerShutdown &audit_record) const noexcept {
-  std::stringstream result;
-  const auto time_now = std::chrono::system_clock::now();
-  const auto timestamp = make_timestamp(time_now);
-  const auto rec_id = make_record_id();
-
-  /* clang-format off */
-  result << "  {\n"
-         << R"(    "timestamp": ")" << timestamp << "\",\n";
-
-  if (SysVars::get_format_unix_timestamp()) {
-    result << R"(    "time": )" << make_unix_timestamp(time_now) << ",\n";
-  }
-
-  result << R"(    "id": )" << rec_id << ",\n"
-         << R"(    "class": "server_shutdown",)" << "\n"
-         << R"(    "event": ")" << event_subclass_to_string(audit_record.event) << "\",\n"
-         << R"(    "server_shutdown_data": {)" << "\n"
-         << R"(      "status": )" << audit_record.event->exit_code << ",\n"
-         << R"(      "reason": ")" << shutdown_reason_to_string(audit_record.event->reason) << "\"}"
          << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
   /* clang-format on */
 

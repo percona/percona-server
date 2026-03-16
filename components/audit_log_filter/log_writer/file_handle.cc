@@ -118,9 +118,10 @@ std::filesystem::path FileHandle::get_not_rotated_file_path(
     LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to list audit log directory '%s': %s",
                     working_dir_name.c_str(), ec.message().c_str());
+    return {};
   }
 
-  for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+  while (it != std::filesystem::directory_iterator{}) {
     const auto &entry = *it;
     std::error_code entry_ec;
     if (entry.is_regular_file(entry_ec) && !entry_ec &&
@@ -129,20 +130,30 @@ std::filesystem::path FileHandle::get_not_rotated_file_path(
         !FileName::from_path(entry.path().filename()).is_rotated()) {
       return entry.path();
     }
+
+    it.increment(ec);
+    if (ec) {
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to iterate audit log directory '%s': %s",
+                      working_dir_name.c_str(), ec.message().c_str());
+      return {};
+    }
   }
 
   return {};
 }
 
-uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
-                                        const std::string &file_name) noexcept {
+bool FileHandle::get_total_log_size(const std::string &working_dir_name,
+                                    const std::string &file_name,
+                                    uint64_t &total_size) noexcept {
+  total_size = 0;
   auto base_name = std::filesystem::path{file_name}.filename();
   while (base_name.has_extension()) {
     base_name.replace_extension();
   }
 
   if (base_name.empty()) {
-    return 0;
+    return true;
   }
 
   uint64_t size = 0;
@@ -153,9 +164,10 @@ uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
     LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to list audit log directory '%s': %s",
                     working_dir_name.c_str(), ec.message().c_str());
+    return false;
   }
 
-  for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+  while (it != std::filesystem::directory_iterator{}) {
     const auto &entry = *it;
     auto entry_file_name = entry.path().filename();
 
@@ -171,9 +183,18 @@ uint64_t FileHandle::get_total_log_size(const std::string &working_dir_name,
         size += fsize;
       }
     }
+
+    it.increment(ec);
+    if (ec) {
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to iterate audit log directory '%s': %s",
+                      working_dir_name.c_str(), ec.message().c_str());
+      return false;
+    }
   }
 
-  return size;
+  total_size = size;
+  return true;
 }
 
 bool FileHandle::remove_file(const std::filesystem::path &path) noexcept {
@@ -306,15 +327,15 @@ void FileHandle::rotate(const std::filesystem::path &current_file_path,
   }
 }
 
-PruneFilesList FileHandle::get_prune_files(
-    const std::string &working_dir_name,
-    const std::string &file_name) noexcept {
-  PruneFilesList prune_files;
+bool FileHandle::get_prune_files(const std::string &working_dir_name,
+                                 const std::string &file_name,
+                                 PruneFilesList &prune_files) noexcept {
+  prune_files.clear();
 
   const auto base_file_name = FileName::from_path(file_name).get_base_name();
 
   if (base_file_name.empty()) {
-    return prune_files;
+    return true;
   }
 
   auto time_now = std::chrono::system_clock::now();
@@ -333,9 +354,10 @@ PruneFilesList FileHandle::get_prune_files(
     LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to list audit log directory '%s': %s",
                     working_dir_name.c_str(), ec.message().c_str());
+    return false;
   }
 
-  for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+  while (it != std::filesystem::directory_iterator{}) {
     const auto &entry = *it;
     std::error_code entry_ec;
     if (entry.is_regular_file(entry_ec) && !entry_ec &&
@@ -351,21 +373,29 @@ PruneFilesList FileHandle::get_prune_files(
         }
       }
     }
+
+    it.increment(ec);
+    if (ec) {
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to iterate audit log directory '%s': %s",
+                      working_dir_name.c_str(), ec.message().c_str());
+      return false;
+    }
   }
 
-  return prune_files;
+  return true;
 }
 
-std::vector<std::string> FileHandle::get_log_names_list(
-    const std::string &working_dir_name,
-    const std::string &file_name) noexcept {
-  std::vector<std::string> list;
+bool FileHandle::get_log_names_list(
+    const std::string &working_dir_name, const std::string &file_name,
+    std::vector<std::string> &log_names) noexcept {
+  log_names.clear();
 
   auto base_file_name =
       std::filesystem::path{file_name}.replace_extension().string();
 
   if (base_file_name.empty()) {
-    return list;
+    return true;
   }
 
   std::error_code ec;
@@ -375,20 +405,29 @@ std::vector<std::string> FileHandle::get_log_names_list(
     LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to list audit log directory '%s': %s",
                     working_dir_name.c_str(), ec.message().c_str());
+    return false;
   }
 
-  for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+  while (it != std::filesystem::directory_iterator{}) {
     const auto &entry = *it;
     const auto name = entry.path().filename().string();
 
     std::error_code entry_ec;
     if (entry.is_regular_file(entry_ec) && !entry_ec &&
         name.find(base_file_name) != std::string::npos) {
-      list.push_back(name);
+      log_names.push_back(name);
+    }
+
+    it.increment(ec);
+    if (ec) {
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to iterate audit log directory '%s': %s",
+                      working_dir_name.c_str(), ec.message().c_str());
+      return false;
     }
   }
 
-  return list;
+  return true;
 }
 
 }  // namespace audit_log_filter::log_writer

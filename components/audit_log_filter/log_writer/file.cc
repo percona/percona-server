@@ -175,8 +175,11 @@ bool LogWriterFile::do_open_file() noexcept {
     return false;
   }
 
-  SysVars::set_total_log_size(FileHandle::get_total_log_size(
-      SysVars::get_file_dir(), SysVars::get_file_name()));
+  uint64_t total_size = 0;
+  if (FileHandle::get_total_log_size(SysVars::get_file_dir(),
+                                     SysVars::get_file_name(), total_size)) {
+    SysVars::set_total_log_size(total_size);
+  }
   SysVars::set_current_log_size(get_log_size());
 
   init_formatter();
@@ -275,8 +278,11 @@ void LogWriterFile::prune() noexcept {
   const auto prune_seconds = SysVars::get_log_prune_seconds();
 
   if (log_max_size > 0) {
-    auto log_file_list = FileHandle::get_prune_files(SysVars::get_file_dir(),
-                                                     SysVars::get_file_name());
+    PruneFilesList log_file_list;
+    if (!FileHandle::get_prune_files(SysVars::get_file_dir(),
+                                     SysVars::get_file_name(), log_file_list)) {
+      return;
+    }
 
     ulonglong current_logs_size = std::accumulate(
         log_file_list.begin(), log_file_list.end(), ulonglong{0},
@@ -306,8 +312,11 @@ void LogWriterFile::prune() noexcept {
       file_queue.pop();
     }
   } else if (prune_seconds > 0) {
-    auto log_file_list = FileHandle::get_prune_files(SysVars::get_file_dir(),
-                                                     SysVars::get_file_name());
+    PruneFilesList log_file_list;
+    if (!FileHandle::get_prune_files(SysVars::get_file_dir(),
+                                     SysVars::get_file_name(), log_file_list)) {
+      return;
+    }
 
     for (const auto &entry : log_file_list) {
       if (entry.age > std::chrono::seconds(prune_seconds)) {
@@ -316,8 +325,11 @@ void LogWriterFile::prune() noexcept {
     }
   }
 
-  SysVars::set_total_log_size(FileHandle::get_total_log_size(
-      SysVars::get_file_dir(), SysVars::get_file_name()));
+  uint64_t total_size = 0;
+  if (FileHandle::get_total_log_size(SysVars::get_file_dir(),
+                                     SysVars::get_file_name(), total_size)) {
+    SysVars::set_total_log_size(total_size);
+  }
 }
 
 }  // namespace audit_log_filter::log_writer

@@ -95,11 +95,12 @@ class FileHandle {
    *
    * @param working_dir_name Working directory name
    * @param file_name Log file name
-   * @return Total logs size in bytes
+   * @param[out] total_size Total logs size in bytes
+   * @return true on success, false on directory iteration error
    */
-  [[nodiscard]] static uint64_t get_total_log_size(
-      const std::string &working_dir_name,
-      const std::string &file_name) noexcept;
+  [[nodiscard]] static bool get_total_log_size(
+      const std::string &working_dir_name, const std::string &file_name,
+      uint64_t &total_size) noexcept;
 
   /**
    * @brief Remove log footer from the end of a file.
@@ -126,10 +127,12 @@ class FileHandle {
    *
    * @param working_dir_name Working directory name
    * @param file_name File name
-   * @return List of rotated log files
+   * @param[out] prune_files List of rotated log files
+   * @return true on success, false on directory iteration error
    */
-  static PruneFilesList get_prune_files(const std::string &working_dir_name,
-                                        const std::string &file_name) noexcept;
+  [[nodiscard]] static bool get_prune_files(
+      const std::string &working_dir_name, const std::string &file_name,
+      PruneFilesList &prune_files) noexcept;
 
   /**
    * @brief Remove a file.
@@ -155,11 +158,12 @@ class FileHandle {
    *
    * @param working_dir_name Working directory name
    * @param file_name Base file name
-   * @return List of audit log file names
+   * @param[out] log_names List of audit log file names
+   * @return true on success, false on directory iteration error
    */
-  static std::vector<std::string> get_log_names_list(
-      const std::string &working_dir_name,
-      const std::string &file_name) noexcept;
+  [[nodiscard]] static bool get_log_names_list(
+      const std::string &working_dir_name, const std::string &file_name,
+      std::vector<std::string> &log_names) noexcept;
 
  private:
   std::fstream m_file;

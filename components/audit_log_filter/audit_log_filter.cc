@@ -657,10 +657,12 @@ void AuditLogFilter::on_audit_log_rotate_requested(
 void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
   if (m_is_active && SysVars::get_password_history_keep_days() > 0 &&
       audit_keyring::check_keyring_initialized()) {
-    audit_keyring::prune_encryption_options(
-        SysVars::get_password_history_keep_days(),
-        log_writer::FileHandle::get_log_names_list(SysVars::get_file_dir(),
-                                                   SysVars::get_file_name()));
+    std::vector<std::string> log_names;
+    if (log_writer::FileHandle::get_log_names_list(
+            SysVars::get_file_dir(), SysVars::get_file_name(), log_names)) {
+      audit_keyring::prune_encryption_options(
+          SysVars::get_password_history_keep_days(), log_names);
+    }
   }
 }
 

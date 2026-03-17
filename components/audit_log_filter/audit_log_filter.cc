@@ -50,6 +50,7 @@
 
 #include <scope_guard.h>
 #include <array>
+#include <exception>
 #include <memory>
 #include <variant>
 
@@ -74,7 +75,7 @@ SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 namespace audit_log_filter {
 namespace {
 
-AuditLogFilter *audit_log_filter = nullptr;
+std::unique_ptr<AuditLogFilter> audit_log_filter;
 
 class EventsConsumer {
  public:
@@ -177,7 +178,7 @@ void deinit_abort_exempt_privilege() {
 }  // namespace
 
 AuditLogFilter *get_audit_log_filter_instance() noexcept {
-  return audit_log_filter;
+  return audit_log_filter.get();
 }
 
 /*
@@ -267,7 +268,7 @@ static std::array udfs_list{
  * @return Initialization status, 0 in case of success or non zero
  *         code otherwise
  */
-mysql_service_status_t audit_log_filter_init() {
+mysql_service_status_t audit_log_filter_init() try {
   auto *all_mem_info = get_all_memory_info();
   mysql_memory_register(AUDIT_LOG_FILTER_PSI_CATEGORY, all_mem_info,
                         sizeof(*all_mem_info) / sizeof(PSI_memory_info));
@@ -356,26 +357,34 @@ mysql_service_status_t audit_log_filter_init() {
 
   log_reader->reset();
 
-  audit_log_filter =
-      new AuditLogFilter(std::move(audit_rule_registry), std::move(audit_udf),
-                         std::move(log_writer), std::move(log_reader));
+  auto local_audit_log_filter = std::make_unique<AuditLogFilter>(
+      std::move(audit_rule_registry), std::move(audit_udf),
+      std::move(log_writer), std::move(log_reader));
 
-  if (audit_log_filter == nullptr || !audit_log_filter->init()) {
+  if (!local_audit_log_filter->init()) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_INIT_FAILURE);
     return 1;
   }
 
-  // In case of successful initialization,
-  // prevent comp_registry_srv from being released by the comp_scope_guard.
-  comp_registry_srv = nullptr;
-
   if (SysVars::get_log_disabled()) {
     LogComponentErr(WARNING_LEVEL, ER_AUDIT_INIT_DISABLED_WARN);
   } else {
-    audit_log_filter->send_audit_start_event();
+    local_audit_log_filter->send_audit_start_event();
   }
 
+  // Disarm the scope guard only after all potentially-throwing operations
+  // succeeded, so that SysVars cleanup still runs on exception.
+  comp_registry_srv = nullptr;
+  audit_log_filter = std::move(local_audit_log_filter);
   return 0;
+} catch (const std::exception &e) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Exception in audit_log_filter_init: %s", e.what());
+  return 1;
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Unknown exception in audit_log_filter_init");
+  return 1;
 }
 
 /**
@@ -385,7 +394,7 @@ mysql_service_status_t audit_log_filter_init() {
  * @return Plugin deinit status, 0 in case of success or non zero
  *         code otherwise
  */
-mysql_service_status_t audit_log_filter_deinit() {
+mysql_service_status_t audit_log_filter_deinit() try {
   if (audit_log_filter == nullptr) {
     return 0;
   }
@@ -400,10 +409,17 @@ mysql_service_status_t audit_log_filter_deinit() {
   SysVars::deinit();
   SysVars::release_comp_registry_srv();
 
-  delete audit_log_filter;
-  audit_log_filter = nullptr;
+  audit_log_filter.reset();
 
   return 0;
+} catch (const std::exception &e) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Exception in audit_log_filter_deinit: %s", e.what());
+  return 1;
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Unknown exception in audit_log_filter_deinit");
+  return 1;
 }
 
 AuditLogFilter::AuditLogFilter(
@@ -461,7 +477,7 @@ void AuditLogFilter::deinit() noexcept {
 }
 
 int AuditLogFilter::notify_event(audit_event_class_t event_class,
-                                 const void *event_data) {
+                                 const void *event_data) try {
   if (SysVars::get_log_disabled() || !m_is_active) {
     return 0;
   }
@@ -555,13 +571,26 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     get_connection_attrs(thd, record);
   }
 
-  m_log_writer->write(record);
+  try {
+    m_log_writer->write(record);
+  } catch (...) {
+    SysVars::inc_events_lost();
+    throw;
+  }
   SysVars::inc_events_written();
 
   return 0;
+} catch (const std::exception &e) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Caught exception in notify_event: %s", e.what());
+  return 0;
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Caught unknown exception in notify_event");
+  return 0;
 }
 
-void AuditLogFilter::send_audit_start_event() noexcept {
+void AuditLogFilter::send_audit_start_event() noexcept try {
   auto event = internal_event_tracking_audit_data{
       INTERNAL_EVENT_TRACKING_AUDIT_AUDIT, static_cast<uint32>(::server_id), 0};
 
@@ -604,9 +633,12 @@ void AuditLogFilter::send_audit_start_event() noexcept {
   }
 
   m_log_writer->write(*audit_record);
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Caught exception in send_audit_start_event");
 }
 
-void AuditLogFilter::send_audit_stop_event() noexcept {
+void AuditLogFilter::send_audit_stop_event() noexcept try {
   auto event =
       internal_event_tracking_audit_data{INTERNAL_EVENT_TRACKING_AUDIT_NOAUDIT,
                                          static_cast<uint32>(::server_id), 0};
@@ -624,9 +656,12 @@ void AuditLogFilter::send_audit_stop_event() noexcept {
   }
 
   m_log_writer->write(*audit_record);
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Caught exception in send_audit_stop_event");
 }
 
-bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
+bool AuditLogFilter::on_audit_rule_flush_requested() noexcept try {
   if (!m_is_active) {
     return false;
   }
@@ -637,6 +672,10 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept {
                   { m_log_writer->rotate(nullptr); });
 
   return is_flushed;
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Caught exception in on_audit_rule_flush_requested");
+  return false;
 }
 
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {
@@ -653,7 +692,7 @@ void AuditLogFilter::on_audit_log_rotate_requested(
   }
 }
 
-void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
+void AuditLogFilter::on_encryption_password_prune_requested() noexcept try {
   if (m_is_active && SysVars::get_password_history_keep_days() > 0 &&
       audit_keyring::check_keyring_initialized()) {
     std::vector<std::string> log_names;
@@ -663,6 +702,9 @@ void AuditLogFilter::on_encryption_password_prune_requested() noexcept {
           SysVars::get_password_history_keep_days(), log_names);
     }
   }
+} catch (...) {
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Caught exception in on_encryption_password_prune_requested");
 }
 
 void AuditLogFilter::on_audit_log_rotated() noexcept {
@@ -708,7 +750,7 @@ void AuditLogFilter::get_connection_attrs(MYSQL_THD thd,
 
 bool AuditLogFilter::get_connection_user(Security_context_handle &ctx,
                                          std::string &user_name,
-                                         std::string &user_host) noexcept {
+                                         std::string &user_host) noexcept try {
   MYSQL_LEX_CSTRING user{"", 0};
   MYSQL_LEX_CSTRING host{"", 0};
 
@@ -736,6 +778,8 @@ bool AuditLogFilter::get_connection_user(Security_context_handle &ctx,
   }
 
   return true;
+} catch (...) {
+  return false;
 }
 
 bool AuditLogFilter::check_abort_exempt_privilege(
@@ -761,7 +805,8 @@ bool AuditLogFilter::get_security_context(
 
 bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
                                                  const std::string &name,
-                                                 std::string &value) noexcept {
+                                                 std::string &value) noexcept
+    try {
   MYSQL_LEX_CSTRING val{"", 0};
   // calls mysql_security_context_imp::get
   if (m_security_context_opts_srv->get(ctx, name.c_str(), &val) != 0) {
@@ -777,6 +822,8 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
   }
 
   return true;
+} catch (...) {
+  return false;
 }
 
 std::string AuditLogFilter::get_sql_text(MYSQL_THD thd) {

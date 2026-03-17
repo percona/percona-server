@@ -118,47 +118,12 @@ script_template: &SCRIPT_TEMPLATE
     path: ${RESULTS_FILE}.html
 
 
-# DISABLED: (x86_64) Ubuntu 24.04 Noble for percona/percona-server
+# DISABLED: (x86_64) Ubuntu 24.04 Noble with gp3 SSD for percona/percona-server
 task:
   << : *FILTER_TEMPLATE
   # run only on "percona/percona-server" but not on "8.4" as we have nightly cron builds for "8.4" branch
   # only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.4' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   only_if: false   # DISABLED
-  aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
-  ec2_instance:
-    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-2024061*"
-    image: ami-0d3d400c0ff21c982 # Ubuntu 24.04 x86-64 with gcc-14
-    type: c6i.4xlarge  # 16 vCPUs, 32 GB, no SSD
-    region: us-east-1
-    architecture: amd64 # defaults to amd64
-    spot: true
-  env:
-    OS_TYPE: ubuntu-24.04-x86_64
-  matrix:
-    - name: (x86_64) gcc-14 Debug [Ubuntu 24.04 Noble]
-      env:
-        SELECTED_CC: gcc-14
-        SELECTED_CXX: g++-14
-        BUILD_TYPE: Debug
-        BUILD_PARAMS_TYPE: normal
-    - name: (x86_64) gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]
-      skip: $CIRRUS_PR != ""  # skip PRs
-      env:
-        SELECTED_CC: gcc-14
-        SELECTED_CXX: g++-14
-        BUILD_TYPE: RelWithDebInfo
-        BUILD_PARAMS_TYPE: normal
-  mount_disk_script: |
-    lsblk
-    lsblk -f
-  << : *SCRIPT_TEMPLATE
-
-
-# (x86_64) Ubuntu 24.04 Noble for percona/percona-server
-task:
-  << : *FILTER_TEMPLATE
-  # run only on "percona/percona-server" but not on "8.4" as we have nightly cron builds for "8.4" branch
-  only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.4' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
     # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-202302*"
@@ -203,15 +168,13 @@ task:
   only_if: "$CIRRUS_CRON != '' || $CIRRUS_REPO_FULL_NAME == 'percona/percona-server' && $CIRRUS_BRANCH != '8.4' && !changesIncludeOnly('doc/*', 'build-ps/*', 'man/*', 'mysql-test/*', 'packaging/*', 'policy/*', 'scripts/*', 'support-files/*')"
   aws_credentials: ENCRYPTED[!f57794979d3ed96943cd39073b66a4fffbdc3ee6366b265e68c5aae890961d171bddca50bf169cc07db56c8c68172b84!]
   ec2_instance:
-    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-202506*"
-    # image: ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-server-20250617
     # image: ami-0e2b332e63c56bcb5  # Ubuntu Server 22.04 LTS ARM 64-bit
-    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-2025*"
-    image: ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20250610
+    # aws ec2 describe-images --filters "Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-2026*" | grep -v "\-prod\-" | grep "ubuntu-noble-24.04-arm64-server-202" | grep Name
+    image: ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-20260313
     type: c6gd.4xlarge  # 16 vCPUs, 32 GB, 950 GB SSD, 0.6144 USD/H
-    region: us-west-1
+    region: us-east-1
     architecture: arm64 # defaults to amd64
-    spot: true
+    spot: false
   env:
     OS_TYPE: ubuntu-24.04-arm64
   matrix:
@@ -230,9 +193,21 @@ task:
     lsblk
     lsblk -f
     df -Th
-    sudo mkfs -t xfs /dev/nvme1n1
+    DATA_DISK=$(lsblk -dpno NAME | grep nvme | while read dev; do
+      if [ "$(lsblk -no NAME "$dev" | wc -l)" -eq 1 ]; then
+        echo "$dev"
+        break
+      fi
+    done)
+    if [ -z "$DATA_DISK" ]; then
+      echo "ERROR: No unpartitioned NVMe data disk found"
+      lsblk
+      exit 1
+    fi
+    echo "Using $DATA_DISK as data disk"
+    sudo mkfs -t xfs "$DATA_DISK"
     sudo mkdir $MOUNT_POINT
-    sudo mount /dev/nvme1n1 $MOUNT_POINT
+    sudo mount "$DATA_DISK" $MOUNT_POINT
     df -Th
   << : *SCRIPT_TEMPLATE
 
@@ -270,8 +245,20 @@ task:
     lsblk
     lsblk -f
     df -Th
-    sudo mkfs -t xfs /dev/nvme1n1
+    DATA_DISK=$(lsblk -dpno NAME | grep nvme | while read dev; do
+      if [ "$(lsblk -no NAME "$dev" | wc -l)" -eq 1 ]; then
+        echo "$dev"
+        break
+      fi
+    done)
+    if [ -z "$DATA_DISK" ]; then
+      echo "ERROR: No unpartitioned NVMe data disk found"
+      lsblk
+      exit 1
+    fi
+    echo "Using $DATA_DISK as data disk"
+    sudo mkfs -t xfs "$DATA_DISK"
     sudo mkdir $MOUNT_POINT
-    sudo mount /dev/nvme1n1 $MOUNT_POINT
+    sudo mount "$DATA_DISK" $MOUNT_POINT
     df -Th
   << : *SCRIPT_TEMPLATE

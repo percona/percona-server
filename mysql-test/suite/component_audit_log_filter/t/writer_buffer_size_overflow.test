@@ -1,6 +1,7 @@
 --source include/have_component_audit_log.inc
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
+SET GLOBAL audit_log_filter.event_mode=FULL;
 
 # The Audit_log_filter_buffer_size_overflow status variable should catch when
 # statement was too big to fit buffer.
@@ -9,7 +10,7 @@ SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "
 SELECT audit_log_filter_set_user('%', 'log_query');
 
 # Test it with default audit_log_strategy
---let $restart_parameters="restart: --audit_log_filter.buffer_size=4096"
+--let $restart_parameters="restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.event_mode=FULL"
 --source include/restart_mysqld.inc
 
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
@@ -25,7 +26,7 @@ SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter_event_max_drop_size';
 
 # Test it with audit_log_filter_strategy = PERFORMANCE
---let $restart_parameters="restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.strategy=PERFORMANCE"
+--let $restart_parameters="restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.strategy=PERFORMANCE --audit_log_filter.event_mode=FULL"
 --source include/restart_mysqld.inc
 
 SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';

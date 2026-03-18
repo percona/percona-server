@@ -688,12 +688,13 @@ void AuditLogFilter::send_audit_stop_event() noexcept try {
                   "Caught exception in send_audit_stop_event");
 }
 
-bool AuditLogFilter::on_audit_rule_flush_requested() noexcept try {
+bool AuditLogFilter::on_audit_rule_flush_requested(
+    std::string &error_message) noexcept try {
   if (!m_is_active) {
     return false;
   }
 
-  const bool is_flushed = m_audit_rules_registry->load();
+  const bool is_flushed = m_audit_rules_registry->load(error_message);
 
   DBUG_EXECUTE_IF("audit_log_filter_rotate_after_audit_rules_flush",
                   { m_log_writer->rotate(nullptr); });
@@ -703,6 +704,12 @@ bool AuditLogFilter::on_audit_rule_flush_requested() noexcept try {
   LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                   "Caught exception in on_audit_rule_flush_requested");
   return false;
+}
+
+void AuditLogFilter::invalidate_audit_rules() noexcept {
+  if (m_is_active) {
+    m_audit_rules_registry->invalidate();
+  }
 }
 
 void AuditLogFilter::on_audit_log_prune_requested() noexcept {

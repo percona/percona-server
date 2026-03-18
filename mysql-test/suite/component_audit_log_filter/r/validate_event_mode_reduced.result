@@ -1,0 +1,66 @@
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT @@global.audit_log_filter.event_mode;
+@@global.audit_log_filter.event_mode
+REDUCED
+#
+# Reduced mode rejects disabled event classes during validation
+SELECT audit_log_filter_set_filter('disabled_query', '{"filter":{"class":{"name":"query"}}}');
+audit_log_filter_set_filter('disabled_query', '{"filter":{"class":{"name":"query"}}}')
+ERROR: Incorrect rule definition: event class 'query' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_global_variable', '{"filter":{"class":{"name":"global_variable"}}}');
+audit_log_filter_set_filter('disabled_global_variable', '{"filter":{"class":{"name":"global_variable"}}}')
+ERROR: Incorrect rule definition: event class 'global_variable' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_command', '{"filter":{"class":{"name":"command"}}}');
+audit_log_filter_set_filter('disabled_command', '{"filter":{"class":{"name":"command"}}}')
+ERROR: Incorrect rule definition: event class 'command' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_stored_program', '{"filter":{"class":{"name":"stored_program"}}}');
+audit_log_filter_set_filter('disabled_stored_program', '{"filter":{"class":{"name":"stored_program"}}}')
+ERROR: Incorrect rule definition: event class 'stored_program' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_authentication', '{"filter":{"class":{"name":"authentication"}}}');
+audit_log_filter_set_filter('disabled_authentication', '{"filter":{"class":{"name":"authentication"}}}')
+ERROR: Incorrect rule definition: event class 'authentication' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_parse', '{"filter":{"class":{"name":"parse"}}}');
+audit_log_filter_set_filter('disabled_parse', '{"filter":{"class":{"name":"parse"}}}')
+ERROR: Incorrect rule definition: event class 'parse' is disabled in audit_log_filter.event_mode=REDUCED
+#
+# Reduced mode rejects disabled event subclasses during validation
+SELECT audit_log_filter_set_filter('disabled_general_log', '{"filter":{"class":{"name":"general","event":{"name":"log"}}}}');
+audit_log_filter_set_filter('disabled_general_log', '{"filter":{"class":{"name":"general","event":{"name":"log"}}}}')
+ERROR: Incorrect rule definition: event 'general/log' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_general_error', '{"filter":{"class":{"name":"general","event":{"name":"error"}}}}');
+audit_log_filter_set_filter('disabled_general_error', '{"filter":{"class":{"name":"general","event":{"name":"error"}}}}')
+ERROR: Incorrect rule definition: event 'general/error' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_general_result', '{"filter":{"class":{"name":"general","event":{"name":"result"}}}}');
+audit_log_filter_set_filter('disabled_general_result', '{"filter":{"class":{"name":"general","event":{"name":"result"}}}}')
+ERROR: Incorrect rule definition: event 'general/result' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('disabled_conn_preauth', '{"filter":{"class":{"name":"connection","event":{"name":"pre_authenticate"}}}}');
+audit_log_filter_set_filter('disabled_conn_preauth', '{"filter":{"class":{"name":"connection","event":{"name":"pre_authenticate"}}}}')
+ERROR: Incorrect rule definition: event 'connection/pre_authenticate' is disabled in audit_log_filter.event_mode=REDUCED
+#
+# Reduced mode rejects mixed valid + invalid class names in arrays
+SELECT audit_log_filter_set_filter('mixed_general_query', '{"filter":{"class":{"name":["general","query"]}}}');
+audit_log_filter_set_filter('mixed_general_query', '{"filter":{"class":{"name":["general","query"]}}}')
+ERROR: Incorrect rule definition: event class 'query' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('mixed_connection_parse', '{"filter":{"class":{"name":["connection","parse"]}}}');
+audit_log_filter_set_filter('mixed_connection_parse', '{"filter":{"class":{"name":["connection","parse"]}}}')
+ERROR: Incorrect rule definition: event class 'parse' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('mixed_table_access_command', '{"filter":{"class":{"name":["table_access","command"]}}}');
+audit_log_filter_set_filter('mixed_table_access_command', '{"filter":{"class":{"name":["table_access","command"]}}}')
+ERROR: Incorrect rule definition: event class 'command' is disabled in audit_log_filter.event_mode=REDUCED
+SELECT audit_log_filter_set_filter('mixed_message_auth', '{"filter":{"class":{"name":["message","authentication"]}}}');
+audit_log_filter_set_filter('mixed_message_auth', '{"filter":{"class":{"name":["message","authentication"]}}}')
+ERROR: Incorrect rule definition: event class 'authentication' is disabled in audit_log_filter.event_mode=REDUCED
+#
+# Reduced mode logs only the reduced event-class subset
+SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+OK
+#
+# Cleanup

@@ -12,6 +12,18 @@ filter-definition validation through `audit_log_filter_set_filter()`.
 - Some numeric-looking fields are currently validated as `string` because they
   are not explicitly typed in `get_event_field_value_type()`.
 - Filter-definition validation only accepts the class names documented below.
+- When `audit_log_filter.event_mode=REDUCED` (the default), only the following
+  events are tracked and accepted by filter-definition validation:
+  - `general`: `status`
+  - `connection`: `connect`, `disconnect`, `change_user`
+  - `table_access`: `read`, `insert`, `update`, `delete`
+  - `message`: `internal`, `user`
+
+  Class names that have no allowed events in REDUCED mode (`global_variable`,
+  `command`, `query`, `stored_program`, `authentication`, `parse`) are rejected
+  entirely. Subclass names that are not in the list above (e.g. `general/log`,
+  `connection/pre_authenticate`) are also rejected during filter validation.
+  At runtime, events not in the REDUCED set are silently skipped.
 - Lifecycle-related records with class names `audit`, `server_startup`, and
   `server_shutdown` are not valid filter-definition targets. Startup and
   shutdown lifecycle events are ignored by the audit log filter if they are
@@ -23,6 +35,7 @@ filter-definition validation through `audit_log_filter_set_filter()`.
 ## `general`
 
 Supported events: `log`, `error`, `result`, `status`
+REDUCED mode: only `status`
 
 | Field Name | Field Type | Description |
 | --- | --- | --- |
@@ -47,6 +60,7 @@ Supported events: `log`, `error`, `result`, `status`
 ## `connection`
 
 Supported events: `connect`, `disconnect`, `change_user`, `pre_authenticate`
+REDUCED mode: `connect`, `disconnect`, `change_user`
 
 | Field Name | Field Type | Description |
 | --- | --- | --- |
@@ -77,6 +91,7 @@ Supported events: `connect`, `disconnect`, `change_user`, `pre_authenticate`
 ## `table_access`
 
 Supported events: `read`, `insert`, `update`, `delete`
+REDUCED mode: all events
 
 | Field Name | Field Type | Description |
 | --- | --- | --- |
@@ -89,7 +104,7 @@ Supported events: `read`, `insert`, `update`, `delete`
 | `table_name.str` | string | Table name associated with event. |
 | `table_name.length` | unsigned integer | Table name length. |
 
-## `global_variable`
+## `global_variable` *(FULL mode only)*
 
 Supported events: `get`, `set`
 
@@ -101,7 +116,7 @@ Supported events: `get`, `set`
 | `variable_value.str` | string | Variable value. |
 | `variable_value.length` | string | Variable value length. |
 
-## `command`
+## `command` *(FULL mode only)*
 
 Supported events: `start`, `end`
 
@@ -112,7 +127,7 @@ Supported events: `start`, `end`
 | `command.str` | string | Command text. |
 | `command.length` | string | Command text length. |
 
-## `query`
+## `query` *(FULL mode only)*
 
 Supported events: `start`, `nested_start`, `status_end`, `nested_status_end`
 
@@ -125,7 +140,7 @@ Supported events: `start`, `nested_start`, `status_end`, `nested_status_end`
 | `query.length` | string | SQL query text length. |
 | `query_charset` | string | SQL query character set name. |
 
-## `stored_program`
+## `stored_program` *(FULL mode only)*
 
 Supported events: `execute`
 
@@ -137,7 +152,7 @@ Supported events: `execute`
 | `name.str` | string | Stored program name. |
 | `name.length` | string | Stored program name length. |
 
-## `authentication`
+## `authentication` *(FULL mode only)*
 
 Supported events: `flush`, `authid_create`, `credential_change`, `authid_rename`, `authid_drop`
 
@@ -153,6 +168,7 @@ Supported events: `flush`, `authid_create`, `credential_change`, `authid_rename`
 ## `message`
 
 Supported events: `internal`, `user`
+REDUCED mode: all events
 
 | Field Name | Field Type | Description |
 | --- | --- | --- |
@@ -164,7 +180,7 @@ Supported events: `internal`, `user`
 | `message.str` | string | Message text. |
 | `message.length` | string | Message text length. |
 
-## `parse`
+## `parse` *(FULL mode only)*
 
 Supported events: `preparse`, `postparse`
 

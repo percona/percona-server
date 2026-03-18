@@ -1,0 +1,18 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+SELECT @@global.audit_log_filter.event_mode;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.audit_log_filter.event_mode;
+
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT @@global.audit_log_filter.event_mode;
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT @@global.audit_log_filter.event_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL audit_log_filter.event_mode="INVALID";
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

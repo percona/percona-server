@@ -1,6 +1,7 @@
 --source include/have_component_audit_log.inc
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
+SET GLOBAL audit_log_filter.event_mode=FULL;
 
 --disable_query_log
 call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");

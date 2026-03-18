@@ -522,6 +522,37 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 
   SysVars::set_session_filter_id(thd, filter_rule->get_filter_id());
 
+  if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced) {
+    switch (event_class) {
+      case audit_event_class_t::AUDIT_GLOBAL_VARIABLE_CLASS:
+      case audit_event_class_t::AUDIT_COMMAND_CLASS:
+      case audit_event_class_t::AUDIT_QUERY_CLASS:
+      case audit_event_class_t::AUDIT_STORED_PROGRAM_CLASS:
+      case audit_event_class_t::AUDIT_AUTHENTICATION_CLASS:
+      case audit_event_class_t::AUDIT_PARSE_CLASS:
+        return 0;
+      case audit_event_class_t::AUDIT_GENERAL_CLASS: {
+        auto sc =
+            static_cast<const mysql_event_tracking_general_data *>(event_data)
+                ->event_subclass;
+        if (sc == EVENT_TRACKING_GENERAL_LOG ||
+            sc == EVENT_TRACKING_GENERAL_ERROR ||
+            sc == EVENT_TRACKING_GENERAL_RESULT)
+          return 0;
+        break;
+      }
+      case audit_event_class_t::AUDIT_CONNECTION_CLASS: {
+        auto sc = static_cast<const mysql_event_tracking_connection_data *>(
+                      event_data)
+                      ->event_subclass;
+        if (sc == EVENT_TRACKING_CONNECTION_PRE_AUTHENTICATE) return 0;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
   // Get actual event info based on event class
   auto audit_record = get_audit_record(event_class, event_data);
   if (!audit_record.has_value()) {

@@ -1,6 +1,7 @@
 --source include/have_component_audit_log.inc
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
+SET GLOBAL audit_log_filter.event_mode=FULL;
 
 SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
 SELECT audit_log_filter_set_user('%', 'log_query');

@@ -30,6 +30,7 @@
 #include "util/ndb_ndbxfrm1.h"
 #include "util/ndb_openssl_evp.h"
 #include "util/ndbxfrm_iterator.h"
+#include "util/ndbxfrm_padding.h"
 
 // clang-format off
 #ifndef REQUIRE
@@ -67,6 +68,7 @@ ndbxfrm_file::ndbxfrm_file()
       m_file_block_size(0),
       m_payload_start(-1),
       m_encrypted(false),
+      m_encrypt_pkcs7_padding(false),
       m_file_format(FF_UNKNOWN),
       m_payload_end(INDEFINITE_OFFSET),
       m_file_pos(INDEFINITE_OFFSET),
@@ -83,6 +85,8 @@ void ndbxfrm_file::reset() {
   m_encrypted = false;
   m_compressed = false;
   m_have_data_crc32 = false;
+  m_encrypt_pkcs7_padding = false;
+  m_padding_removed = false;
   openssl_evp.reset();
   m_file_format = FF_UNKNOWN;
   memset(m_encryption_keys, 0, sizeof(m_encryption_keys));
@@ -135,6 +139,7 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len,
   m_encrypted = false;
   m_compressed = false;
   m_have_data_crc32 = false;
+  m_encrypt_pkcs7_padding = false;
   m_file_format = FF_UNKNOWN;
   // m_encryption_keys
   m_data_block_size = 0;
@@ -149,6 +154,7 @@ int ndbxfrm_file::open(ndb_file &file, const byte *pwd_key, size_t pwd_key_len,
   // operation per file properties
   m_file_op = OP_NONE;
   m_crc32 = 0;
+  m_padding_removed = false;
   // zlib
   m_decrypted_buffer.init();
   m_file_buffer.init();
@@ -275,6 +281,7 @@ int ndbxfrm_file::create(
 
   m_compressed = compress;
   m_encrypted = (pwd_key != nullptr);
+  m_encrypt_pkcs7_padding = false;
 
   size_t data_page_size = key_data_unit_size ? file_block_size : 0;
   if (m_encrypted) {
@@ -548,6 +555,7 @@ int ndbxfrm_file::untransform_pages(ndb_openssl_evp::operation *op,
 
   require(m_encrypted);
   require(!m_compressed);
+  require(!m_encrypt_pkcs7_padding);
 
   if (op == nullptr)
     op = &openssl_evp_op;
@@ -630,14 +638,23 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in, const byte *pwd_key,
     ndbxfrm_header.get_file_block_size(&m_file_block_size);
     ndbxfrm_header.get_trailer_max_size(trailer_max_size);
     m_compressed = (ndbxfrm_header.get_compression_method() != 0);
-    int compress_padding = 0;
+    Uint32 cipher = 0;
+    ndbxfrm_header.get_encryption_cipher(&cipher);
+    m_encrypted = (cipher != 0);
+
     if (m_compressed) {
+      int compress_padding;
       compress_padding = ndbxfrm_header.get_compression_padding();
       switch (compress_padding) {
         case 0: /* no padding */
           break;
         case ndb_ndbxfrm1::padding_pkcs:
-          require(zlib.set_pkcs_padding() == 0);
+          if (!m_encrypted) {
+            // compress padding was only used in combination with encryption
+            clear_last_os_error();
+            RETURN(-1);
+          }
+          m_encrypt_pkcs7_padding = true;
           break;
         default:
           clear_last_os_error();
@@ -645,9 +662,6 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in, const byte *pwd_key,
       }
     }
 
-    Uint32 cipher = 0;
-    ndbxfrm_header.get_encryption_cipher(&cipher);
-    m_encrypted = (cipher != 0);
     Uint32 enc_data_unit_size = 0;
     if (m_encrypted) {
       Uint32 padding = 0;
@@ -676,6 +690,13 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in, const byte *pwd_key,
       if (padding != 0 && padding != ndb_ndbxfrm1::padding_pkcs) {
         clear_last_os_error();
         RETURN(-1);
+      }
+      if (padding != 0) {
+        if (m_encrypt_pkcs7_padding) {
+          clear_last_os_error();
+          RETURN(-1);  // double padding
+        }
+        m_encrypt_pkcs7_padding = padding;
       }
       if (krm != ndb_ndbxfrm1::krm_pbkdf2_sha256 &&
           krm != ndb_ndbxfrm1::krm_aeskw_256) {
@@ -712,23 +733,21 @@ int ndbxfrm_file::read_header(ndbxfrm_input_iterator *in, const byte *pwd_key,
 
       openssl_evp.reset();
       switch (cipher) {
-        case ndb_ndbxfrm1::cipher_cbc:
-          require(openssl_evp.set_aes_256_cbc(
-                      (padding == ndb_ndbxfrm1::padding_pkcs),
-                      enc_data_unit_size) == 0);
+        case ndb_ndbxfrm1::cipher_cbc: {
+          require(openssl_evp.set_aes_256_cbc(false, enc_data_unit_size) == 0);
           break;
-        case ndb_ndbxfrm1::cipher_xts:
-          require(openssl_evp.set_aes_256_xts(
-                      (padding == ndb_ndbxfrm1::padding_pkcs),
-                      enc_data_unit_size) == 0);
+        }
+        case ndb_ndbxfrm1::cipher_xts: {
+          require(openssl_evp.set_aes_256_xts(false, enc_data_unit_size) == 0);
           if (m_compressed) {
             /*
              * XTS requires block at least 16 bytes long, uses pkcs padding on
              * compressed data to ensure that.
              */
-            require(compress_padding == ndb_ndbxfrm1::padding_pkcs);
+            require(m_encrypt_pkcs7_padding);
           }
           break;
+        }
         default:
           clear_last_os_error();
           RETURN(-1);
@@ -1470,6 +1489,34 @@ int ndbxfrm_file::read_forward(ndbxfrm_output_iterator *out) {
         m_file_buffer.update_read(f_in);
         m_file_buffer.rebase(m_file_block_size);
         m_decrypted_buffer.update_write(d_out);
+
+        // REMOVE PADDING
+        if (m_encrypt_pkcs7_padding && !m_padding_removed &&
+            m_decrypted_buffer.last()) {
+          if (m_decrypted_buffer.read_size() < 16) {
+            // Last data plus padding must be at least 16 bytes
+            clear_last_os_error();
+            return -1;
+          }
+          // Position for start of m_decrypted_buffer
+          ndb_off_t decrypted_position = openssl_evp_op.get_output_position() -
+                                         m_decrypted_buffer.read_size();
+          ndb_pkcs7_padding padder;
+          int ret = padder.unpad(&m_decrypted_buffer);
+          if (ret == -1) {
+            clear_last_os_error();
+            return -1;
+          }
+          if (ret != 0) {
+            return ret;
+          }
+          if (!padder.check_and_clear_padding(decrypted_position +
+                                              m_decrypted_buffer.read_size())) {
+            clear_last_os_error();
+            return -1;
+          }
+          m_padding_removed = true;
+        }
       }
       if (!m_compressed) {  // Copy out decrypted data
         ndbxfrm_input_iterator in = m_decrypted_buffer.get_input_iterator();
@@ -1543,6 +1590,7 @@ int ndbxfrm_file::read_backward(ndbxfrm_output_reverse_iterator *out) {
       m_file_buffer.rebase_reverse(m_file_block_size);
     }
     if (m_file_buffer.reverse_read_size() == 0 && m_file_buffer.last()) {
+      require(!m_encrypt_pkcs7_padding);
       out->set_last();
       m_data_pos -= out_begin - out->begin();
       return 0;
@@ -1621,6 +1669,37 @@ int ndbxfrm_file::read_backward(ndbxfrm_output_reverse_iterator *out) {
         m_file_buffer.update_reverse_read(f_in);
         m_file_buffer.rebase_reverse(m_file_block_size);
         m_decrypted_buffer.update_reverse_write(d_out);
+
+        // REMOVE PADDING
+        if (m_encrypt_pkcs7_padding && !m_padding_removed) {
+          if (m_decrypted_buffer.reverse_read_size() < 16) {
+            // Last data plus padding must be at least 16 bytes
+            clear_last_os_error();
+            return -1;
+          }
+          ndb_pkcs7_padding padder;
+          int ret = padder.unpad_reverse(&m_decrypted_buffer);
+          if (ret == -1) {
+            clear_last_os_error();
+            RETURN(-1);
+          }
+          if (ret != 0) {
+            return ret;
+          }
+          /*
+           * The position for end of m_decrypted_buffer, which is the lower
+           * address end of buffer. And padding is at the logical beginning of
+           * the buffer since we read in reverse, and the padded end of buffer
+           * is at the higher address end.
+           */
+          ndb_off_t decrypted_position = openssl_evp_op.get_output_position();
+          if (!padder.check_and_clear_padding(
+                  decrypted_position +
+                  m_decrypted_buffer.reverse_read_size())) {
+            return -1;
+          }
+          m_padding_removed = true;
+        }
       }
       {  // Copy out decrypted data
         ndbxfrm_input_reverse_iterator in =
@@ -1638,6 +1717,7 @@ int ndbxfrm_file::read_backward(ndbxfrm_output_reverse_iterator *out) {
     }
     if (out->last()) {
       m_data_pos -= out_begin - out->begin();
+      require(!m_encrypt_pkcs7_padding || m_padding_removed);
       return 0;
     }
     if (out->empty()) {
@@ -1652,6 +1732,7 @@ int ndbxfrm_file::read_backward(ndbxfrm_output_reverse_iterator *out) {
 }
 
 ndb_off_t ndbxfrm_file::move_to_end() {
+  m_padding_removed = false;
   require(is_open());
   ndb_off_t file_pos =
       m_file_block_size > 0
@@ -1697,17 +1778,20 @@ ndb_off_t ndbxfrm_file::move_to_end() {
     m_file_buffer.update_reverse_read(rin);
   }
 
+  // payload includes padding if used
+  Uint64 padded_data_size = m_payload_end - m_payload_start;
   if (m_encrypted) {
-    // Init reverse read operation
-    if (openssl_evp_op.decrypt_init_reverse(m_data_size, m_payload_end) == -1) {
+    require(padded_data_size >= m_data_size);
+    if (openssl_evp_op.decrypt_init_reverse(padded_data_size, m_payload_end) ==
+        -1) {
       clear_last_os_error();
       return -1;
     }
     m_file_op = OP_READ_BACKW;
   }
-  m_data_pos = m_data_size;
+  m_data_pos = padded_data_size;
   require(m_payload_end >= m_payload_start);
-  return m_data_size;
+  return padded_data_size;
 }
 
 #ifdef TEST_NDBXFRM_FILE

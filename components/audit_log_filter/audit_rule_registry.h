@@ -35,10 +35,11 @@ class AuditRuleRegistry {
   /**
    * @brief Load filtering rules from DB.
    *
+   * @param error_message Out-parameter for a human-readable error
    * @return true in case filtering rules are loaded successfully,
    *         false otherwise
    */
-  bool load() noexcept;
+  bool load(std::string &error_message) noexcept;
 
   /**
    * @brief Get filtering rule by name.
@@ -61,6 +62,15 @@ class AuditRuleRegistry {
   bool lookup_rule_name(const std::string &user_name,
                         const std::string &host_name,
                         std::string &rule_name) noexcept;
+
+  /**
+   * @brief Mark the registry as needing a reload on the next rule lookup.
+   *
+   * Safe to call from any context (lock-free atomic store). The actual
+   * reload happens inside the next lookup_rule_name() call, which runs
+   * in a THD context where table access is permitted.
+   */
+  void invalidate() noexcept;
 
  private:
   std::atomic<bool> m_is_initialised{false};

@@ -30,10 +30,14 @@ class AuditRuleParser {
    *
    * @param rule_str String representation of audit filtering rule
    * @param audit_rule Audit filtering rule instance to be initialized
+   * @param skip_disabled_events When true, silently skip event
+   *        classes/subclasses disabled by the current event_mode
+   *        instead of treating them as parse errors
    * @return true in case rule is parsed successfully,
    *         false otherwise
    */
-  static bool parse(const char *rule_str, AuditRule *audit_rule) noexcept;
+  static bool parse(const char *rule_str, AuditRule *audit_rule,
+                    bool skip_disabled_events = false) noexcept;
 
  private:
   /**
@@ -41,11 +45,12 @@ class AuditRuleParser {
    *
    * @param json_doc JSON document representation of audit filtering rule
    * @param audit_rule Audit filtering rule instance to be initialized
+   * @param skip_disabled_events When true, silently skip disabled events
    * @return true in case rule is parsed successfully,
    *         false otherwise
    */
-  static bool parse(rapidjson::Document &json_doc,
-                    AuditRule *audit_rule) noexcept;
+  static bool parse(rapidjson::Document &json_doc, AuditRule *audit_rule,
+                    bool skip_disabled_events) noexcept;
 
   /**
    * @brief Determine the default logging action for unmatched audit events.
@@ -67,7 +72,8 @@ class AuditRuleParser {
    *         false otherwise
    */
   static bool parse_event_class_json(const rapidjson::Document &json_doc,
-                                     AuditRule *audit_rule) noexcept;
+                                     AuditRule *audit_rule,
+                                     bool skip_disabled_events) noexcept;
 
   /**
    * @brief Parse one JSON object related to audit event class definition.
@@ -79,7 +85,8 @@ class AuditRuleParser {
    *         false otherwise
    */
   static bool parse_event_class_obj_json(
-      const rapidjson::Value &event_class_json, AuditRule *audit_rule) noexcept;
+      const rapidjson::Value &event_class_json, AuditRule *audit_rule,
+      bool skip_disabled_events) noexcept;
 
   /**
    * @brief Parse audit event subclass related definitions in a filtering rule
@@ -93,8 +100,8 @@ class AuditRuleParser {
    */
   static bool parse_event_subclass_json(
       const std::string &class_name,
-      const rapidjson::Value &event_subclass_json,
-      AuditRule *audit_rule) noexcept;
+      const rapidjson::Value &event_subclass_json, AuditRule *audit_rule,
+      bool skip_disabled_events) noexcept;
 
   /**
    * @brief Parse JSON definition for one event subclass in a filtering rule.
@@ -107,8 +114,8 @@ class AuditRuleParser {
    */
   static bool parse_event_subclass_obj_json(
       const std::string &class_name,
-      const rapidjson::Value &event_subclass_json,
-      AuditRule *audit_rule) noexcept;
+      const rapidjson::Value &event_subclass_json, AuditRule *audit_rule,
+      bool skip_disabled_events) noexcept;
 
   /**
    * @brief Parse definition of a logical condition in audit event filter

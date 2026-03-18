@@ -98,9 +98,19 @@ class AuditLogFilter {
   /**
    * @brief Handle filters flush request.
    *
+   * @param error_message Out-parameter for a human-readable error
    * @return true in case filters reloaded successfully, false otherwise
    */
-  bool on_audit_rule_flush_requested() noexcept;
+  bool on_audit_rule_flush_requested(std::string &error_message) noexcept;
+
+  /**
+   * @brief Mark the rule registry for lazy reload on the next audit event.
+   *
+   * Unlike on_audit_rule_flush_requested(), this does not open tables and
+   * is safe to call from contexts that hold LOCK_plugin (e.g. sysvar update
+   * callbacks).
+   */
+  void invalidate_audit_rules() noexcept;
 
   /**
    * @brief Handle log files pruning request.

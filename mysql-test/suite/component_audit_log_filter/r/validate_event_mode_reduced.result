@@ -51,6 +51,94 @@ SELECT audit_log_filter_set_filter('mixed_message_auth', '{"filter":{"class":{"n
 audit_log_filter_set_filter('mixed_message_auth', '{"filter":{"class":{"name":["message","authentication"]}}}')
 ERROR: Incorrect rule definition: event class 'authentication' is disabled in audit_log_filter.event_mode=REDUCED
 #
+# Persisted filters keep the enabled subset after reload
+SELECT audit_log_filter_set_filter('mixed_rule', '{"filter":{"class":{"name":["general","query"]}}}');
+audit_log_filter_set_filter('mixed_rule', '{"filter":{"class":{"name":["general","query"]}}}')
+ERROR: Incorrect rule definition: event class 'query' is disabled in audit_log_filter.event_mode=REDUCED
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('mixed_rule', '{"filter":{"class":{"name":["general","query"]}}}');
+audit_log_filter_set_filter('mixed_rule', '{"filter":{"class":{"name":["general","query"]}}}')
+OK
+SELECT audit_log_filter_set_filter('mixed_subclass_rule', '{"filter":{"class":{"name":"general","event":{"name":["status","log"]}}}}');
+audit_log_filter_set_filter('mixed_subclass_rule', '{"filter":{"class":{"name":"general","event":{"name":["status","log"]}}}}')
+OK
+SELECT audit_log_filter_set_filter('mixed_conn_command_rule', '{"filter":{"class":{"name":["connection","command"]}}}');
+audit_log_filter_set_filter('mixed_conn_command_rule', '{"filter":{"class":{"name":["connection","command"]}}}')
+OK
+SELECT audit_log_filter_set_filter('mixed_ta_sp_rule', '{"filter":{"class":{"name":["table_access","stored_program"]}}}');
+audit_log_filter_set_filter('mixed_ta_sp_rule', '{"filter":{"class":{"name":["table_access","stored_program"]}}}')
+OK
+SELECT audit_log_filter_set_filter('mixed_conn_subclass_rule', '{"filter":{"class":{"name":"connection","event":{"name":["connect","pre_authenticate"]}}}}');
+audit_log_filter_set_filter('mixed_conn_subclass_rule', '{"filter":{"class":{"name":"connection","event":{"name":["connect","pre_authenticate"]}}}}')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	mixed_rule	{"filter": {"class": {"name": ["general", "query"]}}}
+2	mixed_subclass_rule	{"filter": {"class": {"name": "general", "event": {"name": ["status", "log"]}}}}
+3	mixed_conn_command_rule	{"filter": {"class": {"name": ["connection", "command"]}}}
+4	mixed_ta_sp_rule	{"filter": {"class": {"name": ["table_access", "stored_program"]}}}
+5	mixed_conn_subclass_rule	{"filter": {"class": {"name": "connection", "event": {"name": ["connect", "pre_authenticate"]}}}}
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+SELECT audit_log_filter_set_user('%', 'mixed_rule');
+audit_log_filter_set_user('%', 'mixed_rule')
+OK
+Tag "class": "general" Ok
+SELECT audit_log_filter_set_user('%', 'mixed_subclass_rule');
+audit_log_filter_set_user('%', 'mixed_subclass_rule')
+OK
+Tag "event": "status" Ok
+SELECT audit_log_filter_set_user('%', 'mixed_conn_command_rule');
+audit_log_filter_set_user('%', 'mixed_conn_command_rule')
+OK
+Tag "class": "connection" Ok
+SELECT audit_log_filter_set_user('%', 'mixed_ta_sp_rule');
+audit_log_filter_set_user('%', 'mixed_ta_sp_rule')
+OK
+Tag "class": "table_access" Ok
+SELECT audit_log_filter_set_user('%', 'mixed_conn_subclass_rule');
+audit_log_filter_set_user('%', 'mixed_conn_subclass_rule')
+OK
+Tag "event": "connect" Ok
+SELECT audit_log_filter_remove_filter('mixed_conn_subclass_rule');
+audit_log_filter_remove_filter('mixed_conn_subclass_rule')
+OK
+SELECT audit_log_filter_remove_filter('mixed_ta_sp_rule');
+audit_log_filter_remove_filter('mixed_ta_sp_rule')
+OK
+SELECT audit_log_filter_remove_filter('mixed_conn_command_rule');
+audit_log_filter_remove_filter('mixed_conn_command_rule')
+OK
+SELECT audit_log_filter_remove_filter('mixed_subclass_rule');
+audit_log_filter_remove_filter('mixed_subclass_rule')
+OK
+SELECT audit_log_filter_remove_filter('mixed_rule');
+audit_log_filter_remove_filter('mixed_rule')
+OK
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+#
+# Changing to FULL reloads already-loaded rules without explicit flush
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('query_only_rule', '{"filter":{"class":{"name":"query"}}}');
+audit_log_filter_set_filter('query_only_rule', '{"filter":{"class":{"name":"query"}}}')
+OK
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT audit_log_filter_set_user('%', 'query_only_rule');
+audit_log_filter_set_user('%', 'query_only_rule')
+OK
+SET GLOBAL audit_log_filter.event_mode=FULL;
+Tag "class": "query" Ok
+SELECT audit_log_filter_remove_filter('query_only_rule');
+audit_log_filter_remove_filter('query_only_rule')
+OK
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+#
 # Reduced mode logs only the reduced event-class subset
 SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
 audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}')

@@ -670,6 +670,48 @@ AuditRecordFieldsList get_audit_record_fields(const AuditRecordUnknown &record
   return {};
 }
 
+bool is_event_class_allowed_in_reduced_mode(std::string_view class_name) {
+  static constexpr std::array<std::string_view, 4> allowed_classes{{
+      kClassNameGeneral,
+      kClassNameConnection,
+      kClassNameTableAccess,
+      kClassNameMessage,
+  }};
+  return contains_string_view(class_name, allowed_classes);
+}
+
+bool is_event_subclass_allowed_in_reduced_mode(std::string_view class_name,
+                                               std::string_view subclass_name) {
+  if (class_name == kClassNameGeneral) {
+    return subclass_name == kSubclassNameGeneralStatus;
+  }
+  if (class_name == kClassNameConnection) {
+    static constexpr std::array<std::string_view, 3> allowed{{
+        kSubclassNameConnect,
+        kSubclassNameDisconnect,
+        kSubclassNameChangeUser,
+    }};
+    return contains_string_view(subclass_name, allowed);
+  }
+  if (class_name == kClassNameTableAccess) {
+    static constexpr std::array<std::string_view, 4> allowed{{
+        kSubclassNameRead,
+        kSubclassNameInsert,
+        kSubclassNameUpdate,
+        kSubclassNameDelete,
+    }};
+    return contains_string_view(subclass_name, allowed);
+  }
+  if (class_name == kClassNameMessage) {
+    static constexpr std::array<std::string_view, 2> allowed{{
+        kSubclassNameMessageInternal,
+        kSubclassNameUser,
+    }};
+    return contains_string_view(subclass_name, allowed);
+  }
+  return false;
+}
+
 bool is_valid_event_class_name(std::string_view class_name) {
   // Filter definitions intentionally accept only the supported subset of
   // class names. That excludes authorization, internal audit lifecycle,

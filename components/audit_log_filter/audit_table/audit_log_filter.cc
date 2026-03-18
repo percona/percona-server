@@ -161,8 +161,8 @@ TableResult AuditLogFilter::get_next_pk_value(TableAccessContext *ta_context,
   return TableResult::Ok;
 }
 
-TableResult AuditLogFilter::load_filters(
-    AuditRulesContainer &container) noexcept {
+TableResult AuditLogFilter::load_filters(AuditRulesContainer &container,
+                                         std::string &error_message) noexcept {
   container.clear();
 
   DBUG_EXECUTE_IF("audit_log_filter_fail_filters_flush",
@@ -203,6 +203,8 @@ TableResult AuditLogFilter::load_filters(
   HStringContainer filter_name_value{string_srv};
   HStringContainer filter_filter_value{string_srv};
 
+  bool has_parse_error = false;
+
   while (true) {
     if (scan_srv->next(ta_context->ta_session, ta_context->ta_table)) {
       break;
@@ -237,11 +239,16 @@ TableResult AuditLogFilter::load_filters(
     auto rule = std::make_shared<AuditRule>(static_cast<uint64_t>(filter_id),
                                             buff_filter_name_value);
 
-    if (AuditRuleParser::parse(buff_filter_filter_value, rule.get())) {
+    if (AuditRuleParser::parse(buff_filter_filter_value, rule.get(),
+                               /*skip_disabled_events=*/true)) {
       container.insert({buff_filter_name_value, std::move(rule)});
     } else {
       LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FILTER_WRONG_FORMAT,
                       buff_filter_name_value, buff_filter_filter_value);
+      error_message = std::string("Filter '") + buff_filter_name_value +
+                      "' has wrong format, consider using "
+                      "audit_log_filter.event_mode=FULL";
+      has_parse_error = true;
     }
   }
 
@@ -251,7 +258,7 @@ TableResult AuditLogFilter::load_filters(
     return TableResult::Fail;
   }
 
-  return TableResult::Ok;
+  return has_parse_error ? TableResult::Fail : TableResult::Ok;
 }
 
 TableResult AuditLogFilter::check_name_exists(

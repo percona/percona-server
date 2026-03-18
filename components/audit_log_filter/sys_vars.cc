@@ -274,6 +274,17 @@ void prune_seconds_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
   }
 }
 
+void event_mode_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
+                            const void *save) {
+  const auto new_val = *static_cast<const ulong *>(save);
+  const auto old_val = *static_cast<ulong *>(val_ptr);
+  *static_cast<ulong *>(val_ptr) = new_val;
+
+  if (old_val != new_val) {
+    get_audit_log_filter_instance()->invalidate_audit_rules();
+  }
+}
+
 const int audit_log_filter_syslog_facility_codes[] = {
     LOG_USER,     LOG_AUTHPRIV, LOG_CRON,   LOG_DAEMON, LOG_FTP,    LOG_KERN,
     LOG_LPR,      LOG_MAIL,     LOG_NEWS,
@@ -479,7 +490,7 @@ SysVarListType sys_vars = {
     {{"event_mode", PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG,
       "Event mode controlling which event types are tracked. REDUCED limits "
       "events to a predefined subset, FULL tracks all events.",
-      nullptr, nullptr, static_cast<void *>(&check_event_mode),
+      nullptr, event_mode_update_func, static_cast<void *>(&check_event_mode),
       static_cast<void *>(&log_event_mode_type)},
      false},
     /*

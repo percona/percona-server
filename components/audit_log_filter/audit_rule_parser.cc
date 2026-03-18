@@ -53,16 +53,17 @@ std::string find_unknown_key(const rapidjson::Value &json_obj,
 
 }  // namespace
 
-bool AuditRuleParser::parse(const char *rule_str,
-                            AuditRule *audit_rule) noexcept {
+bool AuditRuleParser::parse(const char *rule_str, AuditRule *audit_rule,
+                            bool skip_disabled_events) noexcept {
   rapidjson::Document json_doc;
   json_doc.Parse(rule_str);
 
-  return parse(json_doc, audit_rule);
+  return parse(json_doc, audit_rule, skip_disabled_events);
 }
 
 bool AuditRuleParser::parse(rapidjson::Document &json_doc,
-                            AuditRule *audit_rule) noexcept {
+                            AuditRule *audit_rule,
+                            bool skip_disabled_events) noexcept {
   // Do basic check of rule structure
   if (json_doc.HasParseError()) {
     audit_rule->set_parse_error("JSON parse error");
@@ -98,7 +99,7 @@ bool AuditRuleParser::parse(rapidjson::Document &json_doc,
     return false;
   }
 
-  if (!parse_event_class_json(json_doc, audit_rule)) {
+  if (!parse_event_class_json(json_doc, audit_rule, skip_disabled_events)) {
     return false;
   }
 
@@ -145,7 +146,8 @@ bool AuditRuleParser::parse_default_log_action_json(
 }
 
 bool AuditRuleParser::parse_event_class_json(
-    const rapidjson::Document &json_doc, AuditRule *audit_rule) noexcept {
+    const rapidjson::Document &json_doc, AuditRule *audit_rule,
+    bool skip_disabled_events) noexcept {
   /*
    * Parsing event class name
    *
@@ -175,7 +177,8 @@ bool AuditRuleParser::parse_event_class_json(
   const auto &ev_class_json = json_doc["filter"]["class"];
 
   if (ev_class_json.IsObject()) {
-    return parse_event_class_obj_json(ev_class_json, audit_rule);
+    return parse_event_class_obj_json(ev_class_json, audit_rule,
+                                      skip_disabled_events);
   } else if (ev_class_json.IsArray()) {
     if (ev_class_json.Empty()) {
       LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_EMPTY_ARRAY,
@@ -195,7 +198,7 @@ bool AuditRuleParser::parse_event_class_json(
         return false;
       }
 
-      if (!parse_event_class_obj_json(*it, audit_rule)) {
+      if (!parse_event_class_obj_json(*it, audit_rule, skip_disabled_events)) {
         return false;
       }
     }
@@ -210,7 +213,8 @@ bool AuditRuleParser::parse_event_class_json(
 }
 
 bool AuditRuleParser::parse_event_class_obj_json(
-    const rapidjson::Value &event_class_json, AuditRule *audit_rule) noexcept {
+    const rapidjson::Value &event_class_json, AuditRule *audit_rule,
+    bool skip_disabled_events) noexcept {
   assert(event_class_json.IsObject());
 
   if (!event_class_json.HasMember("name")) {
@@ -270,6 +274,12 @@ bool AuditRuleParser::parse_event_class_obj_json(
 
     if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
         !is_event_class_allowed_in_reduced_mode(event_class_name)) {
+      if (skip_disabled_events) {
+        LogComponentErr(WARNING_LEVEL, ER_AUDIT_PARSE_SKIP_DISABLED_EVENT_CLASS,
+                        event_class_name.c_str(),
+                        audit_rule->get_rule_name().c_str());
+        return true;
+      }
       audit_rule->set_parse_error(
           "event class '" + event_class_name +
           "' is disabled in audit_log_filter.event_mode=REDUCED");
@@ -299,11 +309,11 @@ bool AuditRuleParser::parse_event_class_obj_json(
         return false;
       }
 
-      // There is a subclass specific definition, it will provide actual action
       should_log = false;
 
       if (!parse_event_subclass_json(event_class_name,
-                                     event_class_json["event"], audit_rule)) {
+                                     event_class_json["event"], audit_rule,
+                                     skip_disabled_events)) {
         return false;
       }
     }
@@ -364,6 +374,12 @@ bool AuditRuleParser::parse_event_class_obj_json(
 
       if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
           !is_event_class_allowed_in_reduced_mode(event_class_name)) {
+        if (skip_disabled_events) {
+          LogComponentErr(
+              WARNING_LEVEL, ER_AUDIT_PARSE_SKIP_DISABLED_EVENT_CLASS,
+              event_class_name.c_str(), audit_rule->get_rule_name().c_str());
+          continue;
+        }
         audit_rule->set_parse_error(
             "event class '" + event_class_name +
             "' is disabled in audit_log_filter.event_mode=REDUCED");
@@ -402,7 +418,7 @@ bool AuditRuleParser::parse_event_class_obj_json(
 
 bool AuditRuleParser::parse_event_subclass_json(
     const std::string &class_name, const rapidjson::Value &event_subclass_json,
-    AuditRule *audit_rule) noexcept {
+    AuditRule *audit_rule, bool skip_disabled_events) noexcept {
   /*
    * Parse event subclass, 'event' may be an object or an array of objects
    *
@@ -421,7 +437,7 @@ bool AuditRuleParser::parse_event_subclass_json(
    */
   if (event_subclass_json.IsObject()) {
     if (!parse_event_subclass_obj_json(class_name, event_subclass_json,
-                                       audit_rule)) {
+                                       audit_rule, skip_disabled_events)) {
       return false;
     }
   } else if (event_subclass_json.IsArray()) {
@@ -443,7 +459,8 @@ bool AuditRuleParser::parse_event_subclass_json(
         return false;
       }
 
-      if (!parse_event_subclass_obj_json(class_name, *it, audit_rule)) {
+      if (!parse_event_subclass_obj_json(class_name, *it, audit_rule,
+                                         skip_disabled_events)) {
         return false;
       }
     }
@@ -461,7 +478,7 @@ bool AuditRuleParser::parse_event_subclass_json(
 
 bool AuditRuleParser::parse_event_subclass_obj_json(
     const std::string &class_name, const rapidjson::Value &event_subclass_json,
-    AuditRule *audit_rule) noexcept {
+    AuditRule *audit_rule, bool skip_disabled_events) noexcept {
   assert(event_subclass_json.IsObject());
 
   if (!event_subclass_json.HasMember("name")) {
@@ -518,7 +535,8 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
     return false;
   }
 
-  for (const auto &name : subclass_names) {
+  for (auto it = subclass_names.begin(); it != subclass_names.end();) {
+    const auto &name = *it;
     if (!is_valid_event_subclass_name(class_name, name)) {
       LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_INVALID_EVENT_SUBCLASS_NAME,
                       audit_rule->get_rule_name().c_str(), name.c_str(),
@@ -530,11 +548,21 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
 
     if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
         !is_event_subclass_allowed_in_reduced_mode(class_name, name)) {
+      if (skip_disabled_events) {
+        LogComponentErr(WARNING_LEVEL,
+                        ER_AUDIT_PARSE_SKIP_DISABLED_EVENT_SUBCLASS,
+                        class_name.c_str(), name.c_str(),
+                        audit_rule->get_rule_name().c_str());
+        it = subclass_names.erase(it);
+        continue;
+      }
       audit_rule->set_parse_error(
           "event '" + class_name + "/" + name +
           "' is disabled in audit_log_filter.event_mode=REDUCED");
       return false;
     }
+
+    ++it;
   }
 
   const auto has_log_tag = event_subclass_json.HasMember("log");
@@ -1543,7 +1571,7 @@ std::shared_ptr<AuditRule> AuditRuleParser::make_replacement_rule(
       audit_rule != nullptr ? audit_rule->get_rule_name() : std::string{};
   auto rule = std::make_shared<AuditRule>(rule_name.c_str());
 
-  if (AuditRuleParser::parse(d, rule.get())) {
+  if (AuditRuleParser::parse(d, rule.get(), false)) {
     return rule;
   }
 

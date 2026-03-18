@@ -5,10 +5,18 @@
 --disable_query_log
 call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
 call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event .*' in filter");
 --enable_query_log
 
 SET GLOBAL audit_log_filter.event_mode=REDUCED;
 SELECT @@global.audit_log_filter.event_mode;
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let audit_filter_log_path = $audit_filter_log_path
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let audit_filter_log_name = $audit_filter_log_name
+--let $audit_filter_log_format = json
+--let audit_filter_log_format = $audit_filter_log_format
 
 --echo #
 --echo # Reduced mode rejects disabled event classes during validation
@@ -34,18 +42,71 @@ SELECT audit_log_filter_set_filter('mixed_table_access_command', '{"filter":{"cl
 SELECT audit_log_filter_set_filter('mixed_message_auth', '{"filter":{"class":{"name":["message","authentication"]}}}');
 
 --echo #
+--echo # Persisted filters keep the enabled subset after reload
+SELECT audit_log_filter_set_filter('mixed_rule', '{"filter":{"class":{"name":["general","query"]}}}');
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('mixed_rule', '{"filter":{"class":{"name":["general","query"]}}}');
+SELECT audit_log_filter_set_filter('mixed_subclass_rule', '{"filter":{"class":{"name":"general","event":{"name":["status","log"]}}}}');
+SELECT audit_log_filter_set_filter('mixed_conn_command_rule', '{"filter":{"class":{"name":["connection","command"]}}}');
+SELECT audit_log_filter_set_filter('mixed_ta_sp_rule', '{"filter":{"class":{"name":["table_access","stored_program"]}}}');
+SELECT audit_log_filter_set_filter('mixed_conn_subclass_rule', '{"filter":{"class":{"name":"connection","event":{"name":["connect","pre_authenticate"]}}}}');
+SELECT * FROM mysql.audit_log_filter;
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT audit_log_filter_flush();
+SELECT audit_log_filter_set_user('%', 'mixed_rule');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag="class": "general"
+--source check_all_events_with_tag.inc
+SELECT audit_log_filter_set_user('%', 'mixed_subclass_rule');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag="event": "status"
+--source check_all_events_with_tag.inc
+SELECT audit_log_filter_set_user('%', 'mixed_conn_command_rule');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag="class": "connection"
+--source check_all_events_with_tag.inc
+SELECT audit_log_filter_set_user('%', 'mixed_ta_sp_rule');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag="class": "table_access"
+--source check_all_events_with_tag.inc
+SELECT audit_log_filter_set_user('%', 'mixed_conn_subclass_rule');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag="event": "connect"
+--source check_all_events_with_tag.inc
+SELECT audit_log_filter_remove_filter('mixed_conn_subclass_rule');
+SELECT audit_log_filter_remove_filter('mixed_ta_sp_rule');
+SELECT audit_log_filter_remove_filter('mixed_conn_command_rule');
+SELECT audit_log_filter_remove_filter('mixed_subclass_rule');
+SELECT audit_log_filter_remove_filter('mixed_rule');
+SELECT * FROM mysql.audit_log_filter;
+SELECT audit_log_filter_flush();
+
+--echo #
+--echo # Changing to FULL reloads already-loaded rules without explicit flush
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('query_only_rule', '{"filter":{"class":{"name":"query"}}}');
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT audit_log_filter_set_user('%', 'query_only_rule');
+SET GLOBAL audit_log_filter.event_mode=FULL;
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag="class": "query"
+--source check_all_events_with_tag.inc
+SELECT audit_log_filter_remove_filter('query_only_rule');
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+
+--echo #
 --echo # Reduced mode logs only the reduced event-class subset
 SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 SELECT audit_log_filter_flush();
-
-# Export datadir and log file name as environment variables for the perl block
---let $audit_filter_log_path = `SELECT @@global.datadir`
---let audit_filter_log_path = $audit_filter_log_path
---let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
---let audit_filter_log_name = $audit_filter_log_name
 
 perl;
   use strict;

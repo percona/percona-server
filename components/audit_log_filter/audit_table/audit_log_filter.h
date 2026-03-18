@@ -35,9 +35,11 @@ class AuditLogFilter : public AuditTableBase {
    * @brief Load filtering rules list.
    *
    * @param container Container to store filtering rules list into
+   * @param error_message Out-parameter for a human-readable error
    * @return Table access result, @ref TableResult
    */
-  TableResult load_filters(AuditRulesContainer &container) noexcept;
+  TableResult load_filters(AuditRulesContainer &container,
+                           std::string &error_message) noexcept;
 
   /**
    * @brief Check if filtering rule with provided name exists.

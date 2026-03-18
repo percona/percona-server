@@ -459,7 +459,8 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
     return result;
   }
 
-  get_audit_log_filter_instance()->on_audit_rule_flush_requested();
+  std::string error_msg;
+  get_audit_log_filter_instance()->on_audit_rule_flush_requested(error_msg);
 
   std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   *length = std::strlen(result);
@@ -586,7 +587,8 @@ char *AuditUdf::audit_log_filter_set_user_udf(AuditUdf *udf [[maybe_unused]],
     return result;
   }
 
-  get_audit_log_filter_instance()->on_audit_rule_flush_requested();
+  std::string error_msg;
+  get_audit_log_filter_instance()->on_audit_rule_flush_requested(error_msg);
 
   std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   *length = std::strlen(result);
@@ -672,7 +674,8 @@ char *AuditUdf::audit_log_filter_remove_user_udf(
     return result;
   }
 
-  get_audit_log_filter_instance()->on_audit_rule_flush_requested();
+  std::string error_msg;
+  get_audit_log_filter_instance()->on_audit_rule_flush_requested(error_msg);
 
   std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   *length = std::strlen(result);
@@ -720,8 +723,12 @@ char *AuditUdf::audit_log_filter_flush_udf(AuditUdf *udf [[maybe_unused]],
                                            char *result, unsigned long *length,
                                            unsigned char *is_null,
                                            unsigned char *error) noexcept {
-  if (get_audit_log_filter_instance()->on_audit_rule_flush_requested()) {
+  std::string flush_error;
+  if (get_audit_log_filter_instance()->on_audit_rule_flush_requested(
+          flush_error)) {
     std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
+  } else if (!flush_error.empty()) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: %s", flush_error.c_str());
   } else {
     std::snprintf(result, MYSQL_ERRMSG_SIZE,
                   "ERROR: Could not reinitialize audit log filters");

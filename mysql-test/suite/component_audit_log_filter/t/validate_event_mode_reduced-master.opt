@@ -1,0 +1,2 @@
+--loose-audit_log_filter.file=validate_event_mode_reduced.log
+--loose-audit_log_filter.format=JSON

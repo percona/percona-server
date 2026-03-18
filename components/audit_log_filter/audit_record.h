@@ -310,6 +310,26 @@ bool field_value_matches(const AuditRecordFieldValue &value,
                          const std::string &expected);
 
 /**
+ * @brief Check if an event class has at least one subclass allowed in
+ *        REDUCED event mode.
+ *
+ * @param class_name Event class name to validate (e.g. "connection")
+ * @return true if the class has any allowed subclass in REDUCED mode,
+ *         false otherwise
+ */
+bool is_event_class_allowed_in_reduced_mode(std::string_view class_name);
+
+/**
+ * @brief Check if a specific event subclass is allowed in REDUCED event mode.
+ *
+ * @param class_name Event class name (e.g. "connection")
+ * @param subclass_name Event subclass name (e.g. "connect")
+ * @return true if the event is allowed in REDUCED mode, false otherwise
+ */
+bool is_event_subclass_allowed_in_reduced_mode(std::string_view class_name,
+                                               std::string_view subclass_name);
+
+/**
  * @brief Check if an event class name is supported by filter definitions.
  *
  * @param class_name Event class name to validate (e.g. "connection")

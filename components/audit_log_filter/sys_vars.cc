@@ -204,6 +204,7 @@ std::string default_log_file_name{"audit_filter.log"};
 char *config_database_name;
 std::string default_config_database_name{"mysql"};
 ulong log_handler_type = static_cast<ulong>(AuditLogHandlerType::File);
+ulong log_event_mode_type = static_cast<ulong>(AuditLogEventModeType::Reduced);
 ulong log_format_type = static_cast<ulong>(AuditLogFormatType::New);
 ulong log_strategy_type =
     static_cast<ulong>(AuditLogStrategyType::Asynchronous);
@@ -230,6 +231,12 @@ const char *audit_log_filter_handler_names[] = {"FILE", "SYSLOG", nullptr};
 TYPE_LIB audit_log_filter_handler_typelib = {
     array_elements(audit_log_filter_handler_names) - 1,
     "audit_log_filter_handler_typelib", audit_log_filter_handler_names,
+    nullptr};
+
+const char *audit_log_filter_event_mode_names[] = {"REDUCED", "FULL", nullptr};
+TYPE_LIB audit_log_filter_event_mode_typelib = {
+    array_elements(audit_log_filter_event_mode_names) - 1,
+    "audit_log_filter_event_mode_typelib", audit_log_filter_event_mode_names,
     nullptr};
 
 const char *audit_log_filter_format_names[] = {"NEW", "OLD", "JSON", nullptr};
@@ -393,6 +400,9 @@ using int_arg_check_type = INTEGRAL_CHECK_ARG(int);
 str_arg_check_type check_file{default_log_file_name.data()};
 enum_arg_check_type check_handler{static_cast<ulong>(AuditLogHandlerType::File),
                                   &audit_log_filter_handler_typelib};
+enum_arg_check_type check_event_mode{
+    static_cast<ulong>(AuditLogEventModeType::Reduced),
+    &audit_log_filter_event_mode_typelib};
 enum_arg_check_type check_format{static_cast<ulong>(AuditLogFormatType::New),
                                  &audit_log_filter_format_typelib};
 enum_arg_check_type check_strategy{
@@ -459,6 +469,17 @@ SysVarListType sys_vars = {
       "The audit log handler.", nullptr, nullptr,
       static_cast<void *>(&check_handler),
       static_cast<void *>(&log_handler_type)},
+     false},
+    /*
+     * The audit_log_filter.event_mode variable controls which event types are
+     * tracked. REDUCED mode limits events to a predefined subset, FULL mode
+     * tracks all events. Defaults to REDUCED.
+     */
+    {{"event_mode", PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG,
+      "Event mode controlling which event types are tracked. REDUCED limits "
+      "events to a predefined subset, FULL tracks all events.",
+      nullptr, nullptr, static_cast<void *>(&check_event_mode),
+      static_cast<void *>(&log_event_mode_type)},
      false},
     /*
      * The audit_log_filter.format variable is used to specify the audit filter
@@ -864,6 +885,10 @@ const char *SysVars::get_config_database_name() noexcept {
 
 AuditLogHandlerType SysVars::get_handler_type() noexcept {
   return static_cast<AuditLogHandlerType>(log_handler_type);
+}
+
+AuditLogEventModeType SysVars::get_event_mode_type() noexcept {
+  return static_cast<AuditLogEventModeType>(log_event_mode_type);
 }
 
 AuditLogFormatType SysVars::get_format_type() noexcept {

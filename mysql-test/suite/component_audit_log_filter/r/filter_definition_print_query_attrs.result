@@ -67,7 +67,7 @@ SELECT audit_log_filter_set_filter('query_attrs_access_general', '{
 {
 "name": "general",
 "event": {
-"name": ["log", "error", "result", "status"],
+"name": ["status"],
 "print": {
 "query_attributes": {
 "tag": "query_attributes",

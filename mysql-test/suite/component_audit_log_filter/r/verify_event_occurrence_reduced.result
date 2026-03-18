@@ -1,0 +1,363 @@
+SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT audit_log_filter_set_user('audit_user@localhost', 'log_all');
+audit_log_filter_set_user('audit_user@localhost', 'log_all')
+OK
+--- audit/startup ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "audit",
+  "event": "startup",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "root",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "root",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "startup_data": {
+    "args": [
+      "<hidden>"
+    ],
+    "mysql_version": "<hidden>",
+    "os_version": "<hidden>",
+    "server_id": <hidden>
+  }
+}
+
+--- general/log ---
+MISSING: general/log
+
+--- general/error ---
+MISSING: general/error
+
+--- general/result ---
+MISSING: general/result
+
+--- general/status ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "general",
+  "event": "status",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "root",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "root",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "general_data": {
+    "command": "Query",
+    "sql_command": "select",
+    "query": "SELECT audit_log_filter_set_user('%', 'log_all')",
+    "status": 0
+  }
+}
+
+--- connection/connect ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "connect",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": "test"
+  },
+  "connection_attributes": {
+    "_pid": "<hidden>",
+    "_platform": "<hidden>",
+    "_os": "<hidden>",
+    "_client_name": "<hidden>",
+    "_client_version": "<hidden>",
+    "program_name": "<hidden>"
+  }
+}
+
+--- connection/disconnect ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "disconnect",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": ""
+  },
+  "connection_attributes": {
+    "_pid": "<hidden>",
+    "_platform": "<hidden>",
+    "_os": "<hidden>",
+    "_client_name": "<hidden>",
+    "_client_version": "<hidden>",
+    "program_name": "<hidden>"
+  }
+}
+
+--- connection/change_user ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "connection",
+  "event": "change_user",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "connection_data": {
+    "status": 0,
+    "connection_type": "socket",
+    "db": ""
+  },
+  "connection_attributes": {
+    "_pid": "<hidden>",
+    "_platform": "<hidden>",
+    "_os": "<hidden>",
+    "_client_name": "<hidden>",
+    "_client_version": "<hidden>",
+    "program_name": "<hidden>"
+  }
+}
+
+--- connection/pre_authenticate ---
+MISSING: connection/pre_authenticate
+
+--- table_access/read ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "read",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "select",
+    "query": "SELECT * FROM t_events WHERE id = 1",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- table_access/insert ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "insert",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "insert",
+    "query": "INSERT INTO t_events VALUES (3, 'three')",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- table_access/update ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "update",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "update",
+    "query": "UPDATE t_events SET val = 'THREE' WHERE id = 3",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- table_access/delete ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "table_access",
+  "event": "delete",
+  "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
+  "table_access_data": {
+    "sql_command": "delete",
+    "query": "DELETE FROM t_events WHERE id = 3",
+    "db": "test",
+    "table": "t_events"
+  }
+}
+
+--- global_variable/variable_get ---
+MISSING: global_variable/variable_get
+
+--- global_variable/variable_set ---
+MISSING: global_variable/variable_set
+
+--- command/command_start ---
+MISSING: command/command_start
+
+--- command/command_end ---
+MISSING: command/command_end
+
+--- query/query_start ---
+MISSING: query/query_start
+
+--- query/query_nested_start ---
+MISSING: query/query_nested_start
+
+--- query/query_status_end ---
+MISSING: query/query_status_end
+
+--- query/query_nested_status_end ---
+MISSING: query/query_nested_status_end
+
+--- stored_program/execute ---
+MISSING: stored_program/execute
+
+--- authentication/auth_flush ---
+MISSING: authentication/auth_flush
+
+--- authentication/auth_authid_create ---
+MISSING: authentication/auth_authid_create
+
+--- authentication/auth_credential_change ---
+MISSING: authentication/auth_credential_change
+
+--- authentication/auth_authid_rename ---
+MISSING: authentication/auth_authid_rename
+
+--- authentication/auth_authid_drop ---
+MISSING: authentication/auth_authid_drop
+
+--- message/internal ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "message",
+  "event": "internal",
+  "connection_id": <hidden>,
+  "message_data": {
+    "component": "test_audit_api_message",
+    "producer": "test_audit_api_message",
+    "message": "test_audit_api_message_internal",
+    "message_attributes": {
+      "my_numeric_key": -9223372036854775808
+    }
+  }
+}
+
+--- message/user ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "message",
+  "event": "user",
+  "connection_id": <hidden>,
+  "message_data": {
+    "component": "test_audit_api_message",
+    "producer": "test_audit_api_message",
+    "message": "test_audit_api_message_user",
+    "message_attributes": {
+      "my_string_key": "my_string_value"
+    }
+  }
+}
+
+--- parse/preparse ---
+MISSING: parse/preparse
+
+--- parse/postparse ---
+MISSING: parse/postparse
+
+--- audit/shutdown ---
+{
+  "timestamp": "<hidden>",
+  "id": <hidden>,
+  "class": "audit",
+  "event": "shutdown",
+  "connection_id": <hidden>,
+  "shutdown_data": {
+    "server_id": <hidden>
+  }
+}
+

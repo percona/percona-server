@@ -15,6 +15,7 @@
 
 #include "components/audit_log_filter/audit_rule_parser.h"
 #include "components/audit_log_filter/audit_error_log.h"
+#include "components/audit_log_filter/sys_vars.h"
 
 #include "components/audit_log_filter/event_field_action/block.h"
 #include "components/audit_log_filter/event_field_action/log.h"
@@ -267,6 +268,14 @@ bool AuditRuleParser::parse_event_class_obj_json(
       return false;
     }
 
+    if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
+        !is_event_class_allowed_in_reduced_mode(event_class_name)) {
+      audit_rule->set_parse_error(
+          "event class '" + event_class_name +
+          "' is disabled in audit_log_filter.event_mode=REDUCED");
+      return false;
+    }
+
     if (has_print) {
       replace_field =
           parse_action_json(EventActionType::ReplaceField, event_class_json,
@@ -350,6 +359,14 @@ bool AuditRuleParser::parse_event_class_obj_json(
                         event_class_name.c_str());
         audit_rule->set_parse_error("unknown event class name '" +
                                     event_class_name + "'");
+        return false;
+      }
+
+      if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
+          !is_event_class_allowed_in_reduced_mode(event_class_name)) {
+        audit_rule->set_parse_error(
+            "event class '" + event_class_name +
+            "' is disabled in audit_log_filter.event_mode=REDUCED");
         return false;
       }
 
@@ -508,6 +525,14 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
                       class_name.c_str());
       audit_rule->set_parse_error("unknown event subclass name '" + name +
                                   "' for class '" + class_name + "'");
+      return false;
+    }
+
+    if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
+        !is_event_subclass_allowed_in_reduced_mode(class_name, name)) {
+      audit_rule->set_parse_error(
+          "event '" + class_name + "/" + name +
+          "' is disabled in audit_log_filter.event_mode=REDUCED");
       return false;
     }
   }

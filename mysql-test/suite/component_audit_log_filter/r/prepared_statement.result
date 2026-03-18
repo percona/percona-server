@@ -1,3 +1,4 @@
+SET GLOBAL audit_log_filter.event_mode=FULL;
 SELECT audit_log_filter_set_filter('log_prepared', '{
 "filter": {
 "class": {

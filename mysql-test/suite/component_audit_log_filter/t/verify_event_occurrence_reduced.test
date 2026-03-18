@@ -1,0 +1,4 @@
+--source suite/query_rewrite_plugins/include/have_ddl_rewriter.inc
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--remove_files_wildcard $audit_filter_log_path verify_event_occurrence_reduced*
+--source verify_event_occurrence.inc

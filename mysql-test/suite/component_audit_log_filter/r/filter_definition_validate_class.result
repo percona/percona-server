@@ -1,3 +1,4 @@
+SET GLOBAL audit_log_filter.event_mode=FULL;
 #
 # Broken: empty "class" array
 SELECT audit_log_filter_set_filter('filter_broken_emptyClassArr', '{"filter": { "class": [] } }');

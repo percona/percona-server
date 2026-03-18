@@ -2,6 +2,7 @@
 # PS-10347: AuditJsonHandler used by audit_log_read UDF returns malformed JSON
 # https://perconadev.atlassian.net/browse/PS-10347
 #
+SET GLOBAL audit_log_filter.event_mode=FULL;
 CREATE TABLE t1 (c1 INT);
 CREATE USER user1@localhost IDENTIFIED BY 'pass';
 GRANT ALL ON *.* TO user1@localhost;

@@ -3,29 +3,39 @@
 # classes and subclasses by logging all events in one pass and then
 # printing one pretty sample record per observed event type.
 #
-# Covered here:
-#   audit: startup, shutdown
-#   general: log, error, result, status
-#   connection: connect, disconnect, change_user, pre_authenticate
-#   table_access: read, insert, update, delete
-#   global_variable: get, set
-#   command: start, end
-#   query: start, nested_start, status_end, nested_status_end
-#   stored_program: execute
-#   authentication: flush, authid_create (currently missing),
-#                   credential_change, authid_rename, authid_drop
-#   message: internal, user
-#   parse: preparse, postparse
+# The expected set of event types depends on the
+# audit_log_filter.event_mode server variable:
 #
---source suite/query_rewrite_plugins/include/have_ddl_rewriter.inc
+#   FULL mode:
+#     audit: startup, shutdown
+#     general: log, error, result, status
+#     connection: connect, disconnect, change_user, pre_authenticate
+#     table_access: read, insert, update, delete
+#     global_variable: get, set
+#     command: start, end
+#     query: start, nested_start, status_end, nested_status_end
+#     stored_program: execute
+#     authentication: flush, authid_create (currently missing),
+#                     credential_change, authid_rename, authid_drop
+#     message: internal, user
+#     parse: preparse, postparse
+#
+#   REDUCED mode:
+#     audit: startup, shutdown
+#     general: status
+#     connection: connect, disconnect, change_user
+#     table_access: read, insert, update, delete
+#     message: internal, user
+#
 --source include/have_component_audit_log.inc
 --source ../inc/audit_tables_init.inc
---let $audit_filter_log_path = `SELECT @@global.datadir`
---remove_files_wildcard $audit_filter_log_path audit_event_classes_subclasses_json*
 --source ../inc/audit_comp_install.inc
+--let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let $audit_event_mode = `SELECT @@global.audit_log_filter.event_mode`
 --let audit_filter_log_path = $audit_filter_log_path
 --let audit_filter_log_name = $audit_filter_log_name
+--let audit_event_mode = $audit_event_mode
 
 --disable_query_log
 --disable_result_log
@@ -72,9 +82,16 @@ disconnect setup_conn;
 connection default;
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
+if ($audit_event_mode == 'FULL')
+{
 SELECT audit_log_filter_set_filter('log_pre_auth',
   '{"filter":{"class":{"name":"connection","event":{"name":"pre_authenticate","log":true}}}}');
 SELECT audit_log_filter_set_user('%', 'log_pre_auth');
+}
+if ($audit_event_mode == 'REDUCED')
+{
+SELECT audit_log_filter_set_user('%', 'log_all');
+}
 SELECT audit_log_filter_set_user('audit_user@localhost', 'log_all');
 
 --disable_query_log
@@ -341,6 +358,8 @@ perl;
     $samples{$key} = clone_and_mask($ev, '');
   }
 
+  my $mode = $ENV{audit_event_mode} // 'FULL';
+
   my @expected = (
     'audit/startup',
     'general/log',
@@ -376,11 +395,34 @@ perl;
     'audit/shutdown',
   );
 
-  # Keep auth_authid_create visible in the report even though the
-  # current tree does not emit it for CREATE USER.
-  my %known_missing = map { $_ => 1 } (
-    'authentication/auth_authid_create',
-  );
+  # auth_authid_create is expected but the current tree does not emit it.
+  my %known_missing = ('authentication/auth_authid_create' => 1);
+
+  if ($mode eq 'REDUCED') {
+    my @disabled = qw(
+      general/log
+      general/error
+      general/result
+      connection/pre_authenticate
+      global_variable/variable_get
+      global_variable/variable_set
+      command/command_start
+      command/command_end
+      query/query_start
+      query/query_nested_start
+      query/query_status_end
+      query/query_nested_status_end
+      stored_program/execute
+      authentication/auth_flush
+      authentication/auth_authid_create
+      authentication/auth_credential_change
+      authentication/auth_authid_rename
+      authentication/auth_authid_drop
+      parse/preparse
+      parse/postparse
+    );
+    $known_missing{$_} = 1 for @disabled;
+  }
 
   my $all_ok = 1;
 

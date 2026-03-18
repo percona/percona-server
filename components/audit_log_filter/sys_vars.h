@@ -36,6 +36,8 @@ using log_writer::AuditLogEncryptionType;
 using log_writer::AuditLogHandlerType;
 using log_writer::AuditLogStrategyType;
 
+enum class AuditLogEventModeType { Reduced = 0, Full = 1 };
+
 struct LogBookmark {
   uint64_t id;
   std::string timestamp;
@@ -90,6 +92,14 @@ class SysVars {
    *         of AuditLogHandlerType
    */
   [[nodiscard]] static AuditLogHandlerType get_handler_type() noexcept;
+
+  /**
+   * @brief Get audit log filter event mode.
+   *
+   * @return Audit log filter event mode, may be one of possible values
+   *         of AuditLogEventModeType
+   */
+  [[nodiscard]] static AuditLogEventModeType get_event_mode_type() noexcept;
 
   /**
    * @brief Get audit log filter format type.

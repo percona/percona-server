@@ -44,7 +44,8 @@ bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,
                                          std::string &rule_name) noexcept {
   if (!m_is_initialised) {
     m_is_initialised = true;
-    if (!load()) {
+    std::string error_msg;
+    if (!load(error_msg)) {
       LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to load filtering rules");
     }
@@ -67,7 +68,9 @@ bool AuditRuleRegistry::lookup_rule_name(const std::string &user_name,
   return false;
 }
 
-bool AuditRuleRegistry::load() noexcept {
+void AuditRuleRegistry::invalidate() noexcept { m_is_initialised = false; }
+
+bool AuditRuleRegistry::load(std::string &error_message) noexcept {
   audit_table::AuditLogFilter audit_log_filter{
       SysVars::get_config_database_name()};
   audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
@@ -76,7 +79,7 @@ bool AuditRuleRegistry::load() noexcept {
   auto tmp_rules = audit_table::AuditLogFilter::AuditRulesContainer{};
 
   const bool is_success =
-      (audit_log_filter.load_filters(tmp_rules) ==
+      (audit_log_filter.load_filters(tmp_rules, error_message) ==
        audit_table::TableResult::Ok) &&
       (audit_log_user.load_users(tmp_users) == audit_table::TableResult::Ok);
 

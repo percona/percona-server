@@ -1,0 +1,4 @@
+--loose-audit_log_filter.file=verify_event_occurrence_reduced.log
+--loose-audit_log_filter.format=JSON
+--loose-audit_log_filter.event_mode=REDUCED
+$DDL_REWRITER_OPT

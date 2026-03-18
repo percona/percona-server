@@ -1,0 +1,15 @@
+SELECT @@global.audit_log_filter.event_mode;
+@@global.audit_log_filter.event_mode
+REDUCED
+SELECT @@session.audit_log_filter.event_mode;
+ERROR HY000: Variable 'audit_log_filter.event_mode' is a GLOBAL variable
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+SELECT @@global.audit_log_filter.event_mode;
+@@global.audit_log_filter.event_mode
+REDUCED
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT @@global.audit_log_filter.event_mode;
+@@global.audit_log_filter.event_mode
+FULL
+SET GLOBAL audit_log_filter.event_mode="INVALID";
+ERROR 42000: Variable 'audit_log_filter.event_mode' can't be set to the value of 'INVALID'

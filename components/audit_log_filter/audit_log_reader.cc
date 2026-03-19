@@ -205,12 +205,11 @@ bool AuditLogReader::init() noexcept {
       auto ts = LogFileTimestamp(log_name);
       m_timestamp_to_file_map.emplace(std::move(ts), std::move(file_info));
     } catch (const std::exception &e) {
-      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Skipping audit log file with unparseable name '%s': %s",
+      LogComponentErr(WARNING_LEVEL, ER_AUDIT_LOG_FILE_NAME_PARSE_FAILURE,
                       log_name.c_str(), e.what());
     } catch (...) {
-      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Skipping audit log file with unparseable name '%s'",
+      LogComponentErr(WARNING_LEVEL,
+                      ER_AUDIT_LOG_FILE_NAME_UNKNOWN_PARSE_FAILURE,
                       log_name.c_str());
     }
   }

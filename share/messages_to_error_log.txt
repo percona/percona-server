@@ -13300,6 +13300,168 @@ ER_AUDIT_PARSE_EMPTY_ARRAY
 ER_AUDIT_PARSE_UNEXPECTED_KEY
   eng "Wrong JSON filter '%s' format, unexpected key '%s'"
 
+# 48180
+ER_AUDIT_INIT_EXCEPTION
+  eng "Exception in audit_log_filter_init: %s"
+
+ER_AUDIT_DEINIT_EXCEPTION
+  eng "Exception in audit_log_filter_deinit: %s"
+
+ER_AUDIT_FILTER_RULE_NOT_FOUND
+  eng "Failed to find '%s' filtering rule"
+
+ER_AUDIT_UNSUPPORTED_EVENT_CLASS
+  eng "Unsupported audit event class with ID %i received"
+
+ER_AUDIT_BLOCKED_EVENT
+  eng "Blocked audit event '%s' with class %i"
+
+ER_AUDIT_NOTIFY_EVENT_EXCEPTION
+  eng "Caught exception in notify_event: %s"
+
+ER_AUDIT_SECURITY_CONTEXT_FIELD_FAILURE
+  eng "Can not get %s from security context"
+
+ER_AUDIT_TABLE_OPEN_FAILURE
+  eng "Failed to get an opened %s table"
+
+ER_AUDIT_TABLE_CHECK_FIELDS_FAILURE
+  eng "Failed to check %s table fields"
+
+ER_AUDIT_TABLE_INDEX_SCAN_INIT_FAILURE
+  eng "Failed to init index scan of %s table"
+
+# 48190
+ER_AUDIT_TABLE_INDEX_ACCESS_INIT_FAILURE
+  eng "Failed to init index access of %s table"
+
+ER_AUDIT_TABLE_FULL_SCAN_INIT_FAILURE
+  eng "Failed to init full scan of %s table"
+
+ER_AUDIT_TABLE_FULL_SCAN_END_FAILURE
+  eng "Failed to end full scan of %s table"
+
+ER_AUDIT_TABLE_READ_FIELD_FAILURE
+  eng "Failed to read %s.%s"
+
+ER_AUDIT_TABLE_FILTER_WRONG_FORMAT
+  eng "audit_log_filter name: %s, filter: %s has wrong format"
+
+ER_AUDIT_TABLE_FILTER_INSERT_COMMIT_FAILURE
+  eng "Failed to insert filtering rule '%s', '%s', commit failed"
+
+ER_AUDIT_TABLE_FILTER_DELETE_FAILURE
+  eng "Failed to delete filter with the name '%s'"
+
+ER_AUDIT_TABLE_FILTER_DELETE_COMMIT_FAILURE
+  eng "Failed to delete filter with the name '%s', commit failed"
+
+ER_AUDIT_TABLE_USER_DELETE_FILTER_FAILURE
+  eng "Failed to delete record for filter '%s'"
+
+ER_AUDIT_TABLE_USER_DELETE_FILTER_COMMIT_FAILURE
+  eng "Failed to delete record for filter '%s', commit failed"
+
+# 48200
+ER_AUDIT_TABLE_USER_DELETE_USER_FAILURE
+  eng "Failed to delete record for user '%s@%s'"
+
+ER_AUDIT_TABLE_USER_DELETE_USER_COMMIT_FAILURE
+  eng "Failed to delete record for user '%s@%s', commit failed"
+
+ER_AUDIT_TABLE_USER_ASSIGN_FILTER_FAILURE
+  eng "Failed to assign '%s' filtering rule for user '%s@%s'"
+
+ER_AUDIT_TABLE_USER_ASSIGN_FILTER_COMMIT_FAILURE
+  eng "Failed to assign '%s' filtering rule for user '%s@%s', commit failed"
+
+ER_AUDIT_ENCRYPTION_OPTIONS_FETCH_FAILURE
+  eng "Failed to fetch options for id %s"
+
+ER_AUDIT_ENCRYPTION_EMPTY_PASSWORD
+  eng "Empty password for id %s"
+
+ER_AUDIT_ENCRYPTION_BAD_ITERATIONS
+  eng "Bad iterations count for id %s"
+
+ER_AUDIT_ENCRYPTION_EMPTY_SALT
+  eng "Empty salt for id %s"
+
+ER_AUDIT_ENCRYPTION_PBKDF2_ERROR
+  eng "PKCS5_PBKDF2_HMAC error: %s"
+
+ER_AUDIT_ENCRYPTION_CIPHER_INIT_ERROR
+  eng "EVP_CipherInit_ex error: %s"
+
+# 48210
+ER_AUDIT_ENCRYPTION_ENCRYPT_FINAL_ERROR
+  eng "EVP_EncryptFinal error: %s"
+
+ER_AUDIT_ENCRYPTION_ENCRYPT_UPDATE_ERROR
+  eng "EVP_EncryptUpdate error: %s"
+
+ER_AUDIT_ENCRYPTION_INVALID_OPTIONS
+  eng "Invalid options provided for id %s"
+
+ER_AUDIT_ENCRYPTION_DECRYPT_UPDATE_ERROR
+  eng "EVP_DecryptUpdate error: %s"
+
+ER_AUDIT_ENCRYPTION_DECRYPT_FINAL_ERROR
+  eng "EVP_DecryptFinal error: %s"
+
+ER_AUDIT_LOG_FILE_WRITER_CREATE_FAILURE
+  eng "Failed to create Audit Log Filter file writer (%s)"
+
+ER_AUDIT_LOG_DIR_LIST_FAILURE
+  eng "Failed to list audit filter log directory '%s'"
+
+ER_AUDIT_LOG_ROTATE_INTERNAL_FAILURE
+  eng "Failed to rotate audit filter log: %i, %s"
+
+ER_AUDIT_LOG_FILE_INSPECT_FAILURE
+  eng "Failed to inspect audit filter log path '%s': %s"
+
+ER_AUDIT_LOG_FILE_PREPARE_FAILURE
+  eng "Failed to prepare audit filter log '%s' for appending"
+
+# 48220
+ER_AUDIT_LOG_DIR_LISTING_FAILURE
+  eng "Failed to list audit log directory '%s': %s"
+
+ER_AUDIT_LOG_DIR_ITERATE_FAILURE
+  eng "Failed to iterate audit log directory '%s': %s"
+
+ER_AUDIT_LOG_FOOTER_REMOVE_FAILURE
+  eng "Failed to remove footer from audit log '%s': %s"
+
+ER_AUDIT_LOG_FILE_NAME_PARSE_FAILURE
+  eng "Skipping audit log file with unparseable name '%s': %s"
+
+ER_AUDIT_LOG_FILE_NAME_UNKNOWN_PARSE_FAILURE
+  eng "Skipping audit log file with unparseable name '%s'"
+
+ER_AUDIT_LOG_FILE_OPEN_READ_FAILURE
+  eng "Failed to open file for reading: %s"
+
+ER_AUDIT_LOG_FILE_READ_FAILURE
+  eng "Failed to read: %s"
+
+ER_AUDIT_COMPRESSION_INIT_FAILURE
+  eng "Failed to init compressing: %i"
+
+ER_AUDIT_DECOMPRESSION_INIT_FAILURE
+  eng "Failed to init decompressing: %i"
+
+ER_AUDIT_UDF_REGISTER_FAILURE
+  eng "Failed to register %s UDF"
+
+# 48230
+ER_AUDIT_KEYRING_KEY_NOT_FOUND
+  eng "No data found for key '%s'"
+
+ER_AUDIT_KEYRING_OPTIONS_REMOVE_FAILURE
+  eng "Failed to remove options with ID: %s"
+
 #
 # End of Audit Log Filter error log messages
 #
@@ -13308,7 +13470,7 @@ ER_AUDIT_PARSE_UNEXPECTED_KEY
 #
 # Start of Percona Server 8.4 error log messages
 #
-start-error-number 48200
+start-error-number 48300
 
 #
 # End of Percona Server 8.4 error log messages
@@ -13318,7 +13480,7 @@ start-error-number 48200
 #
 # Start of Percona Server 9.7 error log messages
 #
-start-error-number 48300
+start-error-number 48400
 
 #
 # End of Percona Server 9.7 error log messages

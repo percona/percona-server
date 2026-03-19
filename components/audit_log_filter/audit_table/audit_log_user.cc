@@ -98,8 +98,7 @@ TableResult AuditLogUser::index_scan_locate_record_by_rule_name(
                         kKeyFilterNameLegacyName,
                         kKeyFilterNameLegacyNameLength, key_filter_name_cols,
                         kKeyFilterNameNumcol, key)) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to init index access of %s table",
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_INDEX_ACCESS_INIT_FAILURE,
                       get_table_name());
       return TableResult::Fail;
     }
@@ -136,8 +135,7 @@ TableResult AuditLogUser::index_scan_locate_record_by_user_name_host(
   if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
                       kKeyPrimaryName, kKeyPrimaryLength, key_primary_cols,
                       kKeyPrimaryNumcol, key)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init index access of %s table",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_INDEX_ACCESS_INIT_FAILURE,
                     get_table_name());
     return TableResult::Fail;
   }
@@ -196,8 +194,8 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
       "table_access_scan_v1", SysVars::get_comp_registry_srv());
 
   if (scan_srv->init(ta_context->ta_session, ta_context->ta_table)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init full scan of %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FULL_SCAN_INIT_FAILURE,
+                    get_table_name());
     return TableResult::Fail;
   }
 
@@ -217,21 +215,21 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
 
     if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
                          kAuditLogUserUsername, user_name_value.get())) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.username", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "username");
       return TableResult::Fail;
     }
     if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
                          kAuditLogUserUserhost, user_host_value.get())) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.userhost", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "userhost");
       return TableResult::Fail;
     }
     if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
                          kAuditLogUserFiltername,
                          user_filter_name_value.get())) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.filtername", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "filtername");
       return TableResult::Fail;
     }
 
@@ -250,8 +248,8 @@ TableResult AuditLogUser::load_users(AuditUsersContainer &container) noexcept {
   }
 
   if (scan_srv->end(ta_context->ta_session, ta_context->ta_table)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to end full scan of %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FULL_SCAN_END_FAILURE,
+                    get_table_name());
     return TableResult::Fail;
   }
 
@@ -293,8 +291,7 @@ TableResult AuditLogUser::delete_user_by_filter(
   while (rc == 0) {
     if (table_update_srv->delete_row(ta_context->ta_session,
                                      ta_context->ta_table) != 0) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to delete record for filter '%s'",
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_USER_DELETE_FILTER_FAILURE,
                       rule_name.c_str());
       index_scan_end(ta_context.get(), filter_name_key);
       return TableResult::Fail;
@@ -308,8 +305,8 @@ TableResult AuditLogUser::delete_user_by_filter(
   if (table_access_srv->commit(ta_context->ta_session)) {
     index_scan_end(ta_context.get(), filter_name_key);
 
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to delete record for filter '%s', commit failed",
+    LogComponentErr(ERROR_LEVEL,
+                    ER_AUDIT_TABLE_USER_DELETE_FILTER_COMMIT_FAILURE,
                     rule_name.c_str());
     return TableResult::Fail;
   }
@@ -346,8 +343,7 @@ TableResult AuditLogUser::delete_user_by_name_host(
   if (scan_result == TableResult::Found &&
       table_update_srv->delete_row(ta_context->ta_session,
                                    ta_context->ta_table) != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to delete record for user '%s@%s'",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_USER_DELETE_USER_FAILURE,
                     user_name.c_str(), user_host.c_str());
     index_scan_end(ta_context.get(), user_host_key);
     return TableResult::Fail;
@@ -356,8 +352,7 @@ TableResult AuditLogUser::delete_user_by_name_host(
   if (table_access_srv->commit(ta_context->ta_session)) {
     index_scan_end(ta_context.get(), user_host_key);
 
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to delete record for user '%s@%s', commit failed",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_USER_DELETE_USER_COMMIT_FAILURE,
                     user_name.c_str(), user_host.c_str());
     return TableResult::Fail;
   }
@@ -418,8 +413,7 @@ TableResult AuditLogUser::set_update_filter(
   if (rc != 0) {
     index_scan_end(ta_context.get(), user_host_key);
 
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to assign '%s' filtering rule for user '%s@%s'",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_USER_ASSIGN_FILTER_FAILURE,
                     filter_name.c_str(), user_name.c_str(), user_host.c_str());
     return TableResult::Fail;
   }
@@ -427,10 +421,9 @@ TableResult AuditLogUser::set_update_filter(
   if (table_access_srv->commit(ta_context->ta_session)) {
     index_scan_end(ta_context.get(), user_host_key);
 
-    LogComponentErr(
-        ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-        "Failed to assign '%s' filtering rule for user '%s@%s', commit failed",
-        filter_name.c_str(), user_name.c_str(), user_host.c_str());
+    LogComponentErr(ERROR_LEVEL,
+                    ER_AUDIT_TABLE_USER_ASSIGN_FILTER_COMMIT_FAILURE,
+                    filter_name.c_str(), user_name.c_str(), user_host.c_str());
     return TableResult::Fail;
   }
 

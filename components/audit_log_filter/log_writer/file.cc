@@ -67,8 +67,7 @@ FileWriterPtr get_file_writer(FileHandle &file_handle) {
 
     return writer;
   } catch (std::exception &e) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to create Audit Log Filter file writer (%s)",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_WRITER_CREATE_FAILURE,
                     e.what());
   } catch (...) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -94,8 +93,7 @@ LogWriter<AuditLogHandlerType::File>::~LogWriter() {
   if (!FileHandle::get_not_rotated_file_path(SysVars::get_file_dir(),
                                              SysVars::get_file_name(),
                                              current_log_path)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to list audit filter log directory '%s'",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_DIR_LIST_FAILURE,
                     SysVars::get_file_dir().c_str());
     return;
   }
@@ -103,8 +101,7 @@ LogWriter<AuditLogHandlerType::File>::~LogWriter() {
   FileHandle::rotate(current_log_path, rotation_result.get());
 
   if (rotation_result->error_code != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_ROTATE_INTERNAL_FAILURE,
                     rotation_result->error_code,
                     rotation_result->status_string.c_str());
   }
@@ -122,8 +119,7 @@ bool LogWriterFile::open() noexcept {
   if (!FileHandle::get_not_rotated_file_path(SysVars::get_file_dir(),
                                              SysVars::get_file_name(),
                                              current_log_path)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to list audit filter log directory '%s'",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_DIR_LIST_FAILURE,
                     SysVars::get_file_dir().c_str());
     return false;
   }
@@ -131,8 +127,7 @@ bool LogWriterFile::open() noexcept {
   FileHandle::rotate(current_log_path, rotation_result.get());
 
   if (rotation_result->error_code != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_ROTATE_INTERNAL_FAILURE,
                     rotation_result->error_code,
                     rotation_result->status_string.c_str());
     return false;
@@ -164,8 +159,7 @@ bool LogWriterFile::do_open_file() noexcept {
   const bool file_exists = std::filesystem::exists(file_path, ec);
   if (ec) {
     const auto file_path_str = file_path.string();
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to inspect audit filter log path '%s': %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_INSPECT_FAILURE,
                     file_path_str.c_str(), ec.message().c_str());
     return false;
   }
@@ -175,8 +169,7 @@ bool LogWriterFile::do_open_file() noexcept {
     if (!FileHandle::remove_file_footer(file_path,
                                         get_formatter()->get_file_footer())) {
       const auto file_path_str = file_path.string();
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to prepare audit filter log '%s' for appending",
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_PREPARE_FAILURE,
                       file_path_str.c_str());
       return false;
     }
@@ -277,8 +270,7 @@ void LogWriterFile::do_rotate(FileRotationResult *result) noexcept {
   FileHandle::rotate(current_log_path, result);
 
   if (result->error_code != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to rotate audit filter log: %i, %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_ROTATE_INTERNAL_FAILURE,
                     result->error_code, result->status_string.c_str());
   }
 

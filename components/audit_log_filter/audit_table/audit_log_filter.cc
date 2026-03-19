@@ -88,8 +88,8 @@ TableResult AuditLogFilter::index_scan_locate_record_by_rule_name(
   if (index_srv->init(ta_context->ta_session, ta_context->ta_table,
                       kKeyFilterNameName, kKeyFilterNameNameLength,
                       key_filter_name_cols, kKeyFilterNameNumcol, key) != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init index scan of %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_INDEX_SCAN_INIT_FAILURE,
+                    get_table_name());
     return TableResult::Fail;
   }
 
@@ -130,8 +130,8 @@ TableResult AuditLogFilter::get_next_pk_value(TableAccessContext *ta_context,
                       kKeyFilterPrimaryName, kKeyFilterPrimaryNameLength,
                       key_filter_primary_cols, kKeyFilterPrimaryNumcol,
                       &filter_id_key) != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init index scan of %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_INDEX_SCAN_INIT_FAILURE,
+                    get_table_name());
     return TableResult::Fail;
   }
 
@@ -144,8 +144,8 @@ TableResult AuditLogFilter::get_next_pk_value(TableAccessContext *ta_context,
 
     if (integer_srv->get(ta_context->ta_session, ta_context->ta_table,
                          kAuditLogFilterFilterId, &found_filter_id)) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.filter_id", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "filter_id");
       index_scan_end(ta_context, filter_id_key);
       return TableResult::Fail;
     }
@@ -190,8 +190,8 @@ TableResult AuditLogFilter::load_filters(
       "field_any_access_v1", SysVars::get_comp_registry_srv());
 
   if (scan_srv->init(ta_context->ta_session, ta_context->ta_table)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init full scan of %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FULL_SCAN_INIT_FAILURE,
+                    get_table_name());
     return TableResult::Fail;
   }
 
@@ -210,20 +210,20 @@ TableResult AuditLogFilter::load_filters(
 
     if (integer_srv->get(ta_context->ta_session, ta_context->ta_table,
                          kAuditLogFilterFilterId, &filter_id)) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.filter_id", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "filter_id");
       return TableResult::Fail;
     }
     if (varchar_srv->get(ta_context->ta_session, ta_context->ta_table,
                          kAuditLogFilterName, filter_name_value.get())) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.filter", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "filter");
       return TableResult::Fail;
     }
     if (any_srv->get(ta_context->ta_session, ta_context->ta_table,
                      kAuditLogFilterFilter, filter_filter_value.get())) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to read %s.filter", get_table_name());
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                      get_table_name(), "filter");
       return TableResult::Fail;
     }
 
@@ -240,15 +240,14 @@ TableResult AuditLogFilter::load_filters(
     if (AuditRuleParser::parse(buff_filter_filter_value, rule.get())) {
       container.insert({buff_filter_name_value, std::move(rule)});
     } else {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "audit_log_filter name: %s, filter: %s has wrong format",
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FILTER_WRONG_FORMAT,
                       buff_filter_name_value, buff_filter_filter_value);
     }
   }
 
   if (scan_srv->end(ta_context->ta_session, ta_context->ta_table)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to end full scan of %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FULL_SCAN_END_FAILURE,
+                    get_table_name());
     return TableResult::Fail;
   }
 
@@ -332,15 +331,13 @@ TableResult AuditLogFilter::insert_filter(
       table_update_srv->insert(ta_context->ta_session, ta_context->ta_table);
 
   if (rc != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to insert filtering rule '%s', '%s'",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_UDF_SET_FILTER_FAILURE,
                     rule_name.c_str(), rule_definition.c_str());
     return TableResult::Fail;
   }
 
   if (table_access_srv->commit(ta_context->ta_session)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to insert filtering rule '%s', '%s', commit failed",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FILTER_INSERT_COMMIT_FAILURE,
                     rule_name.c_str(), rule_definition.c_str());
     return TableResult::Fail;
   }
@@ -381,16 +378,14 @@ TableResult AuditLogFilter::delete_filter(
                                          ta_context->ta_table);
 
   if (rc != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to delete filter with the name '%s'",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FILTER_DELETE_FAILURE,
                     rule_name.c_str());
     index_scan_end(ta_context.get(), filter_name_key);
     return TableResult::Fail;
   }
 
   if (table_access_srv->commit(ta_context->ta_session)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to delete filter with the name '%s', commit failed",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FILTER_DELETE_COMMIT_FAILURE,
                     rule_name.c_str());
     index_scan_end(ta_context.get(), filter_name_key);
     return TableResult::Fail;

@@ -34,8 +34,7 @@ bool FileWriterCompressing::open() noexcept {
                           MAX_WBITS + 16, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 
   if (ret != Z_OK) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init compressing: %i", ret);
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_COMPRESSION_INIT_FAILURE, ret);
     return false;
   }
 

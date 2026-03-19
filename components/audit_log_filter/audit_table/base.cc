@@ -81,16 +81,15 @@ std::unique_ptr<TableAccessContext> AuditTableBase::open_table() noexcept {
       table_access_srv->get(ta_context->ta_session, ta_context->table_ticket);
 
   if (ta_context->ta_table == nullptr) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to get an opened %s table", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_OPEN_FAILURE, get_table_name());
     return nullptr;
   }
 
   if (table_access_srv->check(ta_context->ta_session, ta_context->ta_table,
                               get_table_field_def(),
                               get_table_field_count()) != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to check %s table fields", get_table_name());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_CHECK_FIELDS_FAILURE,
+                    get_table_name());
     return nullptr;
   }
 

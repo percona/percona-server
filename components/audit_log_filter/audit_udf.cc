@@ -207,8 +207,7 @@ bool AuditUdf::init(UdfFuncInfo *begin, UdfFuncInfo *end) {
                 ? reinterpret_cast<Udf_func_any>(it->udf_str_func)
                 : reinterpret_cast<Udf_func_any>(it->udf_int_func),
             it->init_func, it->deinit_func) == 1) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to register %s UDF", it->udf_name);
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_UDF_REGISTER_FAILURE, it->udf_name);
       return false;
     }
 

@@ -79,8 +79,7 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
   const auto *encryption_options = file_info->encryption_options.get();
 
   if (encryption_options == nullptr || !encryption_options->check_valid()) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Invalid options provided for id %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_INVALID_OPTIONS,
                     file_info->encryption_options_id.c_str());
     return false;
   }
@@ -90,20 +89,19 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
   const auto &keyring_salt = encryption_options->get_salt();
 
   if (keyring_password.empty()) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Empty password for id %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_EMPTY_PASSWORD,
                     file_info->encryption_options_id.c_str());
     return false;
   }
 
   if (keyring_iterations < 1) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Bad iterations count for id %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_BAD_ITERATIONS,
                     file_info->encryption_options_id.c_str());
     return false;
   }
 
   if (keyring_salt.empty()) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Empty salt for id %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_EMPTY_SALT,
                     file_info->encryption_options_id.c_str());
     return false;
   }
@@ -119,8 +117,7 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
           keyring_salt.data(), static_cast<int>(keyring_salt.size()),
           static_cast<int>(keyring_iterations), EVP_sha256(), ik_len + iv_len,
           tmp_key_iv)) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "PKCS5_PBKDF2_HMAC error: %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_PBKDF2_ERROR,
                     ERR_error_string(ERR_peek_error(), nullptr));
     return false;
   }
@@ -136,8 +133,7 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
   }
 
   if (EVP_DecryptInit(m_ctx, m_cipher, m_key.get(), m_iv.get()) != 1) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "EVP_CipherInit_ex error: %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_CIPHER_INIT_ERROR,
                     ERR_error_string(ERR_peek_error(), nullptr));
     ERR_clear_error();
     EVP_CIPHER_CTX_free(m_ctx);
@@ -197,8 +193,7 @@ ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
 
   if (EVP_DecryptUpdate(m_ctx, out_buffer, &decrypted_size, m_in_buff.get(),
                         static_cast<int>(in_buff_data_size)) != 1) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "EVP_DecryptUpdate error: %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_DECRYPT_UPDATE_ERROR,
                     ERR_error_string(ERR_peek_error(), nullptr));
     return ReadStatus::Error;
   }
@@ -210,8 +205,7 @@ ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
 
     if (EVP_DecryptFinal(m_ctx, out_buffer + decrypted_size, &final_size) !=
         1) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "EVP_DecryptFinal error: %s",
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_ENCRYPTION_DECRYPT_FINAL_ERROR,
                       ERR_error_string(ERR_peek_error(), nullptr));
       return ReadStatus::Error;
     }

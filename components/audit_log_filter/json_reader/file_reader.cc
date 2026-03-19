@@ -30,8 +30,7 @@ bool FileReader::open(FileInfo *file_info) noexcept {
   m_fp = fopen(file_info->name.c_str(), "r");
 
   if (m_fp == nullptr) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to open file for reading: %s",
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_OPEN_READ_FAILURE,
                     file_info->name.c_str());
     return false;
   }
@@ -50,7 +49,7 @@ ReadStatus FileReader::read(unsigned char *out_buffer,
     const auto err = std::ferror(m_fp);
 
     if (err != 0) {
-      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failed to read: %s",
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_READ_FAILURE,
                       std::strerror(err));
       return ReadStatus::Error;
     }

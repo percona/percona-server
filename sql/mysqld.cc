@@ -703,6 +703,7 @@ MySQL clients support the protocol:
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"  // MY_BITMAP
+#include "my_checksum.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -9029,6 +9030,10 @@ static int init_server_components() {
 #if defined(MYSQL_ICU_DATADIR)
   init_icu_data_directory();
 #endif  // MYSQL_ICU_DATADIR
+
+  // Log active CRC32 implementation (hardware or software fallback).
+  LogErr(INFORMATION_LEVEL, ER_CRC32_IMPLEMENTATION,
+       mycrc32::crc32_implementation_name());
 
   return 0;
 }

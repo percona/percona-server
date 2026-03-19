@@ -116,6 +116,7 @@ SET(TESTS
   charset_bug32788301
   collation_loader
   cost_estimate
+  crc32_hw_intel
   decimal
   dns_srv_data
   dphyp

@@ -13428,6 +13428,11 @@ ER_AUDIT_PARSE_SKIP_DISABLED_EVENT_SUBCLASS
 #
 
 
+ER_CRC32_IMPLEMENTATION
+  eng "BinLog/RelayLog CRC32 implementation: %s"
+
+#
+# End of Percona Server 8.4 server error log messages
 #
 # Start of Percona Server 8.4 error log messages
 #

@@ -25,32 +25,38 @@
 #ifndef MY_CHECKSUM_INCLUDED
 #define MY_CHECKSUM_INCLUDED
 
-/**
-  @file include/my_checksum.h
-  Abstraction functions over zlib/intrinsics.
-*/
-
 #include <cassert>
 #include <cstdint>      // std::uint32_t
 #include <limits>       // std::numeric_limits
 #include <type_traits>  // std::is_convertible
+#include <cstring>      // memcpy
 
 #include <zlib.h>  // crc32_z
 
-#include "my_compiler.h"  // My_ATTRIBUTE
+#include "my_compiler.h"
 #include "my_config.h"
 
 #ifdef HAVE_ARMV8_CRC32_INTRINSIC
-#include <arm_acle.h>   // __crc32x
-#include <asm/hwcap.h>  // HWCAP_CRC32
-#include <sys/auxv.h>   // getauxval
+  #include <arm_acle.h>   // __crc32x
+  #include <asm/hwcap.h>  // HWCAP_CRC32
+  #include <sys/auxv.h>   // getauxval
 #endif                  /* HAVE_ARMV8_CRC32_INTRINSIC */
 
 namespace mycrc32 {
-#ifdef HAVE_ARMV8_CRC32_INTRINSIC
-const bool auxv_at_hwcap = (getauxval(AT_HWCAP) & HWCAP_CRC32);
 
-// Some overloads for these since to allow us to work genericly
+// ---------------------------------------------------------------------------
+// ARM CRC32
+// ---------------------------------------------------------------------------
+
+#ifdef HAVE_ARMV8_CRC32_INTRINSIC
+
+static inline bool have_armv8_hw_crc() {
+  // C++11 magic static: initialized once, thread-safe.
+  static const bool supported =
+      (getauxval(AT_HWCAP) & HWCAP_CRC32) != 0;
+  return supported;
+}
+
 MY_ATTRIBUTE((target("+crc")))
 inline std::uint32_t IntegerCrc32(std::uint32_t crc, std::uint8_t b) {
   return __crc32b(crc, b);
@@ -70,7 +76,8 @@ MY_ATTRIBUTE((target("+crc")))
 inline std::uint32_t IntegerCrc32(std::uint32_t crc, std::uint64_t d) {
   return __crc32d(crc, d);
 }
-#else /* HAVE_ARMV8_CRC32_INTRINSIC */
+
+#else  // HAVE_ARMV8_CRC32_INTRINSIC
 
 template <class I>
 inline std::uint32_t IntegerCrc32(std::uint32_t crc, I i) {
@@ -81,48 +88,144 @@ inline std::uint32_t IntegerCrc32(std::uint32_t crc, I i) {
   return ~crc;
 }
 
-#endif /* HAVE_ARMV8_CRC32_INTRINSIC */
+#endif  // HAVE_ARMV8_CRC32_INTRINSIC
+
+// ---------------------------------------------------------------------------
+// zlib fallback
+// ---------------------------------------------------------------------------
+
+inline std::uint32_t crc32_zlib(std::uint32_t crc,
+                                const unsigned char *buf,
+                                size_t len) {
+  return static_cast<std::uint32_t>(crc32_z(crc, buf, len));
+}
+
+// ---------------------------------------------------------------------------
+// x86 hardware CRC32 (PCLMULQDQ + SSE4.2)
+// ---------------------------------------------------------------------------
+
+#if defined(__x86_64__)
+
+std::uint32_t crc32_hw_x86(std::uint32_t crc,
+                            const unsigned char *buf,
+                            size_t len);
+
+static inline bool have_x86_hw_crc() {
+#if defined(__GNUC__) || defined(__clang__)
+  // C++11 magic static: initialized once, thread-safe.
+  static const bool supported = []() {
+    unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
+
+    __asm__ volatile("cpuid"
+                     : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+                     : "a"(0), "c"(0));
+    if (eax < 1)
+      return false;
+
+    __asm__ volatile("cpuid"
+                     : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+                     : "a"(1), "c"(0));
+
+    const bool has_sse42  = (ecx & (1u << 20)) != 0;
+    const bool has_pclmul = (ecx & (1u << 1))  != 0;
+    return has_sse42 && has_pclmul;
+  }();
+  return supported;
+#else
+  return false;
+#endif
+}
+
+#endif  // __x86_64__
+
+// ---------------------------------------------------------------------------
+// PunnedCrc32: ARM hardware path for bulk data
+// ---------------------------------------------------------------------------
 
 template <class PT>
-inline std::uint32_t PunnedCrc32(std::uint32_t crc, const unsigned char *buf,
+inline std::uint32_t PunnedCrc32(std::uint32_t crc,
+                                 const unsigned char *buf,
                                  size_t len) {
   crc = ~crc;
   const unsigned char *plast = buf + (len / sizeof(PT)) * sizeof(PT);
-  const unsigned char *last = buf + len;
+  const unsigned char *last  = buf + len;
+
   for (; buf < plast; buf += sizeof(PT)) {
     PT pv;
     memcpy(&pv, buf, sizeof(PT));
     crc = IntegerCrc32(crc, pv);
   }
-
-  for (; buf < last; ++buf) {
+  for (; buf < last; ++buf)
     crc = IntegerCrc32(crc, *buf);
-  }
 
-  return (~crc);
+  return ~crc;
 }
+
+// ---------------------------------------------------------------------------
+// Implementation selector: chosen once, thread-safe via magic static.
+// ---------------------------------------------------------------------------
+
+using crc32_func_t = std::uint32_t (*)(std::uint32_t,
+                                       const unsigned char *,
+                                       size_t);
+
+inline crc32_func_t get_active_impl() {
+  // C++11 magic static: lambda runs exactly once, result cached.
+  static const crc32_func_t impl = []() -> crc32_func_t {
+#if defined(__x86_64__)
+    if (have_x86_hw_crc())
+      return crc32_hw_x86;
+#endif
+
+#ifdef HAVE_ARMV8_CRC32_INTRINSIC
+    if (have_armv8_hw_crc())
+      return [](std::uint32_t crc, const unsigned char *buf, size_t len) {
+        return PunnedCrc32<std::uint64_t>(crc, buf, len);
+      };
+#endif
+
+    return crc32_zlib;
+  }();
+
+  return impl;
+}
+
+inline std::uint32_t crc32_fast(std::uint32_t crc,
+                                const unsigned char *buf,
+                                size_t len) {
+  return get_active_impl()(crc, buf, len);
+}
+
+// Returns a human-readable name of the active CRC32 implementation.
+inline const char *crc32_implementation_name() {
+#if defined(__x86_64__)
+  if (have_x86_hw_crc())
+    return "hardware (Intel PCLMULQDQ)";
+#endif
+#ifdef HAVE_ARMV8_CRC32_INTRINSIC
+  if (have_armv8_hw_crc())
+    return "hardware (ARMv8 CRC32)";
+#endif
+  return "software (zlib)";
+}
+
 }  // namespace mycrc32
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 using ha_checksum = std::uint32_t;
 
-/**
-   Calculate a CRC32 checksum for a memoryblock.
-
-   @param crc       Start value for crc.
-   @param pos       Pointer to memory block.
-   @param length    Length of the block.
-
-   @returns Updated checksum.
-*/
-inline ha_checksum my_checksum(ha_checksum crc, const unsigned char *pos,
+inline ha_checksum my_checksum(ha_checksum crc,
+                               const unsigned char *pos,
                                size_t length) {
-#ifdef HAVE_ARMV8_CRC32_INTRINSIC
-  if (mycrc32::auxv_at_hwcap)
-    return mycrc32::PunnedCrc32<std::uint64_t>(crc, pos, length);
-#endif  // HAVE_ARMV8_CRC32_INTRINSIC
   static_assert(std::is_convertible<uLong, ha_checksum>::value,
                 "uLong cannot be converted to ha_checksum");
-  assert(crc32_z(crc, pos, length) <= std::numeric_limits<ha_checksum>::max());
-  return crc32_z(crc, pos, length);
+  ha_checksum tmp =
+      static_cast<ha_checksum>(mycrc32::crc32_fast(crc, pos, length));
+  assert(tmp <= std::numeric_limits<ha_checksum>::max());
+  return tmp;
 }
-#endif /* not defined(MY_CEHCKSUM_INCLUDED) */
+
+#endif  // MY_CHECKSUM_INCLUDED

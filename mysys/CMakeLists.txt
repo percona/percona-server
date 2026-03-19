@@ -33,6 +33,7 @@ SET(MYSYS_SOURCES
   array.cc
   buffered_error_log.cc
   charset.cc
+  crc32_hw_intel.cc
   dbug.cc
   decimal.cc
   errors.cc
@@ -64,6 +65,7 @@ SET(MYSYS_SOURCES
   my_bitmap.cc
   my_chmod.cc
   my_chsize.cc
+  my_checksum.cc
   my_compare.cc
   my_compress.cc
   my_copy.cc
@@ -247,6 +249,12 @@ IF(MSVC_CPPCHECK AND MSVC AND MSVC_VERSION GREATER 1935)
   ADD_COMPILE_FLAGS(my_init.cc COMPILE_FLAGS "/wd6553")
   ADD_COMPILE_FLAGS(my_conio.cc COMPILE_FLAGS "/wd28286")
 ENDIF()
+
+# Enable PCLMULQDQ + SSSE3 + SSE4.1 for Intel CRC32 implementation
+ADD_COMPILE_FLAGS(crc32_hw_intel.cc COMPILE_FLAGS "-mpclmul -mssse3 -msse4.1")
+
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_EXECUTABLE(thr_lock
   thr_lock.cc

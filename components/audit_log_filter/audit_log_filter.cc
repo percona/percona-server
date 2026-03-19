@@ -379,8 +379,7 @@ mysql_service_status_t audit_log_filter_init() try {
   audit_log_filter = std::move(local_audit_log_filter);
   return 0;
 } catch (const std::exception &e) {
-  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                  "Exception in audit_log_filter_init: %s", e.what());
+  LogComponentErr(ERROR_LEVEL, ER_AUDIT_INIT_EXCEPTION, e.what());
   return 1;
 } catch (...) {
   LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -414,8 +413,7 @@ mysql_service_status_t audit_log_filter_deinit() try {
 
   return 0;
 } catch (const std::exception &e) {
-  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                  "Exception in audit_log_filter_deinit: %s", e.what());
+  LogComponentErr(ERROR_LEVEL, ER_AUDIT_DEINIT_EXCEPTION, e.what());
   return 1;
 } catch (...) {
   LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -517,8 +515,8 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   auto filter_rule = m_audit_rules_registry->get_rule(rule_name);
 
   if (filter_rule == nullptr) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to find '%s' filtering rule", rule_name.c_str());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_FILTER_RULE_NOT_FOUND,
+                    rule_name.c_str());
     return 0;
   }
 
@@ -532,8 +530,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   auto &record = *audit_record;
 
   if (std::holds_alternative<AuditRecordUnknown>(record)) {
-    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Unsupported audit event class with ID %i received",
+    LogComponentErr(WARNING_LEVEL, ER_AUDIT_UNSUPPORTED_EVENT_CLASS,
                     event_class);
     return 0;
   }
@@ -562,8 +559,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
           return rec.event_class_name;
         },
         record);
-    LogComponentErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Blocked audit event '%s' with class %i", ev_name.data(),
+    LogComponentErr(INFORMATION_LEVEL, ER_AUDIT_BLOCKED_EVENT, ev_name.data(),
                     event_class);
     return 1;
   }
@@ -582,8 +578,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 
   return 0;
 } catch (const std::exception &e) {
-  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                  "Caught exception in notify_event: %s", e.what());
+  LogComponentErr(ERROR_LEVEL, ER_AUDIT_NOTIFY_EVENT_EXCEPTION, e.what());
   return 0;
 } catch (...) {
   LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -811,8 +806,8 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
   MYSQL_LEX_CSTRING val{"", 0};
   // calls mysql_security_context_imp::get
   if (m_security_context_opts_srv->get(ctx, name.c_str(), &val) != 0) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Can not get %s from security context", name.c_str());
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_SECURITY_CONTEXT_FIELD_FAILURE,
+                    name.c_str());
     return false;
   }
 

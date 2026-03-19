@@ -55,8 +55,7 @@ bool for_each_directory_entry(const std::string &working_dir_name,
   const auto end = std::filesystem::directory_iterator{};
 
   if (ec) {
-    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to list audit log directory '%s': %s",
+    LogComponentErr(WARNING_LEVEL, ER_AUDIT_LOG_DIR_LISTING_FAILURE,
                     working_dir_name.c_str(), ec.message().c_str());
     return false;
   }
@@ -68,8 +67,7 @@ bool for_each_directory_entry(const std::string &working_dir_name,
 
     it.increment(ec);
     if (ec) {
-      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to iterate audit log directory '%s': %s",
+      LogComponentErr(WARNING_LEVEL, ER_AUDIT_LOG_DIR_ITERATE_FAILURE,
                       working_dir_name.c_str(), ec.message().c_str());
       return false;
     }
@@ -271,8 +269,7 @@ bool FileHandle::remove_file_footer(
   }
   if (ec) {
     const auto path_str = file_path.string();
-    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to remove footer from audit log '%s': %s",
+    LogComponentErr(WARNING_LEVEL, ER_AUDIT_LOG_FOOTER_REMOVE_FAILURE,
                     path_str.c_str(), ec.message().c_str());
     return false;
   }

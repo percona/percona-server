@@ -55,8 +55,7 @@ bool FileReaderDecompressing::open(FileInfo *file_info) noexcept {
   auto ret = inflateInit2(&m_strm, MAX_WBITS + 16);
 
   if (ret != Z_OK) {
-    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                    "Failed to init decompressing: %i", ret);
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_DECOMPRESSION_INIT_FAILURE, ret);
     FileReaderDecoratorBase::close();
     return false;
   }

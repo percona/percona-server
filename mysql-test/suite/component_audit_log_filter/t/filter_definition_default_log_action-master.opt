@@ -1,0 +1,2 @@
+--loose-audit_log_filter.file=filter_definition_default_log_action.log
+--loose-audit_log_filter.format=JSON

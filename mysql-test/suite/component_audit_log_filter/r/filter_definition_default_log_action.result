@@ -1,0 +1,86 @@
+#
+# Empty top-level filter object must default to logging all events (same as "log": true).
+SELECT audit_log_filter_set_filter('f_empty', '{"filter": {}}');
+audit_log_filter_set_filter('f_empty', '{"filter": {}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_empty');
+audit_log_filter_set_user('%', 'f_empty')
+OK
+OK: empty filter
+#
+# Explicit "log": true must log general, connection, and table_access events.
+SELECT audit_log_filter_set_filter('f_log_true', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('f_log_true', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_log_true');
+audit_log_filter_set_user('%', 'f_log_true')
+OK
+OK: log true
+#
+# "log": true with only "id" and multi-class list still logs unmatched event classes.
+SELECT audit_log_filter_set_filter('f_log_true_complex', '{"filter": {"log": true, "id": "complex-1", "class": [{"name": "general"}, {"name": "connection"}]}}');
+audit_log_filter_set_filter('f_log_true_complex', '{"filter": {"log": true, "id": "complex-1", "class": [{"name": "general"}, {"name": "connection"}]}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_log_true_complex');
+audit_log_filter_set_user('%', 'f_log_true_complex')
+OK
+OK: log true with id and class list
+#
+# Only "id" (no "log", no "class") matches empty filter: log all.
+SELECT audit_log_filter_set_filter('f_id_only', '{"filter": {"id": "metadata-only"}}');
+audit_log_filter_set_filter('f_id_only', '{"filter": {"id": "metadata-only"}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_id_only');
+audit_log_filter_set_user('%', 'f_id_only')
+OK
+OK: id only
+#
+# No top-level "log" with only "class": general — unmatched events are not logged.
+SELECT audit_log_filter_set_filter('f_class_general_only', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('f_class_general_only', '{"filter": {"class": {"name": "general"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_class_general_only');
+audit_log_filter_set_user('%', 'f_class_general_only')
+OK
+OK: class general only
+#
+# No top-level "log" with class list general+connection — table_access still excluded.
+SELECT audit_log_filter_set_filter('f_class_gen_conn', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
+audit_log_filter_set_filter('f_class_gen_conn', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_class_gen_conn');
+audit_log_filter_set_user('%', 'f_class_gen_conn')
+OK
+OK: class general and connection
+#
+# No top-level "log" with nested event rule — only matching subclasses are logged (REDUCED: general/status).
+SELECT audit_log_filter_set_filter('f_class_general_status', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": true}}}}');
+audit_log_filter_set_filter('f_class_general_status', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": true}}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'f_class_general_status');
+audit_log_filter_set_user('%', 'f_class_general_status')
+OK
+OK: class general event status only
+#
+# Cleanup filters
+SELECT audit_log_filter_remove_filter('f_empty');
+audit_log_filter_remove_filter('f_empty')
+OK
+SELECT audit_log_filter_remove_filter('f_log_true');
+audit_log_filter_remove_filter('f_log_true')
+OK
+SELECT audit_log_filter_remove_filter('f_log_true_complex');
+audit_log_filter_remove_filter('f_log_true_complex')
+OK
+SELECT audit_log_filter_remove_filter('f_id_only');
+audit_log_filter_remove_filter('f_id_only')
+OK
+SELECT audit_log_filter_remove_filter('f_class_general_only');
+audit_log_filter_remove_filter('f_class_general_only')
+OK
+SELECT audit_log_filter_remove_filter('f_class_gen_conn');
+audit_log_filter_remove_filter('f_class_gen_conn')
+OK
+SELECT audit_log_filter_remove_filter('f_class_general_status');
+audit_log_filter_remove_filter('f_class_general_status')
+OK

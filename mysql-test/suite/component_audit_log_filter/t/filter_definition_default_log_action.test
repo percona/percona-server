@@ -1,0 +1,110 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let audit_filter_log_path = $audit_filter_log_path
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let audit_filter_log_name = $audit_filter_log_name
+
+--disable_query_log
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+--enable_query_log
+
+--echo #
+--echo # Empty top-level filter object must default to logging all events (same as "log": true).
+SELECT audit_log_filter_set_filter('f_empty', '{"filter": {}}');
+SELECT audit_log_filter_set_user('%', 'f_empty');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general,connection,table_access
+--let audit_filter_expect_absent =
+--let audit_filter_expect_for_suffix = empty filter
+--let audit_filter_expect_ok = OK: empty filter
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # Explicit "log": true must log general, connection, and table_access events.
+SELECT audit_log_filter_set_filter('f_log_true', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'f_log_true');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general,connection,table_access
+--let audit_filter_expect_absent =
+--let audit_filter_expect_for_suffix = log true
+--let audit_filter_expect_ok = OK: log true
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # "log": true with only "id" and multi-class list still logs unmatched event classes.
+SELECT audit_log_filter_set_filter('f_log_true_complex', '{"filter": {"log": true, "id": "complex-1", "class": [{"name": "general"}, {"name": "connection"}]}}');
+SELECT audit_log_filter_set_user('%', 'f_log_true_complex');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general,connection,table_access
+--let audit_filter_expect_absent =
+--let audit_filter_expect_for_suffix = top log true with class list
+--let audit_filter_expect_ok = OK: log true with id and class list
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # Only "id" (no "log", no "class") matches empty filter: log all.
+SELECT audit_log_filter_set_filter('f_id_only', '{"filter": {"id": "metadata-only"}}');
+SELECT audit_log_filter_set_user('%', 'f_id_only');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general,connection,table_access
+--let audit_filter_expect_absent =
+--let audit_filter_expect_for_suffix = id-only filter
+--let audit_filter_expect_ok = OK: id only
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # No top-level "log" with only "class": general — unmatched events are not logged.
+SELECT audit_log_filter_set_filter('f_class_general_only', '{"filter": {"class": {"name": "general"}}}');
+SELECT audit_log_filter_set_user('%', 'f_class_general_only');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general
+--let audit_filter_expect_absent = table_access,connection
+--let audit_filter_expect_for_suffix = only class general is listed
+--let audit_filter_expect_ok = OK: class general only
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # No top-level "log" with class list general+connection — table_access still excluded.
+SELECT audit_log_filter_set_filter('f_class_gen_conn', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
+SELECT audit_log_filter_set_user('%', 'f_class_gen_conn');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general,connection
+--let audit_filter_expect_absent = table_access
+--let audit_filter_expect_for_suffix = class list general and connection
+--let audit_filter_expect_ok = OK: class general and connection
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # No top-level "log" with nested event rule — only matching subclasses are logged (REDUCED: general/status).
+SELECT audit_log_filter_set_filter('f_class_general_status', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": true}}}}');
+SELECT audit_log_filter_set_user('%', 'f_class_general_status');
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let audit_filter_expect_required = general
+--let audit_filter_expect_absent = table_access,connection
+--let audit_filter_expect_for_suffix = general/status subclass rule
+--let audit_filter_expect_ok = OK: class general event status only
+--source audit_filter_json_log_expect_classes.inc
+
+--echo #
+--echo # Cleanup filters
+SELECT audit_log_filter_remove_filter('f_empty');
+SELECT audit_log_filter_remove_filter('f_log_true');
+SELECT audit_log_filter_remove_filter('f_log_true_complex');
+SELECT audit_log_filter_remove_filter('f_id_only');
+SELECT audit_log_filter_remove_filter('f_class_general_only');
+SELECT audit_log_filter_remove_filter('f_class_gen_conn');
+SELECT audit_log_filter_remove_filter('f_class_general_status');
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

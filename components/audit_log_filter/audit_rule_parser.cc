@@ -122,10 +122,6 @@ bool AuditRuleParser::parse_default_log_action_json(
    */
   bool should_log_unmatched = true;
 
-  if (json_doc["filter"].ObjectEmpty()) {
-    return true;
-  }
-
   if (json_doc["filter"].HasMember("log")) {
     if (!json_doc["filter"]["log"].IsBool()) {
       LogComponentErr(ERROR_LEVEL,

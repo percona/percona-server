@@ -32,6 +32,7 @@ SELECT audit_log_filter_remove_filter('');
 call mtr.add_suppression("Failed to check filtering rule name existence");
 call mtr.add_suppression("Failed to remove filter 'filter_2' from users table");
 call mtr.add_suppression("Failed to remove filter 'filter_2'");
+call mtr.add_suppression("Failed to load filtering rules");
 --enable_query_log
 
 --echo #
@@ -80,6 +81,16 @@ SET SESSION debug="-d,udf_audit_log_filter_delete_filter_failure";
 SELECT audit_log_filter_remove_filter('filter_2');
 SELECT * FROM mysql.audit_log_filter;
 SELECT * FROM mysql.audit_log_user;
+
+--echo #
+--echo # Filters reload failure after removing filter
+SELECT audit_log_filter_set_filter('filter_3', '{"filter": {"class": {"name": "connection"}}}');
+SELECT audit_log_filter_set_user('user4@localhost', 'filter_3');
+SET SESSION debug='+d,audit_log_filter_fail_filters_flush';
+SELECT audit_log_filter_remove_filter('filter_3');
+SELECT * FROM mysql.audit_log_filter;
+SELECT * FROM mysql.audit_log_user;
+SET SESSION debug='-d,audit_log_filter_fail_filters_flush';
 
 --echo #
 --echo # Cleanup

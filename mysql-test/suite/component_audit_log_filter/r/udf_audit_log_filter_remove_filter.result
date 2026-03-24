@@ -102,4 +102,21 @@ filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 #
+# Filters reload failure after removing filter
+SELECT audit_log_filter_set_filter('filter_3', '{"filter": {"class": {"name": "connection"}}}');
+audit_log_filter_set_filter('filter_3', '{"filter": {"class": {"name": "connection"}}}')
+OK
+SELECT audit_log_filter_set_user('user4@localhost', 'filter_3');
+audit_log_filter_set_user('user4@localhost', 'filter_3')
+OK
+SET SESSION debug='+d,audit_log_filter_fail_filters_flush';
+SELECT audit_log_filter_remove_filter('filter_3');
+audit_log_filter_remove_filter('filter_3')
+ERROR: Could not reinitialize audit log filters
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+SET SESSION debug='-d,audit_log_filter_fail_filters_flush';
+#
 # Cleanup

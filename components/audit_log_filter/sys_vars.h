@@ -31,6 +31,7 @@ class AuditRule;
 
 struct SessionFilterRuleCache {
   uint64_t generation;
+  uint64_t detach_generation;
   std::shared_ptr<AuditRule> rule;
 };
 
@@ -380,9 +381,11 @@ class SysVars {
    *
    * @param thd Connection specific THD instance
    * @param generation Current filter rule generation at time of resolution
+   * @param detach_generation Current detach generation at time of resolution
    * @param rule The resolved filter rule (nullptr if no rule applies)
    */
   static void set_session_filter_rule(MYSQL_THD thd, uint64_t generation,
+                                      uint64_t detach_generation,
                                       std::shared_ptr<AuditRule> rule) noexcept;
 
   /**
@@ -399,6 +402,21 @@ class SysVars {
    * Used by flush and remove_filter operations.
    */
   static void bump_filter_rule_generation() noexcept;
+
+  /**
+   * @brief Get the current global detach generation counter.
+   *
+   * @return Current generation value
+   */
+  static uint64_t get_filter_rule_detach_generation() noexcept;
+
+  /**
+   * @brief Increment the global detach generation counter.
+   *
+   * Forces current sessions to detach from their cached filter until the next
+   * connect or change-user operation.
+   */
+  static void bump_filter_rule_detach_generation() noexcept;
 
 #ifndef NDEBUG
   /**

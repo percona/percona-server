@@ -13,10 +13,33 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --let $search_tag=<AUDIT_RECORD>
 --source check_all_events_with_tag.inc
 
-# Remove user
+# Open a connection whose CONNECT event resolves the default filter.
+# Its per-session cache will retain the rule after remove_user().
+--source include/count_sessions.inc
+connect(keep_conn, localhost, root, , test);
+
+# Remove the default user mapping via the admin session
+--connection default
 SELECT audit_log_filter_remove_user('%');
 
-# Clean current log and make sure no more events are logged
+# The pre-existing connection still logs (per-session cache preserved)
+--connection keep_conn
+--source clean_current_audit_log.inc
+--disable_result_log
+--disable_query_log
+CREATE TABLE t_keep_check (c1 INT);
+INSERT INTO t_keep_check VALUES (1);
+DROP TABLE t_keep_check;
+--enable_query_log
+--enable_result_log
+--let $search_tag=<AUDIT_RECORD>
+--source check_all_events_with_tag.inc
+
+--disconnect keep_conn
+--connection default
+--source include/wait_until_count_sessions.inc
+
+# New connections are no longer logged (no mapping for new sessions)
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=!<AUDIT_RECORD>

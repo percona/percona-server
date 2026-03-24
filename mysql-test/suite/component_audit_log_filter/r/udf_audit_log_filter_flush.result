@@ -19,6 +19,7 @@ SET GLOBAL DEBUG='-d,audit_log_filter_fail_filters_flush';
 SELECT audit_log_filter_flush();
 audit_log_filter_flush()
 OK
+No tag <AUDIT_RECORD> Ok
 Tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME> Ok
 #
 # Check wrong argument number

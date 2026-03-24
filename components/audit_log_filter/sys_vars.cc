@@ -56,6 +56,7 @@ mysql_thd_store_slot session_filter_id_slot{nullptr};
 mysql_thd_store_slot session_filter_rule_slot{nullptr};
 
 std::atomic<uint64_t> filter_rule_generation{0};
+std::atomic<uint64_t> filter_rule_detach_generation{0};
 
 bool has_system_variables_privilege(MYSQL_THD thd) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
@@ -1054,7 +1055,7 @@ SessionFilterRuleCache *SysVars::get_session_filter_rule(
 }
 
 void SysVars::set_session_filter_rule(
-    MYSQL_THD thd, uint64_t generation,
+    MYSQL_THD thd, uint64_t generation, uint64_t detach_generation,
     std::shared_ptr<AuditRule> rule) noexcept {
   my_service<SERVICE_TYPE(mysql_thd_store)> thd_store_service(
       "mysql_thd_store", SysVars::get_comp_registry_srv());
@@ -1063,8 +1064,8 @@ void SysVars::set_session_filter_rule(
       thd_store_service->get(thd, session_filter_rule_slot));
 
   if (cache == nullptr) {
-    auto *new_cache =
-        new (std::nothrow) SessionFilterRuleCache{generation, std::move(rule)};
+    auto *new_cache = new (std::nothrow)
+        SessionFilterRuleCache{generation, detach_generation, std::move(rule)};
 
     if (new_cache != nullptr) {
       if (thd_store_service->set(thd, session_filter_rule_slot,
@@ -1079,6 +1080,7 @@ void SysVars::set_session_filter_rule(
     }
   } else {
     cache->generation = generation;
+    cache->detach_generation = detach_generation;
     cache->rule = std::move(rule);
   }
 }
@@ -1089,6 +1091,14 @@ uint64_t SysVars::get_filter_rule_generation() noexcept {
 
 void SysVars::bump_filter_rule_generation() noexcept {
   filter_rule_generation.fetch_add(1, std::memory_order_release);
+}
+
+uint64_t SysVars::get_filter_rule_detach_generation() noexcept {
+  return filter_rule_detach_generation.load(std::memory_order_acquire);
+}
+
+void SysVars::bump_filter_rule_detach_generation() noexcept {
+  filter_rule_detach_generation.fetch_add(1, std::memory_order_release);
 }
 
 void SysVars::inc_events_total() noexcept {

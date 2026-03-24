@@ -516,6 +516,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 
   auto current_gen = SysVars::get_filter_rule_generation();
   auto current_detach_gen = SysVars::get_filter_rule_detach_generation();
+  auto current_removed_gen = SysVars::get_removed_filter_generation();
   auto *rule_cache = SysVars::get_session_filter_rule(thd);
   const bool can_cache_miss = must_resolve_rule || rule_cache != nullptr;
 
@@ -523,16 +524,28 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   bool detach_session = rule_cache != nullptr &&
                         rule_cache->detach_generation != current_detach_gen;
 
+  if (!detach_session && rule_cache != nullptr &&
+      rule_cache->removed_filter_generation != current_removed_gen) {
+    if (rule_cache->rule != nullptr &&
+        SysVars::is_removed_filter_id(rule_cache->rule->get_filter_id(),
+                                      rule_cache->removed_filter_generation)) {
+      detach_session = true;
+    } else {
+      rule_cache->removed_filter_generation = current_removed_gen;
+    }
+  }
+
   if (detach_session && !must_resolve_rule) {
     SysVars::set_session_filter_id(thd, 0);
     SysVars::set_session_filter_rule(thd, current_gen, current_detach_gen,
-                                     nullptr);
+                                     current_removed_gen, nullptr);
     return 0;
   }
 
   if (!detach_session && !must_resolve_rule && rule_cache != nullptr &&
       rule_cache->generation == current_gen &&
-      rule_cache->detach_generation == current_detach_gen) {
+      rule_cache->detach_generation == current_detach_gen &&
+      rule_cache->removed_filter_generation == current_removed_gen) {
     filter_rule = rule_cache->rule;
     if (filter_rule == nullptr) {
       return 0;
@@ -590,21 +603,21 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
         // complement forces the next event to resolve again instead of
         // reusing a stale rule or transient miss while reload is still
         // in progress.
-        SysVars::set_session_filter_rule(thd, ~current_gen,
-                                         current_detach_gen, nullptr);
+        SysVars::set_session_filter_rule(thd, ~current_gen, current_detach_gen,
+                                         current_removed_gen, nullptr);
       } else if (can_cache_miss) {
         SysVars::set_session_filter_rule(thd, current_gen, current_detach_gen,
-                                         nullptr);
+                                         current_removed_gen, nullptr);
       }
       return 0;
     }
 
     if (may_cache) {
       SysVars::set_session_filter_rule(thd, current_gen, current_detach_gen,
-                                       filter_rule);
+                                       current_removed_gen, filter_rule);
     } else {
-      SysVars::set_session_filter_rule(thd, ~current_gen,
-                                       current_detach_gen, nullptr);
+      SysVars::set_session_filter_rule(thd, ~current_gen, current_detach_gen,
+                                       current_removed_gen, nullptr);
     }
   }
 

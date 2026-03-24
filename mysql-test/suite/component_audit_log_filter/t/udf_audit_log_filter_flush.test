@@ -33,12 +33,24 @@ SELECT audit_log_filter_flush();
 --source check_all_events_with_tag.inc
 SET GLOBAL DEBUG='-d,audit_log_filter_fail_filters_flush';
 
-# Changed filter loaded after audit_log_filter_flush() invocation
+# Changed filter is loaded for new sessions, current session is detached
 SELECT audit_log_filter_flush();
 
+--source clean_current_audit_log.inc
+--source generate_audit_events.inc
+--let $search_tag=!<AUDIT_RECORD>
+--source check_all_events_with_tag.inc
+
+connect(conn2, localhost, root, , test);
+--connection conn2
+
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc
+
+--disconnect conn2
+--connection default
 
 --echo #
 --echo # Check wrong argument number

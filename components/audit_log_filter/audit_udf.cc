@@ -446,7 +446,9 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
       SysVars::get_config_database_name()};
   audit_table::AuditLogUser audit_log_user{SysVars::get_config_database_name()};
 
-  auto check_result = audit_log_filter.check_name_exists(udf_args->args[0]);
+  uint64_t removed_filter_id = 0;
+  auto check_result =
+      audit_log_filter.get_filter_id(udf_args->args[0], removed_filter_id);
 
   if (check_result == audit_table::TableResult::Fail) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_REMOVE_FILTER_UDF_NAME_CHECK_FAIL);
@@ -481,7 +483,7 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
     return result;
   }
 
-  SysVars::bump_filter_rule_generation();
+  SysVars::mark_removed_filter_id(removed_filter_id);
   if (!reload_audit_rules_or_set_error(result, length)) {
     return result;
   }

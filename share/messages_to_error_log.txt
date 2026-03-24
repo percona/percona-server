@@ -12850,6 +12850,28 @@ ER_AUTH_INITIAL_PLUGIN_OVERRIDE
 # End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
 
+
+################################################################################
+# Error numbers backported from 9.7 to 8.4
+# Make sure the error numbers are identical between versions
+################################################################################
+
+start-error-number 15604
+ER_INFO_AUTHENTICATION_OCI
+   eng "authentication_oci plugin reported: %s."
+
+start-error-number 15608
+ER_AUDIT_LOG_OFFLOAD_INFO
+  eng "%s"
+
+start-error-number 15609
+ER_AUDIT_LOG_OFFLOAD_WARNING
+  eng "%s"
+
+start-error-number 15610
+ER_AUDIT_LOG_OFFLOAD_ERROR
+  eng "%s"
+
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

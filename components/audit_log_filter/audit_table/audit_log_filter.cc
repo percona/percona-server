@@ -283,6 +283,45 @@ TableResult AuditLogFilter::check_name_exists(
   return scan_result;
 }
 
+TableResult AuditLogFilter::get_filter_id(const std::string &rule_name,
+                                          uint64_t &filter_id) noexcept {
+  DBUG_EXECUTE_IF("udf_audit_log_filter_get_filter_id_failure",
+                  return TableResult::Fail;);
+
+  auto ta_context = open_table();
+
+  if (ta_context == nullptr) {
+    return TableResult::Fail;
+  }
+
+  TA_key filter_name_key = nullptr;
+  auto scan_result = index_scan_locate_record_by_rule_name(
+      ta_context.get(), &filter_name_key, rule_name);
+
+  if (scan_result != TableResult::Found) {
+    if (scan_result != TableResult::Fail) {
+      index_scan_end(ta_context.get(), filter_name_key);
+    }
+    return scan_result;
+  }
+
+  my_service<SERVICE_TYPE(field_integer_access_v1)> integer_srv(
+      "field_integer_access_v1", SysVars::get_comp_registry_srv());
+  long long found_filter_id = 0;
+
+  if (integer_srv->get(ta_context->ta_session, ta_context->ta_table,
+                       kAuditLogFilterFilterId, &found_filter_id)) {
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_READ_FIELD_FAILURE,
+                    get_table_name(), "filter_id");
+    index_scan_end(ta_context.get(), filter_name_key);
+    return TableResult::Fail;
+  }
+
+  filter_id = static_cast<uint64_t>(found_filter_id);
+  index_scan_end(ta_context.get(), filter_name_key);
+  return TableResult::Found;
+}
+
 TableResult AuditLogFilter::insert_filter(
     const std::string &rule_name, const std::string &rule_definition) noexcept {
   DBUG_EXECUTE_IF("udf_audit_log_filter_insertion_failure",

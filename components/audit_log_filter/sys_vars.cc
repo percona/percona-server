@@ -35,8 +35,10 @@
 #include <atomic>
 #include <filesystem>
 #include <iomanip>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace audit_log_filter {
 namespace {
@@ -57,6 +59,9 @@ mysql_thd_store_slot session_filter_rule_slot{nullptr};
 
 std::atomic<uint64_t> filter_rule_generation{0};
 std::atomic<uint64_t> filter_rule_detach_generation{0};
+std::atomic<uint64_t> removed_filter_generation{0};
+std::mutex removed_filter_ids_mutex;
+std::unordered_map<uint64_t, uint64_t> removed_filter_ids;
 
 bool has_system_variables_privilege(MYSQL_THD thd) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
@@ -833,6 +838,11 @@ void SysVars::deinit() noexcept {
   thd_store_service->set(nullptr, session_filter_id_slot, nullptr);
   thd_store_service->set(nullptr, session_filter_rule_slot, nullptr);
 
+  {
+    std::lock_guard<std::mutex> lock(removed_filter_ids_mutex);
+    removed_filter_ids.clear();
+  }
+
   thd_store_service->unregister_slot(reader_context_thread_slot);
   thd_store_service->unregister_slot(session_filter_id_slot);
   thd_store_service->unregister_slot(session_filter_rule_slot);
@@ -1056,6 +1066,7 @@ SessionFilterRuleCache *SysVars::get_session_filter_rule(
 
 void SysVars::set_session_filter_rule(
     MYSQL_THD thd, uint64_t generation, uint64_t detach_generation,
+    uint64_t current_removed_filter_generation,
     std::shared_ptr<AuditRule> rule) noexcept {
   my_service<SERVICE_TYPE(mysql_thd_store)> thd_store_service(
       "mysql_thd_store", SysVars::get_comp_registry_srv());
@@ -1064,8 +1075,9 @@ void SysVars::set_session_filter_rule(
       thd_store_service->get(thd, session_filter_rule_slot));
 
   if (cache == nullptr) {
-    auto *new_cache = new (std::nothrow)
-        SessionFilterRuleCache{generation, detach_generation, std::move(rule)};
+    auto *new_cache = new (std::nothrow) SessionFilterRuleCache{
+        generation, detach_generation, current_removed_filter_generation,
+        std::move(rule)};
 
     if (new_cache != nullptr) {
       if (thd_store_service->set(thd, session_filter_rule_slot,
@@ -1079,9 +1091,9 @@ void SysVars::set_session_filter_rule(
                       "Failed to allocate session_filter_rule");
     }
   } else {
-    cache->generation = generation;
-    cache->detach_generation = detach_generation;
-    cache->rule = std::move(rule);
+    *cache = SessionFilterRuleCache{generation, detach_generation,
+                                    current_removed_filter_generation,
+                                    std::move(rule)};
   }
 }
 
@@ -1099,6 +1111,25 @@ uint64_t SysVars::get_filter_rule_detach_generation() noexcept {
 
 void SysVars::bump_filter_rule_detach_generation() noexcept {
   filter_rule_detach_generation.fetch_add(1, std::memory_order_release);
+}
+
+uint64_t SysVars::get_removed_filter_generation() noexcept {
+  return removed_filter_generation.load(std::memory_order_acquire);
+}
+
+void SysVars::mark_removed_filter_id(uint64_t filter_id) noexcept {
+  std::lock_guard<std::mutex> lock(removed_filter_ids_mutex);
+  const auto next_generation =
+      removed_filter_generation.load(std::memory_order_relaxed) + 1;
+  removed_filter_ids[filter_id] = next_generation;
+  removed_filter_generation.store(next_generation, std::memory_order_release);
+}
+
+bool SysVars::is_removed_filter_id(uint64_t filter_id,
+                                   uint64_t since_generation) noexcept {
+  std::lock_guard<std::mutex> lock(removed_filter_ids_mutex);
+  const auto it = removed_filter_ids.find(filter_id);
+  return it != removed_filter_ids.end() && it->second > since_generation;
 }
 
 void SysVars::inc_events_total() noexcept {

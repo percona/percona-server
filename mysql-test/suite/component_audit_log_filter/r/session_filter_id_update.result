@@ -37,10 +37,10 @@ audit_log_filter_set_user('user2@localhost', 'user2_2')
 OK
 SELECT audit_log_session_filter_id();
 audit_log_session_filter_id()
-3
+1
 SELECT audit_log_session_filter_id();
 audit_log_session_filter_id()
-4
+2
 #
 # Cleanup
 DROP USER 'user1'@'localhost', 'user2'@'localhost';

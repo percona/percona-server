@@ -88,6 +88,20 @@ filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 #
+# Filters reload failure after setting user
+SET SESSION debug='+d,audit_log_filter_fail_filters_flush';
+SELECT audit_log_filter_set_user('reload_test@localhost', 'log_all');
+audit_log_filter_set_user('reload_test@localhost', 'log_all')
+ERROR: Could not reinitialize audit log filters
+SELECT * FROM mysql.audit_log_filter;
+filter_id	name	filter
+1	log_all	{"filter": {"log": true}}
+2	log_table_access	{"filter": {"class": {"name": "table_access"}}}
+SELECT * FROM mysql.audit_log_user;
+username	userhost	filtername
+reload_test	localhost	log_all
+SET SESSION debug='-d,audit_log_filter_fail_filters_flush';
+#
 # Set filter for default user
 SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
@@ -99,6 +113,7 @@ filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
+reload_test	localhost	log_all
 #
 # Set filter for a user
 SELECT audit_log_filter_set_user('root@localhost', 'log_all');
@@ -111,6 +126,7 @@ filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
+reload_test	localhost	log_all
 root	localhost	log_all
 #
 # Update filter for a user
@@ -124,6 +140,7 @@ filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
+reload_test	localhost	log_all
 root	localhost	log_table_access
 #
 # User filter set failure
@@ -138,6 +155,7 @@ filter_id	name	filter
 SELECT * FROM mysql.audit_log_user;
 username	userhost	filtername
 %	%	log_all
+reload_test	localhost	log_all
 root	localhost	log_table_access
 SET SESSION debug="-d,udf_audit_log_user_set_update_filter_failure";
 #

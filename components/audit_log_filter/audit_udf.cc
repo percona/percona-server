@@ -188,6 +188,28 @@ bool check_timestamp_valid(std::string &timestamp_str) {
   return false;
 }
 
+bool reload_audit_rules_or_set_error(char *result,
+                                     unsigned long *length) noexcept {
+  std::string error_msg;
+  if (get_audit_log_filter_instance()->on_audit_rule_flush_requested(
+          error_msg)) {
+    return true;
+  }
+
+  // Force the next lookup to retry loading the freshly committed table state.
+  get_audit_log_filter_instance()->invalidate_audit_rules();
+
+  if (!error_msg.empty()) {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: %s", error_msg.c_str());
+  } else {
+    std::snprintf(result, MYSQL_ERRMSG_SIZE,
+                  "ERROR: Could not reinitialize audit log filters");
+  }
+
+  *length = std::strlen(result);
+  return false;
+}
+
 }  // namespace
 
 AuditUdf::~AuditUdf() { deinit(); }
@@ -457,8 +479,10 @@ char *AuditUdf::audit_log_filter_remove_filter_udf(
     return result;
   }
 
-  std::string error_msg;
-  get_audit_log_filter_instance()->on_audit_rule_flush_requested(error_msg);
+  SysVars::bump_filter_rule_generation();
+  if (!reload_audit_rules_or_set_error(result, length)) {
+    return result;
+  }
 
   std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   *length = std::strlen(result);
@@ -585,8 +609,9 @@ char *AuditUdf::audit_log_filter_set_user_udf(AuditUdf *udf [[maybe_unused]],
     return result;
   }
 
-  std::string error_msg;
-  get_audit_log_filter_instance()->on_audit_rule_flush_requested(error_msg);
+  if (!reload_audit_rules_or_set_error(result, length)) {
+    return result;
+  }
 
   std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   *length = std::strlen(result);
@@ -672,8 +697,9 @@ char *AuditUdf::audit_log_filter_remove_user_udf(
     return result;
   }
 
-  std::string error_msg;
-  get_audit_log_filter_instance()->on_audit_rule_flush_requested(error_msg);
+  if (!reload_audit_rules_or_set_error(result, length)) {
+    return result;
+  }
 
   std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   *length = std::strlen(result);
@@ -724,6 +750,7 @@ char *AuditUdf::audit_log_filter_flush_udf(AuditUdf *udf [[maybe_unused]],
   std::string flush_error;
   if (get_audit_log_filter_instance()->on_audit_rule_flush_requested(
           flush_error)) {
+    SysVars::bump_filter_rule_generation();
     std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   } else if (!flush_error.empty()) {
     std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: %s", flush_error.c_str());

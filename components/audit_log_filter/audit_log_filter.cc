@@ -527,30 +527,70 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
       return 0;
     }
   } else {
-    std::string rule_name;
+    auto resolve = [&]() -> bool {
+      std::string rule_name;
+      filter_rule = m_audit_rules_registry->resolve_rule_for_user(
+          user_name, user_host, &rule_name);
 
-    if (!m_audit_rules_registry->lookup_rule_name(user_name, user_host,
-                                                  rule_name)) {
+      if (filter_rule == nullptr) {
+        if (rule_name.empty()) {
+          return false;
+        }
+        LogComponentErr(ERROR_LEVEL, ER_AUDIT_FILTER_RULE_NOT_FOUND,
+                        rule_name.c_str());
+        return false;
+      }
+
+      return true;
+    };
+
+    auto before_load_ver = must_resolve_rule
+                               ? m_audit_rules_registry->load_version()
+                               : uint64_t{0};
+
+    bool resolved = resolve();
+
+    bool may_cache = true;
+    if (must_resolve_rule) {
+      // Read is_reload_in_progress BEFORE load_version so that the
+      // acquire on the loads_in_progress counter establishes a
+      // happens-before with the UDF thread's release-store of
+      // load_version.  If we observe "not in progress", the subsequent
+      // version read is guaranteed to reflect any completed reload.
+      bool reload_pending = m_audit_rules_registry->is_reload_in_progress();
+      auto after_load_ver = m_audit_rules_registry->load_version();
+
+      if (after_load_ver != before_load_ver) {
+        current_gen = SysVars::get_filter_rule_generation();
+        resolved = resolve();
+        reload_pending = m_audit_rules_registry->is_reload_in_progress();
+      }
+
+      if (reload_pending) may_cache = false;
+    }
+
+    if (!resolved) {
       SysVars::set_session_filter_id(thd, 0);
-      if (can_cache_miss) {
+      if (!may_cache) {
+        // Invalidate any prior cache (relevant for CHANGE_USER on an
+        // existing session).  Store ~current_gen as a deliberate
+        // generation mismatch: the cache fast path only hits when the
+        // cached generation equals current_gen, so using the bitwise
+        // complement forces the next event to resolve again instead of
+        // reusing a stale rule or transient miss while reload is still
+        // in progress.
+        SysVars::set_session_filter_rule(thd, ~current_gen, nullptr);
+      } else if (can_cache_miss) {
         SysVars::set_session_filter_rule(thd, current_gen, nullptr);
       }
       return 0;
     }
 
-    filter_rule = m_audit_rules_registry->get_rule(rule_name);
-
-    if (filter_rule == nullptr) {
-      LogComponentErr(ERROR_LEVEL, ER_AUDIT_FILTER_RULE_NOT_FOUND,
-                      rule_name.c_str());
-      SysVars::set_session_filter_id(thd, 0);
-      if (can_cache_miss) {
-        SysVars::set_session_filter_rule(thd, current_gen, nullptr);
-      }
-      return 0;
+    if (may_cache) {
+      SysVars::set_session_filter_rule(thd, current_gen, filter_rule);
+    } else {
+      SysVars::set_session_filter_rule(thd, ~current_gen, nullptr);
     }
-
-    SysVars::set_session_filter_rule(thd, current_gen, filter_rule);
   }
 
   SysVars::set_session_filter_id(thd, filter_rule->get_filter_id());

@@ -8,6 +8,7 @@ Tag <AUDIT_RECORD> Ok
 SELECT audit_log_filter_remove_user('%');
 audit_log_filter_remove_user('%')
 OK
+Tag <AUDIT_RECORD> Ok
 No tag <AUDIT_RECORD> Ok
 #
 # Cleanup

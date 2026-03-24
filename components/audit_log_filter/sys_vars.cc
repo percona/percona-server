@@ -49,8 +49,13 @@ constexpr std::string_view kReaderContextSlotName{
     "component_audit_reader_context"};
 constexpr std::string_view kSessionFilterIdSlotName{
     "component_audit_reader_session_filter_id"};
+constexpr std::string_view kSessionFilterRuleSlotName{
+    "component_audit_session_filter_rule"};
 mysql_thd_store_slot reader_context_thread_slot{nullptr};
 mysql_thd_store_slot session_filter_id_slot{nullptr};
+mysql_thd_store_slot session_filter_rule_slot{nullptr};
+
+std::atomic<uint64_t> filter_rule_generation{0};
 
 bool has_system_variables_privilege(MYSQL_THD thd) {
   my_service<SERVICE_TYPE(mysql_thd_security_context)> security_context_service(
@@ -281,6 +286,7 @@ void event_mode_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
 
   if (old_val != new_val) {
     get_audit_log_filter_instance()->invalidate_audit_rules();
+    SysVars::bump_filter_rule_generation();
   }
 }
 
@@ -772,6 +778,16 @@ bool SysVars::init() noexcept {
     return false;
   }
 
+  if (thd_store_service->register_slot(
+          kSessionFilterRuleSlotName.data(),
+          [](void *cache) -> int {
+            delete reinterpret_cast<SessionFilterRuleCache *>(cache);
+            return 0;
+          },
+          &session_filter_rule_slot) == 1) {
+    return false;
+  }
+
   if (status_var_registration_srv->register_variable(status_vars) == 1) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_STATUS_VAR_REGISTER_FAILURE);
     return false;
@@ -810,11 +826,15 @@ void SysVars::deinit() noexcept {
       thd_store_service->get(nullptr, reader_context_thread_slot));
   delete reinterpret_cast<ulong *>(
       thd_store_service->get(nullptr, session_filter_id_slot));
+  delete reinterpret_cast<SessionFilterRuleCache *>(
+      thd_store_service->get(nullptr, session_filter_rule_slot));
   thd_store_service->set(nullptr, reader_context_thread_slot, nullptr);
   thd_store_service->set(nullptr, session_filter_id_slot, nullptr);
+  thd_store_service->set(nullptr, session_filter_rule_slot, nullptr);
 
   thd_store_service->unregister_slot(reader_context_thread_slot);
   thd_store_service->unregister_slot(session_filter_id_slot);
+  thd_store_service->unregister_slot(session_filter_rule_slot);
 
   if (status_var_registration_srv->unregister_variable(status_vars) == 1) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_STATUS_VAR_UNREGISTER_FAILURE);
@@ -1022,6 +1042,53 @@ void SysVars::set_log_reader_context(MYSQL_THD thd,
 
   thd_store_service->set(thd, reader_context_thread_slot,
                          reinterpret_cast<void *>(context));
+}
+
+SessionFilterRuleCache *SysVars::get_session_filter_rule(
+    MYSQL_THD thd) noexcept {
+  my_service<SERVICE_TYPE(mysql_thd_store)> thd_store_service(
+      "mysql_thd_store", SysVars::get_comp_registry_srv());
+
+  return reinterpret_cast<SessionFilterRuleCache *>(
+      thd_store_service->get(thd, session_filter_rule_slot));
+}
+
+void SysVars::set_session_filter_rule(
+    MYSQL_THD thd, uint64_t generation,
+    std::shared_ptr<AuditRule> rule) noexcept {
+  my_service<SERVICE_TYPE(mysql_thd_store)> thd_store_service(
+      "mysql_thd_store", SysVars::get_comp_registry_srv());
+
+  auto *cache = reinterpret_cast<SessionFilterRuleCache *>(
+      thd_store_service->get(thd, session_filter_rule_slot));
+
+  if (cache == nullptr) {
+    auto *new_cache =
+        new (std::nothrow) SessionFilterRuleCache{generation, std::move(rule)};
+
+    if (new_cache != nullptr) {
+      if (thd_store_service->set(thd, session_filter_rule_slot,
+                                 reinterpret_cast<void *>(new_cache)) == 1) {
+        LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                        "Failed to set session_filter_rule");
+        delete new_cache;
+      }
+    } else {
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to allocate session_filter_rule");
+    }
+  } else {
+    cache->generation = generation;
+    cache->rule = std::move(rule);
+  }
+}
+
+uint64_t SysVars::get_filter_rule_generation() noexcept {
+  return filter_rule_generation.load(std::memory_order_acquire);
+}
+
+void SysVars::bump_filter_rule_generation() noexcept {
+  filter_rule_generation.fetch_add(1, std::memory_order_release);
 }
 
 void SysVars::inc_events_total() noexcept {

@@ -575,6 +575,11 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
 
   if (auto rec = std::get_if<AuditRecordGeneral>(&record)) {
     set_extended_info(thd, sctx, *rec);
+
+    if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
+        rec->extended_info.command == "Quit") {
+      return 0;
+    }
   }
 
   if (auto rec = std::get_if<AuditRecordQuery>(&record)) {

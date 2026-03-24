@@ -27,6 +27,13 @@
 
 namespace audit_log_filter {
 
+class AuditRule;
+
+struct SessionFilterRuleCache {
+  uint64_t generation;
+  std::shared_ptr<AuditRule> rule;
+};
+
 struct AuditLogReaderContext;
 class SysVars;
 
@@ -358,6 +365,40 @@ class SysVars {
    */
   static void set_log_reader_context(MYSQL_THD thd,
                                      AuditLogReaderContext *context) noexcept;
+
+  /**
+   * @brief Get the cached filter rule for a session.
+   *
+   * @param thd Connection specific THD instance
+   * @return Pointer to session filter rule cache, or nullptr if not yet cached
+   */
+  static SessionFilterRuleCache *get_session_filter_rule(
+      MYSQL_THD thd) noexcept;
+
+  /**
+   * @brief Cache a filter rule for a session.
+   *
+   * @param thd Connection specific THD instance
+   * @param generation Current filter rule generation at time of resolution
+   * @param rule The resolved filter rule (nullptr if no rule applies)
+   */
+  static void set_session_filter_rule(MYSQL_THD thd, uint64_t generation,
+                                      std::shared_ptr<AuditRule> rule) noexcept;
+
+  /**
+   * @brief Get the current global filter rule generation counter.
+   *
+   * @return Current generation value
+   */
+  static uint64_t get_filter_rule_generation() noexcept;
+
+  /**
+   * @brief Increment the global filter rule generation counter.
+   *
+   * Forces all sessions to re-resolve their filter rule on the next event.
+   * Used by flush and remove_filter operations.
+   */
+  static void bump_filter_rule_generation() noexcept;
 
 #ifndef NDEBUG
   /**

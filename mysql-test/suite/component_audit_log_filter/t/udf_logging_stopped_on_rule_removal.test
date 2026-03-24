@@ -5,24 +5,108 @@
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
 
-SELECT audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }');
-SELECT audit_log_filter_set_user('%', 'log_all');
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '111';
+GRANT ALL PRIVILEGES ON *.* to 'user1'@'localhost';
 
-# Verify logging works after default filtering rule assignment
---source generate_audit_events.inc
+SELECT audit_log_filter_set_filter('log_default', '{ "filter": { "log": true } }');
+SELECT audit_log_filter_set_filter('log_user', '{ "filter": { "log": true } }');
+SELECT audit_log_filter_set_user('%', 'log_default');
+SELECT audit_log_filter_set_user('user1@localhost', 'log_user');
+
+connect(keep_conn, localhost, user1, 111, test);
+
+# Verify logging works after user-specific filtering rule assignment
+--connection keep_conn
+--source clean_current_audit_log.inc
+--disable_result_log
+--disable_query_log
+DROP TABLE IF EXISTS t_rule_removal_keep;
+CREATE TABLE t_rule_removal_keep (c1 INT);
+INSERT INTO t_rule_removal_keep VALUES (1);
+DROP TABLE t_rule_removal_keep;
+--enable_query_log
+--enable_result_log
 --let $search_tag=<AUDIT_RECORD>
 --source check_all_events_with_tag.inc
 
-# Remove filtering rule
-SELECT audit_log_filter_remove_filter('log_all');
+# Remove user-specific filtering rule
+--connection default
+SELECT audit_log_filter_remove_filter('log_user');
 
-# Clean current log and make sure no more events are logged
+# Current session is detached and must not fall back to the default filter
+--connection keep_conn
 --source clean_current_audit_log.inc
---source generate_audit_events.inc
+--disable_result_log
+--disable_query_log
+DROP TABLE IF EXISTS t_rule_removal_detached;
+CREATE TABLE t_rule_removal_detached (c1 INT);
+INSERT INTO t_rule_removal_detached VALUES (1);
+DROP TABLE t_rule_removal_detached;
+--enable_query_log
+--enable_result_log
 --let $search_tag=!<AUDIT_RECORD>
 --source check_all_events_with_tag.inc
 
+--disconnect keep_conn
+--connection default
+
+# New sessions use the default filter after the explicit filter is removed
+connect(new_conn, localhost, user1, 111, test);
+--connection new_conn
+--source clean_current_audit_log.inc
+--disable_result_log
+--disable_query_log
+DROP TABLE IF EXISTS t_rule_removal_new;
+CREATE TABLE t_rule_removal_new (c1 INT);
+INSERT INTO t_rule_removal_new VALUES (1);
+DROP TABLE t_rule_removal_new;
+--enable_query_log
+--enable_result_log
+--let $search_tag=<AUDIT_RECORD>
+--source check_all_events_with_tag.inc
+
+--disconnect new_conn
+--connection default
+
+# Reusing a removed FILTER_ID must not detach an unrelated session later
+SELECT audit_log_filter_set_filter('log_reused', '{ "filter": { "log": true } }');
+SELECT audit_log_filter_set_user('user1@localhost', 'log_reused');
+
+connect(reused_conn, localhost, user1, 111, test);
+--connection reused_conn
+--source clean_current_audit_log.inc
+--disable_result_log
+--disable_query_log
+DROP TABLE IF EXISTS t_rule_removal_reused_before;
+CREATE TABLE t_rule_removal_reused_before (c1 INT);
+INSERT INTO t_rule_removal_reused_before VALUES (1);
+DROP TABLE t_rule_removal_reused_before;
+--enable_query_log
+--enable_result_log
+--let $search_tag=<AUDIT_RECORD>
+--source check_all_events_with_tag.inc
+
+--connection default
+SELECT audit_log_filter_remove_filter('log_default');
+
+--connection reused_conn
+--source clean_current_audit_log.inc
+--disable_result_log
+--disable_query_log
+DROP TABLE IF EXISTS t_rule_removal_reused_after;
+CREATE TABLE t_rule_removal_reused_after (c1 INT);
+INSERT INTO t_rule_removal_reused_after VALUES (1);
+DROP TABLE t_rule_removal_reused_after;
+--enable_query_log
+--enable_result_log
+--let $search_tag=<AUDIT_RECORD>
+--source check_all_events_with_tag.inc
+
+--disconnect reused_conn
+--connection default
+
 --echo #
 --echo # Cleanup
+DROP USER 'user1'@'localhost';
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc

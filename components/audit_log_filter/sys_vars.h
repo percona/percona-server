@@ -32,6 +32,7 @@ class AuditRule;
 struct SessionFilterRuleCache {
   uint64_t generation;
   uint64_t detach_generation;
+  uint64_t removed_filter_generation;
   std::shared_ptr<AuditRule> rule;
 };
 
@@ -382,10 +383,13 @@ class SysVars {
    * @param thd Connection specific THD instance
    * @param generation Current filter rule generation at time of resolution
    * @param detach_generation Current detach generation at time of resolution
+   * @param removed_filter_generation Current removed-filter generation at time
+   *                                  of resolution
    * @param rule The resolved filter rule (nullptr if no rule applies)
    */
   static void set_session_filter_rule(MYSQL_THD thd, uint64_t generation,
                                       uint64_t detach_generation,
+                                      uint64_t removed_filter_generation,
                                       std::shared_ptr<AuditRule> rule) noexcept;
 
   /**
@@ -417,6 +421,32 @@ class SysVars {
    * connect or change-user operation.
    */
   static void bump_filter_rule_detach_generation() noexcept;
+
+  /**
+   * @brief Get the current removed-filter generation counter.
+   *
+   * @return Current generation value
+   */
+  static uint64_t get_removed_filter_generation() noexcept;
+
+  /**
+   * @brief Mark a filter ID as removed for existing sessions.
+   *
+   * Sessions still using this cached filter ID will detach on their next
+   * non-connection event.
+   */
+  static void mark_removed_filter_id(uint64_t filter_id) noexcept;
+
+  /**
+   * @brief Check whether a filter ID has been removed.
+   *
+   * @param filter_id Filtering rule ID
+   * @param since_generation The session cache's removed-filter generation
+   * @return true if the filter was removed after since_generation,
+   *         false otherwise
+   */
+  static bool is_removed_filter_id(uint64_t filter_id,
+                                   uint64_t since_generation) noexcept;
 
 #ifndef NDEBUG
   /**

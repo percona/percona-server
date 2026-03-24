@@ -19,12 +19,12 @@ ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong a
 SELECT audit_log_filter_remove_filter('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
 ERROR HY000: Can't initialize function 'audit_log_filter_remove_filter'; Wrong argument: filter_name is too long, max length is 255
 #
-# Filter name existence check failure
-SET SESSION debug="+d,udf_audit_log_filter_check_name_failure";
+# Get filter ID failure
+SET SESSION debug="+d,udf_audit_log_filter_get_filter_id_failure";
 SELECT audit_log_filter_remove_filter('filter_1');
 audit_log_filter_remove_filter('filter_1')
 ERROR: Failed to check filtering rule name existence
-SET SESSION debug="-d,udf_audit_log_filter_check_name_failure";
+SET SESSION debug="-d,udf_audit_log_filter_get_filter_id_failure";
 #
 # Remove non existent filter
 SELECT * FROM mysql.audit_log_filter;

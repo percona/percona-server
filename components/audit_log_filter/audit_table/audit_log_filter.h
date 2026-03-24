@@ -50,6 +50,16 @@ class AuditLogFilter : public AuditTableBase {
   TableResult check_name_exists(const std::string &rule_name) noexcept;
 
   /**
+   * @brief Get filtering rule ID by rule name.
+   *
+   * @param rule_name Filtering rule name
+   * @param filter_id Returned filtering rule ID
+   * @return Table access result, @ref TableResult
+   */
+  TableResult get_filter_id(const std::string &rule_name,
+                            uint64_t &filter_id) noexcept;
+
+  /**
    * @brief Insert filtering rule.
    *
    * @param rule_name Filtering rule name

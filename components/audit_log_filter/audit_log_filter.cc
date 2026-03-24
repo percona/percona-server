@@ -503,21 +503,54 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     return 0;
   }
 
-  // Get connection specific filtering rule
-  std::string rule_name;
-
-  if (!m_audit_rules_registry->lookup_rule_name(user_name, user_host,
-                                                rule_name)) {
-    SysVars::set_session_filter_id(thd, 0);
-    return 0;
+  bool must_resolve_rule = false;
+  if (event_class == audit_event_class_t::AUDIT_CONNECTION_CLASS) {
+    auto sc =
+        static_cast<const mysql_event_tracking_connection_data *>(event_data)
+            ->event_subclass;
+    if (sc == EVENT_TRACKING_CONNECTION_CONNECT ||
+        sc == EVENT_TRACKING_CONNECTION_CHANGE_USER) {
+      must_resolve_rule = true;
+    }
   }
 
-  auto filter_rule = m_audit_rules_registry->get_rule(rule_name);
+  auto current_gen = SysVars::get_filter_rule_generation();
+  auto *rule_cache = SysVars::get_session_filter_rule(thd);
+  const bool can_cache_miss = must_resolve_rule || rule_cache != nullptr;
 
-  if (filter_rule == nullptr) {
-    LogComponentErr(ERROR_LEVEL, ER_AUDIT_FILTER_RULE_NOT_FOUND,
-                    rule_name.c_str());
-    return 0;
+  std::shared_ptr<AuditRule> filter_rule;
+
+  if (!must_resolve_rule && rule_cache != nullptr &&
+      rule_cache->generation == current_gen) {
+    filter_rule = rule_cache->rule;
+    if (filter_rule == nullptr) {
+      return 0;
+    }
+  } else {
+    std::string rule_name;
+
+    if (!m_audit_rules_registry->lookup_rule_name(user_name, user_host,
+                                                  rule_name)) {
+      SysVars::set_session_filter_id(thd, 0);
+      if (can_cache_miss) {
+        SysVars::set_session_filter_rule(thd, current_gen, nullptr);
+      }
+      return 0;
+    }
+
+    filter_rule = m_audit_rules_registry->get_rule(rule_name);
+
+    if (filter_rule == nullptr) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_FILTER_RULE_NOT_FOUND,
+                      rule_name.c_str());
+      SysVars::set_session_filter_id(thd, 0);
+      if (can_cache_miss) {
+        SysVars::set_session_filter_rule(thd, current_gen, nullptr);
+      }
+      return 0;
+    }
+
+    SysVars::set_session_filter_rule(thd, current_gen, filter_rule);
   }
 
   SysVars::set_session_filter_id(thd, filter_rule->get_filter_id());

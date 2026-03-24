@@ -752,7 +752,7 @@ char *AuditUdf::audit_log_filter_flush_udf(AuditUdf *udf [[maybe_unused]],
   std::string flush_error;
   if (get_audit_log_filter_instance()->on_audit_rule_flush_requested(
           flush_error)) {
-    SysVars::bump_filter_rule_generation();
+    SysVars::bump_filter_rule_detach_generation();
     std::snprintf(result, MYSQL_ERRMSG_SIZE, "OK");
   } else if (!flush_error.empty()) {
     std::snprintf(result, MYSQL_ERRMSG_SIZE, "ERROR: %s", flush_error.c_str());

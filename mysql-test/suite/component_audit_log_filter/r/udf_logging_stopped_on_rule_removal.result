@@ -1,13 +1,34 @@
-SELECT audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }');
-audit_log_filter_set_filter('log_all', '{ "filter": { "log": true } }')
+CREATE USER 'user1'@'localhost' IDENTIFIED BY '111';
+GRANT ALL PRIVILEGES ON *.* to 'user1'@'localhost';
+SELECT audit_log_filter_set_filter('log_default', '{ "filter": { "log": true } }');
+audit_log_filter_set_filter('log_default', '{ "filter": { "log": true } }')
 OK
-SELECT audit_log_filter_set_user('%', 'log_all');
-audit_log_filter_set_user('%', 'log_all')
+SELECT audit_log_filter_set_filter('log_user', '{ "filter": { "log": true } }');
+audit_log_filter_set_filter('log_user', '{ "filter": { "log": true } }')
+OK
+SELECT audit_log_filter_set_user('%', 'log_default');
+audit_log_filter_set_user('%', 'log_default')
+OK
+SELECT audit_log_filter_set_user('user1@localhost', 'log_user');
+audit_log_filter_set_user('user1@localhost', 'log_user')
 OK
 Tag <AUDIT_RECORD> Ok
-SELECT audit_log_filter_remove_filter('log_all');
-audit_log_filter_remove_filter('log_all')
+SELECT audit_log_filter_remove_filter('log_user');
+audit_log_filter_remove_filter('log_user')
 OK
 No tag <AUDIT_RECORD> Ok
+Tag <AUDIT_RECORD> Ok
+SELECT audit_log_filter_set_filter('log_reused', '{ "filter": { "log": true } }');
+audit_log_filter_set_filter('log_reused', '{ "filter": { "log": true } }')
+OK
+SELECT audit_log_filter_set_user('user1@localhost', 'log_reused');
+audit_log_filter_set_user('user1@localhost', 'log_reused')
+OK
+Tag <AUDIT_RECORD> Ok
+SELECT audit_log_filter_remove_filter('log_default');
+audit_log_filter_remove_filter('log_default')
+OK
+Tag <AUDIT_RECORD> Ok
 #
 # Cleanup
+DROP USER 'user1'@'localhost';

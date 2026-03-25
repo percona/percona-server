@@ -358,6 +358,7 @@ class ndbxfrm_file {
   bool m_have_data_crc32;
   bool m_encrypt_pkcs7_padding;
   bool m_padding_removed;
+  bool m_padding_added;
   ndb_openssl_evp openssl_evp;
   enum { FF_UNKNOWN, FF_RAW, FF_AZ31, FF_NDBXFRM1 } m_file_format;
   alignas(ndb_openssl_evp::MEMORY_ALIGN) byte

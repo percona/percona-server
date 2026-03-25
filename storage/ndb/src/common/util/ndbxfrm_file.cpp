@@ -87,6 +87,7 @@ void ndbxfrm_file::reset() {
   m_have_data_crc32 = false;
   m_encrypt_pkcs7_padding = false;
   m_padding_removed = false;
+  m_padding_added = false;
   openssl_evp.reset();
   m_file_format = FF_UNKNOWN;
   memset(m_encryption_keys, 0, sizeof(m_encryption_keys));
@@ -282,6 +283,7 @@ int ndbxfrm_file::create(
   m_compressed = compress;
   m_encrypted = (pwd_key != nullptr);
   m_encrypt_pkcs7_padding = false;
+  m_padding_added = false;
 
   size_t data_page_size = key_data_unit_size ? file_block_size : 0;
   if (m_encrypted) {
@@ -516,6 +518,7 @@ int ndbxfrm_file::transform_pages(ndb_openssl_evp::operation *op,
 
   require(m_encrypted);
   require(!m_compressed);
+  require(!m_encrypt_pkcs7_padding);
 
   if (op == nullptr)
     op = &openssl_evp_op;
@@ -1065,7 +1068,6 @@ int ndbxfrm_file::write_header(ndbxfrm_output_iterator *out,
                                size_t pwd_key_len, int kdf_iter_count,
                                int key_cipher, int key_count,
                                size_t key_data_unit_size) {
-  bool padding = (data_page_size == 0);
   // Write file header
   if (m_file_format == FF_AZ31) {
     require(!m_encrypted);
@@ -1084,16 +1086,24 @@ int ndbxfrm_file::write_header(ndbxfrm_output_iterator *out,
   } else if (m_file_format == FF_NDBXFRM1) {
     ndb_ndbxfrm1::header ndbxfrm1;
     ndbxfrm1.set_file_block_size(m_file_block_size);
+    /*
+     * True if compress padding flag is set in file header, for
+     * backward compatibility. Newer uses of padding should set
+     * encryption padding flag.
+     */
+    bool compress_padding = false;
     if (m_compressed) {
       ndbxfrm1.set_compression_method(ndb_ndbxfrm1::compression_deflate);
       if (key_cipher == ndb_ndbxfrm1::cipher_xts) {
         // XTS needs at least 16 bytes, use pkcs padding to ensure that.
         require(ndbxfrm1.set_compression_padding(ndb_ndbxfrm1::padding_pkcs) ==
                 0);
-        require(zlib.set_pkcs_padding() == 0);
+        m_encrypt_pkcs7_padding = true;
+        compress_padding = true;
       }
     }
     if (m_encrypted) {
+      if (data_page_size == 0) m_encrypt_pkcs7_padding = true;
       if (data_page_size != 0 && key_data_unit_size != 0) {
         if (data_page_size % key_data_unit_size != 0) {
           clear_last_os_error();
@@ -1106,26 +1116,22 @@ int ndbxfrm_file::write_header(ndbxfrm_output_iterator *out,
           RETURN(-1);  // both or none should be zero TEST ndb.backup_passwords
         }
       }
-      if (key_data_unit_size != 0 && padding) {
-        clear_last_os_error();
-        RETURN(-1);  // padding not supported (yet)
-      }
       switch (key_cipher) {
         case ndb_ndbxfrm1::cipher_cbc:
-          require(openssl_evp.set_aes_256_cbc(padding, key_data_unit_size) ==
-                  0);
+          require(openssl_evp.set_aes_256_cbc(false, key_data_unit_size) == 0);
           ndbxfrm1.set_encryption_cipher(key_cipher);
           break;
         case ndb_ndbxfrm1::cipher_xts:
-          require(openssl_evp.set_aes_256_xts(padding, key_data_unit_size) ==
-                  0);
+          require(openssl_evp.set_aes_256_xts(false, key_data_unit_size) == 0);
           ndbxfrm1.set_encryption_cipher(key_cipher);
           break;
         default:
           clear_last_os_error();
           RETURN(-1);  // unsupported cipher
       }
-      ndbxfrm1.set_encryption_padding(padding ? ndb_ndbxfrm1::padding_pkcs : 0);
+      if (m_encrypt_pkcs7_padding && !compress_padding)
+        require(ndbxfrm1.set_encryption_padding(ndb_ndbxfrm1::padding_pkcs) ==
+                0);
       const int krm = (kdf_iter_count == 0) ? ndb_ndbxfrm1::krm_aeskw_256
                                             : ndb_ndbxfrm1::krm_pbkdf2_sha256;
       if (krm) ndbxfrm1.set_encryption_krm(krm);
@@ -1249,8 +1255,22 @@ int ndbxfrm_file::write_forward(ndbxfrm_input_iterator *in) {
       }
     }
 
-    if (m_encrypted) {  // encrypt data from m_decrypted_buffer into
-                        // m_file_buffer
+    if (m_encrypted) {
+      // encrypt data from m_decrypted_buffer into m_file_buffer
+      if (m_encrypt_pkcs7_padding && !m_padding_added &&
+          m_decrypted_buffer.last()) {
+        if (m_decrypted_buffer.write_space() == 0) {
+          // Need one more round for padding
+          m_decrypted_buffer.clear_last();
+        } else {
+          ndb_pkcs7_padding padder;
+          padder.set_padding(openssl_evp_op.get_input_position() +
+                             m_decrypted_buffer.read_size());
+          int ret = padder.pad(&m_decrypted_buffer);
+          require(ret == 0);
+          m_padding_added = true;
+        }
+      }
       if (m_file_buffer.last()) {
         require(m_decrypted_buffer.last());
         require(m_decrypted_buffer.read_size() == 0);

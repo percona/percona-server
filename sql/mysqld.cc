@@ -6430,16 +6430,20 @@ void unregister_server_metric_sources() {
 }
 
 PSI_logger_key key_error_logger = 0;
+PSI_logger_key key_slow_query_logger = 0;
+PSI_logger_key key_general_logger = 0;
 
-static PSI_logger_info_v1 err_loggers[] = {
-    {"error_log", "MySQL error logger", 0, &key_error_logger}};
+static PSI_logger_info_v1 sql_loggers[] = {
+    {"error_log", "MySQL error logger", 0, &key_error_logger},
+    {"slow_log", "MySQL slow query logger", 0, &key_slow_query_logger},
+    {"general_log", "MySQL general logger", 0, &key_general_logger}};
 
 void register_server_telemetry_loggers() {
-  mysql_log_client_register(err_loggers, std::size(err_loggers), "error");
+  mysql_log_client_register(sql_loggers, std::size(sql_loggers), "sql");
 }
 
 void unregister_server_telemetry_loggers() {
-  mysql_log_client_unregister(err_loggers, std::size(err_loggers));
+  mysql_log_client_unregister(sql_loggers, std::size(sql_loggers));
 }
 
 int init_common_variables() {
@@ -12231,7 +12235,8 @@ static bool process_opt_pfs_meter(char *argument) {
 pfs_error_meter:
   if (error) {
     // trunk: LogErr(WARNING_LEVEL, ER_INVALID_METER, orig_argument);
-    std::string msg_84("Invalid meter name or value for performance_schema_meter '");
+    std::string msg_84(
+        "Invalid meter name or value for performance_schema_meter '");
     msg_84.append(orig_argument);
     msg_84.append("'.");
     LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, msg_84.c_str());
@@ -12338,7 +12343,8 @@ static bool process_opt_pfs_logger(char *argument) {
 pfs_error_logger:
   if (error) {
     // trunk: LogErr(WARNING_LEVEL, ER_INVALID_LOGGER, orig_argument);
-    std::string msg_84("Invalid logger name or value for performance_schema_logger '");
+    std::string msg_84(
+        "Invalid logger name or value for performance_schema_logger '");
     msg_84.append(orig_argument);
     msg_84.append("'.");
     LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, msg_84.c_str());

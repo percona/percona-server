@@ -256,12 +256,15 @@ static const uint LOG_FILE = 2;
 static const uint LOG_TABLE = 4;
 
 class Log_to_file_event_handler;
+class Log_to_telemetry_event_handler;
 
 /** Class which manages slow and general log event handlers. */
 class Query_logger {
   /**
-     Currently we have only 2 kinds of logging functions: old-fashioned
+     Currently we have 2 main kinds of logging functions: old-fashioned
      file logs and csv logging routines.
+     Additional open telemetry log export is completely independent of
+     these and does not depend on their configuration.
   */
   static const uint MAX_LOG_HANDLERS_NUM = 2;
 
@@ -275,6 +278,7 @@ class Query_logger {
   /** Available log handlers. */
   Log_to_csv_event_handler table_log_handler;
   Log_to_file_event_handler *file_log_handler;
+  Log_to_telemetry_event_handler *telemetry_log_handler;
 
   /** NULL-terminated arrays of log handlers. */
   Log_event_handler *slow_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];

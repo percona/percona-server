@@ -1712,7 +1712,47 @@ ndb_off_t ndbxfrm_file::move_to_end() {
 
 #ifdef TEST_NDBXFRM_FILE
 
+#include <version>
 #include "kernel/signaldata/FsOpenReq.hpp"
+#include "scope_guard.h"
+#include "unittest/mytap/tap.h"
+
+#if defined(__cpp_lib_source_location) && __cpp_lib_source_location >= 201907L
+#include <source_location>
+#define USE_SOURCE_LOCATION
+#endif
+
+class test_return {
+#ifdef USE_SOURCE_LOCATION
+  std::source_location loc;
+#endif
+  bool value;
+
+ public:
+#ifdef USE_SOURCE_LOCATION
+  test_return(bool value,
+              std::source_location loc = std::source_location::current())
+      : loc(loc), value(value) {}
+  ~test_return() {
+    if (!value) {
+      fprintf(stderr, "Failure function %s line %u error %s\n",
+              loc.function_name(), loc.line(), strerror(errno));
+    }
+  }
+#else
+  test_return(bool value) : value(value) {}
+  ~test_return() {
+    if (!value) {
+      fprintf(stderr, "Failure error %s\n", strerror(errno));
+    }
+  }
+#endif
+  operator bool() const { return value; }
+};
+
+enum file_type { lcp_data, backup_log };
+static test_return file_test(file_type type, unsigned bytes, bool compressed,
+                             bool encrypted);
 
 int main() {
   ndb_openssl_evp::library_init();
@@ -1798,7 +1838,135 @@ int main() {
   rc = file.remove(test_file);
   require(rc == 0);
 
+  for (size_t size : {0, 28, 32768, 32780, 12})
+    for (auto type : {backup_log, lcp_data})
+      for (bool compressed : {false, true})
+        for (bool encrypted : {false, true})
+          ok(file_test(type, size, compressed, encrypted), "%s: %zu bytes%s%s",
+             (type == lcp_data ? "LCP-DATA" : "BACKUP-LOG"), size,
+             compressed ? " compressed" : "", encrypted ? " encrypted" : "");
+
   ndb_openssl_evp::library_end();
+  return exit_status();
+}
+
+test_return file_test(file_type type, unsigned bytes, bool compressed,
+                      bool encrypted) {
+  using byte = unsigned char;
+  const char test_file[] = "TEST_NDBXFRM_FILE.dat";
+  int rc;
+
+  ndb_file file;
+  ndbxfrm_file xfile;
+  bool do_read_backwards = false;
+  bool compress = compressed;
+  const byte *pwd =
+      encrypted ? reinterpret_cast<const byte *>("DUMMY") : nullptr;
+  size_t pwd_len = encrypted ? 5 : 0;
+  int kdf_iter_count = encrypted ? 1 : 0;
+  int key_cipher = 0;
+  int key_count = -1;
+  size_t key_data_unit_size = 0;
+  size_t file_block_size = compressed ? 512 : 0;
+  Uint64 data_size = ndbxfrm_file::INDEFINITE_SIZE;
+  byte wr_buf[ndbxfrm_file::BUFFER_SIZE + NDB_O_DIRECT_WRITE_BLOCKSIZE];
+  byte rd_buf[ndbxfrm_file::BUFFER_SIZE + NDB_O_DIRECT_WRITE_BLOCKSIZE];
+
+  switch (type) {
+    case lcp_data:
+      if (encrypted) {
+        key_cipher = ndb_ndbxfrm1::cipher_xts;
+        key_data_unit_size = ndbxfrm_file::BUFFER_SIZE;
+        file_block_size = key_data_unit_size;
+      }
+      do_read_backwards = false;
+      break;
+    case backup_log:
+      if (encrypted) {
+        key_cipher = ndb_ndbxfrm1::cipher_cbc;
+        key_data_unit_size = 0;
+        file_block_size = 512;
+      }
+      do_read_backwards = !compressed;
+      break;
+  };
+
+  for (unsigned i = 0; i < sizeof(wr_buf); i++) wr_buf[i] = '@' + i % 32;
+
+  rc = file.create(test_file);
+  if (rc != 0) return false;
+  Scope_guard remove_file([&] { file.remove(test_file); });
+
+  rc = file.open(test_file, FsOpenReq::OM_WRITEONLY);
+  if (rc != 0) return false;
+  Scope_guard close_file([&] { file.close(); });
+
+  rc = xfile.create(file, compress, pwd, pwd_len, kdf_iter_count, key_cipher,
+                    key_count, key_data_unit_size, file_block_size, data_size,
+                    false);
+  if (rc != 0) return false;
+  Scope_guard close_xfile([&] { xfile.close(true); });
+
+  ndbxfrm_input_iterator in = {wr_buf, wr_buf + bytes, true};
+  rc = xfile.write_forward(&in);
+  if (rc != 0) return false;
+  if (in.cbegin() != wr_buf + bytes) return false;
+
+  close_xfile.release();
+  rc = xfile.close(false);
+  if (rc != 0) return false;
+
+  close_file.release();
+  rc = file.close();
+  if (rc != 0) return false;
+
+  xfile.reset();
+
+  rc = file.open(test_file, FsOpenReq::OM_READONLY);
+  if (rc != 0) return false;
+  Scope_guard close_file2([&] { file.close(); });
+
+  rc = xfile.open(file, pwd, pwd_len);
+  if (rc != 0) return false;
+  Scope_guard close_xfile2([&] { xfile.close(true); });
+
+  ndbxfrm_output_iterator out = {rd_buf, rd_buf + sizeof(rd_buf), false};
+  memset(rd_buf, 0xff, sizeof(rd_buf));
+  do {
+    rc = xfile.read_forward(&out);
+  } while (rc > 0);
+  if (rc != 0) return false;
+  if (out.begin() != rd_buf + bytes) return false;
+  if (memcmp(wr_buf, rd_buf, bytes) != 0) return false;
+
+  memset(rd_buf, 0xff, sizeof(rd_buf));
+  if (do_read_backwards) {
+    auto pos = xfile.move_to_end();
+    require(pos >= 0);
+    auto rout =
+        ndbxfrm_output_reverse_iterator{rd_buf + sizeof(rd_buf), rd_buf, false};
+    do {
+      rc = xfile.read_backward(&rout);
+    } while (rc > 0);
+    if (rc != 0) return false;
+    auto data_pos = rd_buf + sizeof(rd_buf) - bytes;
+    if (rout.begin() != data_pos) return false;
+    if (memcmp(wr_buf, data_pos, bytes) != 0) return false;
+  }
+
+  close_xfile2.release();
+  rc = xfile.close(false);
+  if (rc != 0) return false;
+
+  close_file2.release();
+  rc = file.close();
+  if (rc != 0) return false;
+
+  remove_file.release();
+  rc = file.remove(test_file);
+  if (rc != 0) return false;
+
+  return true;
 }
 
 #endif

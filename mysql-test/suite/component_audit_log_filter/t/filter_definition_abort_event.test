@@ -17,7 +17,6 @@ GRANT SYSTEM_USER ON *.* to 'user2'@'localhost';
 GRANT AUDIT_ABORT_EXEMPT ON *.* to 'user2'@'localhost';
 
 connect(conn1, localhost, user1, 111, test);
-connect(conn2, localhost, user2, 222, test);
 
 --connection conn1
 
@@ -38,6 +37,9 @@ let $filter = {
 eval SELECT audit_log_filter_set_filter('table_readonly', '$filter');
 SELECT audit_log_filter_set_user('%', 'table_readonly');
 
+connect(conn_blocked, localhost, user1, 111, test);
+--connection conn_blocked
+
 --error ER_AUDIT_API_ABORT
 INSERT INTO t1 VALUES (2);
 --error ER_AUDIT_API_ABORT
@@ -55,6 +57,9 @@ DELETE FROM t2 WHERE c2 = 1;
 
 SELECT * FROM t1;
 SELECT * FROM t2;
+
+disconnect conn_blocked;
+--connection conn1
 
 SELECT audit_log_filter_remove_user('%');
 
@@ -80,6 +85,9 @@ let $filter = {
 eval SELECT audit_log_filter_set_filter('no_t1_access', '$filter');
 SELECT audit_log_filter_set_user('%', 'no_t1_access');
 
+connect(conn_blocked, localhost, user1, 111, test);
+--connection conn_blocked
+
 --error ER_AUDIT_API_ABORT
 INSERT INTO t1 VALUES (2);
 INSERT INTO t2 VALUES (2);
@@ -95,6 +103,9 @@ DELETE FROM t2 WHERE c2 = 1;
 --error ER_AUDIT_API_ABORT
 SELECT * FROM t1;
 SELECT * FROM t2;
+
+disconnect conn_blocked;
+--connection conn1
 
 --echo #
 --echo # Check mysql_event_message events may be aborted
@@ -112,8 +123,15 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('abort_message', '$filter');
 SELECT audit_log_filter_set_user('%', 'abort_message');
+
+connect(conn_blocked, localhost, user1, 111, test);
+--connection conn_blocked
+
 --error ER_AUDIT_API_ABORT
 SELECT audit_api_message_emit_udf('component_text', 'producer_text', 'message_text', 'key', 'value') AS 'Message';
+
+disconnect conn_blocked;
+--connection conn1
 
 SELECT audit_log_filter_remove_user('%');
 
@@ -124,6 +142,7 @@ DELETE FROM t2;
 
 SELECT audit_log_filter_set_user('user2@localhost', 'no_t1_access');
 
+connect(conn2, localhost, user2, 222, test);
 --connection conn2
 
 INSERT INTO t1 VALUES (2);

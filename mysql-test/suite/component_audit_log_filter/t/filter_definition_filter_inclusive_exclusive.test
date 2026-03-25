@@ -32,6 +32,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_inclusive', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_inclusive');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=(?:<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>|<EVENT_SUBCLASS_NAME>connect</EVENT_SUBCLASS_NAME>)
 --source check_all_events_with_tag.inc
@@ -50,6 +53,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_exclusive', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_exclusive');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=!<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc

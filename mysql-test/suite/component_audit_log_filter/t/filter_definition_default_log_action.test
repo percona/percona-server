@@ -16,6 +16,8 @@ call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filte
 --echo # Empty top-level filter object must default to logging all events (same as "log": true).
 SELECT audit_log_filter_set_filter('f_empty', '{"filter": {}}');
 SELECT audit_log_filter_set_user('%', 'f_empty');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general,connection,table_access
@@ -28,6 +30,8 @@ SELECT audit_log_filter_set_user('%', 'f_empty');
 --echo # Explicit "log": true must log general, connection, and table_access events.
 SELECT audit_log_filter_set_filter('f_log_true', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'f_log_true');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general,connection,table_access
@@ -40,6 +44,8 @@ SELECT audit_log_filter_set_user('%', 'f_log_true');
 --echo # "log": true with only "id" and multi-class list still logs unmatched event classes.
 SELECT audit_log_filter_set_filter('f_log_true_complex', '{"filter": {"log": true, "id": "complex-1", "class": [{"name": "general"}, {"name": "connection"}]}}');
 SELECT audit_log_filter_set_user('%', 'f_log_true_complex');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general,connection,table_access
@@ -52,6 +58,8 @@ SELECT audit_log_filter_set_user('%', 'f_log_true_complex');
 --echo # Only "id" (no "log", no "class") matches empty filter: log all.
 SELECT audit_log_filter_set_filter('f_id_only', '{"filter": {"id": "metadata-only"}}');
 SELECT audit_log_filter_set_user('%', 'f_id_only');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general,connection,table_access
@@ -64,6 +72,8 @@ SELECT audit_log_filter_set_user('%', 'f_id_only');
 --echo # No top-level "log" with only "class": general — unmatched events are not logged.
 SELECT audit_log_filter_set_filter('f_class_general_only', '{"filter": {"class": {"name": "general"}}}');
 SELECT audit_log_filter_set_user('%', 'f_class_general_only');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general
@@ -76,6 +86,8 @@ SELECT audit_log_filter_set_user('%', 'f_class_general_only');
 --echo # No top-level "log" with class list general+connection — table_access still excluded.
 SELECT audit_log_filter_set_filter('f_class_gen_conn', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
 SELECT audit_log_filter_set_user('%', 'f_class_gen_conn');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general,connection
@@ -88,6 +100,8 @@ SELECT audit_log_filter_set_user('%', 'f_class_gen_conn');
 --echo # No top-level "log" with nested event rule — only matching subclasses are logged (REDUCED: general/status).
 SELECT audit_log_filter_set_filter('f_class_general_status', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": true}}}}');
 SELECT audit_log_filter_set_user('%', 'f_class_general_status');
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let audit_filter_expect_required = general

@@ -13,6 +13,9 @@ SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
 CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
 
+connect(conn_admin, localhost, root, , test);
+--connection conn_admin
+
 --echo #
 --echo # Field replacement for all events of "query" class
 let $filter = {
@@ -32,8 +35,15 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('replace_query', '$filter');
 SELECT audit_log_filter_set_user('%', 'replace_query');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
 
 INSERT INTO t1 VALUES (1);
+
+disconnect conn_run;
+--connection conn_admin
 
 --let $search_tag=<EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>.*<SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO `t1` VALUES \(\?\))</SQLTEXT>
 --source check_all_events_with_tag.inc
@@ -57,11 +67,18 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('replace_parse_query', '$filter');
 SELECT audit_log_filter_set_user('%', 'replace_parse_query');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
 
 INSERT INTO t2 VALUES (1);
 UPDATE t2 SET id = 2 WHERE id = 1;
 SELECT * FROM t2;
 DELETE FROM t2 WHERE id = 2;
+
+disconnect conn_run;
+--connection conn_admin
 
 --let $search_tag=<EVENT_CLASS_NAME>parse</EVENT_CLASS_NAME>
 --source check_all_events_with_tag.inc
@@ -90,11 +107,18 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('replace_query_start_end', '$filter');
 SELECT audit_log_filter_set_user('%', 'replace_query_start_end');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
 
 INSERT INTO t2 VALUES (1);
 UPDATE t2 SET id = 2 WHERE id = 1;
 SELECT * FROM t2;
 DELETE FROM t2 WHERE id = 2;
+
+disconnect conn_run;
+--connection conn_admin
 
 --let $search_tag=<EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME>
 --source check_all_events_with_tag.inc
@@ -132,11 +156,18 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('replace_not_matching_digest', '$filter');
 SELECT audit_log_filter_set_user('%', 'replace_not_matching_digest');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
 
 INSERT INTO t2 VALUES (1);
 UPDATE t2 SET id = 2 WHERE id = 1;
 SELECT * FROM t2;
 DELETE FROM t2 WHERE id = 2;
+
+disconnect conn_run;
+--connection conn_admin
 
 --let $search_tag=<EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME>
 --source check_all_events_with_tag.inc
@@ -176,11 +207,18 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('replace_matching_digest', '$filter');
 SELECT audit_log_filter_set_user('%', 'replace_matching_digest');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
 
 INSERT INTO t2 VALUES (1);
 UPDATE t2 SET id = 2 WHERE id = 1;
 SELECT * FROM t2;
 DELETE FROM t2 WHERE id = 2;
+
+disconnect conn_run;
+--connection conn_admin
 
 --let $search_tag=<EVENT_SUBCLASS_NAME>start</EVENT_SUBCLASS_NAME>
 --source check_all_events_with_tag.inc
@@ -229,11 +267,18 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('replace_for_tables', '$filter');
 SELECT audit_log_filter_set_user('%', 'replace_for_tables');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE FROM t1;
 DELETE FROM t2;
+
+disconnect conn_run;
+--connection conn_admin
 
 --let $search_tag=<EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME>
 --source check_all_events_with_tag.inc
@@ -359,6 +404,9 @@ SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
 
 DROP TABLE t1, t2;
+
+disconnect conn_admin;
+connection default;
 
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc

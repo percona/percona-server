@@ -40,6 +40,8 @@ DROP TABLE t_keep_check;
 --source include/wait_until_count_sessions.inc
 
 # New connections are no longer logged (no mapping for new sessions)
+disconnect default;
+connect(default, localhost, root, , test);
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=!<AUDIT_RECORD>

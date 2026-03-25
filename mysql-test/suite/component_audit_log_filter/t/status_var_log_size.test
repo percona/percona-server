@@ -7,8 +7,16 @@
 --let $audit_filter_log_path = `SELECT @@global.datadir`
 --let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
 
+disconnect default;
+connect(default, localhost, root, , test);
+
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
+connect(conn_log, localhost, root, , test);
+--connection conn_log
+SELECT 1;
+disconnect conn_log;
+--connection default
 SELECT audit_log_filter_remove_user('%');
 
 --let $expected_current_log_size = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_current_size', Value, 1)
@@ -23,7 +31,11 @@ if ($expected_current_log_size != $expected_total_log_size) {
 
 # Enable logging and generate events to get rotated log files
 SELECT audit_log_filter_set_user('%', 'log_all');
+connect(conn_log, localhost, root, , test);
+--connection conn_log
 --source generate_audit_events.inc
+disconnect conn_log;
+--connection default
 SELECT audit_log_filter_remove_user('%');
 
 --let $expected_current_log_size = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_current_size', Value, 1)

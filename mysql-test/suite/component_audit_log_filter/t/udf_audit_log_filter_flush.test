@@ -50,5 +50,10 @@ SELECT audit_log_filter_flush("");
 SET GLOBAL DEBUG='-d,audit_log_filter_add_record_debug_info';
 SET GLOBAL DEBUG='-d,audit_log_filter_rotate_after_audit_rules_flush';
 
+--disconnect default
+--source include/wait_until_disconnected.inc
+connect(default, localhost, root, , test);
+--connection default
+
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc

@@ -38,6 +38,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_users_access', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_users_access');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 
 SELECT * FROM user_list;
 SELECT * FROM product_list;
@@ -71,6 +74,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_users_access_case_sensitive');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 
 SELECT * FROM user_list;
 SELECT * FROM product_list;

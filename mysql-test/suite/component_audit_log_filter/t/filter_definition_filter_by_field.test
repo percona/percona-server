@@ -27,6 +27,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_general_query', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_general_query');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<HOST>localhost</HOST>
 --source check_all_events_with_tag.inc
@@ -49,6 +52,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_conn_type_by_numeric', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_conn_type_by_numeric');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<CONNECTION_TYPE>Socket</CONNECTION_TYPE>
 --source check_all_events_with_tag.inc
@@ -69,6 +75,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_conn_type_by_pseudo', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_conn_type_by_pseudo');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<CONNECTION_TYPE>Socket</CONNECTION_TYPE>
 --source check_all_events_with_tag.inc
@@ -94,6 +103,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_table_access_or', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_table_access_or');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=[<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t1</TABLE>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t2</TABLE>]
 --source check_all_events_with_tag.inc
@@ -119,6 +131,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_table_access_and', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_table_access_and');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<DB>test</DB>.*<TABLE>t1</TABLE>
 --source check_all_events_with_tag.inc
@@ -143,6 +158,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_table_access_not', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_table_access_not');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=[<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t2</TABLE>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t3</TABLE>]
 --source check_all_events_with_tag.inc
@@ -180,6 +198,9 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_table_access_all', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_table_access_all');
+disconnect default;
+connect(default, localhost, root, , test);
+--source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=[<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t1</TABLE>|<EVENT_SUBCLASS_NAME>insert</EVENT_SUBCLASS_NAME>.*<TABLE>t3</TABLE>]
 --source check_all_events_with_tag.inc

@@ -4,6 +4,9 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
+SELECT 1;
+1
+1
 SELECT audit_log_filter_remove_user('%');
 audit_log_filter_remove_user('%')
 OK

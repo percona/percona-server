@@ -29,6 +29,7 @@ ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 
 SET(MYSYS_SOURCES
   array.cc
+  base64_encode.cc
   charset.cc
   dbug.cc
   decimal.cc

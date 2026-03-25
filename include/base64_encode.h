@@ -26,56 +26,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA  */
 
-#ifndef OCI_SSL_DELETERS_H
-#define OCI_SSL_DELETERS_H
+#ifndef OCI_SSL_H
+#define OCI_SSL_H
 
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-
-#include <memory>
+#include <cstddef>
+#include <string>
+#include <vector>
 
 namespace oci {
+using Data = std::vector<unsigned char>;
 namespace ssl {
-struct BIO_deleter {
-  void operator()(BIO *p) const {
-    if (p) BIO_free(p);
-  }
-};
+// Using extra class to allow using the key content directly.
+class Key_Content : public std::string {};
 
-struct X509_deleter {
-  void operator()(X509 *p) const {
-    if (p) X509_free(p);
-  }
-};
+enum class Algorithm { SHA_1, SHA_256 };
 
-struct ASN1_TIME_deleter {
-  void operator()(ASN1_TIME *p) const {
-    if (p) ASN1_STRING_free(p);
-  }
-};
-struct EVP_PKEY_deleter {
-  void operator()(EVP_PKEY *p) const {
-    if (p) EVP_PKEY_free(p);
-  }
-};
-
-struct EVP_MD_CTX_deleter {
-  void operator()(EVP_MD_CTX *p) const {
-#if OPENSSL_VERSION_NUMBER > 0x10100000L
-    if (p) EVP_MD_CTX_free(p);
-#else
-    // 1.0.x
-    if (p) EVP_MD_CTX_destroy(p);
-#endif
-  }
-};
-
-using BIO_ptr = std::unique_ptr<BIO, BIO_deleter>;
-using X509_ptr = std::unique_ptr<X509, X509_deleter>;
-using ASN1_TIME_ptr = std::unique_ptr<ASN1_TIME, ASN1_TIME_deleter>;
-using EVP_PKEY_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEY_deleter>;
-using EVP_MD_CTX_ptr = std::unique_ptr<EVP_MD_CTX, EVP_MD_CTX_deleter>;
-
+std::string base64_encode(const void *binary, size_t length);
+std::string base64_encode(const Data &data);
+std::vector<unsigned char> base64_decode(const std::string &encoded);
 }  // namespace ssl
 }  // namespace oci
-#endif  // OCI_SSL_DELETERS_H
+#endif  // OCI_SSL_H

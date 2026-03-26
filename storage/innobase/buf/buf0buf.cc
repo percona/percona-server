@@ -432,17 +432,17 @@ on the io_type */
 /** Registers a chunk to buf_pool_chunk_map
 @param[in]      chunk   chunk of buffers */
 static void buf_pool_register_chunk(buf_chunk_t *chunk) {
-  // Calculate shard index based on frame address
-  size_t shard_idx = reinterpret_cast<uintptr_t>(chunk->blocks->frame) %
-                     CHUNK_MAP_SHARDS;
+  const byte *frame = chunk->blocks->frame;
 
-  buf_chunk_map_shards[shard_idx]->insert(
-      buf_pool_chunk_map_t::value_type(chunk->blocks->frame, chunk));
+  // Use frame address as shard key
+  size_t shard_idx = reinterpret_cast<size_t>(frame) % CHUNK_MAP_SHARDS;
 
-  // Do not register block rw-locks here: they are created and, if needed,
-  // registered later during actual latch initialization in
-  // buf_block_ensure_latches_initialized().
+  buf_pool_chunk_map_t *map = buf_chunk_map_shards[shard_idx];
+  ut_a(map != nullptr);
+
+  map->insert(buf_pool_chunk_map_t::value_type(frame, chunk));
 }
+
 
 ulint buf_get_flush_list_len(const buf_pool_t *buf_pool) {
   ulint pages = 0;
@@ -1609,9 +1609,10 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
   buf_pool_ptr = (buf_pool_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, n_instances * sizeof *buf_pool_ptr);
 
-  // Initialize sharded chunk maps (lazy initialization in register_chunk)
+  // Initialize sharded chunk maps once at startup
   for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
-    buf_chunk_map_shards[i] = nullptr;
+    buf_chunk_map_shards[i] =
+        ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
   }
 
   std::vector<dberr_t> errs;
@@ -2511,14 +2512,6 @@ withdraw_retry:
   }
   buf_resize_status_progress_update(7, 7);
 
-// Reinitialize sharded chunk maps for resize
-  for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
-      if (buf_chunk_map_shards[i] != nullptr) {
-          ut::delete_(buf_chunk_map_shards[i]);
-          buf_chunk_map_shards[i] = nullptr;
-      }
-  }
-
   buf_resize_status_progress_reset();
   buf_resize_status(BUF_POOL_RESIZE_IN_PROGRESS, "Starting pool resize");
   /* add/delete chunks */
@@ -2544,16 +2537,15 @@ withdraw_retry:
         buf_block_t *block = chunk->blocks;
 
         for (ulint j = chunk->size; j--; block++) {
-          mutex_free(&block->mutex);
-          rw_lock_free(&block->lock);
-
-          ut_d(rw_lock_free(&block->debug_latch));
+          if (block->latches_initialized.load(std::memory_order_acquire)) {
+            mutex_free(&block->mutex);
+            rw_lock_free(&block->lock);
+            ut_d(rw_lock_free(&block->debug_latch));
+          }
         }
 
         buf_pool->deallocate_chunk(chunk);
-
         sum_freed += chunk->size;
-
         ++chunk;
       }
 
@@ -2597,6 +2589,18 @@ withdraw_retry:
 
       memcpy(new_chunks, buf_pool->chunks, n_chunks_copy * sizeof(*chunk));
 
+      // Remove old chunk registrations before registering new ones,
+      // because frame addresses are the same and std::map::insert
+      // will not overwrite existing keys.
+      for (ulint j = 0; j < n_chunks_copy; j++) {
+        const byte *frame = buf_pool->chunks[j].blocks->frame;
+        size_t shard_idx = reinterpret_cast<size_t>(frame) % CHUNK_MAP_SHARDS;
+        buf_pool_chunk_map_t *map = buf_chunk_map_shards[shard_idx];
+        ut_a(map != nullptr);
+        map->erase(frame);
+      }
+
+      // Register new chunks (same frame addresses, but pointing to new_chunks array)
       for (ulint j = 0; j < n_chunks_copy; j++) {
         buf_pool_register_chunk(&new_chunks[j]);
       }
@@ -3624,51 +3628,40 @@ This function does not return if the block is not identified.
 buf_block_t *buf_block_from_ahi(const byte *ptr) {
   buf_pool_chunk_map_t::iterator it;
 
-// Calculate which shard to search
-  size_t shard_idx = reinterpret_cast<uintptr_t>(ptr) % CHUNK_MAP_SHARDS;
+  /* Align ptr to frame boundary to get the same shard as used
+  in buf_pool_register_chunk() */
+  const byte *frame = reinterpret_cast<const byte *>(
+      ut_uint64_align_down(reinterpret_cast<uint64_t>(ptr),
+                           UNIV_PAGE_SIZE));
+
+  /* Calculate shard index using aligned frame address,
+  consistent with buf_pool_register_chunk() */
+  size_t shard_idx = reinterpret_cast<uintptr_t>(frame) % CHUNK_MAP_SHARDS;
 
   buf_pool_chunk_map_t *chunk_map = buf_chunk_map_shards[shard_idx];
-  if (chunk_map == nullptr) {
-    // Shard not initialized, search all shards
-    for (size_t i = 0; i < CHUNK_MAP_SHARDS; i++) {
-      if (buf_chunk_map_shards[i] != nullptr) {
-        auto it = buf_chunk_map_shards[i]->upper_bound(ptr);
-        if (it != buf_chunk_map_shards[i]->begin()) {
-          chunk_map = buf_chunk_map_shards[i];
-          break;
-        }
-      }
-    }
-    if (chunk_map == nullptr) return nullptr;
-  }
+  ut_a(chunk_map != nullptr);
 
   ut_ad(!buf_pool_resizing);
 
-  buf_chunk_t *chunk;
   it = chunk_map->upper_bound(ptr);
-
   ut_a(it != chunk_map->begin());
 
+  buf_chunk_t *chunk = nullptr;
   if (it == chunk_map->end()) {
     chunk = chunk_map->rbegin()->second;
   } else {
     chunk = (--it)->second;
   }
 
+  ut_a(chunk != nullptr);
+
   ulint offs = ptr - chunk->blocks->frame;
-
   offs >>= UNIV_PAGE_SIZE_SHIFT;
-
   ut_a(offs < chunk->size);
 
   buf_block_t *block = &chunk->blocks[offs];
 
-  /* The function buf_chunk_init() invokes buf_block_init() so that
-  block[n].frame == block->frame + n * UNIV_PAGE_SIZE.  Check it. */
   ut_ad(block->frame == page_align(ptr));
-  /* Read the state of the block without holding a mutex.
-  A state transition from BUF_BLOCK_FILE_PAGE to
-  BUF_BLOCK_REMOVE_HASH is possible during this execution. */
   ut_d(const buf_page_state state = buf_block_get_state(block));
   ut_ad(state == BUF_BLOCK_FILE_PAGE || state == BUF_BLOCK_REMOVE_HASH);
   return (block);

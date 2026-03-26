@@ -667,6 +667,40 @@ bool fix_mysql_tables(THD *thd) {
   if (upgrade_firewall(thd)) return true;
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_MYSQL_TABLES);
+
+  {
+    // Temporarily grant access to reading dd tables
+    auto revoke_dd_access_guard =
+        create_scope_guard([&, save = thd->parsing_system_view]() {
+          thd->parsing_system_view = save;
+        });
+    thd->parsing_system_view = true;
+
+    // During initialize the mysql shared tablespace is
+    // known to not be encrypted, so the value of @is_mysql_encrypted is
+    // hard-coded to 'N'.
+    // During upgrade it is possible that the mysql shared tablespace has
+    // been encrypted so we need to query mysql.tablespaces for
+    // this information.
+    // When creating a table in a shared tablespace it is necessary to
+    // specify the ENCRYPTION attribute so that it matches that of the
+    // shared tablespace. The default value is taken from the schema and
+    // this may not match that of the shared tablespace so all create statements
+    // must specify the ENCRYPTION attribute explicitly. I_S.innodb_tablespaces
+    // is not used here since that doesn't scale when there are many
+    // tablespaces).
+    // The magic number 8192 == FSP_FLAGS_MASK_ENCRYPTION, but the header
+    // defining this constant cannot be included here.
+    const char *is_mysql_encrypted_query =
+        "set @is_mysql_encrypted = "
+        "(SELECT (IF((GET_DD_TABLESPACE_PRIVATE_DATA(se_private_data, "
+        "'flags') & 8192) <> 0, 'Y', 'N')) "
+        "FROM mysql.tablespaces WHERE name = 'mysql')";
+    if (ignore_error_and_execute(thd, is_mysql_encrypted_query)) {
+      return true;
+    }
+  }  // End of dd table access
+
   const char **query_ptr;
   for (query_ptr = &mysql_fix_privilege_tables[0]; *query_ptr != nullptr;
        query_ptr++)

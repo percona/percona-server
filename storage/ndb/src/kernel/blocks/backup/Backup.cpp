@@ -13397,6 +13397,15 @@ void Backup::lcp_open_data_file(Signal *signal, BackupRecordPtr ptr) {
   req->fileFlags = FsOpenReq::OM_WRITEONLY | FsOpenReq::OM_TRUNCATE |
                    FsOpenReq::OM_CREATE | FsOpenReq::OM_APPEND |
                    FsOpenReq::OM_AUTOSYNC;
+  /*
+   * FsOpenReq::OM_PARTIAL_LAST_BLOCK should always be set, but for backward
+   * compatibility we only set it when it otherwise cause problems. With
+   * ODirect=0, CompressedLCP=0, EncryptedFilesystem=1
+   */
+  if (!c_defaults.m_o_direct && !c_defaults.m_compressed_lcp &&
+      c_encrypted_filesystem) {
+    req->fileFlags |= FsOpenReq::OM_PARTIAL_LAST_BLOCK;
+  }
 
   if (c_defaults.m_compressed_lcp) {
     req->fileFlags |= FsOpenReq::OM_GZ;

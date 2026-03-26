@@ -265,7 +265,7 @@ int ndbxfrm_file::create(
     size_t key_data_unit_size,  //
     size_t file_block_size,     // typ. 32KiB phys (or logical?)
     Uint64 data_size,           // file size excluding file header and trailer
-    bool is_data_size_estimated) {
+    bool is_data_size_estimated, bool partial_last_block) {
   reset();
 
   m_data_block_size = 0;
@@ -305,9 +305,9 @@ int ndbxfrm_file::create(
   }
   ndbxfrm_output_iterator out = m_file_buffer.get_output_iterator();
   const byte *out_begin = out.begin();
-  int r =
-      write_header(&out, data_page_size, pwd_key, pwd_key_len, kdf_iter_count,
-                   key_cipher, key_count, key_data_unit_size);
+  int r = write_header(&out, data_page_size, pwd_key, pwd_key_len,
+                       kdf_iter_count, key_cipher, key_count,
+                       key_data_unit_size, partial_last_block);
   if (r != 0) return r;
   m_payload_start = out.begin() - out_begin;
   m_file_buffer.update_write(out);
@@ -1067,7 +1067,8 @@ int ndbxfrm_file::write_header(ndbxfrm_output_iterator *out,
                                size_t data_page_size, const byte *pwd_key,
                                size_t pwd_key_len, int kdf_iter_count,
                                int key_cipher, int key_count,
-                               size_t key_data_unit_size) {
+                               size_t key_data_unit_size,
+                               bool partial_last_block) {
   // Write file header
   if (m_file_format == FF_AZ31) {
     require(!m_encrypted);
@@ -1092,6 +1093,9 @@ int ndbxfrm_file::write_header(ndbxfrm_output_iterator *out,
      * encryption padding flag.
      */
     bool compress_padding = false;
+    if (partial_last_block && m_encrypted) {
+      m_encrypt_pkcs7_padding = true;
+    }
     if (m_compressed) {
       ndbxfrm1.set_compression_method(ndb_ndbxfrm1::compression_deflate);
       if (key_cipher == ndb_ndbxfrm1::cipher_xts) {
@@ -1893,7 +1897,7 @@ int main() {
 
   rc = xfile.create(file, compress, pwd, pwd_len, kdf_iter_count, key_cipher,
                     key_count, key_data_unit_size, file_block_size, data_size,
-                    false);
+                    false, false);
   require(rc == 0);
 
   memset(wr_buf, 17, ndbxfrm_file::BUFFER_SIZE);
@@ -1973,6 +1977,7 @@ test_return file_test(file_type type, unsigned bytes, bool compressed,
   size_t key_data_unit_size = 0;
   size_t file_block_size = compressed ? 512 : 0;
   Uint64 data_size = ndbxfrm_file::INDEFINITE_SIZE;
+  bool partial_last_block = true;  // Final size not known
   byte wr_buf[ndbxfrm_file::BUFFER_SIZE + NDB_O_DIRECT_WRITE_BLOCKSIZE];
   byte rd_buf[ndbxfrm_file::BUFFER_SIZE + NDB_O_DIRECT_WRITE_BLOCKSIZE];
 
@@ -2007,7 +2012,7 @@ test_return file_test(file_type type, unsigned bytes, bool compressed,
 
   rc = xfile.create(file, compress, pwd, pwd_len, kdf_iter_count, key_cipher,
                     key_count, key_data_unit_size, file_block_size, data_size,
-                    false);
+                    false, partial_last_block);
   if (rc != 0) return false;
   Scope_guard close_xfile([&] { xfile.close(true); });
 

@@ -1,0 +1,95 @@
+--echo #
+--echo # PS-10448: An insert prepared statement fails to write across partitions.
+--echo #
+
+--echo #
+--echo # 1) Test case for the problem that was originally reported.
+CREATE TABLE t1 (
+  id INT, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(id, ts)
+) PARTITION BY RANGE (UNIX_TIMESTAMP(ts)) (
+  PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP('2026-04-25 00:00:00')),
+  PARTITION p1 VALUES LESS THAN (UNIX_TIMESTAMP('2026-04-25 12:00:00')),
+  PARTITION pmax VALUES LESS THAN MAXVALUE);
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-24 23:00:00');
+PREPARE stmt FROM 'INSERT INTO t1 (id) VALUES (?)';
+SET @id=1;
+EXECUTE stmt USING @id;
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 01:00:00');
+SET @id=2;
+--echo # Before our fix the below and the next execute statement failed
+--echo # with "Found a row not matching the given partition set" error 
+--echo # due to bad partition pruning.
+EXECUTE stmt USING @id;
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 13:00:00');
+SET @id=3;
+EXECUTE stmt USING @id;
+
+SELECT * FROM t1;
+DELETE FROM t1;
+DEALLOCATE PREPARE stmt;
+
+--echo #
+--echo # 2) Similar test case involving stored procedure.
+CREATE PROCEDURE sp1 (i INT) INSERT INTO t1 (id) VALUES (i);
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-24 23:00:00');
+CALL sp1(4);
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 01:00:00');
+--echo # Again before the fix the below statement failed for the same reason.
+CALL sp1(5);
+
+SELECT * FROM t1;
+DELETE FROM t1;
+DROP PROCEDURE sp1;
+
+--echo #
+--echo # 3) Check that partition pruning still works for case when partitioning
+--echo #    expression depends on DEFAULT CURRENT_TIMESTAMP value.
+--echo #
+--echo # 3.1) First, let us check how it works for regular statement.
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-24 23:00:00');
+EXPLAIN INSERT INTO t1 (id) VALUES (6);
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 01:00:00');
+EXPLAIN INSERT INTO t1 (id) VALUES (7);
+
+--echo #
+--echo # 3.2) Now check the prepared statement case. Note that we are not
+--echo #      actually testing the prepared statement from original bug report.
+--echo #      But partition pruning for it should work in the same way and it
+--echo #      is as close as we can get without too much hassle.
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-24 23:00:00');
+PREPARE stmt FROM 'EXPLAIN INSERT INTO t1 (id) VALUES (?)';
+SET @id=8;
+EXECUTE stmt USING @id;
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 01:00:00');
+EXECUTE stmt USING @id;
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 13:00:00');
+EXECUTE stmt USING @id;
+
+DEALLOCATE PREPARE stmt;
+
+--echo #
+--echo # 3.3) And now similar check for pruning in stored routines.
+--echo #      Same comment applies.
+CREATE PROCEDURE sp1 (i INT) EXPLAIN INSERT INTO t1 (id) VALUES (i);
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-24 23:00:00');
+CALL sp1(9);
+
+SET TIMESTAMP = UNIX_TIMESTAMP('2026-04-25 01:00:00');
+CALL sp1(9);
+
+DROP PROCEDURE sp1;
+
+--echo #
+--echo # Clean-up.
+SET TIMESTAMP = DEFAULT;
+DROP TABLE t1;

@@ -22,6 +22,7 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
+        --enable_pgo                If it is 1 PGO (Profile-Guided Optimization) build will be performed
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -63,6 +64,7 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
+            --enable_pgo=*) ENABLE_PGO="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -784,11 +786,21 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
-    else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+    EXTRA_DEFINES=()
+    if [ ${ARCH} != x86_64 ]; then
+        EXTRA_DEFINES+=(--define "with_tokudb 0")
     fi
+    if [ "${ENABLE_PGO}" = "1" ]; then
+        EXTRA_DEFINES+=(--define "with_pgo 1")
+    fi
+
+    rpmbuild \
+        --define "_topdir ${WORKDIR}/rpmbuild" \
+        --define "dist .${OS_NAME}" \
+        --define "with_mecab ${MECAB_INSTALL_DIR}/usr" \
+        --define "with_js_lang ${WORKDIR}/v8" \
+        "${EXTRA_DEFINES[@]}" \
+        --rebuild rpmbuild/SRPMS/${SRCRPM}
 
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
@@ -912,6 +924,10 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=maybe-uninitialized /' debian/rules
 #    fi
 
+    if [ "${ENABLE_PGO}" = "1" ]; then
+        export DEB_PGO=1
+    fi
+
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -1021,6 +1037,7 @@ INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
+ENABLE_PGO=0
 REVISION=0
 BRANCH="release-9.0.1-1"
 RPM_RELEASE=1

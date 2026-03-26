@@ -76,7 +76,8 @@ endif
 
 MYSQL_SRC = $(shell pwd)
 
-# Profile-Guided Optimization: set DEB_PGO=1 to enable
+# Profile-Guided Optimization: disabled by default
+# To enable: export DEB_PGO=1 before dpkg-buildpackage
 ifdef DEB_PGO
 PGO_GENERATE = -DFPROFILE_GENERATE=1
 PGO_USE = -DFPROFILE_USE=1
@@ -207,6 +208,7 @@ endif
 
 	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
 
+# PGO rebuild: only runs when DEB_PGO=1 is set
 ifdef DEB_PGO
 	# PGO: Run MTR load to generate profile data, then rebuild
 	cd $(builddir) && $(MAKE) run-profile-suite && rm -r $$(readlink mysql-test/var)

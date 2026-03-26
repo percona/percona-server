@@ -64,7 +64,8 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
-# Profile-Guided Optimization: pass --define 'with_pgo 1' to rpmbuild
+# Profile-Guided Optimization: disabled by default
+# To enable: pass --define 'with_pgo 1' to rpmbuild
 %{?with_pgo: %global pgo 1}
 
 %{!?with_debuginfo:              %global nodebuginfo 0}
@@ -675,6 +676,7 @@ mkdir release
 )
 
 # PGO second pass: rebuild with profile data
+# Disabled by default. Enable with: rpmbuild --define 'with_pgo 1'
 %if 0%{?pgo}
 (
   # Run MTR load to generate profile data

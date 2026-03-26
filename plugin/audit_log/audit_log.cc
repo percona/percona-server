@@ -1130,15 +1130,17 @@ static int audit_log_notify(MYSQL_THD thd, mysql_event_class_t event_class,
             log_rec, buflen, event_general->general_command.str,
             event_general->general_time, event_general->general_error_code,
             *event_general, local->db, &len);
-        if (len > buflen) {
-          buflen = len + 1024;
+        while (log_rec == nullptr && len > buflen) {
+          const size_t next_buflen = len + 1024;
+          if (next_buflen <= buflen) break;
+          buflen = next_buflen;
           log_rec = audit_log_general_record(
               get_record_buffer(thd, buflen), buflen,
               event_general->general_command.str, event_general->general_time,
               event_general->general_error_code, *event_general, local->db,
               &len);
-          assert(log_rec);
         }
+        assert(log_rec);
         if (log_rec) audit_log_write(log_rec, len);
         break;
       }

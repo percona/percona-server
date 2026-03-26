@@ -95,11 +95,31 @@ jobs:
 
             echo "Checking clang-format results"
             git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-$COMPILER_VERSION -style=file -p1 >_GIT_DIFF || true
+            FORMAT_OK=true
             if [ ! -s _GIT_DIFF ]; then
               echo The last git commit is clang-formatted;
             else
               cat _GIT_DIFF;
-              false;
+              FORMAT_OK=false;
+
+              if [[ -n "${GITHUB_TOKEN:-}" ]] && [[ -n "${PR_NUMBER:-}" ]]; then
+                DIFF_BODY="$(head -c 60000 _GIT_DIFF)"
+                if [ "$(wc -c < _GIT_DIFF)" -gt 60000 ]; then
+                  DIFF_BODY="${DIFF_BODY}"$'\n... (truncated, see CI log for full diff)'
+                fi
+
+                COMMENT_BODY=$(printf '**clang-format check failed** \xE2\x9D\x8C\n\nThe following changes are needed to fix formatting:\n\n```diff\n%s\n```\n\nRun locally to fix:\n```bash\ngit diff -U0 HEAD~1 -- '\''*.c'\'' '\''*.cc'\'' '\''*.cpp'\'' '\''*.h'\'' '\''*.hpp'\'' '\''*.i'\'' '\''*.ic'\'' '\''*.ih'\'' | clang-format-diff -style=file -p1 -i\n```' "$DIFF_BODY")
+                PAYLOAD=$(jq -n --arg body "$COMMENT_BODY" '{"body": $body}')
+
+                curl -sS -X POST \
+                  -H "Authorization: token ${GITHUB_TOKEN}" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "https://api.github.com/repos/${BASE_OWNER}/${BASE_REPO}/issues/${PR_NUMBER}/comments" \
+                  -d "$PAYLOAD" > /dev/null
+                echo "Posted clang-format diff as PR comment"
+              else
+                echo "Skipping PR comment (no GITHUB_TOKEN or PR_NUMBER)"
+              fi
             fi
 
             echo "Checking clang-tidy static code analysis results"
@@ -111,4 +131,10 @@ jobs:
             else
                echo The last git commit has clang-tidy warnings;
                cat _GIT_DIFF_TIDY;
+            fi
+
+            # Fail the job if clang-format found issues
+            if [ "$FORMAT_OK" = false ]; then
+              echo "Failing build due to clang-format violations"
+              exit 1
             fi

@@ -27,7 +27,7 @@ File format Ok
   <USER>root[root] @ localhost []</USER>
   <OS_LOGIN/>
   <HOST>localhost</HOST>
-  <IP></IP>
+  <IP/>
   <COMMAND_CLASS>internal</COMMAND_CLASS>
   <COMPONENT>test_audit_api_message</COMPONENT>
   <PRODUCER>test_audit_api_message</PRODUCER>

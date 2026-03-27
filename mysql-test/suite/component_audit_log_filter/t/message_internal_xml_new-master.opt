@@ -1,0 +1,2 @@
+--loose-audit_log_filter.format=NEW
+--loose-audit_log_filter.file=message_internal_xml_new.log

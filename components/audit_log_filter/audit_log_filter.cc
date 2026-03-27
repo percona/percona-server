@@ -1065,7 +1065,8 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD, Security_context_handle sctx,
   return true;
 }
 
-bool AuditLogFilter::set_extended_info(MYSQL_THD thd, Security_context_handle,
+bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
+                                       Security_context_handle sctx,
                                        AuditRecordMessage &record) {
   if (!thd) return false;
 
@@ -1075,6 +1076,14 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd, Security_context_handle,
   if (get_sql_command(thd, sql_command)) {
     extra.sql_command = {sql_command.str, sql_command.length};
   }
+
+  if (!sctx) return false;
+
+  get_security_context_option(sctx, "user", extra.user);
+  get_security_context_option(sctx, "host", extra.host);
+  get_security_context_option(sctx, "ip", extra.ip);
+  get_security_context_option(sctx, "external_user", extra.external_user);
+  get_security_context_option(sctx, "proxy_user", extra.proxy_user);
 
   return true;
 }

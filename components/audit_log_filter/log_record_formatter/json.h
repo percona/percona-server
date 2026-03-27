@@ -300,6 +300,18 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    */
   [[nodiscard]] std::string extra_attrs_to_string(
       const ExtendedInfo &info) const noexcept override;
+
+  /**
+   * @brief Get JSON string representation of extra attributes
+   *        for audit log record using custom nesting indentation.
+   * @param info Extended record info
+   * @param tag_indent Number of spaces before the attribute name
+   * @param value_indent Number of spaces before nested attribute entries
+   * @return JSON formatted string
+   */
+  [[nodiscard]] std::string extra_attrs_to_string(
+      const ExtendedInfo &info, std::size_t tag_indent,
+      std::size_t value_indent) const noexcept;
 };
 
 using LogRecordFormatterJson = LogRecordFormatter<AuditLogFormatType::Json>;

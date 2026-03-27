@@ -229,7 +229,8 @@ perl;
     }
 
     if (ref $value eq 'HASH') {
-      if ($path eq 'connection_attributes') {
+      if ($path eq 'connection_attributes' ||
+          $path eq 'connection_data.connection_attributes') {
         my %hidden = map { $_ => hidden_str() } keys %{$value};
         return \%hidden;
       }
@@ -265,25 +266,33 @@ perl;
     general_data connection_data table_access_data global_variable_data
     command_data query_data stored_program_data authentication_data
     message_data parse_data startup_data shutdown_data
-    connection_attributes
     command sql_command query status
     connection_type db table name value rewritten_query flags
+    connection_attributes
     component producer message map
     args
     _pid _platform _os _client_name _client_version program_name
   );
 
+  my @connection_data_key_priority = qw(
+    connection_type status db connection_attributes
+  );
+
   sub ordered_keys {
-    my ($hashref) = @_;
+    my ($hashref, $path) = @_;
+    my $priority = $path eq 'connection_data'
+      ? \@connection_data_key_priority
+      : \@key_priority;
     my %seen;
-    my @keys = grep { exists $hashref->{$_} && !$seen{$_}++ } @key_priority;
+    my @keys = grep { exists $hashref->{$_} && !$seen{$_}++ } @{$priority};
     push @keys, grep { !$seen{$_}++ } sort keys %{$hashref};
     return @keys;
   }
 
   sub fmt {
-    my ($val, $depth) = @_;
+    my ($val, $depth, $path) = @_;
     $depth //= 0;
+    $path //= '';
 
     return '<hidden>' if is_hidden_raw($val);
     return '"<hidden>"' if is_hidden_str($val);
@@ -306,17 +315,21 @@ perl;
       return "[]" if !@{$val};
 
       return "[\n" .
-             join(",\n", map { $next_indent . fmt($_, $depth + 1) } @{$val}) .
+             join(",\n", map { $next_indent . fmt($_, $depth + 1, $path) } @{$val}) .
              "\n$indent]";
     }
 
     if (ref $val eq 'HASH') {
-      my @keys = ordered_keys($val);
+      my @keys = ordered_keys($val, $path);
       return "{}" if !@keys;
 
       return "{\n" .
              join(",\n",
-                  map { $next_indent . qq("$_": ) . fmt($val->{$_}, $depth + 1) }
+                  map {
+                    my $child_path = $path eq '' ? $_ : "$path.$_";
+                    $next_indent . qq("$_": ) .
+                    fmt($val->{$_}, $depth + 1, $child_path)
+                  }
                   @keys) .
              "\n$indent}";
     }

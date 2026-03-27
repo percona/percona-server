@@ -183,6 +183,11 @@ mysql_service_status_t get_sql_command(MYSQL_THD thd,
                                                   &sql_command);
 }
 
+bool is_stored_program_statement(MYSQL_THD thd) {
+  auto *server_thd = static_cast<THD *>(thd);
+  return server_thd != nullptr && server_thd->sp_runtime_ctx != nullptr;
+}
+
 }  // namespace
 
 AuditLogFilter *get_audit_log_filter_instance() noexcept {
@@ -646,6 +651,9 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
         if (sc == EVENT_TRACKING_GENERAL_LOG ||
             sc == EVENT_TRACKING_GENERAL_ERROR ||
             sc == EVENT_TRACKING_GENERAL_RESULT)
+          return 0;
+        if (sc == EVENT_TRACKING_GENERAL_STATUS &&
+            is_stored_program_statement(thd))
           return 0;
         break;
       }

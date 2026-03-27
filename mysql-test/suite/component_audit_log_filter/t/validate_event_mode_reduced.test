@@ -166,6 +166,80 @@ perl;
 EOF
 
 --echo #
+--echo # Reduced mode skips nested stored-program general/status events
+--disable_query_log
+--disable_result_log
+DELIMITER //;
+CREATE PROCEDURE trigger_nested_query()
+BEGIN
+  DO (SELECT 'nested query from stored procedure');
+END//
+DELIMITER ;//
+--enable_result_log
+--enable_query_log
+
+disconnect default;
+connect(default, localhost, root, , test);
+
+--disable_query_log
+--disable_result_log
+CALL trigger_nested_query();
+SELECT audit_log_filter_flush();
+--enable_result_log
+--enable_query_log
+
+perl;
+  use strict;
+  use warnings;
+  use JSON::PP ();
+
+  my $log_dir = $ENV{audit_filter_log_path};
+  my $log_name = $ENV{audit_filter_log_name};
+  my $full_log_name = "$log_dir/$log_name";
+
+  open(my $fh, '<:encoding(UTF-8)', $full_log_name)
+    or die "Could not open '$full_log_name': $!";
+
+  local $/;
+  my $json_text = <$fh>;
+  close($fh);
+
+  $json_text =~ s/\s+$//;
+  unless ($json_text =~ /\]\s*$/) {
+    $json_text =~ s/,\s*$//;
+    $json_text .= "\n]\n";
+  }
+
+  my $events = JSON::PP::decode_json($json_text);
+  my $outer = 0;
+  my $nested = 0;
+
+  for my $event (@{$events}) {
+    next if ref($event) ne 'HASH';
+    next if ($event->{class} // '') ne 'general';
+    next if ($event->{event} // '') ne 'status';
+
+    my $sql_command = $event->{general_data}->{sql_command} // '';
+    my $query = $event->{general_data}->{query} // '';
+    ++$outer if $sql_command eq 'call_procedure' &&
+                $query eq 'CALL trigger_nested_query()';
+    ++$nested if $query eq q{DO (SELECT 'nested query from stored procedure')};
+  }
+
+  die "Expected exactly one outer CALL event, found $outer\n" if $outer != 1;
+  die "Expected nested statement to be skipped, found $nested events\n"
+    if $nested != 0;
+
+  print "OK\n";
+EOF
+
+--disable_query_log
+--disable_result_log
+DROP PROCEDURE trigger_nested_query;
+--enable_result_log
+--enable_query_log
+
+--echo #
 --echo # Cleanup
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc

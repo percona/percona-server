@@ -558,11 +558,21 @@ MISSING: authentication/auth_authid_create
   "class": "message",
   "event": "internal",
   "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
   "message_data": {
     "component": "test_audit_api_message",
     "producer": "test_audit_api_message",
     "message": "test_audit_api_message_internal",
-    "message_attributes": {
+    "map": {
       "my_numeric_key": -9223372036854775808
     }
   }
@@ -575,11 +585,21 @@ MISSING: authentication/auth_authid_create
   "class": "message",
   "event": "user",
   "connection_id": <hidden>,
+  "account": {
+    "user": "audit_user",
+    "host": "localhost"
+  },
+  "login": {
+    "user": "audit_user",
+    "os": "",
+    "ip": "",
+    "proxy": ""
+  },
   "message_data": {
     "component": "test_audit_api_message",
     "producer": "test_audit_api_message",
     "message": "test_audit_api_message_user",
-    "message_attributes": {
+    "map": {
       "my_string_key": "my_string_value"
     }
   }

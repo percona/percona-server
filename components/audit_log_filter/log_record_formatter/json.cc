@@ -600,6 +600,13 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
+  const auto &extra = audit_record.extended_info;
+
+  const auto escaped_user = make_escaped_string(extra.user);
+  const auto escaped_host = make_escaped_string(extra.host);
+  const auto escaped_ip = make_escaped_string(extra.ip);
+  const auto escaped_external_user = make_escaped_string(extra.external_user);
+  const auto escaped_proxy_user = make_escaped_string(extra.proxy_user);
 
   /* clang-format off */
   result << "  {\n"
@@ -613,11 +620,13 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(    "class": "message",)" << "\n"
          << R"(    "event": ")" << event_subclass_to_string(audit_record.event) << "\",\n"
          << R"(    "connection_id": )" << audit_record.event->connection_id << ",\n"
+         << R"(    "account": { "user": ")" << escaped_user << R"(", "host": ")" << escaped_host << R"(" },)" << "\n"
+         << R"(    "login": { "user": ")" << escaped_user << R"(", "os": ")" << escaped_external_user << R"(", "ip": ")" << escaped_ip << R"(", "proxy": ")" << escaped_proxy_user << R"(" },)" << "\n"
          << R"(    "message_data": {)" << "\n"
          << R"(      "component": ")" << make_escaped_string(&audit_record.event->component) << "\",\n"
          << R"(      "producer": ")" << make_escaped_string(&audit_record.event->producer) << "\",\n"
          << R"(      "message": ")" << make_escaped_string(&audit_record.event->message) << "\",\n"
-         << R"(      "message_attributes": {)" << "\n";
+         << R"(      "map": {)" << "\n";
 
   for (size_t i = 0; i < audit_record.event->key_value_map_length; ++i) {
     result << ((i == 0) ? "" : ",\n") << "        \""

@@ -35,6 +35,25 @@
 
 namespace audit_log_filter::log_record_formatter {
 
+namespace {
+
+std::string make_xml_element(std::string_view tag, std::string_view value) {
+  std::string result{"<"};
+  result.append(tag);
+  if (value.empty()) {
+    result.append("/>");
+  } else {
+    result.append(">");
+    result.append(value);
+    result.append("</");
+    result.append(tag);
+    result.append(">");
+  }
+  return result;
+}
+
+}  // namespace
+
 AuditRecordString LogRecordFormatterNew::apply(
     const AuditRecordGeneral &audit_record) const noexcept {
   std::stringstream result;
@@ -52,11 +71,11 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "  <STATUS>" << audit_record.event->error_code << "</STATUS>\n"
          << "  <STATUS_CODE>" << (audit_record.event->error_code ? 1 : 0) << "</STATUS_CODE>\n"
-         << "  <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
-         << "  <OS_LOGIN>" << make_escaped_string(audit_record.extended_info.external_user) << "</OS_LOGIN>\n"
-         << "  <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
-         << "  <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
-         << "  <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n";
+         << "  " << make_xml_element("USER", make_escaped_string(&audit_record.event->user)) << "\n"
+         << "  " << make_xml_element("OS_LOGIN", make_escaped_string(audit_record.extended_info.external_user)) << "\n"
+         << "  " << make_xml_element("HOST", make_escaped_string(&audit_record.event->host)) << "\n"
+         << "  " << make_xml_element("IP", make_escaped_string(&audit_record.event->ip)) << "\n"
+         << "  " << make_xml_element("COMMAND_CLASS", audit_record.extended_info.sql_command) << "\n";
 
   if (!sqltext.empty()) {
     result << "  <SQLTEXT>" << make_escaped_string(sqltext) << "</SQLTEXT>\n";
@@ -81,18 +100,18 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "  <STATUS>" << audit_record.event->status << "</STATUS>\n"
          << "  <STATUS_CODE>" << (audit_record.event->status ? 1 : 0) << "</STATUS_CODE>\n"
-         << "  <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
-         << "  <OS_LOGIN>" << make_escaped_string(&audit_record.event->external_user) << "</OS_LOGIN>\n"
-         << "  <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
-         << "  <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
+         << "  " << make_xml_element("USER", make_escaped_string(&audit_record.event->user)) << "\n"
+         << "  " << make_xml_element("OS_LOGIN", make_escaped_string(&audit_record.event->external_user)) << "\n"
+         << "  " << make_xml_element("HOST", make_escaped_string(&audit_record.event->host)) << "\n"
+         << "  " << make_xml_element("IP", make_escaped_string(&audit_record.event->ip)) << "\n"
          << "  <COMMAND_CLASS>connect</COMMAND_CLASS>\n"
          << "  <CONNECTION_TYPE>" << connection_type_name_to_string(audit_record.event->connection_type) << "</CONNECTION_TYPE>\n";
 
   if (audit_record.event->event_subclass == EVENT_TRACKING_CONNECTION_CONNECT) {
     result << extra_attrs_to_string(audit_record.extended_info)
-           << "  <PRIV_USER>" << make_escaped_string(&audit_record.event->priv_user) << "</PRIV_USER>\n"
-           << "  <PROXY_USER>" << make_escaped_string(&audit_record.event->proxy_user) << "</PROXY_USER>\n"
-           << "  <DB>" << make_escaped_string(&audit_record.event->database) << "</DB>\n";
+           << "  " << make_xml_element("PRIV_USER", make_escaped_string(&audit_record.event->priv_user)) << "\n"
+           << "  " << make_xml_element("PROXY_USER", make_escaped_string(&audit_record.event->proxy_user)) << "\n"
+           << "  " << make_xml_element("DB", make_escaped_string(&audit_record.event->database)) << "\n";
   }
 
   result << " </AUDIT_RECORD>\n";
@@ -113,10 +132,10 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "  <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << user_info_to_string(audit_record.extended_info)
-         << "  <OS_LOGIN>" << make_escaped_string(audit_record.extended_info.external_user) << "</OS_LOGIN>\n"
-         << "  <HOST>" << make_escaped_string(audit_record.extended_info.host) << "</HOST>\n"
-         << "  <IP>" << make_escaped_string(audit_record.extended_info.ip) << "</IP>\n"
-         << "  <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
+         << "  " << make_xml_element("OS_LOGIN", make_escaped_string(audit_record.extended_info.external_user)) << "\n"
+         << "  " << make_xml_element("HOST", make_escaped_string(audit_record.extended_info.host)) << "\n"
+         << "  " << make_xml_element("IP", make_escaped_string(audit_record.extended_info.ip)) << "\n"
+         << "  " << make_xml_element("COMMAND_CLASS", audit_record.extended_info.sql_command) << "\n"
          << "  <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
                                                                           : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
          << "  <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
@@ -252,17 +271,11 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "  <STATUS>0</STATUS>\n"
          << "  <STATUS_CODE>0</STATUS_CODE>\n"
-         << user_info_to_string(audit_record.extended_info);
-
-  if (escaped_external_user.empty()) {
-    result << "  <OS_LOGIN/>\n";
-  } else {
-    result << "  <OS_LOGIN>" << escaped_external_user << "</OS_LOGIN>\n";
-  }
-
-  result << "  <HOST>" << escaped_host << "</HOST>\n"
-         << "  <IP>" << escaped_ip << "</IP>\n"
-         << "  <COMMAND_CLASS>" << audit_record.event_subclass_name << "</COMMAND_CLASS>\n"
+         << user_info_to_string(audit_record.extended_info)
+         << "  " << make_xml_element("OS_LOGIN", escaped_external_user) << "\n"
+         << "  " << make_xml_element("HOST", escaped_host) << "\n"
+         << "  " << make_xml_element("IP", escaped_ip) << "\n"
+         << "  " << make_xml_element("COMMAND_CLASS", audit_record.event_subclass_name) << "\n"
          << "  <COMPONENT>" << escaped_component << "</COMPONENT>\n"
          << "  <PRODUCER>" << escaped_producer << "</PRODUCER>\n"
          << "  <MESSAGE>" << escaped_message << "</MESSAGE>\n"

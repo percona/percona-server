@@ -151,4 +151,7 @@ audit_log_filter_flush()
 OK
 OK
 #
+# Reduced mode skips nested stored-program general/status events
+OK
+#
 # Cleanup

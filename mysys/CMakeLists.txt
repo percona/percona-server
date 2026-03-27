@@ -30,6 +30,7 @@ ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 SET(MYSYS_SOURCES
+  base64_encode.cc
   array.cc
   buffered_error_log.cc
   charset.cc

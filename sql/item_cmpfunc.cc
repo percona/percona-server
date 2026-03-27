@@ -1132,7 +1132,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
                                             : MYSQL_TIMESTAMP_DATETIME);
       String tmp;
       String *str_val = str_arg->val_str(&tmp);
-      if (str_arg->null_value) return true;
+      if (str_val == nullptr) return true;
       bool error;
       value = get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(),
                                 &error);
@@ -3202,7 +3202,7 @@ void Item_func_interval::print(const THD *thd, String *str,
     item twice.
 
   @return
-    - -1 if null value,
+    - -1 if null value or error,
     - 0 if lower than lowest
     - 1 - arg_count-1 if between args[n] and args[n+1]
     - arg_count if higher than biggest argument
@@ -3260,7 +3260,10 @@ longlong Item_func_interval::val_int() {
       my_decimal e_dec_buf;
       my_decimal *e_dec = el->val_decimal(&e_dec_buf);
       /* Skip NULL ranges. */
-      if (el->null_value) continue;
+      if (e_dec == nullptr) {
+        if (el->null_value) continue;
+        return -1;
+      }
       if (my_decimal_cmp(e_dec, dec) > 0) return i - 1;
     } else {
       const double val = el->val_real();

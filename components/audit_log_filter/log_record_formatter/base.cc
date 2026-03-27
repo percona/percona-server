@@ -110,7 +110,8 @@ const std::string_view kAuditNameUnknown{"unknown"};
 std::string LogRecordFormatterBase::make_record_id(
     const std::chrono::system_clock::time_point time_point) const noexcept {
   std::stringstream id;
-  id << SysVars::get_next_record_id() << "_" << make_timestamp(time_point);
+  id << (SysVars::get_next_record_id() + 1) << "_"
+     << make_timestamp(time_point);
 
   return id.str();
 }

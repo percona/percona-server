@@ -377,10 +377,21 @@ AuditRecordString LogRecordFormatterJson::apply(
          << R"(    "account": { "user": ")" << escaped_user << R"(", "host": ")" << escaped_host << R"(" },)" << "\n"
          << R"(    "login": { "user": ")" << escaped_user << R"(", "os": ")" << escaped_external_user << R"(", "ip": ")" << escaped_ip << R"(", "proxy": ")" << escaped_proxy_user << R"(" },)" << "\n"
          << R"(    "connection_data": {)" << "\n"
-         << R"(      "connection_type": ")" << connection_type_name_to_string(audit_record.event->connection_type) << "\",\n"
-         << R"(      "status": )" << audit_record.event->status << ",\n"
-         << R"(      "db": ")" << make_escaped_string(&audit_record.event->database) << "\"\n    }"
-         << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
+         << R"(      "connection_type": ")"
+         << connection_type_name_to_string(audit_record.event->connection_type)
+         << "\"";
+
+  if (audit_record.event->event_subclass !=
+      EVENT_TRACKING_CONNECTION_DISCONNECT) {
+    result << ",\n"
+           << R"(      "status": )" << audit_record.event->status << ",\n"
+           << R"(      "db": ")"
+           << make_escaped_string(&audit_record.event->database) << "\""
+           << extra_attrs_to_string(audit_record.extended_info, 6, 8);
+  }
+
+  result
+         << "\n    }\n  }";
   /* clang-format on */
 
   SysVars::update_log_bookmark(rec_id, timestamp);
@@ -826,21 +837,28 @@ void LogRecordFormatterJson::apply_debug_info(
 
 std::string LogRecordFormatterJson::extra_attrs_to_string(
     const ExtendedInfo &info) const noexcept {
+  return extra_attrs_to_string(info, 4, 6);
+}
+
+std::string LogRecordFormatterJson::extra_attrs_to_string(
+    const ExtendedInfo &info, std::size_t tag_indent,
+    std::size_t value_indent) const noexcept {
   std::stringstream result;
+  const auto tag_padding = std::string(tag_indent, ' ');
+  const auto value_padding = std::string(value_indent, ' ');
 
   for (const auto &pair : info.attrs) {
-    result << ",\n"
-           << "    \"" << pair.first << "\": {\n";
+    result << ",\n" << tag_padding << "\"" << pair.first << "\": {\n";
 
     bool is_first_attr = true;
     for (const auto &name_value : pair.second) {
-      result << (is_first_attr ? "" : ",\n") << "      \""
+      result << (is_first_attr ? "" : ",\n") << value_padding << "\""
              << make_escaped_string(name_value.first) << "\": \""
              << make_escaped_string(name_value.second) << "\"";
       is_first_attr = false;
     }
 
-    result << "\n    }";
+    result << "\n" << tag_padding << "}";
   }
 
   return result.str();

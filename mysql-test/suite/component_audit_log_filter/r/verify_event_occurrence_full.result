@@ -157,17 +157,17 @@ OK
     "proxy": ""
   },
   "connection_data": {
-    "status": 0,
     "connection_type": "socket",
-    "db": "test"
-  },
-  "connection_attributes": {
-    "_pid": "<hidden>",
-    "_platform": "<hidden>",
-    "_os": "<hidden>",
-    "_client_name": "<hidden>",
-    "_client_version": "<hidden>",
-    "program_name": "<hidden>"
+    "status": 0,
+    "db": "test",
+    "connection_attributes": {
+      "_pid": "<hidden>",
+      "_platform": "<hidden>",
+      "_os": "<hidden>",
+      "_client_name": "<hidden>",
+      "_client_version": "<hidden>",
+      "program_name": "<hidden>"
+    }
   }
 }
 
@@ -189,17 +189,7 @@ OK
     "proxy": ""
   },
   "connection_data": {
-    "status": 0,
-    "connection_type": "socket",
-    "db": ""
-  },
-  "connection_attributes": {
-    "_pid": "<hidden>",
-    "_platform": "<hidden>",
-    "_os": "<hidden>",
-    "_client_name": "<hidden>",
-    "_client_version": "<hidden>",
-    "program_name": "<hidden>"
+    "connection_type": "socket"
   }
 }
 
@@ -221,17 +211,17 @@ OK
     "proxy": ""
   },
   "connection_data": {
-    "status": 0,
     "connection_type": "socket",
-    "db": ""
-  },
-  "connection_attributes": {
-    "_pid": "<hidden>",
-    "_platform": "<hidden>",
-    "_os": "<hidden>",
-    "_client_name": "<hidden>",
-    "_client_version": "<hidden>",
-    "program_name": "<hidden>"
+    "status": 0,
+    "db": "",
+    "connection_attributes": {
+      "_pid": "<hidden>",
+      "_platform": "<hidden>",
+      "_os": "<hidden>",
+      "_client_name": "<hidden>",
+      "_client_version": "<hidden>",
+      "program_name": "<hidden>"
+    }
   }
 }
 
@@ -253,8 +243,8 @@ OK
     "proxy": ""
   },
   "connection_data": {
-    "status": 0,
     "connection_type": "socket",
+    "status": 0,
     "db": ""
   }
 }

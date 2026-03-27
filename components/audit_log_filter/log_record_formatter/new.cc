@@ -46,17 +46,17 @@ AuditRecordString LogRecordFormatterNew::apply(
 
   /* clang-format off */
   result << "  <AUDIT_RECORD>\n"
-         << "    <NAME>" << audit_record.extended_info.command << "</NAME>\n"
-         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
+         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
+         << "    <NAME>" << audit_record.extended_info.command << "</NAME>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
-         << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
-         << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
+         << "    <STATUS>" << audit_record.event->error_code << "</STATUS>\n"
+         << "    <STATUS_CODE>" << (audit_record.event->error_code ? 1 : 0) << "</STATUS_CODE>\n"
          << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
          << "    <OS_LOGIN>" << make_escaped_string(audit_record.extended_info.external_user) << "</OS_LOGIN>\n"
-         << "    <STATUS>" << audit_record.event->error_code << "</STATUS>\n"
-         << "    <STATUS_CODE>" << (audit_record.event->error_code ? 1 : 0) << "</STATUS_CODE>\n";
+         << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
+         << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
+         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n";
 
   if (!sqltext.empty()) {
     result << "    <SQLTEXT>" << make_escaped_string(sqltext) << "</SQLTEXT>\n";
@@ -75,21 +75,21 @@ AuditRecordString LogRecordFormatterNew::apply(
 
   /* clang-format off */
   result << "  <AUDIT_RECORD>\n"
-         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
-         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>connect</COMMAND_CLASS>\n"
+         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
+         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
-         << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
-         << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
-         << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
-         << "    <OS_LOGIN>" << make_escaped_string(&audit_record.event->external_user) << "</OS_LOGIN>\n"
          << "    <STATUS>" << audit_record.event->status << "</STATUS>\n"
          << "    <STATUS_CODE>" << (audit_record.event->status ? 1 : 0) << "</STATUS_CODE>\n"
+         << "    <USER>" << make_escaped_string(&audit_record.event->user) << "</USER>\n"
+         << "    <OS_LOGIN>" << make_escaped_string(&audit_record.event->external_user) << "</OS_LOGIN>\n"
+         << "    <HOST>" << make_escaped_string(&audit_record.event->host) << "</HOST>\n"
+         << "    <IP>" << make_escaped_string(&audit_record.event->ip) << "</IP>\n"
+         << "    <COMMAND_CLASS>connect</COMMAND_CLASS>\n"
          << "    <CONNECTION_TYPE>" << connection_type_name_to_string(audit_record.event->connection_type) << "</CONNECTION_TYPE>\n";
 
   if (audit_record.event->event_subclass == EVENT_TRACKING_CONNECTION_CONNECT) {
-    result << extra_attrs_to_string(audit_record.extended_info) << "\n"
+    result << extra_attrs_to_string(audit_record.extended_info)
            << "    <PRIV_USER>" << make_escaped_string(&audit_record.event->priv_user) << "</PRIV_USER>\n"
            << "    <PROXY_USER>" << make_escaped_string(&audit_record.event->proxy_user) << "</PROXY_USER>\n"
            << "    <DB>" << make_escaped_string(&audit_record.event->database) << "</DB>\n";
@@ -108,19 +108,19 @@ AuditRecordString LogRecordFormatterNew::apply(
 
   /* clang-format off */
   result << "  <AUDIT_RECORD>\n"
-         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
-         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
+         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
+         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
-         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
-                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
-         << "    <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
-         << "    <TABLE>" << make_escaped_string(&audit_record.event->table_name) << "</TABLE>\n"
          << user_info_to_string(audit_record.extended_info)
          << "    <OS_LOGIN>" << make_escaped_string(audit_record.extended_info.external_user) << "</OS_LOGIN>\n"
          << "    <HOST>" << make_escaped_string(audit_record.extended_info.host) << "</HOST>\n"
          << "    <IP>" << make_escaped_string(audit_record.extended_info.ip) << "</IP>\n"
+         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
+         << "    <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
+                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
+         << "    <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
+         << "    <TABLE>" << make_escaped_string(&audit_record.event->table_name) << "</TABLE>\n"
          << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
@@ -232,33 +232,56 @@ AuditRecordString LogRecordFormatterNew::apply(
     const AuditRecordMessage &audit_record) const noexcept {
   std::stringstream result;
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
+  const auto escaped_component =
+      make_escaped_string(&audit_record.event->component);
+  const auto escaped_producer =
+      make_escaped_string(&audit_record.event->producer);
+  const auto escaped_message =
+      make_escaped_string(&audit_record.event->message);
+  const auto escaped_host =
+      make_escaped_string(audit_record.extended_info.host);
+  const auto escaped_ip = make_escaped_string(audit_record.extended_info.ip);
+  const auto escaped_external_user =
+      make_escaped_string(audit_record.extended_info.external_user);
 
   /* clang-format off */
   result << "  <AUDIT_RECORD>\n"
-         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
-         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
-         << "    <COMMAND_CLASS>" << audit_record.extended_info.sql_command << "</COMMAND_CLASS>\n"
+         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
+         << "    <NAME>" << event_class_to_string(audit_record.event_class) << "</NAME>\n"
          << "    <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
-         << "    <COMPONENT>" << make_escaped_string(&audit_record.event->component) << "</COMPONENT>\n"
-         << "    <PRODUCER>" << make_escaped_string(&audit_record.event->producer) << "</PRODUCER>\n"
-         << "    <MESSAGE>" << make_escaped_string(&audit_record.event->message) << "</MESSAGE>\n"
-         << "    <MESSAGE_ATTRIBUTES>\n";
+         << "    <STATUS>0</STATUS>\n"
+         << "    <STATUS_CODE>0</STATUS_CODE>\n"
+         << user_info_to_string(audit_record.extended_info);
+
+  if (escaped_external_user.empty()) {
+    result << "    <OS_LOGIN/>\n";
+  } else {
+    result << "    <OS_LOGIN>" << escaped_external_user << "</OS_LOGIN>\n";
+  }
+
+  result << "    <HOST>" << escaped_host << "</HOST>\n"
+         << "    <IP>" << escaped_ip << "</IP>\n"
+         << "    <COMMAND_CLASS>" << audit_record.event_subclass_name << "</COMMAND_CLASS>\n"
+         << "    <COMPONENT>" << escaped_component << "</COMPONENT>\n"
+         << "    <PRODUCER>" << escaped_producer << "</PRODUCER>\n"
+         << "    <MESSAGE>" << escaped_message << "</MESSAGE>\n"
+         << "    <MAP>\n";
 
   for (size_t i = 0; i < audit_record.event->key_value_map_length; ++i) {
-    result << "      <ATTRIBUTE>\n"
-           << "        <NAME>" << make_escaped_string(&audit_record.event->key_value_map[i].key) << "</NAME>\n";
+    result << "      <ELEMENT>\n"
+           << "        <KEY>" << make_escaped_string(&audit_record.event->key_value_map[i].key) << "</KEY>\n";
     if (audit_record.event->key_value_map[i].value_type == EVENT_TRACKING_MESSAGE_VALUE_TYPE_STR) {
       result << "        <VALUE>" << make_escaped_string(&audit_record.event->key_value_map[i].value.str) << "</VALUE>\n";
     } else if (audit_record.event->key_value_map[i].value_type == EVENT_TRACKING_MESSAGE_VALUE_TYPE_NUM) {
       result << "        <VALUE>" << audit_record.event->key_value_map[i].value.num << "</VALUE>\n";
     } else {
-      result << "        <VALUE></VALUE>";
+      result << "        <VALUE></VALUE>\n";
     }
-    result << "      </ATTRIBUTE>\n";
+    result << "      </ELEMENT>\n";
   }
 
-  result << "    </MESSAGE_ATTRIBUTES>\n"
+  result << "    </MAP>\n"
          << "  </AUDIT_RECORD>\n";
   /* clang-format on */
 
@@ -294,9 +317,9 @@ AuditRecordString LogRecordFormatterNew::apply(
 
   /* clang-format off */
   result << "  <AUDIT_RECORD>\n"
-         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
-         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
          << "    <TIMESTAMP>" << make_timestamp(tp) << "</TIMESTAMP>\n"
+         << "    <RECORD_ID>" << make_record_id(tp) << "</RECORD_ID>\n"
+         << "    <NAME>" << event_subclass_to_string(audit_record.event) << "</NAME>\n"
          << "    <SERVER_ID>" << audit_record.event->server_id << "</SERVER_ID>\n";
 
 
@@ -315,8 +338,8 @@ AuditRecordString LogRecordFormatterNew::apply(
 
     result << "    <VERSION>1</VERSION>\n"
            << "    <STARTUP_OPTIONS>" << make_escaped_string(startup_options_str) << "</STARTUP_OPTIONS>\n"
-           << "    <MYSQL_VERSION>" << server_version << "</MYSQL_VERSION>\n"
-           << "    <OS_VERSION>" << MACHINE_TYPE << "-" << SYSTEM_TYPE << "</OS_VERSION>\n";
+           << "    <OS_VERSION>" << MACHINE_TYPE << "-" << SYSTEM_TYPE << "</OS_VERSION>\n"
+           << "    <MYSQL_VERSION>" << server_version << "</MYSQL_VERSION>\n";
   }
 
   result << "  </AUDIT_RECORD>\n";
@@ -357,7 +380,7 @@ std::string LogRecordFormatterNew::extra_attrs_to_string(
              << "      </ATTRIBUTE>\n";
     }
 
-    result << "    </CONNECTION_ATTRIBUTES>";
+    result << "    </CONNECTION_ATTRIBUTES>\n";
   }
   /* clang-format on */
 

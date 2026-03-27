@@ -268,7 +268,7 @@ perl;
     connection_attributes
     command sql_command query status
     connection_type db table name value rewritten_query flags
-    component producer message message_attributes
+    component producer message map
     args
     _pid _platform _os _client_name _client_version program_name
   );

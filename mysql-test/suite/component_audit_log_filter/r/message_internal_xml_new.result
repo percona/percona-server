@@ -1,0 +1,48 @@
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_message_internal',
+'{"filter":{"class":{"name":"message","event":{"name":"internal"}}}}');
+audit_log_filter_set_filter('log_message_internal',
+'{"filter":{"class":{"name":"message","event":{"name":"internal"}}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_message_internal');
+audit_log_filter_set_user('%', 'log_message_internal')
+OK
+INSTALL COMPONENT "file://component_test_audit_api_message";
+SELECT test_audit_api_message_internal();
+test_audit_api_message_internal()
+0
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+File format Ok
+<?xml version="1.0" encoding="utf-8"?>
+<AUDIT>
+  <AUDIT_RECORD>
+    <TIMESTAMP>[masked]</TIMESTAMP>
+    <RECORD_ID>[masked]</RECORD_ID>
+    <NAME>Message</NAME>
+    <CONNECTION_ID>[masked]</CONNECTION_ID>
+    <STATUS>0</STATUS>
+    <STATUS_CODE>0</STATUS_CODE>
+    <USER>root[root] @ localhost []</USER>
+    <OS_LOGIN/>
+    <HOST>localhost</HOST>
+    <IP></IP>
+    <COMMAND_CLASS>internal</COMMAND_CLASS>
+    <COMPONENT>test_audit_api_message</COMPONENT>
+    <PRODUCER>test_audit_api_message</PRODUCER>
+    <MESSAGE>test_audit_api_message_internal</MESSAGE>
+    <MAP>
+      <ELEMENT>
+        <KEY>my_numeric_key</KEY>
+        <VALUE>-9223372036854775808</VALUE>
+      </ELEMENT>
+    </MAP>
+  </AUDIT_RECORD>
+</AUDIT>
+#
+# Cleanup
+SELECT audit_log_filter_remove_filter('log_message_internal');
+audit_log_filter_remove_filter('log_message_internal')
+OK
+UNINSTALL COMPONENT "file://component_test_audit_api_message";

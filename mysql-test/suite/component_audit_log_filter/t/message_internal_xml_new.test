@@ -1,0 +1,32 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+SET GLOBAL audit_log_filter.event_mode=FULL;
+
+SELECT audit_log_filter_set_filter('log_message_internal',
+  '{"filter":{"class":{"name":"message","event":{"name":"internal"}}}}');
+SELECT audit_log_filter_set_user('%', 'log_message_internal');
+
+INSTALL COMPONENT "file://component_test_audit_api_message";
+
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--let $audit_filter_log_name = `SELECT @@global.audit_log_filter.file`
+--let $audit_filter_log_format = xml
+
+--source clean_current_audit_log.inc
+
+SELECT test_audit_api_message_internal();
+SELECT audit_log_filter_flush();
+
+--let $audit_filter_rotate_name=`SELECT audit_log_rotate()`
+--let $audit_filter_log_check_one = $audit_filter_rotate_name
+--source validate_logs_format.inc
+--replace_regex /<CONNECTION_ID>[^<]*<\/CONNECTION_ID>/<CONNECTION_ID>[masked]<\/CONNECTION_ID>/ /<RECORD_ID>[^<]*<\/RECORD_ID>/<RECORD_ID>[masked]<\/RECORD_ID>/ /<TIMESTAMP>[^<]*<\/TIMESTAMP>/<TIMESTAMP>[masked]<\/TIMESTAMP>/
+--cat_file $audit_filter_log_path/$audit_filter_rotate_name
+
+--echo #
+--echo # Cleanup
+SELECT audit_log_filter_remove_filter('log_message_internal');
+UNINSTALL COMPONENT "file://component_test_audit_api_message";
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

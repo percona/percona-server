@@ -8,3 +8,14 @@ loose-audit_log_filter.format=JSON
 loose-audit_log_filter.file=audit_filter.json.log
 loose-audit_log_filter.encryption=AES
 loose-audit_log_filter.compression=GZIP
+
+[jsonl_aes]
+loose-audit_log_filter.format=JSONL
+loose-audit_log_filter.file=audit_filter.jsonl.log
+loose-audit_log_filter.encryption=AES
+
+[jsonl_aes_gzip]
+loose-audit_log_filter.format=JSONL
+loose-audit_log_filter.file=audit_filter.jsonl.log
+loose-audit_log_filter.encryption=AES
+loose-audit_log_filter.compression=GZIP

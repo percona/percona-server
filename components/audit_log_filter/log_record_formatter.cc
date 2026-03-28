@@ -33,6 +33,7 @@ std::unique_ptr<LogRecordFormatterBase> get_log_record_formatter(
       funcs[static_cast<int>(AuditLogFormatType::FormatsCount)] = {
           create_helper<AuditLogFormatType::New>,
           create_helper<AuditLogFormatType::Old>,
+          create_helper<AuditLogFormatType::Json>,
           create_helper<AuditLogFormatType::Json>};
   return (*funcs[static_cast<int>(format_type)])();
 }

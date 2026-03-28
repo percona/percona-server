@@ -25,7 +25,7 @@ if (`SELECT @@global.audit_log_filter.compression = 'GZIP'`) {
 --source decompress_rotated_log.inc
 }
 
---let $audit_filter_log_format = `SELECT IF(STRCMP(SUBSTRING_INDEX(@@global.audit_log_filter.file, "xml", 1), @@global.audit_log_filter.file), "xml", "json")`
+--let $audit_filter_log_format = `SELECT CASE @@global.audit_log_filter.format WHEN 'NEW' THEN 'xml' WHEN 'OLD' THEN 'xml' WHEN 'JSON' THEN 'json' WHEN 'JSONL' THEN 'jsonl' END`
 --source validate_logs_format.inc
 
 --echo #

@@ -60,7 +60,8 @@ void AuditLogReader::set_files_to_read_list(
 void AuditLogReader::reset() noexcept { m_reload_requested = true; }
 
 bool AuditLogReader::init() noexcept {
-  if (SysVars::get_format_type() != AuditLogFormatType::Json) {
+  if (SysVars::get_format_type() != AuditLogFormatType::Json &&
+      SysVars::get_format_type() != AuditLogFormatType::Jsonl) {
     // Not supported for other log formats
     return true;
   }

@@ -251,7 +251,8 @@ TYPE_LIB audit_log_filter_event_mode_typelib = {
     "audit_log_filter_event_mode_typelib", audit_log_filter_event_mode_names,
     nullptr};
 
-const char *audit_log_filter_format_names[] = {"NEW", "OLD", "JSON", nullptr};
+const char *audit_log_filter_format_names[] = {"NEW", "OLD", "JSON", "JSONL",
+                                               nullptr};
 TYPE_LIB audit_log_filter_format_typelib = {
     array_elements(audit_log_filter_format_names) - 1,
     "audit_log_filter_format_typelib", audit_log_filter_format_names, nullptr};
@@ -408,7 +409,8 @@ void format_unix_timestamp_update_func(MYSQL_THD, SYS_VAR *, void *val_ptr,
   if (json_with_unix_timestamp != new_val) {
     *static_cast<bool *>(val_ptr) = new_val;
 
-    if (SysVars::get_format_type() == AuditLogFormatType::Json) {
+    if (SysVars::get_format_type() == AuditLogFormatType::Json ||
+        SysVars::get_format_type() == AuditLogFormatType::Jsonl) {
       get_audit_log_filter_instance()->on_audit_log_rotate_requested();
     }
   }

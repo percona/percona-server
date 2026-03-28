@@ -776,7 +776,8 @@ void AuditUdf::audit_log_filter_flush_udf_deinit(UDF_INIT *) {}
 bool AuditUdf::audit_log_read_udf_init(AuditUdf *udf [[maybe_unused]],
                                        UDF_INIT *initid, UDF_ARGS *udf_args,
                                        char *message) noexcept {
-  if (SysVars::get_format_type() != AuditLogFormatType::Json) {
+  if (SysVars::get_format_type() != AuditLogFormatType::Json &&
+      SysVars::get_format_type() != AuditLogFormatType::Jsonl) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Not supported for log formats other than JSON");
     return true;
@@ -1026,7 +1027,8 @@ bool AuditUdf::audit_log_read_bookmark_udf_init(AuditUdf *udf [[maybe_unused]],
                                                 UDF_INIT *initid,
                                                 UDF_ARGS *udf_args,
                                                 char *message) noexcept {
-  if (SysVars::get_format_type() != AuditLogFormatType::Json) {
+  if (SysVars::get_format_type() != AuditLogFormatType::Json &&
+      SysVars::get_format_type() != AuditLogFormatType::Jsonl) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE,
                   "Not supported for log formats other than JSON");
     return true;

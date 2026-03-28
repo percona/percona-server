@@ -6,7 +6,7 @@
 #
 # --let $audit_filter_log_path = path to dir containing audit filter log
 # --let $audit_filter_log_name = audit filter log file name
-# --let $audit_filter_log_format = [xml|json] audit filter log format
+# --let $audit_filter_log_format = [xml|json|jsonl] audit filter log format
 # --let $search_tag = text to search in audit event record
 # --source check_all_events_with_tag.inc
 #
@@ -17,7 +17,7 @@
 # $audit_filter_log_name
 #   Audit filter log file name.
 # $audit_filter_log_format
-#   Audit filter log format. One of: xml, json. Defaults to xml.
+#   Audit filter log format. One of: xml, json, jsonl. Defaults to xml.
 # $search_tag
 #   Text to search in audit event record. For example, set it to
 #   '<TABLE>table1</TABLE>' in order to make sure each record in the
@@ -108,6 +108,14 @@ perl;
 
         last if ($num_opening_tags > 0 && $num_closing_tags > 0 &&
                  $num_opening_tags == $num_closing_tags);
+      }
+    }
+    elsif ($format eq 'jsonl') {
+      while (my $row = <$fh>) {
+        next if ($row =~ /^\s*[\[\]]\s*$/);
+        next if ($row !~ /\{.*\}/);
+        $result = $row;
+        last;
       }
     }
     else {

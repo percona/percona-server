@@ -17,7 +17,7 @@
 # $audit_filter_log_name
 #   The audit log file base name.
 # $audit_filter_log_format
-#   The audit logs format, 'xml' or 'json'.
+#   The audit logs format, 'xml', 'json' or 'jsonl'.
 # $audit_filter_log_check_one
 #   Check only this one log file, if provided.
 
@@ -37,7 +37,7 @@ perl;
   my $format_name = $ENV{'audit_filter_log_format'} or die "Missing audit_filter_log_format\n";
   my $check_one_log_name = $ENV{'audit_filter_log_check_one'};
 
-  die "Bad log format: $format_name\n" if ($format_name !~ m/^xml$|^json$/);
+  die "Bad log format: $format_name\n" if ($format_name !~ m/^xml$|^json$|^jsonl$/);
 
   if ($check_one_log_name) {
     if ($format_name eq "xml") {

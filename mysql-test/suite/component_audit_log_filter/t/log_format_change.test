@@ -27,10 +27,18 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 
 --source generate_audit_events.inc
 
---let $restart_parameters="restart: --audit_log_filter.format=NEW"
+--let $restart_parameters="restart: --audit_log_filter.format=JSONL"
 --source include/restart_mysqld.inc
 
 --let $new_file_name = $renamed_prefix.json.JSON
+--source rename_rotated_log.inc
+
+--source generate_audit_events.inc
+
+--let $restart_parameters="restart: --audit_log_filter.format=NEW"
+--source include/restart_mysqld.inc
+
+--let $new_file_name = $renamed_prefix.jsonl.JSONL
 --source rename_rotated_log.inc
 
 # Make sure all rotated logs have valid format
@@ -46,6 +54,10 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --let $audit_filter_log_format = json
 --source validate_logs_format.inc
 
+--let $audit_filter_log_check_one = renamed_audit.jsonl.JSONL
+--let $audit_filter_log_format = jsonl
+--source validate_logs_format.inc
+
 --echo #
 --echo # Cleanup
 --source ../inc/audit_comp_uninstall.inc
@@ -55,3 +67,4 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 --remove_file $audit_filter_log_path$renamed_prefix.xml.NEW
 --remove_file $audit_filter_log_path$renamed_prefix.xml.OLD
 --remove_file $audit_filter_log_path$renamed_prefix.json.JSON
+--remove_file $audit_filter_log_path$renamed_prefix.jsonl.JSONL

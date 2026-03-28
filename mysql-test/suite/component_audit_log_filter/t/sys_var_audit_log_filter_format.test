@@ -18,5 +18,9 @@ SELECT @@global.audit_log_filter.format;
 --source include/restart_mysqld.inc
 SELECT @@global.audit_log_filter.format;
 
+--let $restart_parameters="restart: --audit-log-filter.format=JSONL"
+--source include/restart_mysqld.inc
+SELECT @@global.audit_log_filter.format;
+
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc

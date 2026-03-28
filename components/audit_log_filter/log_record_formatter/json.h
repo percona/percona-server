@@ -312,6 +312,14 @@ class LogRecordFormatter<AuditLogFormatType::Json>
   [[nodiscard]] std::string extra_attrs_to_string(
       const ExtendedInfo &info, std::size_t tag_indent,
       std::size_t value_indent) const noexcept;
+
+  /**
+   * @brief Get compact single-line JSONL representation of extra attributes.
+   * @param info Extended record info
+   * @return JSONL formatted string
+   */
+  [[nodiscard]] std::string extra_attrs_to_string_jsonl(
+      const ExtendedInfo &info) const noexcept;
 };
 
 using LogRecordFormatterJson = LogRecordFormatter<AuditLogFormatType::Json>;

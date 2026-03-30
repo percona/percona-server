@@ -1957,7 +1957,7 @@ let $q1 = CREATE TABLE t( c0 int AUTO_INCREMENT primary key;
 let $n= 1;
 while ($n<100)
 {
-  let $q1 = $q1 , c$n CHAR(50);
+  let $q1 = $q1 , c$n CHAR(20);
   inc $n;
 }
 let $q1 = $q1) ENGINE InnoDB;
@@ -1974,7 +1974,7 @@ let $q2 = INSERT INTO t(c1 $q2);
 let $q3 = values(1 $q3);
 let $q2 = $q2 $q3;
 --eval $q2
-let $n=9;
+let $n=11;
 while ($n>0)
 {
   --eval $q4

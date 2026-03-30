@@ -117,8 +117,14 @@ bool update_system_tables(THD *thd) {
   bool exists = false;
 
   if (dd::tables::DD_properties::instance().get(
-          thd, "SYSTEM_TABLES", &system_tables_props, &exists) ||
-      !exists) {
+          thd, "SYSTEM_TABLES", &system_tables_props, &exists)) {
+    LogErr(ERROR_LEVEL, ER_FAILED_GET_DD_PROPERTY, "SYSTEM_TABLES");
+    my_error(ER_DD_INIT_FAILED, MYF(0));
+    return true;
+  }
+  if (!exists) {
+    LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+           "DD property SYSTEM_TABLES is missing during DD upgrade");
     my_error(ER_DD_INIT_FAILED, MYF(0));
     return true;
   }

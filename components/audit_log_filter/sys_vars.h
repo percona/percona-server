@@ -234,7 +234,7 @@ class SysVars {
   [[nodiscard]] static int get_key_derivation_iter_count_mean() noexcept;
 
   /**
-   * @brief Check if a 'time' field is enabled for JSON formatted logs.
+   * @brief Check if a 'time' field is enabled for JSON or JSONL logs.
    *
    * @return true in case 'time' field containing UNIX timestamp should be
    *             added to log record,

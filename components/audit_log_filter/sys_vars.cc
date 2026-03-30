@@ -217,7 +217,7 @@ char *config_database_name;
 std::string default_config_database_name{"mysql"};
 ulong log_handler_type = static_cast<ulong>(AuditLogHandlerType::File);
 ulong log_event_mode_type = static_cast<ulong>(AuditLogEventModeType::Reduced);
-ulong log_format_type = static_cast<ulong>(AuditLogFormatType::New);
+ulong log_format_type = static_cast<ulong>(AuditLogFormatType::Jsonl);
 ulong log_strategy_type =
     static_cast<ulong>(AuditLogStrategyType::Asynchronous);
 ulonglong log_write_buffer_size = 1048576UL;
@@ -429,7 +429,7 @@ enum_arg_check_type check_handler{static_cast<ulong>(AuditLogHandlerType::File),
 enum_arg_check_type check_event_mode{
     static_cast<ulong>(AuditLogEventModeType::Reduced),
     &audit_log_filter_event_mode_typelib};
-enum_arg_check_type check_format{static_cast<ulong>(AuditLogFormatType::New),
+enum_arg_check_type check_format{static_cast<ulong>(AuditLogFormatType::Jsonl),
                                  &audit_log_filter_format_typelib};
 enum_arg_check_type check_strategy{
     static_cast<ulong>(AuditLogStrategyType::Asynchronous),
@@ -509,8 +509,8 @@ SysVarListType sys_vars = {
      false},
     /*
      * The audit_log_filter.format variable is used to specify the audit filter
-     * log format. The audit log filter plugin supports three log formats:
-     * OLD, NEW and JSON. OLD and NEW formats are based on XML, where
+     * log format. The audit log filter plugin supports four log formats:
+     * OLD, NEW, JSON and JSONL. OLD and NEW formats are based on XML, where
      * the former outputs log record properties as XML attributes and the latter
      * as XML tags.
      */
@@ -686,13 +686,13 @@ SysVarListType sys_vars = {
      * The audit_log_filter.format_unix_timestamp variable when enabled causes
      * each log file record to include a time field. The field value is an
      * integer that represents the UNIX timestamp value indicating the date
-     * and time when the audit event was generated. Applies to JSON formatted
-     * logs only.
+     * and time when the audit event was generated. Applies to JSON and JSONL
+     * formatted logs only.
      */
     {{"format_unix_timestamp", PLUGIN_VAR_BOOL | PLUGIN_VAR_RQCMDARG,
-      "Add 'time' field to JSON formatted log records representing the UNIX "
-      "timestamp value indicating the date and time when the audit event was "
-      "generated.",
+      "Add 'time' field to JSON and JSONL formatted log records "
+      "representing the UNIX timestamp value indicating the date and time "
+      "when the audit event was generated.",
       format_unix_timestamp_check_func, format_unix_timestamp_update_func,
       static_cast<void *>(&check_format_unix_timestamp),
       static_cast<void *>(&json_with_unix_timestamp)},

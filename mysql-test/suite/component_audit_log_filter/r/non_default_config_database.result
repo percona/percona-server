@@ -1,4 +1,4 @@
-# restart: --audit-log-filter.database=test --audit-log-filter.format=NEW --audit-log-filter.file=audit_filter.xml.log
+# restart: --audit-log-filter.database=test --audit-log-filter.format=NEW --audit-log-filter.file=non_default_config_database.xml.log
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
 audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
 OK

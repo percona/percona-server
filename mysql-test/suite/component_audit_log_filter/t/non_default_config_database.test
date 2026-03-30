@@ -6,7 +6,7 @@
 --let $audit_db_name=test
 --source ../inc/audit_tables_init.inc
 
---let $restart_parameters="restart: --audit-log-filter.database=test --audit-log-filter.format=NEW --audit-log-filter.file=audit_filter.xml.log"
+--let $restart_parameters="restart: --audit-log-filter.database=test --audit-log-filter.format=NEW --audit-log-filter.file=non_default_config_database.xml.log"
 --source include/restart_mysqld.inc
 
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');

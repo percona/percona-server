@@ -1,0 +1,99 @@
+--source include/not_valgrind.inc
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Test that checks if a bulk_load_fail_if_not_bottommost_level=true doesn't affect secondary index creation badly.
+--echo #
+
+--echo #
+--echo # Create table t1 for which secondary index will be added later with ALTER
+--echo #
+CREATE TABLE t1 (
+  id BIGINT PRIMARY KEY,
+  idx_col INT
+) ENGINE=ROCKSDB;
+
+--echo #
+--echo # Create table t2. It will have index_id smaller than index_id of the secondary index for t1 (that we are going to create).
+--echo # Note: we can't use t1 instead of t2 to insert row while ALTER is running, because there will be MDL SHARED LOCK for t1.
+--echo #
+CREATE TABLE t2 (
+  id BIGINT PRIMARY KEY,
+  idx_col INT
+) ENGINE=ROCKSDB;
+
+--echo # Insert row to t1, so the secondary index is not going to be empty.
+INSERT INTO t1 VALUES (1, 100);
+
+--echo #
+--echo # Start ALTER TABLE ADD INDEX and pause with DEBUG_SYNC after allocating new index_id
+--echo #
+--connect (conn_alter, localhost, root,,test)
+--connection conn_alter
+
+SET DEBUG_SYNC = 'rocksdb_create_key_def_after_index_id_allocated SIGNAL index_id_allocated WAIT_FOR finish_index_creation';
+
+SET SESSION rocksdb_bulk_load_fail_if_not_bottommost_level = true;
+
+# This will hit the "rocksdb_create_key_def_after_index_id_allocated" sync point and wait:
+--send ALTER TABLE t1 ADD INDEX idx (idx_col);
+
+--connection default
+
+--echo #
+--echo # Waiting for index_id allocated...
+--echo #
+SET DEBUG_SYNC = 'now WAIT_FOR index_id_allocated';
+
+--echo #
+--echo # Secondary index has received index_id. Creating table t3. It will have index_id greater than index_id of the secondary index for t1.
+--echo #
+CREATE TABLE t3 (
+  id BIGINT PRIMARY KEY,
+  idx_col INT
+) ENGINE=ROCKSDB;
+
+--echo #
+--echo # Insert row with corresponding RocksDB key smaller than keys of the secondary index for t1. 
+INSERT INTO t2 VALUES (1, 100);
+--echo # Insert row with corresponding RocksDB key greater than keys of the secondary index for t1. 
+INSERT INTO t3 VALUES (1, 100);
+--echo #
+
+--echo #
+--echo # Flush memtable and compact SST from L0 to L6. Note: this SST will have range of keys overlapping with the range of keys that will be generated for the secondary index.
+--echo #
+SET GLOBAL rocksdb_force_flush_memtable_and_lzero_now = ON;
+
+--echo # Current state of the LSM tree (just before the secondary index is created):
+SELECT CF_NAME, LEVEL, NAME, SMALLEST_KEY, LARGEST_KEY, BEING_COMPACTED, SIZE
+FROM information_schema.rocksdb_live_files_metadata
+WHERE CF_NAME = 'default'
+ORDER BY LEVEL, NAME;
+
+--echo # Now signal the waiting ALTER thread to continue and let it add the index (ingest happens now!)
+SET DEBUG_SYNC = 'now SIGNAL finish_index_creation';
+--sleep 5 # FIXME
+
+--echo # Current state of the LSM tree (after the secondary index has been created):
+SELECT CF_NAME, LEVEL, NAME, SMALLEST_KEY, LARGEST_KEY, BEING_COMPACTED, SIZE
+FROM information_schema.rocksdb_live_files_metadata
+WHERE CF_NAME = 'default'
+ORDER BY LEVEL, NAME;
+
+--connection conn_alter
+--reap # Reap the ALTER statement (it should now continue from the sync point)
+
+--connection default
+
+SHOW INDEX FROM t1;
+SELECT SUM(id) FROM t1 USE INDEX (idx);
+
+--echo # Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--disconnect conn_alter

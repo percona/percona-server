@@ -8877,6 +8877,8 @@ int ha_rocksdb::create_key_def(const TABLE &table_arg, uint i,
   uchar index_type;
   uint16_t kv_version;
 
+  DEBUG_SYNC(ha_thd(), "rocksdb_create_key_def_after_index_id_allocated");
+
   if (is_hidden_pk(i, table_arg, tbl_def_arg)) {
     index_type = Rdb_key_def::INDEX_TYPE_HIDDEN_PRIMARY;
     kv_version = Rdb_key_def::PRIMARY_FORMAT_VERSION_LATEST;

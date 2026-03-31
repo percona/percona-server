@@ -1,0 +1,20 @@
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+# restart: --audit_log_filter.buffer_size=4096 --audit_log_filter.strategy=PERFORMANCE --audit_log_filter.format=JSON --audit_log_filter.event_mode=FULL
+SELECT "seed event";
+seed event
+seed event
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
+Variable_name	Value
+Audit_log_filter_events_lost	0
+SHOW GLOBAL STATUS LIKE 'Audit_log_filter_events_lost';
+Variable_name	Value
+Audit_log_filter_events_lost	2
+File format Ok
+#
+# Cleanup

@@ -1,0 +1,500 @@
+- clang_tidy_prerequisites
+- component_all
+- Continuous
+- ContinuousBuild
+- ContinuousConfigure
+- ContinuousCoverage
+- ContinuousMemCheck
+- ContinuousStart
+- ContinuousSubmit
+- ContinuousTest
+- ContinuousUpdate
+- copy_custom_libraries
+- executable_all
+- Experimental
+- ExperimentalBuild
+- ExperimentalConfigure
+- ExperimentalCoverage
+- ExperimentalMemCheck
+- ExperimentalStart
+- ExperimentalSubmit
+- ExperimentalTest
+- ExperimentalUpdate
+- GenerateDevEntitlements
+- gmock (library)
+- gmock_main (library)
+- gtest (library)
+- gtest_main (library)
+- INFO_BIN
+- INFO_SRC
+- Nightly
+- NightlyBuild
+- NightlyConfigure
+- NightlyCoverage
+- NightlyMemCheck
+- NightlyMemoryCheck
+- NightlyStart
+- NightlySubmit
+- NightlyTest
+- NightlyUpdate
+- plugin_all
+- protobuf_generated_all
+- server_unittest_library (library)
+- show_boost_patches
+- stack_direction (executable)
+- symlink_custom_libraries
+- unittest_all
+- decimal (library)
+- json_binlog (library)
+- json_binlog_main (executable)
+- json_binlog_main_static (executable)
+- json_binlog_static (library)
+- json_client_library (library)
+- json_client_library_main (executable)
+- mysql (executable)
+- mysql_config_editor (executable)
+- mysql_secure_installation (executable)
+- mysqladmin (executable)
+- mysqlbinlog (executable)
+- mysqlcheck (executable)
+- mysqldump (executable)
+- mysqlimport (executable)
+- mysqlshow (executable)
+- mysqlslap (executable)
+- mysqltest (executable)
+- all_sys_schema
+- do_cno_huffman_generator
+- GenClientError
+- GenDigestServerSource
+- GenError
+- GenKeywordList
+- GenServerSource
+- GenSysSchema
+- GenSysSchemaC
+- sql_commands
+- xprotocol_tags
+- component_audit_api_message_emit
+- component_audit_log_filter
+- component_cyclic_dependency_test_component_1
+- component_cyclic_dependency_test_component_2
+- component_example_component1
+- component_example_component2
+- component_example_component3
+- component_keyring_kmip
+- component_keyring_vault
+- component_masking_functions
+- component_mysqlbackup
+- component_query_attributes
+- component_reference_cache
+- component_self_required_test_component
+- component_test_audit_api_message
+- component_test_backup_lock_service
+- component_test_component_deinit
+- component_test_event_tracking_consumer
+- component_test_event_tracking_consumer_a
+- component_test_event_tracking_consumer_b
+- component_test_event_tracking_consumer_c
+- component_test_event_tracking_producer_a
+- component_test_event_tracking_producer_b
+- component_test_execute_prepared_statement
+- component_test_execute_regular_statement
+- component_test_host_application_signal
+- component_test_mysql_command_services
+- component_test_mysql_current_thread_reader
+- component_test_mysql_runtime_error
+- component_test_mysql_signal_handler
+- component_test_mysql_system_variable_set
+- component_test_mysql_thd_store_service
+- component_test_pfs_notification
+- component_test_pfs_resource_group
+- component_test_reference_cache
+- component_test_sensitive_system_variables
+- component_test_server_telemetry_metrics
+- component_test_status_var_reader
+- component_test_status_var_service
+- component_test_status_var_service_int
+- component_test_status_var_service_reg_only
+- component_test_status_var_service_str
+- component_test_status_var_service_unreg_only
+- component_test_string_service
+- component_test_string_service_charset
+- component_test_string_service_long
+- component_test_sys_var_service
+- component_test_sys_var_service_int
+- component_test_sys_var_service_same
+- component_test_sys_var_service_str
+- component_test_system_variable_source
+- component_test_table_access
+- component_test_udf_registration
+- component_udf_reg_3_func
+- component_udf_reg_avg_func
+- component_udf_reg_int_func
+- component_udf_reg_int_same_func
+- component_udf_reg_only_3_func
+- component_udf_reg_real_func
+- component_udf_unreg_3_func
+- component_udf_unreg_int_func
+- component_udf_unreg_real_func
+- component_uuid_vx_udf
+- show_audit_null
+- show_auth
+- show_auth_test_plugin
+- show_authentication_ldap_sasl_client
+- show_authentication_oci_client
+- show_authentication_openid_connect_client
+- show_clone
+- show_connection_control
+- show_connection_pool
+- show_daemon_example
+- show_ddl_rewriter
+- show_destination_status
+- show_ftexample
+- show_group_replication
+- show_harness-library
+- show_harness_stdx
+- show_harness_tls
+- show_http_auth_backend_lib
+- show_http_auth_realm_lib
+- show_http_client
+- show_http_common
+- show_http_server_lib
+- show_io_component
+- show_json_binlog
+- show_keyring_udf
+- show_libmysql
+- show_locking_service
+- show_metadata_cache
+- show_mock
+- show_mysql_no_login
+- show_mysqld
+- show_pfs_example_plugin_employee
+- show_qa_auth_client
+- show_qa_auth_interface
+- show_qa_auth_server
+- show_rewrite_example
+- show_rewriter
+- show_rocksdb
+- show_router_cluster
+- show_router_lib
+- show_router_mysql
+- show_router_mysqlxmessages
+- show_router_utils
+- show_routing
+- show_routing_connections
+- show_semisync_master
+- show_semisync_replica
+- show_semisync_slave
+- show_semisync_source
+- show_server_unittest_library
+- show_strings_shared
+- show_test_framework
+- show_test_security_context
+- show_test_services
+- show_test_services_command_services
+- show_test_services_host_application_signal
+- show_test_services_plugin_registry
+- show_test_services_thread
+- show_test_session_attach
+- show_test_session_detach
+- show_test_session_in_thd
+- show_test_session_info
+- show_test_sql_2_sessions
+- show_test_sql_all_col_types
+- show_test_sql_cmds_1
+- show_test_sql_commit
+- show_test_sql_complex
+- show_test_sql_errors
+- show_test_sql_lock
+- show_test_sql_processlist
+- show_test_sql_replication
+- show_test_sql_reset_connection
+- show_test_sql_shutdown
+- show_test_sql_sleep_is_connected
+- show_test_sql_sqlmode
+- show_test_sql_stmt
+- show_test_sql_stored_procedures_functions
+- show_test_sql_views_triggers
+- show_test_udf_services
+- show_test_udf_wrappers
+- show_test_x_sessions_deinit
+- show_test_x_sessions_init
+- show_udf_example
+- show_validate_password
+- show_version_token
+- mysql_binlog_event (library)
+- mysql_binlog_event_standalone (library)
+- mysql_gtid (library)
+- mysql_serialization (library)
+- acl_cli (executable)
+- aligned_atomic-t (executable)
+- alignment-t (executable)
+- allocator-t (executable)
+- authentication_policy-t (executable)
+- BaseString-t (executable)
+- bgc_ticket_manager-t (executable)
+- bitmap-t (executable)
+- Bitmask-t (executable)
+- bounds_checked_array-t (executable)
+- bug25714 (executable)
+- byteorder-t (executable)
+- calloc-t (executable)
+- cell-t (executable)
+- cell_calculator-t (executable)
+- character_set_deprecation-t (executable)
+- charset_bug28956360-t (executable)
+- charset_bug32788301-t (executable)
+- cno_huffman_generator (executable)
+- collation_loader-t (executable)
+- comp_client_err (executable)
+- comp_err (executable)
+- compare_access_paths-t (executable)
+- compatibility_binlogevents-t (executable)
+- conf_to_src (executable)
+- connect_joins-t (executable)
+- copy_info-t (executable)
+- cost_estimate-t (executable)
+- create_field-t (executable)
+- cstrbuf-t (executable)
+- dd_cache-t (executable)
+- dd_column_statistics-t (executable)
+- dd_info_schema_native_func-t (executable)
+- dd_pfs-t (executable)
+- dd_properties-t (executable)
+- dd_schema-t (executable)
+- dd_sdi-t (executable)
+- dd_string_type-t (executable)
+- dd_table-t (executable)
+- ddl_rewriter-t (executable)
+- debug_sync-t (executable)
+- decimal-t (executable)
+- decoy_user-t (executable)
+- dns_srv_data-t (executable)
+- dphyp-t (executable)
+- dynamic_loader-t (executable)
+- dynarray-t (executable)
+- explain_filename-t (executable)
+- field-t (executable)
+- fil_path-t (executable)
+- filesort_buffer-t (executable)
+- filesort_compare-t (executable)
+- filesort_mergechunk-t (executable)
+- fts0fts-t (executable)
+- fts0vlc-t (executable)
+- gcs_allowlist-t (executable)
+- gcs_logging-t (executable)
+- gcs_logging_system-t (executable)
+- gcs_message-t (executable)
+- gcs_message_stage_fragmentation-t (executable)
+- gcs_mpsc_queue-t (executable)
+- gcs_msg_stages-t (executable)
+- gcs_packet-t (executable)
+- gcs_parameters-t (executable)
+- gcs_tagged_lock-t (executable)
+- gcs_xcom_communication_interface-t (executable)
+- gcs_xcom_communication_protocol_changer-t (executable)
+- gcs_xcom_control_interface-t (executable)
+- gcs_xcom_expels_in_progress-t (executable)
+- gcs_xcom_group_management-t (executable)
+- gcs_xcom_group_member_information-t (executable)
+- gcs_xcom_input_queue-t (executable)
+- gcs_xcom_interface_unit-t (executable)
+- gcs_xcom_network_provider-t (executable)
+- gcs_xcom_network_provider_manager-t (executable)
+- gcs_xcom_networking-t (executable)
+- gcs_xcom_notification-t (executable)
+- gcs_xcom_site_def-t (executable)
+- gcs_xcom_state_exchange-t (executable)
+- gcs_xcom_statistics_interface-t (executable)
+- gcs_xcom_statistics_manager-t (executable)
+- gcs_xcom_statistics_storage_impl-t (executable)
+- gcs_xcom_utils-t (executable)
+- gcs_xcom_view_identifier-t (executable)
+- gcs_xcom_xcom_base-t (executable)
+- gcs_xcom_xcom_cache-t (executable)
+- gcs_xcom_xcom_single_writer-t (executable)
+- gcs_xcom_xcom_transport-t (executable)
+- gen_keyword_list (executable)
+- gen_lex_hash (executable)
+- gen_lex_token (executable)
+- get_diagnostics-t (executable)
+- gis_algos-t (executable)
+- gis_area-t (executable)
+- gis_buffer-t (executable)
+- gis_difference-t (executable)
+- gis_distance-t (executable)
+- gis_frechet_distance-t (executable)
+- gis_geometries-t (executable)
+- gis_hausdorff_distance-t (executable)
+- gis_intersection-t (executable)
+- gis_is_simple-t (executable)
+- gis_isvalid-t (executable)
+- gis_line_interpolate_point-t (executable)
+- gis_relops-t (executable)
+- gis_rtree_support-t (executable)
+- gis_setops-t (executable)
+- gis_srs-t (executable)
+- gis_symdifference-t (executable)
+- gis_transform-t (executable)
+- gis_union-t (executable)
+- gis_wkb_parser-t (executable)
+- gis_wkb_writer-t (executable)
+- gno_intervals-t (executable)
+- graph_simplification-t (executable)
+- group_replication_certifier_auto-t (executable)
+- group_replication_compatibility_module-t (executable)
+- group_replication_gcs_mysql_network_provider-t (executable)
+- group_replication_member_info-t (executable)
+- group_replication_member_version-t (executable)
+- group_replication_mysql_version_gcs_protocol_map-t (executable)
+- grow_calculator-t (executable)
+- gtid_set-t (executable)
+- gtid_specification_parsing-t (executable)
+- gtid_tag-t (executable)
+- gtids-t (executable)
+- ha_info_iterator-t (executable)
+- ha_innodb-t (executable)
+- handler-t (executable)
+- hash_join-t (executable)
+- HashMap2-t (executable)
+- heartbeat_codec-t (executable)
+- histogram_selectivity-t (executable)
+- histograms-t (executable)
+- hp_test1 (executable)
+- hp_test2 (executable)
+- hypergraph_optimizer-t (executable)
+- ibd2sdi (executable)
+- initialize_password-t (executable)
+- innochecksum (executable)
+- inplace_vector-t (executable)
+- insert_delayed-t (executable)
+- integer_digits-t (executable)
+- integrals_lockfree_queue-t (executable)
+- interesting_orders-t (executable)
+- into_syntax-t (executable)
+- intrusive_list_iterator-t (executable)
+- item-t (executable)
+- item_filter-t (executable)
+- item_func_case-t (executable)
+- item_func_now_local-t (executable)
+- item_func_regexp-t (executable)
+- item_json_func-t (executable)
+- item_like-t (executable)
+- item_timefunc-t (executable)
+- join_syntax-t (executable)
+- join_tab_sort-t (executable)
+- json_binary-t (executable)
+- json_dom-t (executable)
+- json_path-t (executable)
+- key-t (executable)
+- keyring_common_aes_encryption-t (executable)
+- keyring_common_cache-t (executable)
+- keyring_common_config_reader-t (executable)
+- keyring_common_data-t (executable)
+- keyring_common_data_file-t (executable)
+- keyring_common_iterator-t (executable)
+- keyring_common_json_data_file_operations-t (executable)
+- keyring_common_json_data_reader-t (executable)
+- keyring_common_json_data_writer-t (executable)
+- keyring_common_operations-t (executable)
+- keyring_common_parser-t (executable)
+- ldb (executable)
+- libstrings_shared-t (executable)
+- libstrings_static-t (executable)
+- like_range-t (executable)
+- LinkedStack-t (executable)
+- linux_timestamping (executable)
+- locking_clause_syntax-t (executable)
+- locking_service-t (executable)
+- log0log-t (executable)
+- log_event_status_size-t (executable)
+- log_throttle-t (executable)
+- log_timestamp-t (executable)
+- LogBuffer-t (executable)
+- logger-t (executable)
+- lot0lot-t (executable)
+- m_string-t (executable)
+- make_sortkey-t (executable)
+- managed_buffer-t (executable)
+- managed_buffer_sequence-t (executable)
+- md5_hash-t (executable)
+- mdl-t (executable)
+- mdl_sync-t (executable)
+- mem0mem-t (executable)
+- mem_root_deque-t (executable)
+- merge_component_keyring_common_tests-t (executable)
+- merge_component_keyring_vault_tests-t (executable)
+- merge_innodb_tests-t (executable)
+- merge_large_tests-t (executable)
+- merge_small_tests-t (executable)
+- merge_temptable_tests-t (executable)
+- mf_iocache_test (executable)
+- mgmapi-t (executable)
+- minimal_chassis-t (executable)
+- minimal_chassis_test_driver-t (executable)
+- mutex_lock-t (executable)
+- my_alloc-t (executable)
+- my_bitmap-t (executable)
+- my_decimal-t (executable)
+- my_error-t (executable)
+- my_fileutils-t (executable)
+- my_gcvt-t (executable)
+- my_murmur3-t (executable)
+- my_print_defaults (executable)
+- my_rcu_lock-t (executable)
+- my_thread-t (executable)
+- my_timer-t (executable)
+- myisam_ftdump (executable)
+- myisamchk (executable)
+- myisamlog (executable)
+- myisampack (executable)
+- mysql_client_test (executable)
+- mysql_migrate_keyring (executable)
+- mysql_test_event_tracking (executable)
+- mysql_tzinfo_to_sql (executable)
+- mysql_utils_test-t (executable)
+- mysqld (executable)
+- mysqld_funcs-t (executable)
+- mysqlrouter (executable)
+- mysqlrouter_keyring (executable)
+- mysqlrouter_passwd (executable)
+- mysqlrouter_plugin_info (executable)
+- mysqltest_safe_process (executable)
+- mysqlxtest (executable)
+- mysys_base64-t (executable)
+- mysys_lf-t (executable)
+- mysys_my_b_vprintf-t (executable)
+- mysys_my_checksum-t (executable)
+- mysys_my_getopt-t (executable)
+- mysys_my_getpw-t (executable)
+- mysys_my_loadpath-t (executable)
+- mysys_my_malloc-t (executable)
+- mysys_my_pwrite-t (executable)
+- mysys_my_rdtsc-t (executable)
+- mysys_my_read-t (executable)
+- mysys_my_symlink-t (executable)
+- mysys_my_time-t (executable)
+- mysys_my_write-t (executable)
+- mysys_pathfuncs-t (executable)
+- mysys_stacktrace-t (executable)
+- mytime_client-t (executable)
+- ndb_openssl_evp-t (executable)
+- ndb_version-t (executable)
+- ndb_zlib-t (executable)
+- NdbDir-t (executable)
+- NdbGetInAddr-t (executable)
+- NdbHW-t (executable)
+- NdbPack-t (executable)
+- NdbProcess-t (executable)
+- NdbSqlUtil-t (executable)
+- NdbTimestamp-t (executable)
+- ndbxfrm_file-t (executable)
+- net_ts_accept (executable)
+- net_ts_connect (executable)
+- net_ts_forward (executable)
+- net_ts_netifs (executable)
+- no_plan-t (executable)
+- NodeCertificate-t (executable)
+- opt_costconstants-t (executable)
+- opt_costmodel-t (executable)
+- opt_guessrecperkey-t (executable)
+- opt_range-t (executable)

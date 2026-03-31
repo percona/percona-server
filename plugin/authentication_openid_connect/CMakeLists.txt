@@ -16,8 +16,10 @@
 IF(WITH_AUTHENTICATION_OPENID_CONNECT)
 
     SET(AUTH_OPENID_CONNECT_SOURCES
-        src/plugin_openid_connect.cc
-        src/config.cc
+            src/plugin_openid_connect.cc
+            src/config.cc
+            src/jwk.cc
+            src/id_token.cc
     )
     ### Configuration ###
     ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="authentication_openid_connect")

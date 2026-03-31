@@ -16,46 +16,30 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
 #include <_string.h>
-#include <jwt-cpp/jwt.h>
-#include <jwt-cpp/traits/kazuho-picojson/defaults.h>
-#include <jwt-cpp/traits/kazuho-picojson/traits.h>
-#include <cassert>
-#include <cstring>
-#include <exception>
-#include <map>
-#include <string>
-
-#include "mysql/components/services/bits/system_variables_bits.h"
-#include "mysql/my_loglevel.h"
-#include "mysql/service_thd_alloc.h"
-#include "mysql_com.h"
-
 #include <mysql/components/service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_auth_common.h>
 #include <mysqld_error.h>
 
+#include <cassert>
+#include <cstdint>
+#include <exception>
+#include <map>
+#include <stdexcept>
+#include <string>
+
 #include "config.h"
+#include "id_token.h"
+#include "mysql/components/services/bits/system_variables_bits.h"
+#include "mysql/my_loglevel.h"
+#include "mysql/plugin.h"
+#include "mysql/service_thd_alloc.h"
+#include "mysql_com.h"
 
 SERVICE_TYPE(registry) * reg_srv(nullptr);
 SERVICE_TYPE(log_builtins) * log_bi(nullptr);
 SERVICE_TYPE(log_builtins_string) * log_bs(nullptr);
-
-static auto get_verifier(const std::string &name, const std::string &key) {
-  if (name == "RS256") {
-    return jwt::verify().allow_algorithm(jwt::algorithm::rs256(key));
-  } else if (name == "RS384") {
-    return jwt::verify().allow_algorithm(jwt::algorithm::rs384(key));
-  } else if (name == "RS512") {
-    return jwt::verify().allow_algorithm(jwt::algorithm::rs512(key));
-  } else if (name == "ES256") {
-    return jwt::verify().allow_algorithm(jwt::algorithm::es256(key));
-  } else if (name == "HS256") {
-    return jwt::verify().allow_algorithm(jwt::algorithm::hs256(key));
-  }
-  throw std::runtime_error("Unsupported algorithm: " + name);
-}
 
 static int auth_oidc_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
@@ -102,56 +86,6 @@ class User_auth_data {
   }
 };
 
-class Id_token {
- private:
-  std::string token;
-  std::string error;
-
- public:
-  const char *get_error() const { return error.c_str(); }
-  bool read(MYSQL_PLUGIN_VIO *vio) {
-    unsigned char *pos(nullptr);
-    int len_to_parse = vio->read_packet(vio, &pos);
-
-    // 1. field: capability
-    // ensure the packet is long enough to hold the field
-    if (len_to_parse < 1) {
-      error = "malformed packet";
-      return true;
-    }
-    // skip the field
-    pos++;
-    len_to_parse--;
-
-    // 2. field: token length
-    // ensure the packet is long enough to hold the field
-    len_to_parse -= net_field_length_size(pos);
-    if (len_to_parse < 1) {
-      error = "malformed packet";
-      return true;
-    }
-    // get token length and move pos to the 3. field: the token
-    uint64_t token_len = net_field_length_ll(&pos);
-    // check if token length is correct
-    if (token_len > static_cast<uint64_t>(len_to_parse)) {
-      error = "malformed packet";
-      return true;
-    }
-    token = std::string(reinterpret_cast<char *>(pos), token_len);
-    return false;
-  }
-
-  void verify(const std::string &ext_user, const std::string &idp_name,
-              const std::string &pub_key) const {
-    auto decoded_token = jwt::decode(token);
-    auto verifier =
-        get_verifier(decoded_token.get_header_claim("alg").as_string(), pub_key)
-            .with_claim("iss", jwt::claim(idp_name))
-            .with_claim("sub", jwt::claim(ext_user));
-
-    verifier.verify(decoded_token);
-  }
-};
 
 static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
                                   MYSQL_SERVER_AUTH_INFO *info) {
@@ -182,13 +116,22 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
       return CR_ERROR;
     }
 
-    const Idp_config *idp = Idp_configs::get_item(auth_data.get_idp());
+    const std::string &idp_name{auth_data.get_idp()};
+    const Idp_config *idp = Idp_configs::get_item(idp_name);
     if (idp == nullptr) {
       LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "IDP not configured");
       return CR_ERROR;
     }
 
-    token.verify(auth_data.get_ext_user(), idp->name, idp->pub_key);
+    std::string roles;
+    token.verify(auth_data.get_ext_user(), idp_name, idp, roles);
+    size_t role_buf_size{std::size(info->external_roles)};
+    if (!roles.empty() && roles.size() < role_buf_size)
+      strncpy(info->external_roles, roles.c_str(), role_buf_size);
+    else
+      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                   "too many roles, ignoring roles");
+
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                  "authentication successful");
     return CR_OK;
@@ -204,7 +147,8 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
 static int auth_oidc_generate_hash(char *outbuf, unsigned int *buflen,
                                    const char *inbuf, unsigned int inbuflen) {
   /*
-    fail if buffer specified by server cannot be copied to output buffer
+    fail if the buffer specified by the server cannot be copied to the output
+    buffer
   */
   if (*buflen < inbuflen) return 1; /* error */
   strncpy(outbuf, inbuf, inbuflen);

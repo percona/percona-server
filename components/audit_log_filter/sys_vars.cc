@@ -236,6 +236,7 @@ ulonglong log_password_history_keep_days = 0;
 int key_derivation_iter_count_mean = 0;
 const int default_key_derivation_iter_count_mean = 600000;
 bool json_with_unix_timestamp = false;
+bool log_direct_io = false;
 ulong read_buffer_size = 0;
 
 const char *audit_log_filter_handler_names[] = {"FILE", "SYSLOG", nullptr};
@@ -457,6 +458,7 @@ ulonglong_arg_check_type check_password_history_keep_days{0UL, 0UL, ULLONG_MAX,
 int_arg_check_type check_key_derivation_iterations_count_mean{
     default_key_derivation_iter_count_mean, 1000, 1000000, 0};
 bool_arg_check_type check_format_unix_timestamp{false};
+bool_arg_check_type check_direct_io{false};
 str_arg_check_type check_database{default_config_database_name.data()};
 ulong_arg_check_type check_read_buffer_size{32768UL, 32768UL, ULONG_MAX, 0UL};
 
@@ -706,6 +708,20 @@ SysVarListType sys_vars = {
       "Specifies which database the plugin uses to find its tables.", nullptr,
       nullptr, static_cast<void *>(&check_database),
       static_cast<void *>(&config_database_name)},
+     false},
+    /*
+     * The audit_log_filter.direct_io variable enables O_DIRECT for audit log
+     * file writes when set to ON. This bypasses the OS page cache, preventing
+     * audit log data from consuming kernel buffer memory. Requires filesystem
+     * support for O_DIRECT. Falls back to buffered I/O if unsupported.
+     * This variable has effect only when audit_log_filter.handler is set to
+     * FILE.
+     */
+    {{"direct_io", PLUGIN_VAR_BOOL | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+      "Use O_DIRECT for audit log file writes to bypass OS page cache, if FILE "
+      "handler is used.",
+      nullptr, nullptr, static_cast<void *>(&check_direct_io),
+      static_cast<void *>(&log_direct_io)},
      false},
     /*
      * The audit_log_filter.read_buffer_size variable defines buffer size for
@@ -990,6 +1006,8 @@ int SysVars::get_key_derivation_iter_count_mean() noexcept {
 bool SysVars::get_format_unix_timestamp() noexcept {
   return json_with_unix_timestamp;
 }
+
+bool SysVars::get_direct_io() noexcept { return log_direct_io; }
 
 void SysVars::set_session_filter_id(MYSQL_THD thd, ulong id) noexcept {
   my_service<SERVICE_TYPE(mysql_thd_store)> thd_store_service(

@@ -47,8 +47,8 @@ FileWriterPtr get_file_writer(FileHandle &file_handle) {
    */
   try {
     auto strategy_type = SysVars::get_file_strategy_type();
-    std::unique_ptr<FileWriterBase> writer = std::make_unique<FileWriter>(
-        file_handle, strategy_type == AuditLogStrategyType::Synchronous);
+    std::unique_ptr<FileWriterBase> writer =
+        std::make_unique<FileWriter>(file_handle);
 
     if (SysVars::get_log_encryption_enabled()) {
       writer = std::make_unique<FileWriterEncrypting>(std::move(writer));
@@ -84,6 +84,7 @@ LogWriter<AuditLogHandlerType::File>::LogWriter(
       m_is_rotating{false},
       m_is_log_empty{true},
       m_is_opened{false},
+      m_sync_on_write{false},
       m_file_writer{nullptr} {}
 
 LogWriter<AuditLogHandlerType::File>::~LogWriter() {
@@ -108,6 +109,8 @@ LogWriter<AuditLogHandlerType::File>::~LogWriter() {
 }
 
 bool LogWriterFile::init() noexcept {
+  m_sync_on_write =
+      SysVars::get_file_strategy_type() == AuditLogStrategyType::Synchronous;
   m_file_writer = get_file_writer(m_file_handle);
   return m_file_writer != nullptr;
 }
@@ -239,6 +242,10 @@ void LogWriterFile::do_write(const std::string &record,
 
   if (m_is_log_empty) {
     m_is_log_empty = false;
+  }
+
+  if (m_sync_on_write) {
+    m_file_writer->sync();
   }
 
   const auto file_size_limit = SysVars::get_rotate_on_size();

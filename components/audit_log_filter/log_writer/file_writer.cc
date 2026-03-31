@@ -20,8 +20,7 @@
 
 namespace audit_log_filter::log_writer {
 
-FileWriter::FileWriter(FileHandle &file_handle, bool sync_on_write)
-    : m_file_handle{file_handle}, m_sync_on_write{sync_on_write} {}
+FileWriter::FileWriter(FileHandle &file_handle) : m_file_handle{file_handle} {}
 
 bool FileWriter::open() noexcept {
   return true;  // nothing to do
@@ -32,5 +31,7 @@ void FileWriter::close() noexcept { m_file_handle.flush(); }
 void FileWriter::write(const char *record, size_t size) noexcept {
   m_file_handle.write_file(record, size);
 }
+
+void FileWriter::sync() noexcept { m_file_handle.sync(); }
 
 }  // namespace audit_log_filter::log_writer

@@ -46,6 +46,11 @@ class FileWriterBase {
    * @param size Log record size
    */
   virtual void write(const char *record, size_t size) noexcept = 0;
+
+  /**
+   * @brief Flush any pending writer state and sync the active file.
+   */
+  virtual void sync() noexcept = 0;
 };
 
 }  // namespace audit_log_filter::log_writer

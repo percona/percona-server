@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "file_writer_compressing.h"
+#include "file_writer_decorator_base.h"
 
 namespace audit_log_filter::log_writer {
 
@@ -24,5 +24,7 @@ void FileWriterDecoratorBase::close() noexcept { m_file_writer->close(); }
 void FileWriterDecoratorBase::write(const char *record, size_t size) noexcept {
   m_file_writer->write(record, size);
 }
+
+void FileWriterDecoratorBase::sync() noexcept { m_file_writer->sync(); }
 
 }  // namespace audit_log_filter::log_writer

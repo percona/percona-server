@@ -20,11 +20,15 @@
 #include "components/audit_log_filter/sys_vars.h"
 
 #include <mysql/psi/mysql_mutex.h>
+#include "my_dbug.h"
+#include "my_sys.h"
 
+#include <fcntl.h>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
 #include <regex>
+#include <sstream>
 #include <string>
 
 namespace {
@@ -88,12 +92,11 @@ static PSI_mutex_info mutex_list[] = {
 namespace audit_log_filter::log_writer {
 
 bool FileHandle::open_file(std::filesystem::path file_path) noexcept {
-  assert(!m_file.is_open() && m_path.empty());
+  assert(m_file < 0 && m_path.empty());
   m_path = std::move(file_path);
-  m_file.open(m_path, std::ios::out | std::ios_base::app);
-
-  if (!m_file.is_open()) {
-    m_file.close();
+  const auto path_str = m_path.string();
+  m_file = my_open(path_str.c_str(), O_WRONLY | O_APPEND | O_CREAT, MYF(0));
+  if (m_file < 0) {
     m_path.clear();
     return false;
   }
@@ -109,16 +112,17 @@ bool FileHandle::open_file(std::filesystem::path file_path) noexcept {
 }
 
 bool FileHandle::close_file() noexcept {
-  if (!m_file.is_open() && m_path.empty()) {
+  if (m_file < 0 && m_path.empty()) {
     return true;
   }
 
-  m_file.close();
+  const int close_result = (m_file >= 0) ? my_close(m_file, MYF(0)) : 0;
+  m_file = -1;
   m_path.clear();
 
   mysql_mutex_destroy(&m_lock);
 
-  return !m_file.fail();
+  return close_result == 0;
 }
 
 void FileHandle::write_file(const std::string &record) noexcept {
@@ -126,25 +130,38 @@ void FileHandle::write_file(const std::string &record) noexcept {
 }
 
 void FileHandle::write_file(const char *record, const size_t size) noexcept {
-  m_file.write(record, size);
-  m_file.flush();
+  assert(m_file >= 0);
+  [[maybe_unused]] const auto result = my_write(
+      m_file, reinterpret_cast<const uchar *>(record), size, MYF(MY_NABP));
 }
 
 uint64_t FileHandle::get_file_size() const noexcept {
-  assert(m_file.is_open());
-  std::error_code ec;
-  auto size = std::filesystem::file_size(m_path, ec);
-  return ec ? 0 : size;
+  assert(m_file >= 0);
+  const auto size = my_seek(m_file, 0, MY_SEEK_END, MYF(0));
+  return size == MY_FILEPOS_ERROR ? 0 : static_cast<uint64_t>(size);
 }
 
 std::filesystem::path FileHandle::get_file_path() const noexcept {
-  assert(m_file.is_open());
+  assert(m_file >= 0);
   return m_path;
 }
 
-void FileHandle::flush() noexcept {
-  assert(m_file.is_open());
-  m_file.flush();
+void FileHandle::flush() noexcept { assert(m_file >= 0); }
+
+void FileHandle::sync() noexcept {
+  assert(m_file >= 0);
+
+  DBUG_EXECUTE_IF("audit_log_filter_log_sync_call", {
+    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Audit Log Filter synchronous strategy issued a file sync");
+  });
+
+  if (my_sync(m_file, MYF(0)) != 0) {
+    const auto path_str = m_path.string();
+    std::string error_message = "Failed to sync audit log file: ";
+    error_message += path_str;
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, error_message.c_str());
+  }
 }
 
 bool FileHandle::get_not_rotated_file_path(
@@ -227,51 +244,53 @@ bool FileHandle::remove_file_footer(
     const std::filesystem::path &file_path,
     const std::string &expected_footer) noexcept {
   assert(expected_footer.length() > 0);
-
-  std::fstream file;
-  file.open(file_path, std::ios::in);
-
-  if (!file.is_open()) {
+  const auto path_str = file_path.string();
+  const auto file = my_open(path_str.c_str(), O_RDWR, MYF(0));
+  if (file < 0) {
     return false;
   }
 
-  file.seekg(-expected_footer.length(), std::ios_base::end);
+  const auto current_size = my_seek(file, 0, MY_SEEK_END, MYF(0));
+  if (current_size == MY_FILEPOS_ERROR) {
+    my_close(file, MYF(0));
+    return false;
+  }
 
-  if (file.fail()) {
-    file.close();
+  if (static_cast<size_t>(current_size) < expected_footer.length()) {
+    my_close(file, MYF(0));
     return true;
   }
 
-  std::string file_footer;
-  std::getline(file, file_footer);
-
-  if (file.fail()) {
-    file.close();
-    return true;
+  const auto footer_size = static_cast<my_off_t>(expected_footer.length());
+  if (my_seek(file, current_size - footer_size, MY_SEEK_SET, MYF(0)) ==
+      MY_FILEPOS_ERROR) {
+    my_close(file, MYF(0));
+    return false;
   }
 
-  file.close();
-
-  if (expected_footer.back() == '\n') {
-    file_footer.push_back('\n');
+  std::string file_footer(expected_footer.length(), '\0');
+  if (my_read(file, reinterpret_cast<uchar *>(file_footer.data()),
+              expected_footer.length(), MYF(MY_NABP)) == MY_FILE_ERROR) {
+    my_close(file, MYF(0));
+    return true;
   }
 
   if (expected_footer != file_footer) {
+    my_close(file, MYF(0));
     return true;
   }
 
-  std::error_code ec;
-  auto current_size = std::filesystem::file_size(file_path, ec);
-  if (!ec && current_size >= expected_footer.size()) {
-    std::filesystem::resize_file(file_path,
-                                 current_size - expected_footer.size(), ec);
-  }
-  if (ec) {
-    const auto path_str = file_path.string();
+  const auto new_size = current_size - footer_size;
+  if (my_chsize(file, new_size, 0, MYF(0)) != 0) {
+    char errbuf[MYSYS_STRERROR_SIZE];
     LogComponentErr(WARNING_LEVEL, ER_AUDIT_LOG_FOOTER_REMOVE_FAILURE,
-                    path_str.c_str(), ec.message().c_str());
+                    path_str.c_str(),
+                    my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    my_close(file, MYF(0));
     return false;
   }
+
+  my_close(file, MYF(0));
 
   return true;
 }

@@ -16,11 +16,11 @@
 #ifndef AUDIT_LOG_FILTER_LOG_WRITER_FILE_HANDLE_H_INCLUDED
 #define AUDIT_LOG_FILTER_LOG_WRITER_FILE_HANDLE_H_INCLUDED
 
+#include "my_sys.h"
 #include "mysql/plugin_audit.h"
 
 #include <chrono>
 #include <filesystem>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -89,6 +89,11 @@ class FileHandle {
    * @brief Flush data to a log file.
    */
   void flush() noexcept;
+
+  /**
+   * @brief Flush and sync data to durable storage.
+   */
+  void sync() noexcept;
 
   /**
    * @brief Get total logs size in bytes.
@@ -167,7 +172,7 @@ class FileHandle {
       std::vector<std::string> &log_names) noexcept;
 
  private:
-  std::fstream m_file;
+  File m_file{-1};
   std::filesystem::path m_path;
   mysql_mutex_t m_lock;
 };

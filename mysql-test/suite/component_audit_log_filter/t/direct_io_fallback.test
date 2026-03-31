@@ -1,0 +1,73 @@
+--source include/have_debug.inc
+--source include/have_component_audit_log.inc
+--source include/linux.inc
+--source include/have_odirect.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event class .* in filter");
+call mtr.add_suppression("Audit Log Filter: O_DIRECT write failed, falling back to buffered I/O");
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+SELECT audit_log_filter_set_user('%', 'log_query');
+--let $log_file = `SELECT CONCAT(@@datadir, 'audit_filter.log')`
+
+--echo #
+--echo # Restart with direct_io=ON and SEMISYNCHRONOUS strategy
+--let $restart_parameters="restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=SEMISYNCHRONOUS --audit-log-filter.event_mode=FULL"
+--source include/restart_mysqld.inc
+
+SELECT @@global.audit_log_filter.direct_io;
+SELECT @@global.audit_log_filter.strategy;
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+
+SET SESSION debug='+d,audit_log_filter_direct_flush_fail_once';
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_fallback_marker_one";
+--enable_result_log
+--enable_query_log
+SET SESSION debug='-d,audit_log_filter_direct_flush_fail_once';
+
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_fallback_marker_two";
+--enable_result_log
+--enable_query_log
+
+--echo #
+--echo # Verify the event that triggered fallback was preserved
+--let $assert_text = fallback marker one is in audit log
+--let $assert_file = $log_file
+--let $assert_select = direct_io_fallback_marker_one
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Verify later events continue after fallback
+--let $assert_text = fallback marker two is in audit log
+--let $assert_file = $log_file
+--let $assert_select = direct_io_fallback_marker_two
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Verify direct I/O fallback warning was emitted
+--let $assert_text = direct I/O fallback warning appears in error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Audit Log Filter: O_DIRECT write failed, falling back to buffered I/O
+--let $assert_count_condition = >= 1
+--let $assert_only_after = CURRENT_TEST: component_audit_log_filter.direct_io_fallback
+--source include/assert_grep.inc
+
+--echo #
+--echo # Restart with original value
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

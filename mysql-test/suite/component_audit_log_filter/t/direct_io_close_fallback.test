@@ -1,0 +1,78 @@
+--source include/have_debug.inc
+--source include/have_component_audit_log.inc
+--source include/linux.inc
+--source include/have_odirect.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event class .* in filter");
+call mtr.add_suppression("Audit Log Filter: O_DIRECT write failed, falling back to buffered I/O");
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+SELECT audit_log_filter_set_user('%', 'log_query');
+--let $log_file = `SELECT CONCAT(@@datadir, 'audit_filter.log')`
+
+--echo #
+--echo # Restart with direct_io=ON and ASYNCHRONOUS strategy
+--let $restart_parameters="restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=ASYNCHRONOUS --audit-log-filter.event_mode=FULL"
+--source include/restart_mysqld.inc
+
+SELECT @@global.audit_log_filter.direct_io;
+SELECT @@global.audit_log_filter.strategy;
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SET SESSION debug='+d,audit_log_filter_direct_flush_fail,audit_log_filter_direct_fallback_reopen_fail';
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_close_fallback_marker";
+--enable_result_log
+--enable_query_log
+
+--let $rotated_log_name = `SELECT audit_log_rotate()`
+SET SESSION debug='-d,audit_log_filter_direct_flush_fail,audit_log_filter_direct_fallback_reopen_fail';
+--let $rotated_log_file = `SELECT CONCAT(@@datadir, '$rotated_log_name')`
+
+--echo #
+--echo # Verify the event flushed during rotate was preserved
+--let $assert_text = close fallback marker is in rotated audit log
+--let $assert_file = $rotated_log_file
+--let $assert_select = direct_io_close_fallback_marker
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_post_rotate_marker";
+--enable_result_log
+--enable_query_log
+
+--let $post_rotate_log_name = `SELECT audit_log_rotate()`
+--let $post_rotate_log_file = `SELECT CONCAT(@@datadir, '$post_rotate_log_name')`
+
+--echo #
+--echo # Verify logging continues after rotate fallback and can be rotated again
+--let $assert_text = post-rotate marker is in second rotated audit log
+--let $assert_file = $post_rotate_log_file
+--let $assert_select = direct_io_post_rotate_marker
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Verify direct I/O fallback warning was emitted
+--let $assert_text = direct I/O fallback warning appears in error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Audit Log Filter: O_DIRECT write failed, falling back to buffered I/O
+--let $assert_count_condition = >= 1
+--let $assert_only_after = CURRENT_TEST: component_audit_log_filter.direct_io_close_fallback
+--source include/assert_grep.inc
+
+--echo #
+--echo # Restart with original value
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

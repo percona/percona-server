@@ -1,0 +1,106 @@
+--source include/have_component_audit_log.inc
+--source include/linux.inc
+--source include/have_odirect.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event class .* in filter");
+
+--echo #
+--echo # Verify direct_io sysvar default value
+SELECT @@global.audit_log_filter.direct_io;
+
+--echo #
+--echo # Verify direct_io is read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL audit_log_filter.direct_io=ON;
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+SELECT audit_log_filter_set_user('%', 'log_query');
+--let $log_file = `SELECT CONCAT(@@datadir, 'audit_filter.log')`
+
+--echo #
+--echo # Restart with direct_io=ON and SYNCHRONOUS strategy
+--let $restart_parameters="restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=SYNCHRONOUS --audit-log-filter.event_mode=FULL"
+--source include/restart_mysqld.inc
+
+SELECT @@global.audit_log_filter.direct_io;
+SELECT @@global.audit_log_filter.strategy;
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_sync_marker";
+--enable_result_log
+--enable_query_log
+
+--echo #
+--echo # Verify synchronous direct I/O writes reach the log immediately
+--let $assert_text = synchronous direct I/O marker is in audit log
+--let $assert_file = $log_file
+--let $assert_select = direct_io_sync_marker
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Restart with direct_io=ON and SEMISYNCHRONOUS strategy
+--let $restart_parameters="restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=SEMISYNCHRONOUS --audit-log-filter.event_mode=FULL"
+--source include/restart_mysqld.inc
+
+SELECT @@global.audit_log_filter.direct_io;
+SELECT @@global.audit_log_filter.strategy;
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_semisync_marker";
+--enable_result_log
+--enable_query_log
+
+--echo #
+--echo # Verify semisynchronous direct I/O writes reach the log immediately
+--let $assert_text = semisynchronous direct I/O marker is in audit log
+--let $assert_file = $log_file
+--let $assert_select = direct_io_semisync_marker
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Restart with direct_io=ON and ASYNCHRONOUS strategy
+--let $restart_parameters="restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=ASYNCHRONOUS --audit-log-filter.event_mode=FULL"
+--source include/restart_mysqld.inc
+
+SELECT @@global.audit_log_filter.direct_io;
+SELECT @@global.audit_log_filter.strategy;
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+
+--disable_query_log
+--disable_result_log
+SELECT "direct_io_async_marker";
+--enable_result_log
+--enable_query_log
+
+--let $rotated_log_name = `SELECT audit_log_rotate()`
+--let $rotated_log_file = `SELECT CONCAT(@@datadir, '$rotated_log_name')`
+
+--echo #
+--echo # Verify asynchronous direct I/O writes reach the log after rotation
+--let $assert_text = asynchronous direct I/O marker is in audit log
+--let $assert_file = $rotated_log_file
+--let $assert_select = direct_io_async_marker
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Restart with original value
+--let $restart_parameters="restart:"
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

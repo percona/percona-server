@@ -243,6 +243,13 @@ class SysVars {
   [[nodiscard]] static bool get_format_unix_timestamp() noexcept;
 
   /**
+   * @brief Check if O_DIRECT is enabled for audit log file writes.
+   *
+   * @return true if O_DIRECT should be used, false otherwise
+   */
+  [[nodiscard]] static bool get_direct_io() noexcept;
+
+  /**
    * @brief Set filter_id for a session.
    *
    * @param thd MYSQL_THD for current session

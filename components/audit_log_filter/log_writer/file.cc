@@ -177,7 +177,9 @@ bool LogWriterFile::do_open_file() noexcept {
     }
   }
 
-  if (!m_file_handle.open_file(file_path)) {
+  if (!m_file_handle.open_file(file_path, SysVars::get_direct_io(),
+                               SysVars::get_file_strategy_type() ==
+                                   AuditLogStrategyType::Semisynchronous)) {
     return false;
   }
 

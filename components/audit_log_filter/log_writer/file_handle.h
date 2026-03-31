@@ -19,12 +19,19 @@
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"
 
+#include <atomic>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace audit_log_filter::log_writer {
+
+static constexpr size_t kDirectIOBlockSize = 4096;
 
 struct PruneFileInfo {
   std::filesystem::path path;
@@ -45,9 +52,11 @@ class FileHandle {
    * @brief Open file.
    *
    * @param file_path File path
+   * @param direct_io Use O_DIRECT for writes when true
    * @return true in case of success, false otherwise
    */
-  bool open_file(std::filesystem::path file_path) noexcept;
+  bool open_file(const std::filesystem::path &file_path, bool direct_io = false,
+                 bool flush_on_write = false) noexcept;
 
   /**
    * @brief Close file.
@@ -172,9 +181,23 @@ class FileHandle {
       std::vector<std::string> &log_names) noexcept;
 
  private:
+  struct DirectIOBufferDeleter {
+    void operator()(char *p) const noexcept { std::free(p); }
+  };
+
+  void write_file_direct(const char *record, size_t size) noexcept;
+  void flush_direct() noexcept;
+  bool fallback_to_buffered_io(uint64_t offset, size_t buf_used) noexcept;
+
   File m_file{-1};
   std::filesystem::path m_path;
   mysql_mutex_t m_lock;
+
+  bool m_direct_io{false};
+  bool m_flush_on_write{false};
+  std::unique_ptr<char, DirectIOBufferDeleter> m_dio_buf{};
+  std::atomic<size_t> m_dio_buf_used{0};
+  std::atomic<uint64_t> m_file_offset{0};
 };
 
 }  // namespace audit_log_filter::log_writer

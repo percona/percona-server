@@ -120,6 +120,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   bool m_is_rotating;
   bool m_is_log_empty;
   bool m_is_opened;
+  bool m_sync_on_write;
   FileWriterPtr m_file_writer{};
   FileHandle m_file_handle;
   std::mutex m_write_lock;

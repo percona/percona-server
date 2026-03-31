@@ -48,6 +48,11 @@ class FileWriterDecoratorBase : public FileWriterBase {
    */
   void write(const char *record, size_t size) noexcept override;
 
+  /**
+   * @brief Flush any pending writer state and sync the active file.
+   */
+  void sync() noexcept override;
+
  private:
   std::unique_ptr<FileWriterBase> m_file_writer;
 };

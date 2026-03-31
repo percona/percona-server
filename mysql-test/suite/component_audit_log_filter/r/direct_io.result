@@ -1,0 +1,61 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event class .* in filter");
+#
+# Verify direct_io sysvar default value
+SELECT @@global.audit_log_filter.direct_io;
+@@global.audit_log_filter.direct_io
+0
+#
+# Verify direct_io is read-only
+SET GLOBAL audit_log_filter.direct_io=ON;
+ERROR HY000: Variable 'audit_log_filter.direct_io' is a read only variable
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+#
+# Restart with direct_io=ON and SYNCHRONOUS strategy
+# restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=SYNCHRONOUS --audit-log-filter.event_mode=FULL
+SELECT @@global.audit_log_filter.direct_io;
+@@global.audit_log_filter.direct_io
+1
+SELECT @@global.audit_log_filter.strategy;
+@@global.audit_log_filter.strategy
+SYNCHRONOUS
+SET GLOBAL audit_log_filter.event_mode=FULL;
+#
+# Verify synchronous direct I/O writes reach the log immediately
+include/assert_grep.inc [synchronous direct I/O marker is in audit log]
+#
+# Restart with direct_io=ON and SEMISYNCHRONOUS strategy
+# restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=SEMISYNCHRONOUS --audit-log-filter.event_mode=FULL
+SELECT @@global.audit_log_filter.direct_io;
+@@global.audit_log_filter.direct_io
+1
+SELECT @@global.audit_log_filter.strategy;
+@@global.audit_log_filter.strategy
+SEMISYNCHRONOUS
+SET GLOBAL audit_log_filter.event_mode=FULL;
+#
+# Verify semisynchronous direct I/O writes reach the log immediately
+include/assert_grep.inc [semisynchronous direct I/O marker is in audit log]
+#
+# Restart with direct_io=ON and ASYNCHRONOUS strategy
+# restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=ASYNCHRONOUS --audit-log-filter.event_mode=FULL
+SELECT @@global.audit_log_filter.direct_io;
+@@global.audit_log_filter.direct_io
+1
+SELECT @@global.audit_log_filter.strategy;
+@@global.audit_log_filter.strategy
+ASYNCHRONOUS
+SET GLOBAL audit_log_filter.event_mode=FULL;
+#
+# Verify asynchronous direct I/O writes reach the log after rotation
+include/assert_grep.inc [asynchronous direct I/O marker is in audit log]
+#
+# Restart with original value
+# restart:
+#
+# Cleanup

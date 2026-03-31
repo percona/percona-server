@@ -1,0 +1,14 @@
+call mtr.add_suppression("Audit Log Filter synchronous strategy issued a file sync");
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+# restart: --audit_log_filter.strategy=SYNCHRONOUS --audit_log_filter.event_mode=FULL
+SET SESSION debug='+d,audit_log_filter_log_sync_call';
+SET SESSION debug='-d,audit_log_filter_log_sync_call';
+include/assert_grep.inc [sync marker appears in error log]
+#
+# Cleanup

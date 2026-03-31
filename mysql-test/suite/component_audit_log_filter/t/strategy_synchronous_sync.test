@@ -1,0 +1,32 @@
+--source include/have_debug.inc
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Audit Log Filter synchronous strategy issued a file sync");
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+SELECT audit_log_filter_set_user('%', 'log_query');
+
+--let $restart_parameters="restart: --audit_log_filter.strategy=SYNCHRONOUS --audit_log_filter.event_mode=FULL"
+--source include/restart_mysqld.inc
+
+SET SESSION debug='+d,audit_log_filter_log_sync_call';
+--disable_query_log
+--disable_result_log
+SELECT "trigger sync";
+--enable_result_log
+--enable_query_log
+SET SESSION debug='-d,audit_log_filter_log_sync_call';
+
+--let $assert_text = sync marker appears in error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Audit Log Filter synchronous strategy issued a file sync
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

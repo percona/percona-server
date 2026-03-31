@@ -221,18 +221,20 @@ void LogWriterFile::write(const std::string &record,
 
 void LogWriterFile::do_write(const std::string &record,
                              bool print_separator) noexcept {
-  size_t written_size = 0;
+  std::string payload;
   if (print_separator && !m_is_log_empty) {
     const auto separator = get_formatter()->get_record_separator();
-    m_file_writer->write(separator.c_str(), separator.length());
-    written_size += separator.length();
+    payload.reserve(separator.length() + record.length());
+    payload.append(separator);
+  } else {
+    payload.reserve(record.length());
   }
+  payload.append(record);
 
-  m_file_writer->write(record.c_str(), record.length());
-  written_size += record.length();
+  m_file_writer->write(payload.c_str(), payload.length());
 
-  SysVars::update_current_log_size(written_size);
-  SysVars::update_total_log_size(written_size);
+  SysVars::update_current_log_size(payload.length());
+  SysVars::update_total_log_size(payload.length());
 
   if (m_is_log_empty) {
     m_is_log_empty = false;

@@ -53,6 +53,11 @@ class FileWriterCompressing final : public FileWriterDecoratorBase {
    */
   void write(const char *record, size_t size) noexcept override;
 
+  /**
+   * @brief Flush compressed output and sync the active file.
+   */
+  void sync() noexcept override;
+
  private:
   void do_deflate() noexcept;
 

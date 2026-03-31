@@ -22,7 +22,7 @@ namespace audit_log_filter::log_writer {
 
 class FileWriter : public FileWriterBase {
  public:
-  explicit FileWriter(FileHandle &file_handle, bool sync_on_write);
+  explicit FileWriter(FileHandle &file_handle);
 
   /**
    * @brief Prepare writer for work with newly opened log file.
@@ -45,9 +45,13 @@ class FileWriter : public FileWriterBase {
    */
   void write(const char *record, size_t size) noexcept override;
 
+  /**
+   * @brief Flush any pending writer state and sync the active file.
+   */
+  void sync() noexcept override;
+
  private:
   FileHandle &m_file_handle;
-  const bool m_sync_on_write;
 };
 
 }  // namespace audit_log_filter::log_writer

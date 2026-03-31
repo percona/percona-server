@@ -58,6 +58,14 @@ void FileWriterCompressing::write(const char *record, size_t size) noexcept {
   do_deflate();
 }
 
+void FileWriterCompressing::sync() noexcept {
+  m_strm.avail_in = 0;
+  m_strm.next_in = nullptr;
+  m_flush = Z_SYNC_FLUSH;
+  do_deflate();
+  FileWriterDecoratorBase::sync();
+}
+
 void FileWriterCompressing::do_deflate() noexcept {
   do {
     m_strm.avail_out = COMPRESSION_CHUNK;

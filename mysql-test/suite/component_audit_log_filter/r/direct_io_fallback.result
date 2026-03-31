@@ -1,0 +1,35 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event class .* in filter");
+call mtr.add_suppression("Audit Log Filter: O_DIRECT write failed, falling back to buffered I/O");
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}');
+audit_log_filter_set_filter('log_query', '{"filter": {"class": {"name": "query"}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_query');
+audit_log_filter_set_user('%', 'log_query')
+OK
+#
+# Restart with direct_io=ON and SEMISYNCHRONOUS strategy
+# restart: --audit-log-filter.direct_io=ON --audit-log-filter.strategy=SEMISYNCHRONOUS --audit-log-filter.event_mode=FULL
+SELECT @@global.audit_log_filter.direct_io;
+@@global.audit_log_filter.direct_io
+1
+SELECT @@global.audit_log_filter.strategy;
+@@global.audit_log_filter.strategy
+SEMISYNCHRONOUS
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SET SESSION debug='+d,audit_log_filter_direct_flush_fail_once';
+SET SESSION debug='-d,audit_log_filter_direct_flush_fail_once';
+#
+# Verify the event that triggered fallback was preserved
+include/assert_grep.inc [fallback marker one is in audit log]
+#
+# Verify later events continue after fallback
+include/assert_grep.inc [fallback marker two is in audit log]
+#
+# Verify direct I/O fallback warning was emitted
+include/assert_grep.inc [direct I/O fallback warning appears in error log]
+#
+# Restart with original value
+# restart:
+#
+# Cleanup

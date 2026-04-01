@@ -48,6 +48,8 @@ using PruneFilesList = std::vector<PruneFileInfo>;
 
 class FileHandle {
  public:
+  ~FileHandle() noexcept;
+
   /**
    * @brief Open file.
    *
@@ -185,13 +187,15 @@ class FileHandle {
     void operator()(char *p) const noexcept { std::free(p); }
   };
 
+  void write_file_no_lock(const char *record, size_t size) noexcept;
   void write_file_direct(const char *record, size_t size) noexcept;
   void flush_direct() noexcept;
   bool fallback_to_buffered_io(uint64_t offset, size_t buf_used) noexcept;
 
   File m_file{-1};
   std::filesystem::path m_path;
-  mysql_mutex_t m_lock;
+  mutable mysql_mutex_t m_lock;
+  bool m_lock_initialized{false};
 
   bool m_direct_io{false};
   bool m_flush_on_write{false};

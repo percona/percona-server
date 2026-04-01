@@ -52,10 +52,10 @@ std::vector<unsigned char> Jwk::base64url_decode(const std::string &input) {
   std::ranges::replace(s, '-', '+');
   std::ranges::replace(s, '_', '/');
 
-  std::vector<unsigned char> output((s.size() / 4) * 3);
+  std::vector<unsigned char> output(s.size());
   const int len = EVP_DecodeBlock(
       output.data(), reinterpret_cast<const unsigned char *>(s.data()),
-      s.size());
+      output.size());
   if (len < 0) throw std::runtime_error("Base64 decode failed");
   output.resize(len - (pad == 0 ? 0 : 4 - pad));
   return output;
@@ -64,11 +64,11 @@ std::vector<unsigned char> Jwk::base64url_decode(const std::string &input) {
 OSSL_PARAM *Rsa_jwk::construct_param() {
   if (n.empty() || e.empty()) throw std::runtime_error("RSA requires n and e");
 
-  auto n_bytes = base64url_decode(n);
-  auto e_bytes = base64url_decode(e);
-  Raii<BIGNUM, nullptr, BN_free> bn_n(
+  const auto n_bytes = base64url_decode(n);
+  const auto e_bytes = base64url_decode(e);
+  const Raii<BIGNUM, nullptr, BN_free> bn_n(
       BN_bin2bn(n_bytes.data(), n_bytes.size(), nullptr));
-  Raii<BIGNUM, nullptr, BN_free> bn_e(
+  const Raii<BIGNUM, nullptr, BN_free> bn_e(
       BN_bin2bn(e_bytes.data(), e_bytes.size(), nullptr));
 
   // BN for RSA
@@ -86,15 +86,7 @@ OSSL_PARAM *Ec_jwk::construct_param() {
   if (crv.empty() || x.empty() || y.empty())
     throw std::runtime_error("EC requires crv, x, y");
 
-  std::string curve_name;
-  auto crv_bytes = base64url_decode(crv);
-  if (crv_bytes == base64url_decode("P-256"))
-    curve_name = "P-256";  // Bez OSSL_CURVE_P_256
-  else if (crv_bytes == base64url_decode("P-384"))
-    curve_name = "P-384";
-  else if (crv_bytes == base64url_decode("P-521"))
-    curve_name = "P-521";
-  else
+  if (crv != "P-256" && crv != "P-384" && crv != "P-521")
     throw std::runtime_error("Unsupported EC curve: " + crv);
 
   auto x_bytes = base64url_decode(x);
@@ -108,7 +100,7 @@ OSSL_PARAM *Ec_jwk::construct_param() {
   const Raii<OSSL_PARAM_BLD, OSSL_PARAM_BLD_new, OSSL_PARAM_BLD_free> param_bld;
   if ((OSSL_PARAM_BLD_push_utf8_string(param_bld.get(),
                                        OSSL_PKEY_PARAM_GROUP_NAME,
-                                       curve_name.c_str(), 0) == 0) ||
+                                       crv.c_str(), 0) == 0) ||
       (OSSL_PARAM_BLD_push_octet_string(
            param_bld.get(), OSSL_PKEY_PARAM_PUB_KEY, pub_key_octet.data(),
            pub_key_octet.size()) == 0))
@@ -133,7 +125,7 @@ std::string Jwk::to_pem() {
              [](EVP_PKEY_CTX *ctx) { EVP_PKEY_CTX_free(ctx); }>
       ctx(EVP_PKEY_CTX_new_from_name(nullptr, kty.c_str(), nullptr));
 
-  Raii<EVP_PKEY, nullptr, EVP_PKEY_free> pkey(
+  const Raii<EVP_PKEY, nullptr, EVP_PKEY_free> pkey(
       pkey_from_ctx(ctx.get(), param.get()));
   const Raii<BIO, []() { return BIO_new(BIO_s_mem()); },
              [](BIO *bio) { BIO_free(bio); }>

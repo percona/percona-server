@@ -16,15 +16,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
 #include "id_token.h"
-#include <_string.h>
 #include <jwt-cpp/jwt.h>
 #include <jwt-cpp/traits/kazuho-picojson/defaults.h>
 #include <jwt-cpp/traits/kazuho-picojson/traits.h>
-#include <mysql/plugin_auth.h>
 #include <mysql/plugin_auth_common.h>
 #include <cassert>
-#include <cstdint>
-#include <exception>
 #include <stdexcept>
 #include <string>
 #include "config.h"
@@ -77,7 +73,7 @@ bool Id_token::read(MYSQL_PLUGIN_VIO *vio) {
 
   // 1. field: capability
   // ensure the packet is long enough to hold the field
-  if (len_to_parse < 1) {
+  if (len_to_parse <= 1 || pos == nullptr) {
     error = "malformed packet";
     return true;
   }
@@ -93,9 +89,9 @@ bool Id_token::read(MYSQL_PLUGIN_VIO *vio) {
     return true;
   }
   // get token length and move pos to the 3. field: the token
-  uint64_t token_len = net_field_length_ll(&pos);
+  const uint64_t token_len = net_field_length_ll(&pos);
   // check if the token length is correct
-  if (token_len > static_cast<uint64_t>(len_to_parse)) {
+  if (token_len > static_cast<uint64_t>(len_to_parse) || token_len < 1) {
     error = "malformed packet";
     return true;
   }
@@ -106,13 +102,13 @@ bool Id_token::read(MYSQL_PLUGIN_VIO *vio) {
 void Id_token::verify(const std::string &ext_user, const std::string &idp_name,
             const Idp_config *idp, std::string &roles) const {
   assert(idp != nullptr);
-  auto decoded_token = jwt::decode(token);
+  const auto decoded_token = jwt::decode(token);
 
   const std::string &pub_key{
       decoded_token.has_key_id()
           ? idp->get_pub_key(decoded_token.get_key_id())
           : idp->get_pub_key()};
-  auto verifier =
+  const auto verifier =
       get_verifier(decoded_token.get_header_claim("alg").as_string(), pub_key)
           .with_claim("iss", jwt::claim(idp_name))
           .with_claim("sub", jwt::claim(ext_user));
@@ -125,8 +121,8 @@ void Id_token::verify(const std::string &ext_user, const std::string &idp_name,
     throw std::runtime_error("invalid audience");
 
   // groups and roles mapping -optional
-  const std::string &group_claim_name{idp->get_group_claim()};
-  if (!group_claim_name.empty() &&
+  if (const std::string &group_claim_name{idp->get_group_claim()};
+      !group_claim_name.empty() &&
       decoded_token.has_payload_claim(group_claim_name))
     map_groups_to_roles(idp,
         decoded_token.get_payload_claim(group_claim_name), roles);

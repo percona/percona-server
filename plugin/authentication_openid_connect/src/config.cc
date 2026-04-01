@@ -21,12 +21,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <mysqld_error.h>
 #include <picojson/picojson.h>
 
-#include <algorithm>
+//#include <algorithm>
 #include <exception>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <map>
 
 #include "jwk.h"
 #include "mysql/my_loglevel.h"
@@ -35,9 +36,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 const Idp_configs *Idp_configs::config(nullptr);
 char *Idp_configs::sysvar(nullptr);
 
+// Declaration to access the name of the SYS_VAR
+struct SYS_VAR {
+  MYSQL_PLUGIN_VAR_HEADER;
+};
+
 template <typename T>
 static const T &json_get(const picojson::object &obj, const std::string &key,
-                         const std::string &from, bool is_mandatory = true) {
+                         const std::string &from,
+                         const bool is_mandatory = true) {
   const auto it = obj.find(key);
   if (it == obj.end() || !it->second.is<T>()) {
     static const T def;
@@ -52,20 +59,23 @@ int Idp_configs::check(MYSQL_THD thd [[maybe_unused]],
                        SYS_VAR *var [[maybe_unused]], void *save,
                        st_mysql_value *value) {
   int value_len(0);
-  Idp_configs *new_config(
+  const Idp_configs *new_config(
       Idp_configs::parse_var(value->val_str(value, nullptr, &value_len)));
   if (new_config == nullptr) return 1;
+  // need to pass Idp_config* via void* save to retrieve it in update()
   *static_cast<const Idp_configs **>(save) = new_config;
   // TODO what if sth fails between check and update? -> avoid memory leak
   return 0;
 }
 
 void Idp_configs::update(MYSQL_THD thd [[maybe_unused]],
-                         SYS_VAR *var [[maybe_unused]],
-                         void *var_ptr, const void *save) {
+                         SYS_VAR *var [[maybe_unused]], void *var_ptr,
+                         const void *save) {
   const Idp_configs *prev_config(config);
-  Idp_configs::config = *static_cast<Idp_configs *const *>(save);
-  *static_cast<const char **>(var_ptr) = Idp_configs::config->config_var.c_str();
+  // passed as void* from check()
+  config = *static_cast<Idp_configs *const *>(save);
+  *static_cast<const char **>(var_ptr) =
+      config->config_var.c_str();
   if (prev_config != nullptr) {
     delete prev_config;
   }
@@ -122,10 +132,11 @@ void Idp_configs::parse_json(const std::string &config_json) {
     }
 
     std::unordered_set<std::string> audiences{};
-    const picojson::array &audience_array{ json_get<picojson::array>(idp_object, "audiences", idp_name, false)};
-     for (const auto& audience : audience_array) {
-       audiences.insert(audience.get<std::string>());
-     }
+    const picojson::array &audience_array{
+        json_get<picojson::array>(idp_object, "audiences", idp_name, false)};
+    for (const auto &audience : audience_array) {
+      audiences.insert(audience.get<std::string>());
+    }
 
     const std::string &group_claim{
         json_get<std::string>(idp_object, "group-claim", idp_name, false)};
@@ -133,20 +144,19 @@ void Idp_configs::parse_json(const std::string &config_json) {
     std::map<std::string, std::string> roles;
 
     const picojson::array &roles_array{
-      json_get<picojson::array>(idp_object, "group-role", idp_name)};
-    for (const auto& group_role : roles_array) {
-
+        json_get<picojson::array>(idp_object, "group-role", idp_name)};
+    for (const auto &group_role : roles_array) {
       if (!group_role.is<picojson::object>())
         throw std::runtime_error("incorrect group role mapping in " + idp_name);
-      const auto& group_role_pair{group_role.get<picojson::object>().begin()};
+      const auto &group_role_object{group_role.get<picojson::object>()};
+      const auto &group_role_pair{group_role_object.begin()};
 
-      if (group_role_pair == group_role.get<picojson::object>().end())
-        throw std::runtime_error("incorrect group role mapping in " + idp_name);
-      if (group_role_pair == group_role.get<picojson::object>().end()
-          || !group_role_pair->second.is<std::string>())
+      if (group_role_pair == group_role_object.end() ||
+          !group_role_pair->second.is<std::string>())
         throw std::runtime_error("incorrect group role mapping in " + idp_name);
 
-      roles.emplace(group_role_pair->first, group_role_pair->second.get<std::string>());
+      roles.emplace(group_role_pair->first,
+                    group_role_pair->second.get<std::string>());
     }
     idp_configs.emplace(idp_name,
                         Idp_config(jwks_uri, group_claim, std::move(pub_keys),
@@ -185,7 +195,7 @@ std::string read_from_file(const std::string &path) {
     throw std::runtime_error("cannot open config file: " + path);
   }
 
-  auto size = file.tellg();
+  const auto size = file.tellg();
   if (size < 0) {
     throw std::runtime_error("cannot determine size of config file: " + path);
   }
@@ -199,14 +209,14 @@ std::string read_from_file(const std::string &path) {
   return content;
 }
 
-Idp_configs *Idp_configs::parse_var(const std::string &config_var) {
+Idp_configs *Idp_configs::parse_var(const std::string &config_var) noexcept {
   // nothing changed
   if (config_var == sysvar) return nullptr;
 
   try {
     if (config_var.size() < prefix_len)
       throw std::runtime_error("invalid prefix");
-    std::string prefix = config_var.substr(0, prefix_len);
+    const std::string prefix = config_var.substr(0, prefix_len);
     std::string config_json;
     switch (parse_prefix(prefix)) {
       case 'F':

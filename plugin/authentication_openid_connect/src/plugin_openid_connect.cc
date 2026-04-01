@@ -15,7 +15,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 */
 
-#include <_string.h>
 #include <mysql/components/service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin_auth.h>
@@ -23,7 +22,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <mysqld_error.h>
 
 #include <cassert>
-#include <cstdint>
 #include <exception>
 #include <map>
 #include <stdexcept>
@@ -35,7 +33,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include "mysql/my_loglevel.h"
 #include "mysql/plugin.h"
 #include "mysql/service_thd_alloc.h"
-#include "mysql_com.h"
 
 SERVICE_TYPE(registry) * reg_srv(nullptr);
 SERVICE_TYPE(log_builtins) * log_bi(nullptr);
@@ -67,7 +64,7 @@ class User_auth_data {
     const std::string auth(info->auth_string_length > 0 ? info->auth_string
                                                         : "");
 
-    if (std::string parse_error = picojson::parse(auth_json, auth);
+    if (const std::string parse_error = picojson::parse(auth_json, auth);
         !parse_error.empty()) {
       error = "invalid IDENTIFIED AS : " + parse_error;
       return true;
@@ -86,9 +83,8 @@ class User_auth_data {
   }
 };
 
-
 static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
-                                  MYSQL_SERVER_AUTH_INFO *info) {
+                                  MYSQL_SERVER_AUTH_INFO *info) noexcept {
   assert(vio);
   assert(info);
 
@@ -125,8 +121,8 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
 
     std::string roles;
     token.verify(auth_data.get_ext_user(), idp_name, idp, roles);
-    size_t role_buf_size{std::size(info->external_roles)};
-    if (!roles.empty() && roles.size() < role_buf_size)
+    if (size_t role_buf_size{std::size(info->external_roles)};
+        !roles.empty() && roles.size() + 1 < role_buf_size)
       strncpy(info->external_roles, roles.c_str(), role_buf_size);
     else
       LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -145,7 +141,8 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
 }
 
 static int auth_oidc_generate_hash(char *outbuf, unsigned int *buflen,
-                                   const char *inbuf, unsigned int inbuflen) {
+                                   const char *inbuf,
+                                   unsigned int inbuflen) noexcept {
   /*
     fail if the buffer specified by the server cannot be copied to the output
     buffer
@@ -156,14 +153,14 @@ static int auth_oidc_generate_hash(char *outbuf, unsigned int *buflen,
   return 0; /* success */
 }
 
-static int auth_oidc_validate_hash(char *const, unsigned int) {
+static int auth_oidc_validate_hash(char *const, unsigned int) noexcept {
   return 0; /* success */
 }
 
-static int auth_oidc_set_salt(const char *password __attribute__((unused)),
-                              unsigned int password_len __attribute__((unused)),
-                              unsigned char *salt __attribute__((unused)),
-                              unsigned char *salt_len) {
+static int auth_oidc_set_salt(const char *password [[maybe_unused]],
+                              unsigned int password_len [[maybe_unused]],
+                              unsigned char *salt [[maybe_unused]],
+                              unsigned char *salt_len) noexcept {
   *salt_len = 0;
   return 0; /* success */
 }
@@ -202,3 +199,6 @@ mysql_declare_plugin(authentication_openid_connect){
     nullptr,
     0,
 } mysql_declare_plugin_end;
+
+
+

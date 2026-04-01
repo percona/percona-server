@@ -23,7 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
-#include <vector>
 
 #include "mysql/components/services/bits/system_variables_bits.h"
 #include "mysql/plugin.h"
@@ -64,8 +63,8 @@ class Idp_config {
     return audiences.empty() || audiences.contains(audience);
   }
   const std::string &get_role(const std::string &group) const noexcept {
-    static constexpr std::string no_role;
-    auto it = roles.find(group);
+    static std::string no_role;
+    const auto it = roles.find(group);
     return it == roles.end() ? no_role : it->second;
   }
 };
@@ -84,10 +83,10 @@ class Idp_configs {
 
  public:
   static char *sysvar;
-  static Idp_configs *parse_var(const std::string &config_var);
-  static const Idp_config *get_item(const std::string &idp_name) {
+  static Idp_configs *parse_var(const std::string &config_var) noexcept;
+  static const Idp_config *get_item(const std::string &idp_name) noexcept {
     if (config == nullptr) return nullptr;
-    auto it = config->idp_configs.find(idp_name);
+    const auto it = config->idp_configs.find(idp_name);
     if (it == config->idp_configs.end()) return nullptr;
     return &(it->second);
   }

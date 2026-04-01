@@ -12,19 +12,23 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
 #include "id_token.h"
+
+#include <cassert>
+#include <mysql_com.h>
+
+#include <stdexcept>
+#include <string>
+
 #include <jwt-cpp/jwt.h>
 #include <jwt-cpp/traits/kazuho-picojson/defaults.h>
 #include <jwt-cpp/traits/kazuho-picojson/traits.h>
 #include <mysql/plugin_auth_common.h>
-#include <cassert>
-#include <stdexcept>
-#include <string>
+
 #include "config.h"
-#include "mysql_com.h"
 
 auto Id_token::get_verifier(const std::string &name, const std::string &key) {
   if (name == "RS256")

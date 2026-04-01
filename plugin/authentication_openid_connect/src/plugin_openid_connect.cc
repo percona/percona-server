@@ -12,53 +12,75 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
+#include <cassert>
+
+#include <exception>
+#include <map>
+#include <string>
+
 #include <mysql/components/service.h>
+#include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/my_loglevel.h>
+#include <mysql/plugin.h>
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_auth_common.h>
 #include <mysqld_error.h>
 
-#include <cassert>
-#include <exception>
-#include <map>
-#include <stdexcept>
-#include <string>
-
 #include "config.h"
 #include "id_token.h"
-#include "mysql/components/services/bits/system_variables_bits.h"
-#include "mysql/my_loglevel.h"
-#include "mysql/plugin.h"
-#include "mysql/service_thd_alloc.h"
 
 SERVICE_TYPE(registry) * reg_srv(nullptr);
 SERVICE_TYPE(log_builtins) * log_bi(nullptr);
 SERVICE_TYPE(log_builtins_string) * log_bs(nullptr);
 
+/**
+ * @brief Initializes the OpenID Connect authentication plugin.
+ * @param plugin_info Pointer to the plugin information.
+ * @return 0 for success, 1 for error.
+ */
 static int auth_oidc_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
   return 0;
 }
 
+/**
+ * @brief Deinitializes the OpenID Connect authentication plugin.
+ * @param plugin_info Pointer to the plugin information.
+ * @return 0 for success.
+ */
 static int auth_oidc_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }
 
+/**
+ * @class User_auth_data
+ * @brief Holds user-specific authentication data extracted from the 'IDENTIFIED AS' clause.
+ */
 class User_auth_data {
  private:
-  std::string idp;
-  std::string ext_user;
-  std::string error;
+  std::string idp;      ///< Name of the identity provider.
+  std::string ext_user; ///< External username (subject) in the IDP.
+  std::string error;    ///< Error message if initialization fails.
 
  public:
+  /** @return The IDP name. */
   const std::string &get_idp() const { return idp; }
+  /** @return The external username. */
   const std::string &get_ext_user() const { return ext_user; }
+  /** @return The error message. */
   const char *get_error() const { return error.c_str(); }
+
+  /**
+   * @brief Initializes the User_auth_data from the MySQL auth info.
+   * @param info Pointer to the MYSQL_SERVER_AUTH_INFO structure.
+   * @return true if an error occurred, false otherwise.
+   */
   bool init(const MYSQL_SERVER_AUTH_INFO *info) {
     picojson::value auth_json;
     const std::string auth(info->auth_string_length > 0 ? info->auth_string
@@ -83,6 +105,12 @@ class User_auth_data {
   }
 };
 
+/**
+ * @brief The main authentication function for the OpenID Connect plugin.
+ * @param vio The VIO (Virtual I/O) object for communication with the client.
+ * @param info The server authentication information.
+ * @return CR_OK, CR_ERROR, or other MySQL authentication status codes.
+ */
 static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
                                   MYSQL_SERVER_AUTH_INFO *info) noexcept {
   assert(vio);
@@ -199,6 +227,4 @@ mysql_declare_plugin(authentication_openid_connect){
     nullptr,
     0,
 } mysql_declare_plugin_end;
-
-
 

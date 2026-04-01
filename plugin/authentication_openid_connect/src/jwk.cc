@@ -12,7 +12,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
 #include "jwk.h"
@@ -24,26 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <openssl/param_build.h>
 #include <openssl/params.h>
 #include <openssl/pem.h>
-
-template <typename T, T *(*alloc)(), void (*dealloc)(T *)>
-class Raii {
- private:
-  T *ptr;
-
- public:
-  Raii() : ptr(alloc()) {
-    if (ptr == nullptr) throw std::bad_alloc();
-  }
-  explicit Raii(T *ptr) : ptr(ptr) {}
-
-  ~Raii() {
-    if (ptr) dealloc(ptr);
-  }
-
-  T *get() const noexcept { return ptr; }
-  T &operator*() const noexcept { return *ptr; }
-  T *operator->() const noexcept { return ptr; }
-};
+#include <memory>
 
 std::vector<unsigned char> Jwk::base64url_decode(const std::string &input) {
   std::string s = input;
@@ -66,13 +47,14 @@ OSSL_PARAM *Rsa_jwk::construct_param() {
 
   const auto n_bytes = base64url_decode(n);
   const auto e_bytes = base64url_decode(e);
-  const Raii<BIGNUM, nullptr, BN_free> bn_n(
-      BN_bin2bn(n_bytes.data(), n_bytes.size(), nullptr));
-  const Raii<BIGNUM, nullptr, BN_free> bn_e(
-      BN_bin2bn(e_bytes.data(), e_bytes.size(), nullptr));
+  const std::unique_ptr<BIGNUM, decltype(&BN_free)> bn_n(
+      BN_bin2bn(n_bytes.data(), n_bytes.size(), nullptr), BN_free);
+  const std::unique_ptr<BIGNUM, decltype(&BN_free)> bn_e(
+      BN_bin2bn(e_bytes.data(), e_bytes.size(), nullptr), BN_free);
 
   // BN for RSA
-  const Raii<OSSL_PARAM_BLD, OSSL_PARAM_BLD_new, OSSL_PARAM_BLD_free> param_bld;
+  const std::unique_ptr<OSSL_PARAM_BLD, decltype(&OSSL_PARAM_BLD_free)>
+      param_bld(OSSL_PARAM_BLD_new(), OSSL_PARAM_BLD_free);
   if ((OSSL_PARAM_BLD_push_BN(param_bld.get(), OSSL_PKEY_PARAM_RSA_N,
                               bn_n.get()) == 0) ||
       (OSSL_PARAM_BLD_push_BN(param_bld.get(), OSSL_PKEY_PARAM_RSA_E,
@@ -97,10 +79,10 @@ OSSL_PARAM *Ec_jwk::construct_param() {
   pub_key_octet.insert(pub_key_octet.end(), x_bytes.begin(), x_bytes.end());
   pub_key_octet.insert(pub_key_octet.end(), y_bytes.begin(), y_bytes.end());
 
-  const Raii<OSSL_PARAM_BLD, OSSL_PARAM_BLD_new, OSSL_PARAM_BLD_free> param_bld;
-  if ((OSSL_PARAM_BLD_push_utf8_string(param_bld.get(),
-                                       OSSL_PKEY_PARAM_GROUP_NAME,
-                                       crv.c_str(), 0) == 0) ||
+  const std::unique_ptr<OSSL_PARAM_BLD, decltype(&OSSL_PARAM_BLD_free)>
+      param_bld(OSSL_PARAM_BLD_new(), OSSL_PARAM_BLD_free);
+  if ((OSSL_PARAM_BLD_push_utf8_string(
+           param_bld.get(), OSSL_PKEY_PARAM_GROUP_NAME, crv.c_str(), 0) == 0) ||
       (OSSL_PARAM_BLD_push_octet_string(
            param_bld.get(), OSSL_PKEY_PARAM_PUB_KEY, pub_key_octet.data(),
            pub_key_octet.size()) == 0))
@@ -119,17 +101,16 @@ inline EVP_PKEY *pkey_from_ctx(EVP_PKEY_CTX *ctx, OSSL_PARAM *params) {
 }
 
 std::string Jwk::to_pem() {
-  const Raii<OSSL_PARAM, nullptr, OSSL_PARAM_free> param(construct_param());
+  const std::unique_ptr<OSSL_PARAM, decltype(&OSSL_PARAM_free)> param(
+      construct_param(), OSSL_PARAM_free);
 
-  const Raii<EVP_PKEY_CTX, nullptr,
-             [](EVP_PKEY_CTX *ctx) { EVP_PKEY_CTX_free(ctx); }>
-      ctx(EVP_PKEY_CTX_new_from_name(nullptr, kty.c_str(), nullptr));
-
-  const Raii<EVP_PKEY, nullptr, EVP_PKEY_free> pkey(
-      pkey_from_ctx(ctx.get(), param.get()));
-  const Raii<BIO, []() { return BIO_new(BIO_s_mem()); },
-             [](BIO *bio) { BIO_free(bio); }>
-      bio;
+  const std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)> ctx(
+      EVP_PKEY_CTX_new_from_name(nullptr, kty.c_str(), nullptr),
+      EVP_PKEY_CTX_free);
+  const std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> pkey(
+      pkey_from_ctx(ctx.get(), param.get()), EVP_PKEY_free);
+  const std::unique_ptr<BIO, decltype(&BIO_free)> bio(BIO_new(BIO_s_mem()),
+                                                      BIO_free);
   std::string pem;
 
   if (PEM_write_bio_PUBKEY(bio.get(), pkey.get()) == 0)

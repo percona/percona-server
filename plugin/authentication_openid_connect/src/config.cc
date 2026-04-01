@@ -12,26 +12,24 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
 #include "config.h"
 
-#include <mysql/components/services/log_builtins.h>
-#include <mysqld_error.h>
-#include <picojson/picojson.h>
-
-//#include <algorithm>
 #include <exception>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <map>
+
+#include <mysql/components/services/log_builtins.h>
+#include <mysql/my_loglevel.h>
+#include <mysql/service_thd_alloc.h>
+#include <mysqld_error.h>
+#include <picojson/picojson.h>
 
 #include "jwk.h"
-#include "mysql/my_loglevel.h"
-#include "mysql/service_thd_alloc.h"
 
 const Idp_configs *Idp_configs::config(nullptr);
 char *Idp_configs::sysvar(nullptr);

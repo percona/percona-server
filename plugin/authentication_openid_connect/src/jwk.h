@@ -12,8 +12,9 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
+
 #ifndef MYSQL_JWK_H
 #define MYSQL_JWK_H
 
@@ -21,48 +22,99 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <vector>
 #include <openssl/bn.h>
 
+/**
+ * @class Jwk
+ * @brief Base class for representing a JSON Web Key.
+ */
 class Jwk {
  protected:
-  std::string alg{};
-  std::string use{};
-  std::string kid{};
-  std::string kty{};
+  std::string alg{}; ///< Algorithm used for the key.
+  std::string use{}; ///< Intended use of the key.
+  std::string kid{}; ///< Key ID.
+  std::string kty{}; ///< Key Type (e.g., "RSA", "EC").
+
+  /**
+   * @brief Constructs OpenSSL OSSL_PARAM for the key.
+   * @return A pointer to an array of OSSL_PARAM objects.
+   */
   virtual OSSL_PARAM *construct_param() = 0;
 
  public:
+  /**
+   * @brief Constructs a Jwk object with a given key type.
+   * @param kty The key type string.
+   */
   explicit Jwk(const char *kty) : kty(kty) {}
   Jwk() = delete;
   virtual ~Jwk() = default;
+
+  /**
+   * @brief Converts the JWK to PEM format.
+   * @return The PEM-encoded public key.
+   */
   std::string to_pem();
+
+  /**
+   * @brief Decodes a base64url-encoded string.
+   * @param input The base64url string to decode.
+   * @return A vector containing the decoded bytes.
+   */
   static std::vector<unsigned char> base64url_decode(const std::string &input);
 };
 
+/**
+ * @class Rsa_jwk
+ * @brief Represents an RSA public key in JWK format.
+ */
 class Rsa_jwk : public Jwk {
  private:
-  std::string n{};
-  std::string e{};
+  std::string n{}; ///< Modulus.
+  std::string e{}; ///< Public exponent.
 
  protected:
+  /**
+   * @brief Constructs OpenSSL OSSL_PARAM for the RSA key.
+   * @return A pointer to an array of OSSL_PARAM objects.
+   */
   OSSL_PARAM *construct_param() override;
 
  public:
   Rsa_jwk() = delete;
+  /**
+   * @brief Constructs an Rsa_jwk object.
+   * @param n The RSA modulus in base64url format.
+   * @param e The RSA public exponent in base64url format.
+   */
   Rsa_jwk(std::string n, std::string e)
       : Jwk("RSA"), n(std::move(n)), e(std::move(e)) {}
 };
 
+/**
+ * @class Ec_jwk
+ * @brief Represents an Elliptic Curve (EC) public key in JWK format.
+ */
 class Ec_jwk : public Jwk {
  private:
-  std::string crv{};
-  std::string x{};
-  std::string y{};
+  std::string crv{}; ///< Curve type (e.g., "P-256").
+  std::string x{};   ///< X coordinate.
+  std::string y{};   ///< Y coordinate.
 
  protected:
+  /**
+   * @brief Constructs OpenSSL OSSL_PARAM for the EC key.
+   * @return A pointer to an array of OSSL_PARAM objects.
+   */
   OSSL_PARAM *construct_param() override;
 
  public:
   Ec_jwk() = delete;
 
+  /**
+   * @brief Constructs an Ec_jwk object.
+   * @param crv The curve name.
+   * @param x The X coordinate in base64url format.
+   * @param y The Y coordinate in base64url format.
+   */
   Ec_jwk(std::string crv, std::string x, std::string y)
       : Jwk("EC"), crv(std::move(crv)), x(std::move(x)), y(std::move(y)) {}
 };

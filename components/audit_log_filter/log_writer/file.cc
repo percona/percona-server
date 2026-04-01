@@ -190,7 +190,7 @@ bool LogWriterFile::do_open_file() noexcept {
                                      SysVars::get_file_name(), total_size)) {
     SysVars::set_total_log_size(total_size);
   }
-  SysVars::set_current_log_size(get_log_size());
+  SysVars::set_current_log_size(do_get_log_size());
 
   init_formatter();
 
@@ -250,13 +250,18 @@ void LogWriterFile::do_write(const std::string &record,
   const auto file_size_limit = SysVars::get_rotate_on_size();
 
   if (file_size_limit > 0 && !m_is_rotating &&
-      file_size_limit < get_log_size()) {
+      file_size_limit < do_get_log_size()) {
     do_rotate(nullptr);
-    prune();
+    do_prune();
   }
 }
 
 uint64_t LogWriterFile::get_log_size() const noexcept {
+  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  return do_get_log_size();
+}
+
+uint64_t LogWriterFile::do_get_log_size() const noexcept {
   return m_file_handle.get_file_size();
 }
 
@@ -291,6 +296,11 @@ void LogWriterFile::do_rotate(FileRotationResult *result) noexcept {
 }
 
 void LogWriterFile::prune() noexcept {
+  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  do_prune();
+}
+
+void LogWriterFile::do_prune() noexcept {
   const auto log_max_size = SysVars::get_log_max_size();
   const auto prune_seconds = SysVars::get_log_prune_seconds();
 
@@ -304,7 +314,7 @@ void LogWriterFile::prune() noexcept {
     ulonglong current_logs_size = std::accumulate(
         log_file_list.begin(), log_file_list.end(), ulonglong{0},
         [](const ulonglong &a, const PruneFileInfo &b) { return a + b.size; });
-    current_logs_size += get_log_size();
+    current_logs_size += do_get_log_size();
 
     if (current_logs_size < log_max_size) {
       return;

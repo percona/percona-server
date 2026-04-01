@@ -62,6 +62,8 @@ SET SESSION innodb_interpreter = @cmd;
 SET SESSION innodb_interpreter = 'corrupt_ondisk_page0 test/t1';
 SET SESSION innodb_interpreter = 'destroy';
 
+SET GLOBAL innodb_log_flush_now = ON;
+
 --source include/kill_and_restart_mysqld.inc
 
 SET SESSION innodb_interpreter = 'init';

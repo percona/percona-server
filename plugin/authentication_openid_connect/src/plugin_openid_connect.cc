@@ -19,7 +19,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include <exception>
 #include <map>
+#include <cstring>
 #include <string>
+#include <stddef.h>
 
 #include <mysql/components/service.h>
 #include <mysql/components/services/bits/system_variables_bits.h>
@@ -29,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_auth_common.h>
 #include <mysqld_error.h>
+#include <jwt-cpp/traits/kazuho-picojson/traits.h>
 
 #include "config.h"
 #include "id_token.h"
@@ -201,7 +204,7 @@ static MYSQL_SYSVAR_STR(configuration, Idp_configs::sysvar, PLUGIN_VAR_OPCMDARG,
 static SYS_VAR *authentication_openid_connect_sysvars[] = {
     MYSQL_SYSVAR(configuration), nullptr};
 
-struct st_mysql_auth auth_oidc_info = {
+st_mysql_auth auth_oidc_info = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,  // int interface_version
     "authentication_openid_connect_client",  // const char *client_auth_plugin
     auth_oidc_authenticate,                  // authentication function

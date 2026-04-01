@@ -129,12 +129,27 @@ class Idp_configs {
       : config_var(config_var) {
     parse_json(config_json);
   }
+  static constexpr size_t prefix_len{sizeof("FILE://") - 1};
 
   /**
    * @brief Parses the JSON configuration string.
    * @param config_json The JSON string containing IDP configurations.
    */
   void parse_json(const std::string &config_json);
+
+  /**
+   * @brief Parses the prefix of the configuration system variable.
+   * @param prefix The prefix.
+   * @return F: if the prefix is FILE, J: if the prefix is JSON, else throws an exception.
+   */
+  static char parse_prefix(const std::string &prefix);
+
+  /**
+   * @brief Reads the configuration from a file.
+   * @param path The path to the configuration file.
+   * @return The content of the file as a string.
+   */
+  static std::string read_from_file(const std::string &path);
 
  public:
   static char *sysvar; ///< Pointer to the system variable storage.

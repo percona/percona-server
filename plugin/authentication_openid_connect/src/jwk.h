@@ -18,20 +18,30 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #ifndef MYSQL_JWK_H
 #define MYSQL_JWK_H
 
+#include <openssl/bn.h>
 #include <string>
 #include <vector>
-#include <openssl/bn.h>
 
 /**
  * @class Jwk
  * @brief Base class for representing a JSON Web Key.
  */
 class Jwk {
+ private:
+  /**
+   * @brief Creates an EVP_PKEY object from the given OSSL_PARAM array.
+   * @param ctx The EVP_PKEY_CTX to use for key creation.
+   * @param params The OSSL_PARAM array containing key parameters.
+   * @return A pointer to the created EVP_PKEY object.
+   * @throws std::runtime_error if key creation fails.
+   */
+  EVP_PKEY *pkey_from_ctx(EVP_PKEY_CTX *ctx, OSSL_PARAM *params);
+
  protected:
-  std::string alg{}; ///< Algorithm used for the key.
-  std::string use{}; ///< Intended use of the key.
-  std::string kid{}; ///< Key ID.
-  std::string kty{}; ///< Key Type (e.g., "RSA", "EC").
+  std::string alg{};  ///< Algorithm used for the key.
+  std::string use{};  ///< Intended use of the key.
+  std::string kid{};  ///< Key ID.
+  std::string kty{};  ///< Key Type (e.g., "RSA", "EC").
 
   /**
    * @brief Constructs OpenSSL OSSL_PARAM for the key.
@@ -68,8 +78,8 @@ class Jwk {
  */
 class Rsa_jwk : public Jwk {
  private:
-  std::string n{}; ///< Modulus.
-  std::string e{}; ///< Public exponent.
+  std::string n{};  ///< Modulus.
+  std::string e{};  ///< Public exponent.
 
  protected:
   /**
@@ -95,9 +105,9 @@ class Rsa_jwk : public Jwk {
  */
 class Ec_jwk : public Jwk {
  private:
-  std::string crv{}; ///< Curve type (e.g., "P-256").
-  std::string x{};   ///< X coordinate.
-  std::string y{};   ///< Y coordinate.
+  std::string crv{};  ///< Curve type (e.g., "P-256").
+  std::string x{};    ///< X coordinate.
+  std::string y{};    ///< Y coordinate.
 
  protected:
   /**
@@ -119,4 +129,4 @@ class Ec_jwk : public Jwk {
       : Jwk("EC"), crv(std::move(crv)), x(std::move(x)), y(std::move(y)) {}
 };
 
-#endif //MYSQL_JWK_H
+#endif  // MYSQL_JWK_H

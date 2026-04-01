@@ -17,14 +17,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "config.h"
 
+#include <ctype.h>
+#include <stddef.h>
 #include <exception>
 #include <fstream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_set>
+#include <utility>
 
+#include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/my_loglevel.h>
+#include <mysql/plugin.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysqld_error.h>
 #include <picojson/picojson.h>
@@ -58,7 +65,7 @@ int Idp_configs::check(MYSQL_THD thd [[maybe_unused]],
                        st_mysql_value *value) {
   int value_len(0);
   const Idp_configs *new_config(
-      Idp_configs::parse_var(value->val_str(value, nullptr, &value_len)));
+      parse_var(value->val_str(value, nullptr, &value_len)));
   if (new_config == nullptr) return 1;
   // need to pass Idp_config* via void* save to retrieve it in update()
   *static_cast<const Idp_configs **>(save) = new_config;
@@ -72,8 +79,7 @@ void Idp_configs::update(MYSQL_THD thd [[maybe_unused]],
   const Idp_configs *prev_config(config);
   // passed as void* from check()
   config = *static_cast<Idp_configs *const *>(save);
-  *static_cast<const char **>(var_ptr) =
-      config->config_var.c_str();
+  *static_cast<const char **>(var_ptr) = config->config_var.c_str();
   if (prev_config != nullptr) {
     delete prev_config;
   }
@@ -162,11 +168,10 @@ void Idp_configs::parse_json(const std::string &config_json) {
   }
 }
 
-static constexpr size_t prefix_len{sizeof("FILE://") - 1};
-
-char parse_prefix(const std::string &prefix) {
+char Idp_configs::parse_prefix(const std::string &prefix) {
   static constexpr std::string_view file_prefix{"FILE://"};
   static constexpr std::string_view json_prefix{"JSON://"};
+  static_assert(prefix_len > 0);
 
   if (prefix.size() != prefix_len) return 0;
 
@@ -187,7 +192,7 @@ char parse_prefix(const std::string &prefix) {
   return 0;
 }
 
-std::string read_from_file(const std::string &path) {
+std::string Idp_configs::read_from_file(const std::string &path) {
   std::ifstream file(path, std::ios::binary | std::ios::ate);
   if (!file) {
     throw std::runtime_error("cannot open config file: " + path);

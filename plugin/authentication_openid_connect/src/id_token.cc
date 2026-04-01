@@ -18,8 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include "id_token.h"
 
 #include <cassert>
-#include <mysql_com.h>
-
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -27,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <jwt-cpp/traits/kazuho-picojson/defaults.h>
 #include <jwt-cpp/traits/kazuho-picojson/traits.h>
 #include <mysql/plugin_auth_common.h>
+#include <mysql_com.h>
 
 #include "config.h"
 

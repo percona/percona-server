@@ -84,6 +84,22 @@ bool for_each_directory_entry(const std::string &working_dir_name,
 
   return true;
 }
+
+class FileHandleLockGuard {
+ public:
+  explicit FileHandleLockGuard(mysql_mutex_t *lock) noexcept : m_lock{lock} {
+    mysql_mutex_lock(m_lock);
+  }
+
+  ~FileHandleLockGuard() {
+    if (m_lock != nullptr) {
+      mysql_mutex_unlock(m_lock);
+    }
+  }
+
+ private:
+  mysql_mutex_t *m_lock;
+};
 }
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -97,8 +113,14 @@ static PSI_mutex_info mutex_list[] = {
 
 namespace audit_log_filter::log_writer {
 
-bool FileHandle::open_file(const std::filesystem::path &file_path, bool direct_io,
-                           bool flush_on_write) noexcept {
+FileHandle::~FileHandle() noexcept {
+  if (m_lock_initialized) {
+    mysql_mutex_destroy(&m_lock);
+  }
+}
+
+bool FileHandle::open_file(const std::filesystem::path &file_path,
+                           bool direct_io, bool flush_on_write) noexcept {
   assert(m_file < 0 && m_path.empty());
   m_path = std::move(file_path);
   m_flush_on_write = false;
@@ -191,12 +213,16 @@ bool FileHandle::open_file(const std::filesystem::path &file_path, bool direct_i
     return false;
   }
 
+  if (!m_lock_initialized) {
 #ifdef HAVE_PSI_INTERFACE
-  mysql_mutex_register(AUDIT_LOG_FILTER_PSI_CATEGORY, mutex_list,
-                       array_elements(mutex_list));
+    mysql_mutex_register(AUDIT_LOG_FILTER_PSI_CATEGORY, mutex_list,
+                         array_elements(mutex_list));
 #endif /* HAVE_PSI_INTERFACE */
 
-  mysql_mutex_init(key_LOCK_audit_filter_service, &m_lock, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_LOCK_audit_filter_service, &m_lock,
+                     MY_MUTEX_INIT_FAST);
+    m_lock_initialized = true;
+  }
 
   return true;
 }
@@ -219,8 +245,6 @@ bool FileHandle::close_file() noexcept {
   m_file = -1;
   m_path.clear();
 
-  mysql_mutex_destroy(&m_lock);
-
   return close_result == 0;
 }
 
@@ -229,7 +253,16 @@ void FileHandle::write_file(const std::string &record) noexcept {
 }
 
 void FileHandle::write_file(const char *record, const size_t size) noexcept {
-  assert(m_file >= 0);
+  FileHandleLockGuard lock_guard{&m_lock};
+  write_file_no_lock(record, size);
+}
+
+void FileHandle::write_file_no_lock(const char *record,
+                                    const size_t size) noexcept {
+  if (m_file < 0) {
+    return;
+  }
+
   if (m_direct_io) {
     write_file_direct(record, size);
     return;
@@ -239,7 +272,11 @@ void FileHandle::write_file(const char *record, const size_t size) noexcept {
 }
 
 uint64_t FileHandle::get_file_size() const noexcept {
-  assert(m_file >= 0);
+  FileHandleLockGuard lock_guard{&m_lock};
+  if (m_file < 0) {
+    return 0;
+  }
+
   if (m_direct_io) {
     return m_file_offset.load(std::memory_order_relaxed) +
            m_dio_buf_used.load(std::memory_order_relaxed);
@@ -249,19 +286,30 @@ uint64_t FileHandle::get_file_size() const noexcept {
 }
 
 std::filesystem::path FileHandle::get_file_path() const noexcept {
-  assert(m_file >= 0);
+  FileHandleLockGuard lock_guard{&m_lock};
+  if (m_file < 0) {
+    return {};
+  }
+
   return m_path;
 }
 
 void FileHandle::flush() noexcept {
-  assert(m_file >= 0);
+  FileHandleLockGuard lock_guard{&m_lock};
+  if (m_file < 0) {
+    return;
+  }
+
   if (m_direct_io) {
     flush_direct();
   }
 }
 
 void FileHandle::sync() noexcept {
-  assert(m_file >= 0);
+  FileHandleLockGuard lock_guard{&m_lock};
+  if (m_file < 0) {
+    return;
+  }
 
   if (m_direct_io) {
     flush_direct();
@@ -304,7 +352,7 @@ void FileHandle::write_file_direct(const char *record,
           kDirectIOBlockSize, static_cast<my_off_t>(offset), MYF(MY_NABP));
       if (result == MY_FILE_ERROR) {
         if (fallback_to_buffered_io(offset, buf_used) && remaining > 0) {
-          write_file(ptr, remaining);
+          write_file_no_lock(ptr, remaining);
         }
         return;
       }

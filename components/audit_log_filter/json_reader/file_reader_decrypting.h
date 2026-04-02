@@ -43,6 +43,7 @@ class FileReaderDecrypting final : public FileReaderDecoratorBase {
   std::unique_ptr<unsigned char[]> m_iv;
   std::unique_ptr<unsigned char[]> m_in_buff;
   const size_t m_in_buf_size;
+  bool m_is_rotated = false;
 };
 
 }  // namespace audit_log_filter::json_reader

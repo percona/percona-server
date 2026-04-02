@@ -2,6 +2,13 @@
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
 
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+
+# remove old rotated log files
+--remove_files_wildcard $audit_filter_log_path audit_filter.????????T??????*.log
+
+--let $log_event_regex = /"timestamp": "[^"]*?"/"timestamp": <hidden>/ /"id": \d*/"id": <hidden>/ /"connection_id": \d*/"connection_id": <hidden>/ /"startup_data": \{[^\}]*?\}/"startup_data": <hidden>/ /"connection_attributes": \{[^\}]*?\}/"connection_attributes": <hidden>/
+
 --echo #
 --echo # Check wrong argument number
 --error ER_CANT_INITIALIZE_UDF
@@ -33,7 +40,9 @@ SELECT audit_log_read('{"start": {"timestamp": "not a timestamp"}}');
 SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10 10 00"}}');
 --error ER_UDF_ERROR
 SELECT audit_log_read('{"start": {"timestamp": "2022-08-09T10:10:00"}}');
+--replace_regex $log_event_regex
 SELECT audit_log_read('{"start": {"timestamp": " 2022-08-09  "}}');
+--replace_regex $log_event_regex
 SELECT audit_log_read('{"start": {"timestamp": "  2022-08-09 10:10:00 "}}');
 
 --error ER_UDF_ERROR
@@ -51,6 +60,7 @@ SELECT audit_log_read('{"timestamp": "  2022-08-09 10:10:00 ", "id": 0}');
 
 --echo #
 --echo # Find records by a start timestamp
+--replace_regex $log_event_regex
 SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}');
 SELECT audit_log_read('null');
 

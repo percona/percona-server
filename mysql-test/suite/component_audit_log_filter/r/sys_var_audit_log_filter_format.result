@@ -7,10 +7,6 @@ JSONL
 SELECT @@global.audit_log_filter.format;
 @@global.audit_log_filter.format
 NEW
-# restart: --audit-log-filter.format=OLD
-SELECT @@global.audit_log_filter.format;
-@@global.audit_log_filter.format
-OLD
 # restart: --audit-log-filter.format=JSON
 SELECT @@global.audit_log_filter.format;
 @@global.audit_log_filter.format

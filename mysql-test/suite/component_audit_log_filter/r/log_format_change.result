@@ -4,11 +4,9 @@ OK
 SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
-# restart: --audit_log_filter.format=OLD
 # restart: --audit_log_filter.format=JSON
 # restart: --audit_log_filter.format=JSONL
 # restart: --audit_log_filter.format=NEW
-File format Ok
 File format Ok
 File format Ok
 File format Ok

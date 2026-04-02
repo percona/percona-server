@@ -26,15 +26,17 @@ SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10 10 00"}}');
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
 SELECT audit_log_read('{"start": {"timestamp": "2022-08-09T10:10:00"}}');
 ERROR HY000: audit_log_read UDF failed; Wrong JSON argument, bad timestamp format
-SELECT audit_log_read('{"start": {"timestamp": " 2022-08-09  "}}');
-audit_log_read('{"start": {"timestamp": " 2022-08-09  "}}')
+SELECT audit_log_read('{"start": {"timestamp": <hidden>}}');
+audit_log_read('{"start": {"timestamp": <hidden>}}')
 [
+{"timestamp": <hidden>, "id": <hidden>, "class": "audit", "event": "startup", "connection_id": <hidden>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "startup_data": <hidden>},
 null
 ]
 
-SELECT audit_log_read('{"start": {"timestamp": "  2022-08-09 10:10:00 "}}');
-audit_log_read('{"start": {"timestamp": "  2022-08-09 10:10:00 "}}')
+SELECT audit_log_read('{"start": {"timestamp": <hidden>}}');
+audit_log_read('{"start": {"timestamp": <hidden>}}')
 [
+{"timestamp": <hidden>, "id": <hidden>, "class": "audit", "event": "startup", "connection_id": <hidden>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "startup_data": <hidden>},
 null
 ]
 
@@ -62,9 +64,10 @@ null
 
 #
 # Find records by a start timestamp
-SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}');
-audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}}')
+SELECT audit_log_read('{"start": {"timestamp": <hidden>}}');
+audit_log_read('{"start": {"timestamp": <hidden>}}')
 [
+{"timestamp": <hidden>, "id": <hidden>, "class": "audit", "event": "startup", "connection_id": <hidden>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "startup_data": <hidden>},
 null
 ]
 

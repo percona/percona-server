@@ -252,8 +252,7 @@ TYPE_LIB audit_log_filter_event_mode_typelib = {
     "audit_log_filter_event_mode_typelib", audit_log_filter_event_mode_names,
     nullptr};
 
-const char *audit_log_filter_format_names[] = {"NEW", "OLD", "JSON", "JSONL",
-                                               nullptr};
+const char *audit_log_filter_format_names[] = {"NEW", "JSONL", "JSON", nullptr};
 TYPE_LIB audit_log_filter_format_typelib = {
     array_elements(audit_log_filter_format_names) - 1,
     "audit_log_filter_format_typelib", audit_log_filter_format_names, nullptr};
@@ -511,10 +510,9 @@ SysVarListType sys_vars = {
      false},
     /*
      * The audit_log_filter.format variable is used to specify the audit filter
-     * log format. The audit log filter plugin supports four log formats:
-     * OLD, NEW, JSON and JSONL. OLD and NEW formats are based on XML, where
-     * the former outputs log record properties as XML attributes and the latter
-     * as XML tags.
+     * log format. The audit log filter plugin supports three log formats:
+     * NEW, JSON and JSONL. NEW uses XML tags, JSON writes a JSON array and
+     * JSONL writes newline-delimited JSON records.
      */
     {{"format", PLUGIN_VAR_ENUM | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
       "The audit log file format.", nullptr, nullptr,

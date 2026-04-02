@@ -256,11 +256,19 @@ void AuditJsonHandler::clear_current_event() {
 
 bool AuditJsonHandler::check_reading_start_reached() {
   if (!m_reading_start_reached) {
-    m_reading_start_reached = m_reader_context->next_event_bookmark.timestamp ==
-                                  m_current_event_bookmark.timestamp &&
-                              (m_reader_context->next_event_bookmark.id == 0 ||
-                               m_reader_context->next_event_bookmark.id ==
-                                   m_current_event_bookmark.id);
+    switch (m_reader_context->batch_reader_args->command) {
+      case AuditLogReaderArgs::Command::ReadFromBookmark:
+        m_reading_start_reached =
+            m_reader_context->next_event_bookmark == m_current_event_bookmark;
+        break;
+      case AuditLogReaderArgs::Command::ReadFromTimestamp:
+        m_reading_start_reached =
+            m_reader_context->next_event_bookmark.timestamp <=
+            m_current_event_bookmark.timestamp;
+        break;
+      default:
+        assert(false);
+    }
   }
 
   return m_reading_start_reached;

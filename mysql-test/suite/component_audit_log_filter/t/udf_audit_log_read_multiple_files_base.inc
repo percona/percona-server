@@ -61,15 +61,15 @@ SELECT audit_log_read(@file2_start_bookmark);
 SELECT audit_log_read('null');
 
 --echo #
---echo # Read all from two rotated logs by chunks ("max_array_length": 2)
-SET @file2_start_with_limit_bookmark := JSON_SET(@file2_start_bookmark, '$.max_array_length', 2);
+--echo # Read all from two rotated logs by chunks ("max_array_length": 3)
+SET @file2_start_with_limit_bookmark := JSON_SET(@file2_start_bookmark, '$.max_array_length', 3);
 SELECT @file2_start_with_limit_bookmark;
 --replace_regex /"connection_id": \d*/"connection_id": <id>/
 SELECT audit_log_read(@file2_start_with_limit_bookmark);
 --replace_regex /"connection_id": \d*/"connection_id": <id>/
-SELECT audit_log_read('{"max_array_length": 2}');
+SELECT audit_log_read('{"max_array_length": 3}');
 --replace_regex /"connection_id": \d*/"connection_id": <id>/
-SELECT audit_log_read('{"max_array_length": 2}');
+SELECT audit_log_read('{"max_array_length": 3}');
 SELECT audit_log_read('null');
 
 --echo #

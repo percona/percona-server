@@ -50,6 +50,10 @@ enum class AuditLogEventModeType { Reduced = 0, Full = 1 };
 struct LogBookmark {
   uint64_t id;
   std::string timestamp;
+
+  friend bool operator==(const LogBookmark &lhs, const LogBookmark &rhs) {
+    return lhs.id == rhs.id && lhs.timestamp == rhs.timestamp;
+  }
 };
 
 class SysVars {

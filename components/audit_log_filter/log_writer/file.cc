@@ -228,6 +228,7 @@ void LogWriterFile::write(const std::string &record,
 
 void LogWriterFile::do_write(const std::string &record,
                              bool print_separator) noexcept {
+  size_t written_size = 0;
   std::string payload;
   if (print_separator && !m_is_log_empty) {
     const auto separator = get_formatter()->get_record_separator();
@@ -239,9 +240,12 @@ void LogWriterFile::do_write(const std::string &record,
   payload.append(record);
 
   m_file_writer->write(payload.c_str(), payload.length());
+  written_size += payload.length();
 
-  SysVars::update_current_log_size(payload.length());
-  SysVars::update_total_log_size(payload.length());
+  written_size += write_padding();
+
+  SysVars::update_current_log_size(written_size);
+  SysVars::update_total_log_size(written_size);
 
   if (m_is_log_empty) {
     m_is_log_empty = false;
@@ -258,6 +262,54 @@ void LogWriterFile::do_write(const std::string &record,
     do_rotate(nullptr);
     do_prune();
   }
+}
+
+size_t LogWriterFile::write_padding() {
+  // This function writes whitespace padding after each logged event when
+  // log file encryption is enabled.
+  // This is necessary in order to make newly logged events be immediately
+  // available for reading by AuditLogReader. Padding pushes internal buffer of
+  // encryption context over the threshold after which EVP_EncryptUpdate is
+  // guaranteed to produce complete encrypted log event.
+
+  size_t written_size = 0;
+
+  // We add padding only for formats supported by audit log reader.
+  // Currently, it's only JSON and JSONL.
+  if (SysVars::get_format_type() != AuditLogFormatType::Json &&
+      SysVars::get_format_type() != AuditLogFormatType::Jsonl) {
+    return written_size;
+  }
+
+  // Padding is only needed for logs encrypted with certain block ciphers.
+  if (SysVars::get_encryption_type() != AuditLogEncryptionType::Aes) {
+    return written_size;
+  }
+
+  auto write_spaces = [&](size_t count) {
+    static constexpr char padding[] = "                                ";
+    m_file_writer->write(padding, count);
+    written_size += count;
+  };
+
+  switch (SysVars::get_compression_type()) {
+    case AuditLogCompressionType::None:
+      // Write two AES 256 CBC blocks worth of spaces.
+      write_spaces(2 * 16);
+      break;
+    case AuditLogCompressionType::Gzip:
+      // Writes need to be done in separate chunks, each producing its own
+      // gzip block. Otherwise, all spaces would get compressed.
+      // Five such chunks are enough to produce needed padding.
+      for (int chunk = 0; chunk < 5; ++chunk) {
+        write_spaces(2);
+      }
+      break;
+    default:
+      assert(false);
+  }
+
+  return written_size;
 }
 
 uint64_t LogWriterFile::get_log_size() const noexcept {

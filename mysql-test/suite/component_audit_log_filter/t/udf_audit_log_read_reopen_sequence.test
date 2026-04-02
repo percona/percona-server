@@ -1,0 +1,69 @@
+--echo #
+--echo # PS-11182: Audit log read sequence needs to be closed before a new
+--echo #           read sequence is initialized
+--echo # https://perconadev.atlassian.net/browse/PS-11182
+--echo #
+--echo # PS is running with JSON audit log format in REDUCED event mode.
+--echo #
+--echo # When a read sequence is already open (for example, started with a
+--echo # "start" timestamp), initializing a NEW read sequence with a bookmark
+--echo # ("timestamp" + "id") must implicitly close the open sequence and start
+--echo # a fresh one, exactly as documented by Oracle:
+--echo #
+--echo #   "It is unnecessary to close reading explicitly. Reading is closed
+--echo #    implicitly when the session ends or a new read sequence is
+--echo #    initialized by calling audit_log_read() with an argument that
+--echo #    indicates the position at which to begin."
+--echo #
+
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--echo #
+--echo # Set up a filter that logs table access events so that the audit log
+--echo # contains readable events.
+CREATE TABLE t1 (c1 INT);
+
+SELECT audit_log_filter_set_filter('log_inserts', '{"filter": { "class": {"name": "table_access", "event": {"name": "insert", "log": true} } } }');
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+
+--echo #
+--echo # Rotate to flush the events to a closed log file, then capture a valid
+--echo # bookmark (timestamp + id) for the events written so far.
+--let $audit_filter_rotate_name=`SELECT audit_log_rotate()`
+SET @bookmark := audit_log_read_bookmark();
+
+--echo #
+--echo # Step 1: open a read sequence using a "start" timestamp, reading only a
+--echo #         single event (max_array_length = 1) so that the read sequence
+--echo #         stays OPEN (it is not read to the end, so it is not implicitly
+--echo #         closed on session end).
+--disable_result_log
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}, "max_array_length": 1}');
+--enable_result_log
+
+--echo #
+--echo # Step 2: without explicitly closing, initialize a NEW read sequence
+--echo #         using the bookmark. This implicitly closes the sequence opened
+--echo #         in step 1 and succeeds (as it does in upstream MySQL).
+--disable_result_log
+SELECT audit_log_read(@bookmark) AS reopen_with_bookmark;
+--enable_result_log
+
+--echo #
+--echo # Close the read sequence explicitly.
+SELECT audit_log_read('null');
+
+--echo #
+--echo # Cleanup
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+
+DROP TABLE t1;

@@ -34,6 +34,72 @@
 #include <string>
 #include <vector>
 
+namespace {
+
+/**
+  SAX parser handler for audit JSON logs.
+  Saves "timestamp" field from the first encountered event, and stops parsing.
+*/
+class AuditJsonFirstTimestampHandler
+    : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
+                                          AuditJsonFirstTimestampHandler> {
+ public:
+  bool Default() {
+    m_expect_timestamp = false;
+
+    // We want to make sure the first parsed token is "open-array".
+    // If we encounter something else first, we stop parsing.
+    return m_array_open;
+  }
+
+  bool String(const char *str, rapidjson::SizeType length,
+              [[maybe_unused]] bool copy) {
+    if (m_expect_timestamp) {
+      timestamp.assign(str, length);
+      return false;
+    }
+    return Default();
+  }
+
+  bool StartObject() {
+    ++m_depth;
+    return Default();
+  }
+
+  bool Key(const char *str, rapidjson::SizeType length,
+           [[maybe_unused]] bool copy) {
+    // Depth 2 means we're in "[ { ...".
+    m_expect_timestamp =
+        m_depth == 2 && std::string_view(str, length) == "timestamp";
+    return true;
+  }
+
+  bool EndObject([[maybe_unused]] rapidjson::SizeType memberCount) {
+    --m_depth;
+    return Default();
+  }
+
+  bool StartArray() {
+    m_array_open = true;
+    ++m_depth;
+    return Default();
+  }
+
+  bool EndArray([[maybe_unused]] rapidjson::SizeType elementCount) {
+    --m_depth;
+    return Default();
+  }
+
+  std::string timestamp;
+
+ private:
+  int m_depth = 0;
+  bool m_expect_timestamp = false;
+  bool m_array_open = false;
+};
+
+}  // namespace
+
 namespace audit_log_filter {
 
 void AuditLogReader::set_files_to_read_list(
@@ -42,12 +108,14 @@ void AuditLogReader::set_files_to_read_list(
     return;
   }
 
-  std::vector<std::string> tp_list;
+  for (auto item = m_timestamp_to_file_map.cbegin();
+       item != m_timestamp_to_file_map.cend(); ++item) {
+    auto next_item = std::next(item);
+    bool is_last_item = next_item == m_timestamp_to_file_map.cend();
 
-  for (const auto &item : m_timestamp_to_file_map) {
-    if (item.second->first_timestamp >=
-        reader_context->next_event_bookmark.timestamp) {
-      auto *file_info = item.second.get();
+    if (is_last_item || reader_context->next_event_bookmark.timestamp <=
+                            next_item->second->first_timestamp) {
+      auto *file_info = item->second.get();
 
       if (file_info->is_encrypted && file_info->encryption_options == nullptr) {
         continue;
@@ -150,15 +218,8 @@ bool AuditLogReader::init() noexcept {
   }
 
   for (const auto &log_name : new_files) {
-    bool is_current_log =
-        log_name.find(log_current_file_name) != std::string::npos;
     bool is_compressed = log_name.find(".gz") != std::string::npos;
     bool is_encrypted = log_name.find(".enc") != std::string::npos;
-
-    if (is_current_log && is_encrypted) {
-      // TODO: Improve handling of currently opened encrypted log
-      continue;
-    }
 
     auto encryption_options_id =
         audit_keyring::get_options_id_for_file_name(log_name);
@@ -184,23 +245,15 @@ bool AuditLogReader::init() noexcept {
     auto json_reader_guard =
         create_scope_guard([&] { json_reader_stream->close(); });
 
-    rapidjson::Document json_doc;
-    json_doc.ParseStream(*json_reader_stream);
+    rapidjson::Reader json_reader;
+    AuditJsonFirstTimestampHandler first_timestamp_handler;
+    json_reader.Parse(*json_reader_stream, first_timestamp_handler);
 
-    if (json_doc.HasParseError() || json_doc.Empty() || !json_doc.IsArray() ||
-        json_doc.GetArray().Empty()) {
+    if (first_timestamp_handler.timestamp.empty()) {
       continue;
     }
 
-    auto *first_event = json_doc.GetArray().Begin();
-
-    if (!first_event->IsObject() || !first_event->HasMember("timestamp") ||
-        !first_event->GetObject()["timestamp"].IsString()) {
-      continue;
-    }
-
-    file_info->first_timestamp =
-        first_event->GetObject()["timestamp"].GetString();
+    file_info->first_timestamp = first_timestamp_handler.timestamp;
 
     try {
       auto ts = LogFileTimestamp(log_name);
@@ -278,6 +331,13 @@ bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept {
       reader_context->reader->IterativeParseNext<rapidjson::kParseDefaultFlags>(
           *reader_context->audit_json_read_stream,
           *reader_context->audit_json_handler);
+
+      // We don't want reading to fail because of EOF during parsing.
+      // This would break reading of currently open log file, as its
+      // top-level array isn't closed yet.
+      if (reader_context->audit_json_read_stream->check_eof_reached()) {
+        break;
+      }
 
       if (reader_context->reader->HasParseError()) {
         return false;

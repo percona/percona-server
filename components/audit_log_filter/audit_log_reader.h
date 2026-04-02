@@ -34,10 +34,17 @@
 namespace audit_log_filter {
 
 struct AuditLogReaderArgs {
+  enum class Command {
+    ContinueRead,
+    ReadFromBookmark,
+    ReadFromTimestamp,
+    CloseSeq
+  };
+
+  Command command{Command::ContinueRead};
   std::string timestamp{};
   uint64_t id{0};
   uint64_t max_array_length{0};
-  bool close_read_sequence{false};
 };
 
 struct AuditLogReaderContext {

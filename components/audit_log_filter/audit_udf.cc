@@ -875,10 +875,14 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
        * Starting position for reads defined ether by "start" tag or by a
        * bookmark consisting of a combination of "timestamp" and "id".
        * Only one of this two ways may be used at the same time.
+       *
+       * Initializing a new read sequence (via a "start" tag or a bookmark)
+       * while one is already open is allowed: the open sequence is implicitly
+       * closed and a fresh one is started, as documented by Oracle and as
+       * upstream MySQL behaves.
        */
       if ((has_timestamp_tag != has_id_tag) ||
-          (has_start_tag && has_timestamp_tag) ||
-          (reader_context != nullptr && (has_start_tag || has_timestamp_tag))) {
+          (has_start_tag && has_timestamp_tag)) {
         my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                  "Wrong argument format");
         *error = 1;
@@ -893,8 +897,8 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
           return result;
         }
 
+        reader_args->command = AuditLogReaderArgs::Command::ReadFromTimestamp;
         reader_args->timestamp = json_doc["start"]["timestamp"].GetString();
-        reader_args->id = 0;
       } else if (has_timestamp_tag) {
         if (!json_doc["timestamp"].IsString() || !json_doc["id"].IsUint64()) {
           my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
@@ -903,6 +907,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
           return result;
         }
 
+        reader_args->command = AuditLogReaderArgs::Command::ReadFromBookmark;
         reader_args->timestamp = json_doc["timestamp"].GetString();
         reader_args->id = json_doc["id"].GetUint();
       }
@@ -915,10 +920,22 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
         return result;
       }
 
+      /*
+       * "max_array_length" may be given at the top level or, for "start"
+       * reads, nested inside the "start" object (PS-11186). A top-level value
+       * takes precedence when both are present.
+       */
+      const rapidjson::Value *max_array_length_val = nullptr;
       if (json_doc.HasMember("max_array_length")) {
-        if (json_doc["max_array_length"].IsUint()) {
-          reader_args->max_array_length =
-              json_doc["max_array_length"].GetUint();
+        max_array_length_val = &json_doc["max_array_length"];
+      } else if (has_start_tag &&
+                 json_doc["start"].HasMember("max_array_length")) {
+        max_array_length_val = &json_doc["start"]["max_array_length"];
+      }
+
+      if (max_array_length_val != nullptr) {
+        if (max_array_length_val->IsUint()) {
+          reader_args->max_array_length = max_array_length_val->GetUint();
         } else {
           my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                    "Wrong JSON argument, bad max_array_length format");
@@ -927,7 +944,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
         }
       }
     } else if (json_doc.IsNull()) {
-      reader_args->close_read_sequence = true;
+      reader_args->command = AuditLogReaderArgs::Command::CloseSeq;
     } else {
       my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Wrong argument format");
       *error = 1;
@@ -940,7 +957,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
   }
 
   if (udf_args->arg_count == 1) {
-    if (reader_args->close_read_sequence) {
+    if (reader_args->command == AuditLogReaderArgs::Command::CloseSeq) {
       if (reader_context != nullptr) {
         log_reader->close_reader_session(reader_context);
         SysVars::set_log_reader_context(thd, nullptr);
@@ -954,14 +971,24 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
     bool is_new_session_request = !reader_args->timestamp.empty();
 
-    if ((reader_context == nullptr && !is_new_session_request) ||
-        (reader_context != nullptr && is_new_session_request)) {
+    if (reader_context == nullptr && !is_new_session_request) {
       my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Wrong arguments list");
       *error = 1;
       return result;
     }
 
     if (is_new_session_request) {
+      /*
+       * A new read sequence implicitly closes an already-open one before
+       * starting fresh from the requested position.
+       */
+      if (reader_context != nullptr) {
+        log_reader->close_reader_session(reader_context);
+        SysVars::set_log_reader_context(thd, nullptr);
+        delete reader_context;
+        reader_context = nullptr;
+      }
+
       reader_context = log_reader->init_reader_session(thd, reader_args.get());
 
       if (reader_context == nullptr) {

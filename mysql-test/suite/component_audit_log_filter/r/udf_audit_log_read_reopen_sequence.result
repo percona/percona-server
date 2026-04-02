@@ -1,0 +1,55 @@
+#
+# PS-11182: Audit log read sequence needs to be closed before a new
+#           read sequence is initialized
+# https://perconadev.atlassian.net/browse/PS-11182
+#
+# PS is running with JSON audit log format in REDUCED event mode.
+#
+# When a read sequence is already open (for example, started with a
+# "start" timestamp), initializing a NEW read sequence with a bookmark
+# ("timestamp" + "id") must implicitly close the open sequence and start
+# a fresh one, exactly as documented by Oracle:
+#
+#   "It is unnecessary to close reading explicitly. Reading is closed
+#    implicitly when the session ends or a new read sequence is
+#    initialized by calling audit_log_read() with an argument that
+#    indicates the position at which to begin."
+#
+#
+# Set up a filter that logs table access events so that the audit log
+# contains readable events.
+CREATE TABLE t1 (c1 INT);
+SELECT audit_log_filter_set_filter('log_inserts', '{"filter": { "class": {"name": "table_access", "event": {"name": "insert", "log": true} } } }');
+audit_log_filter_set_filter('log_inserts', '{"filter": { "class": {"name": "table_access", "event": {"name": "insert", "log": true} } } }')
+OK
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+audit_log_filter_set_user('%', 'log_inserts')
+OK
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+#
+# Rotate to flush the events to a closed log file, then capture a valid
+# bookmark (timestamp + id) for the events written so far.
+SET @bookmark := audit_log_read_bookmark();
+#
+# Step 1: open a read sequence using a "start" timestamp, reading only a
+#         single event (max_array_length = 1) so that the read sequence
+#         stays OPEN (it is not read to the end, so it is not implicitly
+#         closed on session end).
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:10:00"}, "max_array_length": 1}');
+#
+# Step 2: without explicitly closing, initialize a NEW read sequence
+#         using the bookmark. This implicitly closes the sequence opened
+#         in step 1 and succeeds (as it does in upstream MySQL).
+SELECT audit_log_read(@bookmark) AS reopen_with_bookmark;
+#
+# Close the read sequence explicitly.
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# Cleanup
+DROP TABLE t1;

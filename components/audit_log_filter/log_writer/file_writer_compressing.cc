@@ -53,7 +53,7 @@ void FileWriterCompressing::write(const char *record, size_t size) noexcept {
   m_strm.avail_in = size;
   m_strm.next_in =
       reinterpret_cast<unsigned char *>(const_cast<char *>(record));
-  m_flush = Z_NO_FLUSH;
+  m_flush = Z_SYNC_FLUSH;
 
   do_deflate();
 }

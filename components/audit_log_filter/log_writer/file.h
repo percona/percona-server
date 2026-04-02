@@ -117,6 +117,13 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
   [[nodiscard]] uint64_t do_get_log_size() const noexcept;
 
   /**
+   * @brief Write whitespace padding.
+   *
+   * @return Number of written bytes
+   */
+  size_t write_padding();
+
+  /**
    * @brief Implement actual file rotation logic.
    *
    * @param result File rotation result

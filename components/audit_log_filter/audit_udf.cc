@@ -895,8 +895,8 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
           return result;
         }
 
+        reader_args->command = AuditLogReaderArgs::Command::ReadFromTimestamp;
         reader_args->timestamp = json_doc["start"]["timestamp"].GetString();
-        reader_args->id = 0;
       } else if (has_timestamp_tag) {
         if (!json_doc["timestamp"].IsString() || !json_doc["id"].IsUint64()) {
           my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
@@ -905,6 +905,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
           return result;
         }
 
+        reader_args->command = AuditLogReaderArgs::Command::ReadFromBookmark;
         reader_args->timestamp = json_doc["timestamp"].GetString();
         reader_args->id = json_doc["id"].GetUint();
       }
@@ -929,7 +930,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
         }
       }
     } else if (json_doc.IsNull()) {
-      reader_args->close_read_sequence = true;
+      reader_args->command = AuditLogReaderArgs::Command::CloseSeq;
     } else {
       my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Wrong argument format");
       *error = 1;
@@ -942,7 +943,7 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
   }
 
   if (udf_args->arg_count == 1) {
-    if (reader_args->close_read_sequence) {
+    if (reader_args->command == AuditLogReaderArgs::Command::CloseSeq) {
       if (reader_context != nullptr) {
         log_reader->close_reader_session(reader_context);
         SysVars::set_log_reader_context(thd, nullptr);

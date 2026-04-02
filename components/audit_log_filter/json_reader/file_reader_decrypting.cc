@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "components/audit_log_filter/json_reader/file_reader_decrypting.h"
+#include "components/audit_log_filter/log_writer/file_name.h"
 
 #include "components/audit_log_filter/audit_encryption.h"
 #include "components/audit_log_filter/audit_error_log.h"
@@ -160,6 +161,8 @@ bool FileReaderDecrypting::open(FileInfo *file_info) noexcept {
     return false;
   }
 
+  m_is_rotated = log_writer::FileName::from_path(file_info->name).is_rotated();
+
   return true;
 }
 
@@ -200,7 +203,7 @@ ReadStatus FileReaderDecrypting::read(unsigned char *out_buffer,
 
   *read_size = decrypted_size;
 
-  if (status == ReadStatus::Eof) {
+  if (status == ReadStatus::Eof && m_is_rotated) {
     int final_size = 0;
 
     if (EVP_DecryptFinal(m_ctx, out_buffer + decrypted_size, &final_size) !=

@@ -41,7 +41,6 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       log_record_formatter.cc
       log_record_formatter/base.cc
       log_record_formatter/new.cc
-      log_record_formatter/old.cc
       log_record_formatter/json.cc
       log_writer.cc
       log_writer/base.cc

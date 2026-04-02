@@ -17,7 +17,6 @@
 
 #include "log_record_formatter/json.h"
 #include "log_record_formatter/new.h"
-#include "log_record_formatter/old.h"
 
 namespace audit_log_filter {
 
@@ -32,7 +31,6 @@ std::unique_ptr<LogRecordFormatterBase> get_log_record_formatter(
   static const CreateFunc
       funcs[static_cast<int>(AuditLogFormatType::FormatsCount)] = {
           create_helper<AuditLogFormatType::New>,
-          create_helper<AuditLogFormatType::Old>,
           create_helper<AuditLogFormatType::Json>,
           create_helper<AuditLogFormatType::Json>};
   return (*funcs[static_cast<int>(format_type)])();

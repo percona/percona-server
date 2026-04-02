@@ -1656,12 +1656,26 @@ int runTestMyCnf(NDBT_Context *ctx, NDBT_Step *step) {
 }
 
 int runTestSshKeySigning(NDBT_Context *ctx, NDBT_Step *step) {
-  /* Skip this test in PB2 environments, where "ssh localhost"
-     does not necessarily work.
-  */
-  if (getenv("PB2WORKDIR")) {
-    printf("Skipping test SshKeySigning\n");
-    return NDBT_OK;
+  /* Skip this test where "ssh localhost" can not be run without user
+   * interaction. */
+  {
+    NdbProcess::Args args;
+    auto exe = "ssh";
+    args.add("-q");
+    args.add("-oBatchMode=yes");
+    args.add("localhost");
+    args.add("exit");
+    auto proc = NdbProcess::create(
+        "Probe if `ssh localhost` need user interaction", exe, nullptr, args);
+    int ret;
+    bool r = proc->wait(ret, 1000);
+    if (!r) proc->stop();
+    if (r && ret == 255) {
+      printf(
+          "Skipping test SshKeySigning since `ssh localhost` may need user "
+          "interaction.\n");
+      return NDBT_SKIPPED;
+    }
   }
 
   NDBT_Workingdir wd("test_mgmd");  // temporary working directory

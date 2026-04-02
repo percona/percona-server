@@ -1249,8 +1249,8 @@ int NDBT_TestSuite::report(const char *_tcname) {
   if (numTestsFail > 0 || numTestsExecuted == 0) {
     result = NDBT_FAILED;
   } else {
-    if (numTestsSkipped > 0) {
-      /* Any skipped tests summarise run to 'skipped' */
+    if (numTestsOk == 0 && numTestsSkipped > 0) {
+      /* Any skipped tests and no ok summarise run to 'skipped' */
       result = NDBT_SKIPPED;
     } else {
       result = NDBT_OK;
@@ -1301,8 +1301,8 @@ int NDBT_TestSuite::reportAllTables(const char *_testname) {
     if (numTestsFail > 0) {
       result = NDBT_FAILED;
     } else {
-      if (numTestsSkipped > 0) {
-        /* Any skipped tests summarise run to 'skipped' */
+      if (numTestsOk == 0 && numTestsSkipped > 0) {
+        /* Any skipped tests and no ok summarise run to 'skipped' */
         result = NDBT_SKIPPED;
       } else {
         result = NDBT_OK;

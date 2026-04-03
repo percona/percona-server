@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 class Idp_config {
  private:
+  std::string issuer_name{}; ///< The token's issuer name.
   std::string jwks_uri{}; ///< URI for the JSON Web Key Set.
   std::string group_claim{}; ///< Name of the claim in the JWT that contains group information.
   // map kid -> key in PEM format
@@ -45,23 +46,29 @@ class Idp_config {
 
   /**
    * @brief Constructs an Idp_config object.
+   * @param issuer_name The token's issuer name.
    * @param jwks_uri The JWKS URI.
    * @param group_claim The group claim name.
    * @param pub_keys A map of public keys.
    * @param audiences A set of allowed audiences.
    * @param roles A map of group-to-role mappings.
    */
-  Idp_config(const std::string &jwks_uri, const std::string &group_claim,
+  Idp_config(const std::string &issuer_name, const std::string &jwks_uri, const std::string &group_claim,
            std::map<std::string, std::string> &&pub_keys,
            std::unordered_set<std::string> &&audiences,
            std::map<std::string, std::string> &&roles)
-    : jwks_uri(jwks_uri),
+    : issuer_name(issuer_name),
+      jwks_uri(jwks_uri),
       group_claim(group_claim),
       pub_keys(std::move(pub_keys)),
       audiences(std::move(audiences)),
       roles(std::move(roles)) {}
 
-
+  /**
+   * @brief Gets the issuer name.
+   * @return The issuer name string.
+   */
+  const std::string &get_issuer_name() const noexcept { return issuer_name; }
   /**
    * @brief Gets the JWKS URI.
    * @return The JWKS URI string.

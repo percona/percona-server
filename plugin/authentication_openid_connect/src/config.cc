@@ -100,6 +100,8 @@ void Idp_configs::parse_json(const std::string &config_json) {
       throw std::runtime_error("incorrect IdP definition of " + idp_name);
     const picojson::object &idp_object = idp_value.get<picojson::object>();
 
+    const std::string &issuer_name{
+        json_get<std::string>(idp_object, "issuer-name", idp_name)};
     const std::string &jwks_uri{
         json_get<std::string>(idp_object, "jwks-uri", idp_name)};
 
@@ -162,9 +164,10 @@ void Idp_configs::parse_json(const std::string &config_json) {
       roles.emplace(group_role_pair->first,
                     group_role_pair->second.get<std::string>());
     }
-    idp_configs.emplace(idp_name,
-                        Idp_config(jwks_uri, group_claim, std::move(pub_keys),
-                                   std::move(audiences), std::move(roles)));
+    idp_configs.emplace(
+        idp_name,
+        Idp_config(issuer_name, jwks_uri, group_claim, std::move(pub_keys),
+                   std::move(audiences), std::move(roles)));
   }
 }
 

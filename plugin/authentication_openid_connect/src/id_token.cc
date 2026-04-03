@@ -114,7 +114,7 @@ void Id_token::verify(const std::string &ext_user, const std::string &idp_name,
           : idp->get_pub_key()};
   const auto verifier =
       get_verifier(decoded_token.get_header_claim("alg").as_string(), pub_key)
-          .with_claim("iss", jwt::claim(idp_name))
+          .with_claim("iss", jwt::claim(idp->get_issuer_name()))
           .with_claim("sub", jwt::claim(ext_user));
   // Not explicit here, but verifier verifies the token not expired
   verifier.verify(decoded_token);

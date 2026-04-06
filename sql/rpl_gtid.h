@@ -2745,6 +2745,14 @@ class Owned_gtids {
   */
   bool is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const;
 
+  /**
+    Returns true iff the given GTID is owned by exactly the given thread ID.
+
+    Unlike is_owned_by(), this does not treat thd_id==0 as a special
+    "unowned" query.
+  */
+  bool has_owner(const Gtid &gtid, const my_thread_id thd_id) const;
+
  private:
   /// Represents one owned GTID.
   struct Node {

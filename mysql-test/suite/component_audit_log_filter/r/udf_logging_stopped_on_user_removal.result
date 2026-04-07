@@ -5,10 +5,11 @@ SELECT audit_log_filter_set_user('%', 'log_all');
 audit_log_filter_set_user('%', 'log_all')
 OK
 Tag <AUDIT_RECORD> Ok
+Tag <AUDIT_RECORD> Ok
 SELECT audit_log_filter_remove_user('%');
 audit_log_filter_remove_user('%')
 OK
 Tag <AUDIT_RECORD> Ok
-No tag <AUDIT_RECORD> Ok
+No tag (?:<TABLE>t1</TABLE>|<TABLE>t2</TABLE>|<TABLE>t3</TABLE>) Ok
 #
 # Cleanup

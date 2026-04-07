@@ -27,8 +27,10 @@ SET GLOBAL DEBUG='+d,audit_log_filter_rotate_after_audit_rules_flush';
 --echo #
 --echo # Log 'general' events only
 SELECT audit_log_filter_set_user('%', 'log_general');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>
@@ -37,8 +39,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'connection' events only
 SELECT audit_log_filter_set_user('%', 'log_connection');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>connection</EVENT_CLASS_NAME>
@@ -47,8 +51,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'table_access' events only
 SELECT audit_log_filter_set_user('%', 'log_table_access');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>
@@ -57,8 +63,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'global_variable' events only
 SELECT audit_log_filter_set_user('%', 'log_global_variable');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>global_variable</EVENT_CLASS_NAME>
@@ -67,8 +75,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'command' events only
 SELECT audit_log_filter_set_user('%', 'log_command');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>command</EVENT_CLASS_NAME>
@@ -77,8 +87,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'query' events only
 SELECT audit_log_filter_set_user('%', 'log_query');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>
@@ -87,8 +99,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'stored_program' events only
 SELECT audit_log_filter_set_user('%', 'log_stored_program');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>stored_program</EVENT_CLASS_NAME>
@@ -97,8 +111,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'authentication' events only
 SELECT audit_log_filter_set_user('%', 'log_authentication');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>authentication</EVENT_CLASS_NAME>
@@ -107,8 +123,10 @@ connect(default, localhost, root, , test);
 --echo #
 --echo # Log 'message' events only
 SELECT audit_log_filter_set_user('%', 'log_message');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>message</EVENT_CLASS_NAME>
@@ -118,8 +136,10 @@ connect(default, localhost, root, , test);
 --echo # Enable logging multiple classes with one rule
 SELECT audit_log_filter_set_filter('log_classes_list_1', '{"filter": {"class": [{"name": "general"}, {"name": "connection"}]}}');
 SELECT audit_log_filter_set_user('%', 'log_classes_list_1');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME>
@@ -129,8 +149,10 @@ connect(default, localhost, root, , test);
 --echo # Another way to enable logging multiple classes with one rule
 SELECT audit_log_filter_set_filter('log_classes_list_2', '{"filter": {"class": [{"name": ["general", "connection"]}]}}');
 SELECT audit_log_filter_set_user('%', 'log_classes_list_2');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag=<EVENT_CLASS_NAME>(?:general|connection)</EVENT_CLASS_NAME>

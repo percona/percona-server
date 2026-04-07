@@ -1302,6 +1302,8 @@ retry_page_get:
     offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
 
+    ut_ad_le(rec_offs_size(offsets), node_ptr_max_size);
+
     /* If the rec is the first or last in the page for
     pessimistic delete intention, it might cause node_ptr insert
     for the upper level. We should change the intention and retry.

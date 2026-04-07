@@ -38,8 +38,10 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_users_access', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_users_access');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 
 SELECT * FROM user_list;
@@ -74,8 +76,10 @@ let $filter = {
 
 eval SELECT audit_log_filter_set_filter('log_users_access_case_sensitive', '$filter');
 SELECT audit_log_filter_set_user('%', 'log_users_access_case_sensitive');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 
 SELECT * FROM user_list;

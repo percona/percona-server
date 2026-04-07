@@ -212,7 +212,6 @@ static SYS_VAR *authentication_openid_connect_sysvars[] = {
     MYSQL_SYSVAR(configuration), nullptr};
 
 /**
- * @struct st_mysql_auth auth_oidc_info
  * @brief MySQL authentication plugin interface for OpenID Connect.
  *
  * Defines the plugin interface including authentication, hashing, and

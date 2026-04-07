@@ -18,7 +18,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include <curl/curl.h>
 
+#include <memory>
 #include <stdexcept>
+#include <string>
 
 #include "jwk.h"
 
@@ -45,16 +47,32 @@ std::string Jwks::http_get(const std::string &url) {
   curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &response);
   curl_easy_setopt(curl.get(), CURLOPT_USERAGENT, "Jwst/1.0");
   curl_easy_setopt(curl.get(), CURLOPT_NOPROGRESS, 1L);
+  curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT, 30L);
+  curl_easy_setopt(curl.get(), CURLOPT_MAXREDIRS, 5L);
+  curl_easy_setopt(curl.get(), CURLOPT_BUFFERSIZE, 102400L);  // Max 100K
 
-  const CURLcode rc = curl_easy_perform(curl.get());
-  if (rc != CURLE_OK) {
+  // SECURITY: the constructor ensures the URL starts with HTTP or HTTPS.
+  // HTTP case: no security verification is done, assume
+  // the administrator deliberately uses unsafe config (e.g. for testing).
+  // HTTPS case: the JWKS endpoint must use a valid certificate.
+  if (url.find("https://") == 0) {
+    curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYHOST, 2L);
+  }
+  CURLcode curl_code = curl_easy_perform(curl.get());
+  if (curl_code != CURLE_OK) {
     const std::string msg = std::string("JWST: HTTP GET from ") + url +
-                            " failed: " + curl_easy_strerror(rc);
+                            " failed: " + curl_easy_strerror(curl_code);
     throw std::runtime_error(msg);
   }
 
   long http_code = 0;
-  curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &http_code);
+  curl_code = curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &http_code);
+  if (curl_code != CURLE_OK) {
+    const std::string msg = std::string("JWST: CURL get info from ") + url +
+                            "failed: " + curl_easy_strerror(curl_code);
+    throw std::runtime_error(msg);
+  }
 
   if (http_code < 200 || http_code >= 300) {
     throw std::runtime_error("JWST: unexpected HTTP status from " + url + ": " +

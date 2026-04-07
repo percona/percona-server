@@ -134,8 +134,7 @@ long long Idp_configs::update_keys() noexcept {
 long long Idp_configs::update_keys(const char *idp_name) noexcept {
   try {
     Idp_config *config = get_item(idp_name);
-    if (config == nullptr)
-      return -1;
+    if (config == nullptr) return -1;
     if (!config->is_using_jwks()) return 0;
     config->update_keys();
   } catch (std::exception &e) {
@@ -194,16 +193,18 @@ void Idp_configs::parse_json(const std::string &config_json) {
     const std::string &jwks_url{
         json_get<std::string>(idp_object, "jwks-url", idp_name, false)};
 
+    Idp_config &config{
+        idp_configs
+            .emplace(idp_name,
+                     Idp_config(issuer_name, jwks_url, group_claim,
+                                std::move(audiences), std::move(roles)))
+            .first->second};
+
     if (jwks_url.empty()) {
       const picojson::array &key_array{
           json_get<picojson::array>(idp_object, "keys", idp_name)};
-      idp_configs.emplace(
-          idp_name, Idp_config(issuer_name, key_array, idp_name, group_claim,
-                               std::move(audiences), std::move(roles)));
-    } else
-      idp_configs.emplace(idp_name,
-                          Idp_config(issuer_name, jwks_url, group_claim,
-                                     std::move(audiences), std::move(roles)));
+      config.load_keys(key_array, idp_name);
+    } else config.load_keys(jwks_url);
   }
 }
 
@@ -228,7 +229,11 @@ void Idp_config::load_keys(const std::string &url) {
 
 void Idp_config::load_keys(const picojson::array &key_array,
                            const std::string &from) {
-  // remove the old keys
+  // SECURITY: Clear old keys first to prevent accepting compromised keys.
+  // If loading fails partway through, it's better to have no keys than to
+  // risk accepting tokens signed with potentially compromised keys.
+  // This follows the principle of "fail secure" - better to deny access
+  // than to allow potentially unauthorized access.
   keys.clear();
 
   for (const auto &key_value : key_array) {

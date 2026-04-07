@@ -67,33 +67,17 @@ class Idp_config {
         group_claim(group_claim),
         audiences(std::move(audiences)),
         roles(std::move(roles)) {
-    load_keys(jwks_url);
   }
 
   /**
-   * @brief Constructs an Idp_config object.
-   * @param issuer_name The token's issuer name.
-   * @param key_array The array of keys from JSON.
-   * @param idp_name The name of the IDP, used for error messages when loading
-   * keys from the array.
-   * @param group_claim The group claim name.
-   * @param audiences A set of allowed audiences.
-   * @param roles A map of group-to-role mappings.
+   * @brief is this IDP configuration using a JWKS URL to load keys?
+   * @return true if yes, false if no
    */
-  Idp_config(const std::string &issuer_name, const picojson::array &key_array,
-             const std::string &idp_name, const std::string &group_claim,
-             std::unordered_set<std::string> &&audiences,
-             std::map<std::string, std::string> &&roles)
-      : issuer_name(issuer_name),
-        jwks(""),
-        group_claim(group_claim),
-        audiences(std::move(audiences)),
-        roles(std::move(roles)) {
-    load_keys(key_array, idp_name);
-  }
-
   bool is_using_jwks() const noexcept { return !jwks.get_url().empty(); }
 
+  /**
+   * @brief update the public keys for this IDP configuration
+   */
   void update_keys() {
     if (is_using_jwks()) load_keys(jwks.get_url());
   }

@@ -138,9 +138,13 @@ class LogWriterBase {
    */
   void init_formatter() noexcept;
 
+  /**
+   * @brief Mutex serializing record formatting with writer state changes.
+   */
+  mutable std::mutex m_write_mutex;
+
  private:
   std::unique_ptr<log_record_formatter::LogRecordFormatterBase> m_formatter;
-  std::mutex m_write_mutex;
 };
 
 template <AuditLogHandlerType HandlerType>

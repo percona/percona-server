@@ -66,8 +66,7 @@ class Idp_config {
         jwks(jwks_url),
         group_claim(group_claim),
         audiences(std::move(audiences)),
-        roles(std::move(roles)) {
-  }
+        roles(std::move(roles)) {}
 
   /**
    * @brief is this IDP configuration using a JWKS URL to load keys?
@@ -95,7 +94,8 @@ class Idp_config {
    * @brief Loads the public keys from a JSON array.
    *
    * @param key_array The array containing key definitions.
-   * @param from A descriptive string indicating the source (for error messages).
+   * @param from A descriptive string indicating the source (for error
+   * messages).
    * @throws std::runtime_error if any key object is malformed or invalid.
    */
   void load_keys(const picojson::array &key_array, const std::string &from);
@@ -198,10 +198,15 @@ class Idp_configs {
 
   /**
    * @brief Parses the configuration system variable.
-   * @param config_var The value of the configuration variable.
+   * @param variable The value of the configuration variable.
    * @return A pointer to the newly created Idp_configs instance.
    */
-  static Idp_configs *parse_var(const std::string &config_var) noexcept;
+  static Idp_configs *parse_var(const char *variable) noexcept;
+
+  /**
+   *  @brief Initializes the configuration by parsing the system variable.
+   */
+  static void create() noexcept { configs = parse_var(sysvar); }
 
   /**
    * @brief Gets the configuration for a specific IDP.

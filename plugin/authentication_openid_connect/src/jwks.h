@@ -46,7 +46,7 @@ class Jwks {
    * @param url The URL of the JWKS endpoint.
    */
   explicit Jwks(const std::string &url) {
-    if (url.find("http://") != 0 && url.find("https://") != 0) {
+    if (!url.empty() && url.find("http://") != 0 && url.find("https://") != 0) {
       throw std::runtime_error("JWKS URL is not valid");
     }
     this->url = url;
@@ -75,7 +75,8 @@ class Jwks {
    * @param user_data Pointer to the output std::string* buffer.
    * @return The number of bytes processed (element_size * no_elements).
    */
-  static std::size_t write_callback(const char *received, std::size_t element_size,
+  static std::size_t write_callback(const char *received,
+                                    std::size_t element_size,
                                     std::size_t no_elements, void *user_data);
 };
 #endif  // MYSQL_JWKS_H

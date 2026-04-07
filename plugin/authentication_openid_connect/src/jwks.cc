@@ -35,6 +35,7 @@ std::size_t Jwks::write_callback(const char *received,
 }
 
 std::string Jwks::http_get(const std::string &url) {
+  if (url.empty()) return "";
   const std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl(
       curl_easy_init(), curl_easy_cleanup);
   if (curl == nullptr) throw std::runtime_error("JWST: curl_easy_init failed");

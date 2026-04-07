@@ -123,6 +123,7 @@ long long Idp_configs::update_keys() noexcept {
     for (auto &config : configs->idp_configs | std::views::values) {
       if (!config.is_using_jwks()) continue;
       config.update_keys();
+      ++updated_keys;
     }
   } catch (std::exception &e) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
@@ -204,7 +205,8 @@ void Idp_configs::parse_json(const std::string &config_json) {
       const picojson::array &key_array{
           json_get<picojson::array>(idp_object, "keys", idp_name)};
       config.load_keys(key_array, idp_name);
-    } else config.load_keys(jwks_url);
+    } else
+      config.load_keys(jwks_url);
   }
 }
 
@@ -259,6 +261,9 @@ void Idp_config::load_keys(const picojson::array &key_array,
 
     keys[kid] = std::move(pem_key);
   }
+
+  std::string message{"public keys from " + from + " loaded."};
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
 }
 
 char Idp_configs::parse_prefix(const std::string &prefix) {
@@ -305,11 +310,9 @@ std::string Idp_configs::read_from_file(const std::string &path) {
   return content;
 }
 
-Idp_configs *Idp_configs::parse_var(const std::string &config_var) noexcept {
-  // nothing changed
-  // if (config_var == sysvar) return nullptr;
-
+Idp_configs *Idp_configs::parse_var(const char *variable) noexcept {
   try {
+    std::string config_var{variable};
     if (config_var.size() < prefix_len)
       throw std::runtime_error("invalid prefix");
     const std::string prefix = config_var.substr(0, prefix_len);

@@ -52,6 +52,7 @@ static int auth_oidc_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
+  Idp_configs::create();
 
   return 0;
 }

@@ -77,13 +77,12 @@ class Id_token {
   /**
    * @brief Verifies the ID token against IDP configuration and user information.
    * @param ext_user The expected external username (subject).
-   * @param idp_name The expected issuer of the token.
    * @param idp Pointer to the Idp_config object containing verification parameters.
    * @param roles String to be populated with roles mapped from the token's groups.
    * @throws std::runtime_error if verification fails or token is invalid.
    */
-  void verify(const std::string &ext_user, const std::string &idp_name,
-              const Idp_config *idp, std::string &roles) const;
+  void verify(const std::string &ext_user, const Idp_config *idp,
+              std::string &roles) const;
 };
 
 #endif // ID_TOKEN_H

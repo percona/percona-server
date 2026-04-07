@@ -17,12 +17,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include <cassert>
 
+#include <stddef.h>
 #include <exception>
 #include <map>
-#include <cstring>
 #include <string>
-#include <stddef.h>
 
+#include <curl/curl.h>
+#include <jwt-cpp/traits/kazuho-picojson/traits.h>
 #include <mysql/components/service.h>
 #include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/log_builtins.h>
@@ -31,7 +32,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_auth_common.h>
 #include <mysqld_error.h>
-#include <jwt-cpp/traits/kazuho-picojson/traits.h>
 
 #include "config.h"
 #include "id_token.h"
@@ -47,6 +47,11 @@ SERVICE_TYPE(log_builtins_string) * log_bs(nullptr);
  */
 static int auth_oidc_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
+  if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "curl_global_init failed");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return 1;
+  }
 
   return 0;
 }
@@ -58,18 +63,20 @@ static int auth_oidc_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
  */
 static int auth_oidc_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+  curl_global_cleanup();
   return 0;
 }
 
 /**
  * @class User_auth_data
- * @brief Holds user-specific authentication data extracted from the 'IDENTIFIED AS' clause.
+ * @brief Holds user-specific authentication data extracted from the 'IDENTIFIED
+ * AS' clause.
  */
 class User_auth_data {
  private:
-  std::string idp;      ///< Name of the identity provider.
-  std::string ext_user; ///< External username (subject) in the IDP.
-  std::string error;    ///< Error message if initialization fails.
+  std::string idp;       ///< Name of the identity provider.
+  std::string ext_user;  ///< External username (subject) in the IDP.
+  std::string error;     ///< Error message if initialization fails.
 
  public:
   /** @return The IDP name. */
@@ -151,7 +158,7 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
     }
 
     std::string roles;
-    token.verify(auth_data.get_ext_user(), idp_name, idp, roles);
+    token.verify(auth_data.get_ext_user(), idp, roles);
     if (size_t role_buf_size{std::size(info->external_roles)};
         !roles.empty() && roles.size() + 1 < role_buf_size)
       strncpy(info->external_roles, roles.c_str(), role_buf_size);
@@ -204,6 +211,13 @@ static MYSQL_SYSVAR_STR(configuration, Idp_configs::sysvar, PLUGIN_VAR_OPCMDARG,
 static SYS_VAR *authentication_openid_connect_sysvars[] = {
     MYSQL_SYSVAR(configuration), nullptr};
 
+/**
+ * @struct st_mysql_auth auth_oidc_info
+ * @brief MySQL authentication plugin interface for OpenID Connect.
+ *
+ * Defines the plugin interface including authentication, hashing, and
+ * validation function pointers.
+ */
 st_mysql_auth auth_oidc_info = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,  // int interface_version
     "authentication_openid_connect_client",  // const char *client_auth_plugin
@@ -215,19 +229,18 @@ st_mysql_auth auth_oidc_info = {
     nullptr};
 
 mysql_declare_plugin(authentication_openid_connect){
-    MYSQL_AUTHENTICATION_PLUGIN,          /* type                            */
-    &auth_oidc_info,                      /* info                      */
-    "authentication_openid_connect",      /* name                            */
-    "Percona LLC and/or its affiliates.", /* author                          */
-    "OpenID Connect authentication plugin", /* description */
-    PLUGIN_LICENSE_GPL,
-    auth_oidc_init,                        /* init function (when loaded)     */
-    nullptr,                               /* check uninstall function        */
-    auth_oidc_deinit,                      /* deinit function (when unloaded) */
-    0x0001,                                /* version                         */
-    nullptr,                               /* status variables                */
-    authentication_openid_connect_sysvars, /* system variables                */
-    nullptr,
-    0,
+    MYSQL_AUTHENTICATION_PLUGIN,             // type
+    &auth_oidc_info,                         // info
+    "authentication_openid_connect",         // name
+    "Percona LLC and/or its affiliates.",    // author
+    "OpenID Connect authentication plugin",  // description
+    PLUGIN_LICENSE_GPL,                      // license
+    auth_oidc_init,                          // init function (when loaded)
+    nullptr,                                 // check uninstall function
+    auth_oidc_deinit,                        // deinit function (when unloaded)
+    0x0001,                                  // version
+    nullptr,                                 // status variables
+    authentication_openid_connect_sysvars,   // system variables
+    nullptr,                                 // reserved
+    0,                                       // flags
 } mysql_declare_plugin_end;
-

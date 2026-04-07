@@ -18,7 +18,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #ifndef AUTH_OIDC_CONFIG_H
 #define AUTH_OIDC_CONFIG_H
 
-
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -27,6 +26,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/plugin.h>
 #include <mysql/service_thd_alloc.h>
+#include <picojson/picojson.h>
+
+#include <ranges>
+
+#include "jwks.h"
 
 /**
  * @class Idp_config
@@ -34,46 +38,89 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 class Idp_config {
  private:
-  std::string issuer_name{}; ///< The token's issuer name.
-  std::string jwks_uri{}; ///< URI for the JSON Web Key Set.
-  std::string group_claim{}; ///< Name of the claim in the JWT that contains group information.
-  // map kid -> key in PEM format
-  std::map<std::string, std::string> pub_keys{}; ///< Map of Key IDs to PEM-encoded public keys.
-  std::unordered_set<std::string> audiences{}; ///< Set of allowed audiences for the token.
-  std::map<std::string, std::string> roles{}; ///< Map of IDP groups to database roles.
+  std::string issuer_name;  ///< The token's issuer name.
+  Jwks jwks;                ///< URL for the JSON Web Key Set.
+  std::string group_claim;  ///< Name of the claim in the JWT that contains
+                            ///< group information.
+  std::unordered_set<std::string>
+      audiences;  ///< Set of allowed audiences for the token.
+  std::map<std::string, std::string>
+      roles;  ///< Map of IDP groups to database roles.
+  std::map<std::string, std::string>
+      keys;  ///< Map of Key ID (kid) to public key in PEM format.
 
  public:
+  /**
+   * @brief Constructs an Idp_config object.
+   * @param issuer_name The token's issuer name.
+   * @param jwks_url The URL for the JSON Web Key Set.
+   * @param group_claim The group claim name.
+   * @param audiences A set of allowed audiences.
+   * @param roles A map of group-to-role mappings.
+   */
+  Idp_config(const std::string &issuer_name, const std::string &jwks_url,
+             const std::string &group_claim,
+             std::unordered_set<std::string> &&audiences,
+             std::map<std::string, std::string> &&roles)
+      : issuer_name(issuer_name),
+        jwks(jwks_url),
+        group_claim(group_claim),
+        audiences(std::move(audiences)),
+        roles(std::move(roles)) {
+    load_keys(jwks_url);
+  }
 
   /**
    * @brief Constructs an Idp_config object.
    * @param issuer_name The token's issuer name.
-   * @param jwks_uri The JWKS URI.
+   * @param key_array The array of keys from JSON.
+   * @param idp_name The name of the IDP, used for error messages when loading
+   * keys from the array.
    * @param group_claim The group claim name.
-   * @param pub_keys A map of public keys.
    * @param audiences A set of allowed audiences.
    * @param roles A map of group-to-role mappings.
    */
-  Idp_config(const std::string &issuer_name, const std::string &jwks_uri, const std::string &group_claim,
-           std::map<std::string, std::string> &&pub_keys,
-           std::unordered_set<std::string> &&audiences,
-           std::map<std::string, std::string> &&roles)
-    : issuer_name(issuer_name),
-      jwks_uri(jwks_uri),
-      group_claim(group_claim),
-      pub_keys(std::move(pub_keys)),
-      audiences(std::move(audiences)),
-      roles(std::move(roles)) {}
+  Idp_config(const std::string &issuer_name, const picojson::array &key_array,
+             const std::string &idp_name, const std::string &group_claim,
+             std::unordered_set<std::string> &&audiences,
+             std::map<std::string, std::string> &&roles)
+      : issuer_name(issuer_name),
+        jwks(""),
+        group_claim(group_claim),
+        audiences(std::move(audiences)),
+        roles(std::move(roles)) {
+    load_keys(key_array, idp_name);
+  }
+
+  bool is_using_jwks() const noexcept { return !jwks.get_url().empty(); }
+
+  void update_keys() {
+    if (is_using_jwks()) load_keys(jwks.get_url());
+  }
+
+  /**
+   * @brief Loads the public keys from a JWKS URL.
+   *
+   * @param url The URL of the JWKS endpoint.
+   * @throws std::runtime_error if the HTTP request fails, JSON parsing fails,
+   *                            or key construction fails.
+   */
+  void load_keys(const std::string &url);
+
+  /**
+   * @brief Loads the public keys from a JSON array.
+   *
+   * @param key_array The array containing key definitions.
+   * @param from A descriptive string indicating the source (for error messages).
+   * @throws std::runtime_error if any key object is malformed or invalid.
+   */
+  void load_keys(const picojson::array &key_array, const std::string &from);
 
   /**
    * @brief Gets the issuer name.
    * @return The issuer name string.
    */
   const std::string &get_issuer_name() const noexcept { return issuer_name; }
-  /**
-   * @brief Gets the JWKS URI.
-   * @return The JWKS URI string.
-   */
-  const std::string &get_jwks_uri() const noexcept { return jwks_uri; }
 
   /**
    * @brief Gets the name of the group claim.
@@ -87,8 +134,9 @@ class Idp_config {
    * @throws std::runtime_error if no keys are available.
    */
   const std::string &get_pub_key() const {
-    if (pub_keys.empty()) throw std::runtime_error("no IDP public key");
-    return pub_keys.begin()->second;
+    const auto key{keys.cbegin()};
+    if (key == keys.cend()) throw std::runtime_error("no keys available");
+    return key->second;
   }
 
   /**
@@ -98,13 +146,14 @@ class Idp_config {
    * @throws std::out_of_range if the Key ID is not found.
    */
   const std::string &get_pub_key(const std::string &kid) const {
-    return pub_keys.at(kid);
+    return keys.at(kid);
   }
 
   /**
    * @brief Checks if a given audience is allowed.
    * @param audience The audience string from the token.
-   * @return true if the audience is allowed or if no audiences are configured (allowing all).
+   * @return true if the audience is allowed or if no audiences are configured
+   * (allowing all).
    */
   bool is_audience_allowed(const std::string &audience) const noexcept {
     return audiences.empty() || audiences.contains(audience);
@@ -128,9 +177,10 @@ class Idp_config {
  */
 class Idp_configs {
  private:
-  std::string config_var{}; ///< The raw configuration variable value.
-  std::map<std::string, Idp_config> idp_configs{}; ///< Map of IDP names to Idp_config objects.
-  static const Idp_configs *config; ///< Singleton instance of the configuration.
+  std::string config_var{};  ///< The raw configuration variable value.
+  std::map<std::string, Idp_config>
+      idp_configs{};            ///< Map of IDP names to Idp_config objects.
+  static Idp_configs *configs;  ///< Singleton instance of the configuration.
   Idp_configs() {}
   Idp_configs(const std::string &config_var, const std::string &config_json)
       : config_var(config_var) {
@@ -147,7 +197,8 @@ class Idp_configs {
   /**
    * @brief Parses the prefix of the configuration system variable.
    * @param prefix The prefix.
-   * @return F: if the prefix is FILE, J: if the prefix is JSON, else throws an exception.
+   * @return F: if the prefix is FILE, J: if the prefix is JSON, else throws an
+   * exception.
    */
   static char parse_prefix(const std::string &prefix);
 
@@ -159,7 +210,7 @@ class Idp_configs {
   static std::string read_from_file(const std::string &path);
 
  public:
-  static char *sysvar; ///< Pointer to the system variable storage.
+  static char *sysvar;  ///< Pointer to the system variable storage.
 
   /**
    * @brief Parses the configuration system variable.
@@ -173,10 +224,11 @@ class Idp_configs {
    * @param idp_name The name of the IDP.
    * @return A pointer to the Idp_config object, or nullptr if not found.
    */
-  static const Idp_config *get_item(const std::string &idp_name) noexcept {
-    if (config == nullptr) return nullptr;
-    const auto it = config->idp_configs.find(idp_name);
-    if (it == config->idp_configs.end()) return nullptr;
+  static Idp_config *get_item(const std::string &idp_name) noexcept {
+    if (configs == nullptr) return nullptr;
+    std::map<std::string, Idp_config>::iterator it =
+        configs->idp_configs.find(idp_name);
+    if (it == configs->idp_configs.end()) return nullptr;
     return &(it->second);
   }
 
@@ -194,6 +246,19 @@ class Idp_configs {
   static void update(MYSQL_THD thd [[maybe_unused]],
                      SYS_VAR *var [[maybe_unused]], void *var_ptr,
                      const void *save);
+
+  /**
+   * @brief Updates the keys for all IDPs by calling JWKS.
+   * @return on success: number of updated IDPs, on failure: negative value
+   */
+  static long long update_keys() noexcept;
+
+  /**
+   * @brief Updates the keys for a specific IDP by calling JWKS.
+   * @param idp_name name od IDP which keys are to be updated.
+   * @return on success: number of updated IDPs, on failure: negative value
+   */
+  static long long update_keys(const char *idp_name) noexcept;
 };
 
 #endif  // AUTH_OIDC_CONFIG_H

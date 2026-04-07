@@ -19,6 +19,8 @@ IF(WITH_AUTHENTICATION_OPENID_CONNECT)
             src/plugin_openid_connect.cc
             src/config.cc
             src/jwk.cc
+            src/jwks.cc
+            src/udf.cc
             src/id_token.cc
     )
     ### Configuration ###
@@ -32,7 +34,7 @@ IF(WITH_AUTHENTICATION_OPENID_CONNECT)
 
     MYSQL_ADD_PLUGIN(authentication_openid_connect
             ${AUTH_OPENID_CONNECT_SOURCES}
-            LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto
+            LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto curl
             SYSTEM_INCLUDE_DIRECTORIES "${JWT_CPP_INCLUDE_DIR}"
             MODULE_ONLY MODULE_OUTPUT_NAME "authentication_openid_connect"
     )

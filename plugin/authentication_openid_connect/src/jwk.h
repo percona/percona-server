@@ -56,6 +56,10 @@ class Jwk {
    */
   explicit Jwk(const char *kty) : kty(kty) {}
   Jwk() = delete;
+  Jwk(const Jwk &) = delete;
+  Jwk &operator=(const Jwk &) = delete;
+  Jwk(Jwk &&) = delete;
+  Jwk &operator=(Jwk &&) = delete;
   virtual ~Jwk() = default;
 
   /**
@@ -112,7 +116,13 @@ class Ec_jwk : public Jwk {
  protected:
   /**
    * @brief Constructs OpenSSL OSSL_PARAM for the EC key.
+   *
+   * Converts the base64url-encoded EC coordinates to OpenSSL OSSL_PARAM format
+   * suitable for key creation. Supports curves P-256, P-384, and P-521.
+   *
    * @return A pointer to an array of OSSL_PARAM objects.
+   * @throws std::runtime_error if crv, x, or y is empty, if the curve is
+   *                            unsupported, or if parameter construction fails.
    */
   OSSL_PARAM *construct_param() override;
 

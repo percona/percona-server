@@ -45,9 +45,10 @@ auto Id_token::get_verifier(const std::string &name, const std::string &key) {
   throw std::runtime_error("Unsupported algorithm: " + name);
 }
 
-void Id_token::map_groups_to_roles(const Idp_config *idp,
-    const jwt::basic_claim<jwt::traits::kazuho_picojson>& groups_claim,
-                                std::string &roles) {
+void Id_token::map_groups_to_roles(
+    const Idp_config *idp,
+    const jwt::basic_claim<jwt::traits::kazuho_picojson> &groups_claim,
+    std::string &roles) {
   // Group-role mapping
   if (groups_claim.get_type() == jwt::json::type::array) {
     bool first{true};
@@ -60,8 +61,7 @@ void Id_token::map_groups_to_roles(const Idp_config *idp,
         roles += ",";
       roles += role;
     }
-  }
-  else if (groups_claim.get_type() == jwt::json::type::string) {
+  } else if (groups_claim.get_type() == jwt::json::type::string) {
     roles = groups_claim.as_string();
   } else
     throw std::runtime_error(
@@ -103,20 +103,19 @@ bool Id_token::read(MYSQL_PLUGIN_VIO *vio) {
   return false;
 }
 
-void Id_token::verify(const std::string &ext_user, const std::string &idp_name,
-            const Idp_config *idp, std::string &roles) const {
+void Id_token::verify(const std::string &ext_user, const Idp_config *idp,
+                      std::string &roles) const {
   assert(idp != nullptr);
   const auto decoded_token = jwt::decode(token);
 
-  const std::string &pub_key{
-      decoded_token.has_key_id()
-          ? idp->get_pub_key(decoded_token.get_key_id())
-          : idp->get_pub_key()};
+  const std::string &pub_key{decoded_token.has_key_id()
+                                 ? idp->get_pub_key(decoded_token.get_key_id())
+                                 : idp->get_pub_key()};
   const auto verifier =
       get_verifier(decoded_token.get_header_claim("alg").as_string(), pub_key)
           .with_claim("iss", jwt::claim(idp->get_issuer_name()))
           .with_claim("sub", jwt::claim(ext_user));
-  // Not explicit here, but verifier verifies the token not expired
+  // Not explicit here, but verifier verifies both caims and expiration
   verifier.verify(decoded_token);
 
   // audience check -optional
@@ -128,8 +127,8 @@ void Id_token::verify(const std::string &ext_user, const std::string &idp_name,
   if (const std::string &group_claim_name{idp->get_group_claim()};
       !group_claim_name.empty() &&
       decoded_token.has_payload_claim(group_claim_name))
-    map_groups_to_roles(idp,
-        decoded_token.get_payload_claim(group_claim_name), roles);
+    map_groups_to_roles(idp, decoded_token.get_payload_claim(group_claim_name),
+                        roles);
 
   // TODO proxying
 }

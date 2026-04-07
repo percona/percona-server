@@ -138,7 +138,10 @@ bool LogWriterFile::open() noexcept {
   return do_open_file();
 }
 
-bool LogWriterFile::close() noexcept { return do_close_file(); }
+bool LogWriterFile::close() noexcept {
+  std::lock_guard<std::mutex> write_guard{m_write_mutex};
+  return do_close_file();
+}
 
 bool LogWriterFile::do_open_file() noexcept {
   auto file_path = std::filesystem::path{SysVars::get_file_dir()} /
@@ -220,7 +223,6 @@ bool LogWriterFile::do_close_file() noexcept {
 
 void LogWriterFile::write(const std::string &record,
                           const bool print_separator) noexcept {
-  std::lock_guard<std::mutex> write_guard{m_write_lock};
   do_write(record, print_separator);
 }
 
@@ -259,7 +261,7 @@ void LogWriterFile::do_write(const std::string &record,
 }
 
 uint64_t LogWriterFile::get_log_size() const noexcept {
-  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  std::lock_guard<std::mutex> write_guard{m_write_mutex};
   return do_get_log_size();
 }
 
@@ -268,7 +270,7 @@ uint64_t LogWriterFile::do_get_log_size() const noexcept {
 }
 
 void LogWriterFile::rotate(FileRotationResult *result) noexcept {
-  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  std::lock_guard<std::mutex> write_guard{m_write_mutex};
   do_rotate(result);
 }
 
@@ -298,7 +300,7 @@ void LogWriterFile::do_rotate(FileRotationResult *result) noexcept {
 }
 
 void LogWriterFile::prune() noexcept {
-  std::lock_guard<std::mutex> write_guard{m_write_lock};
+  std::lock_guard<std::mutex> write_guard{m_write_mutex};
   do_prune();
 }
 

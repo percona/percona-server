@@ -32,6 +32,8 @@ LogWriterBase::LogWriterBase(
 void LogWriterBase::init_formatter() noexcept { SysVars::init_record_id(0); }
 
 void LogWriterBase::write(const AuditRecordVariant &record) noexcept {
+  std::lock_guard<std::mutex> write_guard{m_write_mutex};
+
   // Format event data according to audit_log_filter_format settings
   std::string record_str = std::visit(
       [this](const auto &rec) -> std::string {
@@ -51,10 +53,7 @@ void LogWriterBase::write(const AuditRecordVariant &record) noexcept {
     }
   });
 
-  {
-    std::lock_guard<std::mutex> write_guard{m_write_mutex};
-    write(record_str, true);
-  }
+  write(record_str, true);
 }
 
 }  // namespace audit_log_filter::log_writer

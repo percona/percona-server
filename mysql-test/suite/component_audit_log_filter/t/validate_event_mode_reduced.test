@@ -54,36 +54,46 @@ SELECT * FROM mysql.audit_log_filter;
 SET GLOBAL audit_log_filter.event_mode=REDUCED;
 SELECT audit_log_filter_flush();
 SELECT audit_log_filter_set_user('%', 'mixed_rule');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag="class": "general"
 --source check_all_events_with_tag.inc
 SELECT audit_log_filter_set_user('%', 'mixed_subclass_rule');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag="event": "status"
 --source check_all_events_with_tag.inc
 SELECT audit_log_filter_set_user('%', 'mixed_conn_command_rule');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag="class": "connection"
 --source check_all_events_with_tag.inc
 SELECT audit_log_filter_set_user('%', 'mixed_ta_sp_rule');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag="class": "table_access"
 --source check_all_events_with_tag.inc
 SELECT audit_log_filter_set_user('%', 'mixed_conn_subclass_rule');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag="event": "connect"
@@ -103,8 +113,10 @@ SELECT audit_log_filter_set_filter('query_only_rule', '{"filter":{"class":{"name
 SET GLOBAL audit_log_filter.event_mode=REDUCED;
 SELECT audit_log_filter_set_user('%', 'query_only_rule');
 SET GLOBAL audit_log_filter.event_mode=FULL;
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 --let $search_tag="class": "query"
@@ -116,8 +128,10 @@ SET GLOBAL audit_log_filter.event_mode=REDUCED;
 --echo # Reduced mode logs only the reduced event-class subset
 SELECT audit_log_filter_set_filter('log_all', '{"filter":{"log": true}}');
 SELECT audit_log_filter_set_user('%', 'log_all');
+--source include/count_sessions.inc
 disconnect default;
 connect(default, localhost, root, , test);
+--source include/wait_until_count_sessions.inc
 --source clean_current_audit_log.inc
 --source generate_audit_events.inc
 SELECT audit_log_filter_flush();

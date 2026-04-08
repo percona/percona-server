@@ -1,0 +1,109 @@
+CREATE TABLE au
+(
+`id`         int NOT NULL AUTO_INCREMENT,
+`name`       varchar(255) DEFAULT NULL,
+`head`       int          DEFAULT NULL,
+`department` int          DEFAULT NULL,
+`comment`    text,
+PRIMARY KEY (`id`),
+KEY          `IX_au_head` (`head`),
+KEY          `IX_au_department` (`department`)
+) ENGINE=InnoDB AUTO_INCREMENT=218 DEFAULT CHARSET=utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE aau
+(
+`id_admin` int NOT NULL,
+`id_unit`  int NOT NULL,
+UNIQUE KEY `UK_aau` (`id_admin`,`id_unit`),
+KEY        `IX_aau` (`id_unit`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE a
+(
+`id`          int          NOT NULL AUTO_INCREMENT,
+`name`        varchar(255) NOT NULL,
+`login`       varchar(255) NOT NULL,
+`deleted`     int          NOT NULL DEFAULT '0',
+`connect_tel` varchar(20)           DEFAULT NULL,
+`caption`     varchar(20)           DEFAULT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `login` (`login`),
+KEY        `UK_a` (`login`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+CREATE TABLE aum
+(
+`id_unit`    int NOT NULL,
+`id_manager` int NOT NULL,
+PRIMARY KEY (`id_unit`, `id_manager`),
+KEY          `UK_aum` (`id_manager`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO au (id, name, head, department, comment)
+VALUES (24, 'test1', 8854, 13, NULL),
+(25, 'test2', 8855, 14, NULL),
+(26, 'test3', 8856, 13, NULL);
+INSERT INTO aau (id_admin, id_unit)
+VALUES (8855, 25),
+(10511, 25),
+(10513, 25),
+(15936, 24),
+(17400, 24),
+(17567, 24),
+(29794, 26),
+(31937, 26),
+(32512, 26);
+INSERT INTO a (id, login, name, caption, connect_tel, deleted)
+VALUES (8855, 'login1', 'user1', ' М', '7', 0),
+(10511, 'login2', 'user2', '', '7', 1),
+(10513, 'login3', 'user3', '', '7', 1),
+(15936, 'login4', 'user4', '', '5', 1),
+(17400, 'login5', 'user5', '', '7', 0),
+(17567, 'login6', 'user6', '', '7', 0),
+(29794, 'login7', 'user7', '', '5', 0),
+(31937, 'login8', 'user8', '', '7', 0),
+(32512, 'login9', 'user9', '', '7', 1);
+CREATE PROCEDURE fail_test(IN arg_admin int, IN arg_param json)
+BEGIN
+DECLARE var_full_access, var_b2b_status, var_is_head, var_deleted tinyint(4) default 0;
+SET var_full_access = COALESCE(JSON_EXTRACT(arg_param, '$.full_access'),0);
+SET var_deleted = COALESCE(JSON_EXTRACT(arg_param, '$.deleted'),1);
+SELECT 1 INTO var_is_head;
+IF var_is_head = 1 AND var_full_access = 0 THEN
+SELECT DISTINCT a.id, a.login, a.name, a.caption, a.connect_tel, a.deleted
+FROM au LEFT JOIN aau ON aau.id_unit = au.id
+LEFT JOIN a ON aau.id_admin = a.id
+WHERE (a.deleted = 0 OR var_deleted = 1)
+AND (au.head = arg_admin OR arg_admin IN
+(SELECT aum.id_manager FROM aum WHERE aum.id_unit = au.id));
+END IF;
+END|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CALL fail_test(8855,NULL);
+id	login	name	caption	connect_tel	deleted
+10511	login2	user2		7	1
+10513	login3	user3		7	1
+8855	login1	user1	 М	7	0
+CALL fail_test(8855,NULL);
+id	login	name	caption	connect_tel	deleted
+10511	login2	user2		7	1
+10513	login3	user3		7	1
+8855	login1	user1	 М	7	0
+SHOW tables;
+Tables_in_test
+a
+aau
+au
+aum
+CALL fail_test(8855,NULL);
+id	login	name	caption	connect_tel	deleted
+10511	login2	user2		7	1
+10513	login3	user3		7	1
+8855	login1	user1	 М	7	0
+DROP PROCEDURE fail_test;
+DROP TABLE aum, au, a, aau;

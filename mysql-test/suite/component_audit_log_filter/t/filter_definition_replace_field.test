@@ -49,6 +49,47 @@ disconnect conn_run;
 --source check_all_events_with_tag.inc
 
 --echo #
+--echo # Field replacement for "general/status" events
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": {
+            "name": "general_command.str",
+            "value": "Query"
+          }
+        },
+        "print": {
+          "field": {
+            "name": "general_query.str",
+            "print": false,
+            "replace": {"function": {"name": "query_digest"}}
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_general_status_query', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_general_status_query');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
+
+INSERT INTO t1 VALUES (2);
+
+disconnect conn_run;
+--connection conn_admin
+
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT INTO `t1` VALUES \(\?\)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
 --echo # Field replacement for all events of "parse" class
 let $filter = {
   "filter": {
@@ -286,6 +327,42 @@ disconnect conn_run;
 --source check_all_events_with_tag.inc
 
 --echo #
+--echo # Field replacement for table_access events
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "table_access",
+      "print": {
+        "field": {
+          "name": "query.str",
+          "print": false,
+          "replace": {"function": {"name": "query_digest"}}
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_table_access_query', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_table_access_query');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
+
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET id = 2 WHERE id = 1;
+DELETE FROM t1 WHERE id = 2;
+
+disconnect conn_run;
+--connection conn_admin
+
+--let $search_tag=<EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>(?:insert|update|delete)</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>(?:INSERT INTO `t1` VALUES \(\?\)|UPDATE `t1` SET `id` = \? WHERE `id` = \?|DELETE FROM `t1` WHERE `id` = \?)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
 --echo # Check incorrect replacement rule definitions
 --disable_query_log
 call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
@@ -355,7 +432,7 @@ let $filter = {
         "name": "general",
         "print": {
           "field": {
-            "name": "query.str",
+            "name": "general_query.str",
             "print": [],
             "replace": {
               "function": {

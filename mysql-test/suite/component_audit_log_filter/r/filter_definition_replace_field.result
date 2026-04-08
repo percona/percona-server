@@ -40,6 +40,52 @@ OK
 INSERT INTO t1 VALUES (1);
 Tag <EVENT_CLASS_NAME>query</EVENT_CLASS_NAME>.*<SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO `t1` VALUES \(\?\))</SQLTEXT> Ok
 #
+# Field replacement for "general/status" events
+SELECT audit_log_filter_set_filter('replace_general_status_query', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"log": {
+"field": {
+"name": "general_command.str",
+"value": "Query"
+          }
+},
+"print": {
+"field": {
+"name": "general_query.str",
+"print": false,
+"replace": {"function": {"name": "query_digest"}}
+}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('replace_general_status_query', '{
+"filter": {
+"class": {
+"name": "general",
+"event": {
+"name": "status",
+"log": {
+"field": {
+"name": "general_command.str",
+"value": "Query"
+          }
+},
+"print": {
+"field": {
+"name": "general
+OK
+SELECT audit_log_filter_set_user('%', 'replace_general_status_query');
+audit_log_filter_set_user('%', 'replace_general_status_query')
+OK
+INSERT INTO t1 VALUES (2);
+Tag <EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>.*<SQLTEXT>INSERT INTO `t1` VALUES \(\?\)</SQLTEXT> Ok
+#
 # Field replacement for all events of "parse" class
 SELECT audit_log_filter_set_filter('replace_parse_query', '{
 "filter": {
@@ -299,6 +345,45 @@ DELETE FROM t2;
 Tag <EVENT_SUBCLASS_NAME>(?:start|status_end)</EVENT_SUBCLASS_NAME> Ok
 Tag <SQLTEXT>(?:SELECT `audit_log_filter_set_user` \(\.\.\.\)|INSERT INTO `t1` VALUES \(\?\)|INSERT INTO `t2` VALUES \(\?\))</SQLTEXT> Ok
 #
+# Field replacement for table_access events
+SELECT audit_log_filter_set_filter('replace_table_access_query', '{
+"filter": {
+"class": {
+"name": "table_access",
+"print": {
+"field": {
+"name": "query.str",
+"print": false,
+"replace": {"function": {"name": "query_digest"}}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('replace_table_access_query', '{
+"filter": {
+"class": {
+"name": "table_access",
+"print": {
+"field": {
+"name": "query.str",
+"print": false,
+"replace": {"function": {"name": "query_digest"}}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'replace_table_access_query');
+audit_log_filter_set_user('%', 'replace_table_access_query')
+OK
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET id = 2 WHERE id = 1;
+DELETE FROM t1 WHERE id = 2;
+Tag <EVENT_CLASS_NAME>table_access</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>(?:insert|update|delete)</EVENT_SUBCLASS_NAME> Ok
+Tag <SQLTEXT>(?:INSERT INTO `t1` VALUES \(\?\)|UPDATE `t1` SET `id` = \? WHERE `id` = \?|DELETE FROM `t1` WHERE `id` = \?)</SQLTEXT> Ok
+#
 # Check incorrect replacement rule definitions
 SELECT audit_log_filter_set_filter('incorrect_rule', '{
 "filter": {
@@ -392,7 +477,7 @@ SELECT audit_log_filter_set_filter('incorrect_rule', '{
 "name": "general",
 "print": {
 "field": {
-"name": "query.str",
+"name": "general_query.str",
 "print": [],
 "replace": {
 "function": {
@@ -412,7 +497,7 @@ audit_log_filter_set_filter('incorrect_rule', '{
 "name": "general",
 "print": {
 "field": {
-"name": "query.str",
+"name": "general_query.str",
 "print": [],
 "replace": {
 "function": {

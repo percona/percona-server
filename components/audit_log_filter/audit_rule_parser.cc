@@ -1331,7 +1331,7 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
       std::string replaced_field_name = field_json["name"].GetString();
 
       if (!EventFieldActionReplaceField::validate_field_name(
-              replaced_field_name)) {
+              class_name, replaced_field_name)) {
         LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_ACTION_BAD_REPLACE,
                         replaced_field_name.c_str());
         audit_rule->set_parse_error("event field '" + replaced_field_name +

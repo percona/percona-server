@@ -39,7 +39,8 @@ class EventFieldActionReplaceField : public EventFieldActionBase {
       std::unique_ptr<event_filter_function::EventFilterFunctionBase>
           replacement_func);
 
-  static bool validate_field_name(const std::string &field_name) noexcept;
+  static bool validate_field_name(const std::string &class_name,
+                                  const std::string &field_name) noexcept;
 
   /**
    * @brief Get action type.

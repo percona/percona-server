@@ -20,10 +20,22 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysqld_error.h>
 
+#include <string_view>
 #include <utility>
 #include <variant>
 
 namespace audit_log_filter::event_field_action {
+
+namespace {
+
+constexpr std::string_view kClassNameGeneral{"general"};
+constexpr std::string_view kClassNameTableAccess{"table_access"};
+constexpr std::string_view kClassNameQuery{"query"};
+constexpr std::string_view kClassNameParse{"parse"};
+constexpr std::string_view kFieldNameGeneralQuery{"general_query.str"};
+constexpr std::string_view kFieldNameQuery{"query.str"};
+
+}  // namespace
 
 EventFieldActionReplaceField::EventFieldActionReplaceField(
     std::string field_name,
@@ -35,13 +47,19 @@ EventFieldActionReplaceField::EventFieldActionReplaceField(
       m_replacement_func{std::move(replacement_func)} {}
 
 bool EventFieldActionReplaceField::validate_field_name(
-    const std::string &field_name) noexcept {
+    const std::string &class_name, const std::string &field_name) noexcept {
   /*
    * Applicable to the following fields only:
+   *    general -> general_query.str
+   *    table_access -> query.str
    *    query -> query.str
    *    parse -> query.str
    */
-  return field_name == "query.str";
+  return (class_name == kClassNameGeneral &&
+          field_name == kFieldNameGeneralQuery) ||
+         ((class_name == kClassNameTableAccess ||
+           class_name == kClassNameQuery || class_name == kClassNameParse) &&
+          field_name == kFieldNameQuery);
 }
 
 EventActionType EventFieldActionReplaceField::get_action_type() const noexcept {
@@ -67,21 +85,34 @@ bool EventFieldActionReplaceField::apply(const AuditRecordFieldsList &fields,
     new_value = "...";
   }
 
-  if (std::holds_alternative<AuditRecordQuery>(audit_record)) {
+  if (std::holds_alternative<AuditRecordGeneral>(audit_record)) {
+    auto *rec = std::get_if<AuditRecordGeneral>(&audit_record);
+    if (rec != nullptr) {
+      rec->extended_info.digest = std::move(new_value);
+      return true;
+    }
+  } else if (std::holds_alternative<AuditRecordTableAccess>(audit_record)) {
+    auto *rec = std::get_if<AuditRecordTableAccess>(&audit_record);
+    if (rec != nullptr) {
+      rec->extended_info.digest = std::move(new_value);
+      return true;
+    }
+  } else if (std::holds_alternative<AuditRecordQuery>(audit_record)) {
     auto *rec = std::get_if<AuditRecordQuery>(&audit_record);
     if (rec != nullptr) {
       rec->extended_info.digest = std::move(new_value);
+      return true;
     }
   } else if (std::holds_alternative<AuditRecordParse>(audit_record)) {
     auto *rec = std::get_if<AuditRecordParse>(&audit_record);
     if (rec != nullptr) {
       rec->extended_info.digest = std::move(new_value);
+      return true;
     }
-  } else {
-    LogComponentErr(ERROR_LEVEL, ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE);
   }
 
-  return true;
+  LogComponentErr(ERROR_LEVEL, ER_AUDIT_REPLACE_FIELD_UNEXPECTED_EVENT_TYPE);
+  return false;
 }
 
 }  // namespace audit_log_filter::event_field_action

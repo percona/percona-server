@@ -216,6 +216,73 @@ disconnect conn_run;
 --source check_all_events_with_tag.inc
 
 --echo #
+--echo # Replace general/status queries with query_digest string shorthand
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "general",
+      "event": {
+        "name": "status",
+        "log": {
+          "field": {
+            "name": "general_command.str",
+            "value": "Query"
+          }
+        },
+        "print": {
+          "field": {
+            "name": "general_query.str",
+            "print": {
+              "function": {
+                "name": "query_digest",
+                "args": "SELECT ?"
+              }
+            },
+            "replace": {
+              "function": {
+                "name": "query_digest"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('replace_general_status_shorthand', '$filter');
+SELECT audit_log_filter_set_user('%', 'replace_general_status_shorthand');
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
+
+SELECT 1;
+
+disconnect conn_run;
+--connection conn_admin
+
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>SELECT 1</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--source clean_current_audit_log.inc
+
+connect(conn_run, localhost, root, , test);
+--connection conn_run
+
+INSERT INTO t1 VALUES (3);
+
+disconnect conn_run;
+--connection conn_admin
+
+--let $search_tag=<EVENT_CLASS_NAME>general</EVENT_CLASS_NAME>.*<EVENT_SUBCLASS_NAME>status</EVENT_SUBCLASS_NAME>
+--source check_all_events_with_tag.inc
+--let $search_tag=<SQLTEXT>INSERT INTO `t1` VALUES \(\?\)</SQLTEXT>
+--source check_all_events_with_tag.inc
+
+--echo #
 --echo # Replace for queries matching provided digest
 let $filter = {
   "filter": {

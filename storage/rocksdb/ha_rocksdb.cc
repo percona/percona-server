@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <cassert>
+#include "my_dbug.h"
 #include "mysqld_error.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation  // gcc: Class implementation
@@ -2944,6 +2945,14 @@ static bool is_tmp_table(const std::string &tablename) {
   }
 }
 
+static void wait_until_no_conflicting_index_ids_reserved(const std::vector<GL_INDEX_ID> &index_ids_to_reserve) {
+  for (const auto &index_id : index_ids_to_reserve) {
+    auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
+    std::lock_guard dm_lock(*local_dict_manager);
+    local_dict_manager->wait_until_no_conflicting_index_ids_reserved_for_create(index_id);
+  }
+}
+
 static int rocksdb_compact_column_family(THD *const thd,
                                          struct SYS_VAR *const var,
                                          void *const var_ptr,
@@ -3575,7 +3584,8 @@ class Rdb_transaction {
   int finish_bulk_load(bool *is_critical_error = nullptr,
                        bool print_client_error = true,
                        TABLE *table_arg = nullptr,
-                       char *table_name_arg = nullptr) {
+                       char *table_name_arg = nullptr,
+                       const std::unordered_set<std::shared_ptr<Rdb_key_def>> *indexes = nullptr) {
     if (m_curr_bulk_load.size() == 0) {
       if (is_critical_error) {
         *is_critical_error = false;
@@ -3980,7 +3990,25 @@ class Rdb_transaction {
           file_count);
     }
 
+    if (indexes != nullptr) {
+      std::vector<GL_INDEX_ID> index_ids_to_reserve;
+      index_ids_to_reserve.reserve(indexes->size());
+      for (auto &index : *indexes) {
+        index_ids_to_reserve.push_back(index->get_gl_index_id());
+      }
+      wait_until_no_conflicting_index_ids_reserved(index_ids_to_reserve);
+    }
+
     const rocksdb::Status s = ingest_bulk_load_files(args);
+
+    if (indexes != nullptr) {
+      for (auto &index : *indexes) {
+          auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(index->get_cf()->GetID());
+          std::lock_guard dm_lock(*local_dict_manager);
+          local_dict_manager->remove_index_id_reserved_for_create(index->get_gl_index_id());
+      }
+    }
+
     if (THDVAR(m_thd, trace_sst_api)) {
       LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                       "SST Tracing: IngestExternalFile '%zu' files returned %s",
@@ -8385,7 +8413,7 @@ int ha_rocksdb::create_key_defs(
     const TABLE &table_arg, Rdb_tbl_def &tbl_def_arg,
     const std::string &actual_user_table_name, bool is_dd_tbl,
     const TABLE *const old_table_arg /* = nullptr */,
-    const Rdb_tbl_def *const old_tbl_def_arg /* = nullptr */) const {
+    const Rdb_tbl_def *const old_tbl_def_arg /* = nullptr */, bool is_secondary_index) const {
   DBUG_ENTER_FUNC();
 
   assert(table_arg.s != nullptr);
@@ -8454,7 +8482,7 @@ int ha_rocksdb::create_key_defs(
     */
     for (uint i = 0; i < tbl_def_arg.m_key_count; i++) {
       if (create_key_def(table_arg, i, tbl_def_arg, m_key_descr_arr[i], cfs[i],
-                         ttl_duration, ttl_column, is_dd_tbl)) {
+                         ttl_duration, ttl_column, is_dd_tbl, is_secondary_index)) {
         DBUG_RETURN(HA_EXIT_FAILURE);
       }
     }
@@ -8702,7 +8730,7 @@ bool ha_rocksdb::create_inplace_key_defs(
               ->get_stats(gl_index_id),
           index_info.m_index_flags, ttl_rec_offset, ttl_duration);
     } else if (create_key_def(table_arg, i, tbl_def_arg, new_key_descr[i],
-                              cfs[i], ttl_duration, ttl_column)) {
+                              cfs[i], ttl_duration, ttl_column, false, true)) {
       return true;
     }
 
@@ -8866,13 +8894,29 @@ int ha_rocksdb::create_key_def(const TABLE &table_arg, uint i,
                                const struct key_def_cf_info &cf_info,
                                uint64 ttl_duration,
                                const std::string &ttl_column,
-                               bool is_dd_tbl /* = false */) const {
+                               bool is_dd_tbl /* = false */, bool is_secondary_index) const {
   DBUG_ENTER_FUNC();
 
   assert(new_key_def == nullptr);
 
-  const uint index_id = ddl_manager.get_and_update_next_number(
-      cf_info.cf_handle->GetID(), is_dd_tbl);
+  uint index_id;
+
+  {
+    auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(cf_info.cf_handle->GetID());
+    std::lock_guard dm_lock(*local_dict_manager);
+    index_id = ddl_manager.get_and_update_next_number(
+        cf_info.cf_handle->GetID(), is_dd_tbl); // FIXME
+    if (is_secondary_index) {
+      local_dict_manager->add_index_id_reserved_for_create(GL_INDEX_ID{cf_info.cf_handle->GetID(), index_id});
+    }
+  }
+
+  DEBUG_SYNC(ha_thd(), "rocksdb_create_key_def_after_index_id_allocated");
+  DBUG_EXECUTE_IF("rocksdb_create_key_def_after_index_id_allocated", {
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(5s);
+  });
+ 
   const uint16_t index_dict_version = Rdb_key_def::INDEX_INFO_VERSION_LATEST;
   uchar index_type;
   uint16_t kv_version;
@@ -9142,7 +9186,7 @@ int ha_rocksdb::create_table(const std::string &table_name,
                              ulonglong auto_increment_value,
                              const dd::Table *table_def [[maybe_unused]]) {
   DBUG_ENTER_FUNC();
-
+  std::vector<GL_INDEX_ID> index_ids_to_reserve; // defined here because of gotos in code below
   int err;
   bool is_dd_tbl = dd::get_dictionary()->is_dd_table_name(
       table_arg.s->db.str, table_arg.s->table_name.str);
@@ -9198,6 +9242,14 @@ int ha_rocksdb::create_table(const std::string &table_name,
         "wait_for mark_cf_dropped_done_in_create_table";
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   });
+
+  index_ids_to_reserve.clear();
+  index_ids_to_reserve.reserve(n_keys);
+  for (size_t i = 0; i < n_keys; i++) {
+    index_ids_to_reserve.push_back(m_key_descr_arr[i]->get_gl_index_id());
+  }
+
+  wait_until_no_conflicting_index_ids_reserved(index_ids_to_reserve);
 
   {
     std::lock_guard<Rdb_dict_manager> dm_lock(*local_dict_manager);
@@ -14384,7 +14436,7 @@ bool ha_rocksdb::prepare_inplace_alter_table(
 
     if (create_key_defs(*altered_table, *new_tdef,
                         "" /*actual_user_table_name*/, false /*is_dd_tbl*/,
-                        table, m_tbl_def)) {
+                        table, m_tbl_def, true)) {
       /* Delete the new key descriptors */
       delete[] new_key_descr;
 
@@ -14505,7 +14557,7 @@ bool ha_rocksdb::rebuild_table_def_from_table(TABLE *altered_table) {
 
   if (create_key_defs(*altered_table, *new_tdef,
                       "" /* actual_user_table_name */, false /* is_dd_tbl */,
-                      table, m_tbl_def)) {
+                      table, m_tbl_def, false)) {
     goto error;
   }
 
@@ -14852,7 +14904,7 @@ int ha_rocksdb::inplace_populate_sk(
 
     bool is_critical_error;
     res = tx->finish_bulk_load(&is_critical_error, true, new_table_arg,
-                               m_table_handler->m_table_name);
+                               m_table_handler->m_table_name, &indexes);
 
     if (res == ER_DUP_ENTRY) {
       assert(new_table_arg->key_info[index->get_keyno()].flags & HA_NOSAME);

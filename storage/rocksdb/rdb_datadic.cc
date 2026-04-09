@@ -5484,6 +5484,7 @@ bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
   assert(cf_manager != nullptr);
 
   mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(0, &m_index_id_reserved_for_create_cond);
 
   m_db = rdb_dict;
 
@@ -5602,6 +5603,32 @@ void Rdb_dict_manager::delete_with_prefix(
   dump_index_id(&key_writer, dict_type, gl_index_id);
 
   delete_key(batch, key_writer.to_slice());
+}
+
+void Rdb_dict_manager::add_index_id_reserved_for_create(const GL_INDEX_ID &gl_index_id) {
+  assert_lock_held();
+  m_index_id_reserved_for_create.insert(gl_index_id);
+}
+
+void Rdb_dict_manager::remove_index_id_reserved_for_create(const GL_INDEX_ID &gl_index_id) {
+  assert_lock_held();
+  m_index_id_reserved_for_create.erase(gl_index_id);
+  mysql_cond_signal(&m_index_id_reserved_for_create_cond);
+}
+
+bool Rdb_dict_manager::has_conflicting_index_id_reserved_for_create(const GL_INDEX_ID &gl_index_id) const {
+  assert_lock_held();
+  auto is_conflicting = [&](const GL_INDEX_ID &other) {
+    return other.cf_id == gl_index_id.cf_id && other.index_id < gl_index_id.index_id;
+  };
+  return std::any_of(m_index_id_reserved_for_create.begin(), m_index_id_reserved_for_create.end(), is_conflicting);
+}
+
+void Rdb_dict_manager::wait_until_no_conflicting_index_ids_reserved_for_create(const GL_INDEX_ID &gl_index_id) const {
+  assert_lock_held();
+  while (has_conflicting_index_id_reserved_for_create(gl_index_id)) {
+    mysql_cond_wait(&m_index_id_reserved_for_create_cond, &m_mutex);
+  }
 }
 
 void Rdb_dict_manager::add_or_update_index_cf_mapping(

@@ -320,7 +320,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
       const TABLE &table_arg, Rdb_tbl_def &tbl_def_arg,
       const std::string &actual_user_table_name, bool is_dd_tbl,
       const TABLE *const old_table_arg = nullptr,
-      const Rdb_tbl_def *const old_tbl_def_arg = nullptr) const;
+      const Rdb_tbl_def *const old_tbl_def_arg = nullptr,
+      bool is_secondary_index = false) const;
 
   int secondary_index_read(const int keyno, uchar *const buf,
                            const rocksdb::Slice *key,
@@ -716,7 +717,7 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
                                    const struct key_def_cf_info &cf_info,
                                    uint64 ttl_duration,
                                    const std::string &ttl_column,
-                                   bool is_dd_tbl = false) const;
+                                   bool is_dd_tbl = false, bool is_index = false) const;
 
   [[nodiscard]] bool create_inplace_key_defs(
       const TABLE &table_arg, Rdb_tbl_def &tbl_def_arg,

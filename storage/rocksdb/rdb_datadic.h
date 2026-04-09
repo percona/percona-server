@@ -15,6 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
+#include "mysql/components/services/bits/mysql_cond_bits.h"
 #define ROCKSDB_INCLUDE_VALIDATE_TABLES 1
 
 /* C++ standard header files */
@@ -1634,7 +1635,7 @@ class Rdb_ddl_manager : public Ensure_initialized {
 */
 class Rdb_dict_manager : public Ensure_initialized {
  private:
-  mysql_mutex_t m_mutex;
+  mutable mysql_mutex_t m_mutex;
   rocksdb::TransactionDB *m_db = nullptr;
   rocksdb::ColumnFamilyHandle *m_system_cfh = nullptr;
   /* Utility to put INDEX_INFO and CF_DEFINITION */
@@ -1644,6 +1645,21 @@ class Rdb_dict_manager : public Ensure_initialized {
 
   uchar m_key_buf_max_dd_index_id[Rdb_key_def::INDEX_NUMBER_SIZE] = {0};
   rocksdb::Slice m_key_slice_max_dd_index_id;
+
+  /* We prefer to track index id reservations for create index operations
+  in a separate set (not the one that tracks ongoing index operations).
+  This is because we don't want to add ongoing index create operations
+  to RocksDB earlier than necessary. The bulk load operations might
+  work on temporary files alone up until they need to ingest the data
+  into RocksDB, and at that point ongoing index create operations are
+  currently added to RocksDB. Before that happens this set tracks the
+  index ids reserved for future create index operations that are being
+  used in concurrent bulk load operations. Note, that in case of crash,
+  any unfinished temporary SST files will be dropped. */
+  std::unordered_set<GL_INDEX_ID> m_index_id_reserved_for_create;
+
+  /* Condition variable to wait until index id reservations are removed. */
+  mutable mysql_cond_t m_index_id_reserved_for_create_cond;
 
   static void dump_index_id(uchar *const netbuf,
                             Rdb_key_def::DATA_DICT_TYPE dict_type,
@@ -1681,6 +1697,7 @@ class Rdb_dict_manager : public Ensure_initialized {
 
   inline void cleanup() {
     if (!initialized) return;
+    mysql_cond_destroy(&m_index_id_reserved_for_create_cond);
     mysql_mutex_destroy(&m_mutex);
   }
 
@@ -1688,7 +1705,7 @@ class Rdb_dict_manager : public Ensure_initialized {
 
   inline void unlock() { RDB_MUTEX_UNLOCK_CHECK(m_mutex); }
 
-  inline void assert_lock_held() { mysql_mutex_assert_owner(&m_mutex); }
+  inline void assert_lock_held() const { mysql_mutex_assert_owner(&m_mutex); }
 
   inline rocksdb::ColumnFamilyHandle *get_system_cf() const {
     return m_system_cfh;
@@ -1704,6 +1721,12 @@ class Rdb_dict_manager : public Ensure_initialized {
   void delete_key(rocksdb::WriteBatchBase *batch,
                   const rocksdb::Slice &key) const;
   rocksdb::Iterator *new_iterator() const;
+
+  /* Index id reservation for create index (@see m_index_id_reserved_for_create) */
+  void add_index_id_reserved_for_create(const GL_INDEX_ID &gl_index_id);
+  void remove_index_id_reserved_for_create(const GL_INDEX_ID &gl_index_id);
+  bool has_conflicting_index_id_reserved_for_create(const GL_INDEX_ID &gl_index_id) const;
+  void wait_until_no_conflicting_index_ids_reserved_for_create(const GL_INDEX_ID &gl_index_id) const;
 
   /* Internal Index id => CF */
   void add_or_update_index_cf_mapping(

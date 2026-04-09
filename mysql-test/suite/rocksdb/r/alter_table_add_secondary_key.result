@@ -1,0 +1,61 @@
+#
+# Test that checks if a bulk_load_fail_if_not_bottommost_level=true doesn't affect secondary index creation badly.
+#
+#
+# Create table t1 for which secondary index will be added later with ALTER
+#
+CREATE TABLE t1 (
+id BIGINT PRIMARY KEY,
+idx_col INT
+) ENGINE=ROCKSDB;
+#
+# Create table t2. It will have index_id smaller than index_id of the secondary index for t1 (that we are going to create).
+# Note: we can't use t1 instead of t2 to insert row while ALTER is running, because there will be MDL SHARED LOCK for t1.
+#
+CREATE TABLE t2 (
+id BIGINT PRIMARY KEY,
+idx_col INT
+) ENGINE=ROCKSDB;
+# Insert row to t1, so the secondary index is not going to be empty.
+INSERT INTO t1 VALUES (1, 100);
+#
+# Start ALTER TABLE ADD INDEX and pause with DEBUG_SYNC after allocating new index_id
+#
+SET DEBUG_SYNC = 'rocksdb_create_key_def_after_index_id_allocated SIGNAL index_id_allocated';
+SET GLOBAL DEBUG = '+d,rocksdb_create_key_def_after_index_id_allocated';
+SET SESSION rocksdb_bulk_load_fail_if_not_bottommost_level = true;
+ALTER TABLE t1 ADD INDEX idx (idx_col);;
+#
+# Waiting for index_id allocated...
+#
+SET DEBUG_SYNC = 'now WAIT_FOR index_id_allocated';
+#
+# Secondary index has received index_id. Creating table t3. It will have index_id greater than index_id of the secondary index for t1.
+#
+SET GLOBAL DEBUG = '-d,rocksdb_create_key_def_after_index_id_allocated';
+CREATE TABLE t3 (
+id BIGINT PRIMARY KEY,
+idx_col INT
+) ENGINE=ROCKSDB;
+#
+# Insert row with corresponding RocksDB key smaller than keys of the secondary index for t1. 
+INSERT INTO t2 VALUES (1, 100);
+# Insert row with corresponding RocksDB key greater than keys of the secondary index for t1. 
+INSERT INTO t3 VALUES (1, 100);
+#
+#
+# Flush memtable and compact SST from L0 to L6. Note: this SST will have range of keys overlapping with the range of keys that will be generated for the secondary index.
+#
+SET GLOBAL rocksdb_force_flush_memtable_and_lzero_now = ON;
+# Now signal the waiting ALTER thread to continue and let it add the index (ingest happens now!)
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	1	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	1	idx	1	idx_col	A	1	NULL	NULL	YES	SE_SPECIFIC			YES	NULL
+SELECT SUM(id) FROM t1 USE INDEX (idx);
+SUM(id)
+1
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

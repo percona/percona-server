@@ -1167,13 +1167,18 @@ std::unique_ptr<EventFilterFunctionBase> AuditRuleParser::parse_function(
 
   FunctionArgsList args;
 
-  if (function_json.HasMember("args") &&
-      !parse_function_args_json(function_json["args"], args, class_name,
-                                audit_rule)) {
-    LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_FUNCTION_BAD_ARGS_FORMAT,
-                    audit_rule->get_rule_name().c_str());
-    audit_rule->set_parse_error("wrong function args format provided");
-    return nullptr;
+  if (function_json.HasMember("args")) {
+    if (func_type == EventFilterFunctionType::QueryDigest &&
+        function_json["args"].IsString()) {
+      args.push_back({FunctionArgType::String, FunctionArgSourceType::String,
+                      function_json["args"].GetString()});
+    } else if (!parse_function_args_json(function_json["args"], args,
+                                         class_name, audit_rule)) {
+      LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_FUNCTION_BAD_ARGS_FORMAT,
+                      audit_rule->get_rule_name().c_str());
+      audit_rule->set_parse_error("wrong function args format provided");
+      return nullptr;
+    }
   }
 
   if (!validate_filter_function_args(func_type, args, expected_return_type)) {
@@ -1191,8 +1196,12 @@ bool AuditRuleParser::parse_function_args_json(
     const rapidjson::Value &function_args_json, FunctionArgsList &args,
     const std::string &class_name, AuditRule *audit_rule) noexcept {
   /*
-   * Parse 'function' arguments list, must be an array of objects with each
-   * object containing argument type and its value along with the value source
+   * Parse 'function' arguments list in the generic typed-array form. The
+   * query_digest() shorthand using a direct string argument is handled by
+   * parse_function() before this helper is called.
+   *
+   * Arguments must be an array of objects with each object containing
+   * argument type and its value along with the value source.
    *
    * "function": {
    *   "name": "string_find",

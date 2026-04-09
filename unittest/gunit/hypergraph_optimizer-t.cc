@@ -506,7 +506,7 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
   EXPECT_EQ(RelationalExpression::ANTIJOIN, graph.edges[1].expr->type);
   EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
-  EXPECT_EQ(0, graph.predicates.size());
+  EXPECT_EQ(1, graph.predicates.size());
 }
 
 TEST_F(MakeHypergraphTest, Predicates) {
@@ -633,7 +633,7 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
-  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+  EXPECT_EQ(1, graph.edges[0].expr->join_conditions.size());
   EXPECT_FLOAT_EQ(1.0F, graph.edges[0].selectivity);
 
   // t2/{t1,t3}. This join should also carry the predicate.

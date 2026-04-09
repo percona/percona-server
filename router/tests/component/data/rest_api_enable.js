@@ -22,12 +22,11 @@ if (mysqld.global.cluster_nodes === undefined) {
 }
 var options = {
   cluster_type: "gr",
-  gr_id: mysqld.global.gr_id,
   innodb_cluster_name: "mycluster",
+  group_replication_members: gr_memberships.gr_members(
+      mysqld.global.gr_node_host, mysqld.global.gr_nodes),
   gr_id: mysqld.global.gr_id,
   metadata_schema_version: mysqld.global.schema_version,
-  replication_group_members: gr_memberships.gr_members(
-      mysqld.global.gr_node_host, mysqld.global.gr_nodes),
   innodb_cluster_instances: gr_memberships.cluster_nodes(
       mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   router_version: mysqld.global.router_version,

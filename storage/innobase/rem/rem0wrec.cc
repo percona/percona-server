@@ -127,7 +127,7 @@ ulint rec_offs_nth_sql_null(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
-  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
+  ut_d(validate_rec_offset(index, offsets, n, UT_LOCATION_HERE));
   return (rec_offs_nth_sql_null_low(offsets, n));
 }
 
@@ -137,7 +137,7 @@ ulint rec_offs_nth_default(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
-  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
+  ut_d(validate_rec_offset(index, offsets, n, UT_LOCATION_HERE));
   return (rec_offs_nth_default_low(offsets, n));
 }
 
@@ -147,7 +147,7 @@ ulint rec_offs_nth_size(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
-  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
+  ut_d(validate_rec_offset(index, offsets, n, UT_LOCATION_HERE));
   return (rec_offs_nth_size_low(offsets, n));
 }
 

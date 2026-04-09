@@ -99,6 +99,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
+    ${PROJECT_SOURCE_DIR}/src/routing/include
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS

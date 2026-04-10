@@ -713,12 +713,12 @@ class CostingReceiver {
                                 const Mem_root_array<AccessPath *> &paths,
                                 bool *found_imerge);
   void ProposeAllRowIdOrderedIntersectPlans(
-      TABLE *table, int node_idx, SEL_TREE *tree, int num_filter_predicates,
+      TABLE *table, int node_idx, SEL_TREE *tree,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
       bool *found_imerge);
   void ProposeRowIdOrderedIntersect(
-      TABLE *table, int node_idx, int num_filter_predicates,
+      TABLE *table, int node_idx,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
@@ -2844,8 +2844,8 @@ void CostingReceiver::ProposeAllIndexMergeScans(
   // Now Propose Row-ID ordered index merge intersect plans if possible.
   if (index_merge_intersect_allowed) {
     ProposeAllRowIdOrderedIntersectPlans(
-        table, node_idx, tree, m_graph->num_filter_predicates,
-        possible_ror_scans, num_output_rows_after_filter, param, found_imerge);
+        table, node_idx, tree, possible_ror_scans, num_output_rows_after_filter,
+        param, found_imerge);
   }
 
   // Propose all index merges we have collected. This proposes both
@@ -3019,7 +3019,7 @@ AbsorbedPredicates UpdateAbsorbedPredicates(
 // of other index merge scans (provides only primary key ordering).
 
 void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
-    TABLE *table, int node_idx, SEL_TREE *tree, int num_filter_predicates,
+    TABLE *table, int node_idx, SEL_TREE *tree,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     bool *found_imerge) {
@@ -3049,9 +3049,8 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
   // We have only 2 scans available, one a non-cpk scan and
   // another a cpk scan. Propose the plan and return.
   if (ror_scans.size() == 1 && cpk_scan != nullptr) {
-    ProposeRowIdOrderedIntersect(table, node_idx, num_filter_predicates,
-                                 possible_ror_scans, ror_scans, cpk_scan,
-                                 num_output_rows_after_filter, param,
+    ProposeRowIdOrderedIntersect(table, node_idx, possible_ror_scans, ror_scans,
+                                 cpk_scan, num_output_rows_after_filter, param,
                                  needed_fields, found_imerge);
     return;
   }
@@ -3077,10 +3076,9 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
       // Find an optimal order of the scans available to start planning.
       find_intersect_order(&ror_scans_to_use, needed_fields,
                            param->temp_mem_root);
-      ProposeRowIdOrderedIntersect(table, node_idx, num_filter_predicates,
-                                   possible_ror_scans, ror_scans_to_use,
-                                   cpk_scan, num_output_rows_after_filter,
-                                   param, needed_fields, found_imerge);
+      ProposeRowIdOrderedIntersect(
+          table, node_idx, possible_ror_scans, ror_scans_to_use, cpk_scan,
+          num_output_rows_after_filter, param, needed_fields, found_imerge);
     } while (std::next_permutation(scan_combination.begin(),
                                    scan_combination.end()));
   }
@@ -3104,14 +3102,14 @@ int GetRowIdOrdering(const TABLE *table, const LogicalOrderings *orderings,
 // Helper to ProposeAllRowIdOrderedIntersectPlans. Proposes an ROR-intersect
 // plan if all the scans are utilized in the available ror scans.
 void CostingReceiver::ProposeRowIdOrderedIntersect(
-    TABLE *table, int node_idx, int num_filter_predicates,
+    TABLE *table, int node_idx,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     OverflowBitset needed_fields, bool *found_imerge) {
   ROR_intersect_plan plan(param, needed_fields.capacity());
   AbsorbedPredicates absorbed_predicates =
-      NoAppliedPredicates(param->return_mem_root, num_filter_predicates);
+      NoAppliedPredicates(param->return_mem_root, m_graph->predicates.size());
   uint index = 0;
   bool cpk_scan_used = false;
   for (index = 0; index < ror_scans.size() && !plan.m_is_covering; ++index) {

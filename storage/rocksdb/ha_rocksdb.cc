@@ -11075,7 +11075,7 @@ int ha_rocksdb::acquire_prefix_lock(const Rdb_key_def &kd, Rdb_transaction *tx,
 */
 int ha_rocksdb::check_and_lock_sk(
     const uint key_id, const struct update_row_info &row_info,
-                                  bool *const found) {
+    bool *const found) {
   assert(
       (row_info.old_data == table->record[1] &&
        row_info.new_data == table->record[0]) ||

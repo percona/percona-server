@@ -2946,12 +2946,15 @@ static bool is_tmp_table(const std::string &tablename) {
 }
 
 static void wait_until_no_conflicting_index_ids_reserved(GL_INDEX_ID index_id) {
-  auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
+  auto local_dict_manager =
+      dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
   std::lock_guard dm_lock(*local_dict_manager);
-  local_dict_manager->wait_until_no_conflicting_index_ids_reserved_for_create(index_id);
+  local_dict_manager->wait_until_no_conflicting_index_ids_reserved_for_create(
+      index_id);
 }
 
-static void wait_until_no_conflicting_index_ids_reserved(const std::vector<GL_INDEX_ID> &index_ids_to_reserve) {
+static void wait_until_no_conflicting_index_ids_reserved(
+    const std::vector<GL_INDEX_ID> &index_ids_to_reserve) {
   for (const auto &index_id : index_ids_to_reserve) {
     wait_until_no_conflicting_index_ids_reserved(index_id);
   }
@@ -3590,13 +3593,12 @@ class Rdb_transaction {
                        TABLE *table_arg = nullptr,
                        char *table_name_arg = nullptr,
                        std::shared_ptr<Rdb_key_def> index = {}) {
-
-    struct Release_index_id_reserved_for_create {                         
+    struct Release_index_id_reserved_for_create {
       std::shared_ptr<Rdb_key_def> index;
 
-      explicit Release_index_id_reserved_for_create(std::shared_ptr<Rdb_key_def> index_arg)
-      : index(index_arg) {
-      }
+      explicit Release_index_id_reserved_for_create(
+          std::shared_ptr<Rdb_key_def> index_arg)
+          : index(index_arg) {}
 
       ~Release_index_id_reserved_for_create() {
         if (index == nullptr) {
@@ -3604,7 +3606,7 @@ class Rdb_transaction {
         }
         const auto index_id = index->get_gl_index_id();
         auto local_dict_manager =
-        dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
+            dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
         std::lock_guard dm_lock(*local_dict_manager);
         local_dict_manager->remove_index_id_reserved_for_create(index_id);
       }
@@ -6476,8 +6478,8 @@ static int rocksdb_init_internal(void *const p) {
 
   if (rdb_has_rocksdb_corruption()) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
-        "There was corruption detected in the RocksDB data files. "
-        "Check error log emitted earlier for more details.");
+                    "There was corruption detected in the RocksDB data files. "
+                    "Check error log emitted earlier for more details.");
     if (rocksdb_allow_to_start_after_corruption) {
       LogPluginErrMsg(INFORMATION_LEVEL, 0,
                       "Set rocksdb_allow_to_start_after_corruption=0 to "
@@ -8431,7 +8433,8 @@ int ha_rocksdb::create_key_defs(
     const TABLE &table_arg, Rdb_tbl_def &tbl_def_arg,
     const std::string &actual_user_table_name, bool is_dd_tbl,
     const TABLE *const old_table_arg /* = nullptr */,
-    const Rdb_tbl_def *const old_tbl_def_arg /* = nullptr */, bool is_secondary_index) const {
+    const Rdb_tbl_def *const old_tbl_def_arg /* = nullptr */,
+    bool is_secondary_index) const {
   DBUG_ENTER_FUNC();
 
   assert(table_arg.s != nullptr);
@@ -8500,7 +8503,8 @@ int ha_rocksdb::create_key_defs(
     */
     for (uint i = 0; i < tbl_def_arg.m_key_count; i++) {
       if (create_key_def(table_arg, i, tbl_def_arg, m_key_descr_arr[i], cfs[i],
-                         ttl_duration, ttl_column, is_dd_tbl, is_secondary_index)) {
+                         ttl_duration, ttl_column, is_dd_tbl,
+                         is_secondary_index)) {
         DBUG_RETURN(HA_EXIT_FAILURE);
       }
     }
@@ -8912,7 +8916,8 @@ int ha_rocksdb::create_key_def(const TABLE &table_arg, uint i,
                                const struct key_def_cf_info &cf_info,
                                uint64 ttl_duration,
                                const std::string &ttl_column,
-                               bool is_dd_tbl /* = false */, bool is_secondary_index) const {
+                               bool is_dd_tbl /* = false */,
+                               bool is_secondary_index) const {
   DBUG_ENTER_FUNC();
 
   assert(new_key_def == nullptr);
@@ -8920,12 +8925,14 @@ int ha_rocksdb::create_key_def(const TABLE &table_arg, uint i,
   uint index_id;
 
   {
-    auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(cf_info.cf_handle->GetID());
+    auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(
+        cf_info.cf_handle->GetID());
     std::lock_guard dm_lock(*local_dict_manager);
     index_id = ddl_manager.get_and_update_next_number(
-        cf_info.cf_handle->GetID(), is_dd_tbl); // FIXME
+        cf_info.cf_handle->GetID(), is_dd_tbl);  // FIXME
     if (is_secondary_index) {
-      local_dict_manager->add_index_id_reserved_for_create(GL_INDEX_ID{cf_info.cf_handle->GetID(), index_id});
+      local_dict_manager->add_index_id_reserved_for_create(
+          GL_INDEX_ID{cf_info.cf_handle->GetID(), index_id});
     }
   }
 
@@ -8934,7 +8941,7 @@ int ha_rocksdb::create_key_def(const TABLE &table_arg, uint i,
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(5s);
   });
- 
+
   const uint16_t index_dict_version = Rdb_key_def::INDEX_INFO_VERSION_LATEST;
   uchar index_type;
   uint16_t kv_version;
@@ -9204,7 +9211,8 @@ int ha_rocksdb::create_table(const std::string &table_name,
                              ulonglong auto_increment_value,
                              const dd::Table *table_def [[maybe_unused]]) {
   DBUG_ENTER_FUNC();
-  std::vector<GL_INDEX_ID> index_ids_to_reserve; // defined here because of gotos in code below
+  std::vector<GL_INDEX_ID>
+      index_ids_to_reserve;  // defined here because of gotos in code below
   int err;
   bool is_dd_tbl = dd::get_dictionary()->is_dd_table_name(
       table_arg.s->db.str, table_arg.s->table_name.str);
@@ -11067,7 +11075,7 @@ int ha_rocksdb::acquire_prefix_lock(const Rdb_key_def &kd, Rdb_transaction *tx,
 */
 int ha_rocksdb::check_and_lock_sk(
     const uint key_id, const struct update_row_info &row_info,
-    bool *const found) {
+                                  bool *const found) {
   assert(
       (row_info.old_data == table->record[1] &&
        row_info.new_data == table->record[0]) ||

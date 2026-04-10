@@ -18,19 +18,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #ifndef AUTH_OIDC_CONFIG_H
 #define AUTH_OIDC_CONFIG_H
 
+#include <chrono>
+#include <cstddef>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
+#include <utility>
 
 #include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/plugin.h>
 #include <mysql/service_thd_alloc.h>
 #include <picojson/picojson.h>
 
-#include <ranges>
+#include <shared_mutex>
+#include <vector>
 
 #include "jwks.h"
+
+class Id_token;
 
 /**
  * @class Idp_config
@@ -69,26 +77,12 @@ class Idp_config {
         roles(std::move(roles)) {}
 
   /**
-   * @brief is this IDP configuration using a JWKS URL to load keys?
-   * @return true if yes, false if no
-   */
-  bool is_using_jwks() const noexcept { return !jwks.get_url().empty(); }
-
-  /**
-   * @brief update the public keys for this IDP configuration
-   */
-  void update_keys() {
-    if (is_using_jwks()) load_keys(jwks.get_url());
-  }
-
-  /**
-   * @brief Loads the public keys from a JWKS URL.
+   * @brief Loads the public keys from JWKS.
    *
-   * @param url The URL of the JWKS endpoint.
-   * @throws std::runtime_error if the HTTP request fails, JSON parsing fails,
-   *                            or key construction fails.
+   * @return false if keys were successfully loaded,
+   * true if keys were not successfully loaded.
    */
-  void load_keys(const std::string &url);
+  bool load_keys() noexcept;
 
   /**
    * @brief Loads the public keys from a JSON array.
@@ -105,6 +99,12 @@ class Idp_config {
    * @return The issuer name string.
    */
   const std::string &get_issuer_name() const noexcept { return issuer_name; }
+
+  /**
+   * @brief Gets the JWKS URL.
+   * @return The JWKS URL.
+   */
+  const std::string &get_jwks_url() const noexcept { return jwks.get_url(); }
 
   /**
    * @brief Gets the name of the group claim.
@@ -153,6 +153,12 @@ class Idp_config {
     const auto it = roles.find(group);
     return it == roles.end() ? no_role : it->second;
   }
+
+  /**
+   * @brief Swaps the current keys with new keys.
+   * @param other An Idp_config object containing the keys to swap in.
+   */
+  void swap_keys(Idp_config &other) { keys.swap(other.keys); }
 };
 
 /**
@@ -161,22 +167,53 @@ class Idp_config {
  */
 class Idp_configs {
  private:
-  std::string config_var{};  ///< The raw configuration variable value.
+  std::string sysvar_str{};  ///< Value of the configuration system variable.
   std::map<std::string, Idp_config>
-      idp_configs{};            ///< Map of IDP names to Idp_config objects.
-  static Idp_configs *configs;  ///< Singleton instance of the configuration.
-  Idp_configs() {}
-  Idp_configs(const std::string &config_var, const std::string &config_json)
-      : config_var(config_var) {
-    parse_json(config_json);
-  }
+      idp_configs{};  ///< Map of IDP names to Idp_config objects.
+  Idp_configs() = delete;
+
+  /**
+   * @brief Length of the
+   */
   static constexpr size_t prefix_len{sizeof("FILE://") - 1};
 
   /**
-   * @brief Parses the JSON configuration string.
+   * @brief Timeout duration for acquiring locks when updating configurations.
+   * This is used to prevent deadlocks in case of long-running operations while.
+   */
+  static constexpr std::chrono::seconds lock_timeout{5};
+
+  /**
+   * @brief Gets the current Idp_configs instance. The instance is a function
+   * local static in order to avoid static initialization order issues.
+   * @return A reference to the unique pointer holding the current Idp_configs.
+   */
+  static std::unique_ptr<Idp_configs> &current();
+
+  /**
+   * @brief A mutex used for synchronizing access to the
+   * configuration. The mutex is a function local static to ensure it is
+   * initialized before use and to avoid static initialization order issues.
+   * @return A reference to the mutex used
+   * @note This mutex should be used to synchronize access to the current
+   * configuration.
+   */
+  static std::shared_timed_mutex &mutex();
+
+  /**
+   * @brief Parses the JSON configuration string and loads configurations cache.
    * @param config_json The JSON string containing IDP configurations.
    */
-  void parse_json(const std::string &config_json);
+  void load(const std::string &config_json);
+
+  /**
+   * @brief Parses the configuration for a single IDP and adds it to the
+   * idp_configs map.
+   * @param idp_value   The JSON value representing the IDP configuration.
+   * @param idp_name    The name of the IDP (used as the key in the map).
+   */
+  void load_idp(const picojson::value &idp_value,
+                const std::string &idp_name) noexcept;
 
   /**
    * @brief Parses the prefix of the configuration system variable.
@@ -193,33 +230,126 @@ class Idp_configs {
    */
   static std::string read_from_file(const std::string &path);
 
- public:
-  static char *sysvar;  ///< Pointer to the system variable storage.
-
   /**
-   * @brief Parses the configuration system variable.
+   * @brief Parses the configuration system variable and optionally loads the
+   * configuration.
    * @param variable The value of the configuration variable.
-   * @return A pointer to the newly created Idp_configs instance.
+   * configuration, else only the basic checks are done.
+   * @param config_json The JSON string containing IDP configurations,
+   * or an empty string if parsing fails.
    */
-  static Idp_configs *parse_var(const char *variable) noexcept;
+  static void parse_var(const char *variable,
+                        std::string &config_json) noexcept;
 
   /**
-   *  @brief Initializes the configuration by parsing the system variable.
+   * @brief Validates the variable syntax, checks if the variable
+   * or content of the file is a valid JSON.
+   * @param variable The configuration variable value to validate.
+   * @return true if parsing fails, false if valid.
    */
-  static void create() noexcept { configs = parse_var(sysvar); }
+  static bool check(const char *variable) noexcept;
+
+  /**
+   *  @brief Parses and loads the configuration according to the new value of
+   * the variable. Updates the system variable pointer to the new value stored
+   * internally.
+   *  @param variable New value of the variable.
+   *  @param sysvar_ptr Pointer to the system variable.
+   *  @note If parsing or loading fails, the system variable will not be updated
+   * and an error will be logged.
+   */
+  static void update(const char *variable, const char **sysvar_ptr) noexcept;
 
   /**
    * @brief Gets the configuration for a specific IDP.
    * @param idp_name The name of the IDP.
-   * @return A pointer to the Idp_config object, or nullptr if not found.
+   * @return reference to the Idp_config object, or nullptr if not found.
+   * @throws std::runtime_error if the IDP is not found in the configuration.
    */
-  static Idp_config *get_item(const std::string &idp_name) noexcept {
-    if (configs == nullptr) return nullptr;
-    std::map<std::string, Idp_config>::iterator it =
-        configs->idp_configs.find(idp_name);
-    if (it == configs->idp_configs.end()) return nullptr;
-    return &(it->second);
+  Idp_config &get_idp(const std::string &idp_name) {
+    const auto it = idp_configs.find(idp_name);
+    if (it == idp_configs.end())
+      throw std::runtime_error("IDP not found: " + idp_name);
+    return it->second;
   }
+
+  /**
+   * @brief Swaps the keys of the specified IDP with the keys from another IDP
+   * in a thread-safe manner.
+   * @param idp_name The name of the first IDP.
+   * @param other_idp The second IDP config.
+   * @throws std::runtime_error if the IDP is not found in the configuration.
+   */
+  static void swap_idp_keys(const std::string &idp_name,
+                            Idp_config &other_idp) {
+    std::unique_lock lock(mutex());
+    current()->get_idp(idp_name).swap_keys(other_idp);
+  }
+
+  /**
+   * @brief Gets the JWKS URL for a specific IDP in a thread-safe manner.
+   * @param idp_name The name of the IDP.
+   * @return The JWKS URL for the specified IDP.
+   */
+  static const std::string &get_safe_jwks_url(const std::string &idp_name) {
+    std::shared_lock lock(mutex(), lock_timeout);
+    if (!lock.owns_lock())
+      throw std::runtime_error("failed to acquire shared lock");
+    return current()->get_idp(idp_name).get_jwks_url();
+  }
+
+  /**
+   * @brief Gets the JWKS URL for a specific IDP in a thread-safe manner.
+   */
+  static void swap_idp_keys(
+      std::vector<std::pair<std::string, Idp_config>> &configs) {
+    std::unique_lock lock(mutex(), lock_timeout);
+    if (!lock.owns_lock())
+      throw std::runtime_error("failed to acquire unique lock");
+    for (auto &config : configs) {
+      current()->get_idp(config.first).swap_keys(config.second);
+    }
+  }
+
+  /**
+   * @brief Creates temporary IDP configs for further key loading in a
+   * thread-safe manner.
+   * @param configs A vector to be populated with pairs of IDP names and their
+   * corresponding temporary Idp_config objects
+   */
+  static void create_tmp_configs(
+      std::vector<std::pair<std::string, Idp_config>> &configs) {
+    std::shared_lock lock(mutex(), lock_timeout);
+    if (!lock.owns_lock())
+      throw std::runtime_error("failed to acquire shared lock");
+    configs.reserve(current()->idp_configs.size());
+    for (auto &config : current()->idp_configs) {
+      configs.emplace_back(
+          config.first,
+          Idp_config("", config.second.get_jwks_url(), "", {}, {}));
+    }
+  }
+
+ public:
+  static char *sysvar;  ///< Pointer to the system variable storage.
+
+  /**
+   * @brief Constructor for Idp_configs.
+   * @param sysvar_str  The value of the system variable string.
+   */
+  explicit Idp_configs(const char *sysvar_str) : sysvar_str(sysvar_str) {}
+
+  /**
+   * @brief Verifies the ID token and extracts user roles based on the IDP
+   * configuration.
+   * @param token  The ID token to verify.
+   * @param idp_name The name of the IDP to use for verification.
+   * @param ext_user  The expected external username (subject) in the token.
+   * @param roles   A string to be populated with the mapped database roles
+   * (comma-separated) if verification is successful.
+   */
+  static void verify_token(const Id_token &token, const std::string &idp_name,
+                           const std::string &ext_user, std::string &roles);
 
   /**
    * @brief Check function for the MySQL system variable.
@@ -245,7 +375,8 @@ class Idp_configs {
   /**
    * @brief Updates the keys for a specific IDP by calling JWKS.
    * @param idp_name name od IDP which keys are to be updated.
-   * @return on success: number of updated IDPs, on failure: negative value
+   * @return on success: number of updated IDPs (0 or 1),
+   * on failure: negative value
    */
   static long long update_keys(const char *idp_name) noexcept;
 };

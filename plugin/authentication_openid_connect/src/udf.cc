@@ -62,7 +62,7 @@ bool update_jwks_init(UDF_INIT *udf_init, UDF_ARGS *args, char *message) {
  * @brief Deinitialization function for the update_jwks UDF.
  *
  * This function is called by MySQL when the UDF is unloaded.
- * Currently does nothing as no resources are allocated during init.
+ * Currently, does nothing as no resources are allocated during init.
  *
  * @param udf_init Pointer to UDF_INIT structure.
  */

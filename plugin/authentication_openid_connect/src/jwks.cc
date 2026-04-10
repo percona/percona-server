@@ -17,12 +17,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include "jwks.h"
 
 #include <curl/curl.h>
+#include <curl/easy.h>
 
+#include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <string>
 
 #include "jwk.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
+#include "mysqld_error.h"
 
 std::size_t Jwks::write_callback(const char *received,
                                  const std::size_t element_size,
@@ -34,11 +39,11 @@ std::size_t Jwks::write_callback(const char *received,
   return total;
 }
 
-std::string Jwks::http_get(const std::string &url) {
+std::string Jwks::http_get() const {
   if (url.empty()) return "";
   const std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl(
       curl_easy_init(), curl_easy_cleanup);
-  if (curl == nullptr) throw std::runtime_error("JWST: curl_easy_init failed");
+  if (curl == nullptr) throw std::runtime_error("JWKS: curl_easy_init failed");
 
   std::string response;
 
@@ -59,10 +64,14 @@ std::string Jwks::http_get(const std::string &url) {
   if (url.find("https://") == 0) {
     curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl.get(), CURLOPT_SSL_VERIFYHOST, 2L);
+  } else {
+    const std::string message{"JWKS configuration is insecure, use HTTPS: " +
+                              url};
+    LogPluginErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
   }
   CURLcode curl_code = curl_easy_perform(curl.get());
   if (curl_code != CURLE_OK) {
-    const std::string msg = std::string("JWST: HTTP GET from ") + url +
+    const std::string msg = std::string("JWKS: HTTP GET from ") + url +
                             " failed: " + curl_easy_strerror(curl_code);
     throw std::runtime_error(msg);
   }
@@ -70,13 +79,13 @@ std::string Jwks::http_get(const std::string &url) {
   long http_code = 0;
   curl_code = curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &http_code);
   if (curl_code != CURLE_OK) {
-    const std::string msg = std::string("JWST: CURL get info from ") + url +
+    const std::string msg = std::string("JWKS: CURL get info from ") + url +
                             "failed: " + curl_easy_strerror(curl_code);
     throw std::runtime_error(msg);
   }
 
   if (http_code < 200 || http_code >= 300) {
-    throw std::runtime_error("JWST: unexpected HTTP status from " + url + ": " +
+    throw std::runtime_error("JWKS: unexpected HTTP status from " + url + ": " +
                              std::to_string(http_code));
   }
 

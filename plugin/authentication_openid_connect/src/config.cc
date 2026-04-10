@@ -17,29 +17,36 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "config.h"
 
-#include <ctype.h>
 #include <stddef.h>
+#include <cctype>
 #include <exception>
 #include <fstream>
+#include <ios>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <ranges>
+#include <shared_mutex>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <mysql/components/services/bits/system_variables_bits.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/my_loglevel.h>
 #include <mysql/plugin.h>
-#include <mysql/service_thd_alloc.h>
 #include <mysqld_error.h>
 #include <picojson/picojson.h>
+#include <sql/sql_class.h>
+#include "id_token.h"
 
 #include "jwk.h"
 #include "jwks.h"
+#include "mysql/components/services/bits/thd.h"
 
-Idp_configs *Idp_configs::configs(nullptr);
 char *Idp_configs::sysvar(nullptr);
 
 // Declaration to access the name of the SYS_VAR
@@ -90,62 +97,75 @@ static const T &json_get(const picojson::object &obj, const std::string &key,
 int Idp_configs::check(MYSQL_THD thd [[maybe_unused]],
                        SYS_VAR *var [[maybe_unused]], void *save,
                        st_mysql_value *value) {
-  int value_len(0);
-  const Idp_configs *new_config(
-      parse_var(value->val_str(value, nullptr, &value_len)));
-  if (new_config == nullptr) return 1;
-  // need to pass Idp_config* via void* save to retrieve it in update()
-  *static_cast<const Idp_configs **>(save) = new_config;
-  // TODO what if sth fails between check and update? -> avoid memory leak
+  int value_len{0};
+  const char *value_str{value->val_str(value, nullptr, &value_len)};
+  if (value_str == nullptr || check(value_str) || value_len == 0) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "invalid value for system variable");
+    return 1;
+  }
+  *static_cast<const char **>(save) = value_str;
   return 0;
 }
 
 void Idp_configs::update(MYSQL_THD thd [[maybe_unused]],
                          SYS_VAR *var [[maybe_unused]], void *var_ptr,
                          const void *save) {
-  const Idp_configs *prev_config(configs);
-  // passed as void* from check()
-  configs = *static_cast<Idp_configs *const *>(save);
-  *static_cast<const char **>(var_ptr) = configs->config_var.c_str();
-  if (prev_config != nullptr) {
-    delete prev_config;
-  }
+  update(*static_cast<char *const *>(save),
+         static_cast<const char **>(var_ptr));
 }
 
 long long Idp_configs::update_keys() noexcept {
-  long long updated_keys{0};
-  if (configs == nullptr) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                 "IDP configuration is missing");
-    return -1;
-  }
+  long long no_updated_keys{0};
   try {
-    for (auto &config : configs->idp_configs | std::views::values) {
-      if (!config.is_using_jwks()) continue;
-      config.update_keys();
-      ++updated_keys;
+    std::vector<std::pair<std::string, Idp_config>> configs;
+    create_tmp_configs(configs);
+    for (auto &val : configs | std::views::values) {
+      if (!val.load_keys()) ++no_updated_keys;
     }
+    swap_idp_keys(configs);
   } catch (std::exception &e) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
     return -2;
   }
-  return updated_keys;
+  return no_updated_keys;
 }
 
 long long Idp_configs::update_keys(const char *idp_name) noexcept {
   try {
-    Idp_config *config = get_item(idp_name);
-    if (config == nullptr) return -1;
-    if (!config->is_using_jwks()) return 0;
-    config->update_keys();
+    // This is done in 3 steps to gain max performance with thread safety
+    // 1) get JWKS URL with shared lock
+    // 2) load new keys (takes longest time) without a lock
+    // 3) swaps the keys with unique lock
+    // Note 1: if the load fails, the keys container in tmp is empty and
+    // effectively the keys will be removed from IDP. Note 2: during 2 the IDP
+    // config may be removed, then 3 fails and the function returns an error.
+    // That is not effective, but it is an edge case.
+    const std::string jwks_url{get_safe_jwks_url(idp_name)};
+    if (jwks_url.empty()) return 0;
+    Idp_config config("", jwks_url, "", {}, {});
+    const long long result = config.load_keys() ? 0 : 1;
+    swap_idp_keys(idp_name, config);
+    return result;
   } catch (std::exception &e) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
     return -2;
   }
-  return 1;
 }
 
-void Idp_configs::parse_json(const std::string &config_json) {
+std::unique_ptr<Idp_configs> &Idp_configs::current() {
+  static std::unique_ptr<Idp_configs> current;
+  // create an empty configuration if
+  if (current == nullptr) current = std::make_unique<Idp_configs>("");
+  return current;
+}
+
+std::shared_timed_mutex &Idp_configs::mutex() {
+  static std::shared_timed_mutex mutex;
+  return mutex;
+}
+
+void Idp_configs::load(const std::string &config_json) {
   picojson::value json_obj;
   if (const std::string err = picojson::parse(json_obj, config_json);
       !err.empty())
@@ -155,7 +175,15 @@ void Idp_configs::parse_json(const std::string &config_json) {
     throw std::runtime_error("incorrect configuration structure");
 
   for (const picojson::object &obj = json_obj.get<picojson::object>();
-       const auto &[idp_name, idp_value] : obj) {
+       const auto &[idp_name, idp_value] : obj)
+    load_idp(idp_value, idp_name);
+}
+
+void Idp_configs::load_idp(const picojson::value &idp_value,
+                           const std::string &idp_name) noexcept {
+  // we catch all exceptions here, so if one IDP is misconfigured,
+  // configuration of other IDPs can be loaded
+  try {
     if (!idp_value.is<picojson::object>())
       throw std::runtime_error("incorrect IdP definition of " + idp_name);
     const picojson::object &idp_object = idp_value.get<picojson::object>();
@@ -176,7 +204,7 @@ void Idp_configs::parse_json(const std::string &config_json) {
     std::map<std::string, std::string> roles;
 
     const picojson::array &roles_array{
-        json_get<picojson::array>(idp_object, "group-role", idp_name)};
+        json_get<picojson::array>(idp_object, "group-role", idp_name, false)};
     for (const auto &group_role : roles_array) {
       if (!group_role.is<picojson::object>())
         throw std::runtime_error("incorrect group role mapping in " + idp_name);
@@ -205,37 +233,65 @@ void Idp_configs::parse_json(const std::string &config_json) {
       const picojson::array &key_array{
           json_get<picojson::array>(idp_object, "keys", idp_name)};
       config.load_keys(key_array, idp_name);
-    } else
-      config.load_keys(jwks_url);
+    } else if (config.load_keys()) {
+      const std::string message{
+          "configuration of " + idp_name +
+          " successfully parsed, but failed to load keys"};
+      LogPluginErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
+      return;
+    }
+    const std::string message{"configuration of " + idp_name +
+                              " successfully parsed"};
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
+  } catch (const std::exception &e) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
+  } catch (...) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "unknown error while parsing IDP configuration");
   }
 }
 
-void Idp_config::load_keys(const std::string &url) {
-  std::string body = Jwks::http_get(url);
-  picojson::value root;
-  const std::string err = picojson::parse(root, body);
-  if (!err.empty()) {
-    throw std::runtime_error("JWST: invalid JSON: " + err);
+bool Idp_config::load_keys() noexcept {
+  try {
+    if (jwks.get_url().empty()) return true;
+    const std::string body = jwks.http_get();
+    picojson::value root;
+    const std::string err = picojson::parse(root, body);
+    if (!err.empty()) {
+      throw std::runtime_error("JWKS: invalid JSON: " + err);
+    }
+
+    if (!root.is<picojson::object>()) {
+      throw std::runtime_error("JWKS: JSON root is not an object");
+    }
+    const picojson::object &root_object = root.get<picojson::object>();
+
+    const picojson::array &key_array{
+        json_get<picojson::array>(root_object, "keys", jwks.get_url())};
+
+    load_keys(key_array, jwks.get_url());
   }
-
-  if (!root.is<picojson::object>()) {
-    throw std::runtime_error("JWST: JSON root is not an object");
+  // SECURITY: Remove the keys on any error to prevent accepting compromised
+  // keys. If loading fails partway through, it's better to have no keys than to
+  // risk accepting tokens signed with potentially compromised keys.
+  // This follows the principle of "fail secure" - better to deny access
+  // than to allow potentially unauthorized access.
+  catch (const std::exception &e) {
+    keys.clear();
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
+    return true;
+  } catch (...) {
+    keys.clear();
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "unknown error while loading keys from JWKS");
+    return true;
   }
-  const picojson::object &root_object = root.get<picojson::object>();
-
-  const picojson::array &key_array{
-      json_get<picojson::array>(root_object, "keys", url)};
-
-  load_keys(key_array, url);
+  return false;
 }
 
 void Idp_config::load_keys(const picojson::array &key_array,
                            const std::string &from) {
-  // SECURITY: Clear old keys first to prevent accepting compromised keys.
-  // If loading fails partway through, it's better to have no keys than to
-  // risk accepting tokens signed with potentially compromised keys.
-  // This follows the principle of "fail secure" - better to deny access
-  // than to allow potentially unauthorized access.
+  // for reload case
   keys.clear();
 
   for (const auto &key_value : key_array) {
@@ -261,8 +317,7 @@ void Idp_config::load_keys(const picojson::array &key_array,
 
     keys[kid] = std::move(pem_key);
   }
-
-  std::string message{"public keys from " + from + " loaded."};
+  const std::string message{"public keys from " + from + " loaded"};
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
 }
 
@@ -274,13 +329,13 @@ char Idp_configs::parse_prefix(const std::string &prefix) {
   if (prefix.size() != prefix_len) return 0;
 
   // Case-insensitive prefix check
-  if (prefix[0] == file_prefix[0]) {
+  if (std::toupper(prefix[0]) == file_prefix[0]) {
     for (size_t i = 0; i < prefix_len; ++i) {
       if (std::toupper(prefix[i]) != file_prefix[i]) return 0;
     }
     return 'F';
   }
-  if (prefix[0] == json_prefix[0]) {
+  if (std::toupper(prefix[0]) == json_prefix[0]) {
     for (size_t i = 0; i < prefix_len; ++i) {
       if (std::toupper(prefix[i]) != json_prefix[i]) return 0;
     }
@@ -310,13 +365,13 @@ std::string Idp_configs::read_from_file(const std::string &path) {
   return content;
 }
 
-Idp_configs *Idp_configs::parse_var(const char *variable) noexcept {
+void Idp_configs::parse_var(const char *variable,
+                            std::string &config_json) noexcept {
   try {
-    std::string config_var{variable};
+    const std::string config_var{variable};
     if (config_var.size() < prefix_len)
-      throw std::runtime_error("invalid prefix");
-    const std::string prefix = config_var.substr(0, prefix_len);
-    std::string config_json;
+      throw std::runtime_error("sysvar too short, expected FILE:// or JSON://");
+    const std::string prefix{config_var.substr(0, prefix_len)};
     switch (parse_prefix(prefix)) {
       case 'F':
         config_json = read_from_file(config_var.substr(prefix_len - 1));
@@ -325,16 +380,65 @@ Idp_configs *Idp_configs::parse_var(const char *variable) noexcept {
         config_json = config_var.substr(prefix_len);
         break;
       default:
-        throw std::runtime_error("invalid prefix");
+        throw std::runtime_error(
+            "invalid sysvar prefix, expected FILE:// or JSON://");
     }
-
-    return new Idp_configs(config_var, config_json);
   } catch (const std::exception &e) {
-    std::string error_msg("configuration error: ");
-    error_msg += e.what();
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, error_msg.c_str());
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
   } catch (...) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "configuration error");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "unknown error while parsing sysvar");
   }
-  return nullptr;
+}
+
+bool Idp_configs::check(const char *variable) noexcept {
+  try {
+    std::string config_json;
+    parse_var(variable, config_json);
+    picojson::value json_obj;
+    const std::string err{picojson::parse(json_obj, config_json)};
+    return !err.empty();
+  } catch (const std::exception &e) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
+  } catch (...) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "unknown error while checking sysvar");
+  }
+  return true;
+}
+
+void Idp_configs::update(const char *variable,
+                         const char **sysvar_ptr) noexcept {
+  // This function updates the configuration which must be done in read-only
+  // mode. In order to minimize the locking time, a new configuration is created
+  // and loaded out of the locks. If success, the lock is set for a short time
+  // of swaping old and new configuration.
+  try {
+    auto new_configs = std::make_unique<Idp_configs>(variable);
+    std::string config_json;
+    parse_var(variable, config_json);
+    new_configs->load(config_json);
+    std::unique_lock lock(mutex(), lock_timeout);
+    if (!lock.owns_lock())
+      throw std::runtime_error("failed to acquire unique lock");
+    current().swap(new_configs);
+    *sysvar_ptr = current()->sysvar_str.c_str();
+  } catch (const std::exception &e) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
+  } catch (...) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "failed to update configuration");
+  }
+}
+
+void Idp_configs::verify_token(const Id_token &token,
+                               const std::string &idp_name,
+                               const std::string &ext_user,
+                               std::string &roles) {
+  // No change to the configuration is allowed while verifying the token,
+  // use lock
+  std::shared_lock lock(mutex(), lock_timeout);
+  if (!lock.owns_lock())
+    throw std::runtime_error("failed to acquire shared lock");
+  token.verify(ext_user, current()->get_idp(idp_name), roles);
 }

@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <cassert>
 
 #include <stddef.h>
+#include <cstring>
 #include <exception>
 #include <map>
 #include <string>
@@ -52,8 +53,6 @@ static int auth_oidc_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return 1;
   }
-  Idp_configs::create();
-
   return 0;
 }
 
@@ -134,46 +133,41 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (!vio_info.is_tls_established &&
         vio_info.protocol != MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_SOCKET &&
         vio_info.protocol != MYSQL_PLUGIN_VIO_INFO::MYSQL_VIO_MEMORY) {
-      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+      LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                    "unsecure connection, use TLS, socket or memory");
       return CR_ERROR;
     }
 
     User_auth_data auth_data;
     if (auth_data.init(info)) {
-      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, auth_data.get_error());
+      LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, auth_data.get_error());
       return CR_ERROR;
     }
 
     Id_token token;
     if (token.read(vio)) {
-      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, token.get_error());
-      return CR_ERROR;
-    }
-
-    const std::string &idp_name{auth_data.get_idp()};
-    const Idp_config *idp = Idp_configs::get_item(idp_name);
-    if (idp == nullptr) {
-      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "IDP not configured");
+      LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, token.get_error());
       return CR_ERROR;
     }
 
     std::string roles;
-    token.verify(auth_data.get_ext_user(), idp, roles);
+    Idp_configs::verify_token(token, auth_data.get_idp(),
+                              auth_data.get_ext_user(), roles);
+
     if (size_t role_buf_size{std::size(info->external_roles)};
-        !roles.empty() && roles.size() + 1 < role_buf_size)
-      strncpy(info->external_roles, roles.c_str(), role_buf_size);
-    else
-      LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+        roles.size() + 1 >= role_buf_size)
+      LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                    "too many roles, ignoring roles");
+    else if (!roles.empty())
+      std::strncpy(info->external_roles, roles.c_str(), role_buf_size);
 
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                  "authentication successful");
     return CR_OK;
   } catch (const std::exception &e) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, e.what());
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, e.what());
   } catch (...) {
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "authentication failed");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "authentication failed");
   }
 
   return CR_ERROR;
@@ -206,8 +200,10 @@ static int auth_oidc_set_salt(const char *password [[maybe_unused]],
 
 static MYSQL_SYSVAR_STR(configuration, Idp_configs::sysvar, PLUGIN_VAR_OPCMDARG,
                         "Configuration of OpenId Connect authentication",
-                        Idp_configs::check /* check */,
-                        Idp_configs::update /* update */, "" /* default */);
+                        Idp_configs::check,   // check
+                        Idp_configs::update,  // update
+                        "{}"                  // default
+);
 
 static SYS_VAR *authentication_openid_connect_sysvars[] = {
     MYSQL_SYSVAR(configuration), nullptr};

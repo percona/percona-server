@@ -46,14 +46,14 @@ auto Id_token::get_verifier(const std::string &name, const std::string &key) {
 }
 
 void Id_token::map_groups_to_roles(
-    const Idp_config *idp,
+    const Idp_config &idp,
     const jwt::basic_claim<jwt::traits::kazuho_picojson> &groups_claim,
     std::string &roles) {
   // Group-role mapping
   if (groups_claim.get_type() == jwt::json::type::array) {
     bool first{true};
     for (const auto &group : groups_claim.as_array()) {
-      const std::string &role{idp->get_role(group.to_str())};
+      const std::string &role{idp.get_role(group.to_str())};
       if (role.empty()) continue;
       if (first)
         first = false;
@@ -103,28 +103,27 @@ bool Id_token::read(MYSQL_PLUGIN_VIO *vio) {
   return false;
 }
 
-void Id_token::verify(const std::string &ext_user, const Idp_config *idp,
+void Id_token::verify(const std::string &ext_user, const Idp_config &idp,
                       std::string &roles) const {
-  assert(idp != nullptr);
   const auto decoded_token = jwt::decode(token);
 
   const std::string &pub_key{decoded_token.has_key_id()
-                                 ? idp->get_pub_key(decoded_token.get_key_id())
-                                 : idp->get_pub_key()};
+                                 ? idp.get_pub_key(decoded_token.get_key_id())
+                                 : idp.get_pub_key()};
   const auto verifier =
       get_verifier(decoded_token.get_header_claim("alg").as_string(), pub_key)
-          .with_claim("iss", jwt::claim(idp->get_issuer_name()))
+          .with_claim("iss", jwt::claim(idp.get_issuer_name()))
           .with_claim("sub", jwt::claim(ext_user));
   // Not explicit here, but verifier verifies both caims and expiration
   verifier.verify(decoded_token);
 
   // audience check -optional
-  if (!idp->is_audience_allowed(
+  if (!idp.is_audience_allowed(
           decoded_token.get_payload_claim("aud").as_string()))
     throw std::runtime_error("invalid audience");
 
   // groups and roles mapping -optional
-  if (const std::string &group_claim_name{idp->get_group_claim()};
+  if (const std::string &group_claim_name{idp.get_group_claim()};
       !group_claim_name.empty() &&
       decoded_token.has_payload_claim(group_claim_name))
     map_groups_to_roles(idp, decoded_token.get_payload_claim(group_claim_name),

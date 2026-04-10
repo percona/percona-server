@@ -18,7 +18,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #ifndef MYSQL_JWKS_H
 #define MYSQL_JWKS_H
 
+#include <cstddef>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 /**
  * @class Jwks
@@ -45,7 +48,7 @@ class Jwks {
    * @brief Constructs a Jwks object with a given URL.
    * @param url The URL of the JWKS endpoint.
    */
-  explicit Jwks(const std::string &url) {
+  explicit Jwks(const std::string_view &url) {
     if (!url.empty() && url.find("http://") != 0 && url.find("https://") != 0) {
       throw std::runtime_error("JWKS URL is not valid");
     }
@@ -55,15 +58,14 @@ class Jwks {
   /**
    * @brief Performs an HTTP GET request to the given URL.
    *
-   * @param url The URL to fetch from.
    * @return The response body as a string.
    * @throws std::runtime_error if curl initialization fails, HTTP request
    *                            fails, or HTTP status code indicates an error.
    *
-   * @note This method does NOT enforce HTTPS - use with caution.
-   * @warning No timeout is set - requests may hang indefinitely.
+   * @note This method does NOT enforce HTTPS, but logs a warning if HTTP is
+   * used.
    */
-  static std::string http_get(const std::string &url);
+  std::string http_get() const;
 
  private:
   /**

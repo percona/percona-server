@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include <openssl/bn.h>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 /**
@@ -35,7 +37,7 @@ class Jwk {
    * @return A pointer to the created EVP_PKEY object.
    * @throws std::runtime_error if key creation fails.
    */
-  EVP_PKEY *pkey_from_ctx(EVP_PKEY_CTX *ctx, OSSL_PARAM *params);
+  static EVP_PKEY *pkey_from_ctx(EVP_PKEY_CTX *ctx, OSSL_PARAM *params);
 
  protected:
   std::string alg{};  ///< Algorithm used for the key.
@@ -73,7 +75,7 @@ class Jwk {
    * @param input The base64url string to decode.
    * @return A vector containing the decoded bytes.
    */
-  static std::vector<unsigned char> base64url_decode(const std::string &input);
+  static std::vector<unsigned char> base64url_decode(const std::string_view &input);
 };
 
 /**

@@ -29,10 +29,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include <stddef.h>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
-std::vector<unsigned char> Jwk::base64url_decode(const std::string &input) {
-  std::string prepared_input = input;
+std::vector<unsigned char> Jwk::base64url_decode(const std::string_view &input) {
+  std::string prepared_input{input.data(),input.size()};
   const size_t padding = prepared_input.size() % 4;
   if (padding != 0) prepared_input.append(4 - padding, '=');
   std::ranges::replace(prepared_input, '-', '+');

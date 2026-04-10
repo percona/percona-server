@@ -624,3 +624,32 @@ SET DEBUG_SYNC= "now SIGNAL signal.prefer_ordering_index_check_continue";
 SET @@GLOBAL.DEBUG= '-d,prefer_ordering_index_check';
 SET optimizer_switch = DEFAULT;
 drop table t0, t1, t2;
+
+--echo #
+--echo # Bug#38564020: Optimizer with reverse index range scan
+--echo #               gives incorrect query result
+--echo #
+
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER, f3 INTEGER, PRIMARY KEY(f1), KEY key1(f2));
+INSERT INTO t1 VALUES (10,1,2), (20,1,2), (30,1,3),(40,1,4);
+ANALYZE TABLE t1;
+
+let $query =
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 1;
+--skip_if_hypergraph  # No filters on top of range scan
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+let $query =
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 2;
+--skip_if_hypergraph  # No filters on top of range scan
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+let $query =
+SELECT * FROM t1 WHERE f2 >= 1 AND f2 <= 1 ORDER BY f2 DESC, f1 DESC LIMIT 4;
+--skip_if_hypergraph  # No filters on top of range scan
+--eval EXPLAIN FORMAT=tree $query
+--eval $query
+
+DROP TABLE t1;

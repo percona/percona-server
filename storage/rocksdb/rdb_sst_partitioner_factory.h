@@ -315,6 +315,10 @@ class Rdb_bulk_load_index_registry {
     return success;
   }
 
+  bool empty() const {
+    return m_partitioner_factories.empty() && m_cf_indexes.empty();
+  }
+
   /**
    * returns true when we have index registered in
    * sst partitioner factory

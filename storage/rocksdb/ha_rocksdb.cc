@@ -2945,11 +2945,15 @@ static bool is_tmp_table(const std::string &tablename) {
   }
 }
 
+static void wait_until_no_conflicting_index_ids_reserved(GL_INDEX_ID index_id) {
+  auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
+  std::lock_guard dm_lock(*local_dict_manager);
+  local_dict_manager->wait_until_no_conflicting_index_ids_reserved_for_create(index_id);
+}
+
 static void wait_until_no_conflicting_index_ids_reserved(const std::vector<GL_INDEX_ID> &index_ids_to_reserve) {
   for (const auto &index_id : index_ids_to_reserve) {
-    auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
-    std::lock_guard dm_lock(*local_dict_manager);
-    local_dict_manager->wait_until_no_conflicting_index_ids_reserved_for_create(index_id);
+    wait_until_no_conflicting_index_ids_reserved(index_id);
   }
 }
 
@@ -3585,11 +3589,38 @@ class Rdb_transaction {
                        bool print_client_error = true,
                        TABLE *table_arg = nullptr,
                        char *table_name_arg = nullptr,
-                       const std::unordered_set<std::shared_ptr<Rdb_key_def>> *indexes = nullptr) {
+                       std::shared_ptr<Rdb_key_def> index = {}) {
+
+    struct Release_index_id_reserved_for_create {                         
+      std::shared_ptr<Rdb_key_def> index;
+
+      explicit Release_index_id_reserved_for_create(std::shared_ptr<Rdb_key_def> index_arg)
+      : index(index_arg) {
+      }
+
+      ~Release_index_id_reserved_for_create() {
+        if (index == nullptr) {
+          return;
+        }
+        const auto index_id = index->get_gl_index_id();
+        auto local_dict_manager =
+        dict_manager.get_dict_manager_selector_non_const(index_id.cf_id);
+        std::lock_guard dm_lock(*local_dict_manager);
+        local_dict_manager->remove_index_id_reserved_for_create(index_id);
+      }
+    } release_index_id_reserved_for_create(index);
+
     if (m_curr_bulk_load.size() == 0) {
       if (is_critical_error) {
         *is_critical_error = false;
       }
+      // We skip the Ensure_cleanup step below - ensure we don't miss
+      // to cleanup any of resources that would otherwise be cleanup
+      // there. We could move Ensure_cleanup earlier but before doing
+      // so, we better ensure it is safe to do so - hence assertions.
+      assert(m_curr_bulk_load_tablename.empty());
+      assert(m_key_merge.empty());
+      assert(m_bulk_load_index_registry.empty());
       return HA_EXIT_SUCCESS;
     }
 
@@ -3990,24 +4021,11 @@ class Rdb_transaction {
           file_count);
     }
 
-    if (indexes != nullptr) {
-      std::vector<GL_INDEX_ID> index_ids_to_reserve;
-      index_ids_to_reserve.reserve(indexes->size());
-      for (auto &index : *indexes) {
-        index_ids_to_reserve.push_back(index->get_gl_index_id());
-      }
-      wait_until_no_conflicting_index_ids_reserved(index_ids_to_reserve);
+    if (index != nullptr) {
+      wait_until_no_conflicting_index_ids_reserved(index->get_gl_index_id());
     }
 
     const rocksdb::Status s = ingest_bulk_load_files(args);
-
-    if (indexes != nullptr) {
-      for (auto &index : *indexes) {
-          auto local_dict_manager = dict_manager.get_dict_manager_selector_non_const(index->get_cf()->GetID());
-          std::lock_guard dm_lock(*local_dict_manager);
-          local_dict_manager->remove_index_id_reserved_for_create(index->get_gl_index_id());
-      }
-    }
 
     if (THDVAR(m_thd, trace_sst_api)) {
       LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
@@ -14904,7 +14922,7 @@ int ha_rocksdb::inplace_populate_sk(
 
     bool is_critical_error;
     res = tx->finish_bulk_load(&is_critical_error, true, new_table_arg,
-                               m_table_handler->m_table_name, &indexes);
+                               m_table_handler->m_table_name, index);
 
     if (res == ER_DUP_ENTRY) {
       assert(new_table_arg->key_info[index->get_keyno()].flags & HA_NOSAME);

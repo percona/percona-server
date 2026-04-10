@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 962
+Next QMGR 963
 Next NDBCNTR 1030
 Next NDBFS 2002
 Next DBACC 3007

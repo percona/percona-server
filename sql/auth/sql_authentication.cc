@@ -2156,9 +2156,28 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     for (auto it = list->begin(); it != list->end(); ++it) {
       ACL_USER *acl_user_tmp = (*it);
 
-      if ((!acl_user_tmp->user ||
-           !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
-          acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
+      /* appkey: accounts skip normal host matching; IP verification is
+         delegated to the authentication_appkey plugin (via getpeername()
+         and certificate SAN comparison). */
+      static const char kAppkeyHostPrefix[] = "appkey:";
+      static const size_t kAppkeyHostPrefixLen =
+          sizeof(kAppkeyHostPrefix) - 1;
+
+      const char *acl_host = acl_user_tmp->host.get_host();
+      const bool is_appkey_account =
+          acl_host != nullptr &&
+          strncmp(acl_host, kAppkeyHostPrefix, kAppkeyHostPrefixLen) == 0;
+
+      const bool username_matches =
+          (!acl_user_tmp->user ||
+           !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user));
+
+      const bool host_matches =
+          is_appkey_account
+              ? true
+              : acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip);
+
+      if (username_matches && host_matches) {
         mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
         *(mpvio->restrictions) =
             acl_restrictions->find_restrictions(mpvio->acl_user);

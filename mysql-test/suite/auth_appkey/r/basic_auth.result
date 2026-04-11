@@ -1,0 +1,22 @@
+# NOTE: This result file was manually created.
+# After building with -DWITH_PERCONA_AUTHENTICATION_APPKEY=ON,
+# regenerate with: mysql-test-run --record suite/auth_appkey/t/basic_auth
+INSTALL PLUGIN authentication_appkey SONAME 'authentication_appkey.so';
+SHOW VARIABLES LIKE 'authentication_appkey_%';
+Variable_name	Value
+authentication_appkey_error_verbosity	1
+authentication_appkey_log_success	OFF
+CREATE USER 'appkey_test'@'appkey:test.percona.com'
+IDENTIFIED WITH authentication_appkey BY 'testpass';
+GRANT SELECT ON test.* TO 'appkey_test'@'appkey:test.percona.com';
+SELECT user, host, plugin FROM mysql.user
+WHERE user = 'appkey_test';
+user	host	plugin
+appkey_test	appkey:test.percona.com	authentication_appkey
+SHOW GRANTS FOR 'appkey_test'@'appkey:test.percona.com';
+Grants for appkey_test@appkey:test.percona.com
+GRANT USAGE ON *.* TO `appkey_test`@`appkey:test.percona.com`
+GRANT SELECT ON `test`.* TO `appkey_test`@`appkey:test.percona.com`
+REVOKE ALL ON test.* FROM 'appkey_test'@'appkey:test.percona.com';
+DROP USER 'appkey_test'@'appkey:test.percona.com';
+UNINSTALL PLUGIN authentication_appkey;

@@ -1,0 +1,2 @@
+[v3_req]
+subjectAltName = IP:10.0.0.99,URI:appkey:com.test.app

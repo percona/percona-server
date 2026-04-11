@@ -1,0 +1,46 @@
+###############################################################################
+#                                                                             #
+# Basic functional test for the authentication_appkey plugin.                 #
+#                                                                             #
+# Verifies:                                                                   #
+#   - Plugin can be installed and uninstalled                                 #
+#   - System variables exist with correct default values                      #
+#   - Users with appkey: host prefix can be created                          #
+#   - Account is stored correctly in mysql.user                               #
+#   - SHOW GRANTS works for appkey accounts                                   #
+#   - Account can be revoked and dropped cleanly                              #
+#                                                                             #
+###############################################################################
+
+--source include/have_openssl.inc
+
+# Check if authentication_appkey plugin is available.
+# The plugin is only built when -DWITH_PERCONA_AUTHENTICATION_APPKEY=ON is passed
+# to CMake. Skip the test gracefully if the shared library is absent.
+--replace_result $PLUGIN_DIR PLUGIN_DIR
+--error 0, ER_CANT_OPEN_LIBRARY
+INSTALL PLUGIN authentication_appkey SONAME 'authentication_appkey.so';
+let $errno = $mysql_errno;
+if ($errno) {
+  --skip authentication_appkey plugin not available (build with -DWITH_PERCONA_AUTHENTICATION_APPKEY=ON)
+}
+
+# Verify system variables exist and have correct default values
+SHOW VARIABLES LIKE 'authentication_appkey_%';
+
+# Create an AppKey account using the appkey: host prefix convention
+CREATE USER 'appkey_test'@'appkey:test.percona.com'
+  IDENTIFIED WITH authentication_appkey BY 'testpass';
+GRANT SELECT ON test.* TO 'appkey_test'@'appkey:test.percona.com';
+
+# Verify the account is stored correctly in mysql.user
+SELECT user, host, plugin FROM mysql.user
+  WHERE user = 'appkey_test';
+
+# Verify SHOW GRANTS works for appkey accounts
+SHOW GRANTS FOR 'appkey_test'@'appkey:test.percona.com';
+
+# Cleanup
+REVOKE ALL ON test.* FROM 'appkey_test'@'appkey:test.percona.com';
+DROP USER 'appkey_test'@'appkey:test.percona.com';
+UNINSTALL PLUGIN authentication_appkey;

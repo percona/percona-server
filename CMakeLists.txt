@@ -1920,6 +1920,10 @@ OPTION(WITH_PERCONA_AUTHENTICATION_LDAP "Build with Percona LDAP Simple / LDAP S
 
 OPTION(WITH_PERCONA_AUTHENTICATION_FIDO "Build with Percona FIDO authentication plugin" ON)
 
+OPTION(WITH_PERCONA_AUTHENTICATION_APPKEY
+  "Build with Percona AppKey SSL certificate authentication plugin"
+  ON)
+
 # Add Windows specific jemalloc DLL
 IF(WIN32)
   MYSQL_CHECK_WIN_JEMALLOC()

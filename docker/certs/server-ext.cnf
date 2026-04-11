@@ -1,0 +1,2 @@
+[v3_req]
+subjectAltName = DNS:localhost,IP:127.0.0.1

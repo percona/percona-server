@@ -1,0 +1,51 @@
+version: "3.8"
+
+# authentication_appkey plugin Docker validation
+#
+# Flow:
+#   1. mysql-server — Percona Server 8.0 with authentication_appkey.so baked in
+#   2. client       — runs 5 test cases; generates a client cert at runtime
+#                     using the actual container IP so TC1 succeeds
+
+services:
+
+  # ── MySQL server ──────────────────────────────────────────────────────────────
+  mysql-server:
+    build:
+      context: server
+      dockerfile: Dockerfile
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - ./certs:/etc/mysql/certs:ro
+    ports:
+      - "13306:3306"
+    healthcheck:
+      test:
+        - "CMD"
+        - "mysqladmin"
+        - "ping"
+        - "-h"
+        - "127.0.0.1"
+        - "--silent"
+      interval: 5s
+      timeout: 10s
+      retries: 24
+
+  # ── Client validation ─────────────────────────────────────────────────────────
+  # The client runs in the Docker bridge network. It detects its own IP at
+  # startup and generates a client certificate with that IP in the SAN, signed
+  # by the shared CA. This makes TC1 work regardless of the host OS.
+  client:
+    image: percona/percona-server:8.0
+    depends_on:
+      mysql-server:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: "mysql-server"
+      MYSQL_PORT: "3306"
+      CERT_DIR: "/certs"
+    volumes:
+      - ./certs:/certs:ro
+      - ./client/validate.sh:/validate.sh:ro
+    command: bash /validate.sh

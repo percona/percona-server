@@ -4204,6 +4204,10 @@ static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
   binlog_flags |= USE_HEARTBEAT_EVENT_V2;
 
   *suppress_warnings = false;
+  DBUG_EXECUTE_IF("simulate_reconnect_after_failed_binlog_dump_twice", {
+    static uint failure_count = 0;
+    if (++failure_count <= 2) return 1;
+  });
   if (RUN_HOOK(binlog_relay_io, before_request_transmit,
                (thd, mi, binlog_flags)))
     return 1;
@@ -5360,7 +5364,8 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   thd->clear_active_vio();
   end_server(mysql);
   if ((*retry_count)++) {
-    if (*retry_count > mi->retry_count) return 1;  // Don't retry forever
+    auto is_unlimited_retries{mi->retry_count == 0};
+    if (!is_unlimited_retries && *retry_count > mi->retry_count) return 1;
     slave_sleep(thd, mi->connect_retry, io_slave_killed, mi);
   }
   if (check_io_slave_killed(thd, mi,

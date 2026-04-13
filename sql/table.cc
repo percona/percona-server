@@ -7364,6 +7364,22 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec) {
     fields[i]->move_field_offset(ptrdiff);
 }
 
+class Generated_timestamp_null_handler : public Internal_error_handler {
+ public:
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
+    if (sql_errno != ER_BAD_NULL_ERROR) return false;
+    m_handled = true;
+    return true;
+  }
+
+  bool handled() const { return m_handled; }
+
+ private:
+  bool m_handled{false};
+};
+
 /**
   Updates the values of the generated columns in the record buffer.
 
@@ -7382,7 +7398,7 @@ static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
   assert(table != nullptr);
   assert(table->has_gcol());
 
-  const THD *const thd = current_thd;
+  THD *const thd = current_thd;
   assert(!thd->is_error());
 
   for (Field **field_ptr = table->vfield; *field_ptr != nullptr; ++field_ptr) {
@@ -7407,8 +7423,34 @@ static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
       blob->set_keep_old_value(true);
     }
 
-    const type_conversion_status status =
+    const bool allow_generated_timestamp_null_on_replica =
+        field->type() == MYSQL_TYPE_TIMESTAMP &&
+        !thd->variables.explicit_defaults_for_timestamp &&
+        (thd->is_applier_thread() || thd->is_binlog_applier()) &&
+        thd->lex != nullptr && thd->lex->is_stmt_row_injection();
+    Generated_timestamp_null_handler generated_timestamp_null_handler;
+    if (allow_generated_timestamp_null_on_replica)
+      thd->push_internal_handler(&generated_timestamp_null_handler);
+    auto pop_generated_timestamp_null_handler = create_scope_guard([&]() {
+      if (allow_generated_timestamp_null_on_replica)
+        thd->pop_internal_handler();
+    });
+
+    type_conversion_status status =
         field->gcol_info->expr_item->save_in_field(field, false);
+
+    if (generated_timestamp_null_handler.handled()) {
+      /*
+        Replica-side generated TIMESTAMP evaluation may hit the legacy NULL
+        coercion error even though this field is being recomputed locally.
+        Preserve recomputation by storing the default value and downgrading
+        the failure to a warning in this narrow execution path.
+      */
+      field->set_default();
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR,
+                          ER_THD(thd, ER_BAD_NULL_ERROR), field->field_name);
+      status = TYPE_OK;
+    }
 
     // Give up on error, but keep going if we just got a warning.
     if (status != TYPE_OK && thd->is_error()) return true;

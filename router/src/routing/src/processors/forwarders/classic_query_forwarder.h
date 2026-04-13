@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_QUERY_FORWARDER_INCLUDED
-#define ROUTING_CLASSIC_QUERY_FORWARDER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_QUERY_FORWARDER_H_
+#define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_QUERY_FORWARDER_H_
 
 #include <system_error>
 
@@ -82,6 +82,8 @@ class QueryForwarder : public ForwardingProcessor {
 
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
+
+  std::optional<std::string_view> diagnostic_stage_name() const override;
 
   void failed(
       const std::optional<classic_protocol::message::server::Error> &err) {
@@ -145,4 +147,4 @@ class QueryForwarder : public ForwardingProcessor {
   SqlParserState sql_parser_state_;
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_QUERY_FORWARDER_H_

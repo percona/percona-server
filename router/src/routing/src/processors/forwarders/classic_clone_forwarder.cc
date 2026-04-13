@@ -385,3 +385,47 @@ CloneForwarder::clone_error() {
 
   return forward_server_to_client();
 }
+
+std::optional<std::string_view> CloneForwarder::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::CloneCommand:
+      return "CloneCommand"sv;
+    case Stage::CloneInit:
+      return "CloneInit"sv;
+    case Stage::CloneAttach:
+      return "CloneAttach"sv;
+    case Stage::CloneReinit:
+      return "CloneReinit"sv;
+    case Stage::CloneExecute:
+      return "CloneExecute"sv;
+    case Stage::CloneAck:
+      return "CloneAck"sv;
+    case Stage::CloneExit:
+      return "CloneExit"sv;
+    case Stage::CloneResponse:
+      return "CloneResponse"sv;
+    case Stage::CloneComplete:
+      return "CloneComplete"sv;
+    case Stage::CloneError:
+      return "CloneError"sv;
+    case Stage::CloneData:
+      return "CloneData"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

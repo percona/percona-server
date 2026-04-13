@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_STMT_PARAM_APPEND_DATA_FORWARDER_INCLUDED
-#define ROUTING_CLASSIC_STMT_PARAM_APPEND_DATA_FORWARDER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_PARAM_APPEND_DATA_FORWARDER_H_
+#define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_PARAM_APPEND_DATA_FORWARDER_H_
 
 #include "processors/base/forwarding_processor.h"
 
@@ -42,10 +42,12 @@ class StmtParamAppendDataForwarder : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   stdx::expected<Result, std::error_code> command();
 
   Stage stage_{Stage::Command};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_PARAM_APPEND_DATA_FORWARDER_H_

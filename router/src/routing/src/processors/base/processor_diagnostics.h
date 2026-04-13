@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,43 +23,28 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
-#define ROUTING_CLASSIC_COMMAND_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_DIAGNOSTICS_H_
+#define ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_DIAGNOSTICS_H_
 
-#include "processors/base/forwarding_processor.h"
+#include <memory>
+#include <string>
+#include <system_error>
+#include <vector>
 
-#include "await_client_or_server.h"
+class BasicProcessor;
 
-class CommandProcessor : public ForwardingProcessor {
- public:
-  using ForwardingProcessor::ForwardingProcessor;
+namespace routing::processor_diagnostics {
 
-  enum class Stage {
-    IsAuthed,
-    FetchDiagnosticArea,
-    WaitBoth,
-    Command,
-    Done,
-  };
+std::string processor_state(const BasicProcessor *processor);
 
-  stdx::expected<Result, std::error_code> process() override;
+std::string processor_failed_message(
+    std::error_code ec,
+    const std::vector<std::unique_ptr<BasicProcessor>> &stack);
 
-  void stage(Stage stage) { stage_ = stage; }
-  Stage stage() const { return stage_; }
-  std::optional<std::string_view> diagnostic_stage_name() const override;
+void log_processor_failed(
+    std::error_code ec,
+    const std::vector<std::unique_ptr<BasicProcessor>> &stack);
 
- private:
-  stdx::expected<Result, std::error_code> is_authed();
-  stdx::expected<Result, std::error_code> fetch_diagnostic_area();
-  stdx::expected<Result, std::error_code> wait_both();
-  stdx::expected<Result, std::error_code> command();
+}  // namespace routing::processor_diagnostics
 
-  void client_idle_timeout();
-
-  Stage stage_{Stage::IsAuthed};
-
-  stdx::expected<AwaitClientOrServerProcessor::AwaitResult, std::error_code>
-      wait_both_result_{};
-};
-
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_DIAGNOSTICS_H_

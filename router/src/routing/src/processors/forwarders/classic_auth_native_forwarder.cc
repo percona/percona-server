@@ -386,3 +386,30 @@ AuthNativeForwarder::error() {
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
 }
+
+std::optional<std::string_view> AuthNativeForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Init:
+      return "Init"sv;
+    case Stage::ClientData:
+      return "ClientData"sv;
+    case Stage::CachingSha2Scrambled:
+      return "CachingSha2Scrambled"sv;
+    case Stage::CachingSha2Plaintext:
+      return "CachingSha2Plaintext"sv;
+    case Stage::CachingSha2Encrypted:
+      return "CachingSha2Encrypted"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

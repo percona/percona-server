@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,43 +23,44 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
-#define ROUTING_CLASSIC_COMMAND_INCLUDED
+#ifndef MYSQL_HARNESS_TYPEID_NAME_INCLUDED
+#define MYSQL_HARNESS_TYPEID_NAME_INCLUDED
 
-#include "processors/base/forwarding_processor.h"
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <typeinfo>
 
-#include "await_client_or_server.h"
+#ifdef HAVE_ABI_CXA_DEMANGLE
+#include <cxxabi.h>
+#endif  // HAVE_ABI_CXA_DEMANGLE
 
-class CommandProcessor : public ForwardingProcessor {
- public:
-  using ForwardingProcessor::ForwardingProcessor;
+namespace mysql_harness {
 
-  enum class Stage {
-    IsAuthed,
-    FetchDiagnosticArea,
-    WaitBoth,
-    Command,
-    Done,
-  };
+inline std::string typeid_name(const std::type_info &ti) {
+#ifdef HAVE_ABI_CXA_DEMANGLE
+  int status = 0;
+  std::unique_ptr<char, decltype(&std::free)> demangled{
+      abi::__cxa_demangle(ti.name(), nullptr, nullptr, &status), &std::free};
 
-  stdx::expected<Result, std::error_code> process() override;
+  if (status == 0 && demangled != nullptr) {
+    return demangled.get();
+  }
+#endif  // HAVE_ABI_CXA_DEMANGLE
 
-  void stage(Stage stage) { stage_ = stage; }
-  Stage stage() const { return stage_; }
-  std::optional<std::string_view> diagnostic_stage_name() const override;
+  return ti.name();
+}
 
- private:
-  stdx::expected<Result, std::error_code> is_authed();
-  stdx::expected<Result, std::error_code> fetch_diagnostic_area();
-  stdx::expected<Result, std::error_code> wait_both();
-  stdx::expected<Result, std::error_code> command();
+template <class T>
+std::string typeid_name(const T &v) {
+  return typeid_name(typeid(v));
+}
 
-  void client_idle_timeout();
+template <class T>
+std::string typeid_name() {
+  return typeid_name(typeid(T));
+}
 
-  Stage stage_{Stage::IsAuthed};
+}  // namespace mysql_harness
 
-  stdx::expected<AwaitClientOrServerProcessor::AwaitResult, std::error_code>
-      wait_both_result_{};
-};
-
-#endif
+#endif  // MYSQL_HARNESS_TYPEID_NAME_INCLUDED

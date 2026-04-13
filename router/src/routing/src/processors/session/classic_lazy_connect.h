@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_LAZY_CONNECT_INCLUDED
-#define ROUTING_CLASSIC_LAZY_CONNECT_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_LAZY_CONNECT_H_
+#define ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_LAZY_CONNECT_H_
 
 #include <system_error>
 
@@ -103,6 +103,8 @@ class LazyConnector : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
   struct RequiredConnectionAttributes {
     std::optional<bool> ssl;
     std::optional<bool> x509;
@@ -177,4 +179,4 @@ class LazyConnector : public ForwardingProcessor {
   TraceEvent *trace_event_set_trx_characteristics_{};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_LAZY_CONNECT_H_

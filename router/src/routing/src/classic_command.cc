@@ -569,3 +569,22 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
 
   return Result::SendToClient;
 }
+
+std::optional<std::string_view> CommandProcessor::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::IsAuthed:
+      return "IsAuthed"sv;
+    case Stage::FetchDiagnosticArea:
+      return "FetchDiagnosticArea"sv;
+    case Stage::WaitBoth:
+      return "WaitBoth"sv;
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

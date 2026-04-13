@@ -136,3 +136,19 @@ stdx::expected<Processor::Result, std::error_code> QuitSender::close_socket() {
   stage(Stage::Done);
   return Result::Again;
 }
+
+std::optional<std::string_view> QuitSender::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::TlsShutdown:
+      return "TlsShutdown"sv;
+    case Stage::CloseSocket:
+      return "CloseSocket"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

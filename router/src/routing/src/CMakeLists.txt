@@ -90,6 +90,7 @@ ROUTER_ADD_SHARED_LIBRARY(routing
   await_client_or_server.cc
   processors/base/forwarding_processor.cc
   processors/base/processor.cc
+  processors/base/processor_diagnostics.cc
 
   classic_auth.cc
   classic_auth_cleartext.cc

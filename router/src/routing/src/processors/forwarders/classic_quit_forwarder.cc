@@ -342,3 +342,27 @@ QuitForwarder::client_tls_shutdown_response() {
   stage(Stage::Done);
   return Result::Again;
 }
+
+std::optional<std::string_view> QuitForwarder::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::ServerTlsShutdownFirst:
+      return "ServerTlsShutdownFirst"sv;
+    case Stage::ServerShutdownSend:
+      return "ServerShutdownSend"sv;
+    case Stage::ServerTlsShutdownResponse:
+      return "ServerTlsShutdownResponse"sv;
+    case Stage::ClientTlsShutdownFirst:
+      return "ClientTlsShutdownFirst"sv;
+    case Stage::ClientShutdownSend:
+      return "ClientShutdownSend"sv;
+    case Stage::ClientTlsShutdownResponse:
+      return "ClientTlsShutdownResponse"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

@@ -1350,6 +1350,33 @@ IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG)
   ENDIF()
 ENDIF()
 
+OPTION(WITH_EXTRA_GDB_DEBUGINFO
+  "Replace debug level with -g3 -ggdb3 for debug-oriented builds"
+  ON)
+
+IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG AND WITH_EXTRA_GDB_DEBUGINFO)
+  SET(MINIMAL_RELWITHDEBINFO OFF)
+  SET(MINIMAL_RELWITHDEBINFO OFF CACHE BOOL
+    "Reduce debug information for gcc RelWithDebInfo builds" FORCE)
+
+  FOREACH(flag_var
+    CMAKE_C_FLAGS_DEBUG
+    CMAKE_CXX_FLAGS_DEBUG
+    CMAKE_C_FLAGS_RELWITHDEBINFO
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO
+  )
+    IF(DEFINED ${flag_var})
+      STRING(REGEX REPLACE "(^|[ \t])-g([ \t]|$)" " " ${flag_var} " ${${flag_var}} ")
+      STRING(REGEX REPLACE "(^|[ \t])-g1([ \t]|$)" " " ${flag_var} " ${${flag_var}} ")
+      STRING(REGEX REPLACE "(^|[ \t])-g2([ \t]|$)" " " ${flag_var} " ${${flag_var}} ")
+      STRING(REGEX REPLACE "(^|[ \t])-g3([ \t]|$)" " " ${flag_var} " ${${flag_var}} ")
+      STRING(REGEX REPLACE "(^|[ \t])-ggdb([0-9]*)([ \t]|$)" " " ${flag_var} " ${${flag_var}} ")
+      STRING(STRIP "${${flag_var}}" ${flag_var})
+      STRING(APPEND ${flag_var} " -g3 -ggdb3")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
 # Enable "-Og -fno-inline" for ordinary Debug builds.
 # Note that this may optimize away local stack variables.
 IF(UNIX AND MY_COMPILER_IS_GNU_OR_CLANG

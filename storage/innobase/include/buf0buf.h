@@ -1934,6 +1934,10 @@ struct buf_block_t {
   or (3) the block must belong to an intrinsic table */
   uint64_t modify_clock;
 
+  /** Atomic flag for lazy latch initialization. Set to true exactly
+  once by buf_block_ensure_latches_initialized(). */
+  std::atomic<bool> latches_initialized;
+
   /** @} */
 
   /** mutex protecting this block: state (also protected by the buffer
@@ -2056,6 +2060,13 @@ static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
 static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
   return buf_pool_hash_zip_frame(b->frame);
 }
+
+/** Ensure that latches for a buffer block are initialized exactly once.
+This is called lazily when a block is first taken from the free list
+or when a page is initialized for read/create.
+@param[in,out]  block   buffer block */
+void buf_block_ensure_latches_initialized(buf_block_t *block);
+
 /** @} */
 
 /** A "Hazard Pointer" class used to iterate over page lists

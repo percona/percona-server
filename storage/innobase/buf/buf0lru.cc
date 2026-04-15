@@ -1235,6 +1235,10 @@ buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool) {
 
       ut_ad(buf_pool_from_block(block) == buf_pool);
 
+      /* Lazy latch initialization for this block taken from the free list.
+      Latches are created exactly once, on first real use. */
+      buf_block_ensure_latches_initialized(block);
+
       return (block);
     }
 

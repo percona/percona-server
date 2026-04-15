@@ -1,0 +1,65 @@
+# Setup
+DROP TABLE IF EXISTS mysql_bug_mre;
+Warnings:
+Note	1051	Unknown table 'test.mysql_bug_mre'
+CREATE TABLE mysql_bug_mre (
+c0 FLOAT ZEROFILL NULL
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE INDEX i_c0 ON mysql_bug_mre (c0);
+#
+# Phase S1: Initial state - insert mix of zeros, string coercions, NULL
+#
+INSERT IGNORE INTO mysql_bug_mre (c0) VALUES (0.0), ("x"), (NULL);
+Warnings:
+Warning	1265	Data truncated for column 'c0' at row 2
+# S1 query: MAX via index should return 0000000000
+SELECT MAX(c0) AS s1_max FROM mysql_bug_mre WHERE c0 = 0.0;
+s1_max
+0
+#
+# Phase S2: Trigger the bug with more coerced string values
+#
+INSERT IGNORE INTO mysql_bug_mre (c0) VALUES
+(0.0), (0.0), (0.0), (""), ("x"), ("-0x"), (NULL), (NULL);
+Warnings:
+Warning	1265	Data truncated for column 'c0' at row 4
+Warning	1265	Data truncated for column 'c0' at row 5
+Warning	1265	Data truncated for column 'c0' at row 6
+ANALYZE TABLE mysql_bug_mre;
+Table	Op	Msg_type	Msg_text
+test.mysql_bug_mre	analyze	status	OK
+#
+# Bug Evidence 1: MAX() aggregate via index-only scan
+# Expected: 0000000000 (not NULL)
+#
+SELECT MAX(c0) AS result FROM mysql_bug_mre WHERE c0 = 0.0;
+result
+0
+#
+# Bug Evidence 2: NULL leakage - WHERE c0 = 0.0 must not return NULLs
+# All returned rows must show 0000000000, no NULL
+#
+SELECT c0 FROM mysql_bug_mre WHERE c0 = 0.0;
+c0
+000000000000
+000000000000
+000000000000
+000000000000
+000000000000
+000000000000
+000000000000
+000000000000
+#
+# Bug Evidence 3: FORCE INDEX vs IGNORE INDEX discrepancy
+#
+SELECT MAX(c0) AS idx_result FROM mysql_bug_mre FORCE INDEX (i_c0) WHERE c0 = 0.0;
+idx_result
+0
+SELECT MAX(c0) AS tbl_result FROM mysql_bug_mre IGNORE INDEX (i_c0) WHERE c0 = 0.0;
+tbl_result
+0
+# Cleanup
+DROP TABLE mysql_bug_mre;
+# Done

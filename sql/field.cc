@@ -4114,7 +4114,16 @@ type_conversion_status Field_float::store(double nr) {
   const type_conversion_status error =
       truncate(&nr, FLT_MAX) ? TYPE_WARN_OUT_OF_RANGE : TYPE_OK;
 
-  const float j = (float)nr;
+  float j = (float)nr;
+
+  /*
+    Normalize negative zero to positive zero so that the stored bit
+    pattern is always 0x00000000 for zero.  IEEE 754 treats -0.0 and
+    +0.0 as equal, but their distinct bit representations cause wrong
+    results in index-only scans and ZEROFILL formatting (PS-11024).
+    The same normalization is already applied in make_sort_key().
+  */
+  if (j == 0.0f) j = 0.0f;
 
   if (table->s->db_low_byte_first)
     float4store(ptr, j);
@@ -4282,6 +4291,9 @@ type_conversion_status Field_double::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   const type_conversion_status error =
       truncate(&nr, DBL_MAX) ? TYPE_WARN_OUT_OF_RANGE : TYPE_OK;
+
+  /* Normalize negative zero (see Field_float::store for rationale). */
+  if (nr == 0.0) nr = 0.0;
 
   if (table->s->db_low_byte_first)
     float8store(ptr, nr);

@@ -1,0 +1,16 @@
+#
+# Bug#37797437 Crash caused by check table and network error
+#
+# close_thread_tables() frees table_list->table and releases its MDL
+# ticket. If protocol->end_row() then fails (e.g. due to a network
+# error), the error path used to dereference the now-stale table
+# pointer. mysql_admin_table_force_end_row_fail simulates such an
+# end_row() failure so this can be tested without a real network
+# error.
+#
+CREATE TABLE t1(a INT);
+SET SESSION DEBUG = "+d,mysql_admin_table_force_end_row_fail";
+CHECK TABLE t1;
+ERROR HY000: Unknown error
+SET SESSION DEBUG = "-d,mysql_admin_table_force_end_row_fail";
+DROP TABLE t1;

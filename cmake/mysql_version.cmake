@@ -157,6 +157,8 @@ MACRO(GET_MYSQL_VERSION)
     # Set suffix to indicate that this is MySQL Server built for MySQL Cluster
     SET(MYSQL_SERVER_SUFFIX "-cluster")
   ENDIF()
+
+  MYSQL_GET_CONFIG_VALUE("MYSQL_INT_REVISION" INT_REVISION)
 ENDMACRO()
 
 # Get mysql version and other interesting variables

@@ -54,14 +54,16 @@
 
 void print_version() {
   char version_buffer[SERVER_VERSION_LENGTH];
-  strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
+  strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_INT_REVISION,
+          MYSQL_SERVER_SUFFIX_STR, NullS);
   printf("%s  Ver %s for %s on %s (%s)\n", my_progname, version_buffer,
          SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT_SERVER);
 }
 
 void print_version_debug() {
   char version_buffer[SERVER_VERSION_LENGTH];
-  strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
+  strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_INT_REVISION,
+          MYSQL_SERVER_SUFFIX_STR, NullS);
   printf("%s  Ver %s-debug for %s on %s (%s)\n", my_progname, version_buffer,
          SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT_SERVER);
 }
@@ -74,7 +76,8 @@ void print_explicit_version(const char *version) {
 void build_version(const std::string &progname, std::string *destination) {
   std::ostringstream output_buffer;
   output_buffer << progname << "  Ver " << MYSQL_SERVER_VERSION
-                << MYSQL_SERVER_SUFFIX_STR << " for " << SYSTEM_TYPE << " on "
-                << MACHINE_TYPE << " (" << MYSQL_COMPILATION_COMMENT << ")";
+                << MYSQL_INT_REVISION << MYSQL_SERVER_SUFFIX_STR << " for "
+                << SYSTEM_TYPE << " on " << MACHINE_TYPE << " ("
+                << MYSQL_COMPILATION_COMMENT << ")";
   *destination = output_buffer.str();
 }

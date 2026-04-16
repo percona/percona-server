@@ -13793,8 +13793,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end [[maybe_unused]] = strxmov(server_version, MYSQL_SERVER_VERSION,
-                                       MYSQL_SERVER_SUFFIX_STR, NullS);
+  char *end [[maybe_unused]] =
+      strxmov(server_version, MYSQL_SERVER_VERSION, MYSQL_INT_REVISION,
+              MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef NDEBUG
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");

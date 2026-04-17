@@ -26,7 +26,7 @@
 #ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
 #define ROUTING_CLASSIC_COMMAND_INCLUDED
 
-#include "forwarding_processor.h"
+#include "processors/base/forwarding_processor.h"
 
 #include "await_client_or_server.h"
 

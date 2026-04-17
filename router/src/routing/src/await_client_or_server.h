@@ -26,7 +26,7 @@
 #ifndef ROUTING_CLASSIC_AWAIT_CLIENT_OR_SERVER_PROCESSOR_INCLUDED
 #define ROUTING_CLASSIC_AWAIT_CLIENT_OR_SERVER_PROCESSOR_INCLUDED
 
-#include "processor.h"
+#include "processors/base/processor.h"
 
 class AwaitClientOrServerProcessor : public BasicProcessor {
  public:

@@ -23904,6 +23904,20 @@ static MYSQL_SYSVAR_ULONG(
     nullptr, nullptr, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT, 0, UINT32_MAX,
     0);
 
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
+    PLUGIN_VAR_RQCMDARG,
+    "Number of spin iterations, when spinning and waiting for log buffer"
+    " written up to given LSN, before we fallback to loop with sleeps."
+    " This is not used when user thread has to wait for log flushed to disk."
+    " Minimum value 25000 corresponds to ~0.5-2.5 us of spinning."
+    " Increase to reduce futex wakeup overhead (~56 us) at cost of higher CPU"
+    " usage. Recommended test value: 1000000-2000000 (2x futex wakeup time).",
+    NULL, NULL,
+    INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT,
+    INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_MIN,
+    INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_MAX, 0);
+
 #ifdef ENABLE_EXPERIMENT_SYSVARS
 
 static MYSQL_SYSVAR_ULONG(
@@ -23932,14 +23946,6 @@ static MYSQL_SYSVAR_ULONG(
     " of dirty pages, when they are added to flush lists.",
     NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
     INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
-    PLUGIN_VAR_RQCMDARG,
-    "Number of spin iterations, when spinning and waiting for log buffer"
-    " written up to given LSN, before we fallback to loop with sleeps."
-    " This is not used when user thread has to wait for log flushed to disk.",
-    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
     log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
@@ -24588,12 +24594,12 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_spin_cpu_abs_lwm),
     MYSQL_SYSVAR(log_spin_cpu_pct_hwm),
     MYSQL_SYSVAR(log_wait_for_flush_spin_hwm),
+    MYSQL_SYSVAR(log_wait_for_write_spin_delay),
 #ifdef ENABLE_EXPERIMENT_SYSVARS
     MYSQL_SYSVAR(log_write_events),
     MYSQL_SYSVAR(log_flush_events),
     MYSQL_SYSVAR(log_recent_written_size),
     MYSQL_SYSVAR(log_recent_closed_size),
-    MYSQL_SYSVAR(log_wait_for_write_spin_delay),
     MYSQL_SYSVAR(log_wait_for_write_timeout),
     MYSQL_SYSVAR(log_wait_for_flush_spin_delay),
     MYSQL_SYSVAR(log_wait_for_flush_timeout),

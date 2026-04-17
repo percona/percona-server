@@ -447,6 +447,16 @@ short waits. Hence this is minimum value for the max rounds when non-zero
 value is being used. */
 constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT = 25000;
 
+/** Minimum allowed value of innodb_log_wait_for_write_spin_delay.
+Corresponds to ~0.5-2.5 us of spinning on modern hardware.
+Set equal to default to prevent disabling spinning entirely. */
+constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_MIN = 25000;
+
+/** Maximum allowed value of innodb_log_wait_for_write_spin_delay.
+At ~0.1 ns per PAUSE instruction, 5M iterations ~= 500 us of spinning,
+which is ~9x the typical futex wakeup latency (~56 us). */
+constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_MAX = 5000000;
+
 /** Default value of innodb_log_wait_for_write_timeout (in microseconds). */
 constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT = 1000;
 

@@ -263,39 +263,93 @@ then
     V8DIR="$(cd "$WITH_V8"; pwd)"
 fi
 
+# PGO + LTO settings
+#   WITH_PGO=1  (default)  - enable Profile-Guided Optimization (3-pass build)
+#   WITH_PGO=0             - skip PGO (single cmake pass)
+# Debug builds always skip PGO (no value profiling an unoptimized binary).
+WITH_PGO="${WITH_PGO:-1}"
+if [ "${CMAKE_BUILD_TYPE:-}" = "Debug" ]; then
+    WITH_PGO=0
+fi
+
+# Suppress GCC false positives that fire during LTO link on Bison-generated
+# parsers (sql_hints.yy.cc, pars0grm.cc, etc.) and on bundled libs.
+# Distro-built RPMs/DEBs get these via redhat-hardened-cc1 / dpkg-buildflags;
+# the standalone tarball build doesn't, so add them explicitly. Matches the
+# suppressions Oracle uses in their official MySQL RPM/DEB INFO_BIN.
+# Parameterized warnings (-Walloc-size-larger-than=N etc.) require -Wno- form,
+# not -Wno-error= form, in GCC 14+.
+TARBALL_WARN_SUPPRESS="-Wno-free-nonheap-object -Wno-stringop-overflow -Wno-stringop-overread -Wno-alloc-size-larger-than -Wno-array-bounds"
+
+# Common cmake flags shared across PGO instrumentation, PGO consume, and
+# non-PGO builds. Each invocation appends its unique pass-specific flag.
+CMAKE_COMMON_FLAGS=(
+    "$SOURCEDIR"
+    -DBUILD_CONFIG=mysql_release
+    -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-RelWithDebInfo}"
+    -DCMAKE_C_FLAGS="${TARBALL_WARN_SUPPRESS}"
+    -DCMAKE_CXX_FLAGS="${TARBALL_WARN_SUPPRESS}"
+    -DFEATURE_SET=community
+    -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL"
+    -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data"
+    -DROUTER_INSTALL_LIBDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/private"
+    -DROUTER_INSTALL_PLUGINDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/plugin"
+    -DCOMPILATION_COMMENT="$COMMENT"
+    -DWITH_PAM=ON
+    -DWITH_ROCKSDB=ON
+    -DROCKSDB_DISABLE_AVX2=1
+    -DROCKSDB_DISABLE_MARCH_NATIVE=1
+    -DWITH_INNODB_MEMCACHED=ON
+    -DWITH_ZLIB=bundled
+    -DWITH_CURL=bundled
+    -DWITH_NUMA=ON
+    -DWITH_LDAP=system
+    -DWITH_PACKAGE_FLAGS=OFF
+    -DFORCE_INSOURCE_BUILD=1
+    -DWITH_LIBEVENT=bundled
+    -DWITH_ZSTD=bundled
+    -DWITH_PERCONA_TELEMETRY=ON
+    -DWITH_LTO=ON
+    -DWITH_JS_LANG=ON
+    -DV8_INCLUDE_DIR=${WITH_V8}/include
+    -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj
+)
+
 # Build
 (
     rm -rf "$WORKDIR_ABS/bld"
     mkdir "$WORKDIR_ABS/bld"
     cd "$WORKDIR_ABS/bld"
 
-    cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
+    PGO_FIRST_FLAG=""
+    [ "${WITH_PGO}" = "1" ] && PGO_FIRST_FLAG="-DFPROFILE_GENERATE=1"
+
+    cmake "${CMAKE_COMMON_FLAGS[@]}" \
+        ${CMAKE_OPTS:-} \
         $DEBUG_EXTRA \
-        -DFEATURE_SET=community \
-        -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
-        -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
-        -DROUTER_INSTALL_LIBDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/private" \
-        -DROUTER_INSTALL_PLUGINDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/plugin" \
-        -DCOMPILATION_COMMENT="$COMMENT" \
-        -DWITH_PAM=ON \
-        -DWITH_ROCKSDB=ON \
-        -DROCKSDB_DISABLE_AVX2=1 \
-        -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
-        -DWITH_INNODB_MEMCACHED=ON \
-        -DWITH_ZLIB=bundled \
-        -DWITH_CURL=bundled \
-        -DWITH_NUMA=ON \
-        -DWITH_LDAP=system \
-        -DWITH_PACKAGE_FLAGS=OFF \
-        -DFORCE_INSOURCE_BUILD=1 \
-        -DWITH_LIBEVENT=bundled \
-        -DWITH_ZSTD=bundled \
-	-DWITH_PERCONA_TELEMETRY=ON \
-        -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=${WITH_V8}/include -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj \
+        $PGO_FIRST_FLAG \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
+
+    if [ "${WITH_PGO}" = "1" ]; then
+        echo "PGO: running MTR profile suite to generate .gcda profile data"
+        make run-profile-suite
+
+        echo "PGO: rebuilding with profile data (-DFPROFILE_USE=1)"
+        cd "$WORKDIR_ABS"
+        rm -rf bld
+        mkdir bld
+        cd bld
+        cmake "${CMAKE_COMMON_FLAGS[@]}" \
+            ${CMAKE_OPTS:-} \
+            $DEBUG_EXTRA \
+            -DFPROFILE_USE=1 \
+            $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
+
+        make $MAKE_JFLAG $QUIET
+    fi
+
     make DESTDIR="$INSTALLDIR" install
 
     # Build jemalloc

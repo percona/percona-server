@@ -4053,13 +4053,6 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
   set_data_type_from_item(args[0]);
   cached_result_type = args[0]->result_type();
 
-  // This class does not implement temporal data types
-  if (is_temporal()) {
-    set_data_type_string(args[0]->max_length);
-    if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
-      return true;
-    cached_result_type = STRING_RESULT;
-  }
   return false;
 }
 
@@ -4123,6 +4116,33 @@ my_decimal *Item_func_nullif::val_decimal(my_decimal *decimal_value) {
   my_decimal *res = args[0]->val_decimal(decimal_value);
   null_value = args[0]->null_value;
   return res;
+}
+
+bool Item_func_nullif::val_date(Date_val *date, my_time_flags_t flags) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return val_arg0_date(date, flags);
+}
+
+bool Item_func_nullif::val_time(Time_val *time) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return val_arg0_time(time);
+}
+
+bool Item_func_nullif::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
+  assert(fixed);
+  if (!cmp.compare()) {
+    null_value = true;
+    return true;
+  }
+  return val_arg0_datetime(dt, flags);
 }
 
 bool Item_func_nullif::val_json(Json_wrapper *wr) {

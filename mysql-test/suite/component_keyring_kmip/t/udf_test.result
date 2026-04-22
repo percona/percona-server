@@ -23,19 +23,25 @@ keyring_key_generate('AES_g1', 'AES', 16)
 SELECT keyring_key_generate('AES_g2', 'AES', 32);
 keyring_key_generate('AES_g2', 'AES', 32)
 1
-SELECT keyring_key_generate('AES_g3', 'AES', 64);
-keyring_key_generate('AES_g3', 'AES', 64)
-1
+SELECT keyring_key_generate('AES_g3', 'AES', 64) INTO @x;
+ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
+SELECT @x;
+@x
+NULL
 # keyring_key_store tests
-SELECT keyring_key_store('AES_s1', 'AES', 'Quick brown fox jumped over the lazy dog');
-keyring_key_store('AES_s1', 'AES', 'Quick brown fox jumped over the lazy dog')
-1
+SELECT keyring_key_store('AES_s1', 'AES', 'Quick brown fox jumped over the lazy dog') INTO @x;
+ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
+SELECT @x;
+@x
+NULL
 SELECT keyring_key_store('AES_s2', 'AES', 'Old MacDonald had a farm');
 keyring_key_store('AES_s2', 'AES', 'Old MacDonald had a farm')
 1
-SELECT keyring_key_store('AES_s3', 'AES', 'Quis custodiet ipsos custodes');
-keyring_key_store('AES_s3', 'AES', 'Quis custodiet ipsos custodes')
-1
+SELECT keyring_key_store('AES_s3', 'AES', 'Quis custodiet ipsos custodes') INTO @x;
+ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
+SELECT @x;
+@x
+NULL
 # keyring_key_fetch tests
 SELECT keyring_key_fetch('AES_g1') INTO @aes_g1_fetched;
 SELECT keyring_key_fetch('AES_g2') INTO @aes_g2_fetched;
@@ -48,16 +54,16 @@ LENGTH(@aes_g2_fetched)
 32
 SELECT LENGTH(@aes_g3_fetched);
 LENGTH(@aes_g3_fetched)
-64
+NULL
 SELECT keyring_key_fetch('AES_s1');
 keyring_key_fetch('AES_s1')
-Quick brown fox jumped over the lazy dog
+NULL
 SELECT keyring_key_fetch('AES_s2');
 keyring_key_fetch('AES_s2')
 Old MacDonald had a farm
 SELECT keyring_key_fetch('AES_s3');
 keyring_key_fetch('AES_s3')
-Quis custodiet ipsos custodes
+NULL
 # keyring key_type_fetch tests
 SELECT keyring_key_type_fetch('AES_g1');
 keyring_key_type_fetch('AES_g1')
@@ -67,16 +73,16 @@ keyring_key_type_fetch('AES_g2')
 AES
 SELECT keyring_key_type_fetch('AES_g3');
 keyring_key_type_fetch('AES_g3')
-AES
+NULL
 SELECT keyring_key_type_fetch('AES_s1');
 keyring_key_type_fetch('AES_s1')
-AES
+NULL
 SELECT keyring_key_type_fetch('AES_s2');
 keyring_key_type_fetch('AES_s2')
 AES
 SELECT keyring_key_type_fetch('AES_s3');
 keyring_key_type_fetch('AES_s3')
-AES
+NULL
 # keyring key_length_fetch tests
 SELECT keyring_key_length_fetch('AES_g1');
 keyring_key_length_fetch('AES_g1')
@@ -86,16 +92,16 @@ keyring_key_length_fetch('AES_g2')
 32
 SELECT keyring_key_length_fetch('AES_g3');
 keyring_key_length_fetch('AES_g3')
-64
+NULL
 SELECT keyring_key_length_fetch('AES_s1');
 keyring_key_length_fetch('AES_s1')
-40
+NULL
 SELECT keyring_key_length_fetch('AES_s2');
 keyring_key_length_fetch('AES_s2')
 24
 SELECT keyring_key_length_fetch('AES_s3');
 keyring_key_length_fetch('AES_s3')
-29
+NULL
 # Restarting the server
 # keyring_key_fetch tests after restart
 SELECT keyring_key_fetch('AES_g1') INTO @aes_g1_fetched_after_restart;
@@ -109,16 +115,16 @@ LENGTH(@aes_g2_fetched_after_restart)
 32
 SELECT LENGTH(@aes_g3_fetched_after_restart);
 LENGTH(@aes_g3_fetched_after_restart)
-64
+NULL
 SELECT keyring_key_fetch('AES_s1');
 keyring_key_fetch('AES_s1')
-Quick brown fox jumped over the lazy dog
+NULL
 SELECT keyring_key_fetch('AES_s2');
 keyring_key_fetch('AES_s2')
 Old MacDonald had a farm
 SELECT keyring_key_fetch('AES_s3');
 keyring_key_fetch('AES_s3')
-Quis custodiet ipsos custodes
+NULL
 # keyring key_type_fetch tests after restart
 SELECT keyring_key_type_fetch('AES_g1');
 keyring_key_type_fetch('AES_g1')
@@ -128,7 +134,7 @@ keyring_key_type_fetch('AES_g2')
 AES
 SELECT keyring_key_type_fetch('AES_g3');
 keyring_key_type_fetch('AES_g3')
-AES
+NULL
 # keyring key_length_fetch tests after restart
 SELECT keyring_key_length_fetch('AES_g1');
 keyring_key_length_fetch('AES_g1')
@@ -138,7 +144,7 @@ keyring_key_length_fetch('AES_g2')
 32
 SELECT keyring_key_length_fetch('AES_g3');
 keyring_key_length_fetch('AES_g3')
-64
+NULL
 # keyring_key_remove tests
 SELECT keyring_key_remove('AES_g1');
 keyring_key_remove('AES_g1')
@@ -146,18 +152,24 @@ keyring_key_remove('AES_g1')
 SELECT keyring_key_remove('AES_g2');
 keyring_key_remove('AES_g2')
 1
-SELECT keyring_key_remove('AES_g3');
-keyring_key_remove('AES_g3')
-1
-SELECT keyring_key_remove('AES_s1');
-keyring_key_remove('AES_s1')
-1
+SELECT keyring_key_remove('AES_g3') INTO @x;
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
+SELECT @x;
+@x
+NULL
+SELECT keyring_key_remove('AES_s1') INTO @x;
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
+SELECT @x;
+@x
+NULL
 SELECT keyring_key_remove('AES_s2');
 keyring_key_remove('AES_s2')
 1
-SELECT keyring_key_remove('AES_s3');
-keyring_key_remove('AES_s3')
-1
+SELECT keyring_key_remove('AES_s3') INTO @x;
+ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using.
+SELECT @x;
+@x
+NULL
 # ----------------------------------------------------------------------
 # Clean-up
 DROP FUNCTION keyring_key_store;

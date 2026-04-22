@@ -1515,15 +1515,6 @@ static bool mysql_admin_table(
         goto err;
       DBUG_PRINT("admin", ("commit"));
     }
-    close_thread_tables(thd);
-    thd->mdl_context.release_transactional_locks();
-    /*
-      table_list->table has been closed and freed. Do not reference
-      uninitialized data.
-    */
-    table->table = nullptr;
-    /* Same applies to MDL ticket. */
-    table->mdl_request.ticket = nullptr;
 
     DBUG_EXECUTE_IF("mysql_admin_table_force_end_row_fail", {
       my_error(ER_UNKNOWN_ERROR, MYF(0));
@@ -1531,6 +1522,9 @@ static bool mysql_admin_table(
     });
 
     if (protocol->end_row()) goto err;
+
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
   }
 
   my_eof(thd);

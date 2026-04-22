@@ -4,5 +4,11 @@
 --let $skip_secret_tests = 1
 
 --source ../inc/setup_component.inc
---source include/keyring_tests/mats/keyring_udf_test.inc
+--disable_query_log
+CALL mtr.add_suppression("std exception in function .size.: Message too long. Length: [0-9]+: I/O Failure");
+CALL mtr.add_suppression("std exception in function .store.: Invalid AES key length: 512 bits. Should be 128, 192 or 256 bits: Not Implemented");
+CALL mtr.add_suppression("std exception in function .store.: Invalid AES key length: 320 bits. Should be 128, 192 or 256 bits: Not Implemented");
+CALL mtr.add_suppression("std exception in function .store.: Invalid AES key length: 232 bits. Should be 128, 192 or 256 bits: Not Implemented");
+--enable_query_log
+--source ../inc/keyring_udf_test_kmip.inc
 --source ../inc/teardown_component.inc

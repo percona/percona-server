@@ -483,6 +483,9 @@ select collation(soundex(_latin2'ab')), coercibility(soundex(_latin2'ab'));
 select collation(substring(_latin2'ab',1)), coercibility(substring(_latin2'ab',1));
 select collation(insert(_latin2'abcd',2,3,_latin2'ef')), coercibility(insert(_latin2'abcd',2,3,_latin2'ef'));
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
+select collation(greatest(date'2010-01-01', date'2011-01-01'));
+select collation(least(date'2010-01-01', date'2011-01-01'));
+select collation(coalesce(null, date'2010-01-01', date'2011-01-01'));
 
 create table t1 charset latin1
 select

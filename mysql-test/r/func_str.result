@@ -795,6 +795,15 @@ latin2_general_ci	4
 select collation(replace(_latin2'abcd',_latin2'b',_latin2'B')), coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'));
 collation(replace(_latin2'abcd',_latin2'b',_latin2'B'))	coercibility(replace(_latin2'abcd',_latin2'b',_latin2'B'))
 latin2_general_ci	4
+select collation(greatest(date'2010-01-01', date'2011-01-01'));
+collation(greatest(date'2010-01-01', date'2011-01-01'))
+binary
+select collation(least(date'2010-01-01', date'2011-01-01'));
+collation(least(date'2010-01-01', date'2011-01-01'))
+binary
+select collation(coalesce(null, date'2010-01-01', date'2011-01-01'));
+collation(coalesce(null, date'2010-01-01', date'2011-01-01'))
+binary
 create table t1 charset latin1
 select
 bin(130),

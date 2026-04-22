@@ -2692,8 +2692,9 @@ class Item : public Parse_tree_node {
     data types return "binary" charset in client-side metadata.
   */
   virtual const CHARSET_INFO *charset_for_protocol() {
-    return result_type() == STRING_RESULT ? collation.collation
-                                          : &my_charset_bin;
+    return result_type() == STRING_RESULT && !is_temporal_type(data_type())
+               ? collation.collation
+               : &my_charset_bin;
   }
 
   /**

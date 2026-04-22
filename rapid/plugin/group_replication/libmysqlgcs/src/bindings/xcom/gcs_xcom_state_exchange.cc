@@ -37,7 +37,7 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      synode_no configuration_id,
                                      const uchar *data, uint64_t data_size)
   :m_view_id(NULL), m_configuration_id(configuration_id),
-   m_data(NULL), m_data_size(0)
+   m_data(NULL), m_data_size(0), m_valid(true)
 {
   m_view_id=
     new Gcs_xcom_view_identifier(view_id.get_fixed_part(),
@@ -55,7 +55,7 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
 Xcom_member_state::Xcom_member_state(const uchar *data,
                                      uint64_t data_size)
   :m_view_id(NULL), m_configuration_id(null_synode), m_data(NULL),
-   m_data_size(0)
+   m_data_size(0), m_valid(true)
 {
   uint64_t fixed_view_id= 0;
   uint32_t monotonic_view_id= 0;
@@ -63,8 +63,19 @@ Xcom_member_state::Xcom_member_state(const uchar *data,
   uint64_t msg_no= 0;
   uint32_t node_no= 0;
 
-  const uchar *slider= data;
   uint64_t exchangeable_header_size= get_encode_header_size();
+
+  if (data_size < exchangeable_header_size)
+  {
+    MYSQL_GCS_LOG_ERROR(
+      "Buffer to decode header information from member state exchange too "
+      "small."
+    );
+    m_valid= false;
+    return;
+  }
+
+  const uchar *slider= data;
   uint64_t exchangeable_data_size= data_size - exchangeable_header_size;
 
   memcpy(&fixed_view_id, slider, WIRE_XCOM_VARIABLE_VIEW_ID_SIZE);

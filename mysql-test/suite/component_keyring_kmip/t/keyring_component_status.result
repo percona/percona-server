@@ -24,6 +24,10 @@ Client_ca	/tmp/certs/mysql-client-cert.pem
 Client_key	/tmp/certs/mysql-client-key.pem
 Server_ca	/tmp/certs/vault-kmip-ca.pem
 Object_group	test-object-group
+Max_objects	65535
+Kmip_timeout_ms	5000
+Tls_peer_verification	false
+Tls_hostname_verification	false
 SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA FROM performance_schema.error_log WHERE ERROR_CODE='MY-013712';
 PRIO	ERROR_CODE	SUBSYSTEM	DATA
 # Restarting server without keyring component

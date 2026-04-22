@@ -320,6 +320,17 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
   {
     uint event_len= uint4korr(((uchar*)payload) + EVENT_LEN_OFFSET);
 
+    DBUG_EXECUTE_IF("group_replication_applier_force_invalid_event_length",
+                    { event_len= data_packet->len + 1; });
+
+    if (event_len > data_packet->len)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Invalid event length while applying data packet on group "
+                  "replication applier pipeline."); /* purecov: inspected */
+      return 1; /* purecov: inspected */
+    }
+
     Data_packet* new_packet= new Data_packet(payload, event_len);
     payload= payload + event_len;
 

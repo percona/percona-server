@@ -6825,14 +6825,18 @@ longlong Item_func_set_user_var::val_int() {
 String *Item_func_set_user_var::val_str(String *str) {
   assert(fixed);
   check(false);
+  if (current_thd->is_error()) return nullptr;
   update();  // Store expression
+  if (current_thd->is_error()) return nullptr;
   return entry->val_str(&null_value, str, decimals);
 }
 
 my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val) {
   assert(fixed);
   check(false);
+  if (current_thd->is_error()) return nullptr;
   update();  // Store expression
+  if (current_thd->is_error()) return nullptr;
   return entry->val_decimal(&null_value, val);
 }
 

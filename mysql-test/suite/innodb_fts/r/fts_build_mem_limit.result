@@ -1,0 +1,29 @@
+DROP TABLE IF EXISTS articles;
+CREATE TABLE articles (
+id    INT UNSIGNED NOT NULL PRIMARY KEY,
+title TEXT
+) ENGINE=InnoDB;
+# Seed one row, then double it ROUNDS times.
+INSERT INTO articles(id, title) VALUES (1, 'aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv www xxx yyy zzz');
+SELECT COUNT(*) AS n_rows FROM articles;
+n_rows
+1048576
+# Restart server so that the performance_schema
+# high_number_of_bytes_used high-watermarks are reset.
+# restart
+# Build the FULLTEXT index.  With innodb_sort_buffer_size=65536 and
+# innodb_ft_sort_pll_degree=1 the scan thread comfortably outruns the
+# single tokenization consumer, which before the fix caused
+# memory/innodb/mem0mem to grow by ~100 MiB via buf->heap on a 1M row
+# table.
+SET GLOBAL DEBUG = "+d,fts_instrument_sort_slow_consumer";
+ALTER TABLE articles ADD FULLTEXT KEY ft_title(title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SET GLOBAL DEBUG = "-d,fts_instrument_sort_slow_consumer";
+# mem0mem peak growth during the FTS build stays under 10 MiB:
+SELECT (@mem0mem_after - @mem0mem_before) < 10 * 1024 * 1024
+AS mem0mem_delta_under_10mib;
+mem0mem_delta_under_10mib
+1
+DROP TABLE articles;

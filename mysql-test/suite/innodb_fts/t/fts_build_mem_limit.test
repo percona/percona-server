@@ -1,0 +1,120 @@
+###############################################################################
+# Bug#39040226 FTS index construction ignores memory limits
+#
+# Regression test for the excessive memory usage of online FTS index builds on
+# MySQL 5.7.
+#
+# Before the fix, the scan thread in row_merge_buf_add() would, for every
+# scanned row, allocate the per-row dfield_t array from buf->heap even though
+# the FTS code path never commits the mtuple (buf->n_tuples is never
+# incremented and the row is instead enqueued as an fts_doc_item_t on the
+# per-bucket fts_doc_list that is drained by the tokenization threads).
+# The dfield_t array therefore accumulated in buf->heap for the entire
+# duration of the FTS build, growing by ~n_fields*sizeof(dfield_t) bytes per
+# scanned row.  On a table with ~1M rows this pushed
+# memory/innodb/mem0mem (the PFS key that accounts mem_heap_*) peak into the
+# ~100 MiB range even though the FTS pending-doc queue is itself capped at
+# FTS_PENDING_DOC_MEMORY_LIMIT = 1 MiB per bucket.
+#
+# The fix makes the FTS path use a local dfield_t array (no allocation from
+# buf->heap) and embeds the dfield_t that must outlive the call into the
+# doc_item's own ut_malloc'ed buffer (so the consumer keeps seeing valid
+# storage until it frees the doc_item).  With the fix in place the peak of
+# memory/innodb/mem0mem caused by the FTS build is small and independent of
+# the number of scanned rows.
+#
+# This test seeds ~1M rows, restarts to reset the PFS memory high-watermarks,
+# captures the baseline peak of memory/innodb/mem0mem, builds the FULLTEXT
+# index with the tokenization pipeline deliberately handicapped so that the
+# producer outruns the single consumer, and finally asserts that the peak of
+# memory/innodb/mem0mem grew by less than a small constant.  Without the
+# fix the assertion fails by a large margin (tens of megabytes).
+###############################################################################
+
+--source include/have_innodb.inc
+--source include/have_perfschema.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+
+# The test asserts on memory/innodb/mem0mem, so skip if the server was built
+# without HAVE_PSI_MEMORY_INTERFACE.
+let $have_pfs_innodb_mem =
+  `SELECT COUNT(*) FROM performance_schema.memory_summary_global_by_event_name
+   WHERE event_name = 'memory/innodb/mem0mem'`;
+if (!$have_pfs_innodb_mem)
+{
+  --skip memory/innodb/mem0mem is not instrumented in this build
+}
+
+--disable_warnings
+DROP TABLE IF EXISTS articles;
+--enable_warnings
+
+CREATE TABLE articles (
+  id    INT UNSIGNED NOT NULL PRIMARY KEY,
+  title TEXT
+) ENGINE=InnoDB;
+
+# Use a long-ish string with many distinct tokens so that tokenization is
+# noticeably slower than the scan thread and the doc_item queue actually
+# builds up during the FTS build.
+--let $seed_text = 'aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv www xxx yyy zzz'
+
+--echo # Seed one row, then double it ROUNDS times.
+--eval INSERT INTO articles(id, title) VALUES (1, $seed_text)
+
+# 2^20 = 1048576 rows.  With the pre-fix behaviour each row leaked
+# ~n_fields*sizeof(dfield_t) bytes into buf->heap, so at this scale
+# memory/innodb/mem0mem grew by ~100 MiB during the FTS build.
+--let $ROUNDS = 20
+--disable_query_log
+let $i = 0;
+while ($i < $ROUNDS)
+{
+  INSERT INTO articles(id, title)
+    SELECT id + (SELECT MAX(id) FROM articles), title FROM articles;
+  inc $i;
+}
+--enable_query_log
+
+SELECT COUNT(*) AS n_rows FROM articles;
+
+--echo # Restart server so that the performance_schema
+--echo # high_number_of_bytes_used high-watermarks are reset.
+--source include/restart_mysqld.inc
+
+# Capture the mem0mem peak *before* the FTS build so we can attribute the
+# growth during ALTER TABLE to the build itself and not to routine server
+# startup/dict cache activity.
+--disable_query_log
+SELECT high_number_of_bytes_used
+  INTO @mem0mem_before
+  FROM performance_schema.memory_summary_global_by_event_name
+ WHERE event_name = 'memory/innodb/mem0mem';
+--enable_query_log
+
+--echo # Build the FULLTEXT index.  With innodb_sort_buffer_size=65536 and
+--echo # innodb_ft_sort_pll_degree=1 the scan thread comfortably outruns the
+--echo # single tokenization consumer, which before the fix caused
+--echo # memory/innodb/mem0mem to grow by ~100 MiB via buf->heap on a 1M row
+--echo # table.
+SET GLOBAL DEBUG = "+d,fts_instrument_sort_slow_consumer";
+ALTER TABLE articles ADD FULLTEXT KEY ft_title(title);
+SET GLOBAL DEBUG = "-d,fts_instrument_sort_slow_consumer";
+
+# Assertion: with the fix the peak of memory/innodb/mem0mem caused by the
+# FTS build must stay well below 10 MiB.  Before the fix this delta was in
+# the 80-120 MiB range for a ~1M row table.
+--disable_query_log
+SELECT high_number_of_bytes_used
+  INTO @mem0mem_after
+  FROM performance_schema.memory_summary_global_by_event_name
+ WHERE event_name = 'memory/innodb/mem0mem';
+--enable_query_log
+
+--echo # mem0mem peak growth during the FTS build stays under 10 MiB:
+SELECT (@mem0mem_after - @mem0mem_before) < 10 * 1024 * 1024
+    AS mem0mem_delta_under_10mib;
+
+DROP TABLE articles;

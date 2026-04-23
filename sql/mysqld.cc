@@ -7232,15 +7232,21 @@ class Plugin_and_data_dir_option_parser final {
     /* Backup mysql_real_data_home */
     if (mysql_real_data_home[0])
       memcpy(save_homedir_, mysql_real_data_home, strlen(mysql_real_data_home));
-    if (datadir_ != nullptr)
-      memcpy(mysql_real_data_home, datadir_, strlen(datadir_));
+    if (datadir_ != nullptr) {
+      memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
+      strncpy(mysql_real_data_home, datadir_, sizeof(mysql_real_data_home) - 1);
+      mysql_real_data_home[sizeof(mysql_real_data_home) - 1] = '\0';
+    }
 
     /* Backup opt_plugin_dir */
     if (opt_plugin_dir[0])
       memcpy(save_plugindir_, opt_plugin_dir,
              std::min(static_cast<size_t>(FN_REFLEN), strlen(opt_plugin_dir)));
-    if (plugindir_ != nullptr)
-      memcpy(opt_plugin_dir, plugindir_, strlen(plugindir_));
+    if (plugindir_ != nullptr) {
+      memset(opt_plugin_dir, 0, sizeof(opt_plugin_dir));
+      strncpy(opt_plugin_dir, plugindir_, sizeof(opt_plugin_dir) - 1);
+      opt_plugin_dir[sizeof(opt_plugin_dir) - 1] = '\0';
+    }
 
     valid_ = true;
   }

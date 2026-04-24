@@ -1,0 +1,37 @@
+# Issue discovered and well described (including the test) by: Jean-François Gagné
+# See: https://jfg-mysql.blogspot.com/2026/04/symlinks-are-unsafe-in-mysql.html
+#
+
+# Test backported from the Oracle's public bug report.
+
+--echo #
+--echo # Bug#120156 TRUNCATE TABLE crashes when the database directory is a symlink
+--echo #
+
+LET $MYSQLD_DATADIR = `SELECT @@datadir`;
+# The external directory MUST be named "bug120156db" (matching the schema) so
+# that is_valid_location_within_db() accepts the resolved path -- it checks
+# that the last component of the directory matches the schema name.
+LET $EXTERNAL_DIR = $MYSQL_TMP_DIR/bug120156db;
+
+CREATE DATABASE bug120156db;
+CREATE TABLE bug120156db.t1 (id INT PRIMARY KEY, val VARCHAR(100)) ENGINE=InnoDB;
+INSERT INTO bug120156db.t1 VALUES (1,'hello'),(2,'world');
+
+--source include/shutdown_mysqld.inc
+
+--mkdir $EXTERNAL_DIR
+--exec cp -a $MYSQLD_DATADIR/bug120156db/. $EXTERNAL_DIR/
+--exec rm -rf $MYSQLD_DATADIR/bug120156db
+--exec ln -s $EXTERNAL_DIR $MYSQLD_DATADIR/bug120156db
+
+# No --innodb-directories needed; the datadir scanner follows symlinks via stat().
+--source include/start_mysqld.inc
+
+--echo # TRUNCATE must succeed
+TRUNCATE TABLE bug120156db.t1;
+
+INSERT INTO bug120156db.t1 VALUES (1,'after'),(2,'truncate');
+SELECT * FROM bug120156db.t1 ORDER BY id;
+
+DROP DATABASE bug120156db;

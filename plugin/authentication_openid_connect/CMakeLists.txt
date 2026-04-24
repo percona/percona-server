@@ -28,15 +28,17 @@ IF(WITH_AUTHENTICATION_OPENID_CONNECT)
     SET(JWT_CPP_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/jwt-cpp/include)
     MESSAGE(STATUS "JWT CPP include dir is " ${JWT_CPP_INCLUDE_DIR})
 
-    #INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
-
-    #DISABLE_MISSING_PROFILE_WARNING()
-
     MYSQL_ADD_PLUGIN(authentication_openid_connect
             ${AUTH_OPENID_CONNECT_SOURCES}
             LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto curl
             SYSTEM_INCLUDE_DIRECTORIES "${JWT_CPP_INCLUDE_DIR}"
             MODULE_ONLY MODULE_OUTPUT_NAME "authentication_openid_connect"
     )
+
+    MYSQL_ADD_EXECUTABLE(create_id_token
+            tools/create_id_token.cc
+            SYSTEM_INCLUDE_DIRECTORIES "${JWT_CPP_INCLUDE_DIR}"
+            LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto
+            COMPONENT Test)
 
 ENDIF(WITH_AUTHENTICATION_OPENID_CONNECT)

@@ -1,0 +1,22 @@
+### INITIALIZE TESTS
+INSTALL PLUGIN authentication_openid_connect SONAME 'authentication_openid_connect.so';;
+SET GLOBAL authentication_openid_connect_configuration = 'FILE:///Users/michal.jankowski/dev/jankowsk-percona-server_8.4/percona-server/mysql-test/std_data/oidc/dummy_oidc_conf.json';
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'authentication_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+CREATE ROLE accounting;
+CREATE ROLE sales;
+
+### Connect user without dynamically added role, fails to set the role
+### Connect user with dynamically added role
+#   - acc from token maps to accounting role according to the config
+#   - hr is unmapped
+
+### CLEANUP
+DROP USER mysql_oidc_user;
+Warnings:
+Warning	1366	Incorrect string value: '\x8F' for column 'FROM_HOST' at row 1
+Warning	1366	Incorrect string value: '\x8F\x8F\x8F\x8F\x8F\x8F...' for column 'FROM_USER' at row 1
+Warning	1366	Incorrect string value: '\x8F' for column 'TO_HOST' at row 1
+Warning	1366	Incorrect string value: '\x8F\x8F\x8F\x8F\x8F\x8F...' for column 'TO_USER' at row 1
+DROP USER accounting;
+DROP USER sales;
+UNINSTALL PLUGIN authentication_openid_connect;

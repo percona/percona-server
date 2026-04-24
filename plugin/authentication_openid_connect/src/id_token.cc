@@ -109,12 +109,12 @@ void Id_token::verify(const std::string &ext_user, const Idp_config &idp,
 
   const std::string &pub_key{decoded_token.has_key_id()
                                  ? idp.get_pub_key(decoded_token.get_key_id())
-                                 : idp.get_pub_key()};
+                                 : idp.get_the_only_pub_key()};
   const auto verifier =
       get_verifier(decoded_token.get_header_claim("alg").as_string(), pub_key)
           .with_claim("iss", jwt::claim(idp.get_issuer_name()))
           .with_claim("sub", jwt::claim(ext_user));
-  // Not explicit here, but verifier verifies both caims and expiration
+  // Not explicit here, but verifier verifies both claims and expiration
   verifier.verify(decoded_token);
 
   // audience check -optional

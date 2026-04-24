@@ -113,13 +113,15 @@ class Idp_config {
   const std::string &get_group_claim() const noexcept { return group_claim; }
 
   /**
-   * @brief Gets the first available public key.
-   * @return The first public key in PEM format.
+   * @brief Gets the only public key.
+   * The "kid" element may be omitted in JOSE header iff only one key is
+   * available.
+   * @return The only public key in PEM format.
    * @throws std::runtime_error if no keys are available.
    */
-  const std::string &get_pub_key() const {
+  const std::string &get_the_only_pub_key() const {
+    if (keys.size() != 1) throw std::runtime_error("incorrect number of keys");
     const auto key{keys.cbegin()};
-    if (key == keys.cend()) throw std::runtime_error("no keys available");
     return key->second;
   }
 

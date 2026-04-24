@@ -1471,6 +1471,8 @@ bool I_S_upgrade_required() {
       open_table_from_share(thd, share, tn, 0, EXTRA_RECORD, thd->open_options,
                             &table_instance, false, &table);
 
+  error |= closefrm(&table_instance, false);
+
   return error != 0;
 }
 

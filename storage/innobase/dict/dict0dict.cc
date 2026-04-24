@@ -2404,7 +2404,13 @@ dict_index_node_ptr_max_size(
 		}
 
 		field_max_size = dict_col_get_fixed_size(col, comp);
-		if (field_max_size) {
+
+		/* We must not use the fast path when fixed_len = 0,
+		because it might be the case that the field is encoded
+		as variable-length and therefore needs 1-2 extra bytes.
+		In such case the field_max_size might be underestimated
+		by these 2 bytes. */
+		if (field_max_size && field->fixed_len != 0) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
 			      || field->fixed_len == field->prefix_len);

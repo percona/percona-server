@@ -2387,6 +2387,22 @@ dict_index_node_ptr_max_size(
 
 		/* Determine the maximum length of the index field. */
 
+		/* For spatial indexes, the first field stores the MBR
+		(DATA_MBR_LEN bytes), not the original geometry payload.
+		This avoids the DATA_GEOMETRY == ULINT_MAX overflow in
+		dict_col_get_max_size() and accounts for the COMPACT
+		length byte only when the field is actually variable-
+		length encoded (MBR is always 32 bytes, < 128, so a
+		1-byte prefix is sufficient). This is on purpose not
+		kept with sync with dict_index_too_big_for_tree().*/
+		if (dict_index_is_spatial(index) && i == 0) {
+			rec_max_size += DATA_MBR_LEN;
+			if (comp && field->fixed_len == 0) {
+				rec_max_size += 1;
+			}
+			continue;
+		}
+
 		field_max_size = dict_col_get_fixed_size(col, comp);
 		if (field_max_size) {
 			/* dict_index_add_col() should guarantee this */
@@ -2421,6 +2437,7 @@ dict_index_node_ptr_max_size(
 			rec_max_size += field_ext_max_size;
 		}
 
+		ut_ad(field_max_size < ULINT_MAX);
 		rec_max_size += field_max_size;
 	}
 
@@ -2544,6 +2561,23 @@ dict_index_too_big_for_tree(
 			field_ext_max_size = 0;
 			goto add_field_size;
 		}
+
+		/* Note: for spatial data types, we will set below
+		field_max_size to ULINT_MAX. This will later result
+		in overflow when adding size upper bounds for pk
+		fields. However, if we decided to fix this overflow,
+		we would make it impossible to create some of tables
+		that previously were allowed to be created. With the
+		overflow, the estimation would become size(pk) - 2,
+		because ULINT_MAX + 2 is 0. When this function
+		underestimates, it allows a table to be created
+		and potentially later rows could not be inserted.
+		It's still better situation than not allowing to
+		create table that previously was allowed to be
+		created (especially if it allowed to insert rows).
+		Situation is different in dict_index_node_ptr_max_size:
+		we must not underestimate there. Therefore these two
+		functions do not need to be kept in sync.*/
 
 		field_max_size = dict_col_get_max_size(col);
 		field_ext_max_size = field_max_size < 256 ? 1 : 2;

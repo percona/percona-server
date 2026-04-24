@@ -1,0 +1,96 @@
+###############################################################################
+# Bug#39253359 Improve fake Rotate event handling
+#
+# Oversized fake Rotate must fail with ER_REPLICA_RELAY_LOG_WRITE_FAILURE
+# instead of overflowing stack rot_buf. The add/strip memcpy runs only on
+# the first fake Rotate, before any source FD. Enable the dump debug point
+# before the first START REPLICA.
+#
+# Case 1: source binlog_checksum=NONE, replica CRC32. Receiver adds CRC.
+# Case 2: source CRC32, replica NONE. Receiver strips CRC.
+# RESET REPLICA ALL recreates mi/rli so relay_log_checksum_alg is UNDEF
+# again. RESET REPLICA keeps the alg from the previous case, and SET
+# binlog_checksum rotates only the binary log, so the other path would be
+# skipped if ALL is not present between the cases.
+# rpl_init already issues RESET REPLICA ALL. Repeat it after SET CRC32 so a
+# leftover replica checksum=NONE from an earlier test is not left behind.
+###############################################################################
+--source include/have_debug.inc
+# Fake Rotate handling does not depend on binlog_format. Statement and mixed
+# would hit the same receiver path, so skip them to not waste testing
+# resources.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+
+CALL mtr.add_suppression("Relay log write failure: could not queue event from source");
+CALL mtr.add_suppression("Received oversized rotate event");
+
+--let $slave_binlog_checksum= `SELECT @@GLOBAL.binlog_checksum`
+# SET vs ALL order does not matter. Both must precede CHANGE so open()
+# copies CRC32 from UNDEF; leftover NONE would otherwise remain (not
+# UNDEF).
+SET GLOBAL binlog_checksum= CRC32;
+
+# Recreate mi/rli (relay_log_checksum_alg=UNDEF) and CHANGE REPLICATION
+# SOURCE so the replica follows the source again.
+RESET REPLICA ALL;
+--let $rpl_unconditional_change_master= 1
+--source include/rpl_change_topology.inc
+
+--source include/rpl_connection_master.inc
+--let $master_binlog_checksum= `SELECT @@GLOBAL.binlog_checksum`
+--let $debug_point= binlog_sender_large_rotate_event
+--source include/add_debug_point.inc
+
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 1
+
+--echo
+--echo # Case 1: source NONE, replica CRC32. Add checksum into rot_buf.
+--echo
+SET GLOBAL binlog_checksum= NONE;
+--source include/rpl_connection_slave.inc
+START REPLICA IO_THREAD;
+--source include/wait_for_slave_io_error.inc
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= Received oversized rotate event
+--let $assert_count= 1
+--let $assert_text= Replica error log contains oversized rotate event
+--source include/assert_grep.inc
+
+--source include/rpl_connection_master.inc
+--eval SET GLOBAL binlog_checksum= $master_binlog_checksum
+
+--echo
+--echo # Case 2: source CRC32, replica NONE. Strip checksum into rot_buf.
+--echo
+--source include/rpl_connection_slave.inc
+SET GLOBAL binlog_checksum= NONE;
+# Recreate mi/rli (relay_log_checksum_alg=UNDEF) and CHANGE REPLICATION
+# SOURCE so the replica follows the source again.
+RESET REPLICA ALL;
+--let $rpl_unconditional_change_master= 1
+--source include/rpl_change_topology.inc
+
+START REPLICA IO_THREAD;
+--source include/wait_for_slave_io_error.inc
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
+--let $assert_select= Received oversized rotate event
+--let $assert_count= 1
+--let $assert_text= Replica error log contains oversized rotate event after RESET REPLICA ALL
+--source include/assert_grep.inc
+
+# Cleanup: reset replica relay_log_checksum_alg to UNDEF.
+RESET REPLICA ALL;
+--eval SET GLOBAL binlog_checksum= $slave_binlog_checksum
+
+--source include/rpl_connection_master.inc
+--source include/remove_debug_point.inc
+
+--let $rpl_only_running_threads= 1
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

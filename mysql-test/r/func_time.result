@@ -2276,3 +2276,21 @@ ceil
 SELECT SEC_TO_TIME(-00.0000004584) AS tv;
 tv
 00:00:00.000000
+#
+# Bug#34499767: TIMESTAMPDIFF function does not work as expected on where
+#
+CREATE TABLE t
+(id int NOT NULL,
+dt datetime,
+PRIMARY KEY (id)
+);
+INSERT INTO t(id, dt) VALUES (1, '2022-08-03 10:37:33');
+SELECT TIMESTAMPDIFF(DAY, dt, '2022-08-16 04:30:58')    AS day_diff,
+TIMESTAMPDIFF(MINUTE, dt, '2022-08-16 04:30:58') AS min_diff
+FROM t
+WHERE id = 1 AND
+TIMESTAMPDIFF(DAY, dt, '2022-08-16 04:30:58') = 12 AND
+TIMESTAMPDIFF(MINUTE, dt,'2022-08-16 04:30:58') = 18353;
+day_diff	min_diff
+12	18353
+DROP TABLE t;

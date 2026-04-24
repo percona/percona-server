@@ -3854,6 +3854,12 @@ bool Item_func_timestamp_diff::resolve_type(THD *thd) {
   return false;
 }
 
+bool Item_func_timestamp_diff::eq_specific(const Item *item) const {
+  const Item_func_timestamp_diff *other =
+      down_cast<const Item_func_timestamp_diff *>(item);
+  return int_type == other->int_type;
+}
+
 longlong Item_func_timestamp_diff::val_int() {
   Datetime_val dt1, dt2;
   longlong seconds;

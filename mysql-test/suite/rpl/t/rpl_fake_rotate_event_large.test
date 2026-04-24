@@ -1,0 +1,81 @@
+###############################################################################
+# Bug#39253359 Improve fake Rotate event handling
+#
+# Oversized fake Rotate must fail with ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+# instead of overflowing stack rot_buf. The add/strip memcpy runs only on
+# the first fake Rotate, before any master FD. Enable the dump debug point
+# before the first START SLAVE.
+#
+# Case 1: master binlog_checksum=NONE, slave CRC32. Receiver adds CRC.
+# Case 2: master CRC32, slave NONE. Receiver strips CRC.
+# RESET SLAVE ALL recreates mi/rli so relay_log_checksum_alg is UNDEF again.
+# RESET SLAVE keeps the alg from the previous case, and SET binlog_checksum
+# rotates only the binary log, so the other path would be skipped.
+###############################################################################
+--source include/have_debug.inc
+# Fake Rotate handling does not depend on binlog_format. Statement and mixed
+# would hit the same receiver path, so skip them to keep the suite cheap.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Relay log write failure: could not queue event from master");
+CALL mtr.add_suppression("Received oversized rotate event");
+--let $slave_binlog_checksum= `SELECT @@GLOBAL.binlog_checksum`
+# Recreate rli (UNDEF) and inherit CRC32 on the next CHANGE MASTER / open.
+SET GLOBAL binlog_checksum= CRC32;
+RESET SLAVE ALL;
+--let $rpl_unconditional_change_master= 1
+--source include/rpl_change_topology.inc
+
+--source include/rpl_connection_master.inc
+--let $master_binlog_checksum= `SELECT @@GLOBAL.binlog_checksum`
+--let $debug_point= binlog_sender_large_rotate_event
+--source include/add_debug_point.inc
+
+--let $slave_io_errno= 1595 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $show_slave_io_error= 1
+
+--echo
+--echo # Case 1: master NONE, slave CRC32. Add checksum into rot_buf.
+--echo
+SET GLOBAL binlog_checksum= NONE;
+--source include/rpl_connection_slave.inc
+START SLAVE IO_THREAD;
+--source include/wait_for_slave_io_error.inc
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl.rpl_fake_rotate_event_large
+--let $assert_select= Received oversized rotate event
+--let $assert_count= 1
+--let $assert_text= Slave error log contains oversized rotate event
+--source include/assert_grep.inc
+
+--source include/rpl_connection_master.inc
+--eval SET GLOBAL binlog_checksum= $master_binlog_checksum
+
+--echo
+--echo # Case 2: master CRC32, slave NONE. Strip checksum into rot_buf.
+--echo
+--source include/rpl_connection_slave.inc
+RESET SLAVE ALL;
+SET GLOBAL binlog_checksum= NONE;
+--let $rpl_unconditional_change_master= 1
+--source include/rpl_change_topology.inc
+START SLAVE IO_THREAD;
+--source include/wait_for_slave_io_error.inc
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_select= Received oversized rotate event
+--let $assert_count= 1
+--let $assert_text= Slave error log contains oversized rotate event after RESET SLAVE ALL
+--source include/assert_grep.inc
+RESET SLAVE ALL;
+--eval SET GLOBAL binlog_checksum= $slave_binlog_checksum
+
+--source include/rpl_connection_master.inc
+--source include/remove_debug_point.inc
+
+--let $rpl_only_running_threads= 1
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

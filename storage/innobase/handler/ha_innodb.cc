@@ -20929,8 +20929,10 @@ static void innodb_adaptive_hash_index_update(
                       from check function */
 {
   if (*(bool *)save) {
+    srv_btr_search_enabled = true;
     btr_search_enable();
   } else {
+    srv_btr_search_enabled = false;
     btr_search_disable();
   }
 }

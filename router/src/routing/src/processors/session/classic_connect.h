@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_CONNECT_INCLUDED
-#define ROUTING_CLASSIC_CONNECT_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_CONNECT_H_
+#define ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_CONNECT_H_
 
 #include <chrono>
 #include "classic_connection_base.h"
@@ -70,6 +70,8 @@ class ConnectProcessor : public Processor {
 
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
+
+  std::optional<std::string_view> diagnostic_stage_name() const override;
 
   bool is_destination_good(const mysql_harness::Destination &dest) const;
 
@@ -118,4 +120,4 @@ class ConnectProcessor : public Processor {
   TraceEvent *trace_event_socket_from_pool_{nullptr};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_CONNECT_H_

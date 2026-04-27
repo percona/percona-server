@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_RESET_CONNECTION_FORWARDER_INCLUDED
-#define ROUTING_CLASSIC_RESET_CONNECTION_FORWARDER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_RESET_CONNECTION_FORWARDER_H_
+#define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_RESET_CONNECTION_FORWARDER_H_
 
 #include "processors/base/forwarding_processor.h"
 
@@ -52,6 +52,8 @@ class ResetConnectionForwarder : public ForwardingProcessor {
 
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
+
+  std::optional<std::string_view> diagnostic_stage_name() const override;
 
   void failed(
       const std::optional<classic_protocol::message::server::Error> &err) {
@@ -83,4 +85,4 @@ class ResetConnectionForwarder : public ForwardingProcessor {
   int round_{0};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_RESET_CONNECTION_FORWARDER_H_

@@ -3038,3 +3038,63 @@ QueryForwarder::send_queued() {
   stage(Stage::Done);
   return Result::SendToClient;
 }
+
+std::optional<std::string_view> QueryForwarder::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::ExplicitCommitConnect:
+      return "ExplicitCommitConnect"sv;
+    case Stage::ExplicitCommitConnectDone:
+      return "ExplicitCommitConnectDone"sv;
+    case Stage::ExplicitCommit:
+      return "ExplicitCommit"sv;
+    case Stage::ExplicitCommitDone:
+      return "ExplicitCommitDone"sv;
+    case Stage::ClassifyQuery:
+      return "ClassifyQuery"sv;
+    case Stage::SwitchBackend:
+      return "SwitchBackend"sv;
+    case Stage::PrepareBackend:
+      return "PrepareBackend"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Forward:
+      return "Forward"sv;
+    case Stage::ForwardDone:
+      return "ForwardDone"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::ColumnCount:
+      return "ColumnCount"sv;
+    case Stage::Column:
+      return "Column"sv;
+    case Stage::ColumnEnd:
+      return "ColumnEnd"sv;
+    case Stage::RowOrEnd:
+      return "RowOrEnd"sv;
+    case Stage::Row:
+      return "Row"sv;
+    case Stage::RowEnd:
+      return "RowEnd"sv;
+    case Stage::LoadData:
+      return "LoadData"sv;
+    case Stage::Data:
+      return "Data"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::ResponseDone:
+      return "ResponseDone"sv;
+    case Stage::Done:
+      return "Done"sv;
+    case Stage::SendQueued:
+      return "SendQueued"sv;
+  }
+
+  return std::nullopt;
+}

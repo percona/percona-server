@@ -219,3 +219,30 @@ BinlogDumpForwarder::error() {
 
   return forward_server_to_client();
 }
+
+std::optional<std::string_view> BinlogDumpForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::ForbidCommand:
+      return "ForbidCommand"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::EndOfStream:
+      return "EndOfStream"sv;
+    case Stage::Event:
+      return "Event"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

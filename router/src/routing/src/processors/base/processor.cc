@@ -30,9 +30,14 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysql/harness/typeid_name.h"
 #include "mysqlrouter/utils.h"  // to_string
 
 IMPORT_LOG_FUNCTIONS()
+
+std::string BasicProcessor::diagnostic_name() const {
+  return mysql_harness::typeid_name(*this);
+}
 
 stdx::expected<Processor::Result, std::error_code>
 Processor::send_server_failed(std::error_code ec) {

@@ -606,3 +606,37 @@ stdx::expected<Processor::Result, std::error_code> QuerySender::error() {
   stage(Stage::Done);
   return Result::Again;
 }
+
+std::optional<std::string_view> QuerySender::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::ColumnCount:
+      return "ColumnCount"sv;
+    case Stage::Column:
+      return "Column"sv;
+    case Stage::ColumnEnd:
+      return "ColumnEnd"sv;
+    case Stage::RowOrEnd:
+      return "RowOrEnd"sv;
+    case Stage::Row:
+      return "Row"sv;
+    case Stage::RowEnd:
+      return "RowEnd"sv;
+    case Stage::LoadData:
+      return "LoadData"sv;
+    case Stage::Data:
+      return "Data"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

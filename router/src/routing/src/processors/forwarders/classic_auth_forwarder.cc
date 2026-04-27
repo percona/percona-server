@@ -85,6 +85,28 @@ class AuthGenericForwarder : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override {
+    using namespace std::literals;
+    switch (stage_) {
+      case Stage::Init:
+        return "Init"sv;
+      case Stage::ClientData:
+        return "ClientData"sv;
+      case Stage::AuthData:
+        return "AuthData"sv;
+      case Stage::Response:
+        return "Response"sv;
+      case Stage::Error:
+        return "Error"sv;
+      case Stage::Ok:
+        return "Ok"sv;
+      case Stage::Done:
+        return "Done"sv;
+    }
+
+    return std::nullopt;
+  }
+
  private:
   stdx::expected<Result, std::error_code> init();
   stdx::expected<Result, std::error_code> client_data();
@@ -486,4 +508,24 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::error() {
 
   // leave the message in the queue for the caller.
   return Result::Again;
+}
+
+std::optional<std::string_view> AuthForwarder::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Init:
+      return "Init"sv;
+    case Stage::AuthMethodSwitch:
+      return "AuthMethodSwitch"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
 }

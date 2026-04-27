@@ -428,3 +428,24 @@ stdx::expected<Processor::Result, std::error_code> ChangeUserSender::error() {
   discard_current_msg(src_conn);
   return Result::Again;
 }
+
+std::optional<std::string_view> ChangeUserSender::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::InitialResponse:
+      return "InitialResponse"sv;
+    case Stage::FinalResponse:
+      return "FinalResponse"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

@@ -182,3 +182,24 @@ stdx::expected<Processor::Result, std::error_code> AuthSha256Sender::error() {
 
   return Result::Again;
 }
+
+std::optional<std::string_view> AuthSha256Sender::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Init:
+      return "Init"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::PublicKey:
+      return "PublicKey"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

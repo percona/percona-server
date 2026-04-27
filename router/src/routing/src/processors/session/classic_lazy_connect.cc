@@ -1070,3 +1070,57 @@ LazyConnector::send_auth_ok() {
   stage(Stage::Done);
   return Result::SendToClient;
 }
+
+std::optional<std::string_view> LazyConnector::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Init:
+      return "Init"sv;
+    case Stage::FromStash:
+      return "FromStash"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Authenticated:
+      return "Authenticated"sv;
+    case Stage::FetchUserAttrs:
+      return "FetchUserAttrs"sv;
+    case Stage::FetchUserAttrsDone:
+      return "FetchUserAttrsDone"sv;
+    case Stage::SendAuthOk:
+      return "SendAuthOk"sv;
+    case Stage::SetVars:
+      return "SetVars"sv;
+    case Stage::SetVarsDone:
+      return "SetVarsDone"sv;
+    case Stage::SetServerOption:
+      return "SetServerOption"sv;
+    case Stage::SetServerOptionDone:
+      return "SetServerOptionDone"sv;
+    case Stage::SetSchema:
+      return "SetSchema"sv;
+    case Stage::SetSchemaDone:
+      return "SetSchemaDone"sv;
+    case Stage::FetchSysVars:
+      return "FetchSysVars"sv;
+    case Stage::FetchSysVarsDone:
+      return "FetchSysVarsDone"sv;
+    case Stage::WaitGtidExecuted:
+      return "WaitGtidExecuted"sv;
+    case Stage::WaitGtidExecutedDone:
+      return "WaitGtidExecutedDone"sv;
+    case Stage::SetTrxCharacteristics:
+      return "SetTrxCharacteristics"sv;
+    case Stage::SetTrxCharacteristicsDone:
+      return "SetTrxCharacteristicsDone"sv;
+    case Stage::PoolOrClose:
+      return "PoolOrClose"sv;
+    case Stage::FallbackToWrite:
+      return "FallbackToWrite"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

@@ -1123,3 +1123,36 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::error() {
 
   return Result::Again;
 }
+
+std::optional<std::string_view> ConnectProcessor::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::InitDestination:
+      return "InitDestination"sv;
+    case Stage::Resolve:
+      return "Resolve"sv;
+    case Stage::InitEndpoint:
+      return "InitEndpoint"sv;
+    case Stage::NextEndpoint:
+      return "NextEndpoint"sv;
+    case Stage::NextDestination:
+      return "NextDestination"sv;
+    case Stage::InitConnect:
+      return "InitConnect"sv;
+    case Stage::FromPool:
+      return "FromPool"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::ConnectFinish:
+      return "ConnectFinish"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

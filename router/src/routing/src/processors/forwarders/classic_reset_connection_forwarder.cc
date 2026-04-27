@@ -627,3 +627,38 @@ ResetConnectionForwarder::send_ok() {
 
   return Result::SendToClient;
 }
+
+std::optional<std::string_view>
+ResetConnectionForwarder::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::StartLoop:
+      return "StartLoop"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::SetVars:
+      return "SetVars"sv;
+    case Stage::SetVarsDone:
+      return "SetVarsDone"sv;
+    case Stage::FetchSysVars:
+      return "FetchSysVars"sv;
+    case Stage::FetchSysVarsDone:
+      return "FetchSysVarsDone"sv;
+    case Stage::EndLoop:
+      return "EndLoop"sv;
+    case Stage::SendOk:
+      return "SendOk"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

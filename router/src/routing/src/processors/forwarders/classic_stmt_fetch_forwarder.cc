@@ -151,3 +151,24 @@ stdx::expected<Processor::Result, std::error_code> StmtFetchForwarder::error() {
 
   return forward_server_to_client();
 }
+
+std::optional<std::string_view> StmtFetchForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::EndOfRows:
+      return "EndOfRows"sv;
+    case Stage::Row:
+      return "Row"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

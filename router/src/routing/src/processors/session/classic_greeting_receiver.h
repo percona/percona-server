@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_GREETING_RECEIVER_INCLUDED
-#define ROUTING_CLASSIC_GREETING_RECEIVER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_GREETING_RECEIVER_H_
+#define ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_GREETING_RECEIVER_H_
 
 #include "processors/base/processor.h"
 
@@ -63,6 +63,8 @@ class ClientGreetor : public Processor {
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   stdx::expected<Result, std::error_code> init();
   stdx::expected<Result, std::error_code> server_greeting();
@@ -83,4 +85,4 @@ class ClientGreetor : public Processor {
   classic_protocol::message::server::Error connect_err_{};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_SESSION_CLASSIC_GREETING_RECEIVER_H_

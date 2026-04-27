@@ -488,3 +488,36 @@ StmtExecuteForwarder::error() {
 
   return forward_server_to_client();
 }
+
+std::optional<std::string_view> StmtExecuteForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Forward:
+      return "Forward"sv;
+    case Stage::ForwardDone:
+      return "ForwardDone"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::ColumnCount:
+      return "ColumnCount"sv;
+    case Stage::Column:
+      return "Column"sv;
+    case Stage::EndOfColumns:
+      return "EndOfColumns"sv;
+    case Stage::Row:
+      return "Row"sv;
+    case Stage::EndOfRows:
+      return "EndOfRows"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

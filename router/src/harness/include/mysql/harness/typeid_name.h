@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,37 +23,44 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_RESET_FORWARDER_H_
-#define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_RESET_FORWARDER_H_
+#ifndef MYSQL_HARNESS_TYPEID_NAME_INCLUDED
+#define MYSQL_HARNESS_TYPEID_NAME_INCLUDED
 
-#include "processors/base/forwarding_processor.h"
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <typeinfo>
 
-class StmtResetForwarder : public ForwardingProcessor {
- public:
-  using ForwardingProcessor::ForwardingProcessor;
+#ifdef HAVE_ABI_CXA_DEMANGLE
+#include <cxxabi.h>
+#endif  // HAVE_ABI_CXA_DEMANGLE
 
-  enum class Stage {
-    Command,
-    Response,
-    Ok,
-    Error,
-    Done,
-  };
+namespace mysql_harness {
 
-  stdx::expected<Result, std::error_code> process() override;
+inline std::string typeid_name(const std::type_info &ti) {
+#ifdef HAVE_ABI_CXA_DEMANGLE
+  int status = 0;
+  std::unique_ptr<char, decltype(&std::free)> demangled{
+      abi::__cxa_demangle(ti.name(), nullptr, nullptr, &status), &std::free};
 
-  void stage(Stage stage) { stage_ = stage; }
-  Stage stage() const { return stage_; }
+  if (status == 0 && demangled != nullptr) {
+    return demangled.get();
+  }
+#endif  // HAVE_ABI_CXA_DEMANGLE
 
-  std::optional<std::string_view> diagnostic_stage_name() const override;
+  return ti.name();
+}
 
- private:
-  stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> ok();
-  stdx::expected<Result, std::error_code> error();
+template <class T>
+std::string typeid_name(const T &v) {
+  return typeid_name(typeid(v));
+}
 
-  Stage stage_{Stage::Command};
-};
+template <class T>
+std::string typeid_name() {
+  return typeid_name(typeid(T));
+}
 
-#endif  // ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_RESET_FORWARDER_H_
+}  // namespace mysql_harness
+
+#endif  // MYSQL_HARNESS_TYPEID_NAME_INCLUDED

@@ -42,6 +42,8 @@ class AwaitClientOrServerProcessor : public BasicProcessor {
 
   stdx::expected<Result, std::error_code> process() override;
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   enum class Stage {
     Init,

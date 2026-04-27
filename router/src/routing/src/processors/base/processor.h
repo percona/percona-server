@@ -23,10 +23,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_PROCESSOR_INCLUDED
-#define ROUTING_CLASSIC_PROCESSOR_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_H_
+#define ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_H_
 
 #include "basic_protocol_splicer.h"
+
+#include <optional>
+#include <string>
+#include <string_view>
 
 #include "trace_span.h"
 #include "tracer.h"
@@ -80,6 +84,20 @@ class BasicProcessor {
   MysqlRoutingClassicConnectionBase *connection() { return conn_; }
 
   virtual stdx::expected<Result, std::error_code> process() = 0;
+
+  /**
+   * best-effort human-readable processor type.
+   */
+  virtual std::string diagnostic_name() const;
+
+  /**
+   * stage name of a staged processor.
+   *
+   * @returns stage name or std::nullopt if processor has no explicit stages.
+   */
+  virtual std::optional<std::string_view> diagnostic_stage_name() const {
+    return std::nullopt;
+  }
 
  private:
   MysqlRoutingClassicConnectionBase *conn_;
@@ -186,4 +204,4 @@ class Processor : public BasicProcessor {
                                                 TraceEvent::StatusCode::kUnset);
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_H_

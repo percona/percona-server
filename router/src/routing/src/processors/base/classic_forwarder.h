@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_FORWARDER_INCLUDED
-#define ROUTING_CLASSIC_FORWARDER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_BASE_CLASSIC_FORWARDER_H_
+#define ROUTING_SRC_PROCESSORS_BASE_CLASSIC_FORWARDER_H_
 
 #include "processors/base/processor.h"
 
@@ -64,6 +64,8 @@ class ClientToServerForwarder : public Forwarder {
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   stdx::expected<ForwardResult, std::error_code> forward_frame_sequence();
   stdx::expected<Result, std::error_code> forward();
@@ -93,6 +95,8 @@ class ServerToClientForwarder : public Forwarder {
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   stdx::expected<ForwardResult, std::error_code> forward_frame_sequence();
   stdx::expected<Result, std::error_code> forward();
@@ -102,4 +106,4 @@ class ServerToClientForwarder : public Forwarder {
   Stage stage_{Stage::Forward};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_BASE_CLASSIC_FORWARDER_H_

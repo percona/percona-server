@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_QUIT_SENDER_INCLUDED
-#define ROUTING_CLASSIC_QUIT_SENDER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_SENDERS_CLASSIC_QUIT_SENDER_H_
+#define ROUTING_SRC_PROCESSORS_SENDERS_CLASSIC_QUIT_SENDER_H_
 
 #include "processors/base/processor.h"
 
@@ -44,6 +44,8 @@ class QuitSender : public Processor {
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   stdx::expected<Result, std::error_code> command();
   stdx::expected<Result, std::error_code> tls_shutdown();
@@ -52,4 +54,4 @@ class QuitSender : public Processor {
   Stage stage_{Stage::Command};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_SENDERS_CLASSIC_QUIT_SENDER_H_

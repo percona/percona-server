@@ -1774,6 +1774,11 @@ class SendProcessor : public Processor {
 
     return toServer ? Result::SendToServer : Result::SendToClient;
   }
+
+  std::optional<std::string_view> diagnostic_stage_name() const override {
+    using namespace std::literals;
+    return std::nullopt;
+  }
 };
 
 stdx::expected<Processor::Result, std::error_code>
@@ -2232,4 +2237,104 @@ ServerFirstAuthenticator::fetch_user_attrs_done() {
 
   stage(Stage::Ok);
   return Result::SendToClient;
+}
+
+std::optional<std::string_view> ServerGreetor::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::ServerGreeting:
+      return "ServerGreeting"sv;
+    case Stage::ServerGreetingError:
+      return "ServerGreetingError"sv;
+    case Stage::ServerGreetingGreeting:
+      return "ServerGreetingGreeting"sv;
+    case Stage::ClientGreeting:
+      return "ClientGreeting"sv;
+    case Stage::ClientGreetingStartTls:
+      return "ClientGreetingStartTls"sv;
+    case Stage::ClientGreetingFull:
+      return "ClientGreetingFull"sv;
+    case Stage::TlsConnectInit:
+      return "TlsConnectInit"sv;
+    case Stage::TlsConnect:
+      return "TlsConnect"sv;
+    case Stage::ClientGreetingAfterTls:
+      return "ClientGreetingAfterTls"sv;
+    case Stage::InitialResponse:
+      return "InitialResponse"sv;
+    case Stage::FinalResponse:
+      return "FinalResponse"sv;
+    case Stage::AuthOk:
+      return "AuthOk"sv;
+    case Stage::AuthError:
+      return "AuthError"sv;
+    case Stage::ServerGreetingSent:
+      return "ServerGreetingSent"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+  }
+
+  return std::nullopt;
+}
+
+std::optional<std::string_view> ServerFirstConnector::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::ServerGreeting:
+      return "ServerGreeting"sv;
+    case Stage::ServerGreeted:
+      return "ServerGreeted"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+  }
+
+  return std::nullopt;
+}
+
+std::optional<std::string_view>
+ServerFirstAuthenticator::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::ClientGreeting:
+      return "ClientGreeting"sv;
+    case Stage::ClientGreetingStartTls:
+      return "ClientGreetingStartTls"sv;
+    case Stage::ClientGreetingFull:
+      return "ClientGreetingFull"sv;
+    case Stage::TlsForwardInit:
+      return "TlsForwardInit"sv;
+    case Stage::TlsForward:
+      return "TlsForward"sv;
+    case Stage::TlsConnectInit:
+      return "TlsConnectInit"sv;
+    case Stage::TlsConnect:
+      return "TlsConnect"sv;
+    case Stage::ClientGreetingAfterTls:
+      return "ClientGreetingAfterTls"sv;
+    case Stage::InitialResponse:
+      return "InitialResponse"sv;
+    case Stage::FinalResponse:
+      return "FinalResponse"sv;
+    case Stage::AuthOk:
+      return "AuthOk"sv;
+    case Stage::AuthError:
+      return "AuthError"sv;
+    case Stage::FetchUserAttrs:
+      return "FetchUserAttrs"sv;
+    case Stage::FetchUserAttrsDone:
+      return "FetchUserAttrsDone"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+  }
+
+  return std::nullopt;
 }

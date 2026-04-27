@@ -359,3 +359,29 @@ ClientToServerForwarder::forward_frame_sequence() {
   return ::forward_frame_sequence(src_channel, src_protocol, dst_channel,
                                   dst_protocol);
 }
+
+std::optional<std::string_view> ClientToServerForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Forward:
+      return "Forward"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}
+
+std::optional<std::string_view> ServerToClientForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Forward:
+      return "Forward"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

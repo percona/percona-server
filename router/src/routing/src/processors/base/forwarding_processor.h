@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_FORWARDING_PROCESSOR_INCLUDED
-#define ROUTING_CLASSIC_FORWARDING_PROCESSOR_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_BASE_FORWARDING_PROCESSOR_H_
+#define ROUTING_SRC_PROCESSORS_BASE_FORWARDING_PROCESSOR_H_
 
 #include <chrono>
 
@@ -182,4 +182,4 @@ class ForwardingProcessor : public Processor {
   classic_protocol::message::server::Error reconnect_error_{};
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_BASE_FORWARDING_PROCESSOR_H_

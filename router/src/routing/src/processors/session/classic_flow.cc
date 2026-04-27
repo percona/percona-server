@@ -72,3 +72,17 @@ stdx::expected<Processor::Result, std::error_code> FlowProcessor::command() {
 
   return Result::Again;
 }
+
+std::optional<std::string_view> FlowProcessor::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Greeting:
+      return "Greeting"sv;
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

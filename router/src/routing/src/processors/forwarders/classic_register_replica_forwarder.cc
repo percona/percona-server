@@ -178,3 +178,26 @@ RegisterReplicaForwarder::error() {
 
   return forward_server_to_client();
 }
+
+std::optional<std::string_view>
+RegisterReplicaForwarder::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

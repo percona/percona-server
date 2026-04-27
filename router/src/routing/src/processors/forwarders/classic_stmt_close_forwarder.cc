@@ -78,3 +78,16 @@ StmtCloseForwarder::command() {
 
   return forward_client_to_server();
 }
+
+std::optional<std::string_view> StmtCloseForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

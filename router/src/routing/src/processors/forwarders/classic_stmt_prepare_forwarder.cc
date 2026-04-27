@@ -584,3 +584,44 @@ StmtPrepareForwarder::error() {
 
   return forward_server_to_client();
 }
+
+std::optional<std::string_view> StmtPrepareForwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::ForbidCommand:
+      return "ForbidCommand"sv;
+    case Stage::PrepareBackend:
+      return "PrepareBackend"sv;
+    case Stage::Connect:
+      return "Connect"sv;
+    case Stage::Connected:
+      return "Connected"sv;
+    case Stage::Forward:
+      return "Forward"sv;
+    case Stage::ForwardDone:
+      return "ForwardDone"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Column:
+      return "Column"sv;
+    case Stage::EndOfColumns:
+      return "EndOfColumns"sv;
+    case Stage::Param:
+      return "Param"sv;
+    case Stage::EndOfParams:
+      return "EndOfParams"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::OkDone:
+      return "OkDone"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

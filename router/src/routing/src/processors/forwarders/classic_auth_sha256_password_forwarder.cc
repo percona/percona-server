@@ -436,3 +436,30 @@ AuthSha256Forwarder::error() {
 
   return Result::Again;
 }
+
+std::optional<std::string_view> AuthSha256Forwarder::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Init:
+      return "Init"sv;
+    case Stage::ClientData:
+      return "ClientData"sv;
+    case Stage::EncryptedPassword:
+      return "EncryptedPassword"sv;
+    case Stage::PublicKeyResponse:
+      return "PublicKeyResponse"sv;
+    case Stage::PublicKey:
+      return "PublicKey"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

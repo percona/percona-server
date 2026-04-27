@@ -142,3 +142,20 @@ stdx::expected<Processor::Result, std::error_code> ResetConnectionSender::ok() {
   stage(Stage::Done);
   return Result::Again;
 }
+
+std::optional<std::string_view> ResetConnectionSender::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Response:
+      return "Response"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
+}

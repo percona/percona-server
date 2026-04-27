@@ -23,8 +23,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_INCLUDED
-#define ROUTING_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_INCLUDED
+#ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_H_
+#define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_H_
 
 #include <string>
 #include <string_view>
@@ -71,6 +71,8 @@ class AuthCachingSha2Forwarder : public ForwardingProcessor {
   void stage(Stage stage) { stage_ = stage; }
   [[nodiscard]] Stage stage() const { return stage_; }
 
+  std::optional<std::string_view> diagnostic_stage_name() const override;
+
  private:
   using Auth = AuthCachingSha2Password;
 
@@ -97,4 +99,4 @@ class AuthCachingSha2Forwarder : public ForwardingProcessor {
   Stage stage_;
 };
 
-#endif
+#endif  // ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_AUTH_CACHING_SHA2_FORWARDER_H_

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
+  Copyright (c) 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,37 +23,28 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_RESET_FORWARDER_H_
-#define ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_RESET_FORWARDER_H_
+#ifndef ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_DIAGNOSTICS_H_
+#define ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_DIAGNOSTICS_H_
 
-#include "processors/base/forwarding_processor.h"
+#include <memory>
+#include <string>
+#include <system_error>
+#include <vector>
 
-class StmtResetForwarder : public ForwardingProcessor {
- public:
-  using ForwardingProcessor::ForwardingProcessor;
+class BasicProcessor;
 
-  enum class Stage {
-    Command,
-    Response,
-    Ok,
-    Error,
-    Done,
-  };
+namespace routing::processor_diagnostics {
 
-  stdx::expected<Result, std::error_code> process() override;
+std::string processor_state(const BasicProcessor *processor);
 
-  void stage(Stage stage) { stage_ = stage; }
-  Stage stage() const { return stage_; }
+std::string processor_failed_message(
+    std::error_code ec,
+    const std::vector<std::unique_ptr<BasicProcessor>> &stack);
 
-  std::optional<std::string_view> diagnostic_stage_name() const override;
+void log_processor_failed(
+    std::error_code ec,
+    const std::vector<std::unique_ptr<BasicProcessor>> &stack);
 
- private:
-  stdx::expected<Result, std::error_code> command();
-  stdx::expected<Result, std::error_code> response();
-  stdx::expected<Result, std::error_code> ok();
-  stdx::expected<Result, std::error_code> error();
+}  // namespace routing::processor_diagnostics
 
-  Stage stage_{Stage::Command};
-};
-
-#endif  // ROUTING_SRC_PROCESSORS_FORWARDERS_CLASSIC_STMT_RESET_FORWARDER_H_
+#endif  // ROUTING_SRC_PROCESSORS_BASE_PROCESSOR_DIAGNOSTICS_H_

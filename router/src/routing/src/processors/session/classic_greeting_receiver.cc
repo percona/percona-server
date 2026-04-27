@@ -1003,3 +1003,39 @@ ClientGreetor::authenticated() {
   stage(Stage::Ok);
   return Result::Again;
 }
+
+std::optional<std::string_view> ClientGreetor::diagnostic_stage_name() const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::Init:
+      return "Init"sv;
+    case Stage::ServerGreeting:
+      return "ServerGreeting"sv;
+    case Stage::ServerFirstGreeting:
+      return "ServerFirstGreeting"sv;
+    case Stage::ClientGreeting:
+      return "ClientGreeting"sv;
+    case Stage::TlsAcceptInit:
+      return "TlsAcceptInit"sv;
+    case Stage::TlsAccept:
+      return "TlsAccept"sv;
+    case Stage::ClientGreetingAfterTls:
+      return "ClientGreetingAfterTls"sv;
+    case Stage::RequestPlaintextPassword:
+      return "RequestPlaintextPassword"sv;
+    case Stage::PlaintextPassword:
+      return "PlaintextPassword"sv;
+    case Stage::DecryptPassword:
+      return "DecryptPassword"sv;
+    case Stage::Accepted:
+      return "Accepted"sv;
+    case Stage::Authenticated:
+      return "Authenticated"sv;
+    case Stage::Error:
+      return "Error"sv;
+    case Stage::Ok:
+      return "Ok"sv;
+  }
+
+  return std::nullopt;
+}

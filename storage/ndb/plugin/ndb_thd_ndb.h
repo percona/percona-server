@@ -43,7 +43,7 @@ class Ndb_applier;
 class Thd_ndb {
   THD *const m_thd;
 
-  Thd_ndb(THD *thd, const char *name);
+  Thd_ndb(THD *thd, const char *name, Ndb_cluster_connection *cc = nullptr);
   ~Thd_ndb();
 
   uint32 options;
@@ -53,7 +53,8 @@ class Thd_ndb {
   const char *const m_thread_name;
 
  public:
-  static Thd_ndb *seize(THD *thd, const char *name = nullptr);
+  static Thd_ndb *seize(THD *thd, const char *name = nullptr,
+                        Ndb_cluster_connection *cc = nullptr);
   static void release(Thd_ndb *thd_ndb);
 
   // Keeps track of stats for tables taking part in transaction

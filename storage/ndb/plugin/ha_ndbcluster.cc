@@ -1077,50 +1077,6 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
   return res;
 }
 
-Thd_ndb::Thd_ndb(THD *thd, const char *name)
-    : m_thd(thd),
-      options(0),
-      trans_options(0),
-      m_ddl_ctx(nullptr),
-      m_thread_name(name),
-      m_batch_mem_root(key_memory_thd_ndb_batch_mem_root,
-                       BATCH_MEM_ROOT_BLOCK_SIZE),
-      global_schema_lock_trans(nullptr),
-      global_schema_lock_count(0),
-      global_schema_lock_error(0),
-      schema_locks_count(0),
-      m_last_commit_epoch_session(0) {
-  connection = ndb_get_cluster_connection();
-  m_connect_count = connection->get_connect_count();
-  ndb = new Ndb(connection, "");
-  save_point_count = 0;
-  trans = nullptr;
-  m_handler = nullptr;
-  m_unsent_bytes = 0;
-  m_unsent_blob_ops = false;
-  m_execute_count = 0;
-  m_scan_count = 0;
-  m_pruned_scan_count = 0;
-  m_sorted_scan_count = 0;
-  m_pushed_queries_defined = 0;
-  m_pushed_queries_dropped = 0;
-  m_pushed_queries_executed = 0;
-  m_pushed_reads = 0;
-}
-
-Thd_ndb::~Thd_ndb() {
-  assert(global_schema_lock_count == 0);
-  assert(m_ddl_ctx == nullptr);
-
-  // The applier uses the Ndb object when removing its NdbApi table from dict
-  // cache, release applier first
-  m_applier.reset();
-
-  delete ndb;
-
-  m_batch_mem_root.Clear();
-}
-
 void ha_ndbcluster::set_rec_per_key(THD *thd) {
   DBUG_TRACE;
   /*

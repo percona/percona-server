@@ -42,7 +42,7 @@
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/classic_protocol_state.h"
 #include "mysqlrouter/connection_pool_component.h"
-#include "processor.h"
+#include "processors/base/processor.h"
 #include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()

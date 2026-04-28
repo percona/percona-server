@@ -2492,4 +2492,31 @@ FROM t;
 SET SQL_MODE=default;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#39179197 NULL pointer dereference (SEGV) in Optimizer
+--echo # (subquery_to_derived): a query using a CTE, a scalar subquery and
+--echo # repeated references to the same transformed field crashed in
+--echo # Item_ref::real_item() because the Item_field copy made in
+--echo # Query_block::replace_item_in_expression() (to avoid clobbering
+--echo # another occurrence's item_name) was not reference-counted, so it
+--echo # could be freed while still referenced.
+--echo #
+
+SET SQL_MODE='';
+
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (4);
+
+WITH cte AS (
+  SELECT i AS i1,
+         i AS i2,
+         (SELECT i FROM t) AS subquery,
+         SUM(i) AS summ
+  FROM t
+)
+SELECT * FROM cte AS c1, cte AS c2;
+
+SET SQL_MODE=default;
+DROP TABLE t;
+
 SET optimizer_switch='subquery_to_derived=default';

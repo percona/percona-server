@@ -1035,6 +1035,8 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
                      Binary_log_event::ROTATE_HEADER_LEN +
                      (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
+  DBUG_EXECUTE_IF("binlog_sender_large_rotate_event", event_len = 4096;);
+
   /* reset transmit packet for the fake rotate event below */
   if (reset_transmit_packet(0, event_len)) return 1;
 
@@ -1055,6 +1057,13 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 
   int8store(rotate_header, log_pos);
   memcpy(rotate_header + Binary_log_event::ROTATE_HEADER_LEN, p, ident_len);
+  DBUG_EXECUTE_IF("binlog_sender_large_rotate_event", {
+    uchar *rotate_payload = rotate_header + Binary_log_event::ROTATE_HEADER_LEN;
+    const size_t rotate_payload_len =
+        event_len - LOG_EVENT_HEADER_LEN - Binary_log_event::ROTATE_HEADER_LEN -
+        (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+    memset(rotate_payload + ident_len, 'X', rotate_payload_len - ident_len);
+  };);
 
   if (event_checksum_on()) calc_event_checksum(header, event_len);
 

@@ -7912,10 +7912,35 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     case mysql::binlog::event::ROTATE_EVENT: {
       Format_description_log_event *fde = mi->get_mi_description_event();
       enum_binlog_checksum_alg fde_checksum_alg = fde->footer()->checksum_alg;
+      const bool is_fake_rotate = uint4korr(&buf[0]) == 0;
+      const bool add_checksum_to_fake_rotate =
+          is_fake_rotate &&
+          checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF &&
+          mi->rli->relay_log.relay_log_checksum_alg !=
+              mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
+      const bool strip_checksum_from_fake_rotate =
+          is_fake_rotate &&
+          checksum_alg != mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF &&
+          mi->rli->relay_log.relay_log_checksum_alg ==
+              mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
+
       if (fde_checksum_alg != checksum_alg)
         fde->footer()->checksum_alg = checksum_alg;
       Rotate_log_event rev(buf, fde);
       fde->footer()->checksum_alg = fde_checksum_alg;
+
+      if ((add_checksum_to_fake_rotate &&
+           event_len > sizeof(rot_buf) - BINLOG_CHECKSUM_LEN) ||
+          (strip_checksum_from_fake_rotate &&
+           (event_len < BINLOG_CHECKSUM_LEN ||
+            event_len - BINLOG_CHECKSUM_LEN > sizeof(rot_buf)))) {
+        mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+                   "Received oversized rotate event. Please retry the "
+                   "connection. If the problem persists, investigate the "
+                   "source of the invalid event and verify the "
+                   "source-replica connection.");
+        goto err;
+      }
 
       if (unlikely(process_io_rotate(mi, &rev))) {
         // This error will be reported later at handle_slave_io().
@@ -7934,11 +7959,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
                 to compute checksum for its first FD event for RL
                 the fake Rotate gets checksummed here.
       */
-      if (uint4korr(&buf[0]) == 0 &&
-          checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF &&
-          mi->rli->relay_log.relay_log_checksum_alg !=
-              mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF) {
+      if (add_checksum_to_fake_rotate) {
         ha_checksum rot_crc = checksum_crc32(0L, nullptr, 0);
+        assert(event_len <= sizeof(rot_buf) - BINLOG_CHECKSUM_LEN);
         event_len += BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
         int4store(&rot_buf[EVENT_LEN_OFFSET],
@@ -7959,10 +7982,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
           RSC_2: If NM \and fake Rotate \and slave does not compute checksum
           the fake Rotate's checksum is stripped off before relay-logging.
         */
-        if (uint4korr(&buf[0]) == 0 &&
-            checksum_alg != mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF &&
-            mi->rli->relay_log.relay_log_checksum_alg ==
-                mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF) {
+        if (strip_checksum_from_fake_rotate) {
+          assert(event_len >= BINLOG_CHECKSUM_LEN);
+          assert(event_len - BINLOG_CHECKSUM_LEN <= sizeof(rot_buf));
           event_len -= BINLOG_CHECKSUM_LEN;
           memcpy(rot_buf, buf, event_len);
           int4store(

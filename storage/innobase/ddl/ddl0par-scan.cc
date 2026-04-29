@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0impl-cursor.h"
 #include "row0pread.h"
 #include "row0row.h"
+#include "sync0debug.h"
 #include "ut0stage.h"
 
 #include <current_thd.h>
@@ -291,6 +292,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
                                     sizeof(thd->variables.sql_mode));
 #endif
         thd->variables.sql_mode = caller_thd->variables.sql_mode;
+        ut_d(Sync_point::clone_from(caller_thd);)
       }
     }
     return DB_SUCCESS;
@@ -307,6 +309,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
         ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
                                     sizeof(thd->variables));
 #endif
+        ut_d(Sync_point::erase(thd));
         destroy_internal_thd(thd);
       }
       return reader.get_error_state();
@@ -357,6 +360,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
           ASAN_UNPOISON_MEMORY_REGION((void *)&thd->variables,
                                       sizeof(thd->variables));
 #endif
+          ut_d(Sync_point::erase(thd));
           destroy_internal_thd(thd);
         }
         return err;

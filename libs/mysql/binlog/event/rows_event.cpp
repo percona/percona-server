@@ -70,11 +70,13 @@ Table_map_event::Table_map_event(const char *buf,
   /* Read the variable part of the event */
 
   READER_TRY_SET(m_dblen, net_field_length_ll);
+  if (m_dblen > NAME_LEN) READER_THROW("Invalid database name length");
 
   ptr_dbnam = READER_TRY_CALL(ptr, m_dblen + 1);
   m_dbnam = std::string(ptr_dbnam, m_dblen);
 
   READER_TRY_SET(m_tbllen, net_field_length_ll);
+  if (m_tbllen > NAME_LEN) READER_THROW("Invalid table name length");
 
   ptr_tblnam = READER_TRY_CALL(ptr, m_tbllen + 1);
   m_tblnam = std::string(ptr_tblnam, m_tbllen);

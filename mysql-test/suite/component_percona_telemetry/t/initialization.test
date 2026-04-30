@@ -1,0 +1,19 @@
+--source include/have_percona_telemetry.inc
+
+CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+
+--echo ### Shutdown
+--source include/shutdown_mysqld.inc
+
+--echo ### Start with invalid option
+--let $restart_parameters=--authentication-policy=mysql_native_password --mysql_native_password=OFF
+--source include/start_mysqld_expecting_crash.inc
+
+--echo ### Waiting for the error message to occur
+--let $grep_pattern=authentication-policy is set to an invalid value
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/wait_for_pattern_in_file.inc
+
+--echo ### Start again
+--let $restart_parameters=restart:
+--source include/start_mysqld.inc

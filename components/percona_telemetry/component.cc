@@ -47,7 +47,7 @@ REQUIRES_SERVICE_PLACEHOLDER_AS(component_sys_variable_register,
 REQUIRES_SERVICE_PLACEHOLDER_AS(component_sys_variable_unregister,
                                 component_sys_variable_unregister_srv);
 
-std::unique_ptr<PerconaTelemetryComponent> percona_telemetry_component;
+PerconaTelemetryComponent *percona_telemetry_component{nullptr};
 
 mysql_service_status_t component_init() {
   auto services = std::make_unique<PerconaTelemetryComponent::Services>();
@@ -64,24 +64,34 @@ mysql_service_status_t component_init() {
   services->var_register_service = component_sys_variable_register_srv;
   services->var_unregister_service = component_sys_variable_unregister_srv;
 
-  percona_telemetry_component =
+  auto component =
       std::make_unique<PerconaTelemetryComponent>(std::move(services));
 
-  if (percona_telemetry_component->start()) {
+  if (component->start()) {
     return 1;
   }
 
+  percona_telemetry_component = component.release();
   return 0;
 }
 
 mysql_service_status_t component_deinit() {
-  if (percona_telemetry_component->stop()) {
+  if (percona_telemetry_component == nullptr) {
+    return 0;
+  }
+
+  std::unique_ptr<PerconaTelemetryComponent> component(
+      percona_telemetry_component);
+  percona_telemetry_component = nullptr;
+
+  if (component->stop()) {
     return 1;
   }
 
-  percona_telemetry_component.reset();
   return 0;
 }
+
+void __attribute__((destructor)) lib_deinit() { component_deinit(); }
 
 BEGIN_COMPONENT_PROVIDES(CURRENT_COMPONENT_NAME)
 END_COMPONENT_PROVIDES();

@@ -28,6 +28,9 @@ jobs:
             cd ~/project
             cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
 
+            # clang-tidy needs the build-time generated headers (include/mysqld_error.h)
+            cmake --build /home/circleci/debug-build --target GenError --parallel "$(nproc)"
+
             # Method to fetch JSON from a Github API URL with error handling
             fetch_json() {
               local url="$1" tmp http_code curl_exit body

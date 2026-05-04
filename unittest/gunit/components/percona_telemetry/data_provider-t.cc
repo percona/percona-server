@@ -1,10 +1,26 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <string>
+#include <string_view>
+
 #define private public
 #include "components/percona_telemetry/data_provider.h"
 #include "components/percona_telemetry/logger.h"
+#include "components/percona_telemetry/telemetry_status_allowlist.h"
+#include "components/percona_telemetry/telemetry_sysvars_allowlist.h"
 #undef private
+
+namespace {
+bool csv_contains_quoted_name(std::string_view csv, std::string_view name) {
+  std::string needle;
+  needle.reserve(name.size() + 2);
+  needle += '\'';
+  needle.append(name);
+  needle += '\'';
+  return csv.find(needle) != std::string_view::npos;
+}
+}  // namespace
 
 using ::testing::_;
 using ::testing::A;
@@ -13,6 +29,7 @@ using ::testing::Eq;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::SetArgPointee;
+using ::testing::Truly;
 using ::testing::WithArg;
 
 SERVICE_TYPE_NO_CONST(mysql_command_factory) command_factory;
@@ -434,6 +451,108 @@ TEST_F(DataProviderTest, collect_async_replication_info_test) {
   EXPECT_TRUE(ri_iter->value.HasMember("is_replica"));
   iter = ri_iter->value.FindMember("is_replica");
   EXPECT_STREQ(iter->value.GetString(), "1");
+}
+
+TEST_F(DataProviderTest, AllowlistCsvContents) {
+  EXPECT_TRUE(
+      csv_contains_quoted_name(kSysvarsAllowlistCsv, "max_connections"));
+  EXPECT_FALSE(csv_contains_quoted_name(kSysvarsAllowlistCsv, "datadir"));
+  EXPECT_TRUE(csv_contains_quoted_name(kStatusAllowlistCsv, "Threads_running"));
+  EXPECT_TRUE(
+      csv_contains_quoted_name(kStatusAllowlistCsv, "Libcoredumper_enabled"));
+}
+
+TEST_F(DataProviderTest, CollectServerConfigNondefaultSysvars) {
+  MockDataProvider dataProvider;
+  testing::InSequence seq;
+  EXPECT_CALL(dataProvider,
+              do_query(Eq(std::string("SELECT @@thread_handling")),
+                       A<QueryResult *>(), _, _))
+      .WillOnce(DoAll(WithArg<1>(Invoke([](QueryResult *qr) {
+                        qr->clear();
+                        qr->push_back(Row{"one-thread-per-connection"});
+                      })),
+                      Return(false)));
+  EXPECT_CALL(
+      dataProvider,
+      do_query(Truly([](const std::string &q) {
+                 return q.find("performance_schema.variables_info") !=
+                            std::string::npos &&
+                        q.find("global_variables") != std::string::npos &&
+                        q.find("VARIABLE_NAME IN (") != std::string::npos &&
+                        q.find("'max_connections'") != std::string::npos;
+               }),
+               A<QueryResult *>(), _, true))
+      .WillOnce(DoAll(WithArg<1>(Invoke([](QueryResult *qr) {
+                        qr->clear();
+                        /* not allowlisted, allowlisted, allowlisted but
+                         * path-like value */
+                        qr->push_back(Row{"datadir", "/data/mysql", "GLOBAL"});
+                        qr->push_back(Row{"max_connections", "123", "GLOBAL"});
+                        qr->push_back(
+                            Row{"thread_handling", "foo/bar", "PERSISTED"});
+                      })),
+                      Return(false)));
+  rapidjson::Document document(rapidjson::Type::kObjectType);
+  EXPECT_FALSE(dataProvider.collect_server_config(&document));
+  ASSERT_TRUE(document.HasMember("server_config_info"));
+  const rapidjson::Value &sc = document.FindMember("server_config_info")->value;
+  EXPECT_TRUE(sc.HasMember("thread_handling"));
+  ASSERT_TRUE(sc.HasMember("nondefault_allowlisted_sysvars"));
+  const rapidjson::Value &arr =
+      sc.FindMember("nondefault_allowlisted_sysvars")->value;
+  ASSERT_TRUE(arr.IsArray());
+  ASSERT_EQ(arr.Size(), 1U);
+  EXPECT_STREQ(arr[0]["name"].GetString(), "max_connections");
+  EXPECT_STREQ(arr[0]["variable_value"].GetString(), "123");
+  EXPECT_STREQ(arr[0]["variable_source"].GetString(), "GLOBAL");
+  EXPECT_FALSE(sc.HasMember("libcoredumper_enabled"));
+}
+
+TEST_F(DataProviderTest, CollectServerStatusAllowlisted) {
+  MockDataProvider dataProvider;
+  EXPECT_CALL(
+      dataProvider,
+      do_query(Truly([](const std::string &q) {
+                 return q.find("performance_schema.global_status") !=
+                            std::string::npos &&
+                        q.find("Threads_running") != std::string::npos &&
+                        q.find("Libcoredumper_enabled") != std::string::npos;
+               }),
+               A<QueryResult *>(), _, true))
+      .WillOnce(DoAll(WithArg<1>(Invoke([](QueryResult *qr) {
+                        qr->clear();
+                        qr->push_back(Row{"Threads_running", "7"});
+                        qr->push_back(Row{"Libcoredumper_enabled", "OFF"});
+                        /* Allowlisted name but path-like value: must be
+                         * dropped. */
+                        qr->push_back(Row{"Slow_queries", "/var/lib"});
+                      })),
+                      Return(false)));
+
+  rapidjson::Document document(rapidjson::Type::kObjectType);
+  EXPECT_FALSE(dataProvider.collect_server_status(&document));
+  ASSERT_TRUE(document.HasMember("server_status_info"));
+  const rapidjson::Value &ss = document.FindMember("server_status_info")->value;
+  ASSERT_TRUE(ss.HasMember("allowlisted_global_status"));
+  const rapidjson::Value &st =
+      ss.FindMember("allowlisted_global_status")->value;
+  ASSERT_TRUE(st.IsArray());
+  ASSERT_EQ(st.Size(), 2U);
+  bool saw_threads = false;
+  bool saw_core = false;
+  for (unsigned i = 0; i < st.Size(); ++i) {
+    if (!strcmp(st[i]["name"].GetString(), "Threads_running")) {
+      EXPECT_STREQ(st[i]["variable_value"].GetString(), "7");
+      saw_threads = true;
+    }
+    if (!strcmp(st[i]["name"].GetString(), "Libcoredumper_enabled")) {
+      EXPECT_STREQ(st[i]["variable_value"].GetString(), "OFF");
+      saw_core = true;
+    }
+  }
+  EXPECT_TRUE(saw_threads);
+  EXPECT_TRUE(saw_core);
 }
 
 }  // namespace data_provider_unittests

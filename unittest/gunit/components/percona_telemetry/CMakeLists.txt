@@ -25,6 +25,10 @@ INCLUDE_DIRECTORIES(SYSTEM
   ${BOOST_INCLUDE_DIR}
 )
 
+# Match component build: RAPIDJSON_NO_SIZETYPEDEFINE needs my_rapidjson_size_t.h
+# before any rapidjson header (see data_provider.h).
+SET(PERCONA_TELEMETRY_COMPONENT_LIBS extra::rapidjson)
+
 SET(PERCONA_TELEMETRY_COMPONENT_SRC
   ${CMAKE_SOURCE_DIR}/components/percona_telemetry/data_provider.cc
 )
@@ -39,7 +43,8 @@ SET(TESTS
   )
 
 FOREACH(test ${TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${PERCONA_TELEMETRY_COMPONENT_SRC} ${LOCAL_MOCK_SRC} ${test}-t.cc ADD_TEST ${test} LINK_LIBRARIES ${PERCONA_TELEMETRY_COMPONENT_LIBS})
-  TARGET_LINK_LIBRARIES(${test}-t mysys gunit_small)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${PERCONA_TELEMETRY_COMPONENT_SRC} ${LOCAL_MOCK_SRC} ${test}-t.cc ADD_TEST ${test})
+  TARGET_INCLUDE_DIRECTORIES(${test}-t PRIVATE ${CMAKE_SOURCE_DIR}/include)
+  TARGET_LINK_LIBRARIES(${test}-t ${PERCONA_TELEMETRY_COMPONENT_LIBS} mysys gunit_small)
 ENDFOREACH()
 

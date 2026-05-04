@@ -12185,6 +12185,19 @@ static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
   return 0;
 }
 
+/** ON iff libcoredumper is linked in and --coredumper is in effect. */
+static int show_libcoredumper_enabled(THD * /*unused*/, SHOW_VAR *var,
+                                      char *buf) {
+  var->type = SHOW_BOOL;
+  var->value = buf;
+#if HAVE_LIBCOREDUMPER
+  *(pointer_cast<bool *>(buf)) = opt_libcoredumper;
+#else
+  *(pointer_cast<bool *>(buf)) = false;
+#endif
+  return 0;
+}
+
 static int show_deprecated_use_i_s_processlist_count(THD *, SHOW_VAR *var,
                                                      char *buf) {
   var->type = SHOW_LONG;
@@ -12382,6 +12395,8 @@ SHOW_VAR status_vars[] = {
     {"Last_query_partial_plans",
      (char *)offsetof(System_status_var, last_query_partial_plans),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_SESSION},
+    {"Libcoredumper_enabled", (char *)&show_libcoredumper_enabled, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Locked_connects", (char *)&locked_account_connection_count, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"Max_execution_time_exceeded",

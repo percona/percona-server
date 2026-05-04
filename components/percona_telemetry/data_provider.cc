@@ -14,14 +14,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <mysqld_error.h>
+#include <algorithm>
 #include <sstream>
 
 #include "data_provider.h"
 #include "logger.h"
+#include "telemetry_status_allowlist.h"
+#include "telemetry_sysvars_allowlist.h"
 
 namespace {
 inline const char *b2s(bool val) { return val ? "1" : "0"; }
+
+/* Reject values that look like paths (defense in depth: the allow list is
+   already curated, but we double-check at collection time in case a value
+   shape changes upstream). */
+inline bool is_value_safe_for_export(const std::string &value) {
+  return std::all_of(value.begin(), value.end(),
+                     [](unsigned char ch) { return ch != '/' && ch != '\\'; });
+}
 
 /*
   percona.telemetry user is created when server starts with telemetry
@@ -62,6 +72,11 @@ const char *size = "size";
 // server configuration variables
 const char *server_config_info = "server_config_info";
 const char *thread_handling = "thread_handling";
+const char *nondefault_allowlisted_sysvars = "nondefault_allowlisted_sysvars";
+const char *variable_source = "variable_source";
+const char *variable_value = "variable_value";
+const char *server_status_info = "server_status_info";
+const char *allowlisted_global_status = "allowlisted_global_status";
 }  // namespace JSONKey
 }  // namespace
 
@@ -596,8 +611,117 @@ bool DataProvider::collect_server_config(rapidjson::Document *document) {
                                  thread_handling, allocator);
   }
 
+  /*
+    Non-default globals: provenance from performance_schema.variables_info,
+    restricted to allowlisted names via SQL IN (...) (see
+    telemetry_sysvars_allowlist.h) and value shape via
+    is_value_safe_for_export() above.
+  */
+  if (!kSysvarsAllowlistCsv.empty()) {
+    std::ostringstream oss;
+    oss << "SELECT vi.VARIABLE_NAME, gv.VARIABLE_VALUE, vi.VARIABLE_SOURCE "
+           "FROM performance_schema.variables_info vi "
+           "INNER JOIN performance_schema.global_variables gv "
+           "USING (VARIABLE_NAME) "
+           "WHERE vi.VARIABLE_SOURCE <> 'COMPILED' "
+           "AND vi.VARIABLE_NAME IN ("
+        << kSysvarsAllowlistCsv << ')';
+
+    QueryResult rows;
+    if (!do_query(oss.str(), &rows, nullptr, true)) {
+      rapidjson::Value sysvars_array(rapidjson::Type::kArrayType);
+      for (const Row &row : rows) {
+        if (row.size() < 3) {
+          continue;
+        }
+        const std::string &vname = row[0];
+        const std::string &vval = row[1];
+        const std::string &vsrc = row[2];
+        if (!is_value_safe_for_export(vval)) {
+          continue;
+        }
+        rapidjson::Value one_status(rapidjson::Type::kObjectType);
+        rapidjson::Value name_json;
+        name_json.SetString(vname.c_str(),
+                            static_cast<rapidjson::SizeType>(vname.length()),
+                            allocator);
+        one_status.AddMember(rapidjson::StringRef(JSONKey::name), name_json,
+                             allocator);
+        rapidjson::Value val_json;
+        val_json.SetString(vval.c_str(),
+                           static_cast<rapidjson::SizeType>(vval.length()),
+                           allocator);
+        one_status.AddMember(rapidjson::StringRef(JSONKey::variable_value),
+                             val_json, allocator);
+        rapidjson::Value src_json;
+        src_json.SetString(vsrc.c_str(),
+                           static_cast<rapidjson::SizeType>(vsrc.length()),
+                           allocator);
+        one_status.AddMember(rapidjson::StringRef(JSONKey::variable_source),
+                             src_json, allocator);
+        sysvars_array.PushBack(one_status, allocator);
+      }
+
+      if (!sysvars_array.Empty()) {
+        server_config_json.AddMember(
+            rapidjson::StringRef(JSONKey::nondefault_allowlisted_sysvars),
+            sysvars_array, allocator);
+      }
+    }
+  }
+
   document->AddMember(rapidjson::StringRef(JSONKey::server_config_info),
                       server_config_json, allocator);
+
+  return false;
+}
+
+bool DataProvider::collect_server_status(rapidjson::Document *document) {
+  if (!kStatusAllowlistCsv.empty()) {
+    std::ostringstream oss;
+    oss << "SELECT VARIABLE_NAME, VARIABLE_VALUE FROM "
+           "performance_schema.global_status WHERE VARIABLE_NAME IN ("
+        << kStatusAllowlistCsv << ')';
+
+    QueryResult rows;
+    if (!do_query(oss.str(), &rows, nullptr, true)) {
+      rapidjson::Document::AllocatorType &allocator = document->GetAllocator();
+      rapidjson::Value status_array(rapidjson::Type::kArrayType);
+      for (const Row &row : rows) {
+        if (row.size() < 2) {
+          continue;
+        }
+        const std::string &vname = row[0];
+        const std::string &vval = row[1];
+        if (!is_value_safe_for_export(vval)) {
+          continue;
+        }
+        rapidjson::Value one_status(rapidjson::Type::kObjectType);
+        rapidjson::Value name_json;
+        name_json.SetString(vname.c_str(),
+                            static_cast<rapidjson::SizeType>(vname.length()),
+                            allocator);
+        one_status.AddMember(rapidjson::StringRef(JSONKey::name), name_json,
+                             allocator);
+        rapidjson::Value val_json;
+        val_json.SetString(vval.c_str(),
+                           static_cast<rapidjson::SizeType>(vval.length()),
+                           allocator);
+        one_status.AddMember(rapidjson::StringRef(JSONKey::variable_value),
+                             val_json, allocator);
+        status_array.PushBack(one_status, allocator);
+      }
+
+      if (!status_array.Empty()) {
+        rapidjson::Value server_status_json(rapidjson::Type::kObjectType);
+        server_status_json.AddMember(
+            rapidjson::StringRef(JSONKey::allowlisted_global_status),
+            status_array, allocator);
+        document->AddMember(rapidjson::StringRef(JSONKey::server_status_info),
+                            server_status_json, allocator);
+      }
+    }
+  }
 
   return false;
 }
@@ -628,6 +752,7 @@ bool DataProvider::collect_metrics(rapidjson::Document *document) {
   res |= collect_group_replication_info(document);
   res |= collect_async_replication_info(document);
   res |= collect_server_config(document);
+  res |= collect_server_status(document);
 
   /* The requirement is to have db_replication_id key at the top of JSON
   structure. But it may originate from the different places. The above

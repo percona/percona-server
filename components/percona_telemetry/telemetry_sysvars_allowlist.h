@@ -39,6 +39,7 @@
   SE (when installed), semi-sync replication, binlog retention/compression.
 */
 inline constexpr std::string_view kSysvarsAllowlistCsv =
+    "'authentication_policy',"
     "'binlog_checksum',"
     "'binlog_expire_logs_auto_purge',"
     "'binlog_expire_logs_seconds',"
@@ -49,7 +50,6 @@ inline constexpr std::string_view kSysvarsAllowlistCsv =
     "'binlog_transaction_compression',"
     "'binlog_transaction_compression_level_zstd',"
     "'binlog_transaction_dependency_history_size',"
-    "'binlog_transaction_dependency_tracking',"
     "'clone_autotune_concurrency',"
     "'clone_block_ddl',"
     "'clone_buffer_size',"
@@ -62,7 +62,6 @@ inline constexpr std::string_view kSysvarsAllowlistCsv =
     "'clone_max_data_bandwidth',"
     "'clone_max_network_bandwidth',"
     "'clone_zstd_compression_level',"
-    "'default_authentication_plugin',"
     "'disconnect_on_expired_password',"
     "'div_precision_increment',"
     "'enforce_gtid_consistency',"
@@ -118,7 +117,6 @@ inline constexpr std::string_view kSysvarsAllowlistCsv =
     "'log_error_verbosity',"
     "'log_replica_updates',"
     "'long_query_time',"
-    "'master_info_repository',"
     "'max_allowed_packet',"
     "'max_connections',"
     "'max_heap_table_size',"
@@ -126,7 +124,6 @@ inline constexpr std::string_view kSysvarsAllowlistCsv =
     "'max_prepared_stmt_count',"
     "'max_slowlog_files',"
     "'max_slowlog_size',"
-    "'metadata_locks_cache_size',"
     "'net_read_timeout',"
     "'net_write_timeout',"
     "'open_files_limit',"
@@ -155,9 +152,7 @@ inline constexpr std::string_view kSysvarsAllowlistCsv =
     "'rocksdb_max_subcompactions',"
     "'rocksdb_use_io_uring',"
     "'rocksdb_write_policy',"
-    "'rpl_semi_sync_master_enabled',"
     "'rpl_semi_sync_replica_enabled',"
-    "'rpl_semi_sync_slave_enabled',"
     "'rpl_semi_sync_source_enabled',"
     "'skip_name_resolve',"
     "'slow_query_log',"
@@ -183,7 +178,6 @@ inline constexpr std::string_view kSysvarsAllowlistCsv =
     "'thread_pool_size',"
     "'thread_pool_stall_limit',"
     "'tmp_table_size',"
-    "'transaction_write_set_extraction',"
     "'userstat',"
     "'wait_timeout'";
 

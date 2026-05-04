@@ -273,6 +273,40 @@ if [ "${CMAKE_BUILD_TYPE:-}" = "Debug" ]; then
     WITH_PGO=0
 fi
 
+# LTO toolchain blocklist. We must pass -DWITH_LTO=OFF *explicitly* on
+# affected hosts, because cmake/fprofile.cmake auto-promotes
+# WITH_LTO_DEFAULT=ON whenever FPROFILE_USE is set; an omitted flag
+# would let LTO fire during the PGO rebuild pass on a broken toolchain.
+#
+# Disabled on:
+#   - RHEL/OL/AlmaLinux/Rocky 8 and older   (toolchain known LTO bugs)
+#   - Amazon Linux < 2023                   (GCC too old)
+#   - Debian bullseye / Ubuntu focal        (per build-ps/debian/rules)
+# Enabled everywhere else.
+WITH_LTO_FLAG="-DWITH_LTO=ON"
+HOST_RHEL=0
+HOST_AMZN=0
+HOST_DIST="unknown"
+if [ -f /etc/redhat-release ]; then
+    HOST_RHEL=$(rpm --eval %rhel 2>/dev/null || echo 0)
+    HOST_AMZN=$(rpm --eval %amzn 2>/dev/null || echo 0)
+    case "${HOST_AMZN}" in ''|*[!0-9]*) HOST_AMZN=0 ;; esac
+    case "${HOST_RHEL}" in ''|*[!0-9]*) HOST_RHEL=0 ;; esac
+    if [ "${HOST_AMZN}" -ge 2023 ] 2>/dev/null; then
+        :  # Amazon Linux 2023+ is fine, leave LTO=ON
+    elif [ "${HOST_AMZN}" -gt 0 ] 2>/dev/null; then
+        WITH_LTO_FLAG="-DWITH_LTO=OFF"   # Amazon Linux < 2023
+    elif [ "${HOST_RHEL}" -gt 0 ] 2>/dev/null && [ "${HOST_RHEL}" -le 8 ] 2>/dev/null; then
+        WITH_LTO_FLAG="-DWITH_LTO=OFF"   # RHEL/OL/Alma 8 and older
+    fi
+elif [ -f /etc/debian_version ]; then
+    HOST_DIST=$(lsb_release -sc 2>/dev/null || echo unknown)
+    case "${HOST_DIST}" in
+        focal|bullseye) WITH_LTO_FLAG="-DWITH_LTO=OFF" ;;
+    esac
+fi
+echo "build-binary.sh: ${WITH_LTO_FLAG} (HOST_RHEL=${HOST_RHEL} HOST_AMZN=${HOST_AMZN} HOST_DIST=${HOST_DIST})"
+
 # Suppress GCC false positives that fire during LTO link on Bison-generated
 # parsers (sql_hints.yy.cc, pars0grm.cc, etc.) and on bundled libs.
 # Distro-built RPMs/DEBs get these via redhat-hardened-cc1 / dpkg-buildflags;
@@ -310,7 +344,7 @@ CMAKE_COMMON_FLAGS=(
     -DWITH_LIBEVENT=bundled
     -DWITH_ZSTD=bundled
     -DWITH_PERCONA_TELEMETRY=ON
-    -DWITH_LTO=ON
+    "${WITH_LTO_FLAG}"
     -DWITH_JS_LANG=ON
     -DV8_INCLUDE_DIR=${WITH_V8}/include
     -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj

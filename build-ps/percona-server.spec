@@ -599,6 +599,8 @@ mkdir debug
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
 %if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
+%else
+           -DWITH_LTO=OFF \
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
@@ -659,6 +661,8 @@ mkdir release
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
 %if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
+%else
+           -DWITH_LTO=OFF \
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
@@ -728,6 +732,8 @@ mkdir release
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
 %if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
+%else
+           -DWITH_LTO=OFF \
 %endif
            %{?ssl_option} \
            %{?mecab_option} \

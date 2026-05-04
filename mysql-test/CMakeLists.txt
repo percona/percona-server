@@ -130,7 +130,6 @@ SET(MTR_TESTS_FOR_PROFILING
   json
   main
   sysschema
-  thread_pool
   x
   )
 STRING(REPLACE ";" "," MTR_SUITE_STRING "${MTR_TESTS_FOR_PROFILING}")

@@ -64,6 +64,10 @@
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
+# Profile-Guided Optimization: disabled by default
+# To enable: pass --define 'with_pgo 1' to rpmbuild
+%{?with_pgo: %global pgo 1}
+
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
@@ -607,6 +611,7 @@ mkdir release
 (
   cd release
   cmake ../%{src_dir} \
+           %{?pgo:-DFPROFILE_GENERATE=1} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -661,6 +666,77 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   make %{?_smp_mflags} VERBOSE=1
 )
+
+# PGO second pass: rebuild with profile data
+# Disabled by default. Enable with: rpmbuild --define 'with_pgo 1'
+%if 0%{?pgo}
+(
+  # Run MTR load to generate profile data
+  pushd release
+  make run-profile-suite
+  rm -r $(readlink mysql-test/var)
+  popd
+
+  # Rebuild with profile data
+  rm -rf release
+  mkdir release && pushd release
+  cmake ../%{src_dir} \
+           -DFPROFILE_USE=1 \
+           -DBUILD_CONFIG=mysql_release \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DUSE_LD_LLD=0 \
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+           -DWITH_CURL=system \
+%if 0%{?systemd}
+           -DWITH_SYSTEMD=1 \
+%endif
+           -DWITH_INNODB_MEMCACHED=1 \
+           -DINSTALL_LIBDIR="%{_lib}/mysql" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
+           -DFEATURE_SET="%{feature_set}" \
+           -DWITH_PAM=1 \
+           -DWITH_ROCKSDB=1 \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
+           -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
+           -DWITH_NUMA=1 \
+           -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
+           -DWITH_SYSTEM_LIBS=ON \
+           -DWITH_LZ4=bundled \
+           -DWITH_ZLIB=bundled \
+           -DWITH_PROTOBUF=bundled \
+           -DWITH_RAPIDJSON=bundled \
+           -DWITH_ICU=bundled \
+           -DWITH_EDITLINE=bundled \
+           -DWITH_LIBEVENT=bundled \
+           -DWITH_ZSTD=bundled \
+           -DWITH_PERCONA_TELEMETRY=ON \
+%if 0%{?add_fido_plugins}
+           -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
+           -DWITH_ENCRYPTION_UDF=ON \
+           -DWITH_COMPONENT_KEYRING_VAULT=ON \
+%if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
+           -DWITH_LTO=ON \
+%endif
+           %{?ssl_option} \
+           %{?mecab_option} \
+           %{?js_lang_option} \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
+  make %{?_smp_mflags} VERBOSE=1
+  popd
+)
+%endif # pgo
 
 %install
 %ifarch x86_64

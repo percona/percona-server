@@ -27,6 +27,7 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
+        --enable_pgo                PGO (Profile-Guided Optimization) build (default = 1, set to 0 to disable)
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -68,6 +69,7 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
+            --enable_pgo=*) ENABLE_PGO="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -797,8 +799,17 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-12/enable
+    # Source the newest gcc-toolset available. Percona Server 8.4 builds
+    # benefit from newer GCC for performance (especially with PGO+LTO).
+    # System gcc on EL8 is 8.5 and EL9 is 11.x; prefer the newest toolset.
+    if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+        for ts in 14 13 12 11; do
+            if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                source /opt/rh/gcc-toolset-${ts}/enable
+                echo "build_rpm: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                break
+            fi
+        done
     fi
     build_mecab_lib
     build_mecab_dict
@@ -812,11 +823,20 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
-    else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+    EXTRA_DEFINES=()
+    if [ ${ARCH} != x86_64 ]; then
+        EXTRA_DEFINES+=(--define "with_tokudb 0")
     fi
+    if [ "${ENABLE_PGO}" = "1" ]; then
+        EXTRA_DEFINES+=(--define "with_pgo 1")
+    fi
+    rpmbuild \
+        --define "_topdir ${WORKDIR}/rpmbuild" \
+        --define "dist .${OS_NAME}" \
+        --define "with_mecab ${MECAB_INSTALL_DIR}/usr" \
+        --define "with_js_lang ${WORKDIR}/v8" \
+        "${EXTRA_DEFINES[@]}" \
+        --rebuild rpmbuild/SRPMS/${SRCRPM}
 
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
@@ -968,6 +988,11 @@ build_deb(){
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
+
+    if [ "${ENABLE_PGO}" = "1" ]; then
+        export DEB_PGO=1
+    fi
+
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -999,8 +1024,16 @@ build_tarball(){
       if [ "x${RHEL}" = "x7" ]; then
           source /opt/rh/devtoolset-11/enable
       fi
-      if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-12/enable
+      # Source the newest gcc-toolset available. Percona Server 8.4 builds
+      # benefit from newer GCC for performance (especially with PGO+LTO).
+      if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+          for ts in 14 13 12 11; do
+              if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                  source /opt/rh/gcc-toolset-${ts}/enable
+                  echo "build_tarball: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                  break
+              fi
+          done
       fi
     fi
     #
@@ -1040,6 +1073,9 @@ build_tarball(){
     fi
 
     cd ${TARFILE%.tar.gz}
+    # Pass ENABLE_PGO through to build-binary.sh as WITH_PGO so tarball builds
+    # match the PGO behavior of RPM and DEB artifacts.
+    export WITH_PGO="${ENABLE_PGO}"
     if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
@@ -1080,6 +1116,7 @@ INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
+ENABLE_PGO=1
 REVISION=0
 BRANCH="release-8.0.30-22"
 RPM_RELEASE=1

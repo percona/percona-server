@@ -827,8 +827,9 @@ build_rpm(){
     if [ ${ARCH} != x86_64 ]; then
         EXTRA_DEFINES+=(--define "with_tokudb 0")
     fi
-    if [ "${ENABLE_PGO}" = "1" ]; then
-        EXTRA_DEFINES+=(--define "with_pgo 1")
+    # PGO is on by default in the spec; pass the opt-out only when explicitly disabled.
+    if [ "${ENABLE_PGO}" = "0" ]; then
+        EXTRA_DEFINES+=(--define "without_pgo 1")
     fi
     rpmbuild \
         --define "_topdir ${WORKDIR}/rpmbuild" \
@@ -989,8 +990,9 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
 
-    if [ "${ENABLE_PGO}" = "1" ]; then
-        export DEB_PGO=1
+    # PGO is on by default in debian/rules; export the opt-out only when explicitly disabled.
+    if [ "${ENABLE_PGO}" = "0" ]; then
+        export DEB_NO_PGO=1
     fi
 
     dpkg-buildpackage -rfakeroot -uc -us -b

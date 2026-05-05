@@ -2427,7 +2427,7 @@ Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(INSERT(_utf8mb3 0xD18F, 2, 1, 0x20));
 HEX(INSERT(_utf8mb3 0xD18F, 2, 1, 0x20))
-D18F20
+D18F
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(INSERT(_utf8mb3 0xD18FD18E, 2, 1, 0x20));

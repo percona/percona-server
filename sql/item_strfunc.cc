@@ -1432,18 +1432,19 @@ String *Item_func_insert::val_str(String *str) {
   if ((start < 1) || (start > orig_len))
     return res;  // Wrong param; skip insert
 
-  --start;  // Internal start from '0'
+  --start;  // Internal start from character number '0'
 
   if ((length < 0) || (length > orig_len)) length = orig_len;
 
-  /* start and length are now sufficiently valid to pass to charpos function */
+  // start and length are now sufficiently valid to pass to charpos function
   start = res->charpos(static_cast<size_t>(start));
   length =
       res->charpos(static_cast<size_t>(length), static_cast<size_t>(start));
 
-  /* Re-testing with corrected params */
-  if (start > orig_len)
-    return res; /* purecov: inspected */  // Wrong param; skip insert
+  // start and length are now byte positions, check that start is within string
+  if (start >= orig_len) {  // After original string, skip the insertion
+    return res;
+  }
   if (length > orig_len - start) length = orig_len - start;
 
   if (static_cast<ulonglong>(orig_len - length + res2->length()) >

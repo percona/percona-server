@@ -6268,3 +6268,14 @@ SELECT FIND_IN_SET('ắ', 'a,b,c');
 FIND_IN_SET('ắ', 'a,b,c')
 1
 SET collation_connection = default;
+#
+# Bug36289412: Fix offset check for insert position overflow
+#
+SET names utf8mb4;
+SELECT INSERT('A', 2, 1, 'a');
+INSERT('A', 2, 1, 'a')
+A
+SELECT INSERT('Å', 2, 1, 'a');
+INSERT('Å', 2, 1, 'a')
+Å
+SET names DEFAULT;

@@ -4089,6 +4089,11 @@ bool Item_func_min_max::resolve_type_inner(THD *thd) {
                               "comparison of JSON in the "
                               "LEAST and GREATEST operators");
   if (data_type() == MYSQL_TYPE_JSON) set_data_type(MYSQL_TYPE_VARCHAR);
+
+  for (uint i = 0; i < arg_count; i++) {
+    args[i]->cmp_context = hybrid_type;
+  }
+
   return false;
 }
 

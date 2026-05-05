@@ -526,19 +526,9 @@ class Alter_info {
                  Item *on_update_value, LEX_CSTRING *comment,
                  const char *change, List<String> *interval_list,
                  const CHARSET_INFO *cs, bool has_explicit_collation,
-<<<<<<< HEAD
-                 uint uint_geom_type, const LEX_CSTRING *zip_dict,
-                 Value_generator *gcol_info, Value_generator *default_val_expr,
-                 const char *opt_after, std::optional<gis::srid_t> srid,
-||||||| merged common ancestors
-                 uint uint_geom_type, Value_generator *gcol_info,
-                 Value_generator *default_val_expr, const char *opt_after,
-                 std::optional<gis::srid_t> srid,
-=======
-                 uint uint_geom_type, Value_generator *gcol_info,
+                 uint uint_geom_type, const LEX_CSTRING *zip_dict, Value_generator *gcol_info,
                  Value_generator *default_val_expr, LEX_CSTRING masking_policy,
                  const char *opt_after, std::optional<gis::srid_t> srid,
->>>>>>> mysql-9.7.0
                  Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden, bool is_array = false);
 

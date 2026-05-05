@@ -97,7 +97,6 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-015015	Server
-Warning	MY-010097	Server
 System	MY-010116	Server
 System	MY-015603	Server
 System	MY-015603	Server
@@ -164,16 +163,9 @@ AND prio!="Note"
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
 "MY-010108", "MY-012363", "MY-013711", "MY-013908",
 "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-<<<<<<< HEAD
-"MY-010099", "MY-011070", "MY-015590", "MY-015641")
-||||||| merged common ancestors
-"MY-010099", "MY-011070", "MY-015590")
-=======
-"MY-010099", "MY-011070", "MY-015603")
->>>>>>> mysql-9.7.0
+"MY-010099", "MY-011070", "MY-015603", "MY-015641")
 ORDER BY logged;
 prio	error_code	subsystem	data
-Warning	MY-010097	Server	Insecure configuration for --secure-log-path: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path.
 System	MY-013576	InnoDB	InnoDB initialization has started.
 System	MY-013577	InnoDB	InnoDB initialization has ended.
 

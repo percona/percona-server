@@ -221,16 +221,8 @@ class Create_field {
             const LEX_CSTRING *comment, const char *change,
             List<String> *interval_list, const CHARSET_INFO *cs,
             bool has_explicit_collation, uint uint_geom_type,
-<<<<<<< HEAD
             const LEX_CSTRING *zip_dict_name, Value_generator *gcol_info,
-            Value_generator *default_val_expr, std::optional<gis::srid_t> srid,
-||||||| merged common ancestors
-            Value_generator *gcol_info, Value_generator *default_val_expr,
-            std::optional<gis::srid_t> srid,
-=======
-            Value_generator *gcol_info, Value_generator *default_val_expr,
-            LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
->>>>>>> mysql-9.7.0
+            Value_generator *default_val_expr, LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
             dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {

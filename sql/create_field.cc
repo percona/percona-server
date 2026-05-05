@@ -200,19 +200,9 @@ bool Create_field::init(
     const LEX_CSTRING *fld_comment, const char *fld_change,
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
-<<<<<<< HEAD
-    const LEX_CSTRING *fld_zip_dict_name, Value_generator *fld_gcol_info,
-    Value_generator *fld_default_val_expr, std::optional<gis::srid_t> srid,
-    dd::Column::enum_hidden_type hidden, bool is_array_arg) {
-||||||| merged common ancestors
-    Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
-    std::optional<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
-    bool is_array_arg) {
-=======
-    Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
+    const LEX_CSTRING *fld_zip_dict_name, Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
     LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
     dd::Column::enum_hidden_type hidden, bool is_array_arg) {
->>>>>>> mysql-9.7.0
   uint sign_len, allowed_type_modifier = 0;
   ulong max_field_charlength = MAX_FIELD_CHARLENGTH;
 

@@ -98,17 +98,8 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
   }
 
   if (!dd::has_primary_key(*m_table_object) &&
-<<<<<<< HEAD
       thd->variables.sql_require_primary_key &&
       !m_table_object->is_temporary()) {
-    my_error(ER_TABLE_WITHOUT_PK, MYF(0));
-    return true;
-||||||| merged common ancestors
-      thd->variables.sql_require_primary_key) {
-    my_error(ER_TABLE_WITHOUT_PK, MYF(0));
-    return true;
-=======
-      thd->variables.sql_require_primary_key) {
     // Need PK, but have none. Check for PKE. If there is none, error out.
     bool have_pke = false;
     const Table::Index_collection *inxs = m_table_object->indexes();
@@ -123,7 +114,6 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
       my_error(ER_TABLE_WITHOUT_PK, MYF(0));
       return true;
     }
->>>>>>> mysql-9.7.0
   }
 
   const CHARSET_INFO *dd_charset_info =

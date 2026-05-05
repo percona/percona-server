@@ -5306,7 +5306,11 @@ class THD : public MDL_context_owner,
  public:
   bool get_sql_foreign_keys() const;
   void set_sql_foreign_keys(bool flag) { m_sql_foreign_keys = flag; }
-<<<<<<< HEAD
+
+  uint32_t fk_cascade_chain_tables() { return m_fk_cascade_chain_tables; }
+  void inc_fk_cascade_chain_tables() { m_fk_cascade_chain_tables++; }
+  void dec_fk_cascade_chain_tables() { m_fk_cascade_chain_tables--; }
+  void reset_fk_cascade_chain_tables() { m_fk_cascade_chain_tables = 0; }
 
  public:
   /**
@@ -5345,14 +5349,6 @@ class THD : public MDL_context_owner,
   */
   kill_handler_fn m_kill_handler_fn{nullptr};
   void *m_kill_handler_data{nullptr};
-||||||| merged common ancestors
-=======
-
-  uint32_t fk_cascade_chain_tables() { return m_fk_cascade_chain_tables; }
-  void inc_fk_cascade_chain_tables() { m_fk_cascade_chain_tables++; }
-  void dec_fk_cascade_chain_tables() { m_fk_cascade_chain_tables--; }
-  void reset_fk_cascade_chain_tables() { m_fk_cascade_chain_tables = 0; }
->>>>>>> mysql-9.7.0
 };
 
 /**

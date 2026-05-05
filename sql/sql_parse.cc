@@ -5849,18 +5849,9 @@ bool Alter_info::add_field(
     Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
     bool has_explicit_collation, uint uint_geom_type,
-<<<<<<< HEAD
     const LEX_CSTRING *zip_dict, Value_generator *gcol_info,
-    Value_generator *default_val_expr, const char *opt_after,
+    Value_generator *default_val_expr, LEX_CSTRING masking_policy, const char *opt_after,
     std::optional<gis::srid_t> srid,
-||||||| merged common ancestors
-    Value_generator *gcol_info, Value_generator *default_val_expr,
-    const char *opt_after, std::optional<gis::srid_t> srid,
-=======
-    Value_generator *gcol_info, Value_generator *default_val_expr,
-    LEX_CSTRING masking_policy, const char *opt_after,
-    std::optional<gis::srid_t> srid,
->>>>>>> mysql-9.7.0
     Sql_check_constraint_spec_list *col_check_const_spec_list,
     dd::Column::enum_hidden_type hidden, bool is_array) {
   const uint8 datetime_precision = decimals ? atoi(decimals) : 0;
@@ -5970,16 +5961,8 @@ bool Alter_info::add_field(
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-<<<<<<< HEAD
                       uint_geom_type, zip_dict, gcol_info, default_val_expr,
-                      srid, hidden, is_array))
-||||||| merged common ancestors
-                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
-                      is_array))
-=======
-                      uint_geom_type, gcol_info, default_val_expr,
                       masking_policy, srid, hidden, is_array))
->>>>>>> mysql-9.7.0
     return true;
 
   for (const auto &a : cf_appliers) {

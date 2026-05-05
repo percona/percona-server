@@ -230,14 +230,6 @@ usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_kerberos.so
 usr/lib/mysql/plugin/debug/authentication_openid_connect.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
-<<<<<<< HEAD
-usr/lib/mysql/plugin/debug/telemetry_client.so
-||||||| merged common ancestors
-usr/lib/mysql/plugin/debug/telemetry_client.so
-usr/lib/mysql/plugin/debug/data_masking.so
-=======
-usr/lib/mysql/plugin/debug/data_masking.so
->>>>>>> mysql-9.7.0
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/keyring_hashicorp.so
 usr/lib/mysql/plugin/debug/thread_pool.so

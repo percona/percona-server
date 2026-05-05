@@ -149,18 +149,12 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_network_timeout = false, stats_tables_included = false,
             column_statistics = false,
             opt_show_create_table_skip_secondary_engine = false,
-<<<<<<< HEAD
-            opt_ignore_views = false;
+            opt_ignore_views = false, opt_drop_masking_policies = true;
 static bool opt_compressed_columns = false,
             opt_compressed_columns_with_dictionaries = false,
             opt_drop_compression_dictionary = true,
             opt_order_by_primary_desc = false, opt_lock_for_backup = false,
             opt_innodb_optimize_keys = false;
-||||||| merged common ancestors
-            opt_ignore_views = false;
-=======
-            opt_ignore_views = false, opt_drop_masking_policies = true;
->>>>>>> mysql-9.7.0
 static bool insert_pat_inited = false, debug_info_flag = false,
             debug_check_flag = false;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;

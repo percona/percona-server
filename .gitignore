@@ -28,6 +28,7 @@ heatwaveml.*
 automl.egg-info/
 _userconf.sh
 scalability_jobs_*
+
 # Configuration files for Eclipse
 .cproject
 .project
@@ -36,3 +37,6 @@ scalability_jobs_*
 
 # Cache directory used by e.g. clangd.
 .cache/
+
+.serena
+.merge_conflicts

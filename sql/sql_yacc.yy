@@ -4067,16 +4067,8 @@ sp_fdparam:
                                       nullptr, nullptr, &NULL_CSTR, nullptr,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-<<<<<<< HEAD
                                       $3 != nullptr, $2->get_uint_geom_type(), nullptr,
-                                      nullptr, nullptr, {},
-||||||| merged common ancestors
-                                      $3 != nullptr, $2->get_uint_geom_type(),
-                                      nullptr, nullptr, {},
-=======
-                                      $3 != nullptr, $2->get_uint_geom_type(),
                                       nullptr, nullptr, NULL_CSTR, {},
->>>>>>> mysql-9.7.0
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -4136,16 +4128,8 @@ sp_pdparam:
                                       nullptr, nullptr, &NULL_CSTR, nullptr,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-<<<<<<< HEAD
                                       $4 != nullptr, $3->get_uint_geom_type(), nullptr,
-                                      nullptr, nullptr, {},
-||||||| merged common ancestors
-                                      $4 != nullptr, $3->get_uint_geom_type(),
-                                      nullptr, nullptr, {},
-=======
-                                      $4 != nullptr, $3->get_uint_geom_type(),
                                       nullptr, nullptr, NULL_CSTR, {},
->>>>>>> mysql-9.7.0
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -4274,16 +4258,8 @@ sp_decl:
                                         nullptr, nullptr, &NULL_CSTR, nullptr,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
-<<<<<<< HEAD
                                         $4 != nullptr, $3->get_uint_geom_type(), nullptr,
-                                        nullptr, nullptr, {},
-||||||| merged common ancestors
-                                        $4 != nullptr, $3->get_uint_geom_type(),
-                                        nullptr, nullptr, {},
-=======
-                                        $4 != nullptr, $3->get_uint_geom_type(),
                                         nullptr, nullptr, NULL_CSTR, {},
->>>>>>> mysql-9.7.0
                                         dd::Column::enum_hidden_type::HT_VISIBLE))
               {
                 MYSQL_YYABORT;
@@ -18822,16 +18798,8 @@ sf_tail:
                                             $10->get_type_flags(), nullptr, nullptr, &NULL_CSTR, nullptr,
                                             $10->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
-<<<<<<< HEAD
                                             $11 != nullptr, $10->get_uint_geom_type(), nullptr,
-                                            nullptr, nullptr, {},
-||||||| merged common ancestors
-                                            $11 != nullptr, $10->get_uint_geom_type(),
-                                            nullptr, nullptr, {},
-=======
-                                            $11 != nullptr, $10->get_uint_geom_type(),
                                             nullptr, nullptr, NULL_CSTR, {},
->>>>>>> mysql-9.7.0
                                             dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;

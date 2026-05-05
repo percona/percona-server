@@ -203,26 +203,12 @@ static bool generate_invisible_primary_key(THD *thd, Alter_info *alter_info) {
   Create_field *cr_field = new (thd->mem_root) Create_field();
   if (cr_field == nullptr) return true;  // OOM
 
-<<<<<<< HEAD
-  if (cr_field->init(
-          thd, gipk_column_name, MYSQL_TYPE_LONGLONG, nullptr, nullptr,
-          (UNSIGNED_FLAG | NOT_NULL_FLAG | AUTO_INCREMENT_FLAG), nullptr,
-          nullptr, &EMPTY_CSTR, nullptr, nullptr, nullptr, false, 0, nullptr, nullptr,
-          nullptr, {}, dd::Column::enum_hidden_type::HT_HIDDEN_USER, false))
-||||||| merged common ancestors
-  if (cr_field->init(
-          thd, gipk_column_name, MYSQL_TYPE_LONGLONG, nullptr, nullptr,
-          (UNSIGNED_FLAG | NOT_NULL_FLAG | AUTO_INCREMENT_FLAG), nullptr,
-          nullptr, &EMPTY_CSTR, nullptr, nullptr, nullptr, false, 0, nullptr,
-          nullptr, {}, dd::Column::enum_hidden_type::HT_HIDDEN_USER, false))
-=======
   if (cr_field->init(thd, gipk_column_name, MYSQL_TYPE_LONGLONG, nullptr,
                      nullptr,
                      (UNSIGNED_FLAG | NOT_NULL_FLAG | AUTO_INCREMENT_FLAG),
                      nullptr, nullptr, &EMPTY_CSTR, nullptr, nullptr, nullptr,
-                     false, 0, nullptr, nullptr, EMPTY_CSTR, {},
+                     false, 0, nullptr, nullptr, nullptr, EMPTY_CSTR, {},
                      dd::Column::enum_hidden_type::HT_HIDDEN_USER, false))
->>>>>>> mysql-9.7.0
     return true;
   if (alter_info->create_list.push_front(cr_field)) return true;
 

@@ -155,7 +155,7 @@ ADD_CUSTOM_TARGET(run-profile-suite
   --accept-test-fail
   --clean-vardir
   --force
-  --max-test-fail=10
+  --max-test-fail=0
   --mem
   --mysqld=--binlog-format=row
   --parallel=${NPROC}

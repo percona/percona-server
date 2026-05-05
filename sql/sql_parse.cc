@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 1999, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3221,12 +3221,17 @@ int mysql_execute_command(THD *thd, bool first_level) {
   /*
     If there is a CREATE TABLE...START TRANSACTION command which
     is not yet committed or rollbacked, then we should allow only
-    BINLOG INSERT, COMMIT or ROLLBACK command.
+    EMPTY QUERY, BINLOG INSERT, COMMIT and ROLLBACK commands.
+
+    Note: Empty query is possible during binlog replay as mysql client
+    can send queries starting with comments (particularly '#').
+
     TODO: Should we really check name of table when we cable BINLOG INSERT ?
   */
   if (thd->m_transactional_ddl.inited() && lex->sql_command != SQLCOM_COMMIT &&
       lex->sql_command != SQLCOM_ROLLBACK &&
-      lex->sql_command != SQLCOM_BINLOG_BASE64_EVENT) {
+      lex->sql_command != SQLCOM_BINLOG_BASE64_EVENT &&
+      lex->sql_command != SQLCOM_EMPTY_QUERY) {
     my_error(ER_STATEMENT_NOT_ALLOWED_AFTER_START_TRANSACTION, MYF(0));
     binlog_gtid_end_transaction(thd);
     return 1;
@@ -4945,7 +4950,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SELECT:
     case SQLCOM_DO:
     case SQLCOM_CALL:
+    case SQLCOM_CREATE_MASKING_POLICY:
     case SQLCOM_CREATE_ROLE:
+    case SQLCOM_DROP_MASKING_POLICY:
     case SQLCOM_DROP_ROLE:
     case SQLCOM_SET_ROLE:
     case SQLCOM_GRANT_ROLE:
@@ -4959,8 +4966,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SHOW_CREATE_EVENT:
     case SQLCOM_SHOW_CREATE_FUNC:
     case SQLCOM_SHOW_CREATE_PROC:
-    case SQLCOM_SHOW_CREATE_LIBRARY:
     case SQLCOM_SHOW_CREATE:
+    case SQLCOM_SHOW_CREATE_LIBRARY:
+    case SQLCOM_SHOW_CREATE_MASKING_POLICY:
     case SQLCOM_SHOW_CREATE_TRIGGER:
     // case SQLCOM_SHOW_CREATE_USER:
     case SQLCOM_SHOW_DATABASES:
@@ -5821,6 +5829,8 @@ bool mysql_test_parse_for_slave(THD *thd) {
   @param gcol_info                 The generated column data or NULL.
   @param default_val_expr          The expression for generating default values,
                                    if there is one, or nullptr.
+  @param masking_policy            The name of the masking policy, if there is
+                                   one; otherwise, an empty string.
   @param opt_after                 The name of the field to add after or
                                    the @see first_keyword pointer to insert
                                    first.
@@ -5839,9 +5849,18 @@ bool Alter_info::add_field(
     Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
     bool has_explicit_collation, uint uint_geom_type,
+<<<<<<< HEAD
     const LEX_CSTRING *zip_dict, Value_generator *gcol_info,
     Value_generator *default_val_expr, const char *opt_after,
     std::optional<gis::srid_t> srid,
+||||||| merged common ancestors
+    Value_generator *gcol_info, Value_generator *default_val_expr,
+    const char *opt_after, std::optional<gis::srid_t> srid,
+=======
+    Value_generator *gcol_info, Value_generator *default_val_expr,
+    LEX_CSTRING masking_policy, const char *opt_after,
+    std::optional<gis::srid_t> srid,
+>>>>>>> mysql-9.7.0
     Sql_check_constraint_spec_list *col_check_const_spec_list,
     dd::Column::enum_hidden_type hidden, bool is_array) {
   const uint8 datetime_precision = decimals ? atoi(decimals) : 0;
@@ -5951,8 +5970,16 @@ bool Alter_info::add_field(
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
+<<<<<<< HEAD
                       uint_geom_type, zip_dict, gcol_info, default_val_expr,
                       srid, hidden, is_array))
+||||||| merged common ancestors
+                      uint_geom_type, gcol_info, default_val_expr, srid, hidden,
+                      is_array))
+=======
+                      uint_geom_type, gcol_info, default_val_expr,
+                      masking_policy, srid, hidden, is_array))
+>>>>>>> mysql-9.7.0
     return true;
 
   for (const auto &a : cf_appliers) {
@@ -6300,6 +6327,28 @@ bool PT_common_table_expr::match_table_ref(Table_ref *tl, bool in_self,
 }
 
 /**
+  Check PROCESS privilege enforcement for DD-based
+  INFORMATION_SCHEMA system views.
+
+  @param thd      Current session.
+  @param table_name   name of the INFORMATION_SCHEMA table
+
+  @retval
+    false   table does not need PROCESS priv or user lacks PROCESS privilege
+    true    table requires PROCESS priv and user has PROCESS privilege
+*/
+
+static bool table_requires_process_priv(THD *thd, const char *table_name) {
+  return ((!strcmp(table_name, "INNODB_FIELDS") ||
+           !strcmp(table_name, "INNODB_DATAFILES") ||
+           !strcmp(table_name, "INNODB_FOREIGN") ||
+           !strcmp(table_name, "INNODB_FOREIGN_COLS") ||
+           !strcmp(table_name, "INNODB_TABLESPACES_BRIEF") ||
+           !strcmp(table_name, "FILES")) &&
+          check_global_access(thd, PROCESS_ACL));
+}
+
+/**
   Add a table to list of used tables.
 
   @param thd      Current session.
@@ -6440,12 +6489,10 @@ Table_ref *Query_block::add_table_to_list(
         }
 
         /*
-          Stop users from accessing I_S.FILES if they do not have
-          PROCESS privilege.
+          Enforce PROCESS privilege for DD-based INFORMATION_SCHEMA views
+          handled in the SQL layer.
         */
-        if (!strcmp(ptr->table_name, "FILES") &&
-            check_global_access(thd, PROCESS_ACL))
-          return nullptr;
+        if (table_requires_process_priv(thd, ptr->table_name)) return nullptr;
       }
     } else {
       schema_table = find_schema_table(thd, ptr->table_name);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5300,10 +5300,13 @@ class THD : public MDL_context_owner,
 
  private:
   bool m_sql_foreign_keys{1};
+  /// Member to store count of tables in foreign key cascade chains.
+  uint32_t m_fk_cascade_chain_tables{0};
 
  public:
   bool get_sql_foreign_keys() const;
   void set_sql_foreign_keys(bool flag) { m_sql_foreign_keys = flag; }
+<<<<<<< HEAD
 
  public:
   /**
@@ -5342,6 +5345,14 @@ class THD : public MDL_context_owner,
   */
   kill_handler_fn m_kill_handler_fn{nullptr};
   void *m_kill_handler_data{nullptr};
+||||||| merged common ancestors
+=======
+
+  uint32_t fk_cascade_chain_tables() { return m_fk_cascade_chain_tables; }
+  void inc_fk_cascade_chain_tables() { m_fk_cascade_chain_tables++; }
+  void dec_fk_cascade_chain_tables() { m_fk_cascade_chain_tables--; }
+  void reset_fk_cascade_chain_tables() { m_fk_cascade_chain_tables = 0; }
+>>>>>>> mysql-9.7.0
 };
 
 /**
@@ -5471,4 +5482,18 @@ inline bool is_sql_fk_checks_enabled(THD *thd) {
  * @return false           Otherwise.
  */
 bool use_sql_fk_checks_for_table(THD *thd, TABLE *table);
+
+/**
+ *  @brief Check if SQL FK cascade should fire triggers.
+ *
+ *  @param thd        Thread Handle.
+ *
+ *  @return true      If enabled.
+ *  @return false     Otherwise.
+ */
+inline bool is_cascade_triggers_enabled(THD *thd) {
+  assert(thd != nullptr);
+  if (is_rpl_source_older(thd, 90700)) return false;
+  return thd->variables.enable_cascade_triggers;
+}
 #endif /* SQL_CLASS_INCLUDED */

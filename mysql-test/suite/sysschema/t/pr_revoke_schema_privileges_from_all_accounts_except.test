@@ -72,7 +72,7 @@ SELECT User, Host, User_attributes FROM mysql.user WHERE User = 'test_user';
 DROP USER 'test_user'@'localhost';
 
 --echo ## Test the script with 'ANSI_QUOTES' turned on.
-SET GLOBAL sql_mode = 'ANSI_QUOTES';
+SET SESSION sql_mode = 'ANSI_QUOTES';
 --echo ## Create the user back and grant privileges as on the beginning.
 CREATE USER 'test_user'@'localhost';
 GRANT SELECT, INSERT, UPDATE, DELETE ON *.* TO 'test_user'@'localhost';
@@ -80,16 +80,36 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON test_db.* TO 'test_user'@'localhost';
 
 --echo ## Revoke privileges from schema.
 --echo ## ##############################
+<<<<<<< HEAD
 CALL sys.revoke_schema_privileges_from_all_accounts_except("test_db", JSON_ARRAY("SELECT", "insert", "Update", "deletE"), JSON_ARRAY("'root'@'localhost'", "'mysql.infoschema'@'LOCALHOST'", "'mysql.session'@'Localhost'", "'mysql.sys'@'locaLHost'", "'percona.telemetry'@'localhost'"));
+||||||| merged common ancestors
+CALL sys.revoke_schema_privileges_from_all_accounts_except("test_db", JSON_ARRAY("SELECT", "insert", "Update", "deletE"), JSON_ARRAY("'root'@'localhost'", "'mysql.infoschema'@'LOCALHOST'", "'mysql.session'@'Localhost'", "'mysql.sys'@'locaLHost'"));
+=======
+CALL sys.revoke_schema_privileges_from_all_accounts_except('test_db', JSON_ARRAY('SELECT', 'insert', 'Update', 'deletE'), JSON_ARRAY('''root''@''localhost''', '''mysql.infoschema''@''LOCALHOST''', '''mysql.session''@''Localhost''', '''mysql.sys''@''locaLHost'''));
+>>>>>>> mysql-9.7.0
 
 --echo ## User grants.
 SHOW GRANTS FOR 'test_user'@'localhost';
 --echo ## Schema privilege should be missing.
+<<<<<<< HEAD
 SELECT * FROM INFORMATION_SCHEMA.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = 'test_db' AND GRANTEE NOT IN ("'root'@'localhost'", "'mysql.infoschema'@'localhost'", "'mysql.session'@'localhost'", "'mysql.sys'@'localhost'", "'percona.telemetry'@'localhost'") ORDER BY PRIVILEGE_TYPE;
+||||||| merged common ancestors
+SELECT * FROM INFORMATION_SCHEMA.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = 'test_db' AND GRANTEE NOT IN ("'root'@'localhost'", "'mysql.infoschema'@'localhost'", "'mysql.session'@'localhost'", "'mysql.sys'@'localhost'") ORDER BY PRIVILEGE_TYPE;
+=======
+SELECT * FROM INFORMATION_SCHEMA.SCHEMA_PRIVILEGES WHERE TABLE_SCHEMA = 'test_db' AND GRANTEE NOT IN ('''root''@''localhost''', '''mysql.infoschema''@''localhost''', '''mysql.session''@''localhost''', '''mysql.sys''@''localhost''') ORDER BY PRIVILEGE_TYPE;
+>>>>>>> mysql-9.7.0
 --echo ## Global privileges should be present.
+<<<<<<< HEAD
 SELECT grantee, privilege_type FROM INFORMATION_SCHEMA.USER_PRIVILEGES WHERE GRANTEE NOT IN ("'root'@'localhost'", "'mysql.infoschema'@'localhost'", "'mysql.session'@'localhost'", "'mysql.sys'@'localhost'", "'percona.telemetry'@'localhost'") ORDER BY PRIVILEGE_TYPE;
+||||||| merged common ancestors
+SELECT grantee, privilege_type FROM INFORMATION_SCHEMA.USER_PRIVILEGES WHERE GRANTEE NOT IN ("'root'@'localhost'", "'mysql.infoschema'@'localhost'", "'mysql.session'@'localhost'", "'mysql.sys'@'localhost'") ORDER BY PRIVILEGE_TYPE;
+=======
+SELECT grantee, privilege_type FROM INFORMATION_SCHEMA.USER_PRIVILEGES WHERE GRANTEE NOT IN ('''root''@''localhost''', '''mysql.infoschema''@''localhost''', '''mysql.session''@''localhost''', '''mysql.sys''@''localhost''') ORDER BY PRIVILEGE_TYPE;
+>>>>>>> mysql-9.7.0
 --echo ## There should be schema restriction present.
 SELECT User, Host, User_attributes FROM mysql.user WHERE User = 'test_user';
+
+SET SESSION sql_mode = @@GLOBAL.sql_mode;
 
 DROP USER 'test_user'@'localhost';
 DROP DATABASE test_db;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -529,6 +529,7 @@ MESSAGE(STATUS "CMAKE_MODULE_PATH is ${CMAKE_MODULE_PATH}")
 INCLUDE(mysql_version)
 PROJECT(${MYSQL_PROJECT_NAME}
   VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
+SET(CMAKE_CXX_STANDARD 23)
 
 # Various 3rd party libraries have this option.
 # Some have it ON, other OFF, by default.
@@ -2356,17 +2357,14 @@ IF(WITH_ICU STREQUAL "bundled")
   FILE(WRITE "${CMAKE_BINARY_DIR}/${ICUDT_DIR}.lnk" "${ICU_DATA_SOURCE_DIR}")
 ENDIF()
 
-# The hypergraph optimizer is default on only for debug builds.
-IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" OR WITH_DEBUG)
-  OPTION(WITH_HYPERGRAPH_OPTIMIZER
-    "Allow use of the hypergraph join optimizer" ON)
-ELSEIF(BUILD_IS_SINGLE_CONFIG)
-  OPTION(WITH_HYPERGRAPH_OPTIMIZER
-    "Allow use of the hypergraph join optimizer" OFF)
-ELSE()
-  # Do not initialize the option, set it ON for $<CONFIG:Debug>
-  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
-ENDIF()
+# The inclusion of the hypergraph optimizer is controlled by two flags:
+
+# - WITH_HYPERGRAPH_OPTIMIZER (default ON) controls if the hypergraph
+#   optimizer is available.
+# - ENABLE_HYPERGRAPH_OPTIMIZER (default OFF) controls if the hypergraph
+#   optimizer is the default optimizer enabled in sessions.
+OPTION(WITH_HYPERGRAPH_OPTIMIZER
+  "Allow use of the hypergraph join optimizer" ON)
 OPTION(ENABLE_HYPERGRAPH_OPTIMIZER
   "Enable hypergraph optimizer in OPTIMIZER_SWITCH_DEFAULT" OFF
   )
@@ -2382,8 +2380,6 @@ ELSEIF(BUILD_IS_SINGLE_CONFIG)
   OPTION(WITH_SHOW_PARSE_TREE "Allow showing the parse tree" OFF)
 ELSE()
   SET(WITH_SHOW_PARSE_TREE_DEFAULT "default")
-  # Do not initialize the option, set it ON for $<CONFIG:Debug>
-  SET(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT "default")
 ENDIF()
 
 OPTION(WITH_ENCRYPTION_UDF "Build Encryption UDF plugin" ON)

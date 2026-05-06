@@ -2025,14 +2025,8 @@ performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
-<<<<<<< HEAD
-performance-schema-max-memory-classes 530
-||||||| merged common ancestors
-performance-schema-max-memory-classes 470
-=======
 performance-schema-max-logger-classes 80
-performance-schema-max-memory-classes 470
->>>>>>> mysql-8.4.9
+performance-schema-max-memory-classes 530
 performance-schema-max-metadata-locks -1
 performance-schema-max-meter-classes 30
 performance-schema-max-metric-classes 600

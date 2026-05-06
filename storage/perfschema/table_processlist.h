@@ -69,19 +69,13 @@ struct row_processlist {
   /** Length in bytes of @c m_processlist_state_ptr. */
   uint m_processlist_state_length{0};
   /** Column INFO. */
-<<<<<<< HEAD
-  const char *m_processlist_info_ptr;
+  const char *m_processlist_info_ptr{nullptr};
   /** Column TIME_MS. */
   ulonglong m_start_time_usec;
   /** Column ROWS_SENT. */
   ulonglong m_rows_sent;
   /** Column ROWS_EXAMINED. */
   ulonglong m_rows_examined;
-||||||| merged common ancestors
-  const char *m_processlist_info_ptr;
-=======
-  const char *m_processlist_info_ptr{nullptr};
->>>>>>> mysql-8.4.9
   /** Length in bytes of @c m_processlist_info_ptr. */
   uint m_processlist_info_length{0};
   /** Column EXECUTION_ENGINE. */

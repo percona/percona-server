@@ -2024,3 +2024,24 @@ ANALYZE TABLE t;
 SELECT 1 AS x FROM t
 WHERE i IN (SELECT i FROM (TABLE t) AS dt WHERE i < 2) GROUP BY x WITH ROLLUP;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#38110792 The missing semi join condition causes incorrect result
+--echo #
+
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+CREATE VIEW v1 AS SELECT abs(t1.id) AS id FROM t1 LEFT JOIN t2 ON t1.id = t2.id;
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+SET optimizer_switch='loosescan=off,firstmatch=off,duplicateweedout=off';
+--replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_SUFFIX(t1, t2) */ * FROM v1 WHERE v1.id IN (SELECT id FROM v1);
+# Hypergraph gives warnings for the hint used.
+--disable_warnings
+SELECT /*+ JOIN_SUFFIX(t1, t2) */ * FROM v1 WHERE v1.id IN (SELECT id FROM v1);
+--enable_warnings
+DROP TABLE t1,t2;
+DROP VIEW v1;
+SET optimizer_switch = default;

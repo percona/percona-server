@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -220,8 +220,8 @@ log_builtins_imp::wellknown_by_type, log_builtins_imp::wellknown_by_name,
 
     log_builtins_imp::item_set_int, log_builtins_imp::item_set_float,
     log_builtins_imp::item_set_lexstring, log_builtins_imp::item_set_cstring,
-
-    log_builtins_imp::item_set_with_key, log_builtins_imp::item_set,
+    log_builtins_imp::line_set_flag, log_builtins_imp::item_set_with_key,
+    log_builtins_imp::item_set,
 
     log_builtins_imp::line_item_set_with_key, log_builtins_imp::line_item_set,
 
@@ -974,6 +974,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_thread_v4),
     PROVIDES_SERVICE(performance_schema, psi_thread_v5),
     PROVIDES_SERVICE(performance_schema, psi_thread_v6),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v7),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_tiny_v1),
@@ -995,6 +996,8 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
+    PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_logs),
+    PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_logs_client),
     PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_metrics_v1),
     PROVIDES_SERVICE(performance_schema, mysql_server_telemetry_traces_v1),
     PROVIDES_SERVICE(performance_schema, psi_metric_v1),

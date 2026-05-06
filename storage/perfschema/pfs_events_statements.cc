@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -251,7 +251,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement) {
 
 static void fct_reset_events_statements_current(PFS_thread *pfs_thread) {
   PFS_events_statements *pfs_stmt = &pfs_thread->m_statement_stack[0];
-  PFS_events_statements *pfs_stmt_last = pfs_stmt + statement_stack_max;
+  const PFS_events_statements *pfs_stmt_last = pfs_stmt + statement_stack_max;
 
   for (; pfs_stmt < pfs_stmt_last; pfs_stmt++) {
     pfs_stmt->m_class = nullptr;
@@ -265,7 +265,8 @@ void reset_events_statements_current() {
 
 static void fct_reset_events_statements_history(PFS_thread *pfs_thread) {
   PFS_events_statements *pfs = pfs_thread->m_statements_history;
-  PFS_events_statements *pfs_last = pfs + events_statements_history_per_thread;
+  const PFS_events_statements *pfs_last =
+      pfs + events_statements_history_per_thread;
 
   pfs_thread->m_statements_history_index = 0;
   pfs_thread->m_statements_history_full = false;
@@ -285,7 +286,8 @@ void reset_events_statements_history_long() {
   events_statements_history_long_full = false;
 
   PFS_events_statements *pfs = events_statements_history_long_array;
-  PFS_events_statements *pfs_last = pfs + events_statements_history_long_size;
+  const PFS_events_statements *pfs_last =
+      pfs + events_statements_history_long_size;
   for (; pfs < pfs_last; pfs++) {
     pfs->m_class = nullptr;
   }
@@ -335,7 +337,7 @@ void reset_events_statements_by_host() {
 /** Reset table EVENTS_STATEMENTS_GLOBAL_BY_EVENT_NAME data. */
 void reset_events_statements_global() {
   PFS_statement_stat *stat = global_instr_class_statements_array;
-  PFS_statement_stat *stat_last =
+  const PFS_statement_stat *stat_last =
       global_instr_class_statements_array + statement_class_max;
 
   for (; stat < stat_last; stat++) {

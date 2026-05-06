@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2177,21 +2177,6 @@ bool Arg_comparator::compare_null_values() {
   bool result;
   (void)compare_pair_for_nulls(*left, *right, &result);
   return result;
-}
-
-void Item_bool_func::set_created_by_in2exists() {
-  m_created_by_in2exists = true;
-  // When a condition is created by IN to EXISTS transformation,
-  // it re-uses the expressions that are part of the query. As a
-  // result we need to increment the reference count
-  // for these expressions.
-  WalkItem(this, enum_walk::PREFIX | enum_walk::SUBQUERY, [](Item *inner_item) {
-    // Reference counting matters only for referenced items.
-    if (inner_item->type() == REF_ITEM) {
-      down_cast<Item_ref *>(inner_item)->ref_item()->increment_ref_count();
-    }
-    return false;
-  });
 }
 
 const char *Item_bool_func::bool_transform_names[10] = {"is true",
@@ -7572,7 +7557,7 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
     // Iterate over the fields selected from the subquery
     uint fieldno = 0;
     for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
-      if (existing->real_item()->eq(item, false))
+      if (existing->real_item()->eq(item->real_item(), false))
         added_fields.push_back(sj_nest->nested_join->sjm.mat_fields[fieldno]);
       fieldno++;
     }
@@ -7603,7 +7588,7 @@ Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
   // Iterate over the fields selected from the subquery
   uint fieldno = 0;
   for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
-    if (existing->real_item()->eq(args[1], false) &&
+    if (existing->real_item()->eq(args[1]->real_item(), false) &&
         (args[0]->used_tables() & ~sj_nest->sj_inner_tables))
       current_thd->change_item_tree(
           args + 1, sj_nest->nested_join->sjm.mat_fields[fieldno]);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,8 @@ class PFS_key_error_log_logged : public PFS_key_ulonglong {
   bool match(const log_sink_pfs_event *row);
 
  private:
-  ulonglong m_key_value;  // TIMESTAMP(6) (microsecond precision) as ulonglong
+  ulonglong m_key_value{
+      0};  // TIMESTAMP(6) (microsecond precision) as ulonglong
 };
 
 /// index on the LOGGED (timestamp/primary key) column

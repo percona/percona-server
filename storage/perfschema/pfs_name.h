@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,10 @@ class Field;
 template <int max_length>
 struct PFS_any_name {
  public:
-  PFS_any_name() { m_length = 0; }
+  PFS_any_name() {
+    m_length = 0;
+    m_data[0] = '\0';
+  }
 
   PFS_any_name(const PFS_any_name &other) {
     assert(other.m_length <= max_length);
@@ -62,12 +65,13 @@ struct PFS_any_name {
 
   PFS_any_name<max_length> &operator=(const PFS_any_name<max_length> &other) {
     assert(other.m_length <= max_length);
-
-    if (0 < other.m_length && other.m_length <= max_length) {
-      m_length = other.m_length;
-      memcpy(m_data, other.m_data, m_length);
-    } else {
-      m_length = 0;
+    if (this != &other) {
+      if (0 < other.m_length && other.m_length <= max_length) {
+        m_length = other.m_length;
+        memcpy(m_data, other.m_data, m_length);
+      } else {
+        m_length = 0;
+      }
     }
     return *this;
   }
@@ -139,12 +143,14 @@ struct PFS_any_name_view {
       const PFS_any_name_view<max_length> &other) {
     assert(other.m_length <= max_length);
 
-    if (0 < other.m_length && other.m_length <= max_length) {
-      m_data = other.m_data;
-      m_length = other.m_length;
-    } else {
-      m_data = nullptr;
-      m_length = 0;
+    if (this != &other) {
+      if (0 < other.m_length && other.m_length <= max_length) {
+        m_data = other.m_data;
+        m_length = other.m_length;
+      } else {
+        m_data = nullptr;
+        m_length = 0;
+      }
     }
     return *this;
   }

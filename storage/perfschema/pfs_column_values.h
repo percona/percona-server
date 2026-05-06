@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,8 @@ extern LEX_CSTRING memory_instrument_prefix;
 extern LEX_CSTRING meter_instrument_prefix;
 /** String prefix for all metric instruments. */
 extern LEX_CSTRING metric_instrument_prefix;
+/** String prefix for all logger instruments. */
+extern LEX_CSTRING logger_instrument_prefix;
 /** Name of the global error class. */
 extern LEX_CSTRING error_class_name;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -548,6 +548,20 @@ static Sys_var_charptr Sys_pfs_instrument(
     CMD_LINE(OPT_ARG, OPT_PFS_INSTRUMENT), IN_FS_CHARSET, DEFAULT(""),
     PFS_TRAILING_PROPERTIES);
 
+static Sys_var_charptr Sys_pfs_meter(
+    "performance_schema_meter",
+    "Default startup value for a performance schema meter.",
+    READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_meter),
+    CMD_LINE(OPT_ARG, OPT_PFS_METER), IN_FS_CHARSET, DEFAULT(""),
+    PFS_TRAILING_PROPERTIES);
+
+static Sys_var_charptr Sys_pfs_logger(
+    "performance_schema_logger",
+    "Default startup value for a performance schema logger.",
+    READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_pfs_logger),
+    CMD_LINE(OPT_ARG, OPT_PFS_LOGGER), IN_FS_CHARSET, DEFAULT(""),
+    PFS_TRAILING_PROPERTIES);
+
 /**
   Update the performance_schema_show_processlist.
   Warn that the use of information_schema processlist is deprecated.
@@ -976,6 +990,13 @@ static Sys_var_ulong Sys_pfs_max_metric_classes(
     READ_ONLY GLOBAL_VAR(pfs_param.m_metric_class_sizing),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 11000),
     DEFAULT(PFS_MAX_METRIC_CLASS), BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_logger_classes(
+    "performance_schema_max_logger_classes",
+    "Maximum number of logger source instruments.",
+    READ_ONLY GLOBAL_VAR(pfs_param.m_logger_class_sizing),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200), DEFAULT(PFS_MAX_LOGGER_CLASS),
+    BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_digest_size(
     "performance_schema_digests_size",

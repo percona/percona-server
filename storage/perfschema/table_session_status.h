@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ struct THR_LOCK;
 */
 struct row_session_status {
   /** Column THREAD_ID. */
-  ulonglong m_thread_internal_id;
+  ulonglong m_thread_internal_id{0};
   /** Column VARIABLE_NAME. */
   PFS_variable_name_row m_variable_name;
   /** Column VARIABLE_VALUE. */

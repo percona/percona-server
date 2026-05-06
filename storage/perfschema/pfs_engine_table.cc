@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,7 @@
 #include "storage/perfschema/table_setup_actors.h"
 #include "storage/perfschema/table_setup_consumers.h"
 #include "storage/perfschema/table_setup_instruments.h"
+#include "storage/perfschema/table_setup_loggers.h"
 #include "storage/perfschema/table_setup_meters.h"
 #include "storage/perfschema/table_setup_metrics.h"
 #include "storage/perfschema/table_setup_objects.h"
@@ -507,6 +508,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_setup_actors::m_share,
     &table_setup_consumers::m_share,
     &table_setup_instruments::m_share,
+    &table_setup_loggers::m_share,
     &table_setup_meters::m_share,
     &table_setup_metrics::m_share,
     &table_setup_objects::m_share,
@@ -945,7 +947,7 @@ static bool allow_drop_schema_privilege() {
       in particular to drop unknown tables,
       see PFS_unknown_acl::check()
   */
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   if (thd == nullptr) {
     return false;
   }
@@ -1027,7 +1029,7 @@ static bool allow_drop_table_privilege() {
     Here, we want to prevent DROP / ALTER  while allowing TRUNCATE.
     Note that we must also allow GRANT to transfer the truncate privilege.
   */
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   if (thd == nullptr) {
     return false;
   }
@@ -1417,7 +1419,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
 
-    auto *pos = (uchar *)buffer;
+    const auto *pos = (uchar *)buffer;
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);
 
@@ -1465,7 +1467,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     *buffer_length = (uint)string_len;
 
     const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
-    auto *pos = (uchar *)buffer;
+    const auto *pos = (uchar *)buffer;
     if (cs->mbmaxlen > 1) {
       size_t char_length;
       char_length =

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,11 +74,11 @@ PFS_prepared_stmt *create_prepared_stmt(
     void *identity, PFS_thread *thread, PFS_program *pfs_program,
     PFS_events_statements *pfs_stmt, uint stmt_id, const char *stmt_name,
     uint stmt_name_length, const char *sqltext, uint sqltext_length) {
-  PFS_prepared_stmt *pfs = nullptr;
   pfs_dirty_state dirty_state;
 
   /* Create a new record in prepared stmt stat array. */
-  pfs = global_prepared_stmt_container.allocate(&dirty_state);
+  PFS_prepared_stmt *pfs =
+      global_prepared_stmt_container.allocate(&dirty_state);
   if (pfs != nullptr) {
     /* Reset the stats. */
     pfs->reset_data();

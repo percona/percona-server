@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,7 @@ void table_tls_channel_status::materialize() {
   */
   pfs_tls_channels_lock_for_read();
   const tls_channels &channels = pfs_get_instrumented_tls_channels();
-  for (auto *channel : channels) {
+  for (const auto *channel : channels) {
     process_one_channel(channel);
   }
   pfs_tls_channels_unlock();

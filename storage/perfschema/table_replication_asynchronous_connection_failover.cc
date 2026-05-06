@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,7 @@ int table_replication_asynchronous_connection_failover::read_row_values(
     return HA_ERR_END_OF_FILE;
   }
 
-  for (Field *f = nullptr; (f = *fields); fields++) {
+  for (Field *f; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /** channel_name */

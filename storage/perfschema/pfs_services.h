@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include "mysql/components/services/registry.h"
 
 // pfs services
+#include <mysql/components/services/mysql_server_telemetry_logs_client_service.h>
+#include <mysql/components/services/mysql_server_telemetry_logs_service.h>
 #include <mysql/components/services/mysql_server_telemetry_metrics_service.h>
 #include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 #include <mysql/components/services/pfs_notification.h>
@@ -87,10 +89,17 @@ extern SERVICE_TYPE(psi_thread_v5)
     SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5);
 extern SERVICE_TYPE(psi_thread_v6)
     SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v6);
+extern SERVICE_TYPE(psi_thread_v7)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v7);
 extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
 extern SERVICE_TYPE(psi_tls_channel_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_tls_channel_v1);
+extern SERVICE_TYPE(mysql_server_telemetry_logs)
+    SERVICE_IMPLEMENTATION(performance_schema, mysql_server_telemetry_logs);
+extern SERVICE_TYPE(mysql_server_telemetry_logs_client)
+    SERVICE_IMPLEMENTATION(performance_schema,
+                           mysql_server_telemetry_logs_client);
 extern SERVICE_TYPE(mysql_server_telemetry_traces_v1)
     SERVICE_IMPLEMENTATION(performance_schema,
                            mysql_server_telemetry_traces_v1);

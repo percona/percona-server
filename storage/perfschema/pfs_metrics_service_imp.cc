@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ static bool invalid_metric_name(const char *name, size_t max_len) {
   return false;
 }
 
-static bool invalid_metric_definition(PSI_metric_info_v1 *metric) {
+static bool invalid_metric_definition(const PSI_metric_info_v1 *metric) {
   return invalid_metric_name(metric->m_metric, MAX_METRIC_NAME_LEN) ||
          (metric->m_unit != nullptr &&
           strlen(metric->m_unit) > MAX_METRIC_UNIT_LEN) ||
@@ -76,7 +76,7 @@ static bool invalid_metric_definition(PSI_metric_info_v1 *metric) {
           strlen(metric->m_description) > MAX_METRIC_DESCRIPTION_LEN);
 }
 
-static bool invalid_meter_definition(PSI_meter_info_v1 *metric) {
+static bool invalid_meter_definition(const PSI_meter_info_v1 *metric) {
   return invalid_metric_name(metric->m_meter, MAX_METER_NAME_LEN) ||
          (metric->m_description != nullptr &&
           strlen(metric->m_description) > MAX_METER_DESCRIPTION_LEN);
@@ -242,8 +242,9 @@ static int build_prefix(const LEX_CSTRING *prefix, const char *optional,
 
   if (unlikely((prefix_length + optional_len + 1) >=
                PFS_MAX_FULL_METRIC_PREFIX_NAME_LENGTH)) {
+    const char *optional_print = (optional == nullptr) ? "<nullptr>" : optional;
     pfs_print_error("build_prefix: prefix+optional is too long <%s> <%s>\n",
-                    prefix->str, optional);
+                    prefix->str, optional_print);
     return 1;
   }
 
@@ -407,7 +408,7 @@ void pfs_register_meters_v1(PSI_meter_info_v1 *info [[maybe_unused]],
   // notify component
   mysql_rwlock_rdlock(&LOCK_pfs_meter_notify);
   if (g_notify_callback != nullptr) {
-    for (auto meter : meters_added) {
+    for (const auto *meter : meters_added) {
       g_notify_callback(meter, MeterNotifyType::METER_ADDED);
     }
   }
@@ -453,7 +454,7 @@ void pfs_unregister_meters_v1(PSI_meter_info_v1 *info [[maybe_unused]],
   // notify component
   mysql_rwlock_rdlock(&LOCK_pfs_meter_notify);
   if (g_notify_callback != nullptr) {
-    for (auto meter : meters_removed) {
+    for (const auto *meter : meters_removed) {
       g_notify_callback(meter, MeterNotifyType::METER_REMOVED);
     }
   }

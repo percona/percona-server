@@ -1,8 +1,26 @@
 "Checking the data dictionary properties ..."
 DATA DICTIONARY TAG
+<<<<<<< HEAD
 PS_VERSION=80407
+||||||| merged common ancestors
+PS_VERSION=80403
+=======
+PS_VERSION=80409
+>>>>>>> mysql-8.4.9
 DATA DICTIONARY VERSION
+<<<<<<< HEAD
 80407
+||||||| merged common ancestors
+80403
+=======
+80409
+>>>>>>> mysql-8.4.9
 "Checking the performance schema database structure ..."
 CHECK STATUS
+<<<<<<< HEAD
 The tables in the performance_schema were last changed in MySQL 8.4.7, with a PFS_DD_VERSION = 80407
+||||||| merged common ancestors
+The tables in the performance_schema were last changed in MySQL 8.4.3, with a PFS_DD_VERSION = 80403
+=======
+The tables in the performance_schema were last changed in MySQL 8.4.9, with a PFS_DD_VERSION = 80409
+>>>>>>> mysql-8.4.9

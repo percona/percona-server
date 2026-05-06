@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ ha_rows table_ets_by_thread_by_event_name::get_row_count() {
 }
 
 table_ets_by_thread_by_event_name::table_ets_by_thread_by_event_name()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_transaction();
 }
 
@@ -154,14 +154,12 @@ int table_ets_by_thread_by_event_name::rnd_next() {
 }
 
 int table_ets_by_thread_by_event_name::rnd_pos(const void *pos) {
-  PFS_thread *thread;
-  PFS_transaction_class *transaction_class;
-
   set_position(pos);
 
-  thread = global_thread_container.get(m_pos.m_index_1);
+  PFS_thread *thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != nullptr) {
-    transaction_class = find_transaction_class(m_pos.m_index_2);
+    PFS_transaction_class *transaction_class =
+        find_transaction_class(m_pos.m_index_2);
     if (transaction_class) {
       return make_row(thread, transaction_class);
     }

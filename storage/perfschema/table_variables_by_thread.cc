@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,6 @@ PFS_engine_table *table_variables_by_thread::create(PFS_engine_table_share *) {
 ha_rows table_variables_by_thread::get_row_count() {
   mysql_mutex_lock(&LOCK_plugin_delete);
 #ifndef NDEBUG
-  extern mysql_mutex_t LOCK_plugin;
   mysql_mutex_assert_not_owner(&LOCK_plugin);
 #endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
@@ -116,8 +115,7 @@ ha_rows table_variables_by_thread::get_row_count() {
 table_variables_by_thread::table_variables_by_thread()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(true),
-      m_pos(),
-      m_next_pos() {}
+      m_opened_index(nullptr) {}
 
 void table_variables_by_thread::reset_position() {
   m_pos.reset();
@@ -175,9 +173,8 @@ int table_variables_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the system variable hash. */
   m_sysvar_cache.initialize_session();
 
-  PFS_index_variables_by_thread *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_variables_by_thread);
+  auto *result = PFS_NEW(PFS_index_variables_by_thread);
   m_opened_index = result;
   m_index = result;
 
@@ -227,7 +224,7 @@ int table_variables_by_thread::make_row(PFS_thread *thread,
 
   m_row.m_thread_internal_id = thread->m_thread_internal_id;
 
-  if (m_row.m_variable_name.make_row(system_var->m_name,
+  if (m_row.m_variable_name.make_row(system_var->m_name_str,
                                      system_var->m_name_length) != 0) {
     return HA_ERR_RECORD_DELETED;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@
 
 #include "storage/perfschema/table_keyring_component_status.h"
 
-#include <stddef.h>
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 
 #include "my_dbug.h"
@@ -51,8 +51,8 @@ namespace {
 enum keyring_keys_field_offsets { FO_STATUS_KEY, FO_STATUS_VALUE };
 }  // namespace
 
-const size_t STATUS_KEY_LENGTH = 256;
-const size_t STATUS_VALUE_LENGTH = 1024;
+constexpr size_t STATUS_KEY_LENGTH = 256;
+constexpr size_t STATUS_VALUE_LENGTH = 1024;
 
 Plugin_table table_keyring_component_status::m_table_def(
     /* Schema name */

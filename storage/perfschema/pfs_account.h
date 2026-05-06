@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
     PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
     Immutable, safe to use without internal lock.
   */
-  PFS_memory_shared_stat *m_instr_class_memory_stats;
+  PFS_memory_shared_stat *m_instr_class_memory_stats{nullptr};
 };
 
 int init_account(const PFS_global_param *param);

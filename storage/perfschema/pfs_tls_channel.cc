@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -224,7 +224,7 @@ void pfs_register_tls_channel_v1(TLS_channel_property_iterator *provider) {
   if (!g_instrumented_tls_channels_inited) return;
   bool insert = true;
   mysql_rwlock_wrlock(&LOCK_pfs_tls_channels);
-  for (auto *channel : g_instrumented_tls_channels) {
+  for (const auto *channel : g_instrumented_tls_channels) {
     if (channel == provider) {
       insert = false;
       break;

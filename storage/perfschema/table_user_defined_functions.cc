@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,8 @@ table_user_defined_functions::table_user_defined_functions()
       m_row_count(0),
       m_row(nullptr),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 struct udf_materialize_state_s {
   row_user_defined_functions *rows;
@@ -158,14 +159,14 @@ int table_user_defined_functions::make_row(const udf_func *entry,
       "char", "double", "integer", "row", /** not valid for UDFs */
       "decimal" /** char *, to be converted to/from a decimal */
   };
-  static uint const return_type_lengths[] = {
+  static uint constexpr return_type_lengths[] = {
       sizeof("char") - 1, sizeof("double") - 1, sizeof("integer") - 1,
       sizeof("row") - 1, sizeof("decimal") - 1};
 
   /* keep in sync with Item_udftype */
   static const char *const udf_types[] = {nullptr,  // invalid value
                                           "function", "aggregate"};
-  static uint const udf_type_lengths[] = {
+  static uint constexpr udf_type_lengths[] = {
       0,  // invalid value
       sizeof("function") - 1,
       sizeof("aggregate") - 1,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -712,7 +712,7 @@ struct PFS_table_lock_stat {
 
   inline void reset() {
     PFS_single_stat *pfs = &m_stat[0];
-    PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    const PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
     for (; pfs < pfs_last; pfs++) {
       pfs->reset();
     }
@@ -720,7 +720,7 @@ struct PFS_table_lock_stat {
 
   inline void aggregate(const PFS_table_lock_stat *stat) {
     PFS_single_stat *pfs = &m_stat[0];
-    PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    const PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
     const PFS_single_stat *pfs_from = &stat->m_stat[0];
     for (; pfs < pfs_last; pfs++, pfs_from++) {
       pfs->aggregate(pfs_from);
@@ -728,8 +728,8 @@ struct PFS_table_lock_stat {
   }
 
   inline void sum(PFS_single_stat *result) {
-    PFS_single_stat *pfs = &m_stat[0];
-    PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    const PFS_single_stat *pfs = &m_stat[0];
+    const PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
     for (; pfs < pfs_last; pfs++) {
       result->aggregate(pfs);
     }
@@ -753,7 +753,7 @@ struct PFS_table_stat {
   /** Reset table I/O statistic. */
   inline void reset_io() {
     PFS_table_io_stat *stat = &m_index_stat[0];
-    PFS_table_io_stat *stat_last = &m_index_stat[MAX_INDEXES + 1];
+    const PFS_table_io_stat *stat_last = &m_index_stat[MAX_INDEXES + 1];
     for (; stat < stat_last; stat++) {
       stat->reset();
     }

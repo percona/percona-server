@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12483,6 +12483,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
        about nature of changes than those provided from parser.
   */
   uint old_field_index_without_vgc = 0;
+  uint old_field_index_vgc = 0;
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
     DBUG_PRINT("inplace", ("Existing field: %s", field->field_name));
 
@@ -12492,13 +12493,15 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
     field->clear_flag(FIELD_IS_DROPPED);
 
     /* Use transformed info to evaluate flags for storage engine. */
-    uint new_field_index = 0;
     uint new_field_index_without_vgc = 0;
+    uint new_field_index_vgc = 0;
     new_field_it.init(alter_info->create_list);
     while ((new_field = new_field_it++)) {
       if (new_field->field == field) break;
-      if (new_field->stored_in_db) new_field_index_without_vgc++;
-      new_field_index++;
+      if (new_field->stored_in_db)
+        new_field_index_without_vgc++;
+      else
+        new_field_index_vgc++;
     }
 
     if (new_field) {
@@ -12626,7 +12629,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ALTER_STORED_COLUMN_ORDER;
       } else {
-        if (field->field_index() != new_field_index)
+        if (old_field_index_vgc != new_field_index_vgc)
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER;
       }
@@ -12660,7 +12663,10 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       field->set_flag(FIELD_IS_DROPPED);
       dropped_or_renamed_cols.push_back(field);
     }
-    if (field->stored_in_db) old_field_index_without_vgc++;
+    if (field->stored_in_db)
+      old_field_index_without_vgc++;
+    else
+      old_field_index_vgc++;
   }
 
   if (alter_info->flags & Alter_info::ALTER_ADD_COLUMN) {

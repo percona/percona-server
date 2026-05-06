@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ struct st_row_applier_global_filters {
     REPLICATE_WILD_IGNORE_TABLE, REPLICATE_REWRITE_DB.
   */
   char filter_name[NAME_LEN];
-  uint filter_name_length;
+  uint filter_name_length{0};
   /*
     The replication filter configured by startup options: --replicate-*,
     CHANGE REPLICATION FILTER, or DEFAULT_FILTER (every channel copyies
@@ -70,7 +70,7 @@ struct st_row_applier_global_filters {
   enum_configured_by configured_by;
 
   /* Timestamp of when the configuration took place */
-  ulonglong active_since;
+  ulonglong active_since{0};
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_global_filters */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ ha_rows table_os_global_by_type::get_row_count() {
 }
 
 table_os_global_by_type::table_os_global_by_type()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   // FIXME, verify
   m_normalizer = time_normalizer::get_wait();
 }

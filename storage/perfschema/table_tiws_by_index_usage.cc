@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -175,7 +175,7 @@ ha_rows table_tiws_by_index_usage::get_row_count() {
 }
 
 table_tiws_by_index_usage::table_tiws_by_index_usage()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
+    : PFS_engine_table(&m_share, &m_pos), m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_wait();
 }
 
@@ -232,9 +232,8 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
 }
 
 int table_tiws_by_index_usage::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_tiws_by_index_usage *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_tiws_by_index_usage);
+  auto *result = PFS_NEW(PFS_index_tiws_by_index_usage);
   m_opened_index = result;
   m_index = result;
   return 0;

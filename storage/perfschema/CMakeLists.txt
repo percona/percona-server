@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -81,6 +81,8 @@ pfs_tls_channel.h
 pfs_user.h
 pfs_variable.h
 pfs_visitor.h
+mysql_server_telemetry_logs_service_imp.h
+mysql_server_telemetry_logs_client_service_imp.h
 mysql_server_telemetry_metrics_service_imp.h
 mysql_server_telemetry_traces_service_imp.h
 table_accounts.h
@@ -162,6 +164,7 @@ table_session_variables.h
 table_setup_actors.h
 table_setup_consumers.h
 table_setup_instruments.h
+table_setup_loggers.h
 table_setup_meters.h
 table_setup_metrics.h
 table_setup_objects.h
@@ -249,6 +252,8 @@ pfs_tls_channel.cc
 pfs_user.cc
 pfs_variable.cc
 pfs_visitor.cc
+mysql_server_telemetry_logs_service_imp.cc
+mysql_server_telemetry_logs_client_service_imp.cc
 mysql_server_telemetry_metrics_service_imp.cc
 mysql_server_telemetry_traces_service_imp.cc
 service_pfs_notification.cc
@@ -334,6 +339,7 @@ table_session_variables.cc
 table_setup_actors.cc
 table_setup_consumers.cc
 table_setup_instruments.cc
+table_setup_loggers.cc
 table_setup_meters.cc
 table_setup_metrics.cc
 table_setup_objects.cc
@@ -390,30 +396,34 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
 
+# The top level CMakeLists.txt has an option DISABLE_ALL_PSI, default OFF.
+# If it is ON, then disable everything below.
+
 # Only disable threads when building without *any* instrumentation,
 # as other instrumentations have a dependency on threads.
-OPTION(DISABLE_PSI_THREAD "Exclude the performance schema thread instrumentation" OFF)
+OPTION(DISABLE_PSI_THREAD "Exclude the performance schema thread instrumentation" ${DISABLE_ALL_PSI})
 
-OPTION(DISABLE_PSI_MUTEX "Exclude the performance schema mutex instrumentation" OFF)
-OPTION(DISABLE_PSI_RWLOCK "Exclude the performance schema rwlock instrumentation" OFF)
-OPTION(DISABLE_PSI_COND "Exclude the performance schema condition instrumentation" OFF)
-OPTION(DISABLE_PSI_FILE "Exclude the performance schema file instrumentation" OFF)
-OPTION(DISABLE_PSI_TABLE "Exclude the performance schema table instrumentation" OFF)
-OPTION(DISABLE_PSI_SOCKET "Exclude the performance schema socket instrumentation" OFF)
-OPTION(DISABLE_PSI_STAGE "Exclude the performance schema stage instrumentation" OFF)
-OPTION(DISABLE_PSI_STATEMENT "Exclude the performance schema statement instrumentation" OFF)
-OPTION(DISABLE_PSI_SP "Exclude the performance schema stored procedure instrumentation" OFF)
-OPTION(DISABLE_PSI_PS "Exclude the performance schema prepared statements instances instrumentation" OFF)
-OPTION(DISABLE_PSI_IDLE "Exclude the performance schema idle instrumentation" OFF)
-OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement digest instrumentation" OFF)
-OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
-OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
-OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
-OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrumentation" OFF)
-OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
-OPTION(DISABLE_PSI_TLS_CHANNEL "Exclude the performance schema tls channel instrumentation" OFF)
-OPTION(DISABLE_PSI_SERVER_TELEMETRY_TRACES "Exclude the performance schema server telemetry traces instrumentation" OFF)
-OPTION(DISABLE_PSI_METRICS "Exclude the performance schema server telemetry metrics instrumentation" OFF)
+OPTION(DISABLE_PSI_MUTEX "Exclude the performance schema mutex instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_RWLOCK "Exclude the performance schema rwlock instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_COND "Exclude the performance schema condition instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_FILE "Exclude the performance schema file instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_TABLE "Exclude the performance schema table instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_SOCKET "Exclude the performance schema socket instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_STAGE "Exclude the performance schema stage instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_STATEMENT "Exclude the performance schema statement instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_SP "Exclude the performance schema stored procedure instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_PS "Exclude the performance schema prepared statements instances instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_IDLE "Exclude the performance schema idle instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement digest instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_TLS_CHANNEL "Exclude the performance schema tls channel instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_SERVER_TELEMETRY_TRACES "Exclude the performance schema server telemetry traces instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_SERVER_TELEMETRY_LOGS "Exclude the performance schema server telemetry logs instrumentation" ${DISABLE_ALL_PSI})
+OPTION(DISABLE_PSI_METRICS "Exclude the performance schema server telemetry metrics instrumentation" ${DISABLE_ALL_PSI})
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
 
@@ -436,5 +446,6 @@ MARK_AS_ADVANCED(DISABLE_PSI_ERROR)
 MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
 MARK_AS_ADVANCED(DISABLE_PSI_TLS_CHANNEL)
 MARK_AS_ADVANCED(DISABLE_PSI_SERVER_TELEMETRY_TRACES)
+MARK_AS_ADVANCED(DISABLE_PSI_SERVER_TELEMETRY_LOGS)
 MARK_AS_ADVANCED(DISABLE_PSI_METRICS)
 

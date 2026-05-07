@@ -401,8 +401,8 @@ ulint *rec_get_offsets(const rec_t *rec, const dict_index_t *index,
 }
 
 ulint *rec_get_offsets_with_comp(const rec_t *rec, const dict_index_t *index,
-                                  bool compact, ulint *offsets, ulint n_fields,
-                                  ut::Location location, mem_heap_t **heap) {
+                                 bool compact, ulint *offsets, ulint n_fields,
+                                 ut::Location location, mem_heap_t **heap) {
   ulint n;
 
   ut_ad(rec);

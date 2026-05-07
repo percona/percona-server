@@ -246,12 +246,9 @@ static const uint8_t REC_N_FIELDS_ONE_BYTE_MAX = 0x7F;
  @param[in] location location where called
  @param[in,out] heap memory heap
  @return the new offsets */
-[[nodiscard]] ulint *rec_get_offsets_with_comp(const rec_t *rec,
-                                               const dict_index_t *index,
-                                               bool compact, ulint *offsets,
-                                               ulint n_fields,
-                                               ut::Location location,
-                                               mem_heap_t **heap);
+[[nodiscard]] ulint *rec_get_offsets_with_comp(
+    const rec_t *rec, const dict_index_t *index, bool compact, ulint *offsets,
+    ulint n_fields, ut::Location location, mem_heap_t **heap);
 
 /** The following function determines the offsets to each field
  in the record.  It can reuse a previously allocated array. */

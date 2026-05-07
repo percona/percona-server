@@ -240,6 +240,18 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
 ENDIF()
 
+# GCC 16 -O2 emits false-positive -Wmaybe-uninitialized warnings on:
+#  - autovector::front() inlined into LevelCompactionBuilder::SetupInitialFiles()
+#    (the optimizer cannot see that !expired_files.empty() implies buf_[0]
+#    was written),
+#  - PSI inlining inside myrocks::Rdb_cond_var / Rdb_mutex constructors in
+#    rdb_mutex_wrapper.cc (same pattern as the plugin/x suppression).
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized
+    FILES rocksdb/db/compaction/compaction_picker_level.cc
+          rdb_mutex_wrapper.cc)
+ENDIF()
+
 
 IF(FB_WITH_WSENV)
   ADD_DEFINITIONS(-DFB_HAVE_WSENV=1)

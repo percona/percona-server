@@ -1,5 +1,12 @@
 # MyRocks Changelog
 
+## MyRocks 9.3.1-5
+**This version was shipped with Percona Server 8.0.46-37, 8.4.9-9, and 9.7.0-1.**
+* PS-11142 – Fix gcc-16 compilation issues with c++23
+· [Jira](https://perconadev.atlassian.net/browse/PS-11142) · [Changes](https://github.com/percona/percona-server/commit/d246ab773875)
+* PS-11142 – Fix clang-22, gcc 11-16 / libstdc++ 11-16 compilation issues in RocksDB submodule
+· [Jira](https://perconadev.atlassian.net/browse/PS-11142) · [Changes](https://github.com/percona/rocksdb/commit/d0e615524)
+
 ## MyRocks 9.3.1-4
 **This version was shipped with Percona Server 8.0.45-36 and 8.4.8-8.**
 * PS-10287 – Add automatic table definition recovery after crash on ALTER

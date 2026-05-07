@@ -49,6 +49,17 @@ SET(REPLICATION_SOURCES
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/uuid.cpp
   )
 
+# GCC 16's -O2 analysis emits false-positive -Wmaybe-uninitialized warnings
+# on the Write/Update/Delete _rows_event constructors via inlined
+# binary_log::Event_reader helpers (m_ptr / m_buffer / m_type). The same
+# suppression is applied to the libbinlogevents target; replicate it here
+# for the standalone build of the same source.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_SOURCE_DIR}/libbinlogevents/src/rows_event.cpp
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
+
 # Configure for building static library
 ADD_LIBRARY(binlogstandalone_static STATIC ${REPLICATION_SOURCES})
 

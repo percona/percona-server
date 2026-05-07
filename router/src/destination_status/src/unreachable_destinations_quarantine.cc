@@ -25,6 +25,7 @@
 
 #include "unreachable_destinations_quarantine.h"
 
+#include "my_compiler.h"
 #include "mysql/harness/destination_endpoint.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/resolver/resolver.h"
@@ -403,7 +404,12 @@ stdx::expected<void, std::error_code> UnreachableDestinationsQuarantine::
     for (const auto &addr : (*resolve_res).addresses) {
       mysql_harness::DestinationEndpoint::TcpType endpoint{addr,
                                                            tcp_dest.port()};
+      // GCC 15 emits a false-positive -Wmaybe-uninitialized warning here when
+      // constructing the std::variant alternative inside DestinationEndpoint.
+      MY_COMPILER_DIAGNOSTIC_PUSH();
+      MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized");
       endpoints_.emplace_back(std::move(endpoint));
+      MY_COMPILER_DIAGNOSTIC_POP();
     }
 
   } else {

@@ -3610,7 +3610,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   }
 
   // 3. Put the rowids
-  for (uint i = 0; tab != tab_end; tab++, i++) {
+  for (; tab != tab_end; tab++) {
     handler *h = tab->qep_tab->table()->file;
     if (tab->qep_tab->table()->is_nullable() &&
         tab->qep_tab->table()->has_null_row()) {

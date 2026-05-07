@@ -1224,7 +1224,6 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   if (contextualize_safe(pc, opt_window_clause)) return true;
   pc->select->parsing_place = CTX_NONE;
 
-  QueryLevel ql = pc->m_stack.back();
   pc->m_stack.pop_back();
   pc->m_stack.back().m_elts.push_back(pc->select);
   return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
@@ -1244,7 +1243,6 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
     pc->select->fields.push_back(item);
   }
 
-  QueryLevel ql = pc->m_stack.back();
   pc->m_stack.pop_back();
   pc->m_stack.back().m_elts.push_back(pc->select);
 
@@ -1709,7 +1707,7 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
     pc->thd->lex->pop_context();
   }
 
-  QueryLevel ql = pc->m_stack.back();
+  QueryLevel ql = std::move(pc->m_stack.back());
   pc->m_stack.pop_back();
 
   Query_term_set_op *setop = nullptr;
@@ -4110,7 +4108,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
   if (Parse_tree_node::contextualize(pc) || m_body->contextualize(pc))
     return true;
 
-  QueryLevel ql = pc->m_stack.back();
+  QueryLevel ql = std::move(pc->m_stack.back());
   Query_term *expr = ql.m_elts.back();
   pc->m_stack.pop_back();
 
@@ -4151,7 +4149,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
         expr = new (pc->mem_root) Query_term_unary(pc->mem_root, expr);
         if (expr == nullptr) return true;
       }
-      QueryLevel upper = pc->m_stack.back();
+      QueryLevel upper = std::move(pc->m_stack.back());
       pc->m_stack.pop_back();
       ql.m_elts.pop_back();
       if (upper.m_type == SC_UNION_DISTINCT || upper.m_type == SC_UNION_ALL ||
@@ -4160,7 +4158,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
           upper.m_type == SC_INTERSECT_ALL)
         ql = upper;
       ql.m_elts.push_back(expr);
-      pc->m_stack.push_back(ql);
+      pc->m_stack.push_back(std::move(ql));
     } break;
     case QT_QUERY_BLOCK: {
       if (contextualize_order_and_limit(pc)) return true;
@@ -4168,7 +4166,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
         expr = new (pc->mem_root) Query_term_unary(pc->mem_root, expr);
         if (expr == nullptr) return true;
       }
-      QueryLevel upper = pc->m_stack.back();
+      QueryLevel upper = std::move(pc->m_stack.back());
       pc->m_stack.pop_back();
       ql.m_elts.pop_back();
       if (upper.m_type == SC_UNION_DISTINCT || upper.m_type == SC_UNION_ALL ||
@@ -4177,7 +4175,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
           upper.m_type == SC_INTERSECT_ALL)
         ql = upper;
       ql.m_elts.push_back(expr);
-      pc->m_stack.push_back(ql);
+      pc->m_stack.push_back(std::move(ql));
     } break;
     case QT_UNION:
     case QT_EXCEPT:

@@ -3989,12 +3989,10 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt) {
       max_length
     */
     MYSQL_BIND *my_bind, *end;
-    MYSQL_FIELD *field;
     memset(stmt->bind, 0, sizeof(*stmt->bind) * stmt->field_count);
 
-    for (my_bind = stmt->bind, end = my_bind + stmt->field_count,
-        field = stmt->fields;
-         my_bind < end; my_bind++, field++) {
+    for (my_bind = stmt->bind, end = my_bind + stmt->field_count; my_bind < end;
+         my_bind++) {
       my_bind->buffer_type = MYSQL_TYPE_NULL;
       my_bind->buffer_length = 1;
     }

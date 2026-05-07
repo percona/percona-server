@@ -266,6 +266,19 @@ ELSE(WITH_NDB_JAVA)
   MESSAGE(STATUS "Excluding Cluster Java components")
 ENDIF(WITH_NDB_JAVA)
 
+# GCC 16's -O2 analysis emits a large number of false-positive
+# -Wmaybe-uninitialized / -Wuninitialized warnings across the NDB tree.
+# Signal data is populated by transporter/network code and read through
+# CAST_CONSTPTR casts the optimizer cannot follow, so it treats many
+# members as possibly-uninitialized inside print/handler routines.
+# Disable both warnings tree-wide for NDB under GCC >= 16.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  STRING_APPEND(CMAKE_C_FLAGS
+    " -Wno-maybe-uninitialized -Wno-uninitialized")
+  STRING_APPEND(CMAKE_CXX_FLAGS
+    " -Wno-maybe-uninitialized -Wno-uninitialized")
+ENDIF()
+
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)
 

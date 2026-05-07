@@ -56,6 +56,15 @@ SET(REPLICATION_SOURCES
   uuid.cpp
   )
 
+# GCC 16's -O2 analysis emits false-positive -Wmaybe-uninitialized warnings
+# on the Write/Update/Delete_rows_event and Rows_query_event constructors
+# via inlined binary_log::Event_reader helpers (m_ptr / m_buffer / m_type).
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    rows_event.cpp
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
 IF(HAS_MISSING_PROFILE)
   ADD_COMPILE_FLAGS(

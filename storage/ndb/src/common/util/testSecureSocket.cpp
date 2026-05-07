@@ -31,6 +31,7 @@
 #include "openssl/x509.h"
 
 #include "debugger/EventLogger.hpp"
+#include "my_compiler.h"
 #include "portlib/NdbGetRUsage.h"
 #include "portlib/NdbMutex.h"
 #include "portlib/NdbSleep.h"
@@ -165,11 +166,17 @@ static struct my_option options[] = {
 
 class EchoSession : public SocketServer::Session {
  public:
+  // GCC 16 emits a false-positive -Wmaybe-uninitialized warning here when
+  // the base SocketServer::Session is initialized with a reference to the
+  // not-yet-initialized m_secure_socket member.
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
   EchoSession(NdbSocket &&s, bool sink, SSL_CTX *ctx)
       : SocketServer::Session(m_secure_socket),
         m_sink(sink),
         m_ssl_ctx(ctx),
         m_secure_socket(std::move(s)) {}
+  MY_COMPILER_DIAGNOSTIC_POP()
   void runSession() override;
 
  private:

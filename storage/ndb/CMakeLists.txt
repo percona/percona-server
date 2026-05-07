@@ -176,6 +176,16 @@ FOREACH(warning
   ENDIF()
 ENDFOREACH()
 
+# GCC 16's -O2 analysis emits many false-positive -Wuninitialized /
+# -Wmaybe-uninitialized warnings in NDB, where signal data filled by
+# transporter/network code (e.g. NdbApiSignal::theRealData) is read through
+# CAST_CONSTPTR-style reinterpret casts the optimizer cannot follow. Suppress
+# both warnings for the NDB tree on GCC 16+ to keep -Werror builds working.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  STRING_APPEND(CMAKE_C_FLAGS   " -Wno-uninitialized -Wno-maybe-uninitialized")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-uninitialized -Wno-maybe-uninitialized")
+ENDIF()
+
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
 INCLUDE_DIRECTORIES(

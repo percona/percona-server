@@ -882,7 +882,9 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef -Wno-unused-label")
-  IF(MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
+  IF((MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
+     OR
+     (MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16))
     ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
@@ -960,6 +962,18 @@ IF(COMPRESS_DEBUG_SECTIONS)
 ENDIF()
 
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
+# GCC 16's -O2 analysis emits false-positive -Wmaybe-uninitialized warnings
+# inside libstdc++ basic_string code instantiated for the dd::String_type
+# allocator (Stateless_allocator<char, dd::String_type_alloc>) when assigning
+# strings inside the generated dd::Object_table_definition_impl-derived
+# constructors.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    dd/impl/tables/index_stats.cc
+    dd/impl/tables/table_stats.cc
+    dd/impl/tables/triggers.cc
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)
 ADD_DEPENDENCIES(sql_dd GenDigestServerSource)

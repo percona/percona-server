@@ -81,6 +81,18 @@ ADD_COMPILE_FLAGS(${XPLUGIN_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
+# GCC 16's -O2 analysis emits a false-positive -Wmaybe-uninitialized
+# warning on PSI inlining inside xpl::Cond / xpl::RWLock constructors,
+# where inline_mysql_cond_init / inline_mysql_rwlock_init forward
+# &that->m_cond (or &that->m_rwlock) before the member is technically
+# initialized by the PSI helper itself.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    src/helper/multithread/cond.cc
+    src/helper/multithread/rw_lock.cc
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
+
 # MYSQL_ADD_PLUGIN may have disabled the plugin.
 IF(WITH_MYSQLX)
   MYSQL_ADD_PLUGIN(${MYSQLX_PLUGIN_NAME}

@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <cstdarg>
 #include <cstdlib>
+#include <list>
 #include <new>
 #include <queue>
 #include <typeinfo>
@@ -39,6 +40,7 @@
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "sql-common/json_dom.h"
 #include "sql/check_stack.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/parse_location.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
@@ -114,10 +116,12 @@ enum Surrounding_context {
 
 struct QueryLevel {
   Surrounding_context m_type;
-  mem_root_deque<Query_term *> m_elts;
+  std::list<Query_term *, Mem_root_allocator<Query_term *>> m_elts;
   bool m_has_order{false};
   QueryLevel(MEM_ROOT *mem_root, Surrounding_context sc, bool has_order = false)
-      : m_type(sc), m_elts(mem_root), m_has_order(has_order) {}
+      : m_type(sc),
+        m_elts(Mem_root_allocator<Query_term *>(mem_root)),
+        m_has_order(has_order) {}
 };
 
 class Json_object;
@@ -420,10 +424,11 @@ struct Parse_context_base {
   Environment data for the contextualization phase
 */
 struct Parse_context : public Parse_context_base {
-  THD *const thd;                      ///< Current thread handler
-  MEM_ROOT *mem_root;                  ///< Current MEM_ROOT
-  Query_block *select;                 ///< Current Query_block object
-  mem_root_deque<QueryLevel> m_stack;  ///< Aids query term tree construction
+  THD *const thd;       ///< Current thread handler
+  MEM_ROOT *mem_root;   ///< Current MEM_ROOT
+  Query_block *select;  ///< Current Query_block object
+  std::list<QueryLevel, Mem_root_allocator<QueryLevel>>
+      m_stack;  ///< Aids query term tree construction
   /// Call upon parse completion.
   /// @returns true on error, else false
   bool finalize_query_expression();

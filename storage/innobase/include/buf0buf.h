@@ -48,6 +48,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "buf/buf.h"
 
+#include <atomic>
+#include <chrono>
 #include <ostream>
 
 // Forward declaration
@@ -2436,6 +2438,14 @@ struct buf_pool_t {
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
 
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  // TEMPORARY
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+  alignas(64) std::atomic<uint32_t> n_no_flush_lru_waiters{0};
+  alignas(64) size_t last_lru_batch_pages_count{0};
+  std::chrono::steady_clock::time_point lru_batch_start_time{};
+  ////////////////////////////////////////////////////////////////////////////////////////////////
+
   /** A red-black tree is used exclusively during recovery to speed up
   insertions in the flush_list. This tree contains blocks in order of
   oldest_modification LSN and is kept in sync with the flush_list.  Each
@@ -2590,13 +2600,24 @@ struct buf_pool_t {
     std::forward<F>(change)();
     const bool should_be_set = !is_flushing(flush_type);
     if (was_set && !should_be_set) {
+      if (flush_type == BUF_FLUSH_LRU) {
+        lru_batch_start_time = std::chrono::steady_clock::now();
+      }
       os_event_reset(no_flush[flush_type]);
     } else if (!was_set && should_be_set) {
+      if (flush_type == BUF_FLUSH_LRU) {
+        sample_lru_set_stats();
+      }
       os_event_set(no_flush[flush_type]);
     }
     ut_ad(should_be_set == os_event_is_set(no_flush[flush_type]));
     mutex_exit(&flush_state_mutex);
   }
+
+ private:
+  void sample_lru_set_stats();
+
+ public:
 #endif /*! UNIV_HOTBACKUP */
 
   static_assert(BUF_BUDDY_LOW <= UNIV_ZIP_SIZE_MIN,

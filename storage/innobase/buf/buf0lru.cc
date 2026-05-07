@@ -1379,6 +1379,7 @@ buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   ulint flush_failures = 0;
   bool started_monitor = false;
   std::chrono::steady_clock::time_point started_time;
+  bool no_flush_awaited = false;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1482,7 +1483,22 @@ loop:
     however, we are not using doublewrite buffer then it is better to
     do our own single page flush instead of waiting for LRU flush to
     end. */
+    MONITOR_INC(MONITOR_LRU_AWAIT);
+    if (no_flush_awaited) {
+      MONITOR_INC(MONITOR_LRU_AWAIT_RETRY);
+    }
+    no_flush_awaited = true;
+
+    buf_pool->n_no_flush_lru_waiters.fetch_add(1, std::memory_order_acq_rel);
+
+    const auto wait_t0 = std::chrono::steady_clock::now();
     buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
+    const auto wait_dt_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - wait_t0).count();
+    MONITOR_INC_VALUE(MONITOR_LRU_AWAIT_US, wait_dt_us);
+    MONITOR_SET(MONITOR_LRU_AWAIT_US_PER_CALL, wait_dt_us);
+
+    buf_pool->n_no_flush_lru_waiters.fetch_sub(1, std::memory_order_acq_rel);
+
     goto loop;
   }
 

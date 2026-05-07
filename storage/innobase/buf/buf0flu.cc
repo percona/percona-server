@@ -1330,6 +1330,9 @@ bool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
       buf_page_set_flush_type(bpage, flush_type);
 
       ++buf_pool->n_flush[flush_type];
+      if (flush_type == BUF_FLUSH_LRU) {
+        ++buf_pool->last_lru_batch_pages_count;
+      }
 
       if (bpage->get_oldest_lsn() > buf_pool->max_lsn_io) {
         buf_pool->max_lsn_io = bpage->get_oldest_lsn();
@@ -1601,6 +1604,23 @@ static ulint buf_flush_try_neighbors(const page_id_t &page_id,
   return (count);
 }
 
+//====================================================================================================================
+// Invoked when page cleaner is acquiring LRU_list_mutex.
+// Not invoked when user threads are acquiring LRU_list_mutex.
+//
+// MOTIVATION:
+//   - Monitor how much life of the page cleaner is being disturbed by user threads that acquire LRU_list_mutex.
+//====================================================================================================================
+static inline void buf_flush_pc_LRU_list_mutex_enter(buf_pool_t *buf_pool) {
+  const auto t0 = std::chrono::steady_clock::now();
+  mutex_enter(&buf_pool->LRU_list_mutex);
+  const auto dt_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
+  if (dt_us > 0) {
+    MONITOR_INC_VALUE(MONITOR_LRU_PC_MTX_US, static_cast<mon_type_t>(dt_us));
+  }
+  MONITOR_INC(MONITOR_LRU_PC_MTX_N);
+}
+
 /** Check if the block is modified and ready for flushing.
 If ready to flush then flush the page and try o flush its neighbors. The caller
 must hold the buffer pool list mutex corresponding to the type of flush.
@@ -1664,7 +1684,7 @@ static bool buf_flush_page_and_try_neighbors(buf_page_t *bpage,
     *count += buf_flush_try_neighbors(page_id, flush_type, *count, n_to_flush);
 
     if (flush_type == BUF_FLUSH_LRU) {
-      mutex_enter(&buf_pool->LRU_list_mutex);
+      buf_flush_pc_LRU_list_mutex_enter(buf_pool);
     } else {
       buf_flush_list_mutex_enter(buf_pool);
     }
@@ -1716,7 +1736,7 @@ static ulint buf_free_from_unzip_LRU_list_batch(buf_pool_t *buf_pool,
     if (buf_LRU_free_page(&block->page, false)) {
       /* Block was freed, all mutexes released */
       ++count;
-      mutex_enter(&buf_pool->LRU_list_mutex);
+      buf_flush_pc_LRU_list_mutex_enter(buf_pool);
       block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
 
     } else {
@@ -1779,7 +1799,7 @@ static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
     if (bpage->was_stale()) {
       if (buf_page_free_stale(buf_pool, bpage)) {
         ++evict_count;
-        mutex_enter(&buf_pool->LRU_list_mutex);
+        buf_flush_pc_LRU_list_mutex_enter(buf_pool);
       }
     } else {
       auto acquired = mutex_enter_nowait(block_mutex) == 0;
@@ -1789,7 +1809,7 @@ static ulint buf_flush_LRU_list_batch(buf_pool_t *buf_pool, ulint max) {
         clean and is not IO-fixed or buffer fixed. */
         if (buf_LRU_free_page(bpage, true)) {
           ++evict_count;
-          mutex_enter(&buf_pool->LRU_list_mutex);
+          buf_flush_pc_LRU_list_mutex_enter(buf_pool);
         } else {
           mutex_exit(block_mutex);
         }
@@ -1960,7 +1980,7 @@ static ulint buf_flush_batch(buf_pool_t *buf_pool, buf_flush_t flush_type,
   the flush functions. */
   switch (flush_type) {
     case BUF_FLUSH_LRU:
-      mutex_enter(&buf_pool->LRU_list_mutex);
+      buf_flush_pc_LRU_list_mutex_enter(buf_pool);
       count = buf_do_LRU_batch(buf_pool, min_n);
       mutex_exit(&buf_pool->LRU_list_mutex);
       break;
@@ -2001,6 +2021,9 @@ static bool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
     various synchronization mechanisms/counters would not work. */
     if (!buf_pool->is_flushing(flush_type)) {
       buf_pool->init_flush[flush_type] = true;
+      if (flush_type == BUF_FLUSH_LRU) {
+        buf_pool->last_lru_batch_pages_count = 0;
+      }
       started = true;
     }
   });
@@ -2024,6 +2047,40 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
     }
   } else {
     os_aio_simulated_wake_handler_threads();
+  }
+}
+
+void buf_pool_t::sample_lru_set_stats() {
+  ut_ad(mutex_own(&flush_state_mutex));
+
+  const auto now = std::chrono::steady_clock::now();
+
+  const int64_t waiters = n_no_flush_lru_waiters.load(std::memory_order_acquire);
+
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  // MOTIVATION:
+  //   - Monitor how many threads are waiting for the LRU flush to end.
+  //   - Monitor how many pages are flushed by the LRU flush.
+  //   - Monitor how long the LRU flush takes.
+  ///////////////////////////////////////////////////////////////////////////////////////////
+
+  MONITOR_INC(MONITOR_LRU_SET_N);
+
+  MONITOR_INC_VALUE(MONITOR_LRU_SET_WAITERS, waiters);
+  MONITOR_SET(MONITOR_LRU_SET_WAITERS_PER_CALL, waiters);
+
+  MONITOR_INC_VALUE(MONITOR_LRU_SET_PAGES, static_cast<int64_t>(last_lru_batch_pages_count));
+  MONITOR_SET(MONITOR_LRU_SET_PAGES_PER_CALL, static_cast<int64_t>(last_lru_batch_pages_count));
+
+  if (lru_batch_start_time != std::chrono::steady_clock::time_point{}) {
+    const auto lifetime_us = std::chrono::duration_cast<std::chrono::microseconds>(now - lru_batch_start_time).count();
+    if (lifetime_us >= 0) {
+      MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_LIFETIME,
+                                   MONITOR_LRU_BATCH_LIFETIME_NUM_CALL,
+                                   MONITOR_LRU_BATCH_LIFETIME_PER_CALL,
+                                   lifetime_us);
+    }
+    lru_batch_start_time = std::chrono::steady_clock::time_point{};
   }
 }
 
@@ -2230,7 +2287,14 @@ static ulint buf_flush_LRU_list(buf_pool_t *buf_pool) {
   that can trigger an LRU flush at the same time.
   So, it is not possible that a batch triggered during
   last iteration is still running, */
-  buf_flush_do_batch(buf_pool, BUF_FLUSH_LRU, scan_depth, 0, &n_flushed);
+  const auto batch_t0 = std::chrono::steady_clock::now();
+  if (buf_flush_do_batch(buf_pool, BUF_FLUSH_LRU, scan_depth, 0, &n_flushed)) {
+    const auto batch_dt_us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - batch_t0).count();
+    MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_REQTIME,
+                                 MONITOR_LRU_BATCH_REQTIME_NUM_CALL,
+                                 MONITOR_LRU_BATCH_REQTIME_PER_CALL,
+                                 batch_dt_us);
+  }
 
   return (n_flushed);
 }

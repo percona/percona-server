@@ -601,6 +601,69 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_LRU_UNZIP_SEARCH_SCANNED,
      MONITOR_LRU_UNZIP_SEARCH_SCANNED_PER_CALL},
 
+    {"buffer_LRU_await", "buffer", "", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_LRU_AWAIT},
+
+    {"buffer_LRU_await_retry", "buffer", "", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_LRU_AWAIT_RETRY},
+
+    {"buffer_LRU_await_us", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_OWNER),
+     MONITOR_LRU_AWAIT, MONITOR_LRU_AWAIT_US},
+
+    {"buffer_LRU_await_us_per_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_AWAIT_US, MONITOR_LRU_AWAIT_US_PER_CALL},
+
+    {"buffer_LRU_set_n", "buffer", "", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_LRU_SET_N},
+
+    {"buffer_LRU_set_waiters", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_OWNER),
+     MONITOR_LRU_SET_N, MONITOR_LRU_SET_WAITERS},
+
+    {"buffer_LRU_set_waiters_per_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_SET_WAITERS, MONITOR_LRU_SET_WAITERS_PER_CALL},
+
+    {"buffer_LRU_set_pages", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_OWNER),
+     MONITOR_LRU_SET_N, MONITOR_LRU_SET_PAGES},
+
+    {"buffer_LRU_set_pages_per_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_SET_PAGES, MONITOR_LRU_SET_PAGES_PER_CALL},
+
+    {"buffer_LRU_batch_reqtime", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_OWNER),
+     MONITOR_LRU_BATCH_REQTIME_NUM_CALL, MONITOR_LRU_BATCH_REQTIME},
+
+    {"buffer_LRU_batch_reqtime_num_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_BATCH_REQTIME, MONITOR_LRU_BATCH_REQTIME_NUM_CALL},
+
+    {"buffer_LRU_batch_reqtime_per_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_BATCH_REQTIME, MONITOR_LRU_BATCH_REQTIME_PER_CALL},
+
+    {"buffer_LRU_batch_lifetime", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_OWNER),
+     MONITOR_LRU_BATCH_LIFETIME_NUM_CALL, MONITOR_LRU_BATCH_LIFETIME},
+
+    {"buffer_LRU_batch_lifetime_num_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_BATCH_LIFETIME, MONITOR_LRU_BATCH_LIFETIME_NUM_CALL},
+
+    {"buffer_LRU_batch_lifetime_per_call", "buffer", "",
+     static_cast<monitor_type_t>(MONITOR_DEFAULT_ON | MONITOR_SET_MEMBER),
+     MONITOR_LRU_BATCH_LIFETIME, MONITOR_LRU_BATCH_LIFETIME_PER_CALL},
+
+    {"buffer_LRU_pc_mtx_us", "buffer", "", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_LRU_PC_MTX_US},
+
+    {"buffer_LRU_pc_mtx_n", "buffer", "", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_LRU_PC_MTX_N},
+
     /* ========== Counters for Buffer Page I/O ========== */
     {"module_buffer_page", "buffer_page_io", "Buffer Page I/O Module",
      static_cast<monitor_type_t>(MONITOR_MODULE | MONITOR_GROUP_MODULE),

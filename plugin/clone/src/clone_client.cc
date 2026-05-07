@@ -1792,16 +1792,24 @@ int Client::set_locators(const uchar *buffer, size_t length) {
 int Client::set_descriptor(const uchar *buffer, size_t length) {
   int err = 0;
 
+  if (length == 0) {
+    return ER_CLONE_PROTOCOL;
+  }
   /* Get Storage Engine */
   auto db_type = static_cast<enum legacy_db_type>(*buffer);
   ++buffer;
   length--;
 
+  if (length == 0) {
+    return ER_CLONE_PROTOCOL;
+  }
   /* Get Locator Index */
   auto loc_index = *buffer;
   ++buffer;
   length--;
-
+  if (loc_index >= m_share->m_storage_vec.size()) {
+    return ER_CLONE_PROTOCOL;
+  }
   auto *loc = &m_share->m_storage_vec[loc_index];
   auto *hton = loc->m_hton;
 

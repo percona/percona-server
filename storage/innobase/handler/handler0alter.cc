@@ -6144,11 +6144,10 @@ to rebuild the template.
 static bool alter_templ_needs_rebuild(TABLE *altered_table,
                                       Alter_inplace_info *ha_alter_info,
                                       dict_table_t *table) {
-  ulint i = 0;
   List_iterator_fast<Create_field> cf_it(
       ha_alter_info->alter_info->create_list);
 
-  for (Field **fp = altered_table->field; *fp; fp++, i++) {
+  for (Field **fp = altered_table->field; *fp; fp++) {
     cf_it.rewind();
     while (const Create_field *cf = cf_it++) {
       for (ulint j = 0; j < table->n_cols; j++) {

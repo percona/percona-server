@@ -57,7 +57,7 @@ jobs:
       fi
 
 - job:
-  timeoutInMinutes: 240
+  timeoutInMinutes: 360
   pool:
     vmImage: $(imageName)
 
@@ -212,7 +212,19 @@ jobs:
 
 
       # gcc-11 and newer compilers
-      gcc-14 RelWithDebInfo [Ubuntu 24.04 Noble]:
+      gcc-16 RelWithDebInfo [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        Compiler: gcc
+        CompilerVer: 16
+        BuildType: RelWithDebInfo
+
+      gcc-16 Debug [Ubuntu 24.04 Noble]:
+        imageName: 'ubuntu-24.04'
+        Compiler: gcc
+        CompilerVer: 16
+        BuildType: Debug
+
+      gcc-15 RelWithDebInfo [Ubuntu 24.04 Noble]:
         imageName: 'ubuntu-24.04'
         Compiler: gcc
         CompilerVer: 15

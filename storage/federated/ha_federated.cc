@@ -1270,7 +1270,11 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
   const bool both_not_null =
       (start_key != nullptr && end_key != nullptr) ? true : false;
   uchar *ptr;
-  uint remainder, length;
+  // 'remainder' is only consumed by DBUG_PRINT and assert, both compiled out
+  // in release builds; mark as [[maybe_unused]] so GCC 16 doesn't warn under
+  // -Werror=unused-but-set-variable.
+  [[maybe_unused]] uint remainder;
+  uint length;
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
   String tmp(tmpbuff, sizeof(tmpbuff), system_charset_info);
   const key_range *ranges[2] = {start_key, end_key};

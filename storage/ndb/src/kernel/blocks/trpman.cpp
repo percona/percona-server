@@ -850,7 +850,7 @@ unsigned Trpman::calculate_histogram_bin_limits(
    * Use minimal sized bins until a suitable scaling factor is found for
    * exponential part or that bin for heartbeat interval is next.
    */
-  double factor;                   // calculated during part 1, used in part 2
+  double factor = 0.0;             // calculated during part 1, used in part 2
   unsigned first_part2_limit = 0;  // 0 indicates no value
   unsigned first_part3_limit = 0;
   unsigned bin_limit = min_bin_width;

@@ -395,8 +395,11 @@ TEST(Date_val, MYSQL_TIME) {
   MYSQL_TIME mt = static_cast<MYSQL_TIME>(date1);
   Date_val date2 = Date_val{mt};
   EXPECT_EQ(0, date1.compare(date2));
-  MYSQL_TIME mytime(2023, 1, 30, 12, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME,
-                    0);
+  // MYSQL_TIME is an aggregate (no user-provided constructor); use brace
+  // initialization. GCC and modern clang accept parenthesized aggregate
+  // initialization (P0960), but Apple clang 15 does not.
+  MYSQL_TIME mytime{2023, 1, 30, 12, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME,
+                    0};
   Date_val a(2023, 1, 30);
   EXPECT_EQ(Date_val::strip_time(mytime), a);
   Date_val b{mt};

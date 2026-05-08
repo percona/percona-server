@@ -654,7 +654,7 @@ class RestoreLogger {
 
  private:
   void vlog_ll(FilteredNdbOut &out, const char *ll, const char *fmt, va_list ap)
-      ATTRIBUTE_FORMAT(printf, 3, 0);
+      ATTRIBUTE_FORMAT(printf, 4, 0);
 
   NdbMutex *m_mutex;
   char timestamp[64];

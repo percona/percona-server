@@ -25,6 +25,7 @@
 #include <mysql/components/services/mysql_current_thread_reader.h>
 
 #include <scope_guard.h>
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 #include <string>

@@ -28,6 +28,7 @@
 #include "mysql/components/library_mysys/my_memory.h"
 
 #include <scope_guard.h>
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 #include <string>

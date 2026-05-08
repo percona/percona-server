@@ -116,3 +116,10 @@ ENDIF()
 IF(MY_COMPILER_IS_GNU)
   TARGET_LINK_OPTIONS(component_telemetry PRIVATE -Wno-alloc-size-larger-than)
 ENDIF()
+
+# GCC 12 emits a false-positive -Werror=restrict in libstdc++'s basic_string
+# inlined into telemetry::validate_tls_cipher (string assignment of a literal
+# inside a loop). Newer GCCs do not warn here.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+  ADD_COMPILE_FLAGS(tm_system_variables.cc COMPILE_FLAGS "-Wno-restrict")
+ENDIF()

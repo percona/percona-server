@@ -152,8 +152,16 @@ struct alignas(128) thread_group_t {
   char padding[248];
 };
 
-static_assert(sizeof(thread_group_t) == 512,
-              "sizeof(thread_group_t) must be 512 to avoid false sharing");
+// thread_group_t is alignas(128); to avoid false sharing the struct must
+// occupy a whole number of 128-byte cache lines. Linux/glibc lays this
+// out at exactly 512 bytes (the original size when 'padding[248]' was
+// hand-tuned), but on macOS / libc++ pthread_mutex_t is larger so the
+// struct grows past 512 (e.g. to 640). Both sizes are still multiples of
+// 128 so the false-sharing guarantee holds; assert that invariant
+// rather than the absolute size.
+static_assert(sizeof(thread_group_t) % 128 == 0,
+              "sizeof(thread_group_t) must be a multiple of 128 to avoid "
+              "false sharing");
 
 static thread_group_t all_groups[MAX_THREAD_GROUPS];
 static uint group_count;

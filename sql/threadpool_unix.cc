@@ -126,7 +126,12 @@ typedef I_P_List<connection_t,
                  I_P_List_null_counter, I_P_List_fast_push_back<connection_t>>
     connection_queue_t;
 
-struct alignas(128) thread_group_t {
+// Data members live in a separate base struct so that thread_group_t's
+// trailing padding can be sized from sizeof(thread_group_data_t).
+// mysql_mutex_t is larger on macOS / libc++ than on Linux/glibc, and
+// hand-tuning 'padding[N]' against the Linux layout broke the build
+// elsewhere; deriving N keeps sizeof(thread_group_t) == 512 everywhere.
+struct thread_group_data_t {
   mysql_mutex_t mutex;
   connection_queue_t queue;
   connection_queue_t high_prio_queue;
@@ -145,7 +150,14 @@ struct alignas(128) thread_group_t {
   int shutdown_pipe[2];
   bool shutdown;
   bool stalled;
-  char padding[328];
+};
+
+static_assert(sizeof(thread_group_data_t) < 512,
+              "thread_group_data_t must fit inside 512 bytes so that "
+              "thread_group_t can be padded to exactly 512");
+
+struct alignas(128) thread_group_t : thread_group_data_t {
+  char padding[512 - sizeof(thread_group_data_t)];
 };
 
 static_assert(sizeof(thread_group_t) == 512,

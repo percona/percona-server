@@ -1502,9 +1502,10 @@ static bool check_child_fk_ref(THD *thd, const TABLE *table_p, TABLE *table_c,
 
   if (!(error = table_c->file->ha_index_read_map(table_c->record[0], key_value,
                                                  key_map, HA_READ_KEY_EXACT))) {
-    // In case of self-referencing, if PK and FK value are same, skip adding to
-    // chain so that it does not affect cascade depth check.
-    if (table_p->s == table_c->s && !is_self_fk_value_same(table_c, fk_c)) {
+    // Non-self FK is already added earlier in check_child_fk_ref().
+    // For self-referencing FK, add only when child row exists so depth
+    // accounting stays aligned with InnoDB, including same PK/FK cases.
+    if (table_p->s == table_c->s) {
       chain->add_foreign_key(table_c->s->db.str, fk_c->fk_name.str);
       fk_added_to_chain = true;
     }

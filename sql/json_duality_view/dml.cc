@@ -2047,12 +2047,12 @@ static Json_dom *etag_dom(Json_object *root_object) {
   if (root_object == nullptr) {
     return nullptr;
   }
-  Json_dom *metadata = root_object->get(metadatakey);
+  Json_object *metadata =
+      inspect_dom<Json_object>(root_object->get(metadatakey)).second;
   if (metadata == nullptr) {
     return nullptr;
   }
-  Json_object *metadata_object = down_cast<Json_object *>(metadata);
-  return metadata_object->get(etagkey);
+  return metadata->get(etagkey);
 }
 
 /**

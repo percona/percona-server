@@ -948,6 +948,8 @@ class ShareConnectionTestBase : public RouterComponentTest {
     for (auto *cli : admin_clis()) {  // reset the router's connection-pool
       ASSERT_NO_FATAL_FAILURE(SharedServer::close_all_connections(*cli));
     }
+
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
   }
 
   static void reset_router_connection_pool(
@@ -956,6 +958,17 @@ class ShareConnectionTestBase : public RouterComponentTest {
       ASSERT_NO_FATAL_FAILURE(
           SharedServer::close_all_connections(*cli, usernames));
     }
+
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
+  }
+
+  static void wait_for_empty_router_connection_pool() {
+    ASSERT_NO_ERROR(
+        TestWithSharedRouter::router()->wait_for_idle_server_connections(0,
+                                                                         10s));
+    ASSERT_NO_ERROR(
+        TestWithSharedRouter::router()->wait_for_stashed_server_connections(
+            0, 10s));
   }
 
   SharedRouter *shared_router() { return TestWithSharedRouter::router(); }
@@ -1062,6 +1075,7 @@ class ShareConnectionTest : public ShareConnectionTestBase,
         SharedServer::reset_to_defaults(*cli);
       }
     }
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
     TRACE("");
   }
 

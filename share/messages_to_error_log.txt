@@ -12346,11 +12346,6 @@ ER_IB_WRN_REDO_DISABLED_INFO
 ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE_INFO
   eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity. The current log capacity is %llu bytes. The log capacity used is %llu bytes."
 
-<<<<<<< HEAD
-ER_BLOCKED_CIPHER
-   eng "Value for option '%s' contains cipher '%s' that is blocked. Please refer to the documentation for allowed ciphers."
-||||||| 0253a8bd25d
-=======
 ER_AUDIT_LOG_INVALID_FILTER_LOG_ALL
   eng "The '%s' filter is invalid: %s The operation will continue, and all activities will be logged for this filter. Please fix the filter using the '%s' UDF."
 
@@ -12366,7 +12361,9 @@ ER_AUDIT_LOG_JSON_INVALID_FILTER_CANNOT_BE_USED
 ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED_LOG
   eng "The '%s' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
->>>>>>> mysql-8.0.46
+ER_BLOCKED_CIPHER
+   eng "Value for option '%s' contains cipher '%s' that is blocked. Please refer to the documentation for allowed ciphers."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

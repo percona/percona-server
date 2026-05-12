@@ -3804,6 +3804,7 @@ my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value) {
     null_value = args[1]->null_value;
     return nullptr;
   }
+  null_value = false;
   return value;
 }
 

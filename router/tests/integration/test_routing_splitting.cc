@@ -937,6 +937,13 @@ class SplittingConnectionTestBaseP : public RouterComponentTest {
   static SharedRouter *shared_router() {
     return TestWithSharedRouter::router();
   }
+
+ protected:
+  static void wait_for_empty_router_connection_pool() {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
+  }
 };
 
 using SplittingConnectionTestBase = SplittingConnectionTestBaseP<3, 128>;
@@ -952,9 +959,12 @@ class SplittingConnectionTest
       if (srv == nullptr || srv->mysqld_failed_to_start()) {
         GTEST_SKIP() << "failed to start mysqld";
       } else {
-        srv->close_all_connections();  // reset the router's connection-pool
+        ASSERT_NO_ERROR(srv->close_all_connections());  // reset the router's
+                                                        // connection-pool
       }
     }
+
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
   }
 
   void TearDown() override {

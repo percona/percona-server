@@ -871,15 +871,6 @@ class ShareConnectionTestWithRestartedServer
       GTEST_SKIP()
           << "skipped as RUN_SLOW_TESTS environment-variable is not set";
     }
-    // start one intermediate ROUTER SERVER.
-    std::vector<std::string> router_dests;
-    for (auto &inter : intermediate_routers_) {
-      router_dests.push_back(inter->host() + ":"s +
-                             std::to_string(inter->port()));
-    }
-
-    shared_router_->spawn_router(router_dests);
-
     auto s = shared_servers();
 
     for (auto [ndx, inter] : stdx::views::enumerate(intermediate_routers_)) {
@@ -891,6 +882,15 @@ class ShareConnectionTestWithRestartedServer
         this->start_intermediate_router_for_server(inter.get(), server);
       }
     }
+
+    // start one intermediate ROUTER SERVER.
+    std::vector<std::string> router_dests;
+    for (auto &inter : intermediate_routers_) {
+      router_dests.push_back(inter->host() + ":"s +
+                             std::to_string(inter->port()));
+    }
+
+    shared_router_->spawn_router(router_dests);
   }
 
   void TearDown() override {
@@ -946,7 +946,13 @@ class ShareConnectionTestWithRestartedServer
       }
     }
 
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
+  }
+
+  void wait_for_empty_router_connection_pool() {
     ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
   }
 
  private:
@@ -1031,6 +1037,8 @@ class ShareConnectionTestTemp
         SharedServer::reset_to_defaults(*cli);
       }
     }
+
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
   }
 
   ~ShareConnectionTestTemp() override {
@@ -1040,6 +1048,15 @@ class ShareConnectionTestTemp
   }
 
  protected:
+  static void wait_for_empty_router_connection_pool() {
+    ASSERT_NO_ERROR(
+        TestWithSharedRouter::router()->wait_for_idle_server_connections(0,
+                                                                         10s));
+    ASSERT_NO_ERROR(
+        TestWithSharedRouter::router()->wait_for_stashed_server_connections(
+            0, 10s));
+  }
+
   const std::string valid_ssl_key_{SSL_TEST_DATA_DIR "/server-key-sha512.pem"};
   const std::string valid_ssl_cert_{SSL_TEST_DATA_DIR
                                     "/server-cert-sha512.pem"};
@@ -1603,7 +1620,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       "check if the multi-statement flag is recovered after a reconnect");
 
   SCOPED_TRACE("// ensure the pool is empty");
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+  ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
 
   const bool can_share = GetParam().can_share();
 
@@ -2036,7 +2053,21 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   auto conn_num_res = from_string((*conn_id_res)[0]);
   ASSERT_NO_ERROR(conn_num_res);
 
+  // wait until the connection is stashed in the pool, to ensure the KILL
+  // below hits a stashed connection and the next statement re-opens and
+  // re-authenticates (1045) instead of failing on the attached, killed
+  // connection (2013).
+  if (can_share) {
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  }
+
   ASSERT_NO_ERROR(admin_cli.query("KILL " + std::to_string(*conn_num_res)));
+
+  if (can_share) {
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
+  }
 
   ASSERT_NO_ERROR(admin_cli.query("SET PASSWORD FOR changeme='changeme2'"));
 
@@ -2631,6 +2662,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
           // reset the router's connection-pool
           ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
         }
+        ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
 
         std::vector<MysqlClient> clis;
 
@@ -2678,9 +2710,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, restore) {
             ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
           }
 
-          // wait until all connections are pooled.
-          ASSERT_NO_ERROR(
-              shared_router()->wait_for_idle_server_connections(0, 10s));
+          ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
         }
 
         // verify variables that were set are reapplied.
@@ -2762,15 +2792,15 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   // close all connections that are currently in the pool to get a stable
   // baseline.
   for (auto admin_cli : admin_clis()) {
-    SharedServer::close_all_connections(*admin_cli);
+    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
 
     // there is one admin connection connection all the time.
     ASSERT_NO_ERROR(admin_cli->query("SET GLOBAL max_connections = 2"));
   }
 
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+  ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
 
-  Scope_guard restore_at_end{[this]() {
+  Scope_guard restore_at_end{[]() {
     auto reset_globals = []() -> stdx::expected<void, MysqlError> {
       for (auto *admin_cli : admin_clis()) {
         auto query_res =
@@ -2794,7 +2824,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         return SharedServer::close_all_connections(*admin_cli);
       }));
     }
-    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
   }};
 
   SCOPED_TRACE("// testing");
@@ -2896,13 +2926,13 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
   }
 
   for (auto admin_cli : admin_clis()) {
-    SharedServer::close_all_connections(*admin_cli);
+    ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
 
     // there is one admin connection connection all the time.
     ASSERT_NO_ERROR(admin_cli->query("SET GLOBAL max_connections = 2"));
   }
 
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+  ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
 
   Scope_guard restore_at_end{[]() {
     auto reset_globals = []() -> stdx::expected<void, MysqlError> {
@@ -2981,7 +3011,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       return SharedServer::close_all_connections(*admin_cli);
     }));
   }
-  ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+  ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
 
   // calls Scope_guard
 }
@@ -3086,6 +3116,7 @@ TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool_purge) {
         // reset the router's connection-pool
         ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
       }
+      ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
     }
   }
 
@@ -3111,6 +3142,7 @@ TEST_P(ShareConnectionSmallPoolTwoServersTest, round_robin_all_in_pool_purge) {
         // reset the router's connection-pool
         ASSERT_NO_ERROR(SharedServer::close_all_connections(*admin_cli));
       }
+      ASSERT_NO_FATAL_FAILURE(wait_for_empty_router_connection_pool());
     }
 
     // running it again should:

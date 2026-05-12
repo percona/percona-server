@@ -224,6 +224,14 @@ void SharedServer::spawn_server_with_datadir(
       "--enforce_gtid_consistency=ON",    //
       "--relay-log=relay-log",
       "--require-secure-transport=OFF",  // for testing server_ssl_mode=DISABLED
+      "--loose-caching_sha2_password_private_key_path=" SSL_TEST_DATA_DIR
+      "rsa_private_key.pem",
+      "--loose-caching_sha2_password_public_key_path=" SSL_TEST_DATA_DIR
+      "rsa_public_key.pem",
+      "--loose-sha256_password_private_key_path=" SSL_TEST_DATA_DIR
+      "rsa_private_key.pem",
+      "--loose-sha256_password_public_key_path=" SSL_TEST_DATA_DIR
+      "rsa_public_key.pem",
   };
 
   for (const auto &arg : extra_args) {

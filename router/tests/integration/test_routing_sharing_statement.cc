@@ -1100,6 +1100,10 @@ class StatementSharableTest
 
       srv->close_all_connections();  // reset the router's connection-pool
     }
+
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
   }
 
   static void TearDownTestSuite() {

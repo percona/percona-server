@@ -25,7 +25,7 @@ VARIABLE_NAME LIKE '%source%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 111 variables in the table.]
+include/assert.inc [Expect 112 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;

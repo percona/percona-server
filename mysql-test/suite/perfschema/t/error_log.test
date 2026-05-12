@@ -141,11 +141,14 @@ SELECT prio,error_code,subsystem,data
 # MY-011070: ER_DEPRECATE_MSG_NO_REPLACEMENT
 # MY-011872,MY-011874: ER_IB_MSG_47,ER_IB_MSG_49, innodb_numa_interleave constructor and destructor, depends on platform
 # MY-015140: ER_IB_MSG_INNODB_FLUSH_METHOD, info emitted if default flush method is used on non-Windows platforms, depends on platform
+# Percona-added:
+# MY-010097: ER_SEC_FILE_PRIV_EMPTY, emitted for --secure-log-path
 # MY-015641: ER_SERVER_WARN_CONTAINER_IGNORED, depends on whether server runs in a container
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
  WHERE logged>=@startup
-   AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
+   AND error_code NOT IN("MY-010097", "MY-015641",
+                         "MY-011243", "MY-011240", "MY-011245", "MY-010931",
                          "MY-010949", "MY-010747", "MY-013546", "MY-010051",
                          "MY-011946", "MY-012922", "MY-011810", "MY-012932",
                          "MY-011952", "MY-011323", "MY-010902", "MY-000000",
@@ -156,7 +159,7 @@ SELECT prio,error_code,subsystem
                          "MY-013884", "MY-013908", "MY-013930", "MY-014013",
                          "MY-000068", "MY-014066", "MY-014067", "MY-014068",
                          "MY-013932", "MY-010101", "MY-010099", "MY-011070",
-                         "MY-011872", "MY-011874", "MY-015140", "MY-015641")
+                         "MY-011872", "MY-011874", "MY-015140")
  ORDER BY logged, error_code;
 
 --echo
@@ -184,17 +187,20 @@ SELECT prio,error_code,subsystem
 # MY-010101: ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
 # MY-011070: ER_DEPRECATE_MSG_NO_REPLACEMENT
 # MY-015603: ER_SERVER_STARTING_WITH_RESOURCE, emits vcpus count and memory which varies with system
+# Percona-added:
+# MY-010097: ER_SEC_FILE_PRIV_EMPTY, emitted for --secure-log-path
 # MY-015641: ER_SERVER_WARN_CONTAINER_IGNORED, depends on whether server runs in a container
 SELECT prio,error_code,subsystem,data
   FROM performance_schema.error_log
  WHERE logged>=@startup
    AND prio!="Note"
-   AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
+   AND error_code NOT IN("MY-010097", "MY-015641",
+                         "MY-011323", "MY-010075", "MY-010068", "MY-010069",
                          "MY-010931", "MY-010116", "MY-011810", "MY-000000",
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
                          "MY-010108", "MY-012363", "MY-013711", "MY-013908",
                          "MY-013930", "MY-000068", "MY-015015", "MY-010101",
-                         "MY-010099", "MY-011070", "MY-015603", "MY-015641")
+                         "MY-010099", "MY-011070", "MY-015603")
  ORDER BY logged;
 
 --echo

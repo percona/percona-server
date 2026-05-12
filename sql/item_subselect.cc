@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1924,6 +1924,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
         &select->context, this, &select->base_ref_items[0]);
     Item_bool_func *item = func->create(m_injected_left_expr, ref_null);
     if (item == nullptr) return true;
+    m_injected_left_expr->real_item()->increment_ref_count();
     item->set_created_by_in2exists();
 
     /*
@@ -1991,6 +1992,8 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
     if (!select->source_table_is_one_row() || select->where_cond() != nullptr) {
       Item_bool_func *item = func->create(m_injected_left_expr, orig_item);
       if (item == nullptr) return true;
+      m_injected_left_expr->real_item()->increment_ref_count();
+      orig_item->real_item()->increment_ref_count();
       /*
         We may soon add a 'OR inner IS NULL' to 'item', but that may later be
         removed if 'inner' is not nullable, so the in2exists mark must be on
@@ -2000,6 +2003,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
       if (!abort_on_null && orig_item->is_nullable()) {
         Item_bool_func *having = new Item_is_not_null_test(this, orig_item);
         if (having == nullptr) return true;
+        orig_item->real_item()->increment_ref_count();
         having->set_created_by_in2exists();
         if (left_expr->is_nullable()) {
           having = new Item_func_trig_cond(
@@ -2026,6 +2030,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
         select->having_fix_field = false;
         item = new Item_cond_or(item, new Item_func_isnull(orig_item));
         if (item == nullptr) return true;
+        orig_item->real_item()->increment_ref_count();
         item->set_created_by_in2exists();
       }
       /*
@@ -2070,6 +2075,7 @@ bool Item_in_subselect::single_value_in_to_exists_transformer(
                          new Item_ref_null_helper(&select->context, this,
                                                   &select->base_ref_items[0]));
         if (new_having == nullptr) return true;
+        m_injected_left_expr->real_item()->increment_ref_count();
         new_having->set_created_by_in2exists();
         if (!abort_on_null && left_expr->is_nullable()) {
           new_having = new Item_func_trig_cond(

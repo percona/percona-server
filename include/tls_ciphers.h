@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #ifndef TLS_CIPHERS_INCLUDED
 #define TLS_CIPHERS_INCLUDED
+
+#include <openssl/opensslv.h>
 
 namespace {
 
@@ -117,7 +119,39 @@ const char blocked_tls12_ciphers[] = {
     "!RC2:"
     "!RC4:"
     "!PSK:"
+<<<<<<< HEAD
     "!kDH"};
+||||||| 0253a8bd25d
+    "!DH-RSA-AES128-SHA256:"
+    "!DH-RSA-AES256-SHA256:"
+    "!DH-DSS-AES128-SHA256:"
+    "!DH-DSS-AES128-SHA:"
+    "!DH-DSS-AES256-SHA:"
+    "!DH-DSS-AES256-SHA256:"
+    "!DH-RSA-AES128-SHA:"
+    "!DH-RSA-AES256-SHA:"
+    "!DH-DSS-AES128-GCM-SHA256:"
+    "!DH-DSS-AES256-GCM-SHA384:"
+    "!DH-RSA-AES128-GCM-SHA256:"
+    "!DH-RSA-AES256-GCM-SHA384"};
+=======
+#if (OPENSSL_VERSION_NUMBER >= 0x30500000L)
+    "!kDH"};
+#else
+    "!DH-RSA-AES128-SHA256:"
+    "!DH-RSA-AES256-SHA256:"
+    "!DH-DSS-AES128-SHA256:"
+    "!DH-DSS-AES128-SHA:"
+    "!DH-DSS-AES256-SHA:"
+    "!DH-DSS-AES256-SHA256:"
+    "!DH-RSA-AES128-SHA:"
+    "!DH-RSA-AES256-SHA:"
+    "!DH-DSS-AES128-GCM-SHA256:"
+    "!DH-DSS-AES256-GCM-SHA384:"
+    "!DH-RSA-AES128-GCM-SHA256:"
+    "!DH-RSA-AES256-GCM-SHA384"};
+#endif
+>>>>>>> mysql-8.0.46
 
 /*
   Following ciphers are added to the list of permissible ciphers

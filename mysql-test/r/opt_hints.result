@@ -495,7 +495,7 @@ Warnings:
 Warning	1064	Optimizer hint syntax error near 't3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(qb1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 A' at line 1
 Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
-# Check illegal syntax
+# Bug#37053765 Uniform syntax of join order and table hints
 EXPLAIN SELECT * FROM
 (SELECT /*+ QB_NAME(qb1) BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -503,8 +503,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	28	100.00	Using join buffer (hash join)
 1	SIMPLE	t3	NULL	index	NULL	f2_idx	4	NULL	56	100.00	Using index; Using join buffer (hash join)
 Warnings:
-Warning	1064	Optimizer hint syntax error near 'qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt' at line 2
-Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` join `test`.`t3`
+Note	1003	/* select#1 */ select /*+ BKA(`t1`@`qb1`) BKA(`t2`@`qb1`) BKA(`t3`@`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` join `test`.`t3`
+EXPLAIN SELECT * FROM
+(SELECT /*+ QB_NAME(qb1) NO_BKA(@qb1 t1@qb1, t2@qb1, t3) */ t2.f1, t2.f2, t2.f3 FROM t1,t2,t3) tt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	28	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	index	NULL	f2_idx	4	NULL	56	100.00	Using index; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BKA(`t1`@`qb1`) NO_BKA(`t2`@`qb1`) NO_BKA(`t3`@`qb1`) */ `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` join `test`.`t3`
 # Check '@qb_name table_name' syntax. BKA should be used for t2.
 EXPLAIN SELECT /*+ BKA(@qb1 t2) */ * FROM (SELECT /*+ QB_NAME(QB1) */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1) AS s1;

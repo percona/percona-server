@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,6 +159,10 @@ bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
         static_cast<PT_joined_table_type>((m_type & ~JTT_RIGHT) | JTT_LEFT);
     std::swap(m_left_pt_table, m_right_pt_table);
   }
+
+  char buff[NAME_LEN + 1];
+  if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, pointer_cast<uchar *>(buff)))
+    return true; /* purecov: inspected */
 
   if (m_left_pt_table->contextualize(pc) || m_right_pt_table->contextualize(pc))
     return true;

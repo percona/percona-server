@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -722,7 +722,8 @@ void Qmgr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal) {
 
 void Qmgr::setHbDelay(UintR aHbDelay) {
   const NDB_TICKS now = NdbTick_getCurrentTicks();
-  hb_send_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
+  // Send heartbeat twice as frequent than checking them.
+  hb_send_timer.setDelay(aHbDelay < 20 ? 10 : aHbDelay / 2);
   hb_send_timer.reset(now);
   hb_check_timer.setDelay(aHbDelay < 10 ? 10 : aHbDelay);
   hb_check_timer.reset(now);
@@ -2724,6 +2725,7 @@ void Qmgr::execCM_ADD(Signal *signal) {
       enableComReq->m_senderRef = reference();
       enableComReq->m_senderData = ENABLE_COM_CM_ADD_COMMIT;
       enableComReq->m_enableNodeId = addNodePtr.i;
+      enableComReq->m_dbHbSender = cneighbourl;
       sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
                  EnableComReq::SignalLength, JBB);
       break;
@@ -2806,6 +2808,7 @@ void Qmgr::joinedCluster(Signal *signal, NodeRecPtr nodePtr) {
   enableComReq->m_senderRef = reference();
   enableComReq->m_senderData = ENABLE_COM_CM_COMMIT_NEW;
   enableComReq->m_enableNodeId = 0;
+  enableComReq->m_dbHbSender = cneighbourl;
   enableComReq->m_nodeIds.clear();
   jam();
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
@@ -3375,9 +3378,12 @@ void Qmgr::checkHeartbeat(Signal *signal) {
 
   set_hb_count(nodePtr.i)++;
   ndbrequire(nodePtr.p->phase == ZRUNNING);
-  ndbrequire(getNodeInfo(nodePtr.i).m_type == NodeInfo::DB);
+  const auto nodeInfo = getNodeInfo(nodePtr.i);
+  ndbrequire(nodeInfo.m_type == NodeInfo::DB);
 
-  if (get_hb_count(nodePtr.i) > 2) {
+  const unsigned first_missed_hb_to_log =
+      (ndb_heartbeat_send_twice_per_interval(nodeInfo.m_version) ? 1 : 2);
+  if (get_hb_count(nodePtr.i) > first_missed_hb_to_log) {
     signal->theData[0] = NDB_LE_MissedHeartbeat;
     signal->theData[1] = nodePtr.i;
     signal->theData[2] = get_hb_count(nodePtr.i) - 1;
@@ -3393,7 +3399,7 @@ void Qmgr::checkHeartbeat(Signal *signal) {
       return;
     } else {
       /**----------------------------------------------------------------------
-       * OUR LEFT NEIGHBOUR HAVE KEPT QUIET FOR THREE CONSECUTIVE HEARTBEAT
+       * OUR LEFT NEIGHBOUR HAVE KEPT QUIET FOR FOUR CONSECUTIVE HEARTBEAT
        * PERIODS. THUS WE DECLARE HIM DOWN.
        *----------------------------------------------------------------------*/
       signal->theData[0] = NDB_LE_DeadDueToHeartbeat;
@@ -3415,7 +3421,8 @@ void Qmgr::apiHbHandlingLab(Signal *signal, NDB_TICKS now) {
     const Uint32 nodeId = TnodePtr.i;
     ptrAss(TnodePtr, nodeRec);
 
-    const NodeInfo::NodeType type = getNodeInfo(nodeId).getType();
+    const auto nodeInfo = getNodeInfo(nodeId);
+    const NodeInfo::NodeType type = nodeInfo.getType();
     if (type == NodeInfo::DB) continue;
 
     if (type == NodeInfo::INVALID) continue;
@@ -3424,7 +3431,9 @@ void Qmgr::apiHbHandlingLab(Signal *signal, NDB_TICKS now) {
       jamLine(nodeId);
       set_hb_count(TnodePtr.i)++;
 
-      if (get_hb_count(TnodePtr.i) > 2) {
+      const unsigned first_missed_hb_to_log =
+          (ndb_heartbeat_send_twice_per_interval(nodeInfo.m_version) ? 1 : 2);
+      if (get_hb_count(TnodePtr.i) > first_missed_hb_to_log) {
         signal->theData[0] = NDB_LE_MissedHeartbeat;
         signal->theData[1] = nodeId;
         signal->theData[2] = get_hb_count(TnodePtr.i) - 1;
@@ -3434,7 +3443,7 @@ void Qmgr::apiHbHandlingLab(Signal *signal, NDB_TICKS now) {
       if (get_hb_count(TnodePtr.i) > 4) {
         jam();
         /*------------------------------------------------------------------*/
-        /* THE API NODE HAS NOT SENT ANY HEARTBEAT FOR THREE SECONDS.
+        /* THE API NODE HAS NOT SENT ANY HEARTBEAT FOR FOUR HEARTBEATS.
          * WE WILL DISCONNECT FROM IT NOW.
          *------------------------------------------------------------------*/
         /*------------------------------------------------------------------*/
@@ -3538,9 +3547,12 @@ void Qmgr::checkStartInterface(Signal *signal, NDB_TICKS now) {
             /**
              * Also dump DIH nf-state
              */
-            signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
+            signal->theData[0] = DumpStateOrd::LogNodeFailProgress;
             signal->theData[1] = nodePtr.i;
             sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+
+            /* Dump DICT state */
+            sendSignal(DBDICT_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
           }
         } else {
           /* API/MGMD */
@@ -3594,7 +3606,7 @@ void Qmgr::checkStartInterface(Signal *signal, NDB_TICKS now) {
               for (Uint32 i = 0;
                    i < NDB_ARRAY_SIZE(nodePtr.p->m_failconf_blocks); i++) {
                 if (nodePtr.p->m_failconf_blocks[i] != 0) {
-                  signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
+                  signal->theData[0] = DumpStateOrd::LogNodeFailProgress;
                   signal->theData[1] = nodePtr.i;
                   const Uint32 dstRef =
                       numberToRef(nodePtr.p->m_failconf_blocks[i], 0);
@@ -3701,12 +3713,6 @@ void Qmgr::sendApiFailReq(Signal *signal, Uint16 failedNodeNo, bool sumaOnly) {
 
 void Qmgr::execAPI_FAILREQ(Signal *signal) {
   jamEntry();
-  NodeRecPtr failedNodePtr;
-  failedNodePtr.i = signal->theData[0];
-  // signal->theData[1] == QMGR_REF
-  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
-
-  ndbrequire(getNodeInfo(failedNodePtr.i).getType() != NodeInfo::DB);
 
   api_failed(signal, signal->theData[0], AFC_Notification,
              signal->getSendersBlockRef());
@@ -4089,8 +4095,9 @@ void Qmgr::node_failed(Signal *signal, Uint16 aFailedNode) {
       closeCom->failNo = 0;
       closeCom->noOfNodes = 1;
       closeCom->failedNodeId = failedNodePtr.i;
+      closeCom->m_dbHbSender = cneighbourl;
       sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-                 CloseComReqConf::SignalLength, JBB);
+                 CloseComReqConf::SignalLengthDB, JBB);
       return;
     }
     case ZAPI_ACTIVE:  // Unexpected states handled in ::api_failed()
@@ -4119,6 +4126,15 @@ void Qmgr::execUPGRADE_PROTOCOL_ORD(Signal *signal) {
 void Qmgr::api_failed(Signal *signal, Uint32 nodeId, ApiFailureCause afc,
                       Uint32 senderRef) {
   jam();
+
+  const NodeInfo::NodeType nodeType = getNodeInfo(nodeId).getType();
+  if (nodeType != NodeInfo::API && nodeType != NodeInfo::MGM) {
+    g_eventLogger->warning(
+        "Ignoring failed connection report for Node %u of invalid type : %u",
+        nodeId, nodeType);
+    return;
+  }
+
   NodeRecPtr failedNodePtr;
   /**------------------------------------------------------------------------
    *   A COMMUNICATION LINK HAS BEEN DISCONNECTED. WE MUST TAKE SOME ACTION
@@ -4132,7 +4148,7 @@ void Qmgr::api_failed(Signal *signal, Uint32 nodeId, ApiFailureCause afc,
     jam();
     if (unlikely(failedNodePtr.p->failState == NORMAL &&
                  getNodeState().startLevel < NodeState::SL_STARTED &&
-                 getNodeInfo(failedNodePtr.i).getType() == NodeInfo::API)) {
+                 nodeType == NodeInfo::API)) {
       jam();
 
       /* Perform node failure handling (apart from disconnect)
@@ -4215,12 +4231,13 @@ void Qmgr::api_failed(Signal *signal, Uint32 nodeId, ApiFailureCause afc,
   closeCom->failNo = 0;
   closeCom->noOfNodes = 1;
   closeCom->failedNodeId = nodeId;
+  closeCom->m_dbHbSender = cneighbourl;
   ProcessInfo *processInfo = getProcessInfo(nodeId);
   if (processInfo) {
     processInfo->invalidate();
   }
   sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-             CloseComReqConf::SignalLength, JBB);
+             CloseComReqConf::SignalLengthDB, JBB);
 }  // api_failed
 
 /**--------------------------------------------------------------------------
@@ -4330,6 +4347,7 @@ void Qmgr::execAPI_REGREQ(Signal *signal) {
       enableComReq->m_senderRef = reference();
       enableComReq->m_senderData = ENABLE_COM_API_REGREQ;
       enableComReq->m_enableNodeId = apiNodePtr.i;
+      enableComReq->m_dbHbSender = cneighbourl;
       sendSignal(TRPMAN_REF, GSN_ENABLE_COMREQ, signal,
                  EnableComReq::SignalLength, JBB);
       return;
@@ -4445,7 +4463,7 @@ void Qmgr::sendApiRegConf(Signal *signal, Uint32 node) {
 
   ApiRegConf *const apiRegConf = (ApiRegConf *)&signal->theData[0];
   apiRegConf->qmgrRef = reference();
-  apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
+  apiRegConf->apiHeartbeatInterval = (chbApiDelay / 10);
   apiRegConf->version = NDB_VERSION;
   apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
   apiRegConf->nodeState = getNodeState();
@@ -4976,6 +4994,7 @@ void Qmgr::handleApiCloseComConf(Signal *signal) {
 /*******************************/
 void Qmgr::execCLOSE_COMCONF(Signal *signal) {
   jamEntry();
+  ndbrequire(signal->getLength() >= CloseComReqConf::SignalLengthDB);
 
   CloseComReqConf *const closeCom = (CloseComReqConf *)&signal->theData[0];
 
@@ -5790,13 +5809,14 @@ void Qmgr::sendCloseComReq(Signal *signal, BlockReference TBRef,
   closeCom->requestType = CloseComReqConf::RT_NODE_FAILURE;
   closeCom->failNo = aFailNo;
   closeCom->noOfNodes = cprepFailedNodes.count();
+  closeCom->m_dbHbSender = cneighbourl;
   {
     closeCom->failedNodeId = 0; /* Indicates we're sending bitmask */
     LinearSectionPtr lsptr[3];
     lsptr[0].p = cprepFailedNodes.rep.data;
     lsptr[0].sz = cprepFailedNodes.getPackedLengthInWords();
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-               CloseComReqConf::SignalLength, JBB, lsptr, 1);
+               CloseComReqConf::SignalLengthDB, JBB, lsptr, 1);
   }
 
 }  // Qmgr::sendCloseComReq()
@@ -7162,8 +7182,9 @@ void Qmgr::execDUMP_STATE_ORD(Signal *signal) {
     closeCom->failNo = 0;
     closeCom->noOfNodes = 1;
     closeCom->failedNodeId = nodeId;
+    closeCom->m_dbHbSender = cneighbourl;
     sendSignal(TRPMAN_REF, GSN_CLOSE_COMREQ, signal,
-               CloseComReqConf::SignalLength, JBB);
+               CloseComReqConf::SignalLengthDB, JBB);
   }
   if (signal->theData[0] == 909) {
     jam();

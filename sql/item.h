@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6466,7 +6466,7 @@ class Item_default_value final : public Item_field {
   bool eq(const Item *item, bool binary_cmp) const override;
   bool fix_fields(THD *, Item **) override;
   void bind_fields() override;
-  void cleanup() override { Item::cleanup(); }
+  void cleanup() override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   table_map used_tables() const override { return 0; }

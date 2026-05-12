@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2025, Oracle and/or its affiliates.
+Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -9978,6 +9978,55 @@ bool Fil_system::lookup_for_recovery(space_id_t space_id) {
   return is_known;
 }
 
+/**
+Check if a discovered file-per-table .ibd refers to the same file as the
+implicit default-path .ibd under @@datadir for this tablespace name.
+This makes default-location detection robust against symlinks inside the
+datadir tree.
+@param[in]      space_name              Tablespace name
+@param[in]      discovered_path         Full path of the new directory
+@return true if both the files are same. */
+static bool fil_ibd_same_as_default_path(const char *space_name,
+                                         const std::string &discovered_path) {
+  if (space_name == nullptr || *space_name == '\0') {
+    return false;
+  }
+
+  if (!Fil_path::has_suffix(IBD, discovered_path)) {
+    return false;
+  }
+
+  /* Build the implicit default path for this table name under @@datadir. */
+  char *default_path = Fil_path::make("", space_name, IBD);
+
+  if (default_path == nullptr || default_path[0] == '\0') {
+    return false;
+  }
+
+  Datafile df_default;
+  Datafile df_found;
+
+  df_default.set_filepath(default_path);
+  df_found.set_filepath(discovered_path.c_str());
+
+  if (df_default.open_read_only(false) != DB_SUCCESS) {
+    return false;
+  }
+
+  if (df_found.open_read_only(false) != DB_SUCCESS) {
+    df_default.close();
+    return false;
+  }
+
+  const bool same = df_default.same_as(df_found);
+
+  df_found.close();
+  df_default.close();
+  ut::free(default_path);
+
+  return same;
+}
+
 /** Lookup the tablespace ID.
 @param[in]      space_id                Tablespace ID to lookup
 @return true if the space ID is known. */
@@ -10127,6 +10176,9 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
 
   new_dir = Fil_path::get_real_path(new_dir);
 
+  /* Keep the full file path before we trim it to a directory. */
+  const std::string new_full_path{new_dir};
+
   /* Do not use a datafile that is in the wrong place. */
   if (!Fil_path::is_valid_location(space_name, space_id, fsp_flags, new_dir)) {
     return Fil_state::MISSING;
@@ -10138,8 +10190,16 @@ Fil_state fil_tablespace_path_equals(space_id_t space_id,
   ut_ad(pos != std::string::npos);
 
   new_dir.resize(pos + 1);
+  bool same_file_as_default_path = false;
+  /* Only attempt inode matching for file-per-table .ibd (not shared TS). */
+  if (!fsp_is_shared_tablespace(fsp_flags) &&
+      Fil_path::has_suffix(IBD, old_path)) {
+    same_file_as_default_path =
+        fil_ibd_same_as_default_path(space_name, new_full_path);
+  }
 
-  const bool new_same_as_default = MySQL_datadir_path.is_same_as(new_dir) ||
+  const bool new_same_as_default = same_file_as_default_path ||
+                                   MySQL_datadir_path.is_same_as(new_dir) ||
                                    MySQL_datadir_path.is_ancestor(new_dir);
 
   if (old_dir != new_dir) {

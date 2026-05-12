@@ -3781,3 +3781,24 @@ WHERE NOT EXISTS (SELECT *
 eval explain format=tree $query;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35912840: Conditions referring to const table were not added to
+--echo #               RANGE SCAN.
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER, PRIMARY KEY (f1,f2));
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (2, 1), (2, 2), (2, 3), (2, 4);
+ANALYZE TABLE t1, t2;
+
+let $query=
+SELECT t2.f2 FROM t1 JOIN t2
+WHERE t2.f1 = 2 AND t2.f2 <= t1.f2 + 2
+      AND t2.f1 = t1.f1 AND t2.f2 >= t1.f2;
+--skip_if_hypergraph # Different plan
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2;

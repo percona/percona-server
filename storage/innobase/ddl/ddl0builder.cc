@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -868,18 +868,19 @@ dberr_t Builder::get_virtual_column(Copy_ctx &ctx, const dict_field_t *ifield,
   return DB_SUCCESS;
 }
 
-dberr_t Builder::copy_fts_column(Copy_ctx &ctx, dfield_t *field) noexcept {
+dberr_t Builder::enqueue_parsing(const dtuple_t &row,
+                                 const size_t field_no) noexcept {
   doc_id_t doc_id;
   auto &fts = m_ctx.m_fts;
+  const auto *field = dtuple_get_nth_field(&row, field_no);
 
   if (!fts.m_doc_id->is_generated()) {
     /* Fetch Doc ID if it already exists in the row, and not supplied by
     the caller. Even if the value column is nullptr, we still need to
     get the Doc ID to maintain the correct max Doc ID. */
-    doc_id = fts.m_doc_id->fetch(ctx.m_row.m_ptr);
+    doc_id = fts.m_doc_id->fetch(&row);
 
     if (unlikely(doc_id == 0)) {
-      ctx.m_n_rows_added = 0;
       ib::warn(ER_IB_MSG_964) << "FTS Doc ID is zero. Record skipped";
       return DB_FAIL;
     }
@@ -891,25 +892,21 @@ dberr_t Builder::copy_fts_column(Copy_ctx &ctx, dfield_t *field) noexcept {
     auto ptr = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY,
                                   sizeof(FTS::Doc_item) + field->len);
     auto doc_item = static_cast<FTS::Doc_item *>(ptr);
-    auto value = static_cast<byte *>(ptr) + sizeof(*doc_item);
+    doc_item->m_field = *field;
+    doc_item->m_field.data = static_cast<byte *>(ptr) + sizeof(*doc_item);
 
-    memcpy(value, field->data, field->len);
-
-    field->data = value;
-
-    doc_item->m_field = field;
+    memcpy(doc_item->m_field.data, field->data, field->len);
     doc_item->m_doc_id = doc_id;
 
     fts.m_ptr->enqueue(doc_item);
   }
-
-  ctx.m_n_rows_added = 1;
 
   return DB_SUCCESS;
 }
 
 dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
                               doc_id_t &write_doc_id) noexcept {
+  ut_a(!is_fts_index());
   auto &fts = m_ctx.m_fts;
   auto key_buffer = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
 
@@ -933,6 +930,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
         auto err =
             get_virtual_column(ctx, ifield, col, src_field, mv_rows_added);
         if (err != DB_SUCCESS) {
+          key_buffer->pop_unfinished_tuple();
           return err;
         }
       } else {
@@ -940,15 +938,6 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
       }
 
       dfield_copy(field, src_field);
-
-      /* Tokenize and process data for FTS */
-      if (unlikely(is_fts_index())) {
-        auto err = copy_fts_column(ctx, field);
-        if (err != DB_SUCCESS) {
-          return err;
-        }
-        continue;
-      }
 
       if (field->len != UNIV_SQL_NULL && col->mtype == DATA_MYSQL &&
           col->len != field->len) {
@@ -960,6 +949,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
         } else if (!dict_table_is_comp(m_index->table)) {
           /* Heap is created when new table is not compact. */
           ib::info(ER_IB_DDL_CONVERT_HEAP_NOT_FOUND);
+          key_buffer->pop_unfinished_tuple();
 
           DBUG_EXECUTE_IF("ddl_convert_charset_without_heap_fail",
                           { return DB_ERROR; });
@@ -1095,14 +1085,13 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
 
     auto err = copy_columns(ctx, mv_rows_added, write_doc_id);
 
+    ut_ad(ctx.m_n_rows_added == 0 || is_multi_value_index);
+
     if (unlikely(err != DB_SUCCESS)) {
       return err;
     }
 
-    /* If this is an FTS index, we already populated the sort buffer. */
-    if (unlikely(is_fts_index())) {
-      return DB_SUCCESS;
-    }
+    ut_a(!is_fts_index());
 
 #ifdef UNIV_DEBUG
     {
@@ -1135,6 +1124,7 @@ dberr_t Builder::copy_row(Copy_ctx &ctx, size_t &mv_rows_added) noexcept {
     }
 
     if (unlikely(!key_buffer->will_fit(ctx.m_data_size))) {
+      key_buffer->pop_unfinished_tuple();
       if (!is_multi_value_index) {
         ctx.m_n_rows_added = 0;
       }
@@ -1374,8 +1364,40 @@ dberr_t Builder::batch_add_row(Row &row, size_t thread_id) noexcept {
   return DB_SUCCESS;
 }
 
+dberr_t Builder::enqueue_parsing(const dtuple_t &row) noexcept {
+  ut_a(is_fts_index());
+  const auto n_fields = dict_index_get_n_fields(m_index);
+  /* Building FTS index requires parsing the indexed columns which is done by
+  dedicated threads, so all we have to do here is to enqueue the work for them.
+  Crucially we don't use key_buffer for anything here - the enqueued job will
+  contain an independent copy of the field, owned by parsers. */
+  ut_a(!m_index->is_multi_value());
+  const auto &fts = m_ctx.m_fts;
+  for (size_t i = 0; i < n_fields; ++i) {
+    const auto col = m_index->get_field(i)->col;
+    const auto col_no = dict_col_get_no(col);
+    /* This assert is mainly to prove that we don't need the logic for calling
+    fts_add_doc_id which we see in the non-FTS case. This is because the FTS
+    index is never defined over the doc_id column itself - it is defined over
+    text column(s) and merely "points to" the doc_id. */
+    ut_a(!(fts.m_doc_id != nullptr && fts.m_doc_id->is_generated() &&
+           col_no == m_index->table->fts->doc_col && !col->is_virtual()));
+    /* Current implementation assumes FTS index can't be defined on top of
+    virtual columns, which simplifies this code a lot, as it doesn't have to
+    compute the field value, and can simply copy it as is. */
+    ut_a(!col->is_virtual());
+    const auto err = enqueue_parsing(row, col_no);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+  }
+  ut_a(!is_skip_file_sort());
+  return fts.m_ptr->check_for_errors();
+}
+
 dberr_t Builder::add_to_key_buffer(Copy_ctx &ctx,
                                    size_t &mv_rows_added) noexcept {
+  ut_a(!is_fts_index());
   const size_t old_mv_rows_added = mv_rows_added;
   auto err = copy_row(ctx, mv_rows_added);
   auto thread_ctx = m_thread_ctxs[ctx.m_thread_id];
@@ -1404,23 +1426,12 @@ dberr_t Builder::add_to_key_buffer(Copy_ctx &ctx,
     return DB_SUCCESS;
   }
 
-  /* If we are creating FTS index, a single row can generate multiple
-  records for a tokenized word. */
+  // Multi-value indexes can have many records corresponding to one row.
   thread_ctx->m_n_recs += ctx.m_n_rows_added;
 
   if (unlikely(err != DB_SUCCESS)) {
     ut_a(err == DB_TOO_BIG_RECORD || err == DB_COMPUTE_VALUE_FAILED);
     return err;
-  }
-
-  if (unlikely(is_fts_index())) {
-    auto &fts = m_ctx.m_fts;
-
-    err = fts.m_ptr->check_for_errors();
-
-    if (unlikely(err != DB_SUCCESS)) {
-      return err;
-    }
   }
 
   if (is_skip_file_sort()) {
@@ -1457,6 +1468,14 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
   size_t mv_rows_added{};
   auto thread_ctx = m_thread_ctxs[thread_id];
   auto key_buffer = thread_ctx->m_key_buffer;
+  ut_a(key_buffer->is_fts() == is_fts_index());
+  if (is_fts_index()) {
+    ut_a(mv_rows_added == 0);
+    if (!cursor.eof()) {
+      return enqueue_parsing(*row.m_ptr);
+    }
+    return DB_END_OF_INDEX;
+  }
 
   do {
     dberr_t err{DB_SUCCESS};
@@ -1469,14 +1488,10 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
         return err;
       }
       /* Need to make room, flush the current key buffer to disk and retry. */
+      ut_a(!key_buffer->empty());
     } else if (unlikely(thread_ctx->m_n_recs == 0 && key_buffer->empty())) {
       /* Table is empty. */
       return DB_END_OF_INDEX;
-    }
-
-    if (unlikely(is_fts_index() &&
-                 (cursor.eof() || !m_ctx.m_fts.m_doc_id->is_generated()))) {
-      return DB_SUCCESS;
     }
 
     ut_ad(m_ctx.m_old_table == m_ctx.m_new_table
@@ -1542,12 +1557,6 @@ dberr_t Builder::bulk_add_row(Cursor &cursor, Row &row, size_t thread_id,
         ut_a(m_btr_load == nullptr);
         return DB_END_OF_INDEX;
       }
-    }
-
-    /* Fulltext index read threads should not write to the temporary file
-    directly, @see copy_fts_column(). */
-    if (unlikely(key_buffer->is_fts())) {
-      return DB_SUCCESS;
     }
 
     IF_ENABLED("ddl_tmpfile_fail", set_error(DB_OUT_OF_MEMORY);

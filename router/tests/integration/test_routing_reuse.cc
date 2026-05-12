@@ -370,6 +370,14 @@ class SharedServer {
                 // disable LOAD DATA/SELECT INTO on the server
                 "--secure-file-priv=NULL",
                 "--require-secure-transport=OFF",
+                "--loose-caching_sha2_password_private_key_"
+                "path=" SSL_TEST_DATA_DIR "rsa_private_key.pem",
+                "--loose-caching_sha2_password_public_key_"
+                "path=" SSL_TEST_DATA_DIR "rsa_public_key.pem",
+                "--loose-sha256_password_private_key_path=" SSL_TEST_DATA_DIR
+                "rsa_private_key.pem",
+                "--loose-sha256_password_public_key_path=" SSL_TEST_DATA_DIR
+                "rsa_public_key.pem",
             });
     proc.set_logging_path(mysqld_dir_name(), "mysqld.err");
     if (!proc.wait_for_sync_point_result()) mysqld_failed_to_start_ = true;

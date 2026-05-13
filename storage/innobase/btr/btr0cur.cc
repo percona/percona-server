@@ -1341,6 +1341,20 @@ retry_page_get:
     offsets = rec_get_offsets(node_ptr, index, offsets, ULINT_UNDEFINED,
                               UT_LOCATION_HERE, &heap);
 
+    /* The node_ptr_max_size estimate (from
+    dict_index_node_ptr_max_size()) is only computed and used by
+    btr_cur_will_modify_tree() in BTR_MODIFY_TREE mode; in the
+    other latch modes the variable keeps its placeholder value
+    (UNIV_PAGE_SIZE / 2) and the assertion would be either
+    trivially true or comparing against a meaningless value, so
+    we restrict the check to BTR_MODIFY_TREE where the pessimistic
+    tree-modify code actually relies on this value being a true
+    upper bound on the node pointer record size. */
+    DBUG_EXECUTE_IF(
+        "check_node_ptr_size_estimation", if (latch_mode == BTR_MODIFY_TREE) {
+          ut_ad(rec_offs_size(offsets) <= node_ptr_max_size);
+        });
+
     /* If the rec is the first or last in the page for
     pessimistic delete intention, it might cause node_ptr insert
     for the upper level. We should change the intention and retry.

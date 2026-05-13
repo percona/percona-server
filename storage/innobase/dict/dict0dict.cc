@@ -2099,8 +2099,30 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
 
     /* Determine the maximum length of the index field. */
 
+    /* For spatial indexes, the first field stores the MBR
+    (DATA_MBR_LEN bytes), not the original geometry payload.
+    This avoids the DATA_GEOMETRY == ULINT_MAX overflow in
+    dict_col_get_max_size() and accounts for the COMPACT
+    length byte only when the field is actually variable-
+    length encoded (MBR is always 32 bytes, < 128, so a
+    1-byte prefix is sufficient). This is on purpose not
+    not kept in sync with dict_index_too_big_for_tree(). */
+    if (dict_index_is_spatial(index) && i == 0) {
+      rec_max_size += DATA_MBR_LEN;
+      if (comp && field->fixed_len == 0) {
+        rec_max_size += 1;
+      }
+      continue;
+    }
+
     field_max_size = col->get_fixed_size(comp);
-    if (field_max_size) {
+
+    /* We must not use the fast path when fixed_len = 0,
+    because it might be the case that the field is encoded
+    as variable-length and therefore needs 1-2 extra bytes.
+    In such case the field_max_size might be underestimated
+    by these 2 bytes. */
+    if (field_max_size && field->fixed_len != 0) {
       /* dict_index_add_col() should guarantee this */
       ut_ad(!field->prefix_len || field->fixed_len == field->prefix_len);
       /* Fixed lengths are not encoded
@@ -2115,6 +2137,12 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
     if (field->prefix_len && field->prefix_len < field_max_size) {
       field_max_size = field->prefix_len;
     }
+
+    /* Sanity check, preventing overflow. Note that
+    col->get_max_size()==ULINT_MAX implies DATA_BIG_COL(col), and we don't have
+    secondary indexes on BLOBs without prefix_len, so if you combine all the
+    logical conditions leading to this line, you should see why it must hold. */
+    ut_ad(field_max_size != ULINT_MAX);
 
     if (comp) {
       /* Add the extra size for ROW_FORMAT=COMPACT.
@@ -2191,6 +2219,23 @@ void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
     rec_max_size += field_max_size;
     return;
   }
+
+  /* Note: for spatial data types, we will set below
+  field_max_size to ULINT_MAX. This will later result
+  in overflow when adding size upper bounds for pk
+  fields. However, if we decided to fix this overflow,
+  we would make it impossible to create some of tables
+  that previously were allowed to be created. With the
+  overflow, the estimation would become size(pk) - 2,
+  because ULINT_MAX + 2 is 0. When this function
+  underestimates, it allows a table to be created
+  and potentially later rows could not be inserted.
+  It's still better situation than not allowing to
+  create table that previously was allowed to be
+  created (especially if it allowed to insert rows).
+  Situation is different in dict_index_node_ptr_max_size:
+  we must not underestimate there. Therefore these two
+  functions do not need to be kept in sync. */
 
   field_max_size = col->get_max_size();
   field_ext_max_size = field_max_size < 256 ? 1 : 2;

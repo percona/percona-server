@@ -1,0 +1,97 @@
+#
+# Test for Bug#39129182
+#
+# MySQL is crashing when dict_index_node_ptr_max_size()
+# underestimates the maximum size for index node pointer.
+#
+# Bug exists for SPATIAL indexes on GEOMETRY columns:
+#   - dtype_get_max_size_low() returns ULINT_MAX for DATA_GEOMETRY
+#   - field->prefix_len is 0 for spatial index columns (no capping)
+#   - "rec_max_size += ULINT_MAX" causes wrap-around to a tiny value
+#
+# With the bug present, we crash the server via the debug
+# assertion ut_ad(node_ptr_max_size >= actual_node_ptr_size).
+#
+
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--disable_query_log
+SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+SET @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+SET @old_innodb_stats_persistent = @@innodb_stats_persistent;
+SET @old_innodb_flush_log_at_trx_commit = @@innodb_flush_log_at_trx_commit;
+--enable_query_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--source include/count_sessions.inc
+
+SET GLOBAL innodb_adaptive_hash_index = false;
+SET GLOBAL innodb_stats_persistent = false;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+
+--echo #
+--echo # Case 1: GEOMETRY column with SPATIAL KEY -- ULINT_MAX overflow.
+--echo # dtype_get_max_size_low() returns ULINT_MAX for DATA_GEOMETRY.
+--echo # dict_index_node_ptr_max_size() adds ULINT_MAX to rec_max_size,
+--echo # causing unsigned integer wrap-around. The resulting tiny value
+--echo # is caught by the debug assertion during purge traversal.
+--echo #
+--echo # Uses LINESTRING (not POINT) because POINT has its own data type
+--echo # (DATA_POINT) with a known fixed size -- only GEOMETRY returns
+--echo # ULINT_MAX from dtype_get_max_size_low().
+--echo #
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  g GEOMETRY NOT NULL,
+  SPATIAL KEY idx_g (g)
+) ENGINE=InnoDB COMMENT='MERGE_THRESHOLD=45';
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE data_load_t1()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 1500 DO
+    INSERT INTO t1 (g) VALUES (
+      ST_GeomFromText(CONCAT(
+        'LINESTRING(', i, ' ', i, ',', i + 1, ' ', i + 1, ')'))
+    );
+    SET i = i + 1;
+  END WHILE;
+END |
+DELIMITER ;|
+CALL data_load_t1();
+DROP PROCEDURE data_load_t1;
+--enable_query_log
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+
+ANALYZE TABLE t1;
+
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+
+DELETE FROM t1 WHERE id BETWEEN 100 AND 500;
+--source include/wait_innodb_all_purged.inc
+
+--echo # Case 1 passed: spatial index node pointer estimation is correct
+
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+
+# Cleanup
+DROP TABLE t1;
+
+--disable_query_log
+SET GLOBAL innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+SET GLOBAL innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+SET GLOBAL innodb_stats_persistent = @old_innodb_stats_persistent;
+SET GLOBAL innodb_flush_log_at_trx_commit = @old_innodb_flush_log_at_trx_commit;
+--enable_query_log
+
+--source include/wait_until_count_sessions.inc

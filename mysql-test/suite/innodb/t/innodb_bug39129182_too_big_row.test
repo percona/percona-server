@@ -1,0 +1,76 @@
+# Test for Bug#39129182 which targets geometry table with too big row.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Case1: Primary key is large
+--echo #
+
+CREATE TABLE t1 (
+  a CHAR(255) NOT NULL,
+  b CHAR(255) NOT NULL,
+  c CHAR(255) NOT NULL,
+  d CHAR(175) NOT NULL,
+  g GEOMETRY NOT NULL,
+  PRIMARY KEY (a, b, c, d),
+  SPATIAL KEY idx_g (g)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+
+--error ER_TOO_BIG_ROWSIZE
+INSERT INTO t1(a,b,c,d,g) VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(37.7749 -122.4194)', 4326));
+SELECT a,b,c,d FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Case2: Primary key is small, row is big (we use index on GEOMETRY)
+--echo #
+
+CREATE TABLE t1 (
+  a CHAR(255) NOT NULL,
+  b CHAR(255) NOT NULL,
+  c CHAR(255) NOT NULL,
+  d CHAR(175) NOT NULL,
+  g GEOMETRY NOT NULL,
+  PRIMARY KEY (a),
+  SPATIAL KEY idx_g (g)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+
+INSERT INTO t1(a,b,c,d,g) VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(37.7749 -122.4194)', 4326));
+SELECT a,b,c,d FROM t1;
+
+--error ER_TOO_BIG_ROWSIZE
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a,b,c,d);
+
+SELECT a,b,c,d FROM t1;
+SHOW INDEX FROM t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Case3: Primary key is small, row is big (we use index on POINT)
+--echo #
+
+CREATE TABLE t1 (
+  a CHAR(255) NOT NULL,
+  b CHAR(255) NOT NULL,
+  c CHAR(255) NOT NULL,
+  d CHAR(175) NOT NULL,
+  p POINT NOT NULL SRID 4326,
+  PRIMARY KEY (a),
+  SPATIAL KEY idx_p (p)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+
+INSERT INTO t1(a,b,c,d,p) VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(37.7749 -122.4194)', 4326));
+SELECT a,b,c,d FROM t1;
+
+--error ER_TOO_BIG_ROWSIZE
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a,b,c,d);
+
+SELECT a,b,c,d FROM t1;
+SHOW INDEX FROM t1;
+
+DROP TABLE t1;

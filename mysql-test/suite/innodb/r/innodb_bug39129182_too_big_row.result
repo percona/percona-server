@@ -1,0 +1,74 @@
+DROP TABLE IF EXISTS t1;
+#
+# Case1: Primary key is large
+#
+CREATE TABLE t1 (
+a CHAR(255) NOT NULL,
+b CHAR(255) NOT NULL,
+c CHAR(255) NOT NULL,
+d CHAR(175) NOT NULL,
+g GEOMETRY NOT NULL,
+PRIMARY KEY (a, b, c, d),
+SPATIAL KEY idx_g (g)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+Warnings:
+Warning	3674	The spatial index on column 'g' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1(a,b,c,d,g) VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(37.7749 -122.4194)', 4326));
+ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+DROP TABLE t1;
+#
+# Case2: Primary key is small, row is big (we use index on GEOMETRY)
+#
+CREATE TABLE t1 (
+a CHAR(255) NOT NULL,
+b CHAR(255) NOT NULL,
+c CHAR(255) NOT NULL,
+d CHAR(175) NOT NULL,
+g GEOMETRY NOT NULL,
+PRIMARY KEY (a),
+SPATIAL KEY idx_g (g)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+Warnings:
+Warning	3674	The spatial index on column 'g' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+INSERT INTO t1(a,b,c,d,g) VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(37.7749 -122.4194)', 4326));
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+a	b	c	d
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a,b,c,d);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+a	b	c	d
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	1	NULL	NULL		BTREE			YES	NULL
+t1	1	idx_g	1	g	A	1	32	NULL		SPATIAL			YES	NULL
+DROP TABLE t1;
+#
+# Case3: Primary key is small, row is big (we use index on POINT)
+#
+CREATE TABLE t1 (
+a CHAR(255) NOT NULL,
+b CHAR(255) NOT NULL,
+c CHAR(255) NOT NULL,
+d CHAR(175) NOT NULL,
+p POINT NOT NULL SRID 4326,
+PRIMARY KEY (a),
+SPATIAL KEY idx_p (p)
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=latin1;
+INSERT INTO t1(a,b,c,d,p) VALUES ('a', 'b', 'c', 'd', ST_GeomFromText('POINT(37.7749 -122.4194)', 4326));
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+a	b	c	d
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a,b,c,d);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+SELECT a,b,c,d FROM t1;
+a	b	c	d
+a	b	c	d
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	a	A	1	NULL	NULL		BTREE			YES	NULL
+t1	1	idx_p	1	p	A	1	32	NULL		SPATIAL			YES	NULL
+DROP TABLE t1;

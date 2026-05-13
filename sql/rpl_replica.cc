@@ -70,6 +70,7 @@
 #include <deque>
 #include <map>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -7689,6 +7690,23 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
   return 0;
 }
 
+/// Check whether queue_event() constructs this event type directly instead of
+/// using the general deserialization path.
+///
+/// @param event_type The incoming event type.
+///
+/// @retval true if queue_event() uses direct construction for this event type.
+/// @retval false otherwise.
+static bool queue_event_uses_direct_construction(Log_event_type event_type) {
+  return event_type == mysql::binlog::event::ROTATE_EVENT ||
+         event_type == mysql::binlog::event::HEARTBEAT_LOG_EVENT ||
+         event_type == mysql::binlog::event::HEARTBEAT_LOG_EVENT_V2 ||
+         event_type == mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT ||
+         event_type == mysql::binlog::event::GTID_LOG_EVENT ||
+         event_type == mysql::binlog::event::GTID_TAGGED_LOG_EVENT ||
+         event_type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT;
+}
+
 /**
   Store an event received from the master connection into the relay
   log.
@@ -7800,6 +7818,22 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
           checksum_alg)) {
     mi->report(ERROR_LEVEL, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE, "%s",
                ER_THD(current_thd, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE));
+    goto err;
+  }
+
+  if (queue_event_uses_direct_construction(event_type) &&
+      (event_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
+       event_len != uint4korr(buf + EVENT_LEN_OFFSET))) {
+    std::stringstream ss;
+    const uint32 header_event_len = event_len < LOG_EVENT_MINIMAL_HEADER_LEN
+                                        ? 0
+                                        : uint4korr(buf + EVENT_LEN_OFFSET);
+    ss << "Rejected malformed " << Log_event::get_type_str(event_type)
+       << " event from source: received packet length " << event_len
+       << " does not match event header length " << header_event_len
+       << ". Verify the source and binary log stream integrity.";
+    mi->report(ERROR_LEVEL, ER_REPLICA_CREATE_EVENT_FAILURE, "%s",
+               ss.str().c_str());
     goto err;
   }
 

@@ -1268,6 +1268,16 @@ inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
 
   DBUG_PRINT("info", ("Read event %s", Log_event::get_type_str(Log_event_type(
                                            (*event_ptr)[EVENT_TYPE_OFFSET]))));
+  DBUG_EXECUTE_IF("binlog_sender_short_rotate_event_len", {
+    if ((*event_ptr)[EVENT_TYPE_OFFSET] == mysql::binlog::event::ROTATE_EVENT &&
+        *event_len > 8) {
+      // Advertise a shorter event length while keeping the transmitted packet
+      // intact so the receiver's direct Rotate parser truncates the filename
+      // if it trusts the header length over the packet length.
+      int4store(*event_ptr + EVENT_LEN_OFFSET, *event_len - 8);
+      if (event_checksum_on()) calc_event_checksum(*event_ptr, *event_len);
+    }
+  };);
 #ifndef NDEBUG
   if (check_event_count()) return 1;
 #endif

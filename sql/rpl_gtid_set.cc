@@ -1473,35 +1473,40 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
                                                size_t *actual_length)
 {
   DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
+  static const size_t k_encoded_integer_length= sizeof(uint64);
+  static const size_t k_encoded_interval_length= 2 * k_encoded_integer_length;
+
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   size_t pos= 0;
   uint64 n_sids;
   Free_intervals_lock lock(this);
   // read number of SIDs
-  if (length < 8)
+  if (length < k_encoded_integer_length)
   {
-    DBUG_PRINT("error", ("(length=%lu) < 8", (ulong) length));
+    DBUG_PRINT("error", ("(length=%lu) < %zu", (ulong) length,
+                         k_encoded_integer_length));
     goto report_error;
   }
   n_sids= uint8korr(encoded);
-  pos+= 8;
+  pos+= k_encoded_integer_length;
   // iterate over SIDs
   for (uint i= 0; i < n_sids; i++)
   {
     // read SID and number of intervals
-    if (length - pos < 16 + 8)
+    if (length - pos < Uuid::BYTE_LENGTH + k_encoded_integer_length)
     {
-      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 16 + 8. "
+      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < %zu + %zu. "
                            "[n_sids=%llu i=%u]",
-                           (ulong) length, (ulong) pos, n_sids, i));
+                           (ulong) length, (ulong) pos, Uuid::BYTE_LENGTH,
+                           k_encoded_integer_length, n_sids, i));
       goto report_error;
     }
     rpl_sid sid;
     sid.copy_from(encoded + pos);
-    pos+= 16;
+    pos+= Uuid::BYTE_LENGTH;
     uint64 n_intervals= uint8korr(encoded + pos);
-    pos+= 8;
+    pos+= k_encoded_integer_length;
     rpl_sidno sidno= sid_map->add_sid(sid);
     if (sidno < 0)
     {
@@ -1510,21 +1515,23 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
     }
     PROPAGATE_REPORTED_ERROR(ensure_sidno(sidno));
     // iterate over intervals
-    if (length - pos < 2 * 8 * n_intervals)
+    const uint64 max_intervals=
+      static_cast<uint64>((length - pos) / k_encoded_interval_length);
+    if (n_intervals > max_intervals)
     {
-      DBUG_PRINT("error", ("(length=%lu) - (pos=%lu) < 2 * 8 * (n_intervals=%llu)",
-                           (ulong) length, (ulong) pos, n_intervals));
+      DBUG_PRINT("error", ("(n_intervals=%llu) > (max_intervals=%llu)",
+                           n_intervals, max_intervals));
       goto report_error;
     }
     Interval_iterator ivit(this, sidno);
     rpl_gno last= 0;
-    for (uint i= 0; i < n_intervals; i++)
+    for (uint64 i= 0; i < n_intervals; i++)
     {
       // read one interval
       rpl_gno start= sint8korr(encoded + pos);
-      pos+= 8;
+      pos+= k_encoded_integer_length;
       rpl_gno end= sint8korr(encoded + pos);
-      pos+= 8;
+      pos+= k_encoded_integer_length;
       if (start <= last || end <= start)
       {
         DBUG_PRINT("error", ("last=%lld start=%lld end=%lld",

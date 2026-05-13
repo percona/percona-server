@@ -6744,7 +6744,9 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
         val_len = 8;
         break;
       case DECIMAL_RESULT: {
-        if (val_len < 3) {
+        if (val_len < 3 ||
+            !mysql::binlog::event::is_user_var_decimal_metadata_valid(
+                val, val_len, DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE)) {
           rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
                       ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                       "Invalid variable length at User var event");

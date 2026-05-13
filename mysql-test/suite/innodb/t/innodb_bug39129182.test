@@ -1,0 +1,236 @@
+#
+# Test for Bug#39129182
+#
+# MySQL is crashing when dict_index_node_ptr_max_size()
+# underestimates the maximum size for index node pointer.
+#
+# dict_index_node_ptr_max_size() has a fast path (dict0dict.cc):
+#
+#   field_max_size = dict_col_get_fixed_size(col, comp);
+#   if (field_max_size) {
+#       rec_max_size += field_max_size;
+#       continue;
+#   }
+#
+# This path is taken whenever dict_col_get_fixed_size() returns non-zero,
+# but it skips the variable-length encoding overhead (field_ext_max_size)
+# that COMPACT/DYNAMIC format needs. When dict_index_add_col() has zeroed
+# field->fixed_len (because fixed_len > DICT_MAX_FIXED_COL_LEN=768),
+# the field IS variable-length-encoded, but the fast path doesn't know.
+#
+# Compare with dict_index_too_big_for_tree() which correctly checks:
+#   if (field_max_size && field->fixed_len != 0)
+#
+# Cases 1 & 2 verify correct estimation for column types where
+# dict_col_get_fixed_size() <= 768 (so field->fixed_len is preserved
+# and the fast path is correct).
+#
+# Case 3 exploits the bug using CHAR(255) CHARACTER SET utf32:
+#   - utf32 has mbminlen == mbmaxlen == 4
+#   - dict_col_get_fixed_size(col, comp=1) returns 255*4 = 1020
+#   - dict_index_add_col() zeros field->fixed_len (1020 > 768)
+#   - The fast path adds 1020 but SKIPS the 2-byte length prefix
+#     that COMPACT format requires for variable-length fields
+#   - Underestimation: 2 bytes per such PK column
+#
+# With the bug present, Case 3 crash the server via the debug
+# assertion ut_ad(node_ptr_max_size >= actual_node_ptr_size).
+#
+
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+
+--disable_query_log
+SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+SET @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+SET @old_innodb_stats_persistent = @@innodb_stats_persistent;
+SET @old_innodb_flush_log_at_trx_commit = @@innodb_flush_log_at_trx_commit;
+--enable_query_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+--source include/count_sessions.inc
+
+SET GLOBAL innodb_adaptive_hash_index = false;
+SET GLOBAL innodb_stats_persistent = false;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+
+--echo #
+--echo # Case 1: Fixed-length PK columns (fast path in estimation).
+--echo # CHAR(255) latin1 -- dict_col_get_fixed_size() returns 255,
+--echo # field->fixed_len = 255 (correctly set, below 768 threshold).
+--echo #
+
+CREATE TABLE t1 (
+  a00 CHAR(255) NOT NULL DEFAULT 'a',
+  a01 CHAR(255) NOT NULL DEFAULT 'a',
+  a02 CHAR(255) NOT NULL DEFAULT 'a',
+  b INT NOT NULL DEFAULT 0,
+  CONSTRAINT pkey PRIMARY KEY(a00, a01, a02)
+) charset latin1 ENGINE = InnoDB COMMENT='MERGE_THRESHOLD=45';
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE data_load_t1()
+BEGIN
+  DECLARE c1 INT DEFAULT 97;
+  DECLARE c2 INT DEFAULT 97;
+  DECLARE c3 INT DEFAULT 97;
+  WHILE c1 < 102 DO
+    WHILE c2 < 123 DO
+      WHILE c3 < 123 DO
+        INSERT INTO t1 (a00) VALUES (CHAR(c1,c2,c3));
+        SET c3 = c3 + 1;
+      END WHILE;
+      SET c3 = 97;
+      SET c2 = c2 + 1;
+    END WHILE;
+    SET c2 = 97;
+    SET c1 = c1 + 1;
+  END WHILE;
+END |
+DELIMITER ;|
+CALL data_load_t1();
+DROP PROCEDURE data_load_t1;
+--enable_query_log
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+
+ANALYZE TABLE t1;
+
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+
+DELETE FROM t1 WHERE a00 = 'cnm';
+--source include/wait_innodb_all_purged.inc
+
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+
+--echo # Case 1 passed: fixed-length PK estimation is correct
+
+--echo #
+--echo # Case 2: Variable-length PK columns (slow path in estimation).
+--echo # CHAR(255) utf8 -- dict_col_get_fixed_size() returns 0 in
+--echo # COMPACT format (mbminlen != mbmaxlen), so the estimation
+--echo # takes the slow path using dict_col_get_max_size().
+--echo #
+
+CREATE TABLE t2 (
+  a00 CHAR(255) NOT NULL DEFAULT 'a',
+  a01 CHAR(255) NOT NULL DEFAULT 'a',
+  b INT NOT NULL DEFAULT 0,
+  CONSTRAINT pkey PRIMARY KEY(a00, a01)
+) charset utf8 ENGINE = InnoDB COMMENT='MERGE_THRESHOLD=45';
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE data_load_t2()
+BEGIN
+  DECLARE c1 INT DEFAULT 97;
+  DECLARE c2 INT DEFAULT 97;
+  WHILE c1 < 123 DO
+    WHILE c2 < 123 DO
+      INSERT IGNORE INTO t2 (a00) VALUES (CHAR(c1,c2));
+      SET c2 = c2 + 1;
+    END WHILE;
+    SET c2 = 97;
+    SET c1 = c1 + 1;
+  END WHILE;
+END |
+
+
+DELIMITER ;|
+CALL data_load_t2();
+DROP PROCEDURE data_load_t2;
+--enable_query_log
+
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+
+ANALYZE TABLE t2;
+
+
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+
+--source include/wait_innodb_all_purged.inc
+
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+
+--echo # Case 2 passed: variable-length PK estimation is correct
+
+--echo #
+--echo # Case 3: CHAR(255) CHARACTER SET utf32 PK -- missing COMPACT overhead.
+--echo # utf32 has mbminlen == mbmaxlen == 4, so dtype_get_fixed_size_low()
+--echo # returns 255*4=1020 in COMPACT format. But dict_index_add_col() zeros
+--echo # field->fixed_len because 1020 > DICT_MAX_FIXED_COL_LEN (768).
+--echo #
+--echo # The fast path in dict_index_node_ptr_max_size() adds 1020 but skips
+--echo # the 2-byte variable-length header that COMPACT actually encodes.
+--echo # Underestimation: 2 bytes per such column in the PK.
+--echo #
+--echo # CHAR(193) utf32 = 772 bytes is the minimum to exceed the 768 threshold.
+--echo # We use CHAR(255) utf32 = 1020 bytes for the maximum effect.
+--echo #
+
+CREATE TABLE t3 (
+  a CHAR(255) NOT NULL,
+  b CHAR(255) NOT NULL,
+  c INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (a, b)
+) CHARACTER SET utf32 ENGINE=InnoDB COMMENT='MERGE_THRESHOLD=45';
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE data_load_t3()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 50 DO
+    INSERT IGNORE INTO t3 (a, b, c) VALUES (
+      CONCAT(REPEAT('x', 254), CHAR(65 + (i MOD 26) USING utf32)),
+      CONCAT(REPEAT('y', 254), CHAR(65 + (i DIV 26) USING utf32)),
+      i
+    );
+    SET i = i + 1;
+  END WHILE;
+END |
+
+DELIMITER ;|
+CALL data_load_t3();
+DROP PROCEDURE data_load_t3;
+--enable_query_log
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+
+ANALYZE TABLE t3;
+
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+
+DELETE FROM t3 WHERE c BETWEEN 10 AND 20;
+
+--source include/wait_innodb_all_purged.inc
+
+--echo # Case 3 passed: utf32 PK estimation is correct
+
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+--disable_query_log
+SET GLOBAL innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+SET GLOBAL innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+SET GLOBAL innodb_stats_persistent = @old_innodb_stats_persistent;
+SET GLOBAL innodb_flush_log_at_trx_commit = @old_innodb_flush_log_at_trx_commit;
+--enable_query_log
+
+--source include/wait_until_count_sessions.inc

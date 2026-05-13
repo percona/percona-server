@@ -1,0 +1,80 @@
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+SET GLOBAL innodb_adaptive_hash_index = false;
+SET GLOBAL innodb_stats_persistent = false;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+#
+# Case 1: Fixed-length PK columns (fast path in estimation).
+# CHAR(255) latin1 -- dict_col_get_fixed_size() returns 255,
+# field->fixed_len = 255 (correctly set, below 768 threshold).
+#
+CREATE TABLE t1 (
+a00 CHAR(255) NOT NULL DEFAULT 'a',
+a01 CHAR(255) NOT NULL DEFAULT 'a',
+a02 CHAR(255) NOT NULL DEFAULT 'a',
+b INT NOT NULL DEFAULT 0,
+CONSTRAINT pkey PRIMARY KEY(a00, a01, a02)
+) charset latin1 ENGINE = InnoDB COMMENT='MERGE_THRESHOLD=45';
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+DELETE FROM t1 WHERE a00 = 'cnm';
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+# Case 1 passed: fixed-length PK estimation is correct
+#
+# Case 2: Variable-length PK columns (slow path in estimation).
+# CHAR(255) utf8 -- dict_col_get_fixed_size() returns 0 in
+# COMPACT format (mbminlen != mbmaxlen), so the estimation
+# takes the slow path using dict_col_get_max_size().
+#
+CREATE TABLE t2 (
+a00 CHAR(255) NOT NULL DEFAULT 'a',
+a01 CHAR(255) NOT NULL DEFAULT 'a',
+b INT NOT NULL DEFAULT 0,
+CONSTRAINT pkey PRIMARY KEY(a00, a01)
+) charset utf8 ENGINE = InnoDB COMMENT='MERGE_THRESHOLD=45';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+# Case 2 passed: variable-length PK estimation is correct
+#
+# Case 3: CHAR(255) CHARACTER SET utf32 PK -- missing COMPACT overhead.
+# utf32 has mbminlen == mbmaxlen == 4, so dtype_get_fixed_size_low()
+# returns 255*4=1020 in COMPACT format. But dict_index_add_col() zeros
+# field->fixed_len because 1020 > DICT_MAX_FIXED_COL_LEN (768).
+#
+# The fast path in dict_index_node_ptr_max_size() adds 1020 but skips
+# the 2-byte variable-length header that COMPACT actually encodes.
+# Underestimation: 2 bytes per such column in the PK.
+#
+# CHAR(193) utf32 = 772 bytes is the minimum to exceed the 768 threshold.
+# We use CHAR(255) utf32 = 1020 bytes for the maximum effect.
+#
+CREATE TABLE t3 (
+a CHAR(255) NOT NULL,
+b CHAR(255) NOT NULL,
+c INT NOT NULL DEFAULT 0,
+PRIMARY KEY (a, b)
+) CHARACTER SET utf32 ENGINE=InnoDB COMMENT='MERGE_THRESHOLD=45';
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+SET GLOBAL DEBUG = "+d,check_node_ptr_size_estimation";
+DELETE FROM t3 WHERE c BETWEEN 10 AND 20;
+# Case 3 passed: utf32 PK estimation is correct
+SET GLOBAL DEBUG = "-d,check_node_ptr_size_estimation";
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

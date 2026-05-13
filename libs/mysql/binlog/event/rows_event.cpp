@@ -486,7 +486,8 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   }
 
   READER_TRY_SET(m_width, net_field_length_ll);
-  if (m_width == 0) READER_THROW("Invalid m_width");
+  if (m_width == 0 || m_width > Rows_event::max_fields)
+    READER_THROW("Invalid m_width");
   n_bits_len = (m_width + 7) / 8;
   READER_TRY_CALL(assign, &columns_before_image, n_bits_len);
 

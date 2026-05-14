@@ -180,6 +180,11 @@ class Group_action_message : public Plugin_gcs_message {
   int32 get_return_value() { return return_value; }
 
   /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
+
+  /**
     Check what is the action that this message encodes from a buffer
     @param buf the raw data buffer
     @return If the message is a primary election action or other
@@ -248,6 +253,7 @@ class Group_action_message : public Plugin_gcs_message {
   int32 m_transaction_monitor_timeout{-1};
   /** Group action identifier */
   enum_action_initiator_and_action m_action_initiator;
+  bool m_decode_error{false};
 };
 
 #endif /* GROUP_ACTION_MESSAGE_INCLUDED */

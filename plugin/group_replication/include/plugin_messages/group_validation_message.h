@@ -76,6 +76,11 @@ class Group_validation_message : public Plugin_gcs_message {
   */
   uint get_member_weight() const;
 
+  /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
+
  protected:
   /**
     Encodes the message contents for transmission.
@@ -88,9 +93,10 @@ class Group_validation_message : public Plugin_gcs_message {
     Message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    the end of the buffer
   */
   void decode_payload(const unsigned char *buffer,
-                      const unsigned char *) override;
+                      const unsigned char *end) override;
 
  private:
   /**The message type*/
@@ -101,6 +107,7 @@ class Group_validation_message : public Plugin_gcs_message {
 
   /** The member election weight */
   uint member_weight;
+  bool m_decode_error{false};
 };
 
 #endif /* GROUP_VALIDATION_MESSAGE_INCLUDED */

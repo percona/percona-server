@@ -23,6 +23,7 @@
 
 #include "plugin/group_replication/include/plugin_messages/group_service_message.h"
 #include <string.h>
+#include "my_byteorder.h"
 #include "my_dbug.h"
 
 Group_service_message::Group_service_message()
@@ -89,19 +90,55 @@ void Group_service_message::encode_payload(std::vector<uchar> *buffer) const {
     buffer->insert(buffer->end(), m_data.begin(), m_data.end());
     /* purecov: end */
   }
+
+  DBUG_EXECUTE_IF("gr_invalid_message_service_tag_length", {
+    int8store(
+        buffer->data() + WIRE_FIXED_HEADER_SIZE + WIRE_PAYLOAD_ITEM_TYPE_SIZE,
+        static_cast<ulonglong>(1ULL << 30));
+  };);
 }
 
-void Group_service_message::decode_payload(const uchar *buffer, const uchar *) {
+void Group_service_message::decode_payload(const uchar *buffer,
+                                           const uchar *end) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
+  m_decode_error = false;
 
-  decode_payload_item_string(&slider, &payload_item_type, &m_tag,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider, &payload_item_type, end, &m_tag,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_TAG) {
+    m_tag.clear();
+    m_data.clear();
+    m_data_pointer = nullptr;
+    m_data_pointer_length = 0;
+    m_decode_error = true;
+    return;
+  }
+
+  if (slider > end ||
+      static_cast<size_t>(end - slider) < WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    m_tag.clear();
+    m_data.clear();
+    m_data_pointer = nullptr;
+    m_data_pointer_length = 0;
+    m_decode_error = true;
+    return;
+  }
 
   decode_payload_item_type_and_length(&slider, &payload_item_type,
                                       &payload_item_length);
+  if (payload_item_type != PIT_DATA || slider > end ||
+      static_cast<unsigned long long>(end - slider) < payload_item_length) {
+    m_tag.clear();
+    m_data.clear();
+    m_data_pointer = nullptr;
+    m_data_pointer_length = 0;
+    m_decode_error = true;
+    return;
+  }
+
   m_data.clear();
   m_data.insert(m_data.end(), slider, slider + payload_item_length);
   m_data_pointer = nullptr;

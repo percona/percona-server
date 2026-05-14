@@ -230,97 +230,124 @@ void Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
+  m_decode_error = false;
 
   uint32 transactions_waiting_certification_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type,
-                           &transactions_waiting_certification_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &transactions_waiting_certification_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_WAITING_CERTIFICATION) {
+    m_decode_error = true;
+    return;
+  }
   m_transactions_waiting_certification =
       (int32)transactions_waiting_certification_aux;
 
   uint32 transactions_waiting_apply_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type,
-                           &transactions_waiting_apply_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &transactions_waiting_apply_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_WAITING_APPLY) {
+    m_decode_error = true;
+    return;
+  }
   m_transactions_waiting_apply = (int32)transactions_waiting_apply_aux;
 
   uint64 transactions_certified_aux = 0;
-  decode_payload_item_int8(&slider, &payload_item_type,
-                           &transactions_certified_aux);
+  if (decode_payload_item_int8(&slider, &payload_item_type, end,
+                               &transactions_certified_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_CERTIFIED) {
+    m_decode_error = true;
+    return;
+  }
   m_transactions_certified = (int64)transactions_certified_aux;
 
   uint64 transactions_applied_aux = 0;
-  decode_payload_item_int8(&slider, &payload_item_type,
-                           &transactions_applied_aux);
+  if (decode_payload_item_int8(&slider, &payload_item_type, end,
+                               &transactions_applied_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_APPLIED) {
+    m_decode_error = true;
+    return;
+  }
   m_transactions_applied = (int64)transactions_applied_aux;
 
   uint64 transactions_local_aux = 0;
-  decode_payload_item_int8(&slider, &payload_item_type,
-                           &transactions_local_aux);
+  if (decode_payload_item_int8(&slider, &payload_item_type, end,
+                               &transactions_local_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_LOCAL) {
+    m_decode_error = true;
+    return;
+  }
   m_transactions_local = (int64)transactions_local_aux;
 
   while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end) {
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      m_decode_error = true;
+      return;
+    }
 
     switch (payload_item_type) {
       case PIT_TRANSACTIONS_NEGATIVE_CERTIFIED:
-        if (slider + payload_item_length <= end) {
-          uint64 transactions_negative_certified_aux = uint8korr(slider);
-          slider += payload_item_length;
-          m_transactions_negative_certified =
-              static_cast<int64>(transactions_negative_certified_aux);
+        if (payload_item_length != 8) {
+          m_decode_error = true;
+          return;
         }
+        m_transactions_negative_certified =
+            static_cast<int64>(uint8korr(slider));
+        slider += payload_item_length;
         break;
 
       case PIT_TRANSACTIONS_ROWS_VALIDATING:
-        if (slider + payload_item_length <= end) {
-          uint64 transactions_rows_validating_aux = uint8korr(slider);
-          slider += payload_item_length;
-          m_transactions_rows_validating =
-              static_cast<int64>(transactions_rows_validating_aux);
+        if (payload_item_length != 8) {
+          m_decode_error = true;
+          return;
         }
+        m_transactions_rows_validating = static_cast<int64>(uint8korr(slider));
+        slider += payload_item_length;
         break;
 
       case PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS:
-        if (slider + payload_item_length <= end) {
-          m_transactions_committed_all_members.assign(
-              slider, slider + payload_item_length);
-          slider += payload_item_length;
-        }
+        m_transactions_committed_all_members.assign(
+            slider, slider + payload_item_length);
+        slider += payload_item_length;
         break;
 
       case PIT_TRANSACTION_LAST_CONFLICT_FREE:
-        if (slider + payload_item_length <= end) {
-          m_transaction_last_conflict_free.assign(slider,
-                                                  slider + payload_item_length);
-          slider += payload_item_length;
-        }
+        m_transaction_last_conflict_free.assign(slider,
+                                                slider + payload_item_length);
+        slider += payload_item_length;
         break;
 
       case PIT_TRANSACTIONS_LOCAL_ROLLBACK:
-        if (slider + payload_item_length <= end) {
-          uint64 transactions_local_rollback_aux = uint8korr(slider);
-          slider += payload_item_length;
-          m_transactions_local_rollback =
-              static_cast<int64>(transactions_local_rollback_aux);
+        if (payload_item_length != 8) {
+          m_decode_error = true;
+          return;
         }
+        m_transactions_local_rollback = static_cast<int64>(uint8korr(slider));
+        slider += payload_item_length;
         break;
 
       case PIT_FLOW_CONTROL_MODE:
-        if (slider + payload_item_length <= end) {
-          unsigned char flow_control_mode_aux = *slider;
-          slider += payload_item_length;
-          m_flow_control_mode = (Flow_control_mode)flow_control_mode_aux;
+        if (payload_item_length != 1) {
+          m_decode_error = true;
+          return;
         }
+        m_flow_control_mode = static_cast<Flow_control_mode>(*slider);
+        slider += payload_item_length;
         break;
 
       case PIT_TRANSACTION_GTIDS_PRESENT:
-        if (slider + payload_item_length <= end) {
-          unsigned char aux_transaction_gtids_present = *slider;
-          slider += payload_item_length;
-          m_transaction_gtids_present =
-              (aux_transaction_gtids_present == '1') ? true : false;
+        if (payload_item_length != 1) {
+          m_decode_error = true;
+          return;
         }
+        m_transaction_gtids_present = (*slider == '1');
+        slider += payload_item_length;
+        break;
+      default:
+        slider += payload_item_length;
         break;
     }
   }
@@ -938,6 +965,11 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
   DBUG_TRACE;
   int error = 0;
   Pipeline_stats_member_message message(data, len);
+  if (message.is_decode_error()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                 "Malformed pipeline stats message");
+    return 1;
+  }
 
   /*
     This method is called synchronously by communication layer, so

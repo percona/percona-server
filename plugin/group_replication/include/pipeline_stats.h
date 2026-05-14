@@ -229,6 +229,11 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   */
   Flow_control_mode get_flow_control_mode();
 
+  /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
+
  protected:
   /**
     Encodes the message contents for transmission.
@@ -259,6 +264,7 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
   std::string m_transaction_last_conflict_free;
   int64 m_transactions_local_rollback;
   Flow_control_mode m_flow_control_mode;
+  bool m_decode_error{false};
 };
 
 /**

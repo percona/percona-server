@@ -46,13 +46,19 @@ void Sync_before_execution_message::encode_payload(
 }
 
 void Sync_before_execution_message::decode_payload(const unsigned char *buffer,
-                                                   const unsigned char *) {
+                                                   const unsigned char *end) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
+  m_decode_error = false;
 
   uint32 thread_id_aux = 0;
-  decode_payload_item_int4(&slider, &payload_item_type, &thread_id_aux);
+  if (decode_payload_item_int4(&slider, &payload_item_type, end,
+                               &thread_id_aux) ||
+      payload_item_type != PIT_MY_THREAD_ID) {
+    m_decode_error = true;
+    return;
+  }
   m_thread_id = static_cast<my_thread_id>(thread_id_aux);
 }
 

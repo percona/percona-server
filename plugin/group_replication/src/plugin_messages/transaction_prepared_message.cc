@@ -63,28 +63,39 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
+  m_decode_error = false;
+  m_sid_specified = false;
 
   uint64 gno_aux = 0;
-  decode_payload_item_int8(&slider, &payload_item_type, &gno_aux);
+  if (decode_payload_item_int8(&slider, &payload_item_type, end, &gno_aux) ||
+      payload_item_type != PIT_TRANSACTION_PREPARED_GNO) {
+    m_decode_error = true;
+    return;
+  }
   m_gno = static_cast<rpl_gno>(gno_aux);
 
   while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end) {
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      m_decode_error = true;
+      return;
+    }
 
     switch (payload_item_type) {
       case PIT_TRANSACTION_PREPARED_SID:
-        if (slider + payload_item_length <= end) {
-          if (payload_item_length != m_sid.BYTE_LENGTH) {
-            m_sid_specified = false;
-            m_decode_error = true;
-            return;
-          }
-          memcpy(m_sid.bytes, slider, payload_item_length);
-          m_sid_specified = true;
-          slider += payload_item_length;
+        if (payload_item_length != m_sid.BYTE_LENGTH) {
+          m_decode_error = true;
+          return;
         }
+        memcpy(m_sid.bytes, slider, payload_item_length);
+        m_sid_specified = true;
+        slider += payload_item_length;
+        break;
+      default:
+        slider += payload_item_length;
         break;
     }
   }

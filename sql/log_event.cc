@@ -10674,6 +10674,23 @@ Table_map_log_event::Table_map_log_event(
   assert(header()->type_code == mysql::binlog::event::TABLE_MAP_EVENT);
 #ifdef MYSQL_SERVER
   m_column_view = std::make_unique<cs::util::ReplicatedColumnsView>();
+
+  if (common_header->get_is_valid()) {
+    /*
+      Reject malformed TABLE_MAP_EVENT metadata during event parsing before
+      applier processing.
+    */
+    std::vector<unsigned int> vector_dimensionality;
+    if (table_def::vector_column_count(m_coltype, m_colcnt) > 0) {
+      const Optional_metadata_fields fields(m_optional_metadata,
+                                            m_optional_metadata_len);
+      vector_dimensionality = fields.m_vector_dimensionality;
+    }
+    table_def parsed_table_def(m_coltype, m_colcnt, m_field_metadata,
+                               m_field_metadata_size, m_null_bits, m_flags,
+                               vector_dimensionality);
+    common_header->set_is_valid(parsed_table_def.is_valid());
+  }
 #endif
 }
 

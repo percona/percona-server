@@ -1,0 +1,13 @@
+set tokudb_enable_fast_update=1;
+set session sql_mode=(select replace(@@sql_mode,'STRICT_TRANS_TABLES',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+set session sql_mode=(select replace(@@sql_mode,'STRICT_ALL_TABLES',''));
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+create table tt (id int primary key, x int) engine = tokudb;
+update tt set x=1 where id='abc';
+ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
+update tt set x='abc' where id=1;
+ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
+drop table tt;

@@ -1,0 +1,10 @@
+set default_storage_engine='tokudb';
+set tokudb_disable_hot_alter=1;
+drop table if exists t;
+create table t (x int, y int, primary key (x)) partition by hash(x) partitions 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+alter table t change column y newy int;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
+drop table t;

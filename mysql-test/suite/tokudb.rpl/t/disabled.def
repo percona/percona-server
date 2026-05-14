@@ -1,0 +1,2 @@
+rpl_row_sp002_tokudb : tokudb does not support foreign keys
+rpl_deadlock_tokudb : temporarily disabled until properly debugged

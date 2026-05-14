@@ -386,6 +386,9 @@ rtr_update_mbr_field(
 
 		if (!rtr_update_mbr_field_in_place(index, rec,
 						   offsets, mbr, mtr)) {
+			/* Avoid leaking the temporary heap on startup/statement abort.
+			`heap` owns allocations for the node_ptr and offsets. */
+			mem_heap_free(heap);
 			return(false);
 		}
 

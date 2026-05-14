@@ -331,11 +331,13 @@ class Plugin_gcs_message {
     a char (1 byte).
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  static void decode_payload_item_char(const unsigned char **buffer,
-                                       uint16 *type, unsigned char *value);
+  static bool decode_payload_item_char(const unsigned char **buffer,
+                                       uint16 *type, const unsigned char *end,
+                                       unsigned char *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -353,11 +355,12 @@ class Plugin_gcs_message {
     a 2 bytes integer.
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int2(const unsigned char **buffer, uint16 *type,
-                                uint16 *value);
+  bool decode_payload_item_int2(const unsigned char **buffer, uint16 *type,
+                                const unsigned char *end, uint16 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -375,11 +378,12 @@ class Plugin_gcs_message {
     a 4 bytes integer.
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int4(const unsigned char **buffer, uint16 *type,
-                                uint32 *value);
+  bool decode_payload_item_int4(const unsigned char **buffer, uint16 *type,
+                                const unsigned char *end, uint32 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -397,11 +401,12 @@ class Plugin_gcs_message {
     a 8 bytes integer.
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int8(const unsigned char **buffer, uint16 *type,
-                                uint64 *value);
+  bool decode_payload_item_int8(const unsigned char **buffer, uint16 *type,
+                                const unsigned char *end, uint64 *value);
 
   /**
     Encodes the given payload item (type, length and value) into the buffer as
@@ -421,12 +426,13 @@ class Plugin_gcs_message {
     a char array (variable size).
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
     @param[out] length the length of the payload item
   */
-  void decode_payload_item_string(const unsigned char **buffer, uint16 *type,
-                                  std::string *value,
+  bool decode_payload_item_string(const unsigned char **buffer, uint16 *type,
+                                  const unsigned char *end, std::string *value,
                                   unsigned long long *length);
 
   /**
@@ -447,12 +453,13 @@ class Plugin_gcs_message {
     a byte buffer (variable size).
 
     @param[in]  buffer the buffer to encode from
+    @param[in]  end    the end of the buffer
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
     @param[out] length the length of the payload item
   */
-  void decode_payload_item_bytes(const unsigned char **buffer, uint16 *type,
-                                 unsigned char *value,
+  bool decode_payload_item_bytes(const unsigned char **buffer, uint16 *type,
+                                 const unsigned char *end, unsigned char *value,
                                  unsigned long long *length);
 };
 

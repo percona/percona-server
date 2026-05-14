@@ -63,6 +63,7 @@ class Sync_before_execution_message : public Plugin_gcs_message {
   ~Sync_before_execution_message() override;
 
   my_thread_id get_thread_id();
+  bool is_decode_error() const { return m_decode_error; }
 
  protected:
   /*
@@ -74,6 +75,7 @@ class Sync_before_execution_message : public Plugin_gcs_message {
 
  private:
   my_thread_id m_thread_id;
+  bool m_decode_error{false};
 };
 
 #endif /* SYNC_BEFORE_EXECUTION_MESSAGE_INCLUDED */

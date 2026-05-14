@@ -114,6 +114,11 @@ class Group_service_message : public Plugin_gcs_message {
   */
   size_t get_tag_length() { return m_tag.length(); }
 
+  /**
+    @return true if a decode error was detected while parsing the payload.
+  */
+  bool is_decode_error() const { return m_decode_error; }
+
  protected:
   /**
     Encodes the group service message contents for transmission.
@@ -126,9 +131,10 @@ class Group_service_message : public Plugin_gcs_message {
     Group service message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    the end of the buffer
   */
   void decode_payload(const unsigned char *buffer,
-                      const unsigned char *) override;
+                      const unsigned char *end) override;
 
  private:
   /**The message identifier*/
@@ -141,6 +147,7 @@ class Group_service_message : public Plugin_gcs_message {
   */
   const unsigned char *m_data_pointer;
   size_t m_data_pointer_length;
+  bool m_decode_error{false};
 };
 
 #endif /* GROUP_SERVICE_MESSAGE_H */

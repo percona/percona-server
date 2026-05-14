@@ -1052,9 +1052,15 @@ template <typename RT, typename BIN>
     for (auto &col : bin.ct_node->key_column_info_list()) {
       // For non-projected columns an empty string_view is stored for the key
       Json_dom *val = get_val(bin.bound_object, col.key());
-      resolved_columns.emplace_back(
+      // Resolve_column is an aggregate (no user-provided constructor).
+      // GCC/clang 16+ accept emplace_back forwarding into parenthesized
+      // aggregate init (P0960), but Apple clang 15 / libc++ rejects it
+      // because std::construct_at uses placement-new that doesn't
+      // synthesize an aggregate constructor. Use push_back with brace
+      // init instead.
+      resolved_columns.push_back(Resolve_column{
           &col, val,
-          field_will_be_auto_generated(current_thd, *col.field(), val));
+          field_will_be_auto_generated(current_thd, *col.field(), val)});
     }
   }
 

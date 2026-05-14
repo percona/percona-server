@@ -28,6 +28,7 @@
 #include <sstream>
 #include <utility>
 #include "my_base.h"
+#include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -924,10 +925,20 @@ bool Query_block::prepare_query_term(
 AccessPath *Query_block::make_set_op_access_path(
     THD *thd, Query_term_set_op *parent, Mem_root_array<AppendPathParameters> *,
     bool calc_found_rows) {
+  // Callers only reach this Query_block override with a non-null parent
+  // (siblings dispatching via term->make_set_op_access_path() with a null
+  // parent are guarded by an explicit !QT_QUERY_BLOCK check, so they go to
+  // a Query_term_set_op/Query_term_unary override instead). GCC 16's
+  // devirtualizing inliner can't see that invariant and emits a false
+  // -Werror=nonnull on parent->setup_materialize_set_op(...) below.
+  assert(parent != nullptr);
   AccessPath *path = nullptr;
   TABLE *const dest = setop_query_result_union()->table;
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wnonnull")
   Mem_root_array<MaterializePathParameters::Operand> operands =
       parent->setup_materialize_set_op(thd, dest, false, calc_found_rows);
+  MY_COMPILER_DIAGNOSTIC_POP()
   path = add_materialized_access_path(thd, parent, operands, dest);
 
   return path;

@@ -230,19 +230,28 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-restrict FILES rocksdb/table/iterator.cc rocksdb/table/unique_id.cc)
 ENDIF()
 
-# Suppress warnings for gcc-14 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-declarations FILES rocksdb/db/memtable.cc)
-ENDIF()
-
-# Suppress warnings for gcc-15 or newer
-IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-declarations FILES rocksdb/db/write_batch.cc rocksdb/util/random.cc)
+# Suppress -Wdeprecated-declarations for files that use APIs deprecated in
+# C++23 (e.g. std::aligned_storage). libstdc++ has emitted these deprecations
+# in C++23 mode since gcc-13.
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-deprecated-declarations FILES rocksdb/db/memtable.cc rocksdb/db/write_batch.cc rocksdb/util/random.cc)
 ENDIF()
 
 # Suppress warnings for gcc ASan build
 IF(CMAKE_COMPILER_IS_GNUCXX AND WITH_ASAN)
   ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-error=maybe-uninitialized FILES rocksdb/util/bloom.cc)
+ENDIF()
+
+# GCC 16 -O2 emits false-positive -Wmaybe-uninitialized warnings on:
+#  - autovector::front() inlined into LevelCompactionBuilder::SetupInitialFiles()
+#    (the optimizer cannot see that !expired_files.empty() implies buf_[0]
+#    was written),
+#  - PSI inlining inside myrocks::Rdb_cond_var / Rdb_mutex constructors in
+#    rdb_mutex_wrapper.cc (same pattern as the plugin/x suppression).
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized
+    FILES rocksdb/db/compaction/compaction_picker_level.cc
+          rdb_mutex_wrapper.cc)
 ENDIF()
 
 

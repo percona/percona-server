@@ -62,7 +62,7 @@ class LogWriterBase {
   explicit LogWriterBase(
       std::unique_ptr<log_record_formatter::LogRecordFormatterBase> formatter);
 
-  virtual ~LogWriterBase() = default;
+  virtual ~LogWriterBase();
 
   /**
    * @brief Init log writer.

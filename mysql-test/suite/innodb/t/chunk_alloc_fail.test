@@ -6,6 +6,8 @@
 --source include/not_embedded.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
+--source include/not_asan.inc
+--source include/not_valgrind.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Buffer pool 0 : failed to allocate the chunk array.");

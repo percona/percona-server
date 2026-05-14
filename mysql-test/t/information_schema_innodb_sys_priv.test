@@ -1,0 +1,231 @@
+#
+# Regression coverage for the PROCESS_ACL gate on the InnoDB
+# INFORMATION_SCHEMA dictionary tables.
+#
+# In 5.7 every INNODB_SYS_* I_S table is populated by a dedicated
+# fill function in storage/innobase/handler/i_s.cc that already
+# rejects unprivileged callers via:
+#
+#   if (check_global_access(thd, PROCESS_ACL)) {
+#       DBUG_RETURN(0);
+#   }
+#
+# The same family of tables in MySQL 9.x is gated through a different
+# (lookup-time) mechanism, but the user-visible behaviour is the same:
+# a connection that does not hold PROCESS gets
+# ER_SPECIFIC_ACCESS_DENIED_ERROR mentioning the PROCESS privilege.
+#
+# This test pins that contract for every INNODB_SYS_* dictionary
+# table that exists in 5.7. The four tables in *bold* below are the
+# ones called out in the audit table next to the I_S.FILES backport
+# (their MySQL 9.x equivalents are INNODB_FIELDS / INNODB_FOREIGN /
+# INNODB_FOREIGN_COLS / INNODB_DATAFILES); the remaining ones share
+# the same contract in 5.7 and are covered here so the gate cannot
+# be silently dropped from any of them in the future:
+#
+#   - INFORMATION_SCHEMA.INNODB_SYS_TABLES
+#   - INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
+#   - INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+#   - INFORMATION_SCHEMA.INNODB_SYS_COLUMNS
+#   - INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL
+# **- INFORMATION_SCHEMA.INNODB_SYS_FIELDS**
+# **- INFORMATION_SCHEMA.INNODB_SYS_FOREIGN**
+# **- INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS**
+#   - INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+# **- INFORMATION_SCHEMA.INNODB_SYS_DATAFILES**
+#
+# Each table is exercised in three configurations:
+#   1. Connected as a user without PROCESS  -> must fail with
+#      ER_SPECIFIC_ACCESS_DENIED_ERROR.
+#   2. Same user after GRANT PROCESS        -> must succeed.
+#   3. Connected as root                    -> must succeed.
+#
+# Result text is stripped of dataset-dependent values: each successful
+# probe is collapsed to "COUNT(*) >= 0" so the .result file remains
+# stable regardless of how many parent/child FK relationships,
+# tablespaces, virtual columns, etc. happen to exist in the bootstrap.
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/count_sessions.inc
+
+# A small fixture so every gated table is guaranteed to have at least
+# one row to enumerate when we do reach the fill path. Without this
+# the test would still cover the ACL contract (the fill is rejected
+# before any row is produced), but having real rows makes it much
+# more obvious during a manual debug session that the rejection is
+# what is hiding them.
+#
+# Coverage of the fixture per table:
+#   - parent_t / child_t / fk_child_parent
+#       => INNODB_SYS_TABLES, INNODB_SYS_TABLESTATS,
+#          INNODB_SYS_INDEXES, INNODB_SYS_COLUMNS,
+#          INNODB_SYS_FIELDS, INNODB_SYS_FOREIGN,
+#          INNODB_SYS_FOREIGN_COLS, INNODB_SYS_TABLESPACES,
+#          INNODB_SYS_DATAFILES
+#   - virt_t with a generated column
+#       => INNODB_SYS_VIRTUAL (only populated when an InnoDB table
+#          carries a virtual generated column)
+CREATE DATABASE isp_db;
+USE isp_db;
+
+CREATE TABLE parent_t (
+  id INT PRIMARY KEY,
+  payload VARCHAR(32)
+) ENGINE=InnoDB;
+
+CREATE TABLE child_t (
+  id        INT PRIMARY KEY,
+  parent_id INT,
+  KEY ix_child_parent (parent_id),
+  CONSTRAINT fk_child_parent
+    FOREIGN KEY (parent_id) REFERENCES parent_t(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE virt_t (
+  id INT PRIMARY KEY,
+  a  INT,
+  b  INT,
+  s  INT AS (a + b) VIRTUAL
+) ENGINE=InnoDB;
+
+# Sanity: as root, every target table is reachable. Use COUNT(*) >= 0
+# so the actual cardinality (which depends on the bootstrap content)
+# does not pollute the .result file.
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode = (SELECT REPLACE(@@sql_mode, 'NO_AUTO_CREATE_USER', ''));
+CREATE USER 'isp_user'@'localhost';
+SET sql_mode = @orig_sql_mode;
+
+GRANT USAGE  ON *.*       TO 'isp_user'@'localhost';
+GRANT SELECT ON isp_db.*  TO 'isp_user'@'localhost';
+
+--echo #
+--echo # ---- as isp_user (no PROCESS) ----
+--echo #
+connect (con_nopriv, localhost, isp_user,,isp_db);
+connection con_nopriv;
+
+--echo # INNODB_SYS_TABLES: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+
+--echo # INNODB_SYS_TABLESTATS: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+
+--echo # INNODB_SYS_INDEXES: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+
+--echo # INNODB_SYS_COLUMNS: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+
+--echo # INNODB_SYS_VIRTUAL: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+
+--echo # INNODB_SYS_FIELDS: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+
+--echo # INNODB_SYS_FOREIGN: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+
+--echo # INNODB_SYS_FOREIGN_COLS: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+
+--echo # INNODB_SYS_TABLESPACES: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+
+--echo # INNODB_SYS_DATAFILES: rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+
+--echo # Other I_S tables (not gated on PROCESS) are unaffected; pick
+--echo # one that does not depend on bootstrap content to stay stable.
+SELECT COUNT(*) >= 0 AS i_s_tables_visible
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'isp_db';
+
+disconnect con_nopriv;
+
+--echo #
+--echo # ---- as isp_user after GRANT PROCESS ----
+--echo #
+connection default;
+GRANT PROCESS ON *.* TO 'isp_user'@'localhost';
+
+connect (con_proc, localhost, isp_user,,isp_db);
+connection con_proc;
+
+--echo # With PROCESS every previously-rejected table is reachable.
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+
+disconnect con_proc;
+
+--echo #
+--echo # ---- as root: visibility unchanged ----
+--echo #
+connection default;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+
+# Cleanup.
+DROP USER 'isp_user'@'localhost';
+DROP DATABASE isp_db;
+
+--source include/wait_until_count_sessions.inc

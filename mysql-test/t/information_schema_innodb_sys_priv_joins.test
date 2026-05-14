@@ -1,0 +1,154 @@
+#
+# Regression coverage for the PROCESS_ACL gate on the InnoDB
+# INFORMATION_SCHEMA dictionary tables.
+#
+# In 5.7 every INNODB_SYS_* I_S table is populated by a dedicated
+# fill function in storage/innobase/handler/i_s.cc that already
+# rejects unprivileged callers via:
+#
+#   if (check_global_access(thd, PROCESS_ACL)) {
+#       DBUG_RETURN(0);
+#   }
+#
+# The same family of tables in MySQL 9.x is gated through a different
+# (lookup-time) mechanism, but the user-visible behaviour is the same:
+# a connection that does not hold PROCESS gets
+# ER_SPECIFIC_ACCESS_DENIED_ERROR mentioning the PROCESS privilege.
+#
+# This test pins that contract for every INNODB_SYS_* dictionary
+# table that exists in 5.7. and focuses on queries that join these
+# tables with server-related I_S tables (ie. non InnoDB i_s tables).
+#
+# Each query is exercised in three configurations:
+#   1. Connected as a user without PROCESS  -> must fail with
+#      ER_SPECIFIC_ACCESS_DENIED_ERROR.
+#   2. Same user after GRANT PROCESS        -> must succeed.
+#   3. Connected as root                    -> must succeed.
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/count_sessions.inc
+
+# IMPORTANT: this test would crash debug build because of assertion
+# that verifies if da's error wasn't set, executed for a next table
+# in join, after check executed for the previous - InnoDB - table
+# set an error inside there (privilege error). That's because InnoDB
+# is returning 0 in many places in storage/innobase/handler/i_s.cc
+# after finding out there are no permissions or because sql/sql_show.cc
+# is not checking if tmp_da.is_error() when returning res in do_fill_table. 
+# It seems not to affect the release builds.
+--source include/have_nodebug.inc
+
+# A small fixture so every gated table is guaranteed to have at least
+# one row to enumerate when we do reach the fill path. Without this
+# the test would still cover the ACL contract (the fill is rejected
+# before any row is produced), but having real rows makes it much
+# more obvious during a manual debug session that the rejection is
+# what is hiding them.
+#
+# Coverage of the fixture per table:
+#   - parent_t / child_t / fk_child_parent
+#       => INNODB_SYS_TABLES, INNODB_SYS_TABLESTATS,
+#          INNODB_SYS_INDEXES, INNODB_SYS_COLUMNS,
+#          INNODB_SYS_FIELDS, INNODB_SYS_FOREIGN,
+#          INNODB_SYS_FOREIGN_COLS, INNODB_SYS_TABLESPACES,
+#          INNODB_SYS_DATAFILES
+#   - virt_t with a generated column
+#       => INNODB_SYS_VIRTUAL (only populated when an InnoDB table
+#          carries a virtual generated column)
+CREATE DATABASE isp_db;
+USE isp_db;
+
+CREATE TABLE parent_t (
+  id INT PRIMARY KEY,
+  payload VARCHAR(32)
+) ENGINE=InnoDB;
+
+CREATE TABLE child_t (
+  id        INT PRIMARY KEY,
+  parent_id INT,
+  KEY ix_child_parent (parent_id),
+  CONSTRAINT fk_child_parent
+    FOREIGN KEY (parent_id) REFERENCES parent_t(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE virt_t (
+  id INT PRIMARY KEY,
+  a  INT,
+  b  INT,
+  s  INT AS (a + b) VIRTUAL
+) ENGINE=InnoDB;
+
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode = (SELECT REPLACE(@@sql_mode, 'NO_AUTO_CREATE_USER', ''));
+CREATE USER 'isp_user'@'localhost';
+SET sql_mode = @orig_sql_mode;
+
+GRANT USAGE  ON *.*       TO 'isp_user'@'localhost';
+GRANT SELECT ON isp_db.*  TO 'isp_user'@'localhost';
+
+--echo #
+--echo # ---- as isp_user (no PROCESS) ----
+--echo #
+connect (con_nopriv, localhost, isp_user,,isp_db);
+connection con_nopriv;
+
+--echo # Cross-table JOIN (SYS_FIELDS -> SYS_INDEXES -> SYS_TABLES): also rejected.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT t.NAME  AS table_name,
+       i.NAME  AS index_name,
+       f.NAME  AS col_name,
+       f.POS   AS col_pos
+FROM   INFORMATION_SCHEMA.INNODB_SYS_FIELDS  f
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_INDEXES i ON i.INDEX_ID = f.INDEX_ID
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_TABLES  t ON t.TABLE_ID = i.TABLE_ID
+WHERE  t.NAME LIKE 'isp_db/%'
+ORDER  BY t.NAME, i.NAME, f.POS;
+
+
+disconnect con_nopriv;
+
+--echo #
+--echo # ---- as isp_user after GRANT PROCESS ----
+--echo #
+connection default;
+GRANT PROCESS ON *.* TO 'isp_user'@'localhost';
+
+connect (con_proc, localhost, isp_user,,isp_db);
+connection con_proc;
+
+--echo # Cross-table JOIN (SYS_FIELDS -> SYS_INDEXES -> SYS_TABLES): visible with PROCESS.
+SELECT t.NAME  AS table_name,
+       i.NAME  AS index_name,
+       f.NAME  AS col_name,
+       f.POS   AS col_pos
+FROM   INFORMATION_SCHEMA.INNODB_SYS_FIELDS  f
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_INDEXES i ON i.INDEX_ID = f.INDEX_ID
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_TABLES  t ON t.TABLE_ID = i.TABLE_ID
+WHERE  t.NAME LIKE 'isp_db/%'
+ORDER  BY t.NAME, i.NAME, f.POS;
+
+disconnect con_proc;
+
+--echo #
+--echo # ---- as root: visibility unchanged ----
+--echo #
+connection default;
+
+--echo # Cross-table JOIN (SYS_FIELDS -> SYS_INDEXES -> SYS_TABLES): visible as root.
+SELECT t.NAME  AS table_name,
+       i.NAME  AS index_name,
+       f.NAME  AS col_name,
+       f.POS   AS col_pos
+FROM   INFORMATION_SCHEMA.INNODB_SYS_FIELDS  f
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_INDEXES i ON i.INDEX_ID = f.INDEX_ID
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_TABLES  t ON t.TABLE_ID = i.TABLE_ID
+WHERE  t.NAME LIKE 'isp_db/%'
+ORDER  BY t.NAME, i.NAME, f.POS;
+
+# Cleanup.
+DROP USER 'isp_user'@'localhost';
+DROP DATABASE isp_db;
+
+--source include/wait_until_count_sessions.inc

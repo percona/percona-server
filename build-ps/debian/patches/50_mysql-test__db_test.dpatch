@@ -1,0 +1,24 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: 50_mysql-test__db_test.patch by Christian Hammers <ch@debian.org>
+
+@DPATCH@
+
+50_mysql-test__db_test.patch by Christian Hammers <ch@debian.org>
+
+Patch 20_scripts__mysql_create_system_tables__no_test.patch removes the
+rights for anybody to connect to the test database but the test
+suite depends on them.
+--- a/mysql-test/mysql-test-run.pl
++++ b/mysql-test/mysql-test-run.pl
+@@ -3076,6 +3076,9 @@
+     # for a production system
+     mtr_appendfile_to_file("$sql_dir/mysql_system_tables_data.sql",
+ 			   $bootstrap_sql_file);
++    
++    mtr_tofile($bootstrap_sql_file, "-- Debian removed the default privileges on the 'test' database\n");
++    mtr_tofile($bootstrap_sql_file, "INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');\n");
+ 
+     # Add test data for timezone - this is just a subset, on a real
+     # system these tables will be populated either by mysql_tzinfo_to_sql

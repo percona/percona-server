@@ -220,10 +220,12 @@ get_sources(){
     git submodule update
     rm -rf storage/tokudb/PerconaFT
     rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
-    if [ ${PERCONAFT_REPO} = 0 ]; then
+    # Quote both sides + provide :- default so an empty / unset variable
+    # does not collapse to literal `[ = 0 ]` and trip "unary operator expected".
+    if [ "${PERCONAFT_REPO:-}" = "0" ]; then
         PERCONAFT_REPO=''
     fi
-    if [ ${TOKUBACKUP_REPO} = 0 ]; then
+    if [ "${TOKUBACKUP_REPO:-}" = "0" ]; then
         TOKUBACKUP_REPO=''
     fi
 
@@ -266,7 +268,24 @@ get_sources(){
     #
     git submodule update
     #
-    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DWITH_ZLIB=bundled -DWITH_CURL=bundled
+    # `make dist` is implemented as a cmake-driven custom target in
+    # sql/CMakeLists.txt → cmake/make_dist.cmake.in, which not only
+    # git-archives HEAD but also copies bison-generated parser files
+    # (sql_yacc.{h,cc}, sql_hints.yy.{h,cc}) into the tarball and
+    # autoreconfs the UDF subtree. cmake configure must succeed first
+    # for this target to exist, and PS 9.x requires cmake >= 3.17.5.
+    #
+    # On hosts where the default `cmake` is older than 3.17.5 (some
+    # build agents still ship cmake 3.16.3), fall back to `cmake3`
+    # which is the EPEL/backports alternative providing a newer
+    # version. Same pattern PXC uses in build-ps/pxc_builder.sh.
+    CMAKE_BIN="cmake"
+    if ! cmake --version 2>/dev/null | head -1 | awk '{print $3}' | grep -qE "^([4-9]|3\.(1[7-9]|[2-9][0-9]))"; then
+        if command -v cmake3 >/dev/null 2>&1; then
+            CMAKE_BIN="cmake3"
+        fi
+    fi
+    "${CMAKE_BIN}" .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DWITH_ZLIB=bundled -DWITH_CURL=bundled
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))

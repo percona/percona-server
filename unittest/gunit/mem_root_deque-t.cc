@@ -282,10 +282,11 @@ TEST(MemRootDequeTest, ExponentialGrowth) {
   }
 
   // Check exponential growth occurred (not linear).
-  // With ~256 elements per block (1024 bytes / 4 bytes per int),
-  // 1000 elements need ~4 blocks.
-  // Growth sequence: 1 -> 2 -> 4 blocks allocated, exp goes 0 -> 1 -> 2
-  EXPECT_GE(d.back_growth_exp(), 2);   // At least 2 growth events
+  // With ~64 elements per block (256 bytes / 4 bytes per int),
+  // 1000 elements need ~16 blocks.
+  // Growth sequence: 1 -> 2 -> 4 -> 8 -> 16 blocks allocated,
+  // exp goes 0 -> 1 -> 2 -> 3 -> 4
+  EXPECT_GE(d.back_growth_exp(), 4);   // At least 4 growth events
   EXPECT_EQ(0, d.front_growth_exp());  // Front not grown yet
   EXPECT_EQ(0, d.first_block_idx());   // Blocks start at index 0
 
@@ -308,7 +309,7 @@ TEST(MemRootDequeTest, ExponentialGrowth) {
   }
 
   // Check front exponential growth occurred independently
-  EXPECT_GE(d.front_growth_exp(), 2);  // At least 2 growth events
+  EXPECT_GE(d.front_growth_exp(), 4);  // At least 4 growth events
   // Back exponent should not have changed (back didn't need more blocks)
   EXPECT_EQ(back_exp_after_push_back, d.back_growth_exp());
   // first_block_idx should have moved to accommodate front spare slots
@@ -320,7 +321,7 @@ TEST(MemRootDequeTest, ExponentialGrowth) {
   // blocks_allocated should be at most ~3x the minimum needed
   // (due to spare slots for future growth)
   size_t min_blocks_needed =
-      (d.size() + 255) / 256;  // ~8 blocks for 2000 elements
+      (d.size() + 63) / 64;  // ~32 blocks for 2000 elements
   EXPECT_LE(d.block_slots(), min_blocks_needed * 3);  // Allow 3x for spare
 }
 
@@ -357,6 +358,12 @@ TEST(MemRootDequeTest, MemoryEfficiency) {
 // Verifies exponential growth pattern (not quadratic).
 TEST(MemRootDequeTest, MemoryGrowthPushBack) {
   MEM_ROOT mem_root;
+  // Set MEM_ROOT block size low enough to avoid situation when two
+  // mem_root_deque blocks fit into a single MEM_ROOT block (this is
+  // necessary because MEM_ROOT::allocated_size() returns total size
+  // of memory used by MEM_ROOT blocks, and not the net size of memory
+  // allocated on it).
+  mem_root.set_block_size(128);
   mem_root_deque<int> d(&mem_root);
 
   std::vector<size_t> memory_at_growth;

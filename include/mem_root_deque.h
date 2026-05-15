@@ -36,19 +36,32 @@
 
 template <class Element_type>
 static constexpr size_t FindElementsPerBlock() {
-  // Aim for 1 kB.
-  size_t base_number_elems =
-      1024 / sizeof(Element_type);  // NOLINT(bugprone-sizeof-expression)
+  // Upstream aims for 1 kB. In Percona Server we prefer 256 byte blocks
+  // instead.
+  //
+  // In the majority of cases mem_root_deque is used to store pointers
+  // (e.g. to Item objects). Also in many cases number of those pointers
+  // is going to be much lower than 128 (number of elements which fit
+  // 1kb page on 64-bit system). This means that most of the 1kB block
+  // is going to be wasted in those cases. The effect is multiplied by
+  // the fact that even relatively simple query can use 5-10 mem_root_deque
+  // instances. Allocating those unnecessary 5-10kb on main MEM_ROOT
+  // often triggers allocation of new MEM_ROOT block creating small but
+  // visible performance overhead.
+  const size_t target_block_bytes = 256;
+  const size_t base_number_elems =
+      target_block_bytes /
+      sizeof(Element_type);  // NOLINT(bugprone-sizeof-expression)
 
   // Find the next power of two, rounded up. We should have at least 16 elements
   // per block to avoid allocating way too often (although the code itself
   // should work fine with 1, for debugging purposes).
-  for (size_t block_size = 16; block_size < 1024; ++block_size) {
+  for (size_t block_size = 16; block_size < target_block_bytes; ++block_size) {
     if (block_size >= base_number_elems) {
       return block_size;
     }
   }
-  return 1024;
+  return target_block_bytes;
 }
 
 /**

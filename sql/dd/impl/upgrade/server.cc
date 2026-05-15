@@ -31,6 +31,7 @@
 #include <sstream>
 #include <string>
 
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/my_loglevel.h"
 #include "mysqld_error.h"
 #include "server.h"
@@ -808,6 +809,18 @@ class Sql_fun_error_handler : public Internal_error_handler {
   }
 };
 
+namespace {
+/**
+   Releases resources and removes references to mem_root so that
+   this can be cleared.
+ */
+void reset_thd(THD *thd) {
+  if (thd->lex != nullptr) thd->lex->destroy();
+  thd->end_statement();
+  thd->cleanup_after_query();
+}
+}  // namespace
+
 /**
   Check table definitions for SQL functions.
 
@@ -948,9 +961,13 @@ class Sql_fun_error_handler : public Internal_error_handler {
     Upgrade_error_counter *error_count) {
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_CHECK_STATUS_MESSAGE,
          "Checking events");
+
   // Parse using the event's stored sql_mode.
   Routine_event_context_guard guard(thd);
   return thd->dd_client()->foreach<dd::Event>(nullptr, [&](const auto &evt) {
+    reset_thd(thd);
+    thd->mem_root->ClearForReuse();
+
     thd->variables.sql_mode = static_cast<sql_mode_t>(evt->sql_mode());
     auto it = sni.find(evt->schema_id());
     assert(it != sni.end());
@@ -981,7 +998,11 @@ class Sql_fun_error_handler : public Internal_error_handler {
     Upgrade_error_counter *error_count) {
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_CHECK_STATUS_MESSAGE,
          "Checking routines");
+
   return thd->dd_client()->foreach<dd::Routine>(nullptr, [&](const auto &rtn) {
+    reset_thd(thd);
+    thd->mem_root->ClearForReuse();
+
     auto it = sni.find(rtn->schema_id());
     assert(it != sni.end());
     const auto &sn = it->second;
@@ -1185,6 +1206,19 @@ bool do_server_upgrade_checks(THD *thd) {
 
   LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_CHECK_STATUS_MESSAGE,
          "Starting upgrade checks");
+
+  // Need to create a temporary mem_root since thd->mem_root contains state
+  // which will be used after upgrade checks have been performed.
+  MEM_ROOT dd_query_root{PSI_INSTRUMENT_ME,
+                         thd->variables.query_alloc_block_size};
+  Query_arena saved_query_arena;
+  saved_query_arena.set_query_arena(*thd);
+  auto query_arena_guard = create_scope_guard([&]() {
+    reset_thd(thd);
+    thd->set_query_arena(saved_query_arena);
+  });
+  thd->mem_root = &dd_query_root;
+  thd->reset_item_list();
 
   if (check_all_abstract_tables(thd, schema_name_index, &shared_spaces,
                                 &error_count) ||
@@ -1494,6 +1528,9 @@ bool I_S_upgrade_required() {
 
   return thd->dd_client()->foreach<dd::Abstract_table>(
       nullptr, [&](const auto &atbl) {
+        reset_thd(thd);
+        thd->mem_root->ClearForReuse();
+
         auto it = sni.find(atbl->schema_id());
         assert(it != sni.end());
         const auto &sn = it->second;

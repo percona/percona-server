@@ -1,0 +1,19 @@
+SET @saved_max_allowed_packet= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet= 16 * 1024 * 1024;
+SET @big_query= CONCAT('SELECT /* ', REPEAT('x', 1048576), ' */ 1');
+#
+# Test that KILL QUERY aborts parsing of a >1 MB query
+#
+SET DEBUG_SYNC= 'lex_large_query_started SIGNAL parsing WAIT_FOR go';
+SET SESSION debug= '+d,lex_large_query_pause';
+# Sending a >1 MB PREPARE for parsing...
+PREPARE stmt FROM @big_query;
+SET DEBUG_SYNC= 'now WAIT_FOR parsing';
+SET DEBUG_SYNC= 'now SIGNAL go';
+ERROR 70100: Query execution was interrupted
+# Query was interrupted. Session should still be usable.
+SELECT 'alive' AS status;
+status
+alive
+SET DEBUG_SYNC= 'RESET';
+SET @@global.max_allowed_packet= @saved_max_allowed_packet;

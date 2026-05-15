@@ -1,0 +1,70 @@
+# Test: Large queries (>1 MB) can be aborted via KILL during parsing.
+#
+# The lexer (MYSQLlex) checks thd->is_killed() on every token for queries
+# whose text exceeds 1 MB. This allows KILL QUERY to take effect promptly
+# instead of waiting for a potentially very long parse to finish.
+#
+# It also periodically checks thd->is_connected() every 64 KB of parsed
+# input, so that a client disconnect also aborts parsing without burning
+# CPU. That path is not tested here because it requires a real client-
+# side socket close, which is difficult to orchestrate reliably in MTR.
+#
+# We use a DEBUG_SYNC point ("lex_large_query_started") to pause the
+# parser after the lexer has consumed >1 KB of input, so that KILL can
+# be issued with deterministic timing.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_embedded.inc
+
+# We need max_allowed_packet large enough for >1 MB queries.
+SET @saved_max_allowed_packet= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet= 16 * 1024 * 1024;
+
+# New connection to pick up the increased packet limit.
+--connect (con1, localhost, root,,)
+
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+# Build a >1 MB query server-side.  A 1 MB comment pads the query
+# past the threshold while keeping the token count tiny (3 tokens:
+# SELECT, INT, EOF), so parse time is negligible even on debug builds.
+SET @big_query= CONCAT('SELECT /* ', REPEAT('x', 1048576), ' */ 1');
+
+--echo #
+--echo # Test that KILL QUERY aborts parsing of a >1 MB query
+--echo #
+
+# Arm the debug sync point: parser pauses after consuming >1 KB.
+SET DEBUG_SYNC= 'lex_large_query_started SIGNAL parsing WAIT_FOR go';
+SET SESSION debug= '+d,lex_large_query_pause';
+
+--echo # Sending a >1 MB PREPARE for parsing...
+--send PREPARE stmt FROM @big_query
+
+--connection default
+
+# Wait until the parser has entered the large-query code path.
+SET DEBUG_SYNC= 'now WAIT_FOR parsing';
+
+# Kill the query while the parser is paused.
+--disable_query_log
+eval KILL QUERY $con1_id;
+--enable_query_log
+
+# Let the parser resume -- it will see the killed flag immediately.
+SET DEBUG_SYNC= 'now SIGNAL go';
+
+--connection con1
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--echo # Query was interrupted. Session should still be usable.
+SELECT 'alive' AS status;
+
+SET DEBUG_SYNC= 'RESET';
+
+--connection default
+
+# Restore.
+SET @@global.max_allowed_packet= @saved_max_allowed_packet;

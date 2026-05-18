@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sql/cpu_topology.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -34,10 +35,69 @@
 #include "thr_lock.h"
 #include "thr_mutex.h"
 
+#ifdef __linux__
+#include <sched.h>
+#endif
+
+
 /**
   Container for all table cache instances in the system.
 */
 Table_cache_manager table_cache_manager;
+
+static int
+find_topology_logical_index(int cpu_id) {
+  sql_cpu_topology_init(&sql_cpu_topology);
+  if (!sql_cpu_topology.initialized)
+    return -1;
+
+  for (size_t i = 0; i < sql_cpu_topology.logical_ids.size(); ++i) {
+    if (sql_cpu_topology.logical_ids[i] == cpu_id)
+      return static_cast<int>(i);
+  }
+  return -1;
+}
+
+uint Table_cache_manager::cache_index_for_thread(THD *thd) const {
+  ulong instances = table_cache_instances;
+
+  if (instances == 0) {
+    instances = 1;
+  }
+
+  const int cpu_shard = thd->cpu_shard();
+  if (cpu_shard >= 0 &&
+      static_cast<ulong>(cpu_shard) < instances &&
+      static_cast<ulong>(cpu_shard) < MAX_TABLE_CACHES) {
+    return static_cast<uint>(cpu_shard);
+  }
+
+#ifdef __linux__
+  const int cpu_id = sched_getcpu();
+  if (cpu_id >= 0) {
+    const int cpu_index = find_topology_logical_index(cpu_id);
+    if (cpu_index >= 0) {
+      const uint idx =
+          static_cast<uint>(static_cast<ulong>(cpu_index) % instances);
+
+      if (static_cast<ulong>(idx) < MAX_TABLE_CACHES) {
+        thd->set_cpu_shard(static_cast<int>(idx));
+        return idx;
+      }
+    }
+  }
+#endif
+
+  // Legacy fallback: sharding by thread_id().
+  ulong tid = thd->thread_id();
+  uint idx = static_cast<uint>(tid % instances);
+
+  if (idx >= MAX_TABLE_CACHES) {
+    idx = static_cast<uint>(MAX_TABLE_CACHES - 1);
+  }
+
+  return idx;
+}
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key Table_cache::m_lock_key;

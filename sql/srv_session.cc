@@ -824,6 +824,8 @@ Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx,
       m_free_resources(free_resources) {
   try {
     if (m_thd == nullptr) m_thd = new THD();
+    // CPU shard is unknown at session start; will be updated later.
+    m_thd->set_cpu_shard(-1);
   } catch (...) {
     DBUG_PRINT("error", ("Can't allocate the THD object"));
     throw;

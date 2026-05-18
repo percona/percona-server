@@ -1132,6 +1132,38 @@ class THD : public MDL_context_owner,
   */
   Thd_mem_cnt m_mem_cnt;
 
+
+  /**
+    Logical CPU shard index used for CPU-based sharding of table cache.
+
+    - A non-negative value means "use this shard index" (already normalized
+      to the range [0, table_cache_instances) when assigned).
+    - A value of -1 means "unknown", and callers must fall back to legacy
+      sharding logic (for example, thread_id() % table_cache_instances).
+
+    This value is intentionally kept as a simple int for cheap access
+    on the hot path. It is only updated when the thread is bound to
+    a CPU or when CPU topology is re-evaluated for this THD.
+  */
+  int m_cpu_shard {-1};
+  /**
+    Get current CPU shard index for this THD.
+
+    @return Non-negative CPU shard index, or -1 if unknown.
+  */
+  int cpu_shard() const noexcept { return m_cpu_shard; }
+
+  /**
+    Set CPU shard index for this THD.
+
+    Caller must pass either:
+      - a non-negative value in the range [0, table_cache_instances), or
+      - -1 to mark shard as unknown and use legacy sharding fallback.
+  */
+  void set_cpu_shard(int shard) noexcept {
+    m_cpu_shard = shard;
+  }
+
  private:
   bool is_stmt_prepare() const = delete;
   bool is_stmt_prepare_or_first_sp_execute() const = delete;

@@ -309,6 +309,8 @@ bool innodb_inited = false;
   return thd == current_thd;
 }
 
+extern ulong table_cache_instances;
+
 static struct handlerton *innodb_hton_ptr;
 
 static const long AUTOINC_OLD_STYLE_LOCKING = 0;
@@ -4985,6 +4987,21 @@ static void innodb_buffer_pool_size_init() {
   }
 }
 
+  /* Bind table cache instances to buffer pool instances. */
+  {
+    ulong instances = srv_buf_pool_instances;
+
+    if (instances == 0) {
+      instances = 1;
+    }
+
+     /* Optional: avoid too many instances which would reduce per-cache depth. */
+    if (instances > 64) {
+      instances = 64;
+    }
+
+    table_cache_instances = instances;
+  }
 
   srv_buf_pool_chunk_unit = buf_pool_adjust_chunk_unit(srv_buf_pool_chunk_unit);
   srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);

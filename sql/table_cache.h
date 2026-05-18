@@ -205,7 +205,7 @@ class Table_cache {
 class Table_cache_manager {
  public:
   /** Maximum supported number of table cache instances. */
-  static const int MAX_TABLE_CACHES = 64;
+  static const int MAX_TABLE_CACHES = 256;
 
   /** Default number of table cache instances */
   static const int DEFAULT_MAX_TABLE_CACHES = 16;
@@ -215,7 +215,7 @@ class Table_cache_manager {
 
   /** Get instance of table cache to be used by particular connection. */
   Table_cache *get_cache(THD *thd) {
-    return &m_table_cache[thd->thread_id() % table_cache_instances];
+    return &m_table_cache[cache_index_for_thread(thd)];
   }
 
   /** Get index for the table cache in container. */
@@ -245,6 +245,17 @@ class Table_cache_manager {
   friend class Table_cache_iterator;
 
  private:
+
+  /**
+    Compute index of table cache instance for the given thread.
+
+    Current behaviour: sharding by thread_id() modulo number of instances.
+    This preserves the existing distribution and can be replaced with
+    CPU-based mapping in the future.
+  */
+
+  uint cache_index_for_thread(THD *thd) const;
+
   /**
     An array of Table_cache instances.
     Only the first table_cache_instances elements in it are used.

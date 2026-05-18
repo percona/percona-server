@@ -1843,7 +1843,7 @@ class Item_func_length : public Item_int_func {
   const char *func_name() const override { return "length"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return false;
   }
 };
@@ -1890,7 +1890,7 @@ class Item_func_char_length final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "char_length"; }
   bool resolve_type(THD *thd) override {
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return Item_int_func::resolve_type(thd);
   }
 };
@@ -1969,7 +1969,7 @@ class Item_func_ascii final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "ascii"; }
   bool resolve_type(THD *thd) override {
-    max_length = 3;
+    max_length = 4;  // Precision 3 digits plus the sign
     return Item_int_func::resolve_type(thd);
   }
 };

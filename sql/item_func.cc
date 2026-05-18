@@ -4640,7 +4640,7 @@ longlong Item_func_field::val_int() {
 bool Item_func_field::resolve_type(THD *thd) {
   if (Item_int_func::resolve_type(thd)) return true;
   set_nullable(false);
-  max_length = 3;
+  max_length = MY_INT32_NUM_DECIMAL_DIGITS;
   cmp_type = args[0]->result_type();
   for (uint i = 1; i < arg_count; i++)
     cmp_type = item_cmp_type(cmp_type, args[i]->result_type());
@@ -4688,7 +4688,7 @@ longlong Item_func_ord::val_int() {
 
 bool Item_func_find_in_set::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
-  max_length = 3;  // 1-999
+  max_length = MY_INT32_NUM_DECIMAL_DIGITS;
 
   if (agg_arg_charsets_for_comparison(cmp_collation, args, 2)) {
     return true;

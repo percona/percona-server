@@ -9468,14 +9468,16 @@ void JOIN::finalize_derived_keys() {
       1) it is a materialized derived table, and
       2) it is not yet instantiated, and
       3) it has some keys defined, and
-      4) it has not yet been processed (may happen if there are more than one
+      4) keys have been added through this query block, and
+      5) it has not yet been processed (may happen if there are more than one
          local references to the same CTE, which are processed on seeing the
          first reference).
     */
     if (table == nullptr || !tr->uses_materialization() ||  // (1)
         table->is_created() ||                              // (2)
         table->s->keys == 0 ||                              // (3)
-        (processed_tables & tr->map())) {                   // (4)
+        table->s->owner_of_tmp_keys != query_block ||       // (4)
+        (processed_tables & tr->map())) {                   // (5)
       continue;
     }
     /*
@@ -9562,7 +9564,7 @@ void JOIN::finalize_derived_keys() {
       assert(old_idx != new_idx);
 
       if (old_idx > new_idx) {
-        assert(t->s->owner_of_possible_tmp_keys == query_block);
+        assert(t->s->owner_of_tmp_keys == query_block);
         Derived_refs_iterator it1(tr);
         while (TABLE *t1 = it1.get_next()) {
           /*
@@ -9607,11 +9609,9 @@ void JOIN::finalize_derived_keys() {
       }
     }
 
-    // Finally, we know how many keys remain in the table.
-    if (table->s->owner_of_possible_tmp_keys != query_block) continue;
+    // Release lock and remove the unused keys:
+    table->s->owner_of_tmp_keys = nullptr;
 
-    // Release lock:
-    table->s->owner_of_possible_tmp_keys = nullptr;
     it.rewind();
     while (TABLE *t = it.get_next()) {
       t->drop_unused_tmp_keys(it.is_first());

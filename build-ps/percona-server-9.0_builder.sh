@@ -932,18 +932,22 @@ build_deb(){
 
     # Telemetry is now handled by percona-telemetry-setup.sh installed via .install file
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
-        gcc47=$(which gcc-4.7 2>/dev/null || true)
-        if [ -x "${gcc47}" ]; then
-            export CC=gcc-4.7
-            export USE_THIS_GCC_VERSION="-4.7"
-            export CXX=g++-4.7
-        else
-            export CC=gcc-4.8
-            export USE_THIS_GCC_VERSION="-4.8"
-            export CXX=g++-4.8
-        fi
-    fi
+    # NOTE: a legacy block here used to force CC=gcc-4.7 / gcc-4.8 for any
+    # DEBIAN_VERSION not present in a hardcoded allowlist (trusty, xenial,
+    # ..., trixie). It was a MySQL 5.6/5.7-era relic and is actively
+    # harmful for the 8.4/9.x line:
+    #   * MySQL 9.x requires a C++20 toolchain (gcc >= 10); gcc-4.x cannot
+    #     build it even if present.
+    #   * Modern build agents don't ship gcc-4.7/4.8, so cmake aborts with
+    #       Could not find compiler set in environment variable CC: gcc-4.8.
+    #   * Every distro IN the allowlist already builds with the system
+    #     default compiler (the block was skipped for them), so they prove
+    #     the system-default path is correct.
+    #   * USE_THIS_GCC_VERSION it exported was never consumed anywhere.
+    # The block has been removed; let dpkg-buildpackage / cmake use the
+    # agent's default toolchain like the allowlisted distros already do.
+    # Same fix applied to percona-server-8.0_builder.sh on the
+    # release-8.4.9-9-1 line (commit 1a2cb624ee4).
 
 #    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "bookworm" -o ${DEBIAN_VERSION} = "noble" -o ${DEBIAN_VERSION} = "trixie" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=maybe-uninitialized /' debian/rules

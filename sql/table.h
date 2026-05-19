@@ -1066,7 +1066,7 @@ struct TABLE_SHARE {
   dd::Table *tmp_table_def{nullptr};
 
   /**
-    True in the case if tokudb read-free-replication is used for the table
+    True in the case if MyRocks read-free-replication is used for the table
     without explicit pk and corresponding warning was issued to disable
     repeated warning.
   */

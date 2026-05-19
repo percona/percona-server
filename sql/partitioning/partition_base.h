@@ -921,9 +921,7 @@ class Partition_base : public handler,
     virtual void append_create_info(String *packet)
   */
 
-  /* For TokuDB Read Free Replication */
-  void rpl_before_write_rows() override;
-  void rpl_after_write_rows() override;
+  /* For MyRocks Read Free Replication */
   void rpl_before_delete_rows() override;
   void rpl_after_delete_rows() override;
   void rpl_before_update_rows() override;

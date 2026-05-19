@@ -1,3 +1,10 @@
+# We don't support coredumper functionality on ARM at the moment.
+let $have_arm64 = `SELECT convert(@@version_compile_machine USING latin1) IN ("aarch64")`;
+if ($have_arm64)
+{
+   skip Test requires: 'not_arm64';
+}
+
 # Valgrind reports false positives coming from coredumper internals
 --source include/not_valgrind.inc
 # ASAN disables core dumps

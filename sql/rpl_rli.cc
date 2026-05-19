@@ -2450,7 +2450,7 @@ int Relay_log_info::set_rli_description_event(
 #ifndef NDEBUG
   else
     /* It must be MTS mode when the usage counter greater than 1. */
-    assert(!rli_description_event || is_parallel_exec() || !workers.empty());
+    assert(!rli_description_event || is_parallel_exec());
 #endif
   rli_description_event = fe;
   if (rli_description_event) ++rli_description_event->atomic_usage_counter;

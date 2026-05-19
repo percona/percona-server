@@ -1090,6 +1090,13 @@ size_t Slave_committed_queue::find_lwm(Slave_job_group **arg_g,
 void Slave_committed_queue::free_dynamic_items() {
   for (size_t i = entry; i < avail; i++) {
     Slave_job_group *ptr_g = &m_Q[i % capacity];
+    if (ptr_g->new_fd_event) {
+      assert(ptr_g->new_fd_event->atomic_usage_counter > 0);
+      if (--ptr_g->new_fd_event->atomic_usage_counter == 0) {
+        delete ptr_g->new_fd_event;
+      }
+      ptr_g->new_fd_event = nullptr;
+    }
     if (ptr_g->group_relay_log_name) {
       my_free(ptr_g->group_relay_log_name);
     }

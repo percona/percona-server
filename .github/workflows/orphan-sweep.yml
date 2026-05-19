@@ -30,7 +30,7 @@ jobs:
     permissions: {}
     env:
       HCLOUD_TOKEN: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
-      RUNNER_PAT: ${{ secrets.GHA_RUNNER_PAT }}
+      GH_TOKEN: ${{ secrets.GHA_GH_TOKEN }}
       DRY_RUN: ${{ inputs.dry_run || 'false' }}
       MAX_AGE_HOURS: ${{ inputs.max_age_hours || '6' }}
     steps:
@@ -95,14 +95,14 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Sweep offline GHA runners
-        if: env.RUNNER_PAT != ''
+        if: env.GH_TOKEN != ''
         run: |
           set -euo pipefail
           UNREGISTERED=0
           FAILED=0
           # offline runners with our naming prefix
           mapfile -t LINES < <(
-            curl -fsS -H "Authorization: Bearer $RUNNER_PAT" \
+            curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/repos/${{ github.repository }}/actions/runners?per_page=100" \
               | jq -r '.runners[] | select(.status=="offline") | select(.name | test("^ps-arm64-")) | "\(.id)\t\(.name)"'
           )
@@ -114,7 +114,7 @@ jobs:
               echo "::notice::[dry-run] would unregister offline runner: $name (id=$id)"
             else
               echo "::warning::Unregistering offline runner: $name (id=$id)"
-              if curl -fsS -X DELETE -H "Authorization: Bearer $RUNNER_PAT" \
+              if curl -fsS -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
                    "https://api.github.com/repos/${{ github.repository }}/actions/runners/$id" >/dev/null; then
                 UNREGISTERED=$((UNREGISTERED+1))
               else

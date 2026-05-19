@@ -550,7 +550,7 @@ exit:
 
   @param old_data  The old record in MySQL Row Format.
   @param new_data  The new record in MySQL Row Format.
-  @param lookup_rows Indicator for TokuDB read free replication.
+  @param lookup_rows Indicator for MyRocks read free replication.
 
   @return Operation status.
     @retval    0 Success
@@ -592,7 +592,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
     error instead of correcting m_last_part, to make the user aware of the
     problem!
 
-    For TokuDB Read-Free-Replication optimization, there is no need to do
+    For MyRocks Read-Free-Replication optimization, there is no need to do
     a read before update(row lookup is omitted), so m_last_part is not
     necessarily same with old_part_id.
 
@@ -665,7 +665,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
   buf is either record[0] or record[1]
 
   @param buf  The record in MySQL Row Format.
-  @param lookup_rows Indicator for TokuDB read free replication.
+  @param lookup_rows Indicator for MyRocks read free replication.
 
   @return Operation status.
     @retval    0 Success
@@ -702,7 +702,7 @@ int Partition_helper::ph_delete_row(const uchar *buf, bool lookup_rows) {
     error instead of forwarding the delete to the correct (m_last_part)
     partition!
 
-    For TokuDB Read-Free-Replication optimization, there is no need to do
+    For MyRocks Read-Free-Replication optimization, there is no need to do
     a read before delete(row lookup is omitted), so m_last_part is not
     necessarily same with part_id.
 

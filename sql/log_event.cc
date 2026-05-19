@@ -8476,14 +8476,14 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
              event_type == mysql::binlog::event::UPDATE_ROWS_EVENT) &&
             get_flags(COMPLETE_ROWS_F) && !m_table->file->rpl_lookup_rows()))) {
     /**
-       Only TokuDB and RocksDB engines can satisfy delete/update row lookup
+       Only the RocksDB engine can satisfy delete/update row lookup
        optimization, so we don't need to check engine type here.
     */
     if (delete_update_lookup_condition && table->s->primary_key == MAX_KEY) {
       if (!table->s->rfr_lookup_warning) {
         sql_print_warning(
             "Slave: read free replication is disabled "
-            "for TokuDB/RocksDB table `%s.%s` "
+            "for RocksDB table `%s.%s` "
             "as it does not have implicit primary key, "
             "continue with rows lookup",
             print_slave_db_safe(table->s->db.str), m_table->s->table_name.str);
@@ -12115,8 +12115,6 @@ int Write_rows_log_event::do_before_row_operations(
     const Relay_log_info *const rli) {
   int error = 0;
 
-  m_table->file->rpl_before_write_rows();
-
   /*
     Increment the global status insert count variable
   */
@@ -12254,7 +12252,6 @@ int Write_rows_log_event::do_after_row_operations(
   }
 
   m_rows_lookup_algorithm = ROW_LOOKUP_UNDEFINED;
-  m_table->file->rpl_after_write_rows();
 
   return error ? error : local_error;
 }

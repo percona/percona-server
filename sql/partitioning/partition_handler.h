@@ -450,7 +450,7 @@ class Partition_helper {
     new_data is always record[0]
     old_data is always record[1]
 
-    @param lookup_rows Indicator for TokuDB read free replication.
+    @param lookup_rows Indicator for MyRocks read free replication.
 
     @return Operation status.
       @returns    0 Success
@@ -472,7 +472,7 @@ class Partition_helper {
     buf is either record[0] or record[1]
 
     @param buf  The record in MySQL Row Format.
-    @param lookup_rows Indicator for TokuDB read free replication.
+    @param lookup_rows Indicator for MyRocks read free replication.
 
     @return Operation status.
       @retval    0 Success

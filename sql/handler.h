@@ -7638,11 +7638,9 @@ class handler {
    */
   virtual bool rpl_lookup_rows() { return true; }
   /*
-     Storage engine hooks to be called before and after row write, delete, and
-     update events
+     Storage engine hooks to be called before and after row delete and update
+     events
   */
-  virtual void rpl_before_write_rows() {}
-  virtual void rpl_after_write_rows() {}
   virtual void rpl_before_delete_rows() {}
   virtual void rpl_after_delete_rows() {}
   virtual void rpl_before_update_rows() {}

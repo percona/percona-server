@@ -194,7 +194,7 @@ INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто1'
 SELECT masking_dictionaries_flush();
 --connection con_unpriv
 
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after the first insert and flush must be 3
 --source include/assert.inc
 
@@ -203,7 +203,7 @@ INSERT INTO mysql.masking_dictionaries VALUES('us_cities', 'city4');
 INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2');
 
 --connection con_unpriv
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after the second insert but before flush must be 3
 --source include/assert.inc
 
@@ -211,7 +211,7 @@ INSERT INTO mysql.masking_dictionaries VALUES('укр_міста', 'місто2'
 SELECT masking_dictionaries_flush();
 --connection con_unpriv
 
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after the second insert and flush must be 4
 --source include/assert.inc
 
@@ -219,7 +219,7 @@ SELECT masking_dictionaries_flush();
 RENAME TABLE mysql.masking_dictionaries TO mysql.masking_dictionaries_hidden;
 --connection con_unpriv
 
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after hiding dict table must be 4
 --source include/assert.inc
 
@@ -228,7 +228,7 @@ RENAME TABLE mysql.masking_dictionaries TO mysql.masking_dictionaries_hidden;
 SELECT masking_dictionaries_flush();
 --connection con_unpriv
 
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after dict unsuccessful flush must be 4
 --source include/assert.inc
 
@@ -236,7 +236,7 @@ SELECT masking_dictionaries_flush();
 RENAME TABLE mysql.masking_dictionaries_hidden TO mysql.masking_dictionaries;
 --connection con_unpriv
 
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after restoring dict table must be 4
 --source include/assert.inc
 
@@ -244,7 +244,7 @@ RENAME TABLE mysql.masking_dictionaries_hidden TO mysql.masking_dictionaries;
 SELECT masking_dictionaries_flush();
 --connection con_unpriv
 
---let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
+--let $assert_cond = [ SELECT GROUP_CONCAT(val ORDER BY val) = "city1,city2,city3,city4" FROM (SELECT gen_dictionary("us_cities") AS term FROM PERCONA_SEQUENCE_TABLE(100) AS tt GROUP BY term) AS tbl(val) ] = 1
 --let $assert_text = the number of distinct US city names after restoring dict table and flush must be 4
 --source include/assert.inc
 

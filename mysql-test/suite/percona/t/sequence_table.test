@@ -1,7 +1,13 @@
 #
-# Introduce SEQUENCE_TABLE() table-level SQL function
+# PERCONA_SEQUENCE_TABLE() table-level SQL function
 # https://jira.percona.com/browse/PS-5764
 #
+
+--echo ###
+--echo ### Deprecated SEQUENCE_TABLE() keyword has been removed
+--echo ###
+--error ER_PARSE_ERROR
+SELECT * FROM SEQUENCE_TABLE(2) AS tt;
 
 --echo ###
 --echo ### Checking invalid PERCONA_SEQUENCE_TABLE() arguments

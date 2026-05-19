@@ -225,7 +225,7 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 # Filter auto-requires/provides for private libs, plugins, and test Perl modules
 %global _privatelibs libabsl_.*|libicu.*|libprotobuf.*|libmysqlharness\\.so.*|libmysqlharness_stdx\\.so.*|libmysqlharness_tls\\.so.*|libmysqlrouter\\.so\\..*|libmysqlrouter_.*\\.so\\..*|libfido2.*
-%global _privateperl perl\\\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
 

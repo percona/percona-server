@@ -270,6 +270,10 @@ bool dynamic_privilege_init(void) {
   my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
       "dynamic_privilege_register.mysql_server", srv_registry);
   assert(service.is_valid());
+
+/* workaround, delete after */
+  ret += service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+/* workaround, delete after */
   ret += service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
   ret += service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));

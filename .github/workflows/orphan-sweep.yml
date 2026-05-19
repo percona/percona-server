@@ -30,7 +30,7 @@ jobs:
     permissions: {}
     env:
       HCLOUD_TOKEN: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
-      GH_TOKEN: ${{ secrets.GHA_GH_TOKEN }}
+      GH_TOKEN: ${{ secrets.GHA_RUNNER_PAT }}
       DRY_RUN: ${{ inputs.dry_run || 'false' }}
       MAX_AGE_HOURS: ${{ inputs.max_age_hours || '6' }}
     steps:

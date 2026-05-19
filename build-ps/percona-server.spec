@@ -24,6 +24,18 @@
 
 %define build_timestamp %(date +"%Y")
 %undefine _missing_build_ids_terminate_build
+# The upstream MySQL build installs byte-identical absl / protobuf private
+# libraries under both %{_libdir}/mysql/private/ and
+# %{_libdir}/mysqlrouter/private/. rpm's default build-id link mode rejects
+# the two debuginfo files sharing one build-id:
+#   Duplicate build-ids .../mysql/private/libabsl_*.so.debug
+#                    and .../mysqlrouter/private/libabsl_*.so.debug
+# percona-server-8.0_builder.sh only patches find-debuginfo.sh
+# (apply_workaround_bug_304121) on EL7, so EL8+ has no mitigation. Set
+# `none` here (the release-9.6.0 baseline value, proven on the PXC line):
+# it suppresses per-file build-id symlink generation so duplicates can
+# coexist, while still shipping the debuginfo payloads.
+%define _build_id_links none
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
@@ -818,6 +830,13 @@ rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
 rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
+# libkmip PR #30 (PS-10970, picked up via the extra/libkmip submodule
+# bump) restructured the library into kmipclient + kmipcore, which
+# install libkmipclient.a / libkmipcore.a instead of the old
+# libkmip.a / libkmippp.a. These static libs are build-only; drop them
+# so they don't trip the unpackaged-files check.
+rm -rf %{buildroot}/usr/lib/libkmipclient.a
+rm -rf %{buildroot}/usr/lib/libkmipcore.a
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -1258,6 +1277,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_log_filter.so
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
@@ -1314,6 +1335,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log_filter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023

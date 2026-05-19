@@ -1,0 +1,48 @@
+SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+SET GLOBAL authentication_ldap_simple_group_search_filter = '(&(objectClass=groupOfNames)(member={UD}))';
+CREATE ROLE 'test_dn_role';
+SET GLOBAL authentication_ldap_simple_group_role_mapping = 'dn_test_group=test_dn_role';
+SET GLOBAL authentication_ldap_simple_log_status = 6;
+SET @old_sql_mode = @@SESSION.sql_mode;
+SET SESSION sql_mode = REPLACE(REPLACE(@@SESSION.sql_mode, 'NO_BACKSLASH_ESCAPES', ''), ',,', ',');
+CREATE USER normaluser IDENTIFIED WITH authentication_ldap_simple BY 'cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com';
+# Test 1: Normal user - role should be granted
+SHOW GRANTS FOR 'normaluser';
+Grants for normaluser@%
+GRANT USAGE ON *.* TO `normaluser`@`%`
+GRANT `test_dn_role`@`%` TO `normaluser`@`%`
+CREATE USER quoteduser IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test\\"User,ou=people,dc=planetexpress,dc=com';
+# Test 2: Quoted-DN user - role should be granted
+SHOW GRANTS FOR 'quoteduser';
+Grants for quoteduser@%
+GRANT USAGE ON *.* TO `quoteduser`@`%`
+GRANT `test_dn_role`@`%` TO `quoteduser`@`%`
+CREATE USER parentheses_user IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test(User),ou=people,dc=planetexpress,dc=com';
+# Test 3: Parentheses-DN user - role should be granted
+SHOW GRANTS FOR 'parentheses_user';
+Grants for parentheses_user@%
+GRANT USAGE ON *.* TO `parentheses_user`@`%`
+GRANT `test_dn_role`@`%` TO `parentheses_user`@`%`
+CREATE USER asterisk_user IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test*User,ou=people,dc=planetexpress,dc=com';
+# Test 4: Asterisk-DN user - role should be granted
+SHOW GRANTS FOR 'asterisk_user';
+Grants for asterisk_user@%
+GRANT USAGE ON *.* TO `asterisk_user`@`%`
+GRANT `test_dn_role`@`%` TO `asterisk_user`@`%`
+CREATE USER backslash_user IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test\\5cUser,ou=people,dc=planetexpress,dc=com';
+# Test 5: Backslash-DN user - role should be granted
+SHOW GRANTS FOR 'backslash_user';
+Grants for backslash_user@%
+GRANT USAGE ON *.* TO `backslash_user`@`%`
+GRANT `test_dn_role`@`%` TO `backslash_user`@`%`
+DROP USER normaluser;
+DROP USER quoteduser;
+DROP USER parentheses_user;
+DROP USER asterisk_user;
+DROP USER backslash_user;
+DROP ROLE test_dn_role;
+SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
+SET GLOBAL authentication_ldap_simple_log_status = 1;
+SET GLOBAL authentication_ldap_simple_group_role_mapping = '';
+SET GLOBAL authentication_ldap_simple_group_search_filter = '(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))';
+SET SESSION sql_mode = @old_sql_mode;

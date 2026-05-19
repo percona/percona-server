@@ -248,6 +248,10 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       });
 
       if (err != DB_SUCCESS && err != DB_END_OF_INDEX) {
+        for (auto current_builder : builders) {
+          /* Discard returned error as it is same as err */
+          static_cast<void>(current_builder->handle_error(err));
+        }
         return err;
       }
     }

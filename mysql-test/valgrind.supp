@@ -1030,28 +1030,6 @@
    fun:malloc_info
 }
 
-# TokuDB suppressions
-{
-   tls_variables_1
-   Memcheck:Leak
-   fun:memalign
-   fun:__tls_get_addr
-}
-
-{
-   tls_variables_2
-   Memcheck:Leak
-   fun:memalign
-   fun:tls_get_addr_tail
-}
-
-{
-   lzma encoder prepare bug
-   Memcheck:Cond
-   fun:lz_encoder_prepare
-   fun:lzma_lz_encoder_init
-}
-
 #supress warnings from openssl random generator
 
 {

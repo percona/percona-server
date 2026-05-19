@@ -1,6 +1,6 @@
 #
 # PS-5508: native_part::Partition_base::<...> -> handler::ha_open -> __cxa_pure_virtual () -> ABORT
-# PS-5525: TokuDB and MyRocks native partitioning never releases memory
+# PS-5525: MyRocks native partitioning never releases memory
 #
 CREATE TABLE `t1` (
 `id` int(11) NOT NULL AUTO_INCREMENT,

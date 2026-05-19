@@ -219,14 +219,13 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 
   @ingroup ptn_column_attrs
 */
-class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
+class PT_unique_key_column_attr : public PT_column_attr_base {
  public:
-  explicit PT_unique_combo_clustering_key_column_attr(const POS &pos, enum keytype key_type)
-      : PT_column_attr_base(pos), m_key_type(key_type) {}
+  explicit PT_unique_key_column_attr(const POS &pos)
+      : PT_column_attr_base(pos) {}
 
   void apply_type_flags(ulong *type_flags) const noexcept override {
-    if (m_key_type & KEYTYPE_UNIQUE) *type_flags |= UNIQUE_FLAG;
-    if (m_key_type & KEYTYPE_CLUSTERING) *type_flags |= CLUSTERING_FLAG;
+    *type_flags |= UNIQUE_FLAG;
   }
 
   void apply_alter_info_flags(ulonglong *flags) const override {
@@ -236,9 +235,6 @@ class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
   enum Attr_type attr_type() const override {
     return AT_UNIQUE_KEY_COLUMN_ATTR;
   }
-
- private:
-  const enum keytype m_key_type;
 };
 
 /**

@@ -3299,11 +3299,6 @@ inline constexpr const decltype(handlerton::flags)
 /** Start of Percona specific HTON_* defines */
 
 /**
-  Engine supports secondary clustered keys.
-*/
-#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 29)
-
-/**
   Engine supports compressed columns.
 */
 #define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 30)

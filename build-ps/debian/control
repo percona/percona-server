@@ -144,7 +144,7 @@ Description: Percona Server - Client Plugins
 
 Package: percona-server-client-core
 Architecture: any
-Depends: percona-server-client-plugins (= ${binary:Version}),
+Depends: percona-server-client-plugins,
          ${shlibs:Depends}, ${misc:Depends}
 Provides: virtual-mysql-client-core
 Description: Percona Server database core client binaries
@@ -156,8 +156,8 @@ Description: Percona Server database core client binaries
 Package: percona-server-client
 Architecture: any
 Depends: percona-server-common (= ${binary:Version}),
-         percona-server-client-core (= ${binary:Version}),
-         percona-server-client-plugins (= ${binary:Version}),
+         percona-server-client-core,
+         percona-server-client-plugins,
          ${shlibs:Depends}, ${misc:Depends}
 Provides: mysql-client,
           virtual-mysql-client, virtual-mysql-client-core,
@@ -230,7 +230,7 @@ Pre-Depends: adduser,
              debconf (>= 0.2.17)
 Depends: percona-server-common (= ${binary:Version}),
          percona-server-client (= ${binary:Version}),
-         percona-server-server-core (= ${binary:Version}),
+         percona-server-server-core,
 	 percona-telemetry-agent,
          ${shlibs:Depends}, ${misc:Depends},
          psmisc,

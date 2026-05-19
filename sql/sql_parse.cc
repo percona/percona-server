@@ -5877,15 +5877,8 @@ bool Alter_info::add_field(
                  &default_key_create_info, false, true, key_parts);
     if (key == nullptr || key_list.push_back(key)) return true;
   }
-  if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG | CLUSTERING_FLAG)) {
-    enum keytype key_type;
-    if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
-      key_type = KEYTYPE_UNIQUE;
-    else
-      key_type = KEYTYPE_MULTIPLE;
-    if (type_modifier & CLUSTERING_FLAG)
-      key_type = static_cast<enum keytype>(key_type | KEYTYPE_CLUSTERING);
-    assert(key_type != KEYTYPE_MULTIPLE);
+  if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG)) {
+    enum keytype key_type = KEYTYPE_UNIQUE;
     List<Key_part_spec> key_parts;
     auto key_part_spec =
         new (thd->mem_root) Key_part_spec(field_name_cstr, 0, ORDER_ASC);

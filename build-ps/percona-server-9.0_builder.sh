@@ -583,6 +583,14 @@ install_deps() {
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libre2-dev libtool po-debconf liblz4-dev
         apt-get -y install libgsasl7 || apt-get -y install gsasl-common || true
+        # libtirpc-dev is required on every modern Debian/Ubuntu: glibc >= 2.26
+        # removed the built-in Sun RPC implementation, and cmake/rpc.cmake
+        # FATAL_ERRORs if system rpc/rpc.h is absent (no bundled-tirpc fallback
+        # despite extra/tirpc/ existing in the tree). Previously only installed
+        # for noble/trixie, so every other distro/arch agent failed
+        # override_dh_auto_configure with "Could not find rpc/rpc.h". Install
+        # it unconditionally. (Ported from release-8.4.9-9-1 commit 3c2a6bab4e1.)
+        apt-get -y install libtirpc-dev
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
         fi

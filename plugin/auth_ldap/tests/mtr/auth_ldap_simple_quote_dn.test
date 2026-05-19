@@ -1,0 +1,235 @@
+# Test: Validate LDAP group-role mapping when user DN contains characters
+# that are special in LDAP filter syntax (RFC 4515).
+#
+# Background:
+#   The plugin substitutes {UD} with the authenticated user's DN in
+#   authentication_ldap_simple_group_search_filter.  Per RFC 4515 §3,
+#   five ASCII octets must be escaped as \XX hex when they appear inside
+#   an LDAP filter assertion value:
+#     NUL (0x00), '(' (0x28), ')' (0x29), '*' (0x2a), '\' (0x5c)
+#
+# Purpose of this test:
+#   Verify that role mapping works for all of these users in the same LDAP group:
+#   1. Normal DN (no special chars in CN)
+#   2. DN containing double quote  (cn=Test"User)
+#   3. DN containing parentheses   (cn=Test(User))
+#   4. DN containing asterisk       (cn=Test*User)
+#   5. DN containing backslash      (cn=Test\5cUser — LDAP-escaped form of Test\User)
+#
+# Expected result:
+#   All five users authenticate successfully and are granted test_dn_role.
+#
+# Requires docker-test-openldap:
+#   https://github.com/rroemhild/docker-test-openldap
+
+--source include/count_sessions.inc
+
+# -----------------------------------------------------------------
+# LDAP Setup: add users with special chars in CN and a groupOfNames group
+# -----------------------------------------------------------------
+--perl EOF
+  use strict;
+  use warnings;
+
+  sub run_cmd {
+    my @cmd = @_;
+    my $pid = fork();
+    die "fork: $!" unless defined $pid;
+    if ($pid == 0) {
+      open(STDOUT, '>', '/dev/null');
+      open(STDERR, '>', '/dev/null');
+      exec(@cmd) or exit(127);
+    }
+    waitpid($pid, 0);
+    return $? >> 8;
+  }
+
+  my $host     = $ENV{'MTR_LDAP_HOST'} || 'localhost';
+  my $port     = $ENV{'MTR_LDAP_PORT'} || '389';
+  my $ldap_uri = "ldap://$host:$port";
+  my $admin_dn = 'cn=admin,dc=planetexpress,dc=com';
+  my $admin_pw = 'GoodNewsEveryone';
+  my $test_dir = $ENV{'MYSQL_TEST_DIR'} . '/../plugin/auth_ldap/tests/mtr';
+  my $user_ldif         = "$test_dir/quote_test_user.ldif";
+  my $paren_user_ldif   = "$test_dir/paren_test_user.ldif";
+  my $asterisk_user_ldif = "$test_dir/asterisk_test_user.ldif";
+  my $backslash_user_ldif = "$test_dir/backslash_test_user.ldif";
+  my $group_ldif        = "$test_dir/test_group.ldif";
+
+  # Remove leftover entries from any previous failed run
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=dn_test_group,ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test\"User,ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test(User),ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test*User,ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test\5cUser,ou=people,dc=planetexpress,dc=com');
+
+  # Create the test entries
+  my $rc;
+  $rc = run_cmd("ldapadd", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+                "-w", $admin_pw, "-f", $user_ldif);
+  die "ldapadd (quote user) failed rc=$rc" if $rc != 0;
+
+  $rc = run_cmd("ldapadd", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+                "-w", $admin_pw, "-f", $paren_user_ldif);
+  die "ldapadd (paren user) failed rc=$rc" if $rc != 0;
+
+  $rc = run_cmd("ldapadd", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+                "-w", $admin_pw, "-f", $asterisk_user_ldif);
+  die "ldapadd (asterisk user) failed rc=$rc" if $rc != 0;
+
+  $rc = run_cmd("ldapadd", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+                "-w", $admin_pw, "-f", $backslash_user_ldif);
+  die "ldapadd (backslash user) failed rc=$rc" if $rc != 0;
+
+  $rc = run_cmd("ldapadd", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+                "-w", $admin_pw, "-f", $group_ldif);
+  die "ldapadd (group) failed rc=$rc" if $rc != 0;
+EOF
+
+# -----------------------------------------------------------------
+# MySQL Setup
+# -----------------------------------------------------------------
+SET GLOBAL authentication_ldap_simple_bind_base_dn = 'ou=people,dc=planetexpress,dc=com';
+
+# Use a DN-based filter so {UD} substitution is exercised
+SET GLOBAL authentication_ldap_simple_group_search_filter = '(&(objectClass=groupOfNames)(member={UD}))';
+
+CREATE ROLE 'test_dn_role';
+SET GLOBAL authentication_ldap_simple_group_role_mapping = 'dn_test_group=test_dn_role';
+
+SET GLOBAL authentication_ldap_simple_log_status = 6;
+
+# Ensure backslash escapes in SQL string literals are interpreted as expected
+SET @old_sql_mode = @@SESSION.sql_mode;
+SET SESSION sql_mode = REPLACE(REPLACE(@@SESSION.sql_mode, 'NO_BACKSLASH_ESCAPES', ''), ',,', ',');
+
+# -----------------------------------------------------------------
+# Test 1: Normal user whose DN has no special characters.
+#   Expected: role IS granted.
+# -----------------------------------------------------------------
+CREATE USER normaluser IDENTIFIED WITH authentication_ldap_simple BY 'cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com';
+
+--connect (con_normal,localhost,normaluser,hermes,,,,CLEARTEXT)
+--echo # Test 1: Normal user - role should be granted
+SHOW GRANTS FOR 'normaluser';
+--disconnect con_normal
+--connection default
+
+# -----------------------------------------------------------------
+# Test 2: User whose DN contains a double-quote.
+#   Expected: role IS granted.
+# -----------------------------------------------------------------
+CREATE USER quoteduser IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test\\"User,ou=people,dc=planetexpress,dc=com';
+
+--connect (con_quoted,localhost,quoteduser,testpass123,,,,CLEARTEXT)
+--echo # Test 2: Quoted-DN user - role should be granted
+SHOW GRANTS FOR 'quoteduser';
+--disconnect con_quoted
+--connection default
+
+# -----------------------------------------------------------------
+# Test 3: User whose DN contains parentheses.
+#   Expected: role IS granted.
+# -----------------------------------------------------------------
+CREATE USER parentheses_user IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test(User),ou=people,dc=planetexpress,dc=com';
+
+--connect (con_parentheses,localhost,parentheses_user,testpass123,,,,CLEARTEXT)
+--echo # Test 3: Parentheses-DN user - role should be granted
+SHOW GRANTS FOR 'parentheses_user';
+--disconnect con_parentheses
+--connection default
+
+# -----------------------------------------------------------------
+# Test 4: User whose DN contains an asterisk.
+#   Expected: role IS granted.
+# -----------------------------------------------------------------
+CREATE USER asterisk_user IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test*User,ou=people,dc=planetexpress,dc=com';
+
+--connect (con_asterisk,localhost,asterisk_user,testpass123,,,,CLEARTEXT)
+--echo # Test 4: Asterisk-DN user - role should be granted
+SHOW GRANTS FOR 'asterisk_user';
+--disconnect con_asterisk
+--connection default
+
+# -----------------------------------------------------------------
+# Test 5: User whose DN contains a backslash.
+#   The LDAP DN uses \5c to represent a literal backslash in the CN.
+#   Expected: role IS granted.
+# -----------------------------------------------------------------
+CREATE USER backslash_user IDENTIFIED WITH authentication_ldap_simple BY 'cn=Test\\5cUser,ou=people,dc=planetexpress,dc=com';
+
+--connect (con_backslash,localhost,backslash_user,testpass123,,,,CLEARTEXT)
+--echo # Test 5: Backslash-DN user - role should be granted
+SHOW GRANTS FOR 'backslash_user';
+--disconnect con_backslash
+--connection default
+
+# -----------------------------------------------------------------
+# MySQL Cleanup
+# -----------------------------------------------------------------
+DROP USER normaluser;
+DROP USER quoteduser;
+DROP USER parentheses_user;
+DROP USER asterisk_user;
+DROP USER backslash_user;
+DROP ROLE test_dn_role;
+SET GLOBAL authentication_ldap_simple_bind_base_dn = '';
+SET GLOBAL authentication_ldap_simple_log_status = 1;
+SET GLOBAL authentication_ldap_simple_group_role_mapping = '';
+SET GLOBAL authentication_ldap_simple_group_search_filter = '(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))';
+SET SESSION sql_mode = @old_sql_mode;
+
+# -----------------------------------------------------------------
+# LDAP Cleanup
+# -----------------------------------------------------------------
+--perl EOF
+  use strict;
+  use warnings;
+
+  sub run_cmd {
+    my @cmd = @_;
+    my $pid = fork();
+    die "fork: $!" unless defined $pid;
+    if ($pid == 0) {
+      open(STDOUT, '>', '/dev/null');
+      open(STDERR, '>', '/dev/null');
+      exec(@cmd) or exit(127);
+    }
+    waitpid($pid, 0);
+    return $? >> 8;
+  }
+
+  my $host     = $ENV{'MTR_LDAP_HOST'} || 'localhost';
+  my $port     = $ENV{'MTR_LDAP_PORT'} || '389';
+  my $ldap_uri = "ldap://$host:$port";
+  my $admin_dn = 'cn=admin,dc=planetexpress,dc=com';
+  my $admin_pw = 'GoodNewsEveryone';
+
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=dn_test_group,ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test\"User,ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test(User),ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test*User,ou=people,dc=planetexpress,dc=com');
+  run_cmd("ldapdelete", "-x", "-H", $ldap_uri, "-D", $admin_dn,
+          "-w", $admin_pw,
+          'cn=Test\5cUser,ou=people,dc=planetexpress,dc=com');
+EOF
+
+--source include/wait_until_count_sessions.inc

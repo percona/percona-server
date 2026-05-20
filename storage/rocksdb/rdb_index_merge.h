@@ -41,6 +41,22 @@ namespace myrocks {
 #define RDB_MERGE_KEY_DELIMITER RDB_MERGE_REC_DELIMITER
 #define RDB_MERGE_VAL_DELIMITER RDB_MERGE_REC_DELIMITER
 
+/*
+  Fixed overhead - extra bytes written for every entry into merge buffer.
+  Before key, size of the key is written (RDB_MERGE_KEY_DELIMITER bytes).
+  Before value, size of the value is written (RDB_MERGE_VAL_DELIMITER bytes).
+*/
+static constexpr size_t RDB_MERGE_ENTRY_FIXED_OVERHEAD =
+    RDB_MERGE_KEY_DELIMITER + RDB_MERGE_VAL_DELIMITER;
+
+/*
+  Maximum possible overhead when storing single entry into merge buffer.
+  If this was the first entry in chunk, then the size of chunk would be
+  stored in the first RDB_MERGE_CHUNK_LEN bytes of the chunk.
+*/
+static constexpr size_t RDB_MERGE_ENTRY_MAX_OVERHEAD =
+    RDB_MERGE_CHUNK_LEN + RDB_MERGE_ENTRY_FIXED_OVERHEAD;
+
 class Rdb_key_def;
 class Rdb_tbl_def;
 

@@ -50,6 +50,12 @@ typedef port_event_t native_event;
 /** Maximum number of native events a listener can read in one go */
 #define MAX_EVENTS 1024
 
+#define DEFAULT_THREADPOOL_STALL_LIMIT 500U
+#define THROTTLING_FACTOR \
+  (threadpool_stall_limit / \
+   ((threadpool_stall_limit > DEFAULT_THREADPOOL_STALL_LIMIT) ? \
+        threadpool_stall_limit : DEFAULT_THREADPOOL_STALL_LIMIT))
+
 /** Define if wait_begin() should create threads if necessary without waiting
 for stall detection to kick in */
 #define THREADPOOL_CREATE_THREADS_ON_WAIT
@@ -875,13 +881,13 @@ static ulonglong microsecond_throttling_interval(
     const thread_group_t &thread_group) noexcept {
   const int count = thread_group.thread_count;
 
-  if (count < 4) return 0;
+  if (count < 1 + (int)threadpool_oversubscribe) return 0;
 
-  if (count < 8) return 50 * 1000;
+  if (count < 8) return 50 * 1000 * THROTTLING_FACTOR;
 
-  if (count < 16) return 100 * 1000;
+  if (count < 16) return 100 * 1000 * THROTTLING_FACTOR;
 
-  return 200 * 1000;
+  return 200 * 1000 * THROTTLING_FACTOR;
 }
 
 /**
@@ -1007,16 +1013,6 @@ static void thread_group_close(thread_group_t *thread_group) noexcept {
   }
 
   mysql_mutex_unlock(&thread_group->mutex);
-
-  mysql_mutex_lock(&thread_group->mutex);
-  while (thread_group->thread_count > 0) {
-    mysql_mutex_unlock(&thread_group->mutex);
-    my_sleep(10000);
-    mysql_mutex_lock(&thread_group->mutex);
-  }
-  mysql_mutex_unlock(&thread_group->mutex);
-
-  thread_group_destroy(thread_group);
 
   DBUG_VOID_RETURN;
 }
@@ -1526,7 +1522,11 @@ static void *worker_main(void *param) {
 
   mysql_mutex_lock(&thread_group->mutex);
   add_thread_count(thread_group, -1);
+  const bool destroy_group =
+      thread_group->shutdown && thread_group->thread_count == 0;
   mysql_mutex_unlock(&thread_group->mutex);
+
+  if (destroy_group) thread_group_destroy(thread_group);
 
   my_thread_end();
   return nullptr;

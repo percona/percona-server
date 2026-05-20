@@ -1,0 +1,54 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Heap buffer overflow when rocksdb_merge_buf_size > 4GB:
+--echo # record-offset arithmetic used a 32-bit accumulator that wraps for
+--echo # buffers whose logical offset exceeds UINT32_MAX, allowing writes past
+--echo # the end of the allocated merge buffer.
+--echo # The debug injection moves the current offset into the wrap-around zone
+--echo # so the capacity check fires and the ALTER returns an error instead of
+--echo # crashing the server.
+--echo #
+
+call mtr.add_suppression("Current value of rocksdb_merge_buf_size=\\d+ is too small. At least \\d+ bytes required.");
+
+SET @@session.rocksdb_merge_buf_size = 250;
+
+CREATE TABLE t (
+  id INT,
+  a VARCHAR(100)
+) ENGINE=RocksDB;
+
+INSERT INTO t (id, a) VALUES (1, '1');
+
+SET SESSION debug = '+d,myrocks_merge_buf_offset_overflow';
+--error ER_SK_POPULATE_DURING_ALTER
+ALTER TABLE t ADD INDEX k1 (a, id);
+SET SESSION debug = '-d,myrocks_merge_buf_offset_overflow';
+
+DROP TABLE t;
+
+--echo #
+--echo # Index creation should fail gracefully when the requested merge buffer
+--echo # is too large to allocate.
+--echo #
+
+SET @@session.rocksdb_merge_buf_size = 18446744073709551615;
+
+CREATE TABLE t (
+  id INT,
+  a VARCHAR(100)
+) ENGINE=RocksDB;
+
+INSERT INTO t (id, a) VALUES (1, '1');
+
+--source include/save_error_log_position.inc
+--error ER_SK_POPULATE_DURING_ALTER
+ALTER TABLE t ADD INDEX k1 (a, id);
+--let $error_pattern = Failed to allocate memory for merge buffer\.
+--source include/assert_error_log.inc
+
+DROP TABLE t;
+
+SET @@session.rocksdb_merge_buf_size = DEFAULT;

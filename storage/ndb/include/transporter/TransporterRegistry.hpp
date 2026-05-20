@@ -544,6 +544,7 @@ class TransporterRegistry {
   ndb_sockaddr get_connect_address_node(NodeId nodeId) const;
   ndb_sockaddr get_connect_address(TrpId trpId) const;
 
+  bool trpIdIsValid(TrpId id) const;
   Uint64 get_bytes_sent(TrpId trpId) const;
   Uint64 get_bytes_received(TrpId trpId) const;
 

@@ -6179,20 +6179,22 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
                                    decimal_value);
 }
 
-bool Item_sum_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_sum_json::val_date(Date_val *date, my_time_flags_t flags) {
   if (null_value || m_wrapper->empty()) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return m_wrapper->coerce_date(JsonCoercionWarnHandler{func_name()},
                                 JsonCoercionDeprecatedDefaultHandler{}, date,
-                                DatetimeConversionFlags(current_thd));
+                                flags);
 }
 
-bool Item_sum_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_sum_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   if (null_value || m_wrapper->empty()) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return m_wrapper->coerce_datetime(JsonCoercionWarnHandler{func_name()},
                                     JsonCoercionDeprecatedDefaultHandler{}, dt,
-                                    DatetimeConversionFlags(current_thd));
+                                    flags);
 }
 
 bool Item_sum_json::val_time(Time_val *time) {

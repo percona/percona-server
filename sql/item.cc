@@ -7900,16 +7900,18 @@ my_decimal *Item_json::val_decimal(my_decimal *buf) {
   return m_value->coerce_decimal(JsonCoercionWarnHandler{item_name.ptr()}, buf);
 }
 
-bool Item_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_json::val_date(Date_val *date, my_time_flags_t flags) {
+  flags |= DatetimeConversionFlags(current_thd);
   return m_value->coerce_date(JsonCoercionWarnHandler{item_name.ptr()},
                               JsonCoercionDeprecatedDefaultHandler{}, date,
-                              DatetimeConversionFlags(current_thd));
+                              flags);
 }
 
-bool Item_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
+  flags |= DatetimeConversionFlags(current_thd);
   return m_value->coerce_datetime(JsonCoercionWarnHandler{item_name.ptr()},
                                   JsonCoercionDeprecatedDefaultHandler{}, dt,
-                                  DatetimeConversionFlags(current_thd));
+                                  flags);
 }
 
 bool Item_json::val_time(Time_val *time) {
@@ -10853,28 +10855,28 @@ my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
                            decimal_value);
 }
 
-bool Item_cache_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_cache_json::val_date(Date_val *date, my_time_flags_t flags) {
   Json_wrapper wr;
 
   if (val_json(&wr)) return true;
 
   if (null_value) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_date(JsonCoercionWarnHandler{whence(cached_field)},
-                        JsonCoercionDeprecatedDefaultHandler{}, date,
-                        DatetimeConversionFlags(current_thd));
+                        JsonCoercionDeprecatedDefaultHandler{}, date, flags);
 }
 
-bool Item_cache_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_cache_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   Json_wrapper wr;
 
   if (val_json(&wr)) return true;
 
   if (null_value) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_datetime(JsonCoercionWarnHandler{whence(cached_field)},
-                            JsonCoercionDeprecatedDefaultHandler{}, dt,
-                            DatetimeConversionFlags(current_thd));
+                            JsonCoercionDeprecatedDefaultHandler{}, dt, flags);
 }
 
 bool Item_cache_json::val_time(Time_val *time) {

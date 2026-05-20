@@ -8081,27 +8081,27 @@ bool Field_json::unpack_diff(const uchar **from) {
   return false;
 }
 
-bool Field_json::val_datetime(Datetime_val *dt, my_time_flags_t) const {
+bool Field_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   Json_wrapper wr;
   const bool result =
       val_json(&wr) ||
       wr.coerce_datetime(JsonCoercionWarnHandler{field_name},
-                         JsonCoercionDeprecatedDefaultHandler{}, dt);
+                         JsonCoercionDeprecatedDefaultHandler{}, dt, flags);
   if (result) {
     set_zero_time(dt, MYSQL_TIMESTAMP_DATETIME);
   }
   return result;
 }
 
-bool Field_json::val_date(Date_val *date, my_time_flags_t) const {
+bool Field_json::val_date(Date_val *date, my_time_flags_t flags) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   Json_wrapper wr;
   const bool result =
       val_json(&wr) ||
       wr.coerce_date(JsonCoercionWarnHandler{field_name},
-                     JsonCoercionDeprecatedDefaultHandler{}, date);
+                     JsonCoercionDeprecatedDefaultHandler{}, date, flags);
   if (result) {
     date->set_zero();
   }

@@ -313,6 +313,7 @@ our @DEFAULT_SUITES = qw(
 
   component_audit_log_filter
   percona
+  percona_binlog
   percona_innodb
   percona_rpl
   percona_rpl_gtid

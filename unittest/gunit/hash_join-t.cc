@@ -228,7 +228,7 @@ static void BM_XXHash64ShortData(size_t num_iterations) {
 
   size_t sum = 0;
   for (size_t i = 0; i < num_iterations; ++i) {
-    sum += MY_XXH64(&data[0], data.size(), 0);
+    sum += MY_XXH3_64(&data[0], data.size(), 0);
   }
   StopBenchmarkTiming();
 
@@ -247,7 +247,7 @@ static void BM_XXHash64LongData(size_t num_iterations) {
 
   size_t sum = 0;
   for (size_t i = 0; i < num_iterations; ++i) {
-    sum += MY_XXH64(&data[0], data.size(), 0);
+    sum += MY_XXH3_64(&data[0], data.size(), 0);
   }
   StopBenchmarkTiming();
 

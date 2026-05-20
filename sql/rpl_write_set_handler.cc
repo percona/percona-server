@@ -682,7 +682,7 @@ static bool generate_hash_pke(const std::string &pke, THD *thd
 ) {
   DBUG_TRACE;
 
-  uint64 hash = MY_XXH64(pke.c_str(), pke.size(), 0);
+  uint64 hash = MY_XXH3_64(pke.c_str(), pke.size(), 0);
   if (thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(
           hash))
     return true;

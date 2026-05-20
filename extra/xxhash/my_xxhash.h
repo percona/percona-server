@@ -29,3 +29,8 @@
 #define XXH_NAMESPACE MY_
 
 #include "xxHash-0.8.3/xxhash.h"
+
+/* XXH3 64-bit wrapper used in SQL, hash join, and group replication.
+ * Signature matches existing MY_XXH64(ptr, length, seed). */
+#define MY_XXH3_64(input, length, seed) \
+  MY_XXH3_64bits_withSeed((input), (length), (seed))

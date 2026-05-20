@@ -198,7 +198,8 @@ class Group_member_info : public Plugin_gcs_message {
   enum enum_transaction_write_set_hashing_algorithm_compatibility {
     HASH_ALGORITHM_OFF = 0,
     HASH_ALGORITHM_MURMUR32 = 1,
-    HASH_ALGORITHM_XXHASH64 = 2
+    HASH_ALGORITHM_XXHASH64 = 2,
+    HASH_ALGORITHM_XXH3_64  = 3
   };
 
   /*

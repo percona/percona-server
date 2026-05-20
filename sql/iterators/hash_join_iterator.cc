@@ -378,7 +378,7 @@ static bool WriteRowToChunk(
   const uint64_t join_key_hash =
       join_key_and_row_buffer->length() == 0
           ? kZeroKeyLengthHash
-          : MY_XXH64(join_key_and_row_buffer->ptr(),
+          : MY_XXH3_64(join_key_and_row_buffer->ptr(),
                      join_key_and_row_buffer->length(), xxhash_seed);
 
   assert((chunks->size() & (chunks->size() - 1)) == 0);

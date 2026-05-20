@@ -685,7 +685,7 @@ void reset_hash_map(hash_map_type *hash_map) {
             hash map based on primary hash
         tertiary hash
           - hash function for distributing rows to chunk files, cf.
-            MY_XXH64 based on primary hash
+            MY_XXH3_64 based on primary hash
 
    ============
    !In-memory !                  Two kinds of tmp chunk files, HF and IF
@@ -2932,7 +2932,7 @@ bool SpillState::compute_chunk_file_sets(const Operand *current_operand) {
   const ulonglong primary_hash =
       static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
   const uint64_t chunk_hash =
-      MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+      MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
 
   const size_t chunk_index = hash_to_chunk_index(chunk_hash);
   m_offending_row.m_chunk_offset = chunk_offset(chunk_index);
@@ -3009,7 +3009,7 @@ bool SpillState::spread_hash_map_to_HF_chunk_files() {
         const ulonglong primary_hash =
             static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
         const uint64_t chunk_hash =
-            MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+            MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
         const size_t chunk_index = hash_to_chunk_index(chunk_hash);
         const size_t set_index = chunk_index_to_set(chunk_index);
         const size_t offset = chunk_offset(chunk_index);
@@ -3074,7 +3074,7 @@ bool SpillState::append_hash_map_to_HF() {
       const ulonglong primary_hash =
           static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
       const uint64_t chunk_hash =
-          MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+          MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
       const size_t chunk_index = hash_to_chunk_index(chunk_hash);
       const size_t set_index = chunk_index_to_set(chunk_index);
       const size_t offset = chunk_offset(chunk_index);
@@ -3168,7 +3168,7 @@ bool SpillState::save_operand_to_IF_chunk_files(
       m_materialized_table->hash_field->store(
           static_cast<longlong>(primary_hash), true);
       const uint64_t chunk_hash =
-          MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+          MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
       const size_t chunk_index = hash_to_chunk_index(chunk_hash);
       const size_t set_index = chunk_index_to_set(chunk_index);
       const size_t offset = chunk_offset(chunk_index);
@@ -3223,7 +3223,7 @@ bool SpillState::write_HF(THD *thd, size_t set, size_t chunk_idx,
     const ulonglong primary_hash =
         static_cast<ulonglong>(m_materialized_table->hash_field->val_int());
     const uint64_t chunk_hash =
-        MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+        MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
     const size_t chunk_index = hash_to_chunk_index(chunk_hash);
     const size_t set_index = chunk_index_to_set(chunk_index);
     assert(chunk_offset(chunk_index) == chunk_idx);
@@ -3456,7 +3456,7 @@ int SpillState::read_next_row(const Operand *current_operand) {
             const ulonglong primary_hash = static_cast<ulonglong>(
                 m_materialized_table->hash_field->val_int());
             const uint64_t chunk_hash =
-                MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+                MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
             const size_t chunk_index = hash_to_chunk_index(chunk_hash);
             const size_t set_index = chunk_index_to_set(chunk_index);
             assert(chunk_offset(chunk_index) == m_current_chunk_idx);
@@ -3489,7 +3489,7 @@ int SpillState::read_next_row(const Operand *current_operand) {
             const ulonglong primary_hash = static_cast<ulonglong>(
                 m_materialized_table->hash_field->val_int());
             const uint64_t chunk_hash =
-                MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+                MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
             const size_t chunk_index = hash_to_chunk_index(chunk_hash);
             assert(chunk_index_to_set(chunk_index) == set_idx);
             assert(chunk_offset(chunk_index) == m_current_chunk_idx);
@@ -3578,7 +3578,7 @@ int SpillState::read_next_row_secondary_overflow() {
           const ulonglong primary_hash = static_cast<ulonglong>(
               m_materialized_table->hash_field->val_int());
           const uint64_t chunk_hash =
-              MY_XXH64(&primary_hash, sizeof(primary_hash), m_hash_seed);
+              MY_XXH3_64(&primary_hash, sizeof(primary_hash), m_hash_seed);
           const size_t chunk_index = hash_to_chunk_index(chunk_hash);
           assert(chunk_index_to_set(chunk_index) == set_idx);
           assert(chunk_offset(chunk_index) == m_current_chunk_idx);

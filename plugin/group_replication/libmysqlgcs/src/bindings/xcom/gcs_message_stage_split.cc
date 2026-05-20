@@ -127,7 +127,7 @@ Gcs_sender_id calculate_sender_id(const Gcs_xcom_node_information &node) {
   std::string info(node.get_member_id().get_member_id());
   info.append(node.get_member_uuid().actual_value);
 
-  return MY_XXH64(info.c_str(), info.size(), 0);
+  return MY_XXH3_64(info.c_str(), info.size(), 0);
 }
 
 bool Gcs_message_stage_split_v2::update_members_information(

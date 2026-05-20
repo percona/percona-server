@@ -672,6 +672,8 @@ const char *Group_member_info::get_write_set_extraction_algorithm_name() {
       return "MURMUR32";
     case HASH_ALGORITHM_XXHASH64:
       return "XXHASH64";
+    case HASH_ALGORITHM_XXH3_64:
+      return "XXH3_64";
     default:
       return "UNKNOWN ALGORITHM";
   }

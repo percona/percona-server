@@ -18,6 +18,11 @@
 #include <cinttypes>
 #include "./rdb_index_merge.h"
 
+// Required for std::numeric_limits<uint32_t>::max() used in DBUG_EXECUTE_IF:
+#ifdef UNIV_DEBUG
+#include <limits>
+#endif /* UNIV_DEBUG */
+
 #include "rdb_utils.h"  // LOG_COMPONENT_TAG for includes below
 
 /* MySQL header files */
@@ -87,20 +92,35 @@ int Rdb_index_merge::init() {
     return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
 
-  /*
-    Then, allocate buffer to store unsorted records before they are written
-    to disk. They will be written to disk sorted. A sorted tree is used to
-    keep track of the offset of each record within the unsorted buffer.
-  */
-  m_rec_buf_unsorted =
-      std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
+  try {
+    /*
+      Then, allocate buffer to store unsorted records before they are written
+      to disk. They will be written to disk sorted. A sorted tree is used to
+      keep track of the offset of each record within the unsorted buffer.
+    */
+    m_rec_buf_unsorted =
+        std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
 
-  /*
-    Allocate output buffer that will contain sorted block that is written to
-    disk.
-  */
-  m_output_buf =
-      std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
+  } catch (const std::bad_alloc &) {
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Failed to allocate memory for merge buffer.");
+    return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
+  }
+
+  try {
+    /*
+      Allocate output buffer that will contain sorted block that is written to
+      disk.
+    */
+    m_output_buf =
+        std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
+
+  } catch (const std::bad_alloc &) {
+    m_rec_buf_unsorted.reset();
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Failed to allocate memory for output buffer.");
+    return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
+  }
 
   return HA_EXIT_SUCCESS;
 }
@@ -154,14 +174,28 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
   /* Adding a record after heap is already created results in error */
   assert(m_merge_min_heap.empty());
 
+  DBUG_EXECUTE_IF("myrocks_merge_buf_offset_overflow", {
+    const auto max_uint32 = std::numeric_limits<uint32_t>::max();
+    m_rec_buf_unsorted->m_curr_offset =
+        max_uint32 - RDB_MERGE_ENTRY_MAX_OVERHEAD + 1;
+  });
+
+  const uint64_t max_possible_data_size =
+      RDB_MERGE_ENTRY_MAX_OVERHEAD + key.size() + val.size();
+
   /*
     Check if sort buffer is going to be out of space, if so write it
     out to disk in sorted order using offset tree.
   */
-  const uint total_offset = RDB_MERGE_CHUNK_LEN +
-                            m_rec_buf_unsorted->m_curr_offset +
-                            RDB_MERGE_KEY_DELIMITER + RDB_MERGE_VAL_DELIMITER +
-                            key.size() + val.size();
+  const uint64_t total_offset =
+      m_rec_buf_unsorted->m_curr_offset + max_possible_data_size;
+
+  static_assert(sizeof(m_rec_buf_unsorted->m_total_size) ==
+                sizeof(total_offset));
+  static_assert(sizeof(m_rec_buf_unsorted->m_curr_offset) ==
+                sizeof(total_offset));
+  static_assert(sizeof(max_possible_data_size) == sizeof(total_offset));
+
   if (total_offset >= m_rec_buf_unsorted->m_total_size) {
     /*
       If the offset tree is empty here, that means that the proposed key to
@@ -170,7 +204,7 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
     if (m_offset_tree.empty()) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Current value of rocksdb_merge_buf_size=%" PRIu64
-                      " is too small. At least %u bytes required.",
+                      " is too small. At least %" PRIu64 " bytes required.",
                       m_rec_buf_unsorted->m_total_size, total_offset);
       return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
@@ -183,13 +217,11 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
     /*
       The unsorted buffer may be too small for the key-value pair.
     */
-    const uint data_size = RDB_MERGE_CHUNK_LEN + RDB_MERGE_KEY_DELIMITER +
-                           RDB_MERGE_VAL_DELIMITER + key.size() + val.size();
-    if (data_size > m_rec_buf_unsorted->m_total_size) {
+    if (max_possible_data_size > m_rec_buf_unsorted->m_total_size) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Current value of rocksdb_merge_buf_size=%" PRIu64
-                      " is too small. At least %u bytes required.",
-                      m_rec_buf_unsorted->m_total_size, data_size);
+                      " is too small. At least %" PRIu64 " bytes required.",
+                      m_rec_buf_unsorted->m_total_size, max_possible_data_size);
       return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
   }

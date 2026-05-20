@@ -1659,6 +1659,15 @@ static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
 
+static Sys_var_ulong Sys_binlog_transaction_compression_min_size(
+    "binlog_transaction_compression_min_size",
+    "Minimum transaction payload size in bytes required to apply "
+    "binary log transaction compression.",
+    SESSION_VAR(binlog_trx_compression_min_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
+
 static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
   return false;

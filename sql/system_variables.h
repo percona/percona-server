@@ -459,6 +459,7 @@ struct System_variables {
   bool binlog_trx_compression;
   ulong binlog_trx_compression_type;  // see enum_binlog_trx_compression
   uint binlog_trx_compression_level_zstd;
+  ulong binlog_trx_compression_min_size;
   ulonglong binlog_row_value_options;
   bool sql_log_bin;
   ulong completion_type;

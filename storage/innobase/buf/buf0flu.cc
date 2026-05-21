@@ -209,6 +209,57 @@ static ut::unique_ptr<page_cleaner_t> page_cleaner;
 bool innodb_page_cleaner_disabled_debug;
 #endif /* UNIV_DEBUG */
 
+/* Enable NUMA-localized page flushing: one cleaner per buffer pool instance */
+bool innodb_flush_localized = false;
+
+/* Internal: true if localized flushing is actually active */
+static bool innodb_flush_localized_active = false;
+
+/* Validate and activate localized page flushing mode.
+   This does not change any behaviour yet, only sets the internal flag
+   and logs why the mode is enabled or disabled. */
+static void buf_flush_localized_validate() {
+  innodb_flush_localized_active = false;
+
+  if (!innodb_flush_localized) {
+    return;
+  }
+
+  if (srv_buf_pool_instances == 0 ||
+      srv_n_page_cleaners == 0 ||
+      srv_n_page_cleaners != srv_buf_pool_instances) {
+
+    ib::warn(ER_IB_MSG_CPU_CORES_INFO)
+      << "innodb_flush_localized=ON but innodb_page_cleaners ("
+      << (ulong) srv_n_page_cleaners
+      << ") != innodb_buffer_pool_instances ("
+      << (ulong) srv_buf_pool_instances
+      << "); localized flushing disabled.";
+
+    return;
+  }
+
+  if (srv_buf_pool_instances > 128) {
+    ib::warn(ER_IB_MSG_CPU_CORES_INFO)
+      << "innodb_flush_localized=ON but innodb_buffer_pool_instances="
+      << (ulong) srv_buf_pool_instances
+      << " > 128; localized flushing disabled.";
+    return;
+  }
+
+  innodb_flush_localized_active = true;
+
+  ib::info(ER_IB_MSG_CPU_CORES_INFO)
+    << "localized page flushing enabled: "
+    << "one page cleaner thread per buffer pool instance.";
+}
+
+/* Validate localized page flushing mode after startup options are finalized. */
+void buf_flush_localized_validate_startup()
+{
+  buf_flush_localized_validate();
+}
+
 /** Flush a batch of writes to the datafiles that have already been
 written to the dblwr buffer on disk. */
 static void buf_flush_sync_datafiles() {
@@ -229,7 +280,7 @@ As of now we'll have only one coordinator. */
 static void buf_flush_page_coordinator_thread();
 
 /** Worker thread of page_cleaner. */
-static void buf_flush_page_cleaner_thread();
+static void buf_flush_page_cleaner_thread(size_t worker_id);
 
 /** Increases flush_list size in bytes with the page size in inline function */
 static inline void incr_flush_list_size_in_bytes(
@@ -2895,10 +2946,11 @@ static void pc_request(ulint min_n, lsn_t lsn_limit) {
   mutex_exit(&page_cleaner->mutex);
 }
 
-/**
-Do flush for one slot.
-@return the number of the slots which has not been treated yet. */
-static ulint pc_flush_slot(void) {
+/* Do flush for one slot.
+   @param[in] worker_id  Worker index; currently ignored, kept for
+                         future localized mode.
+   @return the number of the slots which has not been treated yet. */
+static ulint pc_flush_slot(ulint worker_id) {
   std::chrono::steady_clock::duration lru_time;
   std::chrono::steady_clock::duration flush_list_time{};
   int lru_pass = 0;
@@ -2908,19 +2960,37 @@ static ulint pc_flush_slot(void) {
 
   if (page_cleaner->n_slots_requested > 0) {
     page_cleaner_slot_t *slot = nullptr;
-    ulint i;
+    ulint i = ULINT_UNDEFINED;
 
-    for (i = 0; i < page_cleaner->n_slots; i++) {
+    const bool localized =
+        innodb_flush_localized_active &&
+        worker_id < page_cleaner->n_slots;
+
+    if (localized) {
+      /* Localized mode: this worker only handles its own slot. */
+      i = worker_id;
       slot = &page_cleaner->slots[i];
 
-      if (slot->state == PAGE_CLEANER_STATE_REQUESTED) {
-        break;
+      if (slot->state != PAGE_CLEANER_STATE_REQUESTED) {
+        /* Nothing to do for this worker right now. */
+        ulint ret = page_cleaner->n_slots_requested;
+        mutex_exit(&page_cleaner->mutex);
+        return ret;
       }
-    }
+    } else {
+      /* Legacy behaviour: find any requested slot. */
+      for (i = 0; i < page_cleaner->n_slots; i++) {
+        slot = &page_cleaner->slots[i];
 
-    /* slot should be found because
-    page_cleaner->n_slots_requested > 0 */
-    ut_a(i < page_cleaner->n_slots);
+        if (slot->state == PAGE_CLEANER_STATE_REQUESTED) {
+          break;
+        }
+      }
+
+      /* slot should be found because
+      page_cleaner->n_slots_requested > 0 */
+      ut_a(i < page_cleaner->n_slots);
+    }
 
     buf_pool_t *buf_pool = buf_pool_from_array(i);
 
@@ -2957,15 +3027,18 @@ static ulint pc_flush_slot(void) {
               buf_pool, BUF_FLUSH_LIST, slot->n_pages_requested,
               page_cleaner->lsn_limit, &slot->n_flushed_list);
 
-          flush_list_time = std::chrono::steady_clock::now() - flush_list_start;
+          flush_list_time =
+              std::chrono::steady_clock::now() - flush_list_start;
           list_pass = 1;
         } else {
           slot->n_flushed_list = 0;
           slot->succeeded_list = true;
         }
       }
+
       mutex_enter(&page_cleaner->mutex);
     }
+
     page_cleaner->n_slots_flushing--;
     page_cleaner->n_slots_finished++;
     slot->state = PAGE_CLEANER_STATE_FINISHED;
@@ -2987,7 +3060,7 @@ static ulint pc_flush_slot(void) {
 
   mutex_exit(&page_cleaner->mutex);
 
-  return (ret);
+  return ret;
 }
 
 /**
@@ -3177,7 +3250,7 @@ static void buf_flush_page_coordinator_thread() {
   same set */
   for (size_t i = 1; i < srv_threads.m_page_cleaner_workers_n; ++i) {
     srv_threads.m_page_cleaner_workers[i] = os_thread_create(
-        page_flush_thread_key, i, buf_flush_page_cleaner_thread);
+        page_flush_thread_key, i, buf_flush_page_cleaner_thread, i);
 
     srv_threads.m_page_cleaner_workers[i].start();
   }
@@ -3200,7 +3273,7 @@ static void buf_flush_page_coordinator_thread() {
       case BUF_FLUSH_LRU:
         /* Flush pages from end of LRU if required */
         pc_request(0, LSN_MAX);
-        while (pc_flush_slot() > 0) {
+        while (pc_flush_slot(0) > 0) {
         }
         pc_wait_finished(&n_flushed_lru, &n_flushed_list);
         break;
@@ -3209,7 +3282,7 @@ static void buf_flush_page_coordinator_thread() {
         /* Flush all pages */
         do {
           pc_request(ULINT_MAX, LSN_MAX);
-          while (pc_flush_slot() > 0) {
+          while (pc_flush_slot(0) > 0) {
           }
         } while (!pc_wait_finished(&n_flushed_lru, &n_flushed_list));
         break;
@@ -3367,7 +3440,7 @@ static void buf_flush_page_coordinator_thread() {
       const auto flush_start = std::chrono::steady_clock::now();
 
       /* Coordinator also treats requests */
-      while (pc_flush_slot() > 0) {
+      while (pc_flush_slot(0) > 0) {
         /* No op */
       }
 
@@ -3469,7 +3542,7 @@ static void buf_flush_page_coordinator_thread() {
   do {
     pc_request(ULINT_MAX, LSN_MAX);
 
-    while (pc_flush_slot() > 0) {
+    while (pc_flush_slot(0) > 0) {
     }
 
     ulint n_flushed_lru = 0;
@@ -3534,7 +3607,7 @@ static void buf_flush_page_coordinator_thread() {
     are_any_read_ios_still_underway = buf_get_n_pending_read_ios() > 0;
     pc_request(ULINT_MAX, LSN_MAX);
 
-    while (pc_flush_slot() > 0) {
+    while (pc_flush_slot(0) > 0) {
     }
 
     ulint n_flushed_lru = 0;
@@ -3575,17 +3648,19 @@ thread_exit:
   destroy_internal_thd(thd);
 }
 
-/** Worker thread of page_cleaner. */
-static void buf_flush_page_cleaner_thread() {
+/** Worker thread of page_cleaner.
+  worker_id is the index in m_page_cleaner_workers[] and can be
+  used as the slot/buffer pool index in localized mode. */
+static void buf_flush_page_cleaner_thread(size_t worker_id) {
 #ifdef UNIV_LINUX
   /* Apply CPU binding for this page cleaner worker thread.
-    plannedthreads = m_page_cleaner_workers_n covers coordinator + all workers. */
+     plannedthreads = m_page_cleaner_workers_n covers coordinator + all workers. */
   cpu_binding_apply_for_role(ThreadRole::BUFPOOL_LRU_T,
                              pthread_self(),
                              srv_threads.m_page_cleaner_workers_n);
 
   /* linux might be able to set different setting for each thread
-  worth to try to set high priority for page cleaner threads */
+     worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {
     ib::info(ER_IB_MSG_129)
         << "page_cleaner worker priority: " << buf_flush_page_cleaner_priority;
@@ -3601,7 +3676,10 @@ static void buf_flush_page_cleaner_thread() {
       break;
     }
 
-    pc_flush_slot();
+    /* For now we ignore worker_id and keep legacy scheduling.
+       In the next step pc_flush_slot(_X_) will use worker_id when
+       innodb_flush_localized_active is true. */
+    pc_flush_slot(static_cast<ulint>(worker_id));
   }
 }
 

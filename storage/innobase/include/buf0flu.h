@@ -103,6 +103,9 @@ buf_flush_batch() and buf_flush_page().
 [[nodiscard]] bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
+/* Validate localized page flushing mode after startup options are finalized. */
+void buf_flush_localized_validate_startup();
+
 /** Do flushing batch of a given type.
 NOTE: The calling thread is not allowed to own any latches on pages!
 @param[in,out]  buf_pool        buffer pool instance

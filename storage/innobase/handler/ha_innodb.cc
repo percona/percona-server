@@ -5426,6 +5426,8 @@ static int innodb_init_params() {
     srv_n_page_cleaners = srv_buf_pool_instances;
   }
 
+  buf_flush_localized_validate_startup();
+
   srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 
   return 0;
@@ -23827,6 +23829,13 @@ static MYSQL_SYSVAR_BOOL(large_page_populate, innodb_large_page_populate,
                          PLUGIN_VAR_NOCMDARG,
                          "Populate huge pages for InnoDB buffer pool at startup",
                          nullptr, nullptr, false);
+static MYSQL_SYSVAR_BOOL(flush_localized, innodb_flush_localized,
+                        PLUGIN_VAR_NOCMDARG,
+                        "Enable NUMA-localized InnoDB page flushing (one page cleaner "
+                        "thread per buffer pool instance). Requires "
+                        "innodb_page_cleaners == innodb_buffer_pool_instances. When "
+                        "disabled, InnoDB uses the legacy page cleaner scheduling.",
+                        nullptr, nullptr, false);
 #endif
 static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -24531,6 +24540,7 @@ static SYS_VAR *innobase_system_variables[] = {
 #ifdef UNIV_LINUX
     MYSQL_SYSVAR(buffer_pool_parallel_init_threads),
     MYSQL_SYSVAR(large_page_populate),
+    MYSQL_SYSVAR(flush_localized),
 #endif
     MYSQL_SYSVAR(api_trx_level),
     MYSQL_SYSVAR(api_bk_commit_interval),

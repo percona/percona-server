@@ -307,6 +307,12 @@ struct Srv_cpu_usage {
   double stime_pct;
 };
 
+
+/* Global switch for localized page flushing:
+   when enabled, InnoDB can run one dedicated page cleaner thread
+   per buffer pool instance to improve NUMA locality. */
+extern bool innodb_flush_localized;
+
 /** Structure with state of srv background threads. */
 extern Srv_threads srv_threads;
 

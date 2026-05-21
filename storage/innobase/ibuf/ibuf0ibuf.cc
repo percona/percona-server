@@ -469,6 +469,19 @@ ibuf_close(void)
 }
 
 /******************************************************************//**
+Function to pass ibuf status variables */
+
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	free_list,
+	ulint*	segment_size)
+{
+	*free_list = ibuf->free_list_len;
+	*segment_size = ibuf->seg_size;
+}
+
+/******************************************************************//**
 Updates the size information of the ibuf, assuming the segment size has not
 changed. */
 static

@@ -40,6 +40,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "os0file.h"
 #include "m_string.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "trx0types.h"
 
 #include <list>
 #include <vector>
@@ -1681,7 +1682,8 @@ fil_system_hash_nodes(void);
 /*========================*/
 
 /*************************************************************************
-Set the is_corrupt flag of fil_space_t. */
+functions to access is_corrupt flag of fil_space_t*/
+
 void
 fil_space_set_corrupt(
 /*==================*/

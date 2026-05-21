@@ -304,6 +304,7 @@ our @DEFAULT_SUITES = qw(
 
   component_encryption_udf
   percona
+  percona_binlog
   percona_innodb
   percona_rpl
   percona_rpl_gtid

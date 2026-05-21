@@ -570,6 +570,22 @@ install_deps() {
             apt-get -y install gcc-14 g++-14
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 --slave /usr/bin/g++ g++ /usr/bin/g++-14
             update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 100
+        elif [ x"${DIST}" = xresolute ]; then
+            # Ubuntu 26.04 LTS ships gcc-15 as the default toolchain. The
+            # legacy `else` fallback below installs gcc-11 and points the
+            # gcc/g++/cc alternatives at it, but NOT /usr/bin/c++ — which on
+            # resolute is still g++-15. The result is a mixed-version build
+            # where libkmip's C sources compile with gcc-11 (writing LTO
+            # bytecode 11.3 into libkmip.a) but the C++ link is g++-15 (lto1
+            # 15.1), and link-time LTO aborts with:
+            #   lto1: fatal error: bytecode stream in file libkmip/src/libkmip.a
+            #   generated with LTO version 11.3 instead of the expected 15.1
+            # Pin everything (including the C++ default) at gcc-15 to keep
+            # the whole build on a single toolchain.
+            apt-get -y install gcc-15 g++-15
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100 --slave /usr/bin/g++ g++ /usr/bin/g++-15
+            update-alternatives --install /usr/bin/cc  cc  /usr/bin/gcc-15 100
+            update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-15 100
         else
             apt-get -y install gcc-11 g++-11 cpp-11
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11

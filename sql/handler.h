@@ -637,10 +637,12 @@ struct TABLE;
 enum enum_schema_tables
 {
   SCH_CHARSETS= 0,
+  SCH_CLIENT_STATS,
   SCH_COLLATIONS,
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
   SCH_COLUMNS,
   SCH_COLUMN_PRIVILEGES,
+  SCH_INDEX_STATS,
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
@@ -668,9 +670,12 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
+  SCH_TABLE_STATS,
   SCH_TEMPORARY_TABLES,
+  SCH_THREAD_STATS,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
+  SCH_USER_STATS,
   SCH_VARIABLES,
   SCH_VIEWS
 };
@@ -3143,6 +3148,8 @@ public:
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
+  void update_global_table_stats();
+  void update_global_index_stats();
   void update_index_stats(uint current_index)
   {
     rows_read++;
@@ -4106,6 +4113,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
+handlerton *ha_enforce_handlerton(THD *thd);
 /**
   Resolve handlerton plugin by name, without checking for "DEFAULT" or
   HTON_NOT_USER_SELECTABLE.
@@ -4238,6 +4246,9 @@ int ha_recover(HASH *commit_list);
 int ha_commit_low(THD *thd, bool all, bool run_after_commit= true);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
+
+bool ha_flush_changed_page_bitmaps();
+bool ha_purge_changed_page_bitmaps(ulonglong lsn);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);

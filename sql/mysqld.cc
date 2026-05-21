@@ -9100,6 +9100,7 @@ PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for depende
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
 PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
+PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0};
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -9210,7 +9211,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
   & stage_starting,
-  & stage_waiting_for_no_channel_reference
+  & stage_waiting_for_no_channel_reference,
+  & stage_restoring_secondary_keys
 };
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;

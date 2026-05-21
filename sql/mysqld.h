@@ -756,6 +756,7 @@ extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 extern PSI_stage_info stage_suspending;
 extern PSI_stage_info stage_starting;
 extern PSI_stage_info stage_waiting_for_no_channel_reference;
+extern PSI_stage_info stage_restoring_secondary_keys;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).

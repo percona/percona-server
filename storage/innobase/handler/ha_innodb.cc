@@ -5568,7 +5568,6 @@ building based on the assumption that there is no concurrent
 index creation/drop and DMLs that requires index lookup. All table
 handle will be closed before the index creation/drop.
 @return true if index translation table built successfully */
-static
 bool
 innobase_build_index_translation(
 /*=============================*/

@@ -198,6 +198,12 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
 
+my_bool	srv_track_changed_pages = FALSE;
+
+ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
+ulonglong	srv_max_changed_pages = 0;
+
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong	srv_debug_compress;
@@ -233,13 +239,9 @@ ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
 ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
 ulong		srv_log_write_ahead_size = 0;
 
-my_bool		srv_track_changed_pages = FALSE;
-
-ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
-
-ulonglong	srv_max_changed_pages = 0;
-
 page_size_t	univ_page_size(0, 0, false);
+
+char	srv_use_global_flush_log_at_trx_commit	= TRUE;
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */

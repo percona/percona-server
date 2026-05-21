@@ -790,6 +790,12 @@ static MYSQL_THDVAR_STR(ft_user_stopword_table,
   "User supplied stopword table name, effective in the session level.",
   innodb_stopword_table_validate, NULL, NULL);
 
+static MYSQL_THDVAR_ULONG(flush_log_at_trx_commit, PLUGIN_VAR_OPCMDARG,
+  "Set to 0 (write and flush once per second),"
+  " 1 (write and flush at each commit)"
+  " or 2 (write at commit, flush once per second).",
+  NULL, NULL, 1, 0, 2, 0);
+
 static MYSQL_THDVAR_STR(tmpdir,
   PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_MEMALLOC,
   "Directory for temporary non-tablespace files.",
@@ -1706,6 +1712,17 @@ thd_to_innodb_session(
 
 	innodb_session = UT_NEW_NOKEY(innodb_session_t());
 	return(innodb_session);
+}
+
+/******************************************************************//**
+*/
+
+ulong
+thd_flush_log_at_trx_commit(
+/*================================*/
+	void*	thd)
+{
+	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
 }
 
 /** Obtain the InnoDB transaction of a MySQL thread.
@@ -4269,7 +4286,7 @@ innobase_flush_logs(
 	/* If !binlog_group_flush, we got invoked by FLUSH LOGS or similar.
 	Else, we got invoked by binlog group commit during flush stage. */
 
-	if (binlog_group_flush && srv_flush_log_at_trx_commit == 0) {
+	if (binlog_group_flush && thd_flush_log_at_trx_commit(NULL) == 0) {
 		/* innodb_flush_log_at_trx_commit=0
 		(write and sync once per second).
 		Do not flush the redo log during binlog group commit. */
@@ -4281,7 +4298,7 @@ innobase_flush_logs(
 	innodb_flush_log_at_trx_commit=1
 	(write and sync at each commit). */
 	log_buffer_flush_to_disk(!binlog_group_flush
-				 || srv_flush_log_at_trx_commit == 1);
+				 || thd_flush_log_at_trx_commit(NULL) == 1);
 
 	DBUG_RETURN(false);
 }
@@ -19559,12 +19576,18 @@ static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
   "Write and flush logs every (n) second.",
   NULL, NULL, 1, 0, 2700, 0);
 
-static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
-  PLUGIN_VAR_OPCMDARG,
-  "Set to 0 (write and flush once per second),"
-  " 1 (write and flush at each commit)"
-  " or 2 (write at commit, flush once per second).",
-  NULL, NULL, 1, 0, 2, 0);
+/* Changed to the THDVAR */
+//static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
+//  PLUGIN_VAR_OPCMDARG,
+//  "Set to 0 (write and flush once per second),"
+//  " 1 (write and flush at each commit)"
+//  " or 2 (write at commit, flush once per second).",
+//  NULL, NULL, 1, 0, 2, 0);
+
+static MYSQL_SYSVAR_BOOL(use_global_flush_log_at_trx_commit, srv_use_global_flush_log_at_trx_commit,
+  PLUGIN_VAR_NOCMDARG,
+  "Use global innodb_flush_log_at_trx_commit value. (default: ON).",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -20399,6 +20422,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(file_format_max),
   MYSQL_SYSVAR(flush_log_at_timeout),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
+  MYSQL_SYSVAR(use_global_flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
 #ifndef DBUG_OFF

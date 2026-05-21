@@ -37,6 +37,7 @@
 
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
+#define LIST_PROCESS_HOST_LEN 64
 
 /*
   Maximum length of comments
@@ -155,6 +156,16 @@
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /* FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /* FLUSH OPTIMIZER_COSTS */
+#define REFRESH_TABLE_STATS     0x400000L /* Refresh table stats my_hash
+                                             table */
+#define REFRESH_INDEX_STATS     0x800000L /* Refresh index stats my_hash
+                                             table */
+#define REFRESH_USER_STATS      0x1000000L /* Refresh user stats my_hash
+                                             table */
+#define REFRESH_CLIENT_STATS    0x2000000L /* Refresh client stats my_hash
+                                              table */
+#define REFRESH_THREAD_STATS    0x4000000L /* Refresh thread stats my_hash
+                                              table */
 #define REFRESH_FLUSH_PAGE_BITMAPS 0x8000000L
 #define REFRESH_RESET_PAGE_BITMAPS 0x10000000L
 

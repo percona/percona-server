@@ -1338,8 +1338,6 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 }
 
 
-#define LIST_PROCESS_HOST_LEN 64
-
 /**
   Print "ON UPDATE" clause of a field into a string.
 

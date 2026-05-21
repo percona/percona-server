@@ -69,6 +69,7 @@ static SYMBOL symbols[] = {
   { "ANALYZE",          SYM(ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
   { "AND",		SYM(AND_SYM)},
   { "ANY",              SYM(ANY_SYM)},
+  { "ARCHIVED",    SYM(ARCHIVED_SYM)},
   { "AS",		SYM(AS)},
   { "ASC",		SYM(ASC)},
   { "ASCII",		SYM(ASCII_SYM)},

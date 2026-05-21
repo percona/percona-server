@@ -125,6 +125,7 @@ UNIV_INTERN ulong	srv_undo_logs = 1;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN char*	srv_arch_dir	= NULL;
+UNIV_INTERN ulong	srv_log_arch_expire_sec	= 0;
 #endif /* UNIV_LOG_ARCHIVE */
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
@@ -2150,6 +2151,190 @@ srv_any_background_threads_are_active(void)
 	return(thread_active);
 }
 
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+extern "C" UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+	ut_ad(!srv_read_only_mode);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Redo log follower thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_log_tracking_thread_key);
+#endif
+
+	my_thread_init();
+
+	do {
+		os_event_wait(srv_checkpoint_completed_event);
+		os_event_reset(srv_checkpoint_completed_event);
+
+#ifdef UNIV_DEBUG
+		if (!srv_track_changed_pages) {
+			continue;
+		}
+#endif
+
+		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
+			if (!log_online_follow_redo_log()) {
+				/* TODO: sync with I_S log tracking status? */
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"log tracking bitmap write failed, "
+					"stopping log tracking thread!\n");
+				break;
+			}
+		}
+
+	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
+
+	srv_track_changed_pages = FALSE;
+	log_online_read_shutdown();
+	os_event_set(srv_redo_log_thread_finished_event);
+
+	my_thread_end();
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*************************************************************//**
+Removes old archived transaction log files.
+Both parameters couldn't be provided at the same time */
+dberr_t
+purge_archived_logs(
+	time_t	before_date,		/*!< in: all files modified
+					before timestamp should be removed */
+	lsn_t	before_no)		/*!< in: files with this number in name
+					and earler should be removed */
+{
+	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	os_file_dir_t	dir;
+	os_file_stat_t	fileinfo;
+	char		archived_log_filename[OS_FILE_MAX_PATH];
+	char		namegen[OS_FILE_MAX_PATH];
+	ulint		dirnamelen;
+
+	if (srv_arch_dir) {
+		dir = os_file_opendir(srv_arch_dir, FALSE);
+		if (!dir) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"opening archived log directory %s failed. "
+				"Purge archived logs are not available\n",
+				srv_arch_dir);
+			/* failed to open directory */
+			return(DB_ERROR);
+		}
+	} else {
+		/* log archive directory is not specified */
+		return(DB_ERROR);
+	}
+
+	dirnamelen = strlen(srv_arch_dir);
+
+	memcpy(archived_log_filename, srv_arch_dir, dirnamelen);
+	if (dirnamelen &&
+		archived_log_filename[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
+		archived_log_filename[dirnamelen++] = SRV_PATH_SEPARATOR;
+	}
+
+	memset(&fileinfo, 0, sizeof(fileinfo));
+	while(!os_file_readdir_next_file(srv_arch_dir, dir,
+				&fileinfo) ) {
+		if (strncmp(fileinfo.name,
+			IB_ARCHIVED_LOGS_PREFIX, IB_ARCHIVED_LOGS_PREFIX_LEN)) {
+			continue;
+		}
+		if (dirnamelen + strlen(fileinfo.name) + 2 > OS_FILE_MAX_PATH)
+			continue;
+
+		snprintf(archived_log_filename + dirnamelen, OS_FILE_MAX_PATH,
+				"%s", fileinfo.name);
+
+		if (before_no) {
+			ib_uint64_t log_file_no = strtoull(fileinfo.name +
+					IB_ARCHIVED_LOGS_PREFIX_LEN,
+					NULL, 10);
+			if (log_file_no == 0 || before_no <= log_file_no) {
+				continue;
+			}
+		} else {
+			fileinfo.mtime = 0;
+			if (os_file_get_status(archived_log_filename,
+					&fileinfo, false) != DB_SUCCESS ||
+					fileinfo.mtime == 0) {
+				continue;
+			}
+
+			if (before_date == 0 || fileinfo.mtime > before_date) {
+				continue;
+			}
+		}
+
+		/* We are going to delete archived file. Acquire log_sys->mutex
+		to make sure that we are the only who try to delete file. This
+		also prevents log system from using this file. Do not delete
+		file if it is currently in progress of writting or have
+		pending IO. This is enforced by checking:
+		  1. fil_space_contains_node.
+		  2. group->archived_offset % group->file_size != 0, i.e. 
+		     there is archive in progress and we are going to delete it.
+		This covers 3 cases:
+		  a. Usual case when we have one archive in progress,
+		     both 1 and 2 are TRUE
+		  b. When we have more then 1 archive in fil_space,
+		     this can happen when flushed LSN range crosses file
+		     boundary
+		  c. When we have empty fil_space, but existing file will be
+		     opened once archiving operation is requested. This usually
+		     happens on startup.
+		*/
+
+		mutex_enter(&log_sys->mutex);
+
+		log_archived_file_name_gen(namegen, sizeof(namegen),
+					   group->id, group->archived_file_no);
+
+		if (fil_space_contains_node(group->archive_space_id,
+					    archived_log_filename) ||
+		    (group->archived_offset % group->file_size != 0 &&
+		     strcmp(namegen, archived_log_filename) == 0)) {
+
+			mutex_exit(&log_sys->mutex);
+			continue;
+		}
+
+		if (!os_file_delete_if_exists(innodb_file_data_key,
+					     archived_log_filename)) {
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"can't delete archived log file %s.\n",
+				archived_log_filename);
+
+			mutex_exit(&log_sys->mutex);
+			os_file_closedir(dir);
+
+			return(DB_ERROR);
+		}
+
+		mutex_exit(&log_sys->mutex);
+	}
+
+	os_file_closedir(dir);
+
+	return(DB_SUCCESS);
+}
+
 /*******************************************************************//**
 Tells the InnoDB server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
@@ -2503,20 +2688,16 @@ srv_master_do_idle_tasks(void)
 	log_checkpoint(TRUE, FALSE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
 				       counter_time);
-}
 
-/******************************************************************//**
-Temporary buildable stub for the changed page redo-log follower.
-@return a dummy value */
-extern "C" UNIV_INTERN
-os_thread_ret_t
-DECLARE_THREAD(srv_redo_log_follow_thread)(
-/*=======================================*/
-	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
-						     required by
-						     os_thread_create */
-{
-	OS_THREAD_DUMMY_RETURN;
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	if (srv_log_arch_expire_sec) {
+		srv_main_thread_op_info = "purging archived logs";
+		purge_archived_logs(ut_time() - srv_log_arch_expire_sec,
+				0);
+	}
 }
 
 /*********************************************************************//**

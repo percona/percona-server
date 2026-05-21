@@ -50,6 +50,9 @@ Created 1/20/1994 Heikki Tuuri
 #define PERCONA_INNODB_VERSION 74.0
 #endif
 
+/* Enable UNIV_LOG_ARCHIVE in XtraDB */
+#define UNIV_LOG_ARCHIVE 1
+
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
 calculated in make_version_string() in sql/sql_show.cc like this:

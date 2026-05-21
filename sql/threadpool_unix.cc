@@ -26,6 +26,7 @@
 #include <sql_plist.h>
 #include <threadpool.h>
 #include <global_threads.h>
+#include <mysql/thread_pool_priv.h>             // thd_is_transaction_active()
 #include <time.h>
 #ifdef __linux__
 #include <sys/epoll.h>

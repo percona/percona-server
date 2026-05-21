@@ -92,6 +92,9 @@ enum enum_sql_command {
 
   /* SHOW SLAVE STATUS NOLOCK */
   SQLCOM_SHOW_SLAVE_NOLOCK_STAT,
+
+  SQLCOM_PURGE_ARCHIVE,
+  SQLCOM_PURGE_ARCHIVE_BEFORE,
   /*
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...

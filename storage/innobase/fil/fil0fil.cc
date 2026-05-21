@@ -1221,6 +1221,39 @@ fil_space_truncate_start(
 
 	mutex_exit(&fil_system->mutex);
 }
+
+/****************************************************************//**
+Check is there node in file space with given name. */
+UNIV_INTERN
+ibool
+fil_space_contains_node(
+/*====================*/
+	ulint	id,		/*!< in: space id */
+	char*	node_name)	/*!< in: node name */
+{
+	fil_node_t*	node;
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space);
+
+	for (node = UT_LIST_GET_FIRST(space->chain); node != NULL;
+	     node = UT_LIST_GET_NEXT(chain, node)) {
+
+		if (ut_strcmp(node->name, node_name) == 0) {
+			mutex_exit(&fil_system->mutex);
+			return(TRUE);
+		}
+
+	}
+
+	mutex_exit(&fil_system->mutex);
+	return(FALSE);
+}
+
 #endif /* UNIV_LOG_ARCHIVE */
 
 /*******************************************************************//**
@@ -2033,12 +2066,6 @@ fil_read_first_page(
 						contain sensible data */
 	ulint*		flags,			/*!< out: tablespace flags */
 	ulint*		space_id,		/*!< out: tablespace ID */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< out: min of archived
-						log numbers in data files */
-	ulint*		max_arch_log_no,	/*!< out: max of archived
-						log numbers in data files */
-#endif /* UNIV_LOG_ARCHIVE */
 	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
 						lsn values in data files */
 	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
@@ -2079,10 +2106,7 @@ fil_read_first_page(
 	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
 		*max_flushed_lsn = flushed_lsn;
-#ifdef UNIV_LOG_ARCHIVE
-		*min_arch_log_no = arch_log_no;
-		*max_arch_log_no = arch_log_no;
-#endif /* UNIV_LOG_ARCHIVE */
+
 		return(NULL);
 	}
 
@@ -2092,14 +2116,6 @@ fil_read_first_page(
 	if (*max_flushed_lsn < flushed_lsn) {
 		*max_flushed_lsn = flushed_lsn;
 	}
-#ifdef UNIV_LOG_ARCHIVE
-	if (*min_arch_log_no > arch_log_no) {
-		*min_arch_log_no = arch_log_no;
-	}
-	if (*max_arch_log_no < arch_log_no) {
-		*max_arch_log_no = arch_log_no;
-	}
-#endif /* UNIV_LOG_ARCHIVE */
 
 	return(NULL);
 }
@@ -3740,9 +3756,6 @@ fil_open_single_table_tablespace(
 	if (def.success) {
 		def.check_msg = fil_read_first_page(
 			def.file, FALSE, &def.flags, &def.id,
-#ifdef UNIV_LOG_ARCHIVE
-			&space_arch_log_no, &space_arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
 			&def.lsn, &def.lsn);
 		def.valid = !def.check_msg;
 
@@ -3765,9 +3778,6 @@ fil_open_single_table_tablespace(
 	if (remote.success) {
 		remote.check_msg = fil_read_first_page(
 			remote.file, FALSE, &remote.flags, &remote.id,
-#ifdef UNIV_LOG_ARCHIVE
-			&remote.arch_log_no, &remote.arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
 			&remote.lsn, &remote.lsn);
 		remote.valid = !remote.check_msg;
 
@@ -3791,9 +3801,6 @@ fil_open_single_table_tablespace(
 	if (dict.success) {
 		dict.check_msg = fil_read_first_page(
 			dict.file, FALSE, &dict.flags, &dict.id,
-#ifdef UNIV_LOG_ARCHIVE
-			&dict.arch_log_no, &dict.arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
 			&dict.lsn, &dict.lsn);
 		dict.valid = !dict.check_msg;
 
@@ -4195,9 +4202,6 @@ check_first_page:
 	fsp->success = TRUE;
 	if (const char* check_msg = fil_read_first_page(
 		    fsp->file, FALSE, &fsp->flags, &fsp->id,
-#ifdef UNIV_LOG_ARCHIVE
-		    &fsp->arch_log_no, &fsp->arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
 		    &fsp->lsn, &fsp->lsn)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"%s in tablespace %s (table %s)",

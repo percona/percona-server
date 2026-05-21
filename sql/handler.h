@@ -893,6 +893,8 @@ struct handlerton
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
                         enum enum_schema_tables);
+   my_bool (*flush_changed_page_bitmaps)(void);
+   my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
    bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
                              const char* to_filename);
 

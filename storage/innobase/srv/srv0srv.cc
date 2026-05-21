@@ -213,7 +213,6 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 UNIV_INTERN ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
-UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;

@@ -1522,12 +1522,12 @@ buf_flush_LRU_list_batch(
 		lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 	}
 
+	ut_ad(buf_pool_mutex_own(buf_pool));
+
 	/* We keep track of all flushes happening as part of LRU
 	flush. When estimating the desired rate at which flush_list
 	should be flushed, we factor in this value. */
 	buf_pool->stat.buf_lru_flush_page_count += count;
-
-	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	if (scanned) {
 		MONITOR_INC_VALUE_CUMULATIVE(

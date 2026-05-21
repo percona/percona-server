@@ -1,0 +1,39 @@
+#
+# Test slow-logging of statements in stored procedures
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS test_f;
+--enable_warnings
+
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+
+delimiter ^;
+CREATE PROCEDURE test_f()
+BEGIN
+   SELECT 1;
+END^
+delimiter ;^
+
+SET GLOBAL log_slow_sp_statements=ON;
+--let log_file=percona.slow_extended.sp1
+--source include/log_start.inc
+CALL test_f();
+--source include/log_stop.inc
+--let grep_pattern=SELECT 1;
+--source include/log_grep.inc
+
+SET GLOBAL log_slow_sp_statements=OFF;
+--let log_file=percona.slow_extended.sp2
+--source include/log_start.inc
+CALL test_f();
+--source include/log_stop.inc
+--let grep_pattern=SELECT 1;
+--source include/log_grep.inc
+
+DROP PROCEDURE test_f;
+
+SET GLOBAL log_slow_sp_statements=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+--source include/log_cleanup.inc

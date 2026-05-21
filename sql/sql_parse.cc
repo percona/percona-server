@@ -99,6 +99,9 @@
 #include "sql_timer.h"   // thd_timer_set, thd_timer_reset
 #include "sp_rcontext.h"
 #include "parse_location.h"
+
+#include <sys/time.h>
+
 #include "sql_digest.h"
 #include "sql_timer.h"        // thd_timer_set
 #include "sql_trigger.h"      // add_table_for_trigger
@@ -893,6 +896,12 @@ bool do_command(THD *thd)
   */
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
+  thd->updated_row_count=    0;
+  thd->busy_time=            0;
+  thd->cpu_time=             0;
+  thd->bytes_received=       0;
+  thd->bytes_sent=           0;
+  thd->binlog_bytes_written= 0;
 
   if (classic)
   {
@@ -1191,6 +1200,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info", ("command: %d", command));
 
+  DBUG_EXECUTE_IF("crash_dispatch_command_before",
+                  { DBUG_PRINT("crash_dispatch_command_before", ("now"));
+                    DBUG_ABORT(); });
+
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
@@ -1206,11 +1219,17 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                                                com_statement_info[command].m_key);
 
   thd->set_command(command);
+
+  /* To increment the current command counter for user stats, 'command' must
+     be saved because it is set to COM_SLEEP at the end of this function.
+  */
+  thd->old_command= command;
   /*
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log= TRUE;
+  thd->clear_slow_extended();
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   if (thd->is_valid_time() == false)
@@ -2060,6 +2079,13 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     thd->profiling.discard_current_query();
 #endif
     break;
+  case SCH_USER_STATS:
+  case SCH_CLIENT_STATS:
+  case SCH_THREAD_STATS:
+    if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
+      DBUG_RETURN(1);
+  case SCH_TABLE_STATS:
+  case SCH_INDEX_STATS:
   case SCH_OPTIMIZER_TRACE:
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
@@ -2197,6 +2223,7 @@ bool sp_process_definer(THD *thd)
                        thd->security_context()->priv_host().str)) &&
         check_global_access(thd, SUPER_ACL))
     {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       DBUG_RETURN(TRUE);
     }
@@ -2832,9 +2859,35 @@ case SQLCOM_PREPARE:
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    /* PURGE MASTER LOGS TO 'file' */
-    res = purge_master_logs(thd, lex->to_log);
-    break;
+    if (lex->type == 0)
+    {
+      /* PURGE MASTER LOGS TO 'file' */
+      res = purge_master_logs(thd, lex->to_log);
+      break;
+    }
+    if (lex->type == PURGE_BITMAPS_TO_LSN)
+    {
+      /* PURGE CHANGED_PAGE_BITMAPS BEFORE lsn */
+      ulonglong lsn= 0;
+      Item* it= lex->purge_value_list.head();
+      if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1)
+          || it->null_value)
+      {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0),
+                 "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+        goto error;
+      }
+      lsn= it->val_uint();
+      res= ha_purge_changed_page_bitmaps(lsn);
+      if (res)
+      {
+        my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0),
+                 "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+        goto error;
+      }
+      my_ok(thd);
+      break;
+    }
   }
   case SQLCOM_PURGE_BEFORE:
   {
@@ -4139,7 +4192,14 @@ end_with_restore_list:
   case SQLCOM_FLUSH:
   {
     int write_to_binlog;
-    if (check_global_access(thd,RELOAD_ACL))
+
+    if (lex->type & REFRESH_FLUSH_PAGE_BITMAPS
+        || lex->type & REFRESH_RESET_PAGE_BITMAPS)
+    {
+      if (check_global_access(thd, SUPER_ACL))
+          goto error;
+    }
+    else if (check_global_access(thd, RELOAD_ACL))
       goto error;
 
     if (first_table && lex->type & REFRESH_READ_LOCK)
@@ -5165,7 +5225,6 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 
   if (statement_timer_armed && thd->timer)
     reset_statement_timer(thd);
-
   DEBUG_SYNC(thd, "after_table_open");
   return res;
 }
@@ -5337,7 +5396,8 @@ void THD::reset_for_next_command()
   thd->get_stmt_da()->reset_statement_cond_count();
 
   thd->rand_used= 0;
-  thd->m_sent_row_count= thd->m_examined_row_count= 0;
+
+  thd->clear_slow_extended();
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
@@ -5453,6 +5513,34 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   */
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
+
+  int start_time_error=   0;
+  int end_time_error=     0;
+  struct timeval start_time, end_time;
+  double start_usecs=     0;
+  double end_usecs=       0;
+  /* cpu time */
+  int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+#endif
+  double start_cpu_nsecs= 0;
+  double end_cpu_nsecs=   0;
+
+  if (opt_userstat)
+  {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, NULL)))
+    {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
 
   thd->m_parser_state= parser_state;
   invoke_pre_parse_rewrite_plugins(thd);
@@ -5646,6 +5734,52 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                                      thd->query().length);
     parser_state->m_lip.found_semicolon= NULL;
   }
+
+  if (opt_userstat)
+  {
+    // Gets the end time.
+    if (!(end_time_error= gettimeofday(&end_time, NULL)))
+    {
+      end_usecs= end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error && !end_time_error)
+    {
+      thd->busy_time= (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743)
+      {
+        thd->busy_time= 0;
+      }
+    }
+    else
+    {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time= 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error)
+    {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743)
+      {
+        thd->cpu_time= 0;
+      }
+    }
+    else
+      thd->cpu_time = 0;
+  }
+  // Updates THD stats.
+  if (unlikely(opt_userstat))
+    thd->update_stats(true);
 
   DBUG_VOID_RETURN;
 }

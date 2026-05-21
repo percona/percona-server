@@ -162,8 +162,12 @@ extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
 extern size_t opt_secure_backup_file_priv_len;
+extern my_bool opt_userstat;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern my_bool opt_query_cache_strip_comments;
+extern ulong opt_log_slow_sp_statements;
+extern ulonglong opt_slow_query_log_use_global_control;
+extern ulong opt_slow_query_log_rate_type;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern my_bool check_proxy_users, mysql_native_password_proxy_users, sha256_password_proxy_users;
@@ -836,7 +840,9 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-       LOCK_offline_mode, LOCK_default_password_lifetime;
+       LOCK_offline_mode, LOCK_default_password_lifetime,
+       LOCK_global_user_client_stats,
+       LOCK_global_table_stats, LOCK_global_index_stats;
 #ifdef HAVE_OPENSSL
 extern char* des_key_file;
 extern mysql_mutex_t LOCK_des_key_file;

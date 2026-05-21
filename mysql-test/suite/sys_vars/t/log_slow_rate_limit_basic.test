@@ -1,0 +1,1 @@
+SELECT @@global.log_slow_rate_limit;

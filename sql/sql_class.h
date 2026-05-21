@@ -102,6 +102,34 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
+enum enum_slow_query_log_use_global_control {
+  SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT
+  , SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME
+  , SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL
+};
+enum enum_log_slow_verbosity { 
+  SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, 
+  SLOG_V_PROFILING, SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_MINIMAL, SLOG_V_STANDARD, SLOG_V_FULL
+};
+enum enum_slow_query_log_rate_type {
+  SLOG_RT_SESSION, SLOG_RT_QUERY
+};
+#define QPLAN_NONE            0
+#define QPLAN_QC_NO           (1 << 0)
+#define QPLAN_FULL_SCAN       (1 << 1)
+#define QPLAN_FULL_JOIN       (1 << 2)
+#define QPLAN_TMP_TABLE       (1 << 3)
+#define QPLAN_TMP_DISK        (1 << 4)
+#define QPLAN_FILESORT        (1 << 5)
+#define QPLAN_FILESORT_DISK   (1 << 6)
+#define QPLAN_QC              (1 << 7)
+enum enum_log_slow_filter {
+  SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN,
+  SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
+  SLOG_F_FILESORT_DISK
+};
+#define SLOG_SLOW_RATE_LIMIT_MAX	1000
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
                                                     HASH_ALGORITHM_MURMUR32= 1,
                                                     HASH_ALGORITHM_XXHASH64= 2};
@@ -551,6 +579,21 @@ typedef struct system_variables
 
   my_bool sysdate_is_now;
   my_bool binlog_rows_query_log_events;
+
+#ifndef DBUG_OFF
+  ulonglong query_exec_time;
+  double    query_exec_time_double;
+#endif
+  ulong log_slow_rate_limit;
+  ulonglong log_slow_filter;
+  ulonglong log_slow_verbosity;
+
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
 
   double long_query_time_double;
 
@@ -1105,6 +1148,24 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+
+  bool       innodb_was_used;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  ulong      query_plan_flags;
+  ulong      query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields count_cuted_fields;
 };
@@ -1988,6 +2049,61 @@ public:
     depending on whether low_priority_updates option is off or on.
   */
   thr_lock_type insert_lock_default;
+
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong  bytes_sent_old;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool       innodb_was_used;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==true)
+  */
+  ulonglong  innodb_trx_id;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong      query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong      query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint       last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended();
+private:
+  void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
+  void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
+  /*** The methods above used in slow_extended.patch ***/
+public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -3124,6 +3240,11 @@ public:
   */
   void init_for_queries(Relay_log_info *rli= NULL);
   void cleanup_connection(void);
+  void reset_stats(void);
+  void reset_diff_stats(void);
+  // ran_command is true when this is called immediately after a
+  // command has been run.
+  void update_stats(bool ran_command);
   void cleanup_after_query();
   bool store_globals();
   void restore_globals();
@@ -4761,6 +4882,11 @@ private:
   bool is_a_srv_session_thd;
 };
 
+/* Returns string as 'IP' for the client-side of the connection represented by
+   'client'. Does not allocate memory. May return "".
+*/
+const char *get_client_host(THD *client);
+
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.
   The class utilizes RAII technique to not forget to restore the THD arena.
@@ -5088,6 +5214,7 @@ public:
   ~Query_result_export()
   {
     thd->set_sent_row_count(row_count);
+    thd->sent_row_count_2= row_count;
   }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

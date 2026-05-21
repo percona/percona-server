@@ -1,0 +1,4 @@
+--source include/have_debug.inc
+
+SET GLOBAL query_exec_time=default;
+SET SESSION query_exec_time=default;

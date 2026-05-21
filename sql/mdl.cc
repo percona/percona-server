@@ -2221,7 +2221,11 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   */
   m_wait.reset_status();
 
-  if (lock->needs_notification(ticket))
+  /*
+    Don't break conflicting locks if timeout is 0 as 0 is used
+    To check if there is any conflicting locks...
+  */
+  if (lock->needs_notification(ticket) && lock_wait_timeout)
     lock->notify_conflicting_locks(this);
 
   mysql_prlock_unlock(&lock->m_rwlock);
@@ -2276,7 +2280,8 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     case MDL_wait::KILLED:
-      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      if (!m_owner->is_timedout())
+        my_error(ER_QUERY_INTERRUPTED, MYF(0));
       break;
     default:
       DBUG_ASSERT(0);

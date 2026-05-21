@@ -12,7 +12,6 @@ enum class ThreadRole
   REPLICA_APPLIER,
   REPLICA_WORKER,
   CLIENT_THREAD,
-  BUFPOOL_LRU_T,
   };
 
 enum class BindingMode

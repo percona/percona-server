@@ -557,14 +557,6 @@ static Sys_var_charptr Sys_thread_affinity_client(
   READ_ONLY GLOBAL_VAR(opt_thread_affinity_client),
   CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
 
-char *opt_thread_affinity_bp_lru = nullptr;
-static Sys_var_charptr Sys_thread_affinity_bp_lru(
-  "thread_affinity_bp_lru",
-  "CPU binding for Buffer Pool LRU threads: socket,core,thread; "
-  "each field can be a number or 'any/sparse'.",
-  READ_ONLY GLOBAL_VAR(opt_thread_affinity_bp_lru),
-  CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
-
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 #define PFS_TRAILING_PROPERTIES                                         \

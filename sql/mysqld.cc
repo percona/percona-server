@@ -1208,7 +1208,6 @@ LEX_STRING opt_init_connect, opt_init_replica;
   extern char *opt_thread_affinity_main;
   extern char *opt_thread_affinity_rpl;
   extern char *opt_thread_affinity_client;
-  extern char *opt_thread_affinity_bp_lru;
 #endif
 
 /* Global variables */

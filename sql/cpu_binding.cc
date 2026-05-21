@@ -154,13 +154,10 @@ static const char *cpu_binding_role_name(ThreadRole role) {
       return "REPLICA_WORKER";
     case ThreadRole::CLIENT_THREAD:
       return "CLIENT_THREAD";
-    case ThreadRole::BUFPOOL_LRU_T:
-      return "BUFPOOL_LRU_T";
     default:
       return "UNKNOWN_THREAD_ROLE";
     }
   }
-
 
 using CpuFilter = void(*)(cpu_set_t &cpuset,
 const CpuBindingEntry &entry,
@@ -423,13 +420,10 @@ static const char *cpu_binding_thread_role_option_name(ThreadRole role) {
       return "thread_affinity_rpl";
     case ThreadRole::CLIENT_THREAD:
       return "thread_affinity_client";
-    case ThreadRole::BUFPOOL_LRU_T:
-      return "thread_affinity_bp_lru";
     default:
       return "thread_affinity_unknown";
     }
   }
-
 
 void cpu_binding_register_option(ThreadRole role, const char *raw_value) {
 

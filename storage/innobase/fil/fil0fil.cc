@@ -5694,20 +5694,12 @@ fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
-#ifdef UNIV_HOTBACKUP
-	/* In mysqlbackup do normal i/o, not aio */
-	if (type == OS_FILE_READ) {
-		ret = os_file_read(node->handle, buf, offset, len);
-	} else {
-		ut_ad(!srv_read_only_mode);
-		ret = os_file_write(node->name, node->handle, buf,
-				    offset, len);
-	}
-#else
-	if (space->is_corrupt && srv_pass_corrupt_table) {
+#ifndef UNIV_HOTBACKUP
+	if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
 
 		/* should ignore i/o for the crashed space */
-		if (srv_pass_corrupt_table == 1 || type == OS_FILE_WRITE) {
+		if (srv_pass_corrupt_table == 1 ||
+		    type == OS_FILE_WRITE) {
 
 			mutex_enter(&fil_system->mutex);
 			fil_node_complete_io(node, fil_system, type);
@@ -5732,7 +5724,17 @@ fil_io(
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
 		     offset, len, node, message);
-#endif /* UNIV_HOTBACKUP */
+
+#else
+	/* In mysqlbackup do normal i/o, not aio */
+	if (type == OS_FILE_READ) {
+		ret = os_file_read(node->handle, buf, offset, len);
+	} else {
+		ut_ad(!srv_read_only_mode);
+		ret = os_file_write(node->name, node->handle, buf,
+				    offset, len);
+	}
+#endif /* !UNIV_HOTBACKUP */
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {

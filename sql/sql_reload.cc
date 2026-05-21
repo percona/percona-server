@@ -29,7 +29,6 @@
 #include "rpl_mi.h"
 #include "debug_sync.h"
 
-
 /**
   Reload/resets privileges and the different caches.
 

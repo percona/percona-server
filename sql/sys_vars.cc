@@ -1654,6 +1654,36 @@ static Sys_var_double Sys_long_query_time(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
 
+#ifndef DBUG_OFF
+static bool update_cached_query_exec_time(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  if (type == OPT_SESSION)
+    thd->variables.query_exec_time=
+      double2ulonglong(thd->variables.query_exec_time_double * 1e6);
+  else
+    global_system_variables.query_exec_time=
+      double2ulonglong(global_system_variables.query_exec_time_double * 1e6);
+  return false;
+}
+
+static Sys_var_double Sys_query_exec_time(
+       "query_exec_time",
+       "Pretend queries take this many seconds. When 0 (the default) use the "
+       "actual execution time. Used only for debugging.",
+       SESSION_VAR(query_exec_time_double),
+       NO_CMD_LINE, VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0),
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_cached_query_exec_time));
+static Sys_var_ulong sys_query_exec_id(
+       "query_exec_id",
+       "Pretend queries take this query id. When 0 (the default) use the"
+       "actual query id. Used only for debugging.",
+       SESSION_VAR(query_exec_id),
+       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, IN_BINLOG);
+#endif
+
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type == OPT_SESSION)

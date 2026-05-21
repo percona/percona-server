@@ -1105,10 +1105,17 @@ static
 void
 trx_flush_log_if_needed_low(
 /*========================*/
-	lsn_t	lsn)	/*!< in: lsn up to which logs are to be
+	lsn_t	lsn,	/*!< in: lsn up to which logs are to be
 			flushed. */
+	trx_t*	trx)	/*!< in: transaction */
 {
-	switch (srv_flush_log_at_trx_commit) {
+	ulint	flush_log_at_trx_commit;
+
+	flush_log_at_trx_commit = srv_use_global_flush_log_at_trx_commit
+		? thd_flush_log_at_trx_commit(NULL)
+		: thd_flush_log_at_trx_commit(trx->mysql_thd);
+
+	switch (flush_log_at_trx_commit) {
 	case 0:
 		/* Do nothing */
 		break;
@@ -1139,7 +1146,7 @@ trx_flush_log_if_needed(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx->op_info = "flushing log";
-	trx_flush_log_if_needed_low(lsn);
+	trx_flush_log_if_needed_low(lsn, trx);
 	trx->op_info = "";
 }
 
@@ -1233,9 +1240,17 @@ trx_commit_in_memory(
 	trx->read_view = NULL;
 
 	if (lsn) {
+		ulint	flush_log_at_trx_commit;
+
 		if (trx->insert_undo != NULL) {
 
 			trx_undo_insert_cleanup(trx);
+		}
+
+		if (srv_use_global_flush_log_at_trx_commit) {
+			flush_log_at_trx_commit = thd_flush_log_at_trx_commit(NULL);
+		} else {
+			flush_log_at_trx_commit = thd_flush_log_at_trx_commit(trx->mysql_thd);
 		}
 
 		/* NOTE that we could possibly make a group commit more
@@ -1269,7 +1284,7 @@ trx_commit_in_memory(
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = TRUE;
-		} else if (srv_flush_log_at_trx_commit == 0
+		} else if (flush_log_at_trx_commit == 0
 			   || thd_requested_durability(trx->mysql_thd)
 			   == HA_IGNORE_DURABILITY) {
 			/* Do nothing */

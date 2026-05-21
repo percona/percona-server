@@ -1359,6 +1359,7 @@ fil_space_create(
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = false;
+
 	space->is_corrupt = FALSE;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
@@ -5137,7 +5138,7 @@ retry:
 		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
 				 node->name, node->handle, buf,
 				 offset, page_size * n_pages,
-				 NULL, NULL);
+				 NULL, NULL, space_id, NULL);
 #endif /* UNIV_HOTBACKUP */
 		if (success) {
 			os_has_said_disk_full = FALSE;
@@ -5483,7 +5484,7 @@ Reads or writes data. This operation is asynchronous (aio).
 i/o on a tablespace which does not exist */
 UNIV_INTERN
 dberr_t
-fil_io(
+_fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
 				ORed to OS_FILE_LOG, if a log i/o
@@ -5508,8 +5509,9 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
+	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	trx_t*	trx)
 {
 	ulint		mode;
 	fil_space_t*	space;
@@ -5695,8 +5697,8 @@ fil_io(
 
 	/* Do aio */
 
-	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_a(byte_offset % OS_MIN_LOG_BLOCK_SIZE == 0);
+	ut_a((len % OS_MIN_LOG_BLOCK_SIZE) == 0);
 
 #ifndef UNIV_HOTBACKUP
 	if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
@@ -5727,7 +5729,7 @@ fil_io(
 
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset, len, node, message);
+		offset, len, node, message, space_id, trx);
 
 #else
 	/* In mysqlbackup do normal i/o, not aio */
@@ -5774,6 +5776,7 @@ fil_aio_wait(
 	fil_node_t*	fil_node;
 	void*		message;
 	ulint		type;
+	ulint		space_id = 0;
 
 	ut_ad(fil_validate_skip());
 
@@ -5781,10 +5784,10 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(
-			segment, 0, &fil_node, &message, &type);
+			segment, 0, &fil_node, &message, &type, &space_id);
 #elif defined(LINUX_NATIVE_AIO)
 		ret = os_aio_linux_handle(
-			segment, &fil_node, &message, &type);
+			segment, &fil_node, &message, &type, &space_id);
 #else
 		ut_error;
 		ret = 0; /* Eliminate compiler warning */
@@ -5793,7 +5796,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(
-			segment, &fil_node, &message, &type);
+			segment, &fil_node, &message, &type, &space_id);
 	}
 
 	ut_a(ret);
@@ -6606,6 +6609,7 @@ fil_mtr_rename_log(
 				 0, 0, new_name, old_name, mtr);
 	}
 }
+
 /*************************************************************************
 functions to access is_corrupt flag of fil_space_t*/
 

@@ -2582,10 +2582,11 @@ buf_debug_execute_is_force_flush()
 
 /**
 Wait for the block to be read in.
-@param block	The block to check */
+@param block	The block to check
+@param trx	Transaction to account the I/Os to */
 static
 void
-buf_wait_for_read(buf_block_t* block)
+buf_wait_for_read(buf_block_t* block, trx_t* trx __attribute__((unused)))
 {
 	/* Note: For the PAGE_ATOMIC_REF_COUNT case:
 
@@ -3148,14 +3149,14 @@ got_block:
 	/* We have to wait here because the IO_READ state was set
 	under the protection of the hash_lock and the block->mutex
 	but not the block->lock. */
-	buf_wait_for_read(fix_block);
+	buf_wait_for_read(fix_block, trx);
 #endif /* PAGE_ATOMIC_REF_COUNT */
 
 	switch (rw_latch) {
 	case RW_NO_LATCH:
 
 #ifndef PAGE_ATOMIC_REF_COUNT
-		buf_wait_for_read(fix_block);
+		buf_wait_for_read(fix_block, trx);
 #endif /* !PAGE_ATOMIC_REF_COUNT */
 
 		fix_type = MTR_MEMO_BUF_FIX;

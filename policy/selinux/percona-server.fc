@@ -1,0 +1,6 @@
+/etc/init\.d/rc\.d/mysql -- gen_context(system_u:object_r:mysqld_initrc_exec_t,s0)
+/var/lib/mysql/.*\.log --  gen_context(system_u:object_r:mysqld_log_t,s0)
+/var/lib/mysql/.*\.err --  gen_context(system_u:object_r:mysqld_log_t,s0)
+/var/lib/mysql/.*\.pid -- gen_context(system_u:object_r:mysqld_var_run_t,s0)
+/var/lib/mysql/.*\.cnf	--  gen_context(system_u:object_r:mysqld_etc_t,s0)
+/usr/bin/xtrabackup.* -- gen_context(system_u:object_r:mysqld_exec_t,s0)

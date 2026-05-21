@@ -131,6 +131,9 @@ static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
 static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime);
 
+// Uses the THD to update the global stats by user name and client IP
+void update_global_user_stats(THD* thd, bool create_user, time_t now);
+
 const char *any_db="*any*";	// Special symbol for check_access
 
 const LEX_STRING command_name[]={
@@ -6536,7 +6539,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 
@@ -6762,14 +6767,21 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       // In case there are bad values, 2629743 is the #seconds in a month.
       if (thd->cpu_time > 2629743)
       {
-  // Updates THD stats and the global user stats.
+        thd->cpu_time = 0;
       }
     }
     else
       thd->cpu_time = 0;
   }
-  // Updates THD stats.
-  thd->update_stats(true);
+
+  // Updates THD stats and the global user stats.
+  if (unlikely(opt_userstat))
+  {
+    thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
+    update_global_user_stats(thd, true, time(NULL));
+#endif
+  }
 
   DBUG_VOID_RETURN;
 }

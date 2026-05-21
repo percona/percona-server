@@ -16326,6 +16326,9 @@ static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
   "Force dirty page flush now",
   NULL, buf_flush_list_now_set, FALSE);
+
+static my_bool	innodb_track_redo_log_now = TRUE;
+
 static MYSQL_SYSVAR_BOOL(track_redo_log_now,
   innodb_track_redo_log_now,
   PLUGIN_VAR_OPCMDARG,

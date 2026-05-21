@@ -450,9 +450,9 @@ public:
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
                            const CHARSET_INFO *client_cs);
-	  void flush();
-	  void flush_slow_log();
-	  void init_pthread_objects();
+  void flush();
+  void flush_slow_log();
+  void init_pthread_objects();
   MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
   MYSQL_QUERY_LOG *get_mysql_log() { return &mysql_log; }
 };

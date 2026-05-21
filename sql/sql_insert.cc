@@ -322,6 +322,7 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                (List<Item>*) 0 : &update_values,
                                insert_table_list, map))
     return -1;
+
   return 0;
 }
 
@@ -1210,13 +1211,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   if (error)
     goto exit_without_my_ok;
+  ha_rows row_count;
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
-    my_ok(thd, info.stats.copied + info.stats.deleted +
+    row_count= info.stats.copied + info.stats.deleted +
                ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
-                info.stats.touched : info.stats.updated),
-          id);
+                info.stats.touched : info.stats.updated);
+    my_ok(thd, row_count, id);
   }
   else
   {
@@ -1234,8 +1236,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_warn_count());
-    my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
+    row_count= info.stats.copied + info.stats.deleted + updated;
+    my_ok(thd, row_count, id, buff);
   }
+  thd->updated_row_count+= row_count;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -1895,6 +1899,15 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             trg_error= 1;
             goto ok_or_after_trg_err;
           }
+
+          /*
+            Avoid the infinite loop
+            1) get dup key on fake insert
+            2) do nothing on fake delete
+            3) goto #1
+          */
+          if (table->file->is_fake_change_enabled(thd))
+            goto ok_or_after_trg_err;
           /* Let us attempt do write_row() once more */
         }
       }
@@ -3848,6 +3861,7 @@ bool select_insert::send_eof()
      thd->first_successful_insert_id_in_prev_stmt :
      (info.stats.copied ? autoinc_value_of_last_inserted_row : 0));
   my_ok(thd, row_count, id, buff);
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(0);
 }
 

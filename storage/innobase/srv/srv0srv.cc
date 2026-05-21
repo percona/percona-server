@@ -48,6 +48,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "mem0pool.h"
 #include "sync0sync.h"
 #include "que0que.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
@@ -182,6 +183,12 @@ UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 
+UNIV_INTERN ulonglong	srv_max_changed_pages = 0;
+
+/** When TRUE, fake change transcations take S rather than X row locks.
+    When FALSE, row locks are not taken at all. */
+UNIV_INTERN my_bool	srv_fake_changes_locks = TRUE;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -207,7 +214,6 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size_requested;
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
-UNIV_INTERN my_bool	srv_fake_changes_locks = TRUE;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 UNIV_INTERN char	srv_use_global_flush_log_at_trx_commit	= TRUE;
@@ -263,6 +269,10 @@ UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
 /* Switch to enable random read ahead. */
 UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
+
+/* The log block size */
+UNIV_INTERN ulint	srv_log_block_size	= 0;
+
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
@@ -630,6 +640,10 @@ static const ulint	SRV_PURGE_SLOT	= 1;
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint	SRV_MASTER_SLOT = 0;
 
+UNIV_INTERN os_event_t	srv_checkpoint_completed_event;
+
+UNIV_INTERN os_event_t	srv_redo_log_thread_finished_event;
+
 /*********************************************************************//**
 Prints counters for work done by srv_master_thread. */
 static
@@ -979,6 +993,10 @@ srv_init(void)
 		srv_monitor_event = os_event_create();
 
 		srv_buf_dump_event = os_event_create();
+
+		srv_checkpoint_completed_event = os_event_create();
+
+		srv_redo_log_thread_finished_event = os_event_create();
 
 		UT_LIST_INIT(srv_sys->tasks);
 	}
@@ -3161,4 +3179,3 @@ srv_purge_wakeup(void)
 		}
 	}
 }
-

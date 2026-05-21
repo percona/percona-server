@@ -132,6 +132,7 @@ struct buf_pool_info_t{
 	/* General buffer pool info */
 	ulint	pool_unique_id;		/*!< Buffer Pool ID */
 	ulint	pool_size;		/*!< Buffer Pool size in pages */
+	ulint	pool_size_bytes;
 	ulint	lru_len;		/*!< Length of buf_pool->LRU */
 	ulint	old_lru_len;		/*!< buf_pool->LRU_old_len */
 	ulint	free_list_len;		/*!< Length of buf_pool->free list */
@@ -1808,6 +1809,7 @@ struct buf_pool_stat_t{
 				buf_page_peek_if_too_old() */
 	ulint	LRU_bytes;	/*!< LRU size in bytes */
 	ulint	flush_list_bytes;/*!< flush_list size in bytes */
+	ulint	buf_lru_flush_page_count;
 };
 
 /** Statistics of buddy blocks of a given size. */

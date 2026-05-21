@@ -38,6 +38,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "ibuf0types.h"
 #include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "trx0types.h"
 
 #include <list>
 
@@ -140,8 +141,6 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
 /* @} */
 
-#ifndef UNIV_INNOCHECKSUM
-
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
@@ -160,6 +159,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
 					/*!< Last page type */
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** Space types @{ */
 #define FIL_TABLESPACE		501	/*!< tablespace */
@@ -1029,7 +1030,13 @@ fil_system_hash_nodes(void);
 /*========================*/
 
 /*************************************************************************
-Set the is_corrupt flag of fil_space_t. */
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id);
+
 void
 fil_space_set_corrupt(
 /*==================*/

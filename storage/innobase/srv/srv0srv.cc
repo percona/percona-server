@@ -214,6 +214,9 @@ UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 the checkpoints. */
 UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
 
+UNIV_INTERN ulint	srv_show_locks_held	= 10;
+UNIV_INTERN ulint	srv_show_verbose_locks	= 0;
+
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
 #define MAX_MUTEX_NOWAIT	20
@@ -232,6 +235,8 @@ UNIV_INTERN const byte*	srv_latin1_ordering;
 UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
+/* force virtual page preallocation (prefault) */
+UNIV_INTERN my_bool	srv_buf_pool_populate	= FALSE;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
 /* number of locks to protect buf_pool->page_hash */
@@ -1141,6 +1146,13 @@ srv_printf_innodb_monitor(
 	ulint	n_reserved;
 	ibool	ret;
 
+	ulint	btr_search_sys_subtotal;
+	ulint	lock_sys_subtotal;
+	ulint	recv_sys_subtotal;
+
+	ulint	i;
+	trx_t*	trx;
+
 	mutex_enter(&srv_innodb_monitor_mutex);
 
 	current_time = time(NULL);
@@ -1231,7 +1243,6 @@ srv_printf_innodb_monitor(
 	      "-------------------------------------\n", file);
 	ibuf_print(file);
 
-	ha_print_info(file, btr_search_sys->hash_index);
 
 	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -1251,10 +1262,88 @@ srv_printf_innodb_monitor(
 	      "BUFFER POOL AND MEMORY\n"
 	      "----------------------\n", file);
 	fprintf(file,
-		"Total memory allocated " ULINTPF
-		"; in additional pool allocated " ULINTPF "\n",
-		ut_total_allocated_memory,
-		mem_pool_get_reserved(mem_comm_pool));
+			"Total memory allocated " ULINTPF
+			"; in additional pool allocated " ULINTPF "\n",
+			ut_total_allocated_memory,
+			mem_pool_get_reserved(mem_comm_pool));
+	/* Calculate reserved memories */
+	if (btr_search_sys && btr_search_sys->hash_index->heap) {
+		btr_search_sys_subtotal
+			= mem_heap_get_size(btr_search_sys->hash_index->heap);
+	} else {
+		btr_search_sys_subtotal = 0;
+		for (i=0; i < btr_search_sys->hash_index->n_sync_obj; i++) {
+			btr_search_sys_subtotal
+				+= mem_heap_get_size(
+					btr_search_sys->hash_index->heaps[i]);
+		}
+	}
+
+	lock_sys_subtotal = 0;
+	if (trx_sys) {
+		mutex_enter(&trx_sys->mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			lock_sys_subtotal
+				+= ((trx->lock.lock_heap)
+				    ? mem_heap_get_size(trx->lock.lock_heap)
+				    : 0);
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&trx_sys->mutex);
+	}
+
+	recv_sys_subtotal = ((recv_sys && recv_sys->addr_hash)
+			? mem_heap_get_size(recv_sys->heap) : 0);
+
+	fprintf(file,
+			"Internal hash tables (constant factor + variable factor)\n"
+			"    Adaptive hash index %lu \t(%lu + " ULINTPF ")\n"
+			"    Page hash           %lu (buffer pool 0 only)\n"
+			"    Dictionary cache    %lu \t(%lu + " ULINTPF ")\n"
+			"    File system         %lu \t(%lu + " ULINTPF ")\n"
+			"    Lock system         %lu \t(%lu + " ULINTPF ")\n"
+			"    Recovery system     %lu \t(%lu + " ULINTPF ")\n",
+
+			(ulong) (btr_search_sys
+				? (btr_search_sys->hash_index->n_cells
+				   * sizeof(hash_cell_t))
+				 : 0)
+			+ btr_search_sys_subtotal,
+			(ulong) (btr_search_sys
+				? (btr_search_sys->hash_index->n_cells
+				   * sizeof(hash_cell_t))
+				 : 0),
+			btr_search_sys_subtotal,
+
+			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),
+
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+						+ dict_sys->table_id_hash->n_cells
+						) * sizeof(hash_cell_t)
+					+ dict_sys->size) : 0),
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+							+ dict_sys->table_id_hash->n_cells
+							) * sizeof(hash_cell_t)) : 0),
+			dict_sys ? (dict_sys->size) : 0,
+
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)
+					+ fil_system_hash_nodes()),
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)),
+			fil_system_hash_nodes(),
+
+			(ulong) ((lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ lock_sys_subtotal),
+			(ulong) (lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			lock_sys_subtotal,
+
+			(ulong) (((recv_sys && recv_sys->addr_hash)
+						? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ recv_sys_subtotal),
+			(ulong) ((recv_sys && recv_sys->addr_hash)
+					? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			recv_sys_subtotal);
+
 	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
 		dict_sys->size);
 
@@ -1267,9 +1356,22 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->mutex. */
+	mutex_enter(&trx_sys->mutex);
+
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
+
+	if (UT_LIST_GET_LEN(trx_sys->view_list)) {
+		read_view_t*	view = UT_LIST_GET_LAST(trx_sys->view_list);
+
+		if (view) {
+			fprintf(file, "---OLDEST VIEW---\n");
+			read_view_print(file, view);
+			fprintf(file, "-----------------\n");
+		}
+	}
+
+	mutex_exit(&trx_sys->mutex);
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {
@@ -1314,6 +1416,15 @@ srv_printf_innodb_monitor(
 	srv_n_rows_deleted_old = srv_stats.n_rows_deleted;
 	srv_n_rows_read_old = srv_stats.n_rows_read;
 
+	/* Only if lock_print_info_summary proceeds correctly,
+	before we call the lock_print_info_all_transactions
+	to print all the lock information. */
+	ret = lock_print_info_summary(file, nowait);
+
+	if (ret) {
+		lock_print_info_all_transactions(file);
+	}
+
 	fputs("----------------------------\n"
 	      "END OF INNODB MONITOR OUTPUT\n"
 	      "============================\n", file);
@@ -1335,10 +1446,34 @@ srv_export_innodb_status(void)
 	ulint			LRU_len;
 	ulint			free_len;
 	ulint			flush_list_len;
+	ulint			mem_adaptive_hash, mem_dictionary;
+	read_view_t*		oldest_view;
+	ulint			i;
 
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
+
+	if (btr_search_sys && btr_search_sys->hash_index->heap) {
+		mem_adaptive_hash
+			= mem_heap_get_size(btr_search_sys->hash_index->heap);
+	} else {
+		mem_adaptive_hash = 0;
+		for (i=0; i < btr_search_sys->hash_index->n_sync_obj; i++) {
+			mem_adaptive_hash
+				+= mem_heap_get_size
+				(btr_search_sys->hash_index->heaps[i]);
+		}
+	}
+	if (btr_search_sys) {
+		mem_adaptive_hash += (btr_search_sys->hash_index->n_cells
+				      * sizeof(hash_cell_t));
+	}
+
+	mem_dictionary = (dict_sys ? ((dict_sys->table_hash->n_cells
+					+ dict_sys->table_id_hash->n_cells
+				      ) * sizeof(hash_cell_t)
+				+ dict_sys->size) : 0);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1351,6 +1486,12 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_pending_fsyncs =
 		fil_n_pending_log_flushes
 		+ fil_n_pending_tablespace_flushes;
+	export_vars.innodb_adaptive_hash_hash_searches
+		= btr_cur_n_sea;
+	export_vars.innodb_adaptive_hash_non_hash_searches
+		= btr_cur_n_non_sea;
+	export_vars.innodb_background_log_sync
+		= srv_log_writes_and_flush;
 
 	export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -1384,6 +1525,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_read_ahead_evicted =
 		stat.n_ra_pages_evicted;
 
+	export_vars.innodb_buffer_pool_pages_LRU_flushed =
+		stat.buf_lru_flush_page_count;
+
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
 
 	export_vars.innodb_buffer_pool_bytes_data =
@@ -1397,6 +1541,8 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_buffer_pool_pages_free = free_len;
 
+	export_vars.innodb_deadlocks = srv_stats.lock_deadlock_count;
+
 #ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched =
 		buf_get_latched_pages_number();
@@ -1405,6 +1551,79 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_buffer_pool_pages_misc =
 		buf_pool_get_n_pages() - LRU_len - free_len;
+
+	export_vars.innodb_buffer_pool_pages_made_young
+		= stat.n_pages_made_young;
+	export_vars.innodb_buffer_pool_pages_made_not_young
+		= stat.n_pages_not_made_young;
+	export_vars.innodb_buffer_pool_pages_old = 0;
+	for (i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+		export_vars.innodb_buffer_pool_pages_old
+			+= buf_pool->LRU_old_len;
+	}
+	export_vars.innodb_checkpoint_age
+		= (log_sys->lsn - log_sys->last_checkpoint_lsn);
+	export_vars.innodb_checkpoint_max_age
+		= log_sys->max_checkpoint_age;
+	export_vars.innodb_history_list_length
+		= trx_sys->rseg_history_len;
+	ibuf_export_ibuf_status(
+			&export_vars.innodb_ibuf_size,
+			&export_vars.innodb_ibuf_free_list,
+			&export_vars.innodb_ibuf_segment_size,
+			&export_vars.innodb_ibuf_merges,
+			&export_vars.innodb_ibuf_merged_inserts,
+			&export_vars.innodb_ibuf_merged_delete_marks,
+			&export_vars.innodb_ibuf_merged_deletes,
+			&export_vars.innodb_ibuf_discarded_inserts,
+			&export_vars.innodb_ibuf_discarded_delete_marks,
+			&export_vars.innodb_ibuf_discarded_deletes);
+	export_vars.innodb_lsn_current
+		= log_sys->lsn;
+	export_vars.innodb_lsn_flushed
+		= log_sys->flushed_to_disk_lsn;
+	export_vars.innodb_lsn_last_checkpoint
+		= log_sys->last_checkpoint_lsn;
+	export_vars.innodb_master_thread_active_loops
+		= srv_main_active_loops;
+	export_vars.innodb_master_thread_idle_loops
+		= srv_main_idle_loops;
+	export_vars.innodb_max_trx_id
+		= trx_sys->max_trx_id;
+	export_vars.innodb_mem_adaptive_hash
+		= mem_adaptive_hash;
+	export_vars.innodb_mem_dictionary
+		= mem_dictionary;
+	export_vars.innodb_mem_total
+		= ut_total_allocated_memory;
+	export_vars.innodb_mutex_os_waits
+		= mutex_os_wait_count;
+	export_vars.innodb_mutex_spin_rounds
+		= mutex_spin_round_count;
+	export_vars.innodb_mutex_spin_waits
+		= mutex_spin_wait_count;
+	export_vars.innodb_s_lock_os_waits
+		= rw_lock_stats.rw_s_os_wait_count;
+	export_vars.innodb_s_lock_spin_rounds
+		= rw_lock_stats.rw_s_spin_round_count;
+	export_vars.innodb_s_lock_spin_waits
+		= rw_lock_stats.rw_s_spin_wait_count;
+	export_vars.innodb_x_lock_os_waits
+		= rw_lock_stats.rw_x_os_wait_count;
+	export_vars.innodb_x_lock_spin_rounds
+		= rw_lock_stats.rw_x_spin_round_count;
+	export_vars.innodb_x_lock_spin_waits
+		= rw_lock_stats.rw_x_spin_wait_count;
+
+	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
+	export_vars.innodb_oldest_view_low_limit_trx_id
+		= oldest_view ? oldest_view->low_limit_id : 0;
+
+	export_vars.innodb_purge_trx_id = purge_sys->limit.trx_no;
+	export_vars.innodb_purge_undo_no = purge_sys->limit.undo_no;
+	export_vars.innodb_current_row_locks
+		= lock_sys->rec_num;
 
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;

@@ -478,6 +478,45 @@ ibuf_close(void)
 }
 
 /******************************************************************//**
+Function to pass ibuf status variables */
+UNIV_INTERN
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	size,
+	ulint*	free_list,
+	ulint*	segment_size,
+	ulint*	merges,
+	ulint*	merged_inserts,
+	ulint*	merged_delete_marks,
+	ulint*	merged_deletes,
+	ulint*	discarded_inserts,
+	ulint*	discarded_delete_marks,
+	ulint*	discarded_deletes)
+{
+	*size
+		= ibuf->size;
+	*free_list
+		= ibuf->free_list_len;
+	*segment_size
+		= ibuf->seg_size;
+	*merges
+		= ibuf->n_merges;
+	*merged_inserts
+		= ibuf->n_merged_ops[IBUF_OP_INSERT];
+	*merged_delete_marks
+		= ibuf->n_merged_ops[IBUF_OP_DELETE_MARK];
+	*merged_deletes
+		= ibuf->n_merged_ops[IBUF_OP_DELETE];
+	*discarded_inserts
+		= ibuf->n_discarded_ops[IBUF_OP_INSERT];
+	*discarded_delete_marks
+		= ibuf->n_discarded_ops[IBUF_OP_DELETE_MARK];
+	*discarded_deletes
+		= ibuf->n_discarded_ops[IBUF_OP_DELETE];
+}
+
+/******************************************************************//**
 Updates the size information of the ibuf, assuming the segment size has not
 changed. */
 static

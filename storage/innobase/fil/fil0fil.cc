@@ -5704,6 +5704,31 @@ fil_io(
 				    offset, len);
 	}
 #else
+	if (space->is_corrupt && srv_pass_corrupt_table) {
+
+		/* should ignore i/o for the crashed space */
+		if (srv_pass_corrupt_table == 1 || type == OS_FILE_WRITE) {
+
+			mutex_enter(&fil_system->mutex);
+			fil_node_complete_io(node, fil_system, type);
+			mutex_exit(&fil_system->mutex);
+			if (mode == OS_AIO_NORMAL) {
+				ut_a(space->purpose == FIL_TABLESPACE);
+				buf_page_io_complete(static_cast<buf_page_t *>
+						     (message));
+			}
+		}
+
+		if (srv_pass_corrupt_table == 1 && type == OS_FILE_READ) {
+
+			return(DB_TABLESPACE_DELETED);
+
+		} else if (type == OS_FILE_WRITE) {
+
+			return(DB_SUCCESS);
+		}
+	}
+
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
 		     offset, len, node, message);
@@ -6575,7 +6600,6 @@ fil_mtr_rename_log(
 				 0, 0, new_name, old_name, mtr);
 	}
 }
-
 /*************************************************************************
 functions to access is_corrupt flag of fil_space_t*/
 

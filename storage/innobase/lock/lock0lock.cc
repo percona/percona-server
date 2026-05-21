@@ -5066,6 +5066,7 @@ lock_rec_print(
 
 	putc('\n', file);
 
+	if ( srv_show_verbose_locks ) {
 	block = buf_page_try_get(space, page_no, &mtr);
 
 	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
@@ -5091,6 +5092,7 @@ lock_rec_print(
 		}
 
 		putc('\n', file);
+	}
 	}
 
 	mtr_commit(&mtr);
@@ -5340,7 +5342,7 @@ loop:
 		}
 	}
 
-	if (!srv_print_innodb_lock_monitor) {
+	if (!srv_print_innodb_lock_monitor || !srv_show_locks_held) {
 		nth_trx++;
 		goto loop;
 	}
@@ -5390,9 +5392,10 @@ loop:
 
 			DEBUG_SYNC_C("innodb_monitor_before_lock_page_read");
 
-			/* Check if the space is exists or not. only when the space
-			is valid, try to get the page. */
-			tablespace_being_deleted = fil_inc_pending_ops(space, false);
+			buf_page_get_gen(space, zip_size, page_no,
+					 RW_NO_LATCH, NULL,
+					 BUF_GET_POSSIBLY_FREED,
+					 __FILE__, __LINE__, &mtr);
 
 			if (!tablespace_being_deleted) {
 				mtr_start(&mtr);
@@ -5432,8 +5435,8 @@ print_rec:
 
 	nth_lock++;
 
-	if (nth_lock >= 10) {
-		fputs("10 LOCKS PRINTED FOR THIS TRX:"
+	if (nth_lock >= srv_show_locks_held) {
+		fputs("TOO MANY LOCKS PRINTED FOR THIS TRX:"
 		      " SUPPRESSING FURTHER PRINTS\n",
 		      file);
 

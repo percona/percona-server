@@ -76,7 +76,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include <unistd.h>
+
+static void pc_bind_to_cpu(size_t instance_no) {
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+
+  long n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+  if (n_cores <= 0) {
+    return;
+  }
+
+  size_t cpu = instance_no % static_cast<size_t>(n_cores);
+  CPU_SET(cpu, &cpuset);
+
+  pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+}
 
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
@@ -3222,6 +3238,11 @@ static void buf_flush_page_coordinator_thread() {
   THD *thd = create_internal_thd();
 
 #ifdef UNIV_LINUX
+
+  if (innodb_flush_localized_active) {
+    pc_bind_to_cpu(0);
+  }
+
   /* linux might be able to set different setting for each thread.
   worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {
@@ -3641,11 +3662,17 @@ thread_exit:
   used as the slot/buffer pool index in localized mode. */
 static void buf_flush_page_cleaner_thread(size_t worker_id) {
 #ifdef UNIV_LINUX
+
+  if (innodb_flush_localized_active) {
+    pc_bind_to_cpu(worker_id);
+  }
+
   /* linux might be able to set different setting for each thread
      worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {
     ib::info(ER_IB_MSG_129)
-        << "page_cleaner worker priority: " << buf_flush_page_cleaner_priority;
+        << "page_cleaner worker priority: "
+        << buf_flush_page_cleaner_priority;
   }
 #endif /* UNIV_LINUX */
 

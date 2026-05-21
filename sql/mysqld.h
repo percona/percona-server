@@ -24,6 +24,7 @@
 #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
 #include "sql_list.h"                      /* I_List */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "hash.h"
 
 class THD;
 struct handlerton;
@@ -127,14 +128,13 @@ extern uint slave_rows_last_search_algorithm_used;
 #ifndef EMBEDDED_LIBRARY
 extern "C" int check_enough_stack_size(int);
 #endif
+extern my_bool opt_userstat, opt_thread_statistics;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
 extern size_t opt_secure_backup_file_priv_len;
-extern my_bool opt_userstat;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-extern my_bool opt_query_cache_strip_comments;
 extern my_bool opt_log_slow_sp_statements;
 extern my_bool opt_slow_query_log_timestamp_always;
 extern ulonglong opt_slow_query_log_use_global_control;
@@ -215,6 +215,7 @@ extern ulong thread_created;
 extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
 extern ulong rpl_stop_slave_timeout;
 extern my_bool log_bin_use_v1_row_events;
+extern ulonglong denied_connections;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -275,6 +276,11 @@ extern SHOW_VAR status_vars[];
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
+extern HASH global_user_stats;
+extern HASH global_client_stats;
+extern HASH global_thread_stats;
+extern HASH global_table_stats;
+extern HASH global_index_stats;
 extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
@@ -355,6 +361,8 @@ extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
+  key_LOCK_stats, key_LOCK_global_user_client_stats,
+  key_LOCK_global_table_stats, key_LOCK_global_index_stats,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
@@ -742,6 +750,17 @@ inline __attribute__((warn_unused_result)) query_id_t next_query_id()
   my_atomic_rwlock_wrunlock(&global_query_id_lock);
   return (id+1);
 }
+
+void init_global_user_stats(void);
+void init_global_table_stats(void);
+void init_global_index_stats(void);
+void init_global_client_stats(void);
+void init_global_thread_stats(void);
+void free_global_user_stats(void);
+void free_global_table_stats(void);
+void free_global_index_stats(void);
+void free_global_client_stats(void);
+void free_global_thread_stats(void);
 
 /*
   TODO: Replace this with an inline function.

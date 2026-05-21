@@ -462,11 +462,9 @@ my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
 my_bool opt_log_slow_sp_statements= 0;
 my_bool opt_slow_query_log_timestamp_always= 0;
-my_bool opt_query_cache_strip_comments= FALSE;
-my_bool opt_userstat= 0;
+ulonglong opt_slow_query_log_use_global_control= 0;
 ulong opt_slow_query_log_timestamp_precision= 0;
 ulong opt_slow_query_log_rate_type= 0;
-ulonglong opt_slow_query_log_use_global_control= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
@@ -476,6 +474,7 @@ uint   opt_large_page_size= 0;
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+my_bool opt_userstat= 0, opt_thread_statistics= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is

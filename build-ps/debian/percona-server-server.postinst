@@ -3,13 +3,9 @@
 . /usr/share/debconf/confmodule
 . /usr/share/mysql/mysql-helpers
 
-# Create directory for telemetry
-if [ -d /usr/local/percona/telemetry ]; then
-    mkdir -p /usr/local/percona/telemetry/ps
-    chown mysql:percona-telemetry /usr/local/percona/telemetry/ps
-    chmod 775 /usr/local/percona/telemetry/ps
-    chmod g+s /usr/local/percona/telemetry/ps
-    chmod u+s /usr/local/percona/telemetry/ps
+# Setup telemetry directory
+if [ -x /usr/libexec/percona-server/percona-telemetry-setup.sh ]; then
+    /usr/libexec/percona-server/percona-telemetry-setup.sh || :
 fi
 
 

@@ -251,6 +251,17 @@ static bool is_nil_dom(Json_dom *jdom) {
 }
 
 /**
+  Get the location of a Json_dom converted to std::string. If the dom is
+  nullptr, use "null".
+
+  @param jdom dom to get location for
+  @return location of dom as string, or "null" for nullptr
+ */
+static std::string get_location_or_null(Json_dom *jdom) {
+  return jdom == nullptr ? "null" : em_wrap(jdom->get_location());
+}
+
+/**
  Convenience wrapper predicate which returns true for AUTO_INCREMENT columns.
 
  @param fld column to report for.
@@ -1356,7 +1367,8 @@ template <typename BV>
               same_pk_bin.bound_object->get_location(),
               ct_node.quoted_qualified_table_name(),
               first_pk_pkrc.kci->column_name(), mmr.in1->kci->column_name(),
-              mmr.in2->value->get_location(), mmr.in1->value->get_location());
+              get_location_or_null(mmr.in2->value),
+              get_location_or_null(mmr.in1->value));
           return true;
         }
         // If same_pk_bin is actually identical, mark it as empty so that no
@@ -1653,7 +1665,7 @@ static bool is_equal(Json_dom *ajd, Json_dom *bjd) {
   Json_array *existing_child_array = inspect_valid_dom<Json_array>(
       get_val(stk[pbx].existing_object, child_name));
 
-  Json_dom *bound_child_dom = stk[pbx].bound_object->get(child_name);
+  Json_dom *bound_child_dom = get_val(stk[pbx].bound_object, child_name);
   auto [jtc, bound_child_array] = inspect_dom<Json_array>(bound_child_dom);
   if (jtc == enum_json_type::J_ERROR) {
     my_jdv_error<ER_JDV_UNEXPECTED_JSON_TYPE>(
@@ -2331,37 +2343,23 @@ static bool check_etag(const Two_object_binding &binding) {
                                         : Stmt_state::EXECUTE;
 }
 
-[[nodiscard]] static bool check_input_json(Json_dom *input_dom) {
-  if (input_dom->json_type() != enum_json_type::J_OBJECT) {
-    my_jdv_error<ER_JDV_UNEXPECTED_JSON_TYPE>("$", "Json_object");
-    return true;
-  }
-  return false;
-}
-
 /**
   Creates bindings from inserted Json_object,
   orders them, creates and executes INSERT statements against the base tables.
 
   @param thd THD
-  @param jw JSON object to insert
+  @param null_checked_root_object JSON object to insert
   @param ct_node content tree root node of view
   @param[out] affected_rows number of affected base table rows
  */
-[[nodiscard]] static bool jdv_handle_insert(THD *thd, Json_wrapper *jw,
-                                            Content_tree_node *ct_node,
-                                            ulonglong *affected_rows) {
-  Json_dom *dom = jw->to_dom();
-  assert(dom != nullptr);
-  if (check_input_json(dom)) {
-    return true;
-  }
-  assert(dom->json_type() == enum_json_type::J_OBJECT);
-
+[[nodiscard]] static bool jdv_handle_insert(
+    THD *thd, Json_object *null_checked_root_object, Content_tree_node *ct_node,
+    ulonglong *affected_rows) {
   std::vector<Single_object_binding> bindings;
   bindings.reserve(BINDINGS_RESERVE_SIZE);
-  bindings.push_back({down_cast<Json_object *>(dom), ct_node,
-                      std::make_unique<Resolve_row>()});
+  bindings.push_back({.bound_object = null_checked_root_object,
+                      .ct_node = ct_node,
+                      .resolve_row = std::make_unique<Resolve_row>()});
 
   if (flatten(&bindings)) {
     return true;
@@ -2470,30 +2468,21 @@ static bool check_etag(const Two_object_binding &binding) {
   statements against the base tables.
 
   @param thd THD
-  @param jw updated JSON object
-  @param existing existing JSON object
+  @param null_checked_update_root updated JSON object
+  @param null_checked_existing_root existing JSON object
   @param ct_node content tree root node
   @param[out] affected_rows affected base table rows
  */
-[[nodiscard]] static bool jdv_handle_update(THD *thd, Json_wrapper *jw,
-                                            Json_wrapper *existing,
-                                            Content_tree_node *ct_node,
-                                            ulonglong *affected_rows) {
-  assert(jw != nullptr);
-  assert(existing != nullptr);
-  assert(ct_node != nullptr);
-  Json_dom *dom = jw->to_dom();
-  assert(dom != nullptr);
-  if (check_input_json(dom)) {
-    return true;
-  }
-  assert(dom->json_type() == enum_json_type::J_OBJECT);
-
+[[nodiscard]] static bool jdv_handle_update(
+    THD *thd, Json_object *null_checked_update_root,
+    Json_object *null_checked_existing_root, Content_tree_node *ct_node,
+    ulonglong *affected_rows) {
   std::vector<Two_object_binding> bindings;
   bindings.reserve(BINDINGS_RESERVE_SIZE);
-  bindings.push_back({down_cast<Json_object *>(dom),
-                      down_cast<Json_object *>(existing->to_dom()), ct_node,
-                      std::make_unique<Resolve_row>()});
+  bindings.push_back({.bound_object = null_checked_update_root,
+                      .existing_object = null_checked_existing_root,
+                      .ct_node = ct_node,
+                      .resolve_row = std::make_unique<Resolve_row>()});
 
   if (check_etag(bindings.front())) {
     return true;
@@ -2574,21 +2563,17 @@ static bool check_etag(const Two_object_binding &binding) {
   orders them, creates and executes DELETE statements against the base tables.
 
   @param thd THD
-  @param jw existing JSON object to delete
+  @param null_checked_root_object existing JSON object to delete
   @param ct_node content tree root node
   @param[out] affected_rows affected base table rows
  */
-[[nodiscard]] static bool jdv_handle_delete(THD *thd, Json_wrapper *jw,
-                                            Content_tree_node *ct_node,
-                                            ulonglong *affected_rows) {
-  assert(jw != nullptr);
-  Json_dom *dom = jw->to_dom();
-  assert(dom != nullptr);
-  assert(dom->json_type() == enum_json_type::J_OBJECT);
-
+[[nodiscard]] static bool jdv_handle_delete(
+    THD *thd, Json_object *null_checked_root_object, Content_tree_node *ct_node,
+    ulonglong *affected_rows) {
   std::vector<Single_object_binding> bindings;
-  bindings.push_back({down_cast<Json_object *>(dom), ct_node,
-                      std::make_unique<Resolve_row>()});
+  bindings.push_back({.bound_object = null_checked_root_object,
+                      .ct_node = ct_node,
+                      .resolve_row = std::make_unique<Resolve_row>()});
 
   if (flatten(&bindings)) {
     return true;
@@ -2827,6 +2812,52 @@ static bool write_binlog(THD *thd) {
 }
 
 /**
+  Convert an item to root Json object.
+
+  @param item JSON value to convert.
+
+  @return tuple containing Json_object*, the backing Json_wrapper, and String
+  buffer. Json_object pointer is nullptr in case of errors
+*/
+template <int NULL_ERROR>
+[[nodiscard]] static std::tuple<Json_object *, Json_wrapper, String>
+get_root_object_from_item(Item *item) {
+  DBUG_TRACE;
+  std::tuple<Json_object *, Json_wrapper, String> ret;
+  auto &[tobject, jw, buf] = ret;
+
+  if (get_json_wrapper(&item, 0, &buf, "get_json_wrapper", &jw)) {
+    DBUG_LOG("jdv_dml",
+             "item data type:" << item->data_type()
+                               << ", error from get_json_wrapper(): "
+                               << current_thd->get_stmt_da()->message_text());
+    return ret;
+  }
+  if (!jw.is_dom()) {
+    my_jdv_error<NULL_ERROR>();
+    return ret;
+  }
+  if (jw.empty()) {
+    DBUG_LOG("jdv_dml",
+             "item data type:" << item->data_type()
+                               << ", produced an empty json wrapper.");
+
+    my_jdv_error<NULL_ERROR>();
+    return ret;
+  }
+  DBUG_LOG("jdv_dml", "new value: " << json_wrapper_to_string(jw));
+  Json_dom *input_dom = jw.to_dom();
+  auto [type, object] = inspect_dom<Json_object>(input_dom);
+
+  if (type != enum_json_type::J_OBJECT) {
+    my_jdv_error<ER_JDV_UNEXPECTED_JSON_TYPE>("$", "Json_object");
+    return ret;
+  }
+  tobject = object;
+  return ret;
+}
+
+/**
   Entry point called from sql_insert.cc,
   bool Sql_cmd_insert_values::execute_inner(THD *thd);
 
@@ -2861,26 +2892,14 @@ bool jdv_insert(THD *thd, const Table_ref *dvtr,
         my_jdv_error<ER_JDV_INSERT_VALUE_NOT_FIXED>();
         return true;
       }
-      Json_wrapper jw;
-      String buf;
-      if (get_json_wrapper(&itm, 0, &buf, "get_json_wrapper", &jw)) {
-        DBUG_LOG("jdv_dml", "DML-INSERT item data type:"
-                                << itm->data_type()
-                                << ", error from get_json_wrapper(): "
-                                << thd->get_stmt_da()->message_text());
+      auto ro = get_root_object_from_item<ER_JDV_NULL_INSERT_VALUE>(itm);
+      Json_object *root_object = std::get<Json_object *>(ro);
+      if (root_object == nullptr) {
+        assert(thd->is_error());
         return true;
       }
-      if (jw.empty()) {
-        DBUG_LOG("jdv_dml", "DML-INSERT item data type:"
-                                << itm->data_type()
-                                << ", produced an empty json wrapper.");
 
-        my_jdv_error<ER_JDV_NULL_INSERT_VALUE>();
-        return true;
-      }
-      DBUG_LOG("jdv_dml",
-               "DML-INSERT: new value: " << json_wrapper_to_string(jw));
-      if (jdv_handle_insert(thd, &jw, &content_tree, &affected_rows)) {
+      if (jdv_handle_insert(thd, root_object, &content_tree, &affected_rows)) {
         return true;
       }
     }
@@ -2935,6 +2954,18 @@ bool jdv_update(THD *thd, const Table_ref *dvtr,
   if (sel_func_item->val_json(&sel_jw)) {
     return true;
   }
+  assert(sel_jw.is_dom());
+  assert(!sel_jw.empty());
+  if (!sel_jw.is_dom() || sel_jw.empty()) {
+    my_jdv_error<ER_JDV_UNEXPECTED_INVALID_VALUE>();
+    return true;
+  }
+  auto [stype, select_root_object] = inspect_dom<Json_object>(sel_jw.to_dom());
+  assert(stype == enum_json_type::J_OBJECT && select_root_object != nullptr);
+  if (stype != enum_json_type::J_OBJECT) {
+    my_jdv_error<ER_JDV_UNEXPECTED_INVALID_VALUE>();
+    return true;
+  }
   DBUG_LOG("jdv_dml",
            "DML-UPDATE: selected data: " << json_wrapper_to_string(sel_jw));
 
@@ -2950,21 +2981,27 @@ bool jdv_update(THD *thd, const Table_ref *dvtr,
     DBUG_LOG("jdv_dml", "DML-UPDATE: Stripping ref-layer from upd-item");
   }
 
+  if (upd_itm->null_value) {
+    my_jdv_error<ER_JDV_NULL_UPDATE_VALUE>();
+    return true;
+  }
+
   if (!upd_itm->fixed) {
     my_jdv_error<ER_JDV_UPDATE_VALUE_NOT_FIXED>();
     return true;
   }
 
-  Json_wrapper upd_jw;
-  String buf;
-  if (get_json_wrapper(&upd_itm, 0, &buf, "get_json_wrapper", &upd_jw)) {
-    DBUG_LOG("jdv_dml", "DML-UPDATE: item data type:" << upd_itm->data_type());
+  auto uro = get_root_object_from_item<ER_JDV_NULL_UPDATE_VALUE>(upd_itm);
+  Json_object *update_root_object = std::get<Json_object *>(uro);
+  if (update_root_object == nullptr) {
+    assert(thd->is_error());
     return true;
   }
-  DBUG_LOG("jdv_dml",
-           "DML-UPDATE: set data to: " << json_wrapper_to_string(upd_jw));
+  DBUG_LOG("jdv_dml", "DML-UPDATE: set data to: "
+                          << json_dom_to_string(update_root_object));
 
-  if (jdv_handle_update(thd, &upd_jw, &sel_jw, content_tree, affected_rows)) {
+  if (jdv_handle_update(thd, update_root_object, select_root_object,
+                        content_tree, affected_rows)) {
     assert(thd->is_error());
     return true;
   }
@@ -2988,20 +3025,16 @@ bool jdv_delete(THD *thd, const Table_ref *dvtr, ulonglong *affected_rows) {
   DBUG_LOG("jdv_dml", "DML-DELETE:  for query:'" << thd->query().str);
   Item *field_xlation = dvtr->field_translation->item;
 
-  Json_wrapper fldx_jw;
-  String fldx_buf;
-  if (get_json_wrapper(&field_xlation, 0, &fldx_buf, "get_json_wrapper",
-                       &fldx_jw)) {
-    DBUG_LOG("jdv_dml", "DML-DELETE: data type:" << field_xlation->data_type());
+  auto ro =
+      get_root_object_from_item<ER_JDV_UNEXPECTED_INVALID_VALUE>(field_xlation);
+  Json_object *root_object = std::get<Json_object *>(ro);
+  if (root_object == nullptr) {
+    assert(thd->is_error());
     return true;
   }
-  DBUG_LOG("jdv_dml", "DML-DELETE: field_translation item = "
-                          << json_wrapper_to_string(fldx_jw));
 
-  assert(dvtr != nullptr && dvtr->is_json_duality_view() &&
-         dvtr->jdv_content_tree != nullptr);
-
-  if (jdv_handle_delete(thd, &fldx_jw, dvtr->jdv_content_tree, affected_rows)) {
+  if (jdv_handle_delete(thd, root_object, dvtr->jdv_content_tree,
+                        affected_rows)) {
     assert(thd->is_error());
     return true;
   }

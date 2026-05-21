@@ -10991,6 +10991,9 @@ ER_CANT_UPDATE_USED_TABLE_IN_FK_CASCADE
 ER_WARN_SET_OPERATIONS_BUFFER
   eng "System variable \"set_operations_buffer_size\" set too low for hashed set operation. Consult optimizer trace for recommendations."
 
+ER_JDV_UNEXPECTED_INVALID_VALUE
+  eng "Json Duality View contains invalid values. Please file a bug."
+
 #
 #  End of 9.x error messages (server-to-client).
 #

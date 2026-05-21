@@ -1,0 +1,27 @@
+DROP PROCEDURE IF EXISTS test_f;
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+CREATE PROCEDURE test_f()
+BEGIN
+SELECT 1;
+END^
+SET GLOBAL log_slow_sp_statements=ON;
+[log_start.inc] percona.slow_extended.sp1
+CALL test_f();
+1
+1
+[log_stop.inc] percona.slow_extended.sp1
+[log_grep.inc] file: percona.slow_extended.sp1 pattern: SELECT 1;
+[log_grep.inc] lines:   1
+SET GLOBAL log_slow_sp_statements=OFF;
+[log_start.inc] percona.slow_extended.sp2
+CALL test_f();
+1
+1
+[log_stop.inc] percona.slow_extended.sp2
+[log_grep.inc] file: percona.slow_extended.sp2 pattern: SELECT 1;
+[log_grep.inc] lines:   0
+DROP PROCEDURE test_f;
+SET GLOBAL log_slow_sp_statements=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;

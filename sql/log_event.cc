@@ -3492,7 +3492,16 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 3;
   }
 
-  /*
+#ifndef DBUG_OFF
+  if (thd && thd->variables.query_exec_time > 0)
+  {
+    *start++= Q_QUERY_EXEC_TIME;
+    int8store(start, thd->variables.query_exec_time);
+    start+= 8;
+  }
+#endif
+
+/*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
     code_name() in this file.
@@ -4080,12 +4089,21 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos+= 4;
       break;
     case Q_MICROSECONDS:
-    {
       CHECK_SPACE(pos, end, 3);
       when.tv_usec= uint3korr(pos);
       pos+= 3;
       break;
+#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
+    case Q_QUERY_EXEC_TIME:
+    {
+      THD *thd= current_thd;
+      CHECK_SPACE(pos, end, 8);
+      if (thd)
+        thd->variables.query_exec_time= uint8korr(pos);
+      pos+= 8;
+      break;
     }
+#endif
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
@@ -4608,9 +4626,32 @@ static bool is_silent_error(THD* thd)
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
-  DBUG_ENTER("Query_log_event::do_apply_event");
+  char* query_buf;
+  int query_buf_len;
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
+  DBUG_ENTER("Query_log_event::do_apply_event");
+
+  /*
+    We must allocate some extra memory for query cache
+    The query buffer layout is:
+       buffer :==
+         <statement>   The input statement(s)
+         '\0'          Terminating null char  (1 byte)
+         <length>      Length of following current database name (size_t)
+         <db_name>     Name of current database
+         <flags>       Flags struct
+  */
+  query_buf_len = q_len_arg + 1 + sizeof(size_t) + thd->db_length
+                  + QUERY_CACHE_FLAGS_SIZE + 1;
+  if ((query_buf= (char *) thd->alloc(query_buf_len)))
+  {
+    memcpy(query_buf, query_arg, q_len_arg);
+    query_buf[q_len_arg]= 0;
+    memcpy(query_buf+q_len_arg+1, (char *) &thd->db_length, sizeof(size_t));
+  }
+  else
+    goto end;
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -4693,8 +4734,10 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   {
     thd->set_time(&when);
-    thd->set_query_and_id((char*)query_arg, q_len_arg,
+
+    thd->set_query_and_id((char*) query_buf, q_len_arg,
                           thd->charset(), next_query_id());
+ 
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     attach_temp_tables_worker(thd);
     DBUG_PRINT("query",("%s", thd->query()));
@@ -4759,7 +4802,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             result. This should be acceptable now. This is a reminder
             to fix this if any refactoring happens here sometime.
           */
-          thd->set_query((char*) query_arg, q_len_arg, thd->charset());
+          thd->set_query((char*) query_buf, q_len_arg, thd->charset());
         }
       }
       if (time_zone_len)
@@ -4849,7 +4892,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
-      thd->enable_slow_log= opt_log_slow_slave_statements;
+      thd->enable_slow_log= TRUE;
     }
     else
     {

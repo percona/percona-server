@@ -392,6 +392,10 @@ struct sql_ex_info
 
 #define Q_MICROSECONDS 13
 
+#ifndef DBUG_OFF
+#define Q_QUERY_EXEC_TIME 250
+#endif
+
 /* Intvar event post-header */
 
 /* Intvar event data */

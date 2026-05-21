@@ -7021,6 +7021,12 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   return result;
 }
 
+bool ha_purge_changed_page_bitmaps(ulonglong lsn)
+{
+  (void) lsn;
+  return false;
+}
+
 /*
   Function to check if the conditions for row-based binlogging is
   correct for the table.

@@ -656,7 +656,12 @@ bool Query_cache::try_lock(bool use_timeout)
   Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::try_lock");
 
+  const char* old_proc_info= thd->proc_info;
+  thd_proc_info(thd,"Waiting on query cache mutex");
+  DEBUG_SYNC(thd, "before_query_cache_mutex");
   mysql_mutex_lock(&structure_guard_mutex);
+  DEBUG_SYNC(thd, "after_query_cache_mutex");
+  thd->proc_info = old_proc_info;
   while (1)
   {
     if (m_cache_lock_status == Query_cache::UNLOCKED)
@@ -1488,6 +1493,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       unlock();
       DBUG_VOID_RETURN;
     }
+    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
+    QueryStripComments_Backup backup(thd,query_strip_comments);
 
     /* Key is query + database + flag */
     if (thd->db_length)
@@ -1665,6 +1672,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
+  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
+  char *sql_backup          = sql;
+  uint  query_length_backup = query_length;
   enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
@@ -1697,21 +1707,103 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
   {
     uint i= 0;
-    /*
-      Skip '(' characters in queries like following:
-      (select a from t1) union (select a from t1);
-    */
-    while (sql[i]=='(')
-      i++;
+    if(opt_query_cache_strip_comments)
+    {
+      /* Skip all comments and non-letter symbols */
+      uint& query_position = i;
+      char* query = sql;
+      while(query_position < query_length)
+      {
+        bool check = false;
+        char current = query[query_position];
+        switch(current)
+        {
+        case '/':
+          if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
+          {
+            query_position += 2; // skip "/*"
+            do
+            {
+              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
+              {
+                query_position += 2; // skip "*/" (without space)
+                break;
+              }
+              else
+              {
+                ++query_position;
+              }
+            }
+            while(query_position < query_length);
+            continue; // analyze current symbol
+          }
+          break;
+        case '-':
+          if(query[query_position+1] == '-')
+          {
+            ++query_position; // skip "-"
+          }
+          else
+          {
+            break;
+          }
+        case '#':
+          do
+          {
+            ++query_position; // skip current symbol
+            if('\n' == query[query_position])  // check for '\n'
+            {
+              ++query_position; // skip '\n'
+              break;
+            }
+          }
+          while(query_position < query_length);
+          continue; // analyze current symbol
+        case '\r':
+        case '\n':
+        case '\t':
+        case ' ':
+        case '(':
+        case ')':
+          break;
+        default:
+          check = true;
+          break; // make gcc happy
+        } // switch(current)
+        if(check)
+        {
+          if(query_position + 2 < query_length)
+          {
+            // cacheable
+            break;
+          }
+          else
+          {
+            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+            goto err;
+          }
+        } // if(check)
+        ++query_position;
+      } // while(query_position < query_length)
+    }
+    else // if(opt_query_cache_strip_comments)
+    {
+      /*
+        Skip '(' characters in queries like following:
+        (select a from t1) union (select a from t1);
+      */
+      while (sql[i]=='(')
+        i++;
 
-    /*
-      Test if the query is a SELECT
-      (pre-space is removed in dispatch_command).
+    } // if(opt_query_cache_strip_comments)    
+      /*
+        Test if the query is a SELECT
+        (pre-space is removed in dispatch_command).
 
-      First '/' looks like comment before command it is not
-      frequently appeared in real life, consequently we can
-      check all such queries, too.
-    */
+        First '/' looks like comment before command it is not
+        frequently appeared in real life, consequently we can
+        check all such queries, too.
+      */
     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
@@ -1768,6 +1860,14 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     goto err_unlock;
 
   Query_cache_block *query_block;
+  if(opt_query_cache_strip_comments)
+  {
+    query_strip_comments->set(sql, query_length,
+                              QUERY_BUFFER_ADDITIONAL_LENGTH(thd->db_length));
+    sql          = query_strip_comments->query();
+    query_length = query_strip_comments->query_length();
+    *(size_t *) (sql + query_length + 1)= thd->db_length;
+  }
 
   tot_length= query_length + 1 + sizeof(size_t) + 
               thd->db_length + QUERY_CACHE_FLAGS_SIZE;
@@ -1836,6 +1936,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                       tot_length);
+  sql          = sql_backup;
+  query_length = query_length_backup;
   /* Quick abort on unlocked data */
   if (query_block == 0 ||
       query_block->query()->result() == 0 ||
@@ -2029,6 +2131,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     response, we can't handle it anyway.
   */
   (void) trans_commit_stmt(thd);
+  thd->query_plan_flags|= QPLAN_QC;
   if (!thd->get_stmt_da()->is_set())
     thd->get_stmt_da()->disable_status();
 
@@ -2039,6 +2142,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 err_unlock:
   unlock();
 err:
+  thd->query_plan_flags|= QPLAN_QC_NO;
   MYSQL_QUERY_CACHE_MISS(thd->query());
   DBUG_RETURN(0);				// Query was not cached
 }
@@ -5090,3 +5194,4 @@ err2:
 #endif /* DBUG_OFF */
 
 #endif /*HAVE_QUERY_CACHE*/
+

@@ -1,0 +1,54 @@
+SET GLOBAL long_query_time=0;
+SET GLOBAL log_slow_rate_type='session';
+SET GLOBAL log_slow_rate_limit=3;
+[log_start.inc] percona.slow_extended.log_slow_rate_limit_1
+SELECT 'connection_one';
+connection_one
+connection_one
+SELECT 'connection_two';
+connection_two
+connection_two
+SELECT 'connection_three';
+connection_three
+connection_three
+SELECT 'connection_one';
+connection_one
+connection_one
+SELECT 'connection_two';
+connection_two
+connection_two
+SELECT 'connection_three';
+connection_three
+connection_three
+[log_stop.inc] percona.slow_extended.log_slow_rate_limit_1
+[log_grep.inc] file: percona.slow_extended.log_slow_rate_limit_1 pattern: 
+[log_grep.inc] sum:  2
+[log_grep.inc] zero: 2
+SET GLOBAL log_slow_rate_type='query';
+SET GLOBAL log_slow_rate_limit=2;
+[log_start.inc] percona.slow_extended.log_slow_rate_limit_2
+SELECT 'connection_one';
+connection_one
+connection_one
+SELECT 'connection_two';
+connection_two
+connection_two
+SELECT 'connection_three';
+connection_three
+connection_three
+SELECT 'connection_one';
+connection_one
+connection_one
+SELECT 'connection_two';
+connection_two
+connection_two
+SELECT 'connection_three';
+connection_three
+connection_three
+[log_stop.inc] percona.slow_extended.log_slow_rate_limit_2
+[log_grep.inc] file: percona.slow_extended.log_slow_rate_limit_2 pattern: 
+[log_grep.inc] sum:  0
+[log_grep.inc] zero: 3
+SET GLOBAL long_query_time=default;
+SET GLOBAL log_slow_rate_type=default;
+SET GLOBAL log_slow_rate_limit=default;

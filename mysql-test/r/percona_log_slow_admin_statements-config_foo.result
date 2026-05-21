@@ -1,0 +1,7 @@
+call mtr.add_suppression("option 'log_slow_admin_statements': boolean value 'foo' wasn't recognized. Set to OFF.");
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+Variable_name	Value
+log_slow_admin_statements	OFF
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_ADMIN_STATEMENTS	OFF

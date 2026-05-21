@@ -1,0 +1,16 @@
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+SET GLOBAL slow_query_log_timestamp_always=TRUE;
+[log_start.inc] percona_slow_extended_query_log_1
+SELECT 1;
+1
+1
+SELECT 2;
+2
+2
+[log_stop.inc] percona_slow_extended_query_log_1
+[log_grep.inc] file: percona_slow_extended_query_log_1 pattern: ^# Time: \d{6} (\d| )\d:\d\d:\d\d$
+[log_grep.inc] lines:   3
+SET GLOBAL slow_query_log_timestamp_always=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;

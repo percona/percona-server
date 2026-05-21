@@ -305,6 +305,7 @@ our @DEFAULT_SUITES = qw(
   component_encryption_udf
   percona
   percona_innodb
+  percona_rpl
   percona-pam-for-mysql
   component_masking_functions
   procfs

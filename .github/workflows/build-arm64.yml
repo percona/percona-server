@@ -1,0 +1,288 @@
+# PS-11078: ephemeral Hetzner cax* runner running the percona-server arm64
+# Debug build for PRs targeting `trunk`. Replaces the Cirrus
+# `(arm64) gcc Debug [Noble]` task before Cirrus shuts down 2026-06-01.
+#
+# Build shape ported from azure-pipelines.yml (per Przemek 2026-05-18:
+# ".cirrus.yml is just a simplified port from Azure"). Diff vs the 8.0
+# version: system Boost (no cache), WITH_COMPONENT_KEYRING_VAULT,
+# WITH_EDITLINE=system, +WITH_CURL=bundled, no libreadline-dev.
+#
+# Companion: build-arm64-nightly.yml on 8.0 (centralised, handles
+# RelWithDebInfo + binlog_nogtid nightly for all three branches).
+
+name: build-arm64
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [trunk]
+    paths-ignore:
+      # Mirrors azure-pipelines.yml `paths.exclude`
+      - 'doc/**'
+      - 'build-ps/**'
+      - 'man/**'
+      - 'mysql-test/**'
+      - 'packaging/**'
+      - 'policy/**'
+      - 'scripts/**'
+      - 'support-files/**'
+
+concurrency:
+  group: build-arm64-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PARENT_BRANCH: 'trunk'
+  BUILD_TYPE: Debug
+  BUILD_PARAMS_TYPE: normal
+  COMPILER: gcc
+  COMPILER_VER: ''
+  IMAGE_NAME: ubuntu-24.04
+  UBUNTU_CODE_NAME: noble
+  USE_CCACHE: '1'
+  CCACHE_COMPRESS: '1'
+  CCACHE_COMPRESSLEVEL: '9'
+  CCACHE_CPP2: '1'
+  CCACHE_MAXSIZE: 4G
+  IMAGE: ubuntu-24.04
+  SSH_KEY_ID: '107239874'
+  RUNNER_NAME: ps-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  # TRUSTED. Dynamic capacity probe: cax41 -> cax31 -> cax21 across DCs.
+  pick-target:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      location: ${{ steps.probe.outputs.location }}
+      server_type: ${{ steps.probe.outputs.server_type }}
+    steps:
+      - id: probe
+        env:
+          HCLOUD_TOKEN: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+        run: |
+          set -euo pipefail
+          for type in cax41 cax31 cax21; do
+            for dc in fsn1 hel1 nbg1; do
+              PROBE_NAME="cap-probe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${type}-${dc}"
+              HTTP=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+                -H "Authorization: Bearer $HCLOUD_TOKEN" -H "Content-Type: application/json" \
+                https://api.hetzner.cloud/v1/servers \
+                -d "{\"name\":\"$PROBE_NAME\",\"server_type\":\"$type\",\"image\":\"$IMAGE\",\"location\":\"$dc\",\"start_after_create\":false}")
+              if [ "$HTTP" = "201" ]; then
+                ID=$(jq -r '.server.id // empty' /tmp/resp.json)
+                [ -n "$ID" ] || { echo "::error::201 without server id"; exit 1; }
+                curl -fsS -X DELETE -H "Authorization: Bearer $HCLOUD_TOKEN" \
+                  "https://api.hetzner.cloud/v1/servers/$ID" >/dev/null
+                if [ "$type" != "cax41" ]; then
+                  echo "::warning::cax41 unavailable (PS-11174); falling back to $type in $dc"
+                fi
+                echo "Hetzner target: $type in $dc" >> "$GITHUB_STEP_SUMMARY"
+                { echo "location=$dc"; echo "server_type=$type"; } >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              ERR=$(jq -r '.error.code // "?"' /tmp/resp.json 2>/dev/null || echo "?")
+              echo "::warning::$type/$dc: HTTP $HTTP ($ERR)"
+            done
+          done
+          echo "::error::No CAX capacity in fsn1/hel1/nbg1"
+          exit 1
+
+  # TRUSTED. Provision the ephemeral runner.
+  create-runner:
+    needs: pick-target
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      runner_label: ${{ env.RUNNER_NAME }}
+      server_id: ${{ steps.create.outputs.server_id }}
+      server_type: ${{ needs.pick-target.outputs.server_type }}
+    steps:
+      - id: create
+        uses: olexandr-havryliak/hcloud-github-runner@bb1089d8b718a06493cb37c51dfe596e44baefc2
+        with:
+          mode: create
+          name: ${{ env.RUNNER_NAME }}
+          hcloud_token: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          github_token: ${{ secrets.GHA_RUNNER_PAT }}
+          image: ${{ env.IMAGE }}
+          location: ${{ needs.pick-target.outputs.location }}
+          server_type: ${{ needs.pick-target.outputs.server_type }}
+          ssh_key: ${{ env.SSH_KEY_ID }}
+          pre_runner_script: |
+            apt-get update -y
+            apt-get install -y curl ca-certificates jq
+
+  # UNTRUSTED. PR code runs here. Build mirrors azure-pipelines.yml on `trunk`.
+  do-the-job:
+    needs: [pick-target, create-runner]
+    runs-on: ${{ needs.create-runner.outputs.runner_label }}
+    permissions:
+      contents: read
+    timeout-minutes: 180
+    env:
+      CCACHE_DIR: /home/runner/ccache
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: System info
+        run: |
+          set -eux
+          echo "Server type: ${{ needs.create-runner.outputs.server_type }}"
+          uname -a
+          nproc
+          free -h
+          df -h /
+
+      - name: Conditional swap (only when RAM < 16 GB)
+        run: |
+          set -eux
+          MEM_GB=$(awk '/MemTotal/ {print int($2/1024/1024)}' /proc/meminfo)
+          if [ "$MEM_GB" -lt 16 ]; then
+            sudo fallocate -l 16G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+          fi
+          free -h
+
+      # trunk apt list: no libreadline-dev (uses libedit only).
+      - name: Install Build Dependencies
+        run: |
+          set -eux
+          SELECTED_CC="${COMPILER}${COMPILER_VER:+-${COMPILER_VER}}"
+          SELECTED_CXX="${COMPILER}++${COMPILER_VER:+-${COMPILER_VER}}"
+          [ "$COMPILER" = "gcc" ] && SELECTED_CXX="g++${COMPILER_VER:+-${COMPILER_VER}}"
+          echo "SELECTED_CC=$SELECTED_CC" >> "$GITHUB_ENV"
+          echo "SELECTED_CXX=$SELECTED_CXX" >> "$GITHUB_ENV"
+          PACKAGES="$SELECTED_CC"
+          [ "$COMPILER" = "gcc" ] && PACKAGES="$SELECTED_CXX"
+          sudo apt-get -yq update
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install \
+            $PACKAGES make pkg-config dpkg-dev unzip lz4 git cmake cmake-curses-gui ccache bison \
+            libtirpc-dev libudev-dev libaio-dev libmecab-dev libnuma-dev \
+            libssl-dev libedit-dev libpam-dev \
+            libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev \
+            libsasl2-modules-gssapi-mit \
+            libxml-simple-perl
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install \
+            libicu-dev libevent-dev liblz4-dev zlib1g-dev \
+            protobuf-compiler libprotobuf-dev libprotoc-dev \
+            libzstd-dev libfido2-dev
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install libeatmydata1
+          REAL_COMPILER_VER=$($SELECTED_CC --version | head -1 | awk '{print $4}')
+          echo "REAL_COMPILER_VER=$REAL_COMPILER_VER" >> "$GITHUB_ENV"
+
+      - name: ccache cache (Azure key shape)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.2.0
+        with:
+          path: /home/runner/ccache
+          key: ccache-${{ env.PARENT_BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ env.PARENT_BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-
+
+      - name: Checkout (fetchDepth 32 mirrors Azure)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.2.2
+        with:
+          fetch-depth: 32
+
+      - name: Update git submodules
+        run: |
+          set -eux
+          git submodule sync
+          git submodule update --init --force --depth=256
+          git submodule
+
+      - name: System and compiler info
+        run: |
+          set -eux
+          $SELECTED_CC -v
+          $SELECTED_CXX -v
+          ccache --version
+          mkdir -p "$CCACHE_DIR"
+          ccache -p | grep -E "max_size|cache_dir"
+          ccache --zero-stats
+
+      # trunk cmake delta vs 8.0:
+      # - No Boost cache + no -DDOWNLOAD_BOOST/-DWITH_BOOST (system Boost)
+      # - WITH_KEYRING_VAULT(_TEST) -> WITH_COMPONENT_KEYRING_VAULT
+      # - WITH_READLINE=system -> WITH_EDITLINE=system
+      # - +WITH_CURL=bundled
+      - name: cmake (Azure parity, trunk Noble non-inverted)
+        run: |
+          set -eux
+          mkdir bin && cd bin
+          COMPILE_OPT=(
+            -DCMAKE_C_FLAGS_DEBUG=-g1
+            -DCMAKE_CXX_FLAGS_DEBUG=-g1
+          )
+          CMAKE_OPT="
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+            -DBUILD_CONFIG=mysql_release
+            -DWITH_PACKAGE_FLAGS=OFF
+            -DCMAKE_C_COMPILER=$SELECTED_CC
+            -DCMAKE_CXX_COMPILER=$SELECTED_CXX
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DWITH_ROCKSDB=ON
+            -DWITH_COREDUMPER=ON
+            -DWITH_COMPONENT_KEYRING_VAULT=ON
+            -DWITH_PAM=ON
+            -DMYSQL_MAINTAINER_MODE=ON
+            -DWITH_MECAB=system
+            -DWITH_NUMA=ON
+            -DWITH_EDITLINE=system
+            -DWITH_CURL=bundled
+            -DWITH_SYSTEM_LIBS=ON
+          "
+          cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}"
+          cmake -L .
+
+      - name: Compile (make -j, capped at 16)
+        run: |
+          set -eux
+          cd bin
+          NPROC=$(nproc --all)
+          NTHREADS=$(( NPROC > 16 ? 16 : NPROC ))
+          echo "Using $NTHREADS/$NPROC threads (Azure literal: -j2)"
+          make -j${NTHREADS}
+          ccache --show-stats
+          df -h /
+
+      - name: MTR main.1st (arm64-only; Cirrus parity)
+        run: |
+          set -eux
+          cd bin
+          NPROC=$(nproc --all)
+          NTHREADS=$(( NPROC > 16 ? 16 : NPROC ))
+          LIBEATMYDATA=$(whereis libeatmydata.so | awk '{print $2}')
+          mysql-test/mysql-test-run.pl main.1st \
+            --parallel=$NTHREADS \
+            --junit-output=/tmp/MTR_results.xml \
+            --mysqld-env=LD_PRELOAD=${LIBEATMYDATA} \
+            --force --max-test-fail=0 --retry-failure=0 \
+            --debug-server
+
+      - name: Upload MTR results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.0
+        with:
+          name: mtr-results
+          path: /tmp/MTR_results.xml
+          if-no-files-found: ignore
+
+  delete-runner:
+    needs: [pick-target, create-runner, do-the-job]
+    if: always() && needs.create-runner.outputs.server_id != ''
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: olexandr-havryliak/hcloud-github-runner@bb1089d8b718a06493cb37c51dfe596e44baefc2
+        with:
+          mode: delete
+          name: ${{ env.RUNNER_NAME }}
+          server_id: ${{ needs.create-runner.outputs.server_id }}
+          hcloud_token: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          github_token: ${{ secrets.GHA_RUNNER_PAT }}

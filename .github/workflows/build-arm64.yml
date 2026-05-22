@@ -112,9 +112,27 @@ jobs:
           location: ${{ needs.pick-target.outputs.location }}
           server_type: ${{ needs.pick-target.outputs.server_type }}
           ssh_key: ${{ env.SSH_KEY_ID }}
+          # Pin runner version (vs `latest`) so cloud-init does not fetch
+          # the tarball from GitHub releases on every boot.
+          runner_version: '2.334.0'
+          # 20min budget (default is 10min) to absorb transient apt-mirror or
+          # GitHub-release slowness during cloud-init bootstrap.
+          runner_wait: '120'
+          # Retry apt with backoff; transient apt-mirror hiccups on first
+          # cloud-init were the root cause of "runner never registered"
+          # failures observed 2026-05-22 (Codex diagnosis).
           pre_runner_script: |
-            apt-get update -y
-            apt-get install -y curl ca-certificates jq
+            set -euxo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            ok=0
+            for i in 1 2 3; do
+              if apt-get update -y && apt-get install -y --no-install-recommends curl ca-certificates jq; then
+                ok=1
+                break
+              fi
+              sleep $((i * 15))
+            done
+            [ "$ok" = 1 ]
 
   # UNTRUSTED. PR code runs here. Build mirrors azure-pipelines.yml on `trunk`.
   do-the-job:

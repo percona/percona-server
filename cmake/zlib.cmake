@@ -25,13 +25,14 @@
 #  cmake -DWITH_ZLIB="bundled"|"system"
 #
 # Default is "bundled".
+# bundled uses bundled zlib-ng in compatibility mode;
+# system uses system zlib and requires at least 1.2.13.
+
 # The default should be "system" on non-windows platforms,
 # but we need at least version 1.2.13, and that's not available on
 # all the platforms we need to support.
 
-# Security bug fixes required from:
-SET(MIN_ZLIB_VERSION_REQUIRED "1.2.13")
-
+SET(MIN_SYSTEM_ZLIB_VERSION_REQUIRED "1.2.13")
 
 FUNCTION(FIND_ZLIB_VERSION ZLIB_INCLUDE_DIR)
   FOREACH(version_part
@@ -63,11 +64,11 @@ FUNCTION(FIND_SYSTEM_ZLIB)
       TARGET_INCLUDE_DIRECTORIES(zlib_interface SYSTEM INTERFACE
         ${ZLIB_INCLUDE_DIR})
     ENDIF()
+
     FIND_ZLIB_VERSION(${ZLIB_INCLUDE_DIR})
     SET(ZLIB_FOUND ${ZLIB_FOUND} PARENT_SCOPE)
     SET(ZLIB_VERSION ${ZLIB_VERSION} PARENT_SCOPE)
     # For EXTRACT_LINK_LIBRARIES
-    SET(zlib_SYSTEM_LINK_FLAGS "-lz" CACHE STRING "Link flag for zlib")
   ENDIF()
 ENDFUNCTION(FIND_SYSTEM_ZLIB)
 
@@ -88,54 +89,41 @@ MACRO (RESET_ZLIB_VARIABLES)
   UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB CACHE)
 ENDMACRO()
 
-SET(ZLIB_VERSION_DIR "zlib-1.3.2")
-SET(BUNDLED_ZLIB_PATH ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR})
-
 FUNCTION(MYSQL_USE_BUNDLED_ZLIB)
   RESET_ZLIB_VARIABLES()
 
+  ADD_SUBDIRECTORY(extra/zlib-ng)
+
   ADD_LIBRARY(zlib_interface INTERFACE)
-  TARGET_LINK_LIBRARIES(zlib_interface INTERFACE zlib)
-  TARGET_INCLUDE_DIRECTORIES(zlib_interface SYSTEM BEFORE INTERFACE
-    ${CMAKE_SOURCE_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
-    ${CMAKE_BINARY_DIR}/extra/zlib/${ZLIB_VERSION_DIR}
-    )
+  TARGET_LINK_LIBRARIES(zlib_interface INTERFACE zlib-ng)
 
-  FIND_ZLIB_VERSION(${BUNDLED_ZLIB_PATH})
-
-  ADD_SUBDIRECTORY(extra/zlib)
-
-  # Add support for bundled curl.
+  # Add support for bundled zlib-ng.
   ADD_LIBRARY(ZLIB::ZLIB ALIAS zlib_interface)
-
+  SET(ZLIB_FOUND ON PARENT_SCOPE)
 ENDFUNCTION(MYSQL_USE_BUNDLED_ZLIB)
 
-
 MACRO (MYSQL_CHECK_ZLIB)
-
   IF(NOT WITH_ZLIB)
     SET(WITH_ZLIB "bundled"
-      CACHE STRING "By default use bundled zlib on this platform")
+      CACHE STRING "By default use bundled zlib-ng on this platform")
   ENDIF()
-  
+
   IF(WITH_ZLIB STREQUAL "bundled")
     MYSQL_USE_BUNDLED_ZLIB()
-    SET(ZLIB_FOUND ON)
   ELSEIF(WITH_ZLIB STREQUAL "system")
     FIND_SYSTEM_ZLIB()
     IF(NOT ZLIB_FOUND)
       MESSAGE(FATAL_ERROR "Cannot find system zlib libraries.")
     ENDIF()
+    IF(ZLIB_VERSION VERSION_LESS MIN_SYSTEM_ZLIB_VERSION_REQUIRED)
+      MESSAGE(FATAL_ERROR
+      "ZLIB version must be at least ${MIN_SYSTEM_ZLIB_VERSION_REQUIRED}, "
+      "found ${ZLIB_VERSION}.\nPlease use -DWITH_ZLIB=bundled")
+    ENDIF()
   ELSE()
     RESET_ZLIB_VARIABLES()
     MESSAGE(FATAL_ERROR "WITH_ZLIB must be bundled or system")
   ENDIF()
-
   ADD_LIBRARY(ext::zlib ALIAS zlib_interface)
-
-  IF(ZLIB_VERSION VERSION_LESS MIN_ZLIB_VERSION_REQUIRED)
-    MESSAGE(FATAL_ERROR
-      "ZLIB version must be at least ${MIN_ZLIB_VERSION_REQUIRED}, "
-      "found ${ZLIB_VERSION}.\nPlease use -DWITH_ZLIB=bundled")
-  ENDIF()
+  SET(zlib_SYSTEM_LINK_FLAGS "-lz" CACHE STRING "Link flag for zlib")
 ENDMACRO()

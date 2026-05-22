@@ -7,3 +7,6 @@
 [submodule "extra/libkmip"]
 	path = extra/libkmip
 	url = https://github.com/Percona-Lab/libkmip.git
+[submodule "extra/zlib-ng/zlib-ng"]
+	path = extra/zlib-ng/zlib-ng
+	url = https://github.com/zlib-ng/zlib-ng.git

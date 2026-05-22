@@ -1,0 +1,17 @@
+SET(ZLIB_COMPAT ON CACHE BOOL "Compile with zlib compatible API" FORCE)
+SET(ZLIB_ALIASES OFF CACHE BOOL "Disable zlib alias targets" FORCE)
+SET(BUILD_TESTING OFF CACHE BOOL "Build test binaries" FORCE)
+SET(WITH_GTEST OFF CACHE BOOL "Build tests using GTest framework" FORCE)
+SET(WITH_BENCHMARKS OFF CACHE BOOL "Build benchmarks" FORCE)
+SET(WITH_BENCHMARK_APPS OFF CACHE BOOL "Build benchmark apps" FORCE)
+SET(INSTALL_UTILS OFF CACHE BOOL "Install helper utilities" FORCE)
+SET(WITH_NATIVE_INSTRUCTIONS OFF CACHE BOOL "Use -march=native" FORCE)
+SET(WITH_RUNTIME_CPU_DETECTION ON CACHE BOOL "Enable runtime CPU detection" FORCE)
+
+IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  SET(WITH_SANITIZER ON CACHE BOOL "Enable sanitizer testing support" FORCE)
+ELSE()
+  SET(WITH_SANITIZER OFF CACHE BOOL "Disable sanitizer testing support" FORCE)
+ENDIF()
+
+ADD_SUBDIRECTORY(zlib-ng)

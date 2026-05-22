@@ -28,6 +28,10 @@ on:
           - trunk
           - '8.4'
         default: '8.0'
+      debug_keep_vm:
+        description: 'On create-runner failure: keep Hetzner VM alive so you can SSH in and grab /var/log/cloud-init-output.log + /actions-runner/_diag/* manually. SSH as root using key 107239874 (anderson@percona). Remember to delete the VM when done.'
+        type: boolean
+        default: false
   # Self-test: only fires when this file itself changes. Validates pre-merge
   # without committing Hetzner cycles to unrelated PRs.
   pull_request:
@@ -151,15 +155,14 @@ jobs:
           location: ${{ needs.pick-target.outputs.location }}
           server_type: ${{ needs.pick-target.outputs.server_type }}
           ssh_key: ${{ env.SSH_KEY_ID }}
-          # Pin the runner version (vs `latest`) so cloud-init doesn't fetch
-          # from GitHub releases on every boot; bump intentionally.
-          runner_version: '2.334.0'
           # Default budget is 60x10s = 10min. Bumping to 20min absorbs
           # transient apt-mirror or GitHub-release slowness during bootstrap.
           runner_wait: '120'
           # Retry apt with backoff; transient apt-mirror hiccups on first
-          # cloud-init were the most likely root cause of past
-          # "runner never registered" failures (Codex diagnosis 2026-05-22).
+          # cloud-init were a hypothesised cause of "runner never registered"
+          # failures (Codex diagnosis 2026-05-22). Keep this even after the
+          # runner_version pin was reverted, since apt flakes are cheap to
+          # guard against and the cost is one extra retry on the happy path.
           pre_runner_script: |
             set -euxo pipefail
             export DEBIAN_FRONTEND=noninteractive
@@ -172,6 +175,47 @@ jobs:
               sleep $((i * 15))
             done
             [ "$ok" = 1 ]
+
+      # Diagnostic preservation: on create-runner failure with the workflow_dispatch
+      # `debug_keep_vm` flag set, surface the VM IP + SSH instructions in the run
+      # summary BEFORE delete-runner reaps the VM. Anderson SSHs in manually with
+      # his personal key (107239874) to grab cloud-init logs and the runner _diag dir.
+      - name: Preserve VM for manual diagnosis (on failure, debug-only)
+        if: failure() && inputs.debug_keep_vm == true
+        env:
+          HCLOUD_TOKEN: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          SERVER_ID: ${{ steps.create.outputs.server_id }}
+        run: |
+          set -euo pipefail
+          [ -n "${SERVER_ID:-}" ] || { echo "::warning::No server_id; nothing to preserve"; exit 0; }
+          IP=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers/$SERVER_ID" \
+            | jq -r '.server.public_net.ipv4.ip')
+          {
+            echo "### Debug VM kept alive for manual diagnosis"
+            echo ""
+            echo "Server ID: \`$SERVER_ID\`"
+            echo "Public IPv4: \`$IP\`"
+            echo ""
+            echo "**SSH** (key 107239874, \`anderson@percona\`):"
+            echo "\`\`\`bash"
+            echo "ssh root@$IP"
+            echo "\`\`\`"
+            echo ""
+            echo "**Files to grab:**"
+            echo "- \`/var/log/cloud-init.log\`"
+            echo "- \`/var/log/cloud-init-output.log\`"
+            echo "- \`/actions-runner/_diag/\` (if it exists)"
+            echo "- \`/actions-runner/.runner\` + \`.credentials\` (if registration partially completed)"
+            echo ""
+            echo "**Cleanup when done:**"
+            echo "\`\`\`bash"
+            echo "curl -X DELETE -H \"Authorization: Bearer \$HCLOUD_TOKEN\" \\"
+            echo "  https://api.hetzner.cloud/v1/servers/$SERVER_ID"
+            echo "\`\`\`"
+            echo ""
+            echo "orphan-sweep.yml will reap this VM after 6h regardless."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # UNTRUSTED. Target-branch code runs here.
   do-the-job:
@@ -354,7 +398,13 @@ jobs:
 
   delete-runner:
     needs: [pickbranch, pick-target, create-runner, do-the-job]
-    if: always() && needs.create-runner.outputs.server_id != ''
+    # Skip delete when debug_keep_vm is set AND create-runner failed, so the
+    # broken VM stays alive for manual SSH diagnosis. orphan-sweep reaps it
+    # after 6h regardless. Normal happy path is unaffected.
+    if: |
+      always()
+      && needs.create-runner.outputs.server_id != ''
+      && !(inputs.debug_keep_vm == true && needs.create-runner.result == 'failure')
     runs-on: ubuntu-latest
     permissions: {}
     steps:

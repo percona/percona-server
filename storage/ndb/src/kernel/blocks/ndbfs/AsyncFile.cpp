@@ -584,9 +584,6 @@ void AsyncFile::closeReq(Request *request) {
     int r = m_xfile.close(abort);
     if (r == -1) {
       NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      if (request->error.code == 0) {
-        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
-      }
     }
   }
   if (m_file.is_open()) {
@@ -595,9 +592,6 @@ void AsyncFile::closeReq(Request *request) {
     int r = m_file.close();
     if (r == -1 || sync_ret == -1) {
       NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-      if (request->error.code == 0) {
-        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
-      }
     }
   }
 }
@@ -968,9 +962,6 @@ void AsyncFile::appendReq(Request *request) {
   int r = m_xfile.write_forward(&in);
   if (r == -1) {
     NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
-    if (request->error.code == 0) {
-      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
-    }
     return;
   }
   if (!in.empty()) {

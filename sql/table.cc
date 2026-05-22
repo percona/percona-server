@@ -4298,6 +4298,9 @@ void TABLE::reset() {
   file->ft_handler = nullptr;
   pos_in_table_list = nullptr;
   m_bytes_per_row = nullptr;
+
+  // Ensure values for temporary nullability of fields are properly reset:
+  if (triggers != nullptr) triggers->reset_field_nulls();
 }
 
 /**

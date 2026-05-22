@@ -5322,7 +5322,10 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal *signal) {
   }
 #endif
 
+#define DISPLAY(nodeGroup) (nodeGroup == RNIL ? 65536 : nodeGroup)
+
   g_eventLogger->info("Node started");
+  g_eventLogger->info("Node group %d.", DISPLAY(cntr.getNodeState().nodeGroup));
 
   signal->theData[0] = NDB_LE_NDBStartCompleted;
   signal->theData[1] = NDB_VERSION;
@@ -5357,6 +5360,8 @@ void Ndbcntr::execCREATE_NODEGROUP_IMPL_REQ(Signal *signal) {
     if (save != c_nodeGroup) {
       jam();
       updateNodeState(signal, getNodeState());
+      g_eventLogger->info("Now in node group %d due to CREATE NODEGROUP.",
+                          DISPLAY(c_nodeGroup));
     }
   }
 
@@ -5384,6 +5389,8 @@ void Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal *signal) {
     if (save != c_nodeGroup) {
       jam();
       updateNodeState(signal, getNodeState());
+      g_eventLogger->info("Now in node group %d due to DROP NODEGROUP.",
+                          DISPLAY(c_nodeGroup));
     }
   }
 

@@ -157,6 +157,7 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd) {
 
 void Gtid_state::update_commit_group(THD *first_thd) {
   DBUG_TRACE;
+  mysql_mutex_assert_owner(mysql_bin_log.get_commit_lock());
 
   bool gtid_threshold_breach = false;
   /*

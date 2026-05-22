@@ -396,7 +396,10 @@ NDBT_Finalizer::NDBT_Finalizer(NDBT_TestCase *ptest, const char *pname,
 
 NDBT_TestCase::NDBT_TestCase(NDBT_TestSuite *psuite, const char *pname,
                              const char *pcomment)
-    : _name(pname), _comment(pcomment), suite(psuite) {
+    : _name(pname),
+      _comment(pcomment),
+      suite(psuite),
+      _restarter(opt_ndb_connectstring) {
   require(suite != NULL);
 
   m_all_tables = false;

@@ -14,6 +14,9 @@
 # audit_log
 audit_log.audit_log_prune_seconds_var_cnf @windows : BUG#32245509 Test lets mysqltest crash only on windows.
 
+# audit_log_filter
+audit_log_filter.udf_audit_log_read_validate_output : BUG#0000 Test with known issues for problematic feature. Both are fixed in 8.4
+
 # audit_null
 audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 

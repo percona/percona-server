@@ -1,0 +1,1198 @@
+# PS-11078: GitHub Actions build for percona-server 9.7 on Hetzner cax* arm64.
+# Replaces the Cirrus arm64 tasks before Cirrus shuts down 2026-06-01.
+#
+# PS-11179 (2026-05-28): AWS Graviton fallback path added. Hetzner remains the
+# primary provider; if the cax41/cax31/cax21 sweep across fsn1/hel1/nbg1 fails
+# repeatedly, pick-target switches provider to "aws" and create-runner-aws
+# provisions a c7g.4xlarge Graviton3 spot (with on-demand fallback) in
+# eu-central-1. Build steps are unchanged; only the runner provisioning path
+# branches.
+#
+# One file, three event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
+#   - pull_request to 9.7        -> Debug + MTR main.1st     (same-repo PRs; Cirrus per-PR replacement)
+#   - pull_request_target to 9.7 -> Debug + MTR main.1st     (PS-11254: fork PRs by percona org members only)
+#   - workflow_dispatch          -> manual run OR nightly (build_type RelWithDebInfo -> binlog_nogtid)
+#
+# Nightly RelWithDebInfo + binlog_nogtid is NOT a `schedule:` trigger here:
+# GHA cron only fires from the DEFAULT branch, so a cron in this file would be
+# dead on 9.7 (a non-default branch). Instead .github/workflows/
+# builds-nightly.yml lives on the default branch and dispatches THIS file via
+# workflow_dispatch --ref on each maintained branch, so each nightly runs that
+# branch's own self-contained builds.yml (its boost version, cmake/apt deltas).
+#
+# Notes for follow-ups (per Przemek DM 2026-05-27):
+#   - x86_64 nightly RelWithDebInfo can be added as a sibling job reusing the
+#     `dispatch` outputs (BUILD_TYPE / MTR_SUITE / CCACHE_MAXSIZE). Intentionally
+#     not wired in this PR per "we may do it, let's see how arm64 behaves first".
+#
+# Trust split: pick-target / create-runner-* / delete-runner-* hold infra
+# secrets (GHA_RUNNER_HCLOUD_TOKEN, GHA_RUNNER_PAT, AWS_ROLE_ARN via OIDC).
+# The build-arm64 job runs on the ephemeral runner (Hetzner OR EC2) and only
+# sees GITHUB_TOKEN (read-only), so PR code never reaches infra credentials.
+#
+# PS-11254: fork PRs run via pull_request_target so the provisioning jobs
+# resolve secrets in base-repo context. This is safe ONLY because the
+# secret-bearing jobs do NO checkout; build-arm64 is the sole job that checks
+# out PR code, and it holds no secrets. The `dispatch` gate limits
+# pull_request_target to fork PRs whose author is a percona org member
+# (author_association MEMBER/OWNER/COLLABORATOR). INVARIANT: never add a PR-code
+# checkout to a secret-bearing job.
+
+name: builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        type: choice
+        options:
+          - Debug
+          - RelWithDebInfo
+        default: Debug
+      debug_keep_vm:
+        description: 'On create-runner failure: keep Hetzner VM alive so you can SSH in and grab /var/log/cloud-init-output.log + /actions-runner/_diag/* manually. SSH as root using key 107239874 (anderson@percona). Remember to delete the VM when done. (Hetzner path only; EC2 fallback always terminates.)'
+        type: boolean
+        default: false
+      force_provider:
+        description: 'Override provider selection (debug + cost benchmarking). "auto" = Hetzner with EC2 fallback (default, production behavior). "hetzner" = Hetzner only, fail if exhausted (no AWS spend). "aws" = skip Hetzner, go straight to EC2 (validate AWS path on demand without waiting for a real Hetzner outage).'
+        type: choice
+        options:
+          - auto
+          - hetzner
+          - aws
+        default: auto
+  pull_request:
+    branches: [9.7]
+    paths-ignore:
+      # Mirrors azure-pipelines.yml `paths.exclude`.
+      - 'doc/**'
+      - 'build-ps/**'
+      - 'man/**'
+      - 'mysql-test/**'
+      - 'packaging/**'
+      - 'policy/**'
+      - 'scripts/**'
+      - 'support-files/**'
+  pull_request_target:
+    # PS-11254: fork PRs get no secrets on `pull_request` (GitHub withholds
+    # them from forks), so org-member fork PRs run here in base-repo context,
+    # gated by `dispatch` below. Same-repo PRs stay on `pull_request`.
+    branches: [9.7]
+    paths-ignore:
+      - 'doc/**'
+      - 'build-ps/**'
+      - 'man/**'
+      - 'mysql-test/**'
+      - 'packaging/**'
+      - 'policy/**'
+      - 'scripts/**'
+      - 'support-files/**'
+
+concurrency:
+  # PR runs (pull_request + pull_request_target) are cancellable so superseded
+  # pushes do not waste Hetzner cycles; workflow_dispatch runs (including the
+  # nightly dispatched from the default branch) stay protected
+  # (cancel-in-progress: false) because they bill paid arm64 minutes.
+  # event_name is in the key so a fork PR's (skipped) pull_request run and its
+  # real pull_request_target run do not share a group.
+  group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+
+# Workflow-level permissions are minimal (contents: read) to limit blast
+# radius for any future jobs added here. The id-token: write grant required
+# for OIDC -> AWS STS federation lives only on the two jobs that actually
+# use it (create-runner-aws, delete-runner-aws). build-arm64 runs untrusted
+# PR code on the ephemeral runner and intentionally does not get id-token.
+permissions:
+  contents: read
+
+env:
+  PARENT_BRANCH: '9.7'
+  BUILD_PARAMS_TYPE: normal
+  COMPILER: gcc
+  COMPILER_VER: ''
+  IMAGE_NAME: ubuntu-24.04
+  UBUNTU_CODE_NAME: noble
+  BOOST_VERSION: boost_1_87_0
+  USE_CCACHE: '1'
+  CCACHE_COMPRESS: '1'
+  CCACHE_COMPRESSLEVEL: '9'
+  CCACHE_CPP2: '1'
+  IMAGE: ubuntu-24.04
+  SSH_KEY_ID: '107239874'
+  EPHEMERAL_RUNNER_NAME: ps-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+  # PS-11179: EC2 fallback knobs. eu-central-1 chosen to match the existing
+  # Jenkins eu-central-1 footprint (low latency to EU contributors, no new
+  # cross-region S3/ECR traffic for boost / ccache restore). c7g.4xlarge gives
+  # 16 vCPU + 32 GB Graviton3, which is parity with the cax41 default.
+  AWS_REGION: eu-central-1
+  AWS_INSTANCE_TYPE: c7g.4xlarge
+
+jobs:
+  # TRUSTED authorization gate (PS-11254). Root of the job graph: dispatch
+  # needs it and every other job chains off dispatch, so gating here gates the
+  # whole run.
+  #   - schedule / workflow_dispatch: always
+  #   - pull_request: same-repo PRs only (forks get no secrets on this event)
+  #   - pull_request_target: fork PRs only, authorized when the PR author has
+  #     write+ access to the repo. author_association is deliberately NOT used:
+  #     its value in the event payload is CONTRIBUTOR for PRIVATE percona org
+  #     members, so it would wrongly reject them. The repo-permission API call
+  #     via GHA_RUNNER_PAT is reliable (empirically confirmed: members resolve
+  #     to write, non-collaborators to read on this public repo). This job does
+  #     no checkout and runs in base-repo context, so the trust split holds.
+  authorize:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      ok: ${{ steps.gate.outputs.ok }}
+    steps:
+      - id: gate
+        env:
+          GH_TOKEN:  ${{ secrets.GHA_RUNNER_PAT }}
+          EVENT:     ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          AUTHOR:    ${{ github.event.pull_request.user.login }}
+        run: |
+          set -u
+          ok=false
+          case "$EVENT" in
+            schedule|workflow_dispatch)
+              ok=true ;;
+            pull_request)
+              [ "$HEAD_REPO" = "$BASE_REPO" ] && ok=true ;;
+            pull_request_target)
+              if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+                perm=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                  -H "Accept: application/vnd.github+json" \
+                  "https://api.github.com/repos/$BASE_REPO/collaborators/$AUTHOR/permission" \
+                  | jq -r '.permission // "none"' 2>/dev/null || echo none)
+                case "$perm" in admin|maintain|write) ok=true ;; esac
+                echo "::notice::fork PR by $AUTHOR; repo permission=$perm -> authorized=$ok"
+              fi ;;
+          esac
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+  # TRUSTED. Pick BUILD_TYPE + MTR suite + cache size based on event.
+  dispatch:
+    needs: authorize
+    if: needs.authorize.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      build_type:     ${{ steps.pick.outputs.build_type }}
+      mtr_suite:      ${{ steps.pick.outputs.mtr_suite }}
+      ccache_maxsize: ${{ steps.pick.outputs.ccache_maxsize }}
+    steps:
+      - id: pick
+        run: |
+          set -eu
+          case "${{ github.event_name }}" in
+            pull_request|pull_request_target)
+              BT=Debug;          SUITE=main.1st;      CACHE=4G
+              ;;
+            workflow_dispatch)
+              # Manual runs AND the nightly dispatcher (builds-nightly.yml on
+              # the default branch) land here. build_type=RelWithDebInfo ->
+              # binlog_nogtid (Cirrus nightly parity, Przemek 2026-05-18);
+              # build_type=Debug -> main.1st.
+              BT="${{ inputs.build_type }}"
+              if [ "$BT" = "Debug" ]; then
+                SUITE=main.1st;      CACHE=4G
+              else
+                SUITE=binlog_nogtid; CACHE=8G
+              fi
+              ;;
+          esac
+          echo "Event ${{ github.event_name }} -> BUILD_TYPE=$BT, MTR=$SUITE, CCACHE_MAXSIZE=$CACHE" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "build_type=$BT"
+            echo "mtr_suite=$SUITE"
+            echo "ccache_maxsize=$CACHE"
+          } >> "$GITHUB_OUTPUT"
+
+  # TRUSTED. Dynamic capacity probe with PS-11179 fallback wiring.
+  #
+  # Sweep == one full pass over the 9 (server_type, dc) combinations
+  # (cax41/cax31/cax21 × fsn1/hel1/nbg1), each combination probed via the
+  # existing POST-then-DELETE pattern (HTTP 201 == we could have created the
+  # VM, so we have capacity; delete and report the (type, dc) back to
+  # create-runner-hetzner).
+  #
+  # On a fully-saturated Hetzner arm64 fleet we retry 4 sweeps total
+  # (1 initial + 3 retries) with backoff 2/5/10 minutes between attempts.
+  # Total wait before EC2 fallback fires:
+  #   2 + 5 + 10 = 17 min.
+  # The original 9-sweep / ~3h7m curve was agreed with Przemyslaw DM
+  # 2026-05-28; PS-11254 shortened it so the AWS Graviton fallback takes
+  # over fast on a real capacity outage instead of leaving a PR without
+  # arm64 feedback for ~3h. Early retries still catch the common short dips.
+  #
+  # Implemented as a single bash loop in this single job so the workflow
+  # graph stays linear (no matrix x retries explosion in the UI).
+  #
+  # Outputs:
+  #   provider     "hetzner" (normal) or "aws" (all sweeps exhausted)
+  #   location     hetzner location (fsn1/hel1/nbg1) if provider=hetzner; "" otherwise
+  #   server_type  hetzner server type (cax41/cax31/cax21) if provider=hetzner; "" otherwise
+  pick-target:
+    needs: dispatch
+    runs-on: ubuntu-latest
+    permissions: {}
+    # PS-11254: 4 sweeps × backoff totals ~17m of sleeps plus 36 HTTP
+    # round-trips (~2 min worst-case) plus job overhead. 30 min leaves
+    # headroom for slow Hetzner API responses without auto-cancelling.
+    timeout-minutes: 30
+    outputs:
+      provider:    ${{ steps.probe.outputs.provider }}
+      location:    ${{ steps.probe.outputs.location }}
+      server_type: ${{ steps.probe.outputs.server_type }}
+    steps:
+      - id: probe
+        env:
+          HCLOUD_TOKEN: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          FORCE_PROVIDER: ${{ github.event_name == 'workflow_dispatch' && inputs.force_provider || 'auto' }}
+        run: |
+          set -euo pipefail
+
+          # PS-11179: force_provider override (workflow_dispatch only; defaults
+          # to "auto" for pull_request / pull_request_target, and for the nightly
+          # dispatched as workflow_dispatch). Lets operators validate the
+          # EC2 path on demand without waiting for a real Hetzner outage, or
+          # pin to Hetzner-only when AWS spend must be avoided.
+          case "$FORCE_PROVIDER" in
+            aws)
+              echo "::notice::force_provider=aws -> skipping Hetzner probing, going straight to EC2 fallback"
+              echo "### Provider override: AWS (forced via workflow_dispatch input)" >> "$GITHUB_STEP_SUMMARY"
+              {
+                echo "provider=aws"
+                echo "location="
+                echo "server_type="
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+            hetzner)
+              echo "::notice::force_provider=hetzner -> EC2 fallback disabled; will fail if Hetzner exhausted"
+              ;;
+            auto)
+              ;;
+            *)
+              echo "::error::Unrecognised force_provider value: $FORCE_PROVIDER (expected auto|hetzner|aws)"
+              exit 1
+              ;;
+          esac
+
+          # PS-11179: backoff curve in minutes between sweep attempts.
+          # Index 0 is the gap AFTER sweep 1 fails (before sweep 2), etc.
+          # PS-11254: 3 entries == 3 retries after the initial sweep == 4 sweeps
+          # total (~17m: 2+5+10), so the AWS EC2 fallback takes over fast instead
+          # of burning ~3h on a Hetzner capacity outage.
+          BACKOFF_MIN=(2 5 10)
+          MAX_SWEEPS=4
+
+          for sweep in $(seq 1 "$MAX_SWEEPS"); do
+            echo "::group::Hetzner capacity sweep $sweep/$MAX_SWEEPS"
+            for type in cax41 cax31 cax21; do
+              for dc in fsn1 hel1 nbg1; do
+                PROBE_NAME="cap-probe-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-s${sweep}-${type}-${dc}"
+                HTTP=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+                  -H "Authorization: Bearer $HCLOUD_TOKEN" -H "Content-Type: application/json" \
+                  https://api.hetzner.cloud/v1/servers \
+                  -d "{\"name\":\"$PROBE_NAME\",\"server_type\":\"$type\",\"image\":\"$IMAGE\",\"location\":\"$dc\",\"start_after_create\":false}")
+                if [ "$HTTP" = "201" ]; then
+                  ID=$(jq -r '.server.id // empty' /tmp/resp.json)
+                  [ -n "$ID" ] || { echo "::error::201 without server id"; exit 1; }
+                  curl -fsS -X DELETE -H "Authorization: Bearer $HCLOUD_TOKEN" \
+                    "https://api.hetzner.cloud/v1/servers/$ID" >/dev/null
+                  if [ "$type" != "cax41" ]; then
+                    echo "::warning::cax41 unavailable (PS-11174); falling back to $type in $dc"
+                  fi
+                  if [ "$sweep" -gt 1 ]; then
+                    echo "::notice::Hetzner capacity recovered on sweep $sweep"
+                  fi
+                  echo "Hetzner target: $type in $dc (sweep $sweep/$MAX_SWEEPS)" >> "$GITHUB_STEP_SUMMARY"
+                  {
+                    echo "provider=hetzner"
+                    echo "location=$dc"
+                    echo "server_type=$type"
+                  } >> "$GITHUB_OUTPUT"
+                  echo "::endgroup::"
+                  exit 0
+                fi
+                ERR=$(jq -r '.error.code // "?"' /tmp/resp.json 2>/dev/null || echo "?")
+                echo "::warning::sweep $sweep: $type/$dc: HTTP $HTTP ($ERR)"
+              done
+            done
+            echo "::endgroup::"
+
+            # Sleep before the next sweep unless this was the last one.
+            if [ "$sweep" -lt "$MAX_SWEEPS" ]; then
+              idx=$((sweep - 1))
+              wait_min="${BACKOFF_MIN[$idx]}"
+              echo "::notice::All 9 Hetzner combos exhausted on sweep $sweep; sleeping ${wait_min}m before sweep $((sweep + 1))"
+              sleep $((wait_min * 60))
+            fi
+          done
+
+          # PS-11179: All sweeps exhausted; switch to EC2 path (unless
+          # force_provider=hetzner explicitly disabled fallback).
+          if [ "$FORCE_PROVIDER" = "hetzner" ]; then
+            echo "::error::Hetzner CAX exhausted after $MAX_SWEEPS sweeps AND force_provider=hetzner; failing per request"
+            exit 1
+          fi
+          echo "::warning::Hetzner CAX capacity exhausted after $MAX_SWEEPS sweeps (~17m wall time); falling back to AWS EC2 c7g.4xlarge in $AWS_REGION"
+          {
+            echo "### EC2 fallback fired (PS-11179)"
+            echo ""
+            echo "Hetzner cax41/cax31/cax21 across fsn1/hel1/nbg1 had no capacity"
+            echo "across $MAX_SWEEPS sweeps spanning ~17m. Falling back to AWS"
+            echo "EC2 c7g.4xlarge (Graviton3) in eu-central-1."
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "provider=aws"
+            echo "location="
+            echo "server_type="
+          } >> "$GITHUB_OUTPUT"
+
+  # TRUSTED. Provision the ephemeral Hetzner runner. Runs only when
+  # pick-target found Hetzner capacity.
+  #
+  # Renamed from `create-runner` to `create-runner-hetzner` in PS-11179 so the
+  # AWS sibling job can live alongside it. Body otherwise unchanged.
+  create-runner-hetzner:
+    needs: [dispatch, pick-target]
+    if: needs.pick-target.outputs.provider == 'hetzner'
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      runner_label: ${{ env.EPHEMERAL_RUNNER_NAME }}
+      server_id: ${{ steps.create.outputs.server_id }}
+      server_type: ${{ needs.pick-target.outputs.server_type }}
+    steps:
+      - id: create
+        uses: olexandr-havryliak/hcloud-github-runner@bb1089d8b718a06493cb37c51dfe596e44baefc2
+        with:
+          mode: create
+          name: ${{ env.EPHEMERAL_RUNNER_NAME }}
+          hcloud_token: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          github_token: ${{ secrets.GHA_RUNNER_PAT }}
+          image: ${{ env.IMAGE }}
+          location: ${{ needs.pick-target.outputs.location }}
+          server_type: ${{ needs.pick-target.outputs.server_type }}
+          ssh_key: ${{ env.SSH_KEY_ID }}
+          # Default budget is 60x10s = 10 min; bumped to 20 min absorbs transient
+          # apt-mirror or GitHub-release slowness during bootstrap.
+          runner_wait: '120'
+          # Retry apt with backoff for transient apt-mirror hiccups on first
+          # cloud-init (Codex diagnosis 2026-05-22).
+          pre_runner_script: |
+            set -euxo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            ok=0
+            for i in 1 2 3; do
+              if apt-get update -y && apt-get install -y --no-install-recommends curl ca-certificates jq; then
+                ok=1
+                break
+              fi
+              sleep $((i * 15))
+            done
+            [ "$ok" = 1 ]
+
+      # On create-runner failure with workflow_dispatch `debug_keep_vm` set,
+      # surface VM IP + SSH instructions in the run summary BEFORE delete-runner
+      # reaps the VM. Anderson SSHs in manually with his personal key
+      # (107239874) to grab cloud-init logs and the runner _diag dir.
+      - name: Preserve VM for manual diagnosis (on failure, debug-only)
+        if: failure() && inputs.debug_keep_vm == true
+        env:
+          HCLOUD_TOKEN: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          SERVER_ID: ${{ steps.create.outputs.server_id }}
+        run: |
+          set -euo pipefail
+          [ -n "${SERVER_ID:-}" ] || { echo "::warning::No server_id; nothing to preserve"; exit 0; }
+          IP=$(curl -fsS -H "Authorization: Bearer $HCLOUD_TOKEN" \
+            "https://api.hetzner.cloud/v1/servers/$SERVER_ID" \
+            | jq -r '.server.public_net.ipv4.ip')
+          {
+            echo "### Debug VM kept alive for manual diagnosis"
+            echo ""
+            echo "Server ID: \`$SERVER_ID\`"
+            echo "Public IPv4: \`$IP\`"
+            echo ""
+            echo "**SSH** (key 107239874, \`anderson@percona\`):"
+            echo "\`\`\`bash"
+            echo "ssh root@$IP"
+            echo "\`\`\`"
+            echo ""
+            echo "**Files to grab:**"
+            echo "- \`/var/log/cloud-init.log\`"
+            echo "- \`/var/log/cloud-init-output.log\`"
+            echo "- \`/actions-runner/_diag/\` (if it exists)"
+            echo "- \`/actions-runner/.runner\` + \`.credentials\` (if registration partially completed)"
+            echo ""
+            echo "**Cleanup when done:**"
+            echo "\`\`\`bash"
+            echo "curl -X DELETE -H \"Authorization: Bearer \$HCLOUD_TOKEN\" \\"
+            echo "  https://api.hetzner.cloud/v1/servers/$SERVER_ID"
+            echo "\`\`\`"
+            echo ""
+            echo "orphan-sweep.yml will reap this VM after 6h regardless."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # TRUSTED. Provision the ephemeral EC2 runner (PS-11179 fallback path).
+  # Runs only when pick-target exhausted Hetzner.
+  #
+  # Provider-selection design (locked 2026-05-28):
+  #   - Region: eu-central-1 (hardcoded; matches existing Jenkins footprint,
+  #     low latency to EU contributors, no cross-region cache traffic).
+  #   - Instance type: c7g.4xlarge (16 vCPU / 32 GB Graviton3 == cax41 parity).
+  #   - Spot first across eu-central-1a/1b/1c; on InsufficientInstanceCapacity
+  #     in all 3 AZs, retry on-demand across the same 3 AZs.
+  #   - AMI: Canonical Ubuntu 24.04 arm64 resolved via SSM Parameter Store
+  #     at runtime (no hardcoded AMI ID; auto-refreshes weekly).
+  #   - Self-termination: --instance-initiated-shutdown-behavior terminate
+  #     combined with userData `shutdown -h now` after runner exits;
+  #     delete-runner-aws is the always-runs safety net for forced cancels.
+  #   - Mandatory cluster tags (enforced by IAM tag-on-create condition and
+  #     by the LambdaEC2Cleanup sweeper): iit-billing-tag + PerconaKeep.
+  #
+  # Trust split (Codex review fix 2026-05-28, P0-1 + P0-2):
+  #   - NO `actions/checkout` here. PR code must not enter this trusted job,
+  #     because the workflow holds AWS_ROLE_ARN + GHA_RUNNER_PAT.
+  #     userData content is INLINED via heredoc below; this workflow file
+  #     is the single source of truth for the runner bootstrap. Inlining
+  #     avoids the "PR-controlled checkout poisons trusted bootstrap"
+  #     attack class (Codex review 2026-05-28 P0-1).
+  #   - NO instance profile attached. The ephemeral VM holds no AWS creds.
+  #     PR code on the runner cannot reach the AWS API. The only credential
+  #     on the instance is the one-shot ~1h-TTL GitHub registration token,
+  #     embedded in userData for `./config.sh --token`.
+  create-runner-aws:
+    needs: [dispatch, pick-target]
+    if: needs.pick-target.outputs.provider == 'aws'
+    runs-on: ubuntu-latest
+    permissions:
+      # id-token: write for OIDC -> STS exchange in
+      # aws-actions/configure-aws-credentials.
+      # contents: read is the minimum for the runner to bootstrap; we do
+      # not checkout the repo here (see trust-split comment above).
+      contents: read
+      id-token: write
+    outputs:
+      runner_label: ${{ env.EPHEMERAL_RUNNER_NAME }}
+      instance_id: ${{ steps.run.outputs.instance_id }}
+      az: ${{ steps.run.outputs.az }}
+      market: ${{ steps.run.outputs.market }}
+    steps:
+      # OIDC -> STS. Role created in Percona/percona-cd-platform PR 1
+      # (terraform/iam/gha-percona-server-ec2-fallback.tf). Trust policy
+      # constrains audience to sts.amazonaws.com and subject to this repo +
+      # workflow ref so other repos / branches cannot assume the role.
+      # Pinned to v4.3.1 (current stable v4) by commit SHA; bumping requires
+      # re-verifying the action's source and updating this comment.
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: gha-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # GitHub Actions runner registration token. One-shot, 1h TTL. Lives in
+      # the userData script so the EC2 instance can register itself with
+      # `./config.sh --token`. Generated here (not on the instance) because
+      # the EC2 instance does not hold GHA_RUNNER_PAT.
+      - name: Mint GitHub runner registration token
+        id: regtoken
+        env:
+          GH_TOKEN: ${{ secrets.GHA_RUNNER_PAT }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(gh api -X POST /repos/${{ github.repository }}/actions/runners/registration-token --jq .token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::Failed to mint runner registration token"
+            exit 1
+          fi
+          # Mark as a workflow secret so accidental log echoes are scrubbed.
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      # Resolve the current Canonical Ubuntu 24.04 arm64 AMI from SSM at
+      # runtime. Canonical refreshes this parameter weekly with security
+      # patches; never hardcode the AMI ID in this workflow.
+      - name: Resolve Ubuntu 24.04 arm64 AMI
+        id: ami
+        run: |
+          set -euo pipefail
+          AMI=$(aws ssm get-parameter \
+            --name /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id \
+            --region "$AWS_REGION" \
+            --query Parameter.Value --output text)
+          if [ -z "$AMI" ] || [ "$AMI" = "None" ]; then
+            echo "::error::Failed to resolve Ubuntu 24.04 arm64 AMI from SSM"
+            exit 1
+          fi
+          echo "Resolved AMI: $AMI"
+          echo "ami=$AMI" >> "$GITHUB_OUTPUT"
+
+      # Build the userData payload inline (P0-1 fix). The heredoc body uses
+      # only literal shell `${VAR}` references that are expanded by the
+      # workflow runner's shell at write time, NOT by envsubst on a file
+      # that PR code could mutate. The resulting plain-bash script is what
+      # cloud-init runs on the EC2 instance.
+      #
+      # Variables exported into this step:
+      #   RUNNER_TOKEN   one-shot ~1h-TTL GitHub registration token
+      #   EPHEMERAL_RUNNER_NAME    unique runner name (=== RUNNER_LABEL)
+      #   RUNNER_URL     https://github.com/<owner>/<repo>
+      #   RUNNER_VERSION pinned actions/runner release (without leading v)
+      #   RUNNER_SHA256  SHA256 of actions-runner-linux-arm64-<ver>.tar.gz
+      - name: Render userData (inline; no checkout)
+        env:
+          RUNNER_TOKEN: ${{ steps.regtoken.outputs.token }}
+          RUNNER_URL: https://github.com/${{ github.repository }}
+          # Pinned actions/runner release. Bump together with RUNNER_SHA256.
+          # GitHub deprecates runner versions (typically 4-6 months after
+          # release); a deprecated runner registers fine but is immediately
+          # rejected with "cannot receive messages" and exits. Verify the pin
+          # against https://github.com/actions/runner/releases periodically.
+          # Last bump 2026-05-28 (v2.328.0 -> v2.334.0; 2.328.0 was deprecated).
+          RUNNER_VERSION: '2.334.0'
+          # SHA256 of actions-runner-linux-arm64-2.334.0.tar.gz from the
+          # actions/runner GitHub release page (BEGIN/END SHA linux-arm64 markers).
+          RUNNER_SHA256: 'f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ec2
+          # Fail fast if any required variable is empty; we'd rather not
+          # ship a half-rendered userData to AWS.
+          : "${RUNNER_TOKEN:?registration token missing}"
+          : "${EPHEMERAL_RUNNER_NAME:?runner name missing}"
+          : "${RUNNER_URL:?runner url missing}"
+          : "${RUNNER_VERSION:?runner version pin missing}"
+          : "${RUNNER_SHA256:?runner sha256 pin missing}"
+
+          # Heredoc WITHOUT a quoted delimiter -> the workflow shell expands
+          # ${VAR} at write time. PR code never touches this content.
+          # YAML forces a multi-line block to share an indentation prefix;
+          # we strip exactly 10 leading spaces on every heredoc body line
+          # via sed before writing so cloud-init sees a script starting at
+          # column 1 (the `#!` shebang must be column 1 or cloud-init
+          # refuses to exec it).
+          sed -E 's/^          //' <<EOF > /tmp/ec2/userdata.sh
+          #!/bin/bash
+          # Inlined from .github/workflows/builds.yml (create-runner-aws).
+          # This heredoc is the single source of truth for the runner
+          # bootstrap script. Do not duplicate it to a separate file
+          # (would be a PR-poisonable trusted-bootstrap path; PS-11219).
+          set -euxo pipefail
+          exec > >(tee -a /var/log/gha-runner.log) 2>&1
+
+          # Self-shutdown on any exit path. RunInstances was called with
+          # --instance-initiated-shutdown-behavior terminate, so this
+          # reaps the instance rather than just powering it off.
+          trap '/sbin/shutdown -h now' EXIT
+
+          echo "Starting userData at \$(date -u +%FT%TZ)"
+          echo "Resolved RUNNER_VERSION=${RUNNER_VERSION}"
+          echo "Resolved EPHEMERAL_RUNNER_NAME=${EPHEMERAL_RUNNER_NAME}"
+
+          export DEBIAN_FRONTEND=noninteractive
+
+          # Install runtime deps with retry-on-flake.
+          ok=0
+          for i in 1 2 3; do
+            if apt-get update -y \\
+               && apt-get install -y --no-install-recommends \\
+                    curl ca-certificates jq tar libicu74 git sudo; then
+              ok=1
+              break
+            fi
+            sleep \$((i * 15))
+          done
+          [ "\$ok" = 1 ] || { echo "apt install failed after 3 attempts"; exit 1; }
+
+          # Unprivileged runner user; /home/runner matches the Hetzner
+          # action's convention and the CCACHE_DIR baked into builds.yml.
+          if ! id -u runner >/dev/null 2>&1; then
+            useradd --create-home --shell /bin/bash --home-dir /home/runner runner
+          fi
+
+          # Passwordless sudo for the runner. percona-server build steps
+          # invoke \`sudo apt-get\` extensively (Install Build Dependencies);
+          # without NOPASSWD the runner cannot install packages and the build
+          # fails immediately. The instance has no inbound network (no SSH);
+          # the runner only runs one ephemeral job; expanding sudo to NOPASSWD
+          # is bounded by the ephemeral-VM blast radius.
+          install -m 0440 -o root -g root /dev/stdin /etc/sudoers.d/90-runner <<'SUDOERS'
+          runner ALL=(ALL) NOPASSWD:ALL
+          SUDOERS
+
+          RUNNER_DIR=/home/runner/actions-runner
+          mkdir -p "\${RUNNER_DIR}"
+          chown -R runner:runner /home/runner
+
+          # Download the pinned actions/runner ARM64 tarball.
+          TARBALL="actions-runner-linux-arm64-${RUNNER_VERSION}.tar.gz"
+          TARBALL_URL="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/\${TARBALL}"
+          cd "\${RUNNER_DIR}"
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 5 \\
+               --output "\${TARBALL}" "\${TARBALL_URL}"
+
+          # FAIL HARD on checksum mismatch.
+          echo "${RUNNER_SHA256}  \${TARBALL}" | sha256sum --check --status \\
+            || { echo "SHA256 mismatch for \${TARBALL}; refusing to continue"; exit 1; }
+
+          tar xzf "\${TARBALL}"
+          rm -f "\${TARBALL}"
+          chown -R runner:runner "\${RUNNER_DIR}"
+
+          # Configure + run as the unprivileged user.
+          #   --ephemeral     : deregister after one job
+          #   --disableupdate : never self-update mid-job (we pin the version)
+          #   --unattended    : non-interactive
+          sudo -u runner -H bash -lc "
+            set -euxo pipefail
+            cd '\${RUNNER_DIR}'
+            ./config.sh \\
+              --url '${RUNNER_URL}' \\
+              --token '${RUNNER_TOKEN}' \\
+              --name '${EPHEMERAL_RUNNER_NAME}' \\
+              --labels '${EPHEMERAL_RUNNER_NAME}' \\
+              --runnergroup default \\
+              --work _work \\
+              --unattended \\
+              --ephemeral \\
+              --disableupdate
+          "
+          echo "Token registered, runner: ${EPHEMERAL_RUNNER_NAME}"
+
+          runner_status=0
+          sudo -u runner -H bash -lc "cd '\${RUNNER_DIR}' && ./run.sh" || runner_status=\$?
+          echo "Runner exited with status \${runner_status}"
+
+          echo "Shutting down at \$(date -u +%FT%TZ)"
+          exit 0
+          EOF
+          chmod 0644 /tmp/ec2/userdata.sh
+          # Sanity checks:
+          # (a) shebang at column 1 (cloud-init refuses otherwise),
+          # (b) all required values made it into the rendered script.
+          if [ "$(head -1 /tmp/ec2/userdata.sh)" != "#!/bin/bash" ]; then
+            echo "::error::Rendered userData does not start with #!/bin/bash at column 1"
+            head -3 /tmp/ec2/userdata.sh
+            exit 1
+          fi
+          for needle in "${EPHEMERAL_RUNNER_NAME}" "${RUNNER_URL}" "${RUNNER_VERSION}" "${RUNNER_SHA256}"; do
+            if ! grep -qF "$needle" /tmp/ec2/userdata.sh; then
+              echo "::error::Rendered userData missing expected value (sanity check failed)"
+              exit 1
+            fi
+          done
+
+      # Spot-first across 3 AZs, then on-demand across the same 3 AZs.
+      # Outputs instance_id, az, market (=spot|on-demand) so delete-runner-aws
+      # and the GHA summary can report what was launched.
+      #
+      # Tags applied on the RunInstances call (not as a follow-up
+      # CreateTags) because the cluster IAM policy attaches a
+      # condition that requires iit-billing-tag + PerconaKeep to be
+      # present in the RunInstances request itself.
+      #
+      # --client-token (P1-7): provides launch idempotency keyed on
+      # run_id + run_attempt + AZ + market, so a retried step does not
+      # double-launch the same instance.
+      #
+      # --iam-instance-profile is DELIBERATELY ABSENT (P0-2 fix). The
+      # ephemeral VM intentionally holds no AWS credentials; PR code
+      # cannot reach the AWS API from the runner.
+      - id: run
+        name: RunInstances (spot eu-central-1a/1b/1c, then on-demand)
+        env:
+          AMI_ID: ${{ steps.ami.outputs.ami }}
+        run: |
+          set -euo pipefail
+
+          TAG_SPEC="ResourceType=instance,Tags=[\
+          {Key=Name,Value=ps-arm64-${{ github.run_id }}-${{ github.run_attempt }}},\
+          {Key=iit-billing-tag,Value=percona-server-gha-fallback},\
+          {Key=PerconaKeep,Value=True},\
+          {Key=github_run_id,Value=${{ github.run_id }}},\
+          {Key=github_run_attempt,Value=${{ github.run_attempt }}},\
+          {Key=github_workflow,Value=build},\
+          {Key=github_repository,Value=${{ github.repository }}}]"
+
+          AZS=(eu-central-1a eu-central-1b eu-central-1c)
+          INSTANCE_ID=""
+          CHOSEN_AZ=""
+          CHOSEN_MARKET=""
+
+          # Helper: try to launch in $1=az with market $2=spot|on-demand.
+          # Echoes the instance id on success, empty on InsufficientCapacity.
+          # Any other AWS error exits the job non-zero (fail fast).
+          try_launch() {
+            local az="$1" market="$2"
+            local market_opts=()
+            if [ "$market" = "spot" ]; then
+              market_opts=(--instance-market-options 'MarketType=spot')
+            fi
+            # Client-token: stable per (run_id, run_attempt, az, market) so a
+            # retried RunInstances call returns the same instance instead of
+            # launching a duplicate. AWS requires <= 64 chars; the run-id +
+            # attempt + az + market fits comfortably.
+            local client_token="ps-${{ github.run_id }}-${{ github.run_attempt }}-${az}-${market}"
+            set +e
+            # Canonical's Ubuntu 24.04 ARM64 AMI defaults the root volume to
+            # 8 GB which fills up partway through the percona-server Debug
+            # build (boost + ccache + intermediate objects). Override to
+            # 80 GB gp3, delete-on-termination so the volume dies with the
+            # ephemeral instance and the cleanup Lambdas have nothing to do.
+            OUT=$(aws ec2 run-instances \
+              --region "$AWS_REGION" \
+              --image-id "$AMI_ID" \
+              --instance-type "$AWS_INSTANCE_TYPE" \
+              --placement "AvailabilityZone=$az" \
+              --instance-initiated-shutdown-behavior terminate \
+              --user-data file:///tmp/ec2/userdata.sh \
+              --tag-specifications "$TAG_SPEC" \
+              --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":80,"VolumeType":"gp3","DeleteOnTermination":true}}]' \
+              --client-token "$client_token" \
+              --metadata-options 'HttpTokens=required,HttpPutResponseHopLimit=2,HttpEndpoint=enabled' \
+              "${market_opts[@]}" \
+              --query 'Instances[0].InstanceId' --output text 2>/tmp/ec2/run.err)
+            rc=$?
+            set -e
+            if [ $rc -eq 0 ] && [ -n "$OUT" ] && [ "$OUT" != "None" ]; then
+              echo "$OUT"
+              return 0
+            fi
+            ERR=$(cat /tmp/ec2/run.err)
+            # Match the two capacity-shaped errors AWS returns; everything
+            # else (auth, quota, malformed request) is fatal because retrying
+            # will not help.
+            # IMPORTANT: warnings/errors must go to STDERR (>&2), otherwise the
+            # surrounding `$(try_launch ...)` capture swallows them silently.
+            if echo "$ERR" | grep -qE 'InsufficientInstanceCapacity|SpotMaxPriceTooLow|MaxSpotInstanceCountExceeded'; then
+              echo "::warning::$market launch failed in $az: $(echo "$ERR" | head -1)" >&2
+              return 1
+            fi
+            echo "::error::Fatal RunInstances error in $az ($market): $ERR" >&2
+            return 2
+          }
+
+          # Pass 1: spot across 3 AZs.
+          for az in "${AZS[@]}"; do
+            if ID=$(try_launch "$az" spot); then
+              INSTANCE_ID="$ID"
+              CHOSEN_AZ="$az"
+              CHOSEN_MARKET="spot"
+              break
+            fi
+            rc=$?
+            [ $rc -eq 2 ] && exit 1
+          done
+
+          # Pass 2: on-demand across the same 3 AZs if spot is fully exhausted.
+          if [ -z "$INSTANCE_ID" ]; then
+            echo "::notice::All 3 AZs returned no spot capacity for $AWS_INSTANCE_TYPE; retrying on-demand"
+            for az in "${AZS[@]}"; do
+              if ID=$(try_launch "$az" on-demand); then
+                INSTANCE_ID="$ID"
+                CHOSEN_AZ="$az"
+                CHOSEN_MARKET="on-demand"
+                break
+              fi
+              rc=$?
+              [ $rc -eq 2 ] && exit 1
+            done
+          fi
+
+          if [ -z "$INSTANCE_ID" ]; then
+            echo "::error::No c7g.4xlarge capacity in eu-central-1a/1b/1c for either spot or on-demand. Giving up."
+            exit 1
+          fi
+
+          echo "Launched $INSTANCE_ID ($CHOSEN_MARKET) in $CHOSEN_AZ"
+          {
+            echo "### EC2 fallback runner launched"
+            echo ""
+            echo "- Instance: \`$INSTANCE_ID\`"
+            echo "- Type: \`$AWS_INSTANCE_TYPE\`"
+            echo "- AZ: \`$CHOSEN_AZ\`"
+            echo "- Market: \`$CHOSEN_MARKET\`"
+            echo "- AMI: \`$AMI_ID\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "instance_id=$INSTANCE_ID"
+            echo "az=$CHOSEN_AZ"
+            echo "market=$CHOSEN_MARKET"
+          } >> "$GITHUB_OUTPUT"
+
+      # Wait for the runner to register itself with GitHub. Poll the
+      # repository-scoped runners list every 10s for up to 5 minutes
+      # (30 polls). cloud-init typically completes in 60-120s on c7g.4xlarge;
+      # the 5-minute budget absorbs the worst-case GitHub release CDN delay
+      # observed on Hetzner (Codex 2026-05-22).
+      - name: Wait for runner to come online
+        env:
+          GH_TOKEN: ${{ secrets.GHA_RUNNER_PAT }}
+          INSTANCE_ID: ${{ steps.run.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          # 10 min budget. Cloud-init on a fresh c7g.4xlarge spot needs
+          # apt-update + runner download + extract + configure + register;
+          # 5 min was too tight (PS-11219 PoC iteration 3 timed out at 5m15s).
+          # First-boot worst case is ~6-7 min on cold AMI/runner-release cache.
+          deadline=$(( $(date +%s) + 600 ))
+          attempt=0
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            attempt=$((attempt + 1))
+            STATUS=$(gh api -X GET /repos/${{ github.repository }}/actions/runners --paginate \
+              --jq ".runners[] | select(.name == \"$EPHEMERAL_RUNNER_NAME\") | .status" || true)
+            if [ "$STATUS" = "online" ]; then
+              echo "Runner $EPHEMERAL_RUNNER_NAME online after ${attempt} polls"
+              exit 0
+            fi
+            echo "Attempt $attempt: runner status='${STATUS:-not-registered}' (waiting 10s)"
+            sleep 10
+          done
+          # On timeout, capture EC2 console output BEFORE terminating so we
+          # have a post-mortem (no SSM available; the no-IAM-on-VM design
+          # means we can't shell in either).
+          echo "::error::Runner $EPHEMERAL_RUNNER_NAME did not come online within 10m; capturing console output and terminating $INSTANCE_ID"
+          aws ec2 get-console-output --region "$AWS_REGION" --instance-id "$INSTANCE_ID" --output text --query Output 2>&1 | tail -200 || true
+          aws ec2 terminate-instances --region "$AWS_REGION" --instance-ids "$INSTANCE_ID" >/dev/null || true
+          exit 1
+
+  # UNTRUSTED. PR code (Debug) or 9.7 HEAD (RelWithDebInfo nightly) runs here.
+  # Build shape ported from azure-pipelines.yml on 9.7 (per Przemek 2026-05-18:
+  # ".cirrus.yml is just a simplified port from Azure"). arm64-specific
+  # deviations (system-gcc selection, MTR libeatmydata, -j cap at 16) are
+  # annotated inline.
+  #
+  # PS-11179: needs lists BOTH create-runner-hetzner + create-runner-aws so
+  # the dependency wiring works regardless of which provider ran. The
+  # `runs-on` expression coalesces the two outputs with `||`; exactly one of
+  # them is populated (the other job was skipped via `if:` and has empty
+  # outputs), so the coalescing resolves to the active runner label.
+  build-arm64:
+    needs: [dispatch, pick-target, create-runner-hetzner, create-runner-aws]
+    # GHA defaults to skipping a job when ANY needed job is skipped. Since
+    # exactly ONE of create-runner-hetzner / create-runner-aws is skipped
+    # (the other ran), we explicitly require: dispatch + pick-target green,
+    # AND at least one of the two create-runner jobs succeeded.
+    if: |
+      always()
+      && needs.dispatch.result == 'success'
+      && needs.pick-target.result == 'success'
+      && (needs.create-runner-hetzner.result == 'success' || needs.create-runner-aws.result == 'success')
+    runs-on: ${{ needs.create-runner-hetzner.outputs.runner_label || needs.create-runner-aws.outputs.runner_label }}
+    permissions:
+      contents: read
+    timeout-minutes: 240
+    env:
+      BUILD_TYPE:     ${{ needs.dispatch.outputs.build_type }}
+      MTR_SUITE:      ${{ needs.dispatch.outputs.mtr_suite }}
+      CCACHE_MAXSIZE: ${{ needs.dispatch.outputs.ccache_maxsize }}
+      CCACHE_DIR: /home/runner/ccache
+      BOOST_DIR: /tmp/boost
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: System info
+        run: |
+          set -eux
+          # PS-11179: report whichever provider actually fired.
+          echo "Provider:    ${{ needs.pick-target.outputs.provider }}"
+          if [ "${{ needs.pick-target.outputs.provider }}" = "hetzner" ]; then
+            echo "Server type: ${{ needs.create-runner-hetzner.outputs.server_type }}"
+          else
+            echo "Instance:    ${{ needs.create-runner-aws.outputs.instance_id }} (${{ needs.create-runner-aws.outputs.market }} in ${{ needs.create-runner-aws.outputs.az }})"
+          fi
+          echo "Build type:  $BUILD_TYPE"
+          echo "MTR suite:   $MTR_SUITE"
+          uname -a
+          nproc
+          free -h
+          df -h /
+
+      - name: Conditional swap (only when RAM < 16 GB)
+        run: |
+          set -eux
+          MEM_GB=$(awk '/MemTotal/ {print int($2/1024/1024)}' /proc/meminfo)
+          if [ "$MEM_GB" -lt 16 ]; then
+            sudo fallocate -l 16G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+          fi
+          free -h
+
+      # Azure: `*** Install Build Dependencies`. arm64 picks system gcc (no
+      # version selector + LLVM repo plumbing needed).
+      - name: Install Build Dependencies
+        run: |
+          set -eux
+          SELECTED_CC="${COMPILER}${COMPILER_VER:+-${COMPILER_VER}}"
+          SELECTED_CXX="${COMPILER}++${COMPILER_VER:+-${COMPILER_VER}}"
+          [ "$COMPILER" = "gcc" ] && SELECTED_CXX="g++${COMPILER_VER:+-${COMPILER_VER}}"
+          echo "SELECTED_CC=$SELECTED_CC" >> "$GITHUB_ENV"
+          echo "SELECTED_CXX=$SELECTED_CXX" >> "$GITHUB_ENV"
+          PACKAGES="$SELECTED_CC"
+          [ "$COMPILER" = "gcc" ] && PACKAGES="$SELECTED_CXX"
+          sudo apt-get -yq update
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install \
+            $PACKAGES make pkg-config dpkg-dev unzip lz4 git cmake cmake-curses-gui ccache bison \
+            libtirpc-dev libudev-dev libaio-dev libmecab-dev libnuma-dev \
+            libssl-dev libreadline-dev libedit-dev libpam-dev \
+            libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev \
+            libsasl2-modules-gssapi-mit \
+            libxml-simple-perl
+          # Azure: SYSTEM_LIBRARIES path (BUILD_PARAMS_TYPE != inverted).
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install \
+            libicu-dev libevent-dev liblz4-dev zlib1g-dev \
+            protobuf-compiler libprotobuf-dev libprotoc-dev \
+            libzstd-dev libfido2-dev
+          # arm64-only addition: libeatmydata1 needed for MTR LD_PRELOAD
+          # (Cirrus arm64 task uses it; Azure x86 jobs do not run MTR).
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install libeatmydata1
+          REAL_COMPILER_VER=$($SELECTED_CC --version | head -1 | awk '{print $4}')
+          echo "REAL_COMPILER_VER=$REAL_COMPILER_VER" >> "$GITHUB_ENV"
+
+      # Azure ccache key shape: "ccache | PARENT_BRANCH | imageName-Compiler-VER-BuildType | BUILD_PARAMS_TYPE | <run id>"
+      # run_id keeps nightly + dispatch + PR runs each save their own slot;
+      # restore-keys falls back to the most-recent matching prefix.
+      - name: ccache cache (Azure key shape; build_type-scoped)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.2.0
+        with:
+          path: /home/runner/ccache
+          key: ccache-${{ env.PARENT_BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ env.PARENT_BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-
+
+      - name: boost cache (Azure key shape)
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.2.0
+        with:
+          path: /tmp/boost
+          key: ${{ env.BOOST_VERSION }}
+
+      - name: Checkout (fetchDepth 32 mirrors Azure)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.2.2
+        with:
+          fetch-depth: 32
+          # PS-11254: on pull_request_target the default checkout ref is the
+          # base branch, so explicitly check out the fork PR head. Safe here:
+          # build-arm64 holds no secrets (see header trust-split note).
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || '' }}
+
+      - name: Update git submodules
+        run: |
+          set -eux
+          git submodule sync
+          git submodule update --init --force --depth=256
+          git submodule
+
+      - name: Compiler and cmake info
+        run: |
+          set -eux
+          $SELECTED_CC -v
+          $SELECTED_CXX -v
+          ccache --version
+          mkdir -p "$CCACHE_DIR" "$BOOST_DIR"
+          ccache -p | grep -E "max_size|cache_dir"
+          ccache --zero-stats
+
+      # Azure `*** cmake ...` step, 9.7 Linux non-inverted branch.
+      - name: cmake (Azure parity, 9.7 Linux non-inverted)
+        run: |
+          set -eux
+          mkdir bin && cd bin
+          COMPILE_OPT=(
+            -DCMAKE_C_FLAGS_DEBUG=-g1
+            -DCMAKE_CXX_FLAGS_DEBUG=-g1
+          )
+          CMAKE_OPT="
+            -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+            -DBUILD_CONFIG=mysql_release
+            -DWITH_PACKAGE_FLAGS=OFF
+            -DDOWNLOAD_BOOST=1
+            -DWITH_BOOST=$BOOST_DIR
+            -DCMAKE_C_COMPILER=$SELECTED_CC
+            -DCMAKE_CXX_COMPILER=$SELECTED_CXX
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DWITH_ROCKSDB=ON
+            -DWITH_COREDUMPER=ON
+            -DWITH_COMPONENT_KEYRING_VAULT=ON
+            -DWITH_PAM=ON
+            -DMYSQL_MAINTAINER_MODE=ON
+            -DWITH_MECAB=system
+            -DWITH_NUMA=ON
+            -DWITH_EDITLINE=system
+            -DWITH_SYSTEM_LIBS=ON
+          "
+          cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}"
+          rm -f "$BOOST_DIR/$BOOST_VERSION.tar.gz"
+          cmake -L .
+
+      # Azure: `*** Compile` uses `make -j2` (MS-hosted has 2 cores). arm64
+      # deviation: scale to cax* cores, capped at 16 (Cirrus pattern). Literal
+      # -j2 would waste cax41's 16 cores; arm64 builds benefit linearly from
+      # parallelism (THE migration win).
+      - name: Compile (make -j, capped at 16)
+        run: |
+          set -eux
+          cd bin
+          NPROC=$(nproc --all)
+          NTHREADS=$(( NPROC > 16 ? 16 : NPROC ))
+          echo "Using $NTHREADS/$NPROC threads"
+          make -j${NTHREADS}
+          ccache --show-stats
+          df -h /
+
+      # arm64-only step (Azure x86 does not run MTR; Cirrus arm64 does).
+      # Suite picked by dispatch:
+      #   - main.1st (Debug, per-PR; Cirrus arm64 PR task parity)
+      #   - binlog_nogtid (RelWithDebInfo, nightly; Cirrus RelWithDebInfo parity, Przemek 2026-05-18)
+      - name: MTR (suite per build_type)
+        run: |
+          set -eux
+          cd bin
+          NPROC=$(nproc --all)
+          NTHREADS=$(( NPROC > 16 ? 16 : NPROC ))
+          LIBEATMYDATA=$(whereis libeatmydata.so | awk '{print $2}')
+          if [ "$MTR_SUITE" = "main.1st" ]; then
+            mysql-test/mysql-test-run.pl main.1st \
+              --parallel=$NTHREADS \
+              --junit-output=/tmp/MTR_results.xml \
+              --mysqld-env=LD_PRELOAD=${LIBEATMYDATA} \
+              --force --max-test-fail=0 --retry-failure=0 \
+              --debug-server
+          else
+            mysql-test/mysql-test-run.pl \
+              --suite=$MTR_SUITE \
+              --parallel=$NTHREADS \
+              --junit-output=/tmp/MTR_results.xml \
+              --mysqld-env=LD_PRELOAD=${LIBEATMYDATA} \
+              --force --max-test-fail=0 --retry-failure=0
+          fi
+
+      - name: Upload MTR results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.0
+        with:
+          name: mtr-${{ env.BUILD_TYPE }}-${{ env.MTR_SUITE }}
+          path: /tmp/MTR_results.xml
+          if-no-files-found: ignore
+
+  # Renamed from `delete-runner` to `delete-runner-hetzner` in PS-11179.
+  # Body otherwise unchanged. Only fires when the Hetzner provisioning path
+  # actually created a VM.
+  delete-runner-hetzner:
+    needs: [dispatch, pick-target, create-runner-hetzner, build-arm64]
+    # Skip delete when debug_keep_vm is set AND create-runner-hetzner failed,
+    # so the broken VM stays alive for manual SSH diagnosis. orphan-sweep
+    # reaps it after 6h regardless. Normal happy path is unaffected.
+    # Also gated on provider==hetzner so this is a no-op on EC2 fallback runs.
+    if: |
+      always()
+      && needs.pick-target.outputs.provider == 'hetzner'
+      && needs.create-runner-hetzner.outputs.server_id != ''
+      && !(inputs.debug_keep_vm == true && needs.create-runner-hetzner.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: olexandr-havryliak/hcloud-github-runner@bb1089d8b718a06493cb37c51dfe596e44baefc2
+        with:
+          mode: delete
+          name: ${{ env.EPHEMERAL_RUNNER_NAME }}
+          server_id: ${{ needs.create-runner-hetzner.outputs.server_id }}
+          hcloud_token: ${{ secrets.GHA_RUNNER_HCLOUD_TOKEN }}
+          github_token: ${{ secrets.GHA_RUNNER_PAT }}
+
+  # PS-11179: Always-runs safety net for the EC2 fallback path.
+  #
+  # The instance self-terminates after the runner exits (userData does
+  # `shutdown -h now` and we pass --instance-initiated-shutdown-behavior
+  # terminate), so on the happy path TerminateInstances is idempotent /
+  # no-op. This job exists for the failure cases:
+  #   - Workflow cancelled mid-build
+  #   - build-arm64 timed out
+  #   - userData crashed before reaching the shutdown line
+  #   - registration polling failed and bailed out of create-runner-aws
+  #
+  # Also de-registers the runner from GitHub so the next run does not
+  # collide on the same EPHEMERAL_RUNNER_NAME. The runner usually self-removes
+  # via `./run.sh --ephemeral`, but if it died before --ephemeral kicked in,
+  # the orphan entry would block re-registration.
+  #
+  # Drops the create-runner-aws.outputs.instance_id != '' gate (P1-7 fix):
+  # if the job was cancelled between RunInstances and `>> $GITHUB_OUTPUT`,
+  # the output is empty but a live instance still exists. We discover by
+  # tag (github_run_id == ${{ github.run_id }}) instead, then union with
+  # the published output as a belt-and-braces measure.
+  delete-runner-aws:
+    needs: [dispatch, pick-target, create-runner-aws, build-arm64]
+    if: |
+      always()
+      && needs.pick-target.outputs.provider == 'aws'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: gha-${{ github.run_id }}-${{ github.run_attempt }}-cleanup
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Tag-based discovery first, then union with the published output.
+      # Covers: (a) happy path (output populated; tag query agrees),
+      # (b) cancelled mid-launch (output empty; tag query finds it),
+      # (c) double-launch from a retry that escaped client-token (both
+      # share the tag and both get terminated).
+      - name: Terminate EC2 instance (safety net)
+        env:
+          PUBLISHED_INSTANCE_ID: ${{ needs.create-runner-aws.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          IDS=$(aws ec2 describe-instances \
+            --region "$AWS_REGION" \
+            --filters \
+              "Name=tag:github_run_id,Values=${{ github.run_id }}" \
+              "Name=tag:github_run_attempt,Values=${{ github.run_attempt }}" \
+              "Name=tag:github_repository,Values=${{ github.repository }}" \
+              "Name=tag:iit-billing-tag,Values=percona-server-gha-fallback" \
+              "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --query 'Reservations[].Instances[].InstanceId' --output text 2>/dev/null || true)
+          # Union with whatever the create job published; dedupe via sort -u.
+          ALL_IDS=$(printf '%s\n%s\n' "$IDS" "${PUBLISHED_INSTANCE_ID:-}" \
+            | tr '\t' '\n' | grep -E '^i-' | sort -u || true)
+          if [ -z "$ALL_IDS" ]; then
+            echo "No live EC2 instance found for run ${{ github.run_id }} attempt ${{ github.run_attempt }} (already terminated or never launched)"
+            exit 0
+          fi
+          echo "Terminating: $ALL_IDS"
+          # || true: instance may race to terminated between describe and
+          # terminate; either way we want this job to succeed so the
+          # workflow status is not contaminated by cleanup-only errors.
+          # shellcheck disable=SC2086
+          aws ec2 terminate-instances \
+            --region "$AWS_REGION" \
+            --instance-ids $ALL_IDS >/dev/null 2>&1 || true
+
+      - name: De-register orphaned runner (if still present)
+        env:
+          GH_TOKEN: ${{ secrets.GHA_RUNNER_PAT }}
+        run: |
+          set -euo pipefail
+          ID=$(gh api -X GET /repos/${{ github.repository }}/actions/runners --paginate \
+            --jq ".runners[] | select(.name == \"$EPHEMERAL_RUNNER_NAME\") | .id" || true)
+          if [ -n "$ID" ]; then
+            gh api -X DELETE "/repos/${{ github.repository }}/actions/runners/$ID" || true
+            echo "Removed orphan runner $EPHEMERAL_RUNNER_NAME (id=$ID)"
+          else
+            echo "Runner $EPHEMERAL_RUNNER_NAME already de-registered (ephemeral self-removal)"
+          fi

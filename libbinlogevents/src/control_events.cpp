@@ -703,17 +703,21 @@ View_change_event::~View_change_event() { certification_info.clear(); }
 
 Heartbeat_event::Heartbeat_event(const char *buf,
                                  const Format_description_event *fde)
-    : Binary_log_event(&buf, fde) {
+    : Binary_log_event(&buf, fde), log_ident(nullptr), ident_len(0) {
   BAPI_ENTER("Heartbeat_event::Heartbeat_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
 
-  READER_TRY_SET(log_ident, ptr);
-  if (log_ident == nullptr || header()->log_pos < BIN_LOG_HEADER_SIZE)
+  if (header()->log_pos < BIN_LOG_HEADER_SIZE)
     READER_THROW("Invalid Heartbeat information");
 
   ident_len = READER_CALL(available_to_read);
+  if (ident_len == 0) READER_THROW("Event is smaller than expected");
   if (ident_len > FN_REFLEN - 1) ident_len = FN_REFLEN - 1;
+
+  READER_TRY_SET(log_ident, ptr);
+  if (log_ident == nullptr)
+    READER_THROW("Invalid binary log file name in Heartbeat event");
 
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;

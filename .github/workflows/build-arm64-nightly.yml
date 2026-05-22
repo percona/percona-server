@@ -28,6 +28,12 @@ on:
           - trunk
           - '8.4'
         default: '8.0'
+  # Self-test: only fires when this file itself changes. Validates pre-merge
+  # without committing Hetzner cycles to unrelated PRs.
+  pull_request:
+    branches: [8.0]
+    paths:
+      - '.github/workflows/build-arm64-nightly.yml'
 
 concurrency:
   group: build-arm64-nightly-${{ inputs.branch || github.event.schedule || github.ref }}
@@ -66,6 +72,10 @@ jobs:
           set -eu
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             BRANCH="${{ inputs.branch }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Self-test: build against the PR's base branch to exercise the
+            # branch-aware cmake logic for that target.
+            BRANCH="${{ github.base_ref }}"
           else
             case "${{ github.event.schedule }}" in
               '0 0 * * *') BRANCH=trunk ;;

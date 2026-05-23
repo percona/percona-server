@@ -8674,7 +8674,31 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       DBUG_RETURN(RESULT_ABORTED);
     }
 
-    if (ordered_commit(thd, all, skip_commit))
+    /* Block binlog updates if there's an active BINLOG lock. */
+    if (!thd->backup_binlog_lock.is_acquired())
+    {
+      const ulong timeout= thd->variables.lock_wait_timeout;
+
+      DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+      if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                     timeout))
+      {
+        cache_mngr->stmt_cache.reset();
+        cache_mngr->trx_cache.reset();
+
+        DBUG_RETURN(RESULT_ABORTED);
+      }
+    }
+
+    int rc= ordered_commit(thd, all, skip_commit);
+
+    if (!thd->backup_binlog_lock.is_acquired())
+    {
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
+    }
+
+    if (rc)
       DBUG_RETURN(RESULT_INCONSISTENT);
 
     /*

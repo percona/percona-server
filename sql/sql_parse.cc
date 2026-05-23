@@ -1915,6 +1915,12 @@ done:
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
 
+  if (thd->killed == THD::KILL_QUERY ||
+      thd->killed == THD::KILL_BAD_DATA)
+  {
+    thd->killed= THD::NOT_KILLED;
+  }
+
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   thd->proc_info= 0;
@@ -2359,6 +2365,73 @@ err:
   return TRUE;
 }
 
+/**
+  Acquire a global backup lock.
+
+  @param thd     Thread context.
+
+  @return FALSE on success, TRUE in case of error.
+*/
+
+static bool lock_tables_for_backup(THD *thd)
+{
+  DBUG_ENTER("lock_tables_for_backup");
+
+  if (check_global_access(thd, RELOAD_ACL))
+    DBUG_RETURN(true);
+
+  if (delay_key_write_options == DELAY_KEY_WRITE_ALL)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "delay_key_write=ALL");
+    DBUG_RETURN(true);
+  }
+  /*
+    Do nothing if the current connection already owns the LOCK TABLES FOR
+    BACKUP lock or the global read lock (as it's a more restrictive lock).
+  */
+  if (thd->backup_tables_lock.is_acquired() ||
+      thd->global_read_lock.is_acquired())
+    DBUG_RETURN(false);
+
+  /*
+    Do not allow backup locks under regular LOCK TABLES, FLUSH TABLES ... FOR
+    EXPORT, or FLUSH TABLES <table_list> WITH READ LOCK.
+  */
+  if (thd->variables.option_bits & OPTION_TABLE_LOCK)
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(thd->backup_tables_lock.acquire(thd));
+}
+
+/**
+  Acquire a global binlog lock.
+
+  @param thd     Thread context.
+
+  @return FALSE in case of success, TRUE in case of error.
+*/
+
+bool lock_binlog_for_backup(THD *thd)
+{
+  DBUG_ENTER("lock_binlog_for_backup");
+
+  if (check_global_access(thd, RELOAD_ACL))
+    DBUG_RETURN(true);
+
+  /*
+    Do nothing if the current connection already owns a LOCK BINLOG FOR BACKUP
+    lock or the global read lock (as it's a more restrictive lock).
+  */
+  if (thd->backup_binlog_lock.is_acquired() ||
+      thd->global_read_lock.is_acquired())
+    DBUG_RETURN(false);
+
+  DBUG_RETURN(thd->backup_binlog_lock.acquire(thd));
+}
 
 /**
   This is a wrapper for MYSQL_BIN_LOG::gtid_end_transaction. For normal
@@ -3778,6 +3851,7 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
+      DBUG_ASSERT(!thd->backup_tables_lock.is_acquired());
       /*
         Can we commit safely? If not, return to avoid releasing
         transactional metadata locks.
@@ -3789,13 +3863,38 @@ end_with_restore_list:
       thd->mdl_context.release_transactional_locks();
       thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
     }
+
+    if (thd->backup_tables_lock.is_acquired())
+    {
+      DBUG_ASSERT(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
+      DBUG_ASSERT(!thd->global_read_lock.is_acquired());
+
+      thd->backup_tables_lock.release(thd);
+    }
+
     if (thd->global_read_lock.is_acquired())
       thd->global_read_lock.unlock_global_read_lock(thd);
+
     if (res)
       goto error;
     my_ok(thd);
     break;
+
+  case SQLCOM_UNLOCK_BINLOG:
+    if (thd->backup_binlog_lock.is_acquired())
+      thd->backup_binlog_lock.release(thd);
+
+    my_ok(thd);
+    break;
+
   case SQLCOM_LOCK_TABLES:
+    /*
+      Do not allow LOCK TABLES under an active LOCK TABLES FOR BACKUP in the
+      same connection.
+    */
+    if (thd->backup_tables_lock.abort_if_acquired())
+      goto error;
+
     /*
       Can we commit safely? If not, return to avoid releasing
       transactional metadata locks.
@@ -3840,6 +3939,16 @@ end_with_restore_list:
         query_cache.invalidate_locked_for_write(first_table);
       my_ok(thd);
     }
+    break;
+  case SQLCOM_LOCK_TABLES_FOR_BACKUP:
+    if (!lock_tables_for_backup(thd))
+      my_ok(thd);
+
+    break;
+  case SQLCOM_LOCK_BINLOG_FOR_BACKUP:
+    if (!lock_binlog_for_backup(thd))
+      my_ok(thd);
+
     break;
   case SQLCOM_CREATE_DB:
   {
@@ -4227,6 +4336,13 @@ end_with_restore_list:
 
     if (first_table && lex->type & REFRESH_READ_LOCK)
     {
+      /*
+         Do not allow FLUSH TABLES <table_list> WITH READ LOCK under an active
+         LOCK TABLES FOR BACKUP lock.
+       */
+      if (thd->backup_tables_lock.abort_if_acquired())
+        goto error;
+
       /* Check table-level privileges. */
       if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                              FALSE, UINT_MAX, FALSE))
@@ -4238,6 +4354,13 @@ end_with_restore_list:
     }
     else if (first_table && lex->type & REFRESH_FOR_EXPORT)
     {
+      /*
+         Do not allow FLUSH TABLES ... FOR EXPORT under an active LOCK TABLES
+         FOR BACKUP lock.
+       */
+      if (thd->backup_tables_lock.abort_if_acquired())
+        goto error;
+
       /* Check table-level privileges. */
       if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                              FALSE, UINT_MAX, FALSE))

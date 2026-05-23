@@ -7772,6 +7772,10 @@ WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
 #  End of 5.7 error messages.
 #
 
+ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+  eng "Can't execute the query because you have a conflicting backup lock"
+  rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"
+
 #
 # Start of MyRocks specific messages
 #

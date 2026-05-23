@@ -25,10 +25,10 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-  #define PFS_MAX_MUTEX_CLASS 210
+  #define PFS_MAX_MUTEX_CLASS 250
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
-  #define PFS_MAX_RWLOCK_CLASS 40
+  #define PFS_MAX_RWLOCK_CLASS 50
 #endif
 #ifndef PFS_MAX_COND_CLASS
   #define PFS_MAX_COND_CLASS 80
@@ -52,7 +52,7 @@
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 #ifndef PFS_MAX_MEMORY_CLASS
-  #define PFS_MAX_MEMORY_CLASS 320
+  #define PFS_MAX_MEMORY_CLASS 400
 #endif
 
 /** Sizing hints, from the server configuration. */

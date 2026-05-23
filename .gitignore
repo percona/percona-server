@@ -1254,7 +1254,6 @@ linked_server_sources
 linked_tools_sources
 locked
 ltmain.sh
-man/*.1
 merge/*.ds?
 merge/*.vcproj
 missing
@@ -3108,6 +3107,9 @@ storage/perfschema/pfs_lex_token.h
 storage/perfschema/gen_pfs_lex_token
 sql/share/bulgarian
 storage/ndb/test/dox
+/GPATH
+/GRTAGS
+/GTAGS
 sql/lex_token.h
 sql/gen_lex_token
 internal/plugin/thread_pool/src/thread_pool_config.h

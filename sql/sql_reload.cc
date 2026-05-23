@@ -191,7 +191,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
               thd->handler_tables_hash.records ||
               thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
               thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
-              thd->global_read_lock.is_acquired());
+              thd->global_read_lock.is_acquired() ||
+              thd->backup_tables_lock.is_acquired() ||
+              thd->backup_binlog_lock.is_acquired());
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too

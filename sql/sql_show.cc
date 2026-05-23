@@ -4144,14 +4144,16 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
   // file stats
   handler *file= tmp_table->file;
 
+  /* We have only one handler object for a temp table globally and it might
+  be in use by other thread.  Do not trash it by invoking handler methods on
+  it but rather clone it. */
+  if (file) {
+    file= file->clone(tmp_table->s->normalized_path.str, thd->mem_root);
+  }
+
   if (file) {
 
     MYSQL_TIME time;
-
-    /* We have only one handler object for a temp table globally and it might
-    be in use by other thread.  Do not trash it by invoking handler methods on
-    it but rather clone it. */
-    file = file->clone(tmp_table->s->normalized_path.str, thd->mem_root);
 
     /**
         TODO: InnoDB stat(file) checks file on short names within data dictionary
@@ -4235,18 +4237,15 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond
       }
 #endif
 
-      THD *t= tmp->in_use;
-      tmp->in_use= thd;
+      DEBUG_SYNC(thd, "fill_global_temporary_tables_before_storing_rec");
 
       if (store_temporary_table_record(thd_item, tables->table, tmp,
                                        thd->lex->select_lex.db)) {
-        tmp->in_use= t;
         mysql_mutex_unlock(&thd_item->LOCK_temporary_tables);
         mysql_mutex_unlock(&LOCK_thread_count); 
         DBUG_RETURN(1);
       }
 
-      tmp->in_use= t;
     }
     mysql_mutex_unlock(&thd_item->LOCK_temporary_tables);
   }

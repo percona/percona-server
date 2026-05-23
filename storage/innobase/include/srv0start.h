@@ -138,6 +138,10 @@ srv_get_encryption_data_filename(
 	char*		filename,
 	ulint		max_len);
 
+/** Initializes the log tracking subsystem and starts its thread.  */
+void
+srv_init_log_online(void);
+
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */

@@ -1,0 +1,14 @@
+--source include/have_innodb.inc
+
+# Testcase for http://bugs.mysql.com/bug.php?id=72665:
+# ALTER TABLE causes
+# InnoDB: Assertion failure in thread 4608106496 in file ha_innodb.cc line 7215
+# InnoDB: Failing assertion: primary_key_no == -1 || primary_key_no == 0
+
+CREATE TABLE t1(c42 tinyblob not null, c45 TEXT, unique(c42 (255)), unique(c45 (255))) ENGINE=InnoDB;
+
+ALTER TABLE t1 MODIFY c45 SET('') NOT NULL;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

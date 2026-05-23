@@ -209,6 +209,8 @@ file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 
+DROP TABLE t1, t2;
+
 #
 # Test for log tracking compatibility with innodb_force_recovery (bug 1083596).
 #
@@ -228,10 +230,6 @@ call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
 RESET CHANGED_PAGE_BITMAPS;
 
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
---echo 9th restart
---source include/restart_mysqld.inc
-
-DROP TABLE t1, t2;
 
 # A restart to allow data files to sync with redo log after the forced recovery
 --source include/restart_mysqld.inc
@@ -240,8 +238,7 @@ DROP TABLE t1, t2;
 # Test that --innodb-read-only works
 #
 SET GLOBAL innodb_fast_shutdown=0;
-
---echo 10th restart
+--echo 11th restart
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
@@ -252,5 +249,38 @@ SET GLOBAL innodb_fast_shutdown=0;
 SELECT @@innodb_read_only;
 SELECT @@innodb_track_changed_pages;
 
---echo 11th restart
+--echo 12th restart
 --source include/restart_mysqld.inc
+
+#
+# Test that bitmap files are created correctly in innodb_data_home_dir without a trailing
+# path separator (bug 1181887)
+#
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Creating foreign key constraint system tables");
+call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
+call mtr.add_suppression("Info table is not ready to be used");
+call mtr.add_suppression("Can't open the mysql.plugin table.");
+call mtr.add_suppression("Gtid table is not ready to be used");
+call mtr.add_suppression("Failed to open optimizer cost constant tables");
+call mtr.add_suppression("Can't open and lock time zone table");
+call mtr.add_suppression("Can't open and lock privilege tables");
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--mkdir $MYSQLTEST_VARDIR/tmpdatadir
+--enable_reconnect
+--echo 13th restart
+--exec echo "restart:--innodb-data-home-dir=$MYSQLTEST_VARDIR/tmpdatadir" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+file_exists $MYSQLTEST_VARDIR/tmpdatadir/ib_modified_log_1_0.xdb;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLTEST_VARDIR/tmpdatadir ib_modified_log*;
+
+--remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
+--remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--source include/restart_mysqld.inc
+
+--remove_files_wildcard $MYSQLTEST_VARDIR tmpdatadir

@@ -155,6 +155,35 @@ log_buf_pool_get_oldest_modification(void)
 }
 #endif  /* !UNIV_HOTBACKUP */
 
+/****************************************************************//**
+Checks if the log groups have a big enough margin of free space in
+so that a new log entry can be written without overwriting log data
+that is not read by the changed page bitmap thread.
+@return true if there is not enough free space. */
+static
+bool
+log_check_tracking_margin(
+	ulint	lsn_advance)	/*!< in: an upper limit on how much log data we
+				plan to write.  If zero, the margin will be
+				checked for the already-written log. */
+{
+	lsn_t	tracked_lsn;
+	lsn_t	tracked_lsn_age;
+
+	if (!srv_track_changed_pages) {
+		return false;
+	}
+
+	ut_ad(mutex_own(&(log_sys->mutex)));
+
+	tracked_lsn = log_get_tracked_lsn();
+	tracked_lsn_age = log_sys->lsn - tracked_lsn;
+
+	/* The overwrite would happen when log_sys->log_group_capacity is
+	exceeded, but we use max_checkpoint_age for an extra safety margin. */
+	return tracked_lsn_age + lsn_advance > log_sys->max_checkpoint_age;
+}
+
 /** Extends the log buffer.
 @param[in]	len	requested minimum size in bytes */
 void
@@ -347,9 +376,8 @@ log_reserve_and_open(
 	ulint	len)
 {
 	ulint	len_upper_limit;
-#ifdef UNIV_DEBUG
 	ulint	count			= 0;
-#endif /* UNIV_DEBUG */
+	ulint	tcount			= 0;
 
 loop:
 	ut_ad(log_mutex_own());
@@ -387,6 +415,21 @@ loop:
 		srv_stats.log_waits.inc();
 
 		ut_ad(++count < 50);
+
+		log_mutex_enter();
+		goto loop;
+	}
+
+	if (log_check_tracking_margin(len_upper_limit) &&
+		(++tcount + count < 50)) {
+
+		/* This log write would violate the untracked LSN free space
+		margin.  Limit this to 50 retries as there might be situations
+		where we have no choice but to proceed anyway, i.e. if the log
+		is about to be overflown, log tracking or not. */
+		log_mutex_exit();
+
+		os_thread_sleep(10000);
 
 		log_mutex_enter();
 		goto loop;
@@ -503,6 +546,22 @@ log_close(void)
 	if (log->buf_free > log->max_buf_free) {
 
 		log->check_flush_or_checkpoint = true;
+	}
+
+	if (srv_track_changed_pages) {
+
+		lsn_t tracked_lsn = log_get_tracked_lsn();
+		ut_ad(tracked_lsn > 0);
+		lsn_t tracked_lsn_age = lsn - tracked_lsn;
+
+		if (tracked_lsn_age >= log->log_group_capacity) {
+
+			ib::error() << "The age of the oldest untracked "
+				"record exceeds the log group capacity!";
+			ib::error() << "Stopping the log tracking thread at "
+				"LSN " << tracked_lsn;
+			srv_track_changed_pages = FALSE;
+		}
 	}
 
 	checkpoint_age = lsn - log->last_checkpoint_lsn;

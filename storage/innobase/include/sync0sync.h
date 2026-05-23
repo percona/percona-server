@@ -360,7 +360,7 @@ NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
 @return	0 if succeed, 1 if not */
-UNIV_INTERN
+UNIV_INLINE
 ulint
 mutex_enter_nowait_func(
 /*====================*/
@@ -986,6 +986,7 @@ struct ib_prio_mutex_t {
 					priority in the global wait array
 					waiting for this mutex to be
 					released. */
+	UT_LIST_NODE_T(ib_prio_mutex_t)	list;
 };
 
 /** Constant determining how long spin wait is continued before suspending

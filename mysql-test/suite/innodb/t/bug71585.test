@@ -1,0 +1,19 @@
+--source include/have_innodb.inc
+
+# Testcase for http://bugs.mysql.com/bug.php?id=71585:
+# second UPDATE statement causes
+# InnoDB: Assertion failure in thread 140299335526144 in file row0upd.c line 1793
+# InnoDB: Failing assertion: !(data[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG)
+
+CREATE TABLE files (
+`PATH` varchar(150) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+`CONTENTS` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+PRIMARY KEY (`PATH`)
+) ENGINE=innodb DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+INSERT INTO `files` (PATH,CONTENTS) VALUES ('X',repeat('0',8104));
+
+update files set path='x' where path='X';
+update files set path='X' where path='x';
+
+DROP TABLE files;

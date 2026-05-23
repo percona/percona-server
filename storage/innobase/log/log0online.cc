@@ -34,6 +34,14 @@ Online database log parsing for changed page tracking
 #include "trx0sys.h"
 #include "ut0rbt.h"
 
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
+
 enum { FOLLOW_SCAN_SIZE = 4 * (UNIV_PAGE_SIZE_MAX) };
 
 #ifdef UNIV_PFS_MUTEX
@@ -43,8 +51,8 @@ UNIV_INTERN mysql_pfs_key_t	log_bmp_sys_mutex_key;
 
 /** Log parsing and bitmap output data structure */
 struct log_bitmap_struct {
-	byte		read_buf[FOLLOW_SCAN_SIZE];
-					/*!< log read buffer */
+	byte*		read_buf_ptr;	/*!< Unaligned log read buffer */
+	byte*		read_buf;	/*!< log read buffer */
 	byte		parse_buf[RECV_PARSING_BUF_SIZE];
 					/*!< log parse buffer */
 	byte*		parse_buf_end;  /*!< parse buffer position where the
@@ -53,6 +61,8 @@ struct log_bitmap_struct {
 					parsed, it points to the start,
 					otherwise points immediatelly past the
 					end of the incomplete log record. */
+	char		bmp_file_home[FN_REFLEN];
+					/*!< directory for bitmap files */
 	log_online_bitmap_file_t out;	/*!< The current bitmap file */
 	ulint		out_seq_num;	/*!< the bitmap file sequence number */
 	lsn_t		start_lsn;	/*!< the LSN of the next unparsed
@@ -489,9 +499,8 @@ log_online_make_bitmap_name(
 	lsn_t	start_lsn)	/*!< in: the start LSN name part */
 {
 	ut_snprintf(log_bmp_sys->out.name, FN_REFLEN, bmp_file_name_template,
-		    srv_data_home, bmp_file_name_stem,
+		    log_bmp_sys->bmp_file_home, bmp_file_name_stem,
 		    log_bmp_sys->out_seq_num, start_lsn);
-
 }
 
 /*********************************************************************//**
@@ -503,12 +512,13 @@ log_online_should_overwrite(
 /*========================*/
 	const char	*path)	/*!< in: path to file */
 {
-	ibool		success;
+	dberr_t		err;
 	os_file_stat_t	file_info;
 
 	/* Currently, it's OK to overwrite 0-sized files only */
-	success = os_file_get_status(path, &file_info, false);
-	return success && file_info.size == 0LL;
+	err = os_file_get_status(path, &file_info, false);
+	return err == DB_SUCCESS && file_info.type == OS_FILE_TYPE_FILE
+		&& file_info.size == 0LL;
 }
 
 /*********************************************************************//**
@@ -526,8 +536,8 @@ log_online_start_bitmap_file(void)
 	if (log_online_should_overwrite(log_bmp_sys->out.name)) {
 
 		success = static_cast<ibool>(
-			os_file_delete(innodb_file_bmp_key,
-				       log_bmp_sys->out.name));
+			os_file_delete_if_exists(innodb_file_bmp_key,
+						 log_bmp_sys->out.name));
 	}
 
 	if (UNIV_LIKELY(success)) {
@@ -614,6 +624,7 @@ log_online_read_init(void)
 	os_file_dir_t	bitmap_dir;
 	os_file_stat_t	bitmap_dir_file_info;
 	lsn_t	last_file_start_lsn	= MIN_TRACKED_LSN;
+	size_t	srv_data_home_len;
 
 	/* Bitmap data start and end in a bitmap block must be 8-byte
 	aligned. */
@@ -622,9 +633,28 @@ log_online_read_init(void)
 
 	log_bmp_sys = static_cast<log_bitmap_struct *>
 		(ut_malloc(sizeof(*log_bmp_sys)));
+	log_bmp_sys->read_buf_ptr = static_cast<byte *>
+		(ut_malloc(FOLLOW_SCAN_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+	log_bmp_sys->read_buf = static_cast<byte *>
+		(ut_align(log_bmp_sys->read_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
 	mutex_create(log_bmp_sys_mutex_key, &log_bmp_sys->mutex,
 		     SYNC_LOG_ONLINE);
+
+	/* Initialize bitmap file directory from srv_data_home and add a path
+	separator if needed.  */
+	srv_data_home_len = strlen(srv_data_home);
+	ut_a (srv_data_home_len < FN_REFLEN);
+	strcpy(log_bmp_sys->bmp_file_home, srv_data_home);
+	if (srv_data_home_len
+	    && log_bmp_sys->bmp_file_home[srv_data_home_len - 1]
+	    != SRV_PATH_SEPARATOR) {
+
+		ut_a (srv_data_home_len < FN_REFLEN - 1);
+		log_bmp_sys->bmp_file_home[srv_data_home_len]
+			= SRV_PATH_SEPARATOR;
+		log_bmp_sys->bmp_file_home[srv_data_home_len + 1] = '\0';
+	}
 
 	/* Enumerate existing bitmap files to either open the last one to get
 	the last tracked LSN either to find that there are none and start
@@ -632,10 +662,10 @@ log_online_read_init(void)
 	log_bmp_sys->out.name[0] = '\0';
 	log_bmp_sys->out_seq_num = 0;
 
-	bitmap_dir = os_file_opendir(srv_data_home, TRUE);
+	bitmap_dir = os_file_opendir(log_bmp_sys->bmp_file_home, TRUE);
 	ut_a(bitmap_dir);
-	while (!os_file_readdir_next_file(srv_data_home, bitmap_dir,
-					  &bitmap_dir_file_info)) {
+	while (!os_file_readdir_next_file(log_bmp_sys->bmp_file_home,
+					  bitmap_dir, &bitmap_dir_file_info)) {
 
 		ulong	file_seq_num;
 		lsn_t	file_start_lsn;
@@ -650,8 +680,8 @@ log_online_read_init(void)
 		    && bitmap_dir_file_info.size > 0) {
 			log_bmp_sys->out_seq_num = file_seq_num;
 			last_file_start_lsn = file_start_lsn;
-			/* No dir component (srv_data_home) here, because
-			that's the cwd */
+			/* No dir component (log_bmp_sys->bmp_file_home) here,
+			because	that's the cwd */
 			strncpy(log_bmp_sys->out.name,
 				bitmap_dir_file_info.name, FN_REFLEN - 1);
 			log_bmp_sys->out.name[FN_REFLEN - 1] = '\0';
@@ -661,7 +691,7 @@ log_online_read_init(void)
 	if (os_file_closedir(bitmap_dir)) {
 		os_file_get_last_error(TRUE);
 		ib_logf(IB_LOG_LEVEL_ERROR, "cannot close \'%s\'\n",
-			srv_data_home);
+			log_bmp_sys->bmp_file_home);
 		exit(1);
 	}
 
@@ -774,6 +804,7 @@ log_online_read_shutdown(void)
 
 	mutex_free(&log_bmp_sys->mutex);
 
+	ut_free(log_bmp_sys->read_buf_ptr);
 	ut_free(log_bmp_sys);
 }
 
@@ -1228,6 +1259,24 @@ log_online_follow_redo_log(void)
 }
 
 /*********************************************************************//**
+Diagnose a bitmap file range setup failure and free the partially-initialized
+bitmap file range.  */
+static
+void
+log_online_diagnose_inconsistent_dir(
+/*=================================*/
+	log_online_bitmap_file_range_t	*bitmap_files)	/*!<in/out: bitmap file
+							range */
+{
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"InnoDB: Warning: inconsistent bitmap file "
+		"directory for a "
+		"INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query"
+		"\n");
+	free(bitmap_files->files);
+}
+
+/*********************************************************************//**
 List the bitmap files in srv_data_home and setup their range that contains the
 specified LSN interval.  This range, if non-empty, will start with a file that
 has the greatest LSN equal to or less than the start LSN and will include all
@@ -1328,6 +1377,8 @@ log_online_setup_bitmap_file_range(
 
 	bitmap_files->count = last_file_seq_num - first_file_seq_num + 1;
 
+	DEBUG_SYNC_C("setup_bitmap_range_middle");
+
 	/* 2nd pass: get the file names in the file_seq_num order */
 
 	bitmap_dir = os_file_opendir(srv_data_home, FALSE);
@@ -1365,12 +1416,7 @@ log_online_setup_bitmap_file_range(
 		array_pos = file_seq_num - first_file_seq_num;
 		if (UNIV_UNLIKELY(array_pos >= bitmap_files->count)) {
 
-			fprintf(stderr,
-				"InnoDB: Error: inconsistent bitmap file "
-				"directory for a "
-				"INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query"
-				"\n");
-			free(bitmap_files->files);
+			log_online_diagnose_inconsistent_dir(bitmap_files);
 			return FALSE;
 		}
 
@@ -1397,8 +1443,12 @@ log_online_setup_bitmap_file_range(
 	}
 
 #ifdef UNIV_DEBUG
+	if (!bitmap_files->files[0].seq_num) {
+
+		log_online_diagnose_inconsistent_dir(bitmap_files);
+		return FALSE;
+	}
 	ut_ad(bitmap_files->files[0].seq_num == first_file_seq_num);
-	ut_ad(bitmap_files->files[0].start_lsn == first_file_start_lsn);
 	{
 		size_t i;
 		for (i = 1; i < bitmap_files->count; i++) {
@@ -1432,10 +1482,20 @@ log_online_open_bitmap_file_read_only(
 							file */
 {
 	ibool	success	= FALSE;
+	size_t  srv_data_home_len;
 
 	ut_ad(name[0] != '\0');
 
-	ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%s", srv_data_home, name);
+	srv_data_home_len = strlen(srv_data_home);
+	if (srv_data_home_len
+			&& srv_data_home[srv_data_home_len-1]
+			!= SRV_PATH_SEPARATOR) {
+		ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%c%s",
+				srv_data_home, SRV_PATH_SEPARATOR, name);
+	} else {
+		ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%s",
+				srv_data_home, name);
+	}
 	bitmap_file->file
 		= os_file_create_simple_no_error_handling(innodb_file_bmp_key,
 							  bitmap_file->name,

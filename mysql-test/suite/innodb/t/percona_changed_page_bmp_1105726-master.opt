@@ -1,0 +1,1 @@
+--innodb_track_changed_pages=1 --innodb_changed_pages=FORCE

@@ -1,0 +1,63 @@
+# Testcase for http://bugs.mysql.com/bug.php?id=68116 (InnoDB monitor may
+# hit an assertion error in buf_page_get_gen in debug builds) and
+# http://bugs.mysql.com/bug.php?id=71343 (InnoDB lock monitor crashes if
+# table dropped at the right time on debug build)
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+SET @innodb_show_verbose_locks_saved = @@innodb_show_verbose_locks;
+SET GLOBAL innodb_show_verbose_locks = 1;
+
+CREATE TABLE innodb_lock_monitor (a INT) ENGINE=INNODB;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+
+--disable_query_log
+let $i=100;
+while ($i) {
+      eval INSERT INTO t1 VALUES ($i, REPEAT("a", 4000));
+      dec $i;
+}
+--enable_query_log
+
+BEGIN;
+--disable_result_log
+SELECT * FROM t1 LOCK IN SHARE MODE;
+--enable_result_log
+
+--connect(con1,localhost,root,,)
+
+--connection con1
+
+SET DEBUG_SYNC='innodb_monitor_before_lock_page_read SIGNAL monitor_ready WAIT_FOR finish';
+
+send SHOW ENGINE INNODB STATUS;
+
+--connection default
+
+SET DEBUG_SYNC='now WAIT_FOR monitor_ready';
+
+COMMIT;
+DROP TABLE t1;
+
+SET DEBUG_SYNC='now SIGNAL finish';
+
+--connection con1
+
+--disable_result_log
+REAP;
+--enable_result_log
+
+--disconnect con1
+
+--connection default
+
+SET DEBUG_SYNC='RESET';
+DROP TABLE innodb_lock_monitor;
+
+SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_saved;
+
+--source include/wait_until_count_sessions.inc

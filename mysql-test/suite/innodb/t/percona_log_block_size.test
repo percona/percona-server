@@ -1,0 +1,40 @@
+#
+# Test that innodb_log_block_size works with the rest of the server (bug 1114612)
+#
+--source include/have_innodb.inc
+
+call mtr.add_suppression("New log files created");
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+call mtr.add_suppression("InnoDB: Warning: innodb_log_block_size has been changed from default value");
+
+--echo 1st server restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--enable_reconnect
+--exec echo "restart:--innodb-log-block-size=4096" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SELECT COUNT(*) FROM t1;
+
+--echo 2nd server restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+DROP TABLE t1;

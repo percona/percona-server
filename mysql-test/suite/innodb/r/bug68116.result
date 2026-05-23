@@ -1,0 +1,17 @@
+SET @innodb_show_verbose_locks_saved = @@innodb_show_verbose_locks;
+SET GLOBAL innodb_show_verbose_locks = 1;
+CREATE TABLE innodb_lock_monitor (a INT) ENGINE=INNODB;
+Warnings:
+Warning	131	Using the table name innodb_lock_monitor to enable diagnostic output is deprecated and may be removed in future releases. Use INFORMATION_SCHEMA or PERFORMANCE_SCHEMA tables or SET GLOBAL innodb_status_output=ON.
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+BEGIN;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+SET DEBUG_SYNC='innodb_monitor_before_lock_page_read SIGNAL monitor_ready WAIT_FOR finish';
+SHOW ENGINE INNODB STATUS;
+SET DEBUG_SYNC='now WAIT_FOR monitor_ready';
+COMMIT;
+DROP TABLE t1;
+SET DEBUG_SYNC='now SIGNAL finish';
+SET DEBUG_SYNC='RESET';
+DROP TABLE innodb_lock_monitor;
+SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_saved;

@@ -75,6 +75,7 @@ extern ulint	os_n_pending_writes;
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
+#define SRV_PATH_SEPARATOR	'\\'
 /** File handle */
 # define os_file_t	HANDLE
 # define os_file_invalid	INVALID_HANDLE_VALUE
@@ -83,6 +84,7 @@ typedef ib_uint64_t os_offset_t;
 @return		native file handle */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
+#define SRV_PATH_SEPARATOR	'/'
 /** File handle */
 typedef int	os_file_t;
 # define os_file_invalid	(-1)

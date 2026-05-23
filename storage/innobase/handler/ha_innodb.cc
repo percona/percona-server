@@ -250,6 +250,21 @@ static TYPELIB innodb_cleaner_lsn_age_factor_typelib = {
 	NULL
 };
 
+/** Possible values for system variable "innodb_foreground_preflush".  */
+static const char* innodb_foreground_preflush_names[] = {
+	"sync_preflush",
+	"exponential_backoff",
+	NullS
+};
+
+/* Enumeration for innodb_foreground_preflush.  */
+static TYPELIB innodb_foreground_preflush_typelib = {
+	array_elements(innodb_foreground_preflush_names) - 1,
+	"innodb_foreground_preflush_typelib",
+	innodb_foreground_preflush_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in case of normal DML ops it is not
 sensible to call srv_active_wake_master_thread after each
@@ -16980,6 +16995,15 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_populate, srv_buf_pool_populate,
   "Preallocate (pre-fault) the page frames required for the mapping "
   "established by the buffer pool memory region. Disabled by default.",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ENUM(foreground_preflush, srv_foreground_preflush,
+  PLUGIN_VAR_OPCMDARG,
+  "The algorithm InnoDB uses for the query threads at sync preflush.  "
+  "Possible values are "
+  "SYNC_PREFLUSH: perform a sync preflush as Oracle MySQL; "
+  "EXPONENTIAL_BACKOFF: (default) wait for the page cleaner flush.",
+  NULL, NULL, SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF,
+  &innodb_foreground_preflush_typelib);
 
 #ifdef UNIV_LINUX
 

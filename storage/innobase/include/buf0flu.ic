@@ -135,3 +135,24 @@ buf_flush_recv_note_modification(
 
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/******************************************************************//**
+Check if a flush list flush is in progress for any buffer pool instance for
+heuristic purposes.
+@return true if flush list flush is in progress  */
+UNIV_INLINE
+bool
+buf_flush_flush_list_in_progress(void)
+/*==================================*/
+{
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+
+		const buf_pool_t* buf_pool = buf_pool_from_array(i);
+		if (buf_pool->init_flush[BUF_FLUSH_LIST]
+		    || buf_pool->n_flush[BUF_FLUSH_LIST]) {
+
+			return(true);
+		}
+	}
+	return(false);
+}

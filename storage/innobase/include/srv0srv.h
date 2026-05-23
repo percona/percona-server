@@ -309,6 +309,8 @@ extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
+extern ulint	srv_foreground_preflush;/*!< Query thread preflush algorithm */
+
 extern ulint	srv_cleaner_max_lru_time;/*!< the maximum time limit for a
 					single LRU tail flush iteration by the
 					page cleaner thread */

@@ -955,6 +955,7 @@ THD::THD(bool enable_plugins)
    in_sub_stmt(0),
    fill_status_recursion_level(0),
    fill_variables_recursion_level(0),
+   order_deterministic(false),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -962,6 +963,8 @@ THD::THD(bool enable_plugins)
    m_trans_log_file(NULL),
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
+   backup_tables_lock(MDL_key::BACKUP),
+   backup_binlog_lock(MDL_key::BINLOG),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -1131,6 +1134,8 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  timer= timer_cache= NULL;
 
   m_token_array= NULL;
   if (max_digest_length > 0)
@@ -1679,6 +1684,12 @@ void THD::cleanup(void)
     metadata locks. Release them.
   */
   mdl_context.release_transactional_locks();
+
+  /* Release backup locks, if acquired */
+  if (backup_binlog_lock.is_acquired())
+    backup_binlog_lock.release(this);
+  if (backup_tables_lock.is_acquired())
+    backup_tables_lock.release(this);
 
   /* Release the global read lock, if acquired. */
   if (global_read_lock.is_acquired())
@@ -5017,6 +5028,11 @@ void THD::leave_locked_tables_mode()
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
+
+    /* Make sure backup locks are not released when leaving LTM */
+    DBUG_ASSERT(!backup_tables_lock.is_acquired());
+    backup_binlog_lock.set_explicit_locks_duration(this);
+
     /* Also ensure that we don't release metadata locks for open HANDLERs. */
     if (handler_tables_hash.records)
       mysql_ha_set_explicit_lock_duration(this);

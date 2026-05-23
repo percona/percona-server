@@ -3182,8 +3182,8 @@ innobase_init(
 
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
-	innobase_hton->flags =
-		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
+	innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
+		HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_FOREIGN_KEYS;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
@@ -16478,15 +16478,15 @@ void
 buf_flush_list_now_set(
 /*===================*/
 	THD*				thd	/*!< in: thread handle */
-					__attribute__((unused)),
+	__attribute__((unused)),
 	struct st_mysql_sys_var*	var	/*!< in: pointer to system
-						variable */
-					__attribute__((unused)),
+						  variable */
+	__attribute__((unused)),
 	void*				var_ptr	/*!< out: where the formal
-						string goes */
-					__attribute__((unused)),
+						  string goes */
+	__attribute__((unused)),
 	const void*			save)	/*!< in: immediate result from
-						check function */
+						  check function */
 {
 	if (*(my_bool*) save) {
 		buf_flush_list(ULINT_MAX, LSN_MAX, NULL);

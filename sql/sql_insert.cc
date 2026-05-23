@@ -91,6 +91,7 @@
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
+                              MDL_request *backup_protection,
                               TABLE_LIST *table_list);
 
 static bool write_delayed(THD *thd, TABLE *table, LEX_STRING query, bool log_on,
@@ -524,9 +525,12 @@ static
 bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 {
   MDL_request protection_request;
+  MDL_request backup_protection;
   DBUG_ENTER("open_and_lock_for_insert_delayed");
 
 #ifndef EMBEDDED_LIBRARY
+  const ulong timeout= thd->variables.lock_wait_timeout;
+
   /* INSERT DELAYED is not allowed in a read only transaction. */
   if (thd->tx_read_only)
   {
@@ -535,33 +539,41 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   }
 
   /*
-    In order for the deadlock detector to be able to find any deadlocks
-    caused by the handler thread waiting for GRL or this table, we acquire
-    protection against GRL (global IX metadata lock) and metadata lock on
-    table to being inserted into inside the connection thread.
-    If this goes ok, the tickets are cloned and added to the list of granted
-    locks held by the handler thread.
+    In order for the deadlock detector to be able to find any deadlocks caused
+    by the handler thread waiting for GRL, backup lock or this table, we acquire
+    protection against GRL (global IX metadata lock), backup lock and metadata
+    lock on table to being inserted into inside the connection thread.  If this
+    goes ok, the tickets are cloned and added to the list of granted locks held
+    by the handler thread.
   */
   if (thd->global_read_lock.can_acquire_protection())
     DBUG_RETURN(TRUE);
 
+  if (thd->backup_tables_lock.abort_if_acquired())
+    DBUG_RETURN(true);
+
   protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                           MDL_STATEMENT);
 
-  if (thd->mdl_context.acquire_lock(&protection_request,
-                                    thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.acquire_lock(&protection_request, timeout))
     DBUG_RETURN(TRUE);
 
-  if (thd->mdl_context.acquire_lock(&table_list->mdl_request,
-                                    thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.acquire_lock(&table_list->mdl_request, timeout))
     /*
       If a lock can't be acquired, it makes no sense to try normal insert.
       Therefore we just abort the statement.
     */
     DBUG_RETURN(TRUE);
 
+  thd->backup_tables_lock.init_protection_request(&backup_protection,
+                                                  MDL_STATEMENT);
+
+  if (thd->mdl_context.acquire_lock(&backup_protection, timeout))
+    DBUG_RETURN(true);
+
   bool error= FALSE;
-  if (delayed_get_table(thd, &protection_request, table_list))
+  if (delayed_get_table(thd, &protection_request, &backup_protection,
+                        table_list))
     error= TRUE;
   else if (table_list->table)
   {
@@ -2203,10 +2215,11 @@ public:
   ulong group_count;
   TABLE_LIST table_list;			// Argument
   /**
-    Request for IX metadata lock protecting against GRL which is
-    passed from connection thread to the handler thread.
+    Request for IX metadata lock protecting against GRL and backup locks which
+    are passed from connection thread to the handler thread.
   */
   MDL_request grl_protection;
+  MDL_request backup_protection;
 
   /** Creates a new delayed insert handler. */
   Delayed_insert()
@@ -2333,6 +2346,7 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
                      table.
   @param grl_protection_request  Client's protection against global-read-lock,
                                  here handed to the system thread.
+  @param backup_protection       Client's protection against backup tables lock
 
   @return In case of success, table_list->table points to a local copy
           of the delayed table or is set to NULL, which indicates a
@@ -2376,6 +2390,7 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 
 static
 bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
+                       MDL_request *backup_protection,
                        TABLE_LIST *table_list)
 {
   int error;
@@ -2423,6 +2438,10 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
       di->grl_protection.ticket= grl_protection_request->ticket;
       init_mdl_requests(&di->table_list);
       di->table_list.mdl_request.ticket= table_list->mdl_request.ticket;
+
+      di->backup_protection.init(MDL_key::BACKUP, "", "",
+                                 MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
+      di->backup_protection.ticket= backup_protection->ticket;
 
       di->lock();
       mysql_mutex_lock(&di->mutex);
@@ -2935,7 +2954,8 @@ pthread_handler_t handle_delayed_insert(void *arg)
       handler thread is not holding nor waiting on any metadata locks.
     */
     if (thd->mdl_context.clone_ticket(&di->grl_protection) ||
-        thd->mdl_context.clone_ticket(&di->table_list.mdl_request))
+        thd->mdl_context.clone_ticket(&di->table_list.mdl_request) ||
+        thd->mdl_context.clone_ticket(&di->backup_protection))
     {
       thd->mdl_context.release_transactional_locks();
       di->handler_thread_initialized= TRUE;

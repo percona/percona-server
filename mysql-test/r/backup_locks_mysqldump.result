@@ -1,0 +1,151 @@
+SHOW VARIABLES LIKE 'have_backup_locks';
+Variable_name	Value
+have_backup_locks	YES
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT) ENGINE=MyISAM;
+SET @old_general_log = @@general_log;
+SET @old_log_output = @@log_output;
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL log_output = 'TABLE';
+SET GLOBAL general_log = ON;
+# Check that --lock-for-backup is converted to --lock-all-tables if
+# --single-transaction is not specified
+SELECT argument FROM mysql.general_log WHERE argument != '';
+argument
+SET GLOBAL general_log = ON
+root@localhost on 
+/*!40100 SET @@SQL_MODE='' */
+/*!40103 SET TIME_ZONE='+00:00' */
+FLUSH TABLES
+FLUSH TABLES WITH READ LOCK
+SHOW VARIABLES LIKE 'gtid\_mode'
+SELECT LOGFILE_GROUP_NAME, FILE_NAME, TOTAL_EXTENTS, INITIAL_SIZE, ENGINE, EXTRA FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'UNDO LOG' AND FILE_NAME IS NOT NULL AND LOGFILE_GROUP_NAME IN (SELECT DISTINCT LOGFILE_GROUP_NAME FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE' AND TABLESPACE_NAME IN (SELECT DISTINCT TABLESPACE_NAME FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA IN ('test'))) GROUP BY LOGFILE_GROUP_NAME, FILE_NAME, ENGINE ORDER BY LOGFILE_GROUP_NAME
+SELECT DISTINCT TABLESPACE_NAME, FILE_NAME, LOGFILE_GROUP_NAME, EXTENT_SIZE, INITIAL_SIZE, ENGINE FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE' AND TABLESPACE_NAME IN (SELECT DISTINCT TABLESPACE_NAME FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA IN ('test')) ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME
+SHOW VARIABLES LIKE 'ndbinfo\_version'
+test
+show tables
+show table status like 't1'
+SET SQL_QUOTE_SHOW_CREATE=1
+SET SESSION character_set_results = 'binary'
+show create table `t1`
+SET SESSION character_set_results = 'utf8'
+show fields from `t1`
+SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1`
+SET SESSION character_set_results = 'binary'
+use `test`
+select @@collation_database
+SHOW TRIGGERS LIKE 't1'
+SET SESSION character_set_results = 'utf8'
+show table status like 't2'
+SET SQL_QUOTE_SHOW_CREATE=1
+SET SESSION character_set_results = 'binary'
+show create table `t2`
+SET SESSION character_set_results = 'utf8'
+show fields from `t2`
+SELECT /*!40001 SQL_NO_CACHE */ * FROM `t2`
+SET SESSION character_set_results = 'binary'
+use `test`
+select @@collation_database
+SHOW TRIGGERS LIKE 't2'
+SET SESSION character_set_results = 'utf8'
+SELECT argument FROM mysql.general_log WHERE argument != ''
+TRUNCATE TABLE mysql.general_log;
+# Check that --lock-for-backup --single-transaction uses LOCK TABLES FOR
+# BACKUP
+SELECT argument FROM mysql.general_log WHERE argument != '';
+argument
+root@localhost on 
+/*!40100 SET @@SQL_MODE='' */
+/*!40103 SET TIME_ZONE='+00:00' */
+SHOW VARIABLES LIKE 'have_backup_locks'
+LOCK TABLES FOR BACKUP
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ
+START TRANSACTION /*!40100 WITH CONSISTENT SNAPSHOT */
+SHOW VARIABLES LIKE 'gtid\_mode'
+SELECT LOGFILE_GROUP_NAME, FILE_NAME, TOTAL_EXTENTS, INITIAL_SIZE, ENGINE, EXTRA FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'UNDO LOG' AND FILE_NAME IS NOT NULL AND LOGFILE_GROUP_NAME IN (SELECT DISTINCT LOGFILE_GROUP_NAME FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE' AND TABLESPACE_NAME IN (SELECT DISTINCT TABLESPACE_NAME FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA IN ('test'))) GROUP BY LOGFILE_GROUP_NAME, FILE_NAME, ENGINE ORDER BY LOGFILE_GROUP_NAME
+SELECT DISTINCT TABLESPACE_NAME, FILE_NAME, LOGFILE_GROUP_NAME, EXTENT_SIZE, INITIAL_SIZE, ENGINE FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE' AND TABLESPACE_NAME IN (SELECT DISTINCT TABLESPACE_NAME FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA IN ('test')) ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME
+SHOW VARIABLES LIKE 'ndbinfo\_version'
+test
+SAVEPOINT sp
+show tables
+show table status like 't1'
+SET SQL_QUOTE_SHOW_CREATE=1
+SET SESSION character_set_results = 'binary'
+show create table `t1`
+SET SESSION character_set_results = 'utf8'
+show fields from `t1`
+SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1`
+SET SESSION character_set_results = 'binary'
+use `test`
+select @@collation_database
+SHOW TRIGGERS LIKE 't1'
+SET SESSION character_set_results = 'utf8'
+ROLLBACK TO SAVEPOINT sp
+show table status like 't2'
+SET SQL_QUOTE_SHOW_CREATE=1
+SET SESSION character_set_results = 'binary'
+show create table `t2`
+SET SESSION character_set_results = 'utf8'
+show fields from `t2`
+SELECT /*!40001 SQL_NO_CACHE */ * FROM `t2`
+SET SESSION character_set_results = 'binary'
+use `test`
+select @@collation_database
+SHOW TRIGGERS LIKE 't2'
+SET SESSION character_set_results = 'utf8'
+ROLLBACK TO SAVEPOINT sp
+RELEASE SAVEPOINT sp
+SELECT argument FROM mysql.general_log WHERE argument != ''
+TRUNCATE TABLE mysql.general_log;
+# Check that --master-data does not disable --lock-for-backup
+SELECT argument FROM mysql.general_log WHERE argument != '';
+argument
+root@localhost on 
+/*!40100 SET @@SQL_MODE='' */
+/*!40103 SET TIME_ZONE='+00:00' */
+SHOW VARIABLES LIKE 'have_backup_locks'
+SHOW STATUS LIKE 'binlog_snapshot_%'
+LOCK TABLES FOR BACKUP
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ
+START TRANSACTION /*!40100 WITH CONSISTENT SNAPSHOT */
+SHOW VARIABLES LIKE 'gtid\_mode'
+SHOW STATUS LIKE 'binlog_snapshot_%'
+UNLOCK TABLES
+SELECT LOGFILE_GROUP_NAME, FILE_NAME, TOTAL_EXTENTS, INITIAL_SIZE, ENGINE, EXTRA FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'UNDO LOG' AND FILE_NAME IS NOT NULL AND LOGFILE_GROUP_NAME IN (SELECT DISTINCT LOGFILE_GROUP_NAME FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE' AND TABLESPACE_NAME IN (SELECT DISTINCT TABLESPACE_NAME FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA IN ('test'))) GROUP BY LOGFILE_GROUP_NAME, FILE_NAME, ENGINE ORDER BY LOGFILE_GROUP_NAME
+SELECT DISTINCT TABLESPACE_NAME, FILE_NAME, LOGFILE_GROUP_NAME, EXTENT_SIZE, INITIAL_SIZE, ENGINE FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE' AND TABLESPACE_NAME IN (SELECT DISTINCT TABLESPACE_NAME FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA IN ('test')) ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME
+SHOW VARIABLES LIKE 'ndbinfo\_version'
+test
+SAVEPOINT sp
+show tables
+show table status like 't1'
+SET SQL_QUOTE_SHOW_CREATE=1
+SET SESSION character_set_results = 'binary'
+show create table `t1`
+SET SESSION character_set_results = 'utf8'
+show fields from `t1`
+SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1`
+SET SESSION character_set_results = 'binary'
+use `test`
+select @@collation_database
+SHOW TRIGGERS LIKE 't1'
+SET SESSION character_set_results = 'utf8'
+ROLLBACK TO SAVEPOINT sp
+show table status like 't2'
+SET SQL_QUOTE_SHOW_CREATE=1
+SET SESSION character_set_results = 'binary'
+show create table `t2`
+SET SESSION character_set_results = 'utf8'
+show fields from `t2`
+SELECT /*!40001 SQL_NO_CACHE */ * FROM `t2`
+SET SESSION character_set_results = 'binary'
+use `test`
+select @@collation_database
+SHOW TRIGGERS LIKE 't2'
+SET SESSION character_set_results = 'utf8'
+ROLLBACK TO SAVEPOINT sp
+RELEASE SAVEPOINT sp
+SELECT argument FROM mysql.general_log WHERE argument != ''
+TRUNCATE TABLE mysql.general_log;
+SET GLOBAL log_output = @old_log_output;
+SET GLOBAL general_log = @old_general_log;
+DROP TABLE t1, t2;

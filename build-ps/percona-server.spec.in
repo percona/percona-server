@@ -23,6 +23,10 @@
 # change these, has to be exactly as is.
 
 %define build_timestamp @MYSQL_COPYRIGHT_YEAR@
+# Router bundles its own copy of libprotobuf under mysqlrouter/private with the
+# same build-id as the server copy under mysql/private; disable per-build-id
+# debug symlinks to avoid "Duplicate build-ids" failure during find-debuginfo.
+%define _build_id_links none
 %undefine _missing_build_ids_terminate_build
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc
@@ -744,6 +748,8 @@ rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
 rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
+rm -rf %{buildroot}/usr/lib/libkmipclient.a
+rm -rf %{buildroot}/usr/lib/libkmipcore.a
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -1128,6 +1134,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_aggregate.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_file_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
 
 
 %dir %{_libdir}/mysql/plugin/debug
@@ -1184,6 +1196,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_file_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/telemetry_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -1423,6 +1441,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_telemetry_resource_provider.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_telemetry_secret_provider.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
@@ -1509,6 +1529,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_telemetry_resource_provider.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_telemetry_secret_provider.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so

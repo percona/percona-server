@@ -825,11 +825,10 @@ bool Gcs_message_stage_split_v2::insert_fragment(Gcs_packet &&packet) {
   bool result = ERROR;
   auto &header =
       static_cast<Gcs_split_header_v2 &>(packet.get_current_stage_header());
-  auto const num_messages = header.get_num_messages();
   Gcs_packets_list *fragment_list = nullptr;
 
   assert(is_valid_split_fragment(packet));
-  assert(num_messages > 1);
+  assert(header.get_num_messages() > 1);
 
   /* Get the table with fragments from sender. */
   auto packets_per_source_it =
@@ -861,9 +860,9 @@ bool Gcs_message_stage_split_v2::insert_fragment(Gcs_packet &&packet) {
   }
   // Insert the fragment into the list.
   fragment_list = &packets_per_content_it->second;
-  assert(fragment_list->size() < num_messages);
+  assert(fragment_list->size() < header.get_num_messages());
   fragment_list->push_back(std::move(packet));
-  assert(fragment_list->size() < num_messages);
+  assert(fragment_list->size() < header.get_num_messages());
 
   result = OK;
   return result;

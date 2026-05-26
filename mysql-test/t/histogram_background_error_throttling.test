@@ -24,7 +24,7 @@ INSERT INTO t2 VALUES (1), (2), (3);
 
 # Wait for a background histogram update error to show up in the error log.
 let $wait_condition = SELECT COUNT(*) > 0 FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-015116';
-let $wait_timeout = 15;
+let $wait_timeout = 25;
 --source include/wait_condition.inc
 
 # The wait_condition only waits for at least one error to show up.

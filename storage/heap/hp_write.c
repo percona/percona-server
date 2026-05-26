@@ -25,7 +25,6 @@
 #define HIGHFIND 4
 #define HIGHUSED 8
 
-static uchar *next_free_record_pos(HP_SHARE *info);
 static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
 				     ulong records);
 
@@ -34,6 +33,8 @@ int heap_write(HP_INFO *info, const uchar *record)
   HP_KEYDEF *keydef, *end;
   uchar *pos;
   HP_SHARE *share=info->s;
+  uint chunk_count;
+
   DBUG_ENTER("heap_write");
 #ifndef DBUG_OFF
   if (info->mode & O_RDONLY)
@@ -42,7 +43,18 @@ int heap_write(HP_INFO *info, const uchar *record)
     DBUG_RETURN(EACCES);
   }
 #endif
-  if (!(pos=next_free_record_pos(share)))
+
+  if ((share->records >= share->max_records && share->max_records) ||
+      (share->recordspace.total_data_length + share->index_length >=
+       share->max_table_size))
+  {
+    set_my_errno(HA_ERR_RECORD_FILE_FULL);
+    DBUG_RETURN(HA_ERR_RECORD_FILE_FULL);
+  }
+
+  hp_get_encoded_data_length(share, record, &chunk_count);
+
+  if (!(pos= hp_allocate_chunkset(&share->recordspace, chunk_count)))
     DBUG_RETURN(my_errno());
   share->changed=1;
 
@@ -53,8 +65,8 @@ int heap_write(HP_INFO *info, const uchar *record)
       goto err;
   }
 
-  memcpy(pos,record,(size_t) share->reclength);
-  pos[share->reclength]=1;		/* Mark record as not deleted */
+  hp_copy_record_data_to_chunkset(share, record, pos);
+
   if (++share->records == share->blength)
     share->blength+= share->blength;
   info->current_ptr=pos;
@@ -88,10 +100,7 @@ err:
     keydef--;
   } 
 
-  share->deleted++;
-  *((uchar**) pos)=share->del_link;
-  share->del_link=pos;
-  pos[share->reclength]=0;			/* Record deleted */
+  hp_free_chunks(&share->recordspace, pos);
 
   DBUG_RETURN(my_errno());
 } /* heap_write */
@@ -107,7 +116,8 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   uint old_allocated;
 
   custom_arg.keyseg= keyinfo->seg;
-  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
+  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos,
+                                        FALSE);
   if (keyinfo->flag & HA_NOSAME)
   {
     custom_arg.search_flag= SEARCH_FIND | SEARCH_UPDATE;
@@ -127,42 +137,6 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   }
   info->s->index_length+= (keyinfo->rb_tree.allocated-old_allocated);
   return 0;
-}
-
-	/* Find where to place new record */
-
-static uchar *next_free_record_pos(HP_SHARE *info)
-{
-  int block_pos;
-  uchar *pos;
-  size_t length;
-  DBUG_ENTER("next_free_record_pos");
-
-  if (info->del_link)
-  {
-    pos=info->del_link;
-    info->del_link= *((uchar**) pos);
-    info->deleted--;
-    DBUG_PRINT("exit",("Used old position: 0x%lx",(long) pos));
-    DBUG_RETURN(pos);
-  }
-  if (!(block_pos=(info->records % info->block.records_in_block)))
-  {
-    if ((info->records > info->max_records && info->max_records) ||
-        (info->data_length + info->index_length >= info->max_table_size))
-    {
-      set_my_errno(HA_ERR_RECORD_FILE_FULL);
-      DBUG_RETURN(NULL);
-    }
-    if (hp_get_new_block(&info->block,&length))
-      DBUG_RETURN(NULL);
-    info->data_length+=length;
-  }
-  DBUG_PRINT("exit",("Used new position: 0x%lx",
-		     (long) ((uchar*) info->block.level_info[0].last_blocks+
-                             block_pos * info->block.recbuffer)));
-  DBUG_RETURN((uchar*) info->block.level_info[0].last_blocks+
-	      block_pos*info->block.recbuffer);
 }
 
 

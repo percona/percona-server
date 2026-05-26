@@ -80,7 +80,10 @@ int heap_rprev(HP_INFO *info, uchar *record)
       set_my_errno(HA_ERR_END_OF_FILE);
     DBUG_RETURN(my_errno());
   }
-  memcpy(record,pos,(size_t) share->reclength);
+  if (hp_extract_record(info, record, pos))
+  {
+    DBUG_RETURN(my_errno());
+  }
   info->update=HA_STATE_AKTIV | HA_STATE_PREV_FOUND;
   DBUG_RETURN(0);
 }

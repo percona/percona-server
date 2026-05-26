@@ -54,9 +54,9 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode)
 #ifndef DBUG_OFF
   info->opt_flag= READ_CHECK_USED;		/* Check when changing */
 #endif
-  DBUG_PRINT("exit",("heap: 0x%lx  reclength: %d  records_in_block: %d",
-		     (long) info, share->reclength,
-                     share->block.records_in_block));
+  DBUG_PRINT("exit",("heap: 0x%lx  chunk_length: %d  records_in_block: %d",
+                     (long) info, share->recordspace.chunk_length,
+                     share->recordspace.block.records_in_block));
   DBUG_RETURN(info);
 }
 

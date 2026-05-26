@@ -20,17 +20,26 @@ SET(HEAP_SOURCES  _check.c _rectest.c hp_block.c hp_clear.c hp_close.c hp_create
 				ha_heap.cc
 				hp_delete.c hp_extra.c hp_hash.c hp_info.c hp_open.c hp_panic.c
 				hp_rename.c hp_rfirst.c hp_rkey.c hp_rlast.c hp_rnext.c hp_rprev.c
+				hp_dspace.c hp_record.c
 				hp_rrnd.c hp_rsame.c hp_scan.c hp_static.c hp_update.c hp_write.c)
 
 MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY
                  RECOMPILE_FOR_EMBEDDED DTRACE_INSTRUMENTED)
 
-IF(WITH_UNIT_TESTS AND WITH_EMBEDDED_SERVER)
+IF(WITH_EMBEDDED_SERVER)
+  SET(HEAP_NOPFS heap_embedded)
+ELSE()
+  ADD_CONVENIENCE_LIBRARY(heap_nopfs ${HEAP_SOURCES})
+  ADD_DEPENDENCIES(heap_nopfs GenError)
+  SET(HEAP_NOPFS heap_nopfs)
+ENDIF()
+
+IF(WITH_UNIT_TESTS)
   ADD_EXECUTABLE(hp_test1 hp_test1.c)
-  TARGET_LINK_LIBRARIES(hp_test1 heap_embedded mysys)
+  TARGET_LINK_LIBRARIES(hp_test1 ${HEAP_NOPFS} mysys)
   ADD_TEST(hp_test1 hp_test1)
 
   ADD_EXECUTABLE(hp_test2 hp_test2.c)
-  TARGET_LINK_LIBRARIES(hp_test2 heap_embedded mysys)
+  TARGET_LINK_LIBRARIES(hp_test2 ${HEAP_NOPFS} mysys)
   ADD_TEST(hp_test2 hp_test2)
 ENDIF()

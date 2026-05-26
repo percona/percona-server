@@ -674,7 +674,10 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -685,7 +688,7 @@ build_srpm(){
     cp ../SOURCES/call-home.sh ./
     awk -v n=$line_number 'NR <= n {print > "part1.txt"} NR > n {print > "part2.txt"}' percona-server.spec
     head -n -1 part1.txt > temp && mv temp part1.txt
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> part1.txt
+    echo "cat <<'CALLHOME' > \$tfn" >> part1.txt
     cat call-home.sh >> part1.txt
     echo "CALLHOME" >> part1.txt
     cat part2.txt >> part1.txt
@@ -697,6 +700,12 @@ build_srpm(){
     #
     rpmbuild -bs --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .generic" rpmbuild/SPECS/percona-server.spec
     #
+
+    # Verify RPMs were actually produced
+    if [ -z "$(find ${WORKDIR}/rpmbuild/RPMS -name '*.rpm' 2>/dev/null)" ]; then
+        echo "ERROR: rpmbuild succeeded but no RPM files were generated!"
+        exit 1
+    fi
 
     mkdir -p ${WORKDIR}/srpm
     mkdir -p ${CURDIR}/srpm
@@ -958,15 +967,19 @@ build_deb(){
 
     postfix=""
     cd debian/
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     sed -i 's:exit 0::' percona-server-server"${postfix}".postinst
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "tfn=\$(/usr/bin/mktemp -p \$(/usr/bin/mktemp -d /tmp/XXXXXXXX) call-home.XXXXXX.sh)" >> percona-server-server"${postfix}".postinst
+    echo "cat <<'CALLHOME' > \$tfn" >> percona-server-server"${postfix}".postinst
     cat call-home.sh >> percona-server-server"${postfix}".postinst
     echo "CALLHOME" >> percona-server-server"${postfix}".postinst
-    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "bash +x \$tfn -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
-    echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "rm -rf \$tfn" >> percona-server-server"${postfix}".postinst
     echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
     cd ../

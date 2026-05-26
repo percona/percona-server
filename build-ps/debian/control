@@ -179,8 +179,7 @@ Breaks: mysql-client-5.0,
         mariadb-client,
         mariadb-client-core-5.5,
         mariadb-client-5.5,
-        virtual-mysql-client,
-        virtual-mysql-client-core
+        virtual-mysql-client
 Replaces: mysql-client-5.0,
            mysql-client-core-5.1,
            mysql-client-core-5.5,
@@ -215,7 +214,6 @@ Package: percona-server-server-core
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Provides: virtual-mysql-server-core
-Breaks: mysql-server-core-8.0, mysql-community-server-core
 Replaces: mysql-server-core-8.0, mysql-community-server-core
 Description: Percona Server database core server binaries
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
@@ -257,8 +255,7 @@ Breaks: mysql-server-5.0,
         mariadb-server,
         mariadb-server-core-5.5,
         mariadb-server-5.5,
-        virtual-mysql-server,
-        virtual-mysql-server-core
+        virtual-mysql-server
 Replaces: mysql-server-5.0,
           mysql-server-5.1,
           mysql-server-5.5,

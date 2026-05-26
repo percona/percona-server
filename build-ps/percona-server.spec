@@ -24,6 +24,18 @@
 
 %define build_timestamp %(date +"%Y")
 %undefine _missing_build_ids_terminate_build
+# The upstream MySQL build installs byte-identical absl / protobuf private
+# libraries under both %{_libdir}/mysql/private/ and
+# %{_libdir}/mysqlrouter/private/. rpm's default build-id link mode rejects
+# the two debuginfo files sharing one build-id:
+#   Duplicate build-ids .../mysql/private/libabsl_*.so.debug
+#                    and .../mysqlrouter/private/libabsl_*.so.debug
+# percona-server-8.0_builder.sh only patches find-debuginfo.sh
+# (apply_workaround_bug_304121) on EL7, so EL8+ has no mitigation. Set
+# `none` here (the release-9.6.0 baseline value, proven on the PXC line):
+# it suppresses per-file build-id symlink generation so duplicates can
+# coexist, while still shipping the debuginfo payloads.
+%define _build_id_links none
 %global mysql_vendor Oracle and/or its affiliates
 %global percona_server_vendor Percona, Inc
 %global mysqldatadir /var/lib/mysql
@@ -63,6 +75,10 @@
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
+
+# Profile-Guided Optimization: enabled by default
+# To disable: pass --define 'without_pgo 1' to rpmbuild
+%{!?without_pgo: %global pgo 1}
 
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
@@ -595,6 +611,8 @@ mkdir debug
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
 %if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
+%else
+           -DWITH_LTO=OFF \
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
@@ -607,6 +625,7 @@ mkdir release
 (
   cd release
   cmake ../%{src_dir} \
+           %{?pgo:-DFPROFILE_GENERATE=1} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -654,6 +673,8 @@ mkdir release
            -DWITH_COMPONENT_KEYRING_VAULT=ON \
 %if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
            -DWITH_LTO=ON \
+%else
+           -DWITH_LTO=OFF \
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
@@ -661,6 +682,79 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   make %{?_smp_mflags} VERBOSE=1
 )
+
+# PGO second pass: rebuild with profile data
+# Enabled by default. Disable with: rpmbuild --define 'without_pgo 1'
+%if 0%{?pgo}
+(
+  # Run MTR load to generate profile data
+  pushd release
+  make run-profile-suite
+  rm -r $(readlink mysql-test/var)
+  popd
+
+  # Rebuild with profile data
+  rm -rf release
+  mkdir release && pushd release
+  cmake ../%{src_dir} \
+           -DFPROFILE_USE=1 \
+           -DBUILD_CONFIG=mysql_release \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DUSE_LD_LLD=0 \
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+           -DWITH_CURL=system \
+%if 0%{?systemd}
+           -DWITH_SYSTEMD=1 \
+%endif
+           -DWITH_INNODB_MEMCACHED=1 \
+           -DINSTALL_LIBDIR="%{_lib}/mysql" \
+           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
+           -DFEATURE_SET="%{feature_set}" \
+           -DWITH_PAM=1 \
+           -DWITH_ROCKSDB=1 \
+           -DROCKSDB_DISABLE_AVX2=1 \
+           -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
+           -DMYSQL_MAINTAINER_MODE=OFF \
+           -DFORCE_INSOURCE_BUILD=1 \
+           -DWITH_NUMA=1 \
+           -DWITH_LDAP=system \
+           -DWITH_PACKAGE_FLAGS=OFF \
+           -DWITH_SYSTEM_LIBS=ON \
+           -DWITH_LZ4=bundled \
+           -DWITH_ZLIB=bundled \
+           -DWITH_PROTOBUF=bundled \
+           -DWITH_RAPIDJSON=bundled \
+           -DWITH_ICU=bundled \
+           -DWITH_EDITLINE=bundled \
+           -DWITH_LIBEVENT=bundled \
+           -DWITH_ZSTD=bundled \
+           -DWITH_PERCONA_TELEMETRY=ON \
+%if 0%{?add_fido_plugins}
+           -DWITH_FIDO=bundled \
+%else
+           -DWITH_FIDO=none \
+%endif
+           -DWITH_ENCRYPTION_UDF=ON \
+           -DWITH_COMPONENT_KEYRING_VAULT=ON \
+%if 0%{?rhel} > 8 || 0%{?amzn} >= 2023
+           -DWITH_LTO=ON \
+%else
+           -DWITH_LTO=OFF \
+%endif
+           %{?ssl_option} \
+           %{?mecab_option} \
+           %{?js_lang_option} \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
+  make %{?_smp_mflags} VERBOSE=1
+  popd
+)
+%endif # pgo
 
 %install
 %ifarch x86_64
@@ -736,6 +830,13 @@ rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
 rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
+# libkmip PR #30 (PS-10970, picked up via the extra/libkmip submodule
+# bump) restructured the library into kmipclient + kmipcore, which
+# install libkmipclient.a / libkmipcore.a instead of the old
+# libkmip.a / libkmippp.a. These static libs are build-only; drop them
+# so they don't trip the unpackaged-files check.
+rm -rf %{buildroot}/usr/lib/libkmipclient.a
+rm -rf %{buildroot}/usr/lib/libkmipcore.a
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -1176,6 +1277,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_log_filter.so
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
@@ -1232,6 +1335,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log_filter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023

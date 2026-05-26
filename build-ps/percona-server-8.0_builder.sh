@@ -27,6 +27,7 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
+        --enable_pgo                PGO (Profile-Guided Optimization) build (default = 1, set to 0 to disable)
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -68,6 +69,7 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
+            --enable_pgo=*) ENABLE_PGO="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -556,6 +558,14 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        # libtirpc-dev is required on every modern Debian/Ubuntu: glibc >= 2.26
+        # removed the built-in Sun RPC implementation, and cmake/rpc.cmake
+        # FATAL_ERRORs if system rpc/rpc.h is absent (it has no bundled-tirpc
+        # fallback despite extra/tirpc/ existing in the tree). Previously this
+        # was only installed for noble/trixie, so every other distro/arch agent
+        # (e.g. aarch64) failed override_dh_auto_configure with
+        # "Could not find rpc/rpc.h". Install it unconditionally.
+        apt-get -y install libtirpc-dev
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
             apt-get -y install libzstd-dev
@@ -797,8 +807,17 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-12/enable
+    # Source the newest gcc-toolset available. Percona Server 8.4 builds
+    # benefit from newer GCC for performance (especially with PGO+LTO).
+    # System gcc on EL8 is 8.5 and EL9 is 11.x; prefer the newest toolset.
+    if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+        for ts in 14 13 12 11; do
+            if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                source /opt/rh/gcc-toolset-${ts}/enable
+                echo "build_rpm: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                break
+            fi
+        done
     fi
     build_mecab_lib
     build_mecab_dict
@@ -812,11 +831,21 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
-    else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+    EXTRA_DEFINES=()
+    if [ ${ARCH} != x86_64 ]; then
+        EXTRA_DEFINES+=(--define "with_tokudb 0")
     fi
+    # PGO is on by default in the spec; pass the opt-out only when explicitly disabled.
+    if [ "${ENABLE_PGO}" = "0" ]; then
+        EXTRA_DEFINES+=(--define "without_pgo 1")
+    fi
+    rpmbuild \
+        --define "_topdir ${WORKDIR}/rpmbuild" \
+        --define "dist .${OS_NAME}" \
+        --define "with_mecab ${MECAB_INSTALL_DIR}/usr" \
+        --define "with_js_lang ${WORKDIR}/v8" \
+        "${EXTRA_DEFINES[@]}" \
+        --rebuild rpmbuild/SRPMS/${SRCRPM}
 
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
@@ -942,18 +971,20 @@ build_deb(){
     rm -f call-home.sh
     cd ../
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
-        gcc47=$(which gcc-4.7 2>/dev/null || true)
-        if [ -x "${gcc47}" ]; then
-            export CC=gcc-4.7
-            export USE_THIS_GCC_VERSION="-4.7"
-            export CXX=g++-4.7
-        else
-            export CC=gcc-4.8
-            export USE_THIS_GCC_VERSION="-4.8"
-            export CXX=g++-4.8
-        fi
-    fi
+    # NOTE: a legacy block here used to force CC=gcc-4.7 / gcc-4.8 for any
+    # DEBIAN_VERSION not present in a hardcoded allowlist (trusty, xenial,
+    # ..., trixie). It was a MySQL 5.6/5.7-era relic and is actively
+    # harmful for the 8.4/9.x line:
+    #   * MySQL 8.4 requires a C++20 toolchain (gcc >= 10); gcc-4.x cannot
+    #     build it even if present.
+    #   * Modern build agents don't ship gcc-4.7/4.8, so cmake aborts with
+    #       Could not find compiler set in environment variable CC: gcc-4.8.
+    #   * Every distro IN the allowlist already builds with the system
+    #     default compiler (the block was skipped for them), so they prove
+    #     the system-default path is correct.
+    #   * USE_THIS_GCC_VERSION it exported was never consumed anywhere.
+    # The block has been removed; let dpkg-buildpackage / cmake use the
+    # agent's default toolchain like the allowlisted distros already do.
 
     if [ ${DEBIAN_VERSION} = "xenial" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules
@@ -968,6 +999,12 @@ build_deb(){
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
+
+    # PGO is on by default in debian/rules; export the opt-out only when explicitly disabled.
+    if [ "${ENABLE_PGO}" = "0" ]; then
+        export DEB_NO_PGO=1
+    fi
+
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -999,8 +1036,16 @@ build_tarball(){
       if [ "x${RHEL}" = "x7" ]; then
           source /opt/rh/devtoolset-11/enable
       fi
-      if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-12/enable
+      # Source the newest gcc-toolset available. Percona Server 8.4 builds
+      # benefit from newer GCC for performance (especially with PGO+LTO).
+      if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+          for ts in 14 13 12 11; do
+              if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                  source /opt/rh/gcc-toolset-${ts}/enable
+                  echo "build_tarball: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                  break
+              fi
+          done
       fi
     fi
     #
@@ -1040,6 +1085,9 @@ build_tarball(){
     fi
 
     cd ${TARFILE%.tar.gz}
+    # Pass ENABLE_PGO through to build-binary.sh as WITH_PGO so tarball builds
+    # match the PGO behavior of RPM and DEB artifacts.
+    export WITH_PGO="${ENABLE_PGO}"
     if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
@@ -1080,6 +1128,7 @@ INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
+ENABLE_PGO=1
 REVISION=0
 BRANCH="release-8.0.30-22"
 RPM_RELEASE=1

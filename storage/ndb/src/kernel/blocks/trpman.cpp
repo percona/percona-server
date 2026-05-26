@@ -710,6 +710,7 @@ void Trpman::execDBINFO_SCANREQ(Signal *signal) {
       break;
     }
     case Ndbinfo::CERTIFICATES_TABLEID: {
+      if (instance() > 1) break;
       TlsKeyManager *keyMgr = globalTransporterRegistry.getTlsKeyManager();
       int peer_node_id = cursor->data[0];
       cert_table_entry entry;

@@ -487,6 +487,7 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong extra_max_connections;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
@@ -494,6 +495,8 @@ bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
 ulong locked_account_connection_count= 0;
 bool opt_keyring_operations= TRUE;
+
+ulonglong denied_connections= 0;
 
 /**
   Limit of the total number of prepared statements in the server.
@@ -1405,6 +1408,7 @@ void clean_up(bool print_message)
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
 
+  my_handle_options_end();
   log_syslog_exit();
 
   /*

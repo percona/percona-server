@@ -125,6 +125,7 @@ extern int my_handle_options (int *argc, char ***argv,
                               const char **command_list, my_bool ignore_unknown_option);
 extern void print_cmdline_password_warning();
 extern void my_cleanup_options(const struct my_option *options);
+extern void my_handle_options_end();
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
@@ -139,6 +140,23 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
                                  my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 ulonglong max_of_int_range(int var_type);
+
+/* Get the specific range constraint for the value named. If you do not
+   have the name length availa ble, specify 0. Specify 0 for 'create' to
+   simply obtain the existong value or specify a size value to have the
+   storage allocated if it does not yet exist. */
+extern const void* getopt_constraint_get_max_value(const char *name,
+                                                   size_t length,
+                                                   size_t create);
+extern const void* getopt_constraint_get_min_value(const char *name,
+                                                   size_t length,
+                                                   size_t create);
+extern const my_bool* getopt_constraint_get_hidden_value(const char *name,
+                                                         size_t length,
+                                                         my_bool create);
+extern const my_bool* getopt_constraint_get_readonly_value(const char *name,
+                                                           size_t length,
+                                                           my_bool create);
 
 ulonglong getopt_double2ulonglong(double);
 double getopt_ulonglong2double(ulonglong);

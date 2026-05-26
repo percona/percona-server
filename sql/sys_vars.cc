@@ -2775,7 +2775,17 @@ static Sys_var_ulonglong Sys_parser_max_mem_size(
 */
 export void update_parser_max_mem_size()
 {
-  const ulonglong max_max= max_system_variables.parser_max_mem_size;
+  /*
+    As "max_system_variables" table is no longer used because of the
+    custom Percona Server "Expanded Program Option Modifiers",
+    we need to get the value of the specified "--maximum-parser-max-mem-size"
+    option via "getopt_constraint_get_max_value()" call.
+  */
+  const void* max_max_ptr =
+    getopt_constraint_get_max_value("parser_max_mem_size", 0, FALSE);
+  if (max_max_ptr == 0)
+    return;
+  const ulonglong max_max= *(const ulonglong*)max_max_ptr;
   if (max_max == max_mem_sz)
     return;
   // In case parser-max-mem-size is also set:

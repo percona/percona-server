@@ -7,6 +7,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 ############################################################
 # 1. Deploy a 1 member group A in single-primary mode.
 [connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+call mtr.add_suppression("Replica SQL for channel 'ch1': Worker 1 failed executing transaction.*");
+call mtr.add_suppression("Replica SQL for channel 'ch1': ... The replica coordinator and worker threads are stopped.*");
+SET SESSION sql_log_bin = 1;
 include/start_and_bootstrap_group_replication.inc
 
 ############################################################

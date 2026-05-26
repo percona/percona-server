@@ -100,6 +100,17 @@ char *thd_security_context(void* thd, char *buffer, size_t length,
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
 void thd_mark_transaction_to_rollback(void* thd, int all);
+void increment_thd_innodb_stats(void* thd,
+                    unsigned long long trx_id,
+                    long io_reads,
+                    long long io_read,
+                    long io_reads_wait_timer,
+                    long lock_que_wait_timer,
+                    long que_wait_timer,
+                    long page_access);
+unsigned long thd_log_slow_verbosity(const void* thd);
+int thd_opt_slow_log();
+int thd_is_background_thread(const void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_set_kill_status(const void* thd);

@@ -307,13 +307,6 @@ elif [ -f /etc/debian_version ]; then
 fi
 echo "build-binary.sh: ${WITH_LTO_FLAG} (HOST_RHEL=${HOST_RHEL} HOST_AMZN=${HOST_AMZN} HOST_DIST=${HOST_DIST})"
 
-# Suppress GCC false positives that fire during LTO link on Bison-generated
-# parsers (sql_hints.yy.cc, pars0grm.cc, etc.) and on bundled libs.
-# Distro-built RPMs/DEBs get these via redhat-hardened-cc1 / dpkg-buildflags;
-# the standalone tarball build doesn't, so add them explicitly. Matches the
-# suppressions Oracle uses in their official MySQL RPM/DEB INFO_BIN.
-# Parameterized warnings (-Walloc-size-larger-than=N etc.) require -Wno- form,
-# not -Wno-error= form, in GCC 14+.
 TARBALL_WARN_SUPPRESS="-Wno-free-nonheap-object -Wno-stringop-overflow -Wno-stringop-overread -Wno-alloc-size-larger-than -Wno-array-bounds"
 
 # Common cmake flags shared across PGO instrumentation, PGO consume, and

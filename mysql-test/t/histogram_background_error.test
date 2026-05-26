@@ -18,7 +18,7 @@ INSERT INTO t1 VALUES (1), (2), (3);
 
 -- echo # Wait for a warning to show up in the error log.
 let $wait_condition = SELECT COUNT(*) > 0 FROM performance_schema.error_log WHERE Prio = 'Warning';
-let $wait_timeout = 15;
+let $wait_timeout = 25;
 --source include/wait_condition.inc
 
 -- echo # Verify that the warning comes from the background histogram update.

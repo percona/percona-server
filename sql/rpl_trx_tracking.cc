@@ -279,17 +279,18 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     */
     int64 last_parent = m_writeset_history_start;
     for (std::vector<uint64>::iterator it = writeset->begin();
-         it != writeset->end(); ++it) {
-      Writeset_history::iterator hst = writeset_history->find(*it);
-      if (hst != writeset_history->end()) {
-        if (hst->second > last_parent && hst->second < sequence_number)
-          last_parent = hst->second;
+      it != writeset->end(); ++it) {
+        Writeset_history::iterator hst = writeset_history->find(*it);
 
+      if (hst != writeset_history->end()) {
+        if (hst->second > last_parent && hst->second < sequence_number) {
+          last_parent = hst->second;
+        }
         hst->second = sequence_number;
       } else {
-        if (!exceeds_capacity)
-          writeset_history->insert(
-              std::pair<uint64, int64>(*it, sequence_number));
+        if (!exceeds_capacity) {
+          writeset_history->emplace(*it, sequence_number);
+        }
       }
     }
 

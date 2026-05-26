@@ -3493,6 +3493,58 @@ static bool is_sql_require_primary_key_needed(const LEX *lex) {
 }
 
 /**
+  Checks whether the statement represented by the given LEX object
+  is eligible for database-specific access privileges.
+
+  @param lex  pointer to the LEX object representing the statement being
+              executed.
+  @return     true if the command is eligible for database-specific
+              access privileges; false otherwise.
+ */
+bool static is_command_eligible_for_db_specific_privilege(const LEX *lex) {
+  enum enum_sql_command cmd = lex->sql_command;
+  bool ret{false};
+
+  switch (cmd) {
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_TRUNCATE:
+    case SQLCOM_DROP_TABLE:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_OPTIMIZE:
+    case SQLCOM_ANALYZE:
+    case SQLCOM_RENAME_TABLE:
+    case SQLCOM_REPAIR:
+    case SQLCOM_CREATE_EVENT:
+    case SQLCOM_ALTER_EVENT:
+    case SQLCOM_DROP_EVENT:
+    case SQLCOM_CREATE_PROCEDURE:
+    case SQLCOM_DROP_PROCEDURE:
+    case SQLCOM_ALTER_PROCEDURE:
+    case SQLCOM_CREATE_TRIGGER:
+    case SQLCOM_DROP_TRIGGER:
+    case SQLCOM_ALTER_FUNCTION:
+    case SQLCOM_CREATE_FUNCTION:
+    case SQLCOM_DROP_FUNCTION:
+    case SQLCOM_CREATE_SPFUNCTION:
+    case SQLCOM_CREATE_VIEW:
+    case SQLCOM_DROP_VIEW:
+    case SQLCOM_CREATE_LIBRARY:
+    case SQLCOM_DROP_LIBRARY:
+    case SQLCOM_ALTER_LIBRARY:
+      ret = true;
+      break;
+    default:
+      ret = false;
+  }
+  return ret;
+}
+
+/**
   Returns whether or not the statement held by the `LEX` object parameter
   requires `Q_DEFAULT_TABLE_ENCRYPTION` to be logged together with the
   statement.
@@ -4640,6 +4692,20 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
       mysql_thread_set_secondary_engine(false);
 
+      {
+        auto f1 = [&]() {
+          Applier_security_context_guard sec_context{rli, thd};
+          if (!sec_context.skip_priv_checks() &&
+              !sec_context.has_access({SUPER_ACL}) &&
+              is_command_eligible_for_db_specific_privilege(thd->lex)) {
+            /* Refresh DB access cache */
+            if (mysql_change_db(thd, thd->db(), true)) return true;
+          }
+          return false;
+        };
+        thd->rpl_thd_ctx.post_filters_actions().push_back(f1);
+      }
+
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query().str, thd->query().length)) {
@@ -4989,6 +5055,8 @@ end:
   thd->reset_query();
   thd->lex->sql_command = SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
+  /* Restore original DB state (no default DB) after privilege refresh */
+  mysql_change_db(thd, NULL_CSTR, true);
 
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());

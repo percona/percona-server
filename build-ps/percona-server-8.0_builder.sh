@@ -558,13 +558,6 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
-        # libtirpc-dev is required on every modern Debian/Ubuntu: glibc >= 2.26
-        # removed the built-in Sun RPC implementation, and cmake/rpc.cmake
-        # FATAL_ERRORs if system rpc/rpc.h is absent (it has no bundled-tirpc
-        # fallback despite extra/tirpc/ existing in the tree). Previously this
-        # was only installed for noble/trixie, so every other distro/arch agent
-        # (e.g. aarch64) failed override_dh_auto_configure with
-        # "Could not find rpc/rpc.h". Install it unconditionally.
         apt-get -y install libtirpc-dev
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
@@ -702,7 +695,7 @@ build_srpm(){
     #
 
     # Verify RPMs were actually produced
-    if [ -z "$(find ${WORKDIR}/rpmbuild/RPMS -name '*.rpm' 2>/dev/null)" ]; then
+    if [ -z "$(find ${WORKDIR}/rpmbuild/SRPMS -name '*.rpm' 2>/dev/null)" ]; then
         echo "ERROR: rpmbuild succeeded but no RPM files were generated!"
         exit 1
     fi
@@ -983,21 +976,6 @@ build_deb(){
     echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
     cd ../
-
-    # NOTE: a legacy block here used to force CC=gcc-4.7 / gcc-4.8 for any
-    # DEBIAN_VERSION not present in a hardcoded allowlist (trusty, xenial,
-    # ..., trixie). It was a MySQL 5.6/5.7-era relic and is actively
-    # harmful for the 8.4/9.x line:
-    #   * MySQL 8.4 requires a C++20 toolchain (gcc >= 10); gcc-4.x cannot
-    #     build it even if present.
-    #   * Modern build agents don't ship gcc-4.7/4.8, so cmake aborts with
-    #       Could not find compiler set in environment variable CC: gcc-4.8.
-    #   * Every distro IN the allowlist already builds with the system
-    #     default compiler (the block was skipped for them), so they prove
-    #     the system-default path is correct.
-    #   * USE_THIS_GCC_VERSION it exported was never consumed anywhere.
-    # The block has been removed; let dpkg-buildpackage / cmake use the
-    # agent's default toolchain like the allowlisted distros already do.
 
     if [ ${DEBIAN_VERSION} = "xenial" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules

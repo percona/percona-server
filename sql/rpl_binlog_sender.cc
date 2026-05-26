@@ -1291,6 +1291,11 @@ int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
   size_t ident_len = strlen(p);
   size_t event_len = ident_len + LOG_EVENT_HEADER_LEN +
                      (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+  DBUG_EXECUTE_IF("binlog_sender_header_only_heartbeat_v1", {
+    ident_len = 0;
+    event_len =
+        LOG_EVENT_HEADER_LEN + (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+  };);
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
   if (reset_transmit_packet(0, event_len)) return 1;
@@ -1306,7 +1311,7 @@ int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   int2store(header + FLAGS_OFFSET, 0);
-  memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
+  if (ident_len > 0) memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
   if (event_checksum_on()) calc_event_checksum(header, event_len);
   return send_packet_and_flush();
 }

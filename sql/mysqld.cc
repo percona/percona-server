@@ -641,6 +641,8 @@ SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
+char* enforce_storage_engine= NULL;
+
 /* Thread specific variables */
 
 thread_local_key_t THR_MALLOC;

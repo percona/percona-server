@@ -347,6 +347,8 @@ extern ulong net_buffer_length;
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
+extern char* enforce_storage_engine;
+
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
   using my_set_thread_local()/my_get_thread_local().

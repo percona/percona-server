@@ -8094,10 +8094,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         HB (heartbeat) cannot come before RL (Relay)
       */
       Heartbeat_log_event hb(buf, mi->get_mi_description_event());
-      std::string mi_log_filename{mi->get_master_log_name() != nullptr
-                                      ? mi->get_master_log_name()
-                                      : ""};
-      if (heartbeat_queue_event(hb.is_valid(), mi, hb.get_log_ident(),
+      const char *hb_log_ident = hb.is_valid() && hb.get_log_ident() != nullptr
+                                     ? hb.get_log_ident()
+                                     : "";
+      if (heartbeat_queue_event(hb.is_valid(), mi, hb_log_ident,
                                 hb.header()->log_pos, inc_pos, do_flush_mi))
         goto err;
       else
@@ -8112,9 +8112,6 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       auto hb_log_filename = hb.get_log_filename();
       auto hb_log_position = hb.get_log_position() == 0 ? hb.header()->log_pos
                                                         : hb.get_log_position();
-      std::string mi_log_filename{mi->get_master_log_name() != nullptr
-                                      ? mi->get_master_log_name()
-                                      : ""};
       if (heartbeat_queue_event(hb.is_valid(), mi, hb_log_filename,
                                 hb_log_position, inc_pos, do_flush_mi))
         goto err;

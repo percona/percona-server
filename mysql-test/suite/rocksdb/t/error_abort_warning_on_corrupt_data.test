@@ -25,12 +25,14 @@ select * from t1;
 
 --echo fail server
 SET GLOBAL rocksdb_corrupt_data_action = ABORT_SERVER;
+--source include/expect_crash.inc
 --error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR,1296
 select * from t1;
+--source include/wait_until_disconnected.inc
 
 --remove_file $DATADIR_LOCATION/.rocksdb/ROCKSDB_CORRUPTED
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart" > $_expect_file_name
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
@@ -63,12 +65,14 @@ insert into t2 (sk) values (1), (2) on duplicate key update val = val + 1;
 
 --echo fail server
 SET GLOBAL rocksdb_corrupt_data_action = ABORT_SERVER;
+--source include/expect_crash.inc
 --error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR,1296
 insert into t2 (sk) values (1), (2) on duplicate key update val = val + 1;
+--source include/wait_until_disconnected.inc
 
 --remove_file $DATADIR_LOCATION/.rocksdb/ROCKSDB_CORRUPTED
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart" > $_expect_file_name
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 

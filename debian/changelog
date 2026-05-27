@@ -1,4 +1,4 @@
-percona-server (8.4.8-8~int00) unstable; urgency=medium
+percona-server (8.4.8-8~int01) unstable; urgency=medium
 
   * Packaging for custom 8.4.8 version
 

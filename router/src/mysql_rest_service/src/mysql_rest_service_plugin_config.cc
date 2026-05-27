@@ -202,7 +202,7 @@ class DestinationDynamic : public DestinationStatic {
     return result;
   }
 
-  void stop() {
+  void stop() override {
     if (!state_.is(kStopped)) {
       DestinationNodesStateNotifier *notifier{nullptr};
       auto routing = get_notifier(&notifier);

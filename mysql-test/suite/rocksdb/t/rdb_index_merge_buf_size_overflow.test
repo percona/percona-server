@@ -1,5 +1,7 @@
 --source include/have_rocksdb.inc
 --source include/have_debug.inc
+# ASAN complains when we intentionally try to allocate too much memory.
+--source include/not_asan.inc
 
 --echo #
 --echo # Heap buffer overflow when rocksdb_merge_buf_size > 4GB:

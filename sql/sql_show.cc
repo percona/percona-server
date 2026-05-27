@@ -2791,6 +2791,8 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       packet->append(STRING_WITH_LEN("FULLTEXT KEY "));
     else if (key_info->flags & HA_SPATIAL)
       packet->append(STRING_WITH_LEN("SPATIAL KEY "));
+    else if (key_info->flags & HA_VECTOR)
+      packet->append(STRING_WITH_LEN("KEY "));
     else
       packet->append(STRING_WITH_LEN("KEY "));
 
@@ -2823,7 +2825,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       if (key_part->field &&
           (key_part->length !=
                table->field[key_part->fieldnr - 1]->key_length() &&
-           !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL)))) {
+           !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)))) {
         packet->append_parenthesized((long)key_part->length /
                                      key_part->field->charset()->mbmaxlen);
       }
@@ -3260,6 +3262,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end = longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
+
     assert(((key_info->flags & HA_USES_COMMENT) != 0) ==
            (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT) {
@@ -3285,6 +3288,36 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
                        key_info->secondary_engine_attribute.length);
       packet->append(STRING_WITH_LEN(" */"));
     }
+  }
+
+  if ((key_info->flags & HA_VECTOR) != 0) {
+    assert(key_info->vector_index_type.length > 0);
+    packet->append(STRING_WITH_LEN(" TYPE "));
+    append_identifier(thd, packet, key_info->vector_index_type.str,
+                      key_info->vector_index_type.length);
+  }
+
+  if (!key_info->vector_index_params.empty()) {
+    packet->append(STRING_WITH_LEN(" WITH ("));
+    auto append_param = [&](const auto &param) {
+      const auto &[k, v] = param;
+      append_identifier(thd, packet, k.str, k.length);
+      packet->append('=');
+      int err;
+      const char *endptr;
+      my_strtoll10(v.str, &endptr, &err);
+      if (err <= 0 && endptr == v.str + v.length)
+        packet->append(v.str, v.length);
+      else
+        append_identifier(thd, packet, v.str, v.length);
+    };
+    auto it = key_info->vector_index_params.begin();
+    append_param(*it);
+    for (++it; it != key_info->vector_index_params.end(); ++it) {
+      packet->append(", ");
+      append_param(*it);
+    }
+    packet->append(')');
   }
 }
 
@@ -5570,6 +5603,8 @@ static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
       // INDEX_TYPE
       if (key_info->flags & HA_SPATIAL)
         str = "SPATIAL";
+      else if (key_info->flags & HA_VECTOR)
+        str = "VECTOR";
       else {
         const ha_key_alg key_alg = key_info->algorithm;
         /* If index algorithm is implicit get SE default. */

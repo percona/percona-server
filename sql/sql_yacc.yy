@@ -2148,6 +2148,11 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <index_options> opt_index_options index_options  opt_fulltext_index_options
           fulltext_index_options opt_spatial_index_options spatial_index_options
 
+%type <vector_index_param> vector_index_param
+
+%type <vector_index_param_list> opt_vector_index_param_clause
+          vector_index_param_clause vector_index_param_list
+
 %type <opt_index_lock_and_algorithm> opt_index_lock_and_algorithm
 
 %type <index_option> index_option common_index_option fulltext_index_option
@@ -8161,7 +8166,57 @@ opt_index_type_clause:
 
 index_type_clause:
           USING index_type    { $$= NEW_PTN PT_index_type(@$, $2); }
+        | USING IDENT_sys opt_vector_index_param_clause
+          {
+             // At the moment, we assume that all indexes other than BTREE,
+             // RTREE and HASH are vector indexes.
+             $$= NEW_PTN PT_vector_index_type(@$, to_lex_cstring($2), $3);
+          }
         | TYPE_SYM index_type { $$= NEW_PTN PT_index_type(@$, $2); }
+        | TYPE_SYM IDENT_sys opt_vector_index_param_clause
+          {
+             // For now we assume that all indexes other than BTREE, RTREE
+             // At the moment, we assume that all indexes other than BTREE,
+             $$= NEW_PTN PT_vector_index_type(@$, to_lex_cstring($2), $3);
+          }
+        ;
+
+opt_vector_index_param_clause:
+          %empty { $$.init(YYMEM_ROOT); }
+        | vector_index_param_clause
+        ;
+
+vector_index_param_clause:
+          WITH '(' vector_index_param_list ')'
+          {
+            $$= $3;
+          }
+        ;
+
+vector_index_param_list:
+          vector_index_param
+          {
+            $$.init(YYMEM_ROOT);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | vector_index_param_list ',' vector_index_param
+          {
+            $$= $1;
+            if ($$.push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+vector_index_param:
+          ident EQ ident
+          {
+            $$= NEW_PTN PT_vector_index_param(@$, $1, $3);
+          }
+        | ident EQ NUM
+          {
+            $$= NEW_PTN PT_vector_index_param(@$, $1, $3);
+          }
         ;
 
 visibility:

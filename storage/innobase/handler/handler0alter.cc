@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include <sys/types.h>
 #include "btr0btr.h"
+#include "dict0mem.h"
 #include "ha_prototypes.h"
 
 #include "db0err.h"
@@ -85,6 +86,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0ddl.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "mysql/components/services/bulk_data_service.h"
@@ -2689,7 +2691,7 @@ static void innobase_create_index_def(const TABLE *altered_table,
   }
 
   if (key_clustered) {
-    assert(!(key->flags & (HA_FULLTEXT | HA_SPATIAL)));
+    assert(!(key->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)));
     assert(key->flags & HA_NOSAME);
     index_def->m_ind_type = DICT_CLUSTERED | DICT_UNIQUE;
   } else if (key->flags & HA_FULLTEXT) {
@@ -2754,6 +2756,9 @@ static void innobase_create_index_def(const TABLE *altered_table,
     } else {
       index_def->m_fields[0].m_is_v_col = false;
     }
+  } else if (key->flags & HA_VECTOR) {
+    assert(!(key->flags & HA_NOSAME));
+    index_def->m_ind_type = DICT_VECTOR;
   } else {
     index_def->m_ind_type = (key->flags & HA_NOSAME) ? DICT_UNIQUE : 0;
   }
@@ -7385,7 +7390,7 @@ static void alter_stats_norebuild(Alter_inplace_info *ha_alter_info,
   for (i = 0; i < ha_alter_info->index_drop_count; i++) {
     const KEY *key = ha_alter_info->index_drop_buffer[i];
 
-    if (key->flags & HA_FULLTEXT) {
+    if (key->flags & (HA_FULLTEXT | HA_VECTOR)) {
       /* There are no index cardinality
       statistics for FULLTEXT indexes. */
       continue;
@@ -10205,9 +10210,9 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
       const KEY *key =
           &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
-      if (key->flags & HA_FULLTEXT) {
+      if (key->flags & (HA_FULLTEXT | HA_VECTOR)) {
         assert(!(key->flags & HA_KEYFLAG_MASK &
-                 ~(HA_FULLTEXT | HA_PACK_KEY | HA_GENERATED_KEY |
+                 ~(HA_FULLTEXT | HA_VECTOR | HA_PACK_KEY | HA_GENERATED_KEY |
                    HA_BINARY_PACK_KEY)));
         ha_alter_info->unsupported_reason =
             innobase_get_err_msg(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING);

@@ -1,0 +1,9 @@
+CREATE TABLE t1 (
+a CHAR( 2 ),
+KEY ( a(1) )
+) ENGINE = ROCKSDB;
+# Ensure the index type is SE_SPECIFIC and doesn't erroneously show up a VECTOR
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	1	NULL	YES	SE_SPECIFIC			YES	NULL
+DROP TABLE t1;

@@ -25,6 +25,7 @@
 #define KEY_SPEC_INCLUDED
 
 #include <sys/types.h>
+#include <utility>
 
 #include "lex_string.h"
 #include "my_base.h"
@@ -34,8 +35,15 @@
 
 class Create_field;
 class Item;
+class PT_index_construction_parameter;
 class THD;
 struct MEM_ROOT;
+
+using Index_construction_parameters =
+    Mem_root_array_YY<PT_index_construction_parameter *>;
+
+using Construction_params =
+    Mem_root_array_YY<std::pair<LEX_CSTRING, LEX_CSTRING>>;
 
 enum keytype {
   KEYTYPE_PRIMARY = 0,
@@ -43,7 +51,8 @@ enum keytype {
   KEYTYPE_MULTIPLE = 2,
   KEYTYPE_FULLTEXT = 4,
   KEYTYPE_SPATIAL = 8,
-  KEYTYPE_FOREIGN = 16
+  KEYTYPE_FOREIGN = 16,
+  KEYTYPE_VECTOR = 32,
 };
 
 enum fk_option {
@@ -75,6 +84,8 @@ class KEY_CREATE_INFO {
   ulong block_size = 0;
   LEX_CSTRING parser_name = {NullS, 0};
   LEX_CSTRING comment = {NullS, 0};
+  LEX_CSTRING vector_index_type = {NullS, 0};
+  const Construction_params *construction_params = nullptr;
   bool is_visible = true;
 
   KEY_CREATE_INFO() = default;
@@ -219,6 +230,7 @@ class Key_spec {
     associated with it was dropped.
   */
   const bool check_for_duplicate_indexes;
+  Mem_root_array<std::pair<LEX_CSTRING, LEX_CSTRING>> construction_params;
 
   Key_spec(MEM_ROOT *mem_root, keytype type_par, const LEX_CSTRING &name_arg,
            const KEY_CREATE_INFO *key_info_arg, bool generated_arg,
@@ -228,7 +240,8 @@ class Key_spec {
         columns(mem_root),
         name(name_arg),
         generated(generated_arg),
-        check_for_duplicate_indexes(check_for_duplicate_indexes_arg) {
+        check_for_duplicate_indexes(check_for_duplicate_indexes_arg),
+        construction_params(mem_root) {
     columns.reserve(cols.elements);
     List_iterator<Key_part_spec> it(cols);
     Key_part_spec *column;

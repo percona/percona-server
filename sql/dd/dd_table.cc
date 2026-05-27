@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <memory>  // unique_ptr
 #include <unordered_map>
+#include <utility>
 
 #include "lex_string.h"
 #include "m_string.h"
@@ -825,6 +826,13 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(
 
     case HA_KEY_ALG_FULLTEXT:
       return dd::Index::IA_FULLTEXT;
+
+    /**
+      Vector indexes are labeled SE_SPECIFIC in the DD since adding a new enum
+      value would cause an incompatible change. (Percona)
+    */
+    case HA_KEY_ALG_VECTOR:
+      return dd::Index::IA_SE_SPECIFIC;
   }
 
   /* purecov: begin deadcode */
@@ -836,6 +844,10 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(
 }
 
 static dd::Index::enum_index_type dd_get_new_index_type(const KEY *key) {
+  // See comment in dd_get_new_index_algorithm_type() regarding
+  // HA_KEY_ALG_VECTOR (Percona)
+  if (key->flags & HA_VECTOR) return dd::Index::IT_MULTIPLE;
+
   if (key->flags & HA_FULLTEXT) return dd::Index::IT_FULLTEXT;
 
   if (key->flags & HA_SPATIAL) return dd::Index::IT_SPATIAL;
@@ -1131,6 +1143,32 @@ static void fill_dd_indexes_from_keyinfo(
 
     if (key->parser_name.str)
       idx_options->set("parser_name", key->parser_name.str);
+
+    if (key->vector_index_type.length > 0) {
+      idx_options->set(dd::PERCONA_VECTOR_INDEX_MARKER, "1");
+      idx_options->set(dd::PERCONA_VECTOR_INDEX_TYPE_KEY,
+                       dd::String_type(key->vector_index_type.str,
+                                       key->vector_index_type.length));
+    }
+
+    if (key->vector_construction_params != nullptr &&
+        !key->vector_construction_params->empty()) {
+      std::unique_ptr<dd::Properties> params_props(
+          dd::Properties::parse_properties(""));
+      assert(params_props != nullptr);
+      params_props->set(PERCONA_VECTOR_INDEX_MARKER, "1");
+      for (const auto &[k, v] : *key->vector_construction_params) {
+        if (params_props->set(
+                PERCONA_VECTOR_PREFIX + dd::String_type(k.str, k.length),
+                dd::String_type(v.str, v.length))) {
+          assert(false);
+        }
+      }
+      if (idx_options->set(PERCONA_VECTOR_CONSTRUCTION_PARAMS,
+                           params_props->raw_string())) {
+        assert(false);
+      }
+    }
 
     /*
       If we have no primary key, then we pick the first candidate primary

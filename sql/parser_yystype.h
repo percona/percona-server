@@ -82,6 +82,7 @@ class PT_column_def;
 class PT_common_table_expr;
 class PT_create_index_stmt;
 class PT_create_table_option;
+class PT_index_construction_parameter;
 class PT_ddl_table_option;
 class PT_derived_table;
 class PT_exclusion;
@@ -528,6 +529,9 @@ union MY_SQL_PARSER_STYPE {
   } index_name_and_type;
   PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
+  PT_index_construction_parameter *index_construction_parameter;
+  Mem_root_array_YY<PT_index_construction_parameter *>
+      index_construction_parameter_list;
   Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
   PT_with_clause *with_clause;

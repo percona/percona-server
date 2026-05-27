@@ -218,6 +218,9 @@ static dict_index_t *dict_index_build_internal_fts(
     dict_table_t *table,  /*!< in: table */
     dict_index_t *index); /*!< in: user representation of an FTS index */
 
+static dict_index_t *dict_index_build_internal_vec(dict_table_t *table,
+                                                   dict_index_t *index);
+
 /** Removes an index from the dictionary cache. */
 static void dict_index_remove_from_cache_low(
     dict_table_t *table, /*!< in/out: table */
@@ -2215,9 +2218,8 @@ out if this is violated for records of maximum possible length of this index.
 @return true if the index record could become too big */
 static bool dict_index_too_big_for_tree(const dict_table_t *table,
                                         const dict_index_t *new_index) {
-  /* FTS index consists of auxiliary tables, they shall be excluded from index
-  row size check */
-  if (new_index->type & DICT_FTS) {
+  /* FTS and vector indexes use auxiliary tables, not a standard B-tree */
+  if (new_index->type & (DICT_FTS | DICT_VECTOR)) {
     return (false);
   }
 
@@ -2446,6 +2448,8 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
 
   if (index->type == DICT_FTS) {
     new_index = dict_index_build_internal_fts(table, index);
+  } else if (dict_index_is_vector(index)) {
+    new_index = dict_index_build_internal_vec(table, index);
   } else if (index->is_clustered()) {
     new_index = dict_index_build_internal_clust(table, index);
   } else {
@@ -3284,6 +3288,36 @@ static dict_index_t *dict_index_build_internal_fts(
 
   return (new_index);
 }
+
+static dict_index_t *dict_index_build_internal_vec(
+    dict_table_t *table, /*!< in: table */
+    dict_index_t *index) /*!< in: user representation of a vector index */
+{
+  ut_ad(table && index);
+  ut_ad(dict_index_is_vector(index));
+  ut_ad(!dict_sys_mutex_own());
+  ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+  /* Create a new index */
+  auto new_index =
+      dict_mem_index_create(table->name.m_name, index->name, index->space,
+                            index->type, index->n_fields);
+
+  /* Copy other relevant data from the old index struct to the new
+  struct: it inherits the values */
+
+  new_index->n_user_defined_cols = index->n_fields;
+
+  new_index->id = index->id;
+
+  /* Copy fields from index to new_index */
+  dict_index_copy(new_index, index, table, 0, index->n_fields);
+
+  new_index->n_uniq = 0;
+  new_index->cached = true;
+
+  return (new_index);
+}
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
 /** Checks if a table is referenced by foreign keys.
@@ -3371,7 +3405,8 @@ NOT NULL */
 
   while (index != nullptr) {
     if (types_idx != index && !(index->type & DICT_FTS) &&
-        !dict_index_is_spatial(index) && !index->to_be_dropped &&
+        !(index->type & DICT_VECTOR) && !dict_index_is_spatial(index) &&
+        !index->to_be_dropped &&
         (!(index->uncommitted &&
            ((index->online_status == ONLINE_INDEX_ABORTED_DROPPED) ||
             (index->online_status == ONLINE_INDEX_ABORTED)))) &&
@@ -3628,6 +3663,7 @@ bool dict_index_check_search_tuple(
   ut_ad(index->page >= FSP_FIRST_INODE_PAGE_NO);
   ut_ad(dtuple_check_typed(tuple));
   ut_ad(!(index->type & DICT_FTS));
+  ut_ad(!(index->type & DICT_VECTOR));
   return true;
 }
 #endif /* UNIV_DEBUG */

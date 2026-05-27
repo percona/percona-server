@@ -5150,6 +5150,10 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       errmsg = "Defining a virtual generated column as primary key";
       functional_index_error_handler.force_error_code(
           ER_FUNCTIONAL_INDEX_PRIMARY_KEY);
+    } else if (key->type == KEYTYPE_VECTOR) {
+      errmsg = "Vector index on virtual generated column";
+      functional_index_error_handler.force_error_code(
+          ER_INDEX_MUST_HAVE_COMPATIBLE_COLUMN);
     }
 
     if (errmsg) {
@@ -5175,8 +5179,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
-  // VECTOR columns cannot be used as keys
-  if (sql_field->sql_type == MYSQL_TYPE_VECTOR) {
+  if (sql_field->sql_type == MYSQL_TYPE_VECTOR &&
+      ((key_info->flags & HA_VECTOR) == 0)) {
     my_error(ER_NON_SCALAR_USED_AS_KEY, MYF(0), column->get_field_name());
     return true;
   }
@@ -5227,6 +5231,14 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       data prefix, ignoring column->length).
     */
     column_length = is_blob(sql_field->sql_type);
+  } else if (key->type == KEYTYPE_VECTOR) {
+    // VECTOR indexes are only allowed on VECTOR columns.
+    if (sql_field->sql_type != MYSQL_TYPE_VECTOR || sql_field->is_nullable) {
+      my_error(ER_INDEX_MUST_HAVE_COMPATIBLE_COLUMN, MYF(0), "VECTOR",
+               "VECTOR NOT NULL");
+      return true;
+    }
+    column_length = 1;  // Dummy value.
   } else {
     switch (sql_field->sql_type) {
       case MYSQL_TYPE_GEOMETRY:
@@ -5469,7 +5481,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   }
 
   if (key_part_length > file->max_key_part_length(create_info) &&
-      key->type != KEYTYPE_FULLTEXT) {
+      key->type != KEYTYPE_FULLTEXT && key->type != KEYTYPE_VECTOR) {
     key_part_length = file->max_key_part_length(create_info);
     if (key->type & KEYTYPE_MULTIPLE) {
       /* not a critical problem */
@@ -5833,7 +5845,7 @@ static bool prepare_self_ref_fk_parent_key(
   for (const KEY *key = key_info_buffer; key < key_info_buffer + key_count;
        key++) {
     // We can't use FULLTEXT or SPATIAL indexes.
-    if (key->flags & (HA_FULLTEXT | HA_SPATIAL)) continue;
+    if (key->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)) continue;
 
     if (hton->foreign_keys_flags &
         HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS) {
@@ -6036,7 +6048,7 @@ static const KEY *find_fk_supporting_key(handlerton *hton,
   for (const KEY *key = key_info_buffer; key < key_info_buffer + key_count;
        key++) {
     // We can't use FULLTEXT or SPATIAL indexes.
-    if (key->flags & (HA_FULLTEXT | HA_SPATIAL)) continue;
+    if (key->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)) continue;
 
     if (key->algorithm == HA_KEY_ALG_HASH) {
       if (hton->foreign_keys_flags & HTON_FKS_WITH_SUPPORTING_HASH_KEYS) {
@@ -7673,6 +7685,13 @@ static bool prepare_key(
     return true;
   if (key_info->comment.length > 0) key_info->flags |= HA_USES_COMMENT;
 
+  if (key->type == KEYTYPE_VECTOR) {
+    key_info->vector_index_type.length =
+        key->key_create_info.vector_index_type.length;
+    key_info->vector_index_type.str =
+        key->key_create_info.vector_index_type.str;
+  }
+
   key_info->engine_attribute = key->key_create_info.m_engine_attribute;
   if (key_info->engine_attribute.length > 0)
     key_info->flags |= HA_INDEX_USES_ENGINE_ATTRIBUTE;
@@ -7685,6 +7704,17 @@ static bool prepare_key(
 #endif /* NDEBUG */
   switch (static_cast<int>(key->type)) {
     case KEYTYPE_MULTIPLE:
+      break;
+    case KEYTYPE_VECTOR:
+      if (!(file->ha_table_flags() & HA_CAN_VECTOR)) {
+        my_error(ER_TABLE_CANT_HANDLE_INDEX, MYF(0), "vector");
+        return true;
+      }
+      if (key->columns.size() != 1) {
+        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+        return true;
+      }
+      key_info->flags |= HA_VECTOR;
       break;
     case KEYTYPE_FULLTEXT:
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT)) {
@@ -7721,6 +7751,16 @@ static bool prepare_key(
   assert((key_info->flags & flags_before_switch) == flags_before_switch);
   if (key->generated) key_info->flags |= HA_GENERATED_KEY;
 
+  // Copy vector index construction params (WITH clause).
+  if (!key->construction_params.empty()) {
+    auto *params = new (thd->mem_root) Construction_params;
+    params->init(thd->mem_root);
+    for (const auto &[k, v] : key->construction_params) {
+      params->push_back({k, v});
+    }
+    key_info->vector_construction_params = params;
+  }
+
   key_info->algorithm = key->key_create_info.algorithm;
   key_info->user_defined_key_parts = key->columns.size();
   key_info->actual_key_parts = key_info->user_defined_key_parts;
@@ -7743,6 +7783,9 @@ static bool prepare_key(
   } else if (key_info->flags & HA_FULLTEXT) {
     assert(!key->key_create_info.is_algorithm_explicit);
     key_info->algorithm = HA_KEY_ALG_FULLTEXT;
+  } else if (key_info->flags & HA_VECTOR) {
+    assert(!key->key_create_info.is_algorithm_explicit);
+    key_info->algorithm = HA_KEY_ALG_VECTOR;
   } else {
     if (key->key_create_info.is_algorithm_explicit) {
       if (key->key_create_info.algorithm != HA_KEY_ALG_RTREE) {
@@ -8644,6 +8687,7 @@ bool mysql_prepare_create_table(
 
   uint key_number = 0;
   bool primary_key = false;
+  uint vector_key_number = 0;
 
   // First prepare non-foreign keys so that they are ready when
   // we prepare foreign keys.
@@ -8658,6 +8702,15 @@ bool mysql_prepare_create_table(
         return true;
       }
       primary_key = true;
+    }
+
+    if (key->type == KEYTYPE_VECTOR) {
+      if (vector_key_number != 0U) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "multiple vector indexes on a single table");
+        return true;
+      }
+      ++vector_key_number;
     }
 
     if (key->type != KEYTYPE_FOREIGN) {
@@ -8723,6 +8776,51 @@ bool mysql_prepare_create_table(
 
   /* Sort keys in optimized order */
   std::sort(*key_info_buffer, *key_info_buffer + *key_count, sort_keys());
+
+  // We allow VECTOR indexes only on tables with BIGINT UNSIGNED PKs.
+  // After sorting, key_info_buffer[0] is the PK or a promoted UNIQUE NOT
+  // NULL key. If neither exists, reject.
+  if (vector_key_number) {
+    if (*key_count == 0 || !((*key_info_buffer)[0].flags & HA_NOSAME) ||
+        ((*key_info_buffer)[0].flags & HA_NULL_PART_KEY)) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "vector indexes on tables lacking a BIGINT UNSIGNED single "
+               "column primary key");
+      return true;
+    }
+
+    if (is_partitioned) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "vector indexes on partitioned tables");
+      return true;
+    }
+
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "vector indexes on temporary tables");
+      return true;
+    }
+
+    const KEY &primary_info = (*key_info_buffer)[0];
+
+    if (primary_info.actual_key_parts > 1) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "vector indexes on tables lacking a BIGINT UNSIGNED single "
+               "column primary key");
+      return true;
+    }
+
+    for (it.rewind(), field_no = 0; (sql_field = it++); field_no++) {
+      if (field_no >= primary_info.key_part[0].fieldnr) break;
+    }
+    assert(sql_field);
+    if (sql_field->sql_type != MYSQL_TYPE_LONGLONG || !sql_field->is_unsigned) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "vector indexes on tables lacking a BIGINT UNSIGNED single "
+               "column primary key");
+      return true;
+    }
+  }
 
   /*
     Normal keys are done, now prepare foreign keys.
@@ -16192,8 +16290,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
          */
         if (!Field::type_can_have_key_part(cfield->field->type()) ||
             !Field::type_can_have_key_part(cfield->sql_type) ||
-            /* spatial keys can't have sub-key length */
-            (key_info->flags & HA_SPATIAL) ||
+            /* spatial and vector keys can't have sub-key length */
+            (key_info->flags & (HA_SPATIAL | HA_VECTOR)) ||
             (cfield->field->field_length == key_part_length &&
              key_part->field->type() != MYSQL_TYPE_BLOB) ||
             (cfield->max_display_width_in_codepoints() &&
@@ -16290,6 +16388,12 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment = key_info->comment;
 
+      if (key_info->vector_index_type.str != nullptr)
+        key_create_info.vector_index_type = key_info->vector_index_type;
+      if (key_info->vector_construction_params != nullptr)
+        key_create_info.construction_params =
+            key_info->vector_construction_params;
+
       if (key_info->engine_attribute.str != nullptr)
         key_create_info.m_engine_attribute = key_info->engine_attribute;
 
@@ -16319,6 +16423,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           key_type = KEYTYPE_UNIQUE;
       } else if (key_info->flags & HA_FULLTEXT)
         key_type = KEYTYPE_FULLTEXT;
+      else if (key_info->flags & HA_VECTOR)
+        key_type = KEYTYPE_VECTOR;
       else
         key_type = KEYTYPE_MULTIPLE;
 
@@ -16330,6 +16436,11 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           Key_spec(thd->mem_root, key_type, to_lex_cstring(key_name),
                    &key_create_info, (key_info->flags & HA_GENERATED_KEY),
                    index_column_dropped, key_parts);
+      if (key_create_info.construction_params != nullptr) {
+        for (const auto &[k, v] : *key_create_info.construction_params) {
+          key->construction_params.push_back({k, v});
+        }
+      }
       new_key_list.push_back(key);
       if (skip_secondary && key_type & KEYTYPE_MULTIPLE) {
         delayed_key_list.push_back(key);
@@ -20595,6 +20706,11 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "ENCRYPTION");
       return true;
     }
+  }
+
+  if (auto vea = (*new_engine)->validate_engine_attributes;
+      vea != nullptr && vea(thd, db_name, create_info, alter_info)) {
+    return true;
   }
 
   return false;

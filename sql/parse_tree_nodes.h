@@ -530,7 +530,8 @@ class PT_table_sequence_function : public PT_table_reference {
   typedef PT_table_reference super;
 
  public:
-  PT_table_sequence_function(const POS &pos, Item *expr, const LEX_CSTRING &table_alias)
+  PT_table_sequence_function(const POS &pos, Item *expr,
+                             const LEX_CSTRING &table_alias)
       : super(pos), m_expr(expr), m_table_alias(table_alias) {}
 
   bool do_contextualize(Parse_context *pc) override;
@@ -2506,6 +2507,43 @@ typedef PT_index_option<bool, &KEY_CREATE_INFO::is_visible> PT_index_visibility;
 typedef PT_traceable_index_option<ha_key_alg, &KEY_CREATE_INFO::algorithm,
                                   &KEY_CREATE_INFO::is_algorithm_explicit>
     PT_index_type;
+
+/**
+  A single key=value parameter in an index construction clause.
+*/
+class PT_index_construction_parameter : public Parse_tree_node {
+ public:
+  PT_index_construction_parameter(const POS &pos, const LEX_STRING &key,
+                                  const LEX_STRING &value)
+      : Parse_tree_node(pos), m_key(key), m_value(value) {}
+
+  [[nodiscard]] const LEX_STRING &key() const { return m_key; }
+  [[nodiscard]] const LEX_STRING &value() const { return m_value; }
+
+ private:
+  LEX_STRING m_key;
+  LEX_STRING m_value;
+};
+
+/**
+  Index option for vector index type with optional construction parameters.
+
+  Represents TYPE <type_name> [WITH (key=value, ...)] in index definitions.
+*/
+class PT_vector_index_type : public PT_base_index_option {
+ public:
+  PT_vector_index_type(const POS &pos, LEX_CSTRING type_name,
+                       Index_construction_parameters construction_params)
+      : PT_base_index_option(pos),
+        m_type_name(type_name),
+        m_construction_params(construction_params) {}
+
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
+
+ private:
+  LEX_CSTRING m_type_name;
+  Index_construction_parameters m_construction_params;
+};
 
 class PT_create_index_stmt final : public PT_table_ddl_stmt_base {
  public:

@@ -37,11 +37,20 @@ class THD;
 struct TABLE_SHARE;
 
 namespace dd {
+class Index;
 class Table;
 class Abstract_table;
 
+constexpr const char *PERCONA_VECTOR_PREFIX = "PS_";
+constexpr const char *PERCONA_VECTOR_INDEX_MARKER = "PS_is_vector_index";
+constexpr const char *PERCONA_VECTOR_INDEX_TYPE_KEY = "PS_vector_index_type";
+constexpr const char *PERCONA_VECTOR_CONSTRUCTION_PARAMS =
+    "vector_construction_params";
+
 enum class enum_column_types;
 }  // namespace dd
+
+bool is_vector_index(const dd::Index &idx_obj);
 
 /**
   Read the table definition from the data-dictionary.

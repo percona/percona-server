@@ -2791,6 +2791,8 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       packet->append(STRING_WITH_LEN("FULLTEXT KEY "));
     else if (key_info->flags & HA_SPATIAL)
       packet->append(STRING_WITH_LEN("SPATIAL KEY "));
+    else if (key_info->flags & HA_VECTOR)
+      packet->append(STRING_WITH_LEN("KEY "));
     else
       packet->append(STRING_WITH_LEN("KEY "));
 
@@ -2823,7 +2825,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       if (key_part->field &&
           (key_part->length !=
                table->field[key_part->fieldnr - 1]->key_length() &&
-           !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL)))) {
+           !(key_info->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)))) {
         packet->append_parenthesized((long)key_part->length /
                                      key_part->field->charset()->mbmaxlen);
       }
@@ -3260,6 +3262,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end = longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
+
     assert(((key_info->flags & HA_USES_COMMENT) != 0) ==
            (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT) {
@@ -3285,6 +3288,25 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
                        key_info->secondary_engine_attribute.length);
       packet->append(STRING_WITH_LEN(" */"));
     }
+  }
+
+  if (key_info->vector_index_type.length > 0) {
+    packet->append(STRING_WITH_LEN(" TYPE "));
+    append_identifier(thd, packet, key_info->vector_index_type.str,
+                      key_info->vector_index_type.length);
+  }
+
+  if (key_info->vector_construction_params != nullptr &&
+      key_info->vector_construction_params->size() > 0) {
+    packet->append(STRING_WITH_LEN(" WITH ("));
+    for (size_t i = 0; i < key_info->vector_construction_params->size(); i++) {
+      if (i > 0) packet->append(STRING_WITH_LEN(", "));
+      const auto &[k, v] = (*key_info->vector_construction_params)[i];
+      append_identifier(thd, packet, k.str, k.length);
+      packet->append('=');
+      packet->append(v.str, v.length);
+    }
+    packet->append(')');
   }
 }
 
@@ -5482,6 +5504,23 @@ static int fill_schema_engines(THD *thd, Table_ref *tables, Item *) {
 #define TMP_TABLE_KEYS_IS_VISIBLE 14
 #define TMP_TABLE_KEYS_EXPRESSION 15
 
+/**
+  Detect vector indexes for SHOW INDEX output.
+
+  @param[in] key_info index metadata from TABLE_SHARE
+
+  @return Whether this is a vector index.
+*/
+static bool is_show_index_vector_type(const KEY *key_info) {
+  if (key_info->flags & HA_VECTOR) return true;
+
+  if (key_info->user_defined_key_parts != 1) return false;
+
+  const KEY_PART_INFO *key_part = key_info->key_part;
+  return key_part != nullptr && key_part->field != nullptr &&
+         key_part->field->real_type() == MYSQL_TYPE_VECTOR;
+}
+
 static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
                                             TABLE *table, bool res, LEX_CSTRING,
                                             LEX_CSTRING table_name) {
@@ -5570,6 +5609,8 @@ static int get_schema_tmp_table_keys_record(THD *thd, Table_ref *tables,
       // INDEX_TYPE
       if (key_info->flags & HA_SPATIAL)
         str = "SPATIAL";
+      else if (is_show_index_vector_type(key_info))
+        str = "VECTOR";
       else {
         const ha_key_alg key_alg = key_info->algorithm;
         /* If index algorithm is implicit get SE default. */

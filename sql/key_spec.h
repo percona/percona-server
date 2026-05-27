@@ -43,7 +43,8 @@ enum keytype {
   KEYTYPE_MULTIPLE = 2,
   KEYTYPE_FULLTEXT = 4,
   KEYTYPE_SPATIAL = 8,
-  KEYTYPE_FOREIGN = 16
+  KEYTYPE_FOREIGN = 16,
+  KEYTYPE_VECTOR = 32,
 };
 
 enum fk_option {

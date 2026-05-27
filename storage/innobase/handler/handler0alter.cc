@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 #include <sys/types.h>
 #include "btr0btr.h"
+#include "dict0mem.h"
 #include "ha_prototypes.h"
 
 #include "db0err.h"
@@ -85,6 +86,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0ddl.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "mysql/components/services/bulk_data_service.h"
@@ -2689,7 +2691,7 @@ static void innobase_create_index_def(const TABLE *altered_table,
   }
 
   if (key_clustered) {
-    assert(!(key->flags & (HA_FULLTEXT | HA_SPATIAL)));
+    assert(!(key->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)));
     assert(key->flags & HA_NOSAME);
     index_def->m_ind_type = DICT_CLUSTERED | DICT_UNIQUE;
   } else if (key->flags & HA_FULLTEXT) {
@@ -2754,6 +2756,9 @@ static void innobase_create_index_def(const TABLE *altered_table,
     } else {
       index_def->m_fields[0].m_is_v_col = false;
     }
+  } else if (key->flags & HA_VECTOR) {
+    assert(!(key->flags & HA_NOSAME));
+    index_def->m_ind_type = DICT_VECTOR;
   } else {
     index_def->m_ind_type = (key->flags & HA_NOSAME) ? DICT_UNIQUE : 0;
   }

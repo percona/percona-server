@@ -134,6 +134,22 @@ static inline ulint dict_index_is_spatial(
   return (index->type & DICT_SPATIAL);
 }
 
+/**
+  Check whether the index is a vector index.
+
+  @param[in] index Index.
+
+  @return Nonzero for vector index, zero for other indexes
+*/
+static inline ulint dict_index_is_vector(
+    const dict_index_t *index) /*!< in: index */
+{
+  ut_ad(index);
+  ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+  return (index->is_vector());
+}
+
 /** Check whether the index contains a virtual column
 @param[in]      index   index
 @return nonzero for the index has virtual column, zero for other indexes */

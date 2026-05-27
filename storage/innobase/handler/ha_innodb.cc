@@ -3232,7 +3232,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
           HA_ATTACHABLE_TRX_COMPATIBLE | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN |
           HA_DESCENDING_INDEX | HA_MULTI_VALUED_KEY_SUPPORT |
           HA_BLOB_PARTIAL_UPDATE | HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN |
-          HA_SUPPORTS_DEFAULT_EXPRESSION | HA_ONLINE_ANALYZE),
+          HA_SUPPORTS_DEFAULT_EXPRESSION | HA_ONLINE_ANALYZE | HA_CAN_VECTOR),
       m_start_of_scan(),
       m_stored_select_lock_type(LOCK_NONE_UNSET),
       m_mysql_has_locked() {}
@@ -5751,13 +5751,13 @@ static int innodb_init(void *p) {
   innobase_hton->lock_hton_log = innobase_lock_hton_log;
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
-  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
-                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
-                         HTON_SUPPORTS_TABLE_ENCRYPTION |
-                         HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
-                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK |
-                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
+  innobase_hton->flags =
+      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
+      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
+      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD |
+      HTON_SUPPORTS_SQL_FK | HTON_SUPPORTS_ONLINE_BACKUPS |
+      HTON_SUPPORTS_COMPRESSED_COLUMNS;
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
 
@@ -8304,7 +8304,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     dict_table_autoinc_unlock(ib_table);
   }
 
-  /* Set plugin parser for fulltext index */
+  /* Set plugin parser for fulltext index / handle vector index. */
   for (uint i = 0; i < table->s->keys; i++) {
     if (table->key_info[i].flags & HA_USES_PARSER) {
       dict_index_t *index = innobase_get_index(i);
@@ -11020,7 +11020,7 @@ int ha_innobase::index_read(
                                  : HA_ERR_TABLE_DEF_CHANGED;
   }
 
-  if (index->type & DICT_FTS) {
+  if (index->type & (DICT_FTS | DICT_VECTOR)) {
     return HA_ERR_KEY_NOT_FOUND;
   }
 
@@ -12870,6 +12870,10 @@ inline int create_index(
   /* We pass 0 as the space id, and determine at a lower level the space
   id where to store the table */
 
+  if (key->flags & HA_VECTOR) {
+    ind_type |= DICT_VECTOR;
+  }
+
   index = dict_mem_index_create(table_name, key->name, 0, ind_type,
                                 key->user_defined_key_parts);
 
@@ -12965,6 +12969,7 @@ inline int create_index(
   }
 
   ut_ad(key->flags & HA_FULLTEXT || !(index->type & DICT_FTS));
+  ut_ad((key->flags & HA_VECTOR) || !(index->type & DICT_VECTOR));
 
   multi_val_idx = ((index->type & DICT_MULTI_VALUE) == DICT_MULTI_VALUE);
 
@@ -14060,7 +14065,7 @@ bool create_table_info_t::innobase_table_flags() {
       if (fts_doc_id_index_bad) {
         goto index_bad;
       }
-    } else if (key->flags & HA_SPATIAL) {
+    } else if (key->flags & (HA_SPATIAL | HA_VECTOR)) {
       assert(~m_create_info->options &
              (HA_LEX_CREATE_TMP_TABLE | HA_LEX_CREATE_INTERNAL_TMP_TABLE));
     }
@@ -15657,14 +15662,31 @@ int innobase_truncate<Table>::exec() {
 template int innobase_truncate<dd::Table>::exec();
 template int innobase_truncate<dd::Partition>::exec();
 
-/** Check if a column is the only column in an index.
-@param[in]      index   data dictionary index
-@param[in]      column  the column to look for
-@return whether the column is the only column in the index */
+/**
+  Check if a column is the only column in an index.
+
+  @param[in]      index   data dictionary index
+  @param[in]      column  the column to look for
+
+  @return Whether the column is the only column in the index.
+*/
 static bool dd_is_only_column(const dd::Index *index,
                               const dd::Column *column) {
   return (index->elements().size() == 1 &&
           &(*index->elements().begin())->column() == column);
+}
+
+/**
+  Check if an index uses marker-based vector metadata.
+
+  @param[in]      index   data dictionary index
+
+  @return Whether the index is a vector index.
+*/
+static bool dd_is_vector_index(const dd::Index *index) {
+  return index->algorithm() == dd::Index::IA_SE_SPECIFIC &&
+         index->type() == dd::Index::IT_MULTIPLE &&
+         index->options().exists("vector_index_type");
 }
 
 /** Add hidden columns and indexes to an InnoDB table definition.
@@ -15692,6 +15714,10 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
       ut_ad(!fts_doc_id_index);
       ut_ad(i->type() != dd::Index::IT_PRIMARY);
       fts_doc_id_index = i;
+    }
+
+    if (dd_is_vector_index(i)) {
+      continue;
     }
 
     switch (i->algorithm()) {
@@ -18335,7 +18361,8 @@ void ha_innobase::info_low_key(uint flag, const dict_table_t *ib_table) {
     /* We do not maintain stats for fulltext or spatial indexes. Thus, we can't
     calculate pct_cached below because we need dict_index_t::stat_n_leaf_pages
     for that. See dict_stats_should_ignore_index(). */
-    if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL)) {
+    if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL) ||
+        (key->flags & HA_VECTOR)) {
       pct_cached = IN_MEMORY_ESTIMATE_UNKNOWN;
     } else {
       pct_cached = index_pct_cached(index);
@@ -18353,7 +18380,8 @@ void ha_innobase::info_low_key(uint flag, const dict_table_t *ib_table) {
       }
 
       for (ulong j = 0; j < key->actual_key_parts; j++) {
-        if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL)) {
+        if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL) ||
+            (key->flags & HA_VECTOR)) {
           /* The record per key does not apply to FTS or Spatial indexes. */
           key->set_records_per_key(j, 1.0f);
           continue;
@@ -18679,7 +18707,7 @@ static bool innobase_get_index_column_cardinality(
       }
 
       DEBUG_SYNC(thd, "innodb.after_init_check");
-      if (index->type & (DICT_FTS | DICT_SPATIAL)) {
+      if (index->type & (DICT_FTS | DICT_SPATIAL | DICT_VECTOR)) {
         /* For these indexes innodb_rec_per_key is
         fixed as 1.0 */
         *cardinality = ib_table->stat_n_rows;

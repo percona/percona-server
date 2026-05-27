@@ -297,6 +297,12 @@ namespace info_schema {
   Changes:
   - WL#16779 User controlled aliasing for 'utf8'
   A new sql_mode INTERPRET_UTF8_AS_UTF8MB4
+
+  90600:
+  ----------------------------------------------------------------------------
+  Changes:
+  - PS-11264: Vector index support in Data Dictionary
+  Exposing the INDEX_OPTIONS column
 */
 
 static const uint IS_DD_VERSION = 90500;

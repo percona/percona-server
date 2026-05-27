@@ -1,0 +1,24 @@
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+KEY( v1 ) TYPE hnsw
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v1` (`v1`) TYPE `hnsw`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	v1	1	v1	A	0	1	NULL		VECTOR			YES	NULL
+SELECT * FROM information_schema.innodb_indexes WHERE name = 'v1';
+INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	PAGE_NO	SPACE	MERGE_THRESHOLD
+#	v1	#	1024	1	-1	21	50
+SELECT * FROM information_schema.statistics WHERE table_name = 't1' AND index_name = 'v1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION	INDEX_OPTIONS
+def	test	t1	1	test	v1	1	v1	A	0	1	NULL		SE_SPECIFIC			YES	NULL	flags=0;vector_index_type=hnsw;
+DROP TABLE t1;

@@ -11112,6 +11112,12 @@ ER_LOG_NAME_NOT_MATCHING_SEC_LOG_PATH_CLIENT
 # Start of Percona Server 8.4/9.7 error messages to be sent to client
 #
 
+ER_INDEX_MUST_HAVE_COMPATIBLE_COLUMN
+  eng "A %.20s index may only contain a %.20s type column."
+
+ER_TABLE_CANT_HANDLE_INDEX
+  eng "The used table type doesn't support %.20s indexes"
+
 start-error-number 7100
 
 #

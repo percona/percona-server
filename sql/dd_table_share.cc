@@ -235,6 +235,17 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(
   return HA_KEY_ALG_SE_SPECIFIC;
 }
 
+/**
+  Check whether this index is marked as vector.
+
+  @param[in] idx_obj Index metadata object.
+
+  @return Whether any visible element belongs to a vector column.
+*/
+static bool dd_is_vector_index(const dd::Index &idx_obj) {
+  return idx_obj.options().exists("vector_index_type");
+}
+
 /*
   Check if the given key_part is suitable to be promoted as part of
   primary key.
@@ -347,6 +358,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
              share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
       assert(!(share->key_info[key].flags & HA_SPATIAL) ||
              share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
+      assert(!(share->key_info[key].flags & HA_VECTOR) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_VECTOR);
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
@@ -1356,6 +1369,26 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
 }
 
 /**
+  Parse vector_construction_params stored in index options using
+  dd::Properties (semicolon-separated, escaped).
+*/
+static bool fill_vector_construction_params_from_dd(
+    MEM_ROOT *mem_root, const dd::String_type &s, Construction_params *params) {
+  std::unique_ptr<dd::Properties> params_props(
+      dd::Properties::parse_properties(s));
+  if (params_props == nullptr) return true;
+  for (auto it = params_props->begin(); it != params_props->end(); ++it) {
+    LEX_CSTRING k = {strmake_root(mem_root, it->first.data(), it->first.size()),
+                     it->first.size()};
+    LEX_CSTRING v = {
+        strmake_root(mem_root, it->second.data(), it->second.size()),
+        it->second.size()};
+    if (params->push_back({k, v})) return true;
+  }
+  return false;
+}
+
+/**
   Add KEY constructed according to index metadata from dd::Index object to
   the TABLE_SHARE.
 */
@@ -1385,6 +1418,8 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   keyinfo->algorithm = dd_get_old_index_algorithm_type(idx_obj->algorithm());
   keyinfo->is_algorithm_explicit = idx_obj->is_algorithm_explicit();
 
+  const bool is_vector_index = dd_is_vector_index(*idx_obj);
+
   // Visibility
   keyinfo->is_visible = idx_obj->is_visible();
 
@@ -1393,6 +1428,11 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   for (const dd::Index_element *idx_ele : idx_obj->elements()) {
     // Skip hidden index elements
     if (!idx_ele->is_hidden()) keyinfo->user_defined_key_parts++;
+  }
+
+  if (is_vector_index && idx_obj->options().exists("vector_index_type")) {
+    keyinfo->algorithm = HA_KEY_ALG_VECTOR;
+    keyinfo->is_algorithm_explicit = false;
   }
 
   // flags
@@ -1414,6 +1454,10 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       assert(0); /* purecov: deadcode */
       keyinfo->flags = 0;
       break;
+  }
+
+  if (is_vector_index && idx_obj->options().exists("vector_index_type")) {
+    keyinfo->flags |= HA_VECTOR;
   }
 
   if (idx_obj->is_generated()) keyinfo->flags |= HA_GENERATED_KEY;

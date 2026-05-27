@@ -36,13 +36,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0btr.h"
 
 #ifdef UNIV_DEBUG
-#define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)               \
+#define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, PAGE, CODE)         \
   if (btr_cur_limit_optimistic_insert_debug > 1 &&              \
       (NREC) >= (ulint)btr_cur_limit_optimistic_insert_debug) { \
     CODE;                                                       \
+  } else if (btr_cur_limit_leaf_optimistic_insert_debug > 1 &&  \
+             page_is_leaf(PAGE) &&                              \
+             (NREC) >= (ulint)btr_cur_limit_leaf_optimistic_insert_debug) { \
+    CODE;                                                       \
   }
 #else
-#define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, CODE)
+#define LIMIT_OPTIMISTIC_INSERT_DEBUG(NREC, PAGE, CODE)
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
@@ -115,7 +119,7 @@ static inline bool btr_cur_compress_recommendation(
 
   page = btr_cur_get_page(cursor);
 
-  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page) * 2, return false);
+  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page) * 2, page, return false);
 
   if ((page_get_data_size(page) < BTR_CUR_PAGE_COMPRESS_LIMIT(cursor->index)) ||
       ((btr_page_get_next(page, mtr) == FIL_NULL) &&

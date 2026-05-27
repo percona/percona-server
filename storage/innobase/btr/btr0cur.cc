@@ -140,6 +140,7 @@ ulint btr_cur_n_sea_old = 0;
 #ifdef UNIV_DEBUG
 /* Flag to limit optimistic insert records */
 uint btr_cur_limit_optimistic_insert_debug = 0;
+uint btr_cur_limit_leaf_optimistic_insert_debug = 0;
 #endif /* UNIV_DEBUG */
 
 /** In the optimistic insert, if the insert does not fit, but this much space
@@ -569,7 +570,7 @@ static bool btr_cur_will_modify_tree(dict_index_t *index, const page_t *page,
     /* Once we invoke the btr_cur_limit_optimistic_insert_debug,
     we should check it here in advance, since the max allowable
     records in a page is limited. */
-    LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page), return (true));
+    LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page), page, return (true));
 
     /* needs 2 records' space for the case the single split and
     insert cannot fit.
@@ -2799,7 +2800,7 @@ dberr_t btr_cur_optimistic_insert(
     return (DB_TOO_BIG_RECORD);
   }
 
-  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page), goto fail);
+  LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page), page, goto fail);
 
   if (leaf && page_size.is_compressed() &&
       (page_get_data_size(page) + rec_size >=

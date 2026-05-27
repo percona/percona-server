@@ -2424,8 +2424,8 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
   mtr_s_lock(dict_index_get_lock(index), &temp_mtr, UT_LOCATION_HERE);
 
   if (btr_height_get(index, &temp_mtr) >= BTR_MAX_NODE_LEVEL &&
-      btr_cur_limit_optimistic_insert_debug > 1 &&
-      btr_cur_limit_optimistic_insert_debug < 5) {
+      ((btr_cur_limit_optimistic_insert_debug > 1 && btr_cur_limit_optimistic_insert_debug < 5) ||
+       (btr_cur_limit_leaf_optimistic_insert_debug > 1 && btr_cur_limit_leaf_optimistic_insert_debug < 5))) {
     ib::error(ER_IB_MSG_BTREE_LEVEL_LIMIT_EXCEEDED, index->name());
     temp_mtr.commit();
     return (DB_BTREE_LEVEL_LIMIT_EXCEEDED);

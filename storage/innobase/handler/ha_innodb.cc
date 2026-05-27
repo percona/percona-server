@@ -24194,6 +24194,12 @@ static MYSQL_SYSVAR_UINT(
     "Artificially limit the number of records per B-tree page (0=unlimited).",
     nullptr, nullptr, 0, 0, UINT32_MAX, 0);
 
+static MYSQL_SYSVAR_UINT(
+    limit_leaf_optimistic_insert_debug, btr_cur_limit_leaf_optimistic_insert_debug,
+    PLUGIN_VAR_RQCMDARG,
+    "Artificially limit the number of records per B-tree leaf page (0=unlimited).",
+    nullptr, nullptr, 0, 0, UINT32_MAX, 0);
+
 static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
                          srv_purge_view_update_only_debug, PLUGIN_VAR_NOCMDARG,
                          "Pause actual purging any delete-marked records, but "
@@ -24552,6 +24558,7 @@ static SYS_VAR *innobase_system_variables[] = {
 #ifdef UNIV_DEBUG
     MYSQL_SYSVAR(trx_rseg_n_slots_debug),
     MYSQL_SYSVAR(limit_optimistic_insert_debug),
+    MYSQL_SYSVAR(limit_leaf_optimistic_insert_debug),
     MYSQL_SYSVAR(trx_purge_view_update_only_debug),
     MYSQL_SYSVAR(fil_make_page_dirty_debug),
     MYSQL_SYSVAR(saved_page_number_debug),

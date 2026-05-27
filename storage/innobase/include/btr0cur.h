@@ -773,6 +773,7 @@ extern ulint btr_cur_n_sea_old;
 #ifdef UNIV_DEBUG
 /* Flag to limit optimistic insert records */
 extern uint btr_cur_limit_optimistic_insert_debug;
+extern uint btr_cur_limit_leaf_optimistic_insert_debug;
 #endif /* UNIV_DEBUG */
 
 /** If default value of INSTANT ADD column is to be materialize in updated row.

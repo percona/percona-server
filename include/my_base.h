@@ -105,10 +105,11 @@ enum ha_key_alg {
           SEs default algorithm for keys in mysql_prepare_create_table().
   */
   HA_KEY_ALG_SE_SPECIFIC = 0,
-  HA_KEY_ALG_BTREE = 1,   /* B-tree. */
-  HA_KEY_ALG_RTREE = 2,   /* R-tree, for spatial searches */
-  HA_KEY_ALG_HASH = 3,    /* HASH keys (HEAP, NDB). */
-  HA_KEY_ALG_FULLTEXT = 4 /* FULLTEXT. */
+  HA_KEY_ALG_BTREE = 1,    /* B-tree. */
+  HA_KEY_ALG_RTREE = 2,    /* R-tree, for spatial searches */
+  HA_KEY_ALG_HASH = 3,     /* HASH keys (HEAP, NDB). */
+  HA_KEY_ALG_FULLTEXT = 4, /* FULLTEXT. */
+  HA_KEY_ALG_VECTOR = 5,   /* VECTOR. */
 };
 
 /* Storage media types */
@@ -525,7 +526,8 @@ enum ha_base_keytype {
 /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK                                                       \
   (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | HA_BINARY_PACK_KEY | HA_FULLTEXT | \
-   HA_UNIQUE_CHECK | HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
+   HA_UNIQUE_CHECK | HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY |      \
+   HA_VECTOR)
 
 /** Fulltext index uses [pre]parser */
 #define HA_USES_PARSER (1 << 14)
@@ -560,6 +562,9 @@ enum ha_base_keytype {
 
 constexpr const ulong HA_INDEX_USES_ENGINE_ATTRIBUTE{1UL << 20};
 constexpr const ulong HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE{1UL << 21};
+
+/** Vector key (Percona). */
+constexpr const ulong HA_VECTOR(1 << 30);
 
 /* These flags can be added to key-seg-flag */
 

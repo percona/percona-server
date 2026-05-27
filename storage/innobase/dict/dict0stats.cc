@@ -170,9 +170,9 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
 static inline bool dict_stats_should_ignore_index(
     const dict_index_t *index) /*!< in: index */
 {
-  return ((index->type & DICT_FTS) || index->is_corrupted() ||
-          dict_index_is_spatial(index) || index->to_be_dropped ||
-          !index->is_committed());
+  return ((index->type & DICT_FTS) || (index->type & DICT_VECTOR) ||
+          index->is_corrupted() || dict_index_is_spatial(index) ||
+          index->to_be_dropped || !index->is_committed());
 }
 
 /** Executes a given SQL statement using the InnoDB internal SQL parser.

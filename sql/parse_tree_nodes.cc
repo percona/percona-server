@@ -42,6 +42,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysqld_error.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -2157,6 +2158,20 @@ bool PT_intersect::do_contextualize(Parse_context *pc [[maybe_unused]]) {
       m_is_distinct ? SC_INTERSECT_DISTINCT : SC_INTERSECT_ALL);
 }
 
+bool PT_vector_index_type::do_contextualize(Table_ddl_parse_context *pc) {
+  pc->key_create_info->vector_index_type = m_type_name;
+  if (m_params.size() > 0) {
+    pc->key_create_info->vector_index_params.init(pc->mem_root);
+    for (const auto *param : m_params) {
+      if (param == nullptr) return true;
+      if (pc->key_create_info->vector_index_params.push_back(
+              {to_lex_cstring(param->key()), to_lex_cstring(param->value())}))
+        return true;
+    }
+  }
+  return false;
+}
+
 static bool setup_index(keytype key_type, const LEX_STRING name,
                         PT_base_index_option *type,
                         List<PT_key_part_specification> *columns,
@@ -2166,6 +2181,15 @@ static bool setup_index(keytype key_type, const LEX_STRING name,
   if (type != nullptr && type->contextualize(pc)) return true;
 
   if (contextualize_nodes(options, pc)) return true;
+
+  // So here we just assume that any index that speficies a type that is
+  // not one of BTREE, RTREE or HASH is a vector index. This shortcut is
+  // fine for the time being as there are no other such index types at the
+  // moment.
+  if (key_type == KEYTYPE_MULTIPLE &&
+      pc->key_create_info->vector_index_type.str != nullptr) {
+    key_type = KEYTYPE_VECTOR;
+  }
 
   List_iterator<PT_key_part_specification> li(*columns);
 

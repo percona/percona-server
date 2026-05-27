@@ -25,6 +25,7 @@
 #define KEY_SPEC_INCLUDED
 
 #include <sys/types.h>
+#include <utility>
 
 #include "lex_string.h"
 #include "my_base.h"
@@ -37,13 +38,17 @@ class Item;
 class THD;
 struct MEM_ROOT;
 
+using Vector_index_params_YY =
+    Mem_root_array_YY<std::pair<LEX_CSTRING, LEX_CSTRING>>;
+
 enum keytype {
   KEYTYPE_PRIMARY = 0,
   KEYTYPE_UNIQUE = 1,
   KEYTYPE_MULTIPLE = 2,
   KEYTYPE_FULLTEXT = 4,
   KEYTYPE_SPATIAL = 8,
-  KEYTYPE_FOREIGN = 16
+  KEYTYPE_FOREIGN = 16,
+  KEYTYPE_VECTOR = 32,
 };
 
 enum fk_option {
@@ -75,6 +80,8 @@ class KEY_CREATE_INFO {
   ulong block_size = 0;
   LEX_CSTRING parser_name = {NullS, 0};
   LEX_CSTRING comment = {NullS, 0};
+  LEX_CSTRING vector_index_type = {NullS, 0};
+  Vector_index_params_YY vector_index_params{};
   bool is_visible = true;
 
   KEY_CREATE_INFO() = default;

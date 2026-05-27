@@ -536,6 +536,11 @@ enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
 */
 #define HA_ONLINE_ANALYZE (1LL << 56)
 
+/**
+  Supports vector indexes (Percona).
+*/
+#define HA_CAN_VECTOR (1LL << 57)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.
@@ -2160,6 +2165,20 @@ using fix_default_table_encryption_t = bool (*)(ulong value, bool is_starting);
 */
 typedef bool (*redo_log_set_state_t)(THD *thd, bool enable);
 
+struct HA_CREATE_INFO;
+
+/**
+  Check vector index parameters for table being created.
+  This hook allows a SE to reject invalid parameters early in the
+  CREATE/ALTER TABLE process. This hook can be used when introducing dedicated
+  methods to SE API is not feasible, for instance the properties might be
+  dynamic in nature or make sense only for a particular SE.
+  This similar to how it's done, for example, for key lengths and algorithms,
+  or postponing check until handler::create() is reached.
+*/
+using validate_vector_index_params_t = bool (*)(THD *thd, const char *db_name,
+                                                HA_CREATE_INFO *create_info,
+                                                const Alter_info *alter_info);
 /**
   @brief
   Retrieve ha_statistics from SE.
@@ -3033,6 +3052,7 @@ struct handlerton {
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;
   redo_log_set_state_t redo_log_set_state;
+  validate_vector_index_params_t validate_vector_index_params{nullptr};
 
   get_table_statistics_t get_table_statistics;
   get_column_statistics_t get_column_statistics;

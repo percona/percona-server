@@ -2507,6 +2507,41 @@ typedef PT_traceable_index_option<ha_key_alg, &KEY_CREATE_INFO::algorithm,
                                   &KEY_CREATE_INFO::is_algorithm_explicit>
     PT_index_type;
 
+/**
+  A single key=value parameter in a vector index construction clause.
+*/
+class PT_vector_index_param : public Parse_tree_node {
+ public:
+  PT_vector_index_param(const POS &pos, const LEX_STRING &key,
+                        const LEX_STRING &value)
+      : Parse_tree_node(pos), m_key(key), m_value(value) {}
+
+  [[nodiscard]] const LEX_STRING &key() const { return m_key; }
+  [[nodiscard]] const LEX_STRING &value() const { return m_value; }
+
+ private:
+  LEX_STRING m_key;
+  LEX_STRING m_value;
+};
+
+/**
+  Index option for vector index type with optional construction parameters.
+
+  Represents TYPE <type_name> [WITH (key=value, ...)] in index definitions.
+*/
+class PT_vector_index_type : public PT_base_index_option {
+ public:
+  PT_vector_index_type(const POS &pos, LEX_CSTRING type_name,
+                       const Mem_root_array_YY<PT_vector_index_param *> &params)
+      : PT_base_index_option(pos), m_type_name(type_name), m_params(params) {}
+
+  bool do_contextualize(Table_ddl_parse_context *pc) override;
+
+ private:
+  LEX_CSTRING m_type_name;
+  Mem_root_array_YY<PT_vector_index_param *> m_params;
+};
+
 class PT_create_index_stmt final : public PT_table_ddl_stmt_base {
  public:
   PT_create_index_stmt(const POS &pos, MEM_ROOT *mem_root, keytype type_par,

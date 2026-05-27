@@ -138,6 +138,7 @@ class PT_table_reference;
 class PT_transaction_access_mode;
 class PT_transaction_characteristics;
 class PT_type;
+class PT_vector_index_param;
 class PT_window;
 class PT_window_list;
 class PT_with_clause;
@@ -528,6 +529,8 @@ union MY_SQL_PARSER_STYPE {
   } index_name_and_type;
   PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
+  PT_vector_index_param *vector_index_param;
+  Mem_root_array_YY<PT_vector_index_param *> vector_index_param_list;
   Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
   PT_with_clause *with_clause;

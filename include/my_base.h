@@ -105,10 +105,11 @@ enum ha_key_alg {
           SEs default algorithm for keys in mysql_prepare_create_table().
   */
   HA_KEY_ALG_SE_SPECIFIC = 0,
-  HA_KEY_ALG_BTREE = 1,   /* B-tree. */
-  HA_KEY_ALG_RTREE = 2,   /* R-tree, for spatial searches */
-  HA_KEY_ALG_HASH = 3,    /* HASH keys (HEAP, NDB). */
-  HA_KEY_ALG_FULLTEXT = 4 /* FULLTEXT. */
+  HA_KEY_ALG_BTREE = 1,    /* B-tree. */
+  HA_KEY_ALG_RTREE = 2,    /* R-tree, for spatial searches */
+  HA_KEY_ALG_HASH = 3,     /* HASH keys (HEAP, NDB). */
+  HA_KEY_ALG_FULLTEXT = 4, /* FULLTEXT. */
+  HA_KEY_ALG_VECTOR = 5    /* VECTOR. */
 };
 
 /* Storage media types */
@@ -521,6 +522,8 @@ enum ha_base_keytype {
 #define HA_USES_COMMENT (1 << 12)
 /** Key was automatically created to support Foreign Key constraint. */
 #define HA_GENERATED_KEY (1 << 13)
+/** Vector key (Percona). */
+#define HA_VECTOR (1 << 30)
 /** TokuDB CLUSTERING key */
 #define HA_CLUSTERING (1 << 31)
 
@@ -528,7 +531,7 @@ enum ha_base_keytype {
 #define HA_KEYFLAG_MASK                                                       \
   (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | HA_BINARY_PACK_KEY | HA_FULLTEXT | \
    HA_UNIQUE_CHECK | HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY |      \
-   HA_CLUSTERING)
+   HA_VECTOR | HA_CLUSTERING)
 
 /** Fulltext index uses [pre]parser */
 #define HA_USES_PARSER (1 << 14)
@@ -845,7 +848,7 @@ is the global server default. */
   have been disabled.
 
   The most important parameters set here is records per key on
-  all indexes. block_size and primary key ref_length.
+  all indexes. block_size and primar key ref_length.
 
   For each index there is an array of rec_per_key.
   As an example if we have an index with three attributes a,b and c

@@ -5167,8 +5167,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
-  // VECTOR columns cannot be used as keys
-  if (sql_field->sql_type == MYSQL_TYPE_VECTOR) {
+  if (sql_field->sql_type == MYSQL_TYPE_VECTOR &&
+      false /* !(key_info->flags & HA_VECTOR) */) {
     my_error(ER_NON_SCALAR_USED_AS_KEY, MYF(0), column->get_field_name());
     return true;
   }
@@ -5219,6 +5219,13 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       data prefix, ignoring column->length).
     */
     column_length = is_blob(sql_field->sql_type);
+  } else if (key->type == KEYTYPE_VECTOR) {
+    // VECTOR indexes are only allowed on VECTOR columns.
+    if (sql_field->sql_type != MYSQL_TYPE_VECTOR) {
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      return true;
+    }
+    column_length = 1;  // Dummy value.
   } else {
     switch (sql_field->sql_type) {
       case MYSQL_TYPE_GEOMETRY:
@@ -5825,7 +5832,7 @@ static bool prepare_self_ref_fk_parent_key(
   for (const KEY *key = key_info_buffer; key < key_info_buffer + key_count;
        key++) {
     // We can't use FULLTEXT or SPATIAL indexes.
-    if (key->flags & (HA_FULLTEXT | HA_SPATIAL)) continue;
+    if (key->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)) continue;
 
     if (hton->foreign_keys_flags &
         HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS) {
@@ -6028,7 +6035,7 @@ static const KEY *find_fk_supporting_key(handlerton *hton,
   for (const KEY *key = key_info_buffer; key < key_info_buffer + key_count;
        key++) {
     // We can't use FULLTEXT or SPATIAL indexes.
-    if (key->flags & (HA_FULLTEXT | HA_SPATIAL)) continue;
+    if (key->flags & (HA_FULLTEXT | HA_SPATIAL | HA_VECTOR)) continue;
 
     if (key->algorithm == HA_KEY_ALG_HASH) {
       if (hton->foreign_keys_flags & HTON_FKS_WITH_SUPPORTING_HASH_KEYS) {
@@ -7678,6 +7685,17 @@ static bool prepare_key(
   switch (static_cast<int>(key->type)) {
     case KEYTYPE_MULTIPLE:
       break;
+    case KEYTYPE_VECTOR:
+      if (!(file->ha_table_flags() & HA_CAN_VECTOR)) {
+        my_error(ER_UNKNOWN_ERROR, MYF(0));
+        return true;
+      }
+      if (key->columns.size() != 1) {
+        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+        return true;
+      }
+      key_info->flags |= HA_VECTOR;
+      break;
     case KEYTYPE_FULLTEXT:
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT)) {
         my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
@@ -7780,6 +7798,9 @@ static bool prepare_key(
   } else if (key_info->flags & HA_FULLTEXT) {
     assert(!key->key_create_info.is_algorithm_explicit);
     key_info->algorithm = HA_KEY_ALG_FULLTEXT;
+  } else if (key_info->flags & HA_VECTOR) {
+    assert(!key->key_create_info.is_algorithm_explicit);
+    key_info->algorithm = HA_KEY_ALG_VECTOR;
   } else {
     if (key->key_create_info.is_algorithm_explicit) {
       if (key->key_create_info.algorithm != HA_KEY_ALG_RTREE) {
@@ -8665,6 +8686,7 @@ bool mysql_prepare_create_table(
 
   uint key_number = 0;
   bool primary_key = false;
+  uint vector_key_number = 0;
 
   // First prepare non-foreign keys so that they are ready when
   // we prepare foreign keys.
@@ -8679,6 +8701,14 @@ bool mysql_prepare_create_table(
         return true;
       }
       primary_key = true;
+    }
+
+    if (key->type == KEYTYPE_VECTOR) {
+      if (vector_key_number) {
+        my_error(ER_ONLY_SINGLE_VECTOR_INDEX_ALLOWED, MYF(0));
+        return true;
+      }
+      ++vector_key_number;
     }
 
     if (key->type != KEYTYPE_FOREIGN) {
@@ -8713,6 +8743,12 @@ bool mysql_prepare_create_table(
     return true;
   }
 
+  // We allow VECTOR keys only with tables with PK
+  if (!primary_key && vector_key_number) {
+    my_error(ER_VECTOR_INDEX_NEEDS_PK, MYF(0));
+    return true;
+  }
+
   /*
     At this point all KEY objects are for indexes are fully constructed.
     So we can check for duplicate indexes for keys for which it was requested.
@@ -8739,6 +8775,26 @@ bool mysql_prepare_create_table(
 
   /* Sort keys in optimized order */
   std::sort(*key_info_buffer, *key_info_buffer + *key_count, sort_keys());
+
+  // We allow VECTOR indexes only on tables with BIGINT UNSIGNED PKs.
+  if (vector_key_number) {
+    assert(primary_key);
+    const KEY &primary_info = *key_info_buffer[0];
+
+    if (primary_info.actual_key_parts > 1) {
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      return true;
+    }
+
+    for (it.rewind(), field_no = 0; (sql_field = it++); field_no++) {
+      if (field_no >= primary_info.key_part[0].fieldnr) break;
+    }
+    assert(sql_field);
+    if (sql_field->sql_type != MYSQL_TYPE_LONGLONG || !sql_field->is_unsigned) {
+      my_error(ER_VECTOR_INDEX_NEEDS_PK, MYF(0));
+      return true;
+    }
+  }
 
   /*
     Normal keys are done, now prepare foreign keys.
@@ -16327,6 +16383,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           key_type = KEYTYPE_UNIQUE;
       } else if (key_info->flags & HA_FULLTEXT)
         key_type = KEYTYPE_FULLTEXT;
+      else if (key_info->flags & HA_VECTOR)
+        key_type = KEYTYPE_VECTOR;
       else
         key_type = KEYTYPE_MULTIPLE;
       if (key_info->flags & HA_CLUSTERING)

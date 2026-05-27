@@ -438,7 +438,7 @@ dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx) {
 
   DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail", return (DB_OUT_OF_MEMORY););
 
-  if (index->type == DICT_FTS) {
+  if ((index->type & DICT_FTS) || dict_index_is_vector(index)) {
     /* FTS index does not need an index tree */
     return (DB_SUCCESS);
   }

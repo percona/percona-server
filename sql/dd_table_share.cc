@@ -212,6 +212,10 @@ enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
 /** For enum in dd::Index */
 static enum ha_key_alg dd_get_old_index_algorithm_type(
     dd::Index::enum_index_algorithm type) {
+  constexpr auto kLegacyIaVector =
+      static_cast<dd::Index::enum_index_algorithm>(6);
+  if (type == kLegacyIaVector) return HA_KEY_ALG_VECTOR;
+
   switch (type) {
     case dd::Index::IA_SE_SPECIFIC:
       return HA_KEY_ALG_SE_SPECIFIC;
@@ -233,6 +237,22 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(
   }
 
   return HA_KEY_ALG_SE_SPECIFIC;
+}
+
+static bool dd_index_has_vector_column(const dd::Index &idx_obj) {
+  for (const dd::Index_element *idx_elem : idx_obj.elements()) {
+    if (idx_elem->is_hidden()) continue;
+
+    const dd::Properties &col_options = idx_elem->column().options();
+    bool is_vector_column = false;
+    if (col_options.exists("vector_index") &&
+        !col_options.get("vector_index", &is_vector_column) &&
+        is_vector_column) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /*
@@ -347,6 +367,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
              share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
       assert(!(share->key_info[key].flags & HA_SPATIAL) ||
              share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
+      assert(!(share->key_info[key].flags & HA_VECTOR) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_VECTOR);
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
@@ -1374,6 +1396,8 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   keyinfo->algorithm = dd_get_old_index_algorithm_type(idx_obj->algorithm());
   keyinfo->is_algorithm_explicit = idx_obj->is_algorithm_explicit();
 
+  const bool has_vector_column = dd_index_has_vector_column(*idx_obj);
+
   // Visibility
   keyinfo->is_visible = idx_obj->is_visible();
 
@@ -1384,25 +1408,39 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
     if (!idx_ele->is_hidden()) keyinfo->user_defined_key_parts++;
   }
 
+  if (has_vector_column && keyinfo->user_defined_key_parts == 1) {
+    keyinfo->algorithm = HA_KEY_ALG_VECTOR;
+    keyinfo->is_algorithm_explicit = false;
+  }
+
   // flags
-  switch (idx_obj->type()) {
-    case dd::Index::IT_MULTIPLE:
-      keyinfo->flags = 0;
-      break;
-    case dd::Index::IT_FULLTEXT:
-      keyinfo->flags = HA_FULLTEXT;
-      break;
-    case dd::Index::IT_SPATIAL:
-      keyinfo->flags = HA_SPATIAL;
-      break;
-    case dd::Index::IT_PRIMARY:
-    case dd::Index::IT_UNIQUE:
-      keyinfo->flags = HA_NOSAME;
-      break;
-    default:
-      assert(0); /* purecov: deadcode */
-      keyinfo->flags = 0;
-      break;
+  constexpr auto kLegacyItVector = static_cast<dd::Index::enum_index_type>(6);
+  if (idx_obj->type() == kLegacyItVector) {
+    keyinfo->flags = HA_VECTOR;
+  } else {
+    switch (idx_obj->type()) {
+      case dd::Index::IT_MULTIPLE:
+        keyinfo->flags = 0;
+        break;
+      case dd::Index::IT_FULLTEXT:
+        keyinfo->flags = HA_FULLTEXT;
+        break;
+      case dd::Index::IT_SPATIAL:
+        keyinfo->flags = HA_SPATIAL;
+        break;
+      case dd::Index::IT_PRIMARY:
+      case dd::Index::IT_UNIQUE:
+        keyinfo->flags = HA_NOSAME;
+        break;
+      default:
+        assert(0); /* purecov: deadcode */
+        keyinfo->flags = 0;
+        break;
+    }
+  }
+
+  if (has_vector_column && keyinfo->user_defined_key_parts == 1) {
+    keyinfo->flags |= HA_VECTOR;
   }
 
   /* Check if this index is of clustering key type. Used by TokuDB */

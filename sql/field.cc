@@ -34,6 +34,7 @@
 #include <optional>
 
 #include "decimal.h"
+#include "field_types.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
@@ -75,7 +76,7 @@
 #include "sql/mysqld_cs.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/spatial.h"                // Geometry
+#include "sql/spatial.h"  // Geometry
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception
@@ -1656,6 +1657,7 @@ bool Field::type_can_have_key_part(enum enum_field_types type) {
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_VECTOR:
       return true;
     default:
       return false;

@@ -727,6 +727,10 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       col_options->set("is_array", true);
     }
 
+    if (field.sql_type == MYSQL_TYPE_VECTOR) {
+      col_options->set("vector_index", true);
+    }
+
     //
     // Write intervals
     //
@@ -812,6 +816,9 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(
 
     case HA_KEY_ALG_FULLTEXT:
       return dd::Index::IA_FULLTEXT;
+
+    case HA_KEY_ALG_VECTOR:
+      return dd::Index::IA_SE_SPECIFIC;
   }
 
   /* purecov: begin deadcode */
@@ -823,6 +830,8 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(
 }
 
 static dd::Index::enum_index_type dd_get_new_index_type(const KEY *key) {
+  if (key->flags & HA_VECTOR) return dd::Index::IT_MULTIPLE;
+
   if (key->flags & HA_FULLTEXT) return dd::Index::IT_FULLTEXT;
 
   if (key->flags & HA_SPATIAL) return dd::Index::IT_SPATIAL;

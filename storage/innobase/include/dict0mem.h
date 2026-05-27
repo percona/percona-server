@@ -113,7 +113,7 @@ constexpr uint32_t DICT_SDI = 256;
 constexpr uint32_t DICT_MULTI_VALUE = 512;
 
 /** number of bits used for SYS_INDEXES.TYPE */
-constexpr uint32_t DICT_IT_BITS = 10;
+constexpr uint32_t DICT_IT_BITS = 11;
 /** @} */
 
 #if 0                         /* not implemented, retained for history */
@@ -1206,6 +1206,9 @@ struct dict_index_t {
 
   /** if the index is an hidden index */
   bool hidden;
+
+  /** true if this is a vector index according to DD metadata */
+  bool is_vector_index;
 #endif /* !UNIV_HOTBACKUP */
 
   /** list of indexes of the table */
@@ -1335,6 +1338,14 @@ struct dict_index_t {
     ut_ad(magic_n == DICT_INDEX_MAGIC_N);
 
     return (type & DICT_MULTI_VALUE);
+  }
+
+  /** Check whether the index is vector.
+  @return true for vector index, false otherwise */
+  bool is_vector() const {
+    ut_ad(magic_n == DICT_INDEX_MAGIC_N);
+
+    return (is_vector_index);
   }
 
   /** Returns the minimum data size of an index record.

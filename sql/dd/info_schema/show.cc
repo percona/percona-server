@@ -868,6 +868,50 @@ Query_block *build_show_keys_query(const POS &pos, THD *thd,
 
   Select_lex_builder top_query(&pos, thd);
 
+  Item *index_type_item =
+      new (thd->mem_root) Item_field(pos, NullS, NullS, alias_type.str);
+  if (index_type_item == nullptr) return nullptr;
+
+  Item *se_specific_item = new (thd->mem_root)
+      Item_string(STRING_WITH_LEN("SE_SPECIFIC"), system_charset_info);
+  if (se_specific_item == nullptr) return nullptr;
+
+  Item *is_se_specific =
+      new (thd->mem_root) Item_func_eq(pos, index_type_item, se_specific_item);
+  if (is_se_specific == nullptr) return nullptr;
+
+  Item *sub_part_item =
+      new (thd->mem_root) Item_field(pos, NullS, NullS, alias_sub_part.str);
+  if (sub_part_item == nullptr) return nullptr;
+
+  Item *one_item = new (thd->mem_root)
+      Item_string(STRING_WITH_LEN("1"), system_charset_info);
+  if (one_item == nullptr) return nullptr;
+
+  Item *is_single_sub_part =
+      new (thd->mem_root) Item_func_eq(pos, sub_part_item, one_item);
+  if (is_single_sub_part == nullptr) return nullptr;
+
+  Item *vector_item = new (thd->mem_root)
+      Item_string(STRING_WITH_LEN("VECTOR"), system_charset_info);
+  if (vector_item == nullptr) return nullptr;
+
+  Item *index_type_else_item =
+      new (thd->mem_root) Item_field(pos, NullS, NullS, alias_type.str);
+  if (index_type_else_item == nullptr) return nullptr;
+
+  Item *index_type_if = new (thd->mem_root)
+      Item_func_if(pos, is_single_sub_part, vector_item, index_type_else_item);
+  if (index_type_if == nullptr) return nullptr;
+
+  Item *index_type_default_item =
+      new (thd->mem_root) Item_field(pos, NullS, NullS, alias_type.str);
+  if (index_type_default_item == nullptr) return nullptr;
+
+  Item *index_type_expr = new (thd->mem_root)
+      Item_func_if(pos, is_se_specific, index_type_if, index_type_default_item);
+  if (index_type_expr == nullptr) return nullptr;
+
   // SELECT * FROM <sub_query> ...
   if (top_query.add_select_item(alias_table, alias_table) ||
       top_query.add_select_item(alias_non_unique, alias_non_unique) ||
@@ -879,7 +923,7 @@ Query_block *build_show_keys_query(const POS &pos, THD *thd,
       top_query.add_select_item(alias_sub_part, alias_sub_part) ||
       top_query.add_select_item(alias_packed, alias_packed) ||
       top_query.add_select_item(alias_null, alias_null) ||
-      top_query.add_select_item(alias_type, alias_type) ||
+      top_query.add_select_expr(index_type_expr, alias_type) ||
       top_query.add_select_item(alias_comment, alias_comment) ||
       top_query.add_select_item(alias_index_comment, alias_index_comment) ||
       top_query.add_select_item(alias_visible, alias_visible) ||

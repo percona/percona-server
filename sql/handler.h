@@ -535,6 +535,7 @@ enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
   ANALYZE TABLE on it
 */
 #define HA_ONLINE_ANALYZE (1LL << 56)
+#define HA_CAN_VECTOR (1LL << 57)
 
 /*
   Bits in index_flags(index_number) for what you can do with index.
@@ -3299,7 +3300,6 @@ inline constexpr const decltype(handlerton::flags)
 inline constexpr const decltype(handlerton::flags)
     HTON_SECONDARY_SUPPORTS_TEMPORARY_TABLE(1 << 25);
 
-
 /** Start of Percona specific HTON_* defines */
 
 /**
@@ -3321,7 +3321,6 @@ inline constexpr const decltype(handlerton::flags)
 #define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 31)
 
 /** End of Percona specific HTON_* defines */
-
 
 /* Whether the handlerton is a secondary engine. */
 inline bool hton_is_secondary_engine(const handlerton *hton) {
@@ -7050,16 +7049,16 @@ class handler {
     for details.
   */
   [[nodiscard]] int ha_fast_update(THD *thd,
-                                  mem_root_deque<Item *> &update_fields,
-                                  mem_root_deque<Item *> &update_values,
-                                  Item *conds);
+                                   mem_root_deque<Item *> &update_fields,
+                                   mem_root_deque<Item *> &update_values,
+                                   Item *conds);
 
   /**
     @brief Offload an upsert to the storage engine. See handler::upsert()
     for details.
   */
   [[nodiscard]] int ha_upsert(THD *thd, mem_root_deque<Item *> &update_fields,
-                             mem_root_deque<Item *> &update_values);
+                              mem_root_deque<Item *> &update_values);
 
  private:
   /**
@@ -7082,11 +7081,11 @@ class handler {
     handler::ha_update_row(...) does not accept conditions.
   */
   [[nodiscard]] virtual int fast_update(THD *thd [[maybe_unused]],
-                                       mem_root_deque<Item *> &update_fields
-                                       [[maybe_unused]],
-                                       mem_root_deque<Item *> &update_values
-                                       [[maybe_unused]],
-                                       Item *conds [[maybe_unused]]) {
+                                        mem_root_deque<Item *> &update_fields
+                                        [[maybe_unused]],
+                                        mem_root_deque<Item *> &update_values
+                                        [[maybe_unused]],
+                                        Item *conds [[maybe_unused]]) {
     return ENOTSUP;
   }
 
@@ -7107,10 +7106,10 @@ class handler {
     @return an error if the insert should be terminated.
   */
   [[nodiscard]] virtual int upsert(THD *thd [[maybe_unused]],
-                                  mem_root_deque<Item *> &update_fields
-                                  [[maybe_unused]],
-                                  mem_root_deque<Item *> &update_values
-                                  [[maybe_unused]]) {
+                                   mem_root_deque<Item *> &update_fields
+                                   [[maybe_unused]],
+                                   mem_root_deque<Item *> &update_values
+                                   [[maybe_unused]]) {
     return ENOTSUP;
   }
 
@@ -7618,7 +7617,6 @@ class handler {
   void set_ha_table(TABLE *table_arg) { table = table_arg; }
 
   int get_lock_type() const { return m_lock_type; }
-
 
  public:
   /* Read-free replication interface */

@@ -25,9 +25,48 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <string_view>
+
+#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "template_utils.h"
+
 namespace vector_constants {
 // maximum dimensions in a vector column
 constexpr unsigned int max_dimensions = 16383;
+
+enum class Metric {
+  kEuclidean,
+  kEuclideanSquared,
+  kCosine,
+  kDotProduct,
+  kManhattan
+};
+
+/** Maps a case-insensitive metric name to a Metric value.
+    Returns nullptr on no match. */
+inline const Metric *metric_from_name(std::string_view name) {
+  static constexpr struct {
+    std::string_view name;
+    Metric metric;
+  } kMetrics[] = {
+      {"euclidean", Metric::kEuclidean},
+      {"euclidean_squared", Metric::kEuclideanSquared},
+      {"cosine", Metric::kCosine},
+      {"dot", Metric::kDotProduct},
+      {"manhattan", Metric::kManhattan},
+  };
+  const auto *it = std::find_if(
+      std::begin(kMetrics), std::end(kMetrics), [&](const auto &candidate) {
+        return !my_strnncoll(
+            &my_charset_latin1, pointer_cast<const uchar *>(name.data()),
+            name.size(), pointer_cast<const uchar *>(candidate.name.data()),
+            candidate.name.size());
+      });
+  return it != std::end(kMetrics) ? &it->metric : nullptr;
+}
+
 }  // namespace vector_constants
 
 static inline uint32_t get_dimensions(const uint32_t length,

@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file dict/dict0dd.cc
 Data dictionary interface */
 
+#include "my_base.h"
 #ifndef UNIV_HOTBACKUP
 #include <auto_thd.h>
 #include <current_thd.h>
@@ -1981,7 +1982,7 @@ void dd_visit_keys_with_too_long_parts(
     std::function<void(const KEY &)> visitor) {
   for (uint key_num = 0; key_num < table->s->keys; key_num++) {
     const KEY &key = table->key_info[key_num];
-    if (!(key.flags & (HA_SPATIAL | HA_FULLTEXT))) {
+    if (!(key.flags & (HA_SPATIAL | HA_FULLTEXT | HA_VECTOR))) {
       for (unsigned i = 0; i < key.user_defined_key_parts; i++) {
         const KEY_PART_INFO *key_part = &key.key_part[i];
         if (max_part_len < key_part->length) {
@@ -2911,7 +2912,7 @@ MY_COMPILER_DIAGNOSTIC_POP()
 */
 static inline uint16_t get_index_prefix_len(const KEY &key,
                                             const KEY_PART_INFO *key_part) {
-  if (key.flags & (HA_SPATIAL | HA_FULLTEXT)) {
+  if (key.flags & (HA_SPATIAL | HA_FULLTEXT | HA_VECTOR)) {
     return 0;
   }
 
@@ -2951,6 +2952,7 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
                                                 uint key_num) {
   const KEY &key = form->key_info[key_num];
   ulint type = 0;
+  bool is_vector = false;
   unsigned n_fields = key.user_defined_key_parts;
   unsigned n_uniq = n_fields;
 
@@ -2971,6 +2973,10 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
     ut_ad(!table->is_intrinsic());
     type = DICT_FTS;
     n_uniq = 0;
+  } else if (key.flags & HA_VECTOR) {
+    ut_ad(!table->is_intrinsic());
+    is_vector = true;
+    n_uniq = 0;
   } else if (key_num == form->primary_key) {
     ut_ad(key.flags & HA_NOSAME);
     ut_ad(n_uniq > 0);
@@ -2979,7 +2985,11 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
     type = (key.flags & HA_NOSAME) ? DICT_UNIQUE : 0;
   }
 
-  ut_ad(!!(type & DICT_FTS) == (n_uniq == 0));
+  if (is_vector) {
+    type |= DICT_VECTOR;
+  }
+
+  ut_ad(!!(type & (DICT_FTS | DICT_VECTOR)) == (n_uniq == 0));
 
   dict_index_t *index =
       dict_mem_index_create(table->name.m_name, key.name, 0, type, n_fields);
@@ -3040,6 +3050,9 @@ template const dict_index_t *dd_find_index<dd::Partition_index>(
 
   ut_ad(((key.flags & HA_FULLTEXT) == HA_FULLTEXT) ==
         !!(index->type & DICT_FTS));
+
+  ut_ad(((key.flags & HA_VECTOR) == HA_VECTOR) ==
+        !!(index->type & DICT_VECTOR));
 
   index->n_user_defined_cols = key.user_defined_key_parts;
 
@@ -5208,7 +5221,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     }
 
     ut_ad(root > 1);
-    ut_ad(index->type & DICT_FTS || root != FIL_NULL ||
+    ut_ad((index->type & (DICT_FTS | DICT_VECTOR)) || root != FIL_NULL ||
           dict_table_is_discarded(m_table));
     ut_ad(id != 0);
     index->page = root;

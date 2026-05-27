@@ -170,6 +170,8 @@ class KEY {
   // the struct
   LEX_CSTRING engine_attribute{nullptr, 0};
   LEX_CSTRING secondary_engine_attribute{nullptr, 0};
+  LEX_CSTRING vector_index_type{nullptr, 0};
+  Vector_index_params_YY vector_index_params{};
 
  private:
   /**

@@ -235,6 +235,21 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(
   return HA_KEY_ALG_SE_SPECIFIC;
 }
 
+/**
+  Check whether this index is marked as vector.
+
+  @param[in] idx_obj Index metadata object.
+
+  @return Whether the index is a vector index.
+*/
+bool is_vector_index(const dd::Index &idx_obj) {
+  if (!idx_obj.options().exists(dd::PERCONA_VECTOR_INDEX_MARKER_KEY))
+    return false;
+  bool marker_value = false;
+  idx_obj.options().get(dd::PERCONA_VECTOR_INDEX_MARKER_KEY, &marker_value);
+  return marker_value;
+}
+
 /*
   Check if the given key_part is suitable to be promoted as part of
   primary key.
@@ -347,6 +362,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
              share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
       assert(!(share->key_info[key].flags & HA_SPATIAL) ||
              share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
+      assert(!(share->key_info[key].flags & HA_VECTOR) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_VECTOR);
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
@@ -1356,6 +1373,27 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
 }
 
 /**
+  Parse vector_index_params stored in index options using
+  dd::Properties (semicolon-separated, escaped).
+*/
+static bool fill_vector_index_params_from_dd(MEM_ROOT *mem_root,
+                                             const dd::String_type &s,
+                                             Vector_index_params_YY *params) {
+  std::unique_ptr<dd::Properties> params_props(
+      dd::Properties::parse_properties(s));
+  if (params_props == nullptr) return true;
+  params->init(mem_root);
+  for (const auto &it : *params_props) {
+    LEX_CSTRING k = {strmake_root(mem_root, it.first.data(), it.first.size()),
+                     it.first.size()};
+    LEX_CSTRING v = {strmake_root(mem_root, it.second.data(), it.second.size()),
+                     it.second.size()};
+    if (params->push_back({k, v})) return true;
+  }
+  return false;
+}
+
+/**
   Add KEY constructed according to index metadata from dd::Index object to
   the TABLE_SHARE.
 */
@@ -1384,6 +1422,14 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   // Index algorithm
   keyinfo->algorithm = dd_get_old_index_algorithm_type(idx_obj->algorithm());
   keyinfo->is_algorithm_explicit = idx_obj->is_algorithm_explicit();
+
+  const bool is_vi = is_vector_index(*idx_obj);
+  if (is_vi) {
+    // We store SE_SPECIFIC algorithm for vector indexes in DD for
+    // compatibility reasons. Hence we need to override it here.
+    keyinfo->algorithm = HA_KEY_ALG_VECTOR;
+    keyinfo->is_algorithm_explicit = false;
+  }
 
   // Visibility
   keyinfo->is_visible = idx_obj->is_visible();
@@ -1414,6 +1460,13 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       assert(0); /* purecov: deadcode */
       keyinfo->flags = 0;
       break;
+  }
+
+  if (is_vi) {
+    // We use MULTIPLE index type for vector indexes in the DD for
+    // compatibility reasons.
+    assert(keyinfo->flags == 0);
+    keyinfo->flags |= HA_VECTOR;
   }
 
   if (idx_obj->is_generated()) keyinfo->flags |= HA_GENERATED_KEY;
@@ -1512,6 +1565,25 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       &share->mem_root, idx_obj->secondary_engine_attribute());
   if (keyinfo->secondary_engine_attribute.length > 0)
     keyinfo->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
+
+  if (idx_options.exists(dd::PERCONA_VECTOR_INDEX_TYPE_KEY)) {
+    assert(is_vi);
+    if (idx_options.get(dd::PERCONA_VECTOR_INDEX_TYPE_KEY,
+                        &keyinfo->vector_index_type, &share->mem_root))
+      assert(false);
+  }
+
+  if (idx_options.exists(dd::PERCONA_VECTOR_INDEX_PARAMS_KEY)) {
+    assert(is_vi);
+    dd::String_type s;
+    if (idx_options.get(dd::PERCONA_VECTOR_INDEX_PARAMS_KEY, &s)) assert(false);
+    if (!s.empty()) {
+      if (fill_vector_index_params_from_dd(&share->mem_root, s,
+                                           &keyinfo->vector_index_params))
+        return true;
+    }
+  }
+
   return (false);
 }
 

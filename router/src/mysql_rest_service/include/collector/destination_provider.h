@@ -48,6 +48,19 @@ class DestinationProvider {
   virtual bool is_node_supported(const Node &node) = 0;
   virtual const SslConfiguration &get_ssl_configuration() = 0;
   virtual bool is_dynamic() const = 0;
+
+  /**
+   * Stop providing nodes and wake up any thread currently blocked in
+   * get_node(kWaitUntilAvaiable).
+   *
+   * Needed on shutdown: a dynamic provider's get_node() blocks until the
+   * cluster offers an available node, so once the cluster is gone the waiting
+   * thread (e.g. the MRS SchemaMonitor) would never return and the Router
+   * could not be joined. After stop() get_node() returns no node instead of
+   * blocking. The default implementation is a no-op (static providers never
+   * block).
+   */
+  virtual void stop() {}
 };
 
 }  // namespace collector

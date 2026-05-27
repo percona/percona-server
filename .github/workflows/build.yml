@@ -1,56 +1,67 @@
-# PS-11078: nightly RelWithDebInfo arm64 build on Hetzner cax*. Replaces the
-# Cirrus nightly task `(arm64) gcc RelWithDebInfo [Noble]` on 8.0, trunk, 8.4
-# before Cirrus shuts down 2026-06-01.
+# PS-11078: GitHub Actions build for percona-server 8.0 on Hetzner cax* arm64.
+# Replaces the Cirrus arm64 tasks before Cirrus shuts down 2026-06-01.
 #
-# Centralised on 8.0 (default branch) because GHA `schedule:` triggers only
-# fire from the default branch. Three cron entries dispatch to ref=8.0, trunk,
-# or 8.4 via the `pickbranch` job. Build shape mirrors azure-pipelines.yml on
-# the target branch; cmake/apt deltas (Boost cache, KEYRING_VAULT vs
-# COMPONENT_KEYRING_VAULT, READLINE vs EDITLINE, ZenFS, CURL) are gated on
-# `$BRANCH` inside the build step.
+# One file, three event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
+#   - pull_request to 8.0     -> Debug build + MTR main.1st       (Cirrus per-PR replacement)
+#   - schedule '0 1 * * *'    -> RelWithDebInfo + binlog_nogtid   (Cirrus nightly replacement; per Przemek 2026-05-18)
+#   - workflow_dispatch       -> manual run; pick build_type, optional debug_keep_vm
 #
-# MTR: `--suite=binlog_nogtid` per Przemek's 2026-05-18 ask.
+# Notes for follow-ups (per Przemek DM 2026-05-27):
+#   - This file lives on the 8.0 branch only. trunk and 8.4 will get the same
+#     shape in separate PRs with their per-branch cmake/apt deltas.
+#   - x86_64 nightly RelWithDebInfo can be added as a sibling job reusing the
+#     `dispatch` outputs (BUILD_TYPE / MTR_SUITE / CCACHE_MAXSIZE). Intentionally
+#     not wired in this PR per "we may do it, let's see how arm64 behaves first".
+#
+# Trust split: pick-target / create-runner / delete-runner hold infra secrets
+# (GHA_RUNNER_HCLOUD_TOKEN, GHA_RUNNER_PAT). The build-arm64 job runs on the
+# ephemeral Hetzner VM and only sees GITHUB_TOKEN (read-only), so PR code never
+# reaches infra credentials.
 
-name: build-arm64-nightly
+name: build
 
 on:
-  schedule:
-    - cron: '0 0 * * *'   # trunk
-    - cron: '0 1 * * *'   # 8.0
-    - cron: '0 2 * * *'   # 8.4
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch to build'
+      build_type:
+        description: 'Build type'
         type: choice
         options:
-          - '8.0'
-          - trunk
-          - '8.4'
-        default: '8.0'
+          - Debug
+          - RelWithDebInfo
+        default: Debug
       debug_keep_vm:
         description: 'On create-runner failure: keep Hetzner VM alive so you can SSH in and grab /var/log/cloud-init-output.log + /actions-runner/_diag/* manually. SSH as root using key 107239874 (anderson@percona). Remember to delete the VM when done.'
         type: boolean
         default: false
-  # Self-test: only fires when this file itself changes. Validates pre-merge
-  # without committing Hetzner cycles to unrelated PRs.
   pull_request:
     branches: [8.0]
-    paths:
-      - '.github/workflows/build-arm64-nightly.yml'
+    paths-ignore:
+      # Mirrors azure-pipelines.yml `paths.exclude`.
+      - 'doc/**'
+      - 'build-ps/**'
+      - 'man/**'
+      - 'mysql-test/**'
+      - 'packaging/**'
+      - 'policy/**'
+      - 'scripts/**'
+      - 'support-files/**'
+  schedule:
+    # 8.0 nightly RelWithDebInfo + binlog_nogtid (Cirrus parity, Przemek 2026-05-18).
+    - cron: '0 1 * * *'
 
 concurrency:
-  # PR self-test runs are PR-scoped + cancellable so superseded pushes don't
-  # waste Hetzner cycles; cron + workflow_dispatch runs stay protected
-  # (`cancel-in-progress: false`) since they bill paid arm64 minutes.
-  group: build-arm64-nightly-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.branch || github.event.schedule || github.ref }}
+  # PR runs are cancellable so superseded pushes do not waste Hetzner cycles;
+  # nightly + workflow_dispatch runs stay protected (cancel-in-progress: false)
+  # because they bill paid arm64 minutes.
+  group: build-${{ github.event.pull_request.number || github.event.schedule || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 env:
-  BUILD_TYPE: RelWithDebInfo
+  PARENT_BRANCH: '8.0'
   BUILD_PARAMS_TYPE: normal
   COMPILER: gcc
   COMPILER_VER: ''
@@ -61,42 +72,49 @@ env:
   CCACHE_COMPRESS: '1'
   CCACHE_COMPRESSLEVEL: '9'
   CCACHE_CPP2: '1'
-  CCACHE_MAXSIZE: 8G   # RelWithDebInfo bigger than Debug
   IMAGE: ubuntu-24.04
   SSH_KEY_ID: '107239874'
-  RUNNER_NAME: ps-arm64-nightly-${{ github.run_id }}-${{ github.run_attempt }}
+  RUNNER_NAME: ps-arm64-${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-  # TRUSTED. Decide which branch this run targets.
-  pickbranch:
+  # TRUSTED. Pick BUILD_TYPE + MTR suite + cache size based on event.
+  dispatch:
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
-      branch: ${{ steps.pick.outputs.branch }}
+      build_type:     ${{ steps.pick.outputs.build_type }}
+      mtr_suite:      ${{ steps.pick.outputs.mtr_suite }}
+      ccache_maxsize: ${{ steps.pick.outputs.ccache_maxsize }}
     steps:
       - id: pick
         run: |
           set -eu
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            BRANCH="${{ inputs.branch }}"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            # Self-test: build against the PR's base branch to exercise the
-            # branch-aware cmake logic for that target.
-            BRANCH="${{ github.base_ref }}"
-          else
-            case "${{ github.event.schedule }}" in
-              '0 0 * * *') BRANCH=trunk ;;
-              '0 1 * * *') BRANCH='8.0' ;;
-              '0 2 * * *') BRANCH='8.4' ;;
-              *) echo "::error::Unrecognised schedule: ${{ github.event.schedule }}"; exit 1 ;;
-            esac
-          fi
-          echo "Nightly RelWithDebInfo target: $BRANCH" >> "$GITHUB_STEP_SUMMARY"
-          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          case "${{ github.event_name }}" in
+            pull_request)
+              BT=Debug;          SUITE=main.1st;      CACHE=4G
+              ;;
+            schedule)
+              BT=RelWithDebInfo; SUITE=binlog_nogtid; CACHE=8G
+              ;;
+            workflow_dispatch)
+              BT="${{ inputs.build_type }}"
+              if [ "$BT" = "Debug" ]; then
+                SUITE=main.1st;      CACHE=4G
+              else
+                SUITE=binlog_nogtid; CACHE=8G
+              fi
+              ;;
+          esac
+          echo "Event ${{ github.event_name }} -> BUILD_TYPE=$BT, MTR=$SUITE, CCACHE_MAXSIZE=$CACHE" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "build_type=$BT"
+            echo "mtr_suite=$SUITE"
+            echo "ccache_maxsize=$CACHE"
+          } >> "$GITHUB_OUTPUT"
 
   # TRUSTED. Dynamic capacity probe: cax41 -> cax31 -> cax21 across DCs.
   pick-target:
-    needs: pickbranch
+    needs: dispatch
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
@@ -136,7 +154,7 @@ jobs:
 
   # TRUSTED. Provision the ephemeral runner.
   create-runner:
-    needs: [pickbranch, pick-target]
+    needs: [dispatch, pick-target]
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
@@ -155,14 +173,11 @@ jobs:
           location: ${{ needs.pick-target.outputs.location }}
           server_type: ${{ needs.pick-target.outputs.server_type }}
           ssh_key: ${{ env.SSH_KEY_ID }}
-          # Default budget is 60x10s = 10min. Bumping to 20min absorbs
-          # transient apt-mirror or GitHub-release slowness during bootstrap.
+          # Default budget is 60x10s = 10 min; bumped to 20 min absorbs transient
+          # apt-mirror or GitHub-release slowness during bootstrap.
           runner_wait: '120'
-          # Retry apt with backoff; transient apt-mirror hiccups on first
-          # cloud-init were a hypothesised cause of "runner never registered"
-          # failures (Codex diagnosis 2026-05-22). Keep this even after the
-          # runner_version pin was reverted, since apt flakes are cheap to
-          # guard against and the cost is one extra retry on the happy path.
+          # Retry apt with backoff for transient apt-mirror hiccups on first
+          # cloud-init (Codex diagnosis 2026-05-22).
           pre_runner_script: |
             set -euxo pipefail
             export DEBIAN_FRONTEND=noninteractive
@@ -176,10 +191,10 @@ jobs:
             done
             [ "$ok" = 1 ]
 
-      # Diagnostic preservation: on create-runner failure with the workflow_dispatch
-      # `debug_keep_vm` flag set, surface the VM IP + SSH instructions in the run
-      # summary BEFORE delete-runner reaps the VM. Anderson SSHs in manually with
-      # his personal key (107239874) to grab cloud-init logs and the runner _diag dir.
+      # On create-runner failure with workflow_dispatch `debug_keep_vm` set,
+      # surface VM IP + SSH instructions in the run summary BEFORE delete-runner
+      # reaps the VM. Anderson SSHs in manually with his personal key
+      # (107239874) to grab cloud-init logs and the runner _diag dir.
       - name: Preserve VM for manual diagnosis (on failure, debug-only)
         if: failure() && inputs.debug_keep_vm == true
         env:
@@ -217,16 +232,21 @@ jobs:
             echo "orphan-sweep.yml will reap this VM after 6h regardless."
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # UNTRUSTED. Target-branch code runs here.
-  do-the-job:
-    needs: [pickbranch, pick-target, create-runner]
+  # UNTRUSTED. PR code (Debug) or 8.0 HEAD (RelWithDebInfo nightly) runs here.
+  # Build shape ported from azure-pipelines.yml on 8.0 (per Przemek 2026-05-18:
+  # ".cirrus.yml is just a simplified port from Azure"). arm64-specific
+  # deviations (system-gcc selection, MTR libeatmydata, -j cap at 16) are
+  # annotated inline.
+  build-arm64:
+    needs: [dispatch, pick-target, create-runner]
     runs-on: ${{ needs.create-runner.outputs.runner_label }}
     permissions:
       contents: read
     timeout-minutes: 240
     env:
-      BRANCH: ${{ needs.pickbranch.outputs.branch }}
-      PARENT_BRANCH: ${{ needs.pickbranch.outputs.branch }}
+      BUILD_TYPE:     ${{ needs.dispatch.outputs.build_type }}
+      MTR_SUITE:      ${{ needs.dispatch.outputs.mtr_suite }}
+      CCACHE_MAXSIZE: ${{ needs.dispatch.outputs.ccache_maxsize }}
       CCACHE_DIR: /home/runner/ccache
       BOOST_DIR: /tmp/boost
       DEBIAN_FRONTEND: noninteractive
@@ -235,7 +255,8 @@ jobs:
         run: |
           set -eux
           echo "Server type: ${{ needs.create-runner.outputs.server_type }}"
-          echo "Target branch: $BRANCH"
+          echo "Build type:  $BUILD_TYPE"
+          echo "MTR suite:   $MTR_SUITE"
           uname -a
           nproc
           free -h
@@ -253,6 +274,8 @@ jobs:
           fi
           free -h
 
+      # Azure: `*** Install Build Dependencies`. arm64 picks system gcc (no
+      # version selector + LLVM repo plumbing needed).
       - name: Install Build Dependencies
         run: |
           set -eux
@@ -263,44 +286,45 @@ jobs:
           echo "SELECTED_CXX=$SELECTED_CXX" >> "$GITHUB_ENV"
           PACKAGES="$SELECTED_CC"
           [ "$COMPILER" = "gcc" ] && PACKAGES="$SELECTED_CXX"
-          # 8.0 uses libreadline; trunk/8.4 use libedit only.
-          APT_EXTRA=""
-          [ "$BRANCH" = "8.0" ] && APT_EXTRA="libreadline-dev"
           sudo apt-get -yq update
           sudo apt-get -yq --no-install-suggests --no-install-recommends install \
             $PACKAGES make pkg-config dpkg-dev unzip lz4 git cmake cmake-curses-gui ccache bison \
             libtirpc-dev libudev-dev libaio-dev libmecab-dev libnuma-dev \
-            libssl-dev libedit-dev libpam-dev \
+            libssl-dev libreadline-dev libedit-dev libpam-dev \
             libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev \
             libsasl2-modules-gssapi-mit \
-            libxml-simple-perl $APT_EXTRA
+            libxml-simple-perl
+          # Azure: SYSTEM_LIBRARIES path (BUILD_PARAMS_TYPE != inverted).
           sudo apt-get -yq --no-install-suggests --no-install-recommends install \
             libicu-dev libevent-dev liblz4-dev zlib1g-dev \
             protobuf-compiler libprotobuf-dev libprotoc-dev \
             libzstd-dev libfido2-dev
+          # arm64-only addition: libeatmydata1 needed for MTR LD_PRELOAD
+          # (Cirrus arm64 task uses it; Azure x86 jobs do not run MTR).
           sudo apt-get -yq --no-install-suggests --no-install-recommends install libeatmydata1
           REAL_COMPILER_VER=$($SELECTED_CC --version | head -1 | awk '{print $4}')
           echo "REAL_COMPILER_VER=$REAL_COMPILER_VER" >> "$GITHUB_ENV"
 
-      - name: ccache cache (Azure key shape; branch-scoped)
+      # Azure ccache key shape: "ccache | PARENT_BRANCH | imageName-Compiler-VER-BuildType | BUILD_PARAMS_TYPE | <run id>"
+      # run_id keeps nightly + dispatch + PR runs each save their own slot;
+      # restore-keys falls back to the most-recent matching prefix.
+      - name: ccache cache (Azure key shape; build_type-scoped)
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.2.0
         with:
           path: /home/runner/ccache
-          key: ccache-${{ env.BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-${{ github.run_id }}
+          key: ccache-${{ env.PARENT_BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-${{ github.run_id }}
           restore-keys: |
-            ccache-${{ env.BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-
+            ccache-${{ env.PARENT_BRANCH }}-${{ env.IMAGE_NAME }}-${{ env.COMPILER }}-${{ env.BUILD_TYPE }}-${{ env.BUILD_PARAMS_TYPE }}-
 
-      - name: boost cache (8.0 only)
-        if: env.BRANCH == '8.0'
+      - name: boost cache (Azure key shape)
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.2.0
         with:
           path: /tmp/boost
           key: ${{ env.BOOST_VERSION }}
 
-      - name: Checkout target branch
+      - name: Checkout (fetchDepth 32 mirrors Azure)
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.2.2
         with:
-          ref: ${{ env.BRANCH }}
           fetch-depth: 32
 
       - name: Update git submodules
@@ -310,7 +334,7 @@ jobs:
           git submodule update --init --force --depth=256
           git submodule
 
-      - name: System and compiler info
+      - name: Compiler and cmake info
         run: |
           set -eux
           $SELECTED_CC -v
@@ -320,49 +344,44 @@ jobs:
           ccache -p | grep -E "max_size|cache_dir"
           ccache --zero-stats
 
-      - name: cmake (branch-aware; Azure parity per branch)
+      # Azure `*** cmake ...` step, 8.0 Linux non-inverted branch.
+      - name: cmake (Azure parity, 8.0 Linux non-inverted)
         run: |
           set -eux
           mkdir bin && cd bin
-          COMPILE_OPT=()
-          if [ "$BRANCH" = "8.0" ]; then
-            # 8.0: Boost cache + WITH_KEYRING_VAULT(_TEST) + WITH_READLINE=system
-            VARIANT_OPT="
-              -DDOWNLOAD_BOOST=1
-              -DWITH_BOOST=$BOOST_DIR
-              -DWITH_KEYRING_VAULT=ON
-              -DWITH_KEYRING_VAULT_TEST=ON
-              -DWITH_READLINE=system
-            "
-          else
-            # trunk / 8.4: system Boost, WITH_COMPONENT_KEYRING_VAULT, WITH_EDITLINE=system, WITH_CURL=bundled
-            VARIANT_OPT="
-              -DWITH_COMPONENT_KEYRING_VAULT=ON
-              -DWITH_EDITLINE=system
-              -DWITH_CURL=bundled
-            "
-          fi
+          COMPILE_OPT=(
+            -DCMAKE_C_FLAGS_DEBUG=-g1
+            -DCMAKE_CXX_FLAGS_DEBUG=-g1
+          )
           CMAKE_OPT="
             -DCMAKE_BUILD_TYPE=$BUILD_TYPE
             -DBUILD_CONFIG=mysql_release
             -DWITH_PACKAGE_FLAGS=OFF
+            -DDOWNLOAD_BOOST=1
+            -DWITH_BOOST=$BOOST_DIR
             -DCMAKE_C_COMPILER=$SELECTED_CC
             -DCMAKE_CXX_COMPILER=$SELECTED_CXX
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
             -DWITH_ROCKSDB=ON
             -DWITH_COREDUMPER=ON
+            -DWITH_KEYRING_VAULT=ON
+            -DWITH_KEYRING_VAULT_TEST=ON
             -DWITH_PAM=ON
             -DMYSQL_MAINTAINER_MODE=ON
             -DWITH_MECAB=system
             -DWITH_NUMA=ON
+            -DWITH_READLINE=system
             -DWITH_SYSTEM_LIBS=ON
-            $VARIANT_OPT
           "
           cmake .. $CMAKE_OPT "${COMPILE_OPT[@]}"
-          [ "$BRANCH" = "8.0" ] && rm -f "$BOOST_DIR/$BOOST_VERSION.tar.gz" || true
+          rm -f "$BOOST_DIR/$BOOST_VERSION.tar.gz"
           cmake -L .
 
+      # Azure: `*** Compile` uses `make -j2` (MS-hosted has 2 cores). arm64
+      # deviation: scale to cax* cores, capped at 16 (Cirrus pattern). Literal
+      # -j2 would waste cax41's 16 cores; arm64 builds benefit linearly from
+      # parallelism (THE migration win).
       - name: Compile (make -j, capped at 16)
         run: |
           set -eux
@@ -374,30 +393,43 @@ jobs:
           ccache --show-stats
           df -h /
 
-      - name: MTR binlog_nogtid (Cirrus RelWithDebInfo parity)
+      # arm64-only step (Azure x86 does not run MTR; Cirrus arm64 does).
+      # Suite picked by dispatch:
+      #   - main.1st (Debug, per-PR; Cirrus arm64 PR task parity)
+      #   - binlog_nogtid (RelWithDebInfo, nightly; Cirrus RelWithDebInfo parity, Przemek 2026-05-18)
+      - name: MTR (suite per build_type)
         run: |
           set -eux
           cd bin
           NPROC=$(nproc --all)
           NTHREADS=$(( NPROC > 16 ? 16 : NPROC ))
           LIBEATMYDATA=$(whereis libeatmydata.so | awk '{print $2}')
-          mysql-test/mysql-test-run.pl \
-            --suite=binlog_nogtid \
-            --parallel=$NTHREADS \
-            --junit-output=/tmp/MTR_results.xml \
-            --mysqld-env=LD_PRELOAD=${LIBEATMYDATA} \
-            --force --max-test-fail=0 --retry-failure=0
+          if [ "$MTR_SUITE" = "main.1st" ]; then
+            mysql-test/mysql-test-run.pl main.1st \
+              --parallel=$NTHREADS \
+              --junit-output=/tmp/MTR_results.xml \
+              --mysqld-env=LD_PRELOAD=${LIBEATMYDATA} \
+              --force --max-test-fail=0 --retry-failure=0 \
+              --debug-server
+          else
+            mysql-test/mysql-test-run.pl \
+              --suite=$MTR_SUITE \
+              --parallel=$NTHREADS \
+              --junit-output=/tmp/MTR_results.xml \
+              --mysqld-env=LD_PRELOAD=${LIBEATMYDATA} \
+              --force --max-test-fail=0 --retry-failure=0
+          fi
 
       - name: Upload MTR results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.0
         with:
-          name: mtr-binlog_nogtid-${{ env.BRANCH }}
+          name: mtr-${{ env.BUILD_TYPE }}-${{ env.MTR_SUITE }}
           path: /tmp/MTR_results.xml
           if-no-files-found: ignore
 
   delete-runner:
-    needs: [pickbranch, pick-target, create-runner, do-the-job]
+    needs: [dispatch, pick-target, create-runner, build-arm64]
     # Skip delete when debug_keep_vm is set AND create-runner failed, so the
     # broken VM stays alive for manual SSH diagnosis. orphan-sweep reaps it
     # after 6h regardless. Normal happy path is unaffected.

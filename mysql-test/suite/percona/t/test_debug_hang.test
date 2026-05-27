@@ -1,0 +1,172 @@
+--source include/have_debug.inc
+--disable_query_log
+call mtr.add_suppression(".*");
+--enable_query_log
+
+INSTALL COMPONENT "file://component_mysqlbackup";
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t3 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t4 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+--echo # Open new connections beforehand
+connect(con1, localhost, root,,);
+connect(con2, localhost, root,,);
+connect(con3, localhost, root,,);
+connect(con4, localhost, root,,);
+connect(con_wait, localhost, root,,);
+connection default;
+
+--echo # Start page tracking
+--disable_query_log
+let $lsn = `SELECT mysqlbackup_page_track_set(1)`;
+--enable_query_log
+
+--echo # Limit number of pages on records to create more page_ids faster
+SET GLOBAL innodb_limit_leaf_optimistic_insert_debug=2;
+
+--echo # Pause the page archiver thread so it doesn't flush blocks
+SET GLOBAL debug="+d,page_archiver_thread_wait";
+
+DELIMITER //;
+CREATE PROCEDURE insert_rows_1(num_rows INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < num_rows DO
+    INSERT INTO t1 (a) VALUES (i + 100);
+    SET i = i + 1;
+    IF i % 1000 = 0 THEN
+      COMMIT;
+      START TRANSACTION;
+    END IF;
+  END WHILE;
+  COMMIT;
+END//
+
+CREATE PROCEDURE insert_rows_2(num_rows INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < num_rows DO
+    INSERT INTO t2 (a) VALUES (i + 100);
+    SET i = i + 1;
+    IF i % 1000 = 0 THEN
+      COMMIT;
+      START TRANSACTION;
+    END IF;
+  END WHILE;
+  COMMIT;
+END//
+
+CREATE PROCEDURE insert_rows_3(num_rows INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < num_rows DO
+    INSERT INTO t3 (a) VALUES (i + 100);
+    SET i = i + 1;
+    IF i % 1000 = 0 THEN
+      COMMIT;
+      START TRANSACTION;
+    END IF;
+  END WHILE;
+  COMMIT;
+END//
+
+CREATE PROCEDURE insert_rows_4(num_rows INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < num_rows DO
+    INSERT INTO t4 (a) VALUES (i + 100);
+    SET i = i + 1;
+    IF i % 1000 = 0 THEN
+      COMMIT;
+      START TRANSACTION;
+    END IF;
+  END WHILE;
+  COMMIT;
+END//
+DELIMITER ;//
+
+--echo # Send the inserts in the background. They will block when the ring buffer is full.
+connection con1;
+--send CALL insert_rows_1(40000)
+
+connection con2;
+--send CALL insert_rows_2(40000)
+
+connection con3;
+--send CALL insert_rows_3(40000)
+
+connection con4;
+--send CALL insert_rows_4(40000)
+
+--echo # Switch to the wait connection
+connection con_wait;
+
+--echo # Wait for the buffer to fill up (wait for at least block 31 to be full)
+let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let $grep_pattern = PS-11175: Block 31 is full;
+let $wait_timeout = 3600;
+--source include/wait_for_pattern_in_file.inc
+
+--echo # Resume the archiver thread
+connection default;
+SET GLOBAL debug="-d,page_archiver_thread_wait";
+
+--echo # Kill the insert connections to stop inserts
+let $con1_id = `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='root' AND HOST='localhost' AND COMMAND='Query' AND INFO LIKE 'CALL insert_rows_1%'`;
+let $con2_id = `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='root' AND HOST='localhost' AND COMMAND='Query' AND INFO LIKE 'CALL insert_rows_2%'`;
+let $con3_id = `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='root' AND HOST='localhost' AND COMMAND='Query' AND INFO LIKE 'CALL insert_rows_3%'`;
+let $con4_id = `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='root' AND HOST='localhost' AND COMMAND='Query' AND INFO LIKE 'CALL insert_rows_4%'`;
+
+if ($con1_id) {
+  --disable_query_log
+  eval KILL CONNECTION $con1_id;
+  --enable_query_log
+}
+if ($con2_id) {
+  --disable_query_log
+  eval KILL CONNECTION $con2_id;
+  --enable_query_log
+}
+if ($con3_id) {
+  --disable_query_log
+  eval KILL CONNECTION $con3_id;
+  --enable_query_log
+}
+if ($con4_id) {
+  --disable_query_log
+  eval KILL CONNECTION $con4_id;
+  --enable_query_log
+}
+
+--echo # Wait for the inserts to finish
+connection con1;
+--error 0,1317,2013,1053,2006,1047,1053,1080,1028,1317,2002,1094
+--reap
+connection con2;
+--error 0,1317,2013,1053,2006,1047,1053,1080,1028,1317,2002,1094
+--reap
+connection con3;
+--error 0,1317,2013,1053,2006,1047,1053,1080,1028,1317,2002,1094
+--reap
+connection con4;
+--error 0,1317,2013,1053,2006,1047,1053,1080,1028,1317,2002,1094
+--reap
+
+--echo # Cleanup
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
+disconnect con_wait;
+DROP TABLE t1, t2, t3, t4;
+DROP PROCEDURE insert_rows_1;
+DROP PROCEDURE insert_rows_2;
+DROP PROCEDURE insert_rows_3;
+DROP PROCEDURE insert_rows_4;
+UNINSTALL COMPONENT "file://component_mysqlbackup";

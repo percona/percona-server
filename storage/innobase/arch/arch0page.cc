@@ -59,6 +59,11 @@ void page_archiver_thread() {
       static_cast<uint64_t>(ARCH_PAGE_BLK_SIZE) * ARCH_DBLWR_FILE_CAPACITY);
 
   while (true) {
+    DBUG_EXECUTE_IF("page_archiver_thread_wait", {
+      while (DBUG_EVALUATE_IF("page_archiver_thread_wait", 1, 0)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+    });
     /* Archive in memory data blocks to disk. */
     auto page_abort = arch_page_sys->archive(&page_wait);
 
@@ -1731,6 +1736,8 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
       /* Current block is full. Move to next block. */
       cur_blk->end_write();
+      
+      ib::info() << "PS-11175: Block " << m_write_pos.m_block_num << " is full. Moving to next block. Page count: " << (m_write_pos.m_offset - ARCH_PAGE_BLK_HEADER_LENGTH) / ARCH_BLK_PAGE_ID_SIZE;
 
       m_write_pos.set_next();
 
@@ -1768,6 +1775,8 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
       ut_a(cur_blk->get_state() == ARCH_BLOCK_READY_TO_FLUSH);
 
       auto cbk = std::bind(&Arch_Block::is_flushable, *cur_blk);
+
+      ib::info() << "PS-11175: Waiting for block " << m_write_pos.m_block_num << " to be flushed. Page count: " << (m_write_pos.m_offset - ARCH_PAGE_BLK_HEADER_LENGTH) / ARCH_BLK_PAGE_ID_SIZE;
 
       /* Might release operation mutex temporarily. Need to
       loop again verifying the state. */

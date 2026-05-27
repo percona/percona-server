@@ -1,0 +1,3 @@
+--innodb-buffer-pool-size=1G
+--innodb-redo-log-capacity=1G
+--innodb-flush-log-at-trx-commit=0

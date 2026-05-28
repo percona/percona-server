@@ -1,0 +1,42 @@
+--disable_query_log
+call mtr.add_suppression(".*");
+--enable_query_log
+
+INSTALL COMPONENT "file://component_mysqlbackup";
+
+--echo # Setup tables
+CREATE TABLE t_big (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  pad LONGBLOB
+) ENGINE=InnoDB;
+
+DELIMITER //;
+CREATE PROCEDURE insert_rows(n INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < n DO
+    INSERT INTO t_big (pad) VALUES (REPEAT('x', 14000));
+    SET i = i + 1;
+    IF i % 1000 = 0 THEN
+      COMMIT;
+      START TRANSACTION;
+    END IF;
+  END WHILE;
+  COMMIT;
+END//
+DELIMITER ;//
+
+--echo # Enable page tracking
+SELECT @@innodb_arch_page_test_max_entries;
+SELECT mysqlbackup_page_track_set(true);
+
+--echo # Insert some rows to trigger block flushes
+--echo # If the bug is present, the server will hang here and the test will timeout.
+CALL insert_rows(100000);
+
+--echo # Cleanup
+SELECT mysqlbackup_page_track_set(false);
+
+DROP PROCEDURE insert_rows;
+DROP TABLE t_big;

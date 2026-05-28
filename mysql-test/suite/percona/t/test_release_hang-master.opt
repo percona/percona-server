@@ -1,0 +1,4 @@
+--innodb-buffer-pool-size=5M
+--innodb-redo-log-capacity=1G
+--innodb-flush-log-at-trx-commit=0
+--innodb-arch-page-test-max-entries=1

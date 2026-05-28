@@ -24181,6 +24181,14 @@ static MYSQL_SYSVAR_BOOL(
     "Print all DDl logs to MySQL error log (off by default)", nullptr, nullptr,
     false);
 
+extern ulong arch_page_test_max_entries;
+
+static MYSQL_SYSVAR_ULONG(
+    arch_page_test_max_entries, arch_page_test_max_entries,
+    PLUGIN_VAR_RQCMDARG,
+    "Maximum number of page IDs per block in the page tracking ring buffer (0 means max capacity).",
+    nullptr, nullptr, 0, 0, ULONG_MAX, 0);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
                          PLUGIN_VAR_RQCMDARG,
@@ -24555,6 +24563,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(redo_log_archive_dirs),
     MYSQL_SYSVAR(redo_log_encrypt),
     MYSQL_SYSVAR(print_ddl_logs),
+    MYSQL_SYSVAR(arch_page_test_max_entries),
 #ifdef UNIV_DEBUG
     MYSQL_SYSVAR(trx_rseg_n_slots_debug),
     MYSQL_SYSVAR(limit_optimistic_insert_debug),

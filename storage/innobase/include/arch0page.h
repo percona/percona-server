@@ -128,6 +128,7 @@ constexpr uint ARCH_BLK_PAGE_ID_SIZE = 8;
 /** @} */
 
 /** Number of memory blocks */
+extern ulong arch_page_test_max_entries;
 constexpr uint ARCH_PAGE_NUM_BLKS = 32;
 
 /** Archived file format version */

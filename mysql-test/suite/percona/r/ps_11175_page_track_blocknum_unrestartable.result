@@ -1,0 +1,48 @@
+INSTALL COMPONENT "file://component_mysqlbackup";
+CREATE TABLE t_big (
+id INT AUTO_INCREMENT PRIMARY KEY,
+pad LONGBLOB
+) ENGINE=InnoDB;
+CREATE PROCEDURE insert_rows(n INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+START TRANSACTION;
+WHILE i < n DO
+INSERT INTO t_big (pad) VALUES (REPEAT('x', 14000));
+SET i = i + 1;
+IF i % 1000 = 0 THEN
+COMMIT;
+START TRANSACTION;
+END IF;
+END WHILE;
+COMMIT;
+END//
+# 1. Start page tracking
+# 2. Set max_entries to 1 to accelerate block generation
+SET GLOBAL innodb_arch_page_test_max_entries = 1;
+# 3. Insert data to generate > 65535 block_num (requires > 33 files with 2044 blocks each)
+# We insert enough rows to generate ib_page_34
+# Wait for ib_page_34 to be created to ensure block_num > 65535
+# 4. Reset max_entries to 0, insert 100 rows, and wait for them to be archived
+SET GLOBAL innodb_arch_page_test_max_entries = 0;
+# Sleep to allow the archiver to flush the 100 rows, ensuring a large offset
+# 5. Set max_entries back to 1 and insert more data to fill ib_page_34 completely
+SET GLOBAL innodb_arch_page_test_max_entries = 1;
+# Wait for ib_page_35 to ensure the file with the reset point is fully written
+# 6. Normal shutdown and restart server to load the truncated reset point
+SET GLOBAL innodb_arch_page_test_max_entries = 0;
+# restart
+# 7. Trigger the crash by reading from the truncated reset point
+# The server is expected to crash due to underflow in bytes_left
+SET GLOBAL mysqlbackup.backupid = "1";
+Got one of the listed errors
+# Verify the invalid read error in the server log
+Pattern "Tried to read .* bytes at offset .*, but was only able to read" found
+# 8. Restart the server. It should fail to start because of the truncated block_num.
+# restart_abort: 
+# 9. Cleanup
+# Delete the #ib_archive directory to allow the server to start safely
+# restart
+DROP TABLE t_big;
+DROP PROCEDURE insert_rows;
+UNINSTALL COMPONENT "file://component_mysqlbackup";

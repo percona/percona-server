@@ -1,0 +1,135 @@
+--disable_query_log
+call mtr.add_suppression(".*");
+--enable_query_log
+
+INSTALL COMPONENT "file://component_mysqlbackup";
+
+CREATE TABLE t_big (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  pad LONGBLOB
+) ENGINE=InnoDB;
+
+DELIMITER //;
+CREATE PROCEDURE insert_rows(n INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  START TRANSACTION;
+  WHILE i < n DO
+    INSERT INTO t_big (pad) VALUES (REPEAT('x', 14000));
+    SET i = i + 1;
+    IF i % 1000 = 0 THEN
+      COMMIT;
+      START TRANSACTION;
+    END IF;
+  END WHILE;
+  COMMIT;
+END//
+DELIMITER ;//
+
+--echo # 1. Start page tracking
+let $start_lsn = `SELECT mysqlbackup_page_track_set(1)`;
+
+--echo # 2. Set max_entries to 1 to accelerate block generation
+SET GLOBAL innodb_arch_page_test_max_entries = 1;
+
+--echo # 3. Insert data to generate > 65535 block_num (requires > 33 files with 2044 blocks each)
+--echo # We insert enough rows to generate ib_page_34
+--disable_query_log
+let $i = 0;
+while ($i < 80) {
+  CALL insert_rows(1000);
+  inc $i;
+}
+--enable_query_log
+
+--echo # Wait for ib_page_34 to be created to ensure block_num > 65535
+--perl
+my $dir = $ENV{'MYSQLTEST_VARDIR'} . "/mysqld.1/data/#ib_archive";
+my $found = 0;
+for (my $i = 0; $i < 1200; $i++) {
+    my @files = glob("$dir/page_group_*/ib_page_34");
+    if (@files > 0) {
+        $found = 1;
+        last;
+    }
+    sleep(1);
+}
+if (!$found) {
+    die "ib_page_34 not found after 1200 seconds\n";
+}
+EOF
+
+--echo # 4. Reset max_entries to 0, insert 100 rows, and wait for them to be archived
+SET GLOBAL innodb_arch_page_test_max_entries = 0;
+
+--disable_query_log
+CALL insert_rows(100);
+--enable_query_log
+
+--echo # Sleep to allow the archiver to flush the 100 rows, ensuring a large offset
+--sleep 5
+
+let $reset_lsn = `SELECT mysqlbackup_page_track_set(1)`;
+
+--echo # 5. Set max_entries back to 1 and insert more data to fill ib_page_34 completely
+SET GLOBAL innodb_arch_page_test_max_entries = 1;
+
+--disable_query_log
+let $i = 0;
+while ($i < 5) {
+  CALL insert_rows(1000);
+  inc $i;
+}
+--enable_query_log
+
+--echo # Wait for ib_page_35 to ensure the file with the reset point is fully written
+--perl
+my $dir = $ENV{'MYSQLTEST_VARDIR'} . "/mysqld.1/data/#ib_archive";
+my $found = 0;
+for (my $i = 0; $i < 1200; $i++) {
+    my @files = glob("$dir/page_group_*/ib_page_35");
+    if (@files > 0) {
+        $found = 1;
+        last;
+    }
+    sleep(1);
+}
+if (!$found) {
+    die "ib_page_35 not found after 1200 seconds\n";
+}
+EOF
+
+--echo # 6. Normal shutdown and restart server to load the truncated reset point
+SET GLOBAL innodb_arch_page_test_max_entries = 0;
+--let $shutdown_server_timeout= 600
+--source include/restart_mysqld.inc
+
+--echo # 7. Trigger the crash by reading from the truncated reset point
+--echo # The server is expected to crash due to underflow in bytes_left
+SET GLOBAL mysqlbackup.backupid = "1";
+
+--source include/expect_crash.inc
+
+--disable_query_log
+--error 2013, CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+eval SELECT mysqlbackup_page_track_get_changed_pages($reset_lsn, $reset_lsn + 1);
+--enable_query_log
+
+--echo # Verify the invalid read error in the server log
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN = Tried to read .* bytes at offset .*, but was only able to read;
+--source include/search_pattern.inc
+
+--echo # 8. Cleanup
+--echo # Delete the #ib_archive directory to allow the server to start safely
+--perl
+use File::Path 'rmtree';
+my $dir = $ENV{'MYSQLTEST_VARDIR'} . "/mysqld.1/data/#ib_archive";
+rmtree($dir);
+EOF
+
+--source include/start_mysqld.inc
+
+DROP TABLE t_big;
+DROP PROCEDURE insert_rows;
+UNINSTALL COMPONENT "file://component_mysqlbackup";

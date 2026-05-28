@@ -536,26 +536,26 @@ static Sys_var_charptr Sys_thread_affinity_main(
     "thread_affinity_main",
     "CPU binding for main server thread: socket,core,thread; "
     "each field can be a number or 'any'.",
-    READ_ONLY GLOBAL_VAR(opt_thread_affinity_main),
-    CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+    READ_ONLY GLOBAL_VAR(opt_thread_affinity_main), CMD_LINE(OPT_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr));
 
 /* Sys_thread_affinity_main */
 
 char *opt_thread_affinity_rpl = nullptr;
 static Sys_var_charptr Sys_thread_affinity_rpl(
-  "thread_affinity_rpl",
-  "CPU binding for all replication threads: socket,core,thread; "
-  "each field can be a number or 'any/sparse'.",
-  GLOBAL_VAR(opt_thread_affinity_rpl),
-  CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+    "thread_affinity_rpl",
+    "CPU binding for all replication threads: socket,core,thread; "
+    "each field can be a number or 'any/sparse'.",
+    GLOBAL_VAR(opt_thread_affinity_rpl), CMD_LINE(OPT_ARG), IN_FS_CHARSET,
+    DEFAULT(nullptr));
 
 char *opt_thread_affinity_client = nullptr;
 static Sys_var_charptr Sys_thread_affinity_client(
-  "thread_affinity_client",
-  "CPU binding for client connection threads: socket,core,thread; "
-  "each field can be a number or 'any/sparse'.",
-  READ_ONLY GLOBAL_VAR(opt_thread_affinity_client),
-  CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr));
+    "thread_affinity_client",
+    "CPU binding for client connection threads: socket,core,thread; "
+    "each field can be a number or 'any/sparse'.",
+    READ_ONLY GLOBAL_VAR(opt_thread_affinity_client), CMD_LINE(OPT_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr));
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
@@ -1656,9 +1656,8 @@ static Sys_var_ulong Sys_binlog_transaction_compression_min_size(
     "Minimum transaction payload size in bytes required to apply "
     "binary log transaction compression.",
     SESSION_VAR(binlog_trx_compression_min_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
 
 static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
@@ -1737,7 +1736,6 @@ static Sys_var_bool Sys_explicit_defaults_for_timestamp(
 
 static bool replica_parallel_workers_update(sys_var *, THD *thd,
                                             enum_var_type) {
-
   if (opt_mts_replica_parallel_workers == 0) {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,

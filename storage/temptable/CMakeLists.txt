@@ -21,6 +21,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+OPTION(TEMPTABLE_USE_XXH3
+  "Use XXH3_64 hash for TempTable engine (compile-time)" OFF)
+
+IF(TEMPTABLE_USE_XXH3)
+  ADD_DEFINITIONS(-DTEMPTABLE_USE_XXH3)
+ENDIF()
+
 MSVC_CPPCHECK_DISABLE()
 
 include_directories(

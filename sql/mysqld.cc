@@ -792,7 +792,7 @@ MySQL clients support the protocol:
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 #include "sql/conn_handler/socket_connection.h"  // stmt_info_new_packet
 #include "sql/cpu_binding.h"
-#include "sql/current_thd.h"                     // current_thd
+#include "sql/current_thd.h"  // current_thd
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/debug_sync.h"  // debug_sync_end
 #include "sql/derror.h"
@@ -827,8 +827,8 @@ MySQL clients support the protocol:
 #include "sql/regexp/regexp_facade.h"     // regexp::regexp_lib_charset
 #include "sql/replication.h"              // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
-#include "sql/statement/statement.h"
 #include "sql/sql_profile.h"
+#include "sql/statement/statement.h"
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
@@ -1205,9 +1205,9 @@ static bool binlog_format_used = false;
 LEX_STRING opt_init_connect, opt_init_replica;
 
 #ifdef MYSQL_SERVER
-  extern char *opt_thread_affinity_main;
-  extern char *opt_thread_affinity_rpl;
-  extern char *opt_thread_affinity_client;
+extern char *opt_thread_affinity_main;
+extern char *opt_thread_affinity_rpl;
+extern char *opt_thread_affinity_client;
 #endif
 
 /* Global variables */
@@ -3226,8 +3226,7 @@ static PasswdValue check_user(const char *user) {
   if (tmp_user_info.IsVoid()) {
     // Allow a numeric uid to be used
     const char *pos;
-    for (pos = user; my_isdigit(mysqld_charset, *pos); pos++)
-      ;
+    for (pos = user; my_isdigit(mysqld_charset, *pos); pos++);
     if (*pos)  // Not numeric id
       goto err;
 
@@ -3598,7 +3597,7 @@ static bool network_init(void) {
 
     if (mysqld_socket_acceptor->init_connection_acceptor())
       return true;  // mysqld_socket_acceptor would be freed in unireg_abort.
-    
+
     if (report_port == 0) report_port = mysqld_port;
     if (!opt_disable_networking) assert(report_port != 0);
   }
@@ -7713,7 +7712,7 @@ static void setup_error_log() {
       unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
-      // FreeConsole();        // Remove window
+    // FreeConsole();        // Remove window
 #endif /* _WIN32 */
   } else {
     // We are logging to stderr and SHOW VARIABLES should reflect that.
@@ -7852,8 +7851,8 @@ static int setup_error_log_components() {
 
         goto failure;
       } /* purecov: end */
-    }   // value was OK, but could not be set
-        // If we arrive here, the value was OK, and was set successfully.
+    }  // value was OK, but could not be set
+       // If we arrive here, the value was OK, and was set successfully.
   } else {
     /*
       We were given an illegal value at start-up, so the default was
@@ -8790,11 +8789,15 @@ static int init_server_components() {
 
   if (is_help_or_validate_option()) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
-  cpu_binding_register_option(ThreadRole::MAIN_THREAD,    opt_thread_affinity_main);
-  cpu_binding_register_option(ThreadRole::REPLICA_IO,      opt_thread_affinity_rpl);
-  cpu_binding_register_option(ThreadRole::REPLICA_APPLIER, opt_thread_affinity_rpl);
-  cpu_binding_register_option(ThreadRole::REPLICA_WORKER,  opt_thread_affinity_rpl);
-  cpu_binding_register_option(ThreadRole::CLIENT_THREAD, opt_thread_affinity_client);
+  cpu_binding_register_option(ThreadRole::MAIN_THREAD,
+                              opt_thread_affinity_main);
+  cpu_binding_register_option(ThreadRole::REPLICA_IO, opt_thread_affinity_rpl);
+  cpu_binding_register_option(ThreadRole::REPLICA_APPLIER,
+                              opt_thread_affinity_rpl);
+  cpu_binding_register_option(ThreadRole::REPLICA_WORKER,
+                              opt_thread_affinity_rpl);
+  cpu_binding_register_option(ThreadRole::CLIENT_THREAD,
+                              opt_thread_affinity_client);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!my_default_lc_messages->errmsgs->is_loaded()) {
@@ -9045,7 +9048,7 @@ static int init_server_components() {
 
   // Log active CRC32 implementation (hardware or software fallback).
   LogErr(INFORMATION_LEVEL, ER_CRC32_IMPLEMENTATION,
-       mycrc32::crc32_implementation_name());
+         mycrc32::crc32_implementation_name());
 
   return 0;
 }
@@ -10140,7 +10143,8 @@ int mysqld_main(int argc, char **argv)
   if (init_ssl_communication()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init()) unireg_abort(MYSQLD_ABORT_EXIT);
 
-  cpu_binding_apply_for_role(ThreadRole::MAIN_THREAD, pthread_self(), 1);  // one main thread
+  cpu_binding_apply_for_role(ThreadRole::MAIN_THREAD, pthread_self(),
+                             1);  // one main thread
 
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&
@@ -11251,7 +11255,7 @@ struct my_option my_long_options[] = {
      0, nullptr, 0, nullptr},
     {"log-tc-size", 0, "Size of transaction coordinator log.", &opt_tc_log_size,
      &opt_tc_log_size, nullptr, GET_ULONG, REQUIRED_ARG,
-     TC_LOG_MIN_PAGES *my_getpagesize(), TC_LOG_MIN_PAGES *my_getpagesize(),
+     TC_LOG_MIN_PAGES * my_getpagesize(), TC_LOG_MIN_PAGES * my_getpagesize(),
      ULONG_MAX, nullptr, my_getpagesize(), nullptr},
     {"master-retry-count", OPT_MASTER_RETRY_COUNT,
      "The number of times this replica will attempt to connect to a source "
@@ -13983,15 +13987,13 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
 
   auto check_path_overlap = [&](char *buffer, size_t len, const char *message) {
     if (!case_insensitive_fs) {
-      if (!strncmp(buffer, opt_var,
-                   len < opt_var_len ? len : opt_var_len)) {
+      if (!strncmp(buffer, opt_var, len < opt_var_len ? len : opt_var_len)) {
         warn = true;
         strcpy(whichdir, message);
       }
     } else {
-      char *longer_str = opt_datadir_len > opt_var_len
-                             ? buffer
-                             : const_cast<char *>(opt_var);
+      char *longer_str =
+          opt_datadir_len > opt_var_len ? buffer : const_cast<char *>(opt_var);
       const size_t smaller_len = std::min(len, opt_var_len);
       const char restore = longer_str[smaller_len];
       longer_str[smaller_len] = '\0';

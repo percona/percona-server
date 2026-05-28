@@ -3692,6 +3692,7 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
     if (args[0]->null_value) return 0; /* purecov: inspected */
     if (!args[1]->null_value && !args[2]->null_value) return value;
   } else if (cmp_type == DECIMAL_RESULT) {
+    null_value = false;
     my_decimal dec_buf, a_buf, b_buf;
     my_decimal *dec = args[0]->val_decimal(&dec_buf);
     if (dec == nullptr) {

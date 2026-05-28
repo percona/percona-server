@@ -1783,7 +1783,7 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
       ut_a(cur_blk->get_state() == ARCH_BLOCK_READY_TO_FLUSH);
 
-      auto cbk = std::bind(&Arch_Block::is_flushable, *cur_blk);
+      auto cbk = std::bind(&Arch_Block::is_flushable, cur_blk);
 
       ib::info() << "PS-11175: Waiting for block " << m_write_pos.m_block_num << " to be flushed. Page count: " << (m_write_pos.m_offset - ARCH_PAGE_BLK_HEADER_LENGTH) / ARCH_BLK_PAGE_ID_SIZE;
 

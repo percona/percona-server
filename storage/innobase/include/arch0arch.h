@@ -376,7 +376,7 @@ class Arch_Block {
   bool is_active() const { return (m_state == ARCH_BLOCK_ACTIVE); }
   /** Check if the block can be flushed or not.
   @return true, if the block cannot be flushed */
-  bool is_flushable() const { return (m_state != ARCH_BLOCK_READY_TO_FLUSH); }
+  bool is_flushable() const { return (m_state == ARCH_BLOCK_READY_TO_FLUSH); }
 
   /** Set current block flushed.
   Must hold page archiver sys operation mutex.  */

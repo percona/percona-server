@@ -4,6 +4,9 @@
 
 --source include/have_debug_sync.inc
 
+# Percona Server will log "[Warning] Too many connections"
+call mtr.add_suppression("Too many connections");
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

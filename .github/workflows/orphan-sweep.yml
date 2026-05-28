@@ -1,6 +1,8 @@
-# Hourly sweeper for leaked Hetzner runner VMs and offline GHA runners.
-# Companion to build-arm64.yml; catches orphans from control-plane crashes,
-# cancelled workflows, and probe-step leaks.
+# Hourly sweeper for leaked runner VMs (Hetzner + AWS EC2) and offline
+# GHA runners. Companion to build.yml; catches orphans from control-plane
+# crashes, cancelled workflows, and probe-step leaks.
+#
+# PS-11179 (2026-05-28): EC2 sweep added for the AWS fallback path.
 
 name: orphan-sweep
 
@@ -18,6 +20,8 @@ on:
         type: string
         default: '6'
 
+# Workflow-level permissions are empty. The sweep-ec2 job opts in to
+# id-token: write for OIDC -> AWS STS. Other jobs need nothing.
 permissions: {}
 
 concurrency:
@@ -132,4 +136,109 @@ jobs:
             echo "| unregistered | ${UNREGISTERED} |"
             echo "| failed | ${FAILED} |"
             echo "| candidates | ${#LINES[@]} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # PS-11179: EC2 orphan sweep for the AWS fallback path.
+  # Mirrors the Hetzner sweep cadence + threshold: hourly, default 6h age.
+  # OIDC -> STS via the same AWS_ROLE_ARN used by build.yml. Region pinned
+  # to eu-central-1 (matches create-runner-aws).
+  sweep-ec2:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DRY_RUN: ${{ inputs.dry_run || 'false' }}
+      MAX_AGE_HOURS: ${{ inputs.max_age_hours || '6' }}
+      AWS_REGION: eu-central-1
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: orphan-sweep-${{ github.run_id }}-${{ github.run_attempt }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sweep EC2 orphans
+        run: |
+          set -euo pipefail
+          NOW=$(date -u +%s)
+          MAX_AGE_SECONDS=$(( MAX_AGE_HOURS * 3600 ))
+          echo "Threshold: ${MAX_AGE_HOURS}h (${MAX_AGE_SECONDS}s); dry_run=${DRY_RUN}; region=${AWS_REGION}"
+
+          # Find every instance we own that is still alive. We tag-key on
+          # iit-billing-tag + github_repository so we never accidentally
+          # reach into another workload's instances.
+          # The --query string uses JMESPath; the backticks around `Name`
+          # are JMESPath literal syntax, not shell command substitution,
+          # so single-quoting is required (shellcheck SC2016 noise).
+          # shellcheck disable=SC2016
+          aws ec2 describe-instances \
+            --region "$AWS_REGION" \
+            --filters \
+              "Name=tag:iit-billing-tag,Values=percona-server-gha-fallback" \
+              "Name=tag:github_repository,Values=${{ github.repository }}" \
+              "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+            --query 'Reservations[].Instances[].[InstanceId,LaunchTime,State.Name,Tags[?Key==`Name`]|[0].Value]' \
+            --output text > /tmp/ec2-instances.tsv || true
+
+          TOTAL=$(wc -l < /tmp/ec2-instances.tsv | tr -d ' ')
+          DELETED=0
+          FAILED=0
+          SKIPPED=0
+          : > /tmp/ec2-candidates.tsv
+          if [ "${TOTAL:-0}" -gt 0 ]; then
+            while IFS=$'\t' read -r id launch state name; do
+              [ -z "$id" ] && continue
+              # LaunchTime is RFC3339 (e.g. 2026-05-28T12:34:56.000Z); strip
+              # millis and trailing Z so `date -d` parses on Ubuntu 24.04.
+              launch_clean=$(echo "$launch" | sed -E 's/\.[0-9]+Z?$/Z/')
+              launch_epoch=$(date -u -d "$launch_clean" +%s 2>/dev/null || echo "")
+              if [ -z "$launch_epoch" ]; then
+                echo "::warning::Skipping $id; could not parse LaunchTime=$launch"
+                SKIPPED=$((SKIPPED+1))
+                continue
+              fi
+              age=$(( NOW - launch_epoch ))
+              if [ "$age" -lt "$MAX_AGE_SECONDS" ]; then
+                continue
+              fi
+              echo "$id	$name	$state	$launch	$age" >> /tmp/ec2-candidates.tsv
+            done < /tmp/ec2-instances.tsv
+          fi
+
+          CANDIDATES=$(wc -l < /tmp/ec2-candidates.tsv | tr -d ' ')
+          if [ "${CANDIDATES:-0}" -gt 0 ]; then
+            echo "Candidates (>${MAX_AGE_HOURS}h old, matching tags):"
+            cat /tmp/ec2-candidates.tsv
+            while IFS=$'\t' read -r id name state launch age; do
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "::notice::[dry-run] would terminate $name ($id; state=$state; age=${age}s)"
+              else
+                echo "::warning::Terminating orphan EC2 instance: $name ($id; state=$state; age=${age}s)"
+                if aws ec2 terminate-instances \
+                     --region "$AWS_REGION" \
+                     --instance-ids "$id" >/dev/null 2>&1; then
+                  DELETED=$((DELETED+1))
+                else
+                  echo "::error::Failed to terminate $id"
+                  FAILED=$((FAILED+1))
+                fi
+              fi
+            done < /tmp/ec2-candidates.tsv
+          fi
+
+          {
+            echo ""
+            echo "### EC2 sweep (${AWS_REGION})"
+            echo ""
+            echo "| metric | value |"
+            echo "|---|---|"
+            echo "| live instances | ${TOTAL} |"
+            echo "| candidates | ${CANDIDATES} |"
+            echo "| terminated | ${DELETED} |"
+            echo "| failed | ${FAILED} |"
+            echo "| skipped (parse) | ${SKIPPED} |"
+            echo "| threshold | ${MAX_AGE_HOURS}h |"
+            echo "| dry_run | ${DRY_RUN} |"
           } >> "$GITHUB_STEP_SUMMARY"

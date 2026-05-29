@@ -59,6 +59,7 @@ Thd_ndb::Thd_ndb(THD *thd, const char *name, Ndb_cluster_connection *cc)
   save_point_count = 0;
   trans = nullptr;
   m_handler = nullptr;
+  m_autocommit = false;
   m_unsent_bytes = 0;
   m_unsent_blob_ops = false;
   m_execute_count = 0;

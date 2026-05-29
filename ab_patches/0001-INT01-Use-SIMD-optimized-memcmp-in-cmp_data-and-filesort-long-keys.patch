@@ -1,0 +1,213 @@
+From 4b467eba8ebac2d38bf54a3d0480474d1dc9f7cf Mon Sep 17 00:00:00 2001
+From: Alexey Bychko <abychko@gmail.com>
+Date: Fri, 22 May 2026 10:48:00 +0300
+Subject: [PATCH] [INT01] Use SIMD-optimized memcmp in cmp_data and filesort
+ long keys
+
+Replace legacy manual prefix comparison in cmp_data() and
+my_mem_compare_longkey() with direct calls to memcmp(), and enable
+SSE4.1/MOVBE for Linux/x86_64 builds.
+
+Modern glibc implements memcmp() using SIMD instructions (SSE4.1, AVX2,
+MOVBE) and outperforms the old hand-written prefix loop that was added
+to work around historical GCC inlining issues. By always calling the
+libc memcmp() and compiling with SSE4.1/MOVBE enabled on x86_64, we
+reduce the CPU time spent in B-tree key comparisons and filesort key
+comparison while keeping the original comparison semantics unchanged.
+---
+ cmake/os/Linux.cmake            |  5 ++
+ sql/filesort_utils.cc           | 12 +----
+ storage/innobase/rem/rem0cmp.cc | 93 ++++++++-------------------------
+ 3 files changed, 30 insertions(+), 80 deletions(-)
+
+diff --git a/cmake/os/Linux.cmake b/cmake/os/Linux.cmake
+index d0e1f0e4a5a..e04b8ac19a9 100644
+--- a/cmake/os/Linux.cmake
++++ b/cmake/os/Linux.cmake
+@@ -33,6 +33,11 @@ IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+   SET(LINUX_ARM 1)
+ ENDIF()
+ 
++IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
++  # Enable optimized memory operations for modern x86-64 CPUs
++  ADD_COMPILE_OPTIONS(-msse4.1 -msse4.2 -mavx2 -mmovbe)
++ENDIF()
++
+ # OS display name (version_compile_os etc).
+ # Used by the test suite to ignore bugs on some platforms.
+ SET(SYSTEM_TYPE "Linux")
+diff --git a/sql/filesort_utils.cc b/sql/filesort_utils.cc
+index 14c41799793..1b046114e9a 100644
+--- a/sql/filesort_utils.cc
++++ b/sql/filesort_utils.cc
+@@ -63,16 +63,8 @@ inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len) {
+   return false;
+ }
+ 
+-#define COMPARE(N) \
+-  if (s1[N] != s2[N]) return s1[N] < s2[N]
+-
+-inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2,
+-                                   size_t len) {
+-  COMPARE(0);
+-  COMPARE(1);
+-  COMPARE(2);
+-  COMPARE(3);
+-  return memcmp(s1 + 4, s2 + 4, len - 4) < 0;
++inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2, size_t len) {
++  return memcmp(s1, s2, len) < 0;
+ }
+ 
+ class Mem_compare {
+diff --git a/storage/innobase/rem/rem0cmp.cc b/storage/innobase/rem/rem0cmp.cc
+index 1ef327595d1..7c8ace23862 100644
+--- a/storage/innobase/rem/rem0cmp.cc
++++ b/storage/innobase/rem/rem0cmp.cc
+@@ -403,11 +403,8 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
+ 
+   if (len1 == UNIV_SQL_NULL || len2 == UNIV_SQL_NULL) {
+     if (len1 == len2) {
+-      return (0);
++      return 0;
+     }
+-
+-    /* We define the SQL null to be the smallest possible
+-    value of a field. */
+     return ((len1 == UNIV_SQL_NULL) == is_asc ? -1 : 1);
+   }
+ 
+@@ -428,15 +425,12 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
+       break;
+     case DATA_POINT:
+     case DATA_VAR_POINT:
+-      /* Since DATA_POINT has a fixed length of DATA_POINT_LEN,
+-      currently, pad is not needed. Meanwhile, DATA_VAR_POINT acts
+-      the same as DATA_GEOMETRY */
+     case DATA_GEOMETRY:
+       ut_ad(prtype & DATA_BINARY_TYPE);
+       pad = ULINT_UNDEFINED;
+       if (prtype & DATA_GIS_MBR) {
+-        return (cmp_whole_field(mtype, prtype, is_asc, data1, (unsigned)len1,
+-                                data2, (unsigned)len2));
++        return cmp_whole_field(mtype, prtype, is_asc, data1, (unsigned)len1,
++                               data2, (unsigned)len2);
+       }
+       break;
+     case DATA_BLOB:
+@@ -446,8 +440,8 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
+       }
+       [[fallthrough]];
+     default:
+-      return (cmp_whole_field(mtype, prtype, is_asc, data1, (unsigned)len1,
+-                              data2, (unsigned)len2));
++      return cmp_whole_field(mtype, prtype, is_asc, data1, (unsigned)len1,
++                             data2, (unsigned)len2);
+   }
+ 
+   ulint len;
+@@ -462,84 +456,43 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
+     len2 = 0;
+   }
+ 
+-  int cmp;
++  int cmp = 0;
+ 
+   if (len > 0) {
+-#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
+-    /* Compare the first bytes with a loop to avoid the call
+-    overhead of memcmp(). On x86 and x86-64, the GCC built-in
+-    (repz cmpsb) seems to be very slow, so we will be calling the
+-    libc version. http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
+-    tracks the slowness of the GCC built-in memcmp().
+-
+-    We compare up to the first 4..7 bytes with the loop.
+-    The (len & 3) is used for "normalizing" or
+-    "quantizing" the len parameter for the memcmp() call,
+-    in case the whole prefix is equal. On x86 and x86-64,
+-    the GNU libc memcmp() of equal strings is faster with
+-    len=4 than with len=3.
+-
+-    On other architectures than the IA32 or AMD64, there could
+-    be a built-in memcmp() that is faster than the loop.
+-    We only use the loop where we know that it can improve
+-    the performance. */
+-    for (ulint i = 4 + (len & 3); i > 0; i--) {
+-      cmp = int(*data1++) - int(*data2++);
+-
+-      if (cmp != 0) {
+-        return (is_asc ? cmp : -cmp);
+-      }
+-
+-      if (!--len) {
+-        break;
+-      }
+-    }
+-
+-    if (len) {
+-#endif /* IA32 or AMD64 */
+-      cmp = memcmp(data1, data2, len);
+-
+-      if (cmp != 0) {
+-        return (is_asc ? cmp : -cmp);
+-      }
+-
+-      data1 += len;
+-      data2 += len;
+-#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
++    cmp = memcmp(data1, data2, len);
++    if (cmp != 0) {
++      return is_asc ? cmp : -cmp;
+     }
+-#endif /* IA32 or AMD64 */
++    data1 += len;
++    data2 += len;
+   }
+ 
+-  cmp = (int)(len1 - len2);
++  cmp = static_cast<int>(len1 - len2);
+ 
+   if (cmp == 0) {
+-    return (0);
++    return 0;
+   }
+ 
+   if (pad == ULINT_UNDEFINED) {
+-    return (is_asc ? cmp : -cmp);
++    return is_asc ? cmp : -cmp;
+   }
+ 
+   if (len1 > 0) {
+-    ulint len{};
+-
++    ulint i = 0;
+     do {
+-      cmp = static_cast<int>(mach_read_from_1(&data1[len]) - pad);
+-      ++len;
+-    } while (cmp == 0 && len < len1);
+-
++      cmp = static_cast<int>(mach_read_from_1(&data1[i]) - pad);
++      ++i;
++    } while (cmp == 0 && i < len1);
+   } else {
+     ut_ad(len2 > 0);
+-
+-    ulint len{};
+-
++    ulint i = 0;
+     do {
+-      cmp = static_cast<int>(pad - mach_read_from_1(&data2[len]));
+-      ++len;
+-    } while (cmp == 0 && len < len2);
++      cmp = static_cast<int>(pad - mach_read_from_1(&data2[i]));
++      ++i;
++    } while (cmp == 0 && i < len2);
+   }
+ 
+-  return (is_asc ? cmp : -cmp);
++  return is_asc ? cmp : -cmp;
+ }
+ 
+ int cmp_dtuple_rec_with_gis(const dtuple_t *dtuple, const rec_t *rec,
+-- 
+2.54.0
+

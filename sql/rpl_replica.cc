@@ -7708,6 +7708,77 @@ static bool queue_event_uses_direct_construction(Log_event_type event_type) {
 }
 
 /**
+  This function checks if a format description event has been processed and
+  stored in the receiver thread context.
+
+  @note In case the format description event is missing, this function writes
+  an error to the error log, but does not add it to the diagnostics area of the
+  receiver thread. The error code is:
+  ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION
+
+  @param mi the receiver thread context.
+  @return true if the fd event has not been processed and saved, false
+  otherwise.
+*/
+static bool is_fd_event_saved_in_context(Master_info &mi) {
+  DBUG_TRACE;
+  if (mi.get_mi_description_event() == nullptr) {
+    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION,
+           mi.get_channel());
+    return false;
+  }
+
+  return true;
+}
+
+/**
+  This function checks if the format description event exists
+  and whether it is able to be used with the event types.
+
+  @note this function, in case it finds the format description event unusable,
+  writes an error to the error log and pushes that error to the diagnostics
+  area of the receiver thread. The error code is: ER_REPLICA_CORRUPT_EVENT .
+
+  @param mi the io thread context, containing the current format description
+            event
+  @param event_type the event type to handle together with the format
+                    description event
+  @return false if the event is not usable, true otherwise.
+*/
+static bool is_fd_event_saved_in_context_usable_with_event_type(
+    Master_info &mi, Log_event_type event_type) {
+  DBUG_TRACE;
+  auto fde{mi.get_mi_description_event()};
+
+  /* on debug builds assert, on production builds, return false */
+  assert(fde != nullptr);
+  if (fde == nullptr) return false;
+
+  /* make the fde have fewer event types than those that come down the pipe. */
+  DBUG_EXECUTE_IF("queue_event_unknown_event_type_by_fd_event", {
+    auto new_post_header_len_size{mysql::binlog::event::START_EVENT_V3};
+    fde->post_header_len.resize(new_post_header_len_size);
+    fde->number_of_event_types = new_post_header_len_size;
+  });
+
+  DBUG_PRINT(
+      "info",
+      ("number of event types: %d, post_header_len size: %lu, event_type: %d",
+       fde->number_of_event_types, fde->post_header_len.size(), event_type));
+
+  if (event_type > fde->number_of_event_types) {
+    mi.report(ERROR_LEVEL, ER_REPLICA_CORRUPT_EVENT,
+              "Event type '%s' is not recognized by the format description "
+              "event currently in use. Please, restart the receiver thread. "
+              "If the problem persists, inspecting the relay logs may help "
+              "diagnosing the issue.",
+              Log_event::get_type_str(event_type));
+    return false;
+  }
+  return true;
+}
+
+/**
   Store an event received from the master connection into the relay
   log.
 
@@ -7845,11 +7916,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   assert(lock_count == 0);
   lock_count = 1;
 
-  if (mi->get_mi_description_event() == nullptr) {
-    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION,
-           mi->get_channel());
+  /* format description event checks */
+  if (!is_fd_event_saved_in_context(*mi)) goto err;
+  if (!is_fd_event_saved_in_context_usable_with_event_type(*mi, event_type))
     goto err;
-  }
 
   /*
     Simulate an unknown ignorable log event by rewriting a Xid

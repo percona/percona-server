@@ -94,6 +94,7 @@ class Thd_ndb {
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
   class ha_ndbcluster *m_handler;
+  bool m_autocommit; /* Whether transaction was started in autocommit mode */
 
   // Reference counter for external_lock() calls. The counter controls that
   // the handlerton is registered as being part of the MySQL transaction only at

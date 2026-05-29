@@ -1480,7 +1480,7 @@ int ha_ndbcluster::get_ndb_blobs_value_hook(NdbBlob *ndb_blob, void *arg) {
    * to allow Blob read related resources to be freed
    * early
    */
-  const bool autocommit = (get_thd_ndb(current_thd)->m_handler != nullptr);
+  const bool autocommit = (get_thd_ndb(current_thd)->m_autocommit);
   if (!autocommit && !ha->m_active_cursor) {
     for (uint i = 0; i < ha->table->s->fields; i++) {
       Field *field = ha->table->field[i];
@@ -5384,6 +5384,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found) {
    * - if rbwr not enabled, execute_commit() done in ndbcluster_commit().
    */
   if (m_thd_ndb->m_handler && m_read_before_write_removal_possible) {
+    assert(m_thd_ndb->m_autocommit);
     /*
       This is an autocommit involving only one table and rbwr is on
 
@@ -5425,6 +5426,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found) {
   }
 
   if (m_thd_ndb->m_handler && !m_thd_ndb->m_unsent_blob_ops) {
+    assert(m_thd_ndb->m_autocommit);
     // Execute at commit time(in 'ndbcluster_commit') to save a round trip
     DBUG_PRINT("exit", ("skip execute - simple autocommit"));
     return 0;
@@ -5773,6 +5775,7 @@ int ha_ndbcluster::end_bulk_delete() {
   }
 
   if (m_thd_ndb->m_handler && m_read_before_write_removal_possible) {
+    assert(m_thd_ndb->m_autocommit);
     /*
       This is an autocommit involving only one table and rbwr is on
 
@@ -5815,6 +5818,7 @@ int ha_ndbcluster::end_bulk_delete() {
   }
 
   if (m_thd_ndb->m_handler) {
+    assert(m_thd_ndb->m_autocommit);
     // Execute at commit time(in 'ndbcluster_commit') to save a round trip
     DBUG_PRINT("exit", ("skip execute - simple autocommit"));
     return 0;
@@ -7396,10 +7400,14 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
 
     if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
       m_thd_ndb->m_handler = nullptr;
+      m_thd_ndb->m_autocommit = false;
     } else {
+      DBUG_PRINT("info",
+                 ("Autocommit, setting up m_handler to point to this handler"));
       // This is an autocommit, setup reference to this handler for use in
       // the commit phase, deferring execute for optimization reasons
       m_thd_ndb->m_handler = this;
+      m_thd_ndb->m_autocommit = true;
     }
 
     if (trans == nullptr) {
@@ -7426,6 +7434,9 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
     }
 
   } else {
+    DBUG_PRINT(
+        "info",
+        ("More than one handler involved, resetting m_handler to nullptr"));
     // There are more than one handler involved, execute deferral not possible
     m_thd_ndb->m_handler = nullptr;
   }
@@ -7515,6 +7526,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
         thd_ndb->ndb->closeTransaction(thd_ndb->trans);
         thd_ndb->trans = nullptr;
         thd_ndb->m_handler = nullptr;
+        thd_ndb->m_autocommit = false;
       }
     }
 
@@ -7835,6 +7847,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   } else {
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible) {
+      assert(thd_ndb->m_autocommit);
       // This is an autocommit involving only one table and rbwr is on, thus
       // the transaction should already have been committed early
       DBUG_PRINT("info", ("autocommit+rbwr, transaction committed early"));
@@ -7889,6 +7902,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   ndb->closeTransaction(trans);
   thd_ndb->trans = nullptr;
   thd_ndb->m_handler = nullptr;
+  thd_ndb->m_autocommit = false;
 
   return res;
 }
@@ -7959,6 +7973,7 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
   ndb->closeTransaction(trans);
   thd_ndb->trans = nullptr;
   thd_ndb->m_handler = nullptr;
+  thd_ndb->m_autocommit = false;
 
   Ndb_applier *const applier = thd_ndb->get_applier();
   if (applier) {

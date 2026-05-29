@@ -33,6 +33,11 @@ IF(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   SET(LINUX_ARM 1)
 ENDIF()
 
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+  # Enable optimized memory operations for modern x86-64 CPUs
+  ADD_COMPILE_OPTIONS(-msse4.1 -msse4.2 -mavx2 -mmovbe)
+ENDIF()
+
 # OS display name (version_compile_os etc).
 # Used by the test suite to ignore bugs on some platforms.
 SET(SYSTEM_TYPE "Linux")

@@ -9351,6 +9351,15 @@ void Backup::fragmentCompleted(Signal *signal, BackupFilePtr filePtr,
 
     ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_CONF;
     ptr.p->slaveState.setState(STARTED);
+
+    if (ERROR_INSERTED(10061)) {
+      jam();
+      g_eventLogger->info(
+          "Backup %u finished T%uF%u scan, setting EI 10030 to cause backup "
+          "log overflow",
+          instance(), filePtr.p->tableId, filePtr.p->fragmentNo);
+      SET_ERROR_INSERT_VALUE(10030);
+    }
   }
   return;
 }
@@ -10809,7 +10818,10 @@ void Backup::execABORT_BACKUP_ORD(Signal *signal) {
          */
         ndbrequire(previousGsn == GSN_BACKUP_FRAGMENT_REF ||
                    previousGsn == GSN_BACKUP_FRAGMENT_CONF ||
-                   previousGsn == GSN_ABORT_BACKUP_ORD);
+                   previousGsn == GSN_ABORT_BACKUP_ORD ||
+                   previousGsn == GSN_STOP_BACKUP_REQ ||
+                   previousGsn == GSN_STOP_BACKUP_CONF ||
+                   previousGsn == GSN_STOP_BACKUP_REF);
 
         g_eventLogger->info("Participant was not scanning, leaving gsn as %u",
                             previousGsn);

@@ -245,8 +245,7 @@ class Cached_authentication_plugins {
 };
 
 using name_and_host_t = std::pair<std::string, std::string>;
-using external_roles_t =
-    std::map<name_and_host_t, std::vector<name_and_host_t>>;
+using external_roles_t = std::map<name_and_host_t, std::vector<std::string>>;
 extern external_roles_t g_external_roles;
 extern Cached_authentication_plugins *g_cached_authentication_plugins;
 

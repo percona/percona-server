@@ -3254,9 +3254,8 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
         roles_it.rewind();
         while (LEX_USER *role = roles_it++) {
           for (const auto &r : p.second) {
-            const char *name = r.first.c_str();
             Role_id id(role->user.str, "");
-            Role_id id2(name, "");
+            Role_id id2(r.c_str(), "");
             if (id == id2) {
               my_error(ER_DYNAMIC_ROLE, MYF(0), role->user.str);
               commit_and_close_mysql_tables(thd);

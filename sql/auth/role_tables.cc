@@ -343,9 +343,7 @@ bool populate_roles_caches(THD *thd, Table_ref *tablelst) {
     }
 
     for (const auto &r : p.second) {
-      const char *host2 = r.second.c_str();
-      const char *name = r.first.c_str();
-      ACL_USER *acl_role = find_acl_user(host2, name, false);
+      ACL_USER *acl_role = find_acl_user("", r.c_str(), false);
       if (acl_role == nullptr) {
         continue;
       }

@@ -441,10 +441,6 @@ buf_pool_get_oldest_modification(void)
 	lsn_t		lsn = 0;
 	lsn_t		oldest_lsn = 0;
 
-	/* When we traverse all the flush lists we don't want another
-	thread to add a dirty page to any flush list. */
-	log_flush_order_mutex_enter();
-
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
@@ -475,8 +471,6 @@ buf_pool_get_oldest_modification(void)
 			oldest_lsn = lsn;
 		}
 	}
-
-	log_flush_order_mutex_exit();
 
 	/* The returned answer may be out of date: the flush_list can
 	change after the mutex has been released. */

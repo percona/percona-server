@@ -822,6 +822,9 @@ struct handlerton
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
                         enum enum_schema_tables);
+   my_bool (*flush_changed_page_bitmaps)(void);
+   my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
+
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler

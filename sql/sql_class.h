@@ -2085,7 +2085,7 @@ public:
   struct timeval user_time;
   // track down slow my_thread_create
   ulonglong  thr_create_utime;
-  ulonglong  start_utime, utime_after_lock;
+  ulonglong  start_utime, utime_after_lock, utime_after_query;
 
   /**
     Type of lock to be used for all DML statements, except INSERT, in cases
@@ -3537,8 +3537,8 @@ public:
   */
   void update_server_status()
   {
-    ulonglong end_utime_of_query= current_utime();
-    if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+    utime_after_query= current_utime();
+    if (utime_after_query > utime_after_lock + variables.long_query_time)
       server_status|= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void)

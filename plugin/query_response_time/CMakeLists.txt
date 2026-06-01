@@ -1,0 +1,7 @@
+MYSQL_ADD_PLUGIN(QUERY_RESPONSE_TIME query_response_time.cc plugin.cc)
+
+IF(UNIX)
+  IF(INSTALL_MYSQLTESTDIR)
+    INSTALL(DIRECTORY tests/mtr/ DESTINATION ${INSTALL_MYSQLTESTDIR}/suite/query_response_time COMPONENT Test)
+  ENDIF()
+ENDIF()

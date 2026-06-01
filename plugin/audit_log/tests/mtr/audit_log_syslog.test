@@ -1,0 +1,3 @@
+--source include/not_embedded.inc
+
+--source audit_log_events.inc

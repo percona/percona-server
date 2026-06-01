@@ -1,0 +1,23 @@
+--source include/not_embedded.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
+--source ../plugin/audit_log/tests/mtr/audit_log_events.inc
+
+--move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_json.log
+set global audit_log_flush= ON;
+perl;
+  eval "use JSON qw(decode_json); 1" or exit 0;
+  open my $file, $ENV{'MYSQLD_DATADIR'} . '/test_audit_json.log' or die "Could not open log: $!";
+  while (my $line = <$file>) {
+      decode_json($line);
+  }
+  close $file;
+EOF
+--remove_file $MYSQLD_DATADIR/test_audit.log
+--remove_file $MYSQLD_DATADIR/test_audit_json.log

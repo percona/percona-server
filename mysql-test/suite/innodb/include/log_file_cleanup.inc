@@ -6,6 +6,7 @@
 --remove_files_wildcard $bugdir ibdata*
 --remove_files_wildcard $bugdir ib_logfile*
 --remove_files_wildcard $bugdir undo00*
+--remove_files_wildcard $bugdir xb_doublewrite
 --copy_file $bugdir/bak_ibdata1 $bugdir/ibdata1
 --copy_file $bugdir/bak_ibdata2 $bugdir/ibdata2
 --copy_file $bugdir/bak_ib_logfile0 $bugdir/ib_logfile0

@@ -149,10 +149,11 @@ enum os_file_create_t {
 	that the above values stay below 128. */
 
 	OS_FILE_ON_ERROR_NO_EXIT = 128,	/*!< do not exit on unknown errors */
-	OS_FILE_ON_ERROR_SILENT = 256	/*!< don't print diagnostic messages to
+	OS_FILE_ON_ERROR_SILENT = 256,	/*!< don't print diagnostic messages to
 					the log unless it is a fatal error,
 					this flag is only used if
 					ON_ERROR_NO_EXIT is set */
+	OS_FILE_O_SYNC = 512		/*!< Open file with O_SYNC */
 };
 
 /** Options for os_file_advise_func @{ */
@@ -1151,6 +1152,7 @@ extern mysql_pfs_key_t	innodb_data_file_key;
 extern mysql_pfs_key_t	innodb_log_file_key;
 extern mysql_pfs_key_t	innodb_temp_file_key;
 extern mysql_pfs_key_t	innodb_bmp_file_key;
+extern mysql_pfs_key_t	innodb_parallel_dblwrite_file_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.

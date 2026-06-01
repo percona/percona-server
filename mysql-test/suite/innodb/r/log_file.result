@@ -51,6 +51,7 @@ my_restart.err
 undo001
 undo002
 undo003
+xb_doublewrite
 # 3. Without ibdata1 & ibdata2
 bak_ib_logfile0
 bak_ib_logfile1

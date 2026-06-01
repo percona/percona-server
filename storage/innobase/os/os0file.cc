@@ -1,7 +1,7 @@
 /***********************************************************************
 
 Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
 by Percona Inc.. Those modifications are
@@ -208,6 +208,7 @@ mysql_pfs_key_t  innodb_data_file_key;
 mysql_pfs_key_t  innodb_log_file_key;
 mysql_pfs_key_t  innodb_temp_file_key;
 mysql_pfs_key_t	 innodb_bmp_file_key;
+mysql_pfs_key_t  innodb_parallel_dblwrite_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous I/O context */
@@ -3260,7 +3261,14 @@ os_file_create_simple_func(
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
-	int		create_o_sync = 0;
+	int		create_o_sync;
+	if (create_mode & OS_FILE_O_SYNC) {
+
+		create_o_sync = O_SYNC;
+		create_mode &= ~(static_cast<ulint>(OS_FILE_O_SYNC));
+	} else {
+		create_o_sync = 0;
+	}
 
 	if (create_mode == OS_FILE_OPEN) {
 

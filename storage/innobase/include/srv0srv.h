@@ -306,6 +306,9 @@ extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
+
+enum { DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE = 8 * 1024L };
+
 extern ulong	srv_log_write_ahead_size;
 extern char	srv_use_global_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
@@ -594,13 +597,17 @@ enum srv_unix_flush_t {
 				the reason for which is that some FS
 				do not flush meta-data when
 				unbuffered IO happens */
-	SRV_UNIX_O_DIRECT_NO_FSYNC
+	SRV_UNIX_O_DIRECT_NO_FSYNC,
 				/*!< do not use fsync() when using
 				direct IO i.e.: it can be set to avoid
 				the fsync() call that we make when
 				using SRV_UNIX_O_DIRECT. However, in
 				this case user/DBA should be sure about
 				the integrity of the meta-data */
+	SRV_UNIX_ALL_O_DIRECT   /*!< similar to O_DIRECT, invokes
+				os_file_set_nocache() on data and log files.
+				This implies using non-buffered IO but still
+				using fsync for data but not log files. */
 };
 extern enum srv_unix_flush_t	srv_unix_file_flush_method;
 #else

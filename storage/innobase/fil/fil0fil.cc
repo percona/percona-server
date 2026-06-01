@@ -216,10 +216,12 @@ static ulint	srv_data_written;
 
 /** Determine if user has explicitly disabled fsync(). */
 #ifndef _WIN32
-# define fil_buffering_disabled(s)	\
-	((s)->purpose == FIL_TYPE_TABLESPACE	\
-	 && srv_unix_file_flush_method	\
-	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
+# define fil_buffering_disabled(s)					\
+	(((s)->purpose == FIL_TYPE_TABLESPACE				\
+	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)\
+	  || ((s)->purpose == FIL_TYPE_LOG				\
+	    && srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT))
+
 #else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
 #endif /* __WIN32 */

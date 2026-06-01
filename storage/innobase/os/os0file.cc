@@ -2954,6 +2954,42 @@ AIO::is_linux_native_aio_supported()
 
 #endif /* LINUX_NATIVE_AIO */
 
+/** For an EINVAL I/O error, prints a diagnostic message if innodb_flush_method
+== ALL_O_DIRECT.
+@param[in]	err	C error code
+@return true if the diagnostic message was printed
+@return false if the diagnostic message does not apply */
+static
+bool
+os_diagnose_all_o_direct_einval(
+	ulint	err)
+{
+	if ((err == EINVAL)
+	    && (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT)) {
+		ib::info() << "The error might be caused by redo log I/O not "
+			"satisfying innodb_flush_method=ALL_O_DIRECT "
+			"requirements by the underlying file system.";
+		if (srv_log_write_ahead_size
+		    != DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE)
+			ib::info() <<
+				"This might be caused by an incompatible "
+				"non-default innodb_log_write_ahead_size "
+				"value " << srv_log_write_ahead_size;
+		ib::info() <<
+			"Please file a bug at https://bugs.percona.com and "
+			"include this error message, my.cnf settings, ";
+		ib::info() <<
+			"and information about the file system where the redo "
+			"log resides.";
+		ib::info() <<
+			"A possible workaround is to change "
+			"innodb_flush_method value to something else "
+			"than ALL_O_DIRECT.";
+		return(true);
+	}
+	return(false);
+}
+
 /** Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
@@ -3003,7 +3039,7 @@ os_file_get_last_error_low(
 				<< "The error means mysqld does not have"
 				" the access rights to the directory.";
 
-		} else {
+		} else if (!os_diagnose_all_o_direct_einval(err)) {
 			if (strerror(err) != NULL) {
 
 				ib::error()
@@ -3224,6 +3260,8 @@ os_file_create_simple_func(
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
+	int		create_o_sync = 0;
+
 	if (create_mode == OS_FILE_OPEN) {
 
 		if (access_type == OS_FILE_READ_ONLY) {
@@ -3275,7 +3313,6 @@ os_file_create_simple_func(
 		return(file);
 	}
 
-	int	create_o_sync = 0;
 	bool	retry;
 
 	do {
@@ -3653,6 +3690,15 @@ os_file_create_func(
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
 		os_file_set_nocache(file.m_file, name, mode_str);
+	} else if (!srv_read_only_mode
+		   && *success
+		   && srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
+		/* Do fsync() on log and parallel doublewrite files
+		when setting O_DIRECT fails.
+		See log_io_complete() and buf_dblwr_flush_buffered_writes() */
+		if (!os_file_set_nocache(file.m_file, name, mode_str)) {
+			srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
+		}
 	}
 
 #ifdef USE_FILE_LOCK
@@ -5595,6 +5641,11 @@ os_file_pwrite(
 
 	ssize_t	n_bytes = os_file_io(type, file, (void*) buf, n, offset, err);
 
+	DBUG_EXECUTE_IF("xb_simulate_all_o_direct_write_failure",
+			n_bytes = -1;
+			errno = EINVAL;
+			*err = DB_IO_ERROR;);
+
 	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 
@@ -5646,6 +5697,8 @@ os_file_write_page(
 
 		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
 
+		os_diagnose_all_o_direct_einval(errno);
+
 		os_has_said_disk_full = true;
 	}
 
@@ -5693,6 +5746,10 @@ os_file_pread(
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
 	ssize_t	n_bytes = os_file_io(type, file, buf, n, offset, err);
+
+	DBUG_EXECUTE_IF("xb_simulate_all_o_direct_read_failure",
+			n_bytes = -1;
+			errno = EINVAL;);
 
 	if (UNIV_UNLIKELY(start_time != 0))
 	{
@@ -5939,8 +5996,9 @@ os_file_handle_error_no_exit(
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	name		"open" or "create"; used in the diagnostic
-				message */
-void
+				message
+@return true if operation is success and false */
+bool
 os_file_set_nocache(
 	int		fd		MY_ATTRIBUTE((unused)),
 	const char*	file_name	MY_ATTRIBUTE((unused)),
@@ -5956,6 +6014,7 @@ os_file_set_nocache(
 			<< file_name << ": " << operation_name
 			<< strerror(errno_save) << ","
 			" continuing anyway.";
+		return false;
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
@@ -5987,8 +6046,10 @@ short_warning:
 				<< " : " << strerror(errno_save)
 				<< " continuing anyway.";
 		}
+		return false;
 	}
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
+	return true;
 }
 
 /** Write the specified number of zeros to a newly created file.

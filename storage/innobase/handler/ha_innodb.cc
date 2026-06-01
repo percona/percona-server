@@ -19175,6 +19175,29 @@ buf_flush_list_now_set(
 	}
 }
 
+/****************************************************************//**
+Force log tracker to track the log synchronously.  */
+static
+void
+track_redo_log_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+					__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+					__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+					__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save && srv_track_changed_pages) {
+
+		log_online_follow_redo_log();
+	}
+}
+
 /** Override current MERGE_THRESHOLD setting for all indexes at dictionary
 now.
 @param[in]	thd	thread handle
@@ -19536,6 +19559,7 @@ static MYSQL_SYSVAR_BOOL(purge_stop_now, innodb_purge_stop_now,
 
 static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
   PLUGIN_VAR_OPCMDARG,
+
   "Force checkpoint now",
   NULL, checkpoint_now_set, FALSE);
 
@@ -19543,6 +19567,14 @@ static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
   "Force dirty page flush now",
   NULL, buf_flush_list_now_set, FALSE);
+
+static my_bool	innodb_track_redo_log_now = TRUE;
+
+static MYSQL_SYSVAR_BOOL(track_redo_log_now,
+  innodb_track_redo_log_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force log tracker to catch up with checkpoint now",
+  NULL, track_redo_log_now_set, FALSE);
 
 static MYSQL_SYSVAR_UINT(merge_threshold_set_all_debug,
   innodb_merge_threshold_set_all_debug,

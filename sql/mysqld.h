@@ -22,6 +22,7 @@
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_add64 */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "hash.h"
 #include "my_thread_local.h"               /* my_get_thread_local */
 #include "my_thread.h"                     /* my_thread_attr_t */
 #include "atomic_class.h"                  /* Atomic_int32 */
@@ -157,14 +158,13 @@ extern my_bool opt_slave_preserve_commit_order;
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
+extern my_bool opt_userstat, opt_thread_statistics;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
 extern size_t opt_secure_backup_file_priv_len;
-extern my_bool opt_userstat;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-extern my_bool opt_query_cache_strip_comments;
 extern ulong opt_log_slow_sp_statements;
 extern ulonglong opt_slow_query_log_use_global_control;
 extern ulong opt_slow_query_log_rate_type;
@@ -248,6 +248,7 @@ extern uint max_user_connections;
 extern ulong extra_max_connections;
 extern ulong rpl_stop_slave_timeout;
 extern my_bool log_bin_use_v1_row_events;
+extern ulonglong denied_connections;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -293,6 +294,11 @@ extern SHOW_VAR status_vars[];
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
+extern HASH global_user_stats;
+extern HASH global_client_stats;
+extern HASH global_thread_stats;
+extern HASH global_table_stats;
+extern HASH global_index_stats;
 extern const char *opt_date_time_formats[];
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
@@ -426,6 +432,8 @@ extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
   key_hash_filo_lock,
   key_LOCK_crypt, key_LOCK_error_log,
+  key_LOCK_global_user_client_stats,
+  key_LOCK_global_table_stats, key_LOCK_global_index_stats,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
@@ -561,7 +569,14 @@ extern PSI_memory_key key_memory_test_quick_select_exec;
 extern PSI_memory_key key_memory_prune_partitions_exec;
 extern PSI_memory_key key_memory_binlog_recover_exec;
 extern PSI_memory_key key_memory_blob_mem_storage;
+
 extern PSI_memory_key key_memory_thread_pool_connection;
+
+extern PSI_memory_key key_memory_userstat_table_stats;
+extern PSI_memory_key key_memory_userstat_index_stats;
+extern PSI_memory_key key_memory_userstat_user_stats;
+extern PSI_memory_key key_memory_userstat_thread_stats;
+extern PSI_memory_key key_memory_userstat_client_stats;
 
 extern PSI_memory_key key_memory_Sys_var_charptr_value;
 extern PSI_memory_key key_memory_THD_db;
@@ -997,6 +1012,17 @@ inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
   query_id_t id= my_atomic_add64(&global_query_id, 1);
   return (id+1);
 }
+
+void init_global_user_stats(void);
+void init_global_table_stats(void);
+void init_global_index_stats(void);
+void init_global_client_stats(void);
+void init_global_thread_stats(void);
+void free_global_user_stats(void);
+void free_global_table_stats(void);
+void free_global_index_stats(void);
+void free_global_client_stats(void);
+void free_global_thread_stats(void);
 
 /*
   TODO: Replace this with an inline function.

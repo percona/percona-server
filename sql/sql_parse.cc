@@ -131,6 +131,9 @@ using std::max;
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
+// Uses the THD to update the global stats by user name and client IP
+void update_global_user_stats(THD* thd, bool create_user, time_t now);
+
 const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Sleep") },
   { C_STRING_WITH_LEN("Quit") },
@@ -1220,11 +1223,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                                                com_statement_info[command].m_key);
 
   thd->set_command(command);
-
-  /* To increment the current command counter for user stats, 'command' must
-     be saved because it is set to COM_SLEEP at the end of this function.
-  */
-  thd->old_command= command;
   /*
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.
@@ -5772,15 +5770,21 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       // In case there are bad values, 2629743 is the #seconds in a month.
       if (thd->cpu_time > 2629743)
       {
-        thd->cpu_time= 0;
+        thd->cpu_time = 0;
       }
     }
     else
       thd->cpu_time = 0;
   }
-  // Updates THD stats.
+
+  // Updates THD stats and the global user stats.
   if (unlikely(opt_userstat))
+  {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
+    update_global_user_stats(thd, true, time(NULL));
+#endif
+  }
 
   DBUG_VOID_RETURN;
 }

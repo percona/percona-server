@@ -869,6 +869,7 @@ int ha_myisam::close(void)
 
 int ha_myisam::write_row(uchar *buf)
 {
+  int error;
   ha_statistic_increment(&SSV::ha_write_count);
 
   /*
@@ -877,11 +878,11 @@ int ha_myisam::write_row(uchar *buf)
   */
   if (table->next_number_field && buf == table->record[0])
   {
-    int error;
     if ((error= update_auto_increment()))
       return error;
   }
-  return mi_write(file,buf);
+  error=mi_write(file,buf);
+  return error;
 }
 
 int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
@@ -1654,14 +1655,18 @@ bool ha_myisam::is_crashed() const
 
 int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
 {
+  int error;
   ha_statistic_increment(&SSV::ha_update_count);
-  return mi_update(file,old_data,new_data);
+  error=mi_update(file,old_data,new_data);
+  return error;
 }
 
 int ha_myisam::delete_row(const uchar *buf)
 {
+  int error;
   ha_statistic_increment(&SSV::ha_delete_count);
-  return mi_delete(file,buf);
+  error=mi_delete(file,buf);
+  return error;
 }
 
 C_MODE_START

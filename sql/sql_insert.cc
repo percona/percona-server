@@ -899,13 +899,15 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   if (thd->is_error())
     goto exit_without_my_ok;
 
+  ha_rows row_count;
+
   if (insert_many_values.elements == 1 &&
       (!(thd->variables.option_bits & OPTION_WARNINGS) || !thd->cuted_fields))
   {
-    my_ok(thd, info.stats.copied + info.stats.deleted +
-          (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
-           info.stats.touched : info.stats.updated),
-          id);
+    row_count= info.stats.copied + info.stats.deleted +
+      (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
+       info.stats.touched : info.stats.updated);
+    my_ok(thd, row_count, id);
   }
   else
   {
@@ -923,8 +925,10 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
-    my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
+    row_count= info.stats.copied + info.stats.deleted + updated;
+    my_ok(thd, row_count, id, buff);
   }
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(FALSE);
 
 exit_without_my_ok:
@@ -2433,6 +2437,7 @@ bool Query_result_insert::send_eof()
      thd->first_successful_insert_id_in_prev_stmt :
      (info.stats.copied ? autoinc_value_of_last_inserted_row : 0));
   my_ok(thd, row_count, id, buff);
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(0);
 }
 

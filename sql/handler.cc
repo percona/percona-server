@@ -2101,6 +2101,8 @@ int ha_rollback_trans(THD *thd, bool all)
   }
 #endif
 
+  thd->diff_rollback_trans++;
+
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
   {
@@ -2348,6 +2350,8 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   if (thd->m_transaction_psi != NULL)
     MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(thd->m_transaction_psi, 1);
 #endif
+
+  thd->diff_rollback_trans++;
 
   DBUG_RETURN(error);
 }
@@ -2840,6 +2844,13 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
+
+  if (unlikely(opt_userstat))
+  {
+    rows_read= rows_changed= 0;
+    memset(index_rows_read, 0, sizeof(index_rows_read));
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -5215,6 +5226,120 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
     }
   }
   DBUG_RETURN(error);
+}
+
+// Updates the global table stats with the TABLE this handler represents.
+void handler::update_global_table_stats()
+{
+  if (!rows_read && !rows_changed)
+    return;  // Nothing to update.
+  // table_cache_key is db_name + '\0' + table_name + '\0'.
+  if (!table->s || !table->s->table_cache_key.str || !table->s->table_name.str)
+    return;
+
+  TABLE_STATS* table_stats;
+  char key[NAME_LEN * 2 + 2];
+  // [db] + '.' + [table]
+  sprintf(key, "%s.%s", table->s->table_cache_key.str, table->s->table_name.str);
+
+  mysql_mutex_lock(&LOCK_global_table_stats);
+  // Gets the global table stats, creating one if necessary.
+  if (!(table_stats = (TABLE_STATS *) my_hash_search(&global_table_stats,
+                                                     (uchar*)key,
+                                                     strlen(key))))
+  {
+    if (!(table_stats = ((TABLE_STATS *)
+                         my_malloc(key_memory_userstat_table_stats,
+                                   sizeof(TABLE_STATS),
+                                   MYF(MY_WME | MY_ZEROFILL)))))
+    {
+      // Out of memory.
+      sql_print_error("Allocating table stats failed.");
+      goto end;
+    }
+    strncpy(table_stats->table, key, sizeof(table_stats->table));
+    table_stats->table_len=              strlen(table_stats->table);
+    table_stats->rows_read=              0;
+    table_stats->rows_changed=           0;
+    table_stats->rows_changed_x_indexes= 0;
+    table_stats->engine_type=            (int) ht->db_type;
+
+    if (my_hash_insert(&global_table_stats, (uchar *) table_stats))
+    {
+      // Out of memory.
+      sql_print_error("Inserting table stats failed.");
+      my_free((char *) table_stats);
+      goto end;
+    }
+  }
+  // Updates the global table stats.
+  table_stats->rows_read+=              rows_read;
+  table_stats->rows_changed+=           rows_changed;
+  table_stats->rows_changed_x_indexes+=
+    rows_changed * (table->s->keys ? table->s->keys : 1);
+  ha_thd()->diff_total_read_rows+=   rows_read;
+  rows_read= rows_changed=              0;
+end:
+  mysql_mutex_unlock(&LOCK_global_table_stats);
+}
+
+// Updates the global index stats with this handler's accumulated index reads.
+void handler::update_global_index_stats()
+{
+  // table_cache_key is db_name + '\0' + table_name + '\0'.
+  if (!table || !table->s || !table->s->table_cache_key.str ||
+      !table->s->table_name.str)
+    return;
+
+  for (uint x = 0; x < table->s->keys; ++x)
+  {
+    if (index_rows_read[x])
+    {
+      // Rows were read using this index.
+      KEY* key_info = &table->key_info[x];
+
+      if (!key_info->name) continue;
+
+      INDEX_STATS* index_stats;
+      char key[NAME_LEN * 3 + 3];
+      // [db] + '.' + [table] + '.' + [index]
+      sprintf(key, "%s.%s.%s",  table->s->table_cache_key.str,
+              table->s->table_name.str, key_info->name);
+
+      mysql_mutex_lock(&LOCK_global_index_stats);
+      // Gets the global index stats, creating one if necessary.
+      if (!(index_stats = (INDEX_STATS *) my_hash_search(&global_index_stats,
+                                                         (uchar *) key,
+                                                         strlen(key))))
+      {
+        if (!(index_stats = ((INDEX_STATS *)
+                             my_malloc(key_memory_userstat_index_stats,
+                                       sizeof(INDEX_STATS),
+                                       MYF(MY_WME | MY_ZEROFILL)))))
+        {
+          // Out of memory.
+          sql_print_error("Allocating index stats failed.");
+          goto end;
+        }
+        strncpy(index_stats->index, key, sizeof(index_stats->index));
+        index_stats->index_len= strlen(index_stats->index);
+        index_stats->rows_read= 0;
+
+        if (my_hash_insert(&global_index_stats, (uchar *) index_stats))
+        {
+          // Out of memory.
+          sql_print_error("Inserting index stats failed.");
+          my_free((char *) index_stats);
+          goto end;
+        }
+      }
+      // Updates the global index stats.
+      index_stats->rows_read+= index_rows_read[x];
+      index_rows_read[x]=      0;
+  end:
+      mysql_mutex_unlock(&LOCK_global_index_stats);
+    }
+  }
 }
 
 /****************************************************************************
@@ -7839,6 +7964,7 @@ static my_bool flush_changed_page_bitmaps_handlerton(THD *unused1,
 
   if (hton->flush_changed_page_bitmaps == NULL)
     return FALSE;
+
   return hton->flush_changed_page_bitmaps();
 }
 
@@ -7856,6 +7982,7 @@ static my_bool purge_changed_page_bitmaps_handlerton(THD *unused1,
 
   if (hton->purge_changed_page_bitmaps == NULL)
     return FALSE;
+
   return hton->purge_changed_page_bitmaps(*(ulonglong *)lsn);
 }
 
@@ -8160,6 +8287,7 @@ int handler::ha_write_row(uchar *buf)
               m_lock_type == F_WRLCK);
 
   DBUG_ENTER("handler::ha_write_row");
+  DEBUG_SYNC(ha_thd(), "start_ha_write_row");
   DBUG_EXECUTE_IF("inject_error_ha_write_row",
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",

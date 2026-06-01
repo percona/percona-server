@@ -595,6 +595,9 @@ cleanup:
     my_ok(thd, deleted);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
+
+  thd->updated_row_count+= deleted;
+
   DBUG_RETURN(thd->is_error() || thd->killed);
 
 exit_without_my_ok:
@@ -1351,6 +1354,7 @@ bool Query_result_delete::send_eof()
   {
     ::my_ok(thd, deleted);
   }
+  thd->updated_row_count+= deleted;
   return 0;
 }
 

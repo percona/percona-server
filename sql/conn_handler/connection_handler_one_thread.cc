@@ -98,6 +98,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   if (unlikely(opt_userstat))
   {
     thd->update_stats(false);
+    update_global_user_stats(thd, create_user, time(NULL));
   }
 
   thd->release_resources();

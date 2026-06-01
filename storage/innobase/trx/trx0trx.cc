@@ -1089,7 +1089,27 @@ Requires trx_sys->mutex, unless called in the single threaded startup code.
 static inline void trx_add_to_rw_trx_list(trx_t *trx) {
   ut_ad(srv_is_being_started || trx_sys_mutex_own());
   ut_ad(!trx->in_rw_trx_list);
-  UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+  /* rw_trx_list is kept ordered by descending trx->id. For freshly
+  allocated ids that is guaranteed because the id is the greatest, so a
+  simple prepend keeps the order. A preallocated id (used by the
+  consistent snapshot clone-view feature), however, might not be received
+  in ascending order, so prepending it could break the ordering invariant
+  validated by trx_sys_validate_trx_list(). Mirror the rw_trx_ids handling
+  in trx_assign_id_for_rw() and insert it at its proper position. */
+  if (trx->preallocated_id != 0) {
+    trx_t *prev = nullptr;
+    for (auto cur : trx_sys->rw_trx_list) {
+      if (cur->id < trx->id) break;
+      prev = cur;
+    }
+    if (prev == nullptr) {
+      UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+    } else {
+      UT_LIST_INSERT_AFTER(trx_sys->rw_trx_list, prev, trx);
+    }
+  } else {
+    UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+  }
   ut_d(trx->in_rw_trx_list = true);
 }
 

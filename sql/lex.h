@@ -587,6 +587,7 @@ static const SYMBOL symbols[] = {
   { SYM("START",                    START_SYM)},
   { SYM("STARTING",                 STARTING)},
   { SYM("STARTS",                   STARTS_SYM)},
+  { SYM("STATEMENT",                STATEMENT_SYM)},
   { SYM("STATS_AUTO_RECALC",        STATS_AUTO_RECALC_SYM)},
   { SYM("STATS_PERSISTENT",         STATS_PERSISTENT_SYM)},
   { SYM("STATS_SAMPLE_PAGES",       STATS_SAMPLE_PAGES_SYM)},

@@ -189,4 +189,12 @@ int unlock_plugin_data();
 */
 bool plugin_early_load_one(int *argc, char **argv, const char *plugin);
 
+/**
+  Create deep copy of system_variables instance.
+*/
+extern
+struct system_variables *
+copy_system_variables(const struct system_variables *src,
+                      bool enable_plugins);
+extern void free_system_variables(struct system_variables *v, bool enable_plugins);
 #endif

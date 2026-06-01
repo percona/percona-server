@@ -1019,6 +1019,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATEMENT_SYM
 %token  STATS_AUTO_RECALC_SYM
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
@@ -1506,6 +1507,7 @@ END_OF_INPUT
 %type <option_value_no_option_type> option_value_no_option_type
 
 %type <option_value_list> option_value_list option_value_list_continued
+        set_stmt_option_value_list set_stmt_option_value_list_continued
 
 %type <start_option_value_list> start_option_value_list
 
@@ -13774,6 +13776,7 @@ keyword_sp:
         | STATS_AUTO_RECALC_SYM    {}
         | STATS_PERSISTENT_SYM     {}
         | STATS_SAMPLE_PAGES_SYM   {}
+        | STATEMENT_SYM            {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
@@ -13849,10 +13852,19 @@ keyword_sp:
 set:
           SET start_option_value_list
           {
-            $$= NEW_PTN PT_set(@1, $2);
+            $$= NEW_PTN PT_set(@1, @1, $2, false);
+          }
+        | SET STATEMENT_SYM option_value_following_option_type
+          set_stmt_option_value_list_continued
+          FOR_SYM statement 
+          {
+            $$= NEW_PTN PT_set(@1, @2,
+              NEW_PTN PT_start_set_stmt_option_value_list(
+                NEW_PTN PT_start_option_value_list_following_option_type_eq($3,
+                                                                            @3,
+                                                                            $4)), true);
           }
         ;
-
 
 // Start of option value list
 start_option_value_list:
@@ -13908,6 +13920,21 @@ start_option_value_list_following_option_type:
             $$= NEW_PTN
               PT_start_option_value_list_following_option_type_transaction($2,
                                                                            @2);
+          }
+        ;
+
+set_stmt_option_value_list_continued:
+          /* empty */                    { $$= NULL; }
+        | ',' set_stmt_option_value_list { $$= $2;   }
+
+set_stmt_option_value_list:
+          option_value_no_option_type
+          {
+            $$= NEW_PTN PT_option_value_list_head(@0, $1, @1);
+          }
+        | option_value_list ',' option_value_no_option_type
+          {
+            $$= NEW_PTN PT_option_value_list($1, @2, $3, @3);
           }
         ;
 

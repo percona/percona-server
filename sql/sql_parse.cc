@@ -2455,6 +2455,8 @@ mysql_execute_command(THD *thd, bool first_level)
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
   DBUG_ASSERT(select_lex->master_unit() == unit);
+  struct system_variables *per_query_variables_backup= NULL;
+
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
@@ -2762,6 +2764,22 @@ mysql_execute_command(THD *thd, bool first_level)
     thd->query_plan.set_query_plan(lex->sql_command, lex,
                                    !thd->stmt_arena->is_conventional());
 
+  if (lex->set_statement && !lex->var_list.is_empty()) {
+    per_query_variables_backup= copy_system_variables(&thd->variables,
+                                                      thd->m_enable_plugins);
+    if ((res= sql_set_variables(thd, &lex->var_list)))
+    {
+      /*
+         We encountered some sort of error, but no message was sent.
+         Send something semi-generic here since we don't know which
+         assignment in the list caused the error.
+      */
+      if (!thd->is_error())
+        my_error(ER_WRONG_ARGUMENTS, MYF(0), "SET");
+      goto error;
+    }
+  }
+
   switch (lex->sql_command) {
 
   case SQLCOM_SHOW_STATUS:
@@ -2833,6 +2851,12 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_EXECUTE:
   {
+    /*
+      Deallocate free_list here to avoid assertion failure later in
+      Prepared_statement::execute_loop
+    */
+    free_items(thd->free_list);
+    thd->free_list= NULL;
     mysql_sql_stmt_execute(thd);
     break;
   }
@@ -5042,6 +5066,32 @@ finish:
 
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
+
+  if (per_query_variables_backup) {
+    DBUG_ASSERT(lex->set_statement);
+    DBUG_ASSERT(!lex->var_list.is_empty());
+
+    List_iterator_fast<set_var_base> it(thd->lex->var_list);
+    set_var *var;
+
+    free_system_variables(&thd->variables, thd->m_enable_plugins);
+    thd->variables= *per_query_variables_backup;
+    my_free(per_query_variables_backup);
+    /*
+       When variables are restored after "SET STATEMENT ... FOR ..." statement
+       execution an update callback must be invoked for the system variables
+       to save special logic if it is. set_var_base class does not contain
+       refference to variable as it is just an interface class. But only
+       system variables are allowed to be used in "SET STATEMENT ... FOR ..."
+       statement, so cast from set_var_base* to set_var* can be used here.
+    */
+    while ((var=(set_var *)it++))
+    {
+      var->var->stmt_update(thd);
+    }
+
+    thd->lex->set_statement= false;
+  }
 
   if (! thd->in_sub_stmt)
   {

@@ -9499,6 +9499,7 @@ PSI_memory_key key_memory_userstat_table_stats;
 PSI_memory_key key_memory_userstat_index_stats;
 PSI_memory_key key_memory_userstat_user_stats;
 PSI_memory_key key_memory_userstat_thread_stats;
+
 PSI_memory_key key_memory_userstat_client_stats;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -9609,20 +9610,12 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
   { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL}, /* Table cache */
   { &key_memory_frm_extra_segment_buff, "frm::extra_segment_buff", 0},
-  { &key_memory_frm_form_pos, "frm::form_pos", 0},
-  { &key_memory_frm_string, "frm::string", 0},
   { &key_memory_LOG_name, "LOG_name", 0},
   { &key_memory_DATE_TIME_FORMAT, "DATE_TIME_FORMAT", 0},
   { &key_memory_DDL_LOG_MEMORY_ENTRY, "DDL_LOG_MEMORY_ENTRY", 0},
   { &key_memory_ST_SCHEMA_TABLE, "ST_SCHEMA_TABLE", 0},
   { &key_memory_ignored_db, "ignored_db", 0},
   { &key_memory_PROFILE, "PROFILE", 0},
-  { &key_memory_thread_pool_connection, "thread_pool_connection", 0},
-  { &key_memory_userstat_table_stats, "userstat_table_stats", 0},
-  { &key_memory_userstat_index_stats, "userstat_index_stats", 0},
-  { &key_memory_userstat_user_stats, "userstat_user_stats", 0},
-  { &key_memory_userstat_thread_stats, "userstat_thread_stats", 0},
-  { &key_memory_userstat_client_stats, "userstat_client_stats", 0},
   { &key_memory_global_system_variables, "global_system_variables", 0},
   { &key_memory_THD_variables, "THD::variables", 0},
   { &key_memory_Security_context, "Security_context", 0},

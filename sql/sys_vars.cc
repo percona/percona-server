@@ -4273,14 +4273,29 @@ static Sys_var_deprecated_alias Sys_slave_preserve_commit_order(
 bool Sys_var_charptr::global_update(THD *, set_var *var) {
   char *new_val, *ptr = var->save_result.string_value.str;
   const size_t len = var->save_result.string_value.length;
+  char *old_val = nullptr;
+
+  // Save old value before allocating new one to avoid leak on allocation failure
+  if (flags & ALLOCATED) {
+    old_val = global_var(char *);
+  }
+
   if (ptr) {
     new_val = (char *)my_memdup(key_memory_Sys_var_charptr_value, ptr, len + 1,
                                 MYF(MY_WME));
-    if (!new_val) return true;
+    if (!new_val) {
+      // Allocation failed, but old_val is still held by global_var
+      // which will be cleaned up at shutdown via cleanup()
+      return true;
+    }
     new_val[len] = 0;
-  } else
+  } else {
     new_val = nullptr;
-  if (flags & ALLOCATED) my_free(global_var(char *));
+  }
+
+  // Free old value after new allocation succeeds
+  if (old_val) my_free(old_val);
+
   flags |= ALLOCATED;
   global_var(char *) = new_val;
   return false;

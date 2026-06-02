@@ -263,15 +263,15 @@ Requires:  percona-telemetry-agent
 %endif
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
-Obsoletes:     mariadb-connector-c-config
-Obsoletes:     mariadb-backup
-Obsoletes:     mariadb-bench
-Obsoletes:     mariadb-server
-Obsoletes:     mariadb-server-galera
-Obsoletes:     mariadb-server-utils
-Obsoletes:     mariadb-galera-server
-Obsoletes:     mariadb-gssapi-server
-Obsoletes:     mariadb-oqgraph-engine
+Obsoletes:     mariadb-connector-c-config mariadb11.8-connector-c-config
+Obsoletes:     mariadb-backup mariadb11.8-backup
+Obsoletes:     mariadb-bench mariadb11.8-bench
+Obsoletes:     mariadb-server mariadb11.8-server
+Obsoletes:     mariadb-server-galera mariadb11.8-server-galera
+Obsoletes:     mariadb-server-utils mariadb11.8-server-utils
+Obsoletes:     mariadb-galera-server mariadb11.8-galera-server
+Obsoletes:     mariadb-gssapi-server mariadb11.8-gssapi-server
+Obsoletes:     mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
@@ -826,14 +826,14 @@ if [ -d /etc/percona-server.conf.d ]; then
     fi
 fi
 
-
+tfn=$(/usr/bin/mktemp -p "$(/usr/bin/mktemp -d /tmp/XXXXXXXX)" call-home.XXXXXX.sh)
 cp %SOURCE999 /tmp/ 2>/dev/null ||
-bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+bash $tfn -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :
 chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :
 %endif
-rm -f /tmp/call-home.sh
+rm -f $tfn
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"

@@ -245,6 +245,7 @@ void test_oom()
   file_1= find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
   ok(file_1 != NULL, "create file");
   release_file(file_1);
+  cleanup_file_hash();
   cleanup_instruments();
 
   /* Create socket. */

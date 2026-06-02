@@ -4910,3 +4910,7 @@ void binlog_unsafe_map_init()
      BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
 }
 #endif
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template class Mem_root_array<ORDER*, true>;
+#endif

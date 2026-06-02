@@ -170,8 +170,6 @@ Mysqlx.Ok {
 }
 ok
 START GROUP_REPLICATION;
-Warnings:
-Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/assert.inc [group_replication_allow_local_lower_version_join is ON]
 include/assert.inc [group_replication_auto_increment_increment is 5]
 include/assert.inc [group_replication_components_stop_timeout is 10]

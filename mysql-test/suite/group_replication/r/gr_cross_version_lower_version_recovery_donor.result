@@ -53,8 +53,6 @@ SET GLOBAL group_replication_allow_local_lower_version_join= 1;
 Warnings:
 Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/assert.inc [The super_read_only mode should be 0 on server2.]
 [connection server3]
 include/assert.inc [The super_read_only mode should be 0 on server3.]

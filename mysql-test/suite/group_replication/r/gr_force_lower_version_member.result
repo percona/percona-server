@@ -32,8 +32,6 @@ SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 Warnings:
 Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 include/start_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2);
 include/rpl/sync.inc
 #

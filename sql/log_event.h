@@ -43,6 +43,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
+#include <utility>
 
 #include "my_aes.h"
 #include "m_string.h"     // native_strncasecmp
@@ -1424,6 +1425,8 @@ class Query_log_event : public virtual mysql::binlog::event::Query_event,
 
   int do_apply_event(Relay_log_info const *rli, const char *query_arg,
                      size_t q_len_arg);
+
+  std::pair<const char *, size_t> rewrite_legacy_set_user_id_priv() const;
 #endif /* MYSQL_SERVER */
   /*
     If true, the event always be applied by slave SQL thread or be printed by

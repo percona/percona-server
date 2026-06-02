@@ -1178,6 +1178,10 @@ int Clone_Handle::send_file_metadata(Clone_Task *task,
     file_desc.m_file_meta.m_file_name_alloc_len = 0;
   }
 
+  /* Send an invalid file index. */
+  DBUG_EXECUTE_IF("clone_send_invalid_file_metadata_index",
+                  { file_desc.m_file_meta.m_file_index = UINT32_MAX; };);
+
   file_desc.init_header(get_version());
 
   auto desc_len = task->m_alloc_len;
@@ -1216,6 +1220,10 @@ int Clone_Handle::send_data(Clone_Task *task, const Clone_file_ctx *file_ctx,
   data_desc.m_data_len = size;
   data_desc.m_file_offset = offset;
   data_desc.m_file_size = file_meta->m_file_size;
+
+  /* Send an invalid file index. */
+  DBUG_EXECUTE_IF("clone_send_invalid_data_file_index",
+                  { data_desc.m_file_index = UINT32_MAX; };);
 
   /* Adjust file size to extend automatically while copying page 0. */
   if (new_file_size > data_desc.m_file_size) {

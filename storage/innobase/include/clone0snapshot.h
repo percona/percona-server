@@ -474,8 +474,10 @@ class Clone_Snapshot {
   /** Add file descriptor to file list
   @param[in,out]        file_ctx        current file context
   @param[in]            ddl_create      added by DDL concurrently
-  @return true, if it is the last file. */
-  bool add_file_from_desc(Clone_file_ctx *&file_ctx, bool ddl_create);
+  @param[out]           is_last         if not nullptr, set true if last file
+  @return error code */
+  int add_file_from_desc(Clone_file_ctx *&file_ctx, bool ddl_create,
+                         bool *is_last = nullptr);
 
   /** Extract file information from node and add to snapshot
   @param[in]    node    file node

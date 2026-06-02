@@ -122,6 +122,22 @@ TEST_F(User_password_verification, native_verification_fail) {
       EXPECTED_NATIVE_HASH));
 }
 
+TEST_F(User_password_verification, native_verification_malformed_client_hash) {
+  Native_verification verificator{m_cache_mock.get()};
+  EXPECT_CALL(*m_cache_mock.get(), contains(_, _, _)).Times(0);
+  EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
+  ASSERT_FALSE(verificator.verify_authentication_string("", "", "*",
+                                                        EXPECTED_NATIVE_HASH));
+}
+
+TEST_F(User_password_verification, native_verification_malformed_db_hash) {
+  Native_verification verificator{m_cache_mock.get()};
+  EXPECT_CALL(*m_cache_mock.get(), contains(_, _, _)).Times(0);
+  EXPECT_CALL(*m_cache_mock.get(), upsert(_, _, _)).Times(0);
+  ASSERT_FALSE(verificator.verify_authentication_string(
+      "", "", get_hash(verificator.get_salt(), GOOD_PASSWD), "*"));
+}
+
 TEST_F(User_password_verification, sha256_plain_verification_get_salt) {
   Sha256_plain_verification verificator{m_cache_mock.get()};
   ASSERT_STREQ(EMPTY, verificator.get_salt().c_str());
@@ -164,6 +180,14 @@ TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
   EXPECT_CALL(verificator, get_salt()).Times(0);
   ASSERT_FALSE(verificator.verify_authentication_string(
       "user", "host", SHA256_MEMORY_CLIENT_STRING, ""));
+}
+
+TEST_F(User_password_verification, sha256_memory_verification_malformed_hash) {
+  EXPECT_CALL(*m_cache_mock.get(), get_entry(_, _)).Times(0);
+  mock::Cache_based_verification verificator{m_cache_mock.get()};
+  EXPECT_CALL(verificator, get_salt()).Times(0);
+  ASSERT_FALSE(
+      verificator.verify_authentication_string("user", "host", "A", ""));
 }
 
 TEST_F(User_password_verification, sha256_memory_verification_fail) {

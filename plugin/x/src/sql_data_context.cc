@@ -35,6 +35,8 @@
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
 #include "sql/debug_sync.h"
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
 
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/module_mysqlx.h"
@@ -676,6 +678,16 @@ ngs::Error_code Sql_data_context::execute_server_command(
 }
 
 bool Sql_data_context::is_sql_mode_set(const std::string &mode) {
+  if (mode == "NO_BACKSLASH_ESCAPES") {
+    // This mode is checked by X Plugin query builders while preparing SQL
+    // literals. Read it directly from THD to avoid executing SELECT @@sql_mode:
+    // get_system_variable() logs an error if SQL cannot be executed in the
+    // current session state.
+    const auto thd = get_thd();
+    return thd != nullptr &&
+           (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) != 0;
+  }
+
   std::string modes;
   get_system_variable<std::string>(this, "sql_mode", &modes);
   std::istringstream str(modes);

@@ -1416,6 +1416,11 @@ int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
   auto snapshot = m_clone_task_manager.get_snapshot();
 
   auto file_ctx = snapshot->get_file_ctx_by_index(task->m_current_file_index);
+  if (file_ctx == nullptr) {
+    int err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data File Index");
+    return err;
+  }
   auto file_meta = file_ctx->get_file_meta();
 
   std::string file_name;
@@ -1559,6 +1564,13 @@ int Clone_Handle::apply_data(Clone_Task *task, Ha_clone_cbk *callback) {
       return (err);
     }
     task->m_current_file_index = data_desc.m_file_index;
+  }
+
+  auto snapshot = m_clone_task_manager.get_snapshot();
+  if (snapshot->get_file_ctx_by_index(task->m_current_file_index) == nullptr) {
+    int err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data File Index");
+    return err;
   }
 
   /* Receive data from callback and apply. */

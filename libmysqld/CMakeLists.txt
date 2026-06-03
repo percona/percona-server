@@ -122,7 +122,7 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_setops.cc
   ../sql/item_json_func.cc
   ../sql/spatial.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
 )
 
 ADD_COMPILE_FLAGS(
@@ -251,7 +251,11 @@ ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
 
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
-ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
+# sql_yacc.cc includes lex_token.h, that is why both
+# GenServerSource and GenDigestServerSource must be generated before
+# sql_embedded target build
+ADD_DEPENDENCIES(sql_embedded
+  GenError GenServerSource GenYaccEmbeddedSource GenDigestServerSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a

@@ -3406,7 +3406,7 @@ class Item_func_set_user_var : public Item_var_func {
   bool send(Protocol *protocol, String *str_arg) override;
   void make_field(Send_field *tmp_field) override;
   bool check(bool use_result_field);
-  void save_item_result(Item *item);
+  bool save_item_result(Item *item);
   bool update();
   enum Item_result result_type() const override { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref) override;

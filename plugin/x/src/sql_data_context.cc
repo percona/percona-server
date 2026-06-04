@@ -30,6 +30,7 @@
 #include <sstream>
 #include <string>
 
+#include "my_compiler.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/plugin.h"
@@ -677,7 +678,9 @@ ngs::Error_code Sql_data_context::execute_server_command(
   return is_killed() ? ngs::Fatal(error) : error;
 }
 
-bool Sql_data_context::is_sql_mode_set(const std::string &mode) {
+// UBSAN vptr instrumentation emits a THD RTTI reference, but xplugin_unit_tests
+// links libmysqlx without the server THD typeinfo.
+bool Sql_data_context::is_sql_mode_set(const std::string &mode) SUPPRESS_UBSAN {
   if (mode == "NO_BACKSLASH_ESCAPES") {
     // This mode is checked by X Plugin query builders while preparing SQL
     // literals. Read it directly from THD to avoid executing SELECT @@sql_mode:

@@ -272,10 +272,14 @@ Obsoletes:     mariadb-server-utils mariadb11.8-server-utils
 Obsoletes:     mariadb-galera-server mariadb11.8-galera-server
 Obsoletes:     mariadb-gssapi-server mariadb11.8-gssapi-server
 Obsoletes:     mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
-Provides:       MySQL-server%{?_isa} = %{version}-%{release}
-Provides:       mysql-server = %{version}-%{release}
-Provides:       mysql-server%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Obsoletes:     mysql8.4-server < 99
+Obsoletes:     mysql8.4 < 99
+Obsoletes:     mysql8.4-common < 99
+Obsoletes:     mysql8.4-errmsg < 99
+Provides:      MySQL-server%{?_isa} = %{version}-%{release}
+Provides:      mysql-server = %{version}-%{release}
+Provides:      mysql-server%{?_isa} = %{version}-%{release}
+Conflicts:     Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -316,6 +320,7 @@ Summary:        Percona Server - Client
 Group:          Applications/Databases
 Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
+Obsoletes:      mysql8.4 < 99
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
 
 %description -n percona-server-client

@@ -3548,12 +3548,13 @@ void Item_sum_avg::reset_field() {
     longlong tmp;
     my_decimal value;
     my_decimal *arg_dec = args[0]->val_decimal(&value);
-    if (args[0]->null_value) {
+    if (arg_dec == nullptr) {  // NULL value or error
       value.init();
       arg_dec = &value;
       tmp = 0;
-    } else
+    } else {
       tmp = 1;
+    }
     my_decimal2binary(E_DEC_FATAL_ERROR, arg_dec, res, f_precision, f_scale);
     res += dec_bin_size;
     int8store(res, tmp);

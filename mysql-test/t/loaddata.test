@@ -635,6 +635,7 @@ create table t1(a point);
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 --eval LOAD DATA INFILE '$file' INTO TABLE t1
 drop table t1;
+--remove_file $file
 
 --echo End of 5.1 tests
 
@@ -670,6 +671,7 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
 
 SET @@sql_mode= @old_mode;
 DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/mysql
 
 --echo #
 --echo # Bug#20683959 LOAD DATA INFILE IGNORES A SPECIFIC ROW SILENTLY

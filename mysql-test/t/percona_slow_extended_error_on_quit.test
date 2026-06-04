@@ -41,6 +41,7 @@ CREATE TABLE t(a INT);
 --source include/log_stop.inc
 
 --let grep_pattern=Last_errno: 0\s
+--let log_expected_matches= 2
 --source include/log_grep.inc
 
 --connect(additional,localhost,root,,)
@@ -61,6 +62,7 @@ SELECT * FROM t;
 --source include/log_stop.inc
 
 --let grep_pattern= Last_errno: 0\s
+--let log_expected_matches= 3
 --source include/log_grep.inc
 
 DROP TABLE t;

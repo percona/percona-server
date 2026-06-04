@@ -82,16 +82,20 @@ example_status_var6	8250
 
 SHOW GLOBAL VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	8
 
 SHOW SESSION VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	8
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
@@ -116,16 +120,20 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	8
 
 SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	8
 disconnect con0;
 
@@ -166,16 +174,20 @@ example_status_var6	8250
 
 SHOW GLOBAL VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	101.999100
 example_double_var	100.999000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	100
 
 SHOW SESSION VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	102.999200
 example_double_var	100.999000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	100
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
@@ -200,16 +212,20 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	101.999100
 example_double_var	100.999000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	100
 
 SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	102.999200
 example_double_var	100.999000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	100
 
 ================================================================================
@@ -288,16 +304,20 @@ example_status_var6	8250
 
 SHOW GLOBAL VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	201.888100
 example_double_var	200.888000
 example_enum_var	e2
+example_last_create_thdvar	
 example_ulong_var	200
 
 SHOW SESSION VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	202.888200
 example_double_var	200.888000
 example_enum_var	e2
+example_last_create_thdvar	
 example_ulong_var	200
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
@@ -322,16 +342,20 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	201.888100
 example_double_var	200.888000
 example_enum_var	e2
+example_last_create_thdvar	
 example_ulong_var	200
 
 SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	202.888200
 example_double_var	200.888000
 example_enum_var	e2
+example_last_create_thdvar	
 example_ulong_var	200
 
 ================================================================================
@@ -426,16 +450,20 @@ example_status_var6	8250
 
 SHOW GLOBAL VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	302.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SHOW SESSION VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
@@ -460,22 +488,34 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	302.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 # Variables by thread
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
+example_last_create_thdvar	
+example_last_create_thdvar	
+example_last_create_thdvar	
+example_last_create_thdvar	
+example_create_count_thdvar	0
+example_create_count_thdvar	0
+example_create_count_thdvar	0
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_thdvar	300.111100
 example_double_thdvar	300.222200
@@ -518,16 +558,20 @@ example_status_var6	8250
 
 SHOW GLOBAL VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	302.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SHOW SESSION VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
@@ -552,22 +596,28 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	302.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 # Variables by thread
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
+example_last_create_thdvar	
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 
 ================================================================================
@@ -610,16 +660,20 @@ example_status_var6	8250
 
 SHOW GLOBAL VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	302.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SHOW SESSION VARIABLES LIKE "example_%";
 Variable_name	Value
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.global_status WHERE variable_name LIKE "example_%";
@@ -644,22 +698,34 @@ example_status_var6	8250
 
 SELECT variable_name, variable_value FROM performance_schema.global_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	302.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 SELECT variable_name, variable_value FROM performance_schema.session_variables WHERE variable_name LIKE "example_%";
 variable_name	variable_value
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_var	301.000000
 example_enum_var	e1
+example_last_create_thdvar	
 example_ulong_var	300
 
 # Variables by thread
 SELECT variable_name, variable_value FROM performance_schema.variables_by_thread
 WHERE variable_name LIKE "example_%" ORDER BY variable_value;
 variable_name	variable_value
+example_last_create_thdvar	
+example_last_create_thdvar	
+example_last_create_thdvar	
+example_last_create_thdvar	
+example_create_count_thdvar	0
+example_create_count_thdvar	0
+example_create_count_thdvar	0
+example_create_count_thdvar	0
 example_double_thdvar	300.000000
 example_double_thdvar	311.111100
 example_double_thdvar	322.222200

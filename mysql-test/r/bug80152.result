@@ -1,0 +1,7 @@
+include/install_semisync_master.inc
+SET @saved_rpl_semi_sync_master_wait_no_slave = @@global.rpl_semi_sync_master_wait_no_slave;
+SET GLOBAL rpl_semi_sync_master_wait_no_slave = 0;
+SET GLOBAL rpl_semi_sync_master_wait_no_slave = 1;
+SET GLOBAL rpl_semi_sync_master_wait_no_slave = 0;
+SET GLOBAL rpl_semi_sync_master_wait_no_slave = @saved_rpl_semi_sync_master_wait_no_slave;
+include/uninstall_semisync_master.inc

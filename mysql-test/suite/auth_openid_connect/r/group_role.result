@@ -1,0 +1,27 @@
+### INITIALIZE TESTS
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';;
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+CREATE ROLE accounting;
+CREATE ROLE sales;
+
+### Connect user without dynamically added role, fails to set the role
+### Connect user with dynamically added role
+#   - acc from token maps to accounting role according to the config
+#   - hr is unmapped
+### Connect user without dynamically added role, verify the roles were revoked
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+Variable_name	Value
+auth_openid_connect_configured_group_role_maps	2
+auth_openid_connect_configured_idps	2
+auth_openid_connect_configured_idps_using_jwks	0
+auth_openid_connect_users_authenticated	5
+auth_openid_connect_users_denied	0
+auth_openid_connect_users_proxied	0
+auth_openid_connect_users_with_roles	3
+
+### CLEANUP
+DROP USER mysql_oidc_user;
+DROP USER accounting;
+DROP USER sales;
+UNINSTALL PLUGIN auth_openid_connect;

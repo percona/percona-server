@@ -39,6 +39,13 @@
 inline constexpr std::string_view kStatusAllowlistCsv =
     "'Aborted_clients',"
     "'Aborted_connects',"
+    "'auth_openid_connect_users_authenticated',"
+    "'auth_openid_connect_users_denied',"
+    "'auth_openid_connect_users_proxied',"
+    "'auth_openid_connect_users_with_roles',"
+    "'auth_openid_connect_configured_idps',"
+    "'auth_openid_connect_configured_idps_using_jwks',"
+    "'auth_openid_connect_configured_group_role_maps',"
     "'Acl_cache_items_count',"
     "'Binlog_cache_disk_use',"
     "'Binlog_cache_use',"

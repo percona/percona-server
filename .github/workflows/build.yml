@@ -146,29 +146,30 @@ jobs:
   # VM, so we have capacity; delete and report the (type, dc) back to
   # create-runner-hetzner).
   #
-  # On a fully-saturated Hetzner arm64 fleet we retry 9 sweeps total
-  # (1 initial + 8 retries) with backoff 2/5/10/15/20/30/45/60 minutes
-  # between attempts. Total wait before EC2 fallback fires:
-  #   2 + 5 + 10 + 15 + 20 + 30 + 45 + 60 = 187 min == ~3h7m.
-  # Backoff curve agreed with Przemyslaw DM 2026-05-28: aggressive early
-  # retries catch short capacity dips (most common), long tail gives the
-  # Hetzner allocator time to free real capacity before we pay AWS spot.
+  # On a fully-saturated Hetzner arm64 fleet we retry 4 sweeps total
+  # (1 initial + 3 retries) with backoff 2/5/10 minutes between attempts.
+  # Total wait before EC2 fallback fires:
+  #   2 + 5 + 10 = 17 min.
+  # The original 9-sweep / ~3h7m curve was agreed with Przemyslaw DM
+  # 2026-05-28; PS-11254 shortened it so the AWS Graviton fallback takes
+  # over fast on a real capacity outage instead of leaving a PR without
+  # arm64 feedback for ~3h. Early retries still catch the common short dips.
   #
   # Implemented as a single bash loop in this single job so the workflow
   # graph stays linear (no matrix x retries explosion in the UI).
   #
   # Outputs:
-  #   provider     "hetzner" (normal) or "aws" (all 9 sweeps exhausted)
+  #   provider     "hetzner" (normal) or "aws" (all sweeps exhausted)
   #   location     hetzner location (fsn1/hel1/nbg1) if provider=hetzner; "" otherwise
   #   server_type  hetzner server type (cax41/cax31/cax21) if provider=hetzner; "" otherwise
   pick-target:
     needs: dispatch
     runs-on: ubuntu-latest
     permissions: {}
-    # Bumped from default 6h; 9 sweeps × backoff totals ~3h7m of sleeps plus
-    # 81 HTTP round-trips (~5 min worst-case) plus job overhead. 4h leaves
+    # PS-11254: 4 sweeps × backoff totals ~17m of sleeps plus 36 HTTP
+    # round-trips (~2 min worst-case) plus job overhead. 30 min leaves
     # headroom for slow Hetzner API responses without auto-cancelling.
-    timeout-minutes: 240
+    timeout-minutes: 30
     outputs:
       provider:    ${{ steps.probe.outputs.provider }}
       location:    ${{ steps.probe.outputs.location }}
@@ -209,9 +210,11 @@ jobs:
 
           # PS-11179: backoff curve in minutes between sweep attempts.
           # Index 0 is the gap AFTER sweep 1 fails (before sweep 2), etc.
-          # 8 entries == 8 retries after the initial sweep == 9 sweeps total.
-          BACKOFF_MIN=(2 5 10 15 20 30 45 60)
-          MAX_SWEEPS=9
+          # PS-11254: 3 entries == 3 retries after the initial sweep == 4 sweeps
+          # total (~17m: 2+5+10), so the AWS EC2 fallback takes over fast instead
+          # of burning ~3h on a Hetzner capacity outage.
+          BACKOFF_MIN=(2 5 10)
+          MAX_SWEEPS=4
 
           for sweep in $(seq 1 "$MAX_SWEEPS"); do
             echo "::group::Hetzner capacity sweep $sweep/$MAX_SWEEPS"
@@ -257,18 +260,18 @@ jobs:
             fi
           done
 
-          # PS-11179: All 9 sweeps exhausted; switch to EC2 path (unless
+          # PS-11179: All sweeps exhausted; switch to EC2 path (unless
           # force_provider=hetzner explicitly disabled fallback).
           if [ "$FORCE_PROVIDER" = "hetzner" ]; then
             echo "::error::Hetzner CAX exhausted after $MAX_SWEEPS sweeps AND force_provider=hetzner; failing per request"
             exit 1
           fi
-          echo "::warning::Hetzner CAX capacity exhausted after $MAX_SWEEPS sweeps (~3h7m wall time); falling back to AWS EC2 c7g.4xlarge in $AWS_REGION"
+          echo "::warning::Hetzner CAX capacity exhausted after $MAX_SWEEPS sweeps (~17m wall time); falling back to AWS EC2 c7g.4xlarge in $AWS_REGION"
           {
             echo "### EC2 fallback fired (PS-11179)"
             echo ""
             echo "Hetzner cax41/cax31/cax21 across fsn1/hel1/nbg1 had no capacity"
-            echo "across $MAX_SWEEPS sweeps spanning ~3h7m. Falling back to AWS"
+            echo "across $MAX_SWEEPS sweeps spanning ~17m. Falling back to AWS"
             echo "EC2 c7g.4xlarge (Graviton3) in eu-central-1."
           } >> "$GITHUB_STEP_SUMMARY"
           {

@@ -8,10 +8,11 @@
 # eu-central-1. Build steps are unchanged; only the runner provisioning path
 # branches.
 #
-# One file, three event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
-#   - pull_request to 8.0     -> Debug build + MTR main.1st       (Cirrus per-PR replacement)
-#   - schedule '0 1 * * *'    -> RelWithDebInfo + binlog_nogtid   (Cirrus nightly replacement; per Przemek 2026-05-18)
-#   - workflow_dispatch       -> manual run; pick build_type, optional debug_keep_vm
+# One file, four event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
+#   - pull_request to 8.0        -> Debug + MTR main.1st     (same-repo PRs; Cirrus per-PR replacement)
+#   - pull_request_target to 8.0 -> Debug + MTR main.1st     (PS-11254: fork PRs by percona org members only)
+#   - schedule '0 1 * * *'       -> RelWithDebInfo + binlog_nogtid (Cirrus nightly replacement; per Przemek 2026-05-18)
+#   - workflow_dispatch          -> manual run; pick build_type, optional debug_keep_vm
 #
 # Notes for follow-ups (per Przemek DM 2026-05-27):
 #   - This file lives on the 8.0 branch only. trunk and 8.4 will get the same
@@ -24,6 +25,14 @@
 # secrets (GHA_RUNNER_HCLOUD_TOKEN, GHA_RUNNER_PAT, AWS_ROLE_ARN via OIDC).
 # The build-arm64 job runs on the ephemeral runner (Hetzner OR EC2) and only
 # sees GITHUB_TOKEN (read-only), so PR code never reaches infra credentials.
+#
+# PS-11254: fork PRs run via pull_request_target so the provisioning jobs
+# resolve secrets in base-repo context. This is safe ONLY because the
+# secret-bearing jobs do NO checkout; build-arm64 is the sole job that checks
+# out PR code, and it holds no secrets. The `dispatch` gate limits
+# pull_request_target to fork PRs whose author is a percona org member
+# (author_association MEMBER/OWNER/COLLABORATOR). INVARIANT: never add a PR-code
+# checkout to a secret-bearing job.
 
 name: build
 
@@ -61,16 +70,32 @@ on:
       - 'policy/**'
       - 'scripts/**'
       - 'support-files/**'
+  pull_request_target:
+    # PS-11254: fork PRs get no secrets on `pull_request` (GitHub withholds
+    # them from forks), so org-member fork PRs run here in base-repo context,
+    # gated by `dispatch` below. Same-repo PRs stay on `pull_request`.
+    branches: [8.0]
+    paths-ignore:
+      - 'doc/**'
+      - 'build-ps/**'
+      - 'man/**'
+      - 'mysql-test/**'
+      - 'packaging/**'
+      - 'policy/**'
+      - 'scripts/**'
+      - 'support-files/**'
   schedule:
     # 8.0 nightly RelWithDebInfo + binlog_nogtid (Cirrus parity, Przemek 2026-05-18).
     - cron: '0 1 * * *'
 
 concurrency:
-  # PR runs are cancellable so superseded pushes do not waste Hetzner cycles;
-  # nightly + workflow_dispatch runs stay protected (cancel-in-progress: false)
-  # because they bill paid arm64 minutes.
-  group: build-${{ github.event.pull_request.number || github.event.schedule || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # PR runs (pull_request + pull_request_target) are cancellable so superseded
+  # pushes do not waste Hetzner cycles; nightly + workflow_dispatch runs stay
+  # protected (cancel-in-progress: false) because they bill paid arm64 minutes.
+  # event_name is in the key so a fork PR's (skipped) pull_request run and its
+  # real pull_request_target run do not share a group.
+  group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.schedule || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
 
 # Workflow-level permissions are minimal (contents: read) to limit blast
 # radius for any future jobs added here. The id-token: write grant required
@@ -104,7 +129,22 @@ env:
 
 jobs:
   # TRUSTED. Pick BUILD_TYPE + MTR suite + cache size based on event.
+  # PS-11254 authorization gate: dispatch is the root of the job graph (every
+  # other job chains off it via `needs`), so gating here gates the whole run.
+  #   - schedule / workflow_dispatch: always run
+  #   - pull_request: same-repo PRs only (forks get no secrets on this event)
+  #   - pull_request_target: fork PRs only, and only when the author is a
+  #     percona org member (author_association). No per-run approval, because
+  #     PRs are updated frequently; org membership is the trust boundary.
   dispatch:
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.pull_request.head.repo.full_name != github.repository &&
+       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'), github.event.pull_request.author_association))
     runs-on: ubuntu-latest
     permissions: {}
     outputs:
@@ -116,7 +156,7 @@ jobs:
         run: |
           set -eu
           case "${{ github.event_name }}" in
-            pull_request)
+            pull_request|pull_request_target)
               BT=Debug;          SUITE=main.1st;      CACHE=4G
               ;;
             schedule)
@@ -146,29 +186,30 @@ jobs:
   # VM, so we have capacity; delete and report the (type, dc) back to
   # create-runner-hetzner).
   #
-  # On a fully-saturated Hetzner arm64 fleet we retry 9 sweeps total
-  # (1 initial + 8 retries) with backoff 2/5/10/15/20/30/45/60 minutes
-  # between attempts. Total wait before EC2 fallback fires:
-  #   2 + 5 + 10 + 15 + 20 + 30 + 45 + 60 = 187 min == ~3h7m.
-  # Backoff curve agreed with Przemyslaw DM 2026-05-28: aggressive early
-  # retries catch short capacity dips (most common), long tail gives the
-  # Hetzner allocator time to free real capacity before we pay AWS spot.
+  # On a fully-saturated Hetzner arm64 fleet we retry 4 sweeps total
+  # (1 initial + 3 retries) with backoff 2/5/10 minutes between attempts.
+  # Total wait before EC2 fallback fires:
+  #   2 + 5 + 10 = 17 min.
+  # The original 9-sweep / ~3h7m curve was agreed with Przemyslaw DM
+  # 2026-05-28; PS-11254 shortened it so the AWS Graviton fallback takes
+  # over fast on a real capacity outage instead of leaving a PR without
+  # arm64 feedback for ~3h. Early retries still catch the common short dips.
   #
   # Implemented as a single bash loop in this single job so the workflow
   # graph stays linear (no matrix x retries explosion in the UI).
   #
   # Outputs:
-  #   provider     "hetzner" (normal) or "aws" (all 9 sweeps exhausted)
+  #   provider     "hetzner" (normal) or "aws" (all sweeps exhausted)
   #   location     hetzner location (fsn1/hel1/nbg1) if provider=hetzner; "" otherwise
   #   server_type  hetzner server type (cax41/cax31/cax21) if provider=hetzner; "" otherwise
   pick-target:
     needs: dispatch
     runs-on: ubuntu-latest
     permissions: {}
-    # Bumped from default 6h; 9 sweeps × backoff totals ~3h7m of sleeps plus
-    # 81 HTTP round-trips (~5 min worst-case) plus job overhead. 4h leaves
+    # PS-11254: 4 sweeps × backoff totals ~17m of sleeps plus 36 HTTP
+    # round-trips (~2 min worst-case) plus job overhead. 30 min leaves
     # headroom for slow Hetzner API responses without auto-cancelling.
-    timeout-minutes: 240
+    timeout-minutes: 30
     outputs:
       provider:    ${{ steps.probe.outputs.provider }}
       location:    ${{ steps.probe.outputs.location }}
@@ -209,9 +250,11 @@ jobs:
 
           # PS-11179: backoff curve in minutes between sweep attempts.
           # Index 0 is the gap AFTER sweep 1 fails (before sweep 2), etc.
-          # 8 entries == 8 retries after the initial sweep == 9 sweeps total.
-          BACKOFF_MIN=(2 5 10 15 20 30 45 60)
-          MAX_SWEEPS=9
+          # PS-11254: 3 entries == 3 retries after the initial sweep == 4 sweeps
+          # total (~17m: 2+5+10), so the AWS EC2 fallback takes over fast instead
+          # of burning ~3h on a Hetzner capacity outage.
+          BACKOFF_MIN=(2 5 10)
+          MAX_SWEEPS=4
 
           for sweep in $(seq 1 "$MAX_SWEEPS"); do
             echo "::group::Hetzner capacity sweep $sweep/$MAX_SWEEPS"
@@ -257,18 +300,18 @@ jobs:
             fi
           done
 
-          # PS-11179: All 9 sweeps exhausted; switch to EC2 path (unless
+          # PS-11179: All sweeps exhausted; switch to EC2 path (unless
           # force_provider=hetzner explicitly disabled fallback).
           if [ "$FORCE_PROVIDER" = "hetzner" ]; then
             echo "::error::Hetzner CAX exhausted after $MAX_SWEEPS sweeps AND force_provider=hetzner; failing per request"
             exit 1
           fi
-          echo "::warning::Hetzner CAX capacity exhausted after $MAX_SWEEPS sweeps (~3h7m wall time); falling back to AWS EC2 c7g.4xlarge in $AWS_REGION"
+          echo "::warning::Hetzner CAX capacity exhausted after $MAX_SWEEPS sweeps (~17m wall time); falling back to AWS EC2 c7g.4xlarge in $AWS_REGION"
           {
             echo "### EC2 fallback fired (PS-11179)"
             echo ""
             echo "Hetzner cax41/cax31/cax21 across fsn1/hel1/nbg1 had no capacity"
-            echo "across $MAX_SWEEPS sweeps spanning ~3h7m. Falling back to AWS"
+            echo "across $MAX_SWEEPS sweeps spanning ~17m. Falling back to AWS"
             echo "EC2 c7g.4xlarge (Graviton3) in eu-central-1."
           } >> "$GITHUB_STEP_SUMMARY"
           {
@@ -901,6 +944,10 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.2.2
         with:
           fetch-depth: 32
+          # PS-11254: on pull_request_target the default checkout ref is the
+          # base branch, so explicitly check out the fork PR head. Safe here:
+          # build-arm64 holds no secrets (see header trust-split note).
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || '' }}
 
       - name: Update git submodules
         run: |

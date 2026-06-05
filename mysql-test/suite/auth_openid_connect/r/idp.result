@@ -1,0 +1,53 @@
+### INITIALIZE TESTS
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS configuration is insecure");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'IDP not found");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS: HTTP GET from https://dummy-host");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'configuration of unaccessible-idp");
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';
+SET GLOBAL auth_openid_connect_configuration = 'JSON://';
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "my-keycloak", "user" : "<IDP_USER_ID>"}';;
+CREATE USER mysql_other_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "my-keycloak", "user" : "other-user-id"}';
+
+## Login tests
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+
+## role mapping tests
+CREATE ROLE accounting;
+CREATE ROLE marketing;
+
+## Tests of update_jwks() UDF
+CREATE FUNCTION update_jwks RETURNS INTEGER SONAME 'auth_openid_connect.so';
+SELECT update_jwks();
+update_jwks()
+1
+SELECT update_jwks('my-keycloak');
+update_jwks('my-keycloak')
+1
+SELECT update_jwks('unaccessible-idp');
+update_jwks('unaccessible-idp')
+0
+SELECT update_jwks('dummy');
+update_jwks('dummy')
+NULL
+SELECT update_jwks('arg1', 'arg2');
+ERROR HY000: Can't initialize function 'update_jwks'; function requires 0 or 1 argument
+SELECT update_jwks(123);
+ERROR HY000: Can't initialize function 'update_jwks'; first argument of the function must be string
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+Variable_name	Value
+auth_openid_connect_configured_group_role_maps	4
+auth_openid_connect_configured_idps	3
+auth_openid_connect_configured_idps_using_jwks	2
+auth_openid_connect_users_authenticated	3
+auth_openid_connect_users_denied	1
+auth_openid_connect_users_proxied	0
+auth_openid_connect_users_with_roles	3
+
+### CLEANUP
+DROP USER mysql_oidc_user;
+DROP USER mysql_other_user;
+DROP ROLE accounting;
+DROP ROLE marketing;
+DROP FUNCTION update_jwks;
+UNINSTALL PLUGIN auth_openid_connect;

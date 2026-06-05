@@ -244,6 +244,7 @@ component_encryption_udf            plugin_output_directory  no  ENCRYPTION_UDF_
 component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIONS_COMPONENT
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT
 component_js_lang                   plugin_output_directory  no  JS_LANG_COMPONENT
+auth_openid_connect                 plugin_output_directory  no  AUTH_OIDC             auth_openid_connect
 
 # Thread Pool Plugin
 thread_pool                      plugin_output_directory  no ONLY_THREADPOOL_PLUGIN   thread_pool

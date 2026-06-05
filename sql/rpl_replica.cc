@@ -5924,17 +5924,32 @@ extern "C" void *handle_slave_io(void *arg) {
       uint old_port = mi->port;
 
       /*
-        Get the sender to connect to.
-        If there is a STOP REPLICA ongoing for any channel, that is, a
-        channel_map lock cannot be acquired by this channel IO thread,
-        then this channel IO thread does skip the next sender selection.
+        Get the sender to connect to. If there is a STOP REPLICA ongoing for
+        any channel, channel_map lock cannot be acquired by this channel IO
+        thread. For compatibility and no-quorum errors, the current source is
+        known to be unsuitable, so retry short channel_map lock contention
+        before giving up on next sender selection. The retry is bounded to 10
+        attempts with 10000 us sleeps between attempts.
       */
+      const bool is_current_source_incompatible_or_has_no_quorum =
+          mi->is_compatibility_error() ||
+          quorum_status ==
+              Async_conn_failover_manager::SourceQuorumStatus::no_quorum_error;
+      constexpr uint source_selection_retry_count = 10;
+      constexpr uint source_selection_retry_sleep_usec = 10000;
       Async_conn_failover_manager::DoAutoConnFailoverError update_source_error =
           Async_conn_failover_manager::DoAutoConnFailoverError::retriable_error;
-      if (!channel_map.tryrdlock()) {
-        update_source_error =
-            Async_conn_failover_manager::do_auto_conn_failover(mi, false);
-        channel_map.unlock();
+      for (uint attempt = 0; attempt < source_selection_retry_count;
+           ++attempt) {
+        if (!channel_map.tryrdlock()) {
+          update_source_error =
+              Async_conn_failover_manager::do_auto_conn_failover(mi, false);
+          channel_map.unlock();
+          break;
+        }
+        if (!is_current_source_incompatible_or_has_no_quorum) break;
+        if (io_slave_killed(thd, mi)) break;
+        my_sleep(source_selection_retry_sleep_usec);
       }
       DBUG_EXECUTE_IF("replica_retry_count_exceed", {
         if (Async_conn_failover_manager::DoAutoConnFailoverError::no_error ==
@@ -5943,8 +5958,16 @@ extern "C" void *handle_slave_io(void *arg) {
         }
       });
 
-      if (Async_conn_failover_manager::DoAutoConnFailoverError::
-              no_sources_error != update_source_error) {
+      const bool shall_attempt_reconnection_to_selected_source =
+          update_source_error ==
+          Async_conn_failover_manager::DoAutoConnFailoverError::no_error;
+      const bool shall_attempt_reconnection_to_same_source =
+          !is_current_source_incompatible_or_has_no_quorum &&
+          update_source_error != Async_conn_failover_manager::
+                                     DoAutoConnFailoverError::no_sources_error;
+
+      if (shall_attempt_reconnection_to_selected_source ||
+          shall_attempt_reconnection_to_same_source) {
         /* Wait before reconnect to avoid resources starvation. */
         my_sleep(1000000);
 

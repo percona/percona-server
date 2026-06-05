@@ -128,23 +128,55 @@ env:
   AWS_INSTANCE_TYPE: c7g.4xlarge
 
 jobs:
-  # TRUSTED. Pick BUILD_TYPE + MTR suite + cache size based on event.
-  # PS-11254 authorization gate: dispatch is the root of the job graph (every
-  # other job chains off it via `needs`), so gating here gates the whole run.
-  #   - schedule / workflow_dispatch: always run
+  # TRUSTED authorization gate (PS-11254). Root of the job graph: dispatch
+  # needs it and every other job chains off dispatch, so gating here gates the
+  # whole run.
+  #   - schedule / workflow_dispatch: always
   #   - pull_request: same-repo PRs only (forks get no secrets on this event)
-  #   - pull_request_target: fork PRs only, and only when the author is a
-  #     percona org member (author_association). No per-run approval, because
-  #     PRs are updated frequently; org membership is the trust boundary.
+  #   - pull_request_target: fork PRs only, authorized when the PR author has
+  #     write+ access to the repo. author_association is deliberately NOT used:
+  #     its value in the event payload is CONTRIBUTOR for PRIVATE percona org
+  #     members, so it would wrongly reject them. The repo-permission API call
+  #     via GHA_RUNNER_PAT is reliable (empirically confirmed: members resolve
+  #     to write, non-collaborators to read on this public repo). This job does
+  #     no checkout and runs in base-repo context, so the trust split holds.
+  authorize:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      ok: ${{ steps.gate.outputs.ok }}
+    steps:
+      - id: gate
+        env:
+          GH_TOKEN:  ${{ secrets.GHA_RUNNER_PAT }}
+          EVENT:     ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          AUTHOR:    ${{ github.event.pull_request.user.login }}
+        run: |
+          set -u
+          ok=false
+          case "$EVENT" in
+            schedule|workflow_dispatch)
+              ok=true ;;
+            pull_request)
+              [ "$HEAD_REPO" = "$BASE_REPO" ] && ok=true ;;
+            pull_request_target)
+              if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+                perm=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                  -H "Accept: application/vnd.github+json" \
+                  "https://api.github.com/repos/$BASE_REPO/collaborators/$AUTHOR/permission" \
+                  | jq -r '.permission // "none"' 2>/dev/null || echo none)
+                case "$perm" in admin|maintain|write) ok=true ;; esac
+                echo "::notice::fork PR by $AUTHOR; repo permission=$perm -> authorized=$ok"
+              fi ;;
+          esac
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+
+  # TRUSTED. Pick BUILD_TYPE + MTR suite + cache size based on event.
   dispatch:
-    if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'pull_request_target' &&
-       github.event.pull_request.head.repo.full_name != github.repository &&
-       contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'), github.event.pull_request.author_association))
+    needs: authorize
+    if: needs.authorize.outputs.ok == 'true'
     runs-on: ubuntu-latest
     permissions: {}
     outputs:

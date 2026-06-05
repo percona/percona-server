@@ -541,8 +541,14 @@ void TlsLineReader::read(int timeout, int *elapsed) {
   /* Consume characters from the buffer */
   for (int len = i; len;) {
     t = m_socket.ssl_recv(ptr, len);
+    if (t == TLS_BUSY_TRY_AGAIN)
+      continue;  // mutex contention; the peeked
+                 // data is buffered, so retry
     m_error = (t < 1);
-    if (m_error) return;
+    if (m_error) {
+      m_complete = false;  // a newline was peeked, but never consumed
+      return;
+    }
 
     ptr += t;
     len -= t;

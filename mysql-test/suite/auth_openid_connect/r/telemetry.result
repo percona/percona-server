@@ -1,0 +1,29 @@
+# restart
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';;
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<PATH>';
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+        "auth_openid_connect"
+                "name": "auth_openid_connect_configured_group_role_maps",
+                "variable_value": "2"
+--
+                "name": "auth_openid_connect_configured_idps",
+                "variable_value": "2"
+--
+                "name": "auth_openid_connect_configured_idps_using_jwks",
+                "variable_value": "0"
+--
+                "name": "auth_openid_connect_users_authenticated",
+                "variable_value": "1"
+--
+                "name": "auth_openid_connect_users_denied",
+                "variable_value": "0"
+--
+                "name": "auth_openid_connect_users_proxied",
+                "variable_value": "0"
+--
+                "name": "auth_openid_connect_users_with_roles",
+                "variable_value": "0"
+DROP USER 'mysql_oidc_user'@'%';
+UNINSTALL PLUGIN auth_openid_connect;

@@ -1,0 +1,148 @@
+
+###################### INIT #######################
+--source include/have_mysql_no_login_plugin.inc
+--source suite/auth_openid_connect/inc/set_idp_vars.inc
+--source suite/auth_openid_connect/inc/keycloak_oidc_conf.inc
+--echo ### INITIALIZE TESTS
+--let $IDP_URL = $IDP_HOST/realms/master/protocol/openid-connect
+
+### Check if IdP is available
+--exec sh -c "curl -fsS $IDP_URL/certs >/dev/null 2>&1 && echo ok > $MYSQLTEST_VARDIR/tmp/idp_flag || true";
+if (`SELECT IF(LOAD_FILE('$MYSQLTEST_VARDIR/tmp/idp_flag') IS NULL, 1, 0)`)
+{
+  --skip IdP not available, skipping test
+}
+--remove_file $MYSQLTEST_VARDIR/tmp/idp_flag
+
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user
+--let $MYSQL_MARKETING_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=marketing
+--let $MYSQL_ACCOUNTING_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=accounting
+
+let $OBTAIN_ID_TOKEN_1 = curl --fail -sS -X POST "$IDP_URL/token"
+  -H "Content-Type: application/x-www-form-urlencoded"
+  -d "grant_type=password"
+  -d "client_id=myclient"
+  -d "username=kk_proxy_user"
+  --data-urlencode "password=kotmaale"
+  -d "scope=openid"
+| jq -er '.id_token';
+
+let $OBTAIN_ID_TOKEN_2 = curl --fail -sS -X POST "$IDP_URL/token"
+  -H "Content-Type: application/x-www-form-urlencoded"
+  -d "grant_type=password"
+  -d "client_id=myclient"
+  -d "username=kkuser"
+  --data-urlencode "password=alamakota1"
+  -d "scope=openid"
+| jq -er '.id_token';
+
+let $OBTAIN_ID_TOKEN_3 = curl --fail -sS -X POST "$IDP_URL/token"
+  -H "Content-Type: application/x-www-form-urlencoded"
+  -d "grant_type=password"
+  -d "client_id=myclient"
+  -d "username=kk_no_group_user"
+  --data-urlencode "password=QWSdm0qtuDctHMHvZXq235xApO5EiSr"
+  -d "scope=openid"
+| jq -er '.id_token';
+
+## suppress errors and warnings caused by tests
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS configuration is insecure");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS: HTTP GET from https://dummy-host");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'configuration of unaccessible-idp");
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC'
+--replace_result $KEYCLOAK_OIDC_CONF JSON://
+--eval SET GLOBAL auth_openid_connect_configuration = '$KEYCLOAK_OIDC_CONF'
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN';
+
+### Create proxied accounts
+CREATE USER '/accounting' IDENTIFIED WITH 'mysql_no_login';
+CREATE USER '/marketing' IDENTIFIED WITH 'mysql_no_login';
+
+###################### TESTS #######################
+--echo
+--echo ## First group proxying
+## The user is authenticated using anonymous account,
+## the proxied account is selected automatically based on the first group name
+
+CREATE USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\"}';
+GRANT PROXY ON '/accounting' TO ''@'';
+GRANT PROXY ON '/marketing' TO ''@'';
+
+exec $OBTAIN_ID_TOKEN_1 > $TOKEN_FILE;
+
+--echo
+--echo IDP kk_proxy_user user is member of /marketing group:
+--echo expecting USER is mysql_oidc_user, CURRENT_USER is /marketing
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_2 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser user is member of /accounting group:
+--echo expecting USER is mysql_oidc_user, CURRENT_USER is /accounting
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_3 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser-no-groups user is not member of any group:
+--echo expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+DROP USER ''@'';
+
+--echo
+--echo ## Named group proxying
+## The user is authenticated using shared account connected to a group,
+## the proxied account is selected automatically based on the group name
+
+CREATE USER accounting IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : \"/accounting\" }';
+GRANT PROXY ON '/accounting' TO accounting;
+
+CREATE USER marketing IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : \"/marketing\" }';
+GRANT PROXY ON '/marketing' TO marketing;
+
+GRANT PROXY ON '/accounting' TO accounting;
+GRANT PROXY ON '/marketing' TO marketing;
+
+exec $OBTAIN_ID_TOKEN_1 > $TOKEN_FILE;
+
+--echo
+--echo IDP kk_proxy_user user is member of /marketing group:
+--echo expecting USER is marketing, CURRENT_USER is /marketing
+--exec $MYSQL $MYSQL_MARKETING_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_2 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser user is member of /accounting group:
+--echo expecting USER is accounting, CURRENT_USER is /accounting
+--exec $MYSQL $MYSQL_ACCOUNTING_USER -e "SELECT user(),  current_user()"
+
+--echo
+--echo IDP kkuser user is not member of /marketing group:
+--echo expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_MARKETING_USER -e "SELECT user(),  current_user()"
+
+DROP USER accounting;
+DROP USER marketing;
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+
+###################### CLEANUP #######################
+--echo
+--echo ### CLEANUP
+DROP USER '/accounting';
+DROP USER '/marketing';
+
+--remove_file $TOKEN_FILE
+UNINSTALL PLUGIN auth_openid_connect;
+UNINSTALL PLUGIN mysql_no_login;
+

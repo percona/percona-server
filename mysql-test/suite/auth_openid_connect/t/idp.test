@@ -1,0 +1,105 @@
+
+###################### INIT #######################
+--source suite/auth_openid_connect/inc/set_idp_vars.inc
+--source suite/auth_openid_connect/inc/keycloak_oidc_conf.inc
+--echo ### INITIALIZE TESTS
+--let $IDP_URL = https://keycloak.int.percona.com/realms/master/protocol/openid-connect
+
+### Check if IdP is available
+--exec sh -c "curl -fsS $IDP_URL/certs >/dev/null 2>&1 && echo ok > $MYSQLTEST_VARDIR/tmp/idp_flag || true";
+if (`SELECT IF(LOAD_FILE('$MYSQLTEST_VARDIR/tmp/idp_flag') IS NULL, 1, 0)`)
+{
+  --skip IdP not available, skipping test
+}
+--remove_file $MYSQLTEST_VARDIR/tmp/idp_flag
+
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user
+--let $MYSQL_OTHER_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_other_user
+
+let $OBTAIN_ID_TOKEN = curl --fail -sS -X POST "$IDP_URL/token"
+  -H "Content-Type: application/x-www-form-urlencoded"
+  -d "grant_type=password"
+  -d "client_id=myclient"
+  -d "username=kkuser"
+  --data-urlencode "password=alamakota1"
+  -d "scope=openid"
+| jq -er '.id_token';
+
+## suppress errors and warnings caused by tests
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS configuration is insecure");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'IDP not found");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS: HTTP GET from https://dummy-host");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'configuration of unaccessible-idp");
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC'
+--replace_result $KEYCLOAK_OIDC_CONF JSON://
+--eval SET GLOBAL auth_openid_connect_configuration = '$KEYCLOAK_OIDC_CONF'
+--replace_result $IDP_USER_ID <IDP_USER_ID>
+--eval CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "my-keycloak", "user" : "$IDP_USER_ID"}';
+CREATE USER mysql_other_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "my-keycloak", "user" : "other-user-id"}';
+
+###################### TESTS #######################
+--echo
+--echo ## Login tests
+
+exec $OBTAIN_ID_TOKEN > $TOKEN_FILE;
+
+## login successful
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+# cannot authenticate as someone else
+--error 1
+--exec $MYSQL $MYSQL_OTHER_USER -e "SELECT user(),  current_user()"
+
+--echo
+--echo ## role mapping tests
+CREATE ROLE accounting;
+CREATE ROLE marketing;
+## success
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE accounting"
+
+## failure, the user is not member of group mapped to the role
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE marketing"
+
+--echo
+--echo ## Tests of update_jwks() UDF
+
+--replace_regex /\.dll/.so/
+--eval CREATE FUNCTION update_jwks RETURNS INTEGER SONAME '$AUTH_OIDC'
+
+## no argument, update all, return 1 as there is 1 accessible IDP
+SELECT update_jwks();
+
+## one argument -configured and accessible IDP, return 1
+SELECT update_jwks('my-keycloak');
+
+## one argument -configured but accessible IDP, return 0
+SELECT update_jwks('unaccessible-idp');
+
+## one argument -non configured IDP, return NULL
+SELECT update_jwks('dummy');
+
+## two arguments not allowed, expect error
+--error ER_CANT_INITIALIZE_UDF
+SELECT update_jwks('arg1', 'arg2');
+
+## invalid type of argument, expect error
+--error ER_CANT_INITIALIZE_UDF
+SELECT update_jwks(123);
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+
+###################### CLEANUP #######################
+--echo
+--echo ### CLEANUP
+DROP USER mysql_oidc_user;
+DROP USER mysql_other_user;
+DROP ROLE accounting;
+DROP ROLE marketing;
+--remove_file $TOKEN_FILE
+DROP FUNCTION update_jwks;
+UNINSTALL PLUGIN auth_openid_connect;
+

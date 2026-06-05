@@ -133,13 +133,21 @@ stdx::expected<std::string, std::error_code> AuthBase::public_key_encrypt(
   EVP_PKEY_encrypt_init(key_ctx.get());
   EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING);
 
-  size_t encrypted_len;
+  // EVP_PKEY_encrypt() expects *outlen to contain the size of the output
+  // buffer on input. OpenSSL releases that contain the "Harden RSA public
+  // encrypt" change (openssl/openssl@0b776b5fcf, backported to the stable
+  // branches in Sep-2025) enforce it and fail with
+  // PROV_R_OUTPUT_BUFFER_TOO_SMALL if it is too small.
+  size_t encrypted_len = data.size();
 
-  EVP_PKEY_encrypt(key_ctx.get(),  //
-                   reinterpret_cast<unsigned char *>(data.data()),
-                   &encrypted_len,
-                   reinterpret_cast<const unsigned char *>(plaintext.data()),
-                   plaintext.size());
+  auto encrypt_res = EVP_PKEY_encrypt(
+      key_ctx.get(),  //
+      reinterpret_cast<unsigned char *>(data.data()), &encrypted_len,
+      reinterpret_cast<const unsigned char *>(plaintext.data()),
+      plaintext.size());
+  if (encrypt_res != 1) {
+    return stdx::unexpected(make_error_code(std::errc::bad_message));
+  }
 #else
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   auto *rsa = EVP_PKEY_get0_RSA(pkey);

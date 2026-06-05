@@ -231,6 +231,14 @@ TEST(Security_context, role_membership_checks) {
   first_role.clear();
   EXPECT_TRUE(sctx.is_current_role_part_of(role_list_4, &first_role));
   EXPECT_EQ(first_role, "`role3`@`%`");
+
+  /*
+    activate_role() my_strdup()s the role name and host. They are freed by
+    Security_context::destroy() only when an ACL map was checked out, which
+    never happens in this unit test, so free them explicitly to avoid a
+    LeakSanitizer report.
+  */
+  sctx.clear_active_roles();
 }
 
 }  // namespace security_context_unittest

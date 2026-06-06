@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cassert>
+#include <iomanip>
 #include <ios>
 #include <sstream>
 
@@ -34,9 +35,14 @@ Member_version::Member_version(unsigned int version) {
 uint32 Member_version::get_version() const { return this->version; }
 
 std::string Member_version::get_version_string() const {
+  constexpr uint32 major_version_with_two_digit_minor = 0x26;
+
   std::stringstream member_version;
-  member_version << std::hex << get_major_version() << "."
-                 << get_minor_version() << "." << get_patch_version();
+  member_version << std::hex << get_major_version() << ".";
+  if (get_major_version() >= major_version_with_two_digit_minor) {
+    member_version << std::setw(2) << std::setfill('0');
+  }
+  member_version << get_minor_version() << "." << get_patch_version();
   return member_version.str();
 }
 

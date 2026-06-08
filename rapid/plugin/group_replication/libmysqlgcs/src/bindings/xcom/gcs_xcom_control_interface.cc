@@ -1450,6 +1450,23 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg)
     new Xcom_member_state(msg->get_message_data().get_payload(),
                           msg->get_message_data().get_payload_length());
 
+  /*
+    If decoding failed (e.g. payload smaller than the encoded header),
+    return without processing the message process_member_state().
+    Treat the bad message as if it had been lost on the wire
+    state-exchange/join timeouts will recover.
+  */
+  if (!ms_info->is_valid())
+  {
+    MYSQL_GCS_LOG_ERROR(
+      "Failed to decode member state exchange message from " <<
+      msg->get_origin().get_member_id().c_str() << ". Discarding message."
+    );
+    delete ms_info;
+    delete msg;
+    return;
+  }
+
   MYSQL_GCS_LOG_TRACE(
     "Reading message that carries exchangeable data: (payload)=" <<
     msg->get_message_data().get_payload_length()

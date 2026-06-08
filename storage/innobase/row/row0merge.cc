@@ -552,9 +552,34 @@ row_merge_buf_add(
 
 	n_fields = dict_index_get_n_fields(index);
 
-	entry = &buf->tuples[buf->n_tuples];
-	field = entry->fields = static_cast<dfield_t*>(
-		mem_heap_alloc(buf->heap, n_fields * sizeof *entry->fields));
+	/* For an FTS index build the per-row mtuple is never stored in
+	buf->tuples: the FTS path below enqueues an fts_doc_item_t on the
+	per-bucket fts_doc_list (drained by the tokenization threads) and
+	returns without incrementing buf->n_tuples.  Allocating entry->fields
+	from buf->heap on every scanned row therefore leaks
+	~n_fields*sizeof(dfield_t) bytes per row into memory/innodb/mem0mem
+	for the entire duration of the FTS build -- on a table with millions
+	of rows this comfortably reaches hundreds of megabytes.
+
+	Use a single stack-local dfield_t for the FTS scratch field instead.
+	The scratch slot is only ever read within the iteration that writes
+	it: the non-doc-id branch copies the field data into the doc_item's
+	own ut_malloc'ed buffer and then continues the loop, while the
+	doc-id branch consumes the slot via dfield_get_len/is_null/is_ext
+	in the same iteration.  At line
+	       if (index->type & DICT_FTS) { DBUG_RETURN(n_row_added); }
+	below the function returns without reading any slot back, so one
+	scratch dfield_t is sufficient. */
+	dfield_t	fts_stack_field;
+
+	if (index->type & DICT_FTS) {
+		entry = NULL;
+	} else {
+		entry = &buf->tuples[buf->n_tuples];
+		field = entry->fields = static_cast<dfield_t*>(
+			mem_heap_alloc(buf->heap,
+				       n_fields * sizeof *entry->fields));
+	}
 
 	data_size = 0;
 	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
@@ -568,6 +593,16 @@ row_merge_buf_add(
 		ulint			col_no;
 		ulint			fixed_len;
 		const dfield_t*		row_field;
+
+		/* For the FTS path the scratch dfield_t is only used within
+		the current iteration (see the comment near fts_stack_field
+		above).  Re-point `field' at the single stack slot at every
+		iteration so the loop's field++ increment is a harmless
+		no-op for FTS and we don't need a per-field array which would
+		be confusing for someone reading the code. */
+		if (index->type & DICT_FTS) {
+			field = &fts_stack_field;
+		}
 
 		col = ifield->col;
 		if (dict_col_is_virtual(col)) {
@@ -654,16 +689,33 @@ row_merge_buf_add(
 					continue;
 				}
 
-				ptr = ut_malloc_nokey(sizeof(*doc_item)
-						      + field->len);
+				/* Layout of the doc_item allocation:
+				[fts_doc_item_t][dfield_t][field bytes]
+				The embedded dfield_t keeps doc_item->field
+				valid until the consumer frees doc_item, so we
+				no longer have to keep the dfield_t alive in
+				buf->heap (which is what caused the unbounded
+				growth of memory/innodb/mem0mem during FTS
+				builds). */
+				const ulint doc_item_size =
+					sizeof(*doc_item) + sizeof(dfield_t)
+					+ field->len;
+
+				ptr = ut_malloc_nokey(doc_item_size);
 
 				doc_item = static_cast<fts_doc_item_t*>(ptr);
+				dfield_t* persistent_field =
+					reinterpret_cast<dfield_t*>(
+						static_cast<byte*>(ptr)
+						+ sizeof(*doc_item));
+				*persistent_field = *field;
 				value = static_cast<byte*>(ptr)
-					+ sizeof(*doc_item);
+					+ sizeof(*doc_item)
+					+ sizeof(dfield_t);
 				memcpy(value, field->data, field->len);
-				field->data = value;
+				persistent_field->data = value;
 
-				doc_item->field = field;
+				doc_item->field = persistent_field;
 				doc_item->doc_id = *doc_id;
 
 				bucket = *doc_id % fts_sort_pll_degree;
@@ -676,17 +728,27 @@ row_merge_buf_add(
 						psort_info[bucket].fts_doc_list,
 						doc_item);
 					psort_info[bucket].memory_used +=
-						sizeof(*doc_item) + field->len;
+						doc_item_size;
 				} else {
 					ut_free(doc_item);
 				}
 
 				mutex_exit(&psort_info[bucket].mutex);
 
-				/* Sleep when memory used exceeds limit*/
+				/* Sleep when memory used exceeds limit.  The
+				loop also checks for DDL cancellation on every
+				iteration so a KILL issued against the scan
+				thread is honoured within ~1 ms instead of
+				being delayed by up to max_trial_count
+				milliseconds (i.e. ~10 s per row) when the
+				tokenization consumers are slow or stuck. */
 				while (psort_info[bucket].memory_used
 				       > FTS_PENDING_DOC_MEMORY_LIMIT
 				       && trial_count++ < max_trial_count) {
+					if (UNIV_UNLIKELY(
+						trx_is_interrupted(trx))) {
+						break;
+					}
 					os_thread_sleep(1000);
 				}
 

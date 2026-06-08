@@ -748,10 +748,15 @@ row_merge_fts_get_next_doc_item(
 	if (*doc_item != NULL) {
 		UT_LIST_REMOVE(psort_info->fts_doc_list, *doc_item);
 
+		/* Mirrors the accounting done in row_merge_buf_add() when
+		the doc_item was enqueued: the allocation there carries a
+		trailing dfield_t copy followed by the field payload so the
+		consumer keeps seeing valid dfield_t/data until it frees the
+		item. */
 		ut_ad(psort_info->memory_used >= sizeof(fts_doc_item_t)
-		      + (*doc_item)->field->len);
+		      + sizeof(dfield_t) + (*doc_item)->field->len);
 		psort_info->memory_used -= sizeof(fts_doc_item_t)
-			+ (*doc_item)->field->len;
+			+ sizeof(dfield_t) + (*doc_item)->field->len;
 	}
 
 	mutex_exit(&psort_info->mutex);
@@ -823,6 +828,15 @@ fts_parallel_tokenization(
 loop:
 	while (doc_item) {
 		dfield_t*	dfield = doc_item->field;
+
+		/* Debug-only hook used to deterministically stall the parallel
+		tokenization consumers so that the producer (scan thread in
+		row_merge_buf_add) is forced into the retry loop that guards
+		FTS_PENDING_DOC_MEMORY_LIMIT.  Used by
+		mysql-test/suite/innodb_fts/t/fts_build_mem_limit.test to
+		exercise Bug#39040226 on 5.7. */
+		DBUG_EXECUTE_IF("fts_instrument_sort_slow_consumer",
+				os_thread_sleep(20000););
 
 		last_doc_id = doc_item->doc_id;
 

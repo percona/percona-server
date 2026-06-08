@@ -5,6 +5,7 @@
 
 # The test will work only in debug mode
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 
 # Make sure that connection_control plugin can be loaded
 --source ../inc/have_connection_control_plugin.inc

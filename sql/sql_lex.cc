@@ -29,6 +29,7 @@
 #include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
+#include "debug_sync.h"                // DEBUG_SYNC
 #include "sql_parse.h"                 // add_to_list
 #include "parse_tree_helpers.h"
 #include "sql_hints.yy.h"
@@ -254,6 +255,7 @@ Lex_input_stream::reset(const char *buffer, size_t length)
   in_comment=NO_COMMENT;
   m_underscore_cs= NULL;
   m_cpp_ptr= m_cpp_buf;
+  m_next_connected_check_pos= 0;
 }
 
 
@@ -1324,6 +1326,47 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
   {
     if (thd->get_parser_da()->has_sql_condition(ER_CAPACITY_EXCEEDED))
       return ABORT_SYM;
+  }
+
+  /*
+    For large queries (>1MB), check if the session has been killed or
+    the client has disconnected. Terminate execution as soon as possible
+    after a forced disconnect — without these checks the parser would
+    continue consuming memory on a dead connection.
+
+    The is_killed() check is a cheap atomic read (~1ns), checked on every
+    token. The is_connected() check involves syscalls (poll + ioctl), so we
+    only call it every 64KB of query text to amortize the cost.
+
+    Both checks are gated on query length to avoid interfering with normal
+    query processing — small queries parse quickly and don't need early
+    abort. This also avoids returning ER_QUERY_INTERRUPTED during server
+    shutdown for short status queries used by test infrastructure.
+  */
+  static const size_t LARGE_QUERY_THRESHOLD = 1024 * 1024;
+  static const size_t CONNECTED_CHECK_BYTES = 64 * 1024;
+
+  if (thd->query().length > LARGE_QUERY_THRESHOLD) {
+    DBUG_EXECUTE_IF("lex_large_query_pause", {
+      if (lip->get_ptr() - lip->get_buf() > 1024)
+      {
+        DEBUG_SYNC(thd, "lex_large_query_started");
+        /* Clear the flag so we only pause once. */
+        DBUG_SET("-d,lex_large_query_pause");
+      }
+    });
+    if (thd->is_killed()) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      return ABORT_SYM;
+    }
+    size_t pos = lip->get_ptr() - lip->get_buf();
+    if (pos >= lip->m_next_connected_check_pos) {
+      lip->m_next_connected_check_pos = pos + CONNECTED_CHECK_BYTES;
+      if (!thd->is_connected()) {
+        my_error(ER_QUERY_INTERRUPTED, MYF(0));
+        return ABORT_SYM;
+      }
+    }
   }
 
   if (lip->lookahead_token >= 0)

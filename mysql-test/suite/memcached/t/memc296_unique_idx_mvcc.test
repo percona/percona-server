@@ -1,0 +1,228 @@
+# =============================================================================
+#  Bug #38829605 / commit 82364e90: ib_cursor_moveto() must position with the
+#  full B-tree key (n_unique_in_tree), not just the user-defined ordering
+#  fields, for any non-clustered InnoDB index.
+#
+#  Repro idea (memcached path, MVCC variant):
+#    - daemon_memcached uses a unique secondary index (uk_c1) on table t1.
+#    - A long-running SQL transaction holds a read view that blocks purge.
+#    - Concurrent DML (DELETE + INSERT same key value) leaves two physical
+#      entries in uk_c1: an old delete-marked (K, id_old) and a fresh
+#      live (K, id_new). MVCC keeps the delete-marked one alive while the
+#      long trx is open.
+#    - memcached `get('K')` calls ib_cb_moveto(IB_CUR_GE) with a search
+#      tuple that has only the user-defined column (c1) populated;
+#      but row_search_mvcc will help to skip the delete-marked (K, id_old).
+#    - After the long trx commits and purge removes (K, id_old), memcached
+#      `get('K')` still returns proper value.
+#
+#  See storage/innobase/api/api0api.cc, ib_cursor_moveto():
+#       n_fields = dict_index_get_n_ordering_defined_by_user(prebuilt->index);
+#  upstream fix replaces it with dict_index_get_n_unique_in_tree().
+# =============================================================================
+
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+source include/have_innodb.inc;
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @tx_isolation= @@global.tx_isolation;
+
+# Bootstrap the innodb_memcache configuration tables.
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+                                  "innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+
+# Use the unique secondary index uk_c1(c1) on test.t1 as the key index.
+# The clustered (PRIMARY) key is a separate auto-increment column id, so
+# secondary index entries are physically (c1, id).
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+                               "c1", "c2", "c3", "c4", "c5", "uk_c1");
+
+CREATE USER mysqltest1@localhost;
+CREATE USER mysqltest_long@localhost;
+
+connect (sql_default,localhost,mysqltest1,,);
+connect (sql_long,localhost,mysqltest_long,,);
+
+connection sql_default;
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+    id    INT          NOT NULL PRIMARY KEY,
+    c1    VARCHAR(32),
+    c2    VARCHAR(1024),
+    c3    INT,
+    c4    BIGINT UNSIGNED,
+    c5    INT,
+    UNIQUE KEY uk_c1 (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id, c1, c2, c3, c4, c5) VALUES (5, 'K', 'v100', 0, 0, 0);
+
+# Confirm the row we will be chasing.
+SELECT id, c1, c2 FROM t1;
+
+# Plugin requires the target table to exist before it starts.
+connection default;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Give memcached a moment to come up.
+SELECT SLEEP(2);
+
+# -----------------------------------------------------------------------------
+# Sanity: with no MVCC pressure, get('K') returns the correct value.
+# -----------------------------------------------------------------------------
+perl;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11296" ],
+  'connect_timeout' => 20,
+  'select_timeout'  => 20
+};
+my $val = $memd->get("K");
+if (defined $val) { print "PHASE 1 (clean): get(K) = $val\n"; }
+else              { print "PHASE 1 (clean): get(K) = MISS\n"; }
+$memd->disconnect_all;
+EOF
+
+# -----------------------------------------------------------------------------
+# Step 1: Open a long-running REPEATABLE READ snapshot in another session.
+# This pins purge_sys->view at trx_no <= sql_long's view low-limit, so any
+# delete-marked secondary entries created from now on cannot be purged.
+# -----------------------------------------------------------------------------
+connection sql_long;
+USE test;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# Force the view to materialize on t1.
+SELECT id, c1, c2 FROM t1;
+
+# -----------------------------------------------------------------------------
+# Step 2: DELETE + re-INSERT with the same secondary key value 'K'.
+# After this, uk_c1 holds two physical entries with c1='K':
+#     (K, 5)   delete-marked  -- still kept by purge because of sql_long
+#     (K, 4)   live           -- the new row
+# -----------------------------------------------------------------------------
+connection sql_default;
+DELETE FROM t1 WHERE c1 = 'K';
+INSERT INTO t1 (id, c1, c2, c3, c4, c5) VALUES (4, 'K', 'v200', 0, 0, 0);
+
+# Logical state visible to a fresh read view (what memcached's trx will see):
+SELECT id, c1, c2 FROM t1;
+
+# Logical state visible to the long-running snapshot (still the old row).
+connection sql_long;
+SELECT id, c1, c2 FROM t1;
+
+# Note: we deliberately do not assert on Innodb_history_list_length.
+# Different 5.7 builds expose InnoDB status counters via different
+# surfaces (SHOW STATUS / I_S / performance_schema), and the goal of
+# the test is the memcached behaviour, not the exact telemetry.
+# The delete-marked (K, 5) entry is guaranteed to exist regardless,
+# because sql_long is still holding a REPEATABLE READ snapshot taken
+# BEFORE the DELETE.
+
+# -----------------------------------------------------------------------------
+# Step 3: memcached get('K') under MVCC pressure.
+#
+# Expected:
+#   ib_cursor_moveto(IB_CUR_GE) with search tuple (c1='K', id=SQL_NULL)
+#   positions the persistent cursor on the proper row thanks to row_search_mvcc
+#   that will skip the delete-marked row.
+#
+# -----------------------------------------------------------------------------
+connection default;
+perl;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11296" ],
+  'connect_timeout' => 20,
+  'select_timeout'  => 20
+};
+my $val = $memd->get("K");
+if (defined $val) { print "PHASE 2 (long trx open): get(K) = $val\n"; }
+else              { print "PHASE 2 (long trx open): get(K) = MISS\n"; }
+$memd->disconnect_all;
+EOF
+
+# Cross-check via SQL: the row really is there.
+connection sql_default;
+SELECT id, c1, c2 FROM t1 WHERE c1 = 'K';
+
+# -----------------------------------------------------------------------------
+# Step 4: end the long-running snapshot and let purge clean (K, 1).
+# -----------------------------------------------------------------------------
+connection sql_long;
+COMMIT;
+disconnect sql_long;
+
+connection sql_default;
+# Drive the purge coordinator: each pair of statements creates more undo
+# work (and an additional commit point), which kicks the purge thread
+# awake. After the long trx is gone there's no read view holding
+# purge_sys->view back, so these iterations let purge catch up on the
+# pending (K, 1) delete-mark.
+CREATE TABLE purge_kick (id INT PRIMARY KEY) ENGINE=InnoDB;
+--disable_query_log
+let $i= 100;
+while ($i)
+{
+  eval INSERT INTO purge_kick VALUES ($i);
+  eval DELETE FROM purge_kick WHERE id = $i;
+  dec $i;
+}
+--enable_query_log
+DROP TABLE purge_kick;
+
+# A generous sleep gives the purge coordinator + worker threads time to
+# physically drop the delete-marked (K, 1) entry from uk_c1 via
+# row_purge_remove_sec_if_poss_leaf().  The default purge wakeup is at
+# most ~10 ms (SRV_PURGE_MAX_TIMEOUT), so 5 s is plenty of slack.
+SELECT SLEEP(5);
+
+# -----------------------------------------------------------------------------
+# Step 5: post-purge memcached get('K') must return the live value.
+# -----------------------------------------------------------------------------
+perl;
+use Cache::Memcached;
+my $memd = new Cache::Memcached {
+  'servers' => [ "127.0.0.1:11296" ],
+  'connect_timeout' => 20,
+  'select_timeout'  => 20
+};
+my $val = $memd->get("K");
+if (defined $val) { print "PHASE 3 (after purge): get(K) = $val\n"; }
+else              { print "PHASE 3 (after purge): get(K) = MISS\n"; }
+$memd->disconnect_all;
+EOF
+
+# -----------------------------------------------------------------------------
+# Cleanup
+# -----------------------------------------------------------------------------
+connection sql_default;
+DROP TABLE t1;
+disconnect sql_default;
+
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+DROP USER mysqltest_long@localhost;
+
+SET @@global.tx_isolation= @tx_isolation;

@@ -1,0 +1,189 @@
+CREATE DATABASE isp_db;
+USE isp_db;
+CREATE TABLE parent_t (
+id INT PRIMARY KEY,
+payload VARCHAR(32)
+) ENGINE=InnoDB;
+CREATE TABLE child_t (
+id        INT PRIMARY KEY,
+parent_id INT,
+KEY ix_child_parent (parent_id),
+CONSTRAINT fk_child_parent
+FOREIGN KEY (parent_id) REFERENCES parent_t(id)
+) ENGINE=InnoDB;
+CREATE TABLE virt_t (
+id INT PRIMARY KEY,
+a  INT,
+b  INT,
+s  INT AS (a + b) VIRTUAL
+) ENGINE=InnoDB;
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+ok
+1
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode = (SELECT REPLACE(@@sql_mode, 'NO_AUTO_CREATE_USER', ''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER 'isp_user'@'localhost';
+SET sql_mode = @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+GRANT USAGE  ON *.*       TO 'isp_user'@'localhost';
+GRANT SELECT ON isp_db.*  TO 'isp_user'@'localhost';
+#
+# ---- as isp_user (no PROCESS) ----
+#
+# INNODB_SYS_TABLES: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_TABLESTATS: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_INDEXES: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_COLUMNS: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_VIRTUAL: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_FIELDS: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_FOREIGN: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_FOREIGN_COLS: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_TABLESPACES: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# INNODB_SYS_DATAFILES: rejected.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# Other I_S tables (not gated on PROCESS) are unaffected; pick
+# one that does not depend on bootstrap content to stay stable.
+SELECT COUNT(*) >= 0 AS i_s_tables_visible
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'isp_db';
+i_s_tables_visible
+1
+#
+# ---- as isp_user after GRANT PROCESS ----
+#
+GRANT PROCESS ON *.* TO 'isp_user'@'localhost';
+# With PROCESS every previously-rejected table is reachable.
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+ok
+1
+#
+# ---- as root: visibility unchanged ----
+#
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_VIRTUAL;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+ok
+1
+SELECT COUNT(*) >= 0 AS ok FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+ok
+1
+DROP USER 'isp_user'@'localhost';
+DROP DATABASE isp_db;

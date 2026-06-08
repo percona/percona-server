@@ -172,6 +172,17 @@ public:
   }
 
 
+  /**
+    @return true if the data provided to the constructor was successfully
+            decoded. Otherwise, false.
+  */
+
+  bool is_valid() const
+  {
+    return m_valid;
+  }
+
+
 private:
   /*
     View identifier installed by the current member if there
@@ -194,6 +205,12 @@ private:
     Data's size disseminated by the state exchange phase.
   */
   uint64_t m_data_size;
+
+  /*
+    Whether the data provided to the decoding constructor was successfully
+    validated and decoded. If false, the object should not be used.
+  */
+  bool m_valid;
 
   /*
     Disabling the copy constructor and assignment operator.

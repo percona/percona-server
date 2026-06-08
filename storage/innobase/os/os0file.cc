@@ -2375,6 +2375,19 @@ void LinuxAIOHandler::collect() {
         /* success */
         slot->n_bytes = events[i].res;
         slot->ret = 0;
+
+#ifdef UNIV_DEBUG_VALGRIND
+        /* The kernel filled the buffer via io_submit()/io_getevents(),
+        which memcheck does not track as defining the memory.  In a
+        WITH_VALGRIND build the buffer-pool frame was marked
+        UNIV_MEM_INVALID on allocation, so without this annotation every
+        later read of the just-read page (FIL_PAGE_TYPE classification in
+        AIOHandler::post_io_processing(), buf_zip_decompress(), zlib
+        inflate, ...) is reported as a use of uninitialised values. */
+        if (slot->type.is_read() && slot->n_bytes > 0) {
+          UNIV_MEM_VALID(slot->ptr, slot->n_bytes);
+        }
+#endif /* UNIV_DEBUG_VALGRIND */
       }
       m_array->release();
     }

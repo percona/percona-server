@@ -739,7 +739,7 @@ PFS_table_share_lock *create_table_share_lock_stat() {
   pfs_dirty_state dirty_state;
 
   /* Create a new record in table stat array. */
-  pfs = global_table_share_lock_container.allocate(&dirty_state);
+  pfs = global_table_share_lock_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     /* Reset the stats. */
     pfs->m_stat.reset();
@@ -787,7 +787,7 @@ PFS_table_share_index *create_table_share_index_stat(
   pfs_dirty_state dirty_state;
 
   /* Create a new record in index stat array. */
-  pfs = global_table_share_index_container.allocate(&dirty_state);
+  pfs = global_table_share_index_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     if (server_index == MAX_INDEXES) {
       pfs->m_key.m_name_length = 0;
@@ -1896,7 +1896,7 @@ search:
     */
   }
 
-  pfs = global_table_share_container.allocate(&dirty_state);
+  pfs = global_table_share_container.allocate(&dirty_state, nullptr);
   if (pfs != nullptr) {
     pfs->m_key = key;
     pfs->m_enabled = enabled;

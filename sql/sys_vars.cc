@@ -4296,7 +4296,12 @@ bool Sys_var_charptr::global_update(THD *, set_var *var) {
   // Free old value after new allocation succeeds
   if (old_val) my_free(old_val);
 
-  flags |= ALLOCATED;
+  // Only set ALLOCATED flag if new_val is not nullptr
+  if (new_val) {
+    flags |= ALLOCATED;
+  } else {
+    flags &= ~ALLOCATED;
+  }
   global_var(char *) = new_val;
   return false;
 }

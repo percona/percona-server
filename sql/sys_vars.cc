@@ -4276,7 +4276,7 @@ bool Sys_var_charptr::global_update(THD *, set_var *var) {
   char *old_val = nullptr;
 
   // Save old value before allocating new one to avoid leak on allocation failure
-  if (flags & ALLOCATED) {
+  if ((flags & ALLOCATED) || option.var_type == GET_STR_ALLOC) {
     old_val = global_var(char *);
   }
 
@@ -4296,7 +4296,12 @@ bool Sys_var_charptr::global_update(THD *, set_var *var) {
   // Free old value after new allocation succeeds
   if (old_val) my_free(old_val);
 
-  flags |= ALLOCATED;
+  // Only set ALLOCATED flag if new_val is not nullptr
+  if (new_val) {
+    flags |= ALLOCATED;
+  } else {
+    flags &= ~ALLOCATED;
+  }
   global_var(char *) = new_val;
   return false;
 }
@@ -6106,7 +6111,7 @@ static bool check_general_log_file(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool fix_general_log_file(sys_var *, THD *, enum_var_type) {
+static bool fix_general_log_file(sys_var *self, THD *, enum_var_type) {
   bool res;
 
   if (!opt_general_logname)  // SET ... = DEFAULT
@@ -6116,6 +6121,8 @@ static bool fix_general_log_file(sys_var *, THD *, enum_var_type) {
         key_memory_LOG_name, make_query_log_name(buff, QUERY_LOG_GENERAL),
         MYF(MY_FAE + MY_WME));
     if (!opt_general_logname) return true;
+
+    static_cast<Sys_var_charptr *>(self)->mark_global_value_allocated();
   }
 
   res = query_logger.set_log_file(QUERY_LOG_GENERAL);
@@ -6155,7 +6162,7 @@ static bool check_slow_log_file(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool fix_slow_log_file(sys_var *, THD *thd [[maybe_unused]],
+static bool fix_slow_log_file(sys_var *self, THD *thd [[maybe_unused]],
                               enum_var_type) {
   bool res;
 
@@ -6168,6 +6175,8 @@ static bool fix_slow_log_file(sys_var *, THD *thd [[maybe_unused]],
                                  make_query_log_name(buff, QUERY_LOG_SLOW),
                                  MYF(MY_FAE + MY_WME));
     if (!opt_slow_logname) return true;
+
+    static_cast<Sys_var_charptr *>(self)->mark_global_value_allocated();
   }
 
   res = query_logger.set_log_file(QUERY_LOG_SLOW);

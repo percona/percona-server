@@ -1734,7 +1734,7 @@ class PFS_key_object_type_enum : public PFS_engine_key {
 class PFS_key_object_instance : public PFS_engine_key {
  public:
   explicit PFS_key_object_instance(const char *name)
-      : PFS_engine_key(name), m_identity(nullptr) {}
+      : PFS_engine_key(name), m_identity(0) {}
 
   ~PFS_key_object_instance() override = default;
 
@@ -1742,7 +1742,7 @@ class PFS_key_object_instance : public PFS_engine_key {
     ulonglong object_instance_begin{0};
     m_find_flag =
         reader.read_ulonglong(find_flag, m_is_null, &object_instance_begin);
-    m_identity = (void *)object_instance_begin;
+    m_identity = object_instance_begin;
   }
 
   bool match(const PFS_table *pfs);
@@ -1754,7 +1754,7 @@ class PFS_key_object_instance : public PFS_engine_key {
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_metadata_lock *pfs);
 
-  const void *m_identity;
+  pfs_identity m_identity;
 };
 
 /** @} */

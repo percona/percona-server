@@ -1970,6 +1970,18 @@ buf_pool_init_instance(
 		buf_pool->chunks =
 			reinterpret_cast<buf_chunk_t*>(ut_zalloc_nokey(
 				buf_pool->n_chunks * sizeof(*chunk)));
+		DBUG_EXECUTE_IF("buf_pool_chunk_alloc_fail", {
+			if (buf_pool->chunks) {
+				ut_free(buf_pool->chunks);
+			}
+			buf_pool->chunks = NULL;
+		});
+		if (buf_pool->chunks == NULL) {
+			ib::error() << "Buffer pool " << instance_no
+						<< " : failed to allocate the chunk array.";
+			mutex_exit(&buf_pool->chunks_mutex);
+			return(DB_ERROR);
+		}
 		buf_pool->chunks_old = NULL;
 
 		UT_LIST_INIT(buf_pool->LRU, &buf_page_t::LRU);

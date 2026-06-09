@@ -827,6 +827,12 @@ static bool handle_list_of_fields(List_iterator<char> it,
       for (i= 0; i < num_key_parts; i++)
       {
         Field *field= table->key_info[primary_key].key_part[i].field;
+        // BLOB/TEXT columns are not allowed in partitioning keys.
+        if (field->flags & BLOB_FLAG)
+        {
+          my_error(ER_BLOB_FIELD_IN_PART_FUNC_ERROR, MYF(0));
+          DBUG_RETURN(TRUE);
+        }
         field->flags|= GET_FIXED_FIELDS_FLAG;
       }
     }

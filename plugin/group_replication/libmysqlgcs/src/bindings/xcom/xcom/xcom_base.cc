@@ -323,6 +323,7 @@
 #include <chrono>
 #include <future>
 #include <queue>
+#include <thread>
 #include <tuple>
 
 /* Defines and constants */
@@ -8437,17 +8438,29 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
   pax_msg *rp = nullptr;
 
   do {
+    retval = 0;
+    rp = nullptr;
+
     std::packaged_task<void()> send_client_app_data_task([&]() {
       retval = (int)xcom_send_client_app_data(fd, a, force);
       if (retval >= 0) rp = socket_read_msg(fd, p);
     });
 
     auto send_client_app_data_result = send_client_app_data_task.get_future();
-    std::thread(std::move(send_client_app_data_task)).detach();
+    std::thread send_client_app_data_thread(
+        std::move(send_client_app_data_task));
 
     std::future_status request_status = send_client_app_data_result.wait_for(
         std::chrono::seconds(XCOM_SEND_APP_WAIT_TIMEOUT));
-    if ((retval < 0) || request_status == std::future_status::timeout) {
+    bool const timed_out = (request_status == std::future_status::timeout);
+    if (timed_out && fd->fd >= 0) {
+      int sock = fd->fd;
+      shutdown_socket(&sock);
+    }
+    send_client_app_data_thread.join();
+
+    if ((retval < 0) || timed_out) {
+      if (rp) xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
       memset(p, 0, sizeof(*p)); /* before return so caller can free p */
       G_INFO(
           "Client sent negotiation request for protocol failed. Please check "

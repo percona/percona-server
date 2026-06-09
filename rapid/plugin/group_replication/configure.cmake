@@ -47,6 +47,13 @@ IF (WIN32)
   # On windows we bundle the rpc header and some code as well
   SET (CMAKE_REQUIRED_INCLUDES ${XCOM_BASEDIR}/windeps/sunrpc
                                ${XCOM_BASEDIR}/windeps/include)
+ELSE()
+  FIND_PATH(TIRPC_INCLUDE_DIR rpc/rpc.h PATH_SUFFIXES tirpc)
+  FIND_LIBRARY(TIRPC_LIBRARY tirpc)
+  IF(TIRPC_INCLUDE_DIR)
+    SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES}
+                                ${TIRPC_INCLUDE_DIR})
+  ENDIF()
 ENDIF()
 
 IF (NOT WIN32)

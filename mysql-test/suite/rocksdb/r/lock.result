@@ -37,10 +37,10 @@ ERROR HY000: Table 't2' was not locked with LOCK TABLES
 UNLOCK TABLES;
 CREATE TABLE t2 (id INT, id2 INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 LOCK TABLE t1 WRITE, t2 WRITE;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t2 (id,id2) SELECT id,id2 FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 UPDATE t1 SET id=1 WHERE id=-1;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i1 INT, nr INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
@@ -48,21 +48,21 @@ CREATE TABLE t2 (nr INT, nm INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKS
 INSERT INTO t2 (nr,nm) VALUES (1,3);
 INSERT INTO t2 (nr,nm) VALUES (2,4);
 LOCK TABLES t1 WRITE, t2 READ;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (i1,nr) SELECT 1, nr FROM t2 WHERE nm=3;
 INSERT INTO t1 (i1,nr) SELECT 2, nr FROM t2 WHERE nm=4;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 UNLOCK TABLES;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 UNLOCK TABLES;
 LOCK TABLES t1 WRITE, t1 AS t1_alias READ;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1 AS t1_alias;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t1,t2;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 UNLOCK TABLES;

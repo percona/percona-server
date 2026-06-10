@@ -5,7 +5,8 @@
 # test for over limit
 CALL mtr.add_suppression("RocksDB: rocksdb_max_open_files should not be greater than the open_files_limit*");
 
---let $over_rocksdb_max_open_files=`SELECT @@global.open_files_limit + 2000000`
+--let $over_rocksdb_max_open_files=`SELECT @@global.open_files_limit + 100`
+--let $under_rocksdb_max_open_files=`SELECT @@global.open_files_limit -1`
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.max_open_files.err
 --let SEARCH_PATTERN=RocksDB: rocksdb_max_open_files should not be greater than the open_files_limit
 
@@ -13,6 +14,13 @@ CALL mtr.add_suppression("RocksDB: rocksdb_max_open_files should not be greater 
 --let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_max_open_files=$over_rocksdb_max_open_files
 --source include/restart_mysqld.inc
 --source include/search_pattern_in_file.inc
+
+# test for within limit
+--replace_result $under_rocksdb_max_open_files under_rocksdb_max_open_files
+--let $restart_parameters=restart:--rocksdb_max_open_files=$under_rocksdb_max_open_files
+--source include/restart_mysqld.inc
+
+SELECT @@global.open_files_limit - 1 = @@global.rocksdb_max_open_files;
 
 # test for minimal value
 --let $restart_parameters=restart:--rocksdb_max_open_files=0
@@ -26,11 +34,17 @@ INSERT INTO t1 VALUES(0),(1),(2),(3),(4);
 SET GLOBAL rocksdb_force_flush_memtable_and_lzero_now=1;
 DROP TABLE t1;
 
-# test for unlimited (former default)
+# test for unlimited
 --let $restart_parameters=restart:--rocksdb_max_open_files=-1
 --source include/restart_mysqld.inc
 
 SELECT @@global.rocksdb_max_open_files;
+
+# test for auto-tune
+--let $restart_parameters=restart:--rocksdb_max_open_files=-2
+--source include/restart_mysqld.inc
+
+SELECT FLOOR(@@global.open_files_limit / 2) = @@global.rocksdb_max_open_files;
 
 # cleanup
 --let $restart_parameters=

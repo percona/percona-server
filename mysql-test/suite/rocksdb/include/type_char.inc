@@ -64,8 +64,8 @@ set session sql_mode="";
 INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
 set session sql_mode=@orig_sql_mode;
 
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 # 5.7 uses strict mode by default, so this will now return an error
 --error ER_DATA_TOO_LONG
 INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
@@ -75,7 +75,7 @@ set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
 INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT('a',c255,c1) FROM t1;
 set session sql_mode=@orig_sql_mode;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 --sorted_result
 SELECT c,c0,c1,c20,c255 FROM t1;

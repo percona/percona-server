@@ -6,7 +6,7 @@
 
 # MyRocks does not support gap locks in REPEATABLE-READ mode, test does not
 # require RR ISO to complete, so lets alter the ISO to RC
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
 

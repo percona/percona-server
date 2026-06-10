@@ -97,8 +97,8 @@ set session sql_mode="";
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (4294967296,4294967296,4294967296,4294967296,256,256,256,256,65536,65536,65536,65536,16777216,16777216,16777216,16777216,18446744073709551616,18446744073709551616,18446744073709551616,18446744073709551616);
 set session sql_mode=@orig_sql_mode;
 
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 # 5.7 uses strict mode by default, so this will now return an error
 --error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) SELECT b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b FROM t1 WHERE b IN (-9223372036854775808,9223372036854775807,18446744073709551615);
@@ -108,7 +108,7 @@ set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) SELECT b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b FROM t1 WHERE b IN (-9223372036854775808,9223372036854775807,18446744073709551615);
 set session sql_mode=@orig_sql_mode;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 --sorted_result
 SELECT i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20 FROM t1;

@@ -36,8 +36,8 @@ Warning	1265	Data truncated for column 'b255' at row 1
 set session sql_mode=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT('a',b255,b255), 'c' FROM t1;
 ERROR 22001: Data too long for column 'b' at row 4
 set @orig_sql_mode=@@session.sql_mode;
@@ -49,7 +49,7 @@ ERROR 23000: Duplicate entry 'c' for key 'PRIMARY'
 set session sql_mode=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 SELECT HEX(b), HEX(b0), HEX(b1), HEX(b20), HEX(b255), HEX(pk) FROM t1 ORDER BY pk;
 HEX(b)	HEX(b0)	HEX(b1)	HEX(b20)	HEX(b255)	HEX(pk)
 00		00	0000000000000000000000000000000000000000	000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000	00

@@ -21,14 +21,14 @@ insert into t1 values
 (4, 1.4, 3.4, 'filler'),
 (5, 2.5, 4.3, 'filler'),
 (6, 3.3, 5.3, 'filler');
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t1 select pk+100, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+200, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+1000, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+10000, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+100000, 9.0, 9.0, 'extra-data' from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 analyze table t1;
 
 --echo # The following can't use index-only:
@@ -72,14 +72,14 @@ insert into t1 values
 (4, 100.004, 300.004, 'filler'),
 (5, 200.005, 400.003, 'filler'),
 (6, 300.003, 500.003, 'filler');
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t1 select pk+100, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+200, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+1000, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+10000, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+100000, col1+20000, col2+20000, 'extra-data' from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 analyze table t1;
 
 --replace_column 10 #

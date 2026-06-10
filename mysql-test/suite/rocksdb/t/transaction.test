@@ -38,109 +38,109 @@ rollback;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 update t1 set value2=100 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value2=100 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 # update secondary key by secondary key
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 update t1 set value=100 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value=100 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 # update primary key by secondary key
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 update t1 set id=100 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set id=100 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 # update non-index column by non-index column
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 update t1 set value2=100 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value2=100 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 # update secondary key by non-index column
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 update t1 set value=100 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set value=100 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 # update primary key column by non-index column
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 update t1 set id=100 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 update t1 set id=100 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 
 # delete by primary key
@@ -153,45 +153,45 @@ rollback;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 delete from t1 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 delete from t1 where value=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 # delete by non-index column
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 --error ER_UNKNOWN_ERROR
 delete from t1 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 delete from t1 where value2=1;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 
 # mixed
 # MyRocks does not support gap locks in REPEATABLE-READ mode, so we will
 # execute this twice, once to illustrate the gap lock error in RR mode, and once
 # in RC mode to illustrate passing functionality
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='REPEATABLE-READ';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='REPEATABLE-READ';
 begin;
 insert into t1 values (11,11,11);
 insert into t1 values (12,12,12);
@@ -206,7 +206,7 @@ update t1 set value=103 where value=4;
 update t1 set id=115 where id=3;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 begin;
 insert into t1 values (11,11,11);
 insert into t1 values (12,12,12);
@@ -218,6 +218,6 @@ update t1 set value=103 where value=4;
 update t1 set id=115 where id=3;
 --source suite/rocksdb/include/transaction_select.inc
 rollback;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 drop table t1;

@@ -6,7 +6,7 @@
 # Triggers issue # https://github.com/facebook/mysql-5.6/issues/604
 
 # Test needs gap lock to populate tables, does not change coverage of test.
-SET SESSION tx_isolation='READ-COMMITTED';
+SET SESSION transaction_isolation='READ-COMMITTED';
 
 CREATE TABLE t1
 (

@@ -1,5 +1,9 @@
 CALL mtr.add_suppression("RocksDB: rocksdb_max_open_files should not be greater than the open_files_limit*");
 # restart:--log-error=MYSQLTEST_VARDIR/tmp/rocksdb.max_open_files.err --rocksdb_max_open_files=over_rocksdb_max_open_files
+# restart:--rocksdb_max_open_files=under_rocksdb_max_open_files
+SELECT @@global.open_files_limit - 1 = @@global.rocksdb_max_open_files;
+@@global.open_files_limit - 1 = @@global.rocksdb_max_open_files
+1
 # restart:--rocksdb_max_open_files=0
 SELECT @@global.rocksdb_max_open_files;
 @@global.rocksdb_max_open_files
@@ -12,4 +16,8 @@ DROP TABLE t1;
 SELECT @@global.rocksdb_max_open_files;
 @@global.rocksdb_max_open_files
 -1
+# restart:--rocksdb_max_open_files=-2
+SELECT FLOOR(@@global.open_files_limit / 2) = @@global.rocksdb_max_open_files;
+FLOOR(@@global.open_files_limit / 2) = @@global.rocksdb_max_open_files
+1
 # restart

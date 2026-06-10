@@ -1,4 +1,4 @@
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 create table t1 (
 id int, 
 value int, 

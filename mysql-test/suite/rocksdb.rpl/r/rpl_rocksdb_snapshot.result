@@ -63,10 +63,10 @@ SELECT * INTO OUTFILE '<MYSQLTEST_VARDIR>/tmp/rpl_rocksdb_snapshot.out.file' FRO
 COMMIT;
 # Switch to slave
 CREATE TABLE t1_backup LIKE t1;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -111,10 +111,10 @@ COMMIT;
 # reap async statements
 # Switch to slave
 CREATE TABLE t1_backup LIKE t1;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -151,10 +151,10 @@ SELECT * INTO OUTFILE '<MYSQLTEST_VARDIR>/tmp/rpl_rocksdb_snapshot.out.file' FRO
 COMMIT;
 # Switch to slave
 CREATE TABLE t1_backup LIKE t1;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -200,10 +200,10 @@ COMMIT;
 # reap async statements
 # Switch to slave
 CREATE TABLE t1_backup LIKE t1;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;

@@ -1,4 +1,4 @@
-SET @default_val =                    2;
+SET @default_val =                   32;
 SET @min_val     =                    0;
 SET @max_val     =                 4096;
 SET @some_val    =                  100;

@@ -22,7 +22,7 @@
 ##################################################################
 # Build some prereqisites                                        #
 ##################################################################
-SET @default_val =                    2;
+SET @default_val =                   32;
 let $default_val= `SELECT @default_val`;
 SET @min_val     =                    0;
 SET @max_val     =                 4096;

@@ -147,7 +147,7 @@ inline constexpr auto TP_MAX_PRIO_KICKUP_TIMER =
 extern ulong thread_pool_prio_kickup_timer;
 
 // Max number of unused threads in each thread group.
-inline constexpr auto DEF_MAX_UNUSED_THREADS = 2;
+inline constexpr auto DEF_MAX_UNUSED_THREADS = 32;
 inline constexpr auto TP_MIN_MAX_UNUSED_THREADS = 0;
 inline constexpr auto TP_MAX_MAX_UNUSED_THREADS = MAX_THREADS_PER_GROUP;
 extern ulong thread_pool_max_unused_threads;

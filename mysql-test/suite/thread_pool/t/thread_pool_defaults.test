@@ -97,10 +97,10 @@ if (`SELECT @@global.thread_pool_algorithm <> 1`)
   --die @@global.thread_pool_algorithm must be 1.
 }
 
-# The default value of max unused threads must be 2
-if (`SELECT @@global.thread_pool_max_unused_threads <> 2`)
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
 {
-   --die @@global.thread_pool_max_unused_threads must be 2.
+   --die @@global.thread_pool_max_unused_threads must be 32.
 }
 
 --echo #
@@ -134,10 +134,10 @@ if (`SELECT @@global.thread_pool_algorithm <> 1`)
   --die @@global.thread_pool_algorithm must be 1.
 }
 
-# The default value of max unused threads must be 2
-if (`SELECT @@global.thread_pool_max_unused_threads <> 2`)
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
 {
-   --die @@global.thread_pool_max_unused_threads must be 2.
+   --die @@global.thread_pool_max_unused_threads must be 32.
 }
 
 --echo #
@@ -171,10 +171,10 @@ if (`SELECT @@global.thread_pool_algorithm <> 1`)
   --die @@global.thread_pool_algorithm must be 1.
 }
 
-# The default value of max unused threads must be 2
-if (`SELECT @@global.thread_pool_max_unused_threads <> 2`)
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
 {
-  --die @@global.thread_pool_max_unused_threads must be 2.
+  --die @@global.thread_pool_max_unused_threads must be 32.
 }
 
 --echo #
@@ -208,8 +208,8 @@ if (`SELECT @@global.thread_pool_algorithm <> 1`)
   --die @@global.thread_pool_algorithm must be 1.
 }
 
-# The default value of max unused threads must be 2
-if (`SELECT @@global.thread_pool_max_unused_threads <> 2`)
+# The default value of max unused threads must be 32
+if (`SELECT @@global.thread_pool_max_unused_threads <> 32`)
 {
-  --die @@global.thread_pool_max_unused_threads must be 2.
+  --die @@global.thread_pool_max_unused_threads must be 32.
 }

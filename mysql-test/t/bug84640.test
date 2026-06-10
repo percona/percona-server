@@ -3,6 +3,7 @@
 # lp:1654256 "MyISAM CREATE TABLE DATA DIRECTORY check race"
 #
 
+--source include/have_myisam.inc
 --source include/have_debug_sync.inc
 --source include/have_symlink.inc
 --source include/count_sessions.inc

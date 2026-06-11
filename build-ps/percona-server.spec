@@ -277,17 +277,21 @@ Requires:       openssl
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 Requires:  percona-telemetry-agent
 %endif
-Obsoletes:     community-mysql-bench
-Obsoletes:     mysql-bench
-Obsoletes:     mariadb-connector-c-config mariadb11.8-connector-c-config
-Obsoletes:     mariadb-backup mariadb11.8-backup
-Obsoletes:     mariadb-bench mariadb11.8-bench
-Obsoletes:     mariadb-server mariadb11.8-server
-Obsoletes:     mariadb-server-galera mariadb11.8-server-galera
-Obsoletes:     mariadb-server-utils mariadb11.8-server-utils
-Obsoletes:     mariadb-galera-server mariadb11.8-galera-server
-Obsoletes:     mariadb-gssapi-server mariadb11.8-gssapi-server
-Obsoletes:     mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
+Obsoletes:      community-mysql-bench
+Obsoletes:      mysql-bench
+Obsoletes:      mariadb-connector-c-config mariadb11.8-connector-c-config
+Obsoletes:      mariadb-backup mariadb11.8-backup
+Obsoletes:      mariadb-bench mariadb11.8-bench
+Obsoletes:      mariadb-server mariadb11.8-server
+Obsoletes:      mariadb-server-galera mariadb11.8-server-galera
+Obsoletes:      mariadb-server-utils mariadb11.8-server-utils
+Obsoletes:      mariadb-galera-server mariadb11.8-galera-server
+Obsoletes:      mariadb-gssapi-server mariadb11.8-gssapi-server
+Obsoletes:      mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
+Obsoletes:      mysql8.4-server < 99
+Obsoletes:      mysql8.4 < 99
+Obsoletes:      mysql8.4-common < 99
+Obsoletes:      mysql8.4-errmsg < 99
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}

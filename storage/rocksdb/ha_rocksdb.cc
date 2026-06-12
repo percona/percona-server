@@ -10519,8 +10519,6 @@ static int calculate_stats(
     ranges[kd->get_cf()].push_back(myrocks::get_range(*kd, bufp));
     bufp += 2 * Rdb_key_def::INDEX_NUMBER_SIZE;
 
-    // Initialize the stats to 0. If there are no files that contain
-    // this gl_index_id, then 0 should be stored for the cached stats.
     stats[index_id] = Rdb_index_stats(index_id);
     DBUG_ASSERT(kd->get_key_parts() > 0);
     stats[index_id].m_distinct_keys_per_prefix.resize(kd->get_key_parts());
@@ -11044,7 +11042,9 @@ bool ha_rocksdb::prepare_inplace_alter_table(
     if (!new_tdef) {
       new_tdef = m_tbl_def;
     }
-    max_auto_incr = load_auto_incr_value_from_index();
+    if (table->found_next_number_field) {
+      max_auto_incr = load_auto_incr_value_from_index();
+    }
   }
 
   ha_alter_info->handler_ctx = new Rdb_inplace_alter_ctx(

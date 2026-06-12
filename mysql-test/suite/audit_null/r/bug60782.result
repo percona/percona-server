@@ -1,0 +1,24 @@
+SET @general_log_save = @@general_log;
+SET GLOBAL general_log=OFF;
+CREATE PROCEDURE simpleproc (OUT param1 INT)
+BEGIN
+SELECT 1 INTO param1;
+END//
+INSTALL PLUGIN NULL_AUDIT SONAME 'AUDIT_NULL';
+SELECT 1;
+1
+1
+CALL simpleproc(@a);
+PREPARE stmt1 FROM 'SELECT 1';
+EXECUTE stmt1;
+1
+1
+SHOW STATUS LIKE 'Audit_null_general_log';
+Variable_name	Value
+Audit_null_general_log	7
+DEALLOCATE PREPARE stmt1;
+DROP PROCEDURE simpleproc;
+UNINSTALL PLUGIN NULL_AUDIT;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+SET GLOBAL general_log=@general_log_save;

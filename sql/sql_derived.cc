@@ -1695,6 +1695,23 @@ bool Table_ref::create_materialized_table(THD *thd) {
       if (t->is_created()) {
         assert(table->in_use == nullptr || table->in_use == thd);
         table->in_use = thd;
+        // CTE clones share a TABLE_SHARE but have separate handlers (set at
+        // preparation time). If the first clone triggered TempTable->InnoDB
+        // fallback, this clone's handler still points to TempTable. Detect the
+        // mismatch and replace with the correct engine to avoid opening the
+        // wrong handler (which would fail with "table doesn't exist").
+        if (table->file->ht != t->file->ht) {
+          ::destroy_at(table->file);
+          table->file = get_new_handler(table->s, false,
+                                        table->s->alloc_for_tmp_file_handler,
+                                        t->file->ht);
+          if (table->file == nullptr) return true;
+          table->file->change_table_ptr(table, table->s);
+          if (table->file->set_ha_share_ref(&table->s->ha_share)) {
+            ::destroy_at(table->file);
+            return true;
+          }
+        }
         if (open_tmp_table(table)) return true; /* purecov: inspected */
         break;
       }

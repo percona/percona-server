@@ -6887,6 +6887,17 @@ again:
   }
 
   FINALLY
+  /*
+    The task framework runs TERM_CHECK at the end of TASK_BEGIN, so when the
+    terminate flag is already set at task creation time it jumps straight to
+    this cleanup label before ep->rfd is assigned from the task argument above.
+    task_allocate() zero-initialises the env, so ep->rfd would be nullptr here.
+    The transport teardown now tolerates a nullptr connection, but that would
+    leak the accepted connection passed as the task argument. Recover it so it
+    is properly closed and freed.
+  */
+  if (ep->rfd == nullptr)
+    ep->rfd = static_cast<connection_descriptor *>(get_void_arg(arg));
   IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->rfd.fd, d);
         NDBG(task_now(), f));
   if (ep->reply_queue.suc && !link_empty(&ep->reply_queue))

@@ -341,4 +341,21 @@ TEST_F(XComNetworkProviderManagerTest,
 
   free(connection_to);
 }
+
+TEST_F(XComNetworkProviderManagerTest, CloseNullConnectionDoesNotCallProvider) {
+  std::shared_ptr<mock_network_provider> const mock_provider =
+      std::make_shared<mock_network_provider>();
+  EXPECT_CALL(*mock_provider, get_communication_stack())
+      .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
+  EXPECT_CALL(*mock_provider, close_connection(testing::_)).Times(0);
+
+  Network_provider_manager::getInstance().add_network_provider(mock_provider);
+
+  EXPECT_EQ(
+      Network_provider_manager::getInstance().close_xcom_connection(nullptr),
+      -1);
+
+  Network_provider_manager::getInstance().remove_network_provider(
+      XCOM_PROTOCOL);
+}
 }  // namespace gcs_xcom_networkprovidermamangertest

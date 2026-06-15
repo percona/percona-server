@@ -1,5 +1,5 @@
 # Hourly sweeper for leaked runner VMs (Hetzner + AWS EC2) and offline
-# GHA runners. Companion to build.yml; catches orphans from control-plane
+# GHA runners. Companion to builds.yml; catches orphans from control-plane
 # crashes, cancelled workflows, and probe-step leaks.
 #
 # PS-11179 (2026-05-28): EC2 sweep added for the AWS fallback path.
@@ -140,7 +140,7 @@ jobs:
 
   # PS-11179: EC2 orphan sweep for the AWS fallback path.
   # Mirrors the Hetzner sweep cadence + threshold: hourly, default 6h age.
-  # OIDC -> STS via the same AWS_ROLE_ARN used by build.yml. Region pinned
+  # OIDC -> STS via the same AWS_ROLE_ARN used by builds.yml. Region pinned
   # to eu-central-1 (matches create-runner-aws).
   sweep-ec2:
     runs-on: ubuntu-latest

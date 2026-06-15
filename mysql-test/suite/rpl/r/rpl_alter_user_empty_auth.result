@@ -8,11 +8,11 @@ Note	####	Storing MySQL user name or password information in the connection meta
 # expire passwords on replicas.
 #
 CREATE USER 'rpl_empty_auth_by'@'%'
-  IDENTIFIED WITH 'mysql_native_password' BY '';
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
 CREATE USER 'rpl_empty_auth_with'@'%'
-  IDENTIFIED WITH 'mysql_native_password' BY '';
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
 CREATE USER 'rpl_empty_auth_as'@'%'
-  IDENTIFIED WITH 'mysql_native_password' BY '';
+  IDENTIFIED WITH 'caching_sha2_password' BY '';
 include/rpl/sync_to_replica.inc
 ALTER USER 'rpl_empty_auth_by'@'%'
   IDENTIFIED WITH caching_sha2_password BY '';

@@ -1,0 +1,108 @@
+# PS-11078: Nightly arm64 build dispatcher.
+#
+# WHY THIS FILE EXISTS
+# GitHub Actions `schedule:` (cron) triggers ONLY fire from the workflow file
+# as it exists on the repository's DEFAULT branch. A cron sitting in builds.yml
+# on a non-default branch (e.g. 9.7) never runs. To get nightly
+# RelWithDebInfo + binlog_nogtid coverage on every maintained branch, this
+# single dispatcher lives on the default branch, runs on cron, and triggers
+# each target branch's OWN builds workflow via workflow_dispatch (--ref <branch>).
+#
+# Each dispatched run executes that branch's self-contained builds workflow, so
+# the per-branch config (boost version, parent branch, cmake/apt deltas) is
+# applied automatically -- this file knows nothing about it and never needs
+# editing when a branch's build config changes. It only needs editing when the
+# set of maintained branches changes (the `branches` default below).
+#
+# STAGED ROLLOUT: the build workflow file is named builds.yml on migrated
+# branches (8.4) but may still be build.yml on not-yet-migrated ones (8.0, 9.7).
+# Each ref is dispatched by trying builds.yml first, then build.yml, so every
+# branch keeps its nightly during the transition. Drop the build.yml fallback
+# once 8.0 + 9.7 are renamed to builds.yml.
+#
+# Per-PR builds are NOT handled here; the builds workflow's own pull_request /
+# pull_request_target triggers cover those on each branch.
+#
+# TOKEN: dispatch uses GHA_RUNNER_PAT, not GITHUB_TOKEN. A workflow_dispatch
+# fired with the built-in GITHUB_TOKEN does not reliably start the target run
+# (GitHub suppresses token-triggered events to avoid recursion); a PAT is the
+# established way to chain workflows. The PAT needs `actions: write` + repo
+# `contents: read` on this repository.
+
+name: builds-nightly
+
+on:
+  schedule:
+    # 01:00 UTC nightly. Matches the Cirrus RelWithDebInfo cadence (Przemek
+    # 2026-05-18). Cron only fires from the default branch -- that is the whole
+    # point of this file.
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: 'Comma-separated branches to dispatch a nightly RelWithDebInfo build on.'
+        type: string
+        default: '8.0,8.4,9.7'
+  # Path-filtered self-test: editing this file opens a PR that exercises the
+  # dispatch logic in DRY-RUN mode (prints the gh commands, dispatches nothing),
+  # so a broken loop is caught before merge instead of silently skipping a
+  # nightly. Mirrors the hardening added to the original nightly workflow.
+  pull_request:
+    paths:
+      - '.github/workflows/builds-nightly.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-nightly:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Dispatch the builds workflow (RelWithDebInfo nightly) on each branch
+        env:
+          GH_TOKEN: ${{ secrets.GHA_RUNNER_PAT }}
+          REPO: ${{ github.repository }}
+          # workflow_dispatch lets an operator override the branch set; cron and
+          # the PR self-test use the default.
+          BRANCHES: ${{ github.event_name == 'workflow_dispatch' && inputs.branches || '8.0,8.4,9.7' }}
+          # pull_request runs are self-tests only: print, do not dispatch.
+          DRY_RUN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          # Staged rollout: try the new filename first, then the old one. The
+          # `builds` workflow is builds.yml on migrated branches (8.4) and may
+          # still be build.yml on not-yet-migrated ones (8.0, 9.7). Remove
+          # build.yml from this list once every branch is renamed.
+          WORKFLOW_FILES=(builds.yml build.yml)
+
+          IFS=',' read -ra REFS <<< "$BRANCHES"
+          dispatched=0
+          for ref in "${REFS[@]}"; do
+            ref="$(echo "$ref" | xargs)"   # trim surrounding whitespace
+            [ -n "$ref" ] || continue
+            if [ "$DRY_RUN" = "1" ]; then
+              echo "::notice::[dry-run] would dispatch ${WORKFLOW_FILES[0]} (fallback ${WORKFLOW_FILES[1]}) --ref $ref -f build_type=RelWithDebInfo"
+              echo "- [dry-run] \`$ref\` -> ${WORKFLOW_FILES[0]} or ${WORKFLOW_FILES[1]} (RelWithDebInfo)" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            ok=0
+            for wf in "${WORKFLOW_FILES[@]}"; do
+              if gh workflow run "$wf" --repo "$REPO" --ref "$ref" -f build_type=RelWithDebInfo 2>/tmp/wf.err; then
+                echo "::notice::Dispatched $wf (RelWithDebInfo) on ref $ref"
+                echo "- Dispatched \`$wf\` nightly RelWithDebInfo on \`$ref\`" >> "$GITHUB_STEP_SUMMARY"
+                ok=1
+                dispatched=$((dispatched + 1))
+                break
+              fi
+              echo "::warning::$wf not dispatchable on $ref ($(head -1 /tmp/wf.err)); trying next filename"
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::Could not dispatch any of ${WORKFLOW_FILES[*]} on ref $ref"
+              exit 1
+            fi
+          done
+          if [ "$DRY_RUN" != "1" ] && [ "$dispatched" -eq 0 ]; then
+            echo "::error::No branches dispatched (BRANCHES='$BRANCHES')"
+            exit 1
+          fi

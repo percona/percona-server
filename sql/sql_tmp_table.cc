@@ -2315,6 +2315,13 @@ static bool create_tmp_table_with_fallback(THD *thd, TABLE *table) {
       table->file->create(share->table_name.str, table, &create_info, nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL &&
       table->s->db_type() == temptable_hton) {
+    // Update share->db_plugin so db_type() reflects InnoDB instead of stale
+    // TempTable. Other clones share this TABLE_SHARE and depend on db_type()
+    // to determine the actual storage engine.
+    plugin_unlock(nullptr, share->db_plugin);
+    share->db_plugin = ha_lock_engine(nullptr, innodb_hton);
+    create_info.db_type = innodb_hton;
+    ::destroy_at(table->file);
     table->file = get_new_handler(
         table->s, false, share->alloc_for_tmp_file_handler, innodb_hton);
     error = table->file->create(share->table_name.str, table, &create_info,
@@ -2326,7 +2333,11 @@ static bool create_tmp_table_with_fallback(THD *thd, TABLE *table) {
     table->db_stat = 0;
     return true;
   } else {
-    if (table->s->db_type() != temptable_hton) {
+    // For non-fallback cases (TempTable succeeded, or initial InnoDB request):
+    // increment counter if table is on disk (not in-memory like
+    // TempTable/MEMORY).
+    if (table->s->db_type() != temptable_hton &&
+        table->s->db_type() != heap_hton) {
       thd->inc_status_created_tmp_disk_tables();
     }
     return false;

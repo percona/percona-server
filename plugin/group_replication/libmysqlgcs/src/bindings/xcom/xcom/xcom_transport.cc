@@ -101,6 +101,8 @@ static int pm(xcom_port port) { return port == xcom_listen_port; }
 /* purecov: end */
 
 int close_open_connection(connection_descriptor *conn) {
+  if (conn == nullptr) return -1;
+
   return Network_provider_manager::getInstance().close_xcom_connection(conn);
 }
 
@@ -1943,11 +1945,15 @@ void ssl_free_con(connection_descriptor *con) {
 #endif
 
 void close_connection(connection_descriptor *con) {
+  if (con == nullptr) return;
+
   close_open_connection(con);
   set_connected(con, CON_NULL);
 }
 
 void shutdown_connection(connection_descriptor *con) {
+  if (con == nullptr) return;
+
   /* printstack(1); */
   ADD_DBG(D_TRANSPORT, add_event(EVENT_DUMP_PAD, string_arg("con->fd"));
           add_event(EVENT_DUMP_PAD, int_arg(con->fd)););

@@ -391,6 +391,22 @@ bool FollowTailIterator::DoInit() {
       // connect to it on first run here.
       assert(table()->in_use == nullptr || table()->in_use == thd());
       table()->in_use = thd();
+      // The CTE's primary materialization may have fallen back TempTable ->
+      // InnoDB, updating share->db_plugin. This clone's handler (set at
+      // preparation time from share->db_type()) may now be stale. Detect and
+      // fix before opening.
+      if (table()->file->ht != table()->s->db_type()) {
+        ::destroy_at(table()->file);
+        table()->file = get_new_handler(table()->s, false,
+                                        table()->s->alloc_for_tmp_file_handler,
+                                        table()->s->db_type());
+        if (table()->file == nullptr) return true;
+        table()->file->change_table_ptr(table(), table()->s);
+        if (table()->file->set_ha_share_ref(&table()->s->ha_share)) {
+          ::destroy_at(table()->file);
+          return true;
+        }
+      }
       if (open_tmp_table(table())) {
         return true;
       }

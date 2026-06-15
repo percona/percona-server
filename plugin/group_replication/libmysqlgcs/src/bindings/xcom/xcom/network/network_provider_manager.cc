@@ -259,6 +259,8 @@ connection_descriptor *Network_provider_manager::open_xcom_connection(
 
 int Network_provider_manager::close_xcom_connection(
     connection_descriptor *connection_handle) {
+  if (connection_handle == nullptr) return -1;
+
   auto provider = Network_provider_manager::getInstance().get_provider(
       connection_handle->protocol_stack);
 

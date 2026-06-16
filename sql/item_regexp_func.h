@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,8 +248,8 @@ class Item_func_regexp_instr : public Item_func_regexp {
   std::optional<int> return_option() const {
     int the_index = retopt_arg_pos();
     if (the_index != -1 && arg_count >= static_cast<uint>(the_index) + 1) {
-      int value = args[the_index]->val_int();
-      if (args[the_index]->null_value)
+      const int value = args[the_index]->val_int();
+      if (args[the_index]->null_value || current_thd->is_error())
         return std::optional<int>();
       else
         return value;

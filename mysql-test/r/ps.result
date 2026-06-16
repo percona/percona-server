@@ -4252,3 +4252,12 @@ Variable_name	Value
 Com_stmt_reprepare	1
 deallocate prepare ps;
 DROP TABLE t1;
+#
+# Bug#39071552: Rollback_item_tree_changes() stack use_after_free
+#
+CREATE TABLE t0 (v1 JSON, v2 TINYINT);
+PREPARE ps1 FROM 'DELETE FROM t0 WHERE v2 <> 999;';
+EXECUTE ps1;
+PREPARE ps2 FROM 'UPDATE t0 SET v1 = NULL WHERE v2 <> 999;';
+EXECUTE ps2;
+DROP TABLE t0;

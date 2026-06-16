@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -356,12 +356,17 @@ struct Builder {
                                            dfield_t *&src_field,
                                            size_t &mv_rows_added) noexcept;
 
-  /** Copy the FTS columns.
-  @param[in,out] ctx            Copy context.
-  @param[in,out] field          Field to write to.
+  /** Enqueue parsing of the field of the row
+  @param[in]     row            The row which contains the field to parse
+  @param[in]     field_no       Which field to parse
   @return DB_SUCCESS or error code. */
-  [[nodiscard]] dberr_t copy_fts_column(Copy_ctx &ctx,
-                                        dfield_t *field) noexcept;
+  [[nodiscard]] dberr_t enqueue_parsing(const dtuple_t &row,
+                                        size_t field_no) noexcept;
+
+  /** Enqueue parsing of the row. Asserts we are building FTS index only.
+  @param[in] row   The row which contains fields to parse.
+  @return DB_SUCCESS or error code. */
+  [[nodiscard]] dberr_t enqueue_parsing(const dtuple_t &row) noexcept;
 
   /** Copy the columns to the temporary file buffer.
   @param[in,out] ctx            Copy context.

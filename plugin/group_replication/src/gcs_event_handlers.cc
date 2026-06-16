@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,6 +249,20 @@ void Plugin_gcs_events_handler::handle_transaction_prepared_message(
   Transaction_prepared_message transaction_prepared_message(
       message.get_message_data().get_payload(),
       message.get_message_data().get_payload_length());
+
+  if (transaction_prepared_message.is_decode_error()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                 "Malformed SID in the transaction prepared message");
+    const char *exit_state_action_abort_log_message =
+        "Malformed SID in the transaction prepared message";
+    leave_group_on_failure::mask leave_actions;
+    leave_actions.set(leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP, true);
+    leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+    leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+    leave_group_on_failure::leave(leave_actions, 0, &m_notification_ctx,
+                                  exit_state_action_abort_log_message);
+    return;
+  }
 
   Transaction_prepared_action_packet *transaction_prepared_action =
       new Transaction_prepared_action_packet(

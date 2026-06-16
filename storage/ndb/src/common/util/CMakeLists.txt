@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   NdbSocket.cpp
   NdbSqlUtil.cpp
   ndb_az31.cpp
+  ndb_barrier.cpp
   ndb_ndbxfrm1.cpp
   ndb_openssl3_compat.cpp
   ndb_openssl_evp.cpp
@@ -102,9 +103,11 @@ NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 FOREACH(tests
     NdbPack
     mysql_utils_test
+    ndb_barrier
     ndb_openssl_evp
     ndbxfrm_file
     NdbSqlUtil
+    OutputStream
     md5_hash
     LogBuffer
     testSimpleProperties

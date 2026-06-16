@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,8 @@ struct NdbSeqLock {
   void write_lock();
   void write_unlock();
 
+  bool is_write_lock_held() const;
+
   Uint32 read_lock();
   bool read_unlock(Uint32 val) const;
 };
@@ -51,6 +53,11 @@ inline void NdbSeqLock::write_unlock() {
   assert((m_seq & 1) == 1);
   wmb();
   m_seq++;
+}
+
+inline bool NdbSeqLock::is_write_lock_held() const {
+  Uint32 val = m_seq;
+  return (val & 1) == 1;
 }
 
 inline Uint32 NdbSeqLock::read_lock() {
@@ -80,6 +87,9 @@ struct NdbSeqLock {
 
   void write_lock() {}
   void write_unlock() {}
+
+  /* No-op here, return true to satisfy check-held */
+  bool is_write_lock_held() const { return true; }
 
   Uint32 read_lock() { return 0; }
   bool read_unlock(Uint32 val) const { return true; }

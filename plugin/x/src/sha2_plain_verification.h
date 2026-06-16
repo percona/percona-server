@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,8 @@ class Sha2_plain_verification : public iface::Account_verification {
  private:
   static const std::string k_empty_salt;
   std::string compute_password_hash(const std::string &password,
-                                    const std::string &salt) const;
+                                    const std::string &salt,
+                                    unsigned int iteration_count) const;
   iface::SHA256_password_cache *m_sha256_password_cache;
 };
 

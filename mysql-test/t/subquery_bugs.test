@@ -1957,7 +1957,7 @@ let $q1 = CREATE TABLE t( c0 int AUTO_INCREMENT primary key;
 let $n= 1;
 while ($n<100)
 {
-  let $q1 = $q1 , c$n CHAR(50);
+  let $q1 = $q1 , c$n CHAR(20);
   inc $n;
 }
 let $q1 = $q1) ENGINE InnoDB;
@@ -1974,7 +1974,7 @@ let $q2 = INSERT INTO t(c1 $q2);
 let $q3 = values(1 $q3);
 let $q2 = $q2 $q3;
 --eval $q2
-let $n=9;
+let $n=11;
 while ($n>0)
 {
   --eval $q4
@@ -2014,8 +2014,12 @@ INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1), (2);
 SET optimizer_switch='loosescan=off,firstmatch=off,duplicateweedout=off';
 --replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT /*+ JOIN_SUFFIX(t1, t2) */ * FROM v1 WHERE v1.id IN (SELECT id FROM v1);
+# Hypergraph gives warnings for the hint used.
+--disable_warnings
 SELECT /*+ JOIN_SUFFIX(t1, t2) */ * FROM v1 WHERE v1.id IN (SELECT id FROM v1);
+--enable_warnings
 DROP TABLE t1,t2;
 DROP VIEW v1;
 SET optimizer_switch = default;

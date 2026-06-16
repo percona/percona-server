@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/big_test.inc
 # The test requires a debug build, in order to trigger
 # a purge using innodb_purge_run_now=ON .
 
@@ -41,7 +42,9 @@ call insert_data();
 
 --echo # 4: commit, trigger undo log truncation
 commit;
-sync_slave_with_master;
+
+--let $slave_timeout = 3000
+--source include/sync_slave_sql_with_master.inc
 
 connection slave;
 
@@ -59,7 +62,7 @@ let $MYSQLD_DATADIR = `select @@datadir`;
 
 --echo # 5: undo files undo_001 and undo_002 are expected to exist,
 --echo #    while files undo_001_trunc.log and undo_002_trunc.log are expected to not exist
-list_files $MYSQLD_DATADIR undo_0*;
+list_files $MYSQLD_DATADIR undo*;
 
 set global innodb_max_undo_log_size=@orig_max_undo_log_size;
 set global innodb_purge_rseg_truncate_frequency=@orig_truncate_frequency;

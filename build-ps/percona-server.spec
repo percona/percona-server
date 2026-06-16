@@ -263,19 +263,23 @@ Requires:  percona-telemetry-agent
 %endif
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
-Obsoletes:     mariadb-connector-c-config
-Obsoletes:     mariadb-backup
-Obsoletes:     mariadb-bench
-Obsoletes:     mariadb-server
-Obsoletes:     mariadb-server-galera
-Obsoletes:     mariadb-server-utils
-Obsoletes:     mariadb-galera-server
-Obsoletes:     mariadb-gssapi-server
-Obsoletes:     mariadb-oqgraph-engine
-Provides:       MySQL-server%{?_isa} = %{version}-%{release}
-Provides:       mysql-server = %{version}-%{release}
-Provides:       mysql-server%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Obsoletes:     mariadb-connector-c-config mariadb11.8-connector-c-config
+Obsoletes:     mariadb-backup mariadb11.8-backup
+Obsoletes:     mariadb-bench mariadb11.8-bench
+Obsoletes:     mariadb-server mariadb11.8-server
+Obsoletes:     mariadb-server-galera mariadb11.8-server-galera
+Obsoletes:     mariadb-server-utils mariadb11.8-server-utils
+Obsoletes:     mariadb-galera-server mariadb11.8-galera-server
+Obsoletes:     mariadb-gssapi-server mariadb11.8-gssapi-server
+Obsoletes:     mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
+Obsoletes:     mysql8.4-server < 99
+Obsoletes:     mysql8.4 < 99
+Obsoletes:     mysql8.4-common < 99
+Obsoletes:     mysql8.4-errmsg < 99
+Provides:      MySQL-server%{?_isa} = %{version}-%{release}
+Provides:      mysql-server = %{version}-%{release}
+Provides:      mysql-server%{?_isa} = %{version}-%{release}
+Conflicts:     Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
 
 %if 0%{?systemd}
 Requires(post):   systemd
@@ -316,6 +320,7 @@ Summary:        Percona Server - Client
 Group:          Applications/Databases
 Requires:       percona-server-shared
 Provides:       mysql-client MySQL-client mysql MySQL
+Obsoletes:      mysql8.4 < 99
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55 Percona-Server-client-56 Percona-Server-client-57
 
 %description -n percona-server-client
@@ -826,14 +831,14 @@ if [ -d /etc/percona-server.conf.d ]; then
     fi
 fi
 
-
+tfn=$(/usr/bin/mktemp -p "$(/usr/bin/mktemp -d /tmp/XXXXXXXX)" call-home.XXXXXX.sh)
 cp %SOURCE999 /tmp/ 2>/dev/null ||
-bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+bash $tfn -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :
 chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :
 %endif
-rm -f /tmp/call-home.sh
+rm -f $tfn
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"

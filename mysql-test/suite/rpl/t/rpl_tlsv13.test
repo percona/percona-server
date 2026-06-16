@@ -76,7 +76,7 @@ RESET SLAVE FOR CHANNEL 'my_channel';
 --echo ########################################################################
 --echo # 4. Check replication with TLSv1.3 and different ciphersuite on master
 --echo #    and slave will fail.
-CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', SOURCE_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256', SOURCE_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
 START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
 
 #CR_SSL_CONNECTION_ERROR

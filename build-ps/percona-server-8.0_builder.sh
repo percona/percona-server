@@ -565,10 +565,10 @@ install_deps() {
         apt-get -y install lsb-release || true
         apt-get -y install wget git curl
         export DIST="$(lsb_release -sc)"
-        if [ x"${DIST}" != xnoble ];then
-            wget https://repo.percona.com/apt/percona-release_latest."${DIST}"_all.deb && dpkg -i percona-release_latest."${DIST}"_all.deb
-            percona-release enable tools testing
-        fi
+        #if [ x"${DIST}" != xnoble -o x"${DIST}" != xresolute ];then
+        #    wget https://repo.percona.com/apt/percona-release_latest."${DIST}"_all.deb && dpkg -i percona-release_latest."${DIST}"_all.deb
+        #    percona-release enable tools testing
+        #fi
         until apt-get update; do
             echo "apt-get update failed. Retrying in 5 seconds..."
             sleep 5
@@ -582,7 +582,7 @@ install_deps() {
         apt-get -y install libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         apt-get -y install libatomic1
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
+        if [ x"${DIST}" = xfocal -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xresolute -o x"${DIST}" = xtrixie ]; then
             apt-get -y install python3-mysqldb
         else
             apt-get -y install python-mysqldb
@@ -593,32 +593,26 @@ install_deps() {
         apt-get -y install libudev-dev
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
-        apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        apt-get -y install ccache libevent-dev liblz4-dev libre2-dev libtool po-debconf
+        if [ x"${DIST}" = xnoble -o x"${DIST}" = xresolute ]; then
+            apt-get -y install gsasl-common
+        else
+            apt-get -y install libgsasl7
+        fi
         if [ x"${DIST}" = xbionic ]; then
             apt-get -y install gcc-8 g++-8
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 700 --slave /usr/bin/g++ g++ /usr/bin/g++-7
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8
-        elif [ x"${DIST}" = xnoble ]; then
+        elif [ x"${DIST}" = xnoble -o x"${DIST}" = xresolute ]; then
             apt-get -y install gcc-13 g++-13
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
         else
             apt-get -y install gcc g++
         fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
-            apt-get -y install libeatmydata1
-        fi
-        if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xstretch -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xhirsute -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
-            apt-get -y install libzstd-dev
-        else
-            apt-get -y install libzstd1-dev
-        fi
-        if [ x${DIST} = xhirsute ]; then
-            apt-get -y install libzbd-dev clang-12 pkg-config make libgflags-dev nvme-cli util-linux fio zbd-utils
-        fi
-        if [[ ${DIST} == 'focal' ]] || [[ ${DIST} == 'hirsute' ]] || [[ ${DIST} == 'bullseye' ]] || [[ ${DIST} == 'jammy' ]] || [[ ${DIST} == 'bookworm' ]] || [[ ${DIST} == 'noble' ]] || [[ ${DIST} == 'trixie' ]]; then
-            apt-get -y install libgflags-dev
-        fi
-        if [ x${DIST} = xnoble -o x"${DIST}" = xtrixie ]; then
+        apt-get -y install libeatmydata1
+        apt-get -y install libzstd-dev
+        apt-get -y install libgflags-dev
+        if [ x${DIST} = xnoble -o x"${DIST}" = xtrixie -o x"${DIST}" = xresolute ]; then
             apt-get -y install libtirpc-dev gsasl-common
         fi
         apt-get install -y libsasl2-dev libsasl2-modules-gssapi-mit libkrb5-dev
@@ -706,7 +700,10 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     #wget https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
     wget --no-check-certificate https://downloads.percona.com/downloads/packaging/boost/${BOOST_PACKAGE_NAME}.tar.gz
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
@@ -719,7 +716,7 @@ build_srpm(){
     cp ../SOURCES/call-home.sh ./
     awk -v n=$line_number 'NR <= n {print > "part1.txt"} NR > n {print > "part2.txt"}' percona-server.spec
     head -n -1 part1.txt > temp && mv temp part1.txt
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> part1.txt
+    echo "cat <<'CALLHOME' > \$tfn" >> part1.txt
     cat call-home.sh >> part1.txt
     echo "CALLHOME" >> part1.txt
     cat part2.txt >> part1.txt
@@ -888,6 +885,13 @@ build_rpm(){
     if [ $return_code != 0 ]; then
         exit $return_code
     fi
+
+    # Verify RPMs were actually produced
+    if [ -z "$(find ${WORKDIR}/rpmbuild/RPMS -name '*.rpm' 2>/dev/null)" ]; then
+        echo "ERROR: rpmbuild succeeded but no RPM files were generated!"
+        exit 1
+    fi
+
     mkdir -p ${WORKDIR}/rpm
     mkdir -p ${CURDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${WORKDIR}/rpm
@@ -988,20 +992,24 @@ build_deb(){
 
     postfix=""
     cd debian/
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     sed -i 's:exit 0::' percona-server-server"${postfix}".postinst
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "tfn=\$(/usr/bin/mktemp -p \$(/usr/bin/mktemp -d /tmp/XXXXXXXX) call-home.XXXXXX.sh)" >> percona-server-server"${postfix}".postinst
+    echo "cat <<'CALLHOME' > \$tfn" >> percona-server-server"${postfix}".postinst
     cat call-home.sh >> percona-server-server"${postfix}".postinst
     echo "CALLHOME" >> percona-server-server"${postfix}".postinst
-    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "bash +x \$tfn -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
-    echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "rm -rf \$tfn" >> percona-server-server"${postfix}".postinst
     echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
     cd ../
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
+    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a x"${DIST}" = xresolute -a "${DEBIAN_VERSION}" != trixie ]; then
         gcc47=$(which gcc-4.7 2>/dev/null || true)
         if [ -x "${gcc47}" ]; then
             export CC=gcc-4.7
@@ -1024,7 +1032,7 @@ build_deb(){
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
 
-    if [ ${DEBIAN_VERSION} = "noble" -a ${ARCH} = "aarch64" ]; then
+    if [ ${DEBIAN_VERSION} = "noble" -o ${DEBIAN_VERSION} = "resolute" -a ${ARCH} = "aarch64" ]; then
         sed -i 's:dh_strip --dbg-package=percona-server-dbg:mv debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so /tmp\n\tdh_strip --dbg-package=percona-server-dbg\n\tmv /tmp/authentication_fido.so debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
         sed -i 's:dh_strip -Xlibprotobuf-lite:dh_strip -Xlibprotobuf-lite --exclude=debian/percona-server-server/usr/lib/mysql/plugin/authentication_fido.so:' debian/rules
     fi

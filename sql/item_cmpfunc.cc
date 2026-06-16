@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2055,21 +2055,6 @@ bool Arg_comparator::compare_null_values() {
   bool result;
   (void)compare_pair_for_nulls(*left, *right, &result);
   return result;
-}
-
-void Item_bool_func::set_created_by_in2exists() {
-  m_created_by_in2exists = true;
-  // When a condition is created by IN to EXISTS transformation,
-  // it re-uses the expressions that are part of the query. As a
-  // result we need to increment the reference count
-  // for these expressions.
-  WalkItem(this, enum_walk::PREFIX | enum_walk::SUBQUERY, [](Item *inner_item) {
-    // Reference counting matters only for referenced items.
-    if (inner_item->type() == REF_ITEM) {
-      down_cast<Item_ref *>(inner_item)->ref_item()->increment_ref_count();
-    }
-    return false;
-  });
 }
 
 const char *Item_bool_func::bool_transform_names[10] = {"is true",

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 
 #ifndef TLS_CIPHERS_INCLUDED
 #define TLS_CIPHERS_INCLUDED
+
+#include <openssl/opensslv.h>
 
 namespace {
 

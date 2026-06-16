@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -522,12 +522,13 @@ static void dd_inplace_alter_copy_instant_metadata(
       }
     }
 
-    /* Get corresponding dd::column in new table */
-    dd::Column *new_dd_column = const_cast<dd::Column *>(
-        dd_find_column(new_dd_tab, old_dd_column->name().c_str()));
+    /* The column might have been renamed */
+    dd::Column *new_dd_column =
+        get_renamed_col(ha_alter_info, old_dd_column, new_dd_tab);
     if (new_dd_column == nullptr) {
-      /* This column might have been renamed */
-      new_dd_column = get_renamed_col(ha_alter_info, old_dd_column, new_dd_tab);
+      /* Get corresponding dd::column in new table if not renamed */
+      new_dd_column = const_cast<dd::Column *>(
+          dd_find_column(new_dd_tab, old_dd_column->name().c_str()));
     }
 
     if (new_dd_column == nullptr) {
@@ -6129,11 +6130,10 @@ to rebuild the template.
 static bool alter_templ_needs_rebuild(TABLE *altered_table,
                                       Alter_inplace_info *ha_alter_info,
                                       dict_table_t *table) {
-  ulint i = 0;
   List_iterator_fast<Create_field> cf_it(
       ha_alter_info->alter_info->create_list);
 
-  for (Field **fp = altered_table->field; *fp; fp++, i++) {
+  for (Field **fp = altered_table->field; *fp; fp++) {
     cf_it.rewind();
     while (const Create_field *cf = cf_it++) {
       for (ulint j = 0; j < table->n_cols; j++) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -541,8 +541,14 @@ void TlsLineReader::read(int timeout, int *elapsed) {
   /* Consume characters from the buffer */
   for (int len = i; len;) {
     t = m_socket.ssl_recv(ptr, len);
+    if (t == TLS_BUSY_TRY_AGAIN)
+      continue;  // mutex contention; the peeked
+                 // data is buffered, so retry
     m_error = (t < 1);
-    if (m_error) return;
+    if (m_error) {
+      m_complete = false;  // a newline was peeked, but never consumed
+      return;
+    }
 
     ptr += t;
     len -= t;

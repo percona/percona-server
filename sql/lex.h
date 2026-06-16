@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,6 @@ static const SYMBOL symbols[] = {
     {SYM_PERCONA("CLIENT_STATISTICS", CLIENT_STATS_SYM)},
     {SYM("CLONE", CLONE_SYM)},
     {SYM("CLOSE", CLOSE_SYM)},
-    {SYM_PERCONA("CLUSTERING", CLUSTERING_SYM)},
     {SYM("COALESCE", COALESCE)},
     {SYM("CODE", CODE_SYM)},
     {SYM("COLLATE", COLLATE_SYM)},
@@ -417,6 +416,7 @@ static const SYMBOL symbols[] = {
     {SYM("MANUAL", MANUAL_SYM)},
     {SYM("MASTER", MASTER_SYM)},
     {SYM("MATCH", MATCH)},
+    {SYM("MASKING", MASKING_SYM)},
     {SYM("MATERIALIZED", MATERIALIZED_SYM)},
     {SYM("MAX_CONNECTIONS_PER_HOUR", MAX_CONNECTIONS_PER_HOUR)},
     {SYM("MAX_QUERIES_PER_HOUR", MAX_QUERIES_PER_HOUR)},
@@ -523,6 +523,7 @@ static const SYMBOL symbols[] = {
     {SYM("PLUGIN_DIR", PLUGIN_DIR_SYM)},
     {SYM("POINT", POINT_SYM)},
     {SYM("POLYGON", POLYGON_SYM)},
+    {SYM("POLICY", POLICY_SYM)},
     {SYM("PORT", PORT_SYM)},
     {SYM("PRECEDES", PRECEDES_SYM)},
     {SYM("PRECEDING", PRECEDING_SYM)},
@@ -639,7 +640,6 @@ static const SYMBOL symbols[] = {
     {SYM("SERIAL", SERIAL_SYM)},
     {SYM("SERIALIZABLE", SERIALIZABLE_SYM)},
     {SYM("SESSION", SESSION_SYM)},
-    {SYM_PERCONA("SEQUENCE_TABLE", SEQUENCE_TABLE_SYM)},
     {SYM("SERVER", SERVER_SYM)},
     {SYM("SET", SET_SYM)},
     {SYM("SETS", SETS_SYM)},

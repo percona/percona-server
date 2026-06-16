@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -396,7 +396,18 @@ static void run(mysql_harness::PluginFuncEnv *env) {
 
 static void stop(mysql_harness::PluginFuncEnv * /* env */) {
   log_debug("stop");
-  if (g_mrs_configuration) g_mrs_configuration->service_monitor_->abort();
+  if (g_mrs_configuration) {
+    g_mrs_configuration->service_monitor_->abort();
+    // Wake up any MRS thread blocked in
+    // DestinationProvider::get_node(kWaitUntilAvaiable) waiting for a cluster
+    // node to become available. After the cluster is gone such a wait never
+    // ends on its own, which would keep the MRS run() thread (SchemaMonitor)
+    // from returning and prevent the Router from shutting down.
+    if (g_mrs_configuration->provider_rw_)
+      g_mrs_configuration->provider_rw_->stop();
+    if (g_mrs_configuration->provider_ro_)
+      g_mrs_configuration->provider_ro_->stop();
+  }
   if (g_mrds_module) g_mrds_module->stop();
 }
 

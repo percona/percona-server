@@ -1,4 +1,9 @@
 ###
+### Deprecated SEQUENCE_TABLE() keyword has been removed
+###
+SELECT * FROM SEQUENCE_TABLE(2) AS tt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(2) AS tt' at line 1
+###
 ### Checking invalid PERCONA_SEQUENCE_TABLE() arguments
 ###
 # no arguments

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1100,6 +1100,10 @@ class StatementSharableTest
 
       srv->close_all_connections();  // reset the router's connection-pool
     }
+
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
   }
 
   static void TearDownTestSuite() {

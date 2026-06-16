@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+﻿# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -432,6 +432,7 @@ SET(SQL_SHARED_SOURCES
   json_duality_view/dml.cc
   json_duality_view/i_s.cc
   json_duality_view/option_usage.cc
+  json_duality_view/ostream_utils.cc
   json_duality_view/utils.cc
   join_optimizer/access_path.cc
   join_optimizer/build_interesting_orders.cc
@@ -591,6 +592,7 @@ SET(SQL_SHARED_SOURCES
   sql_load.cc
   sql_locale.cc
   sql_manager.cc
+  sql_masking_policy.cc
   sql_optimizer.cc
   sql_parse.cc
   sql_partition.cc
@@ -680,12 +682,6 @@ IF(BUILD_IS_SINGLE_CONFIG)
       debug_sync.cc
       )
   ENDIF()
-ENDIF()
-
-IF (WITH_INTERNAL)
-  LIST(REMOVE_ITEM SQL_SHARED_SOURCES
-      json_duality_view/dml.cc
-      )
 ENDIF()
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
@@ -920,7 +916,9 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef -Wno-unused-label")
-  IF(MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
+  IF((MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
+     OR
+     (MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16))
     ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
@@ -966,9 +964,6 @@ IF(DEFINED WITH_HYPERGRAPH_OPTIMIZER)
     TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE
       WITH_HYPERGRAPH_OPTIMIZER=1)
   ENDIF()
-ELSEIF(WITH_HYPERGRAPH_OPTIMIZER_DEFAULT STREQUAL "default")
-  TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE
-    $<$<CONFIG:Debug>:WITH_HYPERGRAPH_OPTIMIZER=1>)
 ENDIF()
 IF(ENABLE_HYPERGRAPH_OPTIMIZER)
   TARGET_COMPILE_DEFINITIONS(sql_main PRIVATE
@@ -1016,6 +1011,18 @@ IF(COMPRESS_DEBUG_SECTIONS)
 ENDIF()
 
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
+# GCC 16's -O2 analysis emits false-positive -Wmaybe-uninitialized warnings
+# inside libstdc++ basic_string code instantiated for the dd::String_type
+# allocator (Stateless_allocator<char, dd::String_type_alloc>) when assigning
+# strings inside the generated dd::Object_table_definition_impl-derived
+# constructors.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    dd/impl/tables/index_stats.cc
+    dd/impl/tables/table_stats.cc
+    dd/impl/tables/triggers.cc
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)
 ADD_DEPENDENCIES(sql_dd GenDigestServerSource)

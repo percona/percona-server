@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -767,16 +767,12 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   KEY_PART_INFO *key_part = &keyinfo->key_part[key_part_n];
   Field *field = key_part->field;
 
-  /* Flag field as unique and/or clustering if it is the only keypart in a
-  unique/clustering index */
+  /* Flag field as unique if it is the only keypart in a unique index */
   if (key_part_n == 0 && key_n != primary_key_n) {
     field->set_flag(
         ((keyinfo->flags & HA_NOSAME) && (keyinfo->user_defined_key_parts == 1))
             ? UNIQUE_KEY_FLAG
             : MULTIPLE_KEY_FLAG);
-    if (((keyinfo->flags & HA_CLUSTERING) &&
-         (keyinfo->user_defined_key_parts == 1)))
-      field->set_flag(CLUSTERING_FLAG);
   }
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
@@ -1610,17 +1606,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     keyinfo->table = nullptr;  // Updated in open_frm
     if (new_frm_ver >= 3) {
       keyinfo->flags = (uint)uint2korr(strpos) ^ HA_NOSAME;
-      /* Replace HA_FULLTEXT & HA_SPATIAL with HA_CLUSTERING. This way we
-         support TokuDB clustering key definitions without changing the FRM
-         format. */
-      if (keyinfo->flags & HA_SPATIAL && keyinfo->flags & HA_FULLTEXT) {
-        if (!ha_check_storage_engine_flag(share->db_type(),
-                                          HTON_SUPPORTS_CLUSTERED_KEYS))
-          goto err;
-        keyinfo->flags |= HA_CLUSTERING;
-        keyinfo->flags &= ~HA_SPATIAL;
-        keyinfo->flags &= ~HA_FULLTEXT;
-      }
       keyinfo->key_length = (uint)uint2korr(strpos + 2);
       keyinfo->user_defined_key_parts = (uint)strpos[4];
       keyinfo->algorithm = (enum ha_key_alg)strpos[5];
@@ -2567,6 +2552,17 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
 
   if (field && field->is_field_for_functional_index())
     val_generator_expr->allow_array_cast();
+
+  // Disable application of masking policies while resolving the expression.
+  // Masked columns aren't allowed in the value generator expressions in the
+  // first place, but we can't check for their presence until after the
+  // expression has been resolved. The purpose of the disabling is to get
+  // clearer error messages, as resolving the expression with masking applied is
+  // likely to fail with an error that does not explain the actual issue.
+  WalkItem(val_generator_expr, enum_walk::PREFIX, [](Item *item) {
+    item->disable_masking_policy();
+    return false;
+  });
 
   // Fix the fields for the value generator expression
   Item *new_func = val_generator_expr;
@@ -4497,8 +4493,7 @@ bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
-  uint i = 0;
-  for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
+  for (Field **ptr = visible_field_ptr(); *ptr; ptr++) {
     Item_field *item = new Item_field(*ptr);
     if (!item) return true;
     item_list->push_back(item);
@@ -7941,8 +7936,7 @@ void warn_user_trimmed(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg) {
   append_query_string(thd, system_charset_info, &host, &account);
   account.append((char)0);
   push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_ACCOUNT_TRIMMED,
-                      ER_THD(thd, ER_WARN_ACCOUNT_TRIMMED), account.ptr(),
-                      account.ptr());
+                      ER_THD(thd, ER_WARN_ACCOUNT_TRIMMED), account.ptr());
 }
 
 LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd [[maybe_unused]],

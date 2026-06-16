@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -565,7 +565,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
   2. We should not introduce new shift/reduce conflicts any more.
 */
 
-%expect 40
+%expect 37
 
 /*
    MAINTAINER:
@@ -1488,6 +1488,11 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> SETS_SYM        1238   /* SQL-1999-N */
 %token<lexer.keyword> VALIDATE_SYM    1239     /* MYSQL */
 
+%token<lexer.keyword> MASKING_SYM       1240     /* MYSQL */
+%token<lexer.keyword> POLICY_SYM        1241     /* MYSQL */
+%token GRAMMAR_SELECTOR_MASKING_EXPR 1242  /* synthetic token: starts data
+                                              masking expression */
+
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
   list ident_keywords_unambiguous lest they become reserved keywords.
@@ -1497,7 +1502,6 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
    Tokens from Percona Server 5.7 and older
 */
 %token<lexer.keyword> CLIENT_STATS_SYM 1301
-%token CLUSTERING_SYM 1302
 %token<lexer.keyword> COMPRESSION_DICTIONARY_SYM 1303
 %token<lexer.keyword> INDEX_STATS_SYM 1304
 %token<lexer.keyword> TABLE_STATS_SYM 1305
@@ -1508,7 +1512,6 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
    Tokens from Percona Server 8.0
 */
 %token<lexer.keyword> EFFECTIVE_SYM 1350
-%token<lexer.keyword> SEQUENCE_TABLE_SYM 1351
 %token PERCONA_SEQUENCE_TABLE_SYM 1352
 
 /*
@@ -1737,7 +1740,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         opt_set_var_ident_type install_option_type
 
 %type <key_type>
-        constraint_key_type opt_unique_combo_clustering unique_combo_clustering
+        opt_unique constraint_key_type
 
 %type <key_alg>
         index_type
@@ -2024,6 +2027,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         check_table_stmt
         create_index_stmt
         create_library_stmt
+        create_masking_policy_stmt
         create_resource_group_stmt
         create_role_stmt
         create_srs_stmt
@@ -2033,6 +2037,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         do_stmt
         drop_index_stmt
         drop_library_stmt
+        drop_masking_policy_stmt
         drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
@@ -2062,6 +2067,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         show_create_event_stmt
         show_create_function_stmt
         show_create_library_stmt
+        show_create_masking_policy_stmt
         show_create_procedure_stmt
         show_create_table_stmt
         show_create_trigger_stmt
@@ -2427,6 +2433,11 @@ start_entry:
            ITEMIZE($2, &$2);
            static_cast<Derived_expr_parser_state *>(YYP)->result= $2;
          }
+        | GRAMMAR_SELECTOR_MASKING_EXPR expr END_OF_INPUT
+         {
+           ITEMIZE($2, &$2);
+           static_cast<Masking_policy_expr_parser_state *>(YYP)->set_result($2);
+         }
         ;
 
 sql_statement:
@@ -2511,6 +2522,7 @@ simple_statement:
         | create                        { $$= nullptr; }
         | create_index_stmt
         | create_library_stmt
+        | create_masking_policy_stmt
         | create_resource_group_stmt
         | create_role_stmt
         | create_srs_stmt
@@ -2525,6 +2537,7 @@ simple_statement:
         | drop_index_stmt
         | drop_library_stmt
         | drop_logfile_stmt             { $$= nullptr; }
+        | drop_masking_policy_stmt
         | drop_procedure_stmt           { $$= nullptr; }
         | drop_resource_group_stmt
         | drop_role_stmt
@@ -2581,6 +2594,7 @@ simple_statement:
         | show_create_event_stmt
         | show_create_function_stmt
         | show_create_library_stmt
+        | show_create_masking_policy_stmt
         | show_create_procedure_stmt
         | show_create_table_stmt
         | show_create_trigger_stmt
@@ -2634,6 +2648,11 @@ deallocate:
           deallocate_or_drop PREPARE_SYM ident
           {
             THD *thd= YYTHD;
+            /*
+              Do not collect a regular digest,
+              DEALLOCATE PREPARE digests are special.
+            */
+            thd->m_parser_state->m_digest_psi = nullptr;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_DEALLOCATE_PREPARE;
             lex->prepared_stmt_name= to_lex_cstring($3);
@@ -2650,6 +2669,11 @@ prepare:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
+            /*
+              Do not collect a regular digest,
+              PREPARE digests are special.
+            */
+            thd->m_parser_state->m_digest_psi = nullptr;
             lex->sql_command= SQLCOM_PREPARE;
             lex->prepared_stmt_name= to_lex_cstring($2);
             /*
@@ -2686,6 +2710,11 @@ execute:
           EXECUTE_SYM ident
           {
             THD *thd= YYTHD;
+            /*
+              Do not collect a regular digest,
+              EXECUTE digests are special.
+            */
+            thd->m_parser_state->m_digest_psi = nullptr;
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_EXECUTE;
             lex->prepared_stmt_name= to_lex_cstring($2);
@@ -3561,7 +3590,7 @@ default_role_clause:
         ;
 
 create_index_stmt:
-          CREATE opt_unique_combo_clustering INDEX_SYM ident opt_index_type_clause
+          CREATE opt_unique INDEX_SYM ident opt_index_type_clause
           ON_SYM table_ident '(' key_list_with_expression ')' opt_index_options
           opt_index_lock_and_algorithm
           {
@@ -4037,7 +4066,7 @@ sp_fdparam:
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $3 != nullptr, $2->get_uint_geom_type(), nullptr,
-                                      nullptr, nullptr, {},
+                                      nullptr, nullptr, NULL_CSTR, {},
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -4098,7 +4127,7 @@ sp_pdparam:
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $4 != nullptr, $3->get_uint_geom_type(), nullptr,
-                                      nullptr, nullptr, {},
+                                      nullptr, nullptr, NULL_CSTR, {},
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -4228,7 +4257,7 @@ sp_decl:
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
                                         $4 != nullptr, $3->get_uint_geom_type(), nullptr,
-                                        nullptr, nullptr, {},
+                                        nullptr, nullptr, NULL_CSTR, {},
                                         dd::Column::enum_hidden_type::HT_VISIBLE))
               {
                 MYSQL_YYABORT;
@@ -7084,13 +7113,6 @@ table_constraint_def:
         | opt_constraint_name constraint_key_type opt_index_name_and_type
           '(' key_list_with_expression ')' opt_index_options
           {
-            if (($1.length != 0)
-                 && ($2 == (KEYTYPE_CLUSTERING | KEYTYPE_MULTIPLE)))
-            {
-              /* Forbid "CONSTRAINT c CLUSTERING" */
-              my_error(ER_SYNTAX_ERROR, MYF(0));
-              MYSQL_YYABORT;
-            }
             /*
               Constraint-implementing indexes are named by the constraint type
               by default.
@@ -7594,6 +7616,10 @@ column_attribute:
           {
             $$= NEW_PTN PT_generated_default_val_column_attr(@$, $3);
           }
+        | MASKING_SYM POLICY_SYM ident
+          {
+            $$= NEW_PTN PT_masking_policy_name_column_attr(@$, to_lex_cstring($3));
+          }
         | ON_SYM UPDATE_SYM now
           {
             $$= NEW_PTN PT_on_update_column_attr(@$, static_cast<uint8>($3));
@@ -7612,19 +7638,11 @@ column_attribute:
           }
         | UNIQUE_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_UNIQUE);
+            $$= NEW_PTN PT_unique_key_column_attr(@$);
           }
         | UNIQUE_SYM KEY_SYM
           {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_UNIQUE);
-          }
-        | CLUSTERING_SYM
-          {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_CLUSTERING);
-          }
-        | CLUSTERING_SYM KEY_SYM
-          {
-            $$= NEW_PTN PT_unique_combo_clustering_key_column_attr(@$, KEYTYPE_CLUSTERING);
+            $$= NEW_PTN PT_unique_key_column_attr(@$);
           }
         | COMMENT_SYM TEXT_STRING_sys
         {
@@ -7984,8 +8002,7 @@ delete_option:
 
 constraint_key_type:
           PRIMARY_SYM KEY_SYM { $$= KEYTYPE_PRIMARY; }
-        | unique_combo_clustering opt_key_or_index { $$= $1; }
-
+        | UNIQUE_SYM opt_key_or_index { $$= KEYTYPE_UNIQUE; }
         ;
 
 key_or_index:
@@ -8004,44 +8021,10 @@ keys_or_index:
         | INDEXES {}
         ;
 
-opt_unique_combo_clustering:
-          %empty { $$= KEYTYPE_MULTIPLE; }
-        | unique_combo_clustering
+opt_unique:
+          %empty       { $$= KEYTYPE_MULTIPLE; }
+        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
-
-unique_combo_clustering:
-          UNIQUE_SYM
-          {
-            $$= KEYTYPE_UNIQUE;
-          }
-        | UNIQUE_SYM KEY_SYM
-          {
-            $$= KEYTYPE_UNIQUE;
-          }
-        | CLUSTERING_SYM
-          {
-            $$= static_cast<keytype>(KEYTYPE_MULTIPLE | KEYTYPE_CLUSTERING);
-          }
-        | CLUSTERING_SYM KEY_SYM
-          {
-            $$= static_cast<keytype>(KEYTYPE_MULTIPLE | KEYTYPE_CLUSTERING);
-          }
-        | UNIQUE_SYM CLUSTERING_SYM
-          {
-            $$= static_cast<keytype>(KEYTYPE_UNIQUE | KEYTYPE_CLUSTERING);
-          }
-        | UNIQUE_SYM CLUSTERING_SYM KEY_SYM
-          {
-            $$= static_cast<keytype>(KEYTYPE_UNIQUE | KEYTYPE_CLUSTERING);
-          }
-        | CLUSTERING_SYM UNIQUE_SYM
-          {
-            $$= static_cast<keytype>(KEYTYPE_UNIQUE | KEYTYPE_CLUSTERING);
-          }
-        | CLUSTERING_SYM UNIQUE_SYM KEY_SYM
-          {
-            $$= static_cast<keytype>(KEYTYPE_UNIQUE | KEYTYPE_CLUSTERING);
-          }
 
 opt_fulltext_index_options:
           %empty { $$.init(YYMEM_ROOT); }
@@ -9261,7 +9244,16 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_set_default(@$, $3.str, nullptr);
           }
-
+        |  ALTER opt_column ident SET_SYM MASKING_SYM POLICY_SYM ident
+          {
+            $$= NEW_PTN PT_alter_table_set_masking_policy_name(
+              @$, $3.str, to_lex_cstring($7));
+          }
+        | ALTER opt_column ident DROP MASKING_SYM POLICY_SYM
+          {
+            $$= NEW_PTN PT_alter_table_set_masking_policy_name(
+              @$, $3.str, NULL_CSTR);
+          }
         | ALTER opt_column ident SET_SYM visibility
           {
             $$= NEW_PTN PT_alter_table_column_visibility(@$, $3.str, $5);
@@ -10661,11 +10653,11 @@ bit_expr:
           }
         | bit_expr '+' INTERVAL_SYM expr interval %prec '+'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $1, $4, $5, 0);
+            $$= NEW_PTN Item_func_add_interval(@$, $1, $4, $5, 0);
           }
         | bit_expr '-' INTERVAL_SYM expr interval %prec '-'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $1, $4, $5, 1);
+            $$= NEW_PTN Item_func_add_interval(@$, $1, $4, $5, 1);
           }
         | bit_expr '*' bit_expr %prec '*'
           {
@@ -10858,7 +10850,7 @@ simple_expr:
         | INTERVAL_SYM expr interval '+' expr %prec INTERVAL_SYM
           /* we cannot put interval before - */
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $5, $2, $3, 0);
+            $$= NEW_PTN Item_func_add_interval(@$, $5, $2, $3, 0);
           }
         | simple_ident JSON_SEPARATOR_SYM TEXT_STRING_literal
           {
@@ -11113,11 +11105,11 @@ jdv_name_value:
 function_call_nonkeyword:
           ADDDATE_SYM '(' expr ',' expr ')'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $3, $5, INTERVAL_DAY, 0);
+            $$= NEW_PTN Item_func_add_interval(@$, $3, $5, INTERVAL_DAY, 0);
           }
         | ADDDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $3, $6, $7, 0);
+            $$= NEW_PTN Item_func_add_interval(@$, $3, $6, $7, 0);
           }
         | CURDATE optional_braces
           {
@@ -11130,12 +11122,12 @@ function_call_nonkeyword:
         | DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
           %prec INTERVAL_SYM
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $3, $6, $7, 0);
+            $$= NEW_PTN Item_func_add_interval(@$, $3, $6, $7, 0);
           }
         | DATE_SUB_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
           %prec INTERVAL_SYM
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $3, $6, $7, 1);
+            $$= NEW_PTN Item_func_add_interval(@$, $3, $6, $7, 1);
           }
         | EXTRACT_SYM '(' interval FROM expr ')'
           {
@@ -11164,11 +11156,11 @@ function_call_nonkeyword:
           }
         | SUBDATE_SYM '(' expr ',' expr ')'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $3, $5, INTERVAL_DAY, 1);
+            $$= NEW_PTN Item_func_add_interval(@$, $3, $5, INTERVAL_DAY, 1);
           }
         | SUBDATE_SYM '(' expr ',' INTERVAL_SYM expr interval ')'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $3, $6, $7, 1);
+            $$= NEW_PTN Item_func_add_interval(@$, $3, $6, $7, 1);
           }
         | SUBSTRING '(' expr ',' expr ',' expr ')'
           {
@@ -11193,7 +11185,7 @@ function_call_nonkeyword:
           }
         | TIMESTAMP_ADD '(' interval_time_stamp ',' expr ',' expr ')'
           {
-            $$= NEW_PTN Item_date_add_interval(@$, $7, $5, $3, 0);
+            $$= NEW_PTN Item_func_add_interval(@$, $7, $5, $3, 0);
           }
         | TIMESTAMP_DIFF '(' interval_time_stamp ',' expr ',' expr ')'
           {
@@ -12528,18 +12520,6 @@ table_function:
 
             $$= NEW_PTN PT_table_factor_function(@$, $3, $5, $6, to_lex_string($8));
           }
-        | SEQUENCE_TABLE_SYM '(' expr ')' opt_table_alias
-          {
-            // Alias isn't optional, follow derived's behavior
-            if ($5 == NULL_CSTR)
-            {
-              my_message(ER_TF_MUST_HAVE_ALIAS,
-                         ER_THD(YYTHD, ER_TF_MUST_HAVE_ALIAS), MYF(0));
-              MYSQL_YYABORT;
-            }
-            push_deprecated_warn(YYTHD, "SEQUENCE_TABLE", "PERCONA_SEQUENCE_TABLE");
-            $$= NEW_PTN PT_table_sequence_function(@$, $3, $5);
-          }
         | PERCONA_SEQUENCE_TABLE_SYM '(' expr ')' opt_table_alias
           {
             // Alias isn't optional, follow derived's behavior
@@ -13628,6 +13608,15 @@ drop_role_stmt:
           }
         ;
 
+drop_masking_policy_stmt:
+          DROP MASKING_SYM POLICY_SYM if_exists ident
+          {
+            Lex->sql_command = SQLCOM_DROP_MASKING_POLICY;
+            $$ =
+              NEW_PTN PT_drop_masking_policy_stmt(@$, $4, to_lex_cstring($5));
+          }
+        ;
+
 table_list:
           table_ident
           {
@@ -14584,6 +14573,13 @@ show_parse_tree_stmt:
             MYSQL_YYABORT;
 #endif
             $$ = NEW_PTN PT_show_parse_tree(@$, $3);
+          }
+        ;
+
+show_create_masking_policy_stmt:
+          SHOW CREATE MASKING_SYM POLICY_SYM ident
+          {
+            $$ = NEW_PTN PT_show_create_masking_policy(@$, to_lex_cstring($5));
           }
         ;
 
@@ -16282,6 +16278,7 @@ ident_keywords_unambiguous:
         | LOG_SYM
         | NETWORK_NAMESPACE_SYM
         | MASTER_SYM
+        | MASKING_SYM
         | MATERIALIZED_SYM
         | MAX_CONNECTIONS_PER_HOUR
         | MAX_QUERIES_PER_HOUR
@@ -16350,6 +16347,7 @@ ident_keywords_unambiguous:
         | PLUGIN_SYM
         | POINT_SYM
         | POLYGON_SYM
+        | POLICY_SYM
         | PORT_SYM
         | PARAMETERS_SYM
         | PRECEDING_SYM
@@ -16419,10 +16417,10 @@ ident_keywords_unambiguous:
         | SECONDARY_UNLOAD_SYM
         | SECOND_SYM
         | SECURITY_SYM
-        | SEQUENCE_TABLE_SYM
         | SERIALIZABLE_SYM
         | SERIAL_SYM
         | SERVER_SYM
+        | SETS_SYM
         | SHARE_SYM
         | SIMPLE_SYM
         | SKIP_SYM
@@ -18736,7 +18734,7 @@ sf_tail:
                                             $10->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
                                             $11 != nullptr, $10->get_uint_geom_type(), nullptr,
-                                            nullptr, nullptr, {},
+                                            nullptr, nullptr, NULL_CSTR, {},
                                             dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -18955,6 +18953,19 @@ drop_library_stmt:
             Lex->sql_command = SQLCOM_DROP_LIBRARY;
             $$ = NEW_PTN PT_drop_library_stmt(@$, $3, $4);
           }
+        ;
+
+create_masking_policy_stmt:
+        CREATE MASKING_SYM POLICY_SYM
+        opt_if_not_exists                 /*$4*/
+        ident                             /*$5*/
+        '(' ident  ')'                    /*$7*/
+        expr                              /*$9*/
+        {
+          Lex->sql_command = SQLCOM_CREATE_MASKING_POLICY;
+          $$ = NEW_PTN PT_create_masking_policy_stmt(
+              @$, $4, to_lex_cstring($5), to_lex_cstring($7), $9);
+        }
         ;
 
 /*************************************************************************/

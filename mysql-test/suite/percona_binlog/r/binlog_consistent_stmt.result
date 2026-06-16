@@ -1,0 +1,202 @@
+CALL mtr.add_suppression("Statement is unsafe because it accesses a non-transactional table after");
+include/rpl/set_gtid_mode_off.inc
+RESET BINARY LOGS AND GTIDS;
+# Connection default
+CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000001	395			
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000001
+Binlog_snapshot_position	395
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
+BEGIN;
+INSERT INTO t1 VALUES (0, "");
+# Connection con1
+BEGIN;
+INSERT INTO t1 VALUES (1, "");
+# Connection con2
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=myisam;
+BEGIN;
+INSERT INTO t1 VALUES (2, "first");
+INSERT INTO t2 VALUES (2);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+INSERT INTO t1 VALUES (2, "second");
+# Connection default
+COMMIT;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# Connection con3
+BEGIN;
+INSERT INTO t1 VALUES (3, "");
+INSERT INTO t2 VALUES (3);
+Warnings:
+Warning	6414	Combining the storage engines MyISAM and InnoDB is deprecated, but the statement or transaction updates both the MyISAM table test.t2 and the InnoDB table test.t1.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+# Connection con4
+BEGIN;
+INSERT INTO t1 VALUES (4, "");
+COMMIT;
+# Connection default
+SELECT * FROM t1 ORDER BY a,b;
+a	b
+0	
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000001
+Binlog_snapshot_position	900
+Binlog_snapshot_gtid_executed	
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000001	1200			
+SELECT * FROM t2 ORDER BY a;
+a
+2
+3
+# Connection con1
+COMMIT;
+# Connection con2
+COMMIT;
+# Connection con3
+COMMIT;
+FLUSH LOGS;
+# Connection default
+SELECT * FROM t1 ORDER BY a,b;
+a	b
+0	
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000001
+Binlog_snapshot_position	900
+Binlog_snapshot_gtid_executed	
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000002	158			
+COMMIT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	158
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000002	158			
+# Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+DELETE FROM t1;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	443
+Binlog_snapshot_gtid_executed	
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000002	443			
+INSERT INTO t1 VALUES (1, "first");
+SELECT * FROM t1;
+a	b
+1	first
+# Connection con3
+INSERT INTO t1 VALUES (3, "third");
+SELECT * FROM t1;
+a	b
+3	third
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	748
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000002	748			
+# Connection con2
+SELECT * FROM t1;
+a	b
+3	third
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	748
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000002	748			
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
+SELECT * FROM t1;
+a	b
+1	first
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	443
+Binlog_snapshot_gtid_executed	
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000002	748			
+# Connection con3
+FLUSH LOGS;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000003
+Binlog_snapshot_position	158
+Binlog_snapshot_gtid_executed	not-in-consistent-snapshot
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000003	158			
+# Connection con2
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	443
+Binlog_snapshot_gtid_executed	
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000003	158			
+COMMIT;
+# Connection default
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	binlog.000002
+Binlog_snapshot_position	443
+Binlog_snapshot_gtid_executed	
+SHOW BINARY LOG STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+binlog.000003	158			
+COMMIT;
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	4	Format_desc	1	127	Server ver: #, Binlog ver: #
+binlog.000001	127	Previous_gtids	1	158	
+binlog.000001	158	Anonymous_Gtid	1	235	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	235	Query	1	395	use `test`; CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb /* XID */
+binlog.000001	395	Anonymous_Gtid	1	472	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	472	Query	1	600	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=myisam
+binlog.000001	600	Anonymous_Gtid	1	679	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	679	Query	1	761	BEGIN
+binlog.000001	761	Query	1	869	use `test`; INSERT INTO t1 VALUES (0, "")
+binlog.000001	869	Xid	1	900	COMMIT /* XID */
+binlog.000001	900	Anonymous_Gtid	1	979	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	979	Query	1	1061	BEGIN
+binlog.000001	1061	Query	1	1169	use `test`; INSERT INTO t1 VALUES (4, "")
+binlog.000001	1169	Xid	1	1200	COMMIT /* XID */
+binlog.000001	1200	Anonymous_Gtid	1	1279	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	1279	Query	1	1361	BEGIN
+binlog.000001	1361	Query	1	1469	use `test`; INSERT INTO t1 VALUES (1, "")
+binlog.000001	1469	Xid	1	1500	COMMIT /* XID */
+binlog.000001	1500	Anonymous_Gtid	1	1579	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	1579	Query	1	1661	BEGIN
+binlog.000001	1661	Query	1	1774	use `test`; INSERT INTO t1 VALUES (2, "first")
+binlog.000001	1774	Query	1	1878	use `test`; INSERT INTO t2 VALUES (2)
+binlog.000001	1878	Query	1	1992	use `test`; INSERT INTO t1 VALUES (2, "second")
+binlog.000001	1992	Xid	1	2023	COMMIT /* XID */
+binlog.000001	2023	Anonymous_Gtid	1	2102	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	2102	Query	1	2184	BEGIN
+binlog.000001	2184	Query	1	2292	use `test`; INSERT INTO t1 VALUES (3, "")
+binlog.000001	2292	Query	1	2396	use `test`; INSERT INTO t2 VALUES (3)
+binlog.000001	2396	Xid	1	2427	COMMIT /* XID */
+binlog.000001	2427	Rotate	1	2471	binlog.000002;pos=4
+DROP TABLE t1,t2;
+include/rpl/set_gtid_mode_on.inc

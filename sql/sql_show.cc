@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,6 +129,7 @@
 #include "sql/sql_gipk.h"      // table_has_generated_invisible_primary_key
 #include "sql/sql_lex.h"       // LEX
 #include "sql/sql_list.h"
+#include "sql/sql_masking_policy.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_parse.h"      // command_name
 #include "sql/sql_partition.h"  // HA_USE_AUTO_PARTITION
@@ -460,6 +461,51 @@ bool Sql_cmd_show_create_user::execute_inner(THD *thd) {
   if (are_both_users_same ||
       !check_access(thd, SELECT_ACL, "mysql", nullptr, nullptr, true, false))
     return mysql_show_create_user(thd, show_user, are_both_users_same);
+  return false;
+}
+
+bool Sql_cmd_show_create_masking_policy::check_privileges(THD *thd) {
+  return check_masking_policy_manage_privilege(thd);
+}
+
+bool Sql_cmd_show_create_masking_policy::execute_inner(THD *thd) {
+  std::string reason;
+  std::optional<Sql_masking_policy_spec> spec =
+      get_masking_policy_spec(thd, m_policy_name, &reason);
+  if (!spec.has_value()) {
+    my_error(ER_MASKING_POLICY_COMPONENT_ERROR, MYF(0), reason.c_str());
+    return true;
+  }
+
+  mem_root_deque<Item *> field_list(thd->mem_root);
+  field_list.push_back(new Item_empty_string("policy_name", NAME_CHAR_LEN));
+  field_list.push_back(new Item_empty_string("create_policy", 2048));
+
+  if (thd->send_result_metadata(field_list,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
+    return true;
+  }
+
+  Protocol *protocol = thd->get_protocol();
+  protocol->start_row();
+  protocol->store_string(spec->policy_name.str, spec->policy_name.length,
+                         system_charset_info);
+
+  StringBuffer<2048> buffer{system_charset_info};
+  buffer.append("CREATE MASKING POLICY ");
+  append_identifier(thd, &buffer, spec->policy_name.str,
+                    spec->policy_name.length);
+  buffer.append(" (");
+  append_identifier(thd, &buffer, spec->argument_name.str,
+                    spec->argument_name.length);
+  buffer.append(") ");
+  buffer.append(spec->masking_expression);
+
+  protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
+
+  if (protocol->end_row()) return true;
+
+  my_eof(thd);
   return false;
 }
 
@@ -2552,6 +2598,12 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
         packet->append(STRING_WITH_LEN(" VIRTUAL"));
     }
 
+    if (field->has_masking_policy()) {
+      packet->append(" MASKING POLICY ");
+      const LEX_CSTRING policy_name = field->masking_policy();
+      append_identifier(thd, packet, policy_name.str, policy_name.length);
+    }
+
     if (field->is_flag_set(NOT_NULL_FLAG))
       packet->append(STRING_WITH_LEN(" NOT NULL"));
     else if (field->type() == MYSQL_TYPE_TIMESTAMP) {
@@ -2739,8 +2791,6 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
       packet->append(STRING_WITH_LEN("FULLTEXT KEY "));
     else if (key_info->flags & HA_SPATIAL)
       packet->append(STRING_WITH_LEN("SPATIAL KEY "));
-    else if (key_info->flags & HA_CLUSTERING)
-      packet->append(STRING_WITH_LEN("CLUSTERING KEY "));
     else
       packet->append(STRING_WITH_LEN("KEY "));
 
@@ -5274,7 +5324,6 @@ static int get_schema_tmp_table_columns_record(THD *thd, Table_ref *tables,
         field->is_flag_set(PRI_KEY_FLAG)          ? "PRI"
         : field->is_flag_set(UNIQUE_KEY_FLAG)     ? "UNI"
         : (field->is_flag_set(MULTIPLE_KEY_FLAG)) ? "MUL"
-        : (field->is_flag_set(CLUSTERING_FLAG))   ? "CLU"
                                                   : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
@@ -5781,9 +5830,9 @@ static TABLE *create_schema_table(THD *thd, Table_ref *table_list) {
         item->unsigned_flag = (fields_info->field_flags & MY_I_S_UNSIGNED);
         break;
       case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATE:
         assert(false);
         return nullptr;
-      case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_TIMESTAMP:
       case MYSQL_TYPE_DATETIME: {
         const Name_string field_name(fields_info->field_name,

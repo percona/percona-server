@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -198,8 +198,6 @@
 #define NOT_SECONDARY_FLAG (1 << 29)
 /** Field is explicitly marked as invisible by the user. */
 #define FIELD_IS_INVISIBLE (1 << 30)
-
-#define CLUSTERING_FLAG (1 << 31)
 
 /** @}*/
 

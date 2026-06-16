@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -506,7 +506,11 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
   EXPECT_EQ(RelationalExpression::ANTIJOIN, graph.edges[1].expr->type);
   EXPECT_FLOAT_EQ(0.1F, graph.edges[1].selectivity);
 
-  EXPECT_EQ(0, graph.predicates.size());
+  // The WHERE condition is "true". Since Bug#39062785 the
+  // hypergraph optimizer adds an explicit TRUE predicate when the
+  // condition list is otherwise empty, so we now see one predicate
+  // here instead of zero.
+  EXPECT_EQ(1, graph.predicates.size());
 }
 
 TEST_F(MakeHypergraphTest, Predicates) {
@@ -633,7 +637,10 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[0].expr->type);
-  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+  // Since Bug#39062785 the hypergraph optimizer fills an empty join
+  // condition list with an explicit TRUE, so this LEFT JOIN now
+  // carries one join condition ("true") instead of zero.
+  EXPECT_EQ(1, graph.edges[0].expr->join_conditions.size());
   EXPECT_FLOAT_EQ(1.0F, graph.edges[0].selectivity);
 
   // t2/{t1,t3}. This join should also carry the predicate.
@@ -1638,11 +1645,10 @@ TEST_F(MakeHypergraphTest, EqualityPropagationExpandsTopConjunction) {
 
 TEST_F(MakeHypergraphTest, PartialPushdownOfNonDeterministicPredicate) {
   // The non-deterministic predicate referring to t1 and t2, which is
-  // ((RAND() < 0.5 AND t2.y = t3.y) OR t2.y = 1), cannot be pushed down as a
-  // join condition because non-deterministic predicates need to be evaluated at
-  // the latest possible point. We can however push down parts of it, namely
-  // ((t2.y = t3.y) or (t2.y = 1)). Since it is only partially pushed down, the
-  // full predicate must stay in the WHERE clause.
+  // ((RAND() < 0.5 AND t1.y = t2.y) OR t1.y = 1), cannot be pushed down as a
+  // join condition because non-deterministic predicates are excluded from the
+  // push-down path (Bug#38866140). The entire predicate stays in the WHERE
+  // clause as a final predicate.
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1, t2, t3 WHERE t1.x = t2.x AND t2.x = t3.x AND "
       "((RAND() < 0.5 AND t1.y = t2.y) OR t1.y = 1)",
@@ -1674,15 +1680,13 @@ TEST_F(MakeHypergraphTest, PartialPushdownOfNonDeterministicPredicate) {
 
   ASSERT_EQ(3, graph.edges.size());
 
-  // t1-t2. In addition to the equijoin condition, it should have a partial
-  // pushdown of the deterministic parts of the non-deterministic predicate to
-  // the join condition. (Used to get the full non-deterministic predicate.)
+  // t1-t2. Only the equijoin condition; the non-deterministic predicate
+  // is no longer pushed down as a join condition (Bug#38866140).
   EXPECT_EQ(TableBitmap(0), graph.graph.edges[0].left);
   EXPECT_EQ(TableBitmap(1), graph.graph.edges[0].right);
   EXPECT_EQ("(t1.x = t2.x)",
             ItemsToString(graph.edges[0].expr->equijoin_conditions));
-  EXPECT_EQ("((t1.y = t2.y) or (t1.y = 1))",
-            ItemsToString(graph.edges[0].expr->join_conditions));
+  EXPECT_EQ("(none)", ItemsToString(graph.edges[0].expr->join_conditions));
 
   // t2-t3. Simple edge with an equijoin condition.
   EXPECT_EQ(TableBitmap(1), graph.graph.edges[2].left);
@@ -1698,8 +1702,7 @@ TEST_F(MakeHypergraphTest, PartialPushdownOfNonDeterministicPredicate) {
             ItemsToString(graph.edges[2].expr->equijoin_conditions));
   EXPECT_EQ("(none)", ItemsToString(graph.edges[2].expr->join_conditions));
 
-  // The full non-deterministic predicate should be left in the WHERE clause to
-  // filter out the additional rows that were let through by the join condition.
+  // The full non-deterministic predicate stays in the WHERE clause.
   EXPECT_EQ("(((rand() < 0.5) and (t1.y = t2.y)) or (t1.y = 1))",
             ItemsToString(GetWhereConditions(graph)));
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -323,6 +323,7 @@
 #include <chrono>
 #include <future>
 #include <queue>
+#include <thread>
 #include <tuple>
 
 /* Defines and constants */
@@ -6822,6 +6823,17 @@ again:
   }
 
   FINALLY
+  /*
+    The task framework runs TERM_CHECK at the end of TASK_BEGIN, so when the
+    terminate flag is already set at task creation time it jumps straight to
+    this cleanup label before ep->rfd is assigned from the task argument above.
+    task_allocate() zero-initialises the env, so ep->rfd would be nullptr here.
+    The transport teardown now tolerates a nullptr connection, but that would
+    leak the accepted connection passed as the task argument. Recover it so it
+    is properly closed and freed.
+  */
+  if (ep->rfd == nullptr)
+    ep->rfd = static_cast<connection_descriptor *>(get_void_arg(arg));
   XCOM_IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->rfd->fd, d);
              NDBG(task_now(), f));
   if (ep->reply_queue.suc && !link_empty(&ep->reply_queue))
@@ -8375,17 +8387,29 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
   pax_msg *rp = nullptr;
 
   do {
+    retval = 0;
+    rp = nullptr;
+
     std::packaged_task<void()> send_client_app_data_task([&]() {
       retval = (int)xcom_send_client_app_data(fd, a, force);
       if (retval >= 0) rp = socket_read_msg(fd, p);
     });
 
     auto send_client_app_data_result = send_client_app_data_task.get_future();
-    std::thread(std::move(send_client_app_data_task)).detach();
+    std::thread send_client_app_data_thread(
+        std::move(send_client_app_data_task));
 
     std::future_status request_status = send_client_app_data_result.wait_for(
         std::chrono::seconds(XCOM_SEND_APP_WAIT_TIMEOUT));
-    if ((retval < 0) || request_status == std::future_status::timeout) {
+    bool const timed_out = (request_status == std::future_status::timeout);
+    if (timed_out && fd->fd >= 0) {
+      int sock = fd->fd;
+      shutdown_socket(&sock);
+    }
+    send_client_app_data_thread.join();
+
+    if ((retval < 0) || timed_out) {
+      if (rp) xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
       memset(p, 0, sizeof(*p)); /* before return so caller can free p */
       G_INFO(
           "Client sent negotiation request for protocol failed. Please check "

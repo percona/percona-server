@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1079,6 +1079,16 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     reg_field->stored_in_db = gcol_info->get_field_stored();
   }
 
+  // Handle masking policy
+  if (column_options->exists("masking_policy")) {
+    LEX_CSTRING policy_name;
+    column_options->get("masking_policy", &policy_name, &share->mem_root);
+    assert(policy_name.length > 0);
+    assert(policy_name.str != nullptr);
+    reg_field->set_masking_policy(policy_name);
+    ++share->masking_policy_field_count;
+  }
+
   // Handle default values generated from expression
   if (auto_flags & Field::GENERATED_FROM_EXPRESSION) {
     Value_generator *default_val_expr =
@@ -1196,6 +1206,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   memset(share->field, 0, fields_size);
   share->vfields = 0;
   share->gen_def_field_count = 0;
+  share->masking_policy_field_count = 0;
 
   // Iterate through all the columns.
   uchar *null_flags [[maybe_unused]];
@@ -1403,16 +1414,6 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       assert(0); /* purecov: deadcode */
       keyinfo->flags = 0;
       break;
-  }
-
-  /* Check if this index is of clustering key type. Used by TokuDB */
-  const dd::Properties &index_options = idx_obj->options();
-  bool has_clustering = false;
-  if (index_options.exists("clustering_key")) {
-    index_options.get("clustering_key", &has_clustering);
-  }
-  if (has_clustering) {
-    keyinfo->flags |= HA_CLUSTERING;
   }
 
   if (idx_obj->is_generated()) keyinfo->flags |= HA_GENERATED_KEY;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
@@ -93,6 +94,7 @@
 #include "sql/sql_exchange.h"
 #include "sql/sql_insert.h"  // Sql_cmd_insert...
 #include "sql/sql_lex.h"
+#include "sql/sql_masking_policy.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_select.h"  // Sql_cmd_select...
 #include "sql/sql_show.h"    // Sql_cmd_show...
@@ -181,6 +183,10 @@ bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
         static_cast<PT_joined_table_type>((m_type & ~JTT_RIGHT) | JTT_LEFT);
     std::swap(m_left_pt_table, m_right_pt_table);
   }
+
+  char buff[NAME_LEN + 1];
+  if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, pointer_cast<uchar *>(buff)))
+    return true; /* purecov: inspected */
 
   if (m_left_pt_table->contextualize(pc) || m_right_pt_table->contextualize(pc))
     return true;
@@ -1599,7 +1605,6 @@ bool PT_query_specification::do_contextualize(Parse_context *pc) {
 
   pc->select->parsing_place = CTX_NONE;
 
-  QueryLevel ql = pc->m_stack.back();
   pc->m_stack.pop_back();
   pc->m_stack.back().m_elts.push_back(pc->select);
   return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
@@ -1628,7 +1633,6 @@ bool PT_table_value_constructor::do_contextualize(Parse_context *pc) {
     pc->select->fields.push_back(item);
   }
 
-  QueryLevel ql = pc->m_stack.back();
   pc->m_stack.pop_back();
   pc->m_stack.back().m_elts.push_back(pc->select);
 
@@ -2109,7 +2113,7 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
     pc->thd->lex->pop_context();
   }
 
-  QueryLevel ql = pc->m_stack.back();
+  QueryLevel ql = std::move(pc->m_stack.back());
   pc->m_stack.pop_back();
 
   Query_term_set_op *setop = nullptr;
@@ -2772,7 +2776,8 @@ bool PT_column_def::do_contextualize(Table_ddl_parse_context *pc) {
       field_def->interval_list, field_def->charset,
       field_def->has_explicit_collation, field_def->uint_geom_type,
       &field_def->m_zip_dict, field_def->gcol_info, field_def->default_val_info,
-      opt_place, field_def->m_srid, field_def->check_const_spec_list,
+      field_def->masking_policy, opt_place, field_def->m_srid,
+      field_def->check_const_spec_list,
       field_hidden_type);
 }
 
@@ -3648,8 +3653,8 @@ bool PT_alter_table_change_column::do_contextualize(
       m_field_def->on_update_value, &m_field_def->comment, m_old_name.str,
       m_field_def->interval_list, m_field_def->charset,
       m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
-      &m_field_def->m_zip_dict, m_field_def->gcol_info,
-      m_field_def->default_val_info, m_opt_place, m_field_def->m_srid,
+      &m_field_def->m_zip_dict, m_field_def->gcol_info, m_field_def->default_val_info,
+      m_field_def->masking_policy, m_opt_place, m_field_def->m_srid,
       m_field_def->check_const_spec_list, field_hidden_type);
 }
 
@@ -4091,7 +4096,7 @@ Item *PT_border::build_addop(Item_cache *order_expr, bool prec, bool asc,
   const bool substract = prec ? asc : !asc;
   if (m_date_time) {
     addop =
-        new Item_date_add_interval(order_expr, m_value, m_int_type, substract);
+        new Item_func_add_interval(order_expr, m_value, m_int_type, substract);
   } else {
     if (substract)
       addop = new Item_func_minus(order_expr, m_value);
@@ -4183,6 +4188,7 @@ bool PT_json_table_column_with_path::do_contextualize(Parse_context *pc) {
                  nullptr,                       // Compression dictionary name
                  nullptr,                       // Gcol_info
                  nullptr,                       // Default gen expression
+                 EMPTY_CSTR,                    // Masking policy
                  {},                            // SRID
                  dd::Column::enum_hidden_type::HT_VISIBLE);  // Hidden
   return false;
@@ -4920,7 +4926,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
   if (Parse_tree_node::do_contextualize(pc) || m_body->contextualize(pc))
     return true;
 
-  QueryLevel ql = pc->m_stack.back();
+  QueryLevel ql = std::move(pc->m_stack.back());
   Query_term *expr = ql.m_elts.back();
   pc->m_stack.pop_back();
 
@@ -4961,7 +4967,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
         expr = new (pc->mem_root) Query_term_unary(pc->mem_root, expr);
         if (expr == nullptr) return true;
       }
-      QueryLevel upper = pc->m_stack.back();
+      QueryLevel upper = std::move(pc->m_stack.back());
       pc->m_stack.pop_back();
       ql.m_elts.pop_back();
       if (upper.m_type == SC_UNION_DISTINCT || upper.m_type == SC_UNION_ALL ||
@@ -4970,7 +4976,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
           upper.m_type == SC_INTERSECT_ALL)
         ql = upper;
       ql.m_elts.push_back(expr);
-      pc->m_stack.push_back(ql);
+      pc->m_stack.push_back(std::move(ql));
     } break;
     case QT_QUERY_BLOCK: {
       if (contextualize_order_and_limit(pc)) return true;
@@ -4978,7 +4984,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
         expr = new (pc->mem_root) Query_term_unary(pc->mem_root, expr);
         if (expr == nullptr) return true;
       }
-      QueryLevel upper = pc->m_stack.back();
+      QueryLevel upper = std::move(pc->m_stack.back());
       pc->m_stack.pop_back();
       ql.m_elts.pop_back();
       if (upper.m_type == SC_UNION_DISTINCT || upper.m_type == SC_UNION_ALL ||
@@ -4987,7 +4993,7 @@ bool PT_query_expression::do_contextualize(Parse_context *pc) {
           upper.m_type == SC_INTERSECT_ALL)
         ql = upper;
       ql.m_elts.push_back(expr);
-      pc->m_stack.push_back(ql);
+      pc->m_stack.push_back(std::move(ql));
     } break;
     case QT_UNION:
     case QT_EXCEPT:
@@ -5398,6 +5404,20 @@ bool PT_alter_table_set_default::do_contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
+bool PT_alter_table_set_masking_policy_name::do_contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::do_contextualize(pc)) return true;
+  if (m_policy_name.str != nullptr &&
+      check_masking_policy_name(m_policy_name)) {
+    return true;
+  }
+
+  const Alter_column *alter_column =
+      new (pc->mem_root) Alter_column{m_name, m_policy_name};
+  if (alter_column == nullptr) return true;
+  return pc->alter_info->alter_list.push_back(alter_column);
+}
+
 bool PT_alter_table_order::do_contextualize(Table_ddl_parse_context *pc) {
   if (super::do_contextualize(pc) || m_order->contextualize(pc)) return true;
   pc->select->order_list = m_order->value;
@@ -5576,6 +5596,31 @@ Sql_cmd *PT_set_resource_group::make_cmd(THD *thd) {
 
   thd->lex->sql_command = SQLCOM_SET_RESOURCE_GROUP;
   return &sql_cmd;
+}
+
+Sql_cmd *PT_create_masking_policy_stmt::make_cmd(THD *thd) {
+  if (check_masking_policy_name(m_policy_name) ||
+      check_masking_policy_name(m_argument_name)) {
+    return nullptr;
+  }
+
+  Item *expr = m_expr;
+  Parse_context pc{thd, thd->lex->current_query_block()};
+  if (expr->itemize(&pc, &expr)) {
+    return nullptr;
+  }
+
+  if (validate_masking_policy_syntax(thd, m_argument_name, expr)) {
+    return nullptr;
+  }
+
+  return new (thd->mem_root) Sql_cmd_create_masking_policy{
+      m_if_not_exists, m_policy_name, m_argument_name, expr};
+}
+
+Sql_cmd *PT_show_create_masking_policy::make_cmd(THD *thd) {
+  thd->lex->sql_command = m_sql_command;
+  return new (thd->mem_root) Sql_cmd_show_create_masking_policy{m_policy_name};
 }
 
 Sql_cmd *PT_restart_server::make_cmd(THD *thd) {

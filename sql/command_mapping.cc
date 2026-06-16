@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,7 +213,9 @@ const char *Command_maps::sql_commands[] = {"select",
                                             "show_create_library",
                                             "alter_library",
                                             "show_status_library",
-                                            "show_parse_tree",
+                                            "create_masking_policy",
+                                            "drop_masking_policy",
+                                            "show_create_masking_policy",
                                             "show_user_stats",
                                             "show_table_stats",
                                             "show_index_stats",
@@ -246,7 +248,7 @@ enum_server_command get_server_command(const char *server_command) {
 }
 
 const char *get_sql_command_string(enum_sql_command sql_command) {
-  static_assert(((size_t)(SQLCOM_END - SQLCOM_SELECT) + 2) ==
+  static_assert(((size_t)(SQLCOM_END - SQLCOM_SELECT) + 1) ==
                 (sizeof(Command_maps::sql_commands) / sizeof(char *)));
   /* As this function is called with the 'sql_command' extracted from the
      THD's 'lex' subobject ('thd->lex->sql_command'), in some cases (for

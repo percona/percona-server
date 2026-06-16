@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4404,7 +4404,11 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
   uint el = fields->size();
 
-  if (!order_item->const_for_execution()) {
+  const bool needs_field_for_explain = thd->lex->is_explain() &&
+                                       !thd->lex->is_explain_analyze &&
+                                       order_item->has_stored_program();
+
+  if (!order_item->const_for_execution() || needs_field_for_explain) {
     order_item->increment_ref_count();
     assert_consistent_hidden_flags(*fields, order_item, /*hidden=*/true);
 
@@ -4430,7 +4434,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     with clean_up_after_removal() on the old order->item.
   */
   assert(order_item == *order->item);
-  if (!order_item->const_for_execution()) {
+  if (!order_item->const_for_execution() || needs_field_for_explain) {
     order->item = &ref_item_array[el];
   }
   return false;
@@ -4669,6 +4673,9 @@ bool Query_block::setup_group(THD *thd) {
       Item *group_item = group_list.first->item[0];
       if (group_item->const_item() && group_item->is_null()) {
         group_list.clear();
+      }
+      if (thd->is_error()) {
+        return true;
       }
     }
   }
@@ -5410,7 +5417,6 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
     }
 
     size_t item_index = 0;
-    auto field_it = fields.begin();
     for (auto it = values_row->begin(); it != values_row->end(); ++it) {
       Item *item = *it;
       if ((!item->fixed && item->fix_fields(thd, &*it)) ||
@@ -5443,9 +5449,7 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
         // Make sure to also replace the reference in item_list. In the case
         // where fix_fields transforms an item, it.ref() will only update the
         // reference of values_row.
-        if (first_execution) {
-          *field_it = item;
-        }
+        if (first_execution) fields[item_index] = item;
       } else {
         Item_values_column *column = down_cast<Item_values_column *>(
             GetNthVisibleField(fields, item_index));
@@ -5454,7 +5458,6 @@ bool Query_block::resolve_table_value_constructor_values(THD *thd) {
         column->fixed = true;  // Does not have regular fix_fields()
       }
 
-      field_it++;
       ++item_index;
     }
 
@@ -5831,13 +5834,9 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
 
     // Append inner expressions of decorrelated equalities to the SELECT
     // list. Correct context info of outer expressions.
-    auto it_outer =
-        std::next(sj_outer_exprs.begin(), initial_sj_inner_exprs_count);
-    auto it_inner =
-        std::next(sj_inner_exprs.begin(), initial_sj_inner_exprs_count);
-
-    for (int i = 0; it_outer != sj_outer_exprs.end();
-         ++it_outer, ++it_inner, ++i) {
+    auto it_outer = sj_outer_exprs.begin() + initial_sj_inner_exprs_count;
+    auto it_inner = sj_inner_exprs.begin() + initial_sj_inner_exprs_count;
+    for (; it_outer != sj_outer_exprs.end(); ++it_outer, ++it_inner) {
       Item *inner = *it_inner;
       Item *outer = *it_outer;
       // In setup_base_ref_items() we allocated space for appending this
@@ -6828,7 +6827,30 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       query expressions go to the new derived table [1]:
     */
     Item_subselect::Collect_subq_info subqueries(this);
+    Mem_root_array<Item_exists_subselect *> *sj_candidates_in_select = nullptr;
     for (Item *item : fields) {
+      if (new_derived->has_sj_candidates() && item->has_subquery()) {
+        for (Item_exists_subselect *subquery : (*new_derived->sj_candidates)) {
+          /*
+           Some semijoin candidates transferred to the derived table may
+           actually belong to expressions staying in this query block's SELECT
+           list (e.g., non-aggregate items). Move those candidates back to the
+           outer query, ensuring the derived table only retains candidates that
+           it still references (WHERE conditions).
+          */
+          if (item->walk(&Item::contains_item, enum_walk::PREFIX,
+                         pointer_cast<uchar *>(&subquery))) {
+            if (sj_candidates_in_select == nullptr) {
+              sj_candidates_in_select = new (thd->mem_root)
+                  Mem_root_array<Item_exists_subselect *>(thd->mem_root);
+              set_sj_candidates(sj_candidates_in_select);
+            }
+            add_subquery_transform_candidate(subquery);
+            new_derived->sj_candidates->erase_value(subquery);
+            break;
+          }
+        }
+      }
       if (item->walk(&Item::collect_subqueries, enum_walk::PREFIX,
                      pointer_cast<uchar *>(&subqueries)))
         return true; /* purecov: inspected */
@@ -7381,13 +7403,12 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
                            return tl->join_cond() == join_cond;
                          });
   assert(it != copy_list.end());  // assert that we found it
-  size_t idx = 0;
-  for (auto tmp = copy_list.begin(); tmp != copy_list.end(); ++tmp) {
-    if (it == tmp) {
-      break;
-    }
-    jlist.push_front(*tmp);
-    idx++;
+  const size_t idx = it - copy_list.begin();
+
+  // Insert back all outer tables to the inner containing the condition.
+  // Normally only one.
+  for (size_t i = 0; i < idx; i++) {
+    jlist.push_front(copy_list[i]);
   }
 
   // Insert the derived table and nest it with the outer(s)
@@ -7640,9 +7661,9 @@ bool Query_block::add_inner_fields_to_select_list(
       m_added_non_hidden_fields++;
 
       // If f->hidden, f should be among the hidden fields in 'fields'.
-      assert(std::any_of(
-                 fields.cbegin(), std::next(fields.cbegin(), first_non_hidden),
-                 [&f](const Item *item) { return f == item; }) == f->hidden);
+      assert(std::any_of(fields.cbegin(), fields.cbegin() + first_non_hidden,
+                         [&f](const Item *item) { return f == item; }) ==
+             f->hidden);
 
       Item_field *inner_field;
 

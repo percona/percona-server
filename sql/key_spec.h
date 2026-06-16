@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,7 @@ enum keytype {
   KEYTYPE_MULTIPLE = 2,
   KEYTYPE_FULLTEXT = 4,
   KEYTYPE_SPATIAL = 8,
-  KEYTYPE_FOREIGN = 16,
-  KEYTYPE_CLUSTERING = 32
+  KEYTYPE_FOREIGN = 16
 };
 
 enum fk_option {

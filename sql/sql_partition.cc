@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -522,6 +522,13 @@ static bool set_up_field_array(TABLE *table, bool is_sub_part) {
 
         if (field->is_flag_set(BLOB_FLAG)) {
           my_error(ER_BLOB_FIELD_IN_PART_FUNC_ERROR, MYF(0));
+          result = true;
+        }
+
+        if (field->has_masking_policy()) {
+          my_error(ER_MASKING_POLICY_INCOMPATIBLE_COLUMN_FEATURE, MYF(0),
+                   field->field_name,
+                   "be referenced by a partitioning function");
           result = true;
         }
       }
@@ -3706,7 +3713,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
                        const key_range *key_spec, part_id_range *part_spec) {
   partition_info *part_info = table->part_info;
   const uint num_parts = part_info->get_tot_partitions();
-  uint i, part_id;
   uint sub_part = num_parts;
   uint32 part_part = num_parts;
   KEY *key_info = nullptr;
@@ -3834,9 +3840,8 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
       part_spec->start_part = sub_part;
       part_spec->end_part =
           sub_part + (part_info->num_subparts * (part_info->num_parts - 1));
-      for (i = 0, part_id = sub_part; i < part_info->num_parts;
-           i++, part_id += part_info->num_subparts)
-        ;  // Set bit part_id in bit array
+      // TODO: Set bit part_id in bit array (loop removed because it was a
+      // no-op; placeholder for future bit-array support).
     }
   }
   if (found_part_field) clear_indicator_in_key_fields(key_info);

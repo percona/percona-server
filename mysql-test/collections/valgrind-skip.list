@@ -1,0 +1,67 @@
+# Tests in this file are disabled for valgrind runs.
+# This is in addition to tests disabled by normal disabled.def files.
+#
+# Reason: these tests time out under valgrind (valgrind multiplies the
+# testcase-timeout x10, so the per-test ceiling is ~5h) or run too long.
+# Wired in via local/test-binary-parallel-mtr (--skip-test-list, valgrind only).
+# Selection: tests that hit the timeout / ran >=2h across PS80-valgrind builds 2/3/4.
+# Combination keys are not supported here, so the whole test is skipped.
+#
+# --- tests that hit the valgrind timeout in 2+ of builds 2/3/4 ---
+group_replication.gr_exit_state_action_on_recovery_stage0  : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+group_replication.gr_message_cache_size_min                : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.checkpoint_too_soon                                 : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.create_table_sys_tablespace_extend                  : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.disable_log_encryption                              : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.ibuf_sys_tablespace_extend                          : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.innodb-import-partition                             : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.insert_redo_size_instant                            : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.instant_ddl_import_partition                        : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.instant_ddl_import_partition_debug                  : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.lob_ibd_size                                        : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.log_file_name_1                                     : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.log_writer_extra_margin                             : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.percona_bug_ps9092                                  : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.percona_create_table_8k                             : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.resurrection_logs                                   : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+main.percona_show_temp_tables_stress                       : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+rpl_gtid.rpl_gtid_parallel                                 : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4; all combinations)
+rpl_gtid.rpl_heartbeat_log_pos_4gb                         : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4; row combination)
+stress.ddl_innodb                                          : BUG#0000 PS-11214 valgrind timeout (builds 2,3,4)
+innodb.instant_ddl_index_log_version                       : BUG#0000 PS-11214 valgrind timeout (builds 3,4)
+innodb.instant_ddl_recovery_debug                          : BUG#0000 PS-11214 valgrind timeout (builds 3,4)
+innodb.redo_log_disable                                    : BUG#0000 PS-11214 valgrind timeout (builds 3,4)
+innodb.xtradb_compressed_columns_consistency               : BUG#0000 PS-11214 valgrind timeout (builds 2,3)
+main.subquery_all_bka                                      : BUG#0000 PS-11214 valgrind timeout (builds 2,3)
+main.subquery_nomat_nosj                                   : BUG#0000 PS-11214 valgrind timeout (builds 2,3)
+main.subquery_none_bka_nobnl                               : BUG#0000 PS-11214 valgrind timeout (builds 2,3)
+rpl_gtid.rpl_wait_for_executed_gtid_set                    : BUG#0000 PS-11214 valgrind timeout (builds 3,4; stmt combination)
+rpl.rpl_compress_1g                                        : BUG#0000 PS-11214 valgrind timeout (builds 2,3; row combination)
+
+# --- slow tests (>=2h) that ran long in 2+ of builds 2/3/4 ---
+audit_log_filter.log_prune_max_size_encrypted              : BUG#0000 PS-11214 valgrind slow ~4h29m (builds 2,3,4; multiple combinations)
+rocksdb.rocksdb_deadlock_stress_rr                         : BUG#0000 PS-11214 valgrind slow ~4h24m (builds 2,3,4)
+innodb.innodb_bug56143                                     : BUG#0000 PS-11214 valgrind slow ~4h13m (builds 3,4)
+engines/funcs.tc_multicolumn_different                     : BUG#0000 PS-11214 valgrind slow ~4h07m (builds 2,3,4)
+main.lowercase_table4                                      : BUG#0000 PS-11214 valgrind slow ~3h56m (builds 2,3,4)
+innodb.partition_import_57                                 : BUG#0000 PS-11214 valgrind slow ~3h54m (builds 3,4)
+engines/funcs.ta_add_column_middle                         : BUG#0000 PS-11214 valgrind slow ~3h49m (builds 2,3,4)
+engines/funcs.ta_add_column                                : BUG#0000 PS-11214 valgrind slow ~3h40m (builds 2,3,4)
+innodb.tablespace_truncate_stress_debug                    : BUG#0000 PS-11214 valgrind slow ~3h36m (builds 2,4)
+sysschema.v_schema_auto_increment_columns_cs               : BUG#0000 PS-11214 valgrind slow ~3h32m (builds 2,3,4)
+engines/funcs.ta_add_column_first                          : BUG#0000 PS-11214 valgrind slow ~3h25m (builds 2,3,4)
+rocksdb.bulk_load_rev_cf                                   : BUG#0000 PS-11214 valgrind slow ~3h21m (builds 2,3,4)
+rocksdb.bulk_load_rev_data                                 : BUG#0000 PS-11214 valgrind slow ~3h20m (builds 2,3,4)
+rocksdb.bulk_load                                          : BUG#0000 PS-11214 valgrind slow ~3h18m (builds 2,3,4)
+rocksdb.bulk_load_rev_cf_and_data                          : BUG#0000 PS-11214 valgrind slow ~3h15m (builds 2,4)
+sysschema.v_schema_auto_increment_columns_ci               : BUG#0000 PS-11214 valgrind slow ~3h09m (builds 2,3,4)
+innodb_undo.undo_tablespace_125                            : BUG#0000 PS-11214 valgrind slow ~3h08m (builds 2,3)
+main.lock_multi_bug38499                                   : BUG#0000 PS-11214 valgrind slow ~3h04m (builds 2,3,4)
+innodb.bug54330                                            : BUG#0000 PS-11214 valgrind slow ~2h52m (builds 2,3,4)
+innodb.lob_recovery                                        : BUG#0000 PS-11214 valgrind slow ~2h48m (builds 2,3,4)
+rpl_nogtid.rpl_semi_sync_group_commit_deadlock_ssl         : BUG#0000 PS-11214 valgrind slow ~2h48m (builds 2,3,4; all combinations)
+innodb.instant_ddl_import_old_part_debug                   : BUG#0000 PS-11214 valgrind slow ~2h45m (builds 3,4)
+federated.federated_server                                 : BUG#0000 PS-11214 valgrind slow ~2h41m (builds 2,3)
+engines/funcs.ld_all_number_string_calendar_types          : BUG#0000 PS-11214 valgrind slow ~2h26m (builds 2,3)
+binlog.binlog_bgc_ticket_manager_stress                    : BUG#0000 PS-11214 valgrind slow ~2h23m (builds 2,3,4; row combination)
+rpl_nogtid.rpl_typeconv                                    : BUG#0000 PS-11214 valgrind slow ~2h14m (builds 2,3; row combination)

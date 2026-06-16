@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0flu_h
 #define buf0flu_h
 
+#include <utility>
+
 #include "buf0types.h"
 #include "univ.i"
 #include "ut0byte.h"
@@ -42,6 +44,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 /** Checks if the page_cleaner is in active state. */
 bool buf_flush_page_cleaner_is_active();
+
+/** Returns the count of currently active LRU manager threads. */
+size_t buf_flush_active_lru_managers();
 
 #ifdef UNIV_DEBUG
 
@@ -112,12 +117,12 @@ NOTE: The calling thread is not allowed to own any latches on pages!
 @param[in]      lsn_limit       in the case BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
-@param[out]     n_processed     the number of pages which were processed is
-passed back to caller. Ignored if NULL
+@param[out]     n_processed     {n_flushed, n_evicted} is passed back to the
+caller. n_evicted is always 0 for BUF_FLUSH_LIST. Ignored if NULL
 @retval true    if a batch was queued successfully.
 @retval false   if another batch of same type was already running. */
 bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
-                        lsn_t lsn_limit, ulint *n_processed);
+                        lsn_t lsn_limit, std::pair<ulint, ulint> *n_processed);
 
 /** This utility flushes dirty blocks from the end of the flush list of all
 buffer pool instances.

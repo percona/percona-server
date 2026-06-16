@@ -2444,6 +2444,11 @@ struct buf_pool_t {
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
 
+  /** Always set at startup so the LRU manager thread does not have to wait.
+  Reset by buf_pool_invalidate_instance() so the manager pauses while the
+  buffer pool is being torn down / re-initialised; set again afterwards. */
+  os_event_t run_lru;
+
   /** A red-black tree is used exclusively during recovery to speed up
   insertions in the flush_list. This tree contains blocks in order of
   oldest_modification LSN and is kept in sync with the flush_list.  Each

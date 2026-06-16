@@ -1419,6 +1419,11 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     os_event_set(buf_pool->no_flush[i]);
   }
 
+  /* Always set at startup so the LRU manager thread does not block. It is
+  reset during buf_pool_invalidate_instance() and set again afterwards. */
+  buf_pool->run_lru = os_event_create();
+  os_event_set(buf_pool->run_lru);
+
   buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
@@ -1513,6 +1518,8 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
     os_event_destroy(buf_pool->no_flush[i]);
   }
+
+  os_event_destroy(buf_pool->run_lru);
 
   ut::free(buf_pool->chunks);
   mutex_exit(&buf_pool->chunks_mutex);
@@ -6205,6 +6212,11 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
   ulint i;
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
+
+  /* Stop the per-pool LRU manager thread from running another iteration
+  while we tear down. It will resume after the guard's scope exits. */
+  os_event_reset(buf_pool->run_lru);
+  auto guard = create_scope_guard([&]() { os_event_set(buf_pool->run_lru); });
 
   /* Release any pages still parked on the deferred make-young queue so
   their buf_fix counts don't block the LRU invalidation below. */

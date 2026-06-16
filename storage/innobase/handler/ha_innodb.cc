@@ -24004,6 +24004,34 @@ static MYSQL_SYSVAR_UINT(
     " The timeout is disabled if 0.",
     nullptr, nullptr, 1000, 0, UINT32_MAX, 0);
 
+static MYSQL_SYSVAR_UINT(
+    lru_make_young_drain_threshold, buf_LRU_make_young_drain_threshold,
+    PLUGIN_VAR_OPCMDARG,
+    "If non-zero, buf_page_make_young_if_needed() does not take "
+    "buf_pool->LRU_list_mutex on the hot read path. It pushes the page "
+    "onto a per-buf-pool lock-free queue instead. The user thread that "
+    "pushes the entry which makes the queue reach this length becomes "
+    "responsible for draining it: it takes the LRU mutex once and "
+    "applies buf_LRU_make_block_young to every queued page, batching "
+    "many promotions into a single mutex acquisition. Other producers "
+    "that also cross the threshold while a drain is in progress just "
+    "push and move on; their pages are picked up by the active "
+    "drainer. Set to 0 to disable the deferred queue.",
+    nullptr, nullptr, 0, 0, UINT32_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(
+    single_page_flush_max_concurrent,
+    buf_LRU_single_page_flush_max_concurrent, PLUGIN_VAR_OPCMDARG,
+    "Maximum number of single-page flushes that may be in flight per bp "
+    "instance before further requesters wait instead of issuing their own "
+    "flush. Captures the load-dependent crossover between two regimes: "
+    "at low concurrency single-page flushing wins because each user thread "
+    "avoids page-cleaner wake-up latency; above CPU-core saturation the "
+    "page cleaner wins because batching amortises per-flush I/O. "
+    "Set to 0 to always wait (equivalent to disabling single-page flush)."
+    "Set to a large value to never wait based on this signal.",
+    nullptr, nullptr, UINT32_MAX, 0, UINT32_MAX, 0);
+
 static MYSQL_SYSVAR_LONG(
     open_files, innobase_open_files, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "How many files at the maximum InnoDB keeps open at the same time.",
@@ -24582,6 +24610,8 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(max_purge_lag_delay),
     MYSQL_SYSVAR(old_blocks_pct),
     MYSQL_SYSVAR(old_blocks_time),
+    MYSQL_SYSVAR(single_page_flush_max_concurrent),
+    MYSQL_SYSVAR(lru_make_young_drain_threshold),
     MYSQL_SYSVAR(open_files),
     MYSQL_SYSVAR(optimize_fulltext_only),
     MYSQL_SYSVAR(rollback_on_timeout),

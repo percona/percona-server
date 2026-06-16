@@ -135,6 +135,49 @@ std::chrono::milliseconds get_buf_LRU_old_threshold() {
   return std::chrono::milliseconds{buf_LRU_old_threshold};
 }
 
+bool buf_LRU_use_single_page_flush;
+uint buf_LRU_single_page_flush_max_concurrent;
+uint buf_LRU_make_young_drain_threshold;
+
+void buf_LRU_enqueue_promote(buf_page_t *bpage) {
+  /* Only one enqueue in-flight (TODO: could we use block mutex instead?). */
+  bool expected = false;
+  if (!bpage->LRU_in_promote_queue.compare_exchange_strong(
+          expected, true, std::memory_order_acquire,
+          std::memory_order_relaxed)) {
+    return;
+  }
+
+  /* Eviction skips pages with buf_fix_count > 0.
+  The drain unfixes after re-linking the page on the LRU. */
+  buf_block_fix(bpage);
+
+  const auto buf_pool = buf_pool_from_bpage(bpage);
+  auto old_head = buf_pool->LRU_promote_head.load(std::memory_order_relaxed);
+  do {
+    bpage->LRU_promote_next = old_head;
+  } while (!buf_pool->LRU_promote_head.compare_exchange_weak(
+      old_head, bpage, std::memory_order_release,
+      std::memory_order_relaxed));
+
+  const size_t new_len = buf_pool->LRU_promote_queue_len.fetch_add(
+                             1, std::memory_order_relaxed) + 1;
+
+  /* If we crossed the threshold and no other thread is
+  currently draining this buf_pool => drain. */
+  const uint threshold = buf_LRU_make_young_drain_threshold;
+  if (threshold != 0 && new_len >= threshold) {
+    bool not_draining = false;
+    /* Avoid clash of concurrent promotions. */
+    if (buf_pool->LRU_promote_draining.compare_exchange_strong(
+            not_draining, true, std::memory_order_acquire,
+            std::memory_order_relaxed)) {
+      buf_LRU_drain_promote_queue(buf_pool);
+      buf_pool->LRU_promote_draining.store(false, std::memory_order_release);
+    }
+  }
+}
+
 /** @} */
 
 /** Takes a block out of the LRU list and page hash table.
@@ -1476,15 +1519,6 @@ loop:
           (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
            srv_shutdown_state.load() != SRV_SHUTDOWN_CLEANUP));
   }
-  if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::is_enabled()) {
-    /* If there is an LRU flush happening in the background then we
-    wait for it to end instead of trying a single page flush. If,
-    however, we are not using doublewrite buffer then it is better to
-    do our own single page flush instead of waiting for LRU flush to
-    end. */
-    buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
-    goto loop;
-  }
 
   os_rmb;
 
@@ -1563,7 +1597,16 @@ loop:
   involved (particularly in case of compressed pages). We
   can do that in a separate patch sometime in future. */
 
-  if (!buf_flush_single_page_from_LRU(buf_pool)) {
+  if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::is_enabled() &&
+      buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] >=
+          buf_LRU_single_page_flush_max_concurrent) {
+
+    if (!srv_read_only_mode && n_iterations > 1) {
+      os_event_set(buf_flush_event);
+    }
+
+    buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
+  } else if (!buf_flush_single_page_from_LRU(buf_pool)) {
     MONITOR_INC(MONITOR_LRU_SINGLE_FLUSH_FAILURE_COUNT);
     ++flush_failures;
   }
@@ -1887,6 +1930,106 @@ void buf_LRU_make_block_old(buf_page_t *bpage) {
 
   buf_LRU_remove_block(bpage);
   buf_LRU_add_block_low(bpage, true);
+}
+
+static bool buf_LRU_promote_block_batched(buf_pool_t *buf_pool,
+                                          buf_page_t *bpage) noexcept {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_page_in_file(bpage));
+  ut_ad(bpage->in_LRU_list);
+
+  if (UT_LIST_GET_LEN(buf_pool->LRU) <= BUF_LRU_OLD_MIN_LEN) {
+    if (bpage->old) {
+      buf_pool->stat.n_pages_made_young++;
+    }
+    buf_LRU_remove_block(bpage);
+    buf_LRU_add_block_low(bpage, false);
+    return false;
+  }
+
+  const bool was_old = bpage->old;
+
+  buf_LRU_adjust_hp(buf_pool, bpage);
+
+  if (bpage == buf_pool->LRU_old) {
+    /* Shift LRU_old back one so it still points at the first
+    old-flag entry after our removal. The previous block is
+    guaranteed to exist because LRU_old is constrained by
+    BUF_LRU_OLD_TOLERANCE. */
+    buf_page_t *prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+    ut_a(prev_bpage);
+    buf_pool->LRU_old = prev_bpage;
+    buf_page_set_old(prev_bpage, true);
+    buf_pool->LRU_old_len++;
+  }
+
+  UT_LIST_REMOVE(buf_pool->LRU, bpage);
+
+  buf_unzip_LRU_remove_block_if_needed(bpage);
+
+  if (was_old) {
+    buf_pool->LRU_old_len--;
+  }
+
+  UT_LIST_ADD_FIRST(buf_pool->LRU, bpage);
+
+  bpage->freed_page_clock = buf_pool->freed_page_clock;
+
+  /* Remove + add brought LRU back to its original length, which we
+  established above is > BUF_LRU_OLD_MIN_LEN, so LRU_old is defined.
+  The boundary fix-up is deferred to the end-of-batch. */
+  ut_ad(buf_pool->LRU_old != nullptr);
+  buf_page_set_old(bpage, false);
+
+  if (buf_page_belongs_to_unzip_LRU(bpage)) {
+    buf_unzip_LRU_add_block((buf_block_t *)bpage, false);
+  }
+
+  return was_old;
+}
+
+void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
+  ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_page_t *head =
+      buf_pool->LRU_promote_head.exchange(nullptr, std::memory_order_acquire);
+  if (head == nullptr) {
+    return;
+  }
+
+  mutex_enter(&buf_pool->LRU_list_mutex);
+
+  size_t drained = 0, made_young = 0;
+
+  while (head != nullptr) {
+    buf_page_t *const next = head->LRU_promote_next;
+
+    if (buf_page_in_file(head)) {
+      if (buf_LRU_promote_block_batched(buf_pool, head)) {
+        ++made_young;
+      }
+    }
+
+    head->LRU_in_promote_queue.store(false, std::memory_order_release);
+    head->LRU_promote_next = nullptr;
+
+    buf_block_unfix(head);
+
+    head = next;
+    drained++;
+  }
+
+  /* End-of-batch fix-up: a single buf_LRU_old_adjust_len call. */
+  if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
+    buf_LRU_old_adjust_len(buf_pool);
+  }
+  buf_pool->stat.n_pages_made_young += made_young;
+
+  mutex_exit(&buf_pool->LRU_list_mutex);
+
+  if (drained != 0) {
+    buf_pool->LRU_promote_queue_len.fetch_sub(drained, std::memory_order_relaxed);
+  }
 }
 
 bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {

@@ -38,6 +38,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <time.h>
 
+#include <vector>
+
 #ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
 #include "buf0checksum.h"
@@ -1689,6 +1691,25 @@ static bool buf_flush_page_and_try_neighbors(buf_page_t *bpage,
   return (flushed);
 }
 
+namespace {
+thread_local std::vector<page_id_t> buf_tls_flush_ids;
+}  // namespace
+
+static void buf_LRU_flush_dispatch_chunk(buf_pool_t *buf_pool, ulint max,
+                                         ulint *count) {
+  if (buf_tls_flush_ids.empty()) {
+    return;
+  }
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  mutex_exit(&buf_pool->LRU_list_mutex);
+  for (const page_id_t &id : buf_tls_flush_ids) {
+    *count += buf_flush_try_neighbors(id, BUF_FLUSH_LRU, *count, max);
+  }
+  buf_tls_flush_ids.clear();
+  mutex_enter(&buf_pool->LRU_list_mutex);
+}
+
 /** This utility moves the uncompressed frames of pages to the free list.
 Note that this function does not actually flush any data to disk. It
 just detaches the uncompressed frames from the compressed pages at the
@@ -1773,8 +1794,19 @@ static std::pair<ulint, ulint> buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
 
   withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
+  /* Opt this thread into the deferred free-list batch (no-op when
+  innodb_lru_flush_free_batch_size is 0). Clean pages evicted below are
+  then accumulated and spliced onto buf_pool->free in bulk instead of one
+  free_list_mutex acquisition per page. Ended before we return. */
+  buf_LRU_free_batch_begin(buf_pool);
+
+  /* Read once: how many clean evictions to remove from hash+LRU per
+  LRU_list_mutex hold. 1 (default) keeps the original per-page path. */
+  const ulint chunk_pages = buf_LRU_flush_batch_size;
+
   for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-       bpage != nullptr && count + evict_count < max &&
+       bpage != nullptr &&
+       count + evict_count + buf_tls_flush_ids.size() < max &&
        free_len < srv_LRU_scan_depth + withdraw_depth &&
        lru_len > BUF_LRU_MIN_LEN;
        ++scanned, bpage = buf_pool->lru_hp.get()) {
@@ -1796,17 +1828,44 @@ static std::pair<ulint, ulint> buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
       if (acquired && buf_flush_ready_for_replace(bpage)) {
         /* block is ready for eviction i.e., it is
         clean and is not IO-fixed or buffer fixed. */
-        if (buf_LRU_free_page(bpage, true)) {
+        if (chunk_pages > 1) {
+          /* Batched path: claim (remove from hash+LRU) under the LRU
+          mutex without releasing it, deferring the AHI drop + free to a
+          group Phase B. buf_LRU_evict_claim_clean releases the block
+          mutex on success and, when a full chunk is claimed, runs Phase B
+          (releasing and re-acquiring the LRU mutex). On a non-eligible
+          page it returns false with the block mutex still held. */
+          if (buf_LRU_evict_claim_clean(buf_pool, bpage, chunk_pages)) {
+            ++evict_count;
+          } else {
+            mutex_exit(block_mutex);
+          }
+        } else if (buf_LRU_free_page(bpage, true)) {
           ++evict_count;
           mutex_enter(&buf_pool->LRU_list_mutex);
         } else {
           mutex_exit(block_mutex);
         }
       } else if (acquired && buf_flush_ready_for_flush(bpage, BUF_FLUSH_LRU)) {
-        /* Block is ready for flush. Dispatch an IO request. The IO helper
-        thread will put it on the free list in the IO completion routine. */
-        mutex_exit(block_mutex);
-        buf_flush_page_and_try_neighbors(bpage, BUF_FLUSH_LRU, max, &count);
+        /* Block is ready for flush. The IO helper thread will put it on the
+        free list in the IO completion routine. */
+        if (chunk_pages > 1) {
+          /* Batched path: record the page id (the page stays dirty on the
+          LRU) and dispatch the whole group later with the LRU mutex
+          released, hoisting the per-page LRU release/reacquire that
+          buf_flush_page_and_try_neighbors does into one cycle per chunk.
+          buf_flush_try_neighbors re-validates each page by id at dispatch
+          time, so observing it ready here without claiming it is safe. */
+          const page_id_t id = bpage->id;
+          mutex_exit(block_mutex);
+          buf_tls_flush_ids.push_back(id);
+          if (buf_tls_flush_ids.size() >= chunk_pages) {
+            buf_LRU_flush_dispatch_chunk(buf_pool, max, &count);
+          }
+        } else {
+          mutex_exit(block_mutex);
+          buf_flush_page_and_try_neighbors(bpage, BUF_FLUSH_LRU, max, &count);
+        }
       } else if (!acquired) {
         ut_ad(buf_pool->lru_hp.is_hp(prev));
       } else {
@@ -1823,6 +1882,11 @@ static std::pair<ulint, ulint> buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
     lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
     withdraw_depth = buf_get_withdraw_depth(buf_pool);
   }
+
+  buf_LRU_evict_chunk_flush(buf_pool);
+  buf_LRU_free_batch_end();
+
+  buf_LRU_flush_dispatch_chunk(buf_pool, max, &count);
 
   buf_pool->lru_hp.set(nullptr);
 

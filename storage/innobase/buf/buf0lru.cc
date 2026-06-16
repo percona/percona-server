@@ -138,6 +138,8 @@ std::chrono::milliseconds get_buf_LRU_old_threshold() {
 bool buf_LRU_use_single_page_flush;
 uint buf_LRU_single_page_flush_max_concurrent;
 uint buf_LRU_make_young_drain_threshold;
+uint buf_LRU_flush_batch_size{1};
+
 
 void buf_LRU_enqueue_promote(buf_page_t *bpage) {
   /* Only one enqueue in-flight (TODO: could we use block mutex instead?). */
@@ -261,6 +263,122 @@ bool buf_LRU_evict_from_unzip_LRU(buf_pool_t *buf_pool) {
   uncompressed frame from unzip_LRU.  Otherwise we assume that
   the load is CPU bound and evict from the regular LRU. */
   return (unzip_avg <= io_avg * BUF_LRU_IO_TO_UNZIP_FACTOR);
+}
+
+
+namespace {
+thread_local buf_pool_t *buf_tls_free_batch_pool{nullptr};
+thread_local UT_LIST_BASE_NODE_T(buf_page_t, list) buf_tls_free_batch_list{};
+
+void buf_LRU_free_batch_splice() {
+  const size_t n = buf_tls_free_batch_list.get_length();
+  if (n == 0) {
+    return;
+  }
+  const auto buf_pool = buf_tls_free_batch_pool;
+  using free_list_t = decltype(buf_pool->free);
+
+  const auto src_first = buf_tls_free_batch_list.first_element;
+  const auto src_last = buf_tls_free_batch_list.last_element;
+
+  mutex_enter(&buf_pool->free_list_mutex);
+  if (buf_pool->free.first_element == nullptr) {
+    /* Free list empty: adopt the private list wholesale. */
+    buf_pool->free.first_element = src_first;
+    buf_pool->free.last_element = src_last;
+  } else {
+    /* Prepend: link our tail (src_last) before the current free-list head.
+    src_first->prev is already null and src_last->next is already null from
+    how the private list was built, so only these two links change. */
+    free_list_t::get_node(*src_last).next = buf_pool->free.first_element;
+    free_list_t::get_node(*buf_pool->free.first_element).prev = src_last;
+    buf_pool->free.first_element = src_first;
+  }
+  buf_pool->free.update_length(static_cast<int>(n));
+  mutex_exit(&buf_pool->free_list_mutex);
+
+  /* The spliced blocks now belong to buf_pool->free; reset the private
+  list base node (their internal links are intact and owned by free). */
+  buf_tls_free_batch_list.clear();
+}
+}
+
+bool buf_LRU_free_batch_begin(buf_pool_t *buf_pool) {
+  if (buf_LRU_flush_batch_size == 1) {
+    return false;
+  }
+  ut_ad(buf_tls_free_batch_pool == nullptr);
+  ut_ad(buf_tls_free_batch_list.get_length() == 0);
+  buf_tls_free_batch_pool = buf_pool;
+  return true;
+}
+
+void buf_LRU_free_batch_end() {
+  buf_tls_free_batch_pool = nullptr;
+}
+
+namespace {
+thread_local std::vector<buf_block_t *> buf_tls_evict_claimed;
+}  // namespace
+
+bool buf_LRU_evict_claim_clean(buf_pool_t *buf_pool, buf_page_t *bpage,
+                               ulint chunk_pages) {
+  BPageMutex *block_mutex = buf_page_get_mutex(bpage);
+  rw_lock_t *hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(mutex_own(block_mutex));
+  ut_ad(buf_page_in_file(bpage));
+  ut_ad(bpage->in_LRU_list);
+
+  if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
+      bpage->zip.data != nullptr || bpage->is_dirty() ||
+      !buf_page_can_relocate(bpage)) {
+    return false;
+  }
+
+  mutex_exit(block_mutex);
+
+  rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
+  mutex_enter(block_mutex);
+
+  if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
+      bpage->zip.data != nullptr || bpage->is_dirty() ||
+      !buf_page_can_relocate(bpage)) {
+    rw_lock_x_unlock(hash_lock);
+    return false;
+  }
+  const bool removed = buf_LRU_block_remove_hashed(bpage, true, false);
+  ut_a(removed);
+  ut_ad(!mutex_own(block_mutex));
+  ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
+
+  buf_tls_evict_claimed.push_back(reinterpret_cast<buf_block_t *>(bpage));
+
+  if (buf_tls_evict_claimed.size() >= chunk_pages) {
+    buf_LRU_evict_chunk_flush(buf_pool);
+  }
+  return true;
+}
+
+void buf_LRU_evict_chunk_flush(buf_pool_t *buf_pool) {
+  if (buf_tls_evict_claimed.empty()) {
+    return;
+  }
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  mutex_exit(&buf_pool->LRU_list_mutex);
+
+  for (buf_block_t *block : buf_tls_evict_claimed) {
+    UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
+    btr_search_drop_page_hash_index(block, true);
+    UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
+    buf_LRU_block_free_hashed_page(block);
+  }
+  buf_tls_evict_claimed.clear();
+  buf_LRU_free_batch_splice();
+
+  mutex_enter(&buf_pool->LRU_list_mutex);
 }
 
 /** Attempts to drop page hash index on a batch of pages belonging to a
@@ -2339,11 +2457,16 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block) {
     mutex_exit(&buf_pool->free_list_mutex);
   } else {
     buf_block_set_state(block, BUF_BLOCK_NOT_USED);
-    mutex_enter(&buf_pool->free_list_mutex);
-    UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
-    ut_d(block->page.in_free_list = true);
     ut_ad(!block->page.someone_has_io_responsibility());
-    mutex_exit(&buf_pool->free_list_mutex);
+    if (buf_tls_free_batch_pool == buf_pool) {
+      UT_LIST_ADD_FIRST(buf_tls_free_batch_list, &block->page);
+      ut_d(block->page.in_free_list = true);
+    } else {
+      mutex_enter(&buf_pool->free_list_mutex);
+      UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
+      ut_d(block->page.in_free_list = true);
+      mutex_exit(&buf_pool->free_list_mutex);
+    }
   }
 }
 

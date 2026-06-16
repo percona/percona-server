@@ -236,6 +236,22 @@ least this many milliseconds ago.  Not protected by any mutex or latch. */
 std::chrono::milliseconds get_buf_LRU_old_threshold();
 
 extern uint buf_LRU_single_page_flush_max_concurrent;
+
+extern uint buf_LRU_flush_batch_size;
+
+bool buf_LRU_free_batch_begin(buf_pool_t *buf_pool);
+void buf_LRU_free_batch_end();
+
+bool buf_LRU_evict_claim_clean(buf_pool_t *buf_pool, buf_page_t *bpage,
+                               ulint chunk_pages);
+
+void buf_LRU_evict_chunk_flush(buf_pool_t *buf_pool);
+
+/** Threshold (queue length) at which a thread that enqueued a page onto
+the per-buf-pool deferred make-young queue becomes responsible for
+draining it. Zero disables the deferred queue entirely (the hot path
+falls back to synchronous buf_page_make_young). See definition in
+buf0lru.cc. */
 extern uint buf_LRU_make_young_drain_threshold;
 
 struct buf_pool_t;

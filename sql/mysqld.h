@@ -213,6 +213,7 @@ extern bool lower_case_file_system;
 extern bool opt_require_secure_transport;
 
 extern bool opt_replica_preserve_commit_order;
+extern bool opt_replica_translate_deprecated_priv;
 
 #ifndef NDEBUG
 extern uint replica_rows_last_search_algorithm_used;

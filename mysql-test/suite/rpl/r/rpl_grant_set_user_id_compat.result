@@ -1,0 +1,247 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Sanity: SET_USER_ID is (re-)registered on the source, but not on
+# the replica (this is what makes the test cross-version-like).
+#
+include/assert_grep.inc ["SET_USER_ID should be defined"]
+[connection slave]
+include/assert_grep.inc ["SET_USER_ID should not be defined"]
+CALL mtr.add_suppression(
+"Replica applier rewrote removed dynamic privilege 'SET_USER_ID' into ");
+#
+# Sanity: the new gate variable exists and defaults to OFF (opt-in).
+# Save the current value so we can restore it before deinit.
+#
+SET @save_translate_deprecated_priv =
+@@global.replica_translate_deprecated_priv;
+SELECT @@global.replica_translate_deprecated_priv;
+@@global.replica_translate_deprecated_priv
+0
+#
+# R5. The grammar/parser is not touched by the fix: a user thread
+# executing GRANT SET_USER_ID directly on the replica must still be
+# rejected with ER_SYNTAX_ERROR.  Verified here while the gate is
+# still at its OFF default, on a regular user connection (not the
+# SQL applier thread).
+#
+CREATE USER rpl_psuid@localhost;
+GRANT SET_USER_ID ON *.* TO rpl_psuid@localhost;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+DROP USER rpl_psuid@localhost;
+#
+# Opt in to the rewrite for the R1..R6 tests below.  The gate can
+# only be changed while the replication SQL thread is stopped, so
+# stop replication, flip it ON, and start again.
+#
+include/rpl/stop_replica.inc
+SET @@global.replica_translate_deprecated_priv = ON;
+include/rpl/start_replica.inc
+#
+# R1, R2. GRANT SET_USER_ID on the source is binlogged as-is; the
+# replica rewrites it before applying and ends up with the two
+# modern privileges granted.
+#
+[connection master]
+CREATE USER rpl_psuid@localhost;
+GRANT SET_USER_ID ON *.* TO rpl_psuid@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_psuid@localhost;
+Grants for rpl_psuid@localhost
+GRANT USAGE ON *.* TO `rpl_psuid`@`localhost`
+GRANT ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* TO `rpl_psuid`@`localhost`
+#
+# R2 (GRANT OPTION preserved): the WITH GRANT OPTION flag carried by
+# the source statement must apply to both translated privileges.
+#
+[connection master]
+GRANT SET_USER_ID ON *.* TO rpl_psuid@localhost WITH GRANT OPTION;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_psuid@localhost;
+Grants for rpl_psuid@localhost
+GRANT USAGE ON *.* TO `rpl_psuid`@`localhost`
+GRANT ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* TO `rpl_psuid`@`localhost` WITH GRANT OPTION
+#
+# R1 extension: ON inside a block comment must not end the privilege
+# list early; SET_USER_ID before the real ON delimiter is still
+# rewritten.
+#
+[connection master]
+GRANT /*ON*/ SET_USER_ID ON *.* TO rpl_psuid@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_psuid@localhost;
+Grants for rpl_psuid@localhost
+GRANT USAGE ON *.* TO `rpl_psuid`@`localhost`
+GRANT ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* TO `rpl_psuid`@`localhost` WITH GRANT OPTION
+#
+# R1 extension: lowercase "on" inside a block comment must not end
+# the privilege list early; SET_USER_ID after the comment is still
+# rewritten on a fresh account.
+#
+[connection master]
+CREATE USER rpl_onword@localhost;
+include/rpl/sync_to_replica.inc
+[connection master]
+GRANT /* this is on and on */ SET_USER_ID ON *.* TO rpl_onword@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_onword@localhost;
+Grants for rpl_onword@localhost
+GRANT USAGE ON *.* TO `rpl_onword`@`localhost`
+GRANT ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* TO `rpl_onword`@`localhost`
+#
+# R1 extension: a leading comment before GRANT must not skip the
+# rewrite; SET_USER_ID in the privilege list is still translated.
+#
+[connection master]
+GRANT /*this is a comment*/ SET_USER_ID ON *.* TO rpl_psuid@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_psuid@localhost;
+Grants for rpl_psuid@localhost
+GRANT USAGE ON *.* TO `rpl_psuid`@`localhost`
+GRANT ALLOW_NONEXISTENT_DEFINER,SET_ANY_DEFINER ON *.* TO `rpl_psuid`@`localhost` WITH GRANT OPTION
+#
+# R3. REVOKE SET_USER_ID coming from the source revokes both
+# SET_ANY_DEFINER and ALLOW_NONEXISTENT_DEFINER on the replica.
+#
+[connection master]
+REVOKE SET_USER_ID ON *.* FROM rpl_psuid@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_psuid@localhost;
+Grants for rpl_psuid@localhost
+GRANT USAGE ON *.* TO `rpl_psuid`@`localhost`
+#
+# R8. Mixed-origin REVOKE: modern privileges granted directly on the
+# replica, then REVOKE SET_USER_ID replicated from the source.
+#
+#
+# R8a. Replica holds SET_ANY_DEFINER only; replicated REVOKE removes
+# it (over-revoke of the independent grant).
+#
+[connection master]
+CREATE USER rpl_mix_sa@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+GRANT SET_ANY_DEFINER ON *.* TO rpl_mix_sa@localhost;
+[connection master]
+REVOKE SET_USER_ID ON *.* FROM rpl_mix_sa@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_mix_sa@localhost;
+Grants for rpl_mix_sa@localhost
+GRANT USAGE ON *.* TO `rpl_mix_sa`@`localhost`
+#
+# R8b. Replica holds ALLOW_NONEXISTENT_DEFINER only.
+#
+[connection master]
+CREATE USER rpl_mix_and@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+GRANT ALLOW_NONEXISTENT_DEFINER ON *.* TO rpl_mix_and@localhost;
+[connection master]
+REVOKE SET_USER_ID ON *.* FROM rpl_mix_and@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_mix_and@localhost;
+Grants for rpl_mix_and@localhost
+GRANT USAGE ON *.* TO `rpl_mix_and`@`localhost`
+#
+# R8c. Replica holds neither modern privilege; replicated REVOKE is a
+# no-op and applier keeps running.
+#
+[connection master]
+CREATE USER rpl_mix_none@localhost;
+include/rpl/sync_to_replica.inc
+[connection master]
+REVOKE SET_USER_ID ON *.* FROM rpl_mix_none@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_mix_none@localhost;
+Grants for rpl_mix_none@localhost
+GRANT USAGE ON *.* TO `rpl_mix_none`@`localhost`
+#
+# R8 cleanup
+#
+[connection master]
+DROP USER rpl_mix_sa@localhost, rpl_mix_and@localhost, rpl_mix_none@localhost;
+include/rpl/sync_to_replica.inc
+#
+# R4. SET_USER_ID used only as a DB/table identifier (after ON) must
+# round-trip unmodified.  Test both backtick-quoted and unquoted
+# forms; on 8.4+ the latter is a valid identifier, not the removed
+# dynamic privilege.
+#
+[connection master]
+CREATE DATABASE `set_user_id`;
+CREATE TABLE `set_user_id`.t (i INT);
+GRANT SELECT ON `set_user_id`.* TO rpl_psuid@localhost;
+CREATE DATABASE SET_USER_ID;
+CREATE TABLE SET_USER_ID.SET_USER_ID (i INT);
+GRANT SELECT ON SET_USER_ID.SET_USER_ID TO rpl_psuid@localhost;
+include/rpl/sync_to_replica.inc
+[connection slave]
+SHOW GRANTS FOR rpl_psuid@localhost;
+Grants for rpl_psuid@localhost
+GRANT USAGE ON *.* TO `rpl_psuid`@`localhost`
+GRANT SELECT ON `set_user_id`.* TO `rpl_psuid`@`localhost`
+GRANT SELECT ON `SET_USER_ID`.`SET_USER_ID` TO `rpl_psuid`@`localhost`
+#
+# Cleanup of the ON-mode test artifacts
+#
+[connection master]
+DROP DATABASE `set_user_id`;
+DROP DATABASE SET_USER_ID;
+DROP USER rpl_psuid@localhost, rpl_onword@localhost;
+include/rpl/sync_to_replica.inc
+#
+# R7. Turn the gate back OFF.  The same kind of statement that just
+# round-tripped successfully must now stop the SQL applier with
+# ER_SYNTAX_ERROR, proving the rewrite is gated.  The gate can only
+# be changed while the replication SQL thread is stopped.
+#
+[connection slave]
+include/rpl/stop_replica.inc
+SET @@global.replica_translate_deprecated_priv = OFF;
+include/rpl/start_replica.inc
+CALL mtr.add_suppression(
+"Worker .* failed executing transaction");
+CALL mtr.add_suppression(
+"The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression(
+"Replica SQL for channel.*Error 'You have an error in your SQL syntax");
+[connection master]
+CREATE USER rpl_psuid_off@localhost;
+GRANT SET_USER_ID ON *.* TO rpl_psuid_off@localhost;
+[connection slave]
+include/rpl/wait_for_applier_error.inc [errno=1149]
+#
+# Recover: the CREATE USER ran successfully on the replica (it
+# preceded the failing GRANT in the relay log), so the user is
+# still there even after the SQL thread stopped.  Stop replication,
+# drop the user on both sides, wipe the source's binlog so the
+# replica is not asked to re-apply the same failing event, then
+# restart replication.
+#
+include/rpl/stop_replica.inc
+RESET REPLICA;
+DROP USER rpl_psuid_off@localhost;
+[connection master]
+DROP USER rpl_psuid_off@localhost;
+RESET BINARY LOGS AND GTIDS;
+#
+# Restore the gate to its saved (default) value while the SQL thread
+# is still stopped, then resume replication.
+#
+[connection slave]
+SET @@global.replica_translate_deprecated_priv =
+@save_translate_deprecated_priv;
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

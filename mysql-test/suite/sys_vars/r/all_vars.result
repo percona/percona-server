@@ -103,6 +103,8 @@ replica_skip_errors
 replica_skip_errors
 replica_sql_verify_checksum
 replica_sql_verify_checksum
+replica_translate_deprecated_priv
+replica_translate_deprecated_priv
 replica_type_conversions
 replica_type_conversions
 replication_optimize_for_static_plugin_config

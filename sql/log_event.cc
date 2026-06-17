@@ -40,7 +40,10 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <regex>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <utility>
 
 #include "base64.h"
@@ -4454,10 +4457,293 @@ void Query_log_event::detach_temp_tables_worker(THD *thd_arg,
 }
 
 /*
+  The removed dynamic privilege we recognize, and the modern privileges
+  the rewrite produces in its place (same mapping as the offline upgrade
+  in mysql_system_tables_fix.sql).  Declared once and reused for the
+  match, the replacement text, the warning log message, and to size the
+  output buffer in the rewrite helper below.
+*/
+static constexpr std::string_view kLegacyPriv = "SET_USER_ID";
+static constexpr std::string_view kModernPrivs =
+    "SET_ANY_DEFINER,ALLOW_NONEXISTENT_DEFINER";
+static constexpr size_t kReplacementGrowth =
+    kModernPrivs.size() - kLegacyPriv.size();
+static constexpr std::string_view kGrantKeyword = "GRANT";
+static constexpr std::string_view kRevokeKeyword = "REVOKE";
+
+static bool is_sql_ident_char(unsigned char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9') || c == '_';
+}
+
+static bool is_sql_space(unsigned char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+         c == '\v';
+}
+
+static const char *skip_line_terminator(const char *p, const char *end) {
+  if (p >= end) return p;
+  if (p[0] == '\r' && p + 1 < end && p[1] == '\n') return p + 2;
+  if (p[0] == '\n' || p[0] == '\r') return p + 1;
+  return p;
+}
+
+static const char *skip_sql_comment(const char *p, const char *end) {
+  // Block comment: consume /* ... */ as a single unit.
+  if (p + 1 < end && p[0] == '/' && p[1] == '*') {
+    p += 2;
+    while (p + 1 < end && !(p[0] == '*' && p[1] == '/')) ++p;
+    // Unterminated comment means this is not a rewrite candidate.
+    return p + 1 < end ? p + 2 : nullptr;
+  }
+
+  // Dash line comment: consume until line terminator or end of query text.
+  // MySQL requires whitespace after '--'; treating any '--' as a comment only
+  // conservatively misses some rewrites, never corrupts a statement.
+  if (p + 1 < end && p[0] == '-' && p[1] == '-') {
+    p += 2;
+    while (p < end && p[0] != '\n' && p[0] != '\r') ++p;
+    return skip_line_terminator(p, end);
+  }
+
+  // Hash line comment, accepted by MySQL.
+  if (p < end && p[0] == '#') {
+    ++p;
+    while (p < end && p[0] != '\n' && p[0] != '\r') ++p;
+    return skip_line_terminator(p, end);
+  }
+
+  return p;
+}
+
+static const char *skip_leading_comments_and_spaces(const char *p,
+                                                    const char *end) {
+  while (p < end) {
+    while (p < end && is_sql_space(static_cast<unsigned char>(*p))) ++p;
+    if (p >= end) return nullptr;
+
+    const char *after_comment = skip_sql_comment(p, end);
+    if (after_comment == nullptr) return nullptr;
+    if (after_comment == p) return p;
+    p = after_comment;
+  }
+
+  return nullptr;
+}
+
+/*
+  If `token` matches at p as a whole word (ASCII, case-insensitive) return the
+  pointer just past it, otherwise nullptr.  Used for the statement keyword,
+  which must be the first non-comment token, so there is nothing to scan for.
+*/
+static const char *match_keyword_at(const char *p, const char *end,
+                                    std::string_view token) {
+  if (static_cast<size_t>(end - p) < token.size()) return nullptr;
+  if (native_strncasecmp(p, token.data(), token.size()) != 0) return nullptr;
+  const char *const token_end = p + token.size();
+  // Reject when the keyword is only a prefix of a longer identifier.
+  if (token_end != end &&
+      is_sql_ident_char(static_cast<unsigned char>(*token_end)))
+    return nullptr;
+  return token_end;
+}
+
+/*
+  Find the first whole-word ASCII token outside SQL comments and return its
+  [start, end) range. This is intentionally a linear scan instead of
+  std::regex: libstdc++'s regex matcher can stack-overflow on long
+  relay-log queries before throwing an exception.
+*/
+static std::pair<const char *, const char *> find_uncommented_token(
+    const char *p, const char *end, std::string_view token) {
+  const char *const start = p;
+
+  while (p < end) {
+    if (static_cast<size_t>(end - p) < token.size()) return {nullptr, nullptr};
+
+    // Consume comments atomically, so tokens inside comment text are ignored.
+    const char *after_comment = skip_sql_comment(p, end);
+    if (after_comment == nullptr) return {nullptr, nullptr};
+    if (after_comment != p) {
+      p = after_comment;
+      continue;
+    }
+
+    // Match only on identifier boundaries, so e.g. `CONNECTION_ADMIN` does not
+    // expose a bare `ON`.  Privilege names and keywords are ASCII here.
+    if ((p == start || !is_sql_ident_char(static_cast<unsigned char>(p[-1]))) &&
+        native_strncasecmp(p, token.data(), token.size()) == 0) {
+      const char *const token_end = p + token.size();
+      if (token_end == end ||
+          !is_sql_ident_char(static_cast<unsigned char>(*token_end))) {
+        return {p, token_end};
+      }
+    }
+
+    ++p;
+  }
+
+  return {nullptr, nullptr};
+}
+
+/*
+  Function for the replica applier's legacy-privilege rewrite.
+  Operates on this event's own `query` / `q_len` and allocates on the
+  event's THD mem_root.
+
+  If `query` is a GRANT/REVOKE statement that mentions SET_USER_ID as a
+  bare word in the privilege list (the text between GRANT/REVOKE and the
+  first un-commented ON keyword), returns a {pointer, length} pair for a
+  copy with each such occurrence replaced by kModernPrivs, and logs
+  ER_LOG_REPLICA_TRANSLATED_DEPRECATED_PRIVILEGE so the operator can see
+  the compatibility translation.  Match is ASCII-case-insensitive.
+
+  Two linear scans and one std::regex pattern drive the rewrite
+  (see rewrite_legacy_set_user_id_priv):
+    match_keyword_at        GRANT/REVOKE as the first non-comment token
+    find_uncommented_token  first ON that ends the privilege list
+    re_set_user_id          SET_USER_ID tokens replaced inside the priv list
+
+  SET_USER_ID in the object clause after ON is never matched by re_set_user_id
+  and is therefore left untouched.
+
+  Limitation: the rewrite is stateless (no provenance tracking).  REVOKE
+  SET_USER_ID always becomes REVOKE of both replacement privileges.
+  Revoking one the account does not hold is a no-op, but a mixed-origin
+  account that received SET_ANY_DEFINER or ALLOW_NONEXISTENT_DEFINER
+  directly on the replica can lose that grant when an old-source REVOKE
+  SET_USER_ID is applied.  Consistent only when those privileges on the
+  replica all originated from translated SET_USER_ID on the source.
+
+  Limitation: SET_USER_ID inside a SQL comment in the privilege list
+  (e.g. SET_USER_ID embedded in a block comment before another privilege
+  in the list) is still rewritten because the bare-word scan does not skip
+  comment bodies.  That only changes comment text, which the parser discards
+  anyway, so it has no impact on the final grant result.  ON inside comments
+  is skipped atomically when locating the list boundary.
+
+  In every other case (statement is not GRANT/REVOKE, SET_USER_ID is
+  absent from the privilege list, or the rewrite buffer cannot be
+  allocated) returns {query, q_len} unchanged, so the caller can use the
+  returned (ptr, len) pair unconditionally with no nullptr or "did it
+  change" checks of its own.
+*/
+std::pair<const char *, size_t>
+Query_log_event::rewrite_legacy_set_user_id_priv() const {
+  /*
+    Cheapest possible early-out.  Any query that could mention SET_USER_ID
+    as a privilege must be at least as long as the shortest GRANT form
+    that the parser accepts:
+
+        GRANT SET_USER_ID ON *.* TO u        (29 bytes)
+
+    The shortest REVOKE form (REVOKE ... FROM u) is longer, so this
+    GRANT template defines the absolute floor.  Computed at compile time
+    from the literal so the constant stays in sync with the template
+    that motivates it.
+  */
+  static constexpr std::string_view kMinRewriteCandidate =
+      "GRANT SET_USER_ID ON *.* TO u";
+  if (query == nullptr || q_len < kMinRewriteCandidate.size())
+    return {query, q_len};
+
+  const char *const query_end = query + q_len;
+
+  /*
+    Skip leading block/line comments and whitespace, then require GRANT or
+    REVOKE at a word boundary. Binlog GRANT/REVOKE events are a single
+    statement, so matching from the first non-comment token is enough.
+    We could use find_uncommented_token() to scan forward looking for the token
+    and would walk the whole query before rejecting a non-candidate statement
+    (e.g. a long SELECT); matching in place rejects such statements in constant
+    time.
+  */
+  const char *stmt_start = skip_leading_comments_and_spaces(query, query_end);
+  if (stmt_start == nullptr) return {query, q_len};
+
+  /*
+    The statement keyword must be the first non-comment token, so match GRANT
+    or REVOKE directly at stmt_start.
+  */
+  const char *priv_start =
+      match_keyword_at(stmt_start, query_end, kGrantKeyword);
+  if (priv_start == nullptr)
+    priv_start = match_keyword_at(stmt_start, query_end, kRevokeKeyword);
+  if (priv_start == nullptr) return {query, q_len};
+
+  /*
+    Find the first real ON keyword and use its start as the end of the
+    privilege list.  Comments are consumed whole by find_uncommented_token(),
+    so ON/on inside a comment is not mistaken for the list delimiter.
+  */
+  const auto on = find_uncommented_token(priv_start, query_end, "ON");
+  if (on.first == nullptr) return {query, q_len};
+  const char *const priv_end = on.first;
+
+  std::string output;
+  try {
+    /*
+      std::regex construction/search and std::cregex_iterator are not noexcept.
+      With our fixed pattern and privilege-list-only input this is unlikely to
+      throw in practice, but an uncaught exception on the replica SQL thread
+      would call std::terminate().  Fall back to the original query on any
+      regex failure; it either applies unchanged or fails as it would without
+      the rewrite.
+
+      re_set_user_id: whole-word SET_USER_ID inside the privilege list only.
+    */
+    static const std::regex re_set_user_id(R"(\bSET_USER_ID\b)",
+                                           std::regex_constants::icase);
+    if (!std::regex_search(priv_start, priv_end, re_set_user_id))
+      return {query, q_len};
+
+    output.reserve(q_len + kReplacementGrowth);
+    output.append(query, priv_start);
+    const char *pos = priv_start;
+    for (std::cregex_iterator it(priv_start, priv_end, re_set_user_id), end;
+         it != end; ++it) {
+      const auto &m = (*it)[0];
+      output.append(pos, m.first);
+      output.append(kModernPrivs);
+      pos = m.second;
+    }
+    output.append(pos, priv_end);
+    output.append(priv_end, query_end);
+  } catch (...) {
+    return {query, q_len};
+  }
+
+  char *new_query = static_cast<char *>(thd->alloc(output.size() + 1));
+  if (new_query == nullptr) return {query, q_len};
+  memcpy(new_query, output.data(), output.size());
+  new_query[output.size()] = '\0';
+  LogErr(WARNING_LEVEL, ER_LOG_REPLICA_TRANSLATED_DEPRECATED_PRIVILEGE,
+         kLegacyPriv.data(), kModernPrivs.data(), query);
+  return {new_query, output.size()};
+}
+
+/*
   Query_log_event::do_apply_event()
 */
 int Query_log_event::do_apply_event(Relay_log_info const *rli) {
-  return do_apply_event(rli, query, q_len);
+  /*
+    Optionally rewrite the legacy SET_USER_ID dynamic privilege (removed
+    in 8.2 by WL#15875) into its modern replacements before handing the
+    query to the parser, so a GRANT/REVOKE SET_USER_ID emitted by an
+    older source server does not stop the replica SQL applier with
+    ER_SYNTAX_ERROR.  Gated by @@global.replica_translate_deprecated_priv
+    The rewrite runs only here, on the replica applier path; the SQL
+    grammar and mysql_grant() are unchanged, so user-issued and
+    BINLOG '...' statements that reference SET_USER_ID always fail with
+    the same error as before.
+  */
+  const char *effective_query = query;
+  size_t effective_len = q_len;
+  if (unlikely(opt_replica_translate_deprecated_priv)) {
+    std::tie(effective_query, effective_len) =
+        rewrite_legacy_set_user_id_priv();
+  }
+  return do_apply_event(rli, effective_query, effective_len);
 }
 
 /*

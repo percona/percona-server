@@ -1384,6 +1384,7 @@ ulonglong replica_type_conversions_options;
 ulong opt_mts_replica_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 bool opt_replica_preserve_commit_order;
+bool opt_replica_translate_deprecated_priv;
 #ifndef NDEBUG
 uint replica_rows_last_search_algorithm_used;
 #endif

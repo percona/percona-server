@@ -1275,6 +1275,12 @@ The following options may be given as the first argument:
  Number of times the replication applier will retry a
  transaction in case it failed with a deadlock or other
  transient error, before it gives up and stops.
+ --replica-translate-deprecated-priv 
+ Rewrite replicated SET_USER_ID to
+ SET_ANY_DEFINER,ALLOW_NONEXISTENT_DEFINER in the replica
+ SQL applier. Disabled by default, does not affect
+ user-issued GRANT/REVOKE, and can be changed only while
+ the replica SQL thread is stopped.
  --replica-type-conversions=name 
  Set of type conversions that may be used by the
  replication applier thread for row events. Allowed values
@@ -2091,6 +2097,7 @@ replica-preserve-commit-order TRUE
 replica-skip-errors (No default value)
 replica-sql-verify-checksum TRUE
 replica-transaction-retries 10
+replica-translate-deprecated-priv FALSE
 replica-type-conversions 
 replicate-same-server-id FALSE
 replication-optimize-for-static-plugin-config FALSE

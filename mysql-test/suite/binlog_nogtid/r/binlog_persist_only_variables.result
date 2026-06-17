@@ -46,7 +46,7 @@ INSERT INTO aliases(name) VALUES
 ('slave_parallel_workers'), ('slave_pending_jobs_size_max'),
 ('pseudo_slave_mode'), ('skip_slave_start');
 
-include/assert.inc [Expect 113 variables in the table.]
+include/assert.inc [Expect 114 variables in the table.]
 
 # Test SET PERSIST_ONLY
 SET PERSIST_ONLY binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -164,6 +164,7 @@ SET PERSIST_ONLY replica_preserve_commit_order = @@GLOBAL.replica_preserve_commi
 SET PERSIST_ONLY replica_skip_errors = @@GLOBAL.replica_skip_errors;
 SET PERSIST_ONLY replica_sql_verify_checksum = @@GLOBAL.replica_sql_verify_checksum;
 SET PERSIST_ONLY replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET PERSIST_ONLY replica_translate_deprecated_priv = @@GLOBAL.replica_translate_deprecated_priv;
 SET PERSIST_ONLY replica_type_conversions = @@GLOBAL.replica_type_conversions;
 SET PERSIST_ONLY replication_optimize_for_static_plugin_config = @@GLOBAL.replication_optimize_for_static_plugin_config;
 SET PERSIST_ONLY replication_sender_observe_commit_only = @@GLOBAL.replication_sender_observe_commit_only;
@@ -267,16 +268,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 100 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 101 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 100 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 100 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 100 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 101 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 101 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 101 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -361,6 +362,7 @@ RESET PERSIST replica_preserve_commit_order;
 RESET PERSIST replica_skip_errors;
 RESET PERSIST replica_sql_verify_checksum;
 RESET PERSIST replica_transaction_retries;
+RESET PERSIST replica_translate_deprecated_priv;
 RESET PERSIST replica_type_conversions;
 RESET PERSIST replication_optimize_for_static_plugin_config;
 RESET PERSIST replication_sender_observe_commit_only;

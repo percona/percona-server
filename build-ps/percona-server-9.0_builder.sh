@@ -22,6 +22,7 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
+        --enable_pgo                PGO (Profile-Guided Optimization) build (default = 1, set to 0 to disable)
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -63,6 +64,7 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
+            --enable_pgo=*) ENABLE_PGO="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -160,15 +162,18 @@ get_sources(){
             echo "Patch version differs from defined in version file"
             exit 1
         fi
-        if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
-            echo "Extra version differs from defined in version file"
-            exit 1
-        fi
-        INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
-        if [ ${INNODB_VER} != ${EXTRA} ]; then
-            echo "InnoDB version differs from defined in version file"
-            exit 1
-        fi
+        # Extra/InnoDB version checks intentionally skipped — branch name may
+        # legitimately diverge from MYSQL_VERSION_EXTRA during release preparation
+        # (e.g., release-9.6.0-2 branch can be cut before VERSION file is bumped).
+        # if [ "${MYSQL_VERSION_EXTRA}" != "-${EXTRA}" ]; then
+        #     echo "Extra version differs from defined in version file"
+        #     exit 1
+        # fi
+        # INNODB_VER=$(grep "define PERCONA_INNODB_VERSION" ./storage/innobase/include/univ.i | awk '{print $3}')
+        # if [ ${INNODB_VER} != ${EXTRA} ]; then
+        #     echo "InnoDB version differs from defined in version file"
+        #     exit 1
+        # fi
         if [ ${BUILD_TOKUDB_TOKUBACKUP} = 1 ]; then
             FT_TAG=$(git ls-remote --tags https://github.com/percona/PerconaFT.git | grep -c ${PERCONAFT_BRANCH})
             if [ ${FT_TAG} = 0 ]; then
@@ -215,10 +220,12 @@ get_sources(){
     git submodule update
     rm -rf storage/tokudb/PerconaFT
     rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
-    if [ ${PERCONAFT_REPO} = 0 ]; then
+    # Quote both sides + provide :- default so an empty / unset variable
+    # does not collapse to literal `[ = 0 ]` and trip "unary operator expected".
+    if [ "${PERCONAFT_REPO:-}" = "0" ]; then
         PERCONAFT_REPO=''
     fi
-    if [ ${TOKUBACKUP_REPO} = 0 ]; then
+    if [ "${TOKUBACKUP_REPO:-}" = "0" ]; then
         TOKUBACKUP_REPO=''
     fi
 
@@ -261,7 +268,24 @@ get_sources(){
     #
     git submodule update
     #
-    cmake .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DWITH_ZLIB=bundled -DWITH_CURL=bundled
+    # `make dist` is implemented as a cmake-driven custom target in
+    # sql/CMakeLists.txt → cmake/make_dist.cmake.in, which not only
+    # git-archives HEAD but also copies bison-generated parser files
+    # (sql_yacc.{h,cc}, sql_hints.yy.{h,cc}) into the tarball and
+    # autoreconfs the UDF subtree. cmake configure must succeed first
+    # for this target to exist, and PS 9.x requires cmake >= 3.17.5.
+    #
+    # On hosts where the default `cmake` is older than 3.17.5 (some
+    # build agents still ship cmake 3.16.3), fall back to `cmake3`
+    # which is the EPEL/backports alternative providing a newer
+    # version. Same pattern PXC uses in build-ps/pxc_builder.sh.
+    CMAKE_BIN="cmake"
+    if ! cmake --version 2>/dev/null | head -1 | awk '{print $3}' | grep -qE "^([4-9]|3\.(1[7-9]|[2-9][0-9]))"; then
+        if command -v cmake3 >/dev/null 2>&1; then
+            CMAKE_BIN="cmake3"
+        fi
+    fi
+    "${CMAKE_BIN}" .  -DWITH_SSL=system -DFORCE_INSOURCE_BUILD=1 -DWITH_ZLIB=bundled -DWITH_CURL=bundled
     make dist
     #
     EXPORTED_TAR=$(basename $(find . -type f -name percona-server*.tar.gz | sort | tail -n 1))
@@ -306,17 +330,21 @@ get_sources(){
 
     sed -i "s:V8PWD=:V8PWD=${WORKDIR}/v8:g" build-ps/debian/rules
 
+    # Generate debian/rules from template
     sed -i "s:@@PERCONA_VERSION_EXTRA@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/debian/rules
     sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/debian/rules
     sed -i "s:@@TOKUDB_BACKUP_VERSION@@:${TOKUDB_VERSION}:g" build-ps/debian/rules
     #
-    sed -i "s:@@MYSQL_VERSION@@:${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}:g" build-ps/percona-server.spec
-    sed -i "s:@@PERCONA_VERSION@@:${MYSQL_VERSION_EXTRA#-}:g" build-ps/percona-server.spec
-    sed -i "s:@@REVISION@@:${REVISION}:g" build-ps/percona-server.spec
-    sed -i "s:@@RPM_RELEASE@@:${RPM_RELEASE}:g" build-ps/percona-server.spec
-    if [ "x${RHEL}" = "x6" ]; then
-        sed -i "s:-DWITH_ENCRYPTION_UDF=ON:-DWITH_ENCRYPTION_UDF=OFF:g" build-ps/percona-server.spec
-    fi
+    # Generate percona-server.spec from .spec.in template
+    PERCONA_VERSION="${MYSQL_VERSION_EXTRA#-}"
+    MYSQL_VERSION="${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}"
+    COPYRIGHT_YEAR=$(date +"%Y")
+    cp build-ps/percona-server.spec.in build-ps/percona-server.spec
+    sed -i "s:@MYSQL_NO_DASH_VERSION@:${MYSQL_VERSION}:g" build-ps/percona-server.spec
+    sed -i "s:@PERCONA_SERVER_VERSION@:${PERCONA_VERSION}:g" build-ps/percona-server.spec
+    sed -i "s:@PERCONA_REVISION@:${REVISION}:g" build-ps/percona-server.spec
+    sed -i "s:@RPM_RELEASE@:${RPM_RELEASE}:g" build-ps/percona-server.spec
+    sed -i "s:@MYSQL_COPYRIGHT_YEAR@:${COPYRIGHT_YEAR}:g" build-ps/percona-server.spec
     cd ${WORKDIR}/percona-server
 #
     mv "${WORKDIR}"/v8/LICENSE "${WORKDIR}"/v8/LICENSE.v8.libraries
@@ -519,7 +547,7 @@ install_deps() {
         apt-get -y install dh-systemd || true
         apt-get -y install copyright-update
         apt-get -y install curl bison cmake perl libssl-dev libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk
-        apt-get -y install lsb-release libmecab-dev libncurses5-dev libpam-dev zlib1g-dev libcurl4-openssl-dev
+        apt-get -y install lsb-release libmecab-dev libncurses5-dev libpam-dev zlib1g-dev libcurl4-openssl-dev libsystemd-dev
         apt-get -y install libldap2-dev libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl libsasl2-dev patchelf
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install python3-mysqldb
@@ -542,6 +570,22 @@ install_deps() {
             apt-get -y install gcc-14 g++-14
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 --slave /usr/bin/g++ g++ /usr/bin/g++-14
             update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-14 100
+        elif [ x"${DIST}" = xresolute ]; then
+            # Ubuntu 26.04 LTS ships gcc-15 as the default toolchain. The
+            # legacy `else` fallback below installs gcc-11 and points the
+            # gcc/g++/cc alternatives at it, but NOT /usr/bin/c++ — which on
+            # resolute is still g++-15. The result is a mixed-version build
+            # where libkmip's C sources compile with gcc-11 (writing LTO
+            # bytecode 11.3 into libkmip.a) but the C++ link is g++-15 (lto1
+            # 15.1), and link-time LTO aborts with:
+            #   lto1: fatal error: bytecode stream in file libkmip/src/libkmip.a
+            #   generated with LTO version 11.3 instead of the expected 15.1
+            # Pin everything (including the C++ default) at gcc-15 to keep
+            # the whole build on a single toolchain.
+            apt-get -y install gcc-15 g++-15
+            update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100 --slave /usr/bin/g++ g++ /usr/bin/g++-15
+            update-alternatives --install /usr/bin/cc  cc  /usr/bin/gcc-15 100
+            update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-15 100
         else
             apt-get -y install gcc-11 g++-11 cpp-11
             update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 --slave /usr/bin/g++ g++ /usr/bin/g++-11 --slave /usr/bin/gcov gcov /usr/bin/gcov-11
@@ -553,7 +597,16 @@ install_deps() {
         apt-get -y install libudev-dev
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
-        apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        apt-get -y install ccache libevent-dev libre2-dev libtool po-debconf liblz4-dev
+        apt-get -y install libgsasl7 || apt-get -y install gsasl-common || true
+        # libtirpc-dev is required on every modern Debian/Ubuntu: glibc >= 2.26
+        # removed the built-in Sun RPC implementation, and cmake/rpc.cmake
+        # FATAL_ERRORs if system rpc/rpc.h is absent (no bundled-tirpc fallback
+        # despite extra/tirpc/ existing in the tree). Previously only installed
+        # for noble/trixie, so every other distro/arch agent failed
+        # override_dh_auto_configure with "Could not find rpc/rpc.h". Install
+        # it unconditionally. (Ported from release-8.4.9-9-1 commit 3c2a6bab4e1.)
+        apt-get -y install libtirpc-dev
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
         fi
@@ -645,23 +698,30 @@ build_srpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     #
     cd ${WORKDIR}/rpmbuild/SPECS
-    tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/*.spec' --strip=2
+    tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/percona-server.spec' --strip=2
     #
     sed -i "/^%changelog/a - Release ${VERSION}-${RELEASE}" percona-server.spec
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
-    tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
-    tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/mysql_config.sh' --strip=3
+    tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/percona-telemetry-setup.sh' --strip=3
+    tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/percona-telemetry-cleanup.sh' --strip=3
+    #
     cd ${WORKDIR}/rpmbuild/SPECS
+    ls -la
+    cat percona-server.spec
+    grep -n SOURCE999 percona-server.spec
     line_number=$(grep -n SOURCE999 percona-server.spec | awk -F ':' '{print $1}')
     cp ../SOURCES/call-home.sh ./
     awk -v n=$line_number 'NR <= n {print > "part1.txt"} NR > n {print > "part2.txt"}' percona-server.spec
     head -n -1 part1.txt > temp && mv temp part1.txt
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> part1.txt
+    echo "cat <<'CALLHOME' > \$tfn" >> part1.txt
     cat call-home.sh >> part1.txt
     echo "CALLHOME" >> part1.txt
     cat part2.txt >> part1.txt
@@ -694,8 +754,12 @@ build_mecab_lib(){
     wget --no-check-certificate ${MECAB_LINK}
     tar xf ${MECAB_TARBAL}
     if [ x"$ARCH" = "xaarch64" ]; then
-        git clone git://git.savannah.gnu.org/config.git
-        unalias cp
+        # mecab-0.996 ships an old config.guess/config.sub that doesn't
+        # recognize aarch64. Pull updated copies. Use HTTPS — the git://
+        # protocol on port 9418 is deprecated and commonly blocked.
+        rm -rf config
+        git clone --depth=1 https://git.savannah.gnu.org/git/config.git
+        unalias cp 2>/dev/null || true
         cp config/config.guess ${MECAB_DIR}
         cp config/config.sub ${MECAB_DIR}
     fi
@@ -778,9 +842,6 @@ build_rpm(){
     mkdir -vp rpmbuild/{SOURCES,SPECS,BUILD,SRPMS,RPMS}
     #
     mv *.src.rpm rpmbuild/SRPMS
-    if [ "x${RHEL}" = "x6" ]; then
-        source /opt/rh/devtoolset-8/enable
-    fi
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
@@ -791,19 +852,24 @@ build_rpm(){
     build_mecab_dict
 
     cd ${WORKDIR}
-    if [ "x${RHEL}" = "x6" ]; then
-        source /opt/rh/devtoolset-8/enable
-        sudo mv /usr/bin/strip /usr/bin/strip_back
-        sudo ln -s /opt/rh/devtoolset-8/root/usr/bin/strip /usr/bin/strip
-    fi
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
-    else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+    EXTRA_DEFINES=()
+    if [ ${ARCH} != x86_64 ]; then
+        EXTRA_DEFINES+=(--define "with_tokudb 0")
     fi
+    if [ "${ENABLE_PGO}" = "1" ]; then
+        EXTRA_DEFINES+=(--define "with_pgo 1")
+    fi
+
+    rpmbuild \
+        --define "_topdir ${WORKDIR}/rpmbuild" \
+        --define "dist .${OS_NAME}" \
+        --define "with_mecab ${MECAB_INSTALL_DIR}/usr" \
+        --define "with_js_lang ${WORKDIR}/v8" \
+        "${EXTRA_DEFINES[@]}" \
+        --rebuild rpmbuild/SRPMS/${SRCRPM}
 
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
@@ -908,36 +974,48 @@ build_deb(){
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
     cd debian/
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     sed -i 's:exit 0::' percona-server-server.postinst
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server.postinst
+    echo "tfn=\$(/usr/bin/mktemp -p \$(/usr/bin/mktemp -d /tmp/XXXXXXXX) call-home.XXXXXX.sh)" >> percona-server-server.postinst
+    echo "cat <<'CALLHOME' > \$tfn" >> percona-server-server.postinst
     cat call-home.sh >> percona-server-server.postinst
     echo "CALLHOME" >> percona-server-server.postinst
-    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server.postinst
-    echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
-    echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
-    echo "rm -rf /tmp/call-home.sh" >> percona-server-server.postinst
+    echo "bash +x \$tfn -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server.postinst
+    echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server.postinst
+    echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server.postinst
+    echo "rm -rf \$tfn" >> percona-server-server.postinst
     echo "exit 0" >> percona-server-server.postinst
     rm -f call-home.sh
     cd ../
 
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
-        gcc47=$(which gcc-4.7 2>/dev/null || true)
-        if [ -x "${gcc47}" ]; then
-            export CC=gcc-4.7
-            export USE_THIS_GCC_VERSION="-4.7"
-            export CXX=g++-4.7
-        else
-            export CC=gcc-4.8
-            export USE_THIS_GCC_VERSION="-4.8"
-            export CXX=g++-4.8
-        fi
-    fi
+    # NOTE: a legacy block here used to force CC=gcc-4.7 / gcc-4.8 for any
+    # DEBIAN_VERSION not present in a hardcoded allowlist (trusty, xenial,
+    # ..., trixie). It was a MySQL 5.6/5.7-era relic and is actively
+    # harmful for the 8.4/9.x line:
+    #   * MySQL 9.x requires a C++20 toolchain (gcc >= 10); gcc-4.x cannot
+    #     build it even if present.
+    #   * Modern build agents don't ship gcc-4.7/4.8, so cmake aborts with
+    #       Could not find compiler set in environment variable CC: gcc-4.8.
+    #   * Every distro IN the allowlist already builds with the system
+    #     default compiler (the block was skipped for them), so they prove
+    #     the system-default path is correct.
+    #   * USE_THIS_GCC_VERSION it exported was never consumed anywhere.
+    # The block has been removed; let dpkg-buildpackage / cmake use the
+    # agent's default toolchain like the allowlisted distros already do.
+    # Same fix applied to percona-server-8.0_builder.sh on the
+    # release-8.4.9-9-1 line (commit 1a2cb624ee4).
 
 #    if [ ${DEBIAN_VERSION} = "stretch" -o ${DEBIAN_VERSION} = "bionic" -o ${DEBIAN_VERSION} = "focal" -o ${DEBIAN_VERSION} = "buster" -o ${DEBIAN_VERSION} = "disco"  -o ${DEBIAN_VERSION} = "bullseye" -o ${DEBIAN_VERSION} = "bookworm" -o ${DEBIAN_VERSION} = "noble" -o ${DEBIAN_VERSION} = "trixie" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=maybe-uninitialized /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=maybe-uninitialized /' debian/rules
 #    fi
+
+    if [ "${ENABLE_PGO}" = "1" ]; then
+        export DEB_PGO=1
+    fi
 
     dpkg-buildpackage -rfakeroot -uc -us -b
 
@@ -964,14 +1042,20 @@ build_tarball(){
     if [ -f /etc/redhat-release ]; then
       export OS_RELEASE="centos$(lsb_release -sr | awk -F'.' '{print $1}')"
       RHEL=$(rpm --eval %rhel)
-      if [ "x${RHEL}" = "x6" ]; then
-          source /opt/rh/devtoolset-8/enable
-      fi
       if [ "x${RHEL}" = "x7" ]; then
           source /opt/rh/devtoolset-11/enable
       fi
-      if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-13/enable
+      # Source the newest gcc-toolset available. Percona Server 9.x requires
+      # GCC 11+; the system gcc on EL8 is 8.5 and on EL9 is 11.x. We prefer
+      # the newest toolset for performance (especially with PGO+LTO).
+      if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+          for ts in 14 13 12 11; do
+              if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                  source /opt/rh/gcc-toolset-${ts}/enable
+                  echo "build_tarball: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                  break
+              fi
+          done
       fi
     fi
     #
@@ -1011,6 +1095,9 @@ build_tarball(){
     fi
 
     cd ${TARFILE%.tar.gz}
+    # Pass ENABLE_PGO through to build-binary.sh as WITH_PGO so tarball builds
+    # match the PGO behavior of RPM and DEB artifacts.
+    export WITH_PGO="${ENABLE_PGO}"
     if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
@@ -1051,6 +1138,7 @@ INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
+ENABLE_PGO=1
 REVISION=0
 BRANCH="release-9.0.1-1"
 RPM_RELEASE=1

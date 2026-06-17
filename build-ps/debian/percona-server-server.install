@@ -47,9 +47,6 @@ usr/share/mysql/*.sql
 #private shared libs
 usr/lib/mysql/private/libprotobuf-lite.so.*
 usr/lib/mysql/private/libprotobuf.so.*
-usr/lib/mysql/private/libabsl_bad_any_cast_impl.so
-usr/lib/mysql/private/libabsl_bad_optional_access.so
-usr/lib/mysql/private/libabsl_bad_variant_access.so
 usr/lib/mysql/private/libabsl_base.so
 usr/lib/mysql/private/libabsl_city.so
 usr/lib/mysql/private/libabsl_civil_time.so
@@ -78,7 +75,6 @@ usr/lib/mysql/private/libabsl_flags_parse.so
 usr/lib/mysql/private/libabsl_flags_private_handle_accessor.so
 usr/lib/mysql/private/libabsl_flags_program_name.so
 usr/lib/mysql/private/libabsl_flags_reflection.so
-usr/lib/mysql/private/libabsl_flags.so
 usr/lib/mysql/private/libabsl_flags_usage_internal.so
 usr/lib/mysql/private/libabsl_flags_usage.so
 usr/lib/mysql/private/libabsl_graphcycles_internal.so
@@ -101,13 +97,11 @@ usr/lib/mysql/private/libabsl_log_internal_nullguard.so
 usr/lib/mysql/private/libabsl_log_internal_proto.so
 usr/lib/mysql/private/libabsl_log_severity.so
 usr/lib/mysql/private/libabsl_log_sink.so
-usr/lib/mysql/private/libabsl_low_level_hash.so
 usr/lib/mysql/private/libabsl_malloc_internal.so
 usr/lib/mysql/private/libabsl_periodic_sampler.so
 usr/lib/mysql/private/libabsl_random_distributions.so
 usr/lib/mysql/private/libabsl_random_internal_distribution_test_util.so
 usr/lib/mysql/private/libabsl_random_internal_platform.so
-usr/lib/mysql/private/libabsl_random_internal_pool_urbg.so
 usr/lib/mysql/private/libabsl_random_internal_randen_hwaes_impl.so
 usr/lib/mysql/private/libabsl_random_internal_randen_hwaes.so
 usr/lib/mysql/private/libabsl_random_internal_randen_slow.so
@@ -132,6 +126,17 @@ usr/lib/mysql/private/libabsl_synchronization.so
 usr/lib/mysql/private/libabsl_throw_delegate.so
 usr/lib/mysql/private/libabsl_time.so
 usr/lib/mysql/private/libabsl_time_zone.so
+usr/lib/mysql/private/libabsl_decode_rust_punycode.so
+usr/lib/mysql/private/libabsl_demangle_rust.so
+usr/lib/mysql/private/libabsl_hashtable_profiler.so
+usr/lib/mysql/private/libabsl_log_internal_fnmatch.so
+usr/lib/mysql/private/libabsl_log_internal_structured_proto.so
+usr/lib/mysql/private/libabsl_poison.so
+usr/lib/mysql/private/libabsl_profile_builder.so
+usr/lib/mysql/private/libabsl_random_internal_entropy_pool.so
+usr/lib/mysql/private/libabsl_tracing_internal.so
+usr/lib/mysql/private/libabsl_utf8_for_code_point.so
+usr/lib/mysql/private/libabsl_vlog_config_internal.so
 # private data files
 usr/lib/mysql/private/icudt7?l/*.icu
 usr/lib/mysql/private/icudt7?l/brkitr/*
@@ -171,6 +176,14 @@ usr/lib/mysql/plugin/component_test_server_telemetry_logs_export.so
 usr/lib/mysql/plugin/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/component_connection_control.so
 usr/lib/mysql/plugin/component_classic_hashing.so
+usr/lib/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+usr/lib/mysql/plugin/component_group_replication_flow_control_stats.so
+usr/lib/mysql/plugin/component_group_replication_resource_manager.so
+usr/lib/mysql/plugin/component_replication_applier_metrics.so
+usr/lib/mysql/plugin/component_telemetry.so
+usr/lib/mysql/plugin/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/component_test_telemetry_secret_provider.so
+usr/lib/mysql/plugin/telemetry_client.so
 
 usr/lib/mysql/plugin/debug/component_mysqlbackup.so
 usr/lib/mysql/plugin/debug/component_percona_telemetry.so
@@ -207,6 +220,14 @@ usr/lib/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
 usr/lib/mysql/plugin/debug/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/debug/component_connection_control.so
 usr/lib/mysql/plugin/debug/component_classic_hashing.so
+usr/lib/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
+usr/lib/mysql/plugin/debug/component_group_replication_flow_control_stats.so
+usr/lib/mysql/plugin/debug/component_group_replication_resource_manager.so
+usr/lib/mysql/plugin/debug/component_replication_applier_metrics.so
+usr/lib/mysql/plugin/debug/component_telemetry.so
+usr/lib/mysql/plugin/debug/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/debug/component_test_telemetry_secret_provider.so
+usr/lib/mysql/plugin/debug/telemetry_client.so
 
 # Percona plugins
 usr/lib/mysql/plugin/auth_pam.so

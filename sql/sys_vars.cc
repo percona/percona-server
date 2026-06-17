@@ -4270,6 +4270,17 @@ static Sys_var_bool Sys_replica_preserve_commit_order(
 static Sys_var_deprecated_alias Sys_slave_preserve_commit_order(
     "slave_preserve_commit_order", Sys_replica_preserve_commit_order);
 
+static Sys_var_bool Sys_replica_translate_deprecated_priv(
+    "replica_translate_deprecated_priv",
+    "Rewrite replicated SET_USER_ID to "
+    "SET_ANY_DEFINER,ALLOW_NONEXISTENT_DEFINER in the replica SQL "
+    "applier. Disabled by default, does not affect user-issued "
+    "GRANT/REVOKE, and can be changed only while the replica SQL thread "
+    "is stopped.",
+    GLOBAL_VAR(opt_replica_translate_deprecated_priv), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_slave_stopped), ON_UPDATE(nullptr));
+
 bool Sys_var_charptr::global_update(THD *, set_var *var) {
   char *new_val, *ptr = var->save_result.string_value.str;
   const size_t len = var->save_result.string_value.length;

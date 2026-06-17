@@ -1,0 +1,47 @@
+# Files intentionally not installed to any package
+usr/cmake/coredumper-relwithdebinfo.cmake
+usr/cmake/coredumper.cmake
+usr/include/kmip.h
+usr/include/kmippp.h
+usr/lib/*/pkgconfig/perconaserverclient.pc
+usr/lib/libkmip.a
+usr/lib/libkmippp.a
+usr/share/mysql/LICENSE
+usr/share/mysql/README.md
+usr/share/mysql/mysql.server
+usr/src/percona-server/percona-server-source.tar.gz
+# Plugins packaged in percona-server-test or intentionally excluded
+usr/lib/mysql/plugin/ha_mock.so
+usr/lib/mysql/plugin/debug/ha_mock.so
+usr/lib/mysql/plugin/ddl_rewriter.so
+usr/lib/mysql/plugin/debug/ddl_rewriter.so
+usr/lib/mysql/plugin/pfs_example_plugin_employee.so
+usr/lib/mysql/plugin/component_test_audit_api_message.so
+usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
+usr/lib/mysql/plugin/component_test_host_application_signal.so
+usr/lib/mysql/plugin/debug/component_test_host_application_signal.so
+usr/lib/mysql/plugin/test_services_host_application_signal.so
+usr/lib/mysql/plugin/debug/test_services_host_application_signal.so
+usr/lib/mysql/plugin/component_test_sensitive_system_variables.so
+usr/lib/mysql/plugin/debug/component_test_sensitive_system_variables.so
+usr/lib/mysql/plugin/component_test_event_tracking_consumer.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer.so
+usr/lib/mysql/plugin/component_test_event_tracking_consumer_a.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_a.so
+usr/lib/mysql/plugin/component_test_event_tracking_consumer_b.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_b.so
+usr/lib/mysql/plugin/component_test_event_tracking_consumer_c.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_consumer_c.so
+usr/lib/mysql/plugin/component_test_event_tracking_producer_a.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_producer_a.so
+usr/lib/mysql/plugin/component_test_event_tracking_producer_b.so
+usr/lib/mysql/plugin/debug/component_test_event_tracking_producer_b.so
+# Debug plugins already in server-core
+usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
+usr/lib/mysql/plugin/debug/component_log_sink_json.so
+usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/debug/component_validate_password.so
+usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
+# Router plugins
+usr/lib/mysqlrouter/plugin/mysql_rest_service.so

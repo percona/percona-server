@@ -130,7 +130,6 @@ SET(MTR_TESTS_FOR_PROFILING
   json
   main
   sysschema
-  thread_pool
   x
   component_connection_control
   )
@@ -157,7 +156,7 @@ ADD_CUSTOM_TARGET(run-profile-suite
   --accept-test-fail
   --clean-vardir
   --force
-  --max-test-fail=10
+  --max-test-fail=0
   --mem
   --mysqld=--binlog-format=row
   --parallel=${NPROC}

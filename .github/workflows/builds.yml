@@ -8,15 +8,23 @@
 # eu-central-1. Build steps are unchanged; only the runner provisioning path
 # branches.
 #
-# One file, four event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
+# One file, three event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
 #   - pull_request to 8.0        -> Debug + MTR main.1st     (same-repo PRs; Cirrus per-PR replacement)
 #   - pull_request_target to 8.0 -> Debug + MTR main.1st     (PS-11254: fork PRs by percona org members only)
-#   - schedule '0 1 * * *'       -> RelWithDebInfo + binlog_nogtid (Cirrus nightly replacement; per Przemek 2026-05-18)
-#   - workflow_dispatch          -> manual run; pick build_type, optional debug_keep_vm
+#   - workflow_dispatch          -> manual run OR nightly (build_type RelWithDebInfo -> binlog_nogtid)
+#
+# Nightly RelWithDebInfo + binlog_nogtid is NOT a `schedule:` trigger here:
+# GHA cron only fires from the DEFAULT branch, so a cron in this file would be
+# dead on every non-default branch. 8.0 is no longer the default branch (8.4
+# is now), so the in-file cron stopped firing. Instead .github/workflows/
+# builds-nightly.yml lives on the default branch and dispatches THIS file via
+# workflow_dispatch --ref on each maintained branch, so each nightly runs that
+# branch's own self-contained builds.yml (its boost version, cmake/apt deltas).
 #
 # Notes for follow-ups (per Przemek DM 2026-05-27):
-#   - This file lives on the 8.0 branch only. trunk and 8.4 will get the same
-#     shape in separate PRs with their per-branch cmake/apt deltas.
+#   - This file lives on the 8.0 branch. The 8.4 (default) and 9.7 branches
+#     carry the same shape; per-branch deltas are the parent branch, boost
+#     version, and any cmake/apt differences.
 #   - x86_64 nightly RelWithDebInfo can be added as a sibling job reusing the
 #     `dispatch` outputs (BUILD_TYPE / MTR_SUITE / CCACHE_MAXSIZE). Intentionally
 #     not wired in this PR per "we may do it, let's see how arm64 behaves first".
@@ -34,7 +42,7 @@
 # (author_association MEMBER/OWNER/COLLABORATOR). INVARIANT: never add a PR-code
 # checkout to a secret-bearing job.
 
-name: build
+name: builds
 
 on:
   workflow_dispatch:
@@ -84,17 +92,15 @@ on:
       - 'policy/**'
       - 'scripts/**'
       - 'support-files/**'
-  schedule:
-    # 8.0 nightly RelWithDebInfo + binlog_nogtid (Cirrus parity, Przemek 2026-05-18).
-    - cron: '0 1 * * *'
 
 concurrency:
   # PR runs (pull_request + pull_request_target) are cancellable so superseded
-  # pushes do not waste Hetzner cycles; nightly + workflow_dispatch runs stay
-  # protected (cancel-in-progress: false) because they bill paid arm64 minutes.
+  # pushes do not waste Hetzner cycles; workflow_dispatch runs (including the
+  # nightly dispatched from the default branch) stay protected
+  # (cancel-in-progress: false) because they bill paid arm64 minutes.
   # event_name is in the key so a fork PR's (skipped) pull_request run and its
   # real pull_request_target run do not share a group.
-  group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.schedule || github.ref }}
+  group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
 
 # Workflow-level permissions are minimal (contents: read) to limit blast
@@ -191,10 +197,11 @@ jobs:
             pull_request|pull_request_target)
               BT=Debug;          SUITE=main.1st;      CACHE=4G
               ;;
-            schedule)
-              BT=RelWithDebInfo; SUITE=binlog_nogtid; CACHE=8G
-              ;;
             workflow_dispatch)
+              # Manual runs AND the nightly dispatcher (builds-nightly.yml on
+              # the default branch) land here. build_type=RelWithDebInfo ->
+              # binlog_nogtid (Cirrus nightly parity, Przemek 2026-05-18);
+              # build_type=Debug -> main.1st.
               BT="${{ inputs.build_type }}"
               if [ "$BT" = "Debug" ]; then
                 SUITE=main.1st;      CACHE=4G
@@ -255,7 +262,8 @@ jobs:
           set -euo pipefail
 
           # PS-11179: force_provider override (workflow_dispatch only; defaults
-          # to "auto" for pull_request + schedule). Lets operators validate the
+          # to "auto" for pull_request / pull_request_target, and for the nightly
+          # dispatched as workflow_dispatch). Lets operators validate the
           # EC2 path on demand without waiting for a real Hetzner outage, or
           # pin to Hetzner-only when AWS spend must be avoided.
           case "$FORCE_PROVIDER" in
@@ -578,7 +586,7 @@ jobs:
           # refuses to exec it).
           sed -E 's/^          //' <<EOF > /tmp/ec2/userdata.sh
           #!/bin/bash
-          # Inlined from .github/workflows/build.yml (create-runner-aws).
+          # Inlined from .github/workflows/builds.yml (create-runner-aws).
           # This heredoc is the single source of truth for the runner
           # bootstrap script. Do not duplicate it to a separate file
           # (would be a PR-poisonable trusted-bootstrap path; PS-11219).
@@ -610,7 +618,7 @@ jobs:
           [ "\$ok" = 1 ] || { echo "apt install failed after 3 attempts"; exit 1; }
 
           # Unprivileged runner user; /home/runner matches the Hetzner
-          # action's convention and the CCACHE_DIR baked into build.yml.
+          # action's convention and the CCACHE_DIR baked into builds.yml.
           if ! id -u runner >/dev/null 2>&1; then
             useradd --create-home --shell /bin/bash --home-dir /home/runner runner
           fi
@@ -716,7 +724,7 @@ jobs:
           {Key=PerconaKeep,Value=True},\
           {Key=github_run_id,Value=${{ github.run_id }}},\
           {Key=github_run_attempt,Value=${{ github.run_attempt }}},\
-          {Key=github_workflow,Value=build},\
+          {Key=github_workflow,Value=builds},\
           {Key=github_repository,Value=${{ github.repository }}}]"
 
           AZS=(eu-central-1a eu-central-1b eu-central-1c)

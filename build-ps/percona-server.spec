@@ -261,17 +261,21 @@ Requires:       openssl
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 Requires:  percona-telemetry-agent
 %endif
-Obsoletes:     community-mysql-bench
-Obsoletes:     mysql-bench
-Obsoletes:     mariadb-connector-c-config
-Obsoletes:     mariadb-backup
-Obsoletes:     mariadb-bench
-Obsoletes:     mariadb-server
-Obsoletes:     mariadb-server-galera
-Obsoletes:     mariadb-server-utils
-Obsoletes:     mariadb-galera-server
-Obsoletes:     mariadb-gssapi-server
-Obsoletes:     mariadb-oqgraph-engine
+Obsoletes:      community-mysql-bench
+Obsoletes:      mysql-bench
+Obsoletes:      mariadb-connector-c-config mariadb11.8-connector-c-config
+Obsoletes:      mariadb-backup mariadb11.8-backup
+Obsoletes:      mariadb-bench mariadb11.8-bench
+Obsoletes:      mariadb-server mariadb11.8-server
+Obsoletes:      mariadb-server-galera mariadb11.8-server-galera
+Obsoletes:      mariadb-server-utils mariadb11.8-server-utils
+Obsoletes:      mariadb-galera-server mariadb11.8-galera-server
+Obsoletes:      mariadb-gssapi-server mariadb11.8-gssapi-server
+Obsoletes:      mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
+Obsoletes:      mysql8.4-server < 99
+Obsoletes:      mysql8.4 < 99
+Obsoletes:      mysql8.4-common < 99
+Obsoletes:      mysql8.4-errmsg < 99
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
@@ -744,6 +748,8 @@ rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
 rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
+rm -rf %{buildroot}/usr/lib/libkmipclient.a
+rm -rf %{buildroot}/usr/lib/libkmipcore.a
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -830,11 +836,12 @@ if [ -d /etc/percona-server.conf.d ]; then
     fi
 fi
 
+tfn=$(/usr/bin/mktemp -p "$(/usr/bin/mktemp -d /tmp/XXXXXXXX)" call-home.XXXXXX.sh)
 cp %SOURCE999 /tmp/ 2>/dev/null ||
-bash /tmp/call-home.sh -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+bash $tfn -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
 chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :
 chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :
-rm -f /tmp/call-home.sh
+rm -f $tfn
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following command to install these functions (fnv_64, fnv1a_64, murmur_hash):"
@@ -1049,9 +1056,6 @@ fi
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.*
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.*
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_any_cast_impl.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_optional_access.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_bad_variant_access.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_base.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_city.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_civil_time.so
@@ -1080,7 +1084,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_private_handle_accessor.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_program_name.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_reflection.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_flags_usage.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_graphcycles_internal.so
@@ -1103,13 +1106,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_proto.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_severity.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_sink.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_low_level_hash.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_malloc_internal.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_periodic_sampler.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_distributions.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_distribution_test_util.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_platform.so
-%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_pool_urbg.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes_impl.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_hwaes.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_randen_slow.so
@@ -1134,6 +1135,17 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_throw_delegate.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_decode_rust_punycode.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_demangle_rust.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_hashtable_profiler.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_fnmatch.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_log_internal_structured_proto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_poison.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_profile_builder.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_random_internal_entropy_pool.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_tracing_internal.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_utf8_for_code_point.so
+%attr(755, root, root) %{_libdir}/mysql/private/libabsl_vlog_config_internal.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
 %endif # add_fido_plugins
@@ -1205,6 +1217,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_aggregate.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_file_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_telemetry_resource_provider.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_telemetry_secret_provider.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/telemetry_client.so
 
 
 %dir %{_libdir}/mysql/plugin/debug
@@ -1264,6 +1284,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_aggregate.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_file_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_replication_applier_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_telemetry_resource_provider.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_telemetry_secret_provider.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/telemetry_client.so
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif

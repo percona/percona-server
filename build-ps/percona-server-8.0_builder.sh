@@ -27,6 +27,7 @@ Usage: $0 [OPTIONS]
         --rpm_release               RPM version( default = 1)
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
+        --enable_pgo                PGO (Profile-Guided Optimization) build (default = 1, set to 0 to disable)
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -68,6 +69,7 @@ parse_arguments() {
             --rpm_release=*) RPM_RELEASE="$val" ;;
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
+            --enable_pgo=*) ENABLE_PGO="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -556,6 +558,7 @@ install_deps() {
         apt-get -y install build-essential devscripts doxygen doxygen-gui graphviz rsync
         apt-get -y install cmake autotools-dev autoconf automake build-essential devscripts debconf debhelper fakeroot libaio-dev
         apt-get -y install ccache libevent-dev libgsasl7 liblz4-dev libre2-dev libtool po-debconf
+        apt-get -y install libtirpc-dev
         if [ x"${DIST}" = xfocal -o x"${DIST}" = xbionic -o x"${DIST}" = xdisco -o x"${DIST}" = xbuster -o x"${DIST}" = xbullseye -o x"${DIST}" = xjammy -o x"${DIST}" = xbookworm -o x"${DIST}" = xnoble -o x"${DIST}" = xtrixie ]; then
             apt-get -y install libeatmydata1
             apt-get -y install libzstd-dev
@@ -664,7 +667,10 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-provides.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/filter-requires.sh' --strip=3
@@ -675,7 +681,7 @@ build_srpm(){
     cp ../SOURCES/call-home.sh ./
     awk -v n=$line_number 'NR <= n {print > "part1.txt"} NR > n {print > "part2.txt"}' percona-server.spec
     head -n -1 part1.txt > temp && mv temp part1.txt
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> part1.txt
+    echo "cat <<'CALLHOME' > \$tfn" >> part1.txt
     cat call-home.sh >> part1.txt
     echo "CALLHOME" >> part1.txt
     cat part2.txt >> part1.txt
@@ -687,6 +693,12 @@ build_srpm(){
     #
     rpmbuild -bs --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .generic" rpmbuild/SPECS/percona-server.spec
     #
+
+    # Verify RPMs were actually produced
+    if [ -z "$(find ${WORKDIR}/rpmbuild/SRPMS -name '*.rpm' 2>/dev/null)" ]; then
+        echo "ERROR: rpmbuild succeeded but no RPM files were generated!"
+        exit 1
+    fi
 
     mkdir -p ${WORKDIR}/srpm
     mkdir -p ${CURDIR}/srpm
@@ -797,8 +809,17 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-12/enable
+    # Source the newest gcc-toolset available. Percona Server 8.4 builds
+    # benefit from newer GCC for performance (especially with PGO+LTO).
+    # System gcc on EL8 is 8.5 and EL9 is 11.x; prefer the newest toolset.
+    if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+        for ts in 14 13 12 11; do
+            if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                source /opt/rh/gcc-toolset-${ts}/enable
+                echo "build_rpm: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                break
+            fi
+        done
     fi
     build_mecab_lib
     build_mecab_dict
@@ -812,11 +833,21 @@ build_rpm(){
     if [ "x${RHEL}" = "x7" ]; then
         source /opt/rh/devtoolset-11/enable
     fi
-    if [ ${ARCH} = x86_64 ]; then
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
-    else
-        rpmbuild --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .${OS_NAME}" --define "with_tokudb 0" --define "with_mecab ${MECAB_INSTALL_DIR}/usr" --define "with_js_lang ${WORKDIR}/v8" --rebuild rpmbuild/SRPMS/${SRCRPM}
+    EXTRA_DEFINES=()
+    if [ ${ARCH} != x86_64 ]; then
+        EXTRA_DEFINES+=(--define "with_tokudb 0")
     fi
+    # PGO is on by default in the spec; pass the opt-out only when explicitly disabled.
+    if [ "${ENABLE_PGO}" = "0" ]; then
+        EXTRA_DEFINES+=(--define "without_pgo 1")
+    fi
+    rpmbuild \
+        --define "_topdir ${WORKDIR}/rpmbuild" \
+        --define "dist .${OS_NAME}" \
+        --define "with_mecab ${MECAB_INSTALL_DIR}/usr" \
+        --define "with_js_lang ${WORKDIR}/v8" \
+        "${EXTRA_DEFINES[@]}" \
+        --rebuild rpmbuild/SRPMS/${SRCRPM}
 
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
@@ -929,31 +960,22 @@ build_deb(){
 
     postfix=""
     cd debian/
-    wget https://raw.githubusercontent.com/Percona-Lab/telemetry-agent/phase-0/call-home.sh
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     sed -i 's:exit 0::' percona-server-server"${postfix}".postinst
-    echo "cat <<'CALLHOME' > /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "tfn=\$(/usr/bin/mktemp -p \$(/usr/bin/mktemp -d /tmp/XXXXXXXX) call-home.XXXXXX.sh)" >> percona-server-server"${postfix}".postinst
+    echo "cat <<'CALLHOME' > \$tfn" >> percona-server-server"${postfix}".postinst
     cat call-home.sh >> percona-server-server"${postfix}".postinst
     echo "CALLHOME" >> percona-server-server"${postfix}".postinst
-    echo "bash +x /tmp/call-home.sh -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
+    echo "bash +x \$tfn -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
     echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server"${postfix}".postinst
-    echo "rm -rf /tmp/call-home.sh" >> percona-server-server"${postfix}".postinst
+    echo "rm -rf \$tfn" >> percona-server-server"${postfix}".postinst
     echo "exit 0" >> percona-server-server"${postfix}".postinst
     rm -f call-home.sh
     cd ../
-
-    if [ ${DEBIAN_VERSION} != trusty -a ${DEBIAN_VERSION} != xenial -a ${DEBIAN_VERSION} != jessie -a ${DEBIAN_VERSION} != stretch -a ${DEBIAN_VERSION} != artful -a ${DEBIAN_VERSION} != bionic -a ${DEBIAN_VERSION} != focal -a "${DEBIAN_VERSION}" != disco -a "${DEBIAN_VERSION}" != buster -a "${DEBIAN_VERSION}" != hirsute -a "${DEBIAN_VERSION}" != bullseye -a "${DEBIAN_VERSION}" != jammy -a "${DEBIAN_VERSION}" != bookworm -a "${DEBIAN_VERSION}" != noble -a "${DEBIAN_VERSION}" != trixie ]; then
-        gcc47=$(which gcc-4.7 2>/dev/null || true)
-        if [ -x "${gcc47}" ]; then
-            export CC=gcc-4.7
-            export USE_THIS_GCC_VERSION="-4.7"
-            export CXX=g++-4.7
-        else
-            export CC=gcc-4.8
-            export USE_THIS_GCC_VERSION="-4.8"
-            export CXX=g++-4.8
-        fi
-    fi
 
     if [ ${DEBIAN_VERSION} = "xenial" ]; then
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=date-time /' debian/rules
@@ -968,6 +990,12 @@ build_deb(){
         sed -i 's/export CFLAGS=/export CFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
         sed -i 's/export CXXFLAGS=/export CXXFLAGS=-Wno-error=deprecated-declarations -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=unused-parameter -Wno-error=date-time -Wno-error=ignored-qualifiers -Wno-error=class-memaccess -Wno-error=shadow /' debian/rules
     fi
+
+    # PGO is on by default in debian/rules; export the opt-out only when explicitly disabled.
+    if [ "${ENABLE_PGO}" = "0" ]; then
+        export DEB_NO_PGO=1
+    fi
+
     dpkg-buildpackage -rfakeroot -uc -us -b
 
     cd ${WORKDIR}
@@ -999,8 +1027,16 @@ build_tarball(){
       if [ "x${RHEL}" = "x7" ]; then
           source /opt/rh/devtoolset-11/enable
       fi
-      if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-12/enable
+      # Source the newest gcc-toolset available. Percona Server 8.4 builds
+      # benefit from newer GCC for performance (especially with PGO+LTO).
+      if [ "x${RHEL}" = "x8" ] || [ "x${RHEL}" = "x9" ]; then
+          for ts in 14 13 12 11; do
+              if [ -f /opt/rh/gcc-toolset-${ts}/enable ]; then
+                  source /opt/rh/gcc-toolset-${ts}/enable
+                  echo "build_tarball: using gcc-toolset-${ts} ($(gcc --version | head -1))"
+                  break
+              fi
+          done
       fi
     fi
     #
@@ -1040,6 +1076,9 @@ build_tarball(){
     fi
 
     cd ${TARFILE%.tar.gz}
+    # Pass ENABLE_PGO through to build-binary.sh as WITH_PGO so tarball builds
+    # match the PGO behavior of RPM and DEB artifacts.
+    export WITH_PGO="${ENABLE_PGO}"
     if [ "x$WITH_SSL" = "x1" ]; then
         CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1 -DINSTALL_LAYOUT=STANDALONE -DWITH_SSL=$PWD/../ssl/ " bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-v8="${WORKDIR}/v8" --with-jemalloc=../jemalloc/ ../TARGET
         DIRNAME="yassl"
@@ -1080,6 +1119,7 @@ INSTALL=0
 RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
+ENABLE_PGO=1
 REVISION=0
 BRANCH="release-8.0.30-22"
 RPM_RELEASE=1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,3 +77,5 @@ LEX_CSTRING error_class_name = {STRING_WITH_LEN("error")};
 LEX_CSTRING meter_instrument_prefix = {STRING_WITH_LEN("meter")};
 
 LEX_CSTRING metric_instrument_prefix = {STRING_WITH_LEN("metric")};
+
+LEX_CSTRING logger_instrument_prefix = {STRING_WITH_LEN("logger")};

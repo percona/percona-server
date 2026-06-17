@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ bool PFS_index_session_connect::match(row_session_connect_attrs *row) {
 
 table_session_connect::table_session_connect(
     const PFS_engine_table_share *share)
-    : cursor_by_thread_connect_attr(share) {
+    : cursor_by_thread_connect_attr(share), m_opened_index(nullptr) {
   if (session_connect_attrs_size_per_thread > 0) {
     m_copy_session_connect_attrs = (char *)my_malloc(
         PSI_INSTRUMENT_ME, session_connect_attrs_size_per_thread, MYF(0));
@@ -84,12 +84,12 @@ int table_session_connect::index_init(uint idx [[maybe_unused]], bool) {
 int table_session_connect::index_next() {
   PFS_thread *thread;
   bool has_more_thread = true;
-  int rc = 0;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != nullptr) {
       if (m_opened_index->match(thread)) {
+        int rc;
         do {
           /*
             Here we materialize the row first,

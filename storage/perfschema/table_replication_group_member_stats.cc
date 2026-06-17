@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@
 static void set_channel_name(void *const context, const char &value,
                              size_t length) {
   auto *row = static_cast<struct st_row_group_member_stats *>(context);
-  const size_t max = CHANNEL_NAME_LENGTH;
+  constexpr size_t max = CHANNEL_NAME_LENGTH;
   length = std::min(length, max);
 
   row->channel_name_length = length;
@@ -59,7 +59,7 @@ static void set_channel_name(void *const context, const char &value,
 
 static void set_view_id(void *const context, const char &value, size_t length) {
   auto *row = static_cast<struct st_row_group_member_stats *>(context);
-  const size_t max = HOSTNAME_LENGTH;
+  constexpr size_t max = HOSTNAME_LENGTH;
   length = std::min(length, max);
 
   row->view_id_length = length;
@@ -69,7 +69,7 @@ static void set_view_id(void *const context, const char &value, size_t length) {
 static void set_member_id(void *const context, const char &value,
                           size_t length) {
   auto *row = static_cast<struct st_row_group_member_stats *>(context);
-  const size_t max = UUID_LENGTH;
+  constexpr size_t max = UUID_LENGTH;
   length = std::min(length, max);
 
   row->member_id_length = length;
@@ -93,7 +93,7 @@ static void set_last_conflict_free_transaction(void *const context,
                                                const char &value,
                                                size_t length) {
   auto *row = static_cast<struct st_row_group_member_stats *>(context);
-  const size_t max = Gtid::MAX_TEXT_LENGTH + 1;
+  constexpr size_t max = Gtid::MAX_TEXT_LENGTH + 1;
   length = std::min(length, max);
 
   row->last_cert_trx_length = length;

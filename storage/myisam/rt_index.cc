@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -685,7 +685,6 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                             stPageList *ReinsertList, int level) {
   uchar *k;
   uchar *last;
-  ulong i;
   uint nod_flag;
   uchar *page_buf;
   int res;
@@ -704,7 +703,7 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   last = rt_PAGE_END(page_buf);
 
-  for (i = 0; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag), ++i) {
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag)) {
     if (nod_flag) {
       /* not leaf */
       if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN)) {

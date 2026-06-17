@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,9 +57,9 @@ struct row_setup_objects {
   /** Column OBJECT_NAME. */
   PFS_object_name m_object_name;
   /** Column ENABLED. */
-  bool *m_enabled_ptr;
+  bool *m_enabled_ptr{nullptr};
   /** Column TIMED. */
-  bool *m_timed_ptr;
+  bool *m_timed_ptr{nullptr};
 };
 
 class PFS_index_setup_objects : public PFS_engine_index {

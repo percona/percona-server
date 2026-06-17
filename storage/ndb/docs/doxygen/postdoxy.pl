@@ -1,4 +1,4 @@
-# Copyright (C) 2003, 2024, Oracle and/or its affiliates.
+# Copyright (C) 2003, 2026, Oracle and/or its affiliates.
 # Use is subject to license terms
 #
 # This program is free software; you can redistribute it and/or modify

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,8 @@ table_global_variables::table_global_variables()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(false),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_global_variables::reset_position() {
   m_pos.m_index = 0;
@@ -151,9 +152,8 @@ int table_global_variables::index_init(uint idx [[maybe_unused]], bool) {
   */
   m_sysvar_cache.materialize_global();
 
-  PFS_index_global_variables *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_global_variables);
+  auto *result = PFS_NEW(PFS_index_global_variables);
   m_opened_index = result;
   m_index = result;
 
@@ -181,7 +181,8 @@ int table_global_variables::make_row(const System_variable *system_var) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
+  m_row.m_variable_name.make_row(system_var->m_name_str,
+                                 system_var->m_name_length);
   m_row.m_variable_value.make_row(system_var);
 
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2023, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ static void get_metric_simple_integer(void *measurement_context,
   assert(delivery != nullptr);
   // OTEL only supports int64_t integer counters, clamp wider types
   const T measurement = *(T *)measurement_context;
-  const int64_t value = Clamp<int64_t>(measurement);
+  const auto value = Clamp<int64_t>(measurement);
   delivery->value_int64(delivery_context, value);
 }
 
@@ -64,7 +64,7 @@ static void get_metric_mutex_instances_lost(
   // see show_func_mutex_instances_lost()
   assert(delivery != nullptr);
   const auto measurement = global_mutex_container.get_lost_counter();
-  const int64_t value = Clamp<int64_t>(measurement);
+  const auto value = Clamp<int64_t>(measurement);
   delivery->value_int64(delivery_context, value);
 }
 
@@ -149,6 +149,12 @@ static PSI_metric_info_v1 ps_metrics[] = {
      MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
      get_metric_simple_integer<decltype(metric_class_lost)>,
      &metric_class_lost},
+    {"logger_lost", "",
+     "How many logger instruments could not be loaded "
+     "(Performance_schema_logger_lost)",
+     MetricOTELType::ASYNC_COUNTER, MetricNumType::METRIC_INTEGER, 0, 0,
+     get_metric_simple_integer<decltype(logger_class_lost)>,
+     &logger_class_lost},
     {"mutex_classes_lost", "",
      "How many mutex instruments could not be loaded "
      "(Performance_schema_mutex_classes_lost)",

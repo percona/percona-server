@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -178,7 +178,10 @@ ha_rows table_setup_actors::get_row_count() {
 }
 
 table_setup_actors::table_setup_actors()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_setup_actors::reset_position() {
   m_pos.m_index = 0;
@@ -214,9 +217,8 @@ int table_setup_actors::rnd_pos(const void *pos) {
 }
 
 int table_setup_actors::index_init(uint idx [[maybe_unused]], bool) {
-  PFS_index_setup_actors *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_setup_actors);
+  auto *result = PFS_NEW(PFS_index_setup_actors);
   m_opened_index = result;
   m_index = result;
   return 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3758,6 +3758,13 @@ class Lex_input_stream {
   const int grammar_selector_token;
 
   bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
+
+  /**
+    Next parse position at which to check for client disconnect.
+    Used by my_sql_parser_lex() to periodically call is_connected()
+    for large queries, without incurring syscall overhead on every token.
+  */
+  size_t m_next_connected_check_pos{0};
 };
 
 class LEX_COLUMN {

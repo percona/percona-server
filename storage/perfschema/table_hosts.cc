@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -119,8 +119,7 @@ int table_hosts::delete_all_rows() {
 table_hosts::table_hosts() : cursor_by_host(&m_share) {}
 
 int table_hosts::index_init(uint, bool) {
-  PFS_index_hosts *result = nullptr;
-  result = PFS_NEW(PFS_index_hosts_by_host);
+  PFS_index_hosts *result = PFS_NEW(PFS_index_hosts_by_host);
   m_opened_index = result;
   m_index = result;
   return 0;

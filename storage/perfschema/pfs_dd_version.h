@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -282,8 +282,13 @@
   80407:
    - Percona Server added performance_schema.account_failed_login_lock_stats
      table.
+
+  80409:
+
+   - WL#15201 PERFORMANCE_SCHEMA, OTEL INTERFACE: LOG
+     - New table performance_schema.setup_logger.
 */
 
-static const uint PFS_DD_VERSION = 80407;
+static const uint PFS_DD_VERSION = 80409;
 
 #endif /* PFS_DD_VERSION_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 
 #include "storage/perfschema/pfs_builtin_memory.h"
 
-#include <assert.h>
+#include <cassert>
 
 #include "storage/perfschema/pfs_global.h"
 
@@ -102,6 +102,7 @@ PFS_builtin_memory_class builtin_memory_meter_class;
 PFS_builtin_memory_class builtin_memory_meter;
 PFS_builtin_memory_class builtin_memory_metric_class;
 PFS_builtin_memory_class builtin_memory_metric;
+PFS_builtin_memory_class builtin_memory_logger_class;
 
 PFS_builtin_memory_class builtin_memory_setup_actor;
 PFS_builtin_memory_class builtin_memory_setup_object;
@@ -352,6 +353,9 @@ init_all_builtin_memory_class()
   init_builtin_memory_class(&builtin_memory_metric_class,
                             GEN_DOC("metric_class", "metric instrument classes"));
 
+  init_builtin_memory_class(&builtin_memory_logger_class,
+                            GEN_DOC("logger_class", "logger instrument classes"));
+
   init_builtin_memory_class(&builtin_memory_setup_actor,
                             TABLE_DOC("setup_actors"));
 
@@ -478,6 +482,7 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
   &builtin_memory_memory_class,
   &builtin_memory_meter_class,
   &builtin_memory_metric_class,
+  &builtin_memory_logger_class,
 
   &builtin_memory_setup_actor,
   &builtin_memory_setup_object,

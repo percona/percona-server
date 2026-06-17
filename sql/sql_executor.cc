@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3511,7 +3511,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   }
 
   // 3. Put the rowids
-  for (uint i = 0; tab != tab_end; tab++, i++) {
+  for (; tab != tab_end; tab++) {
     handler *h = tab->qep_tab->table()->file;
     if (tab->qep_tab->table()->is_nullable() &&
         tab->qep_tab->table()->has_null_row()) {

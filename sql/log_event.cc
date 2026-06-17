@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
    Copyright (c) 2018, Percona and/or its affiliates.
    Copyright (c) 2009, 2016, MariaDB
 

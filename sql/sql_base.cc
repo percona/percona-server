@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9674,7 +9674,7 @@ bool insert_fields(THD *thd, Query_block *query_block, const char *db_name,
         **it = item; /* Replace '*' with the first found item. */
       } else {
         /* Add 'item' to the SELECT list, after the current one. */
-        *it = fields->insert(std::next(*it), item);
+        *it = fields->insert(*it + 1, item);
       }
 
       /*

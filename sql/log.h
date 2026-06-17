@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1425,6 +1425,21 @@ enum loglevel log_prio_from_label(const char *label);
   @retval          int                  number of fields in created log line
 */
 int log_line_submit(log_line *ll);
+
+/**
+  Set/reset one or more log line flags.
+
+  Example to set the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, LOG_LINE_EMIT_TELEMETRY);
+  to reset the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, 0);
+
+  @param           ll                  log line structure
+  @param           mask                mask that defines flags to be changed
+  @param           value               value to set to selected flags
+*/
+void log_line_set_flag(log_line *ll, log_line_flags_mask mask,
+                       log_line_flags_mask value);
 
 /**
   Whether to generate a UTC timestamp, or one following system-time.

@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -353,6 +353,8 @@ for p in \
          component_test_pfs_notification.so \
          component_test_pfs_resource_group.so \
          component_test_sensitive_system_variables.so \
+         component_test_server_telemetry_logs_client.so \
+         component_test_server_telemetry_logs_export.so \
          component_test_server_telemetry_metrics.so \
          component_test_server_telemetry_traces.so \
          component_test_status_var_service_int.so \

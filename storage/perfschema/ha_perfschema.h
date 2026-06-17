@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,6 @@ class ha_perfschema : public handler {
   const char *table_type() const override { return pfs_engine_name; }
 
   const char *index_type(uint key_number);
-
-  const char **bas_ext() const;
 
   /** Capabilities of the performance schema tables. */
   ulonglong table_flags() const override {

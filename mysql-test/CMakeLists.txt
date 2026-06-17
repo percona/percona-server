@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2026, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,6 @@ SET(MTR_TESTS_FOR_PROFILING
   json
   main
   sysschema
-  thread_pool
   x
   )
 STRING(REPLACE ";" "," MTR_SUITE_STRING "${MTR_TESTS_FOR_PROFILING}")
@@ -156,7 +155,7 @@ ADD_CUSTOM_TARGET(run-profile-suite
   --accept-test-fail
   --clean-vardir
   --force
-  --max-test-fail=10
+  --max-test-fail=0
   --mem
   --mysqld=--binlog-format=row
   --parallel=${NPROC}

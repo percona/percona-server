@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,10 @@ ha_rows table_prepared_stmt_instances::get_row_count() {
 }
 
 table_prepared_stmt_instances::table_prepared_stmt_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {
   m_normalizer = time_normalizer::get_statement();
 }
 

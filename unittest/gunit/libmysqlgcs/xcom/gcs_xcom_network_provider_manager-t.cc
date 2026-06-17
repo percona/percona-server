@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -340,5 +340,22 @@ TEST_F(XComNetworkProviderManagerTest,
       XCOM_PROTOCOL);
 
   free(connection_to);
+}
+
+TEST_F(XComNetworkProviderManagerTest, CloseNullConnectionDoesNotCallProvider) {
+  std::shared_ptr<mock_network_provider> const mock_provider =
+      std::make_shared<mock_network_provider>();
+  EXPECT_CALL(*mock_provider, get_communication_stack())
+      .WillRepeatedly(testing::Return(XCOM_PROTOCOL));
+  EXPECT_CALL(*mock_provider, close_connection(testing::_)).Times(0);
+
+  Network_provider_manager::getInstance().add_network_provider(mock_provider);
+
+  EXPECT_EQ(
+      Network_provider_manager::getInstance().close_xcom_connection(nullptr),
+      -1);
+
+  Network_provider_manager::getInstance().remove_network_provider(
+      XCOM_PROTOCOL);
 }
 }  // namespace gcs_xcom_networkprovidermamangertest

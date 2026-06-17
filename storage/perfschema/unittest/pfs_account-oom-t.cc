@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "storage/perfschema/unittest/stub_pfs_global.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
+#include "storage/perfschema/unittest/stub_server_logs.h"
 #include "storage/perfschema/unittest/stub_server_telemetry.h"
 #include "storage/perfschema/unittest/stub_telemetry_metrics.h"
 #include "unittest/mytap/tap.h"
@@ -97,7 +98,7 @@ static void initialize_performance_schema_helper(PFS_global_param *param) {
 
 static void test_oom() {
   PFS_global_param param;
-  PFS_account *pfs_account;
+  const PFS_account *pfs_account;
   PFS_user_name username;
   PFS_host_name hostname;
 

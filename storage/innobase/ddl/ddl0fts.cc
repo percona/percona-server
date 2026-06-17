@@ -1,6 +1,6 @@
 /****************************************************************************
 
-Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -422,7 +422,7 @@ dberr_t FTS::Parser::enqueue(FTS::Doc_item *doc_item) noexcept {
     return err;
   }
 
-  const auto sz = sizeof(*doc_item) + doc_item->m_field->len;
+  const auto sz = sizeof(*doc_item) + doc_item->m_field.len;
 
   m_memory_used.fetch_add(sz, std::memory_order_relaxed);
 
@@ -430,7 +430,7 @@ dberr_t FTS::Parser::enqueue(FTS::Doc_item *doc_item) noexcept {
     auto err = get_error();
 
     if (err != DB_SUCCESS) {
-      ut::delete_(doc_item);
+      ut::free(doc_item);
       m_memory_used.fetch_sub(sz, std::memory_order_relaxed);
       return err;
     }
@@ -438,14 +438,15 @@ dberr_t FTS::Parser::enqueue(FTS::Doc_item *doc_item) noexcept {
     std::this_thread::sleep_for(std::chrono::microseconds(1000));
   }
 
-  size_t retries{};
-  constexpr size_t MAX_RETRIES{10000};
   constexpr auto LIMIT = PENDING_DOC_MEMORY_LIMIT;
 
-  /* Sleep when memory used exceeds limit. */
-  while (m_memory_used.load(std::memory_order_relaxed) > LIMIT &&
-         retries < MAX_RETRIES) {
-    ++retries;
+  while (m_memory_used.load(std::memory_order_relaxed) > LIMIT) {
+    const auto err = get_error();
+
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+
     std::this_thread::sleep_for(std::chrono::microseconds(1000));
   }
 
@@ -818,6 +819,7 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
     cur_len += t_str.f_len < 128 ? 2 : 3;
 
     if (!key_buffer->will_fit(cur_len)) {
+      key_buffer->pop_unfinished_tuple();
       buf_full = true;
       break;
     }
@@ -851,7 +853,7 @@ void FTS::Parser::get_next_doc_item(FTS::Doc_item *&doc_item) noexcept {
   }
 
   if (doc_item != nullptr) {
-    const auto sz = sizeof(FTS::Doc_item) + doc_item->m_field->len;
+    const auto sz = sizeof(FTS::Doc_item) + doc_item->m_field.len;
     ut_a(m_memory_used >= sz);
 
     m_memory_used.fetch_sub(sz, std::memory_order_relaxed);
@@ -1001,7 +1003,7 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
   buffer flushing and polling for more data. */
   for (;;) {
     while (doc_item != nullptr) {
-      auto dfield = doc_item->m_field;
+      const dfield_t *dfield = &doc_item->m_field;
 
       last_doc_id = doc_item->m_doc_id;
 
@@ -1010,7 +1012,6 @@ void FTS::Parser::parse(Builder *builder, uint32_t space_id) noexcept {
       /* If finish processing the last item, update "doc" with strings in the
       doc_item, otherwise continue processing last item. */
       if (processed) {
-        dfield = doc_item->m_field;
         auto data = static_cast<byte *>(dfield_get_data(dfield));
         auto data_len = dfield_get_len(dfield);
 

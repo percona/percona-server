@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -3693,7 +3693,7 @@ ER_AUDIT_LOG_EC_WRITER_FAILED_TO_CREATE_FILE
 ER_AUDIT_LOG_RENAME_LOG_FILE_BEFORE_FLUSH
   eng "Audit log file (%s) must be manually renamed before audit_log_flush is set to true."
 
-ER_AUDIT_LOG_FILTER_RESULT_MSG
+OBSOLETE_ER_AUDIT_LOG_FILTER_RESULT_MSG
   eng "%s"
 
 ER_AUDIT_LOG_JSON_READER_FAILED_TO_PARSE
@@ -12359,6 +12359,21 @@ ER_IB_WRN_REDO_DISABLED_INFO
 
 ER_IB_MSG_LOG_WRITER_WAIT_ON_NEW_LOG_FILE_INFO
   eng "Redo log writer is waiting for a new redo log file. Consider increasing innodb_redo_log_capacity. The current log capacity is %llu bytes. The log capacity used is %llu bytes."
+
+ER_AUDIT_LOG_INVALID_FILTER_LOG_ALL
+  eng "The '%s' filter is invalid: %s The operation will continue, and all activities will be logged for this filter. Please fix the filter using the '%s' UDF."
+
+ER_AUDIT_LOG_INVALID_FILTER_LOG_NOTHING
+  eng "The '%s' filter is invalid: %s The operation will continue, but logging for this filter has been disabled. Please fix the filter using the '%s' UDF, or change the '%s' variable to LOG_ALL_IF_INVALID_FILTER_DETECTED."
+
+ER_AUDIT_LOG_INVALID_FILTER_ABORT
+  eng "The '%s' filter is invalid: %s The operation has been aborted. Please fix the filter using the '%s' UDF, or change the '%s' variable as required."
+
+ER_AUDIT_LOG_JSON_INVALID_FILTER_CANNOT_BE_USED
+  eng "The '%s' filter is invalid and cannot be used until corrected. Please apply the '%s' UDF to resolve the issue."
+
+ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED_LOG
+  eng "The '%s' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
 #
 # End of 8.0 error messages intended to be written to the server error log.

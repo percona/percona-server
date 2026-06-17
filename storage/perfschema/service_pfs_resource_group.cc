@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,20 +33,6 @@
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/pfs_services.h"
 #include "template_utils.h"
-
-extern int pfs_set_thread_resource_group_vc(const char *group_name,
-                                            int group_name_len,
-                                            void *user_data);
-extern int pfs_set_thread_resource_group_by_id_vc(PSI_thread *thread,
-                                                  ulonglong thread_id,
-                                                  const char *group_name,
-                                                  int group_name_len,
-                                                  void *user_data);
-extern int pfs_get_thread_system_attrs_vc(PSI_thread_attrs *thread_attrs);
-
-extern int pfs_get_thread_system_attrs_by_id_vc(PSI_thread *thread,
-                                                ulonglong thread_id,
-                                                PSI_thread_attrs *thread_attrs);
 
 int impl_pfs_set_thread_resource_group(const char *group_name,
                                        int group_name_len, void *user_data) {

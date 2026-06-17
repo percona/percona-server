@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,7 @@ PFS_account *find_or_create_account(PFS_thread *thread,
   PFS_account **entry;
   PFS_account *pfs;
   uint retry_count = 0;
-  const uint retry_max = 3;
+  constexpr uint retry_max = 3;
   pfs_dirty_state dirty_state;
 
 search:
@@ -602,7 +602,7 @@ void PFS_account::release() { dec_refcount(); }
 
 void PFS_account::rebase_memory_stats() {
   PFS_memory_shared_stat *stat = m_instr_class_memory_stats;
-  PFS_memory_shared_stat *stat_last = stat + memory_class_max;
+  const PFS_memory_shared_stat *stat_last = stat + memory_class_max;
   for (; stat < stat_last; stat++) {
     stat->reset();
   }

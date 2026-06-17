@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _TERMINOLOGY_USE_PREVIOUS_H_
-#define _TERMINOLOGY_USE_PREVIOUS_H_
+#ifndef TERMINOLOGY_USE_PREVIOUS_H_
+#define TERMINOLOGY_USE_PREVIOUS_H_
 
 #include "storage/perfschema/pfs_instr_class.h"  // PFS_class_type
 
@@ -83,7 +83,7 @@ struct compatible_name_t {
   was introduced.  If there is no alternative name, 'old_name' is
   nullptr and version is 0.
 */
-compatible_name_t lookup(PFS_class_type class_type, std::string str,
+compatible_name_t lookup(PFS_class_type class_type, const std::string &str,
                          bool use_prefix = true);
 
 /**
@@ -103,4 +103,4 @@ bool is_older_required(enum_compatibility_version version);
 
 }  // namespace terminology_use_previous
 
-#endif  // ifndef _TERMINOLOGY_USE_PREVIOUS_H_
+#endif  // ifndef TERMINOLOGY_USE_PREVIOUS_H_

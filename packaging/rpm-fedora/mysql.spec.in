@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@
 %global with_meb    1
 %global with_router 1
 %endif
+
+# PGO option
+%{?with_pgo:   %global pgo 1}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
@@ -432,6 +435,10 @@ This package contains the client-plugins libraries used by MySQL client applicat
 Summary:       MySQL Router
 Requires:      shadow-utils
 Provides:      mysql-router = %{version}-%{release}
+%if 0%{?fedora} >= 43
+Provides:      user(mysqlrouter)
+Provides:      group(mysqlrouter)
+%endif
 Obsoletes:     mysql-router < %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:     mysql-router-community < %{version}-%{release}
@@ -615,6 +622,7 @@ mkdir release
 (
   cd release
   cmake ../%{src_dir} \
+           %{?pgo:-DFPROFILE_GENERATE=1} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -646,6 +654,53 @@ mkdir release
   echo BEGIN_NORMAL_CONFIG ; grep -E '^#define' include/my_config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
+
+%if 0%{?pgo}
+(
+  # Run some MTR load to generate profile data
+  pushd release
+  make run-profile-suite
+  rm -r $(readlink mysql-test/var)
+  popd
+
+  # Build again with profile data present
+  rm -rf release
+  mkdir release && pushd release
+  cmake ../%{src_dir} \
+           -DFPROFILE_USE=1 \
+           -DBUILD_CONFIG=mysql_release \
+           -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DTMPDIR=/var/tmp \
+           -DWITH_CURL=system \
+           -DWITH_FIDO=system \
+           -DWITH_MECAB=system \
+           -DWITH_ZLIB=system \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster:1}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
+%endif
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=ON \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
+  make %{?_smp_mflags} VERBOSE=1
+)
+%endif # pgo
 
 %install
 
@@ -1220,6 +1275,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
@@ -1320,6 +1377,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_logs_export.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so

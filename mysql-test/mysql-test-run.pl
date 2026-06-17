@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -305,7 +305,10 @@ our @DEFAULT_SUITES = qw(
   audit_log
   component_audit_log_filter
   percona
+  percona_binlog
   percona_innodb
+  percona_rpl
+  percona_rpl_gtid
   percona-pam-for-mysql
   component_encryption_udf
   component_js_lang

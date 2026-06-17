@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -575,14 +575,11 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 
 #else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
-
-  if (SSL_CTX_set_ecdh_auto(ssl_fd->ssl_context, 1) != 1) {
-    *error = SSL_INITERR_DHFAIL;
-    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
-    report_errors();
-    SSL_CTX_free(ssl_fd->ssl_context);
-    my_free(ssl_fd);
-    return nullptr;
+  {
+    if (SSL_CTX_set_ecdh_auto(ssl_fd->ssl_context, 1) != 1) {
+      *error = SSL_INITERR_DHFAIL;
+      goto error;
+    }
   }
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 

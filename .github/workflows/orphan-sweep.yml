@@ -16,7 +16,7 @@ on:
         type: boolean
         default: false
       max_age_hours:
-        description: 'Orphan age threshold (hours); default 2h; lower at your own risk (build-arm64 has timeout-minutes: 180)'
+        description: 'Orphan age threshold (hours); default 6h; lower at your own risk (build-arm64 has timeout-minutes: 240)'
         type: string
         default: '6'
 

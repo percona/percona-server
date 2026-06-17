@@ -112,14 +112,14 @@ env:
   BUILD_PARAMS_TYPE: normal
   COMPILER: gcc
   COMPILER_VER: ''
-  IMAGE_NAME: ubuntu-24.04
-  UBUNTU_CODE_NAME: noble
+  IMAGE_NAME: ubuntu-26.04
+  UBUNTU_CODE_NAME: resolute
   BOOST_VERSION: boost_1_87_0
   USE_CCACHE: '1'
   CCACHE_COMPRESS: '1'
   CCACHE_COMPRESSLEVEL: '9'
   CCACHE_CPP2: '1'
-  IMAGE: ubuntu-24.04
+  IMAGE: ubuntu-26.04
   SSH_KEY_ID: '107239874'
   EPHEMERAL_RUNNER_NAME: ps-arm64-${{ github.run_id }}-${{ github.run_attempt }}
   # PS-11179: EC2 fallback knobs. eu-central-1 chosen to match the existing
@@ -450,7 +450,7 @@ jobs:
   #   - Instance type: c7g.4xlarge (16 vCPU / 32 GB Graviton3 == cax41 parity).
   #   - Spot first across eu-central-1a/1b/1c; on InsufficientInstanceCapacity
   #     in all 3 AZs, retry on-demand across the same 3 AZs.
-  #   - AMI: Canonical Ubuntu 24.04 arm64 resolved via SSM Parameter Store
+  #   - AMI: Canonical Ubuntu 26.04 arm64 resolved via SSM Parameter Store
   #     at runtime (no hardcoded AMI ID; auto-refreshes weekly).
   #   - Self-termination: --instance-initiated-shutdown-behavior terminate
   #     combined with userData `shutdown -h now` after runner exits;
@@ -518,19 +518,19 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-      # Resolve the current Canonical Ubuntu 24.04 arm64 AMI from SSM at
+      # Resolve the current Canonical Ubuntu 26.04 arm64 AMI from SSM at
       # runtime. Canonical refreshes this parameter weekly with security
       # patches; never hardcode the AMI ID in this workflow.
-      - name: Resolve Ubuntu 24.04 arm64 AMI
+      - name: Resolve Ubuntu 26.04 arm64 AMI
         id: ami
         run: |
           set -euo pipefail
           AMI=$(aws ssm get-parameter \
-            --name /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id \
+            --name /aws/service/canonical/ubuntu/server/26.04/stable/current/arm64/hvm/ebs-gp3/ami-id \
             --region "$AWS_REGION" \
             --query Parameter.Value --output text)
           if [ -z "$AMI" ] || [ "$AMI" = "None" ]; then
-            echo "::error::Failed to resolve Ubuntu 24.04 arm64 AMI from SSM"
+            echo "::error::Failed to resolve Ubuntu 26.04 arm64 AMI from SSM"
             exit 1
           fi
           echo "Resolved AMI: $AMI"
@@ -605,7 +605,7 @@ jobs:
           for i in 1 2 3; do
             if apt-get update -y \\
                && apt-get install -y --no-install-recommends \\
-                    curl ca-certificates jq tar libicu74 git sudo; then
+                    curl ca-certificates jq tar libicu78 git sudo; then
               ok=1
               break
             fi
@@ -720,7 +720,7 @@ jobs:
           {Key=PerconaKeep,Value=True},\
           {Key=github_run_id,Value=${{ github.run_id }}},\
           {Key=github_run_attempt,Value=${{ github.run_attempt }}},\
-          {Key=github_workflow,Value=build},\
+          {Key=github_workflow,Value=builds},\
           {Key=github_repository,Value=${{ github.repository }}}]"
 
           AZS=(eu-central-1a eu-central-1b eu-central-1c)
@@ -743,7 +743,7 @@ jobs:
             # attempt + az + market fits comfortably.
             local client_token="ps-${{ github.run_id }}-${{ github.run_attempt }}-${az}-${market}"
             set +e
-            # Canonical's Ubuntu 24.04 ARM64 AMI defaults the root volume to
+            # Canonical's Ubuntu 26.04 ARM64 AMI defaults the root volume to
             # 8 GB which fills up partway through the percona-server Debug
             # build (boost + ccache + intermediate objects). Override to
             # 80 GB gp3, delete-on-termination so the volume dies with the

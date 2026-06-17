@@ -25,7 +25,7 @@ VARIABLE_NAME LIKE '%source%') AND
 (VARIABLE_NAME NOT LIKE 'innodb%')
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc [Expect 113 variables in the table.]
+include/assert.inc [Expect 114 variables in the table.]
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -145,6 +145,7 @@ SET PERSIST replica_skip_errors = @@GLOBAL.replica_skip_errors;
 ERROR HY000: Variable 'replica_skip_errors' is a read only variable
 SET PERSIST replica_sql_verify_checksum = @@GLOBAL.replica_sql_verify_checksum;
 SET PERSIST replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET PERSIST replica_translate_deprecated_priv = @@GLOBAL.replica_translate_deprecated_priv;
 SET PERSIST replica_type_conversions = @@GLOBAL.replica_type_conversions;
 SET PERSIST replication_optimize_for_static_plugin_config = @@GLOBAL.replication_optimize_for_static_plugin_config;
 SET PERSIST replication_sender_observe_commit_only = @@GLOBAL.replication_sender_observe_commit_only;
@@ -245,16 +246,16 @@ Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a futu
 Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
 SET PERSIST sync_source_info = @@GLOBAL.sync_source_info;
 
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 89 persisted variables in persisted_variables table.]
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc [Expect 88 persisted variables in persisted_variables table.']
-include/assert.inc [Expect 88 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc [Expect 88 persisted variables with matching persisted and global values.]
+include/assert.inc [Expect 89 persisted variables in persisted_variables table.']
+include/assert.inc [Expect 89 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc [Expect 89 persisted variables with matching persisted and global values.]
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -377,6 +378,7 @@ Warnings:
 Warning	3615	Variable replica_skip_errors does not exist in persisted config file
 RESET PERSIST IF EXISTS replica_sql_verify_checksum;
 RESET PERSIST IF EXISTS replica_transaction_retries;
+RESET PERSIST IF EXISTS replica_translate_deprecated_priv;
 RESET PERSIST IF EXISTS replica_type_conversions;
 RESET PERSIST IF EXISTS replication_optimize_for_static_plugin_config;
 RESET PERSIST IF EXISTS replication_sender_observe_commit_only;

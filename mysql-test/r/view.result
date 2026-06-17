@@ -2699,26 +2699,12 @@ id	td
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
-Warnings:
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 SELECT * FROM v1 WHERE td BETWEEN CAST('2005.01.02' AS DATE) AND CAST('2005.01.04' AS DATE);
 id	td
 2	2005-01-02
 3	2005-01-02
 4	2005-01-03
 5	2005-01-04
-Warnings:
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.02' at row 1 is deprecated. Prefer the standard '-'.
-Warning	4095	Delimiter '.' in position 4 in datetime value '2005.01.04' at row 1 is deprecated. Prefer the standard '-'.
 DROP VIEW v1;
 DROP TABLE t1;
 create table t1 (a int);

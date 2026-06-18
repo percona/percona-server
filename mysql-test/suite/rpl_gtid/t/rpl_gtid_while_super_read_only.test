@@ -52,13 +52,15 @@
 # Bug #33001701 : VERIFY STATEMENTS THAT GENERATE GTID IF THE SERVER IS IN SUPER_READ_ONLY MODE
 #
 
+--source include/not_rpl_gtid_only.inc
 --let $rpl_gtid_utils = 1
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
 
-# Supression is needed as we alter InnoDB relaylog in the test.
+# Suppress expected warnings from operations intentionally exercised below.
 let $messages =
 .*InnoDB redo logging is disabled.* All data could be lost in case of a server crash.*
+Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP.*
 ;
 --source include/suppress_messages.inc
 #call mtr.add_suppression("InnoDB redo logging is disabled. All data could be lost in case of a server crash.");

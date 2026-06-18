@@ -3399,7 +3399,7 @@ MDL_lock_guard::~MDL_lock_guard() {
 bool MDL_lock_guard::is_locked() { return this->m_request.ticket != nullptr; }
 
 static bool is_client_binlog_statement(Relay_log_info const *rli,
-                                       THD const *thd) {
+                                       THD const *thd [[maybe_unused]]) {
   assert(rli != nullptr);
   assert(thd != nullptr);
   assert(rli->info_thd == thd);

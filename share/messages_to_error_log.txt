@@ -14052,6 +14052,9 @@ start-error-number 48300
 #
 start-error-number 48400
 
+ER_VECTOR_DISTANCE_SIMD_DISPATCH
+  eng "For VECTOR_DISTANCE using %s"
+
 #
 # End of Percona Server 9.7 error log messages
 #

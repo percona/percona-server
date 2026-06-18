@@ -850,6 +850,19 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
 
   if (param->has_errors()) return nullptr;
 
+  if (cond->type() == Item::FUNC_ITEM &&
+      down_cast<Item_func *>(cond)->functype() == Item_func::TRIG_COND_FUNC) {
+    auto *trig_cond = down_cast<Item_func_trig_cond *>(cond);
+    /*
+      Unwrap only the not-null-complement trigger used for outer joins.
+      Other trigger types depend on conditional execution state and must
+      not be treated as ordinary predicates during range analysis.
+    */
+    if (trig_cond->get_trig_type() != Item_func_trig_cond::IS_NOT_NULL_COMPL)
+      return nullptr;
+    cond = trig_cond->arguments()[0];
+  }
+
   if (cond->type() == Item::COND_ITEM) {
     Item_func::Functype functype = down_cast<Item_cond *>(cond)->functype();
 

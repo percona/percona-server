@@ -1559,7 +1559,11 @@ bool Slave_worker::read_and_apply_events(my_off_t start_relay_pos,
         // additional context needed, before re-executing (just like in
         // the main loop before exec_relay_log_event)
         if (rli->current_mts_submode->set_multi_threaded_applier_context(*rli,
-                                                                         *ev)) {
+                                                                         *ev) ||
+            DBUG_EVALUATE_IF("error_on_set_mta_context_trx_retry", true,
+                             false)) {
+          delete ev;
+          ev = nullptr;
           return true;
         }
 

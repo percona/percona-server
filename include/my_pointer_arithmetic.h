@@ -43,7 +43,17 @@ bool is_aligned_to(T *t, int increment) {
 }
 
 template <typename T>
+bool is_aligned_to(const T *t, int increment) {
+  return reinterpret_cast<uintptr_t>(t) % increment == 0;
+}
+
+template <typename T>
 bool is_aligned(T *t) {
+  return is_aligned_to(t, alignof(T));
+}
+
+template <typename T>
+bool is_aligned(const T *t) {
   return is_aligned_to(t, alignof(T));
 }
 

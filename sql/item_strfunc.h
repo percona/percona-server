@@ -1327,6 +1327,33 @@ class Item_func_from_vector final : public Item_str_ascii_func {
   String *val_str_ascii(String *str) override;
 };
 
+class Item_func_vector_distance final : public Item_real_func {
+  enum metric_type {
+    EUCLIDEAN,
+    EUCLIDEAN_SQUARED,
+    COSINE,
+    DOT_PRODUCT,
+    MANHATTAN
+  };
+  metric_type m_metric{EUCLIDEAN};
+
+ public:
+  Item_func_vector_distance(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_real_func(pos, a, b, c) {}
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "distance"; }
+  enum Functype functype() const override { return VECTOR_DISTANCE_FUNC; }
+  double val_real() override;
+  bool check_function_as_value_generator(uchar *checker_args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(
+            checker_args);
+    func_arg->banned_function_name = func_name();
+    return ((func_arg->source == VGS_GENERATED_COLUMN) ||
+            (func_arg->source == VGS_CHECK_CONSTRAINT));
+  }
+};
+
 class Item_func_uncompress final : public Item_str_func {
   String buffer;
 

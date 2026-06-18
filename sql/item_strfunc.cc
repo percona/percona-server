@@ -37,7 +37,7 @@
 #include <algorithm>
 #include <atomic>
 #include <climits>
-#include <cmath>    // std::isfinite
+#include <cmath>    // std::isfinite, std::isnan
 #include <cstddef>  // size_t
 #include <cstdio>
 #include <cstdlib>
@@ -135,6 +135,7 @@
 #include "typelib.h"
 #include "unhex.h"
 #include "vector-common/vector_conversion.h"  // from_string_to_vector, from_vector_to_string
+#include "vector-common/vector_distance.h"  // vector_distance_euclidean_squared, vector_distance_cosine, vector_distance_dot
 
 extern uint *my_aes_opmode_key_sizes;
 
@@ -4324,6 +4325,134 @@ String *Item_func_from_vector::val_str_ascii(String *str) {
 
   buffer.length(out_length);
   return &buffer;
+}
+
+static const char *kDistanceMetricNames[] = {
+    "euclidean", "euclidean_squared", "cosine", "dot", "manhattan", nullptr};
+static unsigned int kDistanceMetricLengths[] = {
+    sizeof("euclidean") - 1, sizeof("euclidean_squared") - 1,
+    sizeof("cosine") - 1, sizeof("dot") - 1, sizeof("manhattan") - 1, 0};
+static TYPELIB kDistanceMetricTypelib = {
+    5, "", kDistanceMetricNames, kDistanceMetricLengths};
+
+bool Item_func_vector_distance::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 2, MYSQL_TYPE_VECTOR)) {
+    return true;
+  }
+
+  for (uint i = 0; i < 2; ++i) {
+    if (!(args[i]->data_type() == MYSQL_TYPE_VECTOR ||
+          (args[i]->result_type() == STRING_RESULT &&
+           args[i]->collation.collation == &my_charset_bin))) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return true;
+    }
+  }
+
+  // Let us prohibit non-literal metric names right away, to make
+  // optimizer life easier. This is not something going to happen
+  // in practice anyway.
+  if (!args[2]->basic_const_item()) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+
+  String tmp, *metric_n = args[2]->val_str_ascii(&tmp);
+
+  if (metric_n == nullptr) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return true;
+  }
+
+  // find_type2 is length-aware: embedded NUL + trailing bytes cannot match.
+  switch (find_type2(&kDistanceMetricTypelib, metric_n->ptr(),
+                     metric_n->length(), &my_charset_latin1)) {
+    case 1: m_metric = EUCLIDEAN; break;
+    case 2: m_metric = EUCLIDEAN_SQUARED; break;
+    case 3: m_metric = COSINE; break;
+    case 4: m_metric = DOT_PRODUCT; break;
+    case 5: m_metric = MANHATTAN; break;
+    default:
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return true;
+  }
+
+  // Cosine can return NULL for zero-length vectors at runtime. Mark nullable
+  // unconditionally so that derived columns and metadata (SHOW CREATE TABLE)
+  // reflect the true nullability of the function regardless of whether the
+  // input arguments are themselves nullable.
+  set_nullable(true);
+
+  return false;
+}
+
+double Item_func_vector_distance::val_real() {
+  assert(fixed);
+  null_value = false;
+
+  String buff_a, buff_b;
+  String *a = args[0]->val_str(&buff_a);
+  if (a == nullptr || a->ptr() == nullptr) {
+    return error_real();
+  }
+
+  uint32 a_dims = get_dimensions(a->length(), Field_vector::precision);
+  if (a_dims == UINT32_MAX) {
+    my_error(ER_TO_VECTOR_CONVERSION, MYF(0), a->length(), a->ptr());
+    return error_real();
+  }
+  if (a_dims > Field_vector::max_dimensions) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+
+  String *b = args[1]->val_str(&buff_b);
+  if (b == nullptr || b->ptr() == nullptr) {
+    return error_real();
+  }
+
+  uint32 b_dims = get_dimensions(b->length(), Field_vector::precision);
+  if (b_dims == UINT32_MAX) {
+    my_error(ER_TO_VECTOR_CONVERSION, MYF(0), b->length(), b->ptr());
+    return error_real();
+  }
+  if (b_dims > Field_vector::max_dimensions) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+
+  if (a_dims != b_dims) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_real();
+  }
+
+  switch (m_metric) {
+    case EUCLIDEAN:
+      return check_float_overflow(std::sqrt(
+          vector_distance_euclidean_squared(a->ptr(), b->ptr(), a_dims)));
+    case EUCLIDEAN_SQUARED:
+      return check_float_overflow(
+          vector_distance_euclidean_squared(a->ptr(), b->ptr(), a_dims));
+    case COSINE: {
+      const double dist = vector_distance_cosine(a->ptr(), b->ptr(), a_dims);
+      if (std::isinf(dist)) {
+        // +Inf sentinel from vector_distance_cosine: zero-vector(s) → undefined cosine → NULL
+        null_value = true;
+        return 0.0;
+      }
+      // NaN/Inf input elements propagated through → ER_DATA_OUT_OF_RANGE
+      return check_float_overflow(dist);
+    }
+    case DOT_PRODUCT:
+      return check_float_overflow(
+          -vector_distance_dot(a->ptr(), b->ptr(), a_dims));
+    case MANHATTAN:
+      return check_float_overflow(
+          vector_distance_manhattan(a->ptr(), b->ptr(), a_dims));
+    default:
+      assert(false);
+      return 0.0;
+  }
 }
 
 String *Item_func_uncompress::val_str(String *str) {

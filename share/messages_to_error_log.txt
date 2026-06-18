@@ -13652,6 +13652,9 @@ ER_AUDIT_PARSE_CONDITION_TYPE_UNEXPECTED_COND_TYPE
 ER_AUDIT_SYS_VAR_INVALID_FILE_DIRECTORY
   eng "Invalid audit log filter file directory: %s"
 
+ER_VECTOR_DISTANCE_SIMD_DISPATCH
+  eng "%s"
+
 #
 # End of Percona Server 8.0 server error log messages
 #

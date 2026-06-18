@@ -1,4 +1,4 @@
-# PS-11078: GitHub Actions build for percona-server 9.7 on Hetzner cax* arm64.
+# PS-11078: GitHub Actions build for percona-server trunk on Hetzner cax* arm64.
 # Replaces the Cirrus arm64 tasks before Cirrus shuts down 2026-06-01.
 #
 # PS-11179 (2026-05-28): AWS Graviton fallback path added. Hetzner remains the
@@ -9,13 +9,13 @@
 # branches.
 #
 # One file, three event paths (BUILD_TYPE + MTR_SUITE picked by `dispatch` job):
-#   - pull_request to 9.7        -> Debug + MTR main.1st     (same-repo PRs; Cirrus per-PR replacement)
-#   - pull_request_target to 9.7 -> Debug + MTR main.1st     (PS-11254: fork PRs by percona org members only)
+#   - pull_request to trunk        -> Debug + MTR main.1st     (same-repo PRs; Cirrus per-PR replacement)
+#   - pull_request_target to trunk -> Debug + MTR main.1st     (PS-11254: fork PRs by percona org members only)
 #   - workflow_dispatch          -> manual run OR nightly (build_type RelWithDebInfo -> binlog_nogtid)
 #
 # Nightly RelWithDebInfo + binlog_nogtid is NOT a `schedule:` trigger here:
 # GHA cron only fires from the DEFAULT branch, so a cron in this file would be
-# dead on 9.7 (a non-default branch). Instead .github/workflows/
+# dead on trunk (a non-default branch). Instead .github/workflows/
 # builds-nightly.yml lives on the default branch and dispatches THIS file via
 # workflow_dispatch --ref on each maintained branch, so each nightly runs that
 # branch's own self-contained builds.yml (its boost version, cmake/apt deltas).
@@ -63,7 +63,7 @@ on:
           - aws
         default: auto
   pull_request:
-    branches: [9.7]
+    branches: [trunk]
     paths-ignore:
       # Mirrors azure-pipelines.yml `paths.exclude`.
       - 'doc/**'
@@ -78,7 +78,7 @@ on:
     # PS-11254: fork PRs get no secrets on `pull_request` (GitHub withholds
     # them from forks), so org-member fork PRs run here in base-repo context,
     # gated by `dispatch` below. Same-repo PRs stay on `pull_request`.
-    branches: [9.7]
+    branches: [trunk]
     paths-ignore:
       - 'doc/**'
       - 'build-ps/**'
@@ -108,7 +108,7 @@ permissions:
   contents: read
 
 env:
-  PARENT_BRANCH: '9.7'
+  PARENT_BRANCH: 'trunk'
   BUILD_PARAMS_TYPE: normal
   COMPILER: gcc
   COMPILER_VER: ''
@@ -865,8 +865,8 @@ jobs:
           aws ec2 terminate-instances --region "$AWS_REGION" --instance-ids "$INSTANCE_ID" >/dev/null || true
           exit 1
 
-  # UNTRUSTED. PR code (Debug) or 9.7 HEAD (RelWithDebInfo nightly) runs here.
-  # Build shape ported from azure-pipelines.yml on 9.7 (per Przemek 2026-05-18:
+  # UNTRUSTED. PR code (Debug) or trunk HEAD (RelWithDebInfo nightly) runs here.
+  # Build shape ported from azure-pipelines.yml on trunk (per Przemek 2026-05-18:
   # ".cirrus.yml is just a simplified port from Azure"). arm64-specific
   # deviations (system-gcc selection, MTR libeatmydata, -j cap at 16) are
   # annotated inline.
@@ -1002,8 +1002,8 @@ jobs:
           ccache -p | grep -E "max_size|cache_dir"
           ccache --zero-stats
 
-      # Azure `*** cmake ...` step, 9.7 Linux non-inverted branch.
-      - name: cmake (Azure parity, 9.7 Linux non-inverted)
+      # Azure `*** cmake ...` step, trunk Linux non-inverted branch.
+      - name: cmake (Azure parity, trunk Linux non-inverted)
         run: |
           set -eux
           mkdir bin && cd bin

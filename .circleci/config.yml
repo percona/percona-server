@@ -18,7 +18,7 @@ jobs:
             UBUNTU_CODE_NAME="noble"
             BASE_OWNER="percona"
             BASE_REPO="percona-server"
-            BASE_BRANCH="9.7"
+            BASE_BRANCH="trunk"
             COMPILER_VERSION="19"
 
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1

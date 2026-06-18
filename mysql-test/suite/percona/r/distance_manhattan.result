@@ -1,0 +1,357 @@
+#
+# Test coverage for vector DISTANCE() function.
+#
+#
+# 0) Prepare playground.
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, v1 VECTOR(1), v2 VECTOR(2));
+INSERT INTO t1 VALUES (0, TO_VECTOR('[0]'), TO_VECTOR('[0, 0]')),
+(1, TO_VECTOR('[1]'), TO_VECTOR('[1, 0]')),
+(2, TO_VECTOR('[1]'), TO_VECTOR('[0, 1]')),
+(3, TO_VECTOR('[2]'), TO_VECTOR('[1, 1]')),
+(4, TO_VECTOR('[2]'), TO_VECTOR('[2, 0]')),
+(98, TO_VECTOR('[1]'), TO_VECTOR('[2]')),
+(99, NULL, NULL);
+CREATE TABLE t_metric_name (id INT PRIMARY KEY, name VARCHAR(10));
+INSERT INTO t_metric_name VALUES (1, "EUCLIDEAN"), (99, NULL);
+#
+# 1) Test how different number and types of arguments are handled.
+#
+# 1.1) Arity.
+#
+SELECT DISTANCE();
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+SELECT DISTANCE(TO_VECTOR("[1]"));
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"));
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"), "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[2]"), TO_VECTOR("[3]"), "EUCLIDEAN");
+ERROR 42000: Incorrect parameter count in the call to native function 'DISTANCE'
+#
+# 1.2) Argument types.
+#
+# Only vectors or binary strings are allowed for first the two arguments.
+SELECT DISTANCE("[1]", TO_VECTOR("[2]"), "MANHATTAN");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(X'0000803F', TO_VECTOR("[2]"), "MANHATTAN");
+DISTANCE(X'0000803F', TO_VECTOR("[2]"), "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[2]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[2]"), "MANHATTAN")
+2
+SELECT DISTANCE(v1, TO_VECTOR("[2]"), "MANHATTAN") FROM t1 WHERE id = 0;
+DISTANCE(v1, TO_VECTOR("[2]"), "MANHATTAN")
+2
+SELECT DISTANCE(id, TO_VECTOR("[2]"), "MANHATTAN") FROM t1 WHERE id = 0;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[1]"), "[2]", "MANHATTAN");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[2]"), X'0000803F', "MANHATTAN");
+DISTANCE(TO_VECTOR("[2]"), X'0000803F', "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[3]"), v1, "MANHATTAN") FROM t1 WHERE id = 1;
+DISTANCE(TO_VECTOR("[3]"), v1, "MANHATTAN")
+2
+SELECT DISTANCE(TO_VECTOR("[0]"), id, "MANHATTAN") FROM t1 WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+# The third argument must be a string literal with value from the
+# fixed list of metric names.
+SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[-1, 0]"), 1);
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[1, 0]"), CONCAT("EUCLI","DEAN"));
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2, 0]"), "euclidean");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2, 0]"), "euclidean")
+1.4142135623730951
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[3, 0]"), "EuClIdEaN");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[3, 0]"), "EuClIdEaN")
+2.23606797749979
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[4, 0]"), X'4555434C494445414E');
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[4, 0]"), X'4555434C494445414E')
+3.1622776601683795
+# Metric strings with embedded NUL must be rejected regardless of prefix match.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), X'4555434C494445414E00');
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), X'4555434C494445414E004A554E4B');
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[5, 0]"), "NOSUCHMETRIC");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[6, 0]"), name) FROM t_metric_name WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[7, 0]"), NULL);
+ERROR HY000: Incorrect arguments to distance
+#
+# 1.3) NULL arguments and nullability in metadata for result.
+#
+SELECT DISTANCE(NULL, TO_VECTOR("[1, 0]"), "MANHATTAN");
+DISTANCE(NULL, TO_VECTOR("[1, 0]"), "MANHATTAN")
+NULL
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), NULL, "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 1]"), NULL, "MANHATTAN")
+NULL
+SELECT DISTANCE(v2, TO_VECTOR("[1, 0]"), "MANHATTAN") FROM t1 WHERE id = 99;
+DISTANCE(v2, TO_VECTOR("[1, 0]"), "MANHATTAN")
+NULL
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), v2, "MANHATTAN") FROM t1 WHERE id = 99;
+DISTANCE(TO_VECTOR("[1, 1]"), v2, "MANHATTAN")
+NULL
+# The third argument doesn't allow NULL values in any form.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), NULL);
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), name) FROM t_metric_name WHERE id = 99;
+ERROR HY000: Incorrect arguments to distance
+# The result metadata should indicate that it is nullable.
+CREATE TABLE tt SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[0, 1]"), "MANHATTAN") AS d;
+SHOW CREATE TABLE tt;
+Table	Create Table
+tt	CREATE TABLE `tt` (
+  `d` double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tt;
+#
+# 2) Test vector arguments length mismatch.
+#
+SELECT DISTANCE(TO_VECTOR("[1]"), TO_VECTOR("[1, 0]"), "MANHATTAN");
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(v2, TO_VECTOR("[1]"), "MANHATTAN") FROM t1 WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+SELECT DISTANCE(v1, v2, "MANHATTAN") FROM t1 WHERE id = 1;
+ERROR HY000: Incorrect arguments to distance
+#
+# Note that length check happens at runtime. This is well visible
+# when we have value stored in a vector field which is shorter than
+# maximum length specified at the field creation time.
+SELECT DISTANCE(v1, v2, "MANHATTAN") FROM t1 WHERE id = 98;
+DISTANCE(v1, v2, "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), v2, "MANHATTAN") FROM t1 WHERE id = 98;
+ERROR HY000: Incorrect arguments to distance
+# Binary-string BLOB arguments exceeding max_dimensions (16383) are rejected.
+# A BLOB column is used so the argument passes the resolve-time binary-charset
+# type check; the max_dimensions guard fires at runtime in val_real().
+CREATE TABLE t_oversized (v MEDIUMBLOB);
+INSERT INTO t_oversized VALUES (REPEAT(X'00000000', 16384));
+SELECT DISTANCE(v, v, "MANHATTAN") FROM t_oversized;
+ERROR HY000: Incorrect arguments to distance
+DROP TABLE t_oversized;
+#
+# 3) Some basic tests for different (from syntax PoV) variants of
+#    arguments.
+#
+SELECT DISTANCE(X'0000803F0000803F', X'0000000000000040', "MANHATTAN");
+DISTANCE(X'0000803F0000803F', X'0000000000000040', "MANHATTAN")
+2
+SELECT DISTANCE(X'0000803F0000803F', TO_VECTOR("[2, 0]"), "MANHATTAN");
+DISTANCE(X'0000803F0000803F', TO_VECTOR("[2, 0]"), "MANHATTAN")
+2
+SELECT DISTANCE(X'0000803F0000803F', v2, "MANHATTAN") FROM t1 WHERE id = 4;
+DISTANCE(X'0000803F0000803F', v2, "MANHATTAN")
+2
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), X'000000000000803F', "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), X'000000000000803F', "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), v2, "MANHATTAN") FROM t1 WHERE id = 1;
+DISTANCE(TO_VECTOR("[0, 0]"), v2, "MANHATTAN")
+1
+SELECT DISTANCE(a.v2, b.v2, "MANHATTAN") FROM t1 AS a, t1 AS b WHERE a.id = 0 AND b.id = 4;
+DISTANCE(a.v2, b.v2, "MANHATTAN")
+2
+SELECT DISTANCE(v2, X'0000000000000040', "MANHATTAN") FROM t1 WHERE id = 0;
+DISTANCE(v2, X'0000000000000040', "MANHATTAN")
+2
+SELECT DISTANCE(v2, TO_VECTOR("[0, 2]"), "MANHATTAN") FROM t1 WHERE id = 0;
+DISTANCE(v2, TO_VECTOR("[0, 2]"), "MANHATTAN")
+2
+# Non-trivial (artificial) combinations
+SELECT DISTANCE(TO_VECTOR(CONCAT("[0", ", ", "1]")), CONCAT(X'00000000', X'00000040'), "MANHATTAN");
+DISTANCE(TO_VECTOR(CONCAT("[0", ", ", "1]")), CONCAT(X'00000000', X'00000040'), "MANHATTAN")
+1
+# The below case demonstrates that arguments to DISTANCE might not be
+# well-aligned in memory.
+SELECT DISTANCE(SUBSTR(X'010000000000000040', 2), RIGHT(X'40000000000000803F', 8), "MANHATTAN");
+DISTANCE(SUBSTR(X'010000000000000040', 2), RIGHT(X'40000000000000803F', 8), "MANHATTAN")
+1
+# 9-byte blobs; SUBSTR from pos 2 → 8 bytes at offset 1 (misaligned for float).
+# Length must stay a multiple of 4; SUBSTR(..., 4) on 9 bytes yields 6 → ER_TO_VECTOR_CONVERSION.
+SELECT DISTANCE(SUBSTR(X'000100000000000040', 2), SUBSTR(X'00040000000000803F', 2), "MANHATTAN");
+DISTANCE(SUBSTR(X'000100000000000040', 2), SUBSTR(X'00040000000000803F', 2), "MANHATTAN")
+1
+#
+# 4) Basic test for different vector values.
+#
+# Identical / collinear vectors.
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[1, 1]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[1, 1]"), "MANHATTAN")
+0
+SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[1, 0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[1, 0]"), "MANHATTAN")
+0
+SELECT DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2.5, 2.5]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 1]"), TO_VECTOR("[2.5, 2.5]"), "MANHATTAN")
+3
+SELECT DISTANCE(TO_VECTOR("[1, 2, 3, 4, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 2, 3, 4, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "MANHATTAN")
+0
+# Orthogonal vectors.
+SELECT DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[0, 1]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 0]"), TO_VECTOR("[0, 1]"), "MANHATTAN")
+2
+SELECT DISTANCE(TO_VECTOR("[0, 1, 0]"), TO_VECTOR("[-1, 0, -1]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 1, 0]"), TO_VECTOR("[-1, 0, -1]"), "MANHATTAN")
+3
+SELECT DISTANCE(TO_VECTOR("[1, 0, 3, 0, 5]"), TO_VECTOR("[0, 2, 0, 4, 0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 0, 3, 0, 5]"), TO_VECTOR("[0, 2, 0, 4, 0]"), "MANHATTAN")
+15
+# Anti-parallel vectors.
+SELECT DISTANCE(TO_VECTOR("[-1, -1]"), TO_VECTOR("[2, 2]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[-1, -1]"), TO_VECTOR("[2, 2]"), "MANHATTAN")
+6
+SELECT DISTANCE(TO_VECTOR("[-2e38, 1]"), TO_VECTOR("[2e38, -1]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[-2e38, 1]"), TO_VECTOR("[2e38, -1]"), "MANHATTAN")
+3.999999872114277e38
+# Distance from origin.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "MANHATTAN")
+1
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[3, 4]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[3, 4]"), "MANHATTAN")
+7
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[5, 12]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[5, 12]"), "MANHATTAN")
+17
+SELECT DISTANCE(TO_VECTOR("[0, 0, 0, 0]"), TO_VECTOR("[1, 1, 1, 1]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0, 0, 0]"), TO_VECTOR("[1, 1, 1, 1]"), "MANHATTAN")
+4
+# Mixed-sign and larger vectors.
+SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "MANHATTAN")
+9
+SELECT DISTANCE(TO_VECTOR("[1, 7, 3, 16, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 7, 3, 16, 5]"), TO_VECTOR("[1, 2, 3, 4, 5]"), "MANHATTAN")
+17
+# Zero vector (behavior differs per metric).
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2, 2]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2, 2]"), "MANHATTAN")
+4
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[0, 0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[0, 0]"), "MANHATTAN")
+0
+SELECT DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[0]"), "MANHATTAN")
+0
+# Large values near float32 max.
+SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "MANHATTAN")
+1.9999999360571385e38
+# Same value in a 16-dim vector: exercises the wide-tier SIMD overflow
+# fallback (dims >= 16 dispatches to the wide kernel; squaring 2e38 in
+# float32 overflows to +Inf, but the isfinite check falls back to scalar).
+SELECT DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+"MANHATTAN");
+DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
+"MANHATTAN")
+1.9999999360571385e38
+# Symmetry: DISTANCE(a, b) = DISTANCE(b, a).
+SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "MANHATTAN") =
+DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "MANHATTAN") =
+DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "MANHATTAN")
+1
+# Special IEEE 754 float32 values: NaN, +Infinity, -Infinity.
+# NaN/Inf input elements raise ER_DATA_OUT_OF_RANGE for all metrics (POW/EXP convention).
+SELECT DISTANCE(X'0000C07F', X'00000000', "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000c07f,0x00000000,'MANHATTAN')'
+SELECT DISTANCE(X'0000807F', X'00000000', "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x00000000,'MANHATTAN')'
+SELECT DISTANCE(X'000080FF', X'00000000', "MANHATTAN");
+ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x00000000,'MANHATTAN')'
+# Wide-tier SIMD path coverage (dims >= 16 dispatches to the wide kernel).
+# Integer-valued diffs keep float32 partial sums exact, so results are
+# identical across Scalar / SSE4.2 / NEON / AVX2 / AVX-512 / SVE2.
+# 16-dim: fills one AVX-512 register / two AVX2 / four SSE4.2 -- no scalar tail.
+SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"MANHATTAN");
+DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"MANHATTAN")
+16
+# 20-dim: SSE4.2 5x4 (no tail); AVX2 2x8 + 4-elem scalar tail;
+#         AVX-512 1x16 + 4-elem scalar tail.
+SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"MANHATTAN");
+DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
+TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
+"MANHATTAN")
+20
+#
+# prepared statements
+#
+PREPARE s1 FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), "MANHATTAN") FROM t1 WHERE id = 4';
+EXECUTE s1;
+DISTANCE(v1, TO_VECTOR("[2]"), "MANHATTAN")
+0
+EXECUTE s1;
+DISTANCE(v1, TO_VECTOR("[2]"), "MANHATTAN")
+0
+DEALLOCATE PREPARE s1;
+PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), "?") FROM t1 WHERE id = 4';
+ERROR HY000: Incorrect arguments to distance
+PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR(?), "MANHATTAN") FROM t1 WHERE id = 4';
+SET @met="[2]";
+EXECUTE stmt USING @met;
+DISTANCE(v1, TO_VECTOR(?), "MANHATTAN")
+0
+DEALLOCATE PREPARE stmt;
+#
+# 5) Distance in query contexts.
+#
+# ORDER BY distance: nearest-neighbour pattern.
+SELECT id FROM t1 WHERE id IN (0,1,2,3,4)
+ORDER BY DISTANCE(v2, TO_VECTOR('[1, 0]'), "MANHATTAN"), id;
+id
+1
+0
+3
+4
+2
+# ORDER BY distance DESC: farthest-neighbour pattern.
+SELECT id FROM t1 WHERE id IN (0,1,2,3,4)
+ORDER BY DISTANCE(v2, TO_VECTOR('[1, 0]'), "MANHATTAN") DESC, id;
+id
+2
+0
+3
+4
+1
+# WHERE: range query filtering by distance.
+SELECT id FROM t1
+WHERE id IN (0,1,2,3,4) AND DISTANCE(v2, TO_VECTOR('[1, 0]'), "MANHATTAN") < 1.5
+ORDER BY id;
+id
+0
+1
+3
+4
+# Derived table with distance.
+SELECT id FROM
+(SELECT id, DISTANCE(v2, TO_VECTOR('[1, 0]'), "MANHATTAN") AS d
+FROM t1 WHERE id IN (0,1,2,3,4)) AS sq
+WHERE d IS NOT NULL ORDER BY d, id;
+id
+1
+0
+3
+4
+2
+DROP TABLE t_metric_name;
+DROP TABLE t1;

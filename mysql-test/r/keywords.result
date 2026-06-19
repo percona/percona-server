@@ -271,3 +271,16 @@ call p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
+#
+# Bug#36584265: Five mistakes in information_schema.keywords_reserved
+#
+CREATE TABLE manual(col1 INTEGER);
+CREATE TABLE parallel(col1 INTEGER);
+CREATE TABLE external(col1 INTEGER);
+DROP TABLE manual, parallel, external;
+CREATE TABLE CUBE(col1 INTEGER);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CUBE(col1 INTEGER)' at line 1
+CREATE TABLE QUALIFY(col1 INTEGER);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'QUALIFY(col1 INTEGER)' at line 1
+CREATE TABLE TABLESAMPLE(col1 INTEGER);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TABLESAMPLE(col1 INTEGER)' at line 1

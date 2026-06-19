@@ -877,10 +877,14 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
        * Starting position for reads defined ether by "start" tag or by a
        * bookmark consisting of a combination of "timestamp" and "id".
        * Only one of this two ways may be used at the same time.
+       *
+       * Initializing a new read sequence (via a "start" tag or a bookmark)
+       * while one is already open is allowed: the open sequence is implicitly
+       * closed and a fresh one is started, as documented by Oracle and as
+       * upstream MySQL behaves.
        */
       if ((has_timestamp_tag != has_id_tag) ||
-          (has_start_tag && has_timestamp_tag) ||
-          (reader_context != nullptr && (has_start_tag || has_timestamp_tag))) {
+          (has_start_tag && has_timestamp_tag)) {
         my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                  "Wrong argument format");
         *error = 1;
@@ -957,14 +961,24 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
 
     bool is_new_session_request = !reader_args->timestamp.empty();
 
-    if ((reader_context == nullptr && !is_new_session_request) ||
-        (reader_context != nullptr && is_new_session_request)) {
+    if (reader_context == nullptr && !is_new_session_request) {
       my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Wrong arguments list");
       *error = 1;
       return result;
     }
 
     if (is_new_session_request) {
+      /*
+       * A new read sequence implicitly closes an already-open one before
+       * starting fresh from the requested position.
+       */
+      if (reader_context != nullptr) {
+        log_reader->close_reader_session(reader_context);
+        SysVars::set_log_reader_context(thd, nullptr);
+        delete reader_context;
+        reader_context = nullptr;
+      }
+
       reader_context = log_reader->init_reader_session(thd, reader_args.get());
 
       if (reader_context == nullptr) {

@@ -9,11 +9,11 @@ export CXXFLAGS=-Wno-error=free-nonheap-object -Wno-error=implicit-function-decl
 export CPPFLAGS=-Wno-error=free-nonheap-object -Wno-error=implicit-function-declaration
 
 PACKAGE=percona-server
-PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
-REVISION = '@@REVISION@@'
+PS_VERSION_EXTRA = '@PERCONA_SERVER_VERSION@'
+REVISION = '@PERCONA_REVISION@'
 COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
 COMPILATION_COMMENT_DEBUG = "Percona Server - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
-TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
+TOKUDB_BACKUP_VERSION = "@TOKUDB_BACKUP_VERSION@"
 
 V8PWD=
 TMP=$(CURDIR)/debian/tmp/
@@ -52,7 +52,7 @@ else
 	LTO_FLAG = -DWITH_LTO=ON
 endif
 
-# Use bundled zlib on distros with zlib < 1.2.13
+# Use bundled zlib on distros with zlib < 1.2.13 (focal, jammy, bullseye, buster)
 ifeq ($(DISTRELEASE),focal)
 	ZLIB_OPTION = -DWITH_ZLIB=bundled
 else ifeq ($(DISTRELEASE),jammy)

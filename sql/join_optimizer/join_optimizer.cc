@@ -8190,6 +8190,11 @@ AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
 void ApplyDistinctParameters::ProposeDistinctPaths(
     const Bounds_checked_array<Item *> group_items, AccessPath *root_path,
     double output_rows, AccessPathArray *new_root_candidates) const {
+  if (auto limit = EffectiveDedupLimit(*query_block->join, *query_block);
+      limit) {
+    output_rows = std::min(output_rows, static_cast<double>(*limit));
+  }
+
   // If the access path contains a GROUP_INDEX_SKIP_SCAN which has
   // subsumed an aggregation, the subsumed aggregation could be either a
   // a group-by or a deduplication. If there is no group-by in the query

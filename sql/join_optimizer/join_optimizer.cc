@@ -9277,10 +9277,14 @@ bool ApplyAggregation(
        propose_temptable_without_aggregation) &&
       (query_block->active_options() & SELECT_SMALL_RESULT);
 
+  const bool has_group_by_ordering =
+      group_by_ordering_idx != -1 &&
+      orderings.ordering(group_by_ordering_idx).size() > 0;
+
   for (AccessPath *root_path : root_candidates) {
-    bool group_needs_sort =
+    const bool group_needs_sort =
         !join->group_list.empty() && !aggregation_is_unordered &&
-        group_by_ordering_idx != -1 &&
+        has_group_by_ordering &&
         !(orderings.DoesFollowOrder(root_path->ordering_state,
                                     group_by_ordering_idx) &&
           ObeysIndexOrderHints(root_path, join, /*grouping=*/true));

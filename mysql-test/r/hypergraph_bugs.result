@@ -1772,6 +1772,19 @@ EXPLAIN
 
 DROP TABLE t1;
 #
+# Bug#39501528: Crash evaluating a ROLLUP aggregate from a constant
+#               HAVING subquery during filter initialization
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT HEX(-31378)
+GROUP BY ROLLUP((SELECT /*+ BKA() */ 1))
+HAVING (SELECT 338 FROM t1 WHERE AVG(26) LIMIT 1);
+HEX(-31378)
+FFFFFFFFFFFF856E
+FFFFFFFFFFFF856E
+DROP TABLE t1;
+#
 # Bug#36099491: Assertion secondary_engine_cost_hook != nullptr
 #               failed with hypergraph_optimizer
 #

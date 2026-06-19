@@ -6,7 +6,6 @@ Uploaders: George Lorch <george.lorch@percona.com>,
            Tomislav Plavcic <tomislav.plavcic@percona.com>
 Build-Depends: bison,
                cmake,
-               debhelper-compat (= 13),
                dh-apparmor,
                fakeroot,
                pkg-config,

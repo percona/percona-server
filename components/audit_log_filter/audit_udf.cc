@@ -922,10 +922,22 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
         return result;
       }
 
+      /*
+       * "max_array_length" may be given at the top level or, for "start"
+       * reads, nested inside the "start" object (PS-11186). A top-level value
+       * takes precedence when both are present.
+       */
+      const rapidjson::Value *max_array_length_val = nullptr;
       if (json_doc.HasMember("max_array_length")) {
-        if (json_doc["max_array_length"].IsUint()) {
-          reader_args->max_array_length =
-              json_doc["max_array_length"].GetUint();
+        max_array_length_val = &json_doc["max_array_length"];
+      } else if (has_start_tag &&
+                 json_doc["start"].HasMember("max_array_length")) {
+        max_array_length_val = &json_doc["start"]["max_array_length"];
+      }
+
+      if (max_array_length_val != nullptr) {
+        if (max_array_length_val->IsUint()) {
+          reader_args->max_array_length = max_array_length_val->GetUint();
         } else {
           my_error(ER_UDF_ERROR, MYF(0), "audit_log_read",
                    "Wrong JSON argument, bad max_array_length format");

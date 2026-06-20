@@ -553,6 +553,8 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
 
     view = reinterpret_cast<ReadView *>(p & ~1);
 
+    DEBUG_SYNC_C("mvcc_view_open_after_untag_before_reopen");
+
     ut_ad(view->m_closed);
 
     /* NOTE: This can be optimised further, for now we only

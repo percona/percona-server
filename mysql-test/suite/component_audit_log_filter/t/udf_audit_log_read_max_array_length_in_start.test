@@ -1,0 +1,74 @@
+--echo #
+--echo # PS-11186: max_array_length does not work in FULL/REDUCED mode audit logs
+--echo # https://perconadev.atlassian.net/browse/PS-11186
+--echo #
+--echo # PS is running with JSON audit log format in FULL event mode.
+--echo #
+--echo # audit_log_read() must honour the "max_array_length" limit both when it
+--echo # is placed at the top level next to "start":
+--echo #
+--echo #   audit_log_read('{"start": {"timestamp": "..."}, "max_array_length": 1}')
+--echo #
+--echo # and when it is nested INSIDE the "start" object, as in the bug report:
+--echo #
+--echo #   audit_log_read('{"start": {"timestamp": "...", "max_array_length": 1}}')
+--echo #
+--echo # Previously the nested form silently ignored the limit and returned ALL
+--echo # matching events. The bug was in the UDF argument parsing and does not
+--echo # depend on the event_mode (REDUCED mode is affected too).
+--echo #
+
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+SET GLOBAL audit_log_filter.event_mode=FULL;
+
+--echo #
+--echo # Set up a filter that logs table access events and generate five
+--echo # events with deterministic timestamps (10:01:00 .. 10:05:00).
+CREATE TABLE t1 (c1 INT);
+SELECT audit_log_filter_set_filter('log_inserts', '{"filter": { "class": {"name": "table_access", "event": {"name": "insert", "log": true} } } }');
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+
+--source clean_all_audit_logs.inc
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+
+--echo #
+--echo # Rotate so that all five events are flushed to a closed log file.
+--replace_column 1 <file_name>
+SELECT audit_log_rotate();
+
+--echo #
+--echo # max_array_length at the TOP level limits the result to a single event.
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00"}, "max_array_length": 1}');
+SELECT audit_log_read('null');
+
+--echo #
+--echo # max_array_length nested INSIDE "start" (the bug report's form) now also
+--echo # limits the result to a single event.
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00", "max_array_length": 1}}');
+SELECT audit_log_read('null');
+
+--echo #
+--echo # A top-level max_array_length takes precedence over a nested one.
+--replace_regex /"connection_id": \d*/"connection_id": <id>/
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00", "max_array_length": 5}, "max_array_length": 2}');
+SELECT audit_log_read('null');
+
+--echo #
+--echo # Cleanup
+DROP TABLE t1;
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

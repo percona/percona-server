@@ -1,0 +1,80 @@
+#
+# PS-11186: max_array_length does not work in FULL/REDUCED mode audit logs
+# https://perconadev.atlassian.net/browse/PS-11186
+#
+# PS is running with JSON audit log format in FULL event mode.
+#
+# audit_log_read() must honour the "max_array_length" limit both when it
+# is placed at the top level next to "start":
+#
+#   audit_log_read('{"start": {"timestamp": "..."}, "max_array_length": 1}')
+#
+# and when it is nested INSIDE the "start" object, as in the bug report:
+#
+#   audit_log_read('{"start": {"timestamp": "...", "max_array_length": 1}}')
+#
+# Previously the nested form silently ignored the limit and returned ALL
+# matching events. The bug was in the UDF argument parsing and does not
+# depend on the event_mode (REDUCED mode is affected too).
+#
+SET GLOBAL audit_log_filter.event_mode=FULL;
+#
+# Set up a filter that logs table access events and generate five
+# events with deterministic timestamps (10:01:00 .. 10:05:00).
+CREATE TABLE t1 (c1 INT);
+SELECT audit_log_filter_set_filter('log_inserts', '{"filter": { "class": {"name": "table_access", "event": {"name": "insert", "log": true} } } }');
+audit_log_filter_set_filter('log_inserts', '{"filter": { "class": {"name": "table_access", "event": {"name": "insert", "log": true} } } }')
+OK
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+audit_log_filter_set_user('%', 'log_inserts')
+OK
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+#
+# Rotate so that all five events are flushed to a closed log file.
+SELECT audit_log_rotate();
+audit_log_rotate()
+<file_name>
+#
+# max_array_length at the TOP level limits the result to a single event.
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00"}, "max_array_length": 1}');
+audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00"}, "max_array_length": 1}')
+[
+{"timestamp": "2022-08-09 10:01:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (1)", "sql_command": "insert"}}
+]
+
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# max_array_length nested INSIDE "start" (the bug report's form) now also
+# limits the result to a single event.
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00", "max_array_length": 1}}');
+audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00", "max_array_length": 1}}')
+[
+{"timestamp": "2022-08-09 10:01:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (1)", "sql_command": "insert"}}
+]
+
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# A top-level max_array_length takes precedence over a nested one.
+SELECT audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00", "max_array_length": 5}, "max_array_length": 2}');
+audit_log_read('{"start": {"timestamp": "2022-08-09 10:00:00", "max_array_length": 5}, "max_array_length": 2}')
+[
+{"timestamp": "2022-08-09 10:01:00", "id": 0, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (1)", "sql_command": "insert"}},
+{"timestamp": "2022-08-09 10:02:00", "id": 1, "class": "table_access", "event": "insert", "connection_id": <id>, "account": {"user": "root", "host": "localhost"}, "login": {"user": "root", "os": "", "ip": "", "proxy": ""}, "table_access_data": {"db": "test", "table": "t1", "query": "INSERT INTO t1 VALUES (2)", "sql_command": "insert"}}
+]
+
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# Cleanup
+DROP TABLE t1;
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';

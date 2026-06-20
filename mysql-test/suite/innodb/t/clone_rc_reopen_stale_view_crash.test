@@ -1,0 +1,87 @@
+# Regression coverage for rejecting a donor RC reusable read view while the
+# donor is reopening it for the next consistent read. The donor's previous
+# statement view is a closed reusable view and does not protect undo from purge.
+# After purge removes the needed undo records, cloning that stale view must be
+# ignored instead of letting the receiver read through purged undo.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+--source include/count_sessions.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Required history data has been deleted");
+--enable_query_log
+
+CREATE TABLE t1(id INT PRIMARY KEY, c INT, pad VARCHAR(200)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, 0, REPEAT('a', 200));
+
+--connect (receiver,localhost,root,,)
+
+--connection default
+--let $donor_id=`SELECT CONNECTION_ID()`
+SET SESSION transaction_isolation='READ-COMMITTED';
+
+# Open an RC read view and close it at statement end as a reusable view.
+SELECT c FROM t1 WHERE id=1;
+
+# Make the reusable view stale and generate undo that the stale view would need
+# in order to reconstruct the old version.
+--connection receiver
+--disable_query_log
+--let $i= 1
+while ($i <= 200)
+{
+  --eval UPDATE t1 SET c = $i, pad = REPEAT(CHAR(65 + ($i % 26)), 200) WHERE id = 1
+  --inc $i
+}
+--enable_query_log
+
+# There is no active read view protecting the donor's previous statement view:
+# it is a closed reusable view. Force purge before cloning it back into the
+# receiver transaction.
+SET GLOBAL innodb_purge_run_now=ON;
+--let $wait_timeout= 60
+--source include/wait_innodb_all_purged.inc
+--source suite/innodb/include/force_purge.inc
+
+--connection default
+# Start the donor's next RC autocommit consistent read and stop it exactly after
+# MVCC::view_open() has cleared the reusable-view pointer tag, but before the
+# view is reopened and linked back into the active MVCC view list. At this point
+# trx->read_view looks like a normal pointer to trx_clone_read_view(), while the
+# underlying ReadView is still the old closed view that purge did not protect.
+SET DEBUG_SYNC='mvcc_view_open_after_untag_before_reopen SIGNAL donor_before_reopen WAIT_FOR continue_donor TIMEOUT 120';
+--send SELECT c FROM t1 WHERE id=1
+
+--connection receiver
+SET SESSION transaction_isolation='REPEATABLE-READ';
+SET DEBUG_SYNC='now WAIT_FOR donor_before_reopen TIMEOUT 120';
+
+# This used to be the buggy window: trx_clone_read_view() only checked that the
+# donor transaction was ACTIVE and had a non-NULL read_view, so it cloned this
+# untagged-but-still-closed reusable view. The fixed behavior is to reject the
+# stale donor snapshot and emit a warning that the cloned snapshot was ignored.
+--disable_query_log
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+
+# Since the stale donor view was rejected, the receiver gets a normal fresh read
+# view for its first consistent read and sees the latest committed version.
+SELECT c FROM t1 WHERE id=1;
+
+SET DEBUG_SYNC='now SIGNAL continue_donor';
+
+--connection default
+--reap
+
+--connection receiver
+ROLLBACK;
+
+--connection default
+DROP TABLE IF EXISTS t1;
+SET DEBUG_SYNC='RESET';
+
+--disconnect receiver
+--source include/wait_until_count_sessions.inc

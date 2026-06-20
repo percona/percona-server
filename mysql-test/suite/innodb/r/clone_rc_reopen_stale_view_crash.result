@@ -1,0 +1,22 @@
+CREATE TABLE t1(id INT PRIMARY KEY, c INT, pad VARCHAR(200)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, 0, REPEAT('a', 200));
+SET SESSION transaction_isolation='READ-COMMITTED';
+SELECT c FROM t1 WHERE id=1;
+c
+0
+SET GLOBAL innodb_purge_run_now=ON;
+SET DEBUG_SYNC='mvcc_view_open_after_untag_before_reopen SIGNAL donor_before_reopen WAIT_FOR continue_donor TIMEOUT 120';
+SELECT c FROM t1 WHERE id=1;
+SET SESSION transaction_isolation='REPEATABLE-READ';
+SET DEBUG_SYNC='now WAIT_FOR donor_before_reopen TIMEOUT 120';
+Warnings:
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
+SELECT c FROM t1 WHERE id=1;
+c
+200
+SET DEBUG_SYNC='now SIGNAL continue_donor';
+c
+200
+ROLLBACK;
+DROP TABLE IF EXISTS t1;
+SET DEBUG_SYNC='RESET';

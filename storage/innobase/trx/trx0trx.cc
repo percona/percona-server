@@ -2349,6 +2349,7 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
     return (nullptr);
 
   } else if (!MVCC::is_view_active(trx->read_view)) {
+    DEBUG_SYNC_C("trx_assign_read_view_before_view_open");
     trx_sys->mvcc->view_open(trx->read_view, trx);
   }
 
@@ -2372,7 +2373,8 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
     return (nullptr);
   }
 
-  if (from_trx->state != TRX_STATE_ACTIVE || from_trx->read_view == nullptr) {
+  if (from_trx->state != TRX_STATE_ACTIVE || from_trx->read_view == nullptr ||
+      !MVCC::is_view_active(from_trx->read_view)) {
     trx_sys_mutex_exit();
     trx_mutex_exit(from_trx);
     return (nullptr);
@@ -2382,6 +2384,23 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
 
   from_trx->read_view->clone(trx->read_view, from_trx);
 
+  if (from_trx->isolation_level == TRX_ISO_READ_COMMITTED &&
+      trx->read_view->low_limit_no() <= purge_sys->view.low_limit_no()) {
+#ifdef UNIV_DEBUG
+    ib::info() << "[read_view_reuse] cloned RC read view rejected: empty="
+               << trx->read_view->empty()
+               << ", trx low_limit_no=" << trx->read_view->low_limit_no()
+               << ", purge low_limit_no=" << purge_sys->view.low_limit_no();
+#endif
+    /* clone() may allocate a fresh view from MVCC::m_free.  Put it on
+    m_views before closing so view_close() can consistently recycle it and
+    clear trx->read_view. */
+    if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
+    trx_sys->mvcc->view_close(trx->read_view, true);
+    trx_sys_mutex_exit();
+    trx_mutex_exit(from_trx);
+    return (nullptr);
+  }
   trx_mutex_exit(from_trx);
 
   if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);

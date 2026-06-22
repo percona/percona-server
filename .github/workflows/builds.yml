@@ -1866,8 +1866,11 @@ jobs:
           PACKAGES="$SELECTED_CC"
           [ "$COMPILER" = "gcc" ] && PACKAGES="$SELECTED_CXX"
           sudo apt-get -yq update
+          # Versioned g++-16 provides cpp-16 but not the bare `cpp` that XCom's
+          # rpcgen invokes for xcom_vp.h codegen; install the unversioned cpp
+          # provider so codegen does not silently emit an empty header.
           sudo apt-get -yq --no-install-suggests --no-install-recommends install \
-            $PACKAGES make pkg-config dpkg-dev unzip lz4 git cmake cmake-curses-gui ccache bison \
+            $PACKAGES cpp make pkg-config dpkg-dev unzip lz4 git cmake cmake-curses-gui ccache bison \
             libtirpc-dev libudev-dev libaio-dev libmecab-dev libnuma-dev \
             libssl-dev libreadline-dev libedit-dev libpam-dev \
             libcurl4-openssl-dev libldap2-dev libkrb5-dev libsasl2-dev \

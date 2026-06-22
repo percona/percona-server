@@ -250,6 +250,8 @@ using external_roles_t = std::map<name_and_host_t, std::vector<std::string>>;
 extern external_roles_t g_external_roles;
 extern Cached_authentication_plugins *g_cached_authentication_plugins;
 
+constexpr unsigned int AUTH_PLUGIN_SHUTDOWN_TIMEOUT_MS = 2000;
+
 ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
                      MEM_ROOT *mem, struct rand_struct *rand,
                      bool is_initialized);

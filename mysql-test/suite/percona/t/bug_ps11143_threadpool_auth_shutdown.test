@@ -1,0 +1,45 @@
+--source include/not_windows.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Verify auth callback drains before plugin deinit with threadpool
+--echo #
+
+--let $restart_parameters=restart:--thread-handling=pool-of-threads --thread-pool-size=2 --thread-pool-max-threads=4
+--source include/restart_mysqld.inc
+--source include/have_pool_of_threads.inc
+
+CREATE USER tp_user@127.0.0.1 IDENTIFIED WITH caching_sha2_password BY 'tp_pwd';
+
+SET GLOBAL debug = "+d,auth_plugin_before_callback_sync";
+
+--let $mysqld_pid_file=`SELECT @@GLOBAL.pid_file`
+
+--let $output_file= $MYSQLTEST_VARDIR/tmp/bug_ps11143_mysql_output
+--let $pid_file= $MYSQLTEST_VARDIR/tmp/bug_ps11143_mysql_pid
+--let $sql_file= $MYSQLTEST_VARDIR/tmp/bug_ps11143_query.sql
+--write_file $sql_file
+SELECT 1;
+EOF
+--let $command= $MYSQL
+--let $command_opt= --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT --user=tp_user --password=tp_pwd < $sql_file
+--let $redirect_stderr= 1
+--source include/start_proc_in_background.inc
+
+SET DEBUG_SYNC='now WAIT_FOR auth_plugin_before_callback_entered TIMEOUT 30';
+
+--source include/expect_crash.inc
+exec kill -TERM `cat $mysqld_pid_file`;
+
+--source include/wait_until_disconnected.inc
+--source include/wait_proc_to_finish.inc
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+DROP USER IF EXISTS tp_user@127.0.0.1;
+
+--remove_file $pid_file
+--remove_file $output_file
+--remove_file $sql_file

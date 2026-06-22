@@ -38,6 +38,9 @@
 #include <atomic>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <string> /* std::string */
 #include <utility>
 #include <vector> /* std::vector */
@@ -77,6 +80,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"  // optimize_plugin_compare_by_pointer
+#include "sql/auth/auth_plugin_shutdown.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"  // acl_cache
 #include "sql/auth/sql_security_ctx.h"
@@ -1285,6 +1289,54 @@ int security_level(void) {
 
 external_roles_t g_external_roles;
 Cached_authentication_plugins *g_cached_authentication_plugins = nullptr;
+
+namespace {
+
+class Auth_plugin_shutdown_state {
+ public:
+  bool begin_operation() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_shutting_down) return false;
+    ++m_active_operations;
+    return true;
+  }
+
+  void end_operation() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    assert(m_active_operations > 0);
+    if (--m_active_operations == 0) m_cv.notify_all();
+  }
+
+  void start_shutdown_and_wait() {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_shutting_down = true;
+    m_cv.wait_for(lock,
+                  std::chrono::milliseconds(AUTH_PLUGIN_SHUTDOWN_TIMEOUT_MS),
+                  [&] { return m_active_operations == 0; });
+  }
+
+ private:
+  std::mutex m_mutex;
+  std::condition_variable m_cv;
+  size_t m_active_operations = 0;
+  bool m_shutting_down = false;
+};
+
+Auth_plugin_shutdown_state g_auth_plugin_shutdown_state;
+
+}  // namespace
+
+bool begin_auth_plugin_operation() {
+  return g_auth_plugin_shutdown_state.begin_operation();
+}
+
+void end_auth_plugin_operation() {
+  g_auth_plugin_shutdown_state.end_operation();
+}
+
+void start_auth_plugin_shutdown_and_wait() {
+  g_auth_plugin_shutdown_state.start_shutdown_and_wait();
+}
 
 bool disconnect_on_expired_password = true;
 
@@ -3565,7 +3617,18 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
 
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
-    res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+    Auth_plugin_operation_guard op_guard;
+    if (op_guard) {
+      DBUG_EXECUTE_IF("auth_plugin_before_callback_sync", {
+        const char act[] = "now SIGNAL auth_plugin_before_callback_entered";
+        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+        my_sleep(2000000);
+      };);
+      res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+    } else {
+      my_error(ER_SERVER_SHUTDOWN, MYF(0));
+      res = CR_ERROR;
+    }
 
     if (unlock_plugin) plugin_unlock(thd, plugin);
   } else {
@@ -3698,7 +3761,13 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
               .auth_string_length;
       mpvio->status = MPVIO_EXT::START_MFA;
       st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
-      res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+      Auth_plugin_operation_guard op_guard;
+      if (op_guard) {
+        res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+      } else {
+        my_error(ER_SERVER_SHUTDOWN, MYF(0));
+        res = CR_ERROR;
+      }
       if (res == CR_OK_AUTH_IN_SANDBOX_MODE) {
         /*
           Server allows user account to connect in case registration is

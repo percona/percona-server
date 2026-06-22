@@ -102,6 +102,7 @@
 
 #include "prealloced_array.h"
 #include "sql/auth/auth_internal.h"
+#include "sql/auth/auth_plugin_shutdown.h"
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_authentication.h"
 #include "sql/auth/sql_mfa.h"
@@ -632,20 +633,27 @@ static bool auth_verify_password_history(
       */
       if (cleartext_length && cleartext &&
           0 == (what_to_set & DIFFERENT_PLUGIN_ATTR) &&
-          (auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
-          auth->validate_authentication_string &&
-          !auth->validate_authentication_string(cred_val.c_ptr_safe(),
-                                                (unsigned)cred_val.length()) &&
-          auth->compare_password_with_hash &&
-          !auth->compare_password_with_hash(
-              cred_val.c_ptr_safe(), (unsigned long)cred_val.length(),
-              cleartext, (unsigned long)cleartext_length, &is_error) &&
-          !is_error) {
-        my_error(ER_CREDENTIALS_CONTRADICT_TO_HISTORY, MYF(0), user->length,
-                 user->str, host->length, host->str);
-        /* password found in history */
-        result = true;
-        goto end;
+          (auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE)) {
+        Auth_plugin_operation_guard op_guard;
+        if (!op_guard) {
+          my_error(ER_SERVER_SHUTDOWN, MYF(0));
+          result = true;
+          goto end;
+        }
+        if (auth->validate_authentication_string &&
+            !auth->validate_authentication_string(
+                cred_val.c_ptr_safe(), (unsigned)cred_val.length()) &&
+            auth->compare_password_with_hash &&
+            !auth->compare_password_with_hash(
+                cred_val.c_ptr_safe(), (unsigned long)cred_val.length(),
+                cleartext, (unsigned long)cleartext_length, &is_error) &&
+            !is_error) {
+          my_error(ER_CREDENTIALS_CONTRADICT_TO_HISTORY, MYF(0), user->length,
+                   user->str, host->length, host->str);
+          /* password found in history */
+          result = true;
+          goto end;
+        }
       }
     }
 
@@ -893,16 +901,22 @@ static bool validate_password_require_current(
         current auth string.
       */
       if ((auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
-          auth->compare_password_with_hash &&
-          auth->compare_password_with_hash(
-              acl_user->credentials[PRIMARY_CRED].m_auth_string.str,
-              (unsigned long)acl_user->credentials[PRIMARY_CRED]
-                  .m_auth_string.length,
-              Str->current_auth.str, (unsigned long)Str->current_auth.length,
-              &is_error) &&
-          !is_error) {
-        my_error(ER_INCORRECT_CURRENT_PASSWORD, MYF(0));
-        return (true);
+          auth->compare_password_with_hash) {
+        Auth_plugin_operation_guard op_guard;
+        if (!op_guard) {
+          my_error(ER_SERVER_SHUTDOWN, MYF(0));
+          return (true);
+        }
+        if (auth->compare_password_with_hash(
+                acl_user->credentials[PRIMARY_CRED].m_auth_string.str,
+                (unsigned long)acl_user->credentials[PRIMARY_CRED]
+                    .m_auth_string.length,
+                Str->current_auth.str, (unsigned long)Str->current_auth.length,
+                &is_error) &&
+            !is_error) {
+          my_error(ER_INCORRECT_CURRENT_PASSWORD, MYF(0));
+          return (true);
+        }
       }
 
       {
@@ -1371,8 +1385,10 @@ bool set_and_validate_user_attributes(
     if (Str->first_factor_auth_info.uses_identified_by_clause) {
       inbuf = Str->first_factor_auth_info.auth.str;
       inbuflen = (unsigned)Str->first_factor_auth_info.auth.length;
-      if (auth->generate_authentication_string(outbuf, &buflen, inbuf,
-                                               inbuflen)) {
+      Auth_plugin_operation_guard op_guard;
+      if (!op_guard || auth->generate_authentication_string(outbuf, &buflen,
+                                                            inbuf, inbuflen)) {
+        if (!op_guard) my_error(ER_SERVER_SHUTDOWN, MYF(0));
         plugin_unlock(nullptr, plugin);
         what_to_set.m_what = NONE_ATTR;
         /*
@@ -1390,10 +1406,15 @@ bool set_and_validate_user_attributes(
       Str->first_factor_auth_info.auth = {password, buflen};
     } else if (Str->first_factor_auth_info.uses_authentication_string_clause) {
       assert(!is_role);
-      if (auth->validate_authentication_string(
+      Auth_plugin_operation_guard op_guard;
+      if (!op_guard ||
+          auth->validate_authentication_string(
               const_cast<char *>(Str->first_factor_auth_info.auth.str),
               (unsigned)Str->first_factor_auth_info.auth.length)) {
-        my_error(ER_PASSWORD_FORMAT, MYF(0));
+        if (!op_guard)
+          my_error(ER_SERVER_SHUTDOWN, MYF(0));
+        else
+          my_error(ER_PASSWORD_FORMAT, MYF(0));
         plugin_unlock(nullptr, plugin);
         what_to_set.m_what = NONE_ATTR;
         return true;
@@ -1749,13 +1770,16 @@ bool set_and_validate_user_attributes(
                              std::string(Str->host.str), gen_password, 1};
       generated_passwords.push_back(p);
     }
-    if (auth->generate_authentication_string(outbuf, &buflen, inbuf,
+    Auth_plugin_operation_guard op_guard;
+    if (!op_guard ||
+        auth->generate_authentication_string(outbuf, &buflen, inbuf,
                                              inbuflen) ||
         auth_verify_password_history(thd, &Str->user, &Str->host,
                                      Str->alter_status.password_history_length,
                                      Str->alter_status.password_reuse_interval,
                                      auth, inbuf, inbuflen, outbuf, buflen,
                                      history_table, what_to_set.m_what)) {
+      if (!op_guard) my_error(ER_SERVER_SHUTDOWN, MYF(0));
       plugin_unlock(nullptr, plugin);
       what_to_set.m_what = NONE_ATTR;
       /*
@@ -1817,10 +1841,15 @@ bool set_and_validate_user_attributes(
       interdependencies if mysql_create_user() is refactored.
     */
     assert(!is_role);
-    if (auth->validate_authentication_string(
+    Auth_plugin_operation_guard op_guard;
+    if (!op_guard ||
+        auth->validate_authentication_string(
             const_cast<char *>(Str->first_factor_auth_info.auth.str),
             (unsigned)Str->first_factor_auth_info.auth.length)) {
-      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      if (!op_guard)
+        my_error(ER_SERVER_SHUTDOWN, MYF(0));
+      else
+        my_error(ER_PASSWORD_FORMAT, MYF(0));
       plugin_unlock(nullptr, plugin);
       what_to_set.m_what = NONE_ATTR;
       return (true);

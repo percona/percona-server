@@ -47,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/auth_acls.h"     /* ACLs */
 #include "sql/auth/auth_common.h"   /* User_table_schema, ... */
 #include "sql/auth/auth_internal.h" /* acl_print_ha_error */
+#include "sql/auth/auth_plugin_shutdown.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"     /* global_acl_memory */
 #include "sql/auth/sql_authentication.h" /* Cached_authentication_plugins */
@@ -1629,6 +1630,56 @@ bool Acl_table_user_reader::read_plugin_info(
     user.plugin.length = strlen(user.plugin.str);
 
     /*
+      In case we are working with 5.6 db layout we need to make server
+      aware of Password field and that the plugin column can be null.
+      In case when plugin column is null we use native password plugin
+      if we can.
+    */
+    if (is_old_db_layout && (user.plugin.length == 0 ||
+                             Cached_authentication_plugins::compare_plugin(
+                                 PLUGIN_MYSQL_NATIVE_PASSWORD, user.plugin))) {
+      char *password = get_field(
+          &m_mem_root, m_table->field[m_table_schema->password_idx()]);
+
+      // We do not support pre 4.1 hashes
+      plugin_ref native_plugin =
+          g_cached_authentication_plugins->get_cached_plugin_ref(
+              PLUGIN_MYSQL_NATIVE_PASSWORD);
+      if (native_plugin) {
+        const uint password_len = password ? strlen(password) : 0;
+        st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(native_plugin)->info;
+        Auth_plugin_operation_guard op_guard;
+        if (!op_guard) {
+          LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
+                 user.user ? user.user : "",
+                 user.host.get_host() ? user.host.get_host() : "");
+          return true;
+        }
+        if (auth->validate_authentication_string(password, password_len) == 0) {
+          // auth_string takes precedence over password
+          if (user.credentials[PRIMARY_CRED].m_auth_string.length == 0) {
+            user.credentials[PRIMARY_CRED].m_auth_string.str = password;
+            user.credentials[PRIMARY_CRED].m_auth_string.length = password_len;
+          }
+          if (user.plugin.length == 0) {
+            user.plugin.str = Cached_authentication_plugins::get_plugin_name(
+                PLUGIN_MYSQL_NATIVE_PASSWORD);
+            user.plugin.length = strlen(user.plugin.str);
+          }
+        } else {
+          if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin &&
+              (user.plugin.length == 0))
+            super_users_with_empty_plugin = true;
+
+          LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_DEPRECATED_PASSWORD,
+                 user.user ? user.user : "",
+                 user.host.get_host() ? user.host.get_host() : "");
+          return true;
+        }
+      }
+    }
+
+    /*
       Check if the plugin string is blank or null.
       If it is, the user will be skipped.
     */
@@ -1652,10 +1703,11 @@ bool Acl_table_user_reader::read_plugin_info(
       my_plugin_lock_by_name(nullptr, user.plugin, MYSQL_AUTHENTICATION_PLUGIN);
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
-    if (auth->validate_authentication_string(
-            const_cast<char *>(
-                user.credentials[PRIMARY_CRED].m_auth_string.str),
-            user.credentials[PRIMARY_CRED].m_auth_string.length)) {
+    Auth_plugin_operation_guard op_guard;
+    if (!op_guard || auth->validate_authentication_string(
+                         const_cast<char *>(
+                             user.credentials[PRIMARY_CRED].m_auth_string.str),
+                         user.credentials[PRIMARY_CRED].m_auth_string.length)) {
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
              user.user ? user.user : "",
              user.host.get_host() ? user.host.get_host() : "");
@@ -1870,7 +1922,9 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       if (plugin) {
         st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
 
-        if (auth->validate_authentication_string(
+        Auth_plugin_operation_guard op_guard;
+        if (!op_guard ||
+            auth->validate_authentication_string(
                 const_cast<char *>(
                     user.credentials[SECOND_CRED].m_auth_string.str),
                 user.credentials[SECOND_CRED].m_auth_string.length)) {

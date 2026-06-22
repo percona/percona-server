@@ -389,15 +389,15 @@ with `cte1` as (select `test`.`t1`.`a` AS `a` from `test`.`t1`), `cte3` as (sele
 # The view definition must parse back without errors
 SELECT * FROM v2;
 a	b
-3	11
-2	11
 1	11
-3	12
-2	12
 1	12
-3	13
-2	13
 1	13
+2	11
+2	12
+2	13
+3	11
+3	12
+3	13
 DROP VIEW v2;
 #
 # Case 3: Multiple unused CTEs in a row
@@ -416,15 +416,15 @@ VIEW_DEFINITION
 with `cte1` as (select `test`.`t1`.`a` AS `a` from `test`.`t1`), `cte4` as (select (`test`.`t1`.`a` * 2) AS `c` from `test`.`t1`) select `cte1`.`a` AS `a`,`cte4`.`c` AS `c` from `cte1` join `cte4`
 SELECT * FROM v3;
 a	c
-3	2
-2	2
 1	2
-3	4
-2	4
 1	4
-3	6
-2	6
 1	6
+2	2
+2	4
+2	6
+3	2
+3	4
+3	6
 DROP VIEW v3;
 #
 # Case 4: All CTEs unused - WITH clause should be stripped entirely

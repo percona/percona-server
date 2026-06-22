@@ -6726,7 +6726,21 @@ void Item_rollup_sum_switcher::print(const THD *thd, String *str,
 }
 
 Field *Item_rollup_sum_switcher::create_tmp_field(bool group, TABLE *table) {
-  return master()->create_tmp_field(group, table);
+  Item_sum *const master_item = master();
+  const bool item_name_diff =
+      item_name.is_set() != master_item->item_name.is_set() ||
+      (item_name.is_set() && !item_name.eq_bin(master_item->item_name));
+
+  if (!item_name_diff) return master_item->create_tmp_field(group, table);
+
+  /*
+    The wrapper may have a derived column name alias. Use it when creating the
+    temporary table field so later references can find the field by that name.
+  */
+  Variable_scope_guard<Item_name_string> restore_name(master_item->item_name);
+  master_item->item_name = item_name;
+
+  return master_item->create_tmp_field(group, table);
 }
 
 void Item_rollup_sum_switcher::clear() {

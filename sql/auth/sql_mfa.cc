@@ -27,6 +27,7 @@
 
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin_auth.h"
+#include "sql/auth/auth_plugin_shutdown.h"
 #include "sql/auth/authentication_policy.h"
 #include "sql/auth/sql_mfa.h"
 #include "sql/derror.h" /* ER_THD */
@@ -643,8 +644,10 @@ bool Multi_factor_auth_info::validate_plugins_in_auth_chain(
       inbuflen = gen_password.length();
       set_generated_password(gen_password.c_str(), gen_password.length());
     }
-    if (auth->generate_authentication_string(outbuf, &buflen, inbuf,
-                                             inbuflen)) {
+    Auth_plugin_operation_guard op_guard;
+    if (!op_guard || auth->generate_authentication_string(outbuf, &buflen,
+                                                          inbuf, inbuflen)) {
+      if (!op_guard) my_error(ER_SERVER_SHUTDOWN, MYF(0));
       plugin_unlock(nullptr, plugin);
       return (true);
     }
@@ -900,8 +903,11 @@ bool Multi_factor_auth_info::init_registration(THD *thd, uint nth_factor) {
   /* convert auth string to base64 to be stored in mysql.user table */
   char outbuf[MAX_FIELD_WIDTH] = {0};
   unsigned int outbuflen = MAX_FIELD_WIDTH;
-  if (auth->generate_authentication_string(
+  Auth_plugin_operation_guard op_guard;
+  if (!op_guard ||
+      auth->generate_authentication_string(
           outbuf, &outbuflen, reinterpret_cast<char *>(buf), buflen)) {
+    if (!op_guard) my_error(ER_SERVER_SHUTDOWN, MYF(0));
     if (buf) delete[] buf;
     plugin_unlock(nullptr, plugin);
     return (true);
@@ -988,9 +994,12 @@ bool Multi_factor_auth_info::finish_registration(THD *thd, LEX_USER *user_name,
   /* convert auth string to base64 to be stored in mysql.user table */
   char outbuf[MAX_FIELD_WIDTH] = {0};
   unsigned int outbuflen = MAX_FIELD_WIDTH;
-  if (auth->generate_authentication_string(
+  Auth_plugin_operation_guard op_guard;
+  if (!op_guard ||
+      auth->generate_authentication_string(
           outbuf, &outbuflen, reinterpret_cast<char *>(challenge_response),
           challenge_response_len)) {
+    if (!op_guard) my_error(ER_SERVER_SHUTDOWN, MYF(0));
     plugin_unlock(nullptr, plugin);
     return (true);
   }

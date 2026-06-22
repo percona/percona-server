@@ -4716,6 +4716,10 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   buf_block_buf_fix_inc(block, ut::Location{file, line});
 
+  /* Grab the access time while we have the mutex to potentially
+  avoid the need to acquire the mutex the second time (below). */
+  auto access_time = buf_page_is_accessed(&block->page);
+
   buf_page_mutex_exit(block);
 
   ut_ad(!ibuf_inside(mtr) ||
@@ -4764,15 +4768,35 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
     return (false);
   }
 
-  buf_page_mutex_enter(block);
+  /* Only grab the mutex to update access time if it was zero when we
+  checked earlier. This check is to reduce contention on page mutex
+  for hot pages (access time would be set only if it was zero anyway). */
+  if (access_time == std::chrono::steady_clock::time_point{}) {
+    buf_page_mutex_enter(block);
 
-  const auto access_time = buf_page_is_accessed(&block->page);
+    /* Refresh the access_time. Because of race condition we might see
+    that it's been set by other thread since the last time we checked.
 
-  buf_page_set_accessed(&block->page);
+    Note: it's important to update access_time variable because we use it
+    later to determine if it was the first page access and we should:
+        - try reading ahead next consecutive pages on the disk,
+        - update thd->access_distinct_page() statistics (trx != nullptr).
 
-  ut_ad(!block->page.file_page_was_freed);
+    Without this:
+        - we could be calling too many times the buf_read_ahead_linear
+          if the set of hot pages was changing over time,
+        - the sum of innodb_pages_distinct across many queries
+          could have the same page counted twice (so no longer would be
+          lower bound for the total number of unique page accesses). */
+    access_time = buf_page_is_accessed(&block->page);
 
-  buf_page_mutex_exit(block);
+    /* This is no-op if access time was non-zero. */
+    buf_page_set_accessed(&block->page);
+
+    ut_ad(!block->page.file_page_was_freed);
+
+    buf_page_mutex_exit(block);
+  }
 
   if (fetch_mode != Page_fetch::SCAN) {
     buf_page_make_young_if_needed(&block->page);
@@ -4790,10 +4814,11 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   trx_t *trx;
   if (access_time == std::chrono::steady_clock::time_point{}) {
     trx = innobase_get_trx_for_slow_log();
-    /* In the case of a first access, try to apply linear read-ahead */
+    /* In the case of a first access, try to apply linear read-ahead. */
     buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr),
                           trx);
   } else {
+    /* It's not the first page access (don't bump access_distinct_page). */
     trx = nullptr;
   }
 

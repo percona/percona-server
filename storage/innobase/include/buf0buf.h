@@ -1930,7 +1930,10 @@ struct buf_block_t {
   or (3) the block must belong to an intrinsic table */
   uint64_t modify_clock;
 
-  std::atomic<bool> latches_initialized{};
+  /** Latch initialization state: 0=uninitialized, 1=in-progress, 2=done.
+  Guards against a window where the CAS winner sets the flag before the
+  latches are actually created, causing concurrent threads to use them early. */
+  std::atomic<uint8_t> latches_initialized{};
 
   /** @} */
 

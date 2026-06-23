@@ -843,20 +843,31 @@ static void pfs_register_buffer_block(
 }
 #endif /* PFS_GROUP_BUFFER_SYNC */
 
-/** Ensure that latches for a buffer block are initialized exactly once. */
+/** Ensure that latches for a buffer block are initialized exactly once.
+Uses a 3-state protocol (0=uninitialized, 1=in-progress, 2=done) so that
+threads racing with the CAS winner spin until the latches are actually ready
+rather than returning early and using half-constructed objects. */
 inline void
 buf_block_ensure_latches_initialized(buf_block_t *block) {
-  if (block->latches_initialized.load(std::memory_order_acquire)) {
+  /* Fast path: fully initialized. */
+  if (block->latches_initialized.load(std::memory_order_acquire) == 2) {
     return;
   }
 
-  bool expected = false;
+  uint8_t expected = 0;
   if (!block->latches_initialized.compare_exchange_strong(
-          expected, true, std::memory_order_acq_rel)) {
-    /* Another thread did the initialization. */
+          expected, 1, std::memory_order_acq_rel)) {
+    /* CAS failed: expected now holds the observed value.
+       - 1: another thread won the CAS and is still initializing — spin.
+       - 2: another thread already finished — return.
+    */
+    while (block->latches_initialized.load(std::memory_order_acquire) != 2) {
+      UT_RELAX_CPU();
+    }
     return;
   }
 
+  /* We won the CAS. Create the latches. */
   mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
 #if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
@@ -877,6 +888,9 @@ buf_block_ensure_latches_initialized(buf_block_t *block) {
   block->lock.is_block_lock = true;
 
   ut_ad(rw_lock_validate(&block->lock));
+
+  /* Signal that latches are fully ready. */
+  block->latches_initialized.store(2, std::memory_order_release);
 }
 
 /** Lightweight initialization of a buffer control block: no latches created. */
@@ -917,7 +931,7 @@ static void buf_block_init_light(
   page_zip_des_init(&block->page.zip);
 
   /* Latches are NOT initialized here. */
-  block->latches_initialized.store(false, std::memory_order_relaxed);
+  block->latches_initialized.store(0, std::memory_order_relaxed);
 }
 
 /* We maintain our private view of innobase_should_madvise_buf_pool() which we
@@ -1535,7 +1549,7 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
     buf_block_t *block = chunk->blocks;
 
     for (ulint i = chunk->size; i--; block++) {
-      if (block->latches_initialized.load(std::memory_order_acquire)) {
+      if (block->latches_initialized.load(std::memory_order_acquire) == 2) {
         mutex_free(&block->mutex);
         rw_lock_free(&block->lock);
         ut_d(rw_lock_free(&block->debug_latch));
@@ -2537,7 +2551,7 @@ withdraw_retry:
         buf_block_t *block = chunk->blocks;
 
         for (ulint j = chunk->size; j--; block++) {
-          if (block->latches_initialized.load(std::memory_order_acquire)) {
+          if (block->latches_initialized.load(std::memory_order_acquire) == 2) {
             mutex_free(&block->mutex);
             rw_lock_free(&block->lock);
             ut_d(rw_lock_free(&block->debug_latch));

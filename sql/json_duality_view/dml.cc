@@ -2046,7 +2046,8 @@ enum class Stmt_state { EXECUTE = 0, SKIP = 1, ERROR = 2 };
   return Stmt_state::EXECUTE;
 }
 
-static Stmt_state make_delete(THD *, const Single_object_binding &, auto *);
+static Stmt_state make_delete(THD *, const Json_object &,
+                              const Content_tree_node &, auto *);
 
 /**
   Obtains the dom of the etag sub-object.
@@ -2092,9 +2093,8 @@ static bool check_etag(const Two_object_binding &binding) {
 }
 
 /**
-  Produces an UPDATE statement from a Two_object_binding. If there is no
-  existing object an INSERT is generated. If there is no bound object a DELETE
-  statement is generated.
+  Produces an UPDATE statement from a Two_object_binding. Only called for
+  bindings which have non-nullptr existing_object and bound_object.
 
   @param thd THD
   @param binding updatee
@@ -2108,25 +2108,8 @@ static bool check_etag(const Two_object_binding &binding) {
   const Content_tree_node &ct_node = *binding.ct_node;
   assert(!ct_node.key_column_info_list().empty());
   assert(binding.resolve_row);
-
-  if (binding.existing_object == nullptr) {
-    DBUG_LOG("jdv_dml",
-             "DML-UPDATE: b.existing_object == nullptr for UPDATE of "
-                 << ct_node << ", generating INSERT of bound object instead.");
-    return make_insert(thd, binding, sbufp);
-  }
   assert(binding.existing_object != nullptr);
-  if (binding.bound_object == nullptr) {
-    DBUG_LOG("jdv_dml",
-             "DML-UPDATE: b.bound_object == nullptr for UPDATE of "
-                 << ct_node.name()
-                 << ", generating DELETE of existing object instead.");
-    return make_delete(thd,
-                       {.bound_object = binding.existing_object,
-                        .ct_node = binding.ct_node,
-                        .resolve_row = {}},
-                       sbufp);
-  }
+  assert(binding.bound_object != nullptr);
 
   // Check if any singleton child is removed or set to null
   for (const auto &c : binding.ct_node->children()) {
@@ -2294,21 +2277,19 @@ static bool check_etag(const Two_object_binding &binding) {
 }
 
 /**
-  Produces a delete statement from a Single_object_binding.
-  When an update decays into a DELETE, this function is called
-  a with a Single_object_binding created on the fly from
-  the Two_object_binding - which is only possible because
-  DELETE does not require a populated resolve_row.
+  Produces a delete statement from a Json_object and a Content_tree_node.
+  Called both when executing DELETE and when UPDATE triggers a delete of a
+  nested child.
 
-  @param binding deletee
+  @param del_obj Json_object to delete (by primary key)
+  @param ct_node Content_tree_node for base table
   @param sbufp statement text buffer
   @return Statement_status - indicates if statement must be executed, skipped or
   an error occured
  */
-[[nodiscard]] static Stmt_state make_delete(
-    THD *, const Single_object_binding &binding, auto *sbufp) {
-  assert(binding.bound_object != nullptr);
-  const auto &ct_node = *binding.ct_node;
+[[nodiscard]] static Stmt_state make_delete(THD *, const Json_object &del_obj,
+                                            const Content_tree_node &ct_node,
+                                            auto *sbufp) {
   assert(!ct_node.key_column_info_list().empty());
   if (!ct_node.allows_delete()) {
     if (ct_node.is_singleton_child()  //&&
@@ -2317,11 +2298,10 @@ static bool check_etag(const Two_object_binding &binding) {
     ) {
       return Stmt_state::SKIP;
     }
-    DBUG_LOG("jdv_dml", "DELETE on " << *binding.ct_node
-                                     << " rejected due to missing TAG");
+    DBUG_LOG("jdv_dml",
+             "DELETE on " << ct_node << " rejected due to missing TAG");
     my_jdv_error<ER_JDV_MISSING_DELETE_TAG>(
-        binding.ct_node->quoted_qualified_table_name(),
-        binding.bound_object->get_location());
+        ct_node.quoted_qualified_table_name(), del_obj.get_location());
     return Stmt_state::ERROR;
   }
 
@@ -2335,8 +2315,7 @@ static bool check_etag(const Two_object_binding &binding) {
   append_identifier(&sbuf, ct_node.primary_key_column().column_name());
   sbuf.append(" = ");
 
-  Json_dom *pk_val =
-      binding.bound_object->get(ct_node.primary_key_column().key());
+  Json_dom *pk_val = del_obj.get(ct_node.primary_key_column().key());
   assert(pk_val != nullptr);
   assert(!col_expects_b64(ct_node.primary_key_column()));
   return append_json_dom(&sbuf, pk_val) ? Stmt_state::ERROR
@@ -2539,15 +2518,50 @@ static bool check_etag(const Two_object_binding &binding) {
 
   return do_in_substatement_context(thd, [&](Diagnostics_area *caller_da) {
     std::string stmt;
+
+    // Unpaired deletes must be executed in reverse order to satisfy FK
+    // contraints
+    if (std::ranges::any_of(
+            std::ranges::reverse_view{rank_index},
+            [&](const Index_entry<Two_object_binding> &ie) {
+              const Two_object_binding &bin = ie.get();
+              if (bin.is_empty() ||
+                  // Skip if insert/update
+                  bin.bound_object != nullptr) {
+                return false;
+              }
+
+              stmt.resize(0);
+              auto res =
+                  make_delete(thd, *bin.existing_object, *bin.ct_node, &stmt);
+              DBUG_LOG("jdv_dml",
+                       "DML-UPDATE: REVERESE unpaired delete from node '"
+                           << *bin.ct_node << "'"
+                           << " using '" << stmt << "'");
+
+              return res == Stmt_state::ERROR ||
+                     (res != Stmt_state::SKIP &&
+                      run_substmt(thd, caller_da, stmt, affected_rows));
+            })) {
+      return true;
+    }
+
+    // Unpaired inserts and updates are executed in the normal order (skipping
+    // over deletes already executed)
     return std::ranges::any_of(
         rank_index, [&](const Index_entry<Two_object_binding> &ie) {
           const Two_object_binding &bin = ie.get();
-          if (bin.is_empty()) {
+          if (bin.is_empty() ||
+              // Skip if unpaired delete
+              bin.bound_object == nullptr) {
             return false;
           }
+
           stmt.resize(0);
-          auto res = make_update(thd, bin, &stmt);
-          DBUG_LOG("jdv_dml", "DML-UPDATE: Update from node '"
+          auto res =
+              (bin.existing_object == nullptr ? make_insert(thd, bin, &stmt)
+                                              : make_update(thd, bin, &stmt));
+          DBUG_LOG("jdv_dml", "DML-UPDATE: FORWARD Update/insert from node '"
                                   << *bin.ct_node << "'"
                                   << " using '" << stmt << "'");
 
@@ -2587,7 +2601,7 @@ static bool check_etag(const Two_object_binding &binding) {
         std::ranges::reverse_view{bindings},
         [&](const Single_object_binding &bin) {
           stmt.resize(0);
-          auto res = make_delete(thd, bin, &stmt);
+          auto res = make_delete(thd, *bin.bound_object, *bin.ct_node, &stmt);
           DBUG_LOG("jdv_dml", "DML-DELETE: Delete from node '"
                                   << *bin.ct_node << "'"
                                   << " using '" << stmt << "'");

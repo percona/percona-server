@@ -1,0 +1,82 @@
+CREATE DATABASE isp_db;
+USE isp_db;
+CREATE TABLE parent_t (
+id INT PRIMARY KEY,
+payload VARCHAR(32)
+) ENGINE=InnoDB;
+CREATE TABLE child_t (
+id        INT PRIMARY KEY,
+parent_id INT,
+KEY ix_child_parent (parent_id),
+CONSTRAINT fk_child_parent
+FOREIGN KEY (parent_id) REFERENCES parent_t(id)
+) ENGINE=InnoDB;
+CREATE TABLE virt_t (
+id INT PRIMARY KEY,
+a  INT,
+b  INT,
+s  INT AS (a + b) VIRTUAL
+) ENGINE=InnoDB;
+SET @orig_sql_mode = @@sql_mode;
+SET sql_mode = (SELECT REPLACE(@@sql_mode, 'NO_AUTO_CREATE_USER', ''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER 'isp_user'@'localhost';
+SET sql_mode = @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+GRANT USAGE  ON *.*       TO 'isp_user'@'localhost';
+GRANT SELECT ON isp_db.*  TO 'isp_user'@'localhost';
+#
+# ---- as isp_user (no PROCESS) ----
+#
+# Cross-table JOIN (SYS_FIELDS -> SYS_INDEXES -> SYS_TABLES): also rejected.
+SELECT t.NAME  AS table_name,
+i.NAME  AS index_name,
+f.NAME  AS col_name,
+f.POS   AS col_pos
+FROM   INFORMATION_SCHEMA.INNODB_SYS_FIELDS  f
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_INDEXES i ON i.INDEX_ID = f.INDEX_ID
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_TABLES  t ON t.TABLE_ID = i.TABLE_ID
+WHERE  t.NAME LIKE 'isp_db/%'
+ORDER  BY t.NAME, i.NAME, f.POS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+#
+# ---- as isp_user after GRANT PROCESS ----
+#
+GRANT PROCESS ON *.* TO 'isp_user'@'localhost';
+# Cross-table JOIN (SYS_FIELDS -> SYS_INDEXES -> SYS_TABLES): visible with PROCESS.
+SELECT t.NAME  AS table_name,
+i.NAME  AS index_name,
+f.NAME  AS col_name,
+f.POS   AS col_pos
+FROM   INFORMATION_SCHEMA.INNODB_SYS_FIELDS  f
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_INDEXES i ON i.INDEX_ID = f.INDEX_ID
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_TABLES  t ON t.TABLE_ID = i.TABLE_ID
+WHERE  t.NAME LIKE 'isp_db/%'
+ORDER  BY t.NAME, i.NAME, f.POS;
+table_name	index_name	col_name	col_pos
+isp_db/child_t	ix_child_parent	parent_id	0
+isp_db/child_t	PRIMARY	id	0
+isp_db/parent_t	PRIMARY	id	0
+isp_db/virt_t	PRIMARY	id	0
+#
+# ---- as root: visibility unchanged ----
+#
+# Cross-table JOIN (SYS_FIELDS -> SYS_INDEXES -> SYS_TABLES): visible as root.
+SELECT t.NAME  AS table_name,
+i.NAME  AS index_name,
+f.NAME  AS col_name,
+f.POS   AS col_pos
+FROM   INFORMATION_SCHEMA.INNODB_SYS_FIELDS  f
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_INDEXES i ON i.INDEX_ID = f.INDEX_ID
+JOIN   INFORMATION_SCHEMA.INNODB_SYS_TABLES  t ON t.TABLE_ID = i.TABLE_ID
+WHERE  t.NAME LIKE 'isp_db/%'
+ORDER  BY t.NAME, i.NAME, f.POS;
+table_name	index_name	col_name	col_pos
+isp_db/child_t	ix_child_parent	parent_id	0
+isp_db/child_t	PRIMARY	id	0
+isp_db/parent_t	PRIMARY	id	0
+isp_db/virt_t	PRIMARY	id	0
+DROP USER 'isp_user'@'localhost';
+DROP DATABASE isp_db;

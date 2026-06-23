@@ -1,0 +1,78 @@
+SET @tx_isolation= @@global.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2", "c3", "c4", "c5", "uk_c1");
+CREATE USER mysqltest1@localhost;
+CREATE USER mysqltest_long@localhost;
+connect  sql_default,localhost,mysqltest1,,;
+connect  sql_long,localhost,mysqltest_long,,;
+connection sql_default;
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+id    INT          NOT NULL PRIMARY KEY,
+c1    VARCHAR(32),
+c2    VARCHAR(1024),
+c3    INT,
+c4    BIGINT UNSIGNED,
+c5    INT,
+UNIQUE KEY uk_c1 (c1)
+) ENGINE=InnoDB;
+INSERT INTO t1 (id, c1, c2, c3, c4, c5) VALUES (5, 'K', 'v100', 0, 0, 0);
+SELECT id, c1, c2 FROM t1;
+id	c1	c2
+5	K	v100
+connection default;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT SLEEP(2);
+SLEEP(2)
+0
+PHASE 1 (clean): get(K) = v100
+connection sql_long;
+USE test;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT id, c1, c2 FROM t1;
+id	c1	c2
+5	K	v100
+connection sql_default;
+DELETE FROM t1 WHERE c1 = 'K';
+INSERT INTO t1 (id, c1, c2, c3, c4, c5) VALUES (4, 'K', 'v200', 0, 0, 0);
+SELECT id, c1, c2 FROM t1;
+id	c1	c2
+4	K	v200
+connection sql_long;
+SELECT id, c1, c2 FROM t1;
+id	c1	c2
+5	K	v100
+connection default;
+PHASE 2 (long trx open): get(K) = v200
+connection sql_default;
+SELECT id, c1, c2 FROM t1 WHERE c1 = 'K';
+id	c1	c2
+4	K	v200
+connection sql_long;
+COMMIT;
+disconnect sql_long;
+connection sql_default;
+CREATE TABLE purge_kick (id INT PRIMARY KEY) ENGINE=InnoDB;
+DROP TABLE purge_kick;
+SELECT SLEEP(5);
+SLEEP(5)
+0
+PHASE 3 (after purge): get(K) = v200
+connection sql_default;
+DROP TABLE t1;
+disconnect sql_default;
+connection default;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+DROP USER mysqltest1@localhost;
+DROP USER mysqltest_long@localhost;
+SET @@global.tx_isolation= @tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead

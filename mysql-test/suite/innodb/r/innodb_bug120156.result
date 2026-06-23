@@ -1,0 +1,15 @@
+#
+# Bug#120156 TRUNCATE TABLE crashes when the database directory is a symlink
+#
+CREATE DATABASE bug120156db;
+CREATE TABLE bug120156db.t1 (id INT PRIMARY KEY, val VARCHAR(100)) ENGINE=InnoDB;
+INSERT INTO bug120156db.t1 VALUES (1,'hello'),(2,'world');
+# restart
+# TRUNCATE must succeed
+TRUNCATE TABLE bug120156db.t1;
+INSERT INTO bug120156db.t1 VALUES (1,'after'),(2,'truncate');
+SELECT * FROM bug120156db.t1 ORDER BY id;
+id	val
+1	after
+2	truncate
+DROP DATABASE bug120156db;

@@ -21,14 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 # LSAN suppressions for gcc/clang
-leak:Perl_safesyscalloc
-leak:Perl_safesysmalloc
-leak:Perl_safesysrealloc
-leak:Perl_savesharedpv
-leak:Perl_Slab_Alloc
-leak:Perl_newUNOP_AUX
-leak:Perl_newSTATEOP
-leak:Perl_pmruntime
+leak:Perl_*
+leak:perl_*
 leak:/lib64/libperl.so.*
 leak:/usr/bin/perl
 leak:/bin/bash

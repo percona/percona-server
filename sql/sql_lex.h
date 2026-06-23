@@ -2996,6 +2996,13 @@ public:
   sql_digest_state* m_digest;
 
   bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
+
+  /**
+    Next parse position at which to check for client disconnect.
+    Used by MYSQLlex() to periodically call is_connected()
+    for large queries, without incurring syscall overhead on every token.
+  */
+  size_t m_next_connected_check_pos;
 };
 
 

@@ -376,7 +376,11 @@ protected:
   {
     if (tr1 != NULL)
       return false; // already done
-      
+
+    char buff[NAME_LEN + 1];
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, pointer_cast<uchar *>(buff)))
+      return true; /* purecov: inspected */
+
     if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc))
       return true;
 

@@ -330,6 +330,20 @@ private:
     const char *errmsg = 0;
 
     uint event_len= uint4korr(((uchar*)(packet->payload)) + EVENT_LEN_OFFSET);
+
+    DBUG_EXECUTE_IF("group_replication_pipeline_force_invalid_event_length",
+                    { event_len= packet->len + 1; });
+
+    if (event_len > packet->len)
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "Unable to convert a packet into an event on the applier!"
+                  " Error: invalid event length."); /* purecov: inspected */
+      delete packet;  /* purecov: inspected */
+      packet= NULL;   /* purecov: inspected */
+      return 1;       /* purecov: inspected */
+    }
+
     log_event= Log_event::read_log_event((const char*)packet->payload, event_len,
                                          &errmsg, format_descriptor, TRUE);
 

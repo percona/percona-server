@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS-11175 — how a truncated block number crashes the backup</title>
+<style>
+  :root{
+    --bg:#0f1320; --panel:#171c2e; --panel2:#1e2438; --text:#e8ecf5; --muted:#9aa4bf;
+    --stroke:#2c3450; --accent:#7c9cff; --accent2:#5ad1c4;
+    --file:#243044; --file-br:#3a4a6b;
+    --reset:#8b5cf6; --reset-bg:#2a2150;
+    --data:#2563eb; --data-bg:#16233f;
+    --good:#22c55e; --good-bg:#14321f;
+    --bad:#ef4444;  --bad-bg:#3a1620;
+    --warn:#f59e0b; --warn-bg:#3a2c12;
+    --garbage:#f43f5e;
+    --era1:#3b82f6; --era2:#06b6d4; --era3:#a855f7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  code,.mono{font-family:"SF Mono", "JetBrains Mono",Consolas,Menlo,monospace}
+  .wrap{max-width:1040px;margin:0 auto;padding:22px 22px 120px}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.2px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+
+  /* progress */
+  .dots{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 20px}
+  .dot{width:30px;height:30px;border-radius:8px;border:1px solid var(--stroke);
+    background:var(--panel);color:var(--muted);font-size:13px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.15s}
+  .dot:hover{border-color:var(--accent)}
+  .dot.active{background:var(--accent);color:#0b0f1a;border-color:var(--accent);font-weight:700}
+  .dot.done{color:var(--accent2);border-color:#2f4a55}
+
+  .step{display:none;animation:fade .25s ease}
+  .step.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  .steptitle{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
+  .steptitle .n{color:var(--accent);font-weight:700;font-size:14px;
+    background:var(--panel2);border:1px solid var(--stroke);border-radius:6px;padding:2px 9px}
+  .steptitle h2{font-size:20px;margin:0}
+  p{margin:.5em 0}
+  .note{background:var(--panel);border:1px solid var(--stroke);border-left:3px solid var(--accent);
+    border-radius:8px;padding:12px 14px;margin:14px 0;font-size:14.5px}
+  .note.bad{border-left-color:var(--bad)}
+  .note.good{border-left-color:var(--good)}
+  .note.warn{border-left-color:var(--warn)}
+  .k{color:var(--accent2)}
+  .hot{color:var(--garbage);font-weight:700}
+  .stage{background:var(--panel);border:1px solid var(--stroke);border-radius:12px;
+    padding:18px;margin:14px 0;overflow-x:auto}
+
+  /* file row */
+  .files{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .file{background:var(--file-bg,var(--file));border:1px solid var(--file-br);border-radius:8px;
+    padding:8px 10px;min-width:96px;text-align:center}
+  .file .fname{font-weight:700;font-size:13px}
+  .file .fmeta{color:var(--muted);font-size:11px;margin-top:2px}
+  .file.hl{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,156,255,.25)}
+  .file.badf{border-color:var(--bad);box-shadow:0 0 0 2px rgba(239,68,68,.25)}
+
+  /* block strip */
+  .blocks{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px}
+  .blk{width:26px;height:30px;border-radius:5px;border:1px solid var(--stroke);
+    display:flex;align-items:center;justify-content:center;font-size:10px;color:#dbe2f5;position:relative}
+  .blk.reset{background:var(--reset-bg);border-color:var(--reset)}
+  .blk.e1{background:#10243f;border-color:var(--era1)}
+  .blk.e2{background:#0c2d33;border-color:var(--era2)}
+  .blk.e3{background:#271238;border-color:var(--era3)}
+  .blk.true{outline:2px solid var(--good);outline-offset:1px}
+  .blk.read{outline:2px solid var(--garbage);outline-offset:1px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid var(--stroke)}
+
+  /* header anatomy */
+  .hdr{display:flex;gap:6px;flex-wrap:wrap}
+  .fld{border:1px solid var(--stroke);border-radius:7px;padding:8px 10px;background:var(--panel2);font-size:13px}
+  .fld b{display:block;font-size:11px;color:var(--accent2);text-transform:uppercase;letter-spacing:.4px}
+
+  /* vector diagram */
+  .vec{display:flex;align-items:stretch;gap:0;margin:10px 0}
+  .cell{border:1px solid var(--stroke);background:var(--panel2);padding:10px 12px;min-width:150px}
+  .cell.garbage{background:repeating-linear-gradient(45deg,#3a1620,#3a1620 6px,#46202c 6px,#46202c 12px);
+    border-color:var(--garbage)}
+  .cell .lab{font-size:11px;color:var(--muted)}
+  .ptr{font-size:12px;color:var(--garbage);margin-top:4px}
+
+  pre{background:#0b0f1a;border:1px solid var(--stroke);border-radius:8px;padding:12px;
+    overflow-x:auto;font-size:12.5px;margin:12px 0}
+  pre .c{color:#6b7a99}
+  pre .hl{color:#fca5a5}
+  pre .ok{color:#86efac}
+  .arrow{color:var(--accent);font-weight:700;padding:0 6px}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}
+  th,td{border:1px solid var(--stroke);padding:7px 9px;text-align:left}
+  th{background:var(--panel2);color:var(--accent2)}
+
+  /* nav */
+  .nav{position:fixed;left:0;right:0;bottom:0;background:rgba(15,19,32,.95);
+    border-top:1px solid var(--stroke);backdrop-filter:blur(6px)}
+  .nav .inner{max-width:1040px;margin:0 auto;padding:12px 22px;display:flex;
+    align-items:center;justify-content:space-between;gap:12px}
+  .btn{background:var(--accent);color:#0b0f1a;border:none;border-radius:8px;padding:10px 18px;
+    font-size:14px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.35;cursor:default}
+  .btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--stroke)}
+  .navtitle{color:var(--muted);font-size:13px;text-align:center;flex:1}
+  .big{font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PS-11175 — how a truncated block number crashes the backup</h1>
+  <div class="sub">A 10-step walkthrough: from a 2-byte truncation on disk to <code>MY-012642 — Tried to read 16777216 bytes at offset 3414897408</code>. Use ← → or the buttons.</div>
+
+  <div class="dots" id="dots"></div>
+
+  <!-- STEP 1 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">1</span><h2>Disk layout of the page-archive</h2></div>
+    <p>Page tracking writes a stream of <em>archive files</em> under <code>#ib_archive/page_group_&lt;id&gt;/</code>. They are created in order and each file is a fixed <b>~32&nbsp;MB</b>.</p>
+    <div class="stage">
+      <div class="files">
+        <div class="file"><div class="fname">ib_page_0</div><div class="fmeta">~32 MB</div></div>
+        <div class="file"><div class="fname">ib_page_1</div><div class="fmeta">~32 MB</div></div>
+        <div class="file"><div class="fname">ib_page_2</div><div class="fmeta">~32 MB</div></div>
+        <div class="file" style="opacity:.6"><div class="fname">…</div><div class="fmeta"></div></div>
+        <div class="file hl"><div class="fname">ib_page_33</div><div class="fmeta">current</div></div>
+        <div class="file" style="opacity:.5"><div class="fname">ib_page_34</div><div class="fmeta">next</div></div>
+      </div>
+      <div class="legend"><span><span class="sw" style="background:var(--file);border-color:var(--accent)"></span>the file the writer is currently filling</span></div>
+    </div>
+    <div class="note">Old files may be <b>purged</b> as the backup window advances, but the numbering keeps climbing: <code>ib_page_33</code>, <code>ib_page_34</code>, …</div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">2</span><h2>Blocks across files — and how a block_num finds its file</h2></div>
+    <p>Each file holds <b>1 reset block (slot 0)</b> + <b>2043 data blocks</b> of 16&nbsp;KB each. A single global <code>block_num</code> counter runs across <em>all</em> files.</p>
+    <div class="stage">
+      <div class="file hl" style="min-width:auto;display:inline-block;text-align:left">
+        <div class="fname">ib_page_33</div>
+        <div class="blocks">
+          <div class="blk reset" title="reset block">R</div>
+          <div class="blk e1">1</div><div class="blk e1">2</div><div class="blk e1">…</div>
+          <div class="blk e1">31</div><div class="blk e1">…</div><div class="blk e2">900</div>
+          <div class="blk e3">…</div><div class="blk e3">2043</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--reset-bg);border-color:var(--reset)"></span>slot 0 = reset block</span>
+        <span><span class="sw" style="background:#10243f;border-color:var(--era1)"></span>data blocks (2043 of them)</span>
+      </div>
+    </div>
+    <div class="hdr">
+      <div class="fld"><b>which file</b><code>get_file_index(bn) = bn / 2043</code></div>
+      <div class="fld"><b>offset in file</b><code>get_file_offset(bn) = (bn % 2043 + 1) × 16384</code></div>
+    </div>
+    <div class="note"><b>Example.</b> Global block <code>67450</code> → file <code>67450/2043 = <span class="k">33</span></code> → <code>ib_page_33</code>, data slot <code>67450 % 2043 = <span class="k">31</span></code>. Remember <code>67450</code> and slot <code>31</code> — they come back later.</div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">3</span><h2>What a block holds — reset_lsn vs stop_lsn</h2></div>
+    <p>Every block starts with a fixed header, then the payload (page-IDs for data blocks). Two LSNs in the header matter:</p>
+    <div class="stage">
+      <div class="hdr">
+        <div class="fld"><b>block_num</b>this block's global number</div>
+        <div class="fld"><b>data_len</b>bytes of payload</div>
+        <div class="fld" style="border-color:var(--reset)"><b>reset_lsn</b>the <em>reset era</em> this block belongs to — the LSN of the most recent <code>set(1)</code>. <u>Step function</u>: constant within an era, jumps up at each reset.</div>
+        <div class="fld" style="border-color:var(--accent2)"><b>stop_lsn</b>highest redo LSN whose page changes are captured in this block. <u>Monotonic</u> — every later block has a larger stop_lsn. Derived from the redo LSN at flush time.</div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="cell" style="display:inline-block;border-color:var(--reset);background:var(--reset-bg)">
+          <div class="lab">slot 0 — RESET BLOCK</div>
+          <div class="mono"><b>file_lsn</b> = LSN of the file's <em>first</em> reset point<br>+ list of reset points: <code>{block_num, offset}</code></div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><b>Why stop_lsn?</b> A <code>get_changed_pages(start,stop)</code> walk needs to know, per block, “does this block still contain changes ≤ stop?” — so it reads each block header's <code>stop_lsn</code> to decide where to stop. <code>reset_lsn</code>, by contrast, identifies which <code>set(1)</code> a block belongs to.</div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">4</span><h2>User runs set(1) — what lands on disk</h2></div>
+    <p>A <code>set(1)</code> reset at <b>LSN 9,000,000</b> while the write cursor is at <b>block 67450</b> (ib_page_33, slot 31). <code>Arch_Block::add_reset</code> appends a reset entry to slot 0 — and writes <code>block_num</code> with <code>mach_write_to_2</code> (only <b>2 bytes</b>):</p>
+    <pre><span class="c">// real block_num = 67450</span>
+mach_write_to_8(buf, 9000000);                 <span class="c">// file_lsn (8 bytes)</span>
+mach_write_to_2(buf+len, <span class="hl">67450</span>);            <span class="c">// 67450 needs 17 bits -> TRUNCATED</span>
+mach_write_to_2(buf+len, 64);                  <span class="c">// offset (fits)</span>
+
+   67450 = 0x0001_07BA   <span class="arrow">→</span> low 2 bytes only <span class="arrow">→</span> 0x07BA = <span class="hl">1914</span></pre>
+    <div class="stage">
+      <div class="cell" style="border-color:var(--reset);background:var(--reset-bg)">
+        <div class="lab">ib_page_33 · slot 0 (reset block) on disk</div>
+        <div class="mono">file_lsn = <span class="k">9,000,000</span> &nbsp;|&nbsp; entry → { block_num = <span class="hot">1914</span> , offset = 64 } &nbsp;<span class="bad" style="color:var(--bad)">(was 67450!)</span></div>
+      </div>
+    </div>
+    <div class="note bad">The on-disk reset entry now says block <span class="hot">1914</span>, but the real reset was at block <b>67450</b>. The high bits are gone forever.</div>
+  </section>
+
+  <!-- STEP 5 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">5</span><h2>Everything is fine — until a restart</h2></div>
+    <p>In memory, <code>save_reset_point_in_mem</code> stored the <b>full, correct</b> <code>67450</code>. Live reads use this in-memory copy, so backups work perfectly. The corruption sits silently on disk.</p>
+    <div class="stage" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+      <div class="cell good" style="border-color:var(--good);background:var(--good-bg)">
+        <div class="lab">in memory (m_reset)</div>
+        <div class="mono">block_num = <span class="ok" style="color:var(--good)">67450</span> ✓</div>
+      </div>
+      <div style="font-size:24px;color:var(--muted)">vs</div>
+      <div class="cell" style="border-color:var(--bad);background:var(--bad-bg)">
+        <div class="lab">on disk (ib_page_33 reset block)</div>
+        <div class="mono">block_num = <span class="hot">1914</span> ✗</div>
+      </div>
+    </div>
+    <div class="note warn"><b>DORMANT.</b> The bug only arms when memory is thrown away and <code>m_reset</code> must be rebuilt from the disk bytes — i.e. on the <b>next restart</b>. (Customers always saw the crash <em>after a restart</em>.)</div>
+  </section>
+
+  <!-- STEP 6 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">6</span><h2>Restart — recovery re-discovers the reset points</h2></div>
+    <p>On startup, <code>parse_reset_points</code> walks each file's reset block and rebuilds <code>m_reset</code>. For our entry it reads back the truncated <code>1914</code> and then asks <code>fetch_reset_lsn</code> for that block's reset era:</p>
+    <pre>reset_file.m_lsn = mach_read_from_8(buf);      <span class="c">// = 9,000,000  (file_lsn)</span>
+pos.m_block_num  = mach_read_from_2(buf);      <span class="c">// = <span class="hl">1914</span>  (truncated)</span>
+pos.m_offset     = mach_read_from_2(buf);      <span class="c">// = 64</span>
+start_point.lsn  = <span class="hl">fetch_reset_lsn(1914)</span>;       <span class="c">// reads a block's reset_lsn header</span></pre>
+    <div class="note">So the rebuilt reset point gets its LSN from <code>fetch_reset_lsn(1914)</code> — and that is where it all goes wrong. Step 7 shows exactly which block gets read.</div>
+  </section>
+
+  <!-- STEP 7 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">7</span><h2>The key trap — 1914 is read from the <u>current</u> file, not where it “belongs”</h2></div>
+    <p>The value <code>1914</code> is interpreted <b>two different ways</b>. <code>fetch_reset_lsn</code> uses only the <em>within-file offset</em>, reading from the file it already has open (<code>ib_page_33</code>) — it never opens the file the number maps to:</p>
+    <div class="hdr">
+      <div class="fld" style="border-color:var(--accent2)"><b>used now (fetch_reset_lsn)</b>get_file_OFFSET(1914) = slot 1914 → reads <span class="k">ib_page_33</span> @ ≈31.4 MB</div>
+      <div class="fld" style="border-color:var(--bad)"><b>what it would index to</b>get_file_INDEX(1914) = 0 → ib_page_0 &nbsp;(NOT opened here)</div>
+    </div>
+    <div class="stage">
+      <div class="file hl" style="min-width:auto;display:inline-block;text-align:left">
+        <div class="fname">ib_page_33 — currently open during recovery (m_index = 33)</div>
+        <div class="blocks">
+          <div class="blk reset">R</div>
+          <div class="blk e1">1</div>
+          <div class="blk e1 true" title="the TRUE reset block 67450">31</div>
+          <div class="blk e1">…</div>
+          <div class="blk e2">900</div><div class="blk e2">…</div>
+          <div class="blk e3 read" title="fetch_reset_lsn(1914) reads HERE">1914</div>
+          <div class="blk e3">…</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:#10243f;border-color:var(--era1)"></span>era reset_lsn = 9,000,000</span>
+        <span><span class="sw" style="background:#0c2d33;border-color:var(--era2)"></span>9,400,000</span>
+        <span><span class="sw" style="background:#271238;border-color:var(--era3)"></span>9,800,000</span>
+        <span><span class="sw" style="outline:2px solid var(--good)"></span>TRUE block 67450 (slot 31)</span>
+        <span><span class="sw" style="outline:2px solid var(--garbage)"></span>slot 1914 actually read</span>
+      </div>
+    </div>
+    <div class="note bad">Slot 1914 is a <b>much later block of the same file</b> → a <b>later reset era</b>. <code>fetch_reset_lsn(1914)</code> returns <span class="hot">9,800,000</span> — not the true reset's 9,000,000.</div>
+  </section>
+
+  <!-- STEP 8 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">8</span><h2>In memory — the broken vector and the out-of-bounds read</h2></div>
+    <p>The rebuilt entry now violates the invariant <code>m_lsn == start_point[0].lsn</code>:</p>
+    <div class="stage" style="display:flex;gap:18px;flex-wrap:wrap">
+      <div class="cell" style="border-color:var(--bad)">
+        <div class="lab">m_reset entry (BROKEN)</div>
+        <div class="mono">m_lsn = <span class="k">9,000,000</span><br>start_point[0].lsn = <span class="hot">9,800,000</span> &nbsp;(&gt; m_lsn!)<br>start_point[0].pos = {blk 1914, off 64}</div>
+      </div>
+    </div>
+    <p>A lookup for an LSN in the gap (e.g. <b>9,100,000</b>) makes <code>std::lower_bound</code> return <code>begin()</code>, and the unguarded <code>--begin()</code> reads the <code>Arch_Point</code> <b>before</b> the buffer:</p>
+    <div class="vec">
+      <div class="cell garbage"><div class="lab">P − 24 (heap)</div><div class="mono hot">GARBAGE</div><div class="ptr">▲ --begin() lands here</div></div>
+      <div class="cell"><div class="lab">P = begin()</div><div class="mono">lsn = 9,800,000<br>pos = {1914,64}</div></div>
+    </div>
+    <pre>reset_point_it = lower_bound(lsn &gt;= 9,100,000);   <span class="c">// 9,800,000 &gt;= 9,100,000 -&gt; returns begin()</span>
+if (it==end() || it-&gt;lsn != check) {
+    <span class="c">ut_ad(it != begin());</span>   <span class="hl">// DEBUG asserts | RELEASE no-op</span>
+    --it;                  <span class="hl">// --begin() -&gt; reads BEFORE the buffer</span>
+}
+reset_point = *it;         <span class="hl">// = GARBAGE { block_num, m_offset }</span></pre>
+    <div class="note bad">Because the vector is <b>non-empty</b> (it has capacity), this is a <b>garbage read, not a crash</b>. The bytes happen to give e.g. <code>block_num = 1</code>, <code>m_offset = <span class="hot">3,414,897,408</span></code> (~3.18 GB).</div>
+  </section>
+
+  <!-- STEP 9 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">9</span><h2>Later, a backup SELECT picks up the garbage</h2></div>
+    <p>xtrabackup runs <code>SELECT … get_changed_pages(9,100,000, …)</code>. It calls <code>find_reset_point</code>, which returns that garbage position as the place to start reading:</p>
+    <pre>success = group-&gt;find_reset_point(9100000, reset_point);
+start_pos = reset_point.pos;   <span class="hl">// { block_num = 1 , m_offset = 3,414,897,408 }</span></pre>
+    <div class="stage" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <div class="cell"><div class="lab">start_pos.block_num</div><div class="mono">1 <span style="color:var(--muted)">→ get_file_index → ib_page_1</span></div></div>
+      <div class="cell garbage"><div class="lab">start_pos.m_offset</div><div class="mono hot">3,414,897,408</div></div>
+    </div>
+    <div class="note">A sane-low <code>block_num</code> sends the read to a real low file (<code>ib_page_1</code>); the garbage <code>m_offset</code> is the ~3.18 GB that will blow past the end of that 32 MB file.</div>
+  </section>
+
+  <!-- STEP 10 -->
+  <section class="step">
+    <div class="steptitle"><span class="n">10</span><h2>The 16 MB read at a 3.18 GB offset → crash</h2></div>
+    <p>In the read loop, <code>bytes_left</code> underflows (unsigned), so the read length is clamped to the 16 MB buffer; then the offset is built from the garbage:</p>
+    <pre>bytes_left = data_len + 32;          <span class="c">// small, e.g. 16384</span>
+bytes_left -= cur_pos.m_offset;      <span class="hl">// 16384 - 3.4e9  -&gt; UNSIGNED UNDERFLOW -&gt; ~4 GB</span>
+read_len = min(bytes_left, buf_len); <span class="hl">// clamped -&gt; 16777216 (16 MB)</span>
+
+file_index = get_file_index(1);      <span class="c">// -&gt; ib_page_1</span>
+offset = get_file_offset(1) + 3414897408;   <span class="hl">// ~3.18 GB</span>
+os_file_read(... read_len=16 MB, offset);   <span class="hl">// past EOF -&gt; reads 0</span></pre>
+    <div class="stage">
+      <div class="mono" style="font-size:12px;color:var(--muted)">ib_page_1 (32 MB)</div>
+      <div style="display:flex;align-items:center;gap:0;margin-top:6px">
+        <div style="height:26px;width:200px;background:linear-gradient(90deg,#16233f,#1e2438);border:1px solid var(--data)"></div>
+        <div style="flex:1;border-top:1px dashed var(--stroke);position:relative;height:1px"></div>
+        <div class="blk read" style="width:auto;padding:0 8px">read 16 MB @ 3.18 GB</div>
+      </div>
+      <div class="mono" style="font-size:11px;color:var(--muted);margin-top:4px">0 ───────────── 32 MB ·······························▶ 3.18 GB (way past EOF)</div>
+    </div>
+    <pre class="big"><span class="hl">[ERROR] [MY-012642] [InnoDB] Tried to read 16777216 bytes at offset 3414897408,
+        but was only able to read 0 of FD 17282, filename .../ib_page_1</span>
+[MY-012646] 'read' returned OS error 122</pre>
+    <div class="note bad"><b>That is the customer crash.</b> Two fixes: (1) <code>add_reset</code> must store <code>block_num</code> without truncation (or reject ≥ 2¹⁶); (2) <code>find_reset_point</code> must guard <code>if (reset_point_it == begin()) return false;</code> so a corrupt/unsorted reset vector can never read before the buffer.</div>
+  </section>
+
+</div>
+
+<div class="nav"><div class="inner">
+  <button class="btn ghost" id="prev">← Prev</button>
+  <div class="navtitle" id="navtitle"></div>
+  <button class="btn" id="next">Next →</button>
+</div></div>
+
+<script>
+  const steps = Array.from(document.querySelectorAll('.step'));
+  const titles = ["Disk layout","Blocks → file","Block headers","set(1) on disk","Fine until restart",
+                  "Restart parse","The key trap","Broken vector + OOB read","SELECT picks garbage","16 MB wild read → crash"];
+  const dotsBox = document.getElementById('dots');
+  let cur = 0;
+  steps.forEach((_,i)=>{
+    const d=document.createElement('div'); d.className='dot'; d.textContent=i+1;
+    d.onclick=()=>go(i); dotsBox.appendChild(d);
+  });
+  const dots = Array.from(document.querySelectorAll('.dot'));
+  function go(i){
+    cur = Math.max(0, Math.min(steps.length-1, i));
+    steps.forEach((s,j)=>s.classList.toggle('active', j===cur));
+    dots.forEach((d,j)=>{d.classList.toggle('active', j===cur); d.classList.toggle('done', j<cur);});
+    document.getElementById('prev').disabled = cur===0;
+    document.getElementById('next').disabled = cur===steps.length-1;
+    document.getElementById('navtitle').textContent = `Step ${cur+1} / ${steps.length} — ${titles[cur]}`;
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.getElementById('prev').onclick=()=>go(cur-1);
+  document.getElementById('next').onclick=()=>go(cur+1);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight') go(cur+1);
+    if(e.key==='ArrowLeft') go(cur-1);
+  });
+  go(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Page Tracking — an internal walkthrough</title>
+<style>
+  /* =========================================================
+     Palette
+     ========================================================= */
+  :root {
+    --bg:        #fafaf7;
+    --text:      #1f2937;
+    --muted:     #6b7280;
+    --stroke:    #374151;
+    --stroke-thin: #9ca3af;
+    --code-bg:   #f1efe8;
+
+    /* semantic colours used inside SVG diagrams */
+    --c-dirty:        #fb7185;  /* a dirty page in the buffer pool */
+    --c-active:       #fb923c;  /* whatever is the "current" thing */
+    --c-ready:        #fbbf24;  /* queued / ready for the next stage */
+    --c-busy:         #60a5fa;  /* being processed / in-flight */
+    --c-sealed:       #d1d5db;  /* sealed / done / immutable */
+
+    --c-bufpool:      #bae6fd;  /* buffer pool background */
+    --c-mem-archive:  #a7f3d0;  /* in-memory archive background */
+    --c-disk-archive: #fef3c7;  /* on-disk archive background */
+    --c-data-file:    #fed7aa;  /* .ibd file background */
+
+    --c-emph:         #1e40af;  /* deep blue for section headings */
+    --c-emph-soft:    #c7d2fe;  /* light periwinkle for "container" shapes */
+  }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 36px 36px 140px 36px;
+    min-height: calc(100vh - 80px);
+  }
+  h1 {
+    font-size: 28px;
+    letter-spacing: -0.2px;
+    margin-top: 0;
+    color: var(--c-emph);
+    border-bottom: 1px solid var(--stroke-thin);
+    padding-bottom: 12px;
+  }
+  h2 {
+    font-size: 22px;
+    color: var(--c-emph);
+    margin-top: 0;
+  }
+  h3 {
+    font-size: 17px;
+    margin-top: 28px;
+    color: #111827;
+  }
+  p, li { font-size: 16px; }
+  code, pre {
+    font-family: "Menlo", "Consolas", "Monaco", monospace;
+    font-size: 14px;
+  }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  pre {
+    background: var(--code-bg);
+    padding: 12px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    border: 1px solid #e0dccf;
+    line-height: 1.45;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: -6px;
+    margin-bottom: 28px;
+  }
+  .lede {
+    font-size: 17px;
+    line-height: 1.6;
+    color: #1f2937;
+    border-left: 3px solid var(--c-emph);
+    padding: 4px 0 4px 16px;
+    margin: 18px 0 24px 0;
+    background: #f4f6ff;
+  }
+
+  /* =========================================================
+     section pagination
+     ========================================================= */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .navbar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(31,41,55,0.96);
+    color: #f9fafb;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    z-index: 100;
+    border-top: 1px solid #111827;
+    box-shadow: 0 -3px 12px rgba(0,0,0,0.18);
+  }
+  .navbar .nav-progress {
+    font-family: "Menlo", monospace;
+    font-size: 13px;
+    color: #cbd5e1;
+    min-width: 110px;
+    text-align: center;
+  }
+  .navbar .nav-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: #f9fafb;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .navbar button {
+    font-family: inherit;
+    font-size: 13px;
+    background: #f3f4f6;
+    color: #1f2937;
+    border: 1px solid #f3f4f6;
+    padding: 7px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .navbar button:disabled {
+    background: #4b5563;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+  .navbar button:hover:not(:disabled) {
+    background: #fde68a;
+  }
+
+  /* a quick "jump to section" dropdown in the nav */
+  .navbar select {
+    font-family: inherit;
+    font-size: 13px;
+    background: #f3f4f6;
+    color: #1f2937;
+    border: 1px solid #f3f4f6;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  /* =========================================================
+     figures / diagrams
+     ========================================================= */
+  .figure {
+    margin: 28px 0 12px 0;
+    text-align: center;
+  }
+  .figure svg {
+    background: var(--bg);
+    max-width: 100%;
+    height: auto;
+  }
+  .caption {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    margin: 8px auto 0 auto;
+    max-width: 760px;
+    line-height: 1.5;
+  }
+
+  .aside {
+    background: #fff6e7;
+    border: 1px solid #efd8a6;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #4a3c1c;
+  }
+  .aside .label {
+    display: inline-block;
+    font-weight: 600;
+    color: #7a5a14;
+    margin-right: 6px;
+  }
+
+  /* =========================================================
+     SVG defaults
+     ========================================================= */
+  svg .lbl    { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                font-size: 12px; fill: #111827; }
+  svg .lbl-sm { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                font-size: 10.5px; fill: #374151; }
+  svg .lbl-lg { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+                font-size: 13.5px; fill: #0f172a; font-weight: 600; }
+  svg .mono   { font-family: "Menlo", "Consolas", "Monaco", monospace;
+                font-size: 11.5px; fill: #111827; }
+  svg .mono-sm{ font-family: "Menlo", "Consolas", "Monaco", monospace;
+                font-size: 10px; fill: #374151; }
+  /* Defaults for SVG primitives. NOTE: do NOT set `fill:` here -- presentation
+     attributes (fill="#xxx" on each <rect>) have lower CSS specificity than
+     stylesheet rules, so a default `fill: white` would silently override every
+     coloured fill in the diagrams. Each shape sets its own fill in markup. */
+  svg rect, svg path:not([data-no-default]), svg line, svg polyline,
+  svg circle, svg ellipse {
+    stroke: var(--stroke);
+    stroke-width: 1;
+  }
+  svg .thin { stroke: var(--stroke-thin); stroke-width: 1; }
+  svg .dotted { stroke-dasharray: 3 3; }
+  svg .nostroke { stroke: none; }
+
+  /* hover highlight on interactive groups */
+  svg g.hot { cursor: pointer; }
+  svg g.hot:hover rect:first-of-type {
+    stroke: #c2410c; stroke-width: 1.8;
+  }
+  svg g.hot .tip { display: none; }
+  svg g.hot:hover .tip { display: block; }
+  svg .tip rect { fill: #1f2937; stroke: #1f2937; }
+  svg .tip text { fill: #f9fafb; font-size: 10.5px;
+                  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+  /* dirty page pulse */
+  @keyframes pulse-dirty {
+    0%, 100% { fill: var(--c-dirty); }
+    50%      { fill: #be123c; }
+  }
+  .pulse-dirty { animation: pulse-dirty 2.0s ease-in-out infinite; }
+
+  /* stepper used by the interactive ring */
+  .stepper {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px;
+    margin: 6px 0 4px 0;
+  }
+  .stepper button {
+    font-family: inherit; font-size: 13px;
+    background: var(--c-emph-soft); border: 1px solid #93a0e5;
+    padding: 6px 12px; border-radius: 4px; cursor: pointer;
+    color: var(--c-emph); font-weight: 600;
+  }
+  .stepper button:hover { background: #a5b4fc; }
+  .stepper .tick {
+    font-family: "Menlo", monospace; font-size: 12px; color: #1f2937;
+    min-width: 280px; text-align: left;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Page Tracking in InnoDB &mdash; an internal walkthrough</h1>
+<div class="meta">A top-down tour of the page-archive subsystem &mdash; what it tracks, where it hooks, how it persists, how it reads back, and the surfaces where things go wrong. Internal-engineering audience. Click <strong>Next →</strong> at the bottom to navigate.</div>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 1                                                    -->
+<!-- =========================================================== -->
+<section class="section" id="sec-1" data-title="1. What and why">
+<h2>1. What and why</h2>
+
+<p class="lede">
+Page tracking is a side-channel that records <em>which InnoDB pages were modified</em> and <em>when</em>, so a later reader can ask "give me the page&#x2011;ids that changed between LSN&nbsp;A and LSN&nbsp;B" and get an exact answer without having to scan every file.
+</p>
+
+<h3>1.1 What it tracks</h3>
+<p>
+For every page that flushes from the buffer pool, page tracking writes a small fixed&#x2011;size record into a side log. That record is a <strong>page&#x2011;id</strong> &mdash; effectively the global identity of the page within the entire InnoDB cluster. Hover the pages below to see what each represents.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 760 220" width="760" height="220" role="img"
+     aria-label="page_id = (tablespace_id, page_no)">
+  <defs>
+    <marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <rect x="40" y="50" width="240" height="100" rx="6" fill="#a7f3d0"/>
+  <text x="160" y="42" class="lbl-lg" text-anchor="middle">page_id</text>
+
+  <rect x="60" y="72" width="90" height="56" rx="4" fill="#fde68a"/>
+  <text x="105" y="100" class="lbl" text-anchor="middle">tablespace</text>
+  <text x="105" y="115" class="lbl" text-anchor="middle">_id</text>
+  <text x="105" y="142" class="lbl-sm" text-anchor="middle">u32</text>
+
+  <rect x="170" y="72" width="90" height="56" rx="4" fill="#fdba74"/>
+  <text x="215" y="100" class="lbl" text-anchor="middle">page_no</text>
+  <text x="215" y="142" class="lbl-sm" text-anchor="middle">u32</text>
+
+  <line x1="290" y1="100" x2="370" y2="100" stroke="#374151" marker-end="url(#arrow1)"/>
+  <text x="330" y="92" class="lbl-sm" text-anchor="middle">identifies</text>
+
+  <rect x="380" y="40" width="340" height="120" rx="6" fill="#fed7aa"/>
+  <text x="550" y="32" class="lbl-lg" text-anchor="middle">tablespace file (.ibd or ibdata1)</text>
+
+  <g class="hot">
+    <rect x="395" y="65" width="40" height="80" rx="3" fill="white"/>
+    <text x="415" y="110" class="mono-sm" text-anchor="middle">0</text>
+    <g class="tip">
+      <rect x="395" y="148" width="100" height="22" rx="3"/>
+      <text x="445" y="163" text-anchor="middle">page 0: clean</text>
+    </g>
+  </g>
+  <g class="hot">
+    <rect x="438" y="65" width="40" height="80" rx="3" fill="white"/>
+    <text x="458" y="110" class="mono-sm" text-anchor="middle">1</text>
+    <g class="tip">
+      <rect x="395" y="148" width="100" height="22" rx="3"/>
+      <text x="445" y="163" text-anchor="middle">page 1: clean</text>
+    </g>
+  </g>
+  <g class="hot">
+    <rect x="481" y="65" width="40" height="80" rx="3" fill="#fb7185" class="pulse-dirty"/>
+    <text x="501" y="110" class="mono-sm" text-anchor="middle" style="fill:white;">2</text>
+    <g class="tip">
+      <rect x="425" y="148" width="155" height="22" rx="3"/>
+      <text x="503" y="163" text-anchor="middle">page 2: DIRTY (will be tracked)</text>
+    </g>
+  </g>
+  <g class="hot">
+    <rect x="524" y="65" width="40" height="80" rx="3" fill="white"/>
+    <text x="544" y="110" class="mono-sm" text-anchor="middle">3</text>
+  </g>
+  <g class="hot">
+    <rect x="567" y="65" width="40" height="80" rx="3" fill="white"/>
+    <text x="587" y="110" class="mono-sm" text-anchor="middle">4</text>
+  </g>
+  <g class="hot">
+    <rect x="610" y="65" width="40" height="80" rx="3" fill="white"/>
+    <text x="630" y="110" class="mono-sm" text-anchor="middle">5</text>
+  </g>
+  <g class="hot">
+    <rect x="653" y="65" width="40" height="80" rx="3" fill="white"/>
+    <text x="673" y="110" class="mono-sm" text-anchor="middle">6</text>
+  </g>
+
+  <text x="550" y="190" class="lbl-sm" text-anchor="middle">
+    page_no = index of one of these 16-KiB slots within the .ibd file
+  </text>
+  <text x="550" y="205" class="lbl-sm" text-anchor="middle" style="fill:#9ca3af;">
+    (hover the pages)
+  </text>
+</svg>
+<div class="caption">
+A <code>page_id</code> is the pair (tablespace_id, page_no). The tablespace_id picks one of InnoDB's files; the page_no is the slot index within that file. The pink slot is "currently dirty" &mdash; the thing page tracking will eventually record once the page cleaner flushes it.
+</div>
+</div>
+
+<p>
+Note that page tracking does NOT capture the <em>contents</em> of the page &mdash; only the identity. The actual modified pages live in the data files and in the redo log. Page tracking just maintains a fast "what changed, when" index over them.
+</p>
+
+<h3>1.2 What it's for</h3>
+<p>
+Three real consumers in Percona Server today:
+</p>
+<ul>
+  <li><strong>Incremental backups</strong> &mdash; the workhorse case. <code>mysqlbackup --incremental</code> and Percona XtraBackup call <code>mysqlbackup_page_track_get_changed_pages(start_lsn, stop_lsn)</code> to learn which pages to copy. Without page tracking the alternative is a full file scan + checksum diff, which is orders of magnitude slower on a large dataset.</li>
+  <li><strong>Clone plugin</strong> &mdash; uses page tracking as one of its bulk-transfer accelerators so cloning doesn't have to ship every page from scratch.</li>
+  <li><strong>Custom replication / PITR helpers</strong> &mdash; any tool that wants a fast "what changed since LSN X" index without re-deriving it from the redo log.</li>
+</ul>
+
+<div class="aside">
+<span class="label">What page tracking does NOT do:</span>
+It does not track DDL operations, undo log changes, or modifications to redo. It does not give you the actual byte changes &mdash; only the page&#x2011;ids. Reasoning about row-level changes still goes through the redo log or binlog.
+</div>
+
+<h3>1.3 The big picture</h3>
+<p>
+At ten thousand feet, the subsystem is a producer/consumer pipeline glued to the buffer pool's flush path:
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 310" width="900" height="310" role="img"
+     aria-label="High-level architecture overview">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <!-- Buffer pool -->
+  <rect x="30" y="50" width="200" height="220" rx="6" fill="#bae6fd"/>
+  <text x="130" y="42" class="lbl-lg" text-anchor="middle">Buffer pool</text>
+
+  <rect x="50"  y="78"  width="36" height="36" rx="3" fill="white"/>
+  <rect x="92"  y="78"  width="36" height="36" rx="3" fill="#fb7185"/>
+  <rect x="134" y="78"  width="36" height="36" rx="3" fill="white"/>
+  <rect x="176" y="78"  width="36" height="36" rx="3" fill="white"/>
+
+  <rect x="50"  y="120" width="36" height="36" rx="3" fill="#fb7185"/>
+  <rect x="92"  y="120" width="36" height="36" rx="3" fill="white"/>
+  <rect x="134" y="120" width="36" height="36" rx="3" fill="white"/>
+  <rect x="176" y="120" width="36" height="36" rx="3" fill="#fb7185"/>
+
+  <rect x="50"  y="162" width="36" height="36" rx="3" fill="white"/>
+  <rect x="92"  y="162" width="36" height="36" rx="3" fill="white"/>
+  <rect x="134" y="162" width="36" height="36" rx="3" fill="#fb7185"/>
+  <rect x="176" y="162" width="36" height="36" rx="3" fill="white"/>
+
+  <rect x="50"  y="204" width="36" height="36" rx="3" fill="white"/>
+  <rect x="92"  y="204" width="36" height="36" rx="3" fill="white"/>
+  <rect x="134" y="204" width="36" height="36" rx="3" fill="white"/>
+  <rect x="176" y="204" width="36" height="36" rx="3" fill="white"/>
+
+  <text x="130" y="262" class="lbl-sm" text-anchor="middle">
+    pink cells = dirty pages waiting to flush
+  </text>
+
+  <!-- Flush arrow -->
+  <line x1="235" y1="160" x2="305" y2="160" stroke="#374151"
+        marker-end="url(#arrow2)" stroke-width="1.4"/>
+  <text x="270" y="152" class="lbl-sm" text-anchor="middle">page cleaner</text>
+  <text x="270" y="168" class="lbl-sm" text-anchor="middle">flushes</text>
+
+  <!-- In-memory archive -->
+  <rect x="310" y="60" width="230" height="200" rx="6" fill="#a7f3d0"/>
+  <text x="425" y="52" class="lbl-lg" text-anchor="middle">In-memory page archive</text>
+
+  <g transform="translate(322,82)">
+    <rect x="0"   y="0"  width="48" height="36" rx="3" fill="#d1d5db"/>
+    <rect x="52"  y="0"  width="48" height="36" rx="3" fill="#fbbf24"/>
+    <rect x="104" y="0"  width="48" height="36" rx="3" fill="#fb923c"/>
+    <rect x="156" y="0"  width="48" height="36" rx="3" fill="white"/>
+    <rect x="0"   y="50" width="48" height="36" rx="3" fill="white"/>
+    <rect x="52"  y="50" width="48" height="36" rx="3" fill="white"/>
+    <rect x="104" y="50" width="48" height="36" rx="3" fill="white"/>
+    <rect x="156" y="50" width="48" height="36" rx="3" fill="white"/>
+  </g>
+  <text x="425" y="190" class="lbl-sm" text-anchor="middle">ring of fixed-size blocks:</text>
+  <text x="425" y="206" class="lbl-sm" text-anchor="middle">
+    <tspan fill="#1f2937">grey</tspan>=done
+    &nbsp;<tspan fill="#1f2937">amber</tspan>=ready
+    &nbsp;<tspan fill="#1f2937">orange</tspan>=active
+  </text>
+  <text x="425" y="228" class="lbl-sm" text-anchor="middle">white = empty</text>
+
+  <!-- Persist arrow -->
+  <line x1="545" y1="160" x2="620" y2="160" stroke="#374151"
+        marker-end="url(#arrow2)" stroke-width="1.4"/>
+  <text x="582" y="152" class="lbl-sm" text-anchor="middle">archiver</text>
+  <text x="582" y="168" class="lbl-sm" text-anchor="middle">thread</text>
+
+  <!-- On-disk archive -->
+  <rect x="625" y="50" width="245" height="220" rx="6" fill="#fef3c7"/>
+  <text x="747" y="42" class="lbl-lg" text-anchor="middle">On-disk page archive</text>
+  <text x="747" y="68" class="lbl-sm" text-anchor="middle">
+    #ib_archive / page_group_&lt;lsn&gt; /
+  </text>
+  <g transform="translate(638,82)">
+    <rect x="0"  y="0"   width="100" height="22" fill="#d1d5db"/>
+    <text x="50" y="15"  class="mono-sm" text-anchor="middle">ib_page_0</text>
+    <rect x="0"  y="26"  width="100" height="22" fill="#d1d5db"/>
+    <text x="50" y="41"  class="mono-sm" text-anchor="middle">ib_page_1</text>
+    <rect x="0"  y="52"  width="100" height="22" fill="#d1d5db"/>
+    <text x="50" y="67"  class="mono-sm" text-anchor="middle">ib_page_2</text>
+    <rect x="0"  y="78"  width="100" height="22" fill="#d1d5db"/>
+    <text x="50" y="93"  class="mono-sm" text-anchor="middle">...</text>
+    <rect x="0"  y="104" width="100" height="22" fill="#fb923c"/>
+    <text x="50" y="119" class="mono-sm" text-anchor="middle" style="fill:white;">ib_page_N</text>
+
+    <text x="120" y="15"  class="lbl-sm">sealed</text>
+    <text x="120" y="41"  class="lbl-sm">sealed</text>
+    <text x="120" y="67"  class="lbl-sm">sealed</text>
+    <text x="120" y="93"  class="lbl-sm">...</text>
+    <text x="120" y="119" class="lbl-sm">active</text>
+  </g>
+</svg>
+<div class="caption">
+The buffer pool's page cleaner notices a dirty page (pink), flushes it to the .ibd file, and on the way calls <code>track_page()</code>. The call appends a page-id entry into an in-memory ring of blocks. A background archiver thread drains full (amber) blocks out to disk into a sequence of 32&nbsp;MB files named <code>ib_page_0</code>, <code>ib_page_1</code>, &hellip;
+</div>
+</div>
+
+<p>
+The rest of this walkthrough zooms in, top to bottom: how the hook fires, how the ring works, how a block ends up on disk, what's inside a file, how the in-memory bookkeeping is rebuilt at restart, and finally how a <code>SELECT</code> reads through all of it to answer "what changed between LSN A and LSN B".
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 2                                                    -->
+<!-- =========================================================== -->
+<section class="section" id="sec-2" data-title="2. Where tracking hooks into InnoDB">
+<h2>2. Where tracking hooks into InnoDB</h2>
+
+<h3>2.1 The hook point</h3>
+<p>
+There is exactly one place in InnoDB where a page change becomes <em>durably visible</em> to anything outside the buffer pool: a page cleaner thread (occasionally a user thread doing a forced flush) writing a dirty page to its data file. Page tracking puts its hook right there. Inside <code>buf_flush_write_block_low()</code> &mdash; the lowest-level routine that emits a page write &mdash; the call to <code>track_page()</code> happens synchronously on the same thread.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 320" width="900" height="320" role="img">
+  <defs>
+    <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <!-- Lane 1: user thread -->
+  <rect x="20" y="30" width="200" height="270" rx="6" fill="white" class="thin"/>
+  <text x="120" y="22" class="lbl-lg" text-anchor="middle">User thread</text>
+
+  <rect x="40"  y="55"  width="160" height="38" rx="4" fill="#fde68a"/>
+  <text x="120" y="79"  class="lbl" text-anchor="middle">UPDATE / INSERT / ...</text>
+  <line x1="120" y1="93"  x2="120" y2="115" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="40"  y="118" width="160" height="38" rx="4" fill="#fb7185"/>
+  <text x="120" y="142" class="lbl" text-anchor="middle" style="fill:white;">page becomes dirty</text>
+  <line x1="120" y1="156" x2="120" y2="178" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="40"  y="181" width="160" height="38" rx="4" fill="white"/>
+  <text x="120" y="200" class="lbl" text-anchor="middle">redo log records</text>
+  <text x="120" y="214" class="lbl" text-anchor="middle">the change</text>
+  <text x="120" y="265" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    -- no tracking action here --
+  </text>
+
+  <!-- Lane 2: page cleaner -->
+  <rect x="240" y="30" width="280" height="270" rx="6" fill="white" class="thin"/>
+  <text x="380" y="22" class="lbl-lg" text-anchor="middle">Page cleaner thread</text>
+
+  <rect x="260" y="55"  width="240" height="34" rx="4" fill="#bae6fd"/>
+  <text x="380" y="76"  class="lbl" text-anchor="middle">picks dirty page from LRU/flush list</text>
+
+  <line x1="380" y1="89"  x2="380" y2="108" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="260" y="111" width="240" height="34" rx="4" fill="#bae6fd"/>
+  <text x="380" y="132" class="mono" text-anchor="middle">buf_flush_write_block_low()</text>
+
+  <line x1="380" y1="145" x2="380" y2="164" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="260" y="167" width="240" height="40" rx="4" fill="#fb923c"
+        stroke="#9a3412" stroke-width="1.6"/>
+  <text x="380" y="184" class="lbl-lg" text-anchor="middle" style="fill:white;">track_page()</text>
+  <text x="380" y="200" class="lbl-sm" text-anchor="middle" style="fill:#fff5d6;">runs on this thread</text>
+
+  <line x1="380" y1="207" x2="380" y2="226" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="260" y="229" width="240" height="34" rx="4" fill="#bae6fd"/>
+  <text x="380" y="250" class="lbl" text-anchor="middle">write page to .ibd / ibdata1</text>
+
+  <!-- Lane 3: in-memory archive -->
+  <rect x="540" y="30" width="340" height="270" rx="6" fill="white" class="thin"/>
+  <text x="710" y="22" class="lbl-lg" text-anchor="middle">In-memory page archive</text>
+
+  <rect x="560" y="60"  width="300" height="34" rx="4" fill="#a7f3d0"/>
+  <text x="710" y="81"  class="lbl" text-anchor="middle">
+    Arch_Page_Sys::track_page(space, page_no)
+  </text>
+
+  <line x1="710" y1="94"  x2="710" y2="116" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="560" y="119" width="300" height="34" rx="4" fill="#a7f3d0"/>
+  <text x="710" y="140" class="lbl" text-anchor="middle">append 6-byte page-id to ACTIVE block</text>
+
+  <line x1="710" y1="153" x2="710" y2="172" stroke="#374151" marker-end="url(#arrow3)"/>
+
+  <rect x="560" y="175" width="300" height="34" rx="4" fill="#a7f3d0"/>
+  <text x="710" y="196" class="lbl" text-anchor="middle">
+    block full? -&gt; mark READY_TO_FLUSH
+  </text>
+
+  <text x="710" y="240" class="lbl-sm" text-anchor="middle" style="fill:#374151;">
+    A separate archiver thread (not shown) wakes
+  </text>
+  <text x="710" y="254" class="lbl-sm" text-anchor="middle" style="fill:#374151;">
+    and persists READY_TO_FLUSH blocks to disk.
+  </text>
+  <text x="710" y="280" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    track_page() returns quickly; no disk I/O.
+  </text>
+</svg>
+<div class="caption">
+The hook is synchronous and runs on the page cleaner thread (or whatever thread is performing the flush). It's cheap: a short critical section under a mutex, a 6-byte write into the active in-memory block, possibly a state flip to mark the block "ready to flush", and return.
+</div>
+</div>
+
+<h3>2.2 Why flush, not modification</h3>
+<p>
+A page can be modified many times while sitting in the buffer pool &mdash; perhaps thousands of UPDATEs touch the same row over the course of seconds. If page tracking fired at modification time, every one of those would produce a record. The flush is the natural deduplication point: no matter how many in-pool modifications a page receives, only one flush eventually carries them to disk, and that flush emits exactly one page-id into the archive.
+</p>
+
+<p>
+The trade-off: page tracking is "behind" the buffer pool by however long pages sit dirty before being flushed. That's fine, because the consumer (incremental backup) doesn't care that a page changed at <em>LSN&nbsp;X</em>; it cares that the page changed at <em>some point</em> in the requested LSN range and therefore needs copying. The flush always happens before the corresponding redo is cleaned out, so by the time a checkpoint LSN advances past a modification, the page either has been flushed (and tracked) or will be tracked imminently.
+</p>
+
+<h3>2.3 What about pages dirtied but never flushed?</h3>
+<p>
+If the server crashes before a dirty page reaches disk, no <code>track_page</code> call ever fires for it &mdash; the page-id never enters the archive. That's safe by construction: the modification is also not in the data file, so recovery will redo it from the redo log on restart. The first time the recovered (and now in-pool) version of the page gets flushed, the call to <code>track_page</code> fires normally. From the archive's perspective the gap is invisible.
+</p>
+
+<div class="aside">
+<span class="label">Subtlety:</span>
+Because the hook fires at flush time, the LSN you'd associate with a page-id (if you were storing one per entry, which we are not) would be the page's <em>flush LSN</em>, not its modification LSN. The system finesses this by stamping LSN markers on the enclosing <em>block</em> (see Section 8 later in the walkthrough) rather than on individual entries.
+</div>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 3                                                    -->
+<!-- =========================================================== -->
+<section class="section" id="sec-3" data-title="3. The in-memory pipeline">
+<h2>3. The in-memory pipeline</h2>
+
+<h3>3.1 The ring of blocks</h3>
+<p>
+Page-id entries don't go straight to disk. They accumulate in a small ring of fixed-size buffers called <strong>blocks</strong>. Each block is exactly the same size as the on-disk block (16,384 bytes &mdash; see Section 7), so when one fills up it can be flushed verbatim, no marshalling required. Each block carries a <em>state</em>; the ring rotates as the page cleaner appends entries and the archiver drains full blocks. Click <strong>Tick &rarr;</strong> below to walk through the cycle.
+</p>
+
+<div class="figure">
+  <div class="stepper">
+    <button id="ring-back">&larr; Back</button>
+    <button id="ring-tick">Tick &rarr;</button>
+    <span class="tick" id="ring-tick-label">tick 0 -- start; slot 0 becomes ACTIVE</span>
+    <button id="ring-reset">Reset</button>
+  </div>
+
+<svg viewBox="0 0 920 380" width="920" height="380" id="ring-svg">
+  <defs>
+    <marker id="arrow-ring" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7280" stroke="none"/>
+    </marker>
+  </defs>
+
+  <text x="460" y="30" class="lbl-lg" text-anchor="middle">
+    Ring of in-memory blocks
+  </text>
+
+  <g id="ring-slots">
+    <g data-slot="0" transform="translate(40,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 0</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+    <g data-slot="1" transform="translate(156,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 1</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+    <g data-slot="2" transform="translate(272,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 2</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+    <g data-slot="3" transform="translate(388,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 3</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+    <g data-slot="4" transform="translate(504,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 4</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+    <g data-slot="5" transform="translate(620,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 5</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+    <g data-slot="6" transform="translate(736,80)">
+      <rect x="0" y="0" width="106" height="110" rx="6"/>
+      <text x="53" y="24" class="lbl-lg" text-anchor="middle">slot 6</text>
+      <text x="53" y="60" class="lbl"    text-anchor="middle">EMPTY</text>
+    </g>
+  </g>
+
+  <!-- Producer side -->
+  <rect x="40" y="230" width="350" height="110" rx="6" fill="#bae6fd" opacity="0.85"/>
+  <text x="215" y="256" class="lbl-lg" text-anchor="middle">Page cleaner thread (producer)</text>
+  <text x="215" y="280" class="lbl"    text-anchor="middle">writes to the ACTIVE block (orange)</text>
+  <text x="215" y="302" class="lbl-sm" text-anchor="middle">
+    when full -&gt; mark READY_TO_FLUSH (amber) and advance
+  </text>
+
+  <!-- Consumer side -->
+  <rect x="450" y="230" width="380" height="110" rx="6" fill="#a7f3d0" opacity="0.85"/>
+  <text x="640" y="256" class="lbl-lg" text-anchor="middle">Archiver thread (consumer)</text>
+  <text x="640" y="280" class="lbl"    text-anchor="middle">drains READY (amber) -&gt; BEING_FLUSHED (blue)</text>
+  <text x="640" y="302" class="lbl-sm" text-anchor="middle">
+    on success mark FLUSHED (grey); slot recycles to EMPTY
+  </text>
+
+  <!-- legend -->
+  <g transform="translate(40,365)">
+    <rect x="0"   y="-12" width="14" height="14" fill="white"/>
+    <text x="20"  y="0"  class="lbl-sm">EMPTY</text>
+    <rect x="80"  y="-12" width="14" height="14" fill="#fb923c"/>
+    <text x="100" y="0"  class="lbl-sm">ACTIVE</text>
+    <rect x="180" y="-12" width="14" height="14" fill="#fbbf24"/>
+    <text x="200" y="0"  class="lbl-sm">READY_TO_FLUSH</text>
+    <rect x="330" y="-12" width="14" height="14" fill="#60a5fa"/>
+    <text x="350" y="0"  class="lbl-sm">BEING_FLUSHED</text>
+    <rect x="470" y="-12" width="14" height="14" fill="#d1d5db"/>
+    <text x="490" y="0"  class="lbl-sm">FLUSHED (about to recycle to EMPTY)</text>
+  </g>
+</svg>
+<div class="caption">
+The ring really wraps &mdash; after slot 6 the producer comes back to slot 0 to reuse it. Drawn linearly so transitions are easy to follow. Step through and watch the producer (orange marker) march forward while the consumer (the next block out, which goes blue then grey) chases behind.
+</div>
+</div>
+
+<h3>3.2 Producer and consumer</h3>
+<p>
+The producer (the page cleaner thread holding the flush latch) runs the loop:
+</p>
+<pre>
+track_page(space, page_no):
+    acquire(arch_oper_mutex)
+    active = m_data.get_block(&amp;m_write_pos, ARCH_DATA_BLOCK)
+    if active is full:
+        mark active as READY_TO_FLUSH
+        advance m_write_pos to the next slot, mark it ACTIVE
+        active = the new block
+    active.append((space, page_no))
+    release(arch_oper_mutex)
+</pre>
+<p>
+The archiver thread is the consumer. It sleeps on a condition variable, wakes when any block becomes READY_TO_FLUSH (or when a checkpoint forces a flush of the active block), drains every ready block to disk, and marks them FLUSHED so the slot can be reused.
+</p>
+
+<h3>3.3 What triggers a flush of the active block</h3>
+<p>
+Two distinct flavours of flush, only one of which actually seals the block:
+</p>
+<ol>
+  <li>
+    <strong>Block fills up &mdash; SEALING flush.</strong>
+    When the active block has no more room for a page-id entry, the page cleaner marks it READY_TO_FLUSH and rolls <code>m_write_pos</code> to the next slot. The next slot becomes ACTIVE. The previous block is now sealed at <code>data_len = 16352</code> and goes through BEING_FLUSHED &rarr; FLUSHED. <em>This is the only path that seals a block at full data_len.</em>
+  </li>
+  <li>
+    <strong>InnoDB checkpoint &mdash; PARTIAL flush.</strong>
+    <code>flush_at_checkpoint(checkpoint_lsn)</code> updates the active block's header with the new <code>stop_lsn</code> (= the new checkpoint_lsn, see Section 8) and asks the archiver to write the current state to disk. The block <em>stays</em> ACTIVE. <code>m_write_pos</code> doesn't move. The next <code>track_page</code> continues appending into the same block, and the next partial flush overwrites the on-disk image with a slightly larger <code>data_len</code>.
+  </li>
+  <li>
+    <strong><code>mysqlbackup_page_track_set(1)</code> &mdash; also a PARTIAL flush.</strong>
+    A backup tool's explicit save-reset request triggers the same partial-flush mechanism as a checkpoint, so the new reset entry is durable on disk before the call returns. Same property: block stays ACTIVE, no sealing.
+  </li>
+</ol>
+
+<div class="aside">
+<span class="label">Consequence:</span>
+the only way a sealed block on disk can have <code>data_len &lt; 16352</code> is via artificial test knobs (e.g., <code>innodb_arch_page_test_max_entries=1</code>). In normal operation &mdash; no matter how many checkpoints fire or how often <code>set(1)</code> is called &mdash; sealed data blocks always have <code>data_len = 16352</code>. The only partial block at any moment is the active one.
+</div>
+
+<p>
+There is no time-based flush. As long as nothing is appending to the active block AND no checkpoint fires AND no <code>set(1)</code> fires, the block can sit unflushed indefinitely.
+</p>
+
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 4 -- threads and their dance                         -->
+<!-- =========================================================== -->
+<section class="section" id="sec-4" data-title="4. Threads and their dance">
+<h2>4. Threads and their dance</h2>
+
+<p class="lede">
+Five distinct threads touch the page-archive state machine at runtime. They communicate through three short-held mutexes and a small handful of shared in-memory fields. Knowing who is allowed to do what is the difference between "this code is safe" and "this code has a race".
+</p>
+
+<h3>4.1 The roster</h3>
+
+<div class="figure">
+<svg viewBox="0 0 900 420" width="900" height="420" role="img"
+     aria-label="Thread roster swim-lane">
+  <defs>
+    <marker id="arrowA" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <!-- Headers row -->
+  <rect x="30"  y="20" width="160" height="32" rx="4" fill="#fde68a"/>
+  <text x="110" y="40" class="lbl-lg" text-anchor="middle">user thread</text>
+
+  <rect x="200" y="20" width="160" height="32" rx="4" fill="#bae6fd"/>
+  <text x="280" y="40" class="lbl-lg" text-anchor="middle">page cleaner</text>
+
+  <rect x="370" y="20" width="160" height="32" rx="4" fill="#a7f3d0"/>
+  <text x="450" y="40" class="lbl-lg" text-anchor="middle">archiver</text>
+
+  <rect x="540" y="20" width="160" height="32" rx="4" fill="#c7d2fe"/>
+  <text x="620" y="40" class="lbl-lg" text-anchor="middle">checkpoint</text>
+
+  <rect x="710" y="20" width="160" height="32" rx="4" fill="#fdba74"/>
+  <text x="790" y="40" class="lbl-lg" text-anchor="middle">SELECT / backup</text>
+
+  <!-- Lanes -->
+  <line x1="30"  y1="56" x2="30"  y2="400" stroke="#9ca3af" stroke-dasharray="3 3"/>
+  <line x1="200" y1="56" x2="200" y2="400" stroke="#9ca3af" stroke-dasharray="3 3"/>
+  <line x1="370" y1="56" x2="370" y2="400" stroke="#9ca3af" stroke-dasharray="3 3"/>
+  <line x1="540" y1="56" x2="540" y2="400" stroke="#9ca3af" stroke-dasharray="3 3"/>
+  <line x1="710" y1="56" x2="710" y2="400" stroke="#9ca3af" stroke-dasharray="3 3"/>
+  <line x1="870" y1="56" x2="870" y2="400" stroke="#9ca3af" stroke-dasharray="3 3"/>
+
+  <!-- Activities -->
+  <rect x="40"  y="68"  width="140" height="32" rx="4" fill="#fde68a"/>
+  <text x="110" y="88"  class="lbl" text-anchor="middle">UPDATE / INSERT</text>
+
+  <rect x="40"  y="108" width="140" height="32" rx="4" fill="#fde68a"/>
+  <text x="110" y="128" class="lbl" text-anchor="middle">mark page dirty</text>
+
+  <rect x="210" y="148" width="140" height="32" rx="4" fill="#bae6fd"/>
+  <text x="280" y="168" class="lbl" text-anchor="middle">pick from LRU</text>
+
+  <rect x="210" y="188" width="140" height="32" rx="4" fill="#bae6fd"/>
+  <text x="280" y="208" class="mono" text-anchor="middle">track_page()</text>
+
+  <rect x="210" y="228" width="140" height="32" rx="4" fill="#bae6fd"/>
+  <text x="280" y="248" class="lbl" text-anchor="middle">write page to disk</text>
+
+  <rect x="380" y="208" width="140" height="32" rx="4" fill="#a7f3d0"/>
+  <text x="450" y="228" class="lbl" text-anchor="middle">drain READY block</text>
+
+  <rect x="380" y="248" width="140" height="32" rx="4" fill="#a7f3d0"/>
+  <text x="450" y="268" class="lbl" text-anchor="middle">write to dblwr</text>
+
+  <rect x="380" y="288" width="140" height="32" rx="4" fill="#a7f3d0"/>
+  <text x="450" y="308" class="lbl" text-anchor="middle">write to ib_page_F</text>
+
+  <rect x="550" y="148" width="140" height="32" rx="4" fill="#c7d2fe"/>
+  <text x="620" y="168" class="mono" text-anchor="middle">log checkpoint</text>
+
+  <rect x="550" y="188" width="140" height="32" rx="4" fill="#c7d2fe"/>
+  <text x="620" y="208" class="lbl" text-anchor="middle">stamp stop_lsn</text>
+
+  <rect x="720" y="68"  width="140" height="32" rx="4" fill="#fdba74"/>
+  <text x="790" y="88"  class="mono" text-anchor="middle">find_reset_point</text>
+
+  <rect x="720" y="108" width="140" height="32" rx="4" fill="#fdba74"/>
+  <text x="790" y="128" class="mono" text-anchor="middle">get_pages</text>
+
+  <rect x="720" y="148" width="140" height="32" rx="4" fill="#fdba74"/>
+  <text x="790" y="168" class="lbl" text-anchor="middle">walk blocks</text>
+
+  <!-- Arrows showing handoff -->
+  <path d="M 180 124 L 215 164" stroke="#374151" marker-end="url(#arrowA)" fill="none" stroke-dasharray="3 3"/>
+  <text x="200" y="156" class="lbl-sm" style="fill:#6b7280;">flush</text>
+
+  <path d="M 350 204 L 385 224" stroke="#374151" marker-end="url(#arrowA)" fill="none" stroke-dasharray="3 3"/>
+  <text x="368" y="216" class="lbl-sm" style="fill:#6b7280;">queue</text>
+
+  <text x="450" y="360" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">archiver reads ring;</text>
+  <text x="450" y="375" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">writes dblwr first, then file</text>
+
+  <text x="620" y="248" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">also triggers a flush of</text>
+  <text x="620" y="263" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">the active block</text>
+
+  <text x="790" y="200" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">reads in-mem ring +</text>
+  <text x="790" y="215" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">on-disk ib_page_F files</text>
+</svg>
+<div class="caption">
+The page cleaner is the only thread that ever calls <code>track_page()</code>. The archiver is the only one that writes the on-disk files. The checkpoint thread doesn't write blocks itself &mdash; it just stamps <code>stop_lsn</code> onto whatever block is currently active and asks the archiver to flush. SELECT-side reads are isolated: they touch the in-memory ring (under <code>m_oper_mutex</code>) and on-disk files separately.
+</div>
+</div>
+
+<h3>4.2 The three mutexes</h3>
+<table>
+<thead>
+<tr><th>Mutex</th><th>Protects</th><th>Held by</th><th>Held for</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>m_oper_mutex</code></td>
+  <td>active block pointer (<code>m_write_pos</code>), ring slot states, <code>m_latest_stop_lsn</code></td>
+  <td>page cleaner during <code>track_page</code>; checkpoint during <code>flush_at_checkpoint</code>; SELECT while reading from the ring</td>
+  <td>microseconds &mdash; just long enough to bump a counter or flip a state</td>
+</tr>
+<tr>
+  <td><code>m_mutex</code></td>
+  <td>system-level state (<code>m_state</code>, <code>m_current_group</code>, <code>m_reset</code> list)</td>
+  <td>SELECT during <code>find_reset_point</code>; <code>page_track_set</code> during start/stop</td>
+  <td>milliseconds &mdash; binary search across reset points</td>
+</tr>
+<tr>
+  <td><code>m_arch_mutex</code></td>
+  <td>group-level state, archiver wake/sleep coordination</td>
+  <td>archiver while flushing; group lifecycle operations (purge, recovery)</td>
+  <td>seconds in worst case (an actual flush to disk)</td>
+</tr>
+</tbody>
+</table>
+<p>
+Lock ordering is documented but tight: <code>m_mutex</code> &raquo; <code>m_arch_mutex</code> &raquo; <code>m_oper_mutex</code>. Inverting the order in any callsite is the path to a deadlock between the page cleaner and the archiver.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 5 -- persistence in-memory to disk                   -->
+<!-- =========================================================== -->
+<section class="section" id="sec-5" data-title="5. Persistence: in-memory → disk">
+<h2>5. Persistence: in-memory &rarr; disk</h2>
+
+<h3>5.1 The doublewrite buffer</h3>
+<p>
+Page archive flushes go through a doublewrite file before landing in the final <code>ib_page_F</code> location, for the same reason InnoDB's main doublewrite exists: protection against torn writes. A partial 16-KiB write to <code>ib_page_F</code> would leave that block neither old nor new but half-of-each, which the recovery parser can't tell apart from a valid block.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 320" width="900" height="320" role="img" aria-label="Archive flush via dblwr">
+  <defs>
+    <marker id="arrowP" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <!-- in-memory block -->
+  <rect x="40" y="80" width="180" height="140" rx="6" fill="#a7f3d0"/>
+  <text x="130" y="72" class="lbl-lg" text-anchor="middle">in-memory block</text>
+  <rect x="60" y="100" width="140" height="32" rx="4" fill="#fbbf24"/>
+  <text x="130" y="120" class="lbl" text-anchor="middle">data_len = 16352</text>
+  <rect x="60" y="138" width="140" height="36" rx="4" fill="white"/>
+  <text x="130" y="160" class="lbl-sm" text-anchor="middle">page-id entries</text>
+  <text x="130" y="195" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">state: READY_TO_FLUSH</text>
+
+  <!-- step 1 -->
+  <line x1="225" y1="150" x2="290" y2="150" stroke="#374151" stroke-width="1.4" marker-end="url(#arrowP)"/>
+  <text x="257" y="142" class="lbl-sm" text-anchor="middle">1</text>
+
+  <!-- dblwr file -->
+  <rect x="300" y="60" width="200" height="180" rx="6" fill="#fef3c7"/>
+  <text x="400" y="52" class="lbl-lg" text-anchor="middle">#ib_16384_N.dblwr</text>
+  <text x="400" y="80" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">3-slot doublewrite</text>
+  <rect x="320" y="90" width="160" height="42" rx="4" fill="#60a5fa"/>
+  <text x="400" y="106" class="lbl" text-anchor="middle" style="fill:white;">slot for THIS block</text>
+  <text x="400" y="122" class="mono-sm" text-anchor="middle" style="fill:white;">copy of the 16K block</text>
+  <rect x="320" y="140" width="160" height="32" rx="4" fill="white"/>
+  <text x="400" y="160" class="lbl-sm" text-anchor="middle">other full-flush slot</text>
+  <rect x="320" y="178" width="160" height="32" rx="4" fill="white"/>
+  <text x="400" y="198" class="lbl-sm" text-anchor="middle">partial-flush slot</text>
+
+  <!-- step 2 -->
+  <line x1="505" y1="150" x2="570" y2="150" stroke="#374151" stroke-width="1.4" marker-end="url(#arrowP)"/>
+  <text x="537" y="142" class="lbl-sm" text-anchor="middle">2</text>
+
+  <!-- final file -->
+  <rect x="580" y="60" width="290" height="180" rx="6" fill="#fed7aa"/>
+  <text x="725" y="52" class="lbl-lg" text-anchor="middle">ib_page_F</text>
+  <g transform="translate(595,90)">
+    <rect x="0"   y="0"  width="40" height="32" rx="3" fill="#d1d5db"/>
+    <text x="20"  y="20" class="mono-sm" text-anchor="middle">0</text>
+    <rect x="44"  y="0"  width="40" height="32" rx="3" fill="#d1d5db"/>
+    <text x="64"  y="20" class="mono-sm" text-anchor="middle">1</text>
+    <rect x="88"  y="0"  width="40" height="32" rx="3" fill="#d1d5db"/>
+    <text x="108" y="20" class="mono-sm" text-anchor="middle">2</text>
+    <text x="153" y="20" class="lbl">...</text>
+    <rect x="180" y="0"  width="40" height="32" rx="3" fill="#60a5fa"/>
+    <text x="200" y="20" class="mono-sm" text-anchor="middle" style="fill:white;">K</text>
+    <rect x="224" y="0"  width="40" height="32" rx="3" fill="white"/>
+    <text x="244" y="20" class="mono-sm" text-anchor="middle">K+1</text>
+  </g>
+  <text x="725" y="160" class="lbl-sm" text-anchor="middle">block is appended at the next slot K</text>
+  <text x="725" y="190" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">(K = block_num % 2043, +1 for reset block)</text>
+
+  <!-- 3 fsync -->
+  <text x="450" y="280" class="lbl" text-anchor="middle">
+    <tspan font-weight="600">3.</tspan> <code>fsync()</code> both files. block is now durable.
+  </text>
+  <text x="450" y="298" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    if the server crashes between step 2 and step 3, recovery replays from the dblwr copy.
+  </text>
+</svg>
+<div class="caption">
+For every flush of an archive block, the archiver writes a copy to the appropriate slot in the page-archive doublewrite file <em>first</em>, then to the final <code>ib_page_F</code> location, then <code>fsync</code>s both. If a crash interrupts the second write, recovery's <code>validate_and_fill_blocks</code> takes the dblwr copy and finishes the job. The dblwr is just three 16-KiB slots: one for full-block flush, one for partial-block flush, one for the reset block flush &mdash; tiny.
+</div>
+</div>
+
+<h3>5.2 Partial vs full flush</h3>
+<p>
+Two flush flavours, two different dblwr slots, two different on-disk write patterns:
+</p>
+<ul>
+  <li><strong>Full-block flush.</strong> The block is sealed (<code>data_len = 16352</code>) and won't change again. Archiver writes the full 16 KiB to dblwr slot 1, then to <code>ib_page_F</code> at the next free slot, then <code>fsync</code>s.</li>
+  <li><strong>Partial-block flush.</strong> A <code>set(1)</code> or checkpoint asked for the active block's state to be made durable, but the block isn't full yet. Archiver writes to dblwr slot 2, then to <code>ib_page_F</code> at the same offset as before (overwriting the previous partial-image), then <code>fsync</code>s. The same block can go through many partial flushes in its lifetime; each one updates the on-disk image with a slightly larger <code>data_len</code> and a slightly updated <code>stop_lsn</code> in the header.</li>
+</ul>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 6 -- on-disk layout                                  -->
+<!-- =========================================================== -->
+<section class="section" id="sec-6" data-title="6. On-disk layout">
+<h2>6. On-disk layout</h2>
+
+<p class="lede">
+The on-disk archive lives entirely under <code>#ib_archive/</code> inside the data directory. Everything we've been discussing so far is just a few file types under that one tree.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 380" width="900" height="380" role="img" aria-label="Directory tree of #ib_archive">
+  <!-- Outer datadir -->
+  <rect x="40" y="40" width="820" height="320" rx="6" fill="#fef3c7"/>
+  <text x="450" y="32" class="lbl-lg" text-anchor="middle">data directory (datadir)</text>
+
+  <!-- #ib_archive box -->
+  <rect x="80" y="80" width="500" height="240" rx="6" fill="white"/>
+  <text x="100" y="74" class="mono">#ib_archive/</text>
+
+  <!-- Group 1 -->
+  <rect x="110" y="100" width="430" height="100" rx="6" fill="#bae6fd"/>
+  <text x="130" y="94" class="mono">page_group_&lt;begin_lsn_1&gt;/</text>
+  <g transform="translate(125,110)">
+    <rect x="0"   y="0"  width="60" height="22" fill="#d1d5db"/>
+    <text x="30"  y="15" class="mono-sm" text-anchor="middle">active</text>
+    <rect x="64"  y="0"  width="60" height="22" fill="#d1d5db"/>
+    <text x="94"  y="15" class="mono-sm" text-anchor="middle">durable</text>
+    <rect x="128" y="0"  width="76" height="22" fill="#d1d5db"/>
+    <text x="166" y="15" class="mono-sm" text-anchor="middle">ib_page_0</text>
+    <rect x="208" y="0"  width="76" height="22" fill="#d1d5db"/>
+    <text x="246" y="15" class="mono-sm" text-anchor="middle">ib_page_1</text>
+    <text x="295" y="15" class="lbl">...</text>
+    <rect x="320" y="0"  width="76" height="22" fill="#fb923c"/>
+    <text x="358" y="15" class="mono-sm" text-anchor="middle" style="fill:white;">ib_page_N</text>
+  </g>
+  <text x="120" y="170" class="lbl-sm" style="fill:#374151;">
+    markers: <em>active</em> = currently-being-written group, <em>durable</em> = persisted-ok flag.
+  </text>
+  <text x="120" y="187" class="lbl-sm" style="fill:#374151;">
+    files: 0-byte markers; ib_page_K = 33,488,896 bytes each when full
+  </text>
+
+  <!-- Group 2 -->
+  <rect x="110" y="215" width="430" height="90" rx="6" fill="#a7f3d0"/>
+  <text x="130" y="209" class="mono">page_group_&lt;begin_lsn_2&gt;/</text>
+  <g transform="translate(125,225)">
+    <rect x="0"   y="0"  width="60" height="22" fill="#d1d5db"/>
+    <text x="30"  y="15" class="mono-sm" text-anchor="middle">active</text>
+    <rect x="64"  y="0"  width="60" height="22" fill="#d1d5db"/>
+    <text x="94"  y="15" class="mono-sm" text-anchor="middle">durable</text>
+    <rect x="128" y="0"  width="76" height="22" fill="#d1d5db"/>
+    <text x="166" y="15" class="mono-sm" text-anchor="middle">ib_page_0</text>
+    <rect x="208" y="0"  width="76" height="22" fill="#fb923c"/>
+    <text x="246" y="15" class="mono-sm" text-anchor="middle" style="fill:white;">ib_page_1</text>
+  </g>
+  <text x="120" y="280" class="lbl-sm" style="fill:#374151;">
+    a new group every time <code>set(0)</code> + <code>set(1)</code> resets the archive
+  </text>
+
+  <!-- dblwr files -->
+  <rect x="600" y="100" width="240" height="80" rx="6" fill="white"/>
+  <text x="620" y="94" class="mono">doublewrite files</text>
+  <rect x="615" y="115" width="210" height="22" fill="#fed7aa"/>
+  <text x="720" y="130" class="mono-sm" text-anchor="middle">#ib_16384_0.dblwr</text>
+  <rect x="615" y="142" width="210" height="22" fill="#fed7aa"/>
+  <text x="720" y="157" class="mono-sm" text-anchor="middle">#ib_16384_1.dblwr</text>
+
+  <text x="720" y="200" class="lbl-sm" text-anchor="middle">
+    crash-safety scratchpad
+  </text>
+  <text x="720" y="215" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    3 slots each, 48 KiB total
+  </text>
+</svg>
+<div class="caption">
+Each <code>page_group_&lt;lsn&gt;</code> directory is one self-contained tracking epoch: it has its own files numbered from <code>ib_page_0</code> upward, and its own <code>active</code> + <code>durable</code> marker files. A new group is created the next time tracking is started after being fully stopped. Within a group, the highest-indexed file is the active partial file; everything else is sealed.
+</div>
+</div>
+
+<h3>6.1 File size arithmetic</h3>
+<p>
+A full <code>ib_page_F</code> contains:
+</p>
+<ul>
+  <li>1 reset block at slot 0 (16,384 bytes)</li>
+  <li>2,043 data blocks at slots 1 .. 2043 (each 16,384 bytes)</li>
+  <li><strong>Total: 2,044 &times; 16,384 = 33,488,896 bytes</strong> (32 MiB minus a hair)</li>
+</ul>
+<p>
+The active file is always partial &mdash; its size grows in 16 KiB increments each time a block is sealed and a new block is started. So when you see <code>ib_page_180</code> at exactly 6,766,592 bytes on disk, that's <code>6,766,592 / 16,384 = 413</code> slots in use, with the 413th slot being the writer's current active block.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 7 -- block anatomy                                   -->
+<!-- =========================================================== -->
+<section class="section" id="sec-7" data-title="7. Block anatomy">
+<h2>7. Block anatomy</h2>
+
+<h3>7.1 Header layout</h3>
+<p>
+Every block on disk &mdash; whether reset block or data block &mdash; begins with the same 32-byte header. All multi-byte fields are big-endian.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 360" width="900" height="360" role="img" aria-label="Block header byte layout">
+  <text x="450" y="30" class="lbl-lg" text-anchor="middle">32-byte block header (bytes 0-31)</text>
+
+  <!-- Header bar -->
+  <g transform="translate(40,60)">
+    <!-- version -->
+    <rect x="0" y="0" width="40" height="60" fill="#c7d2fe"/>
+    <text x="20" y="22" class="lbl-sm" text-anchor="middle">[0]</text>
+    <text x="20" y="40" class="mono-sm" text-anchor="middle">version</text>
+    <text x="20" y="54" class="mono-sm" text-anchor="middle">u8</text>
+
+    <!-- type -->
+    <rect x="40" y="0" width="40" height="60" fill="#fdba74"/>
+    <text x="60" y="22" class="lbl-sm" text-anchor="middle">[1]</text>
+    <text x="60" y="40" class="mono-sm" text-anchor="middle">type</text>
+    <text x="60" y="54" class="mono-sm" text-anchor="middle">u8</text>
+
+    <!-- checksum -->
+    <rect x="80" y="0" width="120" height="60" fill="#fbbf24"/>
+    <text x="140" y="22" class="lbl-sm" text-anchor="middle">[2..5]</text>
+    <text x="140" y="40" class="mono-sm" text-anchor="middle">checksum</text>
+    <text x="140" y="54" class="mono-sm" text-anchor="middle">u32 BE</text>
+
+    <!-- data_len -->
+    <rect x="200" y="0" width="80" height="60" fill="#fde68a"/>
+    <text x="240" y="22" class="lbl-sm" text-anchor="middle">[6..7]</text>
+    <text x="240" y="40" class="mono-sm" text-anchor="middle">data_len</text>
+    <text x="240" y="54" class="mono-sm" text-anchor="middle">u16 BE</text>
+
+    <!-- stop_lsn -->
+    <rect x="280" y="0" width="160" height="60" fill="#a7f3d0"/>
+    <text x="360" y="22" class="lbl-sm" text-anchor="middle">[8..15]</text>
+    <text x="360" y="40" class="mono-sm" text-anchor="middle">stop_lsn</text>
+    <text x="360" y="54" class="mono-sm" text-anchor="middle">u64 BE</text>
+
+    <!-- reset_lsn -->
+    <rect x="440" y="0" width="160" height="60" fill="#bae6fd"/>
+    <text x="520" y="22" class="lbl-sm" text-anchor="middle">[16..23]</text>
+    <text x="520" y="40" class="mono-sm" text-anchor="middle">reset_lsn</text>
+    <text x="520" y="54" class="mono-sm" text-anchor="middle">u64 BE</text>
+
+    <!-- block_num -->
+    <rect x="600" y="0" width="160" height="60" fill="#fb7185"/>
+    <text x="680" y="22" class="lbl-sm" text-anchor="middle" style="fill:white;">[24..31]</text>
+    <text x="680" y="40" class="mono-sm" text-anchor="middle" style="fill:white;">block_num</text>
+    <text x="680" y="54" class="mono-sm" text-anchor="middle" style="fill:white;">u64 BE</text>
+  </g>
+
+  <!-- Annotations -->
+  <line x1="60"  y1="120" x2="60"  y2="160" stroke="#9ca3af"/>
+  <text x="60"  y="175" class="lbl-sm" text-anchor="middle">always 1</text>
+
+  <line x1="100" y1="120" x2="100" y2="160" stroke="#9ca3af"/>
+  <text x="100" y="175" class="lbl-sm" text-anchor="middle">0 = reset</text>
+  <text x="100" y="188" class="lbl-sm" text-anchor="middle">1 = data</text>
+
+  <line x1="200" y1="120" x2="200" y2="160" stroke="#9ca3af"/>
+  <text x="200" y="175" class="lbl-sm" text-anchor="middle">CRC32C over the</text>
+  <text x="200" y="188" class="lbl-sm" text-anchor="middle">payload only</text>
+
+  <line x1="320" y1="120" x2="320" y2="160" stroke="#9ca3af"/>
+  <text x="320" y="175" class="lbl-sm" text-anchor="middle">bytes of valid</text>
+  <text x="320" y="188" class="lbl-sm" text-anchor="middle">payload (0..16352)</text>
+
+  <line x1="440" y1="120" x2="440" y2="160" stroke="#9ca3af"/>
+  <text x="440" y="175" class="lbl-sm" text-anchor="middle">checkpoint watermark</text>
+  <text x="440" y="188" class="lbl-sm" text-anchor="middle">(updated by checkpoint thread)</text>
+
+  <line x1="600" y1="120" x2="600" y2="160" stroke="#9ca3af"/>
+  <text x="600" y="175" class="lbl-sm" text-anchor="middle">tracking-epoch LSN</text>
+  <text x="600" y="188" class="lbl-sm" text-anchor="middle">(set when block is first opened)</text>
+
+  <line x1="760" y1="120" x2="760" y2="160" stroke="#9ca3af"/>
+  <text x="760" y="175" class="lbl-sm" text-anchor="middle">monotonic global</text>
+  <text x="760" y="188" class="lbl-sm" text-anchor="middle">block index</text>
+
+  <!-- Two payload types side by side -->
+  <text x="450" y="240" class="lbl-lg" text-anchor="middle">payload (bytes 32..16383) depends on block type</text>
+
+  <!-- Data block -->
+  <rect x="60"  y="260" width="380" height="90" rx="6" fill="#fdba74"/>
+  <text x="80"  y="278" class="lbl-lg">type=1 (DATA block)</text>
+  <text x="80"  y="298" class="mono-sm">sequence of page-id entries</text>
+  <text x="80"  y="314" class="mono-sm">each 6 bytes: tablespace_id (u32) + page_no (u16)</text>
+  <text x="80"  y="330" class="mono-sm">total payload up to 16,352 bytes (= ~2725 entries)</text>
+
+  <!-- Reset block -->
+  <rect x="460" y="260" width="400" height="90" rx="6" fill="#a7f3d0"/>
+  <text x="480" y="278" class="lbl-lg">type=0 (RESET block)</text>
+  <text x="480" y="298" class="mono-sm">[32..39]   file_reset_lsn (u64 BE)</text>
+  <text x="480" y="314" class="mono-sm">[40..]     repeating 4-byte reset entries:</text>
+  <text x="480" y="330" class="mono-sm">           (block_num u16, offset u16)</text>
+</svg>
+<div class="caption">
+The header is identical for all block types; <code>type</code> at byte 1 disambiguates. CRC32C covers only the payload bytes &mdash; the header itself isn't checksummed. The block_num at bytes 24&ndash;31 is stored as a full 64-bit integer here, in the <em>data block</em>; reset entries inside the reset block's payload (right-hand box) reference that block_num with only a 2-byte field, which is the asymmetry called out below.
+</div>
+</div>
+
+<h3>7.2 The asymmetry between block_num fields</h3>
+<p>
+Crucial detail: a data block's own header carries <code>block_num</code> as 8 bytes. But a <em>reset entry</em> inside a reset block stores the reference to that block_num as 2 bytes. So when the writer's real block_num exceeds 65,535, the data blocks themselves remain correct (their u64 block_num in bytes 24-31 holds the full value), but every reset entry that points at one of them loses the high bits.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 8 -- LSN reference                                   -->
+<!-- =========================================================== -->
+<section class="section" id="sec-8" data-title="8. All the LSNs: who writes what, who reads what">
+<h2>8. All the LSNs: who writes what, who reads what</h2>
+
+<p class="lede">
+The walkthrough has already used the word "LSN" in five different shades. Time to step back: there are four distinct LSN values in play in this subsystem, and the asymmetric way they're used is exactly what makes page tracking correct &mdash; <em>provided</em> it's used together with the redo log.
+</p>
+
+<h3>8.1 The four canonical LSN values</h3>
+
+<table>
+<thead>
+<tr><th>LSN</th><th>Comes from</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>current_lsn</code> <br><span style="color:#6b7280">(a.k.a. log_sys.lsn)</span></td>
+  <td>InnoDB log subsystem</td>
+  <td>The system's "now" LSN. Bumped by every redo log record. At any instant, the highest LSN the system has ever seen.</td>
+</tr>
+<tr>
+  <td><code>checkpoint_lsn</code></td>
+  <td>InnoDB checkpoint pipeline</td>
+  <td>The most recent LSN past which InnoDB has guaranteed every dirty page modified at an LSN &lt; <code>checkpoint_lsn</code> has been flushed to its data file. <strong>Lags <code>current_lsn</code> by the in-flight redo gap.</strong></td>
+</tr>
+<tr>
+  <td><code>page_lsn</code> <br><span style="color:#6b7280">(per page)</span></td>
+  <td>page modification path</td>
+  <td>Stamped into each InnoDB page header on every modification. Used during recovery to decide whether a redo record still needs to be applied to that page.</td>
+</tr>
+<tr>
+  <td><code>archive header LSNs</code> <br><span style="color:#6b7280">(reset_lsn, stop_lsn)</span></td>
+  <td>derived from the two above</td>
+  <td>The two LSN fields inside every archive block header. See below for the asymmetric source.</td>
+</tr>
+</tbody>
+</table>
+
+<h3>8.2 The asymmetry: <code>reset_lsn</code> from <code>current_lsn</code>, <code>stop_lsn</code> from <code>checkpoint_lsn</code></h3>
+
+<table>
+<thead>
+<tr><th>field</th><th>derived from</th><th>stamped when</th><th>semantic role</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><code>reset_lsn</code></td>
+  <td><strong><code>current_lsn</code></strong> (the system's "now")</td>
+  <td>at block open; again when <code>mysqlbackup_page_track_set(1)</code> bumps the epoch on the active block</td>
+  <td><strong>start marker.</strong> "Tracking epoch began at this LSN."</td>
+</tr>
+<tr>
+  <td><code>stop_lsn</code></td>
+  <td><strong><code>checkpoint_lsn</code></strong> (the most-recent flush-completion guarantee)</td>
+  <td>at each InnoDB checkpoint, while the block is the active block (overwritten each time)</td>
+  <td><strong>completeness guarantee.</strong> "Every page modified up to this LSN has been tracked into the archive."</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Why isn't <code>stop_lsn</code> also <code>current_lsn</code>? Because the two LSN values solve fundamentally different problems:
+</p>
+
+<ul>
+  <li><strong>A start marker doesn't need a "before" guarantee.</strong> When the user starts a new tracking epoch, they just want an LSN they can later use as <em>begin_lsn</em> in a backup query. <code>current_lsn</code> is the strictly-correct "now" value &mdash; nothing earlier could possibly need to be tracked under this epoch by definition.</li>
+  <li><strong>A completeness guarantee can only come from a checkpoint.</strong> Page tracking emits a page-id <em>when the page flushes</em>. So at any moment, the LSN range <code>[checkpoint_lsn, current_lsn]</code> contains modifications that are in the redo log but whose pages haven't been flushed yet. Those modifications are <strong>not</strong> in the archive. Stamping <code>stop_lsn = current_lsn</code> would lie: the SELECT walker would terminate thinking it had seen all changes up to <code>current_lsn</code>, but some pages modified just below <code>current_lsn</code> are still dirty in the buffer pool with no archive entry. The next safest LSN for that claim is <code>checkpoint_lsn</code> &mdash; the highest LSN where the flush-completion contract holds.</li>
+</ul>
+
+<h3>8.3 Visualising the gap</h3>
+
+<div class="figure">
+<svg viewBox="0 0 900 320" width="900" height="320" role="img" aria-label="The LSN axis and what page tracking covers">
+  <defs>
+    <marker id="arrowL" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="28" class="lbl-lg" text-anchor="middle">the LSN axis at any given instant</text>
+
+  <!-- axis -->
+  <line x1="50" y1="180" x2="850" y2="180" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arrowL)"/>
+  <text x="850" y="200" class="lbl-sm" text-anchor="end" style="fill:#6b7280;">increasing LSN &rarr;</text>
+
+  <!-- key event ticks -->
+  <line x1="160" y1="172" x2="160" y2="188" stroke="#1f2937" stroke-width="1.6"/>
+  <line x1="560" y1="172" x2="560" y2="188" stroke="#1f2937" stroke-width="1.6"/>
+  <line x1="800" y1="172" x2="800" y2="188" stroke="#1f2937" stroke-width="1.6"/>
+
+  <text x="160" y="215" class="lbl-sm" text-anchor="middle" style="font-weight:600;">reset_lsn</text>
+  <text x="160" y="230" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">= current_lsn at</text>
+  <text x="160" y="244" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">most recent set(1)</text>
+
+  <text x="560" y="215" class="lbl-sm" text-anchor="middle" style="font-weight:600;">checkpoint_lsn</text>
+  <text x="560" y="230" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">most recent checkpoint;</text>
+  <text x="560" y="244" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">also the value stamped as</text>
+  <text x="560" y="258" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">stop_lsn</text>
+
+  <text x="800" y="215" class="lbl-sm" text-anchor="middle" style="font-weight:600;">current_lsn</text>
+  <text x="800" y="230" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">the system's</text>
+  <text x="800" y="244" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">"now"</text>
+
+  <!-- tracked range -->
+  <rect x="160" y="100" width="400" height="48" fill="#a7f3d0" stroke="#065f46"/>
+  <text x="360" y="124" class="lbl-lg" text-anchor="middle">tracked range</text>
+  <text x="360" y="140" class="lbl-sm" text-anchor="middle">(in the page archive)</text>
+
+  <!-- redo gap -->
+  <rect x="560" y="100" width="240" height="48" fill="#fbcfe8" stroke="#9d174d"/>
+  <text x="680" y="120" class="lbl-lg" text-anchor="middle">in the redo log,</text>
+  <text x="680" y="136" class="lbl-lg" text-anchor="middle">not yet in the archive</text>
+
+  <!-- braces -->
+  <text x="360" y="86"  class="lbl-sm" text-anchor="middle" style="fill:#065f46;">
+    page tracking guarantees this is complete
+  </text>
+  <text x="680" y="86"  class="lbl-sm" text-anchor="middle" style="fill:#9d174d;">
+    pages dirty in buffer pool;
+  </text>
+  <text x="680" y="72"  class="lbl-sm" text-anchor="middle" style="fill:#9d174d;">
+    redo records exist, but no flush yet
+  </text>
+
+  <!-- query bounds -->
+  <text x="450" y="290" class="lbl" text-anchor="middle">
+    a safe <code>get_changed_pages(start_lsn, stop_lsn)</code> query lives entirely inside the green band:
+  </text>
+  <text x="450" y="306" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    start_lsn &ge; some past reset_lsn, stop_lsn &le; some past checkpoint_lsn
+  </text>
+</svg>
+<div class="caption">
+The "tracked range" is bounded below by some past <code>reset_lsn</code> and above by some past <code>checkpoint_lsn</code>. Anything above the most recent <code>checkpoint_lsn</code> is in the gap &mdash; modifications that exist in the redo log but whose pages haven't been flushed yet. The page archive doesn't know about them. That's not a bug; it's the design.
+</div>
+</div>
+
+<h3>8.4 Why page tracking cannot stand alone</h3>
+
+<p>
+Because the gap exists, page tracking by itself is never enough to reconstruct a database's state at <code>current_lsn</code>. Any complete incremental backup needs <strong>both</strong> the page archive <strong>and</strong> the redo log:
+</p>
+
+<ol>
+  <li>
+    <strong>Page tracking</strong> answers: "which pages changed in the LSN range [start_lsn, checkpoint_lsn]?" That tells the backup tool <em>which</em> pages to read from the <code>.ibd</code> files.
+  </li>
+  <li>
+    <strong>Redo log</strong> answers: "what changes happened in the LSN range [checkpoint_lsn, current_lsn] that aren't reflected in the pages on disk yet?" The backup tool replays those records forward so the backup's pages reflect the desired final LSN.
+  </li>
+</ol>
+
+<p>
+This is why <code>mysqlbackup --incremental</code> and Percona XtraBackup always copy redo log files <em>in addition to</em> the changed pages: the page-track info is the index of <em>where to look</em>; the redo is what fills in the recent-modifications gap. Without the redo, the incremental backup would reflect the state at <code>checkpoint_lsn</code>, not at the time the backup was actually taken.
+</p>
+
+<h3>8.5 Block-header timeline (recap)</h3>
+
+<p>
+The same picture, focused on how a single archive block's <code>reset_lsn</code> and <code>stop_lsn</code> evolve over the block's lifetime:
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 270" width="900" height="270" role="img" aria-label="Single block's LSN evolution">
+  <defs>
+    <marker id="arrowTb" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <line x1="50" y1="200" x2="850" y2="200" stroke="#1f2937" marker-end="url(#arrowTb)" stroke-width="1.4"/>
+  <text x="50" y="220" class="lbl-sm">block opened</text>
+  <text x="850" y="220" class="lbl-sm" text-anchor="end">block sealed (full) -&gt; values frozen</text>
+
+  <line x1="100" y1="195" x2="100" y2="205" stroke="#1f2937"/>
+  <line x1="280" y1="195" x2="280" y2="205" stroke="#1f2937"/>
+  <line x1="430" y1="195" x2="430" y2="205" stroke="#1f2937"/>
+  <line x1="580" y1="195" x2="580" y2="205" stroke="#1f2937"/>
+  <line x1="730" y1="195" x2="730" y2="205" stroke="#1f2937"/>
+  <line x1="820" y1="195" x2="820" y2="205" stroke="#1f2937"/>
+
+  <text x="100" y="235" class="lbl-sm" text-anchor="middle">open</text>
+  <text x="280" y="235" class="lbl-sm" text-anchor="middle">cp 1</text>
+  <text x="430" y="235" class="lbl-sm" text-anchor="middle">cp 2</text>
+  <text x="580" y="235" class="lbl-sm" text-anchor="middle">set(1)</text>
+  <text x="730" y="235" class="lbl-sm" text-anchor="middle">cp 3</text>
+  <text x="820" y="235" class="lbl-sm" text-anchor="middle">full</text>
+
+  <rect x="100" y="40" width="720" height="22" fill="#fb7185"/>
+  <text x="460" y="55" class="lbl" text-anchor="middle" style="fill:white;">block_num: B (stamped once, never changes)</text>
+
+  <rect x="100" y="70" width="480" height="22" fill="#bae6fd"/>
+  <text x="340" y="85" class="lbl" text-anchor="middle">reset_lsn: R1 = current_lsn at open</text>
+  <rect x="580" y="70" width="240" height="22" fill="#60a5fa"/>
+  <text x="700" y="85" class="lbl" text-anchor="middle" style="fill:white;">R2 = current_lsn at set(1)</text>
+
+  <rect x="100" y="100" width="180" height="22" fill="#a7f3d0"/>
+  <rect x="280" y="100" width="150" height="22" fill="#86efac"/>
+  <rect x="430" y="100" width="300" height="22" fill="#34d399"/>
+  <rect x="730" y="100" width="90"  height="22" fill="#10b981"/>
+  <text x="190" y="115" class="lbl-sm" text-anchor="middle">cp_lsn_0</text>
+  <text x="355" y="115" class="lbl-sm" text-anchor="middle">cp_lsn_1</text>
+  <text x="580" y="115" class="lbl-sm" text-anchor="middle" style="fill:white;">cp_lsn_2</text>
+  <text x="775" y="115" class="lbl-sm" text-anchor="middle" style="fill:white;">cp_lsn_3</text>
+  <text x="455" y="140" class="lbl-sm" text-anchor="middle">
+    stop_lsn = the most recent checkpoint_lsn at each tick
+  </text>
+  <text x="455" y="155" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    (overwritten on disk each time; final value is whatever was stamped just before the block sealed)
+  </text>
+</svg>
+<div class="caption">
+<code>block_num</code> is stamped at open and frozen. <code>reset_lsn</code> is the value of <code>current_lsn</code> at the time the block was started, and may be re-stamped to a new <code>current_lsn</code> if <code>set(1)</code> fires while this is still the active block. <code>stop_lsn</code> is the value of the most-recent <code>checkpoint_lsn</code>, overwritten at every checkpoint, and finally frozen at whatever <code>checkpoint_lsn</code> was stamped just before the block was sealed.
+</div>
+</div>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 9 -- reset blocks and reset points                   -->
+<!-- =========================================================== -->
+<section class="section" id="sec-9" data-title="9. Reset blocks and reset points">
+<h2>9. Reset blocks and reset points</h2>
+
+<p class="lede">
+A <em>reset point</em> is the on-disk record that says "at this LSN, a new tracking epoch began here". A <em>reset block</em> is the place those records live &mdash; slot 0 of every <code>ib_page_F</code>.
+</p>
+
+<h3>9.1 What's stored, and what's missing</h3>
+<p>
+Each reset entry on disk is just 4 bytes:
+</p>
+<pre>
++-----------------+-----------------+
+| block_num (u16) | offset    (u16) |   <- 4 bytes per entry
++-----------------+-----------------+
+</pre>
+<p>
+Notice what's <strong>not</strong> there: the LSN of the reset itself. The reset block's header has a single <code>file_reset_lsn</code> at the start of the payload, but individual entries don't repeat it.
+</p>
+
+<h3>9.2 The fetch_reset_lsn round-trip</h3>
+<p>
+When recovery rebuilds the in-memory reset-point list it needs the full triple <code>(reset_lsn, block_num, offset)</code> for every entry. It already has <code>block_num</code> and <code>offset</code> from the disk record &mdash; the missing <code>reset_lsn</code> is recovered by reading the data block at <em>(block_num, offset)</em> and pulling <code>reset_lsn</code> out of its 32-byte header (bytes 16..23). That's the <code>Arch_File_Ctx::fetch_reset_lsn()</code> call we keep referring to.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 280" width="900" height="280" role="img" aria-label="fetch_reset_lsn round trip">
+  <defs>
+    <marker id="arrowR" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <!-- Reset block -->
+  <rect x="40" y="60" width="280" height="180" rx="6" fill="#a7f3d0"/>
+  <text x="180" y="52" class="lbl-lg" text-anchor="middle">reset block (slot 0)</text>
+  <rect x="60" y="80"  width="240" height="22" fill="#bae6fd"/>
+  <text x="180" y="95" class="mono-sm" text-anchor="middle">file_reset_lsn = 86523...</text>
+  <rect x="60" y="106" width="240" height="22" fill="#fb923c"/>
+  <text x="180" y="120" class="mono-sm" text-anchor="middle" style="fill:white;">entry[1]: block_num=13795, offset=5080</text>
+  <rect x="60" y="132" width="240" height="22" fill="white"/>
+  <text x="180" y="146" class="mono-sm" text-anchor="middle">entry[2]: block_num=14021, offset=3120</text>
+  <rect x="60" y="158" width="240" height="22" fill="white"/>
+  <text x="180" y="172" class="mono-sm" text-anchor="middle">entry[3]: ...</text>
+  <text x="180" y="210" class="lbl-sm" text-anchor="middle">
+    each 4-byte entry = (block_num u16, offset u16)
+  </text>
+  <text x="180" y="226" class="lbl-sm" text-anchor="middle" style="fill:#6b7280;">
+    no LSN here!
+  </text>
+
+  <!-- fetch_reset_lsn arrow -->
+  <path d="M 305 119 q 80 0 80 -50 q 0 -50 80 -50" fill="none" stroke="#374151"
+        marker-end="url(#arrowR)" stroke-width="1.4"/>
+  <text x="385" y="56" class="lbl-sm" text-anchor="middle">fetch_reset_lsn(13795)</text>
+  <text x="385" y="40" class="lbl-sm" text-anchor="middle">
+    reads at (13795 % 2043 + 1) * 16384 = slot 1538
+  </text>
+
+  <!-- Data block that's referenced -->
+  <rect x="480" y="60" width="380" height="180" rx="6" fill="#fed7aa"/>
+  <text x="670" y="52" class="lbl-lg" text-anchor="middle">data block at slot 1538</text>
+  <rect x="500" y="80" width="80"  height="50" fill="#c7d2fe"/>
+  <text x="540" y="98" class="lbl-sm" text-anchor="middle">version</text>
+  <text x="540" y="112" class="lbl-sm" text-anchor="middle">type</text>
+  <text x="540" y="126" class="lbl-sm" text-anchor="middle">cksum</text>
+  <rect x="582" y="80" width="100" height="50" fill="#a7f3d0"/>
+  <text x="632" y="105" class="lbl-sm" text-anchor="middle">stop_lsn</text>
+  <rect x="684" y="80" width="100" height="50" fill="#bae6fd"
+        stroke="#1d4ed8" stroke-width="2"/>
+  <text x="734" y="98" class="lbl-sm" text-anchor="middle">reset_lsn</text>
+  <text x="734" y="118" class="lbl-sm" text-anchor="middle" style="font-weight:600;">86523454...</text>
+  <rect x="786" y="80" width="60"  height="50" fill="#fb7185"/>
+  <text x="816" y="108" class="lbl-sm" text-anchor="middle" style="fill:white;">block_num</text>
+
+  <!-- value being lifted -->
+  <path d="M 734 130 q 0 30 -30 30 L 200 160" fill="none" stroke="#1d4ed8"
+        stroke-dasharray="3 3" marker-end="url(#arrowR)"/>
+  <text x="550" y="200" class="lbl-sm" text-anchor="middle" style="fill:#1d4ed8;">
+    lifts reset_lsn back into the in-memory triple
+  </text>
+
+  <text x="670" y="180" class="lbl-sm" text-anchor="middle">payload (16352 bytes of page-id entries)</text>
+</svg>
+<div class="caption">
+The reset entry stores (block_num, offset) only. To complete the triple, recovery reads the block at that on-disk position and lifts the <code>reset_lsn</code> field out of its header.
+</div>
+</div>
+
+<h3>9.3 Why store reset_lsn per-block instead of per-entry?</h3>
+<p>
+Three reasons:
+</p>
+<ol>
+  <li><strong>Space.</strong> An 8-byte LSN per entry would inflate the reset block by 200%. Reset blocks are 16 KiB and entries are 4 bytes today, so a reset block can hold ~4,000 entries.</li>
+  <li><strong>Redundancy.</strong> The data block at <em>(block_num, offset)</em> already carries the reset_lsn that was current when the block was opened. Storing it again would just be duplication.</li>
+  <li><strong>Self-describing data blocks.</strong> Every data block on disk knows which epoch it belongs to, without needing to consult the reset block. Useful for crash-recovery sanity checks.</li>
+</ol>
+<p>
+The price of (2) and (3) is the round-trip read. The price of (1) is the 2-byte <code>block_num</code> field in the entry &mdash; which silently wraps once the writer's real block_num crosses 65,535. The architectural trade-off between entry compactness and value range is the seed of one of the bugs we'll cover next.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 10 -- the SELECT path                                -->
+<!-- =========================================================== -->
+<section class="section" id="sec-10" data-title="10. Reading: the SELECT path">
+<h2>10. Reading: the SELECT path</h2>
+
+<p>
+The end-to-end path that runs when an incremental backup or clone tool calls <code>mysqlbackup_page_track_get_changed_pages(start_lsn, stop_lsn)</code>:
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 360" width="900" height="360" role="img" aria-label="SELECT path">
+  <defs>
+    <marker id="arrowS" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <!-- step 1: find_reset_point -->
+  <rect x="40" y="40" width="280" height="80" rx="6" fill="#fdba74"/>
+  <text x="180" y="62" class="lbl-lg" text-anchor="middle">1. find_reset_point(start_lsn)</text>
+  <text x="180" y="82" class="lbl-sm" text-anchor="middle">binary search m_reset by reset_lsn</text>
+  <text x="180" y="100" class="lbl-sm" text-anchor="middle">-&gt; (block_num B, offset O)</text>
+
+  <line x1="180" y1="125" x2="180" y2="148" stroke="#374151" marker-end="url(#arrowS)"/>
+
+  <!-- step 2: open file -->
+  <rect x="40" y="150" width="280" height="80" rx="6" fill="#fde68a"/>
+  <text x="180" y="172" class="lbl-lg" text-anchor="middle">2. open ib_page_F at slot K</text>
+  <text x="180" y="192" class="mono-sm" text-anchor="middle">F = B // 2043</text>
+  <text x="180" y="208" class="mono-sm" text-anchor="middle">K = (B % 2043) + 1</text>
+
+  <line x1="180" y1="235" x2="180" y2="258" stroke="#374151" marker-end="url(#arrowS)"/>
+
+  <!-- step 3: walk loop -->
+  <rect x="40" y="260" width="280" height="80" rx="6" fill="#fbbf24"/>
+  <text x="180" y="282" class="lbl-lg" text-anchor="middle">3. walk blocks forward</text>
+  <text x="180" y="302" class="lbl-sm" text-anchor="middle">read header, accumulate page-ids,</text>
+  <text x="180" y="318" class="lbl-sm" text-anchor="middle">advance to next slot</text>
+
+  <!-- Termination -->
+  <line x1="325" y1="300" x2="365" y2="300" stroke="#374151" marker-end="url(#arrowS)"/>
+  <rect x="370" y="260" width="280" height="80" rx="6" fill="#a7f3d0"/>
+  <text x="510" y="282" class="lbl-lg" text-anchor="middle">terminate when:</text>
+  <text x="510" y="302" class="lbl-sm" text-anchor="middle">block.stop_lsn &gt; stop_id (got enough)</text>
+  <text x="510" y="318" class="lbl-sm" text-anchor="middle">or data_len = 0 (writer hasn't gotten here)</text>
+
+  <line x1="650" y1="300" x2="690" y2="300" stroke="#374151" marker-end="url(#arrowS)"/>
+  <rect x="695" y="260" width="170" height="80" rx="6" fill="#fed7aa"/>
+  <text x="780" y="282" class="lbl-lg" text-anchor="middle">return</text>
+  <text x="780" y="302" class="lbl-sm" text-anchor="middle">the set of page-ids</text>
+  <text x="780" y="318" class="lbl-sm" text-anchor="middle">to the caller</text>
+
+  <!-- side note about m_reset -->
+  <rect x="370" y="40" width="495" height="180" rx="6" fill="white" class="thin"/>
+  <text x="615" y="62" class="lbl-lg" text-anchor="middle">key data structure: m_reset (in memory)</text>
+  <text x="615" y="84" class="lbl-sm" text-anchor="middle">sorted list of (reset_lsn, block_num, offset) triples</text>
+  <text x="615" y="100" class="lbl-sm" text-anchor="middle">built once at recovery, used for every SELECT</text>
+
+  <g transform="translate(390,118)">
+    <rect x="0"   y="0"  width="445" height="24" fill="#bae6fd"/>
+    <text x="223" y="16" class="mono-sm" text-anchor="middle">(85230..., 13795, 5080)</text>
+    <rect x="0"   y="28" width="445" height="24" fill="#86efac"/>
+    <text x="223" y="44" class="mono-sm" text-anchor="middle">(86291..., 36910, 9416)  &lt;-- start_lsn lands here</text>
+    <rect x="0"   y="56" width="445" height="24" fill="#c7d2fe"/>
+    <text x="223" y="72" class="mono-sm" text-anchor="middle">(87737..., 62615, 5576)</text>
+  </g>
+</svg>
+<div class="caption">
+The whole SELECT path is just (1) find the right reset point via binary search, (2) open the file at the implied slot, (3) walk forward block-by-block until you've covered the requested LSN range. No clever indexing; the linear walk is what makes this scheme cheap to write but acceptable to read &mdash; the archive is tiny compared to the data files.
+</div>
+</div>
+
+<h3>10.1 Performance note</h3>
+<p>
+For a typical incremental backup the walk covers a handful of files. A full archive is ~33 MB per file, ~2,725 page-id entries per block, ~5.5 million entries per file. The walker is sequential reads, so reading even a 100-file range (3 GiB of archive) is much cheaper than scanning the actual tablespaces (potentially TiB) to figure out the same set of pages by checksum diff.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 11 -- startup and recovery                           -->
+<!-- =========================================================== -->
+<section class="section" id="sec-11" data-title="11. Startup and recovery">
+<h2>11. Startup and recovery</h2>
+
+<p>
+At server start, the page-tracking subsystem has to rebuild everything in memory from what's on disk: which groups exist, which file is active, where the writer was, and the full list of reset points. The entry point is <code>Arch_Page_Sys::recover()</code>.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 420" width="900" height="420" role="img" aria-label="Recovery flow">
+  <defs>
+    <marker id="arrowQ" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151" stroke="none"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="30" class="lbl-lg" text-anchor="middle">Arch_Page_Sys::recover()</text>
+
+  <rect x="280" y="60"  width="340" height="40" rx="6" fill="#bae6fd"/>
+  <text x="450" y="84"  class="mono" text-anchor="middle">init_dblwr()  -- load the doublewrite</text>
+
+  <line x1="450" y1="102" x2="450" y2="118" stroke="#374151" marker-end="url(#arrowQ)"/>
+
+  <rect x="280" y="120" width="340" height="40" rx="6" fill="#bae6fd"/>
+  <text x="450" y="144" class="mono" text-anchor="middle">scan_for_groups()  -- find page_group_* dirs</text>
+
+  <line x1="450" y1="162" x2="450" y2="178" stroke="#374151" marker-end="url(#arrowQ)"/>
+
+  <rect x="280" y="180" width="340" height="60" rx="6" fill="#a7f3d0"/>
+  <text x="450" y="206" class="mono" text-anchor="middle">for each group: cleanup_if_required()</text>
+  <text x="450" y="224" class="lbl-sm" text-anchor="middle">drop short tail files; init m_file_ctx with num_files</text>
+
+  <line x1="450" y1="242" x2="450" y2="258" stroke="#374151" marker-end="url(#arrowQ)"/>
+
+  <rect x="280" y="260" width="340" height="60" rx="6" fill="#a7f3d0"/>
+  <text x="450" y="282" class="mono" text-anchor="middle">replace_pages_from_dblwr()  -- apply dblwr blocks</text>
+  <text x="450" y="302" class="lbl-sm" text-anchor="middle">torn-write recovery: if dblwr has a fresher copy of</text>
+  <text x="450" y="316" class="lbl-sm" text-anchor="middle">a block, write it into the file</text>
+
+  <line x1="450" y1="320" x2="450" y2="336" stroke="#374151" marker-end="url(#arrowQ)"/>
+
+  <rect x="280" y="338" width="340" height="60" rx="6" fill="#fdba74"/>
+  <text x="450" y="362" class="mono" text-anchor="middle">parse_reset_points()  -- per file</text>
+  <text x="450" y="382" class="lbl-sm" text-anchor="middle">for each reset entry: fetch_reset_lsn(block_num)</text>
+</svg>
+<div class="caption">
+Recovery is essentially "rebuild the in-memory state from the on-disk files." Each step has one job. <code>scan_for_groups</code> discovers what's there. <code>cleanup_if_required</code> drops tail files that weren't fully written. <code>replace_pages_from_dblwr</code> uses the doublewrite to repair any torn writes. <code>parse_reset_points</code> rebuilds the <code>m_reset</code> list per file by calling <code>fetch_reset_lsn</code> on each entry.
+</div>
+</div>
+
+<h3>11.1 An invariant worth highlighting</h3>
+<p>
+<code>fetch_reset_lsn</code> doesn't read from the implied file (the one <code>persisted_bn / 2043</code> would naively point to). It reads from the same file the reset entry was found in (call it the <em>reset_point file</em>). The justification is an invariant: a writer can only save a reset point in the file it's actively writing, so in normal operation the reset entry's implied file <em>is</em> the reset_point file. Keep this invariant in mind &mdash; we'll see what happens when it gets broken in the next section.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 12 -- putting it together                            -->
+<!-- =========================================================== -->
+<section class="section" id="sec-12" data-title="12. Putting it together">
+<h2>12. Putting it together</h2>
+
+<p class="lede">
+A complete end-to-end walk &mdash; from one user UPDATE through to the incremental backup that consumes its page-id.
+</p>
+
+<ol>
+  <li><strong>t0</strong> &mdash; user thread: <code>UPDATE t SET ...</code> dirties a page in the buffer pool. Redo logs the change. No page-tracking action yet.</li>
+  <li><strong>t1</strong> &mdash; page cleaner thread: picks the dirty page, calls <code>buf_flush_write_block_low()</code> which inline-calls <code>track_page(space=5, page_no=421)</code>. The tracker appends a 6-byte entry into the active in-memory block and returns. Cleaner finishes the write to the <code>.ibd</code> file.</li>
+  <li><strong>t2</strong> &mdash; checkpoint thread: a periodic checkpoint fires, stamps <code>stop_lsn = L</code> on the active block, asks the archiver to flush.</li>
+  <li><strong>t3</strong> &mdash; archiver thread: drains the now-READY_TO_FLUSH block, writes it to <code>#ib_16384_0.dblwr</code> first, then to <code>ib_page_180</code> at slot 412, <code>fsync</code>s both. Block transitions to FLUSHED.</li>
+  <li><strong>t4</strong> &mdash; user runs <code>mysqlbackup --incremental --start-lsn=L0 --stop-lsn=L1</code>. mysqlbackup calls <code>mysqlbackup_page_track_get_changed_pages(L0, L1)</code> via UDF.</li>
+  <li><strong>t5</strong> &mdash; SELECT thread: <code>find_reset_point(L0)</code> binary-searches <code>m_reset</code>, returns the entry whose <code>reset_lsn</code> is the largest &le; L0. Returns (block_num B, offset O).</li>
+  <li><strong>t6</strong> &mdash; SELECT thread: opens <code>ib_page_F</code> where <code>F = B / 2043</code>, reads at slot <code>(B % 2043) + 1</code>. Reads block header, gets <code>data_len</code>, accumulates page-ids from offset O onward. Advances to next slot, repeats.</li>
+  <li><strong>t7</strong> &mdash; SELECT thread: reaches a block whose <code>stop_lsn &gt; L1</code>. Terminates the walk. Returns the accumulated page-id set to mysqlbackup.</li>
+  <li><strong>t8</strong> &mdash; mysqlbackup copies the actual pages identified by step t7 out of the <code>.ibd</code> files.</li>
+  <li><strong>t9</strong> &mdash; mysqlbackup also copies the redo log from <code>checkpoint_lsn</code> forward. Page tracking covered the LSN range <code>[start_lsn, checkpoint_lsn]</code>; the redo covers the gap up to <code>current_lsn</code> (see Section 8.4). On restore, the copied pages get redo-replayed up to the target LSN. Incremental backup done.</li>
+</ol>
+
+<p>
+That's the whole story. Every component the rest of the walkthrough discussed has its specific moment in this sequence &mdash; including the redo log, which page tracking always needs as a companion to fill in the recent-modifications gap.
+</p>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 13 -- BUG 1: truncated reset-entry block_num         -->
+<!-- =========================================================== -->
+<section class="section" id="sec-13" data-title="13. Bug: truncated reset-entry block_num">
+<h2>13. Bug: truncated reset-entry block_num</h2>
+
+<p class="lede">
+The first bug exploits the 2-byte <code>block_num</code> field inside reset entries (Section 7, Section 9). Once the writer crosses file 31 &mdash; i.e., the writer's real <code>block_num</code> &ge; 65,536 &mdash; <code>mach_write_to_2</code> silently chops the high bits when persisting a reset entry. Try it yourself below.
+</p>
+
+<h3>13.1 The truncation, visualised</h3>
+<p>
+A real <code>block_num</code> is 8 bytes (u64). The on-disk reset-entry field is 2 bytes (u16). <code>mach_write_to_2</code> writes only the low 16 bits and discards the rest. The high 48 bits never reach the disk and cannot be recovered from the entry alone.
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 880 230" width="880" height="230" role="img"
+     aria-label="mach_write_to_2 truncation">
+  <text x="440" y="28" class="lbl-lg" text-anchor="middle">
+    real m_block_num (u64) -&gt; persisted on disk (u16)
+  </text>
+
+  <!-- 8 bytes of u64, low 2 highlighted -->
+  <g transform="translate(40,60)">
+    <text x="0" y="-8" class="lbl-sm">8-byte block_num in memory (high &rarr; low)</text>
+    <rect x="0"   y="0" width="60" height="44" fill="#fb7185"/>
+    <text x="30"  y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[7]</text>
+    <rect x="62"  y="0" width="60" height="44" fill="#fb7185"/>
+    <text x="92"  y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[6]</text>
+    <rect x="124" y="0" width="60" height="44" fill="#fb7185"/>
+    <text x="154" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[5]</text>
+    <rect x="186" y="0" width="60" height="44" fill="#fb7185"/>
+    <text x="216" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[4]</text>
+    <rect x="248" y="0" width="60" height="44" fill="#fb7185"/>
+    <text x="278" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[3]</text>
+    <rect x="310" y="0" width="60" height="44" fill="#fb7185"/>
+    <text x="340" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[2]</text>
+    <rect x="372" y="0" width="60" height="44" fill="#34d399"
+          stroke="#065f46" stroke-width="2"/>
+    <text x="402" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[1]</text>
+    <rect x="434" y="0" width="60" height="44" fill="#34d399"
+          stroke="#065f46" stroke-width="2"/>
+    <text x="464" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[0]</text>
+
+    <text x="184" y="64" class="lbl-sm" text-anchor="middle" style="fill:#9a3412;">
+      these 6 bytes are DROPPED
+    </text>
+    <text x="463" y="64" class="lbl-sm" text-anchor="middle" style="fill:#065f46;">
+      only these 2 are kept
+    </text>
+  </g>
+
+  <!-- arrow down to truncated -->
+  <text x="440" y="155" class="lbl" text-anchor="middle">&darr;&nbsp; mach_write_to_2(buf, m_block_num)</text>
+
+  <!-- final 2 bytes -->
+  <g transform="translate(390,170)">
+    <rect x="0"  y="0" width="60" height="44" fill="#34d399" stroke="#065f46" stroke-width="2"/>
+    <text x="30" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[1]</text>
+    <rect x="62" y="0" width="60" height="44" fill="#34d399" stroke="#065f46" stroke-width="2"/>
+    <text x="92" y="28" class="mono-sm" text-anchor="middle" style="fill:white;">[0]</text>
+  </g>
+  <text x="450" y="225" class="lbl-sm" text-anchor="middle">
+    persisted u16 = real_block_num mod 65536
+  </text>
+</svg>
+<div class="caption">
+For any real <code>block_num &lt; 65,536</code>, the 6 dropped bytes are all zero and nothing is lost. For any <code>block_num &ge; 65,536</code> (i.e., the writer is in <code>ib_page_32</code> or higher), at least one of the dropped bytes is non-zero and the on-disk value no longer matches reality.
+</div>
+</div>
+
+<h3>13.2 Interactive: try a real block_num</h3>
+<p>
+Type any real <code>block_num</code> and see what gets persisted into the <strong>reset entry</strong>, what file the truncated value implies, and what file it should have implied.
+</p>
+
+<div class="aside">
+<span class="label">Important:</span>
+The truncation affects only the <strong>reset entry's</strong> 2-byte block_num field (see Section 7.2). A data block's own header still carries the full 8-byte block_num at bytes 24&ndash;31 &mdash; the data blocks themselves remain correct. The simulator below shows the value <em>as it lives inside a reset entry</em>, not what's stored in any data block header.
+</div>
+
+<div class="figure">
+  <div style="text-align:left; max-width:560px; margin:0 auto 14px auto;
+              padding:14px 18px; background:#f1ecde; border:1px solid #e0dccf;
+              border-radius:6px;">
+    <label style="font-family:inherit; font-size:13px;">
+      real block_num:
+      <input id="trunc-input" type="number" min="0" max="999999999"
+             value="368151"
+             style="width:160px; font-family:Menlo,monospace; font-size:13px;
+                    padding:4px 6px; border:1px solid #c9c2ad; border-radius:4px;
+                    margin-left:6px;">
+    </label>
+    <div style="margin-top:8px; font-size:11px; color:#6b7280;">
+      try 5000 (no truncation) / 65535 (max value 2 bytes can hold, still fits cleanly) /
+      65536 (FIRST value that wraps -- persisted becomes 0) /
+      67419 (start of ib_page_33) / 368151 (customer case)
+    </div>
+  </div>
+<svg viewBox="0 0 900 240" width="900" height="240" id="trunc-svg" role="img"
+     aria-label="Truncation simulator">
+  <text x="450" y="26" class="lbl-lg" text-anchor="middle">truncation simulator</text>
+
+  <!-- real side -->
+  <rect x="40"  y="50"  width="380" height="140" rx="6" fill="#bae6fd"/>
+  <text x="230" y="42"  class="lbl-lg" text-anchor="middle">REAL (writer's actual position)</text>
+  <text x="60"  y="78"  class="mono">real_block_num =</text>
+  <text id="trunc-real-bn"  x="230" y="78"  class="mono">368151</text>
+  <text x="60"  y="106" class="mono">implied file_index =</text>
+  <text id="trunc-real-fi"  x="230" y="106" class="mono">180</text>
+  <text x="60"  y="134" class="mono">implied slot =</text>
+  <text id="trunc-real-slot" x="230" y="134" class="mono">412</text>
+  <text x="60"  y="170" class="lbl-sm" style="fill:#1d4ed8;">
+    where the writer is at save time;
+  </text>
+  <text x="60"  y="184" class="lbl-sm" style="fill:#1d4ed8;">
+    also stored verbatim in the data block header
+  </text>
+
+  <!-- arrow -->
+  <line x1="425" y1="120" x2="490" y2="120" stroke="#374151" stroke-width="1.4"
+        marker-end="url(#arrow1)"/>
+  <text x="457" y="112" class="lbl-sm" text-anchor="middle">mach_write_to_2</text>
+  <text x="457" y="135" class="lbl-sm" text-anchor="middle">% 65536</text>
+
+  <!-- truncated side -->
+  <rect x="500" y="50"  width="380" height="140" rx="6" fill="#fb7185"/>
+  <text x="690" y="42"  class="lbl-lg" text-anchor="middle">PERSISTED into reset entry only</text>
+  <text x="520" y="78"  class="mono"  style="fill:white;">persisted_bn =</text>
+  <text id="trunc-pers-bn"  x="690" y="78"  class="mono"  style="fill:white;">40471</text>
+  <text x="520" y="106" class="mono"  style="fill:white;">implied file_index =</text>
+  <text id="trunc-pers-fi"  x="690" y="106" class="mono"  style="fill:white;">19</text>
+  <text x="520" y="134" class="mono"  style="fill:white;">implied slot =</text>
+  <text id="trunc-pers-slot" x="690" y="134" class="mono"  style="fill:white;">1655</text>
+  <text id="trunc-warn"     x="690" y="172" class="lbl-sm" text-anchor="middle"
+        style="fill:white;">recovery will look here -- a different file!</text>
+</svg>
+<div class="caption">
+The two sides agree when no truncation happens (try <code>5000</code>). They diverge for any <code>block_num &ge; 65,536</code> (try <code>67419</code> or <code>368151</code>). The right-hand "PERSISTED into reset entry only" box shows what gets written into a <em>reset entry's</em> 2-byte field; the data block at that real position still carries the full 8-byte value in its own header, untouched.
+</div>
+</div>
+
+<h3>13.3 Three faces of the same bug</h3>
+<p>
+The truncated entry sits harmless on disk until something tries to use it. What happens next depends entirely on the state of the archive at use time:
+</p>
+
+<div class="figure">
+<svg viewBox="0 0 900 340" width="900" height="340" role="img"
+     aria-label="Three failure modes">
+  <text x="450" y="28" class="lbl-lg" text-anchor="middle">three faces of the bug</text>
+
+  <!-- Face 1: server can't start -->
+  <rect x="20"  y="50"  width="280" height="270" rx="8" fill="#fde68a"/>
+  <text x="160" y="76"  class="lbl-lg" text-anchor="middle">A. server cannot start</text>
+  <text x="160" y="100" class="lbl-sm" text-anchor="middle">trigger:</text>
+  <text x="160" y="116" class="lbl-sm" text-anchor="middle">restart while the active</text>
+  <text x="160" y="132" class="lbl-sm" text-anchor="middle">file is still partial</text>
+
+  <rect x="40" y="148" width="240" height="36" rx="4" fill="#fb7185"/>
+  <text x="160" y="170" class="lbl" text-anchor="middle" style="fill:white;">
+    MY-012642 32-byte read
+  </text>
+
+  <text x="160" y="200" class="lbl-sm" text-anchor="middle">recovery -&gt; fetch_reset_lsn</text>
+  <text x="160" y="216" class="lbl-sm" text-anchor="middle">reads at offset past file end</text>
+  <text x="160" y="232" class="lbl-sm" text-anchor="middle">srv_fatal_error()</text>
+
+  <text x="160" y="270" class="lbl-sm" text-anchor="middle" style="font-weight:600;">
+    every restart fails the same way
+  </text>
+  <text x="160" y="290" class="lbl-sm" text-anchor="middle" style="fill:#7a5a14;">
+    operator must remove the archive
+  </text>
+  <text x="160" y="305" class="lbl-sm" text-anchor="middle" style="fill:#7a5a14;">
+    directory to get back up
+  </text>
+
+  <!-- Face 2: SELECT crash -->
+  <rect x="310" y="50"  width="280" height="270" rx="8" fill="#fed7aa"/>
+  <text x="450" y="76"  class="lbl-lg" text-anchor="middle">B. SELECT crashes server</text>
+  <text x="450" y="100" class="lbl-sm" text-anchor="middle">trigger:</text>
+  <text x="450" y="116" class="lbl-sm" text-anchor="middle">purge_up_to was called</text>
+  <text x="450" y="132" class="lbl-sm" text-anchor="middle">(low-index files deleted)</text>
+
+  <rect x="330" y="148" width="240" height="36" rx="4" fill="#fb7185"/>
+  <text x="450" y="170" class="lbl" text-anchor="middle" style="fill:white;">
+    MY-012646 ENOENT
+  </text>
+
+  <text x="450" y="200" class="lbl-sm" text-anchor="middle">SELECT -&gt; tries to open</text>
+  <text x="450" y="216" class="lbl-sm" text-anchor="middle">ib_page_&lt;small&gt; which was purged</text>
+  <text x="450" y="232" class="lbl-sm" text-anchor="middle">srv_fatal_error()</text>
+
+  <text x="450" y="270" class="lbl-sm" text-anchor="middle" style="font-weight:600;">
+    backup runs crash the server
+  </text>
+  <text x="450" y="290" class="lbl-sm" text-anchor="middle" style="fill:#7a5a14;">
+    incremental backups become</text>
+  <text x="450" y="305" class="lbl-sm" text-anchor="middle" style="fill:#7a5a14;">
+    impossible
+  </text>
+
+  <!-- Face 3: silent wrong data -->
+  <rect x="600" y="50"  width="280" height="270" rx="8" fill="#fbcfe8"/>
+  <text x="740" y="76"  class="lbl-lg" text-anchor="middle">C. silent wrong data</text>
+  <text x="740" y="100" class="lbl-sm" text-anchor="middle">trigger:</text>
+  <text x="740" y="116" class="lbl-sm" text-anchor="middle">all files still on disk,</text>
+  <text x="740" y="132" class="lbl-sm" text-anchor="middle">active file is full</text>
+
+  <rect x="620" y="148" width="240" height="36" rx="4" fill="#86efac"/>
+  <text x="740" y="170" class="lbl" text-anchor="middle">
+    no error. no log.
+  </text>
+
+  <text x="740" y="200" class="lbl-sm" text-anchor="middle">SELECT walks blocks from</text>
+  <text x="740" y="216" class="lbl-sm" text-anchor="middle">the wrong file's content,</text>
+  <text x="740" y="232" class="lbl-sm" text-anchor="middle">returns the wrong page-ids</text>
+
+  <text x="740" y="270" class="lbl-sm" text-anchor="middle" style="font-weight:600;">
+    incremental backups silently
+  </text>
+  <text x="740" y="285" class="lbl-sm" text-anchor="middle" style="font-weight:600;">
+    inconsistent &mdash; restore fails
+  </text>
+  <text x="740" y="305" class="lbl-sm" text-anchor="middle" style="fill:#7a5a14;">
+    weeks/months later
+  </text>
+</svg>
+<div class="caption">
+Three different runtime conditions, three different observable behaviours. The first two are loud (the server stops). The third is quiet (the server is fine; the backup just isn't). Across customer reports, B is the most common; C is the most dangerous.
+</div>
+</div>
+
+<h3>13.4 How users experience it</h3>
+<ul>
+  <li><strong>Outage class.</strong> Server fails to start after a planned restart. Worst case, the operator forces a recovery by removing <code>#ib_archive/page_group_*</code>, losing all tracking history. The instance comes back but the next incremental backup has to be a full backup.</li>
+  <li><strong>Backup class.</strong> Backup tools crash the server mid-backup. Either the same operator workaround applies, or the backup is abandoned and a full backup runs instead.</li>
+  <li><strong>Restore class (worst).</strong> Backups appear to succeed for weeks. The corruption is only discovered during an actual restore attempt &mdash; usually the worst possible moment.</li>
+</ul>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 14 -- BUG 2: m_count off-by-N after purge            -->
+<!-- =========================================================== -->
+<section class="section" id="sec-14" data-title="14. Bug: m_count off-by-N after purge">
+<h2>14. Bug: m_count off-by-N after purge</h2>
+
+<p class="lede">
+The second bug is at the seam between purge and recovery. After <code>mysqlbackup_page_track_purge_up_to()</code> removes the oldest archive files, the on-disk range now starts at a non-zero index. Recovery initialises the writer's "next file index" counter wrong &mdash; and the next archive flush overwrites a live file in place.
+</p>
+
+<h3>14.1 Walk through the state, step by step</h3>
+<p>
+Use <strong>Step &rarr;</strong> to advance through what happens. Each step shows the on-disk layout and the writer's internal <code>m_count</code> bookkeeping.
+</p>
+
+<div class="figure">
+  <div class="stepper">
+    <button id="purge-back">&larr; Back</button>
+    <button id="purge-step">Step &rarr;</button>
+    <span class="tick" id="purge-step-label">step 0 -- starting state</span>
+    <button id="purge-reset">Reset</button>
+  </div>
+
+<svg viewBox="0 0 920 360" width="920" height="360" id="purge-svg"
+     role="img" aria-label="m_count off-by-N stepper">
+  <text x="460" y="26" class="lbl-lg" text-anchor="middle">on-disk files + writer's bookkeeping</text>
+
+  <!-- File row -->
+  <text x="50" y="56" class="lbl-sm" style="fill:#6b7280;">on disk:</text>
+  <g id="purge-files">
+    <g data-file="0" transform="translate(50,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">0</text>
+    </g>
+    <g data-file="1" transform="translate(132,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">1</text>
+    </g>
+    <g data-file="2" transform="translate(214,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">2</text>
+    </g>
+    <g data-file="3" transform="translate(296,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">3</text>
+    </g>
+    <g data-file="4" transform="translate(378,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">4</text>
+    </g>
+    <g data-file="5" transform="translate(460,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">5</text>
+    </g>
+    <g data-file="6" transform="translate(542,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">6</text>
+    </g>
+    <g data-file="7" transform="translate(624,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">7</text>
+    </g>
+    <g data-file="8" transform="translate(706,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">8</text>
+    </g>
+    <g data-file="9" transform="translate(788,68)">
+      <rect x="0" y="0" width="78" height="60" rx="4"/>
+      <text x="39" y="24" class="lbl" text-anchor="middle">ib_page_</text>
+      <text x="39" y="42" class="lbl-lg" text-anchor="middle">9</text>
+    </g>
+  </g>
+
+  <!-- m_count box -->
+  <rect x="50"  y="170" width="350" height="60" rx="6" fill="#c7d2fe"/>
+  <text x="60"  y="190" class="lbl-lg">writer's bookkeeping</text>
+  <text x="60"  y="216" class="mono" id="purge-bookkeep">m_count = (uninitialised)</text>
+
+  <!-- writer cursor box -->
+  <rect x="420" y="170" width="450" height="60" rx="6" fill="#fef3c7"/>
+  <text x="430" y="190" class="lbl-lg">next flush will open file_index</text>
+  <text x="430" y="216" class="mono" id="purge-nextflush">-- (writer not active yet)</text>
+
+  <!-- arrow showing where the writer lands -->
+  <line id="purge-arrow" x1="0" y1="0" x2="0" y2="0" stroke="#dc2626" stroke-width="2.4"
+        marker-end="url(#arrow1)" visibility="hidden"/>
+
+  <!-- legend -->
+  <g transform="translate(50,290)">
+    <rect x="0"   y="0"  width="14" height="14" fill="#34d399"/>
+    <text x="20"  y="12" class="lbl-sm">on-disk, sealed and live</text>
+    <rect x="200" y="0"  width="14" height="14" fill="#fb7185"/>
+    <text x="220" y="12" class="lbl-sm">purged (file gone)</text>
+    <rect x="380" y="0"  width="14" height="14" fill="#fb923c"/>
+    <text x="400" y="12" class="lbl-sm">writer's current active</text>
+    <rect x="580" y="0"  width="14" height="14" fill="#dc2626"/>
+    <text x="600" y="12" class="lbl-sm">about to be OVERWRITTEN (the bug)</text>
+  </g>
+</svg>
+<div class="caption">
+The stepper walks through one full cycle &mdash; initial workload &rarr; purge &rarr; restart &rarr; recovery's bookkeeping &rarr; the writer's next file open. Watch <code>m_count</code> and the "next flush opens file_index" together; when they disagree with the actual on-disk state of the file at that index, that's the bug.
+</div>
+</div>
+
+<h3>14.2 What's actually happening</h3>
+<p>
+Recovery calls <code>Arch_File_Ctx::init(num_files)</code> where <code>num_files</code> is the count of files in the group (e.g., 5 after purging the first 3). That function does:
+</p>
+<pre>
+m_count = num_files;            // sets the "next file index to allocate"
+</pre>
+<p>
+&hellip; which is wrong when the group's lowest file index is non-zero. The correct expression is <code>m_count = start_index + num_files</code>. After purge of the first 3, surviving files are at indices [3..7] (5 files), and the next file should be <code>ib_page_8</code> &mdash; not <code>ib_page_5</code>.
+</p>
+
+<h3>14.3 How users experience it</h3>
+<ul>
+  <li><strong>Silent corruption of a live archive file.</strong> The overwrite is in-place, no error, no log. Reset entries that lived in that file are gone; subsequent data blocks claim a wrong block_num.</li>
+  <li><strong>Backups derived from the corrupted archive are silently wrong.</strong> The same restore-time discovery problem as Bug 1's face C.</li>
+  <li><strong>On the next restart, recovery may emit <code>MY-013581 "Page archiver system's recovery failed"</code></strong> if <code>scan_for_groups</code> notices the inconsistency &mdash; in which case page tracking is disabled for that boot, the server itself comes up.</li>
+  <li><strong>Always paired with Bug 1 in practice.</strong> The customer hits Bug 1 first, removes the archive directory, restarts. Page tracking starts a new group from scratch. The next purge+restart cycle hits this bug. So in the wild they show up as a chain.</li>
+</ul>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 15 -- BUG 3: deadlock                                -->
+<!-- =========================================================== -->
+<section class="section" id="sec-15" data-title="15. Bug: page cleaner / archiver deadlock">
+<h2>15. Bug: page cleaner / archiver deadlock</h2>
+
+<p class="lede">
+The third bug is a classic lock-ordering inversion between two of the threads we met in Section 4. Under sustained heavy tracking load it can produce a hung shutdown.
+</p>
+
+<h3>15.1 The correct lock order</h3>
+<p>
+Section 4.2 listed three mutexes. The whole subsystem stays safe iff every call site takes them in the documented order:
+</p>
+<div class="figure" style="margin: 12px auto;">
+<svg viewBox="0 0 600 90" width="600" height="90" role="img"
+     aria-label="correct lock order">
+  <rect x="30"  y="20" width="140" height="50" rx="6" fill="#c7d2fe"/>
+  <text x="100" y="50" class="lbl-lg" text-anchor="middle">m_mutex</text>
+
+  <text x="180" y="50" class="lbl-lg" text-anchor="middle">&raquo;</text>
+
+  <rect x="200" y="20" width="160" height="50" rx="6" fill="#a7f3d0"/>
+  <text x="280" y="50" class="lbl-lg" text-anchor="middle">m_arch_mutex</text>
+
+  <text x="370" y="50" class="lbl-lg" text-anchor="middle">&raquo;</text>
+
+  <rect x="390" y="20" width="180" height="50" rx="6" fill="#bae6fd"/>
+  <text x="480" y="50" class="lbl-lg" text-anchor="middle">m_oper_mutex</text>
+</svg>
+</div>
+
+<h3>15.2 Walk the deadlock formation</h3>
+<p>
+Two threads, two mutexes, taken in conflicting orders. Step through to watch the cycle form.
+</p>
+
+<div class="figure">
+  <div class="stepper">
+    <button id="dead-back">&larr; Back</button>
+    <button id="dead-step">Step &rarr;</button>
+    <span class="tick" id="dead-step-label">step 0 -- both threads idle</span>
+    <button id="dead-reset">Reset</button>
+  </div>
+
+<svg viewBox="0 0 900 360" width="900" height="360" id="dead-svg"
+     role="img" aria-label="deadlock formation">
+  <defs>
+    <marker id="arrow-dead" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626" stroke="none"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="26" class="lbl-lg" text-anchor="middle">deadlock simulator</text>
+
+  <!-- Page cleaner thread -->
+  <g id="dead-cleaner">
+    <rect x="40"  y="50"  width="280" height="220" rx="8" fill="#bae6fd"/>
+    <text x="180" y="76"  class="lbl-lg" text-anchor="middle">Page cleaner thread</text>
+    <text x="180" y="100" class="lbl-sm" text-anchor="middle">running track_page()</text>
+
+    <rect x="60" y="125" width="240" height="36" rx="4" fill="white" id="dead-c-act1"/>
+    <text x="180" y="148" class="mono" text-anchor="middle">acquire m_oper_mutex</text>
+
+    <rect x="60" y="170" width="240" height="36" rx="4" fill="white" id="dead-c-act2"/>
+    <text x="180" y="193" class="mono" text-anchor="middle">acquire m_arch_mutex</text>
+
+    <text x="180" y="230" class="lbl-sm" text-anchor="middle"
+          id="dead-c-status" style="fill:#374151;">status: idle</text>
+  </g>
+
+  <!-- Archiver thread -->
+  <g id="dead-archiver">
+    <rect x="580" y="50"  width="280" height="220" rx="8" fill="#a7f3d0"/>
+    <text x="720" y="76"  class="lbl-lg" text-anchor="middle">Archiver thread</text>
+    <text x="720" y="100" class="lbl-sm" text-anchor="middle">flushing a block</text>
+
+    <rect x="600" y="125" width="240" height="36" rx="4" fill="white" id="dead-a-act1"/>
+    <text x="720" y="148" class="mono" text-anchor="middle">acquire m_arch_mutex</text>
+
+    <rect x="600" y="170" width="240" height="36" rx="4" fill="white" id="dead-a-act2"/>
+    <text x="720" y="193" class="mono" text-anchor="middle">acquire m_oper_mutex</text>
+
+    <text x="720" y="230" class="lbl-sm" text-anchor="middle"
+          id="dead-a-status" style="fill:#374151;">status: idle</text>
+  </g>
+
+  <!-- Dead cycle arrow (initially hidden) -->
+  <path id="dead-cycle1" d="M 310 188 q 70 0 90 -30 q 20 -30 90 -30 q 70 0 90 30 q 20 30 -10 30 L 590 188"
+        fill="none" stroke="#dc2626" stroke-width="2.4"
+        marker-end="url(#arrow-dead)" visibility="hidden"/>
+  <path id="dead-cycle2" d="M 590 144 q -90 0 -120 30 q -30 30 -90 30 q -70 0 -60 -30 L 312 144"
+        fill="none" stroke="#dc2626" stroke-width="2.4"
+        marker-end="url(#arrow-dead)" visibility="hidden"/>
+
+  <!-- Banner at bottom -->
+  <text id="dead-banner" x="450" y="310" class="lbl-lg" text-anchor="middle"
+        style="fill:#374151;">no contention yet</text>
+  <text id="dead-banner2" x="450" y="332" class="lbl-sm" text-anchor="middle"
+        style="fill:#6b7280;">step through to see what happens</text>
+</svg>
+<div class="caption">
+The page cleaner takes <code>m_oper_mutex</code> first, then tries <code>m_arch_mutex</code> &mdash; that order is fine. The archiver takes <code>m_arch_mutex</code> first, then tries <code>m_oper_mutex</code> &mdash; that's the inversion. When both happen concurrently, each thread holds the lock the other one needs.
+</div>
+</div>
+
+<h3>15.3 How users experience it</h3>
+<ul>
+  <li><strong>Hung shutdown.</strong> <code>SHUTDOWN</code> or <code>systemctl stop</code> never returns. The shutdown is waiting for the page cleaner to finish; the page cleaner is waiting on <code>m_oper_mutex</code>; the archiver holds it.</li>
+  <li><strong>Stack traces show the cycle directly.</strong> <code>gdb thread apply all bt</code> on the hung mysqld shows page cleaner blocked on the operation mutex, archiver blocked on the operation mutex, no progress anywhere.</li>
+  <li><strong>Only recourse is SIGKILL.</strong> The forced kill triggers crash recovery on the next start, but recovery itself works fine &mdash; this is not a corruption bug, just a liveness bug.</li>
+  <li><strong>Fixed in current branch.</strong> The patched code reorders the locks consistently and the deadlock no longer forms. Only relevant to un-patched builds (anything before the fix landed).</li>
+</ul>
+</section>
+
+
+<!-- =========================================================== -->
+<!-- SECTION 16 -- verification tool                              -->
+<!-- =========================================================== -->
+<section class="section" id="sec-16" data-title="16. The verification tool">
+<h2>16. The verification tool</h2>
+
+<p>
+<code>verify_page_archive.py</code> in the repo runs against a copy of an archive directory and reports which (if any) of the three failure modes the dump exhibits. It's read-only; it never modifies the archive, so it's safe to point at a customer dump for triage.
+</p>
+
+<h3>16.1 What it checks</h3>
+<ul>
+  <li>Reset entries with truncated <code>block_num</code> (Bug 1 surface). For each suspect entry it prints a per-entry table with the field reference legend &mdash; <code>reset_point.block_num</code>, <code>real_block_num</code>, <code>reset_point.offset</code>, the landing block's <code>data_len</code>, the SELECT-side underflow check, and the recovery-side past-EOF check.</li>
+  <li>Data blocks whose <code>block_num</code> doesn't match the file they live in (Bug 2 fingerprint).</li>
+  <li>Files that aren't full (33,488,896 bytes). The active tail is expected to be partial; anything else is suspicious.</li>
+  <li>Zeroed reset blocks correlated with wrong-block_num data blocks (the exact "writer reopened an existing file" signature of Bug 2).</li>
+  <li>Gaps and duplicates in the on-disk <code>block_num</code> sequence across files.</li>
+  <li>CRC32C checksum mismatches (only if the <code>crc32c</code> Python package is available).</li>
+</ul>
+
+<h3>16.2 Output</h3>
+<p>
+A per-group report ending in a final-verdict banner:
+</p>
+<pre>
+ARCHIVE IS UNUSABLE -- SERVER WILL NOT START
+  N reset entry(s) point at a position past the reset_point file's
+  actual size. ... EVERY restart attempt will die the same way.
+  The page-archive directory must be removed or the affected file
+  truncated/repaired before the server can start.
+</pre>
+<p>
+or a green-light variant:
+</p>
+<pre>
+OK: no symptoms detected. Archive looks healthy.
+</pre>
+
+<h3>16.3 Running it</h3>
+<pre>
+python3 verify_page_archive.py /path/to/copy_of_ib_archive
+</pre>
+<p>
+For Bug 1's silent-wrong-data case (face C above), the script flags the truncated entries but won't tell you which specific incremental backups happened to use them. Once flagged, the safe assumption is that <em>all</em> increments taken after the first truncated entry was created are suspect.
+</p>
+</section>
+
+
+</div><!-- /page -->
+
+
+<!-- ============================== bottom nav ============================== -->
+<div class="navbar">
+  <button id="nav-prev" disabled>&larr; Previous</button>
+  <div class="nav-progress" id="nav-progress">Section 1 of 3</div>
+  <div class="nav-title" id="nav-title"></div>
+  <select id="nav-jump"></select>
+  <button id="nav-next">Next &rarr;</button>
+</div>
+
+
+<script>
+(function() {
+
+  // ---------------- section pagination ----------------
+  const sections = Array.from(document.querySelectorAll('.section'));
+  const prev   = document.getElementById('nav-prev');
+  const next   = document.getElementById('nav-next');
+  const prog   = document.getElementById('nav-progress');
+  const title  = document.getElementById('nav-title');
+  const jump   = document.getElementById('nav-jump');
+
+  // populate the dropdown from the data-title attributes
+  sections.forEach((s, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = s.dataset.title;
+    jump.appendChild(opt);
+  });
+
+  function show(i) {
+    if (i < 0) i = 0;
+    if (i >= sections.length) i = sections.length - 1;
+    sections.forEach((s, k) => s.classList.toggle('active', k === i));
+    prog.textContent = "Section " + (i + 1) + " of " + sections.length;
+    title.textContent = sections[i].dataset.title || "";
+    prev.disabled = (i === 0);
+    next.disabled = (i === sections.length - 1);
+    jump.value = String(i);
+    history.replaceState(null, "", "#sec-" + (i + 1));
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.__currentSection = i;
+  }
+
+  prev.onclick = () => show(window.__currentSection - 1);
+  next.onclick = () => show(window.__currentSection + 1);
+  jump.onchange = (e) => show(parseInt(e.target.value, 10));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft')  prev.click();
+    if (e.key === 'ArrowRight') next.click();
+  });
+
+  // initial section from hash
+  let initial = 0;
+  if (location.hash) {
+    const m = location.hash.match(/^#sec-(\d+)$/);
+    if (m) initial = parseInt(m[1], 10) - 1;
+  }
+  show(initial);
+
+
+  // ---------------- ring-of-blocks stepper ----------------
+  const COLORS = {
+    EMPTY:           "white",
+    ACTIVE:          "#fb923c",
+    READY_TO_FLUSH:  "#fbbf24",
+    BEING_FLUSHED:   "#60a5fa",
+    FLUSHED:         "#d1d5db",
+  };
+  const TIMELINE = [
+    { msg: "tick 0 -- start; slot 0 becomes ACTIVE",
+      states: ["ACTIVE","EMPTY","EMPTY","EMPTY","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 1 -- slot 0 fills; producer rolls to slot 1",
+      states: ["READY_TO_FLUSH","ACTIVE","EMPTY","EMPTY","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 2 -- archiver picks up slot 0",
+      states: ["BEING_FLUSHED","ACTIVE","EMPTY","EMPTY","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 3 -- slot 0 FLUSHED; slot 1 fills, producer rolls to 2",
+      states: ["FLUSHED","READY_TO_FLUSH","ACTIVE","EMPTY","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 4 -- slot 0 recycled (EMPTY); archiver drains slot 1",
+      states: ["EMPTY","BEING_FLUSHED","ACTIVE","EMPTY","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 5 -- slot 1 FLUSHED; slot 2 fills, producer rolls to 3",
+      states: ["EMPTY","FLUSHED","READY_TO_FLUSH","ACTIVE","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 6 -- slot 1 EMPTY; archiver drains slot 2",
+      states: ["EMPTY","EMPTY","BEING_FLUSHED","ACTIVE","EMPTY","EMPTY","EMPTY"] },
+    { msg: "tick 7 -- slot 3 fills, producer rolls to 4; slot 2 FLUSHED",
+      states: ["EMPTY","EMPTY","FLUSHED","READY_TO_FLUSH","ACTIVE","EMPTY","EMPTY"] },
+    { msg: "tick 8 -- producer continues to slots 5, 6 ...",
+      states: ["EMPTY","EMPTY","EMPTY","FLUSHED","READY_TO_FLUSH","ACTIVE","EMPTY"] },
+    { msg: "tick 9 -- slot 6 fills, producer WRAPS to slot 0 (reused!)",
+      states: ["ACTIVE","EMPTY","EMPTY","EMPTY","BEING_FLUSHED","FLUSHED","READY_TO_FLUSH"] },
+  ];
+
+  let tick = 0;
+  const slots = document.querySelectorAll('#ring-slots g[data-slot]');
+  const tickLabel = document.getElementById('ring-tick-label');
+
+  function renderRing() {
+    const frame = TIMELINE[tick];
+    slots.forEach((g, i) => {
+      const state = frame.states[i];
+      const rect  = g.querySelector('rect');
+      const txt   = g.querySelectorAll('text')[1]; // the state label
+      rect.setAttribute('fill', COLORS[state]);
+      txt.textContent = state;
+      // make state-label readable on dark colours
+      if (state === "BEING_FLUSHED") txt.setAttribute('style', 'fill:white;');
+      else if (state === "ACTIVE")   txt.setAttribute('style', 'fill:white;');
+      else                           txt.setAttribute('style', 'fill:#111827;');
+    });
+    tickLabel.textContent = frame.msg;
+  }
+  const tickBtn  = document.getElementById('ring-tick');
+  const backBtn  = document.getElementById('ring-back');
+  const resetBtn = document.getElementById('ring-reset');
+  if (tickBtn) tickBtn.onclick = () => {
+    tick = (tick + 1) % TIMELINE.length; renderRing();
+  };
+  if (backBtn) backBtn.onclick = () => {
+    tick = (tick - 1 + TIMELINE.length) % TIMELINE.length; renderRing();
+  };
+  if (resetBtn) resetBtn.onclick = () => { tick = 0; renderRing(); };
+  renderRing();
+
+
+  // ---------------- truncation simulator ----------------
+  const tIn  = document.getElementById('trunc-input');
+  if (tIn) {
+    const elRealBn   = document.getElementById('trunc-real-bn');
+    const elRealFi   = document.getElementById('trunc-real-fi');
+    const elRealSlot = document.getElementById('trunc-real-slot');
+    const elPersBn   = document.getElementById('trunc-pers-bn');
+    const elPersFi   = document.getElementById('trunc-pers-fi');
+    const elPersSlot = document.getElementById('trunc-pers-slot');
+    const elWarn     = document.getElementById('trunc-warn');
+    function updateTrunc() {
+      let v = parseInt(tIn.value, 10);
+      if (isNaN(v) || v < 0) v = 0;
+      const persisted = v % 65536;
+      const realFi   = Math.floor(v / 2043);
+      const realSlot = (v % 2043) + 1;
+      const persFi   = Math.floor(persisted / 2043);
+      const persSlot = (persisted % 2043) + 1;
+      elRealBn.textContent   = v;
+      elRealFi.textContent   = realFi;
+      elRealSlot.textContent = realSlot;
+      elPersBn.textContent   = persisted;
+      elPersFi.textContent   = persFi;
+      elPersSlot.textContent = persSlot;
+      if (v < 65536) {
+        elWarn.textContent = "no truncation -- persisted value matches real";
+        elWarn.setAttribute('style', 'fill:#fff5d6;');
+      } else {
+        elWarn.textContent = "recovery will look in file " + persFi + " -- a different file!";
+        elWarn.setAttribute('style', 'fill:white; font-weight:600;');
+      }
+    }
+    tIn.addEventListener('input', updateTrunc);
+    updateTrunc();
+  }
+
+
+  // ---------------- m_count off-by-N stepper ----------------
+  const purgeStep  = document.getElementById('purge-step');
+  if (purgeStep) {
+    // file states: "live" / "purged" / "active" / "overwrite"
+    const FILE_COLOR = {
+      empty:     "white",
+      live:      "#34d399",
+      purged:    "#fb7185",
+      active:    "#fb923c",
+      overwrite: "#dc2626",
+    };
+    const FRAMES = [
+      {
+        label: "step 0 -- starting state: 8 files exist, writer is in ib_page_7 (active partial)",
+        files: ["live","live","live","live","live","live","live","active","empty","empty"],
+        bk:    "m_count = 8   (correct: start_index=0 + num_files=8)",
+        next:  "next file to allocate would be ib_page_8 -- correct",
+        arrow: null,
+      },
+      {
+        label: "step 1 -- mysqlbackup_page_track_purge_up_to() removes the oldest 3 files",
+        files: ["purged","purged","purged","live","live","live","live","active","empty","empty"],
+        bk:    "m_count = 8   (still in memory; on-disk has changed)",
+        next:  "files 0,1,2 gone; on-disk range is now [3..7]",
+        arrow: null,
+      },
+      {
+        label: "step 2 -- clean shutdown",
+        files: ["purged","purged","purged","live","live","live","live","active","empty","empty"],
+        bk:    "m_count   -- not in memory anymore (process exited)",
+        next:  "writer state is fully on disk; recovery will rebuild it",
+        arrow: null,
+      },
+      {
+        label: "step 3 -- server restart; recovery runs; init_file_ctx(num_files=5)",
+        files: ["purged","purged","purged","live","live","live","live","active","empty","empty"],
+        bk:    "m_count = 5   (BUG: should be start_index 3 + num_files 5 = 8)",
+        next:  "next file to allocate would be ib_page_5 -- this is the bug",
+        arrow: {from: [200,232], to: [490, 92]},  // points at ib_page_5
+      },
+      {
+        label: "step 4 -- first archive flush after recovery: open_new(file_index=5)",
+        files: ["purged","purged","purged","live","live","overwrite","live","active","empty","empty"],
+        bk:    "m_count = 5   (still wrong)",
+        next:  "ib_page_5 exists -> OS_FILE_OPEN reuses it (no truncate)",
+        arrow: {from: [200,232], to: [490, 92]},
+      },
+      {
+        label: "step 5 -- writer writes its header at offset 0 of ib_page_5, overwriting live data",
+        files: ["purged","purged","purged","live","live","overwrite","live","active","empty","empty"],
+        bk:    "m_count = 6  (incremented after the (bogus) open)",
+        next:  "reset block of ib_page_5 zeroed; its data blocks now claim block_nums from a future range",
+        arrow: {from: [200,232], to: [490, 92]},
+      },
+      {
+        label: "step 6 -- final state: ib_page_5 silently corrupted, server runs as if nothing happened",
+        files: ["purged","purged","purged","live","live","overwrite","live","active","empty","empty"],
+        bk:    "m_count = 6",
+        next:  "next get_changed_pages touching ib_page_5 returns wrong data; backups silently inconsistent",
+        arrow: null,
+      },
+    ];
+    let pf = 0;
+    const fileGs = document.querySelectorAll('#purge-files g[data-file]');
+    const lbl    = document.getElementById('purge-step-label');
+    const bk     = document.getElementById('purge-bookkeep');
+    const nf     = document.getElementById('purge-nextflush');
+    const arrow  = document.getElementById('purge-arrow');
+    function renderPurge() {
+      const f = FRAMES[pf];
+      fileGs.forEach((g, i) => {
+        const st = f.files[i];
+        const r  = g.querySelector('rect');
+        r.setAttribute('fill', FILE_COLOR[st] || "white");
+        // text color readable
+        g.querySelectorAll('text').forEach(t => {
+          if (st === "active" || st === "purged" || st === "overwrite" || st === "live") {
+            t.setAttribute('style', 'fill:white;');
+          } else {
+            t.setAttribute('style', 'fill:#111827;');
+          }
+        });
+      });
+      lbl.textContent = f.label;
+      bk.textContent  = f.bk;
+      nf.textContent  = f.next;
+      if (f.arrow) {
+        arrow.setAttribute('x1', f.arrow.from[0]);
+        arrow.setAttribute('y1', f.arrow.from[1]);
+        arrow.setAttribute('x2', f.arrow.to[0]);
+        arrow.setAttribute('y2', f.arrow.to[1]);
+        arrow.setAttribute('visibility', 'visible');
+      } else {
+        arrow.setAttribute('visibility', 'hidden');
+      }
+    }
+    purgeStep.onclick = () => { pf = (pf + 1) % FRAMES.length; renderPurge(); };
+    document.getElementById('purge-back').onclick =
+        () => { pf = (pf - 1 + FRAMES.length) % FRAMES.length; renderPurge(); };
+    document.getElementById('purge-reset').onclick =
+        () => { pf = 0; renderPurge(); };
+    renderPurge();
+  }
+
+
+  // ---------------- deadlock stepper ----------------
+  const deadStep = document.getElementById('dead-step');
+  if (deadStep) {
+    const FRAMES_D = [
+      {
+        label: "step 0 -- both threads idle; no locks held",
+        c1: "white", c2: "white", a1: "white", a2: "white",
+        c_status: "status: idle", a_status: "status: idle",
+        banner: "no contention yet",
+        banner2: "step through to see what happens",
+        cycle: false,
+      },
+      {
+        label: "step 1 -- page cleaner: acquire m_oper_mutex (holds it)",
+        c1: "#fb923c", c2: "white", a1: "white", a2: "white",
+        c_status: "holds m_oper_mutex", a_status: "status: idle",
+        banner: "page cleaner is now inside track_page",
+        banner2: "all good so far",
+        cycle: false,
+      },
+      {
+        label: "step 2 -- archiver wakes up: acquire m_arch_mutex (holds it)",
+        c1: "#fb923c", c2: "white", a1: "#fb923c", a2: "white",
+        c_status: "holds m_oper_mutex", a_status: "holds m_arch_mutex",
+        banner: "both threads holding one lock each",
+        banner2: "still no contention -- different mutexes",
+        cycle: false,
+      },
+      {
+        label: "step 3 -- page cleaner: try to acquire m_arch_mutex (BLOCKED -- archiver has it)",
+        c1: "#fb923c", c2: "#fbbf24", a1: "#fb923c", a2: "white",
+        c_status: "BLOCKED waiting on m_arch_mutex", a_status: "holds m_arch_mutex",
+        banner: "page cleaner is now waiting",
+        banner2: "archiver is still running; not stuck yet",
+        cycle: false,
+      },
+      {
+        label: "step 4 -- archiver finishes its work, tries to acquire m_oper_mutex (BLOCKED -- cleaner has it)",
+        c1: "#fb923c", c2: "#fbbf24", a1: "#fb923c", a2: "#fbbf24",
+        c_status: "BLOCKED waiting on m_arch_mutex", a_status: "BLOCKED waiting on m_oper_mutex",
+        banner: "DEADLOCK: both threads waiting on what the other holds",
+        banner2: "neither will ever wake up; shutdown can never complete",
+        cycle: true,
+      },
+    ];
+    let df = 0;
+    const lbl    = document.getElementById('dead-step-label');
+    const c1     = document.getElementById('dead-c-act1');
+    const c2     = document.getElementById('dead-c-act2');
+    const a1     = document.getElementById('dead-a-act1');
+    const a2     = document.getElementById('dead-a-act2');
+    const cs     = document.getElementById('dead-c-status');
+    const as     = document.getElementById('dead-a-status');
+    const bn     = document.getElementById('dead-banner');
+    const bn2    = document.getElementById('dead-banner2');
+    const cy1    = document.getElementById('dead-cycle1');
+    const cy2    = document.getElementById('dead-cycle2');
+    function renderDead() {
+      const f = FRAMES_D[df];
+      lbl.textContent = f.label;
+      c1.setAttribute('fill', f.c1);
+      c2.setAttribute('fill', f.c2);
+      a1.setAttribute('fill', f.a1);
+      a2.setAttribute('fill', f.a2);
+      cs.textContent = f.c_status;
+      as.textContent = f.a_status;
+      if (f.c_status.indexOf("BLOCKED") === 0) cs.setAttribute('style', 'fill:#9a3412; font-weight:600;');
+      else                                     cs.setAttribute('style', 'fill:#374151;');
+      if (f.a_status.indexOf("BLOCKED") === 0) as.setAttribute('style', 'fill:#9a3412; font-weight:600;');
+      else                                     as.setAttribute('style', 'fill:#374151;');
+      bn.textContent = f.banner;
+      bn2.textContent = f.banner2;
+      if (f.cycle) {
+        bn.setAttribute('style', 'fill:#dc2626; font-weight:700;');
+        cy1.setAttribute('visibility', 'visible');
+        cy2.setAttribute('visibility', 'visible');
+      } else {
+        bn.setAttribute('style', 'fill:#374151;');
+        cy1.setAttribute('visibility', 'hidden');
+        cy2.setAttribute('visibility', 'hidden');
+      }
+    }
+    deadStep.onclick = () => { df = (df + 1) % FRAMES_D.length; renderDead(); };
+    document.getElementById('dead-back').onclick =
+        () => { df = (df - 1 + FRAMES_D.length) % FRAMES_D.length; renderDead(); };
+    document.getElementById('dead-reset').onclick =
+        () => { df = 0; renderDead(); };
+    renderDead();
+  }
+})();
+</script>
+
+</body>
+</html>

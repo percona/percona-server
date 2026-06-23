@@ -116,7 +116,7 @@ PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 # Build information
 DISTRO_NAME="$(lsb_release -is)"
 REDHAT_RELEASE="$(lsb_release -rs)"
-REVISION="$(cd "$SOURCEDIR"; bzr revno)"
+REVISION="$(cd "$SOURCEDIR"; git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 # Compilation flags
 export CC="${CC:-gcc}"

@@ -1908,7 +1908,6 @@ struct buf_block_t {
   single thread. */
   bool made_dirty_with_no_latch;
 
-
   /** Whether this block's latches (mutex, lock, debug_latch) have been
   created. See buf_block_initialize_latches().
 

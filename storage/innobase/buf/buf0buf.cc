@@ -868,11 +868,8 @@ void buf_block_initialize_latches(buf_block_t *block) {
 }
 
 /** Lightweight initialization of a buffer control block: no latches created. */
-static void buf_block_init_light(
-    buf_pool_t *buf_pool,
-    buf_block_t *block,
-    byte *frame)
-{
+static void buf_block_init_light(buf_pool_t *buf_pool, buf_block_t *block,
+                                 byte *frame) {
   UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
   block->ahi.assert_empty_on_init();
@@ -1639,10 +1636,10 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
     ut::Cacheline_aligned<std::mutex> m;
 
     for (ulint id = i; id < n; ++id) {
-      threads.emplace_back(os_thread_create(buf_pool_create_thread_key, 0,
-                                            buf_pool_create, &buf_pool_ptr[id],
-                                            size, id, static_cast<std::mutex *>(&m),
-                                            std::ref(errs[id]), populate));
+      threads.emplace_back(os_thread_create(
+          buf_pool_create_thread_key, 0, buf_pool_create, &buf_pool_ptr[id],
+          size, id, static_cast<std::mutex *>(&m), std::ref(errs[id]),
+          populate));
       threads[id - i].start();
     }
 
@@ -2614,8 +2611,7 @@ withdraw_retry:
         ulonglong unit = srv_buf_pool_chunk_unit;
 
         if (!buf_chunk_init(buf_pool, chunk, unit,
-                            static_cast<bool>(srv_numa_interleave),
-                            nullptr)) {
+                            static_cast<bool>(srv_numa_interleave), nullptr)) {
           ib::error(ER_IB_MSG_65) << "buffer pool " << i
                                   << " : failed to allocate"
                                      " new memory.";

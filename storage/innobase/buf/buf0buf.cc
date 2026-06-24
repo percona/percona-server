@@ -1528,8 +1528,6 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   chunks = buf_pool->chunks;
   chunk = chunks + buf_pool->n_chunks;
 
-  /* Teardown reads latches_initialized under chunks_mutex with no concurrent
-  writers. */
   ut_ad(mutex_own(&buf_pool->chunks_mutex));
 
   while (--chunk >= chunks) {
@@ -2500,9 +2498,6 @@ withdraw_retry:
   }
   buf_resize_status_progress_update(7, 7);
 
-  /* Rebuild the chunk map from scratch. AHI lookups (buf_block_from_ahi)
-  are excluded while buf_pool_resizing is set, so it is safe to drop and
-  repopulate the map here. */
   ut::delete_(buf_chunk_map_reg);
   buf_chunk_map_reg =
       ut::new_withkey<buf_pool_chunk_map_t>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -2589,8 +2584,6 @@ withdraw_retry:
 
       memcpy(new_chunks, buf_pool->chunks, n_chunks_copy * sizeof(*chunk));
 
-      /* The map was just rebuilt empty above, so a plain insert per chunk
-      repopulates it for the chunks being carried over. */
       for (ulint j = 0; j < n_chunks_copy; j++) {
         buf_pool_register_chunk(&new_chunks[j]);
       }

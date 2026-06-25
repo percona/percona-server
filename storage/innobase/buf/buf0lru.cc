@@ -1535,7 +1535,7 @@ we put it to free list to be used.
 @return the free control block, in state BUF_BLOCK_READY_FOR_USE */
 buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   buf_block_t *block = nullptr;
-  bool freed = false;
+  bool freed = false, no_flush_waited = false;
   ulint n_iterations = 0;
   ulint flush_failures = 0;
   bool started_monitor = false;
@@ -1717,13 +1717,14 @@ loop:
 
   if (buf_pool->init_flush[BUF_FLUSH_LRU] && dblwr::is_enabled() &&
       buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] >=
-          buf_LRU_single_page_flush_max_concurrent) {
+          buf_LRU_single_page_flush_max_concurrent && !no_flush_waited) {
 
     if (!srv_read_only_mode && n_iterations > 1) {
       os_event_set(buf_flush_event);
     }
 
     buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
+    no_flush_waited = true;
   } else if (!buf_flush_single_page_from_LRU(buf_pool)) {
     MONITOR_INC(MONITOR_LRU_SINGLE_FLUSH_FAILURE_COUNT);
     ++flush_failures;

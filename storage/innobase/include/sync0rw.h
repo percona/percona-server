@@ -125,6 +125,18 @@ extern ib_mutex_t rw_lock_list_mutex;
  @param[in] clocation location where created */
 void rw_lock_create_func(rw_lock_t *lock,
                          IF_DEBUG(latch_id_t id, ) ut::Location clocation);
+
+/** Initializes an rw-lock object but does NOT register it in the global
+ rw_lock_list. The caller is responsible for registering it later,
+ e.g. in bulk via rw_lock_list_register_bulk(). This lets callers that
+ create many rw-locks (such as buffer pool blocks) avoid taking
+ rw_lock_list_mutex once per lock.
+ @param[in] lock pointer to memory
+ @param[in] id latch_id (debug builds only)
+ @param[in] clocation location where created */
+void rw_lock_init_only(rw_lock_t *lock,
+                       IF_DEBUG(latch_id_t id, ) ut::Location clocation);
+
 /** Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
  rw-lock is checked to be in the non-locked state. */
@@ -516,6 +528,19 @@ static inline void pfs_rw_lock_create_func(mysql_pfs_key_t key, rw_lock_t *lock,
                                            IF_DEBUG(latch_id_t id, )
                                                ut::Location clocation);
 
+/** Performance schema instrumented wrap function for rw_lock_init_only().
+Behaves like pfs_rw_lock_create_func() but defers registration of the lock in
+the global rw_lock_list to the caller. NOTE! Please use the corresponding macro
+rw_lock_init_only_inst(), not directly this function!
+@param[in]      key             key registered with performance schema
+@param[in]      lock            rw lock
+@param[in]      id              latch_id
+@param[in]      clocation       location where created */
+static inline void pfs_rw_lock_init_only_func(mysql_pfs_key_t key,
+                                              rw_lock_t *lock,
+                                              IF_DEBUG(latch_id_t id, )
+                                                  ut::Location clocation);
+
 /** Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly this
 function!
@@ -630,8 +655,12 @@ static inline void pfs_rw_lock_free_func(rw_lock_t *lock); /*!< in: rw-lock */
 #ifdef UNIV_DEBUG
 #define rw_lock_create(K, L, ID) \
   rw_lock_create_func((L), (ID), UT_LOCATION_HERE)
+#define rw_lock_init_only_inst(K, L, ID) \
+  rw_lock_init_only((L), (ID), UT_LOCATION_HERE)
 #else /* UNIV_DEBUG */
 #define rw_lock_create(K, L, ID) rw_lock_create_func((L), UT_LOCATION_HERE)
+#define rw_lock_init_only_inst(K, L, ID) \
+  rw_lock_init_only((L), UT_LOCATION_HERE)
 #endif /* UNIV_DEBUG */
 
 /** NOTE! The following macros should be used in rw locking and
@@ -718,9 +747,13 @@ static inline void rw_lock_x_unlock_gen(rw_lock_t *L, ulint P) {
 #ifdef UNIV_DEBUG
 #define rw_lock_create(K, L, ID) \
   pfs_rw_lock_create_func((K), (L), (ID), UT_LOCATION_HERE)
+#define rw_lock_init_only_inst(K, L, ID) \
+  pfs_rw_lock_init_only_func((K), (L), (ID), UT_LOCATION_HERE)
 #else /* UNIV_DEBUG */
 #define rw_lock_create(K, L, ID) \
   pfs_rw_lock_create_func((K), (L), UT_LOCATION_HERE)
+#define rw_lock_init_only_inst(K, L, ID) \
+  pfs_rw_lock_init_only_func((K), (L), UT_LOCATION_HERE)
 #endif /* UNIV_DEBUG */
 
 /******************************************************************
@@ -819,5 +852,14 @@ static inline void rw_lock_x_unlock(rw_lock_t *L) {
 typedef UT_LIST_BASE_NODE_T(rw_lock_t, list) rw_lock_list_t;
 
 extern rw_lock_list_t rw_lock_list;
+
+#ifndef UNIV_HOTBACKUP
+/** Registers all rw-locks contained in the given list into the global
+ rw_lock_list under a single rw_lock_list_mutex critical section, in O(1) time.
+ The locks must have been prepared with rw_lock_init_only().
+ @param[in,out] locks list of locks to register; emptied on return as its nodes
+                      are spliced into rw_lock_list */
+void rw_lock_list_register_bulk(rw_lock_list_t &locks);
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* sync0rw.h */

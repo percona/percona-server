@@ -353,6 +353,42 @@ void ut_list_append(List &list, typename List::elem_type *elem) {
  @param ELEM the element to add */
 #define UT_LIST_ADD_LAST(LIST, ELEM) ut_list_append(LIST, ELEM)
 
+/** Appends all elements of src to the end of dst in O(1) time, leaving src
+ empty. Both lists must be of the same type, i.e. chained through the same node
+ member, and an element must not be present in both lists at once.
+ @param[in,out] dst list that receives the elements
+ @param[in,out] src list whose elements are moved to dst; emptied on return */
+template <typename List>
+void ut_list_concatenate(List &dst, List &src) {
+  ut_ad(UT_LIST_IS_INITIALISED(dst));
+  ut_ad(UT_LIST_IS_INITIALISED(src));
+
+  if (src.first_element == nullptr) {
+    /* Nothing to move. */
+    return;
+  }
+
+  if (dst.last_element != nullptr) {
+    /* Link the two lists at the junction. */
+    List::get_node(*dst.last_element).next = src.first_element;
+    List::get_node(*src.first_element).prev = dst.last_element;
+  } else {
+    /* dst is empty, so it simply becomes src. */
+    dst.first_element = src.first_element;
+  }
+
+  dst.last_element = src.last_element;
+  dst.update_length(static_cast<int>(src.get_length()));
+
+  src.clear();
+}
+
+/** Appends all elements of SRC to the end of DST in O(1) time, leaving SRC
+ empty.
+ @param DST destination list base node (not a pointer to it)
+ @param SRC source list base node (not a pointer to it) */
+#define UT_LIST_CONCATENATE(DST, SRC) ut_list_concatenate(DST, SRC)
+
 /** Inserts a ELEM2 after ELEM1 in a list.
  @param list the base node
  @param elem1 node after which ELEM2 is inserted

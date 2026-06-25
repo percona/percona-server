@@ -869,6 +869,9 @@ static void buf_block_init(
 
   mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
+  /* Initialize the block rw-locks WITHOUT registering them in rw_lock_list.
+  Registration is done in bulk once the whole chunk has been initialized,
+  to avoid taking rw_lock_list_mutex once per block. */
 #if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
   /* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
   of buffer block rwlock with performance schema.
@@ -877,17 +880,19 @@ static void buf_block_init(
   since buffer block rwlock will be registered later in
   pfs_register_buffer_block(). */
 
-  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  rw_lock_init_only_inst(PFS_NOT_INSTRUMENTED, &block->lock,
+                         LATCH_ID_BUF_BLOCK_LOCK);
 
-  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
+  ut_d(rw_lock_init_only_inst(PFS_NOT_INSTRUMENTED, &block->debug_latch,
+                              LATCH_ID_BUF_BLOCK_DEBUG));
 
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
-  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  rw_lock_init_only_inst(buf_block_lock_key, &block->lock,
+                         LATCH_ID_BUF_BLOCK_LOCK);
 
-  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
+  ut_d(rw_lock_init_only_inst(buf_block_debug_latch_key, &block->debug_latch,
+                              LATCH_ID_BUF_BLOCK_DEBUG));
 
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
@@ -1157,11 +1162,26 @@ static buf_chunk_t *buf_chunk_init(
     frame += UNIV_PAGE_SIZE;
   }
 
+  /* Build this chunk's block rw-lock list WITHOUT holding any mutex. The
+  chunk's blocks are owned exclusively by this thread until the chunk is
+  published, so this O(n) work is lock-free. */
+  rw_lock_list_t chunk_locks;
+  UT_LIST_INIT(chunk_locks);
+  {
+    buf_block_t *lock_block = chunk->blocks;
+    for (ulint j = 0; j < chunk->size; ++j, ++lock_block) {
+      UT_LIST_ADD_LAST(chunk_locks, &lock_block->lock);
+      ut_d(UT_LIST_ADD_LAST(chunk_locks, &lock_block->debug_latch));
+    }
+  }
+
+  /* Register the chunk and rw-locks. */
   if (mutex != nullptr) {
     mutex->lock();
   }
 
   buf_pool_register_chunk(chunk);
+  rw_lock_list_register_bulk(chunk_locks); /* O(1), uses rw_lock_list_mutex */
 
   if (mutex != nullptr) {
     mutex->unlock();

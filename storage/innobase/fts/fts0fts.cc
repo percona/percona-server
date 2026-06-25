@@ -1865,11 +1865,14 @@ fts_create_one_common_table(
 			fts_table_name, table, FTS_CONFIG_TABLE_NUM_COLS);
 
 		dict_mem_table_add_col(
-			new_table, heap, "key", DATA_VARCHAR, 0,
+			new_table, heap, "key", DATA_VARCHAR,
+			dtype_form_prtype(DATA_VARCHAR, data_mysql_default_charset_coll),
 			FTS_CONFIG_TABLE_KEY_COL_LEN);
 
 		dict_mem_table_add_col(
-			new_table, heap, "value", DATA_VARCHAR, DATA_NOT_NULL,
+			new_table, heap, "value", DATA_VARCHAR,
+			dtype_form_prtype(DATA_NOT_NULL | DATA_VARCHAR,
+				data_mysql_default_charset_coll),
 			FTS_CONFIG_TABLE_VALUE_COL_LEN);
 	}
 

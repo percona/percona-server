@@ -220,6 +220,7 @@ our $exe_mysql_embedded;
 our $exe_mysql_ssl_rsa_setup;
 
 our $opt_big_test= 0;
+our $opt_only_big_test= 0;
 
 our @opt_combinations;
 
@@ -1362,6 +1363,7 @@ sub command_line_setup {
              'do-test=s'                => \&collect_option,
              'start-from=s'             => \&collect_option,
              'big-test'                 => \$opt_big_test,
+             'only-big-test'            => \$opt_only_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
@@ -1900,10 +1902,15 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Big test flags
   # --------------------------------------------------------------------------
-   if ( $opt_big_test )
-   {
-     $ENV{'BIG_TEST'}= 1;
-   }
+  if ($opt_only_big_test and $opt_big_test)
+  {
+    # Disabling only-big-test option if both big-test and
+    # only-big-test options are passed.
+    mtr_report("Turning off --only-big-test");
+    $opt_only_big_test= 0;
+  }
+
+  $ENV{'BIG_TEST'}= 1 if ($opt_big_test or $opt_only_big_test);
 
   # --------------------------------------------------------------------------
   # Gcov flag

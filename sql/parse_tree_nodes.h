@@ -277,6 +277,11 @@ public:
     THD *thd= pc->thd;
     Yacc_state *yyps= &thd->m_parser_state->m_yacc;
 
+    if (pc->select->table_count() >= MAX_TABLES) {
+      my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
+      return true;
+    }
+
     value= pc->select->add_table_to_list(thd, table_ident, opt_table_alias, 0,
                                          yyps->m_lock_type,
                                          yyps->m_mdl_type,

@@ -1009,49 +1009,16 @@ row_ins_foreign_fill_virtual(
 		dfield_copy(upd_field->old_v_val, vfield);
 
 		upd_field_set_v_field_no(upd_field, i, index);
-
-		if (node->is_delete
-		    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-		    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-			uint32_t col_match_count =
-			    dict_vcol_base_is_foreign_key(col, foreign);
-			if (col_match_count == col->num_base) {
-				/* If all base columns of virtual col are
-				in FK */
-				dfield_set_null(&upd_field->new_val);
-			} else if (col_match_count == 0) {
-				/* If no base column of virtual col is in FK */
-				dfield_copy(&(upd_field->new_val), vfield);
-			} else {
-				/* If at least one base column of virtual col
-				is in FK */
-				for (uint32_t j = 0; j < col->num_base; j++) {
-					dict_col_t *base_col = col->base_col[j];
-					uint32_t col_no = base_col->ind;
-					dfield_t *row_field =
-					  innobase_get_field_from_update_vector(
-					  foreign, node->update, col_no);
-					if (row_field != NULL) {
-						dfield_set_null(row_field);
-					}
-				}
-				dfield_t *new_vfield = innobase_get_computed_value(
-				    update->old_vrow, col, index, &v_heap,
-				    update->heap, NULL, thd, NULL,
-				    NULL, node->update, foreign, prebuilt);
-				dfield_copy(&(upd_field->new_val), new_vfield);
-			}
-
-		}
-
-		if (!node->is_delete
-		    && (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)) {
-
-			dfield_t* new_vfield = innobase_get_computed_value(
-					update->old_vrow, col, index,
-					&v_heap, update->heap, NULL, thd,
-					NULL, NULL, node->update, foreign,
-					prebuilt);
+		if (!dict_vcol_base_is_foreign_key(col, foreign)) {
+			/* If no base column of virtual col is in FK, the virtual field
+			is not affected by update */
+			dfield_copy(&(upd_field->new_val), vfield);
+		} else {
+			const dfield_t *const new_vfield =
+			  innobase_get_computed_value(
+				update->old_vrow, col, index, &v_heap,
+				update->heap, NULL, thd, NULL, NULL, update, NULL,
+				prebuilt);
 
 			if (new_vfield == NULL) {
 				*err = DB_COMPUTE_VALUE_FAILED;
@@ -3005,6 +2972,9 @@ row_ins_sec_index_entry_low(
 			rtr_info_update_btr(&cursor, &rtr_info);
 			mtr_start(&mtr);
 			mtr.set_named_space(index->space);
+			if (dict_table_is_temporary(index->table)) {
+				mtr.set_log_mode(MTR_LOG_NO_REDO);
+			}
 			search_mode &= ~BTR_MODIFY_LEAF;
 			search_mode |= BTR_MODIFY_TREE;
 			err = btr_cur_search_to_nth_level(

@@ -5114,7 +5114,7 @@ longlong Item_master_gtid_set_wait::val_int()
       null_value= 1;
       DBUG_RETURN(0);
     }
-    mi= channel_map.get_mi(channel_str->ptr());
+    mi= channel_map.get_mi(channel_str->c_ptr_safe());
   }
   else
   {

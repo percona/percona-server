@@ -24171,6 +24171,14 @@ static MYSQL_SYSVAR_BOOL(
 #endif /* HAVE_LIBNUMA */
 
 static MYSQL_SYSVAR_BOOL(
+    buffer_pool_lazy_latch_init, srv_buf_pool_lazy_latch_init,
+    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+    "Create buffer pool block latches (mutex, rw-locks) lazily on first use"
+    " instead of eagerly while the buffer pool is built. Speeds up buffer"
+    " pool initialization for large pools. OFF by default.",
+    nullptr, nullptr, false);
+
+static MYSQL_SYSVAR_BOOL(
     api_enable_binlog, ib_binlog_enabled,
     PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
     "Enable binlog for applications direct access InnoDB through InnoDB APIs",
@@ -24626,6 +24634,7 @@ static SYS_VAR *innobase_system_variables[] = {
 #ifdef HAVE_LIBNUMA
     MYSQL_SYSVAR(numa_interleave),
 #endif /* HAVE_LIBNUMA */
+    MYSQL_SYSVAR(buffer_pool_lazy_latch_init),
     MYSQL_SYSVAR(change_buffering),
     MYSQL_SYSVAR(change_buffer_max_size),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

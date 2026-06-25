@@ -4874,15 +4874,21 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNondeterministicFunction) {
   m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
 
   TraceGuard trace(m_thd);
-  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block);
+  // Don't finalize the plan: ForceMaterializationBeforeSort() inserts a
+  // STREAM step for the non-deterministic ORDER BY expression, and
+  // finalization would try to instantiate its temporary table, which the
+  // unit-test environment cannot do (TEST_NO_TEMP_TABLES).
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block);
   SCOPED_TRACE(trace.contents());  // Prints out the trace on failure.
   // Prints out the query plan on failure.
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
 
-  // The sort should _not_ be pushed to t1, but kept at the top.
-  // We don't care about the rest of the plan.
+  // The sort should _not_ be pushed to t1, but kept at the top, and a
+  // STREAM step should sit directly below it so that RAND() is evaluated
+  // exactly once per row (Bug#36578540).
   ASSERT_EQ(AccessPath::SORT, root->type);
+  ASSERT_EQ(AccessPath::STREAM, root->sort().child->type);
 
   query_block->cleanup(/*full=*/true);
 }

@@ -1,0 +1,95 @@
+################################################################################
+# PS-11216: Timestamps needed in the GCS_DEBUG_TRACE file
+#
+# This test case verify that every log written to GCS_DEBUG_TRACE carries a
+# ISO 8601 UTC timestamp with microsecond precision, leading the line:
+#   [YYYY-MM-DDTHH:MM:SS.uuuuuuZ] [MYSQL_GCS_DEBUG] [GCS] <message>
+#
+# Test steps:
+#   1. Start Group Replication — GCS_DEBUG_TRACE must be created.
+#   2. Enable tracing; let the consumer write a few lines.
+#   3. Verify ISO 8601 UTC timestamps with microsecond precision.
+#   4. Disable then re-enable; verify timestamps continue in new entries.
+#   5. Verify Group Replication is still ONLINE.
+#   6. Cleanup.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start = 1
+--source include/group_replication.inc
+
+##############################################################################
+# Step 1: Start Group Replication — GCS_DEBUG_TRACE is created.
+##############################################################################
+
+--echo
+--echo # Step 1: Start Group Replication — GCS_DEBUG_TRACE must be created.
+--source include/start_and_bootstrap_group_replication.inc
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+##############################################################################
+# Step 2: Enable tracing; let the consumer write a few lines.
+##############################################################################
+--echo
+--echo # Step 2: Enable GCS_DEBUG_BASIC tracing
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_BASIC";
+
+--let $assert_text = Debug option is GCS_DEBUG_BASIC
+--let $assert_cond = "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_BASIC"
+--source include/assert.inc
+
+##############################################################################
+# Step 3: Verify ISO 8601 UTC timestamps with microsecond precision.
+##############################################################################
+--echo
+--echo # Step 3: verify ISO 8601 UTC timestamps(microsecond) in GCS_DEBUG_TRACE
+
+# Wait until at least one timestamped line appears in the trace file.
+--let $grep_pattern = \[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\] \[MYSQL_GCS_DEBUG\] \[GCS\]
+--let $grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+--source include/wait_for_pattern_in_file.inc
+
+##############################################################################
+# Step 4: Disable then re-enable; verify timestamps continue in new entries.
+##############################################################################
+--echo
+--echo # Step 4: disable then re-enable tracing; timestamps must persist
+
+# Record file size before the cycle so we can prove new entries were appended.
+--let $size_before = `SELECT LENGTH(LOAD_FILE(CONCAT(@@datadir, 'GCS_DEBUG_TRACE')))`
+
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_ALL";
+
+# Wait until the file grows beyond the size recorded before the cycle.
+--let $wait_condition = SELECT LENGTH(LOAD_FILE(CONCAT(@@datadir, 'GCS_DEBUG_TRACE'))) > $size_before
+--source include/wait_condition.inc
+
+--let $assert_text = Timestamps persist after tracing re-enable
+--let $assert_file = $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+--let $assert_select = \[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\] \[MYSQL_GCS_DEBUG\] \[GCS\]
+--let $assert_count_condition = >= 1
+--source include/assert_grep.inc
+
+##############################################################################
+# Step 5: Verify Group Replication is still ONLINE.
+##############################################################################
+--echo
+--echo # Step 5: Verify Group Replication is still ONLINE.
+
+--let $assert_text = Member is ONLINE after timestamp test
+--let $assert_cond = COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE = "ONLINE"
+--source include/assert.inc
+
+##############################################################################
+# Step 6: Cleanup.
+##############################################################################
+--echo
+--echo # Step 6: Cleanup.
+
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+--source include/stop_group_replication.inc
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--source include/group_replication_end.inc

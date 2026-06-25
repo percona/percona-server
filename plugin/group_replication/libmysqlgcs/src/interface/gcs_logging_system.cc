@@ -340,6 +340,44 @@ enum_gcs_error Gcs_default_debugger::initialize() {
 
 enum_gcs_error Gcs_default_debugger::finalize() { return m_sink->finalize(); }
 
+/*
+  Returns 0 for XCOM_STANDALONE because XCOM_STANDALONE excludes the MySQL
+  portability headers (my_systime.h, my_sys.h) needed by my_micro_time().
+
+  XCOM_STANDALONE is defined when XCom is built as a standalone library
+  for unit-testing the consensus protocol in isolation.
+*/
+static size_t gcs_format_timestamp(char *buf [[maybe_unused]]) {
+#ifdef XCOM_STANDALONE
+  return 0;
+#else
+  const unsigned long long us = my_micro_time();
+  const time_t sec = static_cast<time_t>(us / 1000000);
+  const long usec = static_cast<long>(us % 1000000);
+  struct tm tm_info;
+  if (gmtime_r(&sec, &tm_info) == nullptr) return 0;
+  int len = sprintf(buf, "[%04d-%02d-%02dT%02d:%02d:%02d.%06ldZ] ",
+                    tm_info.tm_year + 1900, tm_info.tm_mon + 1, tm_info.tm_mday,
+                    tm_info.tm_hour, tm_info.tm_min, tm_info.tm_sec, usec);
+  return (len > 0) ? static_cast<size_t>(len) : 0;
+#endif
+}
+
+size_t Gcs_default_debugger::append_prefix(char *buffer) {
+  size_t base = 0;
+
+  /* Timestamp leads the prefix so the final format is:
+     [YYYY-MM-DDTHH:MM:SS.uuuuuuZ] [MYSQL_GCS_DEBUG] [GCS] <message> */
+  size_t ts_len = gcs_format_timestamp(buffer);
+  base += ts_len;
+
+  strcpy(buffer + base, GCS_DEBUG_PREFIX);
+  strcpy(buffer + base + GCS_DEBUG_PREFIX_SIZE, GCS_PREFIX);
+  base += GCS_DEBUG_PREFIX_SIZE + GCS_PREFIX_SIZE;
+
+  return base;
+}
+
 /**
   Reference to the default debugger which is used internally by GCS and XCOM.
 */

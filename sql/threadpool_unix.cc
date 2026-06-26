@@ -21,6 +21,7 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "mysql/psi/mysql_socket.h"
+#include "mysql/service_thd_wait.h"
 #include "mysql/thread_pool_priv.h"  // thd_is_transaction_active()
 #include "sql/debug_sync.h"
 #include "sql/log.h"
@@ -118,6 +119,7 @@ struct connection_t {
   bool logged_in;
   bool bound_to_poll_descriptor;
   bool waiting;
+  bool wait_counts_as_busy;
   uint tickets;
   ulonglong queue_enter_time;
 };
@@ -147,6 +149,7 @@ struct thread_group_data_t {
   int active_thread_count;
   int connection_count;
   int waiting_thread_count;
+  int busy_waiting_thread_count;
   /* Stats for the deadlock detection timer routine.*/
   int io_event_count;
   int queue_event_count;
@@ -390,12 +393,37 @@ inline bool too_many_active_threads(
 
 /*
   Limit the number of 'busy' threads by 1 + thread_pool_oversubscribe. A thread
-  is busy if it is in either the active state or the waiting state (i.e. between
-  thd_wait_begin() / thd_wait_end() calls).
+  is busy if it is active, or waiting on a condition that should still limit
+  total in-flight work. Pure I/O waits yield CPU capacity and should not block
+  another request from entering the group.
 */
 
+inline bool wait_counts_as_busy(int wait_type) noexcept {
+  switch (wait_type) {
+    case THD_WAIT_DISKIO:
+    case THD_WAIT_BINLOG:
+    case THD_WAIT_GROUP_COMMIT:
+    case THD_WAIT_SYNC:
+      return false;
+
+    case THD_WAIT_NONE:
+    case THD_WAIT_SLEEP:
+    case THD_WAIT_ROW_LOCK:
+    case THD_WAIT_GLOBAL_LOCK:
+    case THD_WAIT_META_DATA_LOCK:
+    case THD_WAIT_TABLE_LOCK:
+    case THD_WAIT_USER_LOCK:
+    case THD_WAIT_TRX_DELAY:
+    case THD_WAIT_NET:
+    case THD_WAIT_LAST:
+      return true;
+  }
+  return true;
+}
+
 inline bool too_many_busy_threads(const thread_group_t &thread_group) noexcept {
-  return (thread_group.active_thread_count + thread_group.waiting_thread_count >
+  return (thread_group.active_thread_count +
+              thread_group.busy_waiting_thread_count >
           1 + (int)threadpool_oversubscribe);
 }
 
@@ -1189,11 +1217,13 @@ static connection_t *get_event(worker_thread_t *current_thread,
   sleep() or similar.
 */
 
-static void wait_begin(thread_group_t *thread_group) noexcept {
+static void wait_begin(thread_group_t *thread_group,
+                       bool counts_as_busy) noexcept {
   DBUG_ENTER("wait_begin");
   mysql_mutex_lock(&thread_group->mutex);
   thread_group->active_thread_count--;
   thread_group->waiting_thread_count++;
+  if (counts_as_busy) thread_group->busy_waiting_thread_count++;
 
   assert(thread_group->active_thread_count >= 0);
   assert(thread_group->connection_count > 0);
@@ -1217,11 +1247,13 @@ static void wait_begin(thread_group_t *thread_group) noexcept {
   Tells the pool has finished waiting.
 */
 
-static void wait_end(thread_group_t *thread_group) noexcept {
+static void wait_end(thread_group_t *thread_group,
+                     bool counted_as_busy) noexcept {
   DBUG_ENTER("wait_end");
   mysql_mutex_lock(&thread_group->mutex);
   thread_group->active_thread_count++;
   thread_group->waiting_thread_count--;
+  if (counted_as_busy) thread_group->busy_waiting_thread_count--;
   mysql_mutex_unlock(&thread_group->mutex);
   DBUG_VOID_RETURN;
 }
@@ -1239,6 +1271,7 @@ static connection_t *alloc_connection(THD *thd) noexcept {
   if (connection) {
     connection->thd = thd;
     connection->waiting = false;
+    connection->wait_counts_as_busy = false;
     connection->logged_in = false;
     connection->bound_to_poll_descriptor = false;
     connection->abs_wait_timeout = ULLONG_MAX;
@@ -1347,7 +1380,8 @@ void tp_wait_begin(THD *thd, int type [[maybe_unused]]) {
   if (connection) {
     assert(!connection->waiting);
     connection->waiting = true;
-    wait_begin(connection->thread_group);
+    connection->wait_counts_as_busy = wait_counts_as_busy(type);
+    wait_begin(connection->thread_group, connection->wait_counts_as_busy);
   }
   DBUG_VOID_RETURN;
 }
@@ -1364,7 +1398,8 @@ void tp_wait_end(THD *thd) {
   if (connection) {
     assert(connection->waiting);
     connection->waiting = false;
-    wait_end(connection->thread_group);
+    wait_end(connection->thread_group, connection->wait_counts_as_busy);
+    connection->wait_counts_as_busy = false;
   }
   DBUG_VOID_RETURN;
 }

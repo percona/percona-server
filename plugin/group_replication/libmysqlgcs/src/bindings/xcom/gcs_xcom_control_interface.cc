@@ -593,6 +593,10 @@ bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
        In this case, we continue the loop and try again using the next peer.
       */
       if (xcom_will_process) add_node_accepted = true;
+    } else if (connected) {
+      /* GCS was finalized while we were connecting; close the connection to
+         free the SSL object and socket so they are not leaked. */
+      m_xcom_proxy->xcom_client_close_connection(con);
     }
 
     free_connection(con);

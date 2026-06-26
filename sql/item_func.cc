@@ -3061,7 +3061,7 @@ double Item_func_pow::val_real() {
 
   const double val2 = args[1]->val_real();
   if (current_thd->is_error()) return 0.0;
-  if ((null_value = args[0]->null_value)) return 0.0;
+  if ((null_value = args[1]->null_value)) return 0.0;
 
   const double pow_result = pow(value, val2);
   return check_float_overflow(pow_result);

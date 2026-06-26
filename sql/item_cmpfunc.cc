@@ -5050,7 +5050,7 @@ bool In_vector_int::val_item(Item *item, packed_longlong *result) {
 bool In_vector_time::find_item(Item *item) {
   if (m_used_size == 0) return false;
   Time_val time;
-  if (item->val_time(&time)) return true;
+  if (item->val_time(&time)) return false;
   return std::binary_search(base.begin(), base.begin() + m_used_size, time);
 }
 
@@ -5070,7 +5070,7 @@ void In_vector_time::sort_array() {
 bool In_vector_date::find_item(Item *item) {
   if (m_used_size == 0) return false;
   Date_val date;
-  if (item->val_date(&date, 0)) return true;
+  if (item->val_date(&date, 0)) return false;
   return std::binary_search(m_base.begin(), m_base.begin() + m_used_size, date);
 }
 

@@ -4963,7 +4963,7 @@ bool Item_func_json_value::val_date(Date_val *date, my_time_flags_t flags) {
     case ITEM_CAST_YEAR:
       return extract_date_value(date);
     case ITEM_CAST_DATETIME:
-      return extract_date_value(date);
+      return get_date_from_datetime(date, flags);
     case ITEM_CAST_TIME:
       return get_date_from_time(date);
     case ITEM_CAST_CHAR:

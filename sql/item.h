@@ -2323,6 +2323,10 @@ class Item : public Parse_tree_node {
   */
   bool get_date_from_time(Date_val *date);
   /**
+    Convert val_datetime() to date
+  */
+  bool get_date_from_datetime(Date_val *date, my_time_flags_t flags);
+  /**
     Convert a numeric type to date
   */
   bool get_date_from_numeric(Date_val *date, my_time_flags_t flags);

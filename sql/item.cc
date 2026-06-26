@@ -1666,6 +1666,18 @@ bool Item::get_date_from_time(Date_val *date) {
   return false;
 }
 
+bool Item::get_date_from_datetime(Date_val *date, my_time_flags_t flags) {
+  Datetime_val dt;
+  if (val_datetime(&dt, flags)) {
+    assert(null_value || current_thd->is_error());
+    return true;
+  }
+  datetime_to_date(&dt);
+  *date = Date_val(dt);
+
+  return false;
+}
+
 bool Item::get_datetime_from_time(Datetime_val *dt) {
   Time_val time;
   if (val_time(&time)) {

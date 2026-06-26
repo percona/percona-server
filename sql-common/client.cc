@@ -7573,6 +7573,11 @@ bool mysql_reconnect(MYSQL *mysql) {
   }
   mysql_init(&tmp_mysql);
   mysql_close_free_options(&tmp_mysql);
+  /* Guarantee the extension struct exists before the shallow copy so that
+     mysql_real_connect's ENSURE_EXTENSIONS_PRESENT is a no-op and does not
+     allocate a new extension that would be leaked if mysql_set_character_set
+     fails (the error path does memset before mysql_close). */
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   tmp_mysql.options = mysql->options;
   tmp_mysql.options.my_cnf_file = tmp_mysql.options.my_cnf_group = nullptr;
 #ifdef MYSQL_SERVER

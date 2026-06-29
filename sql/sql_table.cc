@@ -2972,6 +2972,7 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
                             Foreign_key_parents_invalidator *fk_invalidator,
                             std::vector<MDL_ticket *> *safe_to_release_mdl,
                             MEM_ROOT *foreach_table_root) {
+  THD_STAGE_INFO(thd, stage_dropping_table);
   char path[FN_REFLEN + 1];
 
   /* Check that we have an exclusive lock on the table to be dropped. */
@@ -3253,7 +3254,7 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   result |= mark_referencing_views_invalid(thd, table,
                                            (drop_ctx.drop_database && atomic),
                                            !atomic, foreach_table_root);
-
+  THD_STAGE_INFO(thd, stage_after_drop);
   return result;
 }
 

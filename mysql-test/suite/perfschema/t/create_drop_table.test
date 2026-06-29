@@ -1,0 +1,13 @@
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+
+CREATE TABLE test.t1(a int);
+DROP TABLE test.t1;
+
+SELECT EVENT_NAME FROM performance_schema.events_stages_history_long ORDER BY EVENT_ID;
+
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+
+CREATE TEMPORARY TABLE test.t1(a int);
+DROP TABLE test.t1;
+
+SELECT EVENT_NAME FROM performance_schema.events_stages_history_long ORDER BY EVENT_ID;

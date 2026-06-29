@@ -14780,6 +14780,7 @@ static PSI_file_info all_server_files[]=
 
 /* clang-format off */
 PSI_stage_info stage_after_create= { 0, "After create", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_after_drop= { 0, "after drop", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_alter_inplace_prepare= { 0, "preparing for alter table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_alter_inplace= { 0, "altering table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_alter_inplace_commit= { 0, "committing alter table to storage engine", 0, PSI_DOCUMENT_ME};
@@ -14797,6 +14798,7 @@ PSI_stage_info stage_creating_tmp_table= { 0, "Creating tmp table", 0, PSI_DOCUM
 PSI_stage_info stage_deleting_from_main_table= { 0, "deleting from main table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_deleting_from_reference_tables= { 0, "deleting from reference tables", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_discard_or_import_tablespace= { 0, "discard_or_import_tablespace", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_dropping_table= { 0, "dropping table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_end= { 0, "end", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_executing= { 0, "executing", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0, PSI_DOCUMENT_ME};
@@ -14885,6 +14887,7 @@ extern PSI_stage_info stage_waiting_for_disk_space;
 
 PSI_stage_info *all_server_stages[] = {
     &stage_after_create,
+    &stage_after_drop,
     &stage_alter_inplace_prepare,
     &stage_alter_inplace,
     &stage_alter_inplace_commit,
@@ -14902,6 +14905,7 @@ PSI_stage_info *all_server_stages[] = {
     &stage_deleting_from_main_table,
     &stage_deleting_from_reference_tables,
     &stage_discard_or_import_tablespace,
+    &stage_dropping_table,
     &stage_end,
     &stage_executing,
     &stage_execution_of_init_command,

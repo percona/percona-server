@@ -298,6 +298,7 @@ select @@profiling;
 --enable_warnings
 
 drop table if exists t2, t1, t3;
+select QUERY_ID, SEQ, STATE from INFORMATION_SCHEMA.PROFILING WHERE QUERY_ID = (select max(QUERY_ID) from INFORMATION_SCHEMA.PROFILING) order by SEQ;
 drop view if exists v1;
 drop function if exists f1;
 

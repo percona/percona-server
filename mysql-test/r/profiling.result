@@ -413,6 +413,31 @@ select @@profiling;
 @@profiling
 1
 drop table if exists t2, t1, t3;
+select QUERY_ID, SEQ, STATE from INFORMATION_SCHEMA.PROFILING WHERE QUERY_ID = (select max(QUERY_ID) from INFORMATION_SCHEMA.PROFILING) order by SEQ;
+QUERY_ID	SEQ	STATE
+105	2	starting
+105	3	Executing hook on transaction 
+105	4	starting
+105	5	waiting for handler commit
+105	6	checking permissions
+105	7	checking permissions
+105	8	checking permissions
+105	9	dropping table
+105	10	after drop
+105	11	dropping table
+105	12	after drop
+105	13	dropping table
+105	14	after drop
+105	15	waiting for handler commit
+105	16	waiting for handler commit
+105	17	query end
+105	18	closing tables
+105	19	waiting for handler commit
+105	20	freeing items
+105	21	cleaning up
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROFILING' is deprecated and will be removed in a future release. Please use Performance Schema instead
+Warning	1287	'INFORMATION_SCHEMA.PROFILING' is deprecated and will be removed in a future release. Please use Performance Schema instead
 drop view if exists v1;
 Warnings:
 Note	1051	Unknown table 'test.v1'

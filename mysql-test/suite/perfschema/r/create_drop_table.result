@@ -1,0 +1,89 @@
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+CREATE TABLE test.t1(a int);
+DROP TABLE test.t1;
+SELECT EVENT_NAME FROM performance_schema.events_stages_history_long ORDER BY EVENT_ID;
+EVENT_NAME
+stage/sql/System lock
+stage/sql/waiting for handler commit
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/waiting for handler commit
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/Opening tables
+stage/sql/creating table
+stage/sql/After create
+stage/sql/waiting for handler commit
+stage/sql/waiting for handler commit
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/waiting for handler commit
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/dropping table
+stage/sql/after drop
+stage/sql/waiting for handler commit
+stage/sql/waiting for handler commit
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/waiting for handler commit
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/Opening tables
+stage/sql/init
+stage/sql/System lock
+stage/sql/optimizing
+stage/sql/statistics
+stage/sql/preparing
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+CREATE TEMPORARY TABLE test.t1(a int);
+DROP TABLE test.t1;
+SELECT EVENT_NAME FROM performance_schema.events_stages_history_long ORDER BY EVENT_ID;
+EVENT_NAME
+stage/sql/System lock
+stage/sql/waiting for handler commit
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/waiting for handler commit
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/Opening tables
+stage/sql/creating table
+stage/sql/After create
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/dropping table
+stage/sql/after drop
+stage/sql/query end
+stage/sql/closing tables
+stage/sql/waiting for handler commit
+stage/sql/freeing items
+stage/sql/cleaning up
+stage/sql/starting
+stage/sql/checking permissions
+stage/sql/Opening tables
+stage/sql/init
+stage/sql/System lock
+stage/sql/optimizing
+stage/sql/statistics
+stage/sql/preparing

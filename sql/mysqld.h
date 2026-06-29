@@ -579,6 +579,7 @@ extern PSI_socket_key key_socket_client_connection;
   Hint: grep PSI_stage_info | sort -u
 */
 extern PSI_stage_info stage_after_create;
+extern PSI_stage_info stage_after_drop;
 extern PSI_stage_info stage_alter_inplace_prepare;
 extern PSI_stage_info stage_alter_inplace;
 extern PSI_stage_info stage_alter_inplace_commit;
@@ -596,6 +597,7 @@ extern PSI_stage_info stage_creating_tmp_table;
 extern PSI_stage_info stage_deleting_from_main_table;
 extern PSI_stage_info stage_deleting_from_reference_tables;
 extern PSI_stage_info stage_discard_or_import_tablespace;
+extern PSI_stage_info stage_dropping_table;
 extern PSI_stage_info stage_end;
 extern PSI_stage_info stage_executing;
 extern PSI_stage_info stage_execution_of_init_command;

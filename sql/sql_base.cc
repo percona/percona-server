@@ -2402,6 +2402,8 @@ void drop_temporary_table(THD *thd, Table_ref *table_list) {
 
   assert(!table->query_id || table->query_id == thd->query_id);
 
+  THD_STAGE_INFO(thd, stage_dropping_table);
+
   /*
     If LOCK TABLES list is not empty and contains this table,
     unlock the table and remove the table from this list.
@@ -2409,6 +2411,7 @@ void drop_temporary_table(THD *thd, Table_ref *table_list) {
   mysql_lock_remove(thd, thd->lock, table);
   close_temporary_table(thd, table, true, true);
   table_list->table = nullptr;
+  THD_STAGE_INFO(thd, stage_after_drop);
 }
 
 /*

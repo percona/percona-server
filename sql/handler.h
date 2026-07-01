@@ -2816,6 +2816,16 @@ private:
   double estimate_in_memory_buffer(ulonglong table_index_size) const;
 
 public:
+  /* Reduce the reference count for the storage in engine share
+     This member has been created to target the INNODB storage
+     engine, for a case where a thread other than the owning
+     thread of a temporary table accesses the temporary
+     table. In INNODB the reference count for the INNOBASE_SHARE
+     is increased when this access happens. This function is 
+     provided to allow MySQL to reduce this reference count once
+     the access is complete
+  */
+  virtual void reduce_share_refcount() { return; }
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,

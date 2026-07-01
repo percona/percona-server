@@ -259,6 +259,11 @@ struct plugin_options_variables {
 
   char *communication_debug_options_var;
 
+#define DEFAULT_COMMUNICATION_DEBUG_MAX_FILE_SIZE 0UL
+#define MIN_COMMUNICATION_DEBUG_MAX_FILE_SIZE 0UL
+#define MAX_COMMUNICATION_DEBUG_MAX_FILE_SIZE ~0UL
+  ulong communication_debug_max_file_size_var;
+
   const char *exit_state_actions[4] = {"READ_ONLY", "ABORT_SERVER",
                                        "OFFLINE_MODE", (char *)nullptr};
   TYPELIB exit_state_actions_typelib_t = {3, "exit_state_actions_typelib_t",

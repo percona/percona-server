@@ -1,0 +1,168 @@
+################################################################################
+#
+# This test confirms AUTOMATIC rotation of the GCS_DEBUG_TRACE file.
+#
+# When group_replication_communication_debug_max_file_size > 0:
+#   - Every file (including the first) gets a timestamp in its name:
+#       GCS_DEBUG_TRACE.YYYYMMDDTHHMMSS (UTC)
+#   - Rotation creates a new timestamped file; the old file is left in place
+#     (no archiving/renaming -- same model as binary logs).
+#   - Each START GROUP_REPLICATION also opens a fresh timestamped file.
+#
+# Test steps:
+#   1. Set communication_debug_max_file_size and start GR.
+#      Trace file with timestamp are created.
+#   2. Size-based rotation: old file stays, new timestamped file appears.
+#   3. Restart Group Replication: another new timestamped file is created.
+#   4. Group Replication is ONLINE.
+#   5. Cleanup.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--connection server1
+
+--echo
+--echo # 1. Set communication_debug_max_file_size and start GR.
+--echo #    Trace file with timestamp are created.
+
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+SET GLOBAL group_replication_communication_debug_max_file_size = 200;
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_ALL";
+--source include/start_and_bootstrap_group_replication.inc
+
+# Confirm file with timestamp was created.
+perl;
+  use strict;
+  use File::Glob ':glob';
+  my $dir = "$ENV{MYSQLTEST_VARDIR}/mysqld.1/data";
+  my $deadline = time() + 30;
+  my @files;
+  while (time() < $deadline) {
+    @files = bsd_glob("$dir/GCS_DEBUG_TRACE.[0-9]*");
+    last if @files;
+    select(undef, undef, undef, 0.5);
+  }
+  die "ERROR: no timestamped GCS_DEBUG_TRACE.* file appeared within 30s\n"
+      unless @files;
+  print "Initial trace file is timestamped, as expected\n";
+
+  die "ERROR: plain GCS_DEBUG_TRACE must not be created when max_file_size > 0\n"
+      if -f "$dir/GCS_DEBUG_TRACE";
+  print "No plain GCS_DEBUG_TRACE created, as expected\n";
+
+  # Save first file path for step 2
+  my $out = "$ENV{MYSQLTEST_VARDIR}/tmp/gcs_first_file.txt";
+  open(my $fh, '>', $out) or die "Cannot write $out: $!\n";
+  print $fh $files[0] . "\n";
+  close $fh;
+EOF
+
+--echo
+--echo # 2. Size-based rotation: old file stays, new timestamped file created.
+
+# Confirm some new trace file was created due to rotation.
+perl;
+  use strict;
+  use File::Glob ':glob';
+  my $dir = "$ENV{MYSQLTEST_VARDIR}/mysqld.1/data";
+
+  # Retrieve first file saved in step 1
+  my $in = "$ENV{MYSQLTEST_VARDIR}/tmp/gcs_first_file.txt";
+  open(my $fh, '<', $in) or die "Cannot open $in: $!\n";
+  my $first_file = <$fh>;
+  chomp $first_file;
+  close $fh;
+
+  # Wait for a second timestamped file (rotation at 200-byte threshold)
+  my $deadline = time() + 30;
+  my @files;
+  while (time() < $deadline) {
+    @files = bsd_glob("$dir/GCS_DEBUG_TRACE.[0-9]*");
+    last if scalar(@files) >= 2;
+    select(undef, undef, undef, 0.5);
+  }
+  die "ERROR: size-based rotation did not produce a second file within 30s\n"
+      unless scalar(@files) >= 2;
+  print "Size-based rotation created a new timestamped file, as expected\n";
+
+  # Old file must still be present -- no archiving or renaming
+  die "ERROR: original file '$first_file' was removed after rotation " .
+      "(archiving must not happen)\n"
+      unless -f $first_file;
+  print "Original file still exists after rotation (no archiving), as expected\n";
+EOF
+
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+
+--echo
+--echo # 3. Restart Group Replication -- a new timestamped file is created on start.
+
+# Not number of files before restart
+perl;
+  use strict;
+  use File::Glob ':glob';
+  my $dir = "$ENV{MYSQLTEST_VARDIR}/mysqld.1/data";
+  my @files = bsd_glob("$dir/GCS_DEBUG_TRACE.[0-9]*");
+  my $out = "$ENV{MYSQLTEST_VARDIR}/tmp/gcs_count_before_restart.txt";
+  open(my $fh, '>', $out) or die "Cannot write $out: $!\n";
+  print $fh scalar(@files) . "\n";
+  close $fh;
+  print "Recorded file count before restart\n";
+EOF
+
+--source include/stop_group_replication.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+# Confirm more GCS_DEBUG_TRACE.* file exists post restart
+perl;
+  use strict;
+  use File::Glob ':glob';
+  my $in = "$ENV{MYSQLTEST_VARDIR}/tmp/gcs_count_before_restart.txt";
+  open(my $fh, '<', $in) or die "Cannot open $in: $!\n";
+  my $before = int(<$fh>);
+  close $fh;
+
+  my $dir = "$ENV{MYSQLTEST_VARDIR}/mysqld.1/data";
+  my $deadline = time() + 30;
+  my @files;
+  while (time() < $deadline) {
+    @files = bsd_glob("$dir/GCS_DEBUG_TRACE.[0-9]*");
+    last if scalar(@files) > $before;
+    select(undef, undef, undef, 0.5);
+  }
+  die "ERROR: expected a new timestamped file on GR restart " .
+      "(before=$before, after=" . scalar(@files) . ")\n"
+      unless scalar(@files) > $before;
+  print "New timestamped file created on GR restart, as expected\n";
+EOF
+
+--echo
+--echo # 4. Group Replication is ONLINE.
+
+--let $assert_text= Member is ONLINE after automatic rotation
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE = "ONLINE"
+--source include/assert.inc
+
+--echo
+--echo # 5. Cleanup.
+
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+SET GLOBAL group_replication_communication_debug_max_file_size = 0;
+--source include/stop_group_replication.inc
+perl;
+  use strict;
+  use File::Glob ':glob';
+  my $dir = "$ENV{MYSQLTEST_VARDIR}/mysqld.1/data";
+  for my $f (bsd_glob("$dir/GCS_DEBUG_TRACE*")) {
+    unlink $f or warn "Could not remove $f: $!\n";
+  }
+  unlink "$ENV{MYSQLTEST_VARDIR}/tmp/gcs_first_file.txt";
+  unlink "$ENV{MYSQLTEST_VARDIR}/tmp/gcs_count_before_restart.txt";
+  print "Cleanup complete\n";
+EOF
+
+--source include/group_replication_end.inc

@@ -30,6 +30,9 @@
 #include <m_ctype.h>
 #include <my_xml.h>
 #include <m_string.h>
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 
 /*
@@ -1064,6 +1067,36 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     if ((*(uint32*)from) & 0x80808080)
       break;
     *((uint32*) to)= *((const uint32*) from);
+  }
+#elif defined(__aarch64__)
+  {
+    const uint8x16_t max_ascii = vdupq_n_u8(0x7F);
+    const size_t neon_vector_length = 16;
+    while (length >= neon_vector_length)
+    {
+      uint8x16_t vec_src = vld1q_u8((const unsigned char *)from);
+      // check if exists non-ascii character,
+      // ascii -> non zero, non-ascii -> zero
+      uint8x16_t result = vcleq_u8(vec_src, max_ascii);
+      if (vminvq_u8(result) == 0)
+      {
+        // has non-ascii character
+        break;
+      }
+
+      vst1q_u8((unsigned char *)to, vec_src);
+
+      from += neon_vector_length;
+      to += neon_vector_length;
+      length -= neon_vector_length;
+    }
+
+    for ( ; length >= 4; length-= 4, from+= 4, to+= 4)
+    {
+      if ((*(uint32*)from) & 0x80808080)
+        break;
+      *((uint32*) to)= *((const uint32*) from);
+    }
   }
 #endif /* __i386__ */
 

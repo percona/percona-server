@@ -8685,7 +8685,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
-    DBUG_RETURN(error);
+  {
+    if (likely(error != HA_ERR_RECORD_IS_THE_SAME || !ha_thd()->lex->is_force()))
+      DBUG_RETURN(error);
+  }
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
     DBUG_RETURN(error);
   rows_changed++;

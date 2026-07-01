@@ -96,7 +96,7 @@ SET @@GLOBAL.group_replication_preemptive_garbage_collection = default;
 --let $saved_gr_xcom_ssl_accept_retries = `SELECT @@GLOBAL.group_replication_xcom_ssl_accept_retries;`
 
 # Total number of GR variables.
---let $total_gr_vars= 66
+--let $total_gr_vars= 67
 
 --echo #
 --echo # Test Unit#1
@@ -302,6 +302,11 @@ SET @@SESSION.group_replication_consistency= default;
 # group_replication_communication_debug_options
 --let $assert_text= Default group_replication_communication_debug_options is "GCS_DEBUG_NONE"
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_options]" = "GCS_DEBUG_NONE"
+--source include/assert.inc
+
+# group_replication_communication_debug_max_file_size
+--let $assert_text= Default group_replication_communication_debug_max_file_size is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_debug_max_file_size]" = 0
 --source include/assert.inc
 
 # group_replication_unreachable_majority_timeout

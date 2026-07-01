@@ -835,6 +835,85 @@ class Gcs_file_sink : public Sink_interface {
   */
   Gcs_file_sink(Gcs_file_sink &d);
   Gcs_file_sink &operator=(const Gcs_file_sink &d);
+
+  /*
+    Full path of the currently open trace file. Updated on every
+    initialize/rotate/reopen so stale-fd detection checks the right path.
+  */
+  std::string m_current_path;
+  /*
+    Open a new timestamped file (e.g. gcs_debug_trace.log.20260706T165057)
+    and switch m_fd to it. Needed for size-based rotation.
+    The old file is not deleted similar to binlog.
+
+    @note Do not call during fd error like disk full etc. Existing file
+    descriptors are not closed if reopen fails, so user can continue to
+    write to existing fd. If reopen is successful existing fd are closed.
+    @note Manual deletion of logs is needed.
+
+    @retval GCS_OK  new file is open; m_current_path updated.
+    @retval GCS_NOK could not open the new file; old fd remains valid.
+  */
+  enum_gcs_error rotate();
+
+  /*
+    Same as rotate(): open a new timestamped file and switch m_fd to it.
+    Called when the current file was moved or deleted externally.
+
+    @refer rotate(), notes have been added in rotate, same applicable here
+
+    @retval GCS_OK  new file is open; m_current_path updated.
+    @retval GCS_NOK could not open/create the file; old fd remains valid.
+  */
+  enum_gcs_error reopen();
+
+  /*
+    Maximum size, in bytes, of the file before it is automatically rotated.
+    0 disables size-based rotation.
+    Static to avoid major changes to class like constructor param,
+    initialization etc.
+  */
+  static size_t m_max_file_size;
+
+  /*
+    Bytes written to the current file since it was last opened or rotated.
+  */
+  size_t m_current_file_size{0};
+
+  /*
+    Timestamp, in microseconds, of the last stale-file check.
+  */
+  ulonglong m_last_stat_check_time{0};
+
+  /*
+    Minimum time, in microseconds, between two stale-file checks. The check
+    costs two syscalls (my_stat on the path + my_fstat on the fd), so running
+    it on every trace line is wasteful.
+  */
+  static constexpr ulonglong STAT_CHECK_INTERVAL_US = 100ULL * 1000ULL;
+
+  /* Returns true if enough time elapsed to run the stale-file check again. */
+  bool should_check_file();
+
+  /*
+    Timestamp, in microseconds, when the most recent rotation error was written
+    to the error log. A value of zero means that no error has been logged yet.
+  */
+  ulonglong m_last_logged_error_time{0};
+
+  /*
+    Minimum time, in microseconds, between rotation error messages.
+  */
+  static constexpr ulonglong ERROR_LOG_INTERVAL_US = 1ULL * 1000ULL * 1000ULL;
+
+  /* Returns true if time has elapsed to log another error. */
+  bool should_log_error();
+
+ public:
+  /* @refer m_max_file_size above */
+  static void set_max_debug_file_size(size_t file_size) {
+    m_max_file_size = file_size;
+  }
 };
 #endif /* XCOM_STANDALONE */
 

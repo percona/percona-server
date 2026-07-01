@@ -2759,6 +2759,17 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   gcs_module_parameters.add_parameter("communication_debug_path",
                                       mysql_real_data_home);
 
+  /*
+    Maximum size, in bytes, of the GCS debug trace file before it is
+    automatically rotated. 0 disables size-based rotation. Read once here,
+    at Group Replication start -- like communication_debug_file/_path above.
+
+    @note changing this sysvar takes effect at the next Group Replication start
+  */
+  gcs_module_parameters.add_parameter(
+      "communication_debug_max_file_size",
+      std::to_string(ov.communication_debug_max_file_size_var));
+
   sv.deinit();
   return result;
 }
@@ -4981,6 +4992,21 @@ static MYSQL_SYSVAR_STR(
     "GCS_DEBUG_NONE"                   /* default */
 );
 
+static MYSQL_SYSVAR_ULONG(
+    communication_debug_max_file_size,                     /* name */
+    ov.communication_debug_max_file_size_var,              /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "Maximum size, in bytes, of the GCS debug trace file (GCS_DEBUG_TRACE) "
+    "before it is automatically rotated. 0 disables size-based rotation. "
+    "Takes effect at the next Group Replication start.",
+    nullptr,                                   /* check func. */
+    nullptr,                                   /* update func. */
+    DEFAULT_COMMUNICATION_DEBUG_MAX_FILE_SIZE, /* default */
+    MIN_COMMUNICATION_DEBUG_MAX_FILE_SIZE,     /* min */
+    MAX_COMMUNICATION_DEBUG_MAX_FILE_SIZE,     /* max */
+    0                                          /* block */
+);
+
 static MYSQL_SYSVAR_ENUM(exit_state_action,        /* name */
                          ov.exit_state_action_var, /* var */
                          PLUGIN_VAR_OPCMDARG |
@@ -5492,6 +5518,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_applier_threshold),
     MYSQL_SYSVAR(transaction_size_limit),
     MYSQL_SYSVAR(communication_debug_options),
+    MYSQL_SYSVAR(communication_debug_max_file_size),
     MYSQL_SYSVAR(exit_state_action),
     MYSQL_SYSVAR(autorejoin_tries),
     MYSQL_SYSVAR(unreachable_majority_timeout),

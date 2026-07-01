@@ -43,6 +43,8 @@ SET GLOBAL group_replication_certification_loop_sleep_time = @@GLOBAL.group_repl
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_clone_threshold = @@GLOBAL.group_replication_clone_threshold;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_communication_debug_max_file_size = @@GLOBAL.group_replication_communication_debug_max_file_size;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_communication_debug_options = @@GLOBAL.group_replication_communication_debug_options;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
@@ -180,6 +182,7 @@ SET GLOBAL group_replication_bootstrap_group = @@GLOBAL.group_replication_bootst
 SET GLOBAL group_replication_certification_loop_chunk_size = @@GLOBAL.group_replication_certification_loop_chunk_size;
 SET GLOBAL group_replication_certification_loop_sleep_time = @@GLOBAL.group_replication_certification_loop_sleep_time;
 SET GLOBAL group_replication_clone_threshold = @@GLOBAL.group_replication_clone_threshold;
+SET GLOBAL group_replication_communication_debug_max_file_size = @@GLOBAL.group_replication_communication_debug_max_file_size;
 SET GLOBAL group_replication_communication_debug_options = @@GLOBAL.group_replication_communication_debug_options;
 SET GLOBAL group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
 SET GLOBAL group_replication_communication_stack = @@GLOBAL.group_replication_communication_stack;

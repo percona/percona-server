@@ -1,0 +1,63 @@
+################################################################################
+#
+# This test case proves that when GCS_DEBUG_TRACE is moved or deleted while the
+# fd is open, subsequent writes go to the newly created file.
+#
+# Test steps:
+#   1. Start Group Replication.
+#   2. Enable GCS_DEBUG_ALL tracing.
+#   3. Remove GCS_DEBUG_TRACE.
+#   4. Wait for stat auto-detection -- GCS_DEBUG_TRACE must reappear
+#   5. Group Replication is ONLINE.
+#   6. Cleanup.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--connection server1
+
+--echo
+--echo # 1. Start Group Replication.
+
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Enable GCS_DEBUG_ALL tracing.
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_ALL";
+--let $wait_condition = SELECT LENGTH(LOAD_FILE(CONCAT(@@datadir, 'GCS_DEBUG_TRACE'))) > 0
+--source include/wait_condition.inc
+
+--echo
+--echo # 3. Remove GCS_DEBUG_TRACE.
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--echo
+--echo # 4. Wait for stat auto-detection -- GCS_DEBUG_TRACE must reappear
+
+# Wait for GCS_DEBUG_TRACE re-creation and logs to be written.
+--let $wait_condition = SELECT LENGTH(LOAD_FILE(CONCAT(@@datadir, 'GCS_DEBUG_TRACE'))) > 0
+--source include/wait_condition.inc
+
+--file_exists $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--echo
+--echo # 5. Group Replication is ONLINE.
+
+--let $assert_text= Member is ONLINE after stale-fd detection and reopen
+--let $assert_cond= COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE = "ONLINE"
+--source include/assert.inc
+
+--echo
+--echo # 6. cleanup
+
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+--source include/stop_group_replication.inc
+
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/GCS_DEBUG_TRACE
+
+--source include/group_replication_end.inc

@@ -67,6 +67,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <time.h>
 #include <map>
+#include <mutex>
 #include <new>
 #include <sstream>
 #include <string_view>
@@ -82,8 +83,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
+#include "sync0types.h"
 #include "trx0trx.h"
 #include "ut0cpu_cache.h"
+#include "ut0dbg.h"
+#include "ut0mutex.h"
 #include "ut0new.h"
 
 #include "scope_guard.h"

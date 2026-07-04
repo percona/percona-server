@@ -1135,6 +1135,7 @@ fi
 %attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/ps-admin
+%attr(755, root, root) %{_bindir}/create_id_token
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
 %attr(755, root, root) %{_bindir}/mysqld_safe
@@ -1233,7 +1234,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time.so
 %attr(755, root, root) %{_libdir}/mysql/private/libabsl_time_zone.so
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.15.0
+%{_libdir}/mysql/private/libfido2.so.1
 %endif # add_fido_plugins
 
 %dir %{_libdir}/mysql/plugin
@@ -1454,6 +1456,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_kmip.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_openid_connect.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_openid_connect.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect_client.so
 
 
 %files -n percona-server-client

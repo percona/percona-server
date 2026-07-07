@@ -2184,6 +2184,17 @@ static MYSQL_THDVAR_UINT(force_index_records_in_range,
                          nullptr, nullptr, 0,
                          /* min */ 0, /* max */ INT_MAX, 0);
 
+static MYSQL_THDVAR_UINT(
+    records_in_range_dive_threshold,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
+    "If the row estimate for records_in_range() is below this value, refine "
+    "it by scanning the index range, reading at most this many keys. RocksDB "
+    "size approximations work at data block granularity and may return 0 for "
+    "narrow ranges that contain many rows. Set to 0 to disable the "
+    "refinement.",
+    nullptr, nullptr, 100,
+    /* min */ 0, /* max */ INT_MAX, 0);
+
 static MYSQL_SYSVAR_UINT(
     debug_optimizer_n_rows, rocksdb_debug_optimizer_n_rows,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
@@ -2832,6 +2843,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(records_in_range),
     MYSQL_SYSVAR(force_index_records_in_range),
+    MYSQL_SYSVAR(records_in_range_dive_threshold),
     MYSQL_SYSVAR(debug_optimizer_n_rows),
     MYSQL_SYSVAR(force_compute_memtable_stats),
     MYSQL_SYSVAR(force_compute_memtable_stats_cachetime),
@@ -13279,6 +13291,50 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
   DBUG_RETURN(ret);
 }
 
+/*
+  PS-10110: Count keys in [start, end) (mem-comparable format, bytewise
+  order) by scanning the index, reading at most max_rows keys. Sets
+  *capped = true when max_rows was reached, i.e. the range contains at
+  least that many keys. Returns the number of keys seen. The scan reads
+  the latest committed state, like the size approximations it refines.
+*/
+static uint64_t rdb_index_dive_in_range(const Rdb_key_def &kd,
+                                        const rocksdb::Slice &start,
+                                        const rocksdb::Slice &end,
+                                        uint64_t max_rows, bool *capped) {
+  rocksdb::ReadOptions read_opts;
+  // The range may cross prefix-extractor prefixes, so a total-order seek
+  // is required for correctness.
+  read_opts.total_order_seek = true;
+  // Give RocksDB a hard stop at the range end so it does not churn through
+  // tombstones beyond the range. Bounds are in CF-comparator order: for a
+  // reverse CF the bytewise range end is the comparator lower bound.
+  if (kd.m_is_reverse_cf) {
+    read_opts.iterate_lower_bound = &end;
+  } else {
+    read_opts.iterate_upper_bound = &end;
+  }
+
+  const std::unique_ptr<rocksdb::Iterator> it(
+      rdb->NewIterator(read_opts, kd.get_cf()));
+
+  *capped = false;
+  uint64_t count = 0;
+  rocksdb_smart_seek(kd.m_is_reverse_cf, it.get(), start);
+  while (is_valid_iterator(it.get())) {
+    // Keys are raw mem-comparable bytes regardless of CF direction, so a
+    // plain bytewise compare implements the exclusive upper bound (the
+    // iterate_lower_bound above is inclusive on its own).
+    if (it->key().compare(end) >= 0) break;
+    if (++count >= max_rows) {
+      *capped = true;
+      break;
+    }
+    rocksdb_smart_next(kd.m_is_reverse_cf, it.get());
+  }
+  return count;
+}
+
 void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
                                            key_range *const max_key,
                                            int64 disk_size, int64 rows,
@@ -13342,6 +13398,30 @@ void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
   rdb->GetApproximateMemTableStats(kd.get_cf(), r, &memTableCount, &sz);
   *row_count += memTableCount;
   *total_size += sz;
+
+  /*
+    PS-10110: both estimates above work at coarse granularity
+    (GetApproximateSizes() at SST data block offsets,
+    GetApproximateMemTableStats() at skiplist sampling granularity) and can
+    return 0 for a narrow range that actually contains many rows, which the
+    caller floors to 1 and feeds to the optimizer, leading to poor join
+    orders. Refine small estimates with a bounded index dive, similar to
+    InnoDB: an exact count if the range has fewer keys than the threshold,
+    a lower bound of the threshold otherwise. For a TTL index the dive
+    counts not-yet-compacted expired records, just like the approximations
+    above. Partial indexes are skipped since a raw iterator does not see
+    unmaterialized rows and would undercount.
+  */
+  const uint64_t dive_threshold =
+      THDVAR(ha_thd(), records_in_range_dive_threshold);
+  if (dive_threshold > 0 && *row_count < dive_threshold &&
+      rocksdb_debug_optimizer_n_rows == 0 && !kd.is_partial_index()) {
+    bool capped = false;
+    const uint64_t dive_count =
+        rdb_index_dive_in_range(kd, slice1, slice2, dive_threshold, &capped);
+    *row_count = capped ? std::max<uint64_t>(*row_count, dive_threshold)
+                        : dive_count;
+  }
   DBUG_VOID_RETURN;
 }
 

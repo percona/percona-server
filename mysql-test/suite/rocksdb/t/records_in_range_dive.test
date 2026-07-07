@@ -1,0 +1,113 @@
+--source include/have_rocksdb.inc
+
+# PS-10110: records_in_range() returned 1 row for narrow ranges that fall
+# within a single SST data block (or a narrow memtable range), because
+# RocksDB size approximations work at data block granularity and return 0.
+# The estimate is now refined with a bounded index dive controlled by
+# rocksdb_records_in_range_dive_threshold: an exact key count if the range
+# has fewer keys than the threshold, a lower bound of the threshold
+# otherwise.
+#
+# Note: no FORCE INDEX in the queries below - with FORCE INDEX the SQL
+# layer skips records_in_range() entirely.
+
+CREATE TABLE t1 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       a INT NOT NULL,
+       b INT NOT NULL,
+       KEY ka(a),
+       KEY kb(b) comment 'cfname=rev:cf1'
+) ENGINE = rocksdb;
+
+# 20000 rows spread over a = b = 1..1000 (20 rows each), plus exactly 200
+# rows with a = b = 5000.
+--disable_query_log
+let $i = 1;
+while ($i <= 1000) {
+  eval INSERT INTO t1(a, b) VALUES
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i),
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i),
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i),
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t1(a, b) VALUES (5000, 5000);
+  inc $i;
+}
+--enable_query_log
+
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+
+--echo #
+--echo # Memtable-only: the dive must count the narrow range exactly (200),
+--echo # instead of the pre-fix estimate of 1.
+--echo #
+explain select * from t1 where a = 5000;
+explain select * from t1 where b = 5000;
+explain select * from t1 where a > 4999 and a < 5001;
+
+--echo #
+--echo # SST path: flush the memtable; the dive still counts the narrow
+--echo # range exactly.
+--echo #
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t1;
+explain select * from t1 where a = 5000;
+explain select * from t1 where b = 5000;
+explain select * from t1 where a > 4999 and a < 5001;
+
+--echo #
+--echo # An empty range stays at the conventional 1 row.
+--echo #
+explain select * from t1 where a = 9999;
+
+--echo #
+--echo # Deterministic single-block scenario: index kc lives in its own
+--echo # column family whose whole SST fits in one ~16KB data block, so
+--echo # GetApproximateSizes() is guaranteed to return 0 for any range that
+--echo # does not extend past the last key: the exact situation from the
+--echo # bug report.
+--echo #
+CREATE TABLE t2 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 100) {
+  eval INSERT INTO t2(c) VALUES ($i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t2(c) VALUES (50);
+  inc $i;
+}
+--enable_query_log
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t2;
+
+--echo # Dive enabled: exact count (201 keys with c = 50).
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 50;
+
+--echo # Cap semantics: the dive reads at most threshold keys, so a range
+--echo # with more keys than the threshold estimates as the threshold
+--echo # (a lower bound).
+SET SESSION rocksdb_records_in_range_dive_threshold = 50;
+explain select * from t2 where c = 50;
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
+explain select * from t2 where c = 50;
+
+--echo # 0 disables the dive: legacy behavior, the estimate collapses to
+--echo # 1 row (this is the PS-10110 bug).
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select * from t2 where c = 50;
+
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t1;
+DROP TABLE t2;

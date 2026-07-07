@@ -1,0 +1,108 @@
+CREATE TABLE t1 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+a INT NOT NULL,
+b INT NOT NULL,
+KEY ka(a),
+KEY kb(b) comment 'cfname=rev:cf1'
+) ENGINE = rocksdb;
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+#
+# Memtable-only: the dive must count the narrow range exactly (200),
+# instead of the pre-fix estimate of 1.
+#
+explain select * from t1 where a = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ka	ka	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 5000)
+explain select * from t1 where b = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	kb	kb	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 5000)
+explain select * from t1 where a > 4999 and a < 5001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	ka	ka	4	NULL	200	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` > 4999) and (`test`.`t1`.`a` < 5001))
+#
+# SST path: flush the memtable; the dive still counts the narrow
+# range exactly.
+#
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain select * from t1 where a = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ka	ka	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 5000)
+explain select * from t1 where b = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	kb	kb	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 5000)
+explain select * from t1 where a > 4999 and a < 5001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	ka	ka	4	NULL	200	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` > 4999) and (`test`.`t1`.`a` < 5001))
+#
+# An empty range stays at the conventional 1 row.
+#
+explain select * from t1 where a = 9999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ka	ka	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 9999)
+#
+# Deterministic single-block scenario: index kc lives in its own
+# column family whose whole SST fits in one ~16KB data block, so
+# GetApproximateSizes() is guaranteed to return 0 for any range that
+# does not extend past the last key: the exact situation from the
+# bug report.
+#
+CREATE TABLE t2 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+c INT NOT NULL,
+KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+# Dive enabled: exact count (201 keys with c = 50).
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	201	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# Cap semantics: the dive reads at most threshold keys, so a range
+# with more keys than the threshold estimates as the threshold
+# (a lower bound).
+SET SESSION rocksdb_records_in_range_dive_threshold = 50;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	50	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	100	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# 0 disables the dive: legacy behavior, the estimate collapses to
+# 1 row (this is the PS-10110 bug).
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t1;
+DROP TABLE t2;

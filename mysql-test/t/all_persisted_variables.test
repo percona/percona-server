@@ -242,15 +242,15 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text= Expect $total_persistent_vars persisted variables in persisted_variables table.
+--let $assert_text= Expect number of persisted variables in persisted_variables table is the same as before restart.
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $persisted_after_set
 --source include/assert.inc
 
---let $assert_text= Expect $total_persistent_vars persisted variables shown as PERSISTED in variables_info table.
+--let $assert_text= Expect number of persisted variables shown as PERSISTED in variables_info table is the same as before restart.
 --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.persisted_variables pv LEFT JOIN performance_schema.variables_info vi ON vi.variable_name = pv.variable_name WHERE vi.variable_name IS NULL, count, 1] = 0
 --source include/assert.inc
 
- --let $assert_text= Expect $total_persistent_vars persisted variables with matching peristed and global values.
+ --let $assert_text= Expect number of persisted variables with matching persisted and global values is the same as before restart.
  --let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON gv.variable_name = pv.variable_name WHERE pv.variable_value <> gv.variable_value, count, 1] = 0
 --source include/assert.inc
 

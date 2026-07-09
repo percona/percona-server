@@ -41,7 +41,7 @@ ERROR HY000: Can't find master key from keyring, please check in the server log 
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# RESTART 2 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 2 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -75,7 +75,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 4 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 4 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -87,7 +87,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 6 : WITHOUT KEYRING PLUGIN
+# RESTART 6 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -103,6 +104,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 #-------------------------- TEST 2 -------------------------------------#
 # RESTART 7 : WITH KEYRING
 ########################################################################
@@ -112,7 +114,7 @@ SOME VALUES
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# RESTART 8 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 8 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just after flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -146,7 +148,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 10 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 10 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just after flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -158,7 +160,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 12 : WITHOUT KEYRING PLUGIN
+# RESTART 12 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -174,6 +177,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 #-------------------------- TEST 3 -------------------------------------#
 # RESTART 13 : WITH KEYRING
 ########################################################################
@@ -183,7 +187,7 @@ SOME VALUES
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# RESTART 14 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 14 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before resetting_progress on page 0
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -217,7 +221,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 16 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 16 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before resetting_progress on page 0
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -229,7 +233,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 18 : WITHOUT KEYRING PLUGIN
+# RESTART 18 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -245,6 +250,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 #-------------------------- TEST 4 -------------------------------------#
 # RESTART 19 : WITH KEYRING
 # Encrypt the tablespace.
@@ -259,7 +265,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 20 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 20 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before updating flags
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -271,7 +277,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 22 : WITHOUT KEYRING PLUGIN
+# RESTART 22 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -287,6 +294,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 #-------------------------- TEST 5 -------------------------------------#
 # RESTART 23 : WITH KEYRING
 ########################################################################
@@ -296,7 +304,7 @@ SOME VALUES
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# RESTART 24 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 24 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before encryption processing is started
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -330,7 +338,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 26 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 26 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just before encryption processing is started
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -342,7 +350,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 28 : WITHOUT KEYRING PLUGIN
+# RESTART 28 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -358,6 +367,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 #-------------------------- TEST 6 -------------------------------------#
 # RESTART 29 : WITH KEYRING
 ########################################################################
@@ -367,7 +377,7 @@ SOME VALUES
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# RESTART 30 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 30 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just after encryption processing is finished
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -401,7 +411,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 32 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 32 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just after encryption processing is finished
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -413,7 +423,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 34 : WITHOUT KEYRING PLUGIN
+# RESTART 34 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -429,6 +440,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 #-------------------------- TEST 7 -------------------------------------#
 # RESTART 35 : WITH KEYRING
 ########################################################################
@@ -438,7 +450,7 @@ SOME VALUES
 SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
 # Encrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-# RESTART 36 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 36 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just after inserting DDL Log Entry
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -472,7 +484,7 @@ NAME	ENCRYPTION
 encrypt_ts	Y
 # Unencrypt the tablespace. It will cause crash.
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-# RESTART 38 : WITH KEYRING PLUGIN after crash and cause resume operation
+# RESTART 38 : WITH KEYRING COMPONENT after crash and cause resume operation
 #              to crash just after inserting DDL Log Entry
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 Got one of the listed errors
@@ -484,7 +496,8 @@ Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
-# RESTART 40 : WITHOUT KEYRING PLUGIN
+# RESTART 40 : WITHOUT KEYRING COMPONENT
+# Taking backup of local manifest file for MySQL server instance
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	N
@@ -500,6 +513,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+# Restore local manifest file for MySQL server instance from backup
 ###########
 # Cleanup #
 ###########

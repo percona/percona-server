@@ -2,8 +2,11 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test basic encryption support features.
 
+--source include/not_parallel.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+
+--let $ROTATE_MASTER_KEY_TIMES=100
 
 --source ../inc/setup_component.inc
 --source include/keyring_tests/innodb/table_encrypt_3.inc

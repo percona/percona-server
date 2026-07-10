@@ -1,0 +1,27 @@
+#
+# Truncated 2-byte length-encoded field (0xFC / 252 marker, 1 byte short).
+#
+SET @@global.debug='+d,connect_attrs_too_short_3';
+ERROR 08S01: Bad handshake
+SET @@global.debug='-d,connect_attrs_too_short_3';
+#
+# Truncated 3-byte length-encoded field (0xFD / 253 marker, 1 byte short).
+#
+SET @@global.debug='+d,connect_attrs_too_short_4';
+ERROR 08S01: Bad handshake
+SET @@global.debug='-d,connect_attrs_too_short_4';
+#
+# Truncated 8-byte length-encoded field (0xFE / 254 marker, 1 byte short).
+#
+SET @@global.debug='+d,connect_attrs_too_short_9';
+ERROR 08S01: Bad handshake
+SET @@global.debug='-d,connect_attrs_too_short_9';
+#
+# Sanity check: without injection a normal connection still succeeds
+# and connection attributes are parsed correctly.
+#
+SELECT COUNT(*) > 0 AS has_connect_attrs
+FROM performance_schema.session_connect_attrs
+WHERE processlist_id = CONNECTION_ID();
+has_connect_attrs
+1

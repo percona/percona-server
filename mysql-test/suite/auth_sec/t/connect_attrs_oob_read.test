@@ -1,0 +1,69 @@
+# ============================================================================
+# Bug#39116965: MySQL Out-of-Bounds Read
+#
+# Connection attribute parsing read a length-encoded size field before
+# checking that the complete field was present in the packet. A crafted
+# short handshake packet could therefore make the server read past the end
+# of the received buffer (out-of-bounds read) during pre-authentication.
+#
+# The fix validates that the whole length-encoded field is present before
+# it is read. Three debug injection points in read_client_connect_attrs()
+# simulate a truncated length-encoded connection-attribute blob:
+#
+#   connect_attrs_too_short_3 -> 0xFC marker (needs 3 bytes), only 2 present
+#   connect_attrs_too_short_4 -> 0xFD marker (needs 4 bytes), only 3 present
+#   connect_attrs_too_short_9 -> 0xFE marker (needs 9 bytes), only 8 present
+#
+# In each case the server must reject the handshake cleanly with
+# ER_HANDSHAKE_ERROR ("Bad handshake") instead of reading out of bounds.
+#
+# The standard client always advertises CLIENT_CONNECT_ATTRS and sends a
+# connection-attribute blob, so an ordinary connection exercises
+# read_client_connect_attrs(). The debug variable is set globally because
+# the attribute blob is parsed during the pre-authentication handshake;
+# new connections inherit the global debug settings.
+# ============================================================================
+
+--source include/have_debug.inc
+
+--echo #
+--echo # Truncated 2-byte length-encoded field (0xFC / 252 marker, 1 byte short).
+--echo #
+SET @@global.debug='+d,connect_attrs_too_short_3';
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+--connect(con1,localhost,root,,,,,)
+--enable_query_log
+SET @@global.debug='-d,connect_attrs_too_short_3';
+
+--echo #
+--echo # Truncated 3-byte length-encoded field (0xFD / 253 marker, 1 byte short).
+--echo #
+SET @@global.debug='+d,connect_attrs_too_short_4';
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+--connect(con1,localhost,root,,,,,)
+--enable_query_log
+SET @@global.debug='-d,connect_attrs_too_short_4';
+
+--echo #
+--echo # Truncated 8-byte length-encoded field (0xFE / 254 marker, 1 byte short).
+--echo #
+SET @@global.debug='+d,connect_attrs_too_short_9';
+--disable_query_log
+--error ER_HANDSHAKE_ERROR
+--connect(con1,localhost,root,,,,,)
+--enable_query_log
+SET @@global.debug='-d,connect_attrs_too_short_9';
+
+--echo #
+--echo # Sanity check: without injection a normal connection still succeeds
+--echo # and connection attributes are parsed correctly.
+--echo #
+--connect(con1,localhost,root,,,,,)
+--connection con1
+SELECT COUNT(*) > 0 AS has_connect_attrs
+  FROM performance_schema.session_connect_attrs
+  WHERE processlist_id = CONNECTION_ID();
+--connection default
+--disconnect con1

@@ -1,0 +1,9 @@
+SELECT @@global.innodb_buffer_pool_lazy_latch_init;
+@@global.innodb_buffer_pool_lazy_latch_init
+0
+SET @@global.innodb_buffer_pool_lazy_latch_init = ON;
+ERROR HY000: Variable 'innodb_buffer_pool_lazy_latch_init' is a read only variable
+SET @@global.innodb_buffer_pool_lazy_latch_init = OFF;
+ERROR HY000: Variable 'innodb_buffer_pool_lazy_latch_init' is a read only variable
+SELECT @@session.innodb_buffer_pool_lazy_latch_init;
+ERROR HY000: Variable 'innodb_buffer_pool_lazy_latch_init' is a GLOBAL variable

@@ -1,0 +1,97 @@
+#
+# PS-10595: exercise innodb_buffer_pool_lazy_latch_init=ON end to end.
+#
+# With lazy latch init, a never-used buffer block has no constructed latches.
+# This test drives the paths that touch every chunk block regardless of state:
+#   - INFORMATION_SCHEMA.INNODB_BUFFER_PAGE scans all blocks (including unused
+#     ones) - it must report unused blocks as free without entering their
+#     (unconstructed) mutex,
+#   - online buffer pool resize creates fresh lazy chunks and later frees them,
+#   - a restart brings the pool back up in lazy mode.
+# On a debug build this also activates all the block->latches_initialized
+# assertions added by this feature.
+#
+
+--source include/have_innodb_max_16k.inc
+
+# The feature is opt-in and read only; confirm the server started with it ON.
+SELECT @@global.innodb_buffer_pool_lazy_latch_init;
+
+let $wait_timeout = 180;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+
+--echo # Scan I_S.INNODB_BUFFER_PAGE while the pool is mostly unused.
+--echo # Without the lazy-init guard this enters an unconstructed mutex.
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page
+  WHERE page_state = 'NOT_USED' AND page_type = 'UNKNOWN';
+
+--echo # Fault index/data pages into the pool.
+CREATE TABLE t1 (id INT PRIMARY KEY, val INT) ENGINE=InnoDB;
+--disable_query_log
+BEGIN;
+let $i = 2000;
+while ($i) {
+  eval INSERT INTO t1 VALUES ($i, $i);
+  dec $i;
+}
+COMMIT;
+--enable_query_log
+
+--echo # Some INDEX pages are now cached.
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page
+  WHERE page_type = 'INDEX';
+
+--echo # Create compressed pages, evict their uncompressed frames, then scan
+--echo # I_S.INNODB_BUFFER_PAGE_LRU for standalone compressed descriptors.
+CREATE TABLE t_zip (
+  id INT PRIMARY KEY,
+  val BLOB,
+  KEY(val(10))
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+--disable_query_log
+BEGIN;
+let $i = 100;
+while ($i) {
+  eval INSERT INTO t_zip VALUES ($i, REPEAT('a', 2000));
+  dec $i;
+}
+COMMIT;
+--enable_query_log
+SELECT COUNT(*) FROM t_zip;
+
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+if ($have_debug) {
+  --disable_query_log
+  SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+  --enable_query_log
+
+  let $compressed_only_pages = `SELECT COUNT(*)
+    FROM information_schema.innodb_buffer_page_lru
+    WHERE table_name LIKE '%t_zip%' AND compressed = 'YES'`;
+  if (!$compressed_only_pages) {
+    --die Expected standalone compressed descriptors for t_zip
+  }
+}
+
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page_lru;
+
+--echo # Expand the buffer pool (new lazy chunks), then re-scan.
+SET GLOBAL innodb_buffer_pool_size = 25165824;
+--source include/wait_condition.inc
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page;
+
+--echo # Shrink the buffer pool (chunks freed), then re-scan.
+SET GLOBAL innodb_buffer_pool_size = 8388608;
+--source include/wait_condition.inc
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page;
+
+--echo # Restart: the pool comes back up in lazy mode (opt reapplied).
+--source include/restart_mysqld.inc
+SELECT @@global.innodb_buffer_pool_lazy_latch_init;
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page;
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1, t_zip;

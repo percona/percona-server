@@ -4493,13 +4493,13 @@ static void i_s_innodb_buffer_page_get_info(
                                 out: structure filled with scanned
                                 info */
 {
-  BPageMutex *mutex = buf_page_get_mutex(bpage);
-
   ut_ad(pool_id < MAX_BUFFER_POOLS);
 
   page_info->pool_id = pool_id;
 
   page_info->block_id = pos;
+
+  BPageMutex *mutex = buf_page_get_mutex(bpage);
 
   mutex_enter(mutex);
 
@@ -4623,8 +4623,24 @@ static int i_s_innodb_fill_buffer_pool(
 
       /* GO through each block in the chunk */
       for (n_blocks = num_to_process; n_blocks--; block++) {
-        i_s_innodb_buffer_page_get_info(&block->page, pool_id, block_id,
-                                        info_buffer + num_page);
+        buf_page_info_t *page_info = info_buffer + num_page;
+
+        /* With innodb_buffer_pool_lazy_latch_init=ON a never-used block has
+        no constructed mutex; A false result means the block is still
+        BUF_BLOCK_NOT_USED: report it as free without touching its latch.
+        Only this chunk scanner can meet such blocks: the LRU scanner only
+        sees pages past buf_LRU_get_free_only() (latches built), and its
+        compressed-only pages are standalone buf_page_t descriptors with no
+        surrounding buf_block_t at all. */
+        if (!block->latches_initialized.load(std::memory_order_acquire)) {
+          page_info->pool_id = pool_id;
+          page_info->block_id = block_id;
+          page_info->page_state = BUF_BLOCK_NOT_USED;
+          page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
+        } else {
+          i_s_innodb_buffer_page_get_info(&block->page, pool_id, block_id,
+                                          page_info);
+        }
         block_id++;
         num_page++;
       }

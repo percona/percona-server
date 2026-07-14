@@ -225,6 +225,9 @@ bool srv_use_native_aio = false;
 
 bool srv_numa_interleave = false;
 
+/** See srv0srv.h. Default off: latches are created eagerly. */
+bool srv_buf_pool_lazy_latch_init = false;
+
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong srv_debug_compress;

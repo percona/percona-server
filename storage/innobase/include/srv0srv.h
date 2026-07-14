@@ -413,6 +413,11 @@ Currently we support native aio on windows and linux */
 extern bool srv_use_native_aio;
 extern bool srv_numa_interleave;
 
+/** When true, buffer pool blocks are created with lightweight initialization
+and their latches (mutex, rw-locks) are created lazily on first use. When
+false (default), latches are created eagerly while the buffer pool is built. */
+extern bool srv_buf_pool_lazy_latch_init;
+
 /* The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
 extern char *srv_innodb_directories;

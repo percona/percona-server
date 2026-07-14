@@ -1908,6 +1908,32 @@ struct buf_block_t {
   single thread. */
   bool made_dirty_with_no_latch;
 
+  /** Whether this block's latches (mutex, lock, debug_latch) have been
+  created (eagerly, or lazily if innodb_buffer_pool_lazy_latch_init is
+  enabled).
+
+  The false->true transition always happens while the block is owned
+  exclusively by a single thread (just removed from the free list, not yet in
+  the page hash or LRU). For a thread that later reuses the block after the
+  normal free_list_mutex / page-hash / LRU-mutex handoff, that handoff already
+  publishes the flag, so those owner-side reads (the first-use trigger in
+  buf_LRU_get_free_only()) and the teardown reads (under chunks_mutex /
+  free_list_mutex, no concurrent writer) can use relaxed/plain semantics.
+
+  It is std::atomic only so that the lock-free I_S.INNODB_BUFFER_PAGE scanner,
+  which walks every chunk block without owning it, can safely probe a
+  possibly-never-initialized block: the flag is published with a release store
+  at the end of buf_block_lazy_init_latches() and read there with an acquire
+  load. A true result means the embedded latch objects are fully constructed and
+  safe to lock; a false result means the block is still unused and its latches
+  must not be used.
+
+  Describes this block's own embedded latch objects, so it is intentionally
+  never copied along with page contents (e.g. by the buf_page_t copy
+  constructor or buf_relocate()): each block keeps the flag matching the state
+  of its own latches. */
+  std::atomic<bool> latches_initialized{false};
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
   /** @name Debug fields */
@@ -2052,6 +2078,10 @@ static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
 static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
   return buf_pool_hash_zip_frame(b->frame);
 }
+
+/* Lazy latch initialization for buffer block. */
+void buf_block_lazy_init_latches(buf_block_t *block);
+
 /** @} */
 
 /** A "Hazard Pointer" class used to iterate over page lists
@@ -2629,9 +2659,10 @@ Use these instead of accessing buffer pool mutexes directly. */
     mutex_exit(&(b)->flush_list_mutex); \
   } while (0)
 /** Acquire the block->mutex. */
-#define buf_page_mutex_enter(b) \
-  do {                          \
-    mutex_enter(&(b)->mutex);   \
+#define buf_page_mutex_enter(b)      \
+  do {                               \
+    ut_ad((b)->latches_initialized); \
+    mutex_enter(&(b)->mutex);        \
   } while (0)
 
 /** Release the block->mutex. */

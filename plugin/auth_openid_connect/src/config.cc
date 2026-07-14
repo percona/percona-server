@@ -82,6 +82,22 @@ static const T &json_get(const picojson::object &obj, const std::string &key,
   return it->second.get<T>();
 }
 
+static inline std::string json_parse(picojson::value &json_document,
+                                     std::string_view json_txt) {
+  std::string err;
+  auto end =
+      picojson::parse(json_document, json_txt.begin(), json_txt.end(), &err);
+  // Syntax error in the JSON document itself
+  if (!err.empty()) return err;
+  // Skip any trailing whitespace
+  while (end != json_txt.end() &&
+         std::isspace(static_cast<unsigned char>(*end)) != 0)
+    ++end;
+  // There is extra non‑whitespace content after the parsed JSON
+  if (end != json_txt.end()) return "extra content after correct JSON document";
+  return {};
+}
+
 int Idp_configs::check(MYSQL_THD thd [[maybe_unused]],
                        SYS_VAR *var [[maybe_unused]], void *save,
                        st_mysql_value *value) {
@@ -155,8 +171,7 @@ std::shared_timed_mutex &Idp_configs::mutex() {
 
 void Idp_configs::load(const std::string &config_json) {
   picojson::value json_obj;
-  if (const std::string err = picojson::parse(json_obj, config_json);
-      !err.empty())
+  if (const std::string err = json_parse(json_obj, config_json); !err.empty())
     throw std::runtime_error(err);
 
   if (!json_obj.is<picojson::object>())
@@ -269,7 +284,7 @@ bool Idp_config::load_keys() noexcept {
     if (jwks.get_url().empty()) return true;
     const std::string body = jwks.http_get();
     picojson::value root;
-    const std::string err = picojson::parse(root, body);
+    const std::string err = json_parse(root, body);
     if (!err.empty()) {
       throw std::runtime_error("JWKS: invalid JSON: " + err);
     }
@@ -413,7 +428,7 @@ bool Idp_configs::check(const char *variable) noexcept {
     std::string config_json;
     parse_var(variable, config_json);
     picojson::value json_obj;
-    const std::string err{picojson::parse(json_obj, config_json)};
+    const std::string err{json_parse(json_obj, config_json)};
     if (err.empty()) return false;
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err.c_str());
   } catch (const std::exception &e) {

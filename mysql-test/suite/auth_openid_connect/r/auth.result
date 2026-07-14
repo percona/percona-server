@@ -17,6 +17,7 @@ mysql_oidc_user@localhost	mysql_oidc_user@%
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid sysvar prefix");
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid value for system variable'");
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'cannot open config file:");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'extra content after correct JSON document'");
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'syntax error");
 SET GLOBAL auth_openid_connect_configuration = 'INVD://';
 ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'INVD://'
@@ -24,6 +25,8 @@ SET GLOBAL auth_openid_connect_configuration = 'JSON://{"invalid"[}';
 ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'JSON://{"invalid"[}'
 SET GLOBAL auth_openid_connect_configuration = 'FILE://nonexistent_path/nonexistent_file.json';
 ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'FILE://nonexistent_path/nonexistent_file.json'
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw", "e": "AQAB", "use": "sig", "alg": "RS256"}], "audiences": ["ee2811b9-10b8","https://api.example.com"]}} , {"oidc-idp": {"issuer-name":"name"}}';
+ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLB'
 SET GLOBAL auth_openid_connect_configuration = 'JSON://{}';
 
 ### Client side validations (FR.5)

@@ -1235,6 +1235,18 @@ buf_block_t *buf_LRU_get_free_only(buf_pool_t *buf_pool) {
 
       ut_ad(buf_pool_from_block(block) == buf_pool);
 
+      /* Initialize latches on first use. The block has just been removed from
+      the free list and is owned exclusively by this thread, so this access is
+      race-free; the prior thread's initialization (if any) is visible through
+      the free_list_mutex handoff. No mutex protects this access - exclusive
+      ownership does, hence a relaxed load. (The flag is std::atomic only for
+      the lock-free I_S buffer-page scanner; see buf0buf.h.) */
+      ut_ad(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
+      ut_ad(!block->page.in_free_list);
+      if (!block->latches_initialized.load(std::memory_order_relaxed)) {
+        buf_block_lazy_init_latches(block);
+      }
+
       return (block);
     }
 

@@ -67,6 +67,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <time.h>
 #include <map>
+#include <mutex>
 #include <new>
 #include <sstream>
 #include <string_view>
@@ -82,7 +83,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
+#include "sync0types.h"
 #include "trx0trx.h"
+#include "ut0dbg.h"
+#include "ut0lst.h"
+#include "ut0mutex.h"
 #include "ut0new.h"
 
 #include "scope_guard.h"
@@ -767,6 +772,50 @@ void buf_page_print(const byte *read_buf, const page_size_t &page_size,
 extern mysql_pfs_key_t buffer_block_mutex_key;
 #endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
+/** Registers one buffer block's mutex and rw-locks with performance schema.
+ The latch objects must already be constructed. Used by
+ pfs_register_buffer_block() when latches are created eagerly, and by
+ buf_block_lazy_init_latches() when they are created lazily on first use. */
+static void pfs_register_buffer_block_latches(
+    buf_block_t *block) /*!< in/out: buffer block */
+{
+#ifdef UNIV_PFS_MUTEX
+  BPageMutex *mutex;
+
+  mutex = &block->mutex;
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+  mutex->pfs_add(buffer_block_mutex_key);
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
+#endif /* UNIV_PFS_MUTEX */
+
+  rw_lock_t *rwlock;
+
+#ifdef UNIV_PFS_RWLOCK
+  rwlock = &block->lock;
+  ut_a(!rwlock->pfs_psi);
+
+#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+  rwlock->pfs_psi =
+      (PSI_server) ? PSI_server->init_rwlock(buf_block_lock_key, rwlock) : NULL;
+#else
+  rwlock->pfs_psi = (PSI_server)
+                        ? PSI_server->init_rwlock(PFS_NOT_INSTRUMENTED, rwlock)
+                        : NULL;
+#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+
+#ifdef UNIV_DEBUG
+  rwlock = &block->debug_latch;
+  ut_a(!rwlock->pfs_psi);
+  rwlock->pfs_psi =
+      (PSI_server) ? PSI_server->init_rwlock(buf_block_debug_latch_key, rwlock)
+                   : NULL;
+#endif /* UNIV_DEBUG */
+
+#endif /* UNIV_PFS_RWLOCK */
+}
+
 /** This function registers mutexes and rwlocks in buffer blocks with
  performance schema. If PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER is
  defined to be a value less than chunk->size, then only mutexes
@@ -783,57 +832,67 @@ static void pfs_register_buffer_block(
   num_to_register = std::min(chunk->size, PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
 
   for (ulint i = 0; i < num_to_register; i++) {
-#ifdef UNIV_PFS_MUTEX
-    BPageMutex *mutex;
-
-    mutex = &block->mutex;
-
-#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-    mutex->pfs_add(buffer_block_mutex_key);
-#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-
-#endif /* UNIV_PFS_MUTEX */
-
-    rw_lock_t *rwlock;
-
-#ifdef UNIV_PFS_RWLOCK
-    rwlock = &block->lock;
-    ut_a(!rwlock->pfs_psi);
-
-#ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-    rwlock->pfs_psi = (PSI_server)
-                          ? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
-                          : NULL;
-#else
-    rwlock->pfs_psi =
-        (PSI_server) ? PSI_server->init_rwlock(PFS_NOT_INSTRUMENTED, rwlock)
-                     : NULL;
-#endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-
-#ifdef UNIV_DEBUG
-    rwlock = &block->debug_latch;
-    ut_a(!rwlock->pfs_psi);
-    rwlock->pfs_psi = (PSI_server) ? PSI_server->init_rwlock(
-                                         buf_block_debug_latch_key, rwlock)
-                                   : NULL;
-#endif /* UNIV_DEBUG */
-
-#endif /* UNIV_PFS_RWLOCK */
+    pfs_register_buffer_block_latches(block);
     block++;
   }
 }
 #endif /* PFS_GROUP_BUFFER_SYNC */
 
-/** Initializes a buffer control block when the buf_pool is created. */
-static void buf_block_init(
-    buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-    buf_block_t *block,   /*!< in: pointer to control block */
-    byte *frame)          /*!< in: pointer to buffer frame */
-{
+/** Initialize latches for a buffer block. */
+void buf_block_lazy_init_latches(buf_block_t *block) {
+  ut_a(!block->latches_initialized.load(std::memory_order_relaxed));
+
+  /* This runs when lazy_init is being used, on the first use of a block:
+     the block has just been taken from the free list and is owned
+     exclusively by this thread (BUF_BLOCK_READY_FOR_USE), so it
+     is not yet reachable by any other thread. */
+  ut_ad(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
+
+  mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
+
+#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
+  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
+                      LATCH_ID_BUF_BLOCK_DEBUG));
+#else
+  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
+  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
+                      LATCH_ID_BUF_BLOCK_DEBUG));
+#endif
+
+#ifdef PFS_GROUP_BUFFER_SYNC
+  /* With eager initialization the block latches are registered with
+  performance schema in bulk by pfs_register_buffer_block() when the chunk is
+  created. In lazy mode that call is skipped (the latch objects do not exist at
+  chunk creation), so instrument this block's freshly created latches here.
+  The rw-locks above were created with PFS_NOT_INSTRUMENTED, i.e. with a null
+  pfs_psi, exactly like in the eager flow before its bulk registration.
+
+  Note the intentional divergence: eager pfs_register_buffer_block() only
+  registers the first PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER latches of each chunk,
+  whereas here every block is registered on its first use. The cap defaults to
+  ULINT_MAX so there is no practical difference today; should it ever be
+  lowered, lazy mode would instrument more latches than eager mode. */
+  pfs_register_buffer_block_latches(block);
+#endif /* PFS_GROUP_BUFFER_SYNC */
+
+  block->lock.is_block_lock = true;
+
+  ut_ad(rw_lock_validate(&block->lock));
+
+  /* Publish with release so the acquire load in the lock-free
+  INFORMATION_SCHEMA.INNODB_BUFFER_PAGE scanner sees fully constructed latch
+  objects once it observes the flag set. */
+  block->latches_initialized.store(true, std::memory_order_release);
+}
+
+/** Lightweight initialization of a buffer control block: no latches created. */
+static void buf_block_init_without_latches(buf_pool_t *buf_pool,
+                                           buf_block_t *block, byte *frame) {
   UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
-  /* This function should only be executed at database startup or by
-  buf_pool_resize(). Either way, adaptive hash index must not exist. */
+  /* buf_block_init_without_latches() is only executed at database startup
+  or by buf_pool_resize(). Either way, adaptive hash index must not exist. */
   block->ahi.assert_empty_on_init();
 
   block->frame = frame;
@@ -863,34 +922,20 @@ static void buf_block_init(
 
   page_zip_des_init(&block->page.zip);
 
-  mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
-
-#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
-  /* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
-  of buffer block rwlock with performance schema.
-
-  If PFS_GROUP_BUFFER_SYNC is defined, skip the registration
-  since buffer block rwlock will be registered later in
-  pfs_register_buffer_block(). */
-
-  rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(PFS_NOT_INSTRUMENTED, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
-
-#else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-  rw_lock_create(buf_block_lock_key, &block->lock, LATCH_ID_BUF_BLOCK_LOCK);
-
-  ut_d(rw_lock_create(buf_block_debug_latch_key, &block->debug_latch,
-                      LATCH_ID_BUF_BLOCK_DEBUG));
-
-#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-  block->lock.is_block_lock = true;
-
-  ut_ad(rw_lock_validate(&(block->lock)));
+  /* Latches are NOT initialized here. Block creation happens either at
+  startup (no concurrency on this instance yet) or, for resize, under the
+  instance's free_list_mutex. */
+  ut_ad(srv_is_being_started || mutex_own(&buf_pool->free_list_mutex));
+  /* Relaxed is safe: false is the sentinel the lock-free I_S scanner treats as
+  "unused, do not touch the latch", so observing it (or the default-constructed
+  false) never causes a dereference and needs no ordering. This flag is only
+  ever written false here, at chunk creation, before the block is reachable as
+  a normal free-list block; it is never flipped true->false for a live block
+  (latches, once created, live until the chunk is freed). The only value whose
+  visibility must be ordered is the true published after latch construction. */
+  block->latches_initialized.store(false, std::memory_order_relaxed);
 }
+
 /* We maintain our private view of innobase_should_madvise_buf_pool() which we
 initialize at the beginning of buf_pool_init() and then update when the
 @@global.innodb_buffer_pool_in_core_file changes.
@@ -1077,7 +1122,8 @@ static buf_chunk_t *buf_chunk_init(
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
     ulonglong mem_size,   /*!< in: requested size in bytes */
     bool populate,        /*!< in: virtual page preallocation */
-    std::mutex *mutex)    /*!< in,out: Mutex protecting chunk map. */
+    std::mutex *mutex)    /*!< in,out: mutex protecting the chunk map, or
+                          nullptr when no concurrency is possible */
 {
   buf_block_t *block;
   byte *frame;
@@ -1139,7 +1185,38 @@ static buf_chunk_t *buf_chunk_init(
   block = chunk->blocks;
 
   for (i = chunk->size; i--;) {
-    buf_block_init(buf_pool, block, frame);
+    buf_block_init_without_latches(buf_pool, block, frame);
+
+    /* When lazy latch initialization is disabled, create the latches now
+    (eager initialization, the original behavior). When enabled, they are
+    created on first use in buf_LRU_get_free_only(). */
+    if (!srv_buf_pool_lazy_latch_init) {
+      /* Use rw_lock_create_unregistered so all rw-locks from this chunk are
+      spliced onto rw_lock_list in one O(1) operation below, instead of
+      taking rw_lock_list_mutex once per block. */
+      mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
+#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
+      rw_lock_create_unregistered(PFS_NOT_INSTRUMENTED, &block->lock,
+                                  LATCH_ID_BUF_BLOCK_LOCK);
+      ut_d(rw_lock_create_unregistered(
+          PFS_NOT_INSTRUMENTED, &block->debug_latch, LATCH_ID_BUF_BLOCK_DEBUG));
+#else
+      rw_lock_create_unregistered(buf_block_lock_key, &block->lock,
+                                  LATCH_ID_BUF_BLOCK_LOCK);
+      ut_d(rw_lock_create_unregistered(buf_block_debug_latch_key,
+                                       &block->debug_latch,
+                                       LATCH_ID_BUF_BLOCK_DEBUG));
+#endif
+      block->lock.is_block_lock = true;
+      ut_ad(rw_lock_validate(&block->lock));
+      /* Publish with release, same as the lazy path: at startup this is
+      redundant (single thread), but buf_chunk_init() also runs for chunks
+      added by an online resize, whose blocks become visible to the lock-free
+      INFORMATION_SCHEMA.INNODB_BUFFER_PAGE scanner. Release guarantees that a
+      scanner observing the flag set also sees the constructed latches. */
+      block->latches_initialized.store(true, std::memory_order_release);
+    }
+
     UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
     /* Add the block to the free list */
@@ -1153,19 +1230,44 @@ static buf_chunk_t *buf_chunk_init(
     frame += UNIV_PAGE_SIZE;
   }
 
+  /* Build this chunk's rw-lock list lock-free (blocks are exclusively owned
+  until published). This is an O(n) pass over the chunk's blocks, but it
+  acquires no mutex, so many threads can run it concurrently (each on its own
+  chunk) without contending. Only needed for eager init; lazy init registers
+  each lock individually when the block is first used. */
+  rw_lock_list_t chunk_locks;
+  UT_LIST_INIT(chunk_locks);
+  if (!srv_buf_pool_lazy_latch_init) {
+    buf_block_t *lock_block = chunk->blocks;
+    for (ulint j = 0; j < chunk->size; ++j, ++lock_block) {
+      UT_LIST_ADD_LAST(chunk_locks, &lock_block->lock);
+      ut_d(UT_LIST_ADD_LAST(chunk_locks, &lock_block->debug_latch));
+    }
+  }
+
+  /* buf_pool instances are created in parallel during buf_pool_init(), so the
+  caller passes a mutex to serialize inserts into the shared chunk map. During
+  resize there is no concurrency and mutex is nullptr. */
   if (mutex != nullptr) {
     mutex->lock();
   }
 
   buf_pool_register_chunk(chunk);
+  /* O(1) splice under rw_lock_list_mutex; consumes (empties) chunk_locks. */
+  rw_lock_list_register_bulk(std::move(chunk_locks));
 
   if (mutex != nullptr) {
     mutex->unlock();
   }
 
 #ifdef PFS_GROUP_BUFFER_SYNC
-  pfs_register_buffer_block(chunk);
+  /* In lazy mode the latch objects are not constructed yet; they are
+  instrumented one by one in buf_block_lazy_init_latches() instead. */
+  if (!srv_buf_pool_lazy_latch_init) {
+    pfs_register_buffer_block(chunk);
+  }
 #endif /* PFS_GROUP_BUFFER_SYNC */
+
   return (chunk);
 }
 
@@ -1276,7 +1378,8 @@ static void buf_pool_set_sizes(void) {
 @param[in]      buf_pool            buffer pool instance
 @param[in]      buf_pool_size size in bytes
 @param[in]      instance_no   id of the instance
-@param[in,out]  mutex         Mutex to protect common data structures
+@param[in,out]  mutex         mutex protecting the shared chunk map while
+                              instances are created in parallel
 @param[out]     err           DB_SUCCESS if all goes well
 @param[in]      populate      virtual page preallocation */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
@@ -1357,14 +1460,17 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
     do {
       if (!buf_chunk_init(buf_pool, chunk, chunk_size, populate, mutex)) {
+        /* Failure cleanup at startup, under chunks_mutex. */
+        ut_ad(mutex_own(&buf_pool->chunks_mutex));
         while (--chunk >= buf_pool->chunks) {
           buf_block_t *block = chunk->blocks;
 
           for (i = chunk->size; i--; block++) {
-            mutex_free(&block->mutex);
-            rw_lock_free(&block->lock);
-
-            ut_d(rw_lock_free(&block->debug_latch));
+            if (block->latches_initialized) {
+              mutex_free(&block->mutex);
+              rw_lock_free(&block->lock);
+              ut_d(rw_lock_free(&block->debug_latch));
+            }
           }
           buf_pool->deallocate_chunk(chunk);
         }
@@ -1493,14 +1599,17 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   chunks = buf_pool->chunks;
   chunk = chunks + buf_pool->n_chunks;
 
+  ut_ad(mutex_own(&buf_pool->chunks_mutex));
+
   while (--chunk >= chunks) {
     buf_block_t *block = chunk->blocks;
 
     for (ulint i = chunk->size; i--; block++) {
-      mutex_free(&block->mutex);
-      rw_lock_free(&block->lock);
-
-      ut_d(rw_lock_free(&block->debug_latch));
+      if (block->latches_initialized) {
+        mutex_free(&block->mutex);
+        rw_lock_free(&block->lock);
+        ut_d(rw_lock_free(&block->debug_latch));
+      }
     }
 
     buf_pool->deallocate_chunk(chunk);
@@ -2477,20 +2586,24 @@ withdraw_retry:
 
       ulint sum_freed = 0;
 
+      /* Resize holds the instance's free_list_mutex (and runs with
+      buf_pool_resizing set), so reading latches_initialized here is safe. */
+      ut_ad(buf_pool_resizing);
+      ut_ad(mutex_own(&buf_pool->free_list_mutex));
+
       while (chunk < echunk) {
         buf_block_t *block = chunk->blocks;
 
         for (ulint j = chunk->size; j--; block++) {
-          mutex_free(&block->mutex);
-          rw_lock_free(&block->lock);
-
-          ut_d(rw_lock_free(&block->debug_latch));
+          if (block->latches_initialized) {
+            mutex_free(&block->mutex);
+            rw_lock_free(&block->lock);
+            ut_d(rw_lock_free(&block->debug_latch));
+          }
         }
 
         buf_pool->deallocate_chunk(chunk);
-
         sum_freed += chunk->size;
-
         ++chunk;
       }
 
@@ -3583,8 +3696,8 @@ buf_block_t *buf_block_from_ahi(const byte *ptr) {
 
   buf_block_t *block = &chunk->blocks[offs];
 
-  /* The function buf_chunk_init() invokes buf_block_init() so that
-  block[n].frame == block->frame + n * UNIV_PAGE_SIZE.  Check it. */
+  /* The function buf_chunk_init() invokes buf_block_init_without_latches() so
+  that block[n].frame == block->frame + n * UNIV_PAGE_SIZE.  Check it. */
   ut_ad(block->frame == page_align(ptr));
   /* Read the state of the block without holding a mutex.
   A state transition from BUF_BLOCK_FILE_PAGE to
@@ -3634,6 +3747,7 @@ static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
 
   The repeated reads of io_fix will not be optimized out because it's an atomic
   variable.*/
+  ut_ad(block->latches_initialized);
   std::chrono::steady_clock::time_point start_time;
   while (block->page.was_io_fix_read()) {
     if (start_time == std::chrono::steady_clock::time_point{})
@@ -4058,6 +4172,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   buf_block_set_io_fix(block, BUF_IO_READ);
 
   ut::Location loc{m_file, m_line};
+  ut_ad(block->latches_initialized);
   rw_lock_x_lock_gen(&block->lock, 0, loc);
 
   rw_lock_x_unlock(m_hash_lock);
@@ -4199,6 +4314,8 @@ void Buf_fetch<T>::read_page() {
 
 template <typename T>
 void Buf_fetch<T>::mtr_add_page(buf_block_t *block) {
+  ut_ad(block->latches_initialized);
+
   mtr_memo_type_t fix_type;
 
   ut::Location loc{m_file, m_line};
@@ -4586,6 +4703,8 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_ad(!ibuf_inside(mtr) ||
         ibuf_page(block->page.id, block->page.size, UT_LOCATION_HERE, nullptr));
 
+  ut_ad(block->latches_initialized);
+
   bool success;
   mtr_memo_type_t fix_type;
 
@@ -4711,6 +4830,8 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
 
   ut_ad(!ibuf_inside(mtr) || hint == Cache_hint::KEEP_OLD);
 
+  ut_ad(block->latches_initialized);
+
   bool success;
   mtr_memo_type_t fix_type;
 
@@ -4801,6 +4922,8 @@ const buf_block_t *buf_page_try_get(const page_id_t &page_id,
 
   buf_block_buf_fix_inc(block, location);
   buf_page_mutex_exit(block);
+
+  ut_ad(block->latches_initialized);
 
   mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
   auto success = rw_lock_s_lock_nowait(&block->lock, location);
@@ -5066,6 +5189,7 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     read is completed.  The x-lock is cleared by the
     io-handler thread. */
 
+    ut_ad(block->latches_initialized);
     rw_lock_x_lock_gen(&block->lock, BUF_IO_READ, UT_LOCATION_HERE);
 
     rw_lock_x_unlock(hash_lock);
@@ -5231,6 +5355,8 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
   and clone page copy can request page for any page id within tablespace
   size limit. */
   mtr_memo_type_t mtr_latch_type;
+
+  ut_ad(block->latches_initialized);
 
   if (rw_latch == RW_X_LATCH) {
     rw_lock_x_lock(&block->lock, UT_LOCATION_HERE);

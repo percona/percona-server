@@ -1,0 +1,51 @@
+SELECT @@global.innodb_buffer_pool_lazy_latch_init;
+@@global.innodb_buffer_pool_lazy_latch_init
+1
+# Scan I_S.INNODB_BUFFER_PAGE while the pool is mostly unused.
+# Without the lazy-init guard this enters an unconstructed mutex.
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page
+WHERE page_state = 'NOT_USED' AND page_type = 'UNKNOWN';
+ok
+1
+# Fault index/data pages into the pool.
+CREATE TABLE t1 (id INT PRIMARY KEY, val INT) ENGINE=InnoDB;
+# Some INDEX pages are now cached.
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page
+WHERE page_type = 'INDEX';
+ok
+1
+# Create compressed pages, evict their uncompressed frames, then scan
+# I_S.INNODB_BUFFER_PAGE_LRU for standalone compressed descriptors.
+CREATE TABLE t_zip (
+id INT PRIMARY KEY,
+val BLOB,
+KEY(val(10))
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SELECT COUNT(*) FROM t_zip;
+COUNT(*)
+100
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page_lru;
+ok
+1
+# Expand the buffer pool (new lazy chunks), then re-scan.
+SET GLOBAL innodb_buffer_pool_size = 25165824;
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page;
+ok
+1
+# Shrink the buffer pool (chunks freed), then re-scan.
+SET GLOBAL innodb_buffer_pool_size = 8388608;
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page;
+ok
+1
+# Restart: the pool comes back up in lazy mode (opt reapplied).
+# restart
+SELECT @@global.innodb_buffer_pool_lazy_latch_init;
+@@global.innodb_buffer_pool_lazy_latch_init
+1
+SELECT COUNT(*) > 0 AS ok FROM information_schema.innodb_buffer_page;
+ok
+1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2000
+DROP TABLE t1, t_zip;

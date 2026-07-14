@@ -49,6 +49,7 @@ CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid sysvar prefix");
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid value for system variable'");
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'cannot open config file:");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'extra content after correct JSON document'");
 CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'syntax error");
 
 # invalid prefix, expect error
@@ -63,10 +64,15 @@ SET GLOBAL auth_openid_connect_configuration = 'JSON://{"invalid"[}';
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL auth_openid_connect_configuration = 'FILE://nonexistent_path/nonexistent_file.json';
 
+# valid JSON + extra non-parsed element at the end
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_JSON , {\"oidc-idp\": {\"issuer-name\":\"name\"}}'
+
 # valid JSON, but missing the configuration inside, expect error on connection
 SET GLOBAL auth_openid_connect_configuration = 'JSON://{}';
 --error 1
 --exec $MYSQL $MYSQL_OIDC_USER
+
 
 #####################################
 --echo

@@ -40,6 +40,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sync0rw.h"
 
+#include "univ.i"
+
 #include <my_sys.h>
 #include <sys/types.h>
 
@@ -50,6 +52,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "sync0debug.h"
+#include "sync0types.h"
+#include "ut0core.h"
+#include "ut0lst.h"
 
 /*
         IMPLEMENTATION OF THE RW_LOCK
@@ -188,8 +193,9 @@ static rw_lock_debug_t *rw_lock_debug_create(void) {
 static void rw_lock_debug_free(rw_lock_debug_t *info) { ut::free(info); }
 #endif /* UNIV_DEBUG */
 
-void rw_lock_create_func(rw_lock_t *lock,
-                         IF_DEBUG(latch_id_t id, ) ut::Location clocation) {
+void rw_lock_create_unregistered_func(rw_lock_t *lock,
+                                      IF_DEBUG(latch_id_t id, )
+                                          ut::Location clocation) {
 #if !defined(UNIV_PFS_RWLOCK)
   /* It should have been created in pfs_rw_lock_create_func() */
   new (lock) rw_lock_t();
@@ -231,6 +237,11 @@ void rw_lock_create_func(rw_lock_t *lock,
   lock->wait_ex_event = os_event_create();
 
   lock->is_block_lock = false;
+}
+
+void rw_lock_create_func(rw_lock_t *lock,
+                         IF_DEBUG(latch_id_t id, ) ut::Location clocation) {
+  rw_lock_create_unregistered_func(lock, IF_DEBUG(id, ) clocation);
 
   mutex_enter(&rw_lock_list_mutex);
 
@@ -240,6 +251,32 @@ void rw_lock_create_func(rw_lock_t *lock,
   UT_LIST_ADD_FIRST(rw_lock_list, lock);
 
   mutex_exit(&rw_lock_list_mutex);
+}
+
+void rw_lock_list_register_bulk(rw_lock_list_t &&locks) {
+  if (UT_LIST_GET_LEN(locks) == 0) {
+    return;
+  }
+
+  /* Sanity-check an incoming lock: it must have been fully prepared through
+  rw_lock_create_unregistered_func() (the list is non-empty here, guaranteed by
+  the early return above). */
+  ut_ad(UT_LIST_GET_FIRST(locks)->magic_n == rw_lock_t::MAGIC_N);
+
+  mutex_enter(&rw_lock_list_mutex);
+
+  ut_ad(UT_LIST_GET_FIRST(rw_lock_list) == nullptr ||
+        UT_LIST_GET_FIRST(rw_lock_list)->magic_n == rw_lock_t::MAGIC_N);
+
+  /* O(1) splice of the prepared list onto the global list. The per-lock work
+  (initialization and list linkage) was already done outside this mutex. */
+  UT_LIST_CONCATENATE(rw_lock_list, locks);
+
+  mutex_exit(&rw_lock_list_mutex);
+
+  /* The moved-from list base node is left empty: the locks now live on
+  rw_lock_list only. */
+  ut_ad(UT_LIST_GET_LEN(locks) == 0);
 }
 
 /** Calling this function is obligatory only if the memory buffer containing

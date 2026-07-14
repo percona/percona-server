@@ -96,6 +96,7 @@ void mtr_t::sx_latch_at_savepoint(ulint savepoint, buf_block_t *block) {
   /* == RW_NO_LATCH */
   ut_a(slot->type == MTR_MEMO_BUF_FIX);
 
+  ut_ad(block->latches_initialized);
   rw_lock_sx_lock(&block->lock, UT_LOCATION_HERE);
 
   slot->type = MTR_MEMO_PAGE_SX_FIX;
@@ -121,6 +122,7 @@ void mtr_t::x_latch_at_savepoint(ulint savepoint, buf_block_t *block) {
   /* == RW_NO_LATCH */
   ut_a(slot->type == MTR_MEMO_BUF_FIX);
 
+  ut_ad(block->latches_initialized);
   rw_lock_x_lock(&block->lock, UT_LOCATION_HERE);
 
   slot->type = MTR_MEMO_PAGE_X_FIX;

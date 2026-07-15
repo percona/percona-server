@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@
  @sa DISABLE_PSI_TRANSACTION
  @sa DISABLE_TLS_CHANNEL
  @sa DISABLE_PSI_SERVER_TELEMETRY_TRACES
+ @sa DISABLE_PSI_SERVER_TELEMETRY_LOGS
  @sa DISABLE_PSI_METRICS
  */
 
@@ -277,6 +278,16 @@
 #ifndef DISABLE_PSI_SERVER_TELEMETRY_TRACES
 #define HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
 #endif  // !DISABLE_PSI_SERVER_TELEMETRY_TRACES
+
+/**
+  @def DISABLE_PSI_SERVER_TELEMETRY_LOGS
+  Compiling option to disable MySQL Server Telemetry logs instrumentation.
+  @sa DISABLE_PSI_MUTEX
+ */
+
+#ifndef DISABLE_PSI_SERVER_TELEMETRY_LOGS
+#define HAVE_PSI_SERVER_TELEMETRY_LOGS_INTERFACE
+#endif  // !DISABLE_PSI_SERVER_TELEMETRY_LOGS
 
 /**
   @def DISABLE_PSI_METRICS

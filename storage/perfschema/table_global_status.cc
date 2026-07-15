@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,8 @@ table_global_status::table_global_status()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(false),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_global_status::reset_position() {
   m_pos.m_index = 0;
@@ -151,9 +152,8 @@ int table_global_status::index_init(uint idx [[maybe_unused]], bool) {
   /* Build a cache of all global status variables. Sum across threads. */
   m_status_cache.materialize_global();
 
-  PFS_index_global_status *result = nullptr;
   assert(idx == 0);
-  result = PFS_NEW(PFS_index_global_status);
+  auto *result = PFS_NEW(PFS_index_global_status);
   m_opened_index = result;
   m_index = result;
   return 0;

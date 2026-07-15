@@ -264,39 +264,120 @@ then
     V8DIR="$(cd "$WITH_V8"; pwd)"
 fi
 
+# PGO + LTO settings
+#   WITH_PGO=1  (default)  - enable Profile-Guided Optimization (3-pass build)
+#   WITH_PGO=0             - skip PGO (single cmake pass)
+# Debug builds always skip PGO (no value profiling an unoptimized binary).
+WITH_PGO="${WITH_PGO:-1}"
+if [ "${CMAKE_BUILD_TYPE:-}" = "Debug" ]; then
+    WITH_PGO=0
+fi
+
+# LTO toolchain blocklist. We must pass -DWITH_LTO=OFF *explicitly* on
+# affected hosts, because cmake/fprofile.cmake auto-promotes
+# WITH_LTO_DEFAULT=ON whenever FPROFILE_USE is set; an omitted flag
+# would let LTO fire during the PGO rebuild pass on a broken toolchain.
+#
+# Disabled on:
+#   - RHEL/OL/AlmaLinux/Rocky 8 and older   (toolchain known LTO bugs)
+#   - Amazon Linux < 2023                   (GCC too old)
+#   - Debian bullseye / Ubuntu focal        (per build-ps/debian/rules)
+# Enabled everywhere else.
+WITH_LTO_FLAG="-DWITH_LTO=ON"
+HOST_RHEL=0
+HOST_AMZN=0
+HOST_DIST="unknown"
+if [ -f /etc/redhat-release ]; then
+    HOST_RHEL=$(rpm --eval %rhel 2>/dev/null || echo 0)
+    HOST_AMZN=$(rpm --eval %amzn 2>/dev/null || echo 0)
+    case "${HOST_AMZN}" in ''|*[!0-9]*) HOST_AMZN=0 ;; esac
+    case "${HOST_RHEL}" in ''|*[!0-9]*) HOST_RHEL=0 ;; esac
+    if [ "${HOST_AMZN}" -ge 2023 ] 2>/dev/null; then
+        :  # Amazon Linux 2023+ is fine, leave LTO=ON
+    elif [ "${HOST_AMZN}" -gt 0 ] 2>/dev/null; then
+        WITH_LTO_FLAG="-DWITH_LTO=OFF"   # Amazon Linux < 2023
+    elif [ "${HOST_RHEL}" -gt 0 ] 2>/dev/null && [ "${HOST_RHEL}" -le 8 ] 2>/dev/null; then
+        WITH_LTO_FLAG="-DWITH_LTO=OFF"   # RHEL/OL/Alma 8 and older
+    fi
+elif [ -f /etc/debian_version ]; then
+    HOST_DIST=$(lsb_release -sc 2>/dev/null || echo unknown)
+    case "${HOST_DIST}" in
+        focal|bullseye) WITH_LTO_FLAG="-DWITH_LTO=OFF" ;;
+    esac
+fi
+echo "build-binary.sh: ${WITH_LTO_FLAG} (HOST_RHEL=${HOST_RHEL} HOST_AMZN=${HOST_AMZN} HOST_DIST=${HOST_DIST})"
+
+TARBALL_WARN_SUPPRESS="-Wno-free-nonheap-object -Wno-stringop-overflow -Wno-stringop-overread -Wno-alloc-size-larger-than -Wno-array-bounds"
+
+# Common cmake flags shared across PGO instrumentation, PGO consume, and
+# non-PGO builds. Each invocation appends its unique pass-specific flag.
+CMAKE_COMMON_FLAGS=(
+    "$SOURCEDIR"
+    -DBUILD_CONFIG=mysql_release
+    -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-RelWithDebInfo}"
+    -DCMAKE_C_FLAGS="${TARBALL_WARN_SUPPRESS}"
+    -DCMAKE_CXX_FLAGS="${TARBALL_WARN_SUPPRESS}"
+    -DFEATURE_SET=community
+    -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL"
+    -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data"
+    -DROUTER_INSTALL_LIBDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/private"
+    -DROUTER_INSTALL_PLUGINDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/plugin"
+    -DCOMPILATION_COMMENT="$COMMENT"
+    -DWITH_PAM=ON
+    -DWITH_ROCKSDB=ON
+    -DROCKSDB_DISABLE_AVX2=1
+    -DROCKSDB_DISABLE_MARCH_NATIVE=1
+    -DWITH_INNODB_MEMCACHED=ON
+    -DWITH_ZLIB=bundled
+    -DWITH_CURL=bundled
+    -DWITH_NUMA=ON
+    -DWITH_LDAP=system
+    -DWITH_PACKAGE_FLAGS=OFF
+    -DFORCE_INSOURCE_BUILD=1
+    -DWITH_LIBEVENT=bundled
+    -DWITH_ZSTD=bundled
+    -DWITH_PERCONA_TELEMETRY=ON
+    "${WITH_LTO_FLAG}"
+    -DWITH_JS_LANG=ON
+    -DV8_INCLUDE_DIR=${WITH_V8}/include
+    -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj
+)
+
 # Build
 (
     rm -rf "$WORKDIR_ABS/bld"
     mkdir "$WORKDIR_ABS/bld"
     cd "$WORKDIR_ABS/bld"
 
-    cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
+    PGO_FIRST_FLAG=""
+    [ "${WITH_PGO}" = "1" ] && PGO_FIRST_FLAG="-DFPROFILE_GENERATE=1"
+
+    cmake "${CMAKE_COMMON_FLAGS[@]}" \
+        ${CMAKE_OPTS:-} \
         $DEBUG_EXTRA \
-        -DFEATURE_SET=community \
-        -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
-        -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
-        -DROUTER_INSTALL_LIBDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/private" \
-        -DROUTER_INSTALL_PLUGINDIR="/usr/local/$PRODUCT_FULL/lib/mysqlrouter/plugin" \
-        -DCOMPILATION_COMMENT="$COMMENT" \
-        -DWITH_PAM=ON \
-        -DWITH_ROCKSDB=ON \
-        -DROCKSDB_DISABLE_AVX2=1 \
-        -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
-        -DWITH_INNODB_MEMCACHED=ON \
-        -DWITH_ZLIB=bundled \
-        -DWITH_CURL=bundled \
-        -DWITH_NUMA=ON \
-        -DWITH_LDAP=system \
-        -DWITH_PACKAGE_FLAGS=OFF \
-        -DFORCE_INSOURCE_BUILD=1 \
-        -DWITH_LIBEVENT=bundled \
-        -DWITH_ZSTD=bundled \
-	-DWITH_PERCONA_TELEMETRY=ON \
-        -DWITH_JS_LANG=ON -DV8_INCLUDE_DIR=${WITH_V8}/include -DV8_LIB_DIR=${WITH_V8}/out.gn/static/obj \
+        $PGO_FIRST_FLAG \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
+
+    if [ "${WITH_PGO}" = "1" ]; then
+        echo "PGO: running MTR profile suite to generate .gcda profile data"
+        make run-profile-suite
+
+        echo "PGO: rebuilding with profile data (-DFPROFILE_USE=1)"
+        cd "$WORKDIR_ABS"
+        rm -rf bld
+        mkdir bld
+        cd bld
+        cmake "${CMAKE_COMMON_FLAGS[@]}" \
+            ${CMAKE_OPTS:-} \
+            $DEBUG_EXTRA \
+            -DFPROFILE_USE=1 \
+            $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
+
+        make $MAKE_JFLAG $QUIET
+    fi
+
     make DESTDIR="$INSTALLDIR" install
 
     # Build jemalloc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9190,9 +9190,23 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   return false;
 }
 
+void Item_default_value::cleanup() {
+  Item::cleanup();
+
+  if (!fixed || arg == nullptr) return;
+  // Field is cloned into plan, but table must be re-bound on next execution
+  if (table_ref != nullptr) {
+    field->table = nullptr;
+  }
+}
+
 void Item_default_value::bind_fields() {
   if (!fixed || arg == nullptr) return;
 
+  // Re-bind table pointer from table reference object
+  if (table_ref != nullptr) {
+    field->table = table_ref->table;
+  }
   field->move_field_offset(
       (ptrdiff_t)(field->table->s->default_values - m_rowbuffer_saved));
   m_rowbuffer_saved = field->table->s->default_values;

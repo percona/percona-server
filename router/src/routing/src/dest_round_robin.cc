@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,6 @@ Destinations DestRoundRobin::destinations() {
     // move iterator forward and remember the position as 'last'
     std::advance(cur, start_pos_);
     auto last = cur;
-    size_t n = start_pos_;
 
     // for start_pos == 2:
     //
@@ -57,7 +56,7 @@ Destinations DestRoundRobin::destinations() {
     //
     // dests = [2 3 4]
 
-    for (; cur != end; ++cur, ++n) {
+    for (; cur != end; ++cur) {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<Destination>(dest.str(), dest.address(),
@@ -68,7 +67,7 @@ Destinations DestRoundRobin::destinations() {
     //
     // dests = [2 3 4] + [0 1]
     //
-    for (cur = begin, n = 0; cur != last; ++cur, ++n) {
+    for (cur = begin; cur != last; ++cur) {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<Destination>(dest.str(), dest.address(),

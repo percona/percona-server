@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -111,12 +111,9 @@ void reset_status_by_thread() {
 }
 
 static void fct_reset_status_by_account(PFS_account *account) {
-  PFS_user *user;
-  PFS_host *host;
-
   if (account->m_lock.is_populated()) {
-    user = sanitize_user(account->m_user);
-    host = sanitize_host(account->m_host);
+    PFS_user *user = sanitize_user(account->m_user);
+    PFS_host *host = sanitize_host(account->m_host);
     account->aggregate_status(user, host);
   }
 }

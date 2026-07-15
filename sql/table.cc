@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4482,8 +4482,7 @@ bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
   */
-  uint i = 0;
-  for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
+  for (Field **ptr = visible_field_ptr(); *ptr; ptr++) {
     Item_field *item = new Item_field(*ptr);
     if (!item) return true;
     item_list->push_back(item);

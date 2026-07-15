@@ -7,6 +7,10 @@
 # This file contains tests for WL#5096.
 #
 
+# This test performs many sync/restart cycles across a 3-node chain.
+# Use a higher timeout to reduce sporadic timeout failures on busy hosts.
+-- let $slave_timeout= 120
+
 -- let $rpl_topology= 1->2->3
 -- source include/rpl/init.inc
 -- source include/have_binlog_format_row.inc

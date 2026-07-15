@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <string>
 #include <type_traits>
 
+#include "my_compiler.h"
 #include "plugin/x/client/mysqlxclient/xmessage.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
@@ -53,8 +54,13 @@ class Message_from_str {
 template <typename M>
 class Message_compare {
  public:
+  // GCC 16 emits a false-positive -Wmaybe-uninitialized warning when the
+  // m_expected_text_reformated string is initialized via reformat_text_message.
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
   explicit Message_compare(const std::string &text_message)
       : m_expected_text_reformated(reformat_text_message(text_message)) {}
+  MY_COMPILER_DIAGNOSTIC_POP()
 
   explicit Message_compare(const M &message) {
     ::google::protobuf::TextFormat::PrintToString(message,

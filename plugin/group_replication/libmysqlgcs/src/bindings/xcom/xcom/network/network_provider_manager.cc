@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -258,6 +258,8 @@ connection_descriptor *Network_provider_manager::open_xcom_connection(
 
 int Network_provider_manager::close_xcom_connection(
     connection_descriptor *connection_handle) {
+  if (connection_handle == nullptr) return -1;
+
   auto provider = Network_provider_manager::getInstance().get_provider(
       connection_handle->protocol_stack);
 

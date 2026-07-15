@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ void reset_events_transactions_current() {
 
 static void fct_reset_events_transactions_history(PFS_thread *pfs_thread) {
   PFS_events_transactions *pfs = pfs_thread->m_transactions_history;
-  PFS_events_transactions *pfs_last =
+  const PFS_events_transactions *pfs_last =
       pfs + events_transactions_history_per_thread;
 
   pfs_thread->m_transactions_history_index = 0;
@@ -197,7 +197,7 @@ void reset_events_transactions_history_long() {
   events_transactions_history_long_full = false;
 
   PFS_events_transactions *pfs = events_transactions_history_long_array;
-  PFS_events_transactions *pfs_last =
+  const PFS_events_transactions *pfs_last =
       pfs + events_transactions_history_long_size;
   for (; pfs < pfs_last; pfs++) {
     pfs->m_class = nullptr;

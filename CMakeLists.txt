@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -155,6 +155,8 @@ ENDIF()
 
 # PAM build Handling
 OPTION(WITH_PAM "Build with Percona PAM plugin" OFF)
+
+OPTION(WITH_AUTH_OPENID_CONNECT "Build with Percona OpenID Connect authentication plugin" ON)
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ table_session_account_connect_attrs::table_session_account_connect_attrs()
     : table_session_connect(&m_share) {}
 
 bool table_session_account_connect_attrs::thread_fits(PFS_thread *thread) {
-  PFS_thread *current_thread = PFS_thread::get_current_thread();
+  const PFS_thread *current_thread = PFS_thread::get_current_thread();
   /* The current thread may not have instrumentation attached. */
   if (current_thread == nullptr) {
     return false;

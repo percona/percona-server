@@ -2036,8 +2036,12 @@ INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1), (2);
 SET optimizer_switch='loosescan=off,firstmatch=off,duplicateweedout=off';
 --replace_regex $elide_costs
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT /*+ JOIN_SUFFIX(t1, t2) */ * FROM v1 WHERE v1.id IN (SELECT id FROM v1);
+# Hypergraph gives warnings for the hint used.
+--disable_warnings
 SELECT /*+ JOIN_SUFFIX(t1, t2) */ * FROM v1 WHERE v1.id IN (SELECT id FROM v1);
+--enable_warnings
 DROP TABLE t1,t2;
 DROP VIEW v1;
 SET optimizer_switch = default;

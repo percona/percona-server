@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 
 // const
 cursor_by_error_log::cursor_by_error_log(const PFS_engine_table_share *share)
-    : PFS_engine_table(share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(share, &m_pos), m_opened_index(nullptr) {}
 
 /// Get row-count (by getting the number of events in the ring-buffer)
 ha_rows cursor_by_error_log::get_row_count() {

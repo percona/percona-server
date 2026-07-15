@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,8 @@ table_host_cache::table_host_cache()
       m_row_count(0),
       m_row(nullptr),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_host_cache::materialize(THD *thd) {
   uint size;
@@ -173,7 +174,7 @@ void table_host_cache::materialize(THD *thd) {
   row = rows;
 
   {
-    auto end = hostname_cache_end();
+    const auto end = hostname_cache_end();
     for (auto it = hostname_cache_begin(); it != end; ++it) {
       make_row(it->get(), row);
       index++;

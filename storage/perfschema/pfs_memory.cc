@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ void reset_memory_by_host() {
 /** Reset table MEMORY_GLOBAL_BY_EVENT_NAME data. */
 void reset_memory_global() {
   PFS_memory_shared_stat *stat = global_instr_class_memory_array;
-  PFS_memory_shared_stat *stat_last =
+  const PFS_memory_shared_stat *stat_last =
       global_instr_class_memory_array + memory_class_max;
 
   for (; stat < stat_last; stat++) {

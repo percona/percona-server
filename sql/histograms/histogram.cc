@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -873,16 +873,21 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom, ulonglong *out,
 template <>
 bool Histogram::extract_json_dom_value(const Json_dom *json_dom, longlong *out,
                                        Error_context *context) {
-  if (json_dom->json_type() != enum_json_type::J_INT) {
-    if (json_dom->json_type() == enum_json_type::J_UINT)
+  if (json_dom->json_type() == enum_json_type::J_INT)
+    *out = down_cast<const Json_int *>(json_dom)->value();
+  else if (!context->binary() &&
+           json_dom->json_type() == enum_json_type::J_UINT) {
+    ulonglong val = down_cast<const Json_uint *>(json_dom)->value();
+    if (val > LLONG_MAX) {
       context->report_node(json_dom, Message::JSON_VALUE_OUT_OF_RANGE);
-    else
-      context->report_node(json_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
-
+      return true;
+    }
+    *out = static_cast<longlong>(val);
+  } else {
+    context->report_node(json_dom, Message::JSON_WRONG_ATTRIBUTE_TYPE);
     return true;
   }
 
-  *out = down_cast<const Json_int *>(json_dom)->value();
   return false;
 }
 
@@ -1690,6 +1695,7 @@ static void write_diagnostics_area_to_error_log(THD *thd, std::string db_name,
 */
 static void prepare_session_context(THD *thd) {
   thd->reset_for_next_command();
+  thd->get_stmt_da()->reset_condition_info(thd);
   lex_start(thd);
 }
 
@@ -1863,8 +1869,6 @@ bool auto_update_table_histograms_from_background_thread(
   Table_ref table(db_name.c_str(), table_name.c_str(), thr_lock_type::TL_UNLOCK,
                   enum_mdl_type::MDL_SHARED_READ);
   if (open_and_lock_tables(thd, &table, MYSQL_OPEN_HAS_MDL_LOCK)) return true;
-  error_handler_guard.release();
-  thd->pop_internal_handler();
 
   if (!supports_histogram_updates(thd, &table)) return false;
 
@@ -1887,6 +1891,8 @@ bool auto_update_table_histograms_from_background_thread(
                      false);
     return true;
   }
+  error_handler_guard.release();
+  thd->pop_internal_handler();
   rollback_guard.release();
 
   // The update succeeded and has been committed. Mark cached TABLE objects for

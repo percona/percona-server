@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -153,7 +153,7 @@ void validate_rec_offset(const dict_index_t *index, const ulint *offsets,
     n = index->get_field_off_pos(n);
   }
 
-  validate_rec_offset(index, offsets, n, UT_LOCATION_HERE);
+  ut_d(validate_rec_offset(index, offsets, n, UT_LOCATION_HERE));
   /* Returns nonzero if the extern bit is set in nth field of rec. */
   return rec_offs_base(offsets)[1 + n] & REC_OFFS_EXTERNAL;
 }

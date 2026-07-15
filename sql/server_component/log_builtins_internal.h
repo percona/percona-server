@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,7 @@ typedef struct _log_line {
   log_item output_buffer;       ///< buffer a service can return its output in
   int count;                    ///< number of key/value pairs ("log items")
   log_item item[LOG_ITEM_MAX];  ///< log items
+  log_line_flags_mask flags;    ///< bit field with extra flags
 } log_line;
 
 extern log_filter_ruleset *log_filter_builtin_rules;  // what it says on the tin

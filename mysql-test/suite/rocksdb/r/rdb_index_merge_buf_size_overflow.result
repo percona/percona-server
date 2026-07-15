@@ -1,0 +1,37 @@
+#
+# Heap buffer overflow when rocksdb_merge_buf_size > 4GB:
+# record-offset arithmetic used a 32-bit accumulator that wraps for
+# buffers whose logical offset exceeds UINT32_MAX, allowing writes past
+# the end of the allocated merge buffer.
+# The debug injection moves the current offset into the wrap-around zone
+# so the capacity check fires and the ALTER returns an error instead of
+# crashing the server.
+#
+call mtr.add_suppression("Current value of rocksdb_merge_buf_size=\\d+ is too small. At least \\d+ bytes required.");
+SET @@session.rocksdb_merge_buf_size = 250;
+CREATE TABLE t (
+id INT,
+a VARCHAR(100)
+) ENGINE=RocksDB;
+INSERT INTO t (id, a) VALUES (1, '1');
+SET SESSION debug = '+d,myrocks_merge_buf_offset_overflow';
+ALTER TABLE t ADD INDEX k1 (a, id);
+ERROR HY000: MyRocks failed populating secondary key during alter.
+SET SESSION debug = '-d,myrocks_merge_buf_offset_overflow';
+DROP TABLE t;
+#
+# Index creation should fail gracefully when the requested merge buffer
+# is too large to allocate.
+#
+SET @@session.rocksdb_merge_buf_size = 18446744073709551615;
+CREATE TABLE t (
+id INT,
+a VARCHAR(100)
+) ENGINE=RocksDB;
+INSERT INTO t (id, a) VALUES (1, '1');
+include/save_error_log_position.inc
+ALTER TABLE t ADD INDEX k1 (a, id);
+ERROR HY000: MyRocks failed populating secondary key during alter.
+include/assert_error_log.inc [server: 1, pattern: Failed to allocate memory for merge buffer\.]
+DROP TABLE t;
+SET @@session.rocksdb_merge_buf_size = DEFAULT;

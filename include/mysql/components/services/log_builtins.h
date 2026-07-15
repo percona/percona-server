@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,6 +242,18 @@ DECLARE_METHOD(bool, item_set_lexstring,
   @retval false  all's well
 */
 DECLARE_METHOD(bool, item_set_cstring, (log_item_data * lid, const char *s));
+
+/**
+  Set/reset one or more log line flags.
+
+  Example to set the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, LOG_LINE_EMIT_TELEMETRY);
+  to reset the flag:
+    log_line_set_flag(ll, LOG_LINE_EMIT_TELEMETRY, 0);
+*/
+DECLARE_METHOD(void, line_set_flag,
+               (log_line * ll, log_line_flags_mask mask,
+                log_line_flags_mask value));
 
 /**
   Create new log item with key name "key", and allocation flags of
@@ -756,6 +768,7 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
 #define log_set_float log_bi->item_set_float
 #define log_set_lexstring log_bi->item_set_lexstring
 #define log_set_cstring log_bi->item_set_cstring
+#define log_line_set_flag log_bi->line_set_flag
 #define log_malloc log_bs->malloc
 #define log_free log_bs->free
 #define log_msg log_bs->substitutev
@@ -1491,6 +1504,16 @@ class LogEvent {
         log_line_item_set_with_key(this->ll, LOG_ITEM_GEN_LEX_STRING, key,
                                    LOG_ITEM_FREE_NONE),
         val);
+    return *this;
+  }
+
+  /**
+    Mark log line to skip being additionally emitted as a telemetry log record.
+
+    @retval      the LogEvent, for easy fluent-style chaining.
+  */
+  LogEvent &no_telemetry() {
+    log_line_set_flag(this->ll, LOG_LINE_EMIT_TELEMETRY, 0);
     return *this;
   }
 };

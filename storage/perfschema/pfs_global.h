@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,8 +53,8 @@ extern bool pfs_initialized;
 
 #if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || \
     defined(HAVE_ALIGNED_MALLOC)
-#define PFS_ALIGNEMENT 64
-#define PFS_ALIGNED alignas(PFS_ALIGNEMENT)
+#define PFS_ALIGNMENT 64
+#define PFS_ALIGNED alignas(PFS_ALIGNMENT)
 #else
 /*
   Known platforms that do not provide aligned memory:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -324,7 +324,7 @@ void lookup_setup_actor(PFS_thread *thread, const PFS_user_name *user,
         lf_hash_search(&setup_actor_hash, pins, &key, sizeof(key)));
 
     if (entry && (entry != MY_LF_ERRPTR)) {
-      PFS_setup_actor *pfs = *entry;
+      const PFS_setup_actor *pfs = *entry;
       lf_hash_search_unpin(pins);
       *enabled = pfs->m_enabled;
       *history = pfs->m_history;

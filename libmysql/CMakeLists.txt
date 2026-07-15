@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -303,6 +303,9 @@ ADD_SUBDIRECTORY(authentication_kerberos)
 
 # authentication IAM client plug-in
 ADD_SUBDIRECTORY(authentication_oci_client)
+
+# authentication OpenID Connect client plug-in
+ADD_SUBDIRECTORY(authentication_openid_connect_client)
 
 # Fido and Webauthn clients
 ADD_SUBDIRECTORY(fido_client)

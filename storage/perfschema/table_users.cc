@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -119,8 +119,7 @@ int table_users::delete_all_rows() {
 table_users::table_users() : cursor_by_user(&m_share) {}
 
 int table_users::index_init(uint, bool) {
-  PFS_index_users *result = nullptr;
-  result = PFS_NEW(PFS_index_users_by_user);
+  PFS_index_users *result = PFS_NEW(PFS_index_users_by_user);
   m_opened_index = result;
   m_index = result;
   return 0;

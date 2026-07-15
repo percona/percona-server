@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +213,7 @@ extern bool lower_case_file_system;
 extern bool opt_require_secure_transport;
 
 extern bool opt_replica_preserve_commit_order;
+extern bool opt_replica_translate_deprecated_priv;
 
 #ifndef NDEBUG
 extern uint replica_rows_last_search_algorithm_used;

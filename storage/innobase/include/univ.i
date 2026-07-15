@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2025, Oracle and/or its affiliates.
+Copyright (c) 1994, 2026, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -56,7 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 8
+#define PERCONA_INNODB_VERSION 10
 #endif
 
 /* The following is the InnoDB version as shown in

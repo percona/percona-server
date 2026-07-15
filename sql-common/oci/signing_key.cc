@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,8 @@
 #include <openssl/crypto.h>
 #include <iostream>
 #include <memory>
+#include "include/base64_encode.h"
 #include "scope_guard.h"
-#include "sql-common/oci/ssl.h"
 
 namespace oci {
 // custom unique_ptr deleter since OPENSSL_free is a macro

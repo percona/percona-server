@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2022, 2025, Oracle and/or its affiliates.
+   Copyright (c) 2022, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <cstdarg>
 
 #include "debugger/EventLogger.hpp"
+#include "my_compiler.h"
 #include "ndb_init.h"
 #include "portlib/NdbDir.hpp"
 #include "portlib/NdbTCP.h"
@@ -288,10 +289,16 @@ class Session : public SocketServer::Session {
   NdbSocket m_socket;
 
  public:
+  // GCC 16 emits a false-positive -Wmaybe-uninitialized warning here when
+  // the base SocketServer::Session is initialized with a reference to the
+  // not-yet-initialized m_socket member.
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
   Session(NdbSocket &&socket, class Service *server)
       : SocketServer::Session(m_socket),
         m_server(server),
         m_socket(std::move(socket)) {}
+  MY_COMPILER_DIAGNOSTIC_POP()
   void runSession() override;
 };
 

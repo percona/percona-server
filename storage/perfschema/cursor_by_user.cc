@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,10 @@ ha_rows cursor_by_user::get_row_count() {
 }
 
 cursor_by_user::cursor_by_user(const PFS_engine_table_share *share)
-    : PFS_engine_table(share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void cursor_by_user::reset_position() {
   m_pos.m_index = 0;

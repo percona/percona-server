@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,10 @@ ha_rows table_mutex_instances::get_row_count() {
 }
 
 table_mutex_instances::table_mutex_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_mutex_instances::reset_position() {
   m_pos.m_index = 0;
@@ -327,7 +330,10 @@ ha_rows table_rwlock_instances::get_row_count() {
 }
 
 table_rwlock_instances::table_rwlock_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_rwlock_instances::reset_position() {
   m_pos.m_index = 0;
@@ -534,7 +540,10 @@ ha_rows table_cond_instances::get_row_count() {
 }
 
 table_cond_instances::table_cond_instances()
-    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
+    : PFS_engine_table(&m_share, &m_pos),
+      m_pos(0),
+      m_next_pos(0),
+      m_opened_index(nullptr) {}
 
 void table_cond_instances::reset_position() {
   m_pos.m_index = 0;

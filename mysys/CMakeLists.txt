@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2025, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2026, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 SET(MYSYS_SOURCES
+  base64_encode.cc
   array.cc
   buffered_error_log.cc
   charset.cc

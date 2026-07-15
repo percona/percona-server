@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,10 @@
 
 #include "storage/perfschema/pfs_global.h"
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -64,28 +64,28 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
 
   void *ptr = nullptr;
 
-#ifdef PFS_ALIGNEMENT
+#ifdef PFS_ALIGNMENT
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
-  if (unlikely(posix_memalign(&ptr, PFS_ALIGNEMENT, size))) {
+  if (unlikely(posix_memalign(&ptr, PFS_ALIGNMENT, size))) {
     return nullptr;
   }
 #else
 #ifdef HAVE_MEMALIGN
   /* Solaris */
-  ptr = memalign(PFS_ALIGNEMENT, size);
+  ptr = memalign(PFS_ALIGNMENT, size);
   if (unlikely(ptr == nullptr)) {
     return nullptr;
   }
 #else
 #ifdef HAVE_ALIGNED_MALLOC
   /* Windows */
-  ptr = _aligned_malloc(size, PFS_ALIGNEMENT);
+  ptr = _aligned_malloc(size, PFS_ALIGNMENT);
   if (unlikely(ptr == nullptr)) {
     return nullptr;
   }
 #else
-#error "Missing implementation for PFS_ALIGNENT"
+#error "Missing implementation for PFS_ALIGNMENT"
 #endif /* HAVE_ALIGNED_MALLOC */
 #endif /* HAVE_MEMALIGN */
 #endif /* HAVE_POSIX_MEMALIGN */
@@ -145,7 +145,6 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   assert(klass != nullptr);
   assert(n > 0);
   assert(size > 0);
-  void *ptr = nullptr;
   const size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
@@ -154,7 +153,7 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
     return nullptr;
   }
 
-  ptr = pfs_malloc(klass, array_size, flags);
+  void *ptr = pfs_malloc(klass, array_size, flags);
   if (nullptr == ptr) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
                klass->m_class.m_name.str());

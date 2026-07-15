@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2026, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ ha_rows table_all_instr::get_row_count() {
 }
 
 table_all_instr::table_all_instr(const PFS_engine_table_share *share)
-    : PFS_engine_table(share, &m_pos), m_pos(), m_next_pos() {}
+    : PFS_engine_table(share, &m_pos), m_opened_index(nullptr) {}
 
 void table_all_instr::reset_position() {
   m_pos.reset();

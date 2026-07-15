@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2025, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,6 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
   uint dlen;
   uchar *dptr;
   double mbr[SPDIMS * 2];
-  uint i;
 
   keyseg = &keyinfo->seg[-1];
   pos = record + keyseg->start;
@@ -67,7 +66,7 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
   }
   sp_mbr_from_wkb(dptr + 4, dlen - 4, SPDIMS, mbr); /* SRID */
 
-  for (i = 0, keyseg = keyinfo->seg; keyseg->type; keyseg++, i++) {
+  for (keyseg = keyinfo->seg; keyseg->type; keyseg++) {
     uint length = keyseg->length, start = keyseg->start;
     double val;
 

@@ -3208,8 +3208,11 @@ static bool buf_flush_page_cleaner_set_priority(int priority) {
 #endif /* UNIV_LINUX */
 
 #ifdef UNIV_DEBUG
-/** Loop used to disable page cleaner and LRU manager threads. */
-static void buf_flush_page_cleaner_disabled_loop(void) {
+/** Loop used to disable page cleaner and LRU manager threads.
+@param[in] drain_promote_queues  true only for the page cleaner coordinator,
+which continues releasing deferred-promotion buf-fixes while flushing is
+disabled */
+static void buf_flush_page_cleaner_disabled_loop(bool drain_promote_queues) {
   if (!innodb_page_cleaner_disabled_debug) {
     /* We return to avoid entering and exiting mutex. */
     return;
@@ -3224,6 +3227,16 @@ static void buf_flush_page_cleaner_disabled_loop(void) {
   while (innodb_page_cleaner_disabled_debug &&
          srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          page_cleaner->is_running) {
+    /* Disabling page flushing in debug tests must not also disable the only
+    periodic progress mechanism for sub-threshold promotion queues. Let the
+    coordinator release their temporary buf-fixes; this only updates LRU
+    positions and does not initiate a flush batch. Workers and LRU managers
+    pass false so exactly one thread performs this maintenance. */
+    if (drain_promote_queues) {
+      for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+        buf_LRU_drain_promote_queue(buf_pool_from_array(i));
+      }
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); /* [A] */
   }
 
@@ -3400,6 +3413,21 @@ static void buf_flush_page_coordinator_thread() {
   int64_t sig_count = os_event_reset(buf_flush_event);
 
   while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
+    /* Bound the lifetime of deferred make-young requests. Pages parked on
+    the per-pool promote queue are buf-fixed until drained; the only other
+    drainers are the user thread whose push crosses the threshold and
+    buf_pool_invalidate_instance(). When pushes stop (idle server, workload
+    shift, threshold reset to 0), the queued pages would stay buf-fixed
+    indefinitely, blocking their eviction, buffer pool resize and stale page
+    cleanup. Drain every instance once per coordinator iteration (~1s),
+    unconditionally: the coordinator does not request slots on an idle
+    server, so a drain tied to slot processing (pc_flush_slot) would never
+    run. buf_LRU_drain_promote_queue() is a cheap atomic-exchange no-op on an
+    empty queue. */
+    for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+      buf_LRU_drain_promote_queue(buf_pool_from_array(i));
+    }
+
     /* We consider server active if either we have just discovered a first
     activity after a period of inactive server, or we are after the period
     of active server in which case, it could be just the beginning of the
@@ -3595,7 +3623,7 @@ static void buf_flush_page_coordinator_thread() {
       n_flushed = 0;
     }
 
-    ut_d(buf_flush_page_cleaner_disabled_loop());
+    ut_d(buf_flush_page_cleaner_disabled_loop(true));
   }
 
   /* This is just for test scenarios. */
@@ -3758,7 +3786,7 @@ static void buf_flush_page_cleaner_thread() {
   for (;;) {
     os_event_wait(page_cleaner->is_requested);
 
-    ut_d(buf_flush_page_cleaner_disabled_loop());
+    ut_d(buf_flush_page_cleaner_disabled_loop(false));
 
     if (!page_cleaner->is_running) {
       break;
@@ -3900,7 +3928,7 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
   size_t lru_n_processed = 1;
 
   while (srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE) {
-    ut_d(buf_flush_page_cleaner_disabled_loop());
+    ut_d(buf_flush_page_cleaner_disabled_loop(false));
 
     os_event_wait(buf_pool->run_lru);
 

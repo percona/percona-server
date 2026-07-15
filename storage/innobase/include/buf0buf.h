@@ -1700,6 +1700,10 @@ class buf_page_t {
   buffer pool. Protected by block mutex */
   std::chrono::steady_clock::time_point access_time;
 
+  buf_page_t *LRU_promote_next{nullptr};
+
+  std::atomic<bool> LRU_in_promote_queue{false};
+
  private:
   /** Double write instance ordinal value during writes. This is used
   by IO completion (writes) to select the double write instance.*/
@@ -2598,10 +2602,14 @@ struct buf_pool_t {
   /** Base node of the LRU list */
   UT_LIST_BASE_NODE_T(buf_page_t, LRU) LRU;
 
+  alignas(64) std::atomic<buf_page_t *> LRU_promote_head{nullptr};
+  std::atomic<size_t> LRU_promote_queue_len{0};
+  std::atomic<bool> LRU_promote_draining{false};
+
   /** Pointer to the about LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV oldest blocks in
   the LRU list; NULL if LRU length less than BUF_LRU_OLD_MIN_LEN; NOTE: when
   LRU_old != NULL, its length should always equal LRU_old_len */
-  buf_page_t *LRU_old;
+  alignas(64) buf_page_t *LRU_old;
 
   /** Length of the LRU list from the block to which LRU_old points onward,
   including that block; see buf0lru.cc for the restrictions on this value; 0

@@ -234,6 +234,13 @@ static_assert(BUF_LRU_OLD_RATIO_MAX <= BUF_LRU_OLD_RATIO_DIV,
 /** Move blocks to "new" LRU list only if the first access was at
 least this many milliseconds ago.  Not protected by any mutex or latch. */
 std::chrono::milliseconds get_buf_LRU_old_threshold();
+
+extern uint buf_LRU_make_young_drain_threshold;
+
+struct buf_pool_t;
+
+void buf_LRU_enqueue_promote(buf_page_t *bpage);
+void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool);
 /** @} */
 
 /** @brief Statistics for selecting the LRU list for eviction.

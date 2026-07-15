@@ -24013,6 +24013,17 @@ static MYSQL_SYSVAR_UINT(
     " The timeout is disabled if 0.",
     nullptr, nullptr, 1000, 0, UINT32_MAX, 0);
 
+static MYSQL_SYSVAR_UINT(
+    lru_make_young_drain_threshold, buf_LRU_make_young_drain_threshold,
+    PLUGIN_VAR_OPCMDARG,
+    "If non-zero, moving a page to the head of the buffer pool LRU list "
+    "on access is deferred: the page is pushed onto a per-buffer-pool "
+    "lock-free queue instead of taking the LRU list mutex on the hot "
+    "read path. When the queue reaches this length it is drained in one "
+    "batch under a single mutex acquisition. Set to 0 to disable the "
+    "deferred queue and move pages immediately.",
+    nullptr, nullptr, 128, 0, UINT32_MAX, 0);
+
 static MYSQL_SYSVAR_LONG(
     open_files, innobase_open_files, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "How many files at the maximum InnoDB keeps open at the same time.",
@@ -24613,6 +24624,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(max_purge_lag_delay),
     MYSQL_SYSVAR(old_blocks_pct),
     MYSQL_SYSVAR(old_blocks_time),
+    MYSQL_SYSVAR(lru_make_young_drain_threshold),
     MYSQL_SYSVAR(open_files),
     MYSQL_SYSVAR(optimize_fulltext_only),
     MYSQL_SYSVAR(rollback_on_timeout),

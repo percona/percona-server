@@ -135,6 +135,66 @@ std::chrono::milliseconds get_buf_LRU_old_threshold() {
   return std::chrono::milliseconds{buf_LRU_old_threshold};
 }
 
+uint buf_LRU_make_young_drain_threshold;
+
+void buf_LRU_enqueue_promote(buf_page_t *bpage) {
+  /* Only one enqueue in-flight per page. */
+  bool expected = false;
+  if (!bpage->LRU_in_promote_queue.compare_exchange_strong(
+          expected, true, std::memory_order_acquire,
+          std::memory_order_relaxed)) {
+    /* Page already on the queue: the lock-free fast path elided this
+    promotion entirely (no LRU_list_mutex, no enqueue). */
+    return;
+  }
+
+  /* Eviction skips pages with buf_fix_count > 0.
+  The drain unfixes after re-linking the page on the LRU. */
+  buf_block_fix(bpage);
+
+  const auto buf_pool = buf_pool_from_bpage(bpage);
+
+  /* Account for this node before publishing it into the head. A drainer
+  can only observe (and later subtract) a node once it is linked via the
+  head CAS below, so incrementing the length first guarantees the length
+  is never decremented below the number of enqueued nodes. Doing it in the
+  other order lets a drain that grabs the node run its fetch_sub before this
+  fetch_add, wrapping the unsigned counter. The transient over-count while
+  the node is counted-but-not-yet-linked is harmless: it can only arm the
+  drain trigger slightly early. */
+  const size_t new_len =
+      buf_pool->LRU_promote_queue_len.fetch_add(1, std::memory_order_relaxed) +
+      1;
+
+  auto old_head = buf_pool->LRU_promote_head.load(std::memory_order_relaxed);
+  do {
+    bpage->LRU_promote_next = old_head;
+  } while (!buf_pool->LRU_promote_head.compare_exchange_weak(
+      old_head, bpage, std::memory_order_release, std::memory_order_relaxed));
+
+  /* Drain when this push is exactly the threshold-crossing one. A plain
+  ">= threshold" would make every producer attempt the LRU_promote_draining
+  CAS while a drain is in flight (the length sits above the threshold for
+  its whole duration) - RMW traffic on a shared cache line, which is the
+  contention this queue exists to remove. "== threshold" fires once per
+  crossing; if that single attempt is lost to a concurrent drain, the
+  "> 2 * threshold" clause re-arms the trigger, and any remainder below
+  that is picked up by the page cleaner coordinator's periodic drain. */
+  const uint threshold = buf_LRU_make_young_drain_threshold;
+  if (threshold != 0 &&
+      (new_len == threshold || new_len > 2 * uint64_t{threshold})) {
+    bool not_draining = false;
+    /* Avoid clash of concurrent promotions. */
+    if (buf_pool->LRU_promote_draining.compare_exchange_strong(
+            not_draining, true, std::memory_order_acquire,
+            std::memory_order_relaxed)) {
+      buf_LRU_drain_promote_queue(buf_pool);
+      buf_pool->LRU_promote_draining.store(false, std::memory_order_release);
+    }
+    /* else: another thread owns the drain; we just pushed and moved on. */
+  }
+}
+
 /** @} */
 
 /** Takes a block out of the LRU list and page hash table.
@@ -774,6 +834,19 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
   dberr_t err;
 
   do {
+    /* Pages parked on the deferred make-young queue are buf-fixed until
+    drained, and buf_flush_page() refuses to single-page-flush a buf-fixed
+    uncompressed page (the flush=false heuristic in buf0flu.cc). So a dirty
+    page of this tablespace sitting on the promote queue can never be
+    flushed by flush_pages_flush_list(), and this loop would spin forever.
+    Do not make this synchronous retry depend on eventual coordinator
+    scheduling (the coordinator can be in its recovery loop rather than its
+    periodic-maintenance loop); drain here to release the buf-fix and make
+    the page flushable. Draining an empty queue is a cheap atomic-exchange
+    no-op - the common case and every configuration with
+    innodb_lru_make_young_drain_threshold == 0. */
+    buf_LRU_drain_promote_queue(buf_pool);
+
     /* TODO: it should be possible to avoid locking the LRU list
     mutex here. */
     mutex_enter(&buf_pool->LRU_list_mutex);
@@ -819,6 +892,15 @@ static void buf_LRU_remove_all_pages(buf_pool_t *buf_pool, ulint id) {
   buf_page_t *bpage;
 
 scan_again:
+  /* A page parked on the deferred make-young queue is buf-fixed until
+  drained; the buf_fix_count > 0 check below would then treat it as
+  unremovable, setting all_freed = false and retrying this scan forever.
+  This synchronous removal may run while the coordinator is outside its
+  periodic-maintenance loop, so drain on every retry rather than depending
+  on eventual background progress. No-op atomic-exchange when the queue is
+  empty. */
+  buf_LRU_drain_promote_queue(buf_pool);
+
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   auto all_freed = true;
@@ -1909,6 +1991,129 @@ void buf_LRU_make_block_old(buf_page_t *bpage) {
 
   buf_LRU_remove_block(bpage);
   buf_LRU_add_block_low(bpage, true);
+}
+
+static bool buf_LRU_promote_block_batched(buf_pool_t *buf_pool,
+                                          buf_page_t *bpage) noexcept {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(buf_page_in_file(bpage));
+  ut_ad(bpage->in_LRU_list);
+
+  if (UT_LIST_GET_LEN(buf_pool->LRU) <= BUF_LRU_OLD_MIN_LEN) {
+    if (bpage->old) {
+      buf_pool->stat.n_pages_made_young++;
+    }
+    buf_LRU_remove_block(bpage);
+    buf_LRU_add_block_low(bpage, false);
+    return false;
+  }
+
+  const bool was_old = bpage->old;
+
+  buf_LRU_adjust_hp(buf_pool, bpage);
+
+  if (bpage == buf_pool->LRU_old) {
+    /* Shift LRU_old back one so it still points at the first
+    old-flag entry after our removal. The previous block is
+    guaranteed to exist: batching defers buf_LRU_old_adjust_len(), so
+    the BUF_LRU_OLD_TOLERANCE band does NOT hold mid-batch, but the
+    non-old region never shrinks during a batch (this branch consumes
+    one non-old block and re-adds the promoted one at the head; the
+    other promotion kinds only grow or preserve it), and it starts
+    with at least BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN
+    blocks per calculate_desired_LRU_old_size(). */
+    buf_page_t *prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+    ut_a(prev_bpage);
+    buf_pool->LRU_old = prev_bpage;
+    buf_page_set_old(prev_bpage, true);
+    buf_pool->LRU_old_len++;
+  }
+
+  UT_LIST_REMOVE(buf_pool->LRU, bpage);
+
+  buf_unzip_LRU_remove_block_if_needed(bpage);
+
+  if (was_old) {
+    buf_pool->LRU_old_len--;
+  }
+
+  UT_LIST_ADD_FIRST(buf_pool->LRU, bpage);
+
+  bpage->freed_page_clock = buf_pool->freed_page_clock;
+
+  /* Remove + add brought LRU back to its original length, which we
+  established above is > BUF_LRU_OLD_MIN_LEN, so LRU_old is defined.
+  The boundary fix-up is deferred to the end-of-batch. */
+  ut_ad(buf_pool->LRU_old != nullptr);
+  buf_page_set_old(bpage, false);
+
+  if (buf_page_belongs_to_unzip_LRU(bpage)) {
+    buf_unzip_LRU_add_block((buf_block_t *)bpage, false);
+  }
+
+  return was_old;
+}
+
+void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
+  ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_page_t *head =
+      buf_pool->LRU_promote_head.exchange(nullptr, std::memory_order_acquire);
+  if (head == nullptr) {
+    return;
+  }
+
+  mutex_enter(&buf_pool->LRU_list_mutex);
+
+  size_t made_young = 0;
+
+  for (buf_page_t *bpage = head; bpage != nullptr;
+       bpage = bpage->LRU_promote_next) {
+    if (buf_page_in_file(bpage)) {
+      if (buf_LRU_promote_block_batched(buf_pool, bpage)) {
+        ++made_young;
+      }
+    }
+  }
+
+  /* End-of-batch fix-up: a single buf_LRU_old_adjust_len call. */
+  if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
+    buf_LRU_old_adjust_len(buf_pool);
+  }
+  buf_pool->stat.n_pages_made_young += made_young;
+
+  mutex_exit(&buf_pool->LRU_list_mutex);
+
+  /* Release the drained nodes in a second pass, outside the critical
+  section: neither the queue-flag store nor buf_block_unfix() needs the
+  LRU list mutex (the nodes were detached by the exchange above and are
+  owned exclusively by this thread until the flag is cleared), so keeping
+  them in the first loop would only lengthen the mutex hold time. */
+  size_t drained = 0;
+
+  while (head != nullptr) {
+    buf_page_t *const next = head->LRU_promote_next;
+
+    /* All writes to the node must precede the release store below: the
+    store is the linearization point after which a producer may win the
+    LRU_in_promote_queue CAS, re-enqueue this page and own
+    LRU_promote_next again. Writing LRU_promote_next after the store
+    would race with the producer's link write and could truncate the
+    live queue, orphaning the nodes behind this one with their buf-fix
+    counts leaked. */
+    head->LRU_promote_next = nullptr;
+    head->LRU_in_promote_queue.store(false, std::memory_order_release);
+
+    /* Unfix only after the flag is cleared: once unfixed the page may be
+    freed and its descriptor reused, which must not observe a stale
+    in-queue flag. */
+    buf_block_unfix(head);
+
+    head = next;
+    drained++;
+  }
+
+  buf_pool->LRU_promote_queue_len.fetch_sub(drained, std::memory_order_relaxed);
 }
 
 bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {

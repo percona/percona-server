@@ -419,6 +419,11 @@ and their latches (mutex, rw-locks) are created lazily on first use. When
 false (default), latches are created eagerly while the buffer pool is built. */
 extern bool srv_buf_pool_lazy_latch_init;
 
+/** Whether buffer pool allocations (huge and regular pages) are pre-populated
+(MAP_POPULATE and the explicit prefault step) at allocation time. Backed by the
+innodb_buffer_pool_populate system variable. */
+extern bool srv_buf_pool_populate;
+
 /* The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
 extern char *srv_innodb_directories;

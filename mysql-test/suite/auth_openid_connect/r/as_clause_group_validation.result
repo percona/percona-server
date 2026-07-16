@@ -1,0 +1,63 @@
+### INITIALIZE
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+CREATE USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+
+## with "user" ABSENT, each malformed "group" is rejected
+
+# "group" : 123   -- neither a string nor an array
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : 123}';
+# expecting access denied
+
+# "group" : []    -- empty array
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : []}';
+# expecting access denied
+
+# "group" : [["eng"]]  -- pair with only one member
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["eng"]]}';
+# expecting access denied
+
+# "group" : {"eng" : "e"}  -- object instead of array
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : {"eng" : "e"}}';
+# expecting access denied
+
+# proxy user name too long
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["eng", "too_long_1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"]]}';
+# expecting access denied
+
+## with "user" PRESENT, "group" cannot exist in any shape
+
+# "user" : "oidc-user", "group" : "eng" (correct group type, but "user" is present)
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : "eng"}';
+# expecting access denied
+
+# "user" : "oidc-user", "group" : [["eng","eng"]] (correct group type, but "user" is present)
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : [["eng","eng"]]}';
+# expecting access denied
+
+# "user" : "oidc-user", "group" : 123
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : 123}';
+# expecting access denied
+
+# "user" : "oidc-user", "group" : []
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : []}';
+# expecting access denied
+
+# "user" : "oidc-user", "group" : [["eng"]]
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : [["eng"]]}';
+# expecting access denied
+
+# "user" : "oidc-user", "group" : {"eng" : "e"}
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : {"eng" : "e"}}';
+# expecting access denied
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect_users%';
+Variable_name	Value
+auth_openid_connect_users_authenticated	0
+auth_openid_connect_users_denied	11
+auth_openid_connect_users_proxied	0
+auth_openid_connect_users_with_roles	0
+
+### CLEANUP
+DROP USER oidc_user;
+UNINSTALL PLUGIN auth_openid_connect;

@@ -1,0 +1,100 @@
+###############################################################################
+# Tests of an empty group name in the 'IDENTIFIED AS' clause
+#
+# Runs offline against the dummy IDP, no Keycloak needed.
+###############################################################################
+
+--source include/have_mysql_no_login_plugin.inc
+
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+
+--echo ### INITIALIZE
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE --kid rsa-key-1
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=oidc_proxy
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC'
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN'
+
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+
+### The proxy target.
+CREATE USER eng IDENTIFIED WITH 'mysql_no_login';
+CREATE USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : "eng"}';
+GRANT PROXY ON eng TO oidc_proxy;
+
+###############################################################################
+--echo
+--echo ## a non-empty group name proxies as documented
+###############################################################################
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"eng\"]"
+--echo # AS clause requires group "eng", token grants "eng"
+--echo # expecting CURRENT_USER is eng
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## a non-empty group name that the token does not grant is denied
+###############################################################################
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"acc\"]"
+--echo # AS clause requires group "eng", token grants only "acc"
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## an empty group name in the mapping form is rejected
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["", "eng"]]}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"\"]"
+--echo # deny because of the empty group name
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## an empty proxied account in the mapping form is rejected
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["eng", ""]]}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"eng\"]"
+--echo # deny because of the empty proxied account
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## empty name in the single-string form is rejected
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : ""}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"\"]"
+--echo # even if token group claim carries an empty string, deny because of the empty proxied account
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## mapping from a very long group name in the token must succeed
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["that_is_a_very_long_claim_1234567890123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789", "eng"]]}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"that_is_a_very_long_claim_1234567890123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789\"]"
+--echo expect current user is eng
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+--echo
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect_users%';
+
+###############################################################################
+--echo
+--echo ### CLEANUP
+DROP USER oidc_proxy;
+DROP USER eng;
+UNINSTALL PLUGIN auth_openid_connect;
+UNINSTALL PLUGIN mysql_no_login;
+--remove_file $TOKEN_FILE

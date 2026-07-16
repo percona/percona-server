@@ -1,0 +1,60 @@
+#
+# Basic test for innodb_buffer_pool_populate
+#
+# It is a dynamic, global-only boolean that defaults to OFF.
+#
+
+SET @start_global_value = @@global.innodb_buffer_pool_populate;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF'
+select @@global.innodb_buffer_pool_populate in (0, 1);
+select @@global.innodb_buffer_pool_populate;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_buffer_pool_populate;
+show global variables like 'innodb_buffer_pool_populate';
+show session variables like 'innodb_buffer_pool_populate';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_buffer_pool_populate';
+select * from performance_schema.session_variables where variable_name='innodb_buffer_pool_populate';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global innodb_buffer_pool_populate='ON';
+select @@global.innodb_buffer_pool_populate;
+set @@global.innodb_buffer_pool_populate=0;
+select @@global.innodb_buffer_pool_populate;
+set global innodb_buffer_pool_populate=1;
+select @@global.innodb_buffer_pool_populate;
+set @@global.innodb_buffer_pool_populate='OFF';
+select @@global.innodb_buffer_pool_populate;
+--error ER_GLOBAL_VARIABLE
+set session innodb_buffer_pool_populate='OFF';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_buffer_pool_populate='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_buffer_pool_populate=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_buffer_pool_populate=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_buffer_pool_populate=2;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_buffer_pool_populate=-3;
+select @@global.innodb_buffer_pool_populate;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_buffer_pool_populate='AUTO';
+
+#
+# Cleanup
+#
+SET @@global.innodb_buffer_pool_populate = @start_global_value;
+SELECT @@global.innodb_buffer_pool_populate;

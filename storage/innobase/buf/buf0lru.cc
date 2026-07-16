@@ -2057,13 +2057,20 @@ static bool buf_LRU_promote_block_batched(buf_pool_t *buf_pool,
 void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-  buf_page_t *head =
-      buf_pool->LRU_promote_head.exchange(nullptr, std::memory_order_acquire);
-  if (head == nullptr) {
+  /* This is just to avoid the mutex lock and CAS overhead if the queue was empty. */
+  if (buf_pool->LRU_promote_head.load(std::memory_order_acquire) == nullptr) {
     return;
   }
 
   mutex_enter(&buf_pool->LRU_list_mutex);
+
+  buf_page_t *head =
+      buf_pool->LRU_promote_head.exchange(nullptr, std::memory_order_acquire);
+
+  if (head == nullptr) {
+    mutex_exit(&buf_pool->LRU_list_mutex);
+    return;
+  }
 
   size_t made_young = 0;
 

@@ -5901,10 +5901,10 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
   not be inspected. Acquire pairs with the queue flag's release clear; for
   deciding whether a drain can make this retry progress, a concurrent clear
   merely causes a harmless no-op drain. */
-  const bool queued_for_promotion =
-      !success && bpage->LRU_in_promote_queue.load(std::memory_order_acquire);
-
   if (!success) {
+    const bool queued_for_promotion =
+        bpage->LRU_in_promote_queue.load(std::memory_order_acquire);
+
     mutex_exit(&buf_pool->LRU_list_mutex);
 
     /* Relocation may have failed because the page is still

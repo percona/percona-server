@@ -1,0 +1,47 @@
+### INITIALIZE
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';
+INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+CREATE USER eng IDENTIFIED WITH 'mysql_no_login';
+CREATE USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : "eng"}';
+GRANT PROXY ON eng TO oidc_proxy;
+
+## a non-empty group name proxies as documented
+# AS clause requires group "eng", token grants "eng"
+# expecting CURRENT_USER is eng
+user()	current_user()
+oidc_proxy@localhost	eng@%
+
+## a non-empty group name that the token does not grant is denied
+# AS clause requires group "eng", token grants only "acc"
+
+## an empty group name in the mapping form is rejected
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["", "eng"]]}';
+# deny because of the empty group name
+
+## an empty proxied account in the mapping form is rejected
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["eng", ""]]}';
+# deny because of the empty proxied account
+
+## empty name in the single-string form is rejected
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : ""}';
+# even if token group claim carries an empty string, deny because of the empty proxied account
+
+## mapping from a very long group name in the token must succeed
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["that_is_a_very_long_claim_1234567890123456789123456789123456789123456789123456789123456789123456789123456789123456789123456789", "eng"]]}';
+expect current user is eng
+user()	current_user()
+oidc_proxy@localhost	eng@%
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect_users%';
+Variable_name	Value
+auth_openid_connect_users_authenticated	2
+auth_openid_connect_users_denied	4
+auth_openid_connect_users_proxied	2
+auth_openid_connect_users_with_roles	0
+
+### CLEANUP
+DROP USER oidc_proxy;
+DROP USER eng;
+UNINSTALL PLUGIN auth_openid_connect;
+UNINSTALL PLUGIN mysql_no_login;

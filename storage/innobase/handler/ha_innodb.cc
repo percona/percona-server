@@ -24175,7 +24175,9 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
 static MYSQL_SYSVAR_BOOL(
     numa_interleave, srv_numa_interleave,
     PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-    "Use NUMA interleave memory policy to allocate InnoDB buffer pool.",
+    "Use NUMA interleave memory policy to allocate InnoDB buffer pool."
+    " Note: it is recommended to keep it enabled when using large pages"
+    " on systems with multiple NUMA nodes.",
     nullptr, nullptr, true);
 #endif /* HAVE_LIBNUMA */
 
@@ -24186,6 +24188,15 @@ static MYSQL_SYSVAR_BOOL(
     " instead of eagerly while the buffer pool is built. Speeds up buffer"
     " pool initialization for large pools at the cost of slightly slower first"
     " use of each page, which then pays the latch construction.",
+    nullptr, nullptr, false);
+
+static MYSQL_SYSVAR_BOOL(
+    buffer_pool_populate, srv_buf_pool_populate, PLUGIN_VAR_NOCMDARG,
+    "Enforce page faults for InnoDB buffer pool allocations at allocation time"
+    " (pre-populate pages). When OFF (default), the pre-population is skipped"
+    " to reduce startup time and page-faults happen on first page accesses."
+    " Note: it is recommended to turn on this variable when using large pages"
+    " on systems with multiple NUMA nodes.",
     nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
@@ -24645,6 +24656,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(numa_interleave),
 #endif /* HAVE_LIBNUMA */
     MYSQL_SYSVAR(buffer_pool_lazy_latch_init),
+    MYSQL_SYSVAR(buffer_pool_populate),
     MYSQL_SYSVAR(change_buffering),
     MYSQL_SYSVAR(change_buffer_max_size),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

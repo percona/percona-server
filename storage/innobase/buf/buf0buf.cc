@@ -2685,8 +2685,8 @@ withdraw_retry:
       while (chunk < echunk) {
         ulonglong unit = srv_buf_pool_chunk_unit;
 
-        if (!buf_chunk_init(buf_pool, chunk, unit,
-                            static_cast<bool>(srv_numa_interleave), nullptr)) {
+        if (!buf_chunk_init(buf_pool, chunk, unit, srv_buf_pool_populate,
+                            nullptr)) {
           ib::error(ER_IB_MSG_65) << "buffer pool " << i
                                   << " : failed to allocate"
                                      " new memory.";

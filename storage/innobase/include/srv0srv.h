@@ -413,6 +413,11 @@ Currently we support native aio on windows and linux */
 extern bool srv_use_native_aio;
 extern bool srv_numa_interleave;
 
+/** Whether buffer pool allocations (huge and regular pages) are pre-populated
+(MAP_POPULATE and the explicit prefault step) at allocation time. Backed by the
+innodb_buffer_pool_populate system variable. */
+extern bool srv_buf_pool_populate;
+
 /** When true, buffer pool blocks are created with lightweight initialization
 and their latches (mutex, rw-locks) are created lazily on first use. When
 false (default), latches are created eagerly while the buffer pool is built. */

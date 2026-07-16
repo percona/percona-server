@@ -68,24 +68,20 @@ auto Id_token::get_verifier(const std::string &name, const std::string &key) {
   throw std::runtime_error("Unsupported algorithm: " + name);
 }
 
-void Id_token::verify_group_member(
-    const jwt::basic_claim<jwt::traits::kazuho_picojson> &groups_claim,
-    const std::string &group) {
+std::set<std::string> Id_token::get_groups(
+    const jwt::basic_claim<jwt::traits::kazuho_picojson> &groups_claim) {
+  std::set<std::string> groups;
   if (groups_claim.get_type() == jwt::json::type::array) {
-    const auto groups{groups_claim.as_array()};
-    if (!std::ranges::any_of(groups, [&](const picojson::value &claim_group) {
-          return claim_group.to_str() == group;
-        }))
-      throw std::runtime_error("user is not a member of the required group");
-
+    const auto groups_value{groups_claim.as_array()};
+    for (const auto &group : groups_value) groups.emplace(group.to_str());
   } else if (groups_claim.get_type() == jwt::json::type::string) {
-    if (groups_claim.as_string() != group)
-      throw std::runtime_error("user is not a member of the required group");
+    groups.emplace(groups_claim.as_string());
   } else {
     throw std::runtime_error(
         "cannot parse groups claim in the token, it must be a string or an "
         "array of strings");
   }
+  return groups;
 }
 
 std::string Id_token::get_first_group(
@@ -162,9 +158,10 @@ bool Id_token::read(MYSQL_PLUGIN_VIO *vio) {
   return false;
 }
 
-std::string Id_token::verify(const std::string &ext_user,
-                             const std::string &ext_group,
-                             const Idp_config &idp, std::string &roles) const {
+std::string Id_token::verify(
+    const std::string &ext_user,
+    const std::vector<std::pair<std::string, std::string>> &groups_to_proxied,
+    const Idp_config &idp, std::string &roles) const {
   const auto decoded_token = jwt::decode(token);
   const auto issuer{decoded_token.get_issuer()};
   if (issuer != idp.get_issuer_name())
@@ -194,7 +191,7 @@ std::string Id_token::verify(const std::string &ext_user,
 
   // If the user is empty: proxying
   if (ext_user.empty())
-    return handle_proxying(decoded_token, ext_group, group_claim_name);
+    return handle_proxying(decoded_token, groups_to_proxied, group_claim_name);
 
   // groups and roles mapping -optional and only if there is not proxying
   if (!group_claim_name.empty() &&
@@ -234,7 +231,8 @@ void Id_token::verify_audiences(
 
 std::string Id_token::handle_proxying(
     const jwt::decoded_jwt<jwt::traits::kazuho_picojson> &decoded_token,
-    const std::string &ext_group, const std::string &group_claim_name) {
+    const std::vector<std::pair<std::string, std::string>> &groups_to_proxied,
+    const std::string &group_claim_name) {
   if (group_claim_name.empty())
     throw std::runtime_error(
         "groups claim not configured, proxying not possible");
@@ -243,12 +241,17 @@ std::string Id_token::handle_proxying(
     throw std::runtime_error("token does not contain groups claim");
 
   // Proxying occurs
-  if (ext_group.empty())
-    // group not specified, get the first group
+  if (groups_to_proxied.empty())
+    // group isn't specified, get the first group
     return get_first_group(decoded_token.get_payload_claim(group_claim_name));
 
-  // group specified,  verify that the user is member of the group
-  verify_group_member(decoded_token.get_payload_claim(group_claim_name),
-                      ext_group);
-  return ext_group;
+  const auto groups{
+      get_groups(decoded_token.get_payload_claim(group_claim_name))};
+
+  // group specified, verify that the user is member of the group
+  for (const auto &group_proxied : groups_to_proxied)
+    if (groups.contains(group_proxied.first))
+      return std::string{group_proxied.second};
+
+  throw std::runtime_error("user is not a member of any group");
 }

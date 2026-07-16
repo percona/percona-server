@@ -2076,16 +2076,10 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   /* Minimize buf_pool->zip_free[i] lists */
   buf_buddy_condense_free(buf_pool);
 
-  /* Pages parked on the deferred make-young queue are buf-fixed and thus
-  cannot be relocated or freed; drain the queue so that this withdraw
-  attempt does not fail on them. This is a per-attempt progress guarantee,
-  not a race-free one: a user thread may enqueue a page right after the
-  drain, making this attempt skip it. That is fine - the caller retries
-  withdrawal and re-drains, the page cleaner coordinator drains every
-  instance about once a second, and a freshly promoted page cannot
-  immediately re-qualify in buf_page_peek_if_too_old() (its
-  freed_page_clock was just refreshed), so a page cannot ping-pong back
-  into the queue across retries. */
+  /* Pages on the promote queue are buf-fixed and cannot be relocated or
+  freed. Drain per withdraw attempt for immediate progress; the caller
+  retries on failure. A page enqueued after the drain may be skipped until
+  the next attempt. */
   buf_LRU_drain_promote_queue(buf_pool);
 
   mutex_enter(&buf_pool->free_list_mutex);
@@ -3418,11 +3412,9 @@ static void buf_page_make_young_if_needed(buf_page_t *bpage) {
   }
 
   if (buf_page_peek_if_too_old(bpage)) {
-    /* When innodb_lru_make_young_drain_threshold is non-zero we push
-    onto a per-buf-pool lock-free queue instead of taking the LRU
-    mutex here. The thread that crosses the threshold drains the queue.
-    Thanks to that we decrease the number of threads that compete for
-    the LRU list mutex here. */
+    /* With a non-zero drain threshold, push onto a lock-free per-pool queue
+    instead of taking the LRU list mutex here. A threshold-crossing push
+    or the page cleaner coordinator drains the queue. */
     if (buf_LRU_make_young_drain_threshold != 0) {
       buf_LRU_enqueue_promote(bpage);
     } else {
@@ -5896,26 +5888,17 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
 
   auto success = buf_page_free_stale(buf_pool, bpage);
 
-  /* Capture this while the LRU mutex still protects bpage's lifetime. Once
-  the mutex is released, an unqueued page may be freed concurrently and must
-  not be inspected. Acquire pairs with the queue flag's release clear; for
-  deciding whether a drain can make this retry progress, a concurrent clear
-  merely causes a harmless no-op drain. */
   if (!success) {
+    /* Read LRU_in_promote_queue while the LRU mutex still protects bpage;
+    once released, an unqueued page may be freed concurrently. */
     const bool queued_for_promotion =
         bpage->LRU_in_promote_queue.load(std::memory_order_acquire);
 
     mutex_exit(&buf_pool->LRU_list_mutex);
 
-    /* Relocation may have failed because the page is still
-    buf-fixed by a deferred make-young entry parked on the promote queue
-    (buf_LRU_enqueue_promote() fixes the page and the fix is released only
-    when the queue is drained). Callers retry this function in a tight loop
-    until the stale page disappears, and this path can run while the
-    coordinator is in its recovery loop rather than its periodic-maintenance
-    loop. Drain only when this protected page was observed on the queue;
-    failures caused by IO or unrelated buffer fixes should not initiate a
-    pool-wide drain. */
+    /* Failure may be due to a buf-fix held by a deferred promotion on the
+    queue. Drain only when this page was queued; IO or unrelated buf-fixes
+    should not trigger a pool-wide drain. Callers retry in a loop. */
     if (queued_for_promotion) {
       buf_LRU_drain_promote_queue(buf_pool);
     }
@@ -6521,20 +6504,10 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
 static void buf_assert_all_are_replaceable(buf_pool_t *buf_pool) {
   ut_ad(buf_pool);
 
-  /* Pages parked on the deferred make-young queue carry a buf-fix until
-  drained, so they would fail the replaceable check below even though they
-  are clean and evictable - the buf-fix is a transient artifact of the
-  deferred promotion, not real pinning. This check runs at shutdown (after
-  the page cleaner has stopped, so nothing re-enqueues) and, in debug
-  builds, during tablespace extension. In both cases the threshold-crossing
-  and page-cleaner drains may have left a sub-threshold remainder queued, so
-  materialize the deferred promotions here before asserting. Draining an
-  empty queue is a cheap atomic-exchange no-op - the common case and every
-  configuration with innodb_lru_make_young_drain_threshold == 0.
-  NOTE: drain-then-assert is free of races only because every caller runs
-  in a quiescent state (shutdown with user threads and the page cleaner
-  stopped, or single-actor recovery); an enqueue racing this function
-  would buf-fix a clean page after the drain and trip the fatal below. */
+  /* Deferred promotions carry a transient buf-fix that would fail the
+  replaceable check below. Materialize them here first; safe only because
+  callers run in a quiescent state (shutdown, or single-actor recovery)
+  where nothing re-enqueues after the drain. */
   buf_LRU_drain_promote_queue(buf_pool);
 
   buf_chunk_t *chunk = buf_pool->chunks;
@@ -6564,8 +6537,8 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
   /* Pause LRU threads on event. */
   os_event_reset(buf_pool->run_lru);
 
-  /* Release any pages still parked on the deferred make-young queue so
-  their buf_fix counts don't block the LRU invalidation below. */
+  /* Release any pages still on the promote queue so their buf_fix counts
+  do not block LRU invalidation below. */
   buf_LRU_drain_promote_queue(buf_pool);
 
   /* Prevent new flushes to start (buf_flush_start() checks this flag,

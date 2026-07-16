@@ -3227,11 +3227,8 @@ static void buf_flush_page_cleaner_disabled_loop(bool drain_promote_queues) {
   while (innodb_page_cleaner_disabled_debug &&
          srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          page_cleaner->is_running) {
-    /* Disabling page flushing in debug tests must not also disable the only
-    periodic progress mechanism for sub-threshold promotion queues. Let the
-    coordinator release their temporary buf-fixes; this only updates LRU
-    positions and does not initiate a flush batch. Workers and LRU managers
-    pass false so exactly one thread performs this maintenance. */
+    /* Debug disabling of flushing must not also stop promote-queue draining.
+    Coordinator only; workers pass drain_promote_queues=false. */
     if (drain_promote_queues) {
       for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
         buf_LRU_drain_promote_queue(buf_pool_from_array(i));
@@ -3376,6 +3373,13 @@ static void buf_flush_page_coordinator_thread() {
       break;
     }
 
+    /* Drain deferred promotions on each recv_writer wakeup (~100ms). The
+    normal coordinator loop does this every ~1s; recovery had no equivalent
+    until now. No-op when the queue is empty. */
+    for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+      buf_LRU_drain_promote_queue(buf_pool_from_array(i));
+    }
+
     switch (recv_sys->flush_type) {
       case BUF_FLUSH_LRU:
         /* Flush pages from end of LRU if required */
@@ -3413,17 +3417,9 @@ static void buf_flush_page_coordinator_thread() {
   int64_t sig_count = os_event_reset(buf_flush_event);
 
   while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
-    /* Bound the lifetime of deferred make-young requests. Pages parked on
-    the per-pool promote queue are buf-fixed until drained; the only other
-    drainers are the user thread whose push crosses the threshold and
-    buf_pool_invalidate_instance(). When pushes stop (idle server, workload
-    shift, threshold reset to 0), the queued pages would stay buf-fixed
-    indefinitely, blocking their eviction, buffer pool resize and stale page
-    cleanup. Drain every instance once per coordinator iteration (~1s),
-    unconditionally: the coordinator does not request slots on an idle
-    server, so a drain tied to slot processing (pc_flush_slot) would never
-    run. buf_LRU_drain_promote_queue() is a cheap atomic-exchange no-op on an
-    empty queue. */
+    /* Bound the lifetime of deferred promotions. Queued pages are buf-fixed
+    until drained; on an idle server the coordinator may not run flush slots,
+    so drain every instance once per iteration (~1s). No-op when empty. */
     for (ulint i = 0; i < srv_buf_pool_instances; i++) {
       buf_LRU_drain_promote_queue(buf_pool_from_array(i));
     }

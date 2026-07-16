@@ -154,14 +154,9 @@ void buf_LRU_enqueue_promote(buf_page_t *bpage) {
 
   const auto buf_pool = buf_pool_from_bpage(bpage);
 
-  /* Account for this node before publishing it into the head. A drainer
-  can only observe (and later subtract) a node once it is linked via the
-  head CAS below, so incrementing the length first guarantees the length
-  is never decremented below the number of enqueued nodes. Doing it in the
-  other order lets a drain that grabs the node run its fetch_sub before this
-  fetch_add, wrapping the unsigned counter. The transient over-count while
-  the node is counted-but-not-yet-linked is harmless: it can only arm the
-  drain trigger slightly early. */
+  /* Increment queue length before linking the node: a drainer only observes
+  nodes once they are linked, so fetch_add-before-CAS prevents the counter
+  from underflowing if a drain runs between our length update and head CAS. */
   const size_t new_len =
       buf_pool->LRU_promote_queue_len.fetch_add(1, std::memory_order_relaxed) +
       1;
@@ -172,14 +167,10 @@ void buf_LRU_enqueue_promote(buf_page_t *bpage) {
   } while (!buf_pool->LRU_promote_head.compare_exchange_weak(
       old_head, bpage, std::memory_order_release, std::memory_order_relaxed));
 
-  /* Drain when this push is exactly the threshold-crossing one. A plain
-  ">= threshold" would make every producer attempt the LRU_promote_draining
-  CAS while a drain is in flight (the length sits above the threshold for
-  its whole duration) - RMW traffic on a shared cache line, which is the
-  contention this queue exists to remove. "== threshold" fires once per
-  crossing; if that single attempt is lost to a concurrent drain, the
-  "> 2 * threshold" clause re-arms the trigger, and any remainder below
-  that is picked up by the page cleaner coordinator's periodic drain. */
+  /* Drain when this push crosses the threshold. Use == (not >=) to avoid
+  every producer contending on LRU_promote_draining while a drain is in
+  flight; > 2*threshold re-arms if the crossing attempt is lost. Remainder
+  below threshold is drained periodically by the page cleaner coordinator. */
   const uint threshold = buf_LRU_make_young_drain_threshold;
   if (threshold != 0 &&
       (new_len == threshold || new_len > 2 * uint64_t{threshold})) {
@@ -834,17 +825,10 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
   dberr_t err;
 
   do {
-    /* Pages parked on the deferred make-young queue are buf-fixed until
-    drained, and buf_flush_page() refuses to single-page-flush a buf-fixed
-    uncompressed page (the flush=false heuristic in buf0flu.cc). So a dirty
-    page of this tablespace sitting on the promote queue can never be
-    flushed by flush_pages_flush_list(), and this loop would spin forever.
-    Do not make this synchronous retry depend on eventual coordinator
-    scheduling (the coordinator can be in its recovery loop rather than its
-    periodic-maintenance loop); drain here to release the buf-fix and make
-    the page flushable. Draining an empty queue is a cheap atomic-exchange
-    no-op - the common case and every configuration with
-    innodb_lru_make_young_drain_threshold == 0. */
+    /* Pages on the deferred make-young queue are buf-fixed until drained;
+    flush_pages_flush_list() cannot flush them and this loop would spin.
+    Drain synchronously on each retry; do not rely on background progress
+    (coordinator interval is ~1s, and synchronous DDL cannot wait). */
     buf_LRU_drain_promote_queue(buf_pool);
 
     /* TODO: it should be possible to avoid locking the LRU list
@@ -892,13 +876,9 @@ static void buf_LRU_remove_all_pages(buf_pool_t *buf_pool, ulint id) {
   buf_page_t *bpage;
 
 scan_again:
-  /* A page parked on the deferred make-young queue is buf-fixed until
-  drained; the buf_fix_count > 0 check below would then treat it as
-  unremovable, setting all_freed = false and retrying this scan forever.
-  This synchronous removal may run while the coordinator is outside its
-  periodic-maintenance loop, so drain on every retry rather than depending
-  on eventual background progress. No-op atomic-exchange when the queue is
-  empty. */
+  /* Pages on the promote queue are buf-fixed; the buf_fix_count check below
+  would treat them as unremovable and retry forever. Drain on every scan;
+  no-op when the queue is empty. */
   buf_LRU_drain_promote_queue(buf_pool);
 
   mutex_enter(&buf_pool->LRU_list_mutex);

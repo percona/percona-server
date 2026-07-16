@@ -228,6 +228,11 @@ bool srv_numa_interleave = false;
 /** See srv0srv.h. Default off: latches are created eagerly. */
 bool srv_buf_pool_lazy_latch_init = false;
 
+/** Whether buffer pool allocations (huge and regular pages) are pre-populated
+(MAP_POPULATE and the explicit prefault step) at allocation time. Exposed as the
+innodb_buffer_pool_populate system variable. */
+bool srv_buf_pool_populate = false;
+
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong srv_debug_compress;

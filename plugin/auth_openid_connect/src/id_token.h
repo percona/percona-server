@@ -24,7 +24,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 #ifndef ID_TOKEN_H
 #define ID_TOKEN_H
 
+#include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 /* Clang‑tidy wants to reorder those headers, but jwt‑cpp requires
  * traits header included before jwt.h */
@@ -58,15 +61,13 @@ class Id_token {
   static auto get_verifier(const std::string &name, const std::string &key);
 
   /**
-   * @brief Checks if a user is a member of a specified group based on JWT
-   * groups claim.
+   * @brief Gets groups from the JWT.
    * @param groups_claim The claim containing group information from the JWT.
-   * @param group_name The name of the group to check membership for.
-   * @throws std::runtime_error if the user is not  member of the group.
+   * @throws std::runtime_error if the groups claim in the token cannot be
+   * parsed.
    */
-  static void verify_group_member(
-      const jwt::basic_claim<jwt::traits::kazuho_picojson> &groups_claim,
-      const std::string &group_name);
+  static std::set<std::string> get_groups(
+      const jwt::basic_claim<jwt::traits::kazuho_picojson> &groups_claim);
 
   /**
    * @brief Gets the first group from the JWT groups claim.
@@ -105,17 +106,22 @@ class Id_token {
       const jwt::decoded_jwt<jwt::traits::kazuho_picojson> &decoded_token);
 
   /**
-   * @brief Handles proxying.
+   * @brief Handles proxying. If groups_to_proxied is empty, returns the first
+   * group from the token's group claim. Else, finds the first group in the
+   * token's group claim that matches groups_to_proxied entry and returns the
+   * corresponding proxied account.
    * @param decoded_token The decoded token.
-   * @param ext_group The expected external group.
+   * @param groups_to_proxied Token's group - proxied account map.
    * @param group_claim_name name of the group claim in the token
-   * @throws std::runtime_error if verification failed.
-   * @return The proxy user name (group name) if proxying is successful, or an
-   * empty.
+   * @throws std::runtime_error if proxying fails (e.g. group claim is missing,
+   * or no group matches groups_to_proxied).
+   * @return The proxied account name if proxying is successful, or an empty
+   * string.
    */
   static std::string handle_proxying(
       const jwt::decoded_jwt<jwt::traits::kazuho_picojson> &decoded_token,
-      const std::string &ext_group, const std::string &group_claim_name);
+      const std::vector<std::pair<std::string, std::string>> &groups_to_proxied,
+      const std::string &group_claim_name);
 
  public:
   /**
@@ -134,17 +140,20 @@ class Id_token {
 
   /**
    * @brief Verifies the ID token against IDP configuration and user
-   * information.
+   * information. If ext_user is empty, perform proxying and return the proxied
+   * account name. If proxying is not performed, map groups to roles.
    * @param ext_user The expected external username (subject).
-   * @param ext_group The expected external group.
+   * @param groups_to_proxied Token's group - proxied account map.
    * @param idp Idp_config object containing verification parameters.
    * @param roles String to be populated with roles mapped from the token's
    * groups.
-   * @return The proxy user name
+   * @return The proxy user name (only if proxying occurs), or an empty string
    * @throws std::runtime_error if verification fails or token is invalid.
    */
-  std::string verify(const std::string &ext_user, const std::string &ext_group,
-                     const Idp_config &idp, std::string &roles) const;
+  std::string verify(
+      const std::string &ext_user,
+      const std::vector<std::pair<std::string, std::string>> &groups_to_proxied,
+      const Idp_config &idp, std::string &roles) const;
 };
 
 #endif  // ID_TOKEN_H

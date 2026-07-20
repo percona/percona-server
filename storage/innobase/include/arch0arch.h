@@ -1110,6 +1110,11 @@ class Arch_Group {
   @return true if there is at least 1 client that requires durable archiving*/
   bool is_durable() const { return (m_dur_ref_count > 0); }
 
+  /** Make group durable, regardless of whether it has any clients requiring
+  durable archiving. One use is protecting page-tracking information files from
+  being deleted if group recovery fails. */
+  void set_durable() { ++m_dur_ref_count; }
+
   /** Purge archived files until the specified purge LSN.
   @param[in]    purge_lsn       LSN until which archived files needs to be
   purged

@@ -227,6 +227,13 @@ enum latch_level_t {
   SYNC_BUF_FREE_LIST,
   SYNC_BUF_ZIP_FREE,
   SYNC_BUF_BLOCK,
+
+  /** Latch level of buf_lru_group_t::mutex (PS-11141 grouped LRU list): a
+  thread holding SYNC_BUF_PAGE_HASH or SYNC_BUF_LRU_LIST may acquire a group
+  mutex; a thread holding only a group mutex may acquire SYNC_BUF_BLOCK, but
+  never SYNC_BUF_PAGE_HASH or SYNC_BUF_LRU_LIST. */
+  SYNC_BUF_LRU_GROUP,
+
   SYNC_BUF_PAGE_HASH,
   SYNC_BUF_LRU_LIST,
   SYNC_BUF_CHUNKS,
@@ -353,6 +360,7 @@ enum latch_id_t {
   LATCH_ID_BUF_POOL_CHUNKS,
   LATCH_ID_BUF_POOL_ZIP,
   LATCH_ID_BUF_POOL_LRU_LIST,
+  LATCH_ID_BUF_POOL_LRU_GROUP,
   LATCH_ID_BUF_POOL_FREE_LIST,
   LATCH_ID_BUF_POOL_ZIP_FREE,
   LATCH_ID_BUF_POOL_ZIP_HASH,

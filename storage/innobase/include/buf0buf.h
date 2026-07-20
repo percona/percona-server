@@ -1170,6 +1170,12 @@ class copyable_atomic_t : public std::atomic<T> {
 };
 
 using buf_fix_count_atomic_t = copyable_atomic_t<uint32_t>;
+
+/** A node of buf_pool->LRU (PS-11141 grouped LRU list); see the full
+definition further below. Forward-declared here so buf_page_t can hold a
+back-pointer to its owning group. */
+struct buf_lru_group_t;
+
 class buf_page_t {
  public:
   /** Copy constructor.
@@ -1710,6 +1716,16 @@ class buf_page_t {
   uint16_t m_dblwr_id{};
 
  public:
+  /** Group this page belongs to in buf_pool->LRU (PS-11141 grouped LRU
+  list). nullptr until the grouped list is wired in (see
+  PS-11141-8.4-lru-groups phase P2); currently unused. Protected by the
+  owning group's mutex. */
+  buf_lru_group_t *lru_group{nullptr};
+
+  /** Index of this page within lru_group->pages. Meaningless while
+  lru_group == nullptr. Protected by the owning group's mutex. */
+  uint16_t lru_slot{0};
+
   /** true if the block is in the old blocks in buf_pool->LRU_old */
   bool old;
 
@@ -2207,6 +2223,38 @@ class LRUItr : public LRUHp {
   of the LRU list.
   @return buf_page_t from where to start scan. */
   buf_page_t *start();
+};
+
+/** Maximum number of pages held by one buf_lru_group_t (the "K" of the
+grouped LRU list: PS-11141). */
+constexpr uint32_t BUF_LRU_GROUP_SIZE = 32;
+
+/** A node of buf_pool->LRU: a group of up to BUF_LRU_GROUP_SIZE pages.
+The per-pool LRU_list_mutex protects only the links between groups (the
+`LRU` member below and the group's position relative to buf_pool->LRU_old).
+Everything else here -- the slots, n_pages, old -- is protected by this
+group's own mutex, at latch level SYNC_BUF_LRU_GROUP (between
+SYNC_BUF_LRU_LIST and SYNC_BUF_BLOCK: a thread holding LRU_list_mutex may
+acquire a group mutex, never the reverse).
+NOTE: this type is introduced as additive foundation; buf_pool->LRU is not
+yet rewired to use it (see PS-11141-8.4-lru-groups P1 vs P2). */
+struct buf_lru_group_t {
+  /** Protects pages, n_pages, and old. Latch level SYNC_BUF_LRU_GROUP. */
+  BufListMutex mutex;
+
+  /** Node linking this group into buf_pool->LRU. Protected by
+  buf_pool->LRU_list_mutex. */
+  UT_LIST_NODE_T(buf_lru_group_t) LRU;
+
+  /** Member pages; a null entry is a vacated slot. Protected by mutex. */
+  std::array<buf_page_t *, BUF_LRU_GROUP_SIZE> pages{};
+
+  /** Number of non-null entries in pages. Protected by mutex. */
+  uint32_t n_pages{0};
+
+  /** true if this group is on the old side of buf_pool->LRU_old.
+  Protected by mutex. */
+  bool old{false};
 };
 
 /** Struct that is embedded in the free zip blocks */
@@ -2717,6 +2765,29 @@ struct buf_pool_t {
 @param[in]      buf_pool        the buf_pool_t object to be printed
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const buf_pool_t &buf_pool);
+
+/** Ordered, group-aware iterator over buf_pool->LRU pages (PS-11141 grouped
+LRU list). Yields buf_page_t* in the same order as walking buf_pool->LRU
+with UT_LIST_GET_FIRST()/UT_LIST_GET_NEXT() today. Once buf_pool->LRU is
+rewired to a list of buf_lru_group_t groups (PS-11141-8.4-lru-groups phase
+P2), only this class's internals need to change -- to walk each group's
+pages -- so the ~10 sites outside buf0lru.cc that walk the LRU in page
+order do not need to learn group structure directly.
+The caller must hold buf_pool->LRU_list_mutex for the duration of the
+iteration, exactly as when walking buf_pool->LRU directly today.
+Usage: for (auto *bpage : Buf_LRU_pages(buf_pool)) { ... } */
+class Buf_LRU_pages {
+ public:
+  explicit Buf_LRU_pages(const buf_pool_t *buf_pool) : m_buf_pool(buf_pool) {}
+
+  using iterator = decltype(buf_pool_t::LRU)::const_iterator;
+
+  iterator begin() const { return m_buf_pool->LRU.begin(); }
+  iterator end() const { return m_buf_pool->LRU.end(); }
+
+ private:
+  const buf_pool_t *m_buf_pool;
+};
 
 /** @name Accessors for buffer pool mutexes
 Use these instead of accessing buffer pool mutexes directly. */

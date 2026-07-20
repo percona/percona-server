@@ -92,6 +92,7 @@ extern mysql_pfs_key_t buffer_block_mutex_key;
 extern mysql_pfs_key_t buf_pool_chunks_mutex_key;
 extern mysql_pfs_key_t buf_pool_flush_state_mutex_key;
 extern mysql_pfs_key_t buf_pool_LRU_list_mutex_key;
+extern mysql_pfs_key_t buf_pool_lru_group_mutex_key;
 extern mysql_pfs_key_t buf_pool_free_list_mutex_key;
 extern mysql_pfs_key_t buf_pool_zip_free_mutex_key;
 extern mysql_pfs_key_t buf_pool_zip_hash_mutex_key;

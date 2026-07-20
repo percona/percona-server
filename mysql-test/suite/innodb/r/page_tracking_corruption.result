@@ -1,0 +1,40 @@
+#
+# Enable page tracking
+#
+INSTALL COMPONENT 'file://component_mysqlbackup';
+SELECT mysqlbackup_page_track_set(1);
+mysqlbackup_page_track_set(1)
+#
+#
+# Generate data to create page tracking archive files
+#
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+UPDATE t1 SET b = REPEAT('y', 1000);
+#
+# Verify page tracking works before corruption
+#
+SELECT mysqlbackup_page_track_get_changed_page_count(mysqlbackup_page_track_get_start_lsn(), mysqlbackup_page_track_get_start_lsn() + 1);
+mysqlbackup_page_track_get_changed_page_count(mysqlbackup_page_track_get_start_lsn(), mysqlbackup_page_track_get_start_lsn() + 1)
+#
+#
+# Shutdown the server
+#
+#
+# Corrupt page tracking archive files
+#
+Page tracking archive files corrupted successfully.
+#
+# Restart the server — should succeed despite corrupted archive files
+#
+# restart
+#
+# Verify page tracking query does not crash after corruption
+#
+SELECT mysqlbackup_page_track_get_changed_page_count(mysqlbackup_page_track_get_start_lsn(), mysqlbackup_page_track_get_start_lsn() + 1);
+mysqlbackup_page_track_get_changed_page_count(mysqlbackup_page_track_get_start_lsn(), mysqlbackup_page_track_get_start_lsn() + 1)
+#
+#
+# Cleanup
+#
+DROP TABLE t1;
+UNINSTALL COMPONENT 'file://component_mysqlbackup';

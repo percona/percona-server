@@ -43,6 +43,7 @@ dberr_t Arch_Page_Sys::recover() {
 
   if (err == DB_FILE_READ_BEYOND_SIZE) {
     ib::error(ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED);
+    return err;
   }
 
   /* Scan for group directories and files */
@@ -126,8 +127,6 @@ void Arch_Dblwr_Ctx::validate_and_fill_blocks(size_t num_files) {
     auto block_num = Arch_Block::get_block_number(dblwr_block_offset);
     uint file_index = Arch_Block::get_file_index(
         block_num, Arch_Block::get_type(dblwr_block_offset));
-
-    ut_ad(file_index < num_files);
 
     /* If the block does not belong to the last file then ignore. */
     if (file_index != num_files - 1) {
@@ -400,6 +399,13 @@ dberr_t Arch_Page_Sys::Recovery::recover() {
        info != m_dir_group_info_map.end(); ++info) {
     auto &group_info = info->second;
 
+    if (group_info.m_num_files == 0) {
+      ib::error(ER_IB_MSG_17)
+          << "Page archiver: group " << ARCH_PAGE_DIR << group_info.m_start_lsn
+          << " is empty. Skipping.";
+      continue;
+    }
+
     Arch_Group *group = ut::new_withkey<Arch_Group>(
         ut::make_psi_memory_key(mem_key_archive), group_info.m_start_lsn,
         ARCH_PAGE_FILE_HDR_SIZE, m_page_sys->get_mutex());
@@ -411,12 +417,34 @@ dberr_t Arch_Page_Sys::Recovery::recover() {
     err = group->recover(group_info, &m_dblwr_ctx);
 
     if (err != DB_SUCCESS) {
-      ut::delete_(group);
-      break;
-    }
+      /* We want to prevent deleting page-tracking group directories with
+      durable file marker during recovery. We do this by bumping up
+      the counter of clients referencing the group for durable archiving. */
+      if (group_info.m_durable) {
+        group->set_durable();
+      }
 
-    if (group_info.m_num_files == 0) {
+      /* The group's data files are preserved for manual inspection, but the
+      group must not be treated as active on subsequent restarts. Otherwise
+      every recovery would replay the shared (possibly stale) doublewrite
+      buffer into the preserved files, and a doublewrite belonging to a newer
+      active group could be spliced into this group's files. Deleting the
+      'active' marker leaves the data files intact while quarantining the
+      group. */
+      if (group_info.m_active) {
+        int mark_err = group->mark_inactive();
+
+        if (mark_err != 0) {
+          ib::error(ER_IB_MSG_17)
+              << "Page archiver: failed to remove the 'active' marker of the "
+                 "corrupted page-tracking group "
+              << ARCH_PAGE_DIR << group_info.m_start_lsn << ".";
+        }
+      }
+
+      group->disable(LSN_MAX);
       ut::delete_(group);
+      err = DB_SUCCESS;
       continue;
     }
 
@@ -484,9 +512,12 @@ dberr_t Arch_Group::recover(Arch_Recv_Group_Info &group_info,
     return err;
   }
 
-  if (group_info.m_active) {
+  if (group_info.m_active && group_info.m_num_files > 0) {
     /* Since the group was active at the time of crash it's possible that the
-    doublewrite buffer might have the latest data in case of a crash. */
+    doublewrite buffer might have the latest data in case of a crash.
+
+    Doublewrite recovery requires at least one page-tracking file to be
+    available. There's no point in running it otherwise. */
 
     err = group_recv.replace_pages_from_dblwr(dblwr_ctx);
 
@@ -604,12 +635,20 @@ dberr_t Arch_Group::Recovery::parse(Arch_Recv_Group_Info &info) {
     err = file_ctx_recv.parse_reset_points(file_index, last_file, info);
 
     if (err != DB_SUCCESS) {
+      ib::error(ER_IB_MSG_17)
+          << "Page archiver: failed to recover page-tracking information group "
+          << ARCH_PAGE_DIR << m_group->m_begin_lsn << " (" << ARCH_PAGE_FILE
+          << file_index << ").";
       break;
     }
 
     err = file_ctx_recv.parse_stop_points(last_file, info);
 
     if (err != DB_SUCCESS) {
+      ib::error(ER_IB_MSG_17)
+          << "Page archiver: failed to recover page-tracking information group "
+          << ARCH_PAGE_DIR << m_group->m_begin_lsn << " (" << ARCH_PAGE_FILE
+          << file_index << ").";
       break;
     }
   }
@@ -643,6 +682,26 @@ dberr_t Arch_File_Ctx::Recovery::parse_stop_points(bool last_file,
   }
 
   auto stop_lsn = Arch_Block::get_stop_lsn(buf);
+  auto data_len = Arch_Block::get_data_len(buf);
+
+  if (stop_lsn == LSN_MAX) {
+    ib::error(ER_IB_MSG_17)
+        << "Page archiver: last data block of page-tracking file reports an"
+           " invalid stop LSN.";
+    return DB_CORRUPTION;
+  }
+
+  /* data_len is read from the on-disk block header. A corrupted value would
+  make the resumed writer continue at an out-of-bounds offset inside the
+  block, so reject it as corruption. */
+  if (data_len > ARCH_PAGE_BLK_SIZE - ARCH_PAGE_BLK_HEADER_LENGTH) {
+    ib::error(ER_IB_MSG_17)
+        << "Page archiver: last data block of page-tracking file reports an"
+           " invalid data length of "
+        << data_len << " bytes.";
+    return DB_CORRUPTION;
+  }
+
   m_file_ctx.m_stop_points.push_back(stop_lsn);
 
   if (last_file) {
@@ -652,8 +711,7 @@ dberr_t Arch_File_Ctx::Recovery::parse_stop_points(bool last_file,
 
   info.m_write_pos.init();
   info.m_write_pos.m_block_num = Arch_Block::get_block_number(buf);
-  info.m_write_pos.m_offset =
-      Arch_Block::get_data_len(buf) + ARCH_PAGE_BLK_HEADER_LENGTH;
+  info.m_write_pos.m_offset = data_len + ARCH_PAGE_BLK_HEADER_LENGTH;
 
   return err;
 }
@@ -682,11 +740,23 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
   if (file_index != block_num) {
     /* This means there was no reset for this file and hence the
     reset block was not flushed. */
+    if (!ut::is_zeros(buf, ARCH_PAGE_BLK_SIZE)) {
+      ib::error(ER_IB_MSG_17)
+          << "Page archiver: reset block of page-tracking file " << file_index
+          << " is corrupted; expected an empty (zero-filled) block.";
+      return DB_CORRUPTION;
+    }
 
-    ut_ad(ut::is_zeros(buf, ARCH_PAGE_BLK_SIZE));
     info.m_reset_pos.init();
     info.m_reset_pos.m_block_num = file_index;
     return err;
+  }
+
+  if (data_len > ARCH_PAGE_BLK_SIZE - ARCH_PAGE_BLK_HEADER_LENGTH) {
+    ib::error(ER_IB_MSG_17)
+        << "Page archiver: reset block of page-tracking file " << file_index
+        << " reports an invalid data length of " << data_len << " bytes.";
+    return DB_CORRUPTION;
   }
 
   /* Normal case. */
@@ -702,11 +772,16 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
   reset_file.m_file_index = file_index;
 
   if (data_len != 0) {
+    if (data_len < ARCH_PAGE_FILE_HEADER_RESET_LSN_SIZE +
+                       ARCH_PAGE_FILE_HEADER_RESET_POS_SIZE) {
+      ib::error(ER_IB_MSG_17)
+          << "Page archiver: reset block of page-tracking file " << file_index
+          << " has a truncated reset entry (data length " << data_len << ").";
+      return DB_CORRUPTION;
+    }
+
     uint length = 0;
     byte *buf1 = buf + ARCH_PAGE_BLK_HEADER_LENGTH;
-
-    ut_ad(data_len >= ARCH_PAGE_FILE_HEADER_RESET_LSN_SIZE +
-                          ARCH_PAGE_FILE_HEADER_RESET_POS_SIZE);
 
     reset_file.m_lsn = mach_read_from_8(buf1);
     length += ARCH_PAGE_FILE_HEADER_RESET_LSN_SIZE;
@@ -714,8 +789,13 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
     Arch_Point start_point;
     Arch_Page_Pos pos;
 
-    while (length != data_len) {
-      ut_ad((data_len - length) % ARCH_PAGE_FILE_HEADER_RESET_POS_SIZE == 0);
+    while (length < data_len) {
+      if ((data_len - length) < ARCH_PAGE_FILE_HEADER_RESET_POS_SIZE) {
+        ib::error(ER_IB_MSG_17)
+            << "Page archiver: reset block of page-tracking file " << file_index
+            << " contains an incomplete reset point entry.";
+        return DB_CORRUPTION;
+      }
 
       pos.m_block_num = mach_read_from_2(buf1 + length);
       length += ARCH_PAGE_FILE_HEADER_RESET_BLOCK_NUM_SIZE;
@@ -723,7 +803,23 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
       pos.m_offset = mach_read_from_2(buf1 + length);
       length += ARCH_PAGE_FILE_HEADER_RESET_BLOCK_OFFSET_SIZE;
 
+      if (pos.m_offset < ARCH_PAGE_BLK_HEADER_LENGTH ||
+          pos.m_offset > ARCH_PAGE_BLK_SIZE) {
+        ib::error(ER_IB_MSG_17)
+            << "Page archiver: reset point in page-tracking file " << file_index
+            << " has an invalid block offset " << pos.m_offset << ".";
+        return DB_CORRUPTION;
+      }
+
       start_point.lsn = m_file_ctx.fetch_reset_lsn(pos.m_block_num);
+
+      if (start_point.lsn == LSN_MAX) {
+        ib::error(ER_IB_MSG_17)
+            << "Page archiver: reset point in page-tracking file " << file_index
+            << " references an invalid block " << pos.m_block_num << ".";
+        return DB_CORRUPTION;
+      }
+
       start_point.pos = pos;
 
       reset_file.m_start_point.push_back(start_point);
@@ -739,13 +835,14 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
 
 lsn_t Arch_File_Ctx::fetch_reset_lsn(uint64_t block_num) {
   ut_ad(!is_closed());
-  ut_ad(Arch_Block::get_file_index(block_num, ARCH_DATA_BLOCK) == m_index);
+
+  if (Arch_Block::get_file_index(block_num, ARCH_DATA_BLOCK) != m_index) {
+    return (LSN_MAX);
+  }
 
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   auto offset = Arch_Block::get_file_offset(block_num, ARCH_DATA_BLOCK);
-
-  ut_ad(offset + ARCH_PAGE_BLK_SIZE <= get_phy_size());
 
   auto err = read(buf, offset, ARCH_PAGE_BLK_HEADER_LENGTH);
 
@@ -753,9 +850,5 @@ lsn_t Arch_File_Ctx::fetch_reset_lsn(uint64_t block_num) {
     return (LSN_MAX);
   }
 
-  auto lsn = Arch_Block::get_reset_lsn(buf);
-
-  ut_ad(lsn != LSN_MAX);
-
-  return (lsn);
+  return Arch_Block::get_reset_lsn(buf);
 }

@@ -1,0 +1,120 @@
+# Test that the server starts despite corrupted page tracking archive files.
+#
+# When ib_page_* files in #ib_archive are corrupted (e.g. truncated),
+# the server should detect the problem, log a warning, and continue
+# starting up rather than crashing.
+#
+--source include/not_valgrind.inc
+
+--disable_query_log
+call mtr.add_suppression("Page Archiver's doublewrite buffer initialisation failed");
+call mtr.add_suppression("Page archiver system's recovery failed");
+call mtr.add_suppression("Page archiver: ");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+call mtr.add_suppression("Error number .* means");
+call mtr.add_suppression("'rmdir' returned OS error");
+call mtr.add_suppression("bytes should have been read. Only .* bytes read");
+call mtr.add_suppression("Retry attempts for reading partial data failed");
+--enable_query_log
+
+let MYSQLD_DATADIR = `SELECT @@datadir`;
+
+--echo #
+--echo # Enable page tracking
+--echo #
+INSTALL COMPONENT 'file://component_mysqlbackup';
+--replace_column 1 #
+SELECT mysqlbackup_page_track_set(1);
+
+--echo #
+--echo # Generate data to create page tracking archive files
+--echo #
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+
+--disable_query_log
+--let $i = 100
+while ($i)
+{
+  INSERT INTO t1 (b) VALUES (REPEAT('x', 1000));
+  --dec $i
+}
+--enable_query_log
+
+UPDATE t1 SET b = REPEAT('y', 1000);
+
+--echo #
+--echo # Verify page tracking works before corruption
+--echo #
+--replace_column 1 #
+SELECT mysqlbackup_page_track_get_changed_page_count(mysqlbackup_page_track_get_start_lsn(), mysqlbackup_page_track_get_start_lsn() + 1);
+
+--echo #
+--echo # Shutdown the server
+--echo #
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # Corrupt page tracking archive files
+--echo #
+
+perl;
+use File::Find;
+use strict;
+use warnings;
+
+my $datadir = $ENV{'MYSQLD_DATADIR'};
+chomp $datadir if defined $datadir;
+die "MYSQLD_DATADIR not set\n" unless defined $datadir && length $datadir;
+
+$datadir .= '/' unless $datadir =~ m{/$};
+my $archive_dir = "${datadir}#ib_archive";
+
+die "Archive directory $archive_dir not found.\n" unless -d $archive_dir;
+
+my $corrupted = 0;
+
+find(sub {
+    # Truncate the doublewrite buffer so it cannot restore corrupted blocks.
+    if (/^dblwr_\d+$/ && -f $File::Find::name) {
+        truncate($File::Find::name, 0) or die "Cannot truncate $File::Find::name: $!\n";
+    }
+
+    return unless /^ib_page_\d+$/;
+    my $path = $File::Find::name;
+    my $size = -s $path;
+    return unless defined $size && $size > 16384;
+
+    # Truncate just past the first block (the reset block). This preserves
+    # the valid reset entries that reference data blocks further in the file,
+    # but removes those data blocks. During recovery, fetch_reset_lsn() will
+    # try to read a referenced data block past the end of the file and hit
+    # the assertion (debug) or fatal read error (release).
+    # The size must be > ARCH_PAGE_BLK_SIZE (16384) so that
+    # cleanup_if_required() does not delete the file.
+    truncate($path, 16385) or die "Cannot truncate $path: $!\n";
+
+    $corrupted++;
+}, $archive_dir);
+
+die "No ib_page_* files found under $archive_dir.\n" if $corrupted == 0;
+
+print "Page tracking archive files corrupted successfully.\n";
+EOF
+
+--echo #
+--echo # Restart the server — should succeed despite corrupted archive files
+--echo #
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Verify page tracking query does not crash after corruption
+--echo #
+--replace_column 1 #
+SELECT mysqlbackup_page_track_get_changed_page_count(mysqlbackup_page_track_get_start_lsn(), mysqlbackup_page_track_get_start_lsn() + 1);
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+UNINSTALL COMPONENT 'file://component_mysqlbackup';
+--force-rmdir $MYSQLD_DATADIR/#ib_archive

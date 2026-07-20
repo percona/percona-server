@@ -438,7 +438,10 @@ bool Arch_File_Ctx::find_reset_point(lsn_t check_lsn, Arch_Point &reset_point) {
 
   if (reset_point_it == reset_start_point.end() ||
       reset_point_it->lsn != check_lsn) {
-    ut_ad(reset_point_it != reset_start_point.begin());
+    /* This scenario can happen only for corrupted page-tracking data. */
+    if (reset_point_it == reset_start_point.begin()) {
+      return (false);
+    }
     --reset_point_it;
   }
 
@@ -599,8 +602,8 @@ bool Arch_File_Ctx::validate_stop_point_in_file(Arch_Group *group,
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   /* Read the entire reset block. */
-  dberr_t err =
-      os_file_read(request, m_path_name, file, buf, offset, ARCH_PAGE_BLK_SIZE);
+  dberr_t err = os_file_read_no_error_handling(
+      request, m_path_name, file, buf, offset, ARCH_PAGE_BLK_SIZE, nullptr);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -628,8 +631,8 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   /* Read the entire reset block. */
-  dberr_t err =
-      os_file_read(request, m_path_name, file, buf, 0, ARCH_PAGE_BLK_SIZE);
+  dberr_t err = os_file_read_no_error_handling(request, m_path_name, file, buf,
+                                               0, ARCH_PAGE_BLK_SIZE, nullptr);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -1228,14 +1231,24 @@ uint64_t Arch_Block::get_file_offset(uint64_t block_num, Arch_Blk_Type type) {
 
 bool Arch_Block::validate(byte *block) {
   auto data_length = Arch_Block::get_data_len(block);
+
+  /* data_length is read from the (possibly corrupted) block header. Bound it
+  before computing the checksum, otherwise ut_crc32() would read past the end
+  of the block. This runs on untrusted doublewrite buffer content during
+  recovery, so treat an out-of-range length as an invalid block. */
+  if (data_length > ARCH_PAGE_BLK_SIZE - ARCH_PAGE_BLK_HEADER_LENGTH) {
+    ib::warn(ER_IB_ERR_PAGE_ARCH_INVALID_DOUBLE_WRITE_BUF)
+        << Arch_Block::get_block_number(block);
+    return (false);
+  }
+
   auto block_checksum = Arch_Block::get_checksum(block);
   auto checksum = ut_crc32(block + ARCH_PAGE_BLK_HEADER_LENGTH, data_length);
 
   if (checksum != block_checksum) {
     ib::warn(ER_IB_ERR_PAGE_ARCH_INVALID_DOUBLE_WRITE_BUF)
         << Arch_Block::get_block_number(block);
-    ut_d(ut_error);
-    ut_o(return (false));
+    return (false);
   } else if (ut::is_zeros(block, ARCH_PAGE_BLK_SIZE)) {
     return (false);
   }
@@ -1898,14 +1911,29 @@ int Arch_Page_Sys::get_pages(MYSQL_THD thd, Page_Track_Callback cbk_func,
       auto data_len = Arch_Block::get_data_len(header_buf);
       bytes_left = data_len + ARCH_PAGE_BLK_HEADER_LENGTH;
 
-      ut_ad(bytes_left <= ARCH_PAGE_BLK_SIZE);
-      ut_ad(block_stop_lsn != LSN_MAX);
+      if (bytes_left > ARCH_PAGE_BLK_SIZE || block_stop_lsn == LSN_MAX) {
+        err = ER_PAGE_TRACKING_RANGE_NOT_TRACKED;
+        break;
+      }
+
+      if (cur_pos.m_offset > bytes_left) {
+        ib::error(ER_IB_MSG_17)
+            << "Page archiver: reset point references block "
+            << cur_pos.m_block_num << " with an out-of-range offset "
+            << cur_pos.m_offset << " (block holds " << bytes_left
+            << " bytes); the page-tracking data is corrupted.";
+        err = ER_PAGE_TRACKING_RANGE_NOT_TRACKED;
+        break;
+      }
 
       bytes_left -= cur_pos.m_offset;
 
       if (data_len == 0 || cur_pos.m_block_num == last_pos.m_block_num ||
           block_stop_lsn > stop_id) {
-        ut_ad(block_stop_lsn >= stop_id);
+        if (block_stop_lsn < stop_id) {
+          err = ER_PAGE_TRACKING_RANGE_NOT_TRACKED;
+          break;
+        }
         stop_id = block_stop_lsn;
         last_block = true;
       }
@@ -2938,8 +2966,8 @@ int Arch_Group::read_from_file(Arch_Page_Pos *read_pos, uint read_len,
   request.disable_compression();
   request.clear_encrypted();
 
-  auto db_err =
-      os_file_read(request, file_name, file, read_buff, offset, read_len);
+  auto db_err = os_file_read_no_error_handling(
+      request, file_name, file, read_buff, offset, read_len, nullptr);
 
   os_file_close(file);
 
@@ -3056,7 +3084,9 @@ int Arch_Page_Sys::fetch_group_within_lsn_range(lsn_t &start_id, lsn_t &stop_id,
   auto latest_stop_lsn = m_latest_stop_lsn;
   arch_oper_mutex_exit();
 
-  ut_ad(latest_stop_lsn != LSN_MAX);
+  if (latest_stop_lsn == LSN_MAX) {
+    return (ER_PAGE_TRACKING_RANGE_NOT_TRACKED);
+  }
 
   if (start_id == 0 || stop_id == 0) {
     if (m_current_group == nullptr || !m_current_group->is_active()) {
@@ -3065,7 +3095,9 @@ int Arch_Page_Sys::fetch_group_within_lsn_range(lsn_t &start_id, lsn_t &stop_id,
 
     *group = m_current_group;
 
-    ut_ad(m_last_lsn != LSN_MAX);
+    if (m_last_lsn == LSN_MAX) {
+      return (ER_PAGE_TRACKING_RANGE_NOT_TRACKED);
+    }
 
     start_id = (start_id == 0) ? m_last_lsn : start_id;
     stop_id = (stop_id == 0) ? latest_stop_lsn : stop_id;

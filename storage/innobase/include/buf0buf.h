@@ -2184,45 +2184,78 @@ class FlushHp : public HazardPointer {
   void adjust(const buf_page_t *bpage) override;
 };
 
-/** Class implementing buf_pool->LRU hazard pointer */
-class LRUHp : public HazardPointer {
+/** A "Hazard Pointer" over buf_pool->LRU *groups* (PS-11141 grouped LRU
+list). Mirrors HazardPointer/LRUHp, but for buf_lru_group_t: a group hazard
+pointer protects the next group to be visited by a tail-to-head group scan
+from being unlinked (and its memory freed) by a concurrent thread while the
+scanning thread has (transiently) released buf_pool->LRU_list_mutex -- e.g.
+inside buf_LRU_free_page()/buf_page_free_stale(), which release it only as
+their very last step. Only forward declares are needed here; buf_lru_group_t
+is defined later in this file. */
+class LRUGroupHp {
  public:
-  /** Constructor
-  @param buf_pool buffer pool instance
-  @param mutex  mutex that is protecting the hp. */
-  LRUHp(const buf_pool_t *buf_pool, const ib_mutex_t *mutex)
-      : HazardPointer(buf_pool, mutex) {}
+  LRUGroupHp(const buf_pool_t *buf_pool, const ib_mutex_t *mutex)
+      : m_buf_pool(buf_pool) IF_DEBUG(, m_mutex(mutex)), m_hp() {}
 
-  /** Destructor */
-  ~LRUHp() override = default;
+  virtual ~LRUGroupHp() = default;
 
-  /** Adjust the value of hp. This happens when some
-  other thread working on the same list attempts to
-  remove the hp from the list.
-  @param bpage  buffer block to be compared */
-  void adjust(const buf_page_t *bpage) override;
+  /** Get current value */
+  buf_lru_group_t *get() const {
+    ut_ad(mutex_own(m_mutex));
+    return m_hp;
+  }
+
+  /** Set current value
+  @param group  group to be set as hp */
+  void set(buf_lru_group_t *group) {
+    ut_ad(mutex_own(m_mutex));
+    m_hp = group;
+  }
+
+  /** Checks if a group is the hp
+  @param group  group to be compared
+  @return true if it is hp */
+  bool is_hp(const buf_lru_group_t *group) {
+    ut_ad(mutex_own(m_mutex));
+    return group == m_hp;
+  }
+
+  /** Adjust the value of hp. This happens when some other thread working
+  on the same list attempts to remove the hp group from the list.
+  Mirrors LRUHp::adjust: we only support reverse traversal.
+  @param group  group to be compared */
+  virtual void adjust(const buf_lru_group_t *group);
+
+ protected:
+  LRUGroupHp(const LRUGroupHp &) = delete;
+  LRUGroupHp &operator=(const LRUGroupHp &) = delete;
+
+  /** Buffer pool instance */
+  const buf_pool_t *m_buf_pool;
+
+#ifdef UNIV_DEBUG
+  /** mutex that protects access to m_hp. */
+  const ib_mutex_t *m_mutex;
+#endif /* UNIV_DEBUG */
+
+  /** hazard pointer. */
+  buf_lru_group_t *m_hp;
 };
 
-/** Special purpose iterators to be used when scanning the LRU list.
-The idea is that when one thread finishes the scan it leaves the
-itr in that position and the other thread can start scan from
-there */
-class LRUItr : public LRUHp {
+/** Special purpose iterator over buf_pool->LRU groups, mirroring LRUItr but
+for groups (PS-11141 grouped LRU list). Reuses LRUGroupHp::adjust as-is,
+only adding start(). */
+class LRUGroupItr : public LRUGroupHp {
  public:
-  /** Constructor
-  @param buf_pool buffer pool instance
-  @param mutex  mutex that is protecting the hp. */
-  LRUItr(const buf_pool_t *buf_pool, const ib_mutex_t *mutex)
-      : LRUHp(buf_pool, mutex) {}
+  LRUGroupItr(const buf_pool_t *buf_pool, const ib_mutex_t *mutex)
+      : LRUGroupHp(buf_pool, mutex) {}
 
-  /** Destructor */
-  ~LRUItr() override = default;
+  ~LRUGroupItr() override = default;
 
-  /** Selects from where to start a scan. If we have scanned
-  too deep into the LRU list it resets the value to the tail
-  of the LRU list.
-  @return buf_page_t from where to start scan. */
-  buf_page_t *start();
+  /** Selects from where to start a scan. If we have scanned too deep into
+  the LRU group list it resets the value to the tail.
+  @return buf_lru_group_t from where to start scan. */
+  buf_lru_group_t *start();
 };
 
 /** Maximum number of pages held by one buf_lru_group_t (the "K" of the
@@ -2635,34 +2668,59 @@ struct buf_pool_t {
   /** Target length of withdraw block list, when withdrawing */
   ulint withdraw_target;
 
-  /** "hazard pointer" used during scan of LRU while doing
-  LRU list batch.  Protected by buf_pool::LRU_list_mutex */
-  LRUHp lru_hp;
+  /** "hazard pointer" used during scan of LRU groups while doing
+  LRU list batch (PS-11141 grouped LRU list). Protected by
+  buf_pool::LRU_list_mutex */
+  LRUGroupHp lru_hp;
 
-  /** Iterator used to scan the LRU list when searching for
-  replaceable victim. Protected by buf_pool::LRU_list_mutex. */
-  LRUItr lru_scan_itr;
+  /** Iterator used to scan the LRU groups when searching for a group with
+  a replaceable victim page (PS-11141 grouped LRU list). Protected by
+  buf_pool::LRU_list_mutex. */
+  LRUGroupItr lru_scan_itr;
 
-  /** Iterator used to scan the LRU list when searching for
-  single page flushing victim.  Protected by buf_pool::LRU_list_mutex. */
-  LRUItr single_scan_itr;
+  /** Iterator used to scan the LRU groups when searching for a group with
+  a single page flushing victim (PS-11141 grouped LRU list). Protected by
+  buf_pool::LRU_list_mutex. */
+  LRUGroupItr single_scan_itr;
 
-  /** Base node of the LRU list */
-  UT_LIST_BASE_NODE_T(buf_page_t, LRU) LRU;
+  /** Base node of the LRU list (PS-11141 grouped LRU): a list of
+  buf_lru_group_t, each holding up to BUF_LRU_GROUP_SIZE pages. Protected by
+  LRU_list_mutex; a group's own mutex additionally protects that group's
+  contents (pages, n_pages, old). NOTE: UT_LIST_GET_LEN(LRU) is now a GROUP
+  count, not a page count -- use LRU_n_pages for the page count. */
+  UT_LIST_BASE_NODE_T(buf_lru_group_t, LRU) LRU;
+
+  /** Total number of live pages across all groups in LRU. Necessary because
+  UT_LIST_GET_LEN(LRU) now counts groups. Protected by LRU_list_mutex. */
+  size_t LRU_n_pages{0};
+
+  /** The group currently being appended to by young-side (MRU) page
+  insertions: both the immediate buf_LRU_make_block_young() path and, per
+  page, the batched promotion-queue drain. When full, a fresh group is
+  created, linked at the LRU head, and becomes the new LRU_young_fill_group.
+  Protected by LRU_list_mutex. */
+  buf_lru_group_t *LRU_young_fill_group{nullptr};
+
+  /** The group currently being appended to by old-side page insertions:
+  fresh page reads and buf_LRU_make_block_old(). When (re)created, linked as
+  LRU_old's immediate group-successor. Protected by LRU_list_mutex. */
+  buf_lru_group_t *LRU_fill_group{nullptr};
 
   alignas(64) std::atomic<buf_page_t *> LRU_promote_head{nullptr};
   std::atomic<size_t> LRU_promote_queue_len{0};
   std::atomic<bool> LRU_promote_draining{false};
 
-  /** Pointer to the about LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV oldest blocks in
-  the LRU list; NULL if LRU length less than BUF_LRU_OLD_MIN_LEN; NOTE: when
-  LRU_old != NULL, its length should always equal LRU_old_len */
-  alignas(64) buf_page_t *LRU_old;
+  /** Pointer to the group at the boundary between the young and old
+  sublists of groups: groups before it are young, it and its successors are
+  old (PS-11141 grouped LRU). NULL if LRU_n_pages is less than
+  BUF_LRU_OLD_MIN_LEN. NOTE: when LRU_old != NULL, LRU_old_len should always
+  equal the total page count of LRU_old and its successor groups. */
+  alignas(64) buf_lru_group_t *LRU_old;
 
-  /** Length of the LRU list from the block to which LRU_old points onward,
-  including that block; see buf0lru.cc for the restrictions on this value; 0
-  if LRU_old == NULL; NOTE: LRU_old_len must be adjusted whenever LRU_old
-  shrinks or grows! */
+  /** Number of pages (not groups) from the group to which LRU_old points
+  onward, including that group; see buf0lru.cc for the restrictions on this
+  value; 0 if LRU_old == NULL; NOTE: LRU_old_len must be adjusted whenever
+  LRU_old shrinks or grows! */
   ulint LRU_old_len;
 
   /** Base node of the unzip_LRU list. The list is protected by the
@@ -2766,28 +2824,28 @@ struct buf_pool_t {
 @return the output stream */
 std::ostream &operator<<(std::ostream &out, const buf_pool_t &buf_pool);
 
-/** Ordered, group-aware iterator over buf_pool->LRU pages (PS-11141 grouped
-LRU list). Yields buf_page_t* in the same order as walking buf_pool->LRU
-with UT_LIST_GET_FIRST()/UT_LIST_GET_NEXT() today. Once buf_pool->LRU is
-rewired to a list of buf_lru_group_t groups (PS-11141-8.4-lru-groups phase
-P2), only this class's internals need to change -- to walk each group's
-pages -- so the ~10 sites outside buf0lru.cc that walk the LRU in page
-order do not need to learn group structure directly.
-The caller must hold buf_pool->LRU_list_mutex for the duration of the
-iteration, exactly as when walking buf_pool->LRU directly today.
-Usage: for (auto *bpage : Buf_LRU_pages(buf_pool)) { ... } */
-class Buf_LRU_pages {
- public:
-  explicit Buf_LRU_pages(const buf_pool_t *buf_pool) : m_buf_pool(buf_pool) {}
-
-  using iterator = decltype(buf_pool_t::LRU)::const_iterator;
-
-  iterator begin() const { return m_buf_pool->LRU.begin(); }
-  iterator end() const { return m_buf_pool->LRU.end(); }
-
- private:
-  const buf_pool_t *m_buf_pool;
-};
+/** Visits every live page in buf_pool->LRU, in LRU order (PS-11141 grouped
+LRU list): walks buf_pool->LRU's groups head-to-tail, and within each group,
+its non-null page slots. This is the one place that knows the LRU is a list
+of groups of pages; the ~10 sites outside buf0lru.cc that need to walk the
+LRU in page order (dump, AHI drop, buddy relocate, i_s LRU table, debug
+validators, buf_get_total_list_len) should call this instead of learning
+group structure directly.
+The caller must hold buf_pool->LRU_list_mutex for the duration of the call,
+exactly as when walking buf_pool->LRU directly.
+@param[in]  buf_pool  buffer pool instance
+@param[in]  fn        called once per live page, in LRU order; must not
+                      itself mutate buf_pool->LRU or any group's contents */
+template <typename F>
+void buf_LRU_for_each_page(const buf_pool_t *buf_pool, F &&fn) {
+  for (auto *group : buf_pool->LRU) {
+    for (auto *bpage : group->pages) {
+      if (bpage != nullptr) {
+        fn(bpage);
+      }
+    }
+  }
+}
 
 /** @name Accessors for buffer pool mutexes
 Use these instead of accessing buffer pool mutexes directly. */
@@ -2932,9 +2990,18 @@ FILE_PAGE => NOT_USED   NOTE: This transition is allowed if and only if
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 #ifndef UNIV_HOTBACKUP
-/** Functor to validate the LRU list. */
+/** Functor to validate the LRU list (PS-11141 grouped LRU list): for every
+group, every member page's in_LRU_list flag is set and its lru_group
+back-pointer points at that group. */
 struct CheckInLRUList {
-  void operator()(const buf_page_t *elem) const { ut_a(elem->in_LRU_list); }
+  void operator()(const buf_lru_group_t *elem) const {
+    for (auto *bpage : elem->pages) {
+      if (bpage != nullptr) {
+        ut_a(bpage->in_LRU_list);
+        ut_a(bpage->lru_group == elem);
+      }
+    }
+  }
 
   static void validate(const buf_pool_t *buf_pool) {
     CheckInLRUList check;

@@ -51,6 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "btr0sea.h"
 #include "buf0buddy.h"
+#include "buf0lru.h"
 #include "buf0stats.h"
 #include "dict0stats_bg.h"
 #include "ibuf0ibuf.h"
@@ -548,7 +549,7 @@ void buf_get_total_list_len(ulint *LRU_len, ulint *free_len,
 
     buf_pool = buf_pool_from_array(i);
 
-    *LRU_len += UT_LIST_GET_LEN(buf_pool->LRU);
+    *LRU_len += buf_pool->LRU_n_pages;
     *free_len += UT_LIST_GET_LEN(buf_pool->free);
     *flush_list_len += UT_LIST_GET_LEN(buf_pool->flush_list);
   }
@@ -1553,14 +1554,17 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   /* Initialize the hazard pointer for the oldest page scan */
   new (&buf_pool->oldest_hp) FlushHp(buf_pool, &buf_pool->flush_list_mutex);
 
-  /* Initialize the hazard pointer for LRU batches */
-  new (&buf_pool->lru_hp) LRUHp(buf_pool, &buf_pool->LRU_list_mutex);
+  /* Initialize the hazard pointer for LRU group batches (PS-11141 grouped
+  LRU list) */
+  new (&buf_pool->lru_hp) LRUGroupHp(buf_pool, &buf_pool->LRU_list_mutex);
 
-  /* Initialize the iterator for LRU scan search */
-  new (&buf_pool->lru_scan_itr) LRUItr(buf_pool, &buf_pool->LRU_list_mutex);
+  /* Initialize the iterator for LRU group scan search */
+  new (&buf_pool->lru_scan_itr)
+      LRUGroupItr(buf_pool, &buf_pool->LRU_list_mutex);
 
-  /* Initialize the iterator for single page scan search */
-  new (&buf_pool->single_scan_itr) LRUItr(buf_pool, &buf_pool->LRU_list_mutex);
+  /* Initialize the iterator for single page scan search (over groups) */
+  new (&buf_pool->single_scan_itr)
+      LRUGroupItr(buf_pool, &buf_pool->LRU_list_mutex);
 
   err = DB_SUCCESS;
 }
@@ -1576,8 +1580,6 @@ void buf_page_free_descriptor(buf_page_t *bpage) {
 static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   buf_chunk_t *chunk;
   buf_chunk_t *chunks;
-  buf_page_t *bpage;
-  buf_page_t *prev_bpage = nullptr;
 
   mutex_free(&buf_pool->LRU_list_mutex);
   mutex_free(&buf_pool->free_list_mutex);
@@ -1587,20 +1589,39 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   mutex_free(&buf_pool->zip_mutex);
   mutex_free(&buf_pool->flush_list_mutex);
 
-  for (bpage = UT_LIST_GET_LAST(buf_pool->LRU); bpage != nullptr;
-       bpage = prev_bpage) {
-    prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
-    buf_page_state state = buf_page_get_state(bpage);
+  /* PS-11141 grouped LRU list: walk groups tail-to-head, then each
+  group's pages, freeing zip-only descriptors as before; additionally,
+  each buf_lru_group_t is individually heap-allocated (unlike buf_page_t,
+  which lives inside a chunk's memory), so it -- and its mutex -- must be
+  explicitly freed here too, or every shutdown leaks it. No concurrency
+  concerns: buf_pool->LRU_list_mutex was already destroyed above, and this
+  whole instance is being torn down. */
+  for (buf_lru_group_t *group = UT_LIST_GET_LAST(buf_pool->LRU);
+       group != nullptr;) {
+    buf_lru_group_t *prev_group = UT_LIST_GET_PREV(LRU, group);
 
-    ut_ad(buf_page_in_file(bpage));
-    ut_ad(bpage->in_LRU_list);
+    for (auto *bpage : group->pages) {
+      if (bpage == nullptr) {
+        continue;
+      }
 
-    if (state != BUF_BLOCK_FILE_PAGE) {
-      /* We must not have any dirty block except
-      when doing a fast shutdown. */
-      ut_ad(state == BUF_BLOCK_ZIP_PAGE || srv_fast_shutdown == 2);
-      buf_page_free_descriptor(bpage);
+      buf_page_state state = buf_page_get_state(bpage);
+
+      ut_ad(buf_page_in_file(bpage));
+      ut_ad(bpage->in_LRU_list);
+
+      if (state != BUF_BLOCK_FILE_PAGE) {
+        /* We must not have any dirty block except
+        when doing a fast shutdown. */
+        ut_ad(state == BUF_BLOCK_ZIP_PAGE || srv_fast_shutdown == 2);
+        buf_page_free_descriptor(bpage);
+      }
     }
+
+    mutex_free(&group->mutex);
+    ut::delete_(group);
+
+    group = prev_group;
   }
 
   ut::free(buf_pool->watch);
@@ -1799,25 +1820,15 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
     memcpy(new_block->frame, block->frame, UNIV_PAGE_SIZE);
     new (&new_block->page) buf_page_t(block->page);
 
-    /* relocate LRU list */
+    /* relocate LRU list: swap the page descriptor within its LRU group
+    (PS-11141 grouped LRU list) -- the group itself, and hence LRU_old,
+    never moves, since only the identity of one page within it changes. */
     ut_ad(block->page.in_LRU_list);
     ut_ad(!block->page.in_zip_hash);
     ut_d(block->page.in_LRU_list = false);
+    ut_d(new_block->page.in_LRU_list = true);
 
-    buf_LRU_adjust_hp(buf_pool, &block->page);
-
-    auto prev_b = UT_LIST_GET_PREV(LRU, &block->page);
-    UT_LIST_REMOVE(buf_pool->LRU, &block->page);
-
-    if (prev_b != nullptr) {
-      UT_LIST_INSERT_AFTER(buf_pool->LRU, prev_b, &new_block->page);
-    } else {
-      UT_LIST_ADD_FIRST(buf_pool->LRU, &new_block->page);
-    }
-
-    if (buf_pool->LRU_old == &block->page) {
-      buf_pool->LRU_old = &new_block->page;
-    }
+    buf_LRU_relocate_in_group(&block->page, &new_block->page);
 
     ut_ad(new_block->page.in_LRU_list);
 
@@ -2117,56 +2128,74 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
     uint32_t remove_loop_count = 0;
 
     mutex_enter(&buf_pool->LRU_list_mutex);
-    for (auto bpage : buf_pool->LRU.removable()) {
-      BPageMutex *block_mutex;
-
-      block_mutex = buf_page_get_mutex(bpage);
-      mutex_enter(block_mutex);
-
-      if (bpage->zip.data != nullptr &&
-          buf_frame_will_withdrawn(buf_pool,
-                                   static_cast<byte *>(bpage->zip.data))) {
-        if (buf_page_can_relocate(bpage)) {
-          mutex_exit(block_mutex);
-          if (!buf_buddy_realloc(buf_pool, bpage->zip.data,
-                                 page_zip_get_size(&bpage->zip))) {
-            /* failed to allocate block */
-            break;
-          }
-          mutex_enter(block_mutex);
-          count2++;
-        }
-        /* NOTE: if the page is in use,
-        not reallocated yet */
+    /* PS-11141 grouped LRU list: walk groups, then each group's pages.
+    buf_buddy_realloc()/buf_page_realloc() relocate a page's descriptor in
+    place (via buf_LRU_relocate_in_group(), same as buf_relocate()) without
+    ever removing it from its group, so a plain nested walk is safe here --
+    unlike a real eviction, no group can become empty/freed mid-loop. */
+    bool stop = false;
+    for (auto *group : buf_pool->LRU) {
+      if (stop) {
+        break;
       }
+      for (auto *bpage : group->pages) {
+        if (bpage == nullptr) {
+          continue;
+        }
 
-      if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE &&
-          buf_block_will_withdrawn(buf_pool,
-                                   reinterpret_cast<buf_block_t *>(bpage))) {
-        if (buf_page_can_relocate(bpage)) {
-          mutex_exit(block_mutex);
-          if (!buf_page_realloc(buf_pool,
-                                reinterpret_cast<buf_block_t *>(bpage))) {
-            /* failed to allocate block */
-            break;
+        BPageMutex *block_mutex;
+
+        block_mutex = buf_page_get_mutex(bpage);
+        mutex_enter(block_mutex);
+
+        if (bpage->zip.data != nullptr &&
+            buf_frame_will_withdrawn(buf_pool,
+                                     static_cast<byte *>(bpage->zip.data))) {
+          if (buf_page_can_relocate(bpage)) {
+            mutex_exit(block_mutex);
+            if (!buf_buddy_realloc(buf_pool, bpage->zip.data,
+                                   page_zip_get_size(&bpage->zip))) {
+              /* failed to allocate block */
+              stop = true;
+              break;
+            }
+            mutex_enter(block_mutex);
+            count2++;
           }
-          count2++;
+          /* NOTE: if the page is in use,
+          not reallocated yet */
+        }
+
+        if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE &&
+            buf_block_will_withdrawn(buf_pool,
+                                     reinterpret_cast<buf_block_t *>(bpage))) {
+          if (buf_page_can_relocate(bpage)) {
+            mutex_exit(block_mutex);
+            if (!buf_page_realloc(buf_pool,
+                                  reinterpret_cast<buf_block_t *>(bpage))) {
+              /* failed to allocate block */
+              stop = true;
+              break;
+            }
+            count2++;
+          } else {
+            mutex_exit(block_mutex);
+          }
+          /* NOTE: if the page is in use,
+          not reallocated yet */
         } else {
           mutex_exit(block_mutex);
         }
-        /* NOTE: if the page is in use,
-        not reallocated yet */
-      } else {
-        mutex_exit(block_mutex);
-      }
 
-      if ((remove_loop_count++) % 1000 == 0) {
-        const auto timeout = get_srv_fatal_semaphore_wait_threshold() / 2;
-        const auto time_diff =
-            std::chrono::steady_clock::now() - loop_start_time;
-        if (time_diff > timeout) {
-          /* avoids crash at srv_fatal_semaphore_wait_threshold */
-          break;
+        if ((remove_loop_count++) % 1000 == 0) {
+          const auto timeout = get_srv_fatal_semaphore_wait_threshold() / 2;
+          const auto time_diff =
+              std::chrono::steady_clock::now() - loop_start_time;
+          if (time_diff > timeout) {
+            /* avoids crash at srv_fatal_semaphore_wait_threshold */
+            stop = true;
+            break;
+          }
         }
       }
     }
@@ -2181,8 +2210,8 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
         UT_LIST_GET_LEN(buf_pool->withdraw), buf_pool->withdraw_target);
 
     ib::info(ER_IB_MSG_57) << "buffer pool " << i << " : withdrew " << count1
-                           << " blocks from free list."
-                           << " Tried to relocate " << count2 << " pages ("
+                           << " blocks from free list." << " Tried to relocate "
+                           << count2 << " pages ("
                            << UT_LIST_GET_LEN(buf_pool->withdraw) << "/"
                            << buf_pool->withdraw_target << ").";
 
@@ -2986,7 +3015,6 @@ The caller must take care of relocating bpage->list.
                         must be BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE
 @param[in,out]  dpage   destination control block */
 static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
-  buf_page_t *b;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -3017,39 +3045,15 @@ static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
 
   new (dpage) buf_page_t(*bpage);
 
-  /* Important that we adjust the hazard pointer before
-  removing bpage from LRU list. */
-  buf_LRU_adjust_hp(buf_pool, bpage);
-
+  /* relocate within bpage's LRU group (PS-11141 grouped LRU list): the
+  group itself never moves, since only the identity of one page within it
+  changes, so there is no group hazard pointer or LRU_old boundary to fix
+  up here at all. */
   ut_d(bpage->in_LRU_list = false);
   ut_d(bpage->in_page_hash = false);
+  ut_d(dpage->in_LRU_list = true);
 
-  /* relocate buf_pool->LRU */
-  b = UT_LIST_GET_PREV(LRU, bpage);
-  UT_LIST_REMOVE(buf_pool->LRU, bpage);
-
-  if (b != nullptr) {
-    UT_LIST_INSERT_AFTER(buf_pool->LRU, b, dpage);
-  } else {
-    UT_LIST_ADD_FIRST(buf_pool->LRU, dpage);
-  }
-
-  if (buf_pool->LRU_old == bpage) {
-    buf_pool->LRU_old = dpage;
-#ifdef UNIV_LRU_DEBUG
-    /* buf_pool->LRU_old must be the first item in the LRU list
-    whose "old" flag is set. */
-    ut_a(buf_pool->LRU_old->old);
-    ut_a(!UT_LIST_GET_PREV(LRU, buf_pool->LRU_old) ||
-         !UT_LIST_GET_PREV(LRU, buf_pool->LRU_old)->old);
-    ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old) ||
-         UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
-  } else {
-    /* Check that the "old" flag is consistent in
-    the block and its neighbours. */
-    buf_page_set_old(dpage, buf_page_is_old(dpage));
-#endif /* UNIV_LRU_DEBUG */
-  }
+  buf_LRU_relocate_in_group(bpage, dpage);
 
   ut_d(CheckInLRUList::validate(buf_pool));
 
@@ -3114,25 +3118,23 @@ void FlushHp::adjust(const buf_page_t *bpage) {
 }
 
 /** Adjust the value of hp. This happens when some other thread working
-on the same list attempts to remove the hp from the list.
-@param bpage    buffer block to be compared */
+on the same LRU group list attempts to remove the hp group from the list
+(PS-11141 grouped LRU list).
+@param group    group to be compared */
+void LRUGroupHp::adjust(const buf_lru_group_t *group) {
+  ut_ad(group);
 
-void LRUHp::adjust(const buf_page_t *bpage) {
-  ut_ad(bpage);
-
-  /** We only support reverse traversal for now. */
-  if (is_hp(bpage)) {
+  /* We only support reverse traversal for now. */
+  if (is_hp(group)) {
     m_hp = UT_LIST_GET_PREV(LRU, m_hp);
   }
-
-  ut_ad(!m_hp || m_hp->in_LRU_list);
 }
 
-/** Selects from where to start a scan. If we have scanned too deep into
-the LRU list it resets the value to the tail of the LRU list.
-@return buf_page_t from where to start scan. */
-
-buf_page_t *LRUItr::start() {
+/** Selects from where to start a group scan. If we have scanned too deep
+into the LRU group list it resets the value to the tail of the LRU group
+list (PS-11141 grouped LRU list).
+@return buf_lru_group_t from where to start scan. */
+buf_lru_group_t *LRUGroupItr::start() {
   ut_ad(mutex_own(m_mutex));
 
   if (!m_hp || !m_hp->old) {
@@ -6566,6 +6568,11 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
+  /* PS-11141 grouped LRU list: once every page is gone, every group should
+  have emptied and been freed too (buf_LRU_remove_block() reclaims a group
+  as soon as it empties), so both the page count and the group count
+  (UT_LIST_GET_LEN) must be zero. */
+  ut_ad(buf_pool->LRU_n_pages == 0);
   ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
   ut_ad(UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0);
 
@@ -6774,10 +6781,10 @@ static void buf_pool_validate_instance(buf_pool_t *buf_pool) {
   /* Pages whose read IO is in progress and which are not yet linked into
   the LRU list were counted into n_lru_add_pending instead of n_lru. */
   (void)n_lru_add_pending;
-  ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
+  ut_a(buf_pool->LRU_n_pages == n_lru);
 #else  /* UNIV_DEBUG */
-  ut_a(UT_LIST_GET_LEN(buf_pool->LRU) <= n_lru);
-  ut_a(n_lru <= UT_LIST_GET_LEN(buf_pool->LRU) + n_lru_add_pending);
+  ut_a(buf_pool->LRU_n_pages <= n_lru);
+  ut_a(n_lru <= buf_pool->LRU_n_pages + n_lru_add_pending);
 #endif /* UNIV_DEBUG */
 
   mutex_exit(&buf_pool->LRU_list_mutex);
@@ -7120,7 +7127,7 @@ void buf_stats_get_pool_info(
 
   pool_info->pool_size_bytes = buf_pool->curr_pool_size;
 
-  pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+  pool_info->lru_len = buf_pool->LRU_n_pages;
 
   pool_info->old_lru_len = buf_pool->LRU_old_len;
 

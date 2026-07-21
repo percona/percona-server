@@ -262,10 +262,10 @@ static void buf_dump(bool obey_shutdown) {
     buf_pool = buf_pool_from_array(i);
 
     /* obtain buf_pool LRU list mutex before allocate, since
-    UT_LIST_GET_LEN(buf_pool->LRU) could change */
+    buf_pool->LRU_n_pages could change */
     mutex_enter(&buf_pool->LRU_list_mutex);
 
-    size_t n_pages = UT_LIST_GET_LEN(buf_pool->LRU);
+    size_t n_pages = buf_pool->LRU_n_pages;
 
     /* skip empty buffer pools */
     if (n_pages == 0) {
@@ -295,12 +295,18 @@ static void buf_dump(bool obey_shutdown) {
       return;
     }
     {
+      /* PS-11141 grouped LRU list: walk groups, then each group's pages,
+      in LRU order. */
       size_t j{0};
-      for (auto bpage : buf_pool->LRU) {
+      for (auto *group : buf_pool->LRU) {
         if (n_pages <= j) break;
-        ut_a(buf_page_in_file(bpage));
+        for (auto *bpage : group->pages) {
+          if (n_pages <= j) break;
+          if (bpage == nullptr) continue;
+          ut_a(buf_page_in_file(bpage));
 
-        dump[j++] = BUF_DUMP_CREATE(bpage->id.space(), bpage->id.page_no());
+          dump[j++] = BUF_DUMP_CREATE(bpage->id.space(), bpage->id.page_no());
+        }
       }
 
       ut_a(j == n_pages);

@@ -557,14 +557,22 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
     ut_ad(force);
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
-    bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-    while (bpage != nullptr) {
-      if (bpage->zip.data == src) {
-        hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
-        rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
+    /* PS-11141 grouped LRU list: walk groups, then each group's pages. */
+    bpage = nullptr;
+    for (auto *group : buf_pool->LRU) {
+      for (auto *candidate : group->pages) {
+        if (candidate != nullptr && candidate->zip.data == src) {
+          bpage = candidate;
+          break;
+        }
+      }
+      if (bpage != nullptr) {
         break;
       }
-      bpage = UT_LIST_GET_NEXT(LRU, bpage);
+    }
+    if (bpage != nullptr) {
+      hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
+      rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
     }
 
     if (bpage == nullptr) {

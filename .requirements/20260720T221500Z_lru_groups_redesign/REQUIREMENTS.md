@@ -214,3 +214,89 @@ this blast radius is not rushed to fit a single sitting.
   groups; `i_s.cc` / metrics.
 - **P6 Validators + full MTR pass (future task):** Extend
   `buf_LRU_validate_instance` per Requirement 11; full regression pass.
+
+## P2 detailed design (added after advisor review, before implementation)
+
+Refines/corrects the P1-era design based on a design review before writing P2 code.
+Two changes from the original 7 requirements as literally read, both deliberate and
+flagged to the user:
+
+1. **Removal is deferred to drain time, not enqueue time.** The literal reading of
+   requirement 3 ("make a page young -> remove it from its group and enqueue
+   promotion") would mean `buf_LRU_enqueue_promote()` itself unlinks the page from
+   its group. Rejected: the already-merged `make-young-defer` branch's enqueue path
+   is a pure lock-free CAS + buf-fix + push -- it touches no LRU/group state at all,
+   and that IS the contention win. Making enqueue also take the group mutex adds
+   cost for no benefit, and creates a "homeless page" (buf-fixed, not in any group,
+   only reachable via the promotion-queue link) that every group/LRU invariant,
+   validator, and free/stale path would need to special-case. Instead: enqueue is
+   unchanged; only `buf_LRU_drain_promote_queue` touches groups, removing each
+   drained page from its current group and appending it to the young-side fill
+   group (see below), all under `LRU_list_mutex` -- exactly mirroring how the
+   already-merged code moves each drained page under the list mutex today, just
+   working in groups instead of raw list splices.
+2. **P2/P3 do not yet exploit "group mutex without `LRU_list_mutex`."** Per (1),
+   every group mutation site in P2/P3 (fresh-page insert, remove-on-evict,
+   make-young removal at drain time, old/young boundary adjustment) already holds
+   `LRU_list_mutex`. The "acquire a group mutex without `LRU_list_mutex`" contention
+   win described in the original design is a **P4 (eviction)** opportunity: once a
+   tail group is identified under `LRU_list_mutex`, the mutex can be dropped and
+   eviction can proceed against just that group's mutex while other threads
+   continue to mutate the rest of the list. P2/P3 still acquire each group's mutex
+   whenever touching its contents (nested under `LRU_list_mutex`, per the declared
+   ordering) for invariant consistency and to exercise the new sync level, but this
+   is not yet load-bearing for contention reduction until P4.
+   Consequently, `LRU_old_len`'s "deferred empty-group unlink" concern does not
+   apply in P2: since `LRU_list_mutex` is already held whenever a group empties,
+   the group is unlinked immediately, right there. Deferred unlink only becomes
+   necessary in P4, where eviction may hold only a group's mutex.
+
+### New buf_pool_t fields required
+
+- `size_t LRU_n_pages`: total live pages across all groups. Necessary because
+  `UT_LIST_GET_LEN(buf_pool->LRU)` now counts *groups*, not pages -- every
+  page-count comparison in the old algorithm (`BUF_LRU_OLD_MIN_LEN`,
+  `calculate_desired_LRU_old_size`) needs this instead. Incremented/decremented
+  exactly where a page is added to/removed from a group, under `LRU_list_mutex`.
+- `buf_lru_group_t *LRU_young_fill_group`: the group currently being appended to
+  by young-side (MRU) insertions -- both the immediate `buf_LRU_make_block_young`
+  path and, per page, the batched drain. When full (`n_pages == BUF_LRU_GROUP_SIZE`)
+  a fresh group is created and linked at the list head, and becomes the new
+  `LRU_young_fill_group`. This unifies immediate and deferred promotion under one
+  append primitive, so the drain produces `ceil(N/K)` groups for free (no
+  special-casing "drain builds possibly many groups").
+- `buf_lru_group_t *LRU_fill_group`: the equivalent for old-side (fresh page reads,
+  and `buf_LRU_make_block_old`), linked as `LRU_old`'s immediate group-successor
+  when (re)created, mirroring the page-model's `UT_LIST_INSERT_AFTER(LRU, LRU_old,
+  bpage)`.
+- A group's "fill" append always linearly scans its `pages[K]` array (K=32, cheap)
+  for a null slot rather than tracking a separate append cursor, so pages removed
+  from a still-filling group (e.g. re-evicted before the group seals) leave a hole
+  that a later append can reuse without extra bookkeeping.
+
+### Old/young boundary: fixing a real hang, not just an inefficiency
+
+Porting the page-level `buf_LRU_old_adjust_len` fixed-point loop naively (move the
+boundary one *group* at a time, stop once `|old_len - new_len| <= TOLERANCE`) hangs:
+moving a whole group (up to 32 pages) against `BUF_LRU_OLD_TOLERANCE` (20) can
+overshoot the tolerance band, flipping the loop's direction next iteration, forever,
+inside one `LRU_list_mutex`-held call. Fixed by only moving a group across the
+boundary when doing so **strictly reduces** `|old_len - new_len|` (checked before
+committing the move); if neither direction would improve, stop. This terminates
+regardless of tolerance sizing (each iteration strictly shrinks a bounded
+non-negative integer) and is checked with a debug iteration bound as a backstop.
+
+### make_block_old
+
+Not covered by the original 7 requirements. Resolution: identical structure to the
+page-model (`remove_block` + re-insert as old), reusing the same old-side
+fill-group-append primitive used by fresh-page reads -- no new mechanism needed.
+
+### Drain ordering
+
+`buf_LRU_drain_promote_queue` must, per drained page: remove from its current
+group (immediate, since we hold `LRU_list_mutex`), append to `LRU_young_fill_group`
+(set `lru_group`/`lru_slot`/`old=false`/stamp `freed_page_clock`) **before** clearing
+`LRU_in_promote_queue` in the existing second pass -- so a producer that wins a
+re-enqueue race right after the flag clears always finds the page in a valid group,
+never in a transiently ungrouped state.

@@ -556,16 +556,14 @@ static inline void buf_page_set_old(buf_page_t *bpage, bool old) {
   /* If a block is flagged "old", the LRU_old list must exist. */
   ut_a(!old || buf_pool->LRU_old);
 
-  if (UT_LIST_GET_PREV(LRU, bpage) && UT_LIST_GET_NEXT(LRU, bpage)) {
-    const buf_page_t *prev = UT_LIST_GET_PREV(LRU, bpage);
-    const buf_page_t *next = UT_LIST_GET_NEXT(LRU, bpage);
-    if (prev->old == next->old) {
-      ut_a(prev->old == old);
-    } else {
-      ut_a(!prev->old);
-      ut_a(buf_pool->LRU_old == (old ? bpage : next));
-    }
-  }
+  /* PS-11141 grouped LRU list: every page in a group shares that group's
+  "old" flag (the group is the young/old classification unit; page-level
+  neighbor checks against buf_page_t::LRU no longer apply, since pages no
+  longer link directly into buf_pool->LRU). This invariant is established by
+  construction: buf_LRU_old_adjust_len(), buf_LRU_old_init(), and
+  buf_LRU_remove_block()'s boundary shift all flip a group's member pages'
+  "old" flags in lockstep with the group's own "old" flag. */
+  ut_a(bpage->lru_group == nullptr || old == bpage->lru_group->old);
 #endif /* UNIV_LRU_DEBUG */
 
   bpage->old = old;

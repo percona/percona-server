@@ -1477,8 +1477,7 @@ static ulint buf_flush_try_neighbors(const page_id_t &page_id,
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(!buf_flush_list_mutex_own(buf_pool));
 
-  if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN ||
-      srv_flush_neighbors == 0) {
+  if (buf_pool->LRU_n_pages < BUF_LRU_OLD_MIN_LEN || srv_flush_neighbors == 0) {
     /* If there is little space or neighbor flushing is
     not enabled then just flush the victim. */
     low = page_id.page_no();
@@ -1712,7 +1711,7 @@ static buf_flush_batch_result_t buf_free_from_unzip_LRU_list_batch(
   buf_block_t *block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
 
   while (block != nullptr && count < max && free_len < srv_LRU_scan_depth &&
-         lru_len > UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
+         lru_len > buf_pool->LRU_n_pages / 10) {
     BPageMutex *block_mutex = buf_page_get_mutex(&block->page);
 
     ++scanned;
@@ -1747,67 +1746,100 @@ to this function there will be 'max' blocks in the free list.
 @param[in]      buf_pool        buffer pool instance
 @param[in]      max             desired number for blocks in the free_list
 @return batch result */
+/** Evicts/flushes from buf_pool->LRU tail groups toward the head, up to
+`max` pages or until the free-list/LRU-length conditions no longer hold
+(PS-11141 grouped LRU list): a group is a batching unit, not an atomicity
+unit, so a candidate group's pages are each tried best-effort (ready-for-
+replace pages evicted, ready-for-flush pages dispatched, others skipped),
+exactly as the pre-grouping code tried each page in flat LRU order. No
+group mutex is needed for the scan itself; see
+buf_LRU_free_from_common_LRU_list() for why. */
 static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
                                                          ulint max) {
-  buf_page_t *bpage;
   ulint scanned = 0;
   ulint evict_count = 0;
   ulint count = 0;
   ulint free_len = UT_LIST_GET_LEN(buf_pool->free);
-  ulint lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
-  ulint withdraw_depth;
+  ulint lru_len = buf_pool->LRU_n_pages;
+  ulint withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
-  withdraw_depth = buf_get_withdraw_depth(buf_pool);
+  auto should_continue = [&]() {
+    return count + evict_count < max &&
+           free_len < srv_LRU_scan_depth + withdraw_depth &&
+           lru_len > BUF_LRU_MIN_LEN;
+  };
 
-  for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-       bpage != nullptr && count + evict_count < max &&
-       free_len < srv_LRU_scan_depth + withdraw_depth &&
-       lru_len > BUF_LRU_MIN_LEN;
-       ++scanned, bpage = buf_pool->lru_hp.get()) {
+  buf_lru_group_t *group = UT_LIST_GET_LAST(buf_pool->LRU);
+
+  while (group != nullptr && should_continue()) {
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
-    auto prev = UT_LIST_GET_PREV(LRU, bpage);
-    buf_pool->lru_hp.set(prev);
+    auto prev_group = UT_LIST_GET_PREV(LRU, group);
+    buf_pool->lru_hp.set(prev_group);
 
-    auto block_mutex = buf_page_get_mutex(bpage);
-
-    if (bpage->was_stale()) {
-      if (buf_page_free_stale(buf_pool, bpage)) {
-        ++evict_count;
-        mutex_enter(&buf_pool->LRU_list_mutex);
+    for (auto *bpage : group->pages) {
+      if (bpage == nullptr) {
+        continue;
       }
-    } else {
-      auto acquired = mutex_enter_nowait(block_mutex) == 0;
+      if (!should_continue()) {
+        break;
+      }
+      ++scanned;
 
-      if (acquired && buf_flush_ready_for_replace(bpage)) {
-        /* block is ready for eviction i.e., it is
-        clean and is not IO-fixed or buffer fixed. */
-        if (buf_LRU_free_page(bpage, true)) {
+      auto block_mutex = buf_page_get_mutex(bpage);
+      bool evicted = false;
+
+      if (bpage->was_stale()) {
+        if (buf_page_free_stale(buf_pool, bpage)) {
           ++evict_count;
+          evicted = true;
           mutex_enter(&buf_pool->LRU_list_mutex);
-        } else {
+        }
+      } else {
+        auto acquired = mutex_enter_nowait(block_mutex) == 0;
+
+        if (acquired && buf_flush_ready_for_replace(bpage)) {
+          /* block is ready for eviction i.e., it is
+          clean and is not IO-fixed or buffer fixed. */
+          if (buf_LRU_free_page(bpage, true)) {
+            ++evict_count;
+            evicted = true;
+            mutex_enter(&buf_pool->LRU_list_mutex);
+          } else {
+            mutex_exit(block_mutex);
+          }
+        } else if (acquired &&
+                   buf_flush_ready_for_flush(bpage, BUF_FLUSH_LRU)) {
+          /* Block is ready for flush. Dispatch an IO request. The IO helper
+          thread will put it on the free list in the IO completion routine. */
+          mutex_exit(block_mutex);
+          buf_flush_page_and_try_neighbors(bpage, BUF_FLUSH_LRU, max, &count);
+        } else if (acquired) {
+          /* Can't evict or dispatch this block. Go to the next one. */
           mutex_exit(block_mutex);
         }
-      } else if (acquired && buf_flush_ready_for_flush(bpage, BUF_FLUSH_LRU)) {
-        /* Block is ready for flush. Dispatch an IO request. The IO helper
-        thread will put it on the free list in the IO completion routine. */
-        mutex_exit(block_mutex);
-        buf_flush_page_and_try_neighbors(bpage, BUF_FLUSH_LRU, max, &count);
-      } else if (!acquired) {
-        ut_ad(buf_pool->lru_hp.is_hp(prev));
-      } else {
-        /* Can't evict or dispatch this block. Go to previous. */
-        mutex_exit(block_mutex);
-        ut_ad(buf_pool->lru_hp.is_hp(prev));
+      }
+
+      ut_ad(!mutex_own(block_mutex));
+      ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+      free_len = UT_LIST_GET_LEN(buf_pool->free);
+      lru_len = buf_pool->LRU_n_pages;
+      withdraw_depth = buf_get_withdraw_depth(buf_pool);
+
+      if (evicted) {
+        /* A successful evict may have emptied and freed `group` (if this
+        was its last live page): stop touching group->pages and move on
+        to the next group via the hazard pointer, which was already set
+        to this group's predecessor above. This trades a little
+        in-group batching (the rest of this group, if it survives, is
+        picked up on a later call) for never dereferencing a possibly-
+        freed group. */
+        break;
       }
     }
 
-    ut_ad(!mutex_own(block_mutex));
-    ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
-
-    free_len = UT_LIST_GET_LEN(buf_pool->free);
-    lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
-    withdraw_depth = buf_get_withdraw_depth(buf_pool);
+    group = buf_pool->lru_hp.get();
   }
 
   buf_pool->lru_hp.set(nullptr);
@@ -2132,67 +2164,84 @@ is not fast enough to keep pace with the workload.
 @param[in,out]  buf_pool        buffer pool instance
 @return true if success. */
 bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
-  bool freed;
-  ulint scanned;
-  buf_page_t *bpage;
+  bool freed = false;
+  ulint scanned = 0;
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
-  for (bpage = buf_pool->single_scan_itr.start(), scanned = 0, freed = false;
-       bpage != nullptr; ++scanned, bpage = buf_pool->single_scan_itr.get()) {
+  /* PS-11141 grouped LRU list: scan groups tail-to-head; within a group,
+  scan its pages. See buf_LRU_free_from_common_LRU_list() for why no group
+  mutex is needed for the scan itself, and for why this must be a
+  while-loop rather than a for-loop with `.get()` as the increment clause
+  (that would call .get() -- asserting LRU_list_mutex ownership -- even on
+  the iteration where a successful free just released it). */
+  buf_lru_group_t *group = buf_pool->single_scan_itr.start();
+
+  while (group != nullptr && !freed) {
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
-    auto prev = UT_LIST_GET_PREV(LRU, bpage);
+    auto prev_group = UT_LIST_GET_PREV(LRU, group);
+    buf_pool->single_scan_itr.set(prev_group);
 
-    buf_pool->single_scan_itr.set(prev);
-
-    if (bpage->was_stale()) {
-      freed = buf_page_free_stale(buf_pool, bpage);
-      if (freed) {
-        break;
+    for (auto *bpage : group->pages) {
+      if (bpage == nullptr) {
+        continue;
       }
-    } else {
-      auto block_mutex = buf_page_get_mutex(bpage);
+      ++scanned;
 
-      mutex_enter(block_mutex);
-
-      if (buf_flush_ready_for_replace(bpage)) {
-        /* block is ready for eviction i.e., it is
-        clean and is not IO-fixed or buffer fixed. */
-
-        if (buf_LRU_free_page(bpage, true)) {
-          freed = true;
-          break;
-        }
-
-        mutex_exit(block_mutex);
-
-      } else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
-        /* Block is ready for flush. Try and dispatch an IO
-        request. We'll put it on free list in IO completion
-        routine if it is not buffer fixed. The following call
-        will release the buffer pool and block mutex.
-
-        Note: There is no guarantee that this page has actually
-        been freed, only that it has been flushed to disk */
-
-        freed = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, true);
-
+      if (bpage->was_stale()) {
+        freed = buf_page_free_stale(buf_pool, bpage);
         if (freed) {
           break;
         }
-
-        mutex_exit(block_mutex);
       } else {
-        mutex_exit(block_mutex);
+        auto block_mutex = buf_page_get_mutex(bpage);
+
+        mutex_enter(block_mutex);
+
+        if (buf_flush_ready_for_replace(bpage)) {
+          /* block is ready for eviction i.e., it is
+          clean and is not IO-fixed or buffer fixed. */
+
+          if (buf_LRU_free_page(bpage, true)) {
+            freed = true;
+            break;
+          }
+
+          mutex_exit(block_mutex);
+
+        } else if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
+          /* Block is ready for flush. Try and dispatch an IO
+          request. We'll put it on free list in IO completion
+          routine if it is not buffer fixed. The following call
+          will release the buffer pool and block mutex.
+
+          Note: There is no guarantee that this page has actually
+          been freed, only that it has been flushed to disk */
+
+          freed = buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, true);
+
+          if (freed) {
+            break;
+          }
+
+          mutex_exit(block_mutex);
+        } else {
+          mutex_exit(block_mutex);
+        }
+        ut_ad(!mutex_own(block_mutex));
       }
-      ut_ad(!mutex_own(block_mutex));
     }
+
+    if (freed) {
+      break;
+    }
+
+    group = buf_pool->single_scan_itr.get();
   }
 
   if (!freed) {
     /* Can't find a single flushable page. */
-    ut_ad(bpage == nullptr);
     mutex_exit(&buf_pool->LRU_list_mutex);
   }
 
@@ -2226,7 +2275,7 @@ static buf_flush_batch_result_t buf_flush_LRU_list(buf_pool_t *buf_pool,
 
   /* srv_LRU_scan_depth can be arbitrarily large value.
   We cap it with current LRU size. */
-  scan_depth = UT_LIST_GET_LEN(buf_pool->LRU);
+  scan_depth = buf_pool->LRU_n_pages;
   withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
   if (withdraw_depth > srv_LRU_scan_depth) {

@@ -1309,33 +1309,41 @@ static void btr_drop_next_batch(const page_size_t &page_size,
     to_drop.clear();
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     mutex_enter(&buf_pool->LRU_list_mutex);
-    const buf_page_t *prev;
 
-    for (const buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-         bpage != nullptr; bpage = prev) {
-      prev = UT_LIST_GET_PREV(LRU, bpage);
+    /* PS-11141 grouped LRU list: walk groups tail-to-head, then each
+    group's pages; order beyond that doesn't matter here (a read-only
+    best-effort batch collection), just eventual full coverage across
+    repeated calls. */
+    for (buf_lru_group_t *group = UT_LIST_GET_LAST(buf_pool->LRU);
+         group != nullptr && to_drop.size() < batch_size;
+         group = UT_LIST_GET_PREV(LRU, group)) {
+      for (const buf_page_t *bpage : group->pages) {
+        if (bpage == nullptr) {
+          continue;
+        }
 
-      ut_a(buf_page_in_file(bpage));
-      if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
-          bpage->buf_fix_count > 0) {
-        continue;
-      }
+        ut_a(buf_page_in_file(bpage));
+        if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
+            bpage->buf_fix_count > 0) {
+          continue;
+        }
 
-      const dict_index_t *block_index =
-          reinterpret_cast<const buf_block_t *>(bpage)->ahi.index;
+        const dict_index_t *block_index =
+            reinterpret_cast<const buf_block_t *>(bpage)->ahi.index;
 
-      /* index == nullptr means the page is no longer in AHI, so no need to
-      attempt freeing it */
-      if (block_index == nullptr) {
-        continue;
-      }
-      /* pages IO fixed for read have index == nullptr */
-      ut_ad(!bpage->was_io_fix_read());
+        /* index == nullptr means the page is no longer in AHI, so no need to
+        attempt freeing it */
+        if (block_index == nullptr) {
+          continue;
+        }
+        /* pages IO fixed for read have index == nullptr */
+        ut_ad(!bpage->was_io_fix_read());
 
-      if (std::find(first, last, block_index) != last) {
-        to_drop.emplace_back(bpage->id);
-        if (to_drop.size() == batch_size) {
-          break;
+        if (std::find(first, last, block_index) != last) {
+          to_drop.emplace_back(bpage->id);
+          if (to_drop.size() == batch_size) {
+            break;
+          }
         }
       }
     }

@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 // Forward declaration
 struct trx_t;
+struct buf_lru_group_t;
 
 /** Returns true if less than 25 % of the buffer pool is available. This can be
  used in heuristics to prevent huge transactions eating up the whole buffer
@@ -185,10 +186,22 @@ the block mutexes will be released.
                                 could be not initialized */
 void buf_LRU_free_one_page(buf_page_t *bpage, bool ignore_content);
 
-/** Adjust LRU hazard pointers if needed.
+/** Adjust LRU group hazard pointers if needed (PS-11141 grouped LRU list).
+Must be called before a group is unlinked from buf_pool->LRU.
 @param[in] buf_pool Buffer pool instance
-@param[in] bpage Control block */
-void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
+@param[in] group Group about to be unlinked */
+void buf_LRU_adjust_group_hp(buf_pool_t *buf_pool,
+                             const buf_lru_group_t *group);
+
+/** Replace bpage's slot in its LRU group with dpage, without moving the
+group itself (PS-11141 grouped LRU list). Used when a page descriptor is
+replaced in place (e.g. compressed<->uncompressed swap, buffer chunk
+relocation) while keeping the same logical LRU position. Requires
+buf_pool->LRU_list_mutex; on return, bpage no longer belongs to any group
+and dpage occupies its former slot.
+@param[in]      bpage   old page descriptor, currently linked into a group
+@param[in,out]  dpage   new page descriptor, taking over bpage's slot */
+void buf_LRU_relocate_in_group(buf_page_t *bpage, buf_page_t *dpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list. */

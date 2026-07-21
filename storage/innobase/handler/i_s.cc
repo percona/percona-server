@@ -5049,16 +5049,15 @@ static int i_s_innodb_fill_buffer_lru(THD *thd, Table_ref *tables,
   int status = 0;
   buf_page_info_t *info_buffer;
   ulint lru_pos = 0;
-  const buf_page_t *bpage;
   ulint lru_len;
 
   DBUG_TRACE;
 
   /* Obtain buf_pool->LRU_list_mutex before allocate info_buffer, since
-  UT_LIST_GET_LEN(buf_pool->LRU) could change */
+  buf_pool->LRU_n_pages could change */
   mutex_enter(&buf_pool->LRU_list_mutex);
 
-  lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+  lru_len = buf_pool->LRU_n_pages;
 
   /* Print error message if malloc fail */
   info_buffer = (buf_page_info_t *)my_malloc(
@@ -5071,23 +5070,29 @@ static int i_s_innodb_fill_buffer_lru(THD *thd, Table_ref *tables,
 
   memset(info_buffer, 0, lru_len * sizeof *info_buffer);
 
-  /* Walk through Pool's LRU list and print the buffer page
-  information */
-  bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+  /* Walk through Pool's LRU list and print the buffer page information
+  (PS-11141 grouped LRU list): groups tail-to-head, then each group's
+  pages. NOTE: LRU_POS is now only accurate to which group a page
+  belongs -- exact intra-group ordering isn't tracked (a group's slots
+  aren't kept in recency order) -- consistent with the coarser
+  granularity the grouped design accepts elsewhere. */
+  for (const buf_lru_group_t *group = UT_LIST_GET_LAST(buf_pool->LRU);
+       group != nullptr; group = UT_LIST_GET_PREV(LRU, group)) {
+    for (const buf_page_t *bpage : group->pages) {
+      if (bpage == nullptr) {
+        continue;
+      }
+      /* Use the same function that collect buffer info for
+      INNODB_BUFFER_PAGE to get buffer page info */
+      i_s_innodb_buffer_page_get_info(bpage, pool_id, lru_pos,
+                                      (info_buffer + lru_pos));
 
-  while (bpage != nullptr) {
-    /* Use the same function that collect buffer info for
-    INNODB_BUFFER_PAGE to get buffer page info */
-    i_s_innodb_buffer_page_get_info(bpage, pool_id, lru_pos,
-                                    (info_buffer + lru_pos));
-
-    bpage = UT_LIST_GET_PREV(LRU, bpage);
-
-    lru_pos++;
+      lru_pos++;
+    }
   }
 
   ut_ad(lru_pos == lru_len);
-  ut_ad(lru_pos == UT_LIST_GET_LEN(buf_pool->LRU));
+  ut_ad(lru_pos == buf_pool->LRU_n_pages);
 
 exit:
   mutex_exit(&buf_pool->LRU_list_mutex);

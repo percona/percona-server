@@ -231,9 +231,6 @@ struct Srv_threads {
   /** Thread doing rollbacks during recovery. */
   IB_thread m_trx_recovery_rollback;
 
-  /** Thread writing recovered pages during recovery. */
-  IB_thread m_recv_writer;
-
   /** Purge coordinator (also being a worker) */
   IB_thread m_purge_coordinator;
 
@@ -253,6 +250,14 @@ struct Srv_threads {
   /** Page cleaner workers. Note that m_page_cleaner_workers[0] is the
   same shared state as m_page_cleaner_coordinator. */
   IB_thread *m_page_cleaner_workers;
+
+  /** Number of LRU manager threads and size of array below. One per
+  buf_pool instance. */
+  size_t m_lru_managers_n;
+
+  /** LRU manager threads — sole owners of buf_flush_LRU_list for
+  free-list refill. The page cleaner only flushes the flush_list. */
+  IB_thread *m_lru_managers;
 
   /** Archiver's log archiver (used by Clone). */
   IB_thread m_log_archiver;
@@ -889,6 +894,7 @@ extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_pool_create_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
+extern mysql_pfs_key_t buf_lru_manager_thread_key;
 extern mysql_pfs_key_t clone_ddl_thread_key;
 extern mysql_pfs_key_t clone_gtid_thread_key;
 extern mysql_pfs_key_t ddl_thread_key;
@@ -907,7 +913,6 @@ extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
-extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;

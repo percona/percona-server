@@ -1209,6 +1209,12 @@ static void srv_init(void) {
       UT_NEW_THIS_FILE_PSI_KEY,
       ut::Count{srv_threads.m_page_cleaner_workers_n});
 
+  /* One LRU manager thread per buf_pool instance. */
+  srv_threads.m_lru_managers_n = srv_buf_pool_instances;
+
+  srv_threads.m_lru_managers = ut::new_arr_withkey<IB_thread>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{srv_threads.m_lru_managers_n});
+
   srv_sys = static_cast<srv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, srv_sys_sz));
 
@@ -1315,6 +1321,18 @@ void srv_free(void) {
     }
     ut::delete_arr(srv_threads.m_page_cleaner_workers);
     srv_threads.m_page_cleaner_workers = nullptr;
+  }
+
+  if (srv_threads.m_lru_managers != nullptr) {
+    for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
+      srv_threads.m_lru_managers[i] = {};
+    }
+    /* Allocated with ut::new_arr_withkey<IB_thread>(), so it must be released
+    with ut::delete_arr() (which runs the element destructors and uses the
+    matching array allocator), not ut::free(). This mirrors the
+    m_page_cleaner_workers / m_purge_workers teardown above. */
+    ut::delete_arr(srv_threads.m_lru_managers);
+    srv_threads.m_lru_managers = nullptr;
   }
 
   if (srv_threads.m_purge_workers != nullptr) {

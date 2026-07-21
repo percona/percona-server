@@ -43,6 +43,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Checks if the page_cleaner is in active state. */
 bool buf_flush_page_cleaner_is_active();
 
+/** Returns the count of currently active LRU manager threads. */
+size_t buf_flush_active_lru_managers();
+
 #ifdef UNIV_DEBUG
 
 /** Value of MySQL global variable used to disable page cleaner. */
@@ -190,8 +193,8 @@ bool buf_flush_ready_for_replace(const buf_page_t *bpage);
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
 
-/** Disables page cleaner threads (coordinator and workers).
-It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+/** Disables page cleaner threads (coordinator and workers) and LRU manager
+threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]      thd             thread handle
 @param[in]      var             pointer to system variable
 @param[out]     var_ptr         where the formal string goes

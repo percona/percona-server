@@ -1525,6 +1525,8 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   buf_pool->run_lru = os_event_create();
   os_event_set(buf_pool->run_lru);
 
+  buf_pool->flushing_allowed = true;
+
   buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
   for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
@@ -6491,21 +6493,26 @@ static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
 /** Invalidates file pages in one buffer pool instance
 @param[in]      buf_pool        buffer pool instance */
 static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
-  ulint i;
-
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
+  /* Pause LRU threads on event. */
   os_event_reset(buf_pool->run_lru);
-  auto guard = create_scope_guard([&]() { os_event_set(buf_pool->run_lru); });
 
-  for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-    /* Although this function is called during startup and
-    during redo application phase during recovery, Percona InnoDB
-    might be running several LRU manager threads at this stage.
-    Hence, a new write batch can be in initialization stage at this point. */
+  /* Prevent new flushes to start (buf_flush_start() checks this flag,
+  when starting a new flush). */
+  mutex_enter(&buf_pool->flush_state_mutex);
+  buf_pool->flushing_allowed = false;
+  mutex_exit(&buf_pool->flush_state_mutex);
 
-    /* For buffer pool invalidation to proceed we must ensure there is NO
-    write activity happening. */
+  auto guard = create_scope_guard([&]() {
+    mutex_enter(&buf_pool->flush_state_mutex);
+    buf_pool->flushing_allowed = true;
+    mutex_exit(&buf_pool->flush_state_mutex);
+    os_event_set(buf_pool->run_lru);
+  });
+
+  /* New flushing has been disallowed; wait for pending flushes. */
+  for (size_t i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
     buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
   }
 

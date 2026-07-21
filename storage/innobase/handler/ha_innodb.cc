@@ -24007,12 +24007,16 @@ static MYSQL_SYSVAR_UINT(
 static MYSQL_SYSVAR_UINT(
     lru_make_young_drain_threshold, buf_LRU_make_young_drain_threshold,
     PLUGIN_VAR_OPCMDARG,
-    "If non-zero, moving a page to the head of the buffer pool LRU list "
-    "on access is deferred: the page is pushed onto a per-buffer-pool "
-    "lock-free queue instead of taking the LRU list mutex on the hot "
-    "read path. When the queue reaches this length it is drained in one "
-    "batch under a single mutex acquisition. Set to 0 to disable the "
-    "deferred queue and move pages immediately.",
+    "Per buffer pool instance queue length at which deferred LRU "
+    "make-young promotions are drained. If non-zero, moving a page to the "
+    "head of the LRU list on access is deferred by pushing the page onto a "
+    "lock-free queue (one such queue per buffer pool instance) instead of "
+    "taking that instance's LRU list mutex on the hot read path. Each "
+    "instance drains its own queue once the queue holds this many pages, "
+    "in a single batch under one LRU list mutex acquisition; the threshold "
+    "therefore applies per instance, not across the whole buffer pool. Set "
+    "to 0 to disable the deferred queue and move pages to the LRU head "
+    "immediately.",
     nullptr, nullptr, 128, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(

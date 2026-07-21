@@ -172,8 +172,7 @@ void buf_LRU_enqueue_promote(buf_page_t *bpage) {
   flight; > 2*threshold re-arms if the crossing attempt is lost. Remainder
   below threshold is drained periodically by the page cleaner coordinator. */
   const uint threshold = buf_LRU_make_young_drain_threshold;
-  if (threshold != 0 &&
-      (new_len == threshold || new_len > 2 * uint64_t{threshold})) {
+  if (new_len == threshold || new_len > 2 * uint64_t{threshold}) {
     bool not_draining = false;
     /* Avoid clash of concurrent promotions. */
     if (buf_pool->LRU_promote_draining.compare_exchange_strong(
@@ -818,11 +817,12 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
   dberr_t err;
 
   do {
-    /* Pages on the deferred make-young queue are buf-fixed until drained;
-    flush_pages_flush_list() cannot flush them and this loop would spin.
-    Drain synchronously on each retry; do not rely on background progress
-    (coordinator interval is ~1s, and synchronous DDL cannot wait). */
-    buf_LRU_drain_promote_queue(buf_pool);
+    /* A deferred per-page operation can leave a page buf-fixed until it is
+    applied; flush_pages_flush_list() cannot flush such a page and this loop
+    would spin. Apply the deferred operations synchronously on each retry; do
+    not rely on background progress (coordinator interval is ~1s, and
+    synchronous DDL cannot wait). */
+    buf_apply_deferred_page_operations(buf_pool);
 
     /* TODO: it should be possible to avoid locking the LRU list
     mutex here. */
@@ -869,10 +869,11 @@ static void buf_LRU_remove_all_pages(buf_pool_t *buf_pool, ulint id) {
   buf_page_t *bpage;
 
 scan_again:
-  /* Pages on the promote queue are buf-fixed; the buf_fix_count check below
-  would treat them as unremovable and retry forever. Drain on every scan;
-  no-op when the queue is empty. */
-  buf_LRU_drain_promote_queue(buf_pool);
+  /* A deferred per-page operation can leave a page buf-fixed until it is
+  applied; the buf_fix_count check below would then treat it as unremovable
+  and retry forever. Apply the deferred operations on every scan; a no-op when
+  nothing is pending. */
+  buf_apply_deferred_page_operations(buf_pool);
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -1951,71 +1952,11 @@ void buf_LRU_make_block_old(buf_page_t *bpage) {
   buf_LRU_add_block_low(bpage, true);
 }
 
-static bool buf_LRU_promote_block_batched(buf_pool_t *buf_pool,
-                                          buf_page_t *bpage) noexcept {
-  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
-  ut_ad(buf_page_in_file(bpage));
-  ut_ad(bpage->in_LRU_list);
-
-  if (UT_LIST_GET_LEN(buf_pool->LRU) <= BUF_LRU_OLD_MIN_LEN) {
-    if (bpage->old) {
-      buf_pool->stat.n_pages_made_young++;
-    }
-    buf_LRU_remove_block(bpage);
-    buf_LRU_add_block_low(bpage, false);
-    return false;
-  }
-
-  const bool was_old = bpage->old;
-
-  buf_LRU_adjust_hp(buf_pool, bpage);
-
-  if (bpage == buf_pool->LRU_old) {
-    /* Shift LRU_old back one so it still points at the first
-    old-flag entry after our removal. The previous block is
-    guaranteed to exist: batching defers buf_LRU_old_adjust_len(), so
-    the BUF_LRU_OLD_TOLERANCE band does NOT hold mid-batch, but the
-    non-old region never shrinks during a batch (this branch consumes
-    one non-old block and re-adds the promoted one at the head; the
-    other promotion kinds only grow or preserve it), and it starts
-    with at least BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN
-    blocks per calculate_desired_LRU_old_size(). */
-    buf_page_t *prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
-    ut_a(prev_bpage);
-    buf_pool->LRU_old = prev_bpage;
-    buf_page_set_old(prev_bpage, true);
-    buf_pool->LRU_old_len++;
-  }
-
-  UT_LIST_REMOVE(buf_pool->LRU, bpage);
-
-  buf_unzip_LRU_remove_block_if_needed(bpage);
-
-  if (was_old) {
-    buf_pool->LRU_old_len--;
-  }
-
-  UT_LIST_ADD_FIRST(buf_pool->LRU, bpage);
-
-  bpage->freed_page_clock = buf_pool->freed_page_clock;
-
-  /* Remove + add brought LRU back to its original length, which we
-  established above is > BUF_LRU_OLD_MIN_LEN, so LRU_old is defined.
-  The boundary fix-up is deferred to the end-of-batch. */
-  ut_ad(buf_pool->LRU_old != nullptr);
-  buf_page_set_old(bpage, false);
-
-  if (buf_page_belongs_to_unzip_LRU(bpage)) {
-    buf_unzip_LRU_add_block((buf_block_t *)bpage, false);
-  }
-
-  return was_old;
-}
-
 void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-  /* This is just to avoid the mutex lock and CAS overhead if the queue was empty. */
+  /* This is just to avoid the mutex lock and CAS overhead if the queue was
+   * empty. */
   if (buf_pool->LRU_promote_head.load(std::memory_order_acquire) == nullptr) {
     return;
   }
@@ -2030,22 +1971,16 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
     return;
   }
 
-  size_t made_young = 0;
-
   for (buf_page_t *bpage = head; bpage != nullptr;
        bpage = bpage->LRU_promote_next) {
     if (buf_page_in_file(bpage)) {
-      if (buf_LRU_promote_block_batched(buf_pool, bpage)) {
-        ++made_young;
-      }
+      /* Reuse the canonical make-young path (it maintains LRU_old and
+      n_pages_made_young per page). Batching only saves the repeated
+      LRU_old_adjust_len work, which we trade away here to keep this patch
+      small. */
+      buf_LRU_make_block_young(bpage);
     }
   }
-
-  /* End-of-batch fix-up: a single buf_LRU_old_adjust_len call. */
-  if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
-    buf_LRU_old_adjust_len(buf_pool);
-  }
-  buf_pool->stat.n_pages_made_young += made_young;
 
   mutex_exit(&buf_pool->LRU_list_mutex);
 
@@ -2079,6 +2014,23 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   }
 
   buf_pool->LRU_promote_queue_len.fetch_sub(drained, std::memory_order_relaxed);
+
+  /* Track how often the promote queue is drained and how many pages each
+  drain moves (the per-call value feeds the average). Count only non-empty
+  drains so the average is not diluted by no-op calls. */
+  if (drained != 0) {
+    MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_MAKE_YOUNG_DRAIN_TOTAL_PAGE,
+                                 MONITOR_LRU_MAKE_YOUNG_DRAIN_COUNT,
+                                 MONITOR_LRU_MAKE_YOUNG_DRAIN_PAGES, drained);
+  }
+}
+
+void buf_apply_deferred_page_operations(buf_pool_t *buf_pool) {
+  /* Single entry point for materializing operations that the hot paths defer
+  to a later, cheaper moment. For now the only such operation is the deferred
+  make-young promote queue; future deferred per-page work should be applied
+  from here too. */
+  buf_LRU_drain_promote_queue(buf_pool);
 }
 
 bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {

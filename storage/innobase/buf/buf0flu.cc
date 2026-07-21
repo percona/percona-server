@@ -3039,9 +3039,11 @@ static bool buf_flush_page_cleaner_set_priority(int priority) {
 
 #ifdef UNIV_DEBUG
 /** Loop used to disable page cleaner threads (coordinator and workers).
-@param[in] drain_promote_queues  true for the coordinator only, which
-continues releasing deferred-promotion buf-fixes while flushing is disabled */
-static void buf_flush_page_cleaner_disabled_loop(bool drain_promote_queues) {
+@param[in] apply_deferred_page_operations  true for the coordinator only,
+which keeps applying deferred per-page operations (currently draining the
+make-young promote queues) while flushing is disabled */
+static void buf_flush_page_cleaner_disabled_loop(
+    bool apply_deferred_page_operations) {
   ut_ad(page_cleaner != nullptr);
 
   if (!innodb_page_cleaner_disabled_debug) {
@@ -3056,11 +3058,12 @@ static void buf_flush_page_cleaner_disabled_loop(bool drain_promote_queues) {
   while (innodb_page_cleaner_disabled_debug &&
          srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          page_cleaner->is_running) {
-    /* Debug disabling of flushing must not also stop promote-queue draining.
-    Coordinator only; workers pass drain_promote_queues=false. */
-    if (drain_promote_queues) {
+    /* Debug disabling of flushing must not also stop applying deferred page
+    operations (currently draining the promote queues). Coordinator only;
+    workers pass apply_deferred_page_operations=false. */
+    if (apply_deferred_page_operations) {
       for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-        buf_LRU_drain_promote_queue(buf_pool_from_array(i));
+        buf_apply_deferred_page_operations(buf_pool_from_array(i));
       }
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100)); /* [A] */
@@ -3190,11 +3193,11 @@ static void buf_flush_page_coordinator_thread() {
       break;
     }
 
-    /* Drain deferred promotions on each recv_writer wakeup (~100ms). The
-    normal coordinator loop does this every ~1s; recovery had no equivalent
-    until now. No-op when the queue is empty. */
+    /* Apply deferred per-page operations on each recv_writer wakeup (~100ms).
+    The normal coordinator loop does this every ~1s; recovery had no
+    equivalent until now. A no-op when nothing is pending. */
     for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-      buf_LRU_drain_promote_queue(buf_pool_from_array(i));
+      buf_apply_deferred_page_operations(buf_pool_from_array(i));
     }
 
     switch (recv_sys->flush_type) {
@@ -3235,11 +3238,12 @@ static void buf_flush_page_coordinator_thread() {
   int64_t sig_count = os_event_reset(buf_flush_event);
 
   while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
-    /* Bound the lifetime of deferred promotions. Queued pages are buf-fixed
-    until drained; on an idle server the coordinator may not run flush slots,
-    so drain every instance once per iteration (~1s). No-op when empty. */
+    /* Bound the lifetime of deferred per-page operations. A pending operation
+    can hold a buf-fix until it is applied; on an idle server the coordinator
+    may not run flush slots, so apply them for every instance once per
+    iteration (~1s). A no-op when nothing is pending. */
     for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-      buf_LRU_drain_promote_queue(buf_pool_from_array(i));
+      buf_apply_deferred_page_operations(buf_pool_from_array(i));
     }
 
     /* We consider server active if either we have just discovered a first

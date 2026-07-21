@@ -241,6 +241,12 @@ struct buf_pool_t;
 
 void buf_LRU_enqueue_promote(buf_page_t *bpage);
 void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool);
+
+/** Apply per-page operations that the hot paths defer to a cheaper moment.
+Currently this only drains the deferred make-young promote queue; it is the
+single call site to extend as more deferred per-page work is added.
+@param[in,out]  buf_pool  buffer pool instance */
+void buf_apply_deferred_page_operations(buf_pool_t *buf_pool);
 /** @} */
 
 /** @brief Statistics for selecting the LRU list for eviction.

@@ -601,6 +601,22 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_LRU_UNZIP_SEARCH_SCANNED,
      MONITOR_LRU_UNZIP_SEARCH_SCANNED_PER_CALL},
 
+    /* Cumulative counter for deferred make-young promote-queue drains */
+    {"buffer_LRU_make_young_drain_total_pages", "buffer",
+     "Total pages made young while draining the deferred make-young queue",
+     MONITOR_SET_OWNER, MONITOR_LRU_MAKE_YOUNG_DRAIN_COUNT,
+     MONITOR_LRU_MAKE_YOUNG_DRAIN_TOTAL_PAGE},
+
+    {"buffer_LRU_make_young_drains", "buffer",
+     "Number of deferred make-young queue drains", MONITOR_SET_MEMBER,
+     MONITOR_LRU_MAKE_YOUNG_DRAIN_TOTAL_PAGE,
+     MONITOR_LRU_MAKE_YOUNG_DRAIN_COUNT},
+
+    {"buffer_LRU_make_young_drain_pages", "buffer",
+     "Pages made young per deferred make-young queue drain", MONITOR_SET_MEMBER,
+     MONITOR_LRU_MAKE_YOUNG_DRAIN_TOTAL_PAGE,
+     MONITOR_LRU_MAKE_YOUNG_DRAIN_PAGES},
+
     /* ========== Counters for Buffer Page I/O ========== */
     {"module_buffer_page", "buffer_page_io", "Buffer Page I/O Module",
      static_cast<monitor_type_t>(MONITOR_MODULE | MONITOR_GROUP_MODULE),

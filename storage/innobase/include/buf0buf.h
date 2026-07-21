@@ -2493,11 +2493,16 @@ struct buf_pool_t {
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
 
-  /* This event is always set at startup, so LRU threads do not wait for this
-  event. Before invalidating bufferpool, this event is reset, so the next LRU
-  batch flushing will wait for the event. Bufferpool invalidation needs LRU
-  flushing to be stopped. */
+  /** Always set at startup so the LRU manager thread does not have to wait.
+  Reset by buf_pool_invalidate_instance() so the manager pauses while the
+  buffer pool is being torn down / re-initialised; set again afterwards. */
   os_event_t run_lru;
+
+  /** Run gate for flushes, checked by buf_flush_start() inside
+  the change_flush_state() critical section that sets init_flush[type].
+  True in normal operation; set to false by buf_pool_invalidate_instance()
+  for the duration of a teardown. Protected by flush_state_mutex. */
+  bool flushing_allowed;
 
   /** A red-black tree is used exclusively during recovery to speed up
   insertions in the flush_list. This tree contains blocks in order of

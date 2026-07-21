@@ -1194,7 +1194,6 @@ class buf_page_t {
         list(other.list),
         newest_modification(other.newest_modification),
         oldest_modification(other.oldest_modification),
-        LRU(other.LRU),
         zip(other.zip)
 #ifndef UNIV_HOTBACKUP
         ,
@@ -1676,9 +1675,6 @@ class buf_page_t {
   These fields are protected by both buf_pool->LRU_list_mutex and the
   block mutex. */
   /** @{ */
-
-  /** node of the LRU list */
-  UT_LIST_NODE_T(buf_page_t) LRU;
 
   /** compressed page; zip.data (but not the data it points to) is
   protected by buf_pool->zip_mutex; state == BUF_BLOCK_ZIP_PAGE and

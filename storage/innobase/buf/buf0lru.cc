@@ -1092,7 +1092,15 @@ void buf_LRU_flush_or_remove_pages(space_id_t id, buf_remove_t buf_remove,
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/** Insert a compressed block into buf_pool->zip_clean in the LRU order.
+/** Insert a compressed block into buf_pool->zip_clean (PS-11141 grouped LRU
+list). Pre-grouping, this inserted bpage at its actual LRU-order position
+(found by walking buf_page_t's own intrusive LRU link to the nearest
+zip_clean successor). Pages no longer link into buf_pool->LRU directly --
+they belong to a buf_lru_group_t, which does not track relative order among
+its own member pages -- so that position can no longer be determined; the
+list's only consumers (buf_pool_validate_instance(), buf_all_freed())
+iterate it in full regardless of order, so plain LRU_list_mutex-ordered
+insertion at the head is sufficient.
 @param[in]      bpage   pointer to the block in question */
 void buf_LRU_insert_zip_clean(buf_page_t *bpage) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
@@ -1101,24 +1109,7 @@ void buf_LRU_insert_zip_clean(buf_page_t *bpage) {
   ut_ad(mutex_own(&buf_pool->zip_mutex));
   ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_PAGE);
 
-  /* Find the first successor of bpage in the LRU list
-  that is in the zip_clean list. */
-  buf_page_t *b = bpage;
-
-  do {
-    b = UT_LIST_GET_NEXT(LRU, b);
-  } while (b && buf_page_get_state(b) != BUF_BLOCK_ZIP_PAGE);
-
-  /* Insert bpage before b, i.e., after the predecessor of b. */
-  if (b != nullptr) {
-    b = UT_LIST_GET_PREV(list, b);
-  }
-
-  if (b != nullptr) {
-    UT_LIST_INSERT_AFTER(buf_pool->zip_clean, b, bpage);
-  } else {
-    UT_LIST_ADD_FIRST(buf_pool->zip_clean, bpage);
-  }
+  UT_LIST_ADD_FIRST(buf_pool->zip_clean, bpage);
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 

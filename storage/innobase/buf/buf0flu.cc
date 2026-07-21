@@ -3587,36 +3587,32 @@ static void buf_lru_manager_sleep_if_needed(
   }
 }
 
-/** Adjust the LRU manager thread sleep time based on the free list length and
-the last flush result
-@param[in]	buf_pool	buffer pool whom we are flushing
-@param[in]	lru_n_flushed	last LRU flush page count
-@param[in,out]	lru_sleep_time	LRU manager thread sleep time */
+/** Adjust the LRU manager thread's per-pool sleep time based on free-list
+fullness and the work the last iteration accomplished. Aggressive shrinking
+when the free list is near-empty, gradual growth when it's healthy. */
 static void buf_lru_manager_adapt_sleep_time(
-    const buf_pool_t *buf_pool, ulint lru_n_flushed,
+    const buf_pool_t *buf_pool, size_t lru_n_processed,
     std::chrono::milliseconds &lru_sleep_time) {
   const auto free_len = UT_LIST_GET_LEN(buf_pool->free);
   const auto max_free_len =
       std::min(UT_LIST_GET_LEN(buf_pool->LRU), srv_LRU_scan_depth);
 
-  if (free_len < max_free_len / 100 && lru_n_flushed) {
-    /* Free list filled less than 1% and the last iteration was
-    able to flush, no sleep */
+  if (free_len < max_free_len / 100 && lru_n_processed) {
+    /* Free list < 1% and we made progress last time: don't sleep. */
     lru_sleep_time = std::chrono::milliseconds::zero();
   } else if (free_len > max_free_len / 5 ||
-             (free_len < max_free_len / 100 && lru_n_flushed == 0)) {
-    /* Free list filled more than 20% or no pages flushed in the
-    previous batch, sleep a bit more */
+             (free_len < max_free_len / 100 && lru_n_processed == 0)) {
+    /* Free list > 20%, or near-empty but we made no progress (unusual):
+    back off a bit. */
     lru_sleep_time += std::chrono::milliseconds{1};
     if (lru_sleep_time > std::chrono::milliseconds{1000})
       lru_sleep_time = std::chrono::milliseconds{1000};
   } else if (free_len < max_free_len / 20 &&
              lru_sleep_time >= std::chrono::milliseconds{50}) {
-    /* Free list filled less than 5%, sleep a bit less */
+    /* Free list < 5%: shrink the sleep. */
     lru_sleep_time -= std::chrono::milliseconds{50};
-  } else {
-    /* Free lists filled between 5% and 20%, no change */
   }
+  /* Otherwise (5%–20%): no change. */
 }
 
 /** LRU manager thread. One per buf_pool instance. Periodically calls
@@ -3648,7 +3644,9 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
   std::chrono::milliseconds lru_sleep_time{1000};
   auto next_loop_time = std::chrono::steady_clock::now() + lru_sleep_time;
-  ulint lru_n_flushed = 1;
+  /* Seed nonzero so the first adapt iteration treats us as "made progress"
+  and does not immediately back off. */
+  size_t lru_n_processed = 1;
 
   while (srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE) {
     ut_d(buf_flush_page_cleaner_disabled_loop());
@@ -3657,7 +3655,7 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
     buf_lru_manager_sleep_if_needed(next_loop_time);
 
-    buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_flushed, lru_sleep_time);
+    buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_processed, lru_sleep_time);
 
     next_loop_time = std::chrono::steady_clock::now() + lru_sleep_time;
 
@@ -3675,6 +3673,7 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
     bool started = false;
     const auto result = buf_flush_LRU_list(buf_pool, &started);
     const auto lru_time = std::chrono::steady_clock::now() - lru_start;
+    lru_n_processed = result.n_flushed + result.n_evicted;
 
     if (!started) {
       continue;
@@ -3682,6 +3681,8 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
 
     buf_lru_flush_stat_record(buf_pool, result, lru_time);
 
+    /* Wait for the batch this iteration kicked off (if any) to finish so
+    the next iteration sees free pages on the free list. */
     buf_flush_await_no_flushing(buf_pool, BUF_FLUSH_LRU);
 
     if (result.n_flushed) {

@@ -15,6 +15,7 @@ usr/sbin/mysqld
 usr/bin/ps-admin
 usr/bin/ibd2sdi
 usr/bin/mysql_migrate_keyring
+usr/bin/create_id_token
 
 # debug binary
 usr/sbin/mysqld-debug
@@ -126,6 +127,10 @@ usr/lib/mysql/plugin/component_test_table_access.so
 usr/lib/mysql/plugin/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/component_keyring_kmip.so
 usr/lib/mysql/plugin/debug/component_keyring_kmip.so
+usr/lib/mysql/plugin/auth_openid_connect.so
+usr/lib/mysql/plugin/authentication_openid_connect_client.so
+usr/lib/mysql/plugin/debug/auth_openid_connect.so
+usr/lib/mysql/plugin/debug/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/component_encryption_udf.so
 usr/lib/mysql/plugin/debug/component_encryption_udf.so
 usr/lib/mysql/plugin/component_uuid_vx_udf.so

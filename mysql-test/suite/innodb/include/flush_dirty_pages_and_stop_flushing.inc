@@ -16,5 +16,6 @@ SET GLOBAL innodb_log_checkpoint_now = ON;
 
 # Disable page cleaner threads, because we are going to fill
 # redo log and we want to collect a group of dirty pages for
-# which the redo log records protect changes.
+# which the redo log records protect changes. This also pauses the
+# per-instance LRU manager threads, which reuse this same debug flag.
 SET GLOBAL innodb_page_cleaner_disabled_debug = ON;

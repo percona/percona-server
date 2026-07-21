@@ -542,19 +542,11 @@ struct recv_sys_t {
   state field in each recv_addr struct */
   ib_mutex_t mutex;
 
-  /** mutex coordinating flushing between recv_writer_thread and
-  the recovery thread. */
-  ib_mutex_t writer_mutex;
-
   /** event to activate page cleaner threads */
   os_event_t flush_start;
 
   /** event to signal that the page cleaner has finished the request */
   os_event_t flush_end;
-
-  /** type of the flush request. BUF_FLUSH_LRU: flush end of LRU,
-  keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
-  buf_flush_t flush_type;
 
 #else  /* !UNIV_HOTBACKUP */
   bool apply_file_operations;

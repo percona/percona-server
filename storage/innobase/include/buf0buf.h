@@ -2492,6 +2492,12 @@ struct buf_pool_t {
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
 
+  /* This event is always set at startup, so LRU threads do not wait for this
+  event. Before invalidating bufferpool, this event is reset, so the next LRU
+  batch flushing will wait for the event. Bufferpool invalidation needs LRU
+  flushing to be stopped. */
+  os_event_t run_lru;
+
   /** A sequence number used to count the number of buffer blocks removed from
   the end of the LRU list; NOTE that this counter may wrap around at 4
   billion! A thread is allowed to read this for heuristic purposes without

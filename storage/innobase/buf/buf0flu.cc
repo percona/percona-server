@@ -2041,10 +2041,8 @@ void buf_flush_await_no_flushing(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   }
 }
 
-
-bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type,
-                        ulint min_n, lsn_t lsn_limit,
-                        buf_flush_batch_result_t *result) {
+bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
+                        lsn_t lsn_limit, buf_flush_batch_result_t *result) {
   ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
 
   if (result != nullptr) {
@@ -3106,8 +3104,7 @@ static ulint pc_flush_slot(void) {
 
         buf_flush_batch_result_t result{};
         succeeded_list = buf_flush_do_batch(
-            buf_pool, BUF_FLUSH_LIST, n_pages_requested,
-            lsn_limit, &result);
+            buf_pool, BUF_FLUSH_LIST, n_pages_requested, lsn_limit, &result);
         /* BUF_FLUSH_LIST never evicts and does not report its scan count
         through this result yet. */
         ut_ad(result.n_evicted == 0);

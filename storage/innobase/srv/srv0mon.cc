@@ -596,6 +596,16 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_LRU_UNZIP_SEARCH_SCANNED,
      MONITOR_LRU_UNZIP_SEARCH_SCANNED_PER_CALL},
 
+    {"buffer_LRU_single_page_flush_count", "buffer",
+     "Times a user thread issued its own single-page flush while"
+     " searching for a free block",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LRU_SINGLE_PAGE_FLUSH_COUNT},
+
+    {"buffer_LRU_flush_await_count", "buffer",
+     "Times a user thread waited for an in-progress LRU flush instead of"
+     " issuing single-page flush",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LRU_FLUSH_AWAIT_COUNT},
+
     /* ========== Counters for Buffer Page I/O ========== */
     {"module_buffer_page", "buffer_page_io", "Buffer Page I/O Module",
      static_cast<monitor_type_t>(MONITOR_MODULE | MONITOR_GROUP_MODULE),

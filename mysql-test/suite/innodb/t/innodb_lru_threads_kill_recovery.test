@@ -1,0 +1,48 @@
+--source include/no_valgrind_without_big.inc
+
+--echo #
+--echo # PS-11445: with --innodb-lru-threads=ON, the LRU manager threads
+--echo # are created before buf_pool_invalidate() runs on every startup, so
+--echo # they are alive throughout crash recovery (including the
+--echo # buf_pool_invalidate_instance() pause/resume of run_lru). Restart
+--echo # after a crash with a non-trivial amount of redo to apply exercises
+--echo # that path; a normal restart afterward exercises the page-cleaner
+--echo # coordinator waiting for the LRU managers to stop on shutdown.
+--echo #
+
+--let $restart_parameters=restart:--innodb-lru-threads=ON --innodb-buffer-pool-size=8M --innodb-buffer-pool-instances=2 --innodb-lru-scan-depth=100
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE fill_t1()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 20000 DO
+    INSERT INTO t1 VALUES (i, REPEAT('x', 512));
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+CALL fill_t1();
+DROP PROCEDURE fill_t1;
+--enable_query_log
+
+--let $wait_counter= 3000
+--source include/kill_and_restart_mysqld.inc
+
+SELECT COUNT(*) FROM t1;
+
+--echo # Clean shutdown must not hang: the page-cleaner coordinator has to
+--echo # observe every LRU manager thread stop.
+--let $restart_parameters=restart:--innodb-lru-threads=ON --innodb-buffer-pool-size=8M --innodb-buffer-pool-instances=2 --innodb-lru-scan-depth=100
+--source include/restart_mysqld.inc
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

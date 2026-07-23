@@ -2771,6 +2771,8 @@ void srv_pre_dd_shutdown() {
   /* Crash if some query threads are still alive. */
   ut_a(srv_conc_get_active_threads() == 0);
 
+  ut_a(!srv_thread_is_active(srv_threads.m_recv_writer));
+
   /* Avoid fast shutdown, if redo logging is disabled. Otherwise, we won't be
   able to recover. */
   if (mtr_t::s_logging.is_disabled() && srv_fast_shutdown == 2) {
@@ -3133,6 +3135,7 @@ void srv_shutdown() {
       std::cref(srv_threads.m_purge_coordinator),
       std::cref(srv_threads.m_ts_alter_encrypt),
       std::cref(srv_threads.m_fts_optimize),
+      std::cref(srv_threads.m_recv_writer),
       std::cref(srv_threads.m_dict_stats)};
 
   for (const auto &thread : threads_stopped_before_shutdown) {

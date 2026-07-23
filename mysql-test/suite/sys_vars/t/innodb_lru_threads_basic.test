@@ -1,0 +1,29 @@
+--echo #
+--echo # Basic test for innodb_lru_threads (read-only)
+--echo #
+
+SELECT @@GLOBAL.innodb_lru_threads;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_lru_threads = OFF;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_lru_threads = ON;
+
+SELECT @@GLOBAL.innodb_lru_threads;
+
+--echo #
+--echo # Startup with innodb_lru_threads=ON
+--echo #
+
+--let $restart_parameters=restart:--innodb-lru-threads=ON
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.innodb_lru_threads;
+
+--echo #
+--echo # Startup with innodb_lru_threads=OFF
+--echo #
+
+--let $restart_parameters=restart
+--source include/restart_mysqld.inc
+SELECT @@GLOBAL.innodb_lru_threads;

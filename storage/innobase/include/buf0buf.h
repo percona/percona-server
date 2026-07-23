@@ -2503,6 +2503,38 @@ struct buf_pool_t {
   for the duration of a teardown. Protected by flush_state_mutex. */
   bool flushing_allowed;
 
+  /** Per-instance LRU flush accounting. Written by either this instance's
+  LRU manager or its page-cleaner slot and read (summed across instances) by
+  the page cleaner coordinator. pc_publish_lru_batch_stats() publishes the
+  buffer_LRU_batch_* counters independently, while
+  Adaptive_flush::set_average() consumes the timing fields. Protected by
+  flush_state_mutex so each consumer can atomically gather and reset its
+  fields. */
+  struct lru_flush_stat_t {
+    /** Pages written to disk by LRU batches. */
+    uint64_t n_flushed_pages;
+    /** LRU batches that wrote at least one page. */
+    uint64_t n_flush_batches;
+    /** Largest number of pages written by one LRU batch. */
+    uint64_t max_flushed_pages_per_batch;
+    /** Clean or stale pages evicted by LRU batches. */
+    uint64_t n_evicted_pages;
+    /** LRU batches that evicted at least one page. */
+    uint64_t n_evict_batches;
+    /** Largest number of pages evicted by one LRU batch. */
+    uint64_t max_evicted_pages_per_batch;
+    /** Pages examined by LRU batches. */
+    uint64_t n_scanned_pages;
+    /** LRU batches that examined at least one page. */
+    uint64_t n_scan_batches;
+    /** Largest number of pages examined by one LRU batch. */
+    uint64_t max_scanned_pages_per_batch;
+    /** Number of buf_flush_LRU_list() calls in the interval. */
+    uint64_t n_lru_passes;
+    /** LRU time accumulated in the interval, in milliseconds. */
+    uint64_t lru_flush_time_ms;
+  } lru_flush_stat;
+
   /** A sequence number used to count the number of buffer blocks removed from
   the end of the LRU list; NOTE that this counter may wrap around at 4
   billion! A thread is allowed to read this for heuristic purposes without

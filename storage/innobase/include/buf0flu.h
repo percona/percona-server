@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0flu_h
 #define buf0flu_h
 
+#include <utility>
+
 #include "buf0types.h"
 #include "log0types.h"
 #include "univ.i"
@@ -110,7 +112,17 @@ buf_flush_batch() and buf_flush_page().
 [[nodiscard]] bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
-/** Do flushing batch of a given type.
+/** Result of a buffer flush batch. */
+struct buf_flush_batch_result_t {
+  /** Pages for which a write was queued. */
+  ulint n_flushed{};
+  /** Clean or stale pages moved directly to the free list. */
+  ulint n_evicted{};
+  /** Pages examined by the batch. Currently reported for BUF_FLUSH_LRU. */
+  ulint n_scanned{};
+};
+
+/** Do a flush-list batch.
 NOTE: The calling thread is not allowed to own any latches on pages!
 @param[in,out]  buf_pool        buffer pool instance
 @param[in]      type            flush type
@@ -119,12 +131,12 @@ NOTE: The calling thread is not allowed to own any latches on pages!
 @param[in]      lsn_limit       in the case BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
 does not exceed min_n), otherwise ignored
-@param[out]     n_processed     the number of pages which were processed is
-passed back to caller. Ignored if NULL
+@param[out]     result          batch result; n_evicted and n_scanned are 0.
+Ignored if NULL
 @retval true    if a batch was queued successfully.
 @retval false   if another batch of same type was already running. */
 bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
-                        lsn_t lsn_limit, ulint *n_processed);
+                        lsn_t lsn_limit, buf_flush_batch_result_t *result);
 
 /** This utility flushes dirty blocks from the end of the flush list of all
 buffer pool instances.
@@ -189,8 +201,8 @@ bool buf_flush_ready_for_replace(const buf_page_t *bpage);
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
 
-/** Disables page cleaner threads (coordinator and workers) and LRU manager
-threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+/** Disables page cleaner threads (coordinator and workers) and LRU threads.
+It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]      thd             thread handle
 @param[in]      var             pointer to system variable
 @param[out]     var_ptr         where the formal string goes

@@ -679,6 +679,7 @@ class Gcs_default_debugger {
 
   /**
     Add extra information as a message prefix.
+    Format: [YYYY-MM-DDTHH:MM:SS.uuuuuuZ] [MYSQL_GCS_DEBUG] [GCS]
 
     We assume that there is room to accommodate it. Before changing this
     method, make sure the maximum buffer size will always have room to
@@ -686,12 +687,7 @@ class Gcs_default_debugger {
 
     @return Return the size of appended information
   */
-  inline size_t append_prefix(char *buffer) {
-    strcpy(buffer, GCS_DEBUG_PREFIX);
-    strcpy(buffer + GCS_DEBUG_PREFIX_SIZE, GCS_PREFIX);
-
-    return GCS_DEBUG_PREFIX_SIZE + GCS_PREFIX_SIZE;
-  }
+  size_t append_prefix(char *buffer);
 
   /**
     Append information into a message such as end of line.

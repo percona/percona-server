@@ -228,6 +228,9 @@ struct Srv_threads {
   /** Thread doing rollbacks during recovery. */
   IB_thread m_trx_recovery_rollback;
 
+  /** Thread writing recovered pages during recovery. */
+  IB_thread m_recv_writer;
+
   /** Purge coordinator (also being a worker) */
   IB_thread m_purge_coordinator;
 
@@ -252,8 +255,10 @@ struct Srv_threads {
   buf_pool instance. */
   size_t m_lru_managers_n;
 
-  /** LRU manager threads — sole owners of buf_flush_LRU_list for
-  free-list refill. The page cleaner only flushes the flush_list. */
+  /** LRU manager threads. When innodb_lru_threads is enabled, they are the
+  sole owners of buf_flush_LRU_list for free-list refill and the page
+  cleaner only flushes the flush_list; when disabled, no threads are
+  started and the page cleaner performs LRU flushing. */
   IB_thread *m_lru_managers;
 
   /** Archiver's log archiver (used by Clone). */
@@ -617,6 +622,8 @@ extern bool srv_validate_tablespace_paths;
 extern bool srv_use_fdatasync;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 extern ulong srv_LRU_scan_depth;
+/** Whether per-pool LRU manager threads are enabled (after recovery). */
+extern bool srv_lru_threads_enabled;
 /** Whether or not to flush neighbors of a block */
 extern ulong srv_flush_neighbors;
 /** Previously requested size. Accesses protected by memory barriers. */
@@ -894,6 +901,7 @@ extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
+extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;

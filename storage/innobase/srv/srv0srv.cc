@@ -450,6 +450,8 @@ bool srv_validate_tablespace_paths = true;
 bool srv_use_fdatasync = false;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong srv_LRU_scan_depth = 1024;
+/** Whether per-pool LRU manager threads are enabled (after recovery). */
+bool srv_lru_threads_enabled = false;
 /** Whether or not to flush neighbors of a block */
 ulong srv_flush_neighbors = 1;
 /** Previously requested size. Accesses protected by memory barriers. */

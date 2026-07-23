@@ -775,6 +775,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
 #ifdef UNIV_DEBUG
@@ -885,6 +886,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(log_flush_notifier_thread, "ib_log_fl_notif",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(recv_writer_thread, "ib_recv_write", PSI_FLAG_SINGLETON, 0,
+                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_lru_manager_thread, "ib_buf_lru", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err", PSI_FLAG_SINGLETON,
                    0, PSI_DOCUMENT_ME),
@@ -23330,6 +23333,14 @@ static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
                           "How deep to scan LRU to keep it clean", nullptr,
                           nullptr, 1024, 100, UINT32_MAX, 0);
 
+static MYSQL_SYSVAR_BOOL(
+    lru_threads, srv_lru_threads_enabled,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Enable to use LRU manager threads that flush the LRU tail and refill "
+    "the free list. There would be one thread for each buffer pool instance. "
+    "When disabled (the default), page cleaners perform the LRU flushing.",
+    nullptr, nullptr, false);
+
 static MYSQL_SYSVAR_ULONG(flush_neighbors, srv_flush_neighbors,
                           PLUGIN_VAR_OPCMDARG,
                           "Set to 0 (don't flush neighbors from buffer pool),"
@@ -24235,6 +24246,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(buffer_pool_load_abort),
     MYSQL_SYSVAR(buffer_pool_load_at_startup),
     MYSQL_SYSVAR(lru_scan_depth),
+    MYSQL_SYSVAR(lru_threads),
     MYSQL_SYSVAR(flush_neighbors),
     MYSQL_SYSVAR(checksum_algorithm),
     MYSQL_SYSVAR(log_checksums),

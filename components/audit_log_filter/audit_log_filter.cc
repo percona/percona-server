@@ -75,7 +75,7 @@ SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 namespace audit_log_filter {
 namespace {
 
-std::unique_ptr<AuditLogFilter> audit_log_filter;
+AuditLogFilter* audit_log_filter{nullptr};
 
 class EventsConsumer {
  public:
@@ -191,7 +191,7 @@ bool is_stored_program_statement(MYSQL_THD thd) {
 }  // namespace
 
 AuditLogFilter *get_audit_log_filter_instance() noexcept {
-  return audit_log_filter.get();
+  return audit_log_filter;
 }
 
 /*
@@ -388,7 +388,9 @@ mysql_service_status_t audit_log_filter_init() try {
   // Disarm the scope guard only after all potentially-throwing operations
   // succeeded, so that SysVars cleanup still runs on exception.
   comp_registry_srv = nullptr;
-  audit_log_filter = std::move(local_audit_log_filter);
+  if (audit_log_filter != nullptr)
+    delete audit_log_filter;
+  audit_log_filter = local_audit_log_filter.release();
   return 0;
 } catch (const std::exception &e) {
   LogComponentErr(ERROR_LEVEL, ER_AUDIT_INIT_EXCEPTION, e.what());
@@ -421,7 +423,10 @@ mysql_service_status_t audit_log_filter_deinit() try {
   SysVars::deinit();
   SysVars::release_comp_registry_srv();
 
-  audit_log_filter.reset();
+  if (audit_log_filter != nullptr) {
+    delete audit_log_filter;
+    audit_log_filter = nullptr;
+  }
 
   return 0;
 } catch (const std::exception &e) {

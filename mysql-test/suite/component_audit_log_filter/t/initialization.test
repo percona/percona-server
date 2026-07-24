@@ -1,0 +1,25 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+
+--echo ### Shutdown
+--source include/shutdown_mysqld.inc
+
+--echo ### Start with invalid option
+--let $restart_parameters=--authentication-policy=mysql_native_password --mysql_native_password=OFF
+--source include/start_mysqld_expecting_crash.inc
+
+--echo ### Waiting for the error message to occur
+--let $grep_pattern=authentication-policy is set to an invalid value
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/wait_for_pattern_in_file.inc
+
+--echo ### Start again
+--let $restart_parameters=restart:
+--source include/start_mysqld.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

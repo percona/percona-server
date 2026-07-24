@@ -1,0 +1,43 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+DROP TABLE IF EXISTS t;
+
+CREATE TABLE t (
+  id INT PRIMARY KEY,
+  a INT NOT NULL,
+  b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+  KEY b_idx (b)
+) ENGINE=InnoDB;
+
+INSERT INTO t(id, a) VALUES (1, 1);
+
+SET GLOBAL innodb_purge_stop_now=ON;
+UPDATE t SET a = a + 100000 WHERE id = 1;
+FLUSH TABLE t;
+
+--echo # Crash restart clears in-memory vc_templ while keeping unpurged undo.
+--let $MYSQLD_PIDFILE= `SELECT @@pid_file`
+--exec echo "restart: --default-storage-engine=InnoDB --debug=d,wait_until_innodb_handlerton_unregistered" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec kill -9 `cat $MYSQLD_PIDFILE`
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET GLOBAL innodb_purge_run_now=ON;
+SET DEBUG_SYNC="now WAIT_FOR purge_waiting_for_innodb_shutdown";
+
+--echo # The unpatched server is expected to crash during shutdown.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+
+--echo # Restart after clean shutdown so a fixed server can clean up.
+--exec echo "restart: --default-storage-engine=InnoDB" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+DROP TABLE t;

@@ -49,6 +49,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <debug_sync.h>
 #include <gstream.h>
 #include <log.h>
+#ifndef NDEBUG
+#include <mysqld.h>
+#include <sql_plugin.h>
+#endif /* NDEBUG */
 #include <mysys_err.h>
 #include <strfunc.h>
 #include <sql_acl.h>
@@ -23364,6 +23368,27 @@ innobase_init_vc_templ(
 	ulint   tbnamelen = strlen(name) - dbnamelen - 1;
 	char    t_dbname[MAX_DATABASE_NAME_LEN + 1];
 	char    t_tbname[MAX_TABLE_NAME_LEN + 1];
+
+#ifndef NDEBUG
+	DBUG_EXECUTE_IF("wait_until_innodb_handlerton_unregistered", {
+		st_plugin_int* plugin =
+			plugin_ref_to_int(global_system_variables.table_plugin);
+
+		if (plugin != NULL && !strcmp(plugin->name.str, "InnoDB")) {
+			const char action[] =
+				"now SIGNAL purge_waiting_for_innodb_shutdown";
+
+			if (current_thd != NULL) {
+				ut_ad(!debug_sync_set_action(
+					current_thd, STRING_WITH_LEN(action)));
+			}
+
+			while (innodb_inited) {
+				my_sleep(10000);
+			}
+		}
+	});
+#endif /* NDEBUG */
 
 	mutex_enter(&dict_sys->mutex);
 

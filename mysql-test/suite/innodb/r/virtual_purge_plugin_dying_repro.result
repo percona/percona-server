@@ -1,0 +1,19 @@
+DROP TABLE IF EXISTS t;
+Warnings:
+Note	1051	Unknown table 'test.t'
+CREATE TABLE t (
+id INT PRIMARY KEY,
+a INT NOT NULL,
+b INT GENERATED ALWAYS AS (a + 1) VIRTUAL,
+KEY b_idx (b)
+) ENGINE=InnoDB;
+INSERT INTO t(id, a) VALUES (1, 1);
+SET GLOBAL innodb_purge_stop_now=ON;
+UPDATE t SET a = a + 100000 WHERE id = 1;
+FLUSH TABLE t;
+# Crash restart clears in-memory vc_templ while keeping unpurged undo.
+SET GLOBAL innodb_purge_run_now=ON;
+SET DEBUG_SYNC="now WAIT_FOR purge_waiting_for_innodb_shutdown";
+# The unpatched server is expected to crash during shutdown.
+# Restart after clean shutdown so a fixed server can clean up.
+DROP TABLE t;

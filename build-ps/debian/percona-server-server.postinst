@@ -72,6 +72,13 @@ resolve_cnf_action() {
 			# Already our alternative, nothing to ask/do.
 			return 1
 		fi
+		if [ "${CNF_TARGET}" = "/etc/mysql/my.cnf.fallback" ]; then
+			# Just the low-priority fallback registered by
+			# percona-xtradb-cluster-common (which is configured
+			# before this package on a fresh install). It is not a
+			# real existing config, so take it over without asking.
+			return 0
+		fi
 		# A symlink managed by update-alternatives, but pointing elsewhere:
 		# ask before taking it over.
 		db_input high "${TEMPLATE_PREFIX}/existing_config_file" || true

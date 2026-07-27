@@ -45,4 +45,3 @@ usr/lib/mysql/plugin/debug/component_validate_password.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
 # Router plugins
 usr/lib/mysqlrouter/plugin/mysql_rest_service.so
-usr/lib/mysqlrouter/private/libprotobuf.so.*

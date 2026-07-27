@@ -61,6 +61,40 @@ check_apparmor_files() {
         fi
 }
 
+# Decide what to do about an existing /etc/mysql/my.cnf and, if needed,
+# ask the admin via debconf (template "$1/existing_config_file").
+resolve_cnf_action() {
+	TEMPLATE_PREFIX="$1"
+	CNF_ACTION="Use NEW my.cnf"
+	if [ -L "/etc/mysql/my.cnf" ]; then
+		CNF_TARGET=$(readlink -f /etc/mysql/my.cnf 2>/dev/null || true)
+		if [ "${CNF_TARGET}" = "/etc/mysql/mysql.cnf" ]; then
+			# Already our alternative, nothing to ask/do.
+			return 1
+		fi
+		if [ "${CNF_TARGET}" = "/etc/mysql/my.cnf.fallback" ]; then
+			# Just the low-priority fallback registered by
+			# percona-xtradb-cluster-common (which is configured
+			# before this package on a fresh install). It is not a
+			# real existing config, so take it over without asking.
+			return 0
+		fi
+		# A symlink managed by update-alternatives, but pointing elsewhere:
+		# ask before taking it over.
+		db_input high "${TEMPLATE_PREFIX}/existing_config_file" || true
+		db_go
+		db_get "${TEMPLATE_PREFIX}/existing_config_file" && CNF_ACTION=${RET}
+	elif [ -e "/etc/mysql/my.cnf" ]; then
+		# A plain file: back it up, then ask.
+		cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
+		echo "NOTE: /etc/mysql/my.cnf backed up to /etc/mysql/my.cnf.bak"
+		db_input high "${TEMPLATE_PREFIX}/existing_config_file" || true
+		db_go
+		db_get "${TEMPLATE_PREFIX}/existing_config_file" && CNF_ACTION=${RET}
+	fi
+	[ "${CNF_ACTION}" = "Use NEW my.cnf" ]
+}
+
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
 TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb')
 if [ $TOKUDB = 1 ]
@@ -114,23 +148,14 @@ case "$1" in
 			fi
 		fi
 
-                CNF_ACTION="Use NEW my.cnf"
-		# If the existing config file is a proper file, we back it up
-		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
-			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
-			db_input high percona-server-server/existing_config_file || true
-			db_go
-			db_get percona-server-server/existing_config_file && CNF_ACTION=${RET}
+		if resolve_cnf_action percona-server-server; then
+			update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
 		fi
 		if [ -d /etc/mysql/percona-server.conf.d ]; then
 			CONF_EXISTS=$(grep "percona-server.conf.d" /etc/mysql/mysql.cnf | wc -l)
 			if [ ${CONF_EXISTS} = 0 ]; then
 				echo "!includedir /etc/mysql/percona-server.conf.d/" >> /etc/mysql/mysql.cnf
 			fi
-		fi
-		if [ "${CNF_ACTION}" = "Use NEW my.cnf" ]; then
-			update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
-			update-alternatives --set my.cnf /etc/mysql/mysql.cnf
 		fi
 
 		PROFILE_ACTION="Use NEW AppArmor profile"
@@ -181,6 +206,9 @@ EOF
 		fi
 		set +e
 	else
+		if resolve_cnf_action percona-server-server; then
+			update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
+		fi
 		if [ -f "/etc/apparmor.d/usr.sbin.mysqld" ]; then
 			check_apparmor_files
                 fi

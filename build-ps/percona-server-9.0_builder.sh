@@ -705,10 +705,29 @@ build_srpm(){
     sed -i "/^%changelog/a * $(date "+%a") $(date "+%b") $(date "+%d") $(date "+%Y") Percona Development Team <info@percona.com> - ${VERSION}-${RELEASE}" percona-server.spec
     #
     cd ${WORKDIR}/rpmbuild/SOURCES
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/*.patch' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/mysql_config.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/percona-telemetry-setup.sh' --strip=3
     tar vxzf ${WORKDIR}/${TARFILE} --wildcards '*/build-ps/rpm/percona-telemetry-cleanup.sh' --strip=3
+    #
+    cd ${WORKDIR}/rpmbuild/SPECS
+    ls -la
+    cat percona-server.spec
+    grep -n SOURCE999 percona-server.spec
+    line_number=$(grep -n SOURCE999 percona-server.spec | awk -F ':' '{print $1}')
+    cp ../SOURCES/call-home.sh ./
+    awk -v n=$line_number 'NR <= n {print > "part1.txt"} NR > n {print > "part2.txt"}' percona-server.spec
+    head -n -1 part1.txt > temp && mv temp part1.txt
+    echo "cat <<'CALLHOME' > \$tfn" >> part1.txt
+    cat call-home.sh >> part1.txt
+    echo "CALLHOME" >> part1.txt
+    cat part2.txt >> part1.txt
+    rm -f call-home.sh part2.txt
+    mv part1.txt percona-server.spec
     cd ${WORKDIR}
     #
     mv -fv ${TARFILE} ${WORKDIR}/rpmbuild/SOURCES
@@ -955,7 +974,23 @@ build_deb(){
     cd ${DIRNAME}
     dch -b -m -D "$DEBIAN_VERSION" --force-distribution -v "${VERSION}-${RELEASE}-${DEB_RELEASE}.${DEBIAN_VERSION}" 'Update distribution'
 
-    # Telemetry is now handled by percona-telemetry-setup.sh installed via .install file
+    cd debian/
+    CALLHOME_SHA="0e3a2ed40336c70727f9aad8402a8a820ebc8db0"
+    CALLHOME_SHA256="3497f6631e71799bed9dedb1d72350bf1f0565d93578955234ac30cf2fb6eba4"
+    wget -q "https://raw.githubusercontent.com/percona/telemetry-agent/${CALLHOME_SHA}/call-home.sh"
+    echo "${CALLHOME_SHA256}  call-home.sh" | sha256sum -c - || { echo "ERROR: call-home.sh checksum mismatch"; exit 1; }
+    sed -i 's:exit 0::' percona-server-server.postinst
+    echo "tfn=\$(/usr/bin/mktemp -p \$(/usr/bin/mktemp -d /tmp/XXXXXXXX) call-home.XXXXXX.sh)" >> percona-server-server.postinst
+    echo "cat <<'CALLHOME' > \$tfn" >> percona-server-server.postinst
+    cat call-home.sh >> percona-server-server.postinst
+    echo "CALLHOME" >> percona-server-server.postinst
+    echo "bash +x \$tfn -f \"PRODUCT_FAMILY_PS\" -v \"${VERSION}-${RELEASE}-${DEB_RELEASE}\" -d \"PACKAGE\" &>/dev/null || :" >> percona-server-server.postinst
+    echo "chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server.postinst
+    echo "chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :" >> percona-server-server.postinst
+    echo "rm -rf \$tfn" >> percona-server-server.postinst
+    echo "exit 0" >> percona-server-server.postinst
+    rm -f call-home.sh
+    cd ../
 
     # NOTE: a legacy block here used to force CC=gcc-4.7 / gcc-4.8 for any
     # DEBIAN_VERSION not present in a hardcoded allowlist (trusty, xenial,

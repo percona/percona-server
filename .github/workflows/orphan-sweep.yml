@@ -2,6 +2,10 @@
 # GHA runners. Companion to builds.yml; catches orphans from control-plane
 # crashes, cancelled workflows, and probe-step leaks.
 #
+# Runs only in percona/percona-server: forks that enable Actions would
+# otherwise inherit the hourly cron and fail every run (no secrets, and
+# the AWS OIDC trust rejects fork subjects), spamming the fork owner.
+#
 # PS-11179 (2026-05-28): EC2 sweep added for the AWS fallback path.
 
 name: orphan-sweep
@@ -30,6 +34,7 @@ concurrency:
 
 jobs:
   sweep:
+    if: github.repository == 'percona/percona-server'
     runs-on: ubuntu-latest
     permissions: {}
     env:
@@ -143,6 +148,7 @@ jobs:
   # OIDC -> STS via the same AWS_ROLE_ARN used by builds.yml. Region pinned
   # to eu-central-1 (matches create-runner-aws).
   sweep-ec2:
+    if: github.repository == 'percona/percona-server'
     runs-on: ubuntu-latest
     permissions:
       contents: read

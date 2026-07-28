@@ -10904,7 +10904,11 @@ void Rows_log_event::print_helper(FILE *,
 int Table_map_log_event::save_field_metadata() {
   DBUG_TRACE;
   int index = 0;
-  for (auto it = m_column_view->begin(); it != m_column_view->end(); ++it) {
+  for (auto it = m_column_view->begin();
+       it != m_column_view->end() &&
+       DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event",
+                        it.filtered_pos() != this->m_colcnt, true);
+       ++it) {
     Field *field = *it;
     DBUG_PRINT("debug", ("field_type: %d", m_coltype[it.filtered_pos()]));
     index += field->save_field_metadata(&m_field_metadata[index]);
@@ -11036,7 +11040,13 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
 
   memset(m_null_bits, 0, num_null_bytes);
   Bit_writer bit_writer{this->m_null_bits};
-  for (auto field : *m_column_view) bit_writer.set(field->is_nullable());
+  for (auto it = m_column_view->begin();
+       it != m_column_view->end() &&
+       DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event",
+                        it.filtered_pos() != this->m_colcnt, true);
+       ++it) {
+    bit_writer.set((*it)->is_nullable());
+  }
   /*
     Marking event to require sequential execution in MTS
     if the query might have updated FK-referenced db.
@@ -11075,6 +11085,16 @@ Table_map_log_event::Table_map_log_event(
   assert(header()->type_code == binary_log::TABLE_MAP_EVENT);
 #ifdef MYSQL_SERVER
   m_column_view = std::make_unique<cs::util::ReplicatedColumnsView>();
+
+  if (common_header->get_is_valid()) {
+    /*
+      Reject malformed TABLE_MAP_EVENT metadata during event parsing before
+      applier processing.
+    */
+    table_def parsed_table_def(m_coltype, m_colcnt, m_field_metadata,
+                               m_field_metadata_size, m_null_bits, m_flags);
+    common_header->set_is_valid(parsed_table_def.is_valid());
+  }
 #endif
 }
 

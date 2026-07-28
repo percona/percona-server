@@ -266,6 +266,31 @@ private:
   void leave_group_on_error() const;
 
   /**
+    Logs and leaves the group after receiving a malformed message.
+
+    @param[in] error_message the error message to log and report
+  */
+  void leave_on_malformed_message(const char* error_message) const;
+
+  /**
+    Gets the first payload item raw data, or leaves the group if the message is
+    malformed.
+
+    @param[in]  message             the message received from GCS
+    @param[in]  error_message       the error message to log and report
+    @param[out] payload_item_data   the data
+    @param[out] payload_item_length the length of the data
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
+  */
+  bool get_first_payload_item_or_leave(const Gcs_message& message,
+                                       const char* error_message,
+                                       const unsigned char** payload_item_data,
+                                       uint64* payload_item_length) const;
+
+  /**
     This method checks if member was expelled from the group due
     to network failures.
 

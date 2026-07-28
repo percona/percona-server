@@ -446,4 +446,358 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
   delete retrieved_local_info;
 }
 
+/*
+  Group Replication malformed payload decode validation.
+
+  The decode_payload_item_* helpers advanced the read pointer and copied
+  `length` bytes out of the received buffer without checking against the end of
+  that buffer. For the variable-length variants the length comes straight off
+  the wire, so a crafted GCS message from a peer could drive reads past the end
+  of the buffer - an out-of-bounds read.
+
+  Group Replication messages arrive over GCS/XCom from other members, so this is
+  externally influenced input. These tests feed truncated encodings, which is
+  exactly the shape of a malformed payload, and assert the decoder reports the
+  failure instead of reading past the end.
+*/
+
+TEST_F(ClusterMemberInfoTest, TruncatedPayloadIsRejected)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  local_node->encode(encoded);
+
+  /* A complete encoding must still decode cleanly. */
+  Group_member_info whole(&encoded->front(), encoded->size());
+  ASSERT_FALSE(whole.is_decode_error());
+
+  /*
+    A prefix too short to hold the items this decoder reads must be reported as
+    a failure. Note a long prefix may legitimately decode clean: the decoder
+    stops once it has read the items it knows about, so trailing bytes of the
+    encoding are not required. What must never happen is a read past the end,
+    which is what the bounds checks in decode_payload_item_* now prevent.
+  */
+  Group_member_info short_prefix(&encoded->front(), 8);
+  ASSERT_TRUE(short_prefix.is_decode_error())
+    << "an 8 byte prefix of a " << encoded->size()
+    << " byte message cannot hold the required payload items";
+
+  /*
+    Sweep every truncation. This asserts nothing on its own beyond "does not
+    crash and terminates" - its value is as a vehicle for the sanitiser builds,
+    where an out-of-bounds read here is a hard failure. Before the fix this
+    sweep reads past the end of the buffer for a large fraction of the lengths.
+  */
+  for (size_t len= 1; len < encoded->size(); len++)
+  {
+    Group_member_info truncated(&encoded->front(), len);
+    /* Touch the result so the decode cannot be optimised away. */
+    ASSERT_TRUE(truncated.is_decode_error() || !truncated.is_decode_error());
+  }
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoTest, EmptyPayloadIsRejected)
+{
+  /* Nothing at all to decode: must fail, not read from the pointer. */
+  vector<uchar>* encoded= new vector<uchar>();
+  local_node->encode(encoded);
+
+  Group_member_info empty(&encoded->front(), 0);
+  ASSERT_TRUE(empty.is_decode_error());
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoTest, OversizedPayloadItemLengthIsRejected)
+{
+  /*
+    The direct reproducer for the out-of-bounds read. A payload item is
+    type (2 bytes) + length (8 bytes) + data. Take a valid encoding and rewrite
+    the first item's length field to claim far more data than the buffer holds,
+    which is what a malicious peer would send. The decoder must reject it rather
+    than assign() from past the end of the buffer.
+  */
+  vector<uchar>* encoded= new vector<uchar>();
+  local_node->encode(encoded);
+
+  Group_member_info whole(&encoded->front(), encoded->size());
+  ASSERT_FALSE(whole.is_decode_error());
+
+  /* Offset of the first payload item's length field. */
+  size_t const len_off= Group_member_info::WIRE_FIXED_HEADER_SIZE +
+                        Group_member_info::WIRE_PAYLOAD_ITEM_TYPE_SIZE;
+  ASSERT_LT(len_off + Group_member_info::WIRE_PAYLOAD_ITEM_LEN_SIZE,
+            encoded->size());
+
+  uchar* raw= &encoded->front();
+  /* Claim a 0x00FFFFFF byte string inside a few-hundred byte buffer. */
+  int8store(raw + len_off, (ulonglong)0x00FFFFFFULL);
+
+  Group_member_info hostile(raw, encoded->size());
+  ASSERT_TRUE(hostile.is_decode_error())
+    << "a payload item claiming more data than the buffer holds must be "
+       "rejected, not read past the end";
+
+  delete encoded;
+}
+
+/*
+  The two entry points that read a peer supplied buffer at fixed
+  offsets without decoding the whole message. Both are reached before any
+  Plugin_gcs_message instance exists, so neither is covered by the decode
+  validation tests above.
+*/
+
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsTruncatedFixedHeader)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  ASSERT_GT(encoded->size(), Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE);
+
+  Plugin_gcs_message::enum_cargo_type cargo_type=
+      Plugin_gcs_message::CT_UNKNOWN;
+  bool const error= Plugin_gcs_message::get_cargo_type(
+      &encoded->front(),
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE - 1,
+      &cargo_type);
+
+  EXPECT_TRUE(error)
+    << "a buffer shorter than the fixed header must be rejected, not read "
+       "past the end";
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsOutOfRangeCargoType)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  size_t const cargo_type_offset= Plugin_gcs_message::WIRE_VERSION_SIZE +
+                                  Plugin_gcs_message::WIRE_HD_LEN_SIZE +
+                                  Plugin_gcs_message::WIRE_MSG_LEN_SIZE;
+  ASSERT_LT(cargo_type_offset + Plugin_gcs_message::WIRE_CARGO_TYPE_SIZE,
+            encoded->size());
+
+  uint16 const invalid_cargo_types[]=
+    { (uint16)Plugin_gcs_message::CT_UNKNOWN,
+      (uint16)Plugin_gcs_message::CT_MAX,
+      (uint16)(Plugin_gcs_message::CT_MAX + 1) };
+
+  for (size_t i= 0; i < array_elements(invalid_cargo_types); i++)
+  {
+    int2store(&encoded->front() + cargo_type_offset, invalid_cargo_types[i]);
+
+    Plugin_gcs_message::enum_cargo_type cargo_type=
+        Plugin_gcs_message::CT_UNKNOWN;
+    bool const error= Plugin_gcs_message::get_cargo_type(
+        &encoded->front(), encoded->size(), &cargo_type);
+
+    EXPECT_TRUE(error) << "cargo type " << invalid_cargo_types[i]
+                       << " is outside the known range and must not be "
+                          "dispatched";
+  }
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeAcceptsValidMessage)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  Plugin_gcs_message::enum_cargo_type cargo_type=
+      Plugin_gcs_message::CT_UNKNOWN;
+  bool const error= Plugin_gcs_message::get_cargo_type(
+      &encoded->front(), encoded->size(), &cargo_type);
+
+  EXPECT_FALSE(error);
+  EXPECT_EQ(Plugin_gcs_message::CT_MEMBER_INFO_MANAGER_MESSAGE, cargo_type);
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetFirstPayloadItemRejectsTruncatedHeader)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  size_t const minimum_size=
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
+  ASSERT_GT(encoded->size(), minimum_size);
+
+  const unsigned char* payload_data= NULL;
+  uint64 payload_length= 0;
+  bool const error= Plugin_gcs_message::get_first_payload_item_raw_data(
+      &encoded->front(), minimum_size - 1, &payload_data, &payload_length);
+
+  EXPECT_TRUE(error)
+    << "a buffer too short to hold the first payload item header must be "
+       "rejected";
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetFirstPayloadItemRejectsOverrunningLength)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  size_t const payload_item_len_offset=
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_TYPE_SIZE;
+  ASSERT_LT(payload_item_len_offset +
+                Plugin_gcs_message::WIRE_PAYLOAD_ITEM_LEN_SIZE,
+            encoded->size());
+
+  size_t const bytes_after_item_header=
+      encoded->size() - (payload_item_len_offset +
+                         Plugin_gcs_message::WIRE_PAYLOAD_ITEM_LEN_SIZE);
+
+  /* One byte more than the buffer holds must be rejected. */
+  int8store(&encoded->front() + payload_item_len_offset,
+            (ulonglong)(bytes_after_item_header + 1));
+
+  const unsigned char* payload_data= NULL;
+  uint64 payload_length= 0;
+  bool error= Plugin_gcs_message::get_first_payload_item_raw_data(
+      &encoded->front(), encoded->size(), &payload_data, &payload_length);
+
+  EXPECT_TRUE(error)
+    << "a declared payload item length larger than the buffer must be "
+       "rejected, not handed to the applier";
+
+  /* Exactly what the buffer holds must still be accepted. */
+  int8store(&encoded->front() + payload_item_len_offset,
+            (ulonglong)bytes_after_item_header);
+
+  error= Plugin_gcs_message::get_first_payload_item_raw_data(
+      &encoded->front(), encoded->size(), &payload_data, &payload_length);
+
+  EXPECT_FALSE(error);
+  EXPECT_EQ(bytes_after_item_header, payload_length);
+
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetFirstPayloadItemAcceptsValidMessage)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  const unsigned char* payload_data= NULL;
+  uint64 payload_length= 0;
+  bool const error= Plugin_gcs_message::get_first_payload_item_raw_data(
+      &encoded->front(), encoded->size(), &payload_data, &payload_length);
+
+  EXPECT_FALSE(error);
+  EXPECT_TRUE(payload_data != NULL);
+  EXPECT_GT(payload_length, 0U);
+  EXPECT_LE(payload_data + payload_length,
+            &encoded->front() + encoded->size());
+
+  delete encoded;
+}
+
+/*
+  The two cases below are ports of the gunit tests upstream ships with
+  Bug#39253416 (7206c72ea29): DecodeRejectsMemberEntryWithInvalidPortLength and
+  DecodeRejectsUnexpectedMemberInfoManagerEntryType. The third upstream case,
+  GetPitDataRejectsUnexpectedMemberInfoManagerEntryType, has no counterpart here
+  because get_pit_data() reads payload items this line does not have.
+
+  They cover Group_member_info_manager_message::decode_payload(), the state
+  exchange path, which no MTR test on this line can reach: injecting there needs
+  a debug point in Group_member_info::encode_payload(), and that encode runs on a
+  GCS engine thread, which has no DBUG state, so the hook never fires.
+
+  Both walk a Group_member_info_manager_message encoding:
+
+    fixed header
+    PIT_MEMBERS_NUMBER item   header + 2 bytes
+    PIT_MEMBER_DATA item      header + a whole nested Group_member_info
+*/
+static size_t get_first_member_entry_offset()
+{
+  size_t const int2_payload_size= 2;
+  return Group_member_info::WIRE_FIXED_HEADER_SIZE +
+         Group_member_info::WIRE_PAYLOAD_ITEM_HEADER_SIZE +
+         int2_payload_size;
+}
+
+static size_t get_first_member_port_length_offset(size_t hostname_length)
+{
+  /* Where the nested member's own encoding starts. */
+  size_t const first_member_payload_offset=
+      get_first_member_entry_offset() +
+      Group_member_info::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
+  /* Its first item is the hostname, and the port item follows it. */
+  size_t const hostname_item_size=
+      Group_member_info::WIRE_PAYLOAD_ITEM_HEADER_SIZE + hostname_length;
+
+  return first_member_payload_offset +
+         Group_member_info::WIRE_FIXED_HEADER_SIZE + hostname_item_size +
+         Group_member_info::WIRE_PAYLOAD_ITEM_TYPE_SIZE;
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       DecodeRejectsMemberEntryWithInvalidPortLength)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  size_t const port_length_offset=
+      get_first_member_port_length_offset(local_node->get_hostname().length());
+  ASSERT_LT(port_length_offset + Group_member_info::WIRE_PAYLOAD_ITEM_LEN_SIZE,
+            encoded->size() + 1);
+
+  /* A port item declaring one byte where the decoder needs two. */
+  int8store(&encoded->front() + port_length_offset, 1ULL);
+
+  std::vector<Group_member_info*>* decoded_members=
+      cluster_member_mgr->decode(&encoded->front(), encoded->size());
+
+  EXPECT_TRUE(decoded_members == NULL)
+    << "a nested member whose port item declares the wrong length must fail "
+       "the whole message, not yield a partially decoded member list";
+
+  delete decoded_members;
+  delete encoded;
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       DecodeRejectsUnexpectedMemberInfoManagerEntryType)
+{
+  vector<uchar>* encoded= new vector<uchar>();
+  cluster_member_mgr->encode(encoded);
+
+  size_t const member_entry_offset= get_first_member_entry_offset();
+  ASSERT_LT(member_entry_offset +
+                Group_member_info::WIRE_PAYLOAD_ITEM_TYPE_SIZE,
+            encoded->size() + 1);
+
+  /*
+    Relabel the member entry as something that is not PIT_MEMBER_DATA. Upstream
+    relabels it PIT_MEMBER_ACTIONS, which this line does not have;
+    PIT_MEMBERS_NUMBER is the equivalent - a valid member of the enum that does
+    not belong at this position. Every length stays correct, so only the type
+    check can reject it.
+  */
+  int2store(&encoded->front() + member_entry_offset,
+            (uint16)Group_member_info_manager_message::PIT_MEMBERS_NUMBER);
+
+  std::vector<Group_member_info*>* decoded_members=
+      cluster_member_mgr->decode(&encoded->front(), encoded->size());
+
+  EXPECT_TRUE(decoded_members == NULL)
+    << "a member entry that is not PIT_MEMBER_DATA must fail the whole message";
+
+  delete decoded_members;
+  delete encoded;
+}
+
 }

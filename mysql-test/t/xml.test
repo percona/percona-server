@@ -697,3 +697,29 @@ set @x = '<MESSAGE><DATA1>HOLA</DATA1></MESSAGE>';
 set @y = 'Default Value';
 select ExtractValue( @x, '/MESSAGE/DATA2' ) into @y;
 select @y;
+
+--echo #
+--echo # Bug#39138426 - OOB WRITE/REMOTE CRASH IN MYSQL
+--echo #
+--echo # A slash inside a declaration-like <!name ...> construct or a
+--echo # processing instruction <?name ...> must be rejected as a parse error
+--echo # instead of driving the normal element-close path, which could reach
+--echo # my_xml_leave() with invalid parser state.
+--echo #
+
+# Declaration-like constructs: the slash must be a parse error, not a close.
+SELECT ExtractValue('<!a/><!b/>', '/a');
+SELECT ExtractValue('<!a/>', '/a');
+SELECT UpdateXML('<!a/><!b/>', '/a', '<x/>');
+
+# Processing instructions: a slash is only valid immediately before '?'.
+SELECT ExtractValue('<?a/><?b/>', '/a');
+SELECT ExtractValue('<?xml version="1.0"?><a>1</a>', '/a');
+
+# XML comments and CDATA are handled by the scanner before this path and
+# must keep working.
+SELECT ExtractValue('<!-- c/d --><a>1</a>', '/a');
+SELECT ExtractValue('<a><![CDATA[x/y]]></a>', '/a');
+
+# A well-formed self-closing element must still close normally.
+SELECT ExtractValue('<a><b/></a>', 'count(/a/b)');

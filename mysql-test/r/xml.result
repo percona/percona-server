@@ -1203,3 +1203,43 @@ select ExtractValue( @x, '/MESSAGE/DATA2' ) into @y;
 select @y;
 @y
 
+#
+# Bug#39138426 - OOB WRITE/REMOTE CRASH IN MYSQL
+#
+# A slash inside a declaration-like <!name ...> construct or a
+# processing instruction <?name ...> must be rejected as a parse error
+# instead of driving the normal element-close path, which could reach
+# my_xml_leave() with invalid parser state.
+#
+SELECT ExtractValue('<!a/><!b/>', '/a');
+ExtractValue('<!a/><!b/>', '/a')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 5: '/' unexpected ('>' wanted)'
+SELECT ExtractValue('<!a/>', '/a');
+ExtractValue('<!a/>', '/a')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 5: '/' unexpected ('>' wanted)'
+SELECT UpdateXML('<!a/><!b/>', '/a', '<x/>');
+UpdateXML('<!a/><!b/>', '/a', '<x/>')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 5: '/' unexpected ('>' wanted)'
+SELECT ExtractValue('<?a/><?b/>', '/a');
+ExtractValue('<?a/><?b/>', '/a')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 5: '/' unexpected ('?' wanted)'
+SELECT ExtractValue('<?xml version="1.0"?><a>1</a>', '/a');
+ExtractValue('<?xml version="1.0"?><a>1</a>', '/a')
+1
+SELECT ExtractValue('<!-- c/d --><a>1</a>', '/a');
+ExtractValue('<!-- c/d --><a>1</a>', '/a')
+1
+SELECT ExtractValue('<a><![CDATA[x/y]]></a>', '/a');
+ExtractValue('<a><![CDATA[x/y]]></a>', '/a')
+x/y
+SELECT ExtractValue('<a><b/></a>', 'count(/a/b)');
+ExtractValue('<a><b/></a>', 'count(/a/b)')
+1

@@ -97,7 +97,8 @@ GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 #
 # 1) Set `PRIVILEGE_CHECKS_USER` to a user without `CREATE` privileges.
 #
-CALL mtr.add_suppression(".CREATE command denied to user.");
+CALL mtr.add_suppression("Access denied for user.*to database.*");
+CALL mtr.add_suppression(".*Replica: Unknown database.*");
 
 RESET SLAVE ALL;
 
@@ -113,13 +114,15 @@ START SLAVE;
 # 2) Create a table on the master.
 #
 --source include/rpl_connection_master.inc
+CREATE DATABASE db1;
+USE db1;
 CREATE TABLE t1 (c1 INT);
 
 #
 # 3) Wait for slave to error out.
 #
 --source include/rpl_connection_slave.inc
---let $slave_sql_errno = convert_error(ER_TABLEACCESS_DENIED_ERROR)
+--let $slave_sql_errno = convert_error(ER_DBACCESS_DENIED_ERROR)
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave.inc
 
@@ -195,7 +198,7 @@ CALL mtr.add_suppression(".*Access denied. you need .at least one of. the GRANT 
 if (`SELECT @@GLOBAL.GTID_MODE = "ON"`)
 {
   --disable_query_log
-  --eval SET GTID_NEXT= '$master_uuid:2'
+  --eval SET GTID_NEXT= '$master_uuid:3'
   BEGIN;
   COMMIT;
   SET GTID_NEXT= 'AUTOMATIC';
@@ -226,6 +229,7 @@ GRANT DROP ON *.* TO 'u1'@'localhost';
 START SLAVE;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
+DROP DATABASE db1;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';

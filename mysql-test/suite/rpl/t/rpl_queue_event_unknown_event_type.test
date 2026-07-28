@@ -1,0 +1,88 @@
+# ==== Purpose ====
+#
+# Bug#39254896 - check event_type validity on receiver thread
+#
+# The receiver thread queued events into the relay log without checking that
+# the event type is actually described by the format description event that is
+# currently in use. post_header_len is sized from that event's
+# number_of_event_types, so an event type beyond that count would index
+# post_header_len out of bounds while the event is decoded. The event stream is
+# attacker controlled if the source is malicious or corrupted.
+#
+# ==== Requirements ====
+#
+# R1. When the receiver thread sees an event whose type is not described by the
+#     format description event in use, it must reject the event and report
+#     ER_REPLICA_CORRUPT_EVENT, naming the offending event type, instead of
+#     decoding it against a too-short post_header_len.
+#
+# R2. Ordinary replication must keep working once the injection is gone, so the
+#     bound cannot be satisfied by simply refusing everything.
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug#39254896 - check event_type validity on receiver thread
+--echo #
+
+--source include/rpl_connection_slave.inc
+
+# The receiver thread is expected to reject an event and stop; both the
+# specific error and the generic queueing failure land in the error log.
+call mtr.add_suppression("Corrupted replication event was detected");
+call mtr.add_suppression("is not recognized by the format description event");
+call mtr.add_suppression("Relay log write failure: could not queue event from source");
+
+--source include/stop_slave.inc
+
+--echo # Make the format description event held by the receiver describe fewer
+--echo # event types than the source actually sends.
+SET GLOBAL DEBUG='+d,queue_event_unknown_event_type_by_fd_event';
+
+START REPLICA IO_THREAD;
+
+--echo # R1: the receiver must refuse the event rather than decoding it against
+--echo #     a too-short post_header_len.
+#     is_fd_event_saved_in_context_usable_with_event_type() reports the specific
+#     ER_REPLICA_CORRUPT_EVENT first, then handle_slave_io() reports the generic
+#     wrapper, so the wrapper is what Last_IO_Errno holds. The specific
+#     rejection is asserted from the error log just below.
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 0
+--source include/wait_for_slave_io_error.inc
+
+--echo # R1: and the rejection must be the specific one, naming the event type.
+--let $assert_text= receiver rejected an event type the format description event does not describe
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= is not recognized by the format description event currently in use
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--echo # Cleanup: drop the injection and rebuild the channel from scratch.
+#     The receiver has already stopped itself on the error, so only the applier
+#     is still running; stop_slave.inc would abort on the non-zero
+#     Last_IO_Errno. RESET REPLICA clears that error along with the positions.
+SET GLOBAL DEBUG='';
+--source include/stop_slave_sql.inc
+RESET REPLICA;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--echo # R2: ordinary replication still works once the injection is gone.
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+SELECT * FROM t1;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

@@ -1,0 +1,74 @@
+CALL mtr.add_suppression("INSERT command denied to user 'u1'@'localhost' for table 't1'");
+#
+# 1. Prepare two binlog files: one that only holds a small INSERT
+#    (base64 payload below 2048 bytes) and one that only holds a
+#    large INSERT (base64 payload above 2048 bytes).
+#
+CREATE DATABASE binlog_client_priv_db;
+CREATE TABLE binlog_client_priv_db.t1 (c1 INT PRIMARY KEY, payload LONGTEXT) ENGINE = InnoDB;
+FLUSH BINARY LOGS;
+INSERT INTO binlog_client_priv_db.t1 VALUES (1, 'small');
+FLUSH BINARY LOGS;
+INSERT INTO binlog_client_priv_db.t1 VALUES (2, REPEAT('X', 4000));
+FLUSH BINARY LOGS;
+#
+# 2. Dump each binlog to a SQL script via mysqlbinlog.
+#
+#
+# 3. Remove the rows added on the primary so the dumps can be
+#    re-applied via BINLOG '...' without primary-key conflicts.
+#
+DELETE FROM binlog_client_priv_db.t1;
+#
+# 4. Create user u1 with the minimum set of privileges needed to
+#    reach the BINLOG '<payload>' statement in the mysqlbinlog
+#    dump:
+#      - REPLICATION_APPLIER      (required to run BINLOG at all
+#                                  and to set the GTID_NEXT /
+#                                  ORIGINAL_* variables that
+#                                  mysqlbinlog emits)
+#      - SESSION_VARIABLES_ADMIN  (required for the
+#                                  SET @@SESSION.pseudo_thread_id
+#                                  lines that mysqlbinlog emits
+#                                  before each Query event)
+#      - SELECT on the target     (keeps u1 usable; harmless)
+#    u1 has neither SUPER, BINLOG_ADMIN, nor INSERT on t1, so the
+#    row event inside the BINLOG payload is the only thing that
+#    can reject the replay.
+#
+CREATE USER 'u1'@'%';
+GRANT REPLICATION_APPLIER, SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'%';
+GRANT SELECT ON binlog_client_priv_db.t1 TO 'u1'@'%';
+SHOW GRANTS FOR 'u1'@'%';
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+GRANT SELECT ON `binlog_client_priv_db`.`t1` TO `u1`@`%`
+#
+# 5. Attempt to replay the SMALL dump as u1. The Write_rows event
+#    inside the BINLOG payload must be rejected because u1 lacks
+#    INSERT on the target table.
+#
+include/assert_grep.inc [Small-payload BINLOG rejected with ER_TABLEACCESS_DENIED_ERROR for the applier context.]
+include/assert.inc [t1 must still be empty after the small-dump replay was rejected.]
+#
+# 6. Attempt to replay the LARGE dump as u1. Pre-fix, this would
+#    have succeeded because the base64 payload exceeded 2048
+#    bytes and the guard's length-based branch skipped all
+#    applier privilege checks. Post-fix it must fail in the same
+#    way as the small dump.
+#
+include/assert_grep.inc [Large-payload BINLOG also rejected with ER_TABLEACCESS_DENIED_ERROR (regression guard for Bug#39474825).]
+include/assert.inc [t1 must still be empty after the large-dump replay was rejected.]
+#
+# 7. Grant BINLOG_ADMIN. Both dumps must now apply cleanly: the
+#    guard's client-BINLOG branch sets privilege_checks_none via
+#    the standing BINLOG_ADMIN privilege.
+#
+GRANT BINLOG_ADMIN ON *.* TO 'u1'@'%';
+include/assert.inc [Both rows must be present after BINLOG_ADMIN was granted.]
+#
+# 8. Clean up.
+#
+DROP USER 'u1'@'%';
+DROP DATABASE binlog_client_priv_db;

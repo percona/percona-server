@@ -288,6 +288,7 @@ Obsoletes:      mariadb-server-utils mariadb11.8-server-utils
 Obsoletes:      mariadb-galera-server mariadb11.8-galera-server
 Obsoletes:      mariadb-gssapi-server mariadb11.8-gssapi-server
 Obsoletes:      mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
+Obsoletes:      mariadb-client-utils mariadb11.8-client-utils
 Obsoletes:      mysql8.4-server < 99
 Obsoletes:      mysql8.4 < 99
 Obsoletes:      mysql8.4-common < 99

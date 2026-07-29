@@ -1,28 +1,28 @@
 SET @start_global_value = @@global.innodb_buffer_pool_populate;
 SELECT @start_global_value;
 @start_global_value
-0
+1
 Valid values are 'ON' and 'OFF'
 select @@global.innodb_buffer_pool_populate in (0, 1);
 @@global.innodb_buffer_pool_populate in (0, 1)
 1
 select @@global.innodb_buffer_pool_populate;
 @@global.innodb_buffer_pool_populate
-0
+1
 select @@session.innodb_buffer_pool_populate;
 ERROR HY000: Variable 'innodb_buffer_pool_populate' is a GLOBAL variable
 show global variables like 'innodb_buffer_pool_populate';
 Variable_name	Value
-innodb_buffer_pool_populate	OFF
+innodb_buffer_pool_populate	ON
 show session variables like 'innodb_buffer_pool_populate';
 Variable_name	Value
-innodb_buffer_pool_populate	OFF
+innodb_buffer_pool_populate	ON
 select * from performance_schema.global_variables where variable_name='innodb_buffer_pool_populate';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_buffer_pool_populate	OFF
+innodb_buffer_pool_populate	ON
 select * from performance_schema.session_variables where variable_name='innodb_buffer_pool_populate';
 VARIABLE_NAME	VARIABLE_VALUE
-innodb_buffer_pool_populate	OFF
+innodb_buffer_pool_populate	ON
 set global innodb_buffer_pool_populate='ON';
 select @@global.innodb_buffer_pool_populate;
 @@global.innodb_buffer_pool_populate
@@ -59,4 +59,4 @@ ERROR 42000: Variable 'innodb_buffer_pool_populate' can't be set to the value of
 SET @@global.innodb_buffer_pool_populate = @start_global_value;
 SELECT @@global.innodb_buffer_pool_populate;
 @@global.innodb_buffer_pool_populate
-0
+1

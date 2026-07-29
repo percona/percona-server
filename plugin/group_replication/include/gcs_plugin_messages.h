@@ -234,23 +234,33 @@ class Plugin_gcs_message {
     Return the cargo type of a given message buffer, without decode
     the complete message.
 
-    @param[in] buffer the buffer to decode from.
+    @param[in]  buffer     the buffer to decode from.
+    @param[in]  length     the length of the buffer.
+    @param[out] cargo_type the decoded cargo type.
 
-    @return the cargo type of a given message buffer
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
    */
-  static enum_cargo_type get_cargo_type(const unsigned char *buffer);
+  static bool get_cargo_type(const unsigned char *buffer, size_t length,
+                             enum_cargo_type *cargo_type);
 
   /**
     Return the raw data of the first payload item of a given message buffer,
     without decode the complete message.
 
-    @param[out] buffer              the buffer to decode from.
+    @param[in]  buffer              the buffer to decode from.
+    @param[in]  length              the length of the buffer.
     @param[out] payload_item_data   the data.
     @param[out] payload_item_length the length of the data.
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
   */
-  static void get_first_payload_item_raw_data(
-      const unsigned char *buffer, const unsigned char **payload_item_data,
-      size_t *payload_item_length);
+  static bool get_first_payload_item_raw_data(
+      const unsigned char *buffer, size_t length,
+      const unsigned char **payload_item_data, size_t *payload_item_length);
 
  protected:
   /**

@@ -110,31 +110,51 @@ void Plugin_gcs_message::decode(const unsigned char *buffer, size_t length) {
   decode_payload(slider, end);
 }
 
-Plugin_gcs_message::enum_cargo_type Plugin_gcs_message::get_cargo_type(
-    const unsigned char *buffer) {
+bool Plugin_gcs_message::get_cargo_type(const unsigned char *buffer,
+                                        size_t length,
+                                        enum_cargo_type *cargo_type) {
   DBUG_TRACE;
+  if (length < WIRE_FIXED_HEADER_SIZE) {
+    return true;
+  }
+
   const unsigned char *slider =
       buffer + WIRE_VERSION_SIZE + WIRE_HD_LEN_SIZE + WIRE_MSG_LEN_SIZE;
 
   unsigned short s_cargo_type = 0;
   s_cargo_type = uint2korr(slider);
-  // enum may have 32bit storage
-  Plugin_gcs_message::enum_cargo_type cargo_type =
-      (Plugin_gcs_message::enum_cargo_type)s_cargo_type;
+  if (s_cargo_type <= CT_UNKNOWN || s_cargo_type >= CT_MAX) {
+    return true;
+  }
 
-  return cargo_type;
+  // enum may have 32bit storage
+  *cargo_type = (Plugin_gcs_message::enum_cargo_type)s_cargo_type;
+
+  return false;
 }
 
-void Plugin_gcs_message::get_first_payload_item_raw_data(
-    const unsigned char *buffer, const unsigned char **payload_item_data,
-    size_t *payload_item_length) {
+bool Plugin_gcs_message::get_first_payload_item_raw_data(
+    const unsigned char *buffer, size_t length,
+    const unsigned char **payload_item_data, size_t *payload_item_length) {
   DBUG_TRACE;
+  if (length < WIRE_FIXED_HEADER_SIZE + WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    return true;
+  }
+
+  const unsigned char *end = buffer + length;
   const unsigned char *slider =
       buffer + WIRE_FIXED_HEADER_SIZE + WIRE_PAYLOAD_ITEM_TYPE_SIZE;
 
-  *payload_item_length = uint8korr(slider);
+  const unsigned long long payload_item_length_aux = uint8korr(slider);
   slider += WIRE_PAYLOAD_ITEM_LEN_SIZE;
+  if (slider > end ||
+      static_cast<unsigned long long>(end - slider) < payload_item_length_aux) {
+    return true;
+  }
+
   *payload_item_data = slider;
+  *payload_item_length = static_cast<size_t>(payload_item_length_aux);
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_type_and_length(

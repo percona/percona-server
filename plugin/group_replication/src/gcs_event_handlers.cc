@@ -75,11 +75,43 @@ Plugin_gcs_events_handler::~Plugin_gcs_events_handler() {
   delete joiner_compatibility_status;
 }
 
+void Plugin_gcs_events_handler::leave_on_malformed_message(
+    const char *error_message) const {
+  LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG, error_message);
+  leave_group_on_failure::mask leave_actions;
+  leave_actions.set(leave_group_on_failure::CLEAN_GROUP_MEMBERSHIP, true);
+  leave_actions.set(leave_group_on_failure::STOP_APPLIER, true);
+  leave_actions.set(leave_group_on_failure::HANDLE_EXIT_STATE_ACTION, true);
+  leave_group_on_failure::leave(leave_actions, 0, &m_notification_ctx,
+                                error_message);
+}
+
+bool Plugin_gcs_events_handler::get_first_payload_item_or_leave(
+    const Gcs_message &message, const char *error_message,
+    const unsigned char **payload_item_data,
+    size_t *payload_item_length) const {
+  if (!Plugin_gcs_message::get_first_payload_item_raw_data(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length(), payload_item_data,
+          payload_item_length)) {
+    return false;
+  }
+
+  leave_on_malformed_message(error_message);
+  return true;
+}
+
 void Plugin_gcs_events_handler::on_message_received(
     const Gcs_message &message) const {
   Plugin_gcs_message::enum_cargo_type message_type =
-      Plugin_gcs_message::get_cargo_type(
-          message.get_message_data().get_payload());
+      Plugin_gcs_message::CT_UNKNOWN;
+  if (Plugin_gcs_message::get_cargo_type(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length(), &message_type)) {
+    leave_on_malformed_message("Malformed group replication message header");
+    notify_and_reset_ctx(m_notification_ctx);
+    return;
+  }
 
   const std::string message_origin = message.get_origin().get_member_id();
   Plugin_gcs_message *processed_message = nullptr;
@@ -231,8 +263,11 @@ void Plugin_gcs_events_handler::handle_transactional_message(
 
     const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
-    Plugin_gcs_message::get_first_payload_item_raw_data(
-        message.get_message_data().get_payload(), &payload_data, &payload_size);
+    if (get_first_payload_item_or_leave(message,
+                                        "Malformed transaction message payload",
+                                        &payload_data, &payload_size)) {
+      return;
+    }
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size),
                                  GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
@@ -277,8 +312,11 @@ void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
 
     const unsigned char *payload_data = nullptr;
     size_t payload_size = 0;
-    Plugin_gcs_message::get_first_payload_item_raw_data(
-        message.get_message_data().get_payload(), &payload_data, &payload_size);
+    if (get_first_payload_item_or_leave(
+            message, "Malformed transaction with guarantee message payload",
+            &payload_data, &payload_size)) {
+      return;
+    }
 
     // Get ONLINE members that did receive this message.
     std::list<Gcs_member_identifier> *online_members =
@@ -375,8 +413,11 @@ void Plugin_gcs_events_handler::handle_certifier_message(
 
   const unsigned char *payload_data = nullptr;
   size_t payload_size = 0;
-  Plugin_gcs_message::get_first_payload_item_raw_data(
-      message.get_message_data().get_payload(), &payload_data, &payload_size);
+  if (get_first_payload_item_or_leave(message,
+                                      "Malformed certification message payload",
+                                      &payload_data, &payload_size)) {
+    return;
+  }
 
   if (certifier->handle_certifier_data(payload_data,
                                        static_cast<ulong>(payload_size),

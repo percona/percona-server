@@ -24176,11 +24176,12 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_BOOL(
     buffer_pool_populate, srv_buf_pool_populate, PLUGIN_VAR_NOCMDARG,
     "Enforce page faults for InnoDB buffer pool allocations at allocation time"
-    " (pre-populate pages). When OFF (default), the pre-population is skipped"
-    " to reduce startup time and page-faults happen on first page accesses."
+    " (pre-populate pages). When ON (default), pre-population happens at"
+    " allocation time. When OFF, the pre-population is skipped to reduce"
+    " startup time and page-faults happen on first page accesses."
     " Note: it is recommended to turn on this variable when using large pages"
     " on systems with multiple NUMA nodes.",
-    nullptr, nullptr, false);
+    nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_BOOL(
     buffer_pool_lazy_latch_init, srv_buf_pool_lazy_latch_init,

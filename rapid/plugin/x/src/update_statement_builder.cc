@@ -92,6 +92,7 @@ void xpl::Update_statement_builder::add_document_operation_item(const Operation_
   case UpdateOperation::ITEM_MERGE:
   {
     Query_string_builder value;
+    value.set_no_backslash_escapes(m_builder.m_qb.no_backslash_escapes());
     m_builder.m_gen.clone(value).feed(item.value());
     m_builder.put(",IF(JSON_TYPE(").put(value)
        .put(")='OBJECT',JSON_REMOVE(").put(value)

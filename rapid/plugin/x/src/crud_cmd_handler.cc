@@ -49,6 +49,7 @@ ngs::Error_code Crud_command_handler::execute(
 {
   session.update_status(variable);
   m_qb.clear();
+  m_qb.set_no_backslash_escapes(session.data_context().is_no_backslash_escapes());
   try
   {
     builder.build(msg);

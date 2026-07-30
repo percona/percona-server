@@ -55,7 +55,7 @@ namespace xpl {
       Resultset   r_result_set;
       Result_info r_info;
 
-      ngs::PFS_string query = get_sql(user.c_str(), host.c_str());
+      ngs::PFS_string query = get_sql(sql_data_context, user.c_str(), host.c_str());
       ngs::Error_code error = sql_data_context.execute_sql_and_collect_results(
           query.c_str(),
           query.length(),
@@ -86,8 +86,9 @@ namespace xpl {
     }
 
   private:
-    ngs::PFS_string get_sql(const char *user, const char *host) const {
+    ngs::PFS_string get_sql(Sql_data_context &sql_data_context, const char *user, const char *host) const {
       Query_string_builder qb;
+      qb.set_no_backslash_escapes(sql_data_context.is_no_backslash_escapes());
 
       // Query for a concrete users primary key (USER,HOST columns) which was chosen by MySQL Server
       // and verify hash and plugin column.

@@ -1,0 +1,65 @@
+## BUG#39268863 / PS-11437
+## Admin commands must quote identifiers/literals correctly for the
+## session's actual sql_mode. Previously X Plugin always used
+## backslash-based quoting when building the generated SQL, regardless of
+## whether the session had NO_BACKSLASH_ESCAPES set -- verify collection/
+## schema names containing a quote character round-trip correctly under
+## that mode instead of breaking the generated statement.
+
+--source ../include/xplugin_preamble.inc
+
+create schema xtest default charset 'utf8mb4';
+
+SET @old_global_sql_mode = @@GLOBAL.sql_mode;
+SET @@GLOBAL.sql_mode = 'NO_BACKSLASH_ESCAPES';
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_no_backslash_escapes.tmp
+--write_file $xtest_file
+-->quiet
+
+-->macro Admin_stmt  %CMD%  %ARGS%  %ERROR%
+-->stmtadmin %CMD%	%ARGS%
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+-->echo Verify ["create_collection" accepts a name with a quote character]
+-->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":"b'ar"}	0
+
+-->echo Verify ["list_objects" accepts a pattern with a quote character]
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  args {
+    type: OBJECT obj {
+      fld {
+        key:'schema'
+        value{type:SCALAR scalar{type:V_STRING v_string{value:'xtest'}}}
+      }
+      fld {
+        key:'pattern'
+        value{type:SCALAR scalar{type:V_STRING v_string{value:"b'ar"}}}
+      }
+    }
+  }
+  namespace: "mysqlx"
+}
+-->recvresult
+
+-->echo Verify ["create_collection_index" accepts collection and index names with a quote character]
+-->callmacro Admin_stmt	create_collection_index	{"schema":"xtest", "collection":"b'ar", "name": "f'oo", "unique": true, "constraint":{"member": "$.foo", "type": "int", "required": false}}	0
+
+-->echo Verify ["drop_collection_index" accepts collection and index names with a quote character]
+-->callmacro Admin_stmt	drop_collection_index	{"schema":"xtest", "collection":"b'ar", "name": "f'oo"}	0
+
+-->callmacro Admin_stmt	drop_collection	{"schema":"xtest", "name":"b'ar"}	0
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+
+SET @@GLOBAL.sql_mode = @old_global_sql_mode;
+
+## Postamble
+--remove_file $xtest_file
+drop schema if exists xtest;
+uninstall plugin mysqlx;

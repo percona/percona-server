@@ -1,0 +1,54 @@
+## BUG#39268863 / PS-11439
+## Check SQL statement string arguments with NO_BACKSLASH_ESCAPES, via the
+## Mysqlx.Sql.StmtExecute placeholder-substitution path in xpl_dispatcher.cc
+## (5.7 has no Mysqlx.Prepare.* protocol, so only the StmtExecute half of
+## upstream's test applies here). Sets the mode in-session via -->stmtsql,
+## not globally, since this path's placeholder args are substituted after
+## authentication, on the client's own session.
+
+--source ../include/xplugin_preamble.inc
+
+## Test data
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (name VARCHAR(64), touched INT DEFAULT 0);
+INSERT INTO xtest.xtable VALUES ('innocent', 0), ('target_stmt', 0);
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/stmt_no_backslash_escapes.tmp
+-->quiet
+-->stmtsql SET SQL_MODE='NO_BACKSLASH_ESCAPES'
+-->recvresult be-quiet
+-->noquiet
+
+-->echo Attempted predicate injection through SQL StmtExecute argument
+-->quiet
+Mysqlx.Sql.StmtExecute {
+  stmt: "UPDATE xtest.xtable SET touched = 1 WHERE name = ? OR name = 'target_stmt'"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string { value: "missing' OR TRUE -- " }
+    }
+  }
+  namespace: "sql"
+}
+-->recvresult
+-->noquiet
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmt_no_backslash_escapes.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/stmt_no_backslash_escapes.tmp
+
+--let $assert_text= SQL StmtExecute path must touch exactly one row
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1) = 1
+--source include/assert.inc
+
+--let $assert_text= SQL StmtExecute path must touch target_stmt row
+--let $assert_cond= (SELECT COUNT(*) FROM xtest.xtable WHERE touched = 1 AND name = 0x7461726765745f73746d74) = 1
+--source include/assert.inc
+
+## Postamble
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

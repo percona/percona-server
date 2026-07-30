@@ -852,6 +852,12 @@ int thd_sql_command(const THD *thd)
 }
 
 extern "C"
+int thd_is_sql_mode_no_backslash_escapes(const THD *thd)
+{
+  return (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) != 0;
+}
+
+extern "C"
 int thd_tx_isolation(const THD *thd)
 {
   return (int) thd->tx_isolation;

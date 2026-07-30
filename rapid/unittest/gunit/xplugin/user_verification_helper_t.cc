@@ -107,6 +107,12 @@ namespace xpl
 
         result_set.push_back(m_row_data);
 
+        // get_sql() checks the session's own NO_BACKSLASH_ESCAPES sql_mode
+        // (BUG#39268863 / PS-11437) before building the account-lookup
+        // query. The value doesn't affect the (pre-baked) mocked rows.
+        EXPECT_CALL(m_sql_data_context, is_no_backslash_escapes())
+          .WillOnce(Return(false));
+
         EXPECT_CALL(m_sql_data_context, execute_sql_and_collect_results(_, _, _, _, _))
           .WillOnce(DoAll(
               SetArgReferee<2>(m_field_types),

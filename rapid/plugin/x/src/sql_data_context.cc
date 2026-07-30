@@ -516,3 +516,10 @@ MYSQL_THD Sql_data_context::get_thd() const
 {
   return srv_session_info_get_thd(m_mysql_session);
 }
+
+
+bool Sql_data_context::is_no_backslash_escapes() const
+{
+  const MYSQL_THD thd = get_thd();
+  return thd != NULL && thd_is_sql_mode_no_backslash_escapes(thd) != 0;
+}

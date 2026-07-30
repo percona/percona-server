@@ -1,0 +1,34 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+create schema xtest default charset 'utf8mb4';
+SET @old_global_sql_mode = @@GLOBAL.sql_mode;
+SET @@GLOBAL.sql_mode = 'NO_BACKSLASH_ESCAPES';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Verify ["create_collection" accepts a name with a quote character]
+
+command ok
+Got expected error (code 0)
+Verify ["list_objects" accepts a pattern with a quote character]
+name	type
+b'ar	COLLECTION
+command ok
+Verify ["create_collection_index" accepts collection and index names with a quote character]
+
+command ok
+Got expected error (code 0)
+Verify ["drop_collection_index" accepts collection and index names with a quote character]
+
+command ok
+Got expected error (code 0)
+
+command ok
+Got expected error (code 0)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET @@GLOBAL.sql_mode = @old_global_sql_mode;
+drop schema if exists xtest;
+uninstall plugin mysqlx;

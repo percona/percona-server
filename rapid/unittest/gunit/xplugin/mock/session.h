@@ -211,6 +211,7 @@ public:
       std::vector<Command_delegate::Field_type> &,
       Buffering_command_delegate::Resultset &,
       Result_info &));
+  MOCK_CONST_METHOD0(is_no_backslash_escapes, bool ());
 };
 
 

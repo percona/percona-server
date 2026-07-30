@@ -620,6 +620,13 @@ int thd_in_lock_tables(const MYSQL_THD thd);
 int thd_tablespace_op(const MYSQL_THD thd);
 long long thd_test_options(const MYSQL_THD thd, long long test_options);
 int thd_sql_command(const MYSQL_THD thd);
+/**
+  Checks whether a session has NO_BACKSLASH_ESCAPES set in @@sql_mode.
+
+  @param thd  User thread connection handle
+  @return non-zero if NO_BACKSLASH_ESCAPES is set for the session
+*/
+int thd_is_sql_mode_no_backslash_escapes(const MYSQL_THD thd);
 const char *set_thd_proc_info(MYSQL_THD thd, const char *info,
                               const char *calling_func,
                               const char *calling_file,

@@ -44,7 +44,8 @@ namespace xpl
   class Query_formatter
   {
   public:
-    Query_formatter(ngs::PFS_string &query, charset_info_st &charser);
+    explicit Query_formatter(ngs::PFS_string &query, charset_info_st &charser,
+                              bool no_backslash_escapes = false);
 
     template <typename Value_type>
     class No_escape
@@ -100,6 +101,7 @@ namespace xpl
     ngs::PFS_string      &m_query;
     charset_info_st &m_charset;
     std::size_t      m_last_tag_position;
+    bool             m_no_backslash_escapes;
   };
 
   template<>

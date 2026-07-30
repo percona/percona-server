@@ -250,6 +250,87 @@ INSTANTIATE_TEST_CASE_P(InstantiationNegativeTest,
         ));
 
 
+// -- NO_BACKSLASH_ESCAPES (BUG#39268863 / PS-11437) --
+
+TEST_F(Query_string_builder_testsuite, no_backslash_escapes_defaultsToFalse) {
+  ASSERT_FALSE(query.no_backslash_escapes());
+}
+
+TEST_F(Query_string_builder_testsuite, no_backslash_escapes_reflectsSetter) {
+  query.set_no_backslash_escapes(true);
+
+  ASSERT_TRUE(query.no_backslash_escapes());
+}
+
+TEST_F(Query_string_builder_testsuite, quote_string_escapesQuoteWithBackslash_whenNoBackslashEscapesIsDisabled) {
+  query.quote_string("O'Brien");
+
+  ASSERT_STREQ("'O\\'Brien'", query.get().c_str());
+}
+
+TEST_F(Query_string_builder_testsuite, quote_string_doublesQuote_whenNoBackslashEscapesIsEnabled) {
+  query.set_no_backslash_escapes(true);
+  query.quote_string("O'Brien");
+
+  ASSERT_STREQ("'O''Brien'", query.get().c_str());
+}
+
+TEST_F(Query_string_builder_testsuite, quote_string_escapesBackslashItself_whenNoBackslashEscapesIsDisabled) {
+  query.quote_string("back\\slash");
+
+  ASSERT_STREQ("'back\\\\slash'", query.get().c_str());
+}
+
+TEST_F(Query_string_builder_testsuite, quote_string_leavesBackslashLiteral_whenNoBackslashEscapesIsEnabled) {
+  query.set_no_backslash_escapes(true);
+  query.quote_string("back\\slash");
+
+  ASSERT_STREQ("'back\\slash'", query.get().c_str());
+}
+
+TEST_F(Query_string_builder_testsuite, format_valueEscaping_usesBackslashEscaping_whenNoBackslashEscapesIsDisabled) {
+  query.put("SELECT ?");
+  query.format() % "O'Brien";
+
+  ASSERT_STREQ("SELECT 'O\\'Brien'", query.get().c_str());
+}
+
+TEST_F(Query_string_builder_testsuite, format_valueEscaping_usesQuoteDoubling_whenNoBackslashEscapesIsEnabled) {
+  query.set_no_backslash_escapes(true);
+  query.put("SELECT ?");
+  query.format() % "O'Brien";
+
+  ASSERT_STREQ("SELECT 'O''Brien'", query.get().c_str());
+}
+
+// A backslash-escaped quote inside a string literal keeps the tag hidden
+// inside the (still open) string, so only the trailing, real placeholder
+// is substituted -- matches the server parser's own interpretation of
+// backslash-escapes when NO_BACKSLASH_ESCAPES is *not* set.
+TEST_F(Query_string_builder_testsuite,
+       format_placeholderInsideBackslashEscapedQuotedString_isSkipped_whenNoBackslashEscapesIsDisabled) {
+  query.put("SELECT '\\'?' , ?");
+  query.format() % "value";
+
+  ASSERT_STREQ("SELECT '\\'?' , 'value'", query.get().c_str());
+}
+
+// Under NO_BACKSLASH_ESCAPES the server parser does not treat backslash as
+// an escape character, so the same "\'" sequence actually closes the string
+// one character earlier than the backslash-escape reading assumes. The
+// placeholder scanner must follow that same reading, or it substitutes the
+// value at the wrong position relative to what the server will parse --
+// exactly the quoting mismatch this fix closes.
+TEST_F(Query_string_builder_testsuite,
+       format_placeholderInsideBackslashEscapedQuotedString_isTag_whenNoBackslashEscapesIsEnabled) {
+  query.set_no_backslash_escapes(true);
+  query.put("SELECT '\\'?' , ?");
+  query.format() % "value";
+
+  ASSERT_STREQ("SELECT '\\''value'' , ?", query.get().c_str());
+}
+
+
 } // namespace test
 
 } // namespace xpl

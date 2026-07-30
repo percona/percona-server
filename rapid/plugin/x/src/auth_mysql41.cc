@@ -152,6 +152,11 @@ bool Sasl_mysql41_auth::check_password_hash(const std::string &password_scramble
     }
     if (!password_hash.empty())
     {
+      if (password_scramble.size() != SCRAMBLED_PASSWORD_CHAR_LENGTH ||
+          password_hash.size() != SCRAMBLED_PASSWORD_CHAR_LENGTH ||
+          password_scramble[0] != '*' || password_hash[0] != '*')
+        return false;
+
       uint8 db_hash_stage2[SCRAMBLE_LENGTH+1] = {0};
       uint8 user_hash_stage2[SCRAMBLE_LENGTH+1] = {0};
 

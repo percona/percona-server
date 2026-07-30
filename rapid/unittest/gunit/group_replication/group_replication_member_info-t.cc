@@ -571,8 +571,16 @@ TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsTruncatedFixedHeader)
   delete encoded;
 }
 
-TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsOutOfRangeCargoType)
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeIgnoresOutOfRangeCargoType)
 {
+  /*
+    A cargo type this version does not know is what a higher version member
+    sends in a mixed version group, not a malformed message. get_cargo_type()
+    reports it as CT_UNKNOWN and succeeds, so that on_message_received() ignores
+    it through the switch default instead of reporting a malformed header and
+    leaving the group. Only a truncated fixed header is malformed, which the
+    case above covers.
+  */
   vector<uchar>* encoded= new vector<uchar>();
   cluster_member_mgr->encode(encoded);
 
@@ -582,23 +590,30 @@ TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsOutOfRangeCargoType)
   ASSERT_LT(cargo_type_offset + Plugin_gcs_message::WIRE_CARGO_TYPE_SIZE,
             encoded->size());
 
-  uint16 const invalid_cargo_types[]=
+  uint16 const unknown_cargo_types[]=
     { (uint16)Plugin_gcs_message::CT_UNKNOWN,
       (uint16)Plugin_gcs_message::CT_MAX,
-      (uint16)(Plugin_gcs_message::CT_MAX + 1) };
+      (uint16)(Plugin_gcs_message::CT_MAX + 1),
+      (uint16)65535 };
 
-  for (size_t i= 0; i < array_elements(invalid_cargo_types); i++)
+  for (size_t i= 0; i < array_elements(unknown_cargo_types); i++)
   {
-    int2store(&encoded->front() + cargo_type_offset, invalid_cargo_types[i]);
+    int2store(&encoded->front() + cargo_type_offset, unknown_cargo_types[i]);
 
+    /*
+      Seeded with a known type, so that the assertion below shows the function
+      wrote CT_UNKNOWN rather than leaving the value untouched.
+    */
     Plugin_gcs_message::enum_cargo_type cargo_type=
-        Plugin_gcs_message::CT_UNKNOWN;
+        Plugin_gcs_message::CT_MEMBER_INFO_MANAGER_MESSAGE;
     bool const error= Plugin_gcs_message::get_cargo_type(
         &encoded->front(), encoded->size(), &cargo_type);
 
-    EXPECT_TRUE(error) << "cargo type " << invalid_cargo_types[i]
-                       << " is outside the known range and must not be "
-                          "dispatched";
+    EXPECT_FALSE(error) << "cargo type " << unknown_cargo_types[i]
+                        << " must not be reported as malformed";
+    EXPECT_EQ(Plugin_gcs_message::CT_UNKNOWN, cargo_type)
+        << "cargo type " << unknown_cargo_types[i]
+        << " must be reported as CT_UNKNOWN so the caller ignores it";
   }
 
   delete encoded;

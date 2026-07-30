@@ -123,8 +123,30 @@ Plugin_gcs_message::get_cargo_type(const unsigned char* buffer,
 
   unsigned short s_cargo_type= 0;
   s_cargo_type= uint2korr(slider);
+  /*
+    A cargo type outside the range this version knows is not a malformed
+    message: it is what a higher version member sends in a mixed version group.
+    Report it as CT_UNKNOWN so on_message_received() ignores it through the
+    switch `default`, as it did before this validation existed, instead of
+    leaving the group during a rolling upgrade. Only a truncated fixed header,
+    checked above, is malformed.
+
+    This line's CT_MAX is 8 and 8.0 defines six cargo types above it, so any of
+    them would otherwise evict a 5.7 member of a 5.7 to 8.0 upgrade - and abort
+    the server where group_replication_exit_state_action is ABORT_SERVER. The
+    group action message is not gated on the group's lowest version before it is
+    sent, so one group_replication_set_as_primary() on an 8.0 member reaches
+    every 5.7 member before any of them objects to the version.
+
+    Keeping the value inside the enumeration range also avoids the undefined
+    behaviour of converting an out of range integer to an enumeration whose
+    underlying type is not fixed.
+  */
   if (s_cargo_type <= CT_UNKNOWN || s_cargo_type >= CT_MAX)
-    DBUG_RETURN(true);
+  {
+    *cargo_type= CT_UNKNOWN;
+    DBUG_RETURN(false);
+  }
 
   // enum may have 32bit storage
   *cargo_type= (Plugin_gcs_message::enum_cargo_type) s_cargo_type;

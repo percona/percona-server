@@ -212,13 +212,19 @@ public:
     Return the cargo type of a given message buffer, without decode
     the complete message.
 
+    A cargo type that this version does not know, which is what a higher
+    version member sends in a mixed version group, is reported as
+    CT_UNKNOWN and is not an error, so that the caller ignores the message
+    instead of treating it as malformed.
+
     @param[in]  buffer     the buffer to decode from.
     @param[in]  length     the length of the buffer.
-    @param[out] cargo_type the decoded cargo type.
+    @param[out] cargo_type the decoded cargo type, CT_UNKNOWN if the
+                           encoded value is not known to this version.
 
     @return the operation status
       @retval false    OK
-      @retval true     Error
+      @retval true     Error, the buffer is shorter than the fixed header
    */
   static bool get_cargo_type(const unsigned char* buffer,
                              uint64 length,

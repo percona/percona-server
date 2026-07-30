@@ -162,6 +162,27 @@ Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer
   encode_payload_item_int8(buffer, PIT_TRANSACTIONS_LOCAL,
                            transactions_local_aux);
 
+  /*
+    Test hook for the cargo type range check in get_cargo_type(). Rewrites the
+    cargo type in the fixed header to CT_MAX, which is what a cargo type this
+    version does not know looks like on the wire - CT_MAX here is 8, the value
+    8.0 uses for its group action message. The receiver must ignore such a
+    message, not treat it as malformed and leave the group.
+
+    The stats message carries the injection because every online member
+    broadcasts one periodically and dropping one has no consequence, so the test
+    can assert that nothing happened. Test-only: reached only with the debug
+    point set.
+  */
+  DBUG_EXECUTE_IF("group_replication_unknown_cargo_type",
+                  {
+                    int2store(buffer->data() +
+                              WIRE_VERSION_SIZE +
+                              WIRE_HD_LEN_SIZE +
+                              WIRE_MSG_LEN_SIZE,
+                              (uint16)CT_MAX);
+                  };);
+
   DBUG_VOID_RETURN;
 }
 

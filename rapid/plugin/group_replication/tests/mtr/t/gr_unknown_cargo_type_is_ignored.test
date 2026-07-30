@@ -1,0 +1,129 @@
+###############################################################################
+# An unknown cargo type must be ignored, not treated as a malformed message
+#
+# A cargo type this version does not know is what a newer member of the group
+# sends, not a malformed message. get_cargo_type() therefore validates the
+# length of the fixed header and the lower bound of the cargo type, but not the
+# upper bound, and on_message_received() lets an unrecognised type fall through
+# to its default arm, as it did before the payload decode validation went in.
+#
+# Rejecting it instead would report a malformed header and make the member leave
+# the group, and abort the server when group_replication_exit_state_action is
+# ABORT_SERVER. This line's CT_MAX is 8 and 8.0 defines six cargo types above
+# it, so a 5.7 member in a 5.7 to 8.0 upgrade would be evicted by any of them.
+# Group coordinated actions reach this in practice: the coordinator broadcasts
+# the start message to the whole group before any member checks that every
+# member is new enough for the action, so one group_replication_set_as_primary()
+# call on an 8.0 member would take out every 5.7 member.
+#
+# The debug point group_replication_unknown_cargo_type rewrites the cargo type
+# of the pipeline stats message to CT_MAX. Every online member broadcasts that
+# message periodically and losing one has no consequence, so what the test
+# asserts is that nothing happens: both members stay ONLINE, neither reports a
+# malformed header, and the group still replicates in both directions.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2, and a debug build.
+# 1. Add a debug point on M2 so its stats messages carry an unknown cargo type.
+# 2. Let several broadcast cycles pass, so the messages are sent and received.
+# 3. Assert both members are still ONLINE and neither reported a malformed
+#    header.
+# 4. Assert the group still works, in both directions.
+# 5. Remove the debug point and clean up.
+###############################################################################
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Add a debug point on M2 so its stats messages carry an unknown
+--echo #    cargo type.
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $debug_point= group_replication_unknown_cargo_type
+--source include/add_debug_point.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Let several broadcast cycles pass, so the messages are sent and
+--echo #    received.
+--echo #
+
+# The stats message goes out once per certifier broadcast cycle, and there is
+# nothing observable to wait for: a correctly ignored message leaves no trace.
+--sleep 5
+
+--echo
+--echo ############################################################
+--echo # 3. Assert both members are still ONLINE and neither reported a
+--echo #    malformed header.
+--echo #
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $assert_text= Both members are still in the group.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE MEMBER_STATE = "ONLINE"] = 2
+--source include/assert.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after= CURRENT_TEST: group_replication.gr_unknown_cargo_type_is_ignored
+--let $assert_count= 0
+--let $assert_select= Malformed group replication message header
+--let $assert_text= Member 1 did not report the unknown cargo type as malformed.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: group_replication.gr_unknown_cargo_type_is_ignored
+--let $assert_count= 0
+--let $assert_select= Malformed group replication message header
+--let $assert_text= Member 2 did not report the unknown cargo type as malformed.
+--source include/assert_grep.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Assert the group still works, in both directions.
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM t1
+--source include/wait_condition.inc
+INSERT INTO t1 VALUES (2);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=2 FROM t1
+--source include/wait_condition.inc
+SELECT a AS replicated_both_ways FROM t1 ORDER BY a;
+
+--echo
+--echo ############################################################
+--echo # 5. Remove the debug point and clean up.
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $debug_point= group_replication_unknown_cargo_type
+--source include/remove_debug_point.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

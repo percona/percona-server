@@ -521,6 +521,19 @@ class HTTP_COMMON_EXPORT HttpRequest {
 };
 
 /**
+ * Maximum HTTP request body / headers size accepted by Router's HTTP server.
+ *
+ * Bug#39268619: without limits, libevent buffers request bodies and headers
+ * unboundedly (defaults are EV_SIZE_MAX).
+ *
+ * Applied automatically on EventHttp construction. A value of 0 rejects
+ * bodies/headers of any non-empty size (libevent treats only negative as
+ * unlimited).
+ */
+constexpr uint64_t kHttpMaxRequestBodySize{32ull * 1024 * 1024};  // 32 MiB
+constexpr uint64_t kHttpMaxRequestHeaderSize{8ull * 1024};         // 8 KiB
+
+/**
  * Http server build on top of `EventBase`.
  */
 class HTTP_COMMON_EXPORT EventHttp {
@@ -543,6 +556,22 @@ class HTTP_COMMON_EXPORT EventHttp {
    * `set_gencb`.
    */
   void set_allowed_http_methods(const HttpMethod::Bitset methods);
+
+  /**
+   * Limit the maximum size of an HTTP request body.
+   *
+   * Requests whose Content-Length or accumulated body size exceeds the
+   * limit are rejected by libevent with HTTP 413.
+   */
+  void set_max_body_size(uint64_t max_body_size);
+
+  /**
+   * Limit the maximum size of HTTP request headers.
+   *
+   * Requests whose headers exceed the limit are rejected by libevent with
+   * HTTP 400.
+   */
+  void set_max_headers_size(uint64_t max_headers_size);
 
   /**
    * Accept HTTP connection on specific socket.

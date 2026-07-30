@@ -29,6 +29,26 @@ jobs:
     vmImage: 'ubuntu-22.04'
 
   steps:
+  # TEMPORARY (PS-11473): settles two open questions about the full-CI guard in
+  # the build job below. Delete once answered.
+  #
+  # Each line prints a variable's compile-time value -- ${{ }}, baked into the
+  # script text when the run is created -- next to its runtime value, $(),
+  # expanded on the agent. A compile-time value that is empty while its runtime
+  # value is not means that variable is not populated at template-expansion time
+  # and therefore cannot drive a ${{ if }} guard.
+  #
+  # Run on a branch whose name contains "fullci", then compare with the leg
+  # count. If "guard" prints True but only the five default configs were built,
+  # the condition is fine and the grouped conditional insertion is what failed.
+  - script: |
+      echo "Build.Reason                    compile='${{ variables['Build.Reason'] }}'  runtime='$(Build.Reason)'"
+      echo "Build.SourceBranch              compile='${{ variables['Build.SourceBranch'] }}'  runtime='$(Build.SourceBranch)'"
+      echo "Build.SourceBranchName          compile='${{ variables['Build.SourceBranchName'] }}'  runtime='$(Build.SourceBranchName)'"
+      echo "System.PullRequest.SourceBranch compile='${{ variables['System.PullRequest.SourceBranch'] }}'  runtime='$(System.PullRequest.SourceBranch)'"
+      echo "guard                           compile='${{ or(ne(variables['Build.Reason'], 'PullRequest'), contains(variables['System.PullRequest.SourceBranch'], 'fullci'), contains(variables['Build.SourceBranch'], 'fullci')) }}'"
+    displayName: '*** PS-11473 variable probe'
+
   - checkout: self
     fetchDepth: 32
 

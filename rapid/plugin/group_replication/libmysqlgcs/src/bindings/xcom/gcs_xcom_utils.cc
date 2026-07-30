@@ -38,6 +38,15 @@
 #include <set>
 #include <limits>
 #include <assert.h>
+#include <string.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
 
 /**
   6 is the recommended value. Too large numbers
@@ -367,6 +376,38 @@ void Gcs_xcom_proxy_impl::xcom_set_ssl_parameters(
 }
 
 
+/*
+  Whether two socket endpoints refer to the same address family, address and
+  port. Only these fields are compared: getsockname and getpeername return the
+  kernel canonical form, and the padding in sockaddr_storage (sin_zero,
+  flowinfo, scope_id) is not part of the endpoint identity.
+*/
+static bool same_inet_endpoint(const struct sockaddr_storage *a,
+                               const struct sockaddr_storage *b)
+{
+  if (a->ss_family != b->ss_family) return false;
+
+  if (a->ss_family == AF_INET)
+  {
+    const struct sockaddr_in *sa= reinterpret_cast<const struct sockaddr_in *>(a);
+    const struct sockaddr_in *sb= reinterpret_cast<const struct sockaddr_in *>(b);
+    return sa->sin_port == sb->sin_port &&
+           sa->sin_addr.s_addr == sb->sin_addr.s_addr;
+  }
+
+  if (a->ss_family == AF_INET6)
+  {
+    const struct sockaddr_in6 *sa=
+        reinterpret_cast<const struct sockaddr_in6 *>(a);
+    const struct sockaddr_in6 *sb=
+        reinterpret_cast<const struct sockaddr_in6 *>(b);
+    return sa->sin6_port == sb->sin6_port &&
+           memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(sa->sin6_addr)) == 0;
+  }
+
+  return false;
+}
+
 bool Gcs_xcom_proxy_impl::xcom_open_handlers(std::string saddr, xcom_port port)
 {
   bool success= true;
@@ -407,6 +448,19 @@ bool Gcs_xcom_proxy_impl::xcom_open_handlers(std::string saddr, xcom_port port)
         if ((xcom_client_enable_arbitrator(con) <= 0) ||
             (xcom_client_disable_arbitrator(con) <= 0))
           success= false;
+
+        /*
+          Snapshot this handler's local endpoint. It is the peer endpoint XCom
+          sees for this connection, so it is what xcom_is_local_connection
+          matches an accepted connection against to recognize it as this
+          process's own.
+        */
+        socklen_t len= static_cast<socklen_t>(sizeof(m_local_endpoints[i]));
+        memset(&m_local_endpoints[i], 0, sizeof(m_local_endpoints[i]));
+        if (getsockname(con->fd,
+                        reinterpret_cast<struct sockaddr *>(&m_local_endpoints[i]),
+                        &len) != 0)
+          success= false;
       }
 
       m_xcom_handlers[i]->set_fd(con);
@@ -422,10 +476,20 @@ bool Gcs_xcom_proxy_impl::xcom_open_handlers(std::string saddr, xcom_port port)
           m_xcom_handlers[i]->set_fd(NULL);
         }
       }
+      m_local_endpoint_count= 0;
       m_xcom_handlers_cursor= -1;
     }
     else
+    {
+      /*
+        Publish the snapshot last, after every endpoint is filled, so the
+        lock-free reader on the XCom thread sees either a complete snapshot or
+        an empty one. The write is released to that reader when the cursor lock
+        is unlocked below.
+      */
+      m_local_endpoint_count= m_xcom_handlers_size;
       m_xcom_handlers_cursor= 0;
+    }
   }
   else
   {
@@ -442,6 +506,8 @@ bool Gcs_xcom_proxy_impl::xcom_close_handlers()
   m_lock_xcom_cursor.lock();
   // Prevent that any other thread gets a new handler.
   m_xcom_handlers_cursor= -1;
+  // Retract the local endpoint snapshot before the fds are closed.
+  m_local_endpoint_count= 0;
   m_lock_xcom_cursor.unlock();
 
   /* Close the file descriptors */
@@ -487,12 +553,39 @@ int Gcs_xcom_proxy_impl::xcom_acquire_handler()
   return res;
 }
 
+
+bool Gcs_xcom_proxy_impl::xcom_is_local_connection(int fd)
+{
+  struct sockaddr_storage peer;
+  socklen_t peer_len= static_cast<socklen_t>(sizeof(peer));
+
+  memset(&peer, 0, sizeof(peer));
+  if (getpeername(fd, reinterpret_cast<struct sockaddr *>(&peer), &peer_len) != 0)
+    return false;
+
+  /*
+    Read the published snapshot without a lock. The entries do not change
+    between open and close, and the count is published after every entry is
+    filled, so a non-zero count means the whole snapshot is valid.
+  */
+  int count= m_local_endpoint_count;
+  for (int i= 0; i < count; i++)
+  {
+    if (same_inet_endpoint(&peer, &m_local_endpoints[i]))
+      return true;
+  }
+
+  return false;
+}
+
 /* purecov: begin deadcode */
 Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
   :m_xcom_handlers_cursor(-1), m_lock_xcom_cursor(),
    m_xcom_handlers_size(XCOM_MAX_HANDLERS),
    m_wait_time(WAITING_TIME),
-   m_xcom_handlers(NULL), m_lock_xcom_ready(),
+   m_xcom_handlers(NULL),
+   m_local_endpoints(NULL), m_local_endpoint_count(0),
+   m_lock_xcom_ready(),
    m_cond_xcom_ready(), m_is_xcom_ready(false),
    m_lock_xcom_comms_status(), m_cond_xcom_comms_status(),
    m_xcom_comms_status(XCOM_COMM_STATUS_UNDEFINED),
@@ -514,6 +607,8 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
 
   for (int i= 0; i < m_xcom_handlers_size; i++)
     m_xcom_handlers[i]= new Xcom_handler();
+
+  m_local_endpoints= new struct sockaddr_storage[m_xcom_handlers_size];
 
   m_lock_xcom_cursor.init(NULL);
   m_lock_xcom_ready.init(NULL);
@@ -531,7 +626,9 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(int wt)
   :m_xcom_handlers_cursor(-1), m_lock_xcom_cursor(),
    m_xcom_handlers_size(XCOM_MAX_HANDLERS),
    m_wait_time(wt),
-   m_xcom_handlers(NULL), m_lock_xcom_ready(),
+   m_xcom_handlers(NULL),
+   m_local_endpoints(NULL), m_local_endpoint_count(0),
+   m_lock_xcom_ready(),
    m_cond_xcom_ready(), m_is_xcom_ready(false),
    m_lock_xcom_comms_status(), m_cond_xcom_comms_status(),
    m_xcom_comms_status(XCOM_COMM_STATUS_UNDEFINED),
@@ -553,6 +650,8 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(int wt)
 
   for (int i= 0; i < m_xcom_handlers_size; i++)
     m_xcom_handlers[i]= new Xcom_handler();
+
+  m_local_endpoints= new struct sockaddr_storage[m_xcom_handlers_size];
 
   m_lock_xcom_cursor.init(NULL);
   m_lock_xcom_ready.init(NULL);
@@ -572,6 +671,7 @@ Gcs_xcom_proxy_impl::~Gcs_xcom_proxy_impl()
     delete m_xcom_handlers[i];
 
   delete [] m_xcom_handlers;
+  delete [] m_local_endpoints;
   m_lock_xcom_cursor.destroy();
   m_lock_xcom_ready.destroy();
   m_cond_xcom_ready.destroy();

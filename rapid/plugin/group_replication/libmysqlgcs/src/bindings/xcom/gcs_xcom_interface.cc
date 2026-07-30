@@ -93,6 +93,7 @@ void      cb_xcom_expel(int status);
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 void      cb_xcom_handle_app_snap(blob *gcs_snap);
 int       cb_xcom_socket_accept(int fd, site_def const *xcom_config);
+int       cb_xcom_local_connection(int fd);
 
 
 // XCom logging callback
@@ -815,6 +816,7 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   ::set_xcom_exit_cb(cb_xcom_exit);
   ::set_xcom_expel_cb(cb_xcom_expel);
   ::set_xcom_socket_accept_cb(cb_xcom_socket_accept);
+  ::set_xcom_local_connection_cb(cb_xcom_local_connection);
 
   const std::string *wait_time_str=
     interface_params.get_parameter("wait_time");
@@ -1537,4 +1539,15 @@ int cb_xcom_socket_accept(int fd, site_def const *xcom_config)
   const Gcs_ip_whitelist& wl= intf->get_ip_whitelist();
 
   return wl.shall_block(fd, xcom_config) ? 0 : 1;
+}
+
+/*
+  Decide whether an accepted XCom connection is one of this process's own local
+  handler connections. Invoked from the XCom thread to exempt locally submitted
+  cargo from the external XCom client gate. Answers false whenever the proxy is
+  not available, so an unrecognized connection is never treated as local.
+*/
+int cb_xcom_local_connection(int fd)
+{
+  return (xcom_proxy != NULL && xcom_proxy->xcom_is_local_connection(fd)) ? 1 : 0;
 }

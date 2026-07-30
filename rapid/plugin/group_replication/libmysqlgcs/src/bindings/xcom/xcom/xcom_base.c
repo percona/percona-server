@@ -3942,6 +3942,140 @@ learnop:
 
 /* }}} */
 
+/**
+ * Check if any data chunk in the application data list has the given cargo
+ * type.
+ *
+ * @param data the application data list
+ * @param cargo the cargo type to look for within the application data body
+ *
+ * @return TRUE if at least one data chunk has the given cargo type, FALSE
+ *         otherwise.
+ */
+static bool_t has_app_data_with_cargo_type(app_data_ptr data,
+                                           cargo_type cargo)
+{
+	while (data != NULL) {
+		if (data->body.c_t == cargo) return TRUE;
+		data = data->next;
+	}
+	return FALSE;
+}
+
+/**
+ * Check whether a cargo type is allowed on an external XCom client connection.
+ *
+ * This path must continue to support XCom client/control requests, including
+ * membership configuration requests used by the XCOM communication stack. Cargo
+ * that belongs to application delivery, transaction/view handling, reset, or
+ * termination is rejected before it reaches dispatch_op(), which is where this
+ * line handles a client_msg.
+ *
+ * The cargo_type enum differs from the one the upstream fix classifies, so the
+ * arms below are not a copy of it:
+ *
+ *   - absent here, and therefore not listed: get/set_event_horizon_type,
+ *     get_synode_app_data_type, set/get_leaders_type, set_max_leaders and
+ *     convert_into_local_server_type.
+ *   - present only here, and rejected: xcom_recover, query_type and
+ *     query_next_log. Upstream classifies none of them. None is something a
+ *     legitimate external client sends: the xcom_recover handler in
+ *     execute_msg() has an empty body wrapped in "purecov: deadcode", and
+ *     query_type and query_next_log appear only in app_data.c serialisation,
+ *     with nothing dispatching them.
+ *
+ * @param cargo the cargo type to check
+ *
+ * @return TRUE if the cargo type is allowed, FALSE otherwise.
+ */
+static bool_t is_allowed_external_client_cargo_type(cargo_type cargo)
+{
+	switch (cargo) {
+	case add_node_type:
+	case disable_arbitrator:
+	case enable_arbitrator:
+	case force_config_type:
+	case remove_node_type:
+	case set_cache_limit:
+	case unified_boot_type:
+		return TRUE;
+	case abort_trans:
+	case app_type:
+	case begin_trans:
+	case exit_type:
+	case prepared_trans:
+	case query_next_log:
+	case query_type:
+	case remove_reset_type:
+	case reset_type:
+	case view_msg:
+	case x_terminate_and_exit:
+	case xcom_boot_type:
+	case xcom_recover:
+	case xcom_set_group:
+		return FALSE;
+	}
+	return FALSE;
+}
+
+/**
+ * Check if the application data list contains cargo not allowed on an external
+ * XCom client connection.
+ *
+ * @param data the application data list
+ *
+ * @return TRUE if at least one data chunk is not allowed, FALSE otherwise.
+ */
+static bool_t has_disallowed_external_client_cargo_type(app_data_ptr data)
+{
+	if (has_app_data_with_cargo_type(data, app_type)) return TRUE;
+
+	while (data != NULL) {
+		if (!is_allowed_external_client_cargo_type(data->body.c_t))
+			return TRUE;
+		data = data->next;
+	}
+	return FALSE;
+}
+
+/*
+  Callback used to decide whether an accepted connection originates from this
+  very process, i.e. from one of Group Replication's own local XCom handler
+  connections.
+
+  This has no upstream counterpart. Upstream moves the local connection to a
+  local_server task via convert_into_local_server_type, after which local
+  payload arrives through an in-process queue and never travels this path. On
+  this line the local payload stays on the socket, so the connection has to be
+  recognized here. Group Replication (in the GCS binding) registers a callback
+  that matches the accepted socket's peer endpoint against the local endpoints
+  of the handler connections it opened to this node's own XCom, which pins the
+  peer to this process rather than merely to this host. NULL when no callback is
+  registered, in which case no connection is treated as local.
+*/
+static xcom_local_connection_cb xcom_local_connection_callback = NULL;
+
+int set_xcom_local_connection_cb(xcom_local_connection_cb x)
+{
+	xcom_local_connection_callback = x;
+	return 1;
+}
+
+/**
+ * Check whether an accepted connection originates from this process.
+ *
+ * @param fd the accepted (server side) socket
+ *
+ * @return TRUE if the peer is one of this process's local XCom handler
+ *         connections, FALSE otherwise, including when no callback is
+ *         registered.
+ */
+static bool_t is_local_connection(int fd)
+{
+	return (bool_t)(xcom_local_connection_callback != NULL &&
+	                xcom_local_connection_callback(fd));
+}
+
 /* {{{ Acceptor-learner task */
 int	acceptor_learner_task(task_arg arg)
 {
@@ -3955,6 +4089,14 @@ int	acceptor_learner_task(task_arg arg)
 	linkage reply_queue;
 	int	errors;
 	server *srv;
+	/*
+	  Whether this connection originates from this very process, i.e. from one
+	  of Group Replication's own local XCom handler connections. Tri-state: -1
+	  not yet determined, 0 no, 1 yes. Resolved lazily and at most once per
+	  connection, so the common case, a peer sending paxos operations, never
+	  pays for it.
+	*/
+	int	is_local;
 	END_ENV;
 
 	TASK_BEGIN
@@ -3970,6 +4112,7 @@ int	acceptor_learner_task(task_arg arg)
 	ep->buf = NULL;
 	ep->errors = 0;
 	ep->srv = 0;
+	ep->is_local = -1;
 
 	/* We have a connection, make socket non-blocking and wait for request */
 	unblock_fd(ep->rfd.fd);
@@ -4076,6 +4219,34 @@ int	acceptor_learner_task(task_arg arg)
 				add_event(int_arg(ep->p->from));
 				add_event(string_arg(pax_op_to_str(ep->p->op)));
 			);
+			/*
+			  XCom client messages may carry external XCom client/control
+			  requests. Only cargo types that are part of the external XCom
+			  client/control protocol may continue through this task.
+			  Application, transaction, view, or otherwise unsupported cargo
+			  must not enter through this external connection path.
+
+			  Unlike upstream, this task also serves this node's own
+			  connections to its own XCom, which legitimately carry app_type -
+			  that is how Group Replication submits work here. Upstream never
+			  sees those, because convert_into_local_server_type has already
+			  moved them to a local_server task. This line has no such
+			  mechanism, so they are told apart by the connection originating
+			  from this process.
+			*/
+			if (ep->p->op == client_msg &&
+			    has_disallowed_external_client_cargo_type(ep->p->a)) {
+				if (ep->is_local < 0)
+					ep->is_local = is_local_connection(ep->rfd.fd) ? 1 : 0;
+
+				if (!ep->is_local) {
+					G_WARNING("Rejecting unsupported data received through an "
+					          "external XCom client connection.");
+					delete_pax_msg(ep->p);
+					ep->p = NULL;
+					TERMINATE;
+				}
+			}
 			if (ep->p->msg_type == normal ||
 			    ep->p->synode.msgno == 0 || /* Used by i-am-alive and so on */
 				is_cached(ep->p->synode) || /* Already in cache */

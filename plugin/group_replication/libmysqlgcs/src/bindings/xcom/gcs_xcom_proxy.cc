@@ -789,21 +789,28 @@ bool Gcs_xcom_proxy_base::xcom_get_synode_app_data(
       xcom_instance.get_member_id().get_member_id());
   connection_descriptor *con = xcom_client_open_connection(
       xcom_address.get_member_ip(), xcom_address.get_member_port());
-  bool const connected_to_xcom = (con != nullptr);
+  /*
+    xcom_client_open_connection() always hands back an allocated descriptor: a
+    failed connection is reported through fd == -1, in which case the socket and
+    the SSL object have already been released by the network provider. The
+    descriptor itself must be freed in every case.
+  */
+  bool const connected_to_xcom = (con != nullptr && con->fd != -1);
   if (!connected_to_xcom) goto end;
 
   successful = convert_synode_set_to_synode_array(synodes, synode_set);
-  if (!successful) goto end;
-
-  /* Request the data decided at synodes.
-   * synodes is passed with moved semantics, so no need to free afterwards. */
-  successful =
-      xcom_client_get_synode_app_data(con, group_id_hash, synodes, reply);
+  if (successful) {
+    /* Request the data decided at synodes.
+     * synodes is passed with moved semantics, so no need to free afterwards. */
+    successful =
+        xcom_client_get_synode_app_data(con, group_id_hash, synodes, reply);
+  }
 
   /* Close the connection to XCom. */
   xcom_client_close_connection(con);
 
 end:
+  free_connection(con);
   return successful;
 }
 

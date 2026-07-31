@@ -247,5 +247,115 @@ SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
 FROM information_schema.OPTIMIZER_TRACE;
 group_by_substituted
 1
+#
+# Case 10: residual gap — TYPECAST is still stripped under
+#          require_same_value, so a functional index CAST(.. AS UNSIGNED)
+#          replaces GROUP BY on the inner expression and merges '1' and
+#          '01'. If require_same_value also refused TYPECAST_FUNC, the
+#          GROUP BY below would not be rewritten (substituted=0) and the
+#          three distinct strings would remain three groups, matching
+#          IGNORE INDEX FOR GROUP BY. Exact CAST() GROUP BY and WHERE
+#          pushdown must keep working either way.
+#
+CREATE TABLE t8 (
+data2 json,
+INDEX idx ((CAST(data2->>'$.n' AS UNSIGNED)))
+);
+INSERT INTO t8 VALUES
+(JSON_OBJECT('n','1')),
+(JSON_OBJECT('n','01')),
+(JSON_OBJECT('n','2'));
+SELECT data2->>'$.n' AS c, count(*) AS `*` FROM t8 GROUP BY data2->>'$.n';
+c	*
+1	2
+2	1
+# Expect 1 today (TYPECAST stripped). Would be 0 if TYPECAST were gated.
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+FROM information_schema.OPTIMIZER_TRACE;
+group_by_substituted
+1
+SELECT data2->>'$.n' AS c, count(*) AS `*` FROM t8
+IGNORE INDEX FOR GROUP BY (idx) GROUP BY data2->>'$.n';
+c	*
+01	1
+1	1
+2	1
+SELECT CAST(data2->>'$.n' AS UNSIGNED) AS c, count(*) AS `*` FROM t8
+GROUP BY CAST(data2->>'$.n' AS UNSIGNED);
+c	*
+1	2
+2	1
+# Expect 1 either way: exact CAST match
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+FROM information_schema.OPTIMIZER_TRACE;
+group_by_substituted
+1
+SELECT data2 FROM t8 WHERE CAST(data2->>'$.n' AS UNSIGNED) = 1;
+data2
+{"n": "01"}
+{"n": "1"}
+# Expect 1: WHERE pushdown unchanged
+SELECT TRACE LIKE '%as unsigned%' AS where_substituted
+FROM information_schema.OPTIMIZER_TRACE;
+where_substituted
+1
+#
+# Case 11: residual gap — same TYPECAST stripping with a length-
+#          changing CAST and a matching collation. 'aa' and 'ab' are
+#          merged into one group today. Gating TYPECAST under
+#          require_same_value would leave three groups. Non-strict
+#          sql_mode is required so truncated functional-index values
+#          can be stored.
+#
+SET @old_sql_mode= @@sql_mode;
+SET sql_mode='';
+CREATE TABLE t9 (
+data2 json,
+INDEX idx (((CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4)) COLLATE utf8mb4_bin))
+);
+INSERT INTO t9 VALUES
+(JSON_OBJECT('a','aa')),
+(JSON_OBJECT('a','ab')),
+(JSON_OBJECT('a','b'));
+Warnings:
+Warning	3751	Data truncated for functional index 'idx' at row 1
+Warning	3751	Data truncated for functional index 'idx' at row 2
+SET sql_mode= @old_sql_mode;
+SELECT data2->>'$.a' AS c, count(*) AS `*` FROM t9 GROUP BY data2->>'$.a';
+c	*
+aa	2
+b	1
+# Expect 1 today (TYPECAST stripped). Would be 0 if TYPECAST were gated.
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+FROM information_schema.OPTIMIZER_TRACE;
+group_by_substituted
+1
+SELECT data2->>'$.a' AS c, count(*) AS `*` FROM t9
+IGNORE INDEX FOR GROUP BY (idx) GROUP BY data2->>'$.a';
+c	*
+aa	1
+ab	1
+b	1
+SELECT CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin AS c,
+count(*) AS `*` FROM t9
+GROUP BY CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin;
+c	*
+a	2
+b	1
+# Expect 1 either way: exact CAST/COLLATE match
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+FROM information_schema.OPTIMIZER_TRACE;
+group_by_substituted
+1
+SELECT data2 FROM t9
+WHERE CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin = 'a';
+data2
+{"a": "aa"}
+{"a": "ab"}
+# Expect 1: WHERE pushdown unchanged
+SELECT TRACE LIKE '%collate%utf8mb4_bin% = %' AS where_substituted
+FROM information_schema.OPTIMIZER_TRACE;
+where_substituted
+1
 SET SESSION optimizer_trace="enabled=off";
-DROP TABLE t, t2, t3, t4, t5, t6, t7;
+DROP TABLE t, t2, t3, t4, t5, t6, t7, t8, t9;

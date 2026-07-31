@@ -26,14 +26,14 @@ NAME	ENCRYPTION
 mysql	Y
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
 NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 
 #############################################################
 # TEST 2 : CRASH DURING ALTER ENCRYPT mysql TABLESPACE.
@@ -57,14 +57,14 @@ NAME	ENCRYPTION
 mysql	Y
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
 NAME	ENCRYPTION
 mysql	Y
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 #########################################################################
 # RESTART 2 : WITH KEYRING
 #########################################################################
@@ -74,7 +74,7 @@ NAME	ENCRYPTION
 mysql	Y
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 ############################################################
 # ALTER TABLESPACE 2 :    Encrypted => Unencrypted         #
 #                         (crash at page 10)               #
@@ -93,14 +93,14 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
 NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 #########################################################################
 # RESTART 3 : WITHOUT KEYRING
 #########################################################################
@@ -111,7 +111,7 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 #############################################################
 # TEST 3 : CRASH BEFORE/AFTER ENCRYPTION PROCESSING.
 #############################################################
@@ -124,7 +124,7 @@ SET debug='+d,skip_dd_table_access_check';
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 # Set server to crash just before encryption processing starts
 SET SESSION debug="+d,alter_encrypt_tablespace_crash_before_processing";
 # Unencrypt the tablespace. It will cause crash.
@@ -137,7 +137,7 @@ NAME	ENCRYPTION
 mysql	Y
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 # Set server to crash just after encryption processing finishes
 SET SESSION debug="-d,alter_encrypt_tablespace_crash_before_processing";
 SET SESSION debug="+d,alter_encrypt_tablespace_crash_after_processing";
@@ -151,7 +151,7 @@ NAME	ENCRYPTION
 mysql	N
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 #############################################################
 # TEST 4 : CRASH DURING KEY ROTATION.
 #############################################################
@@ -163,7 +163,7 @@ SET debug='+d,skip_dd_table_access_check';
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 # Set server to crash while rotating encryption
 SET SESSION debug="+d,ib_crash_during_rotation_for_encryption";
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -171,12 +171,12 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SET debug='+d,skip_dd_table_access_check';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 SET SESSION debug="-d,ib_crash_during_rotation_for_encryption";
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 #############################################################
 # TEST 5 : PRIVILEGE CHECK.
 #############################################################
@@ -196,13 +196,13 @@ ALTER TABLESPACE mysql ENCRYPTION='N';
 #connection default
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 #connection con1
 ALTER TABLESPACE mysql ENCRYPTION='Y';
 #connection default
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=Y;
+mysql	encryption=Y;explicit_encryption=1;
 DROP DATABASE priv_test;
 DROP USER myuser@localhost;
 ###########
@@ -211,7 +211,7 @@ DROP USER myuser@localhost;
 ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
-mysql	encryption=N;
+mysql	encryption=N;explicit_encryption=1;
 # ----------------------------------------------------------------------
 # Teardown
 # Removing manifest file for current MySQL server instance

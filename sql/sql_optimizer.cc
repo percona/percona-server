@@ -1227,6 +1227,10 @@ bool JOIN::push_to_engines() {
     list. When a match is found, the expression is replaced with a new
     Item_field for the matched GC field. Also, this new field is added to
     the hidden part of all_fields list.
+    Unlike for the WHERE condition, only substitutions which preserve the
+    value of the expression are performed here, since the value of an
+    ORDER/GROUP BY expression is consumed by the executor and not merely
+    used to look up rows in an index. @see get_gc_for_expr()
 
   @param thd         thread handle
   @param query_block  the current select
@@ -1297,7 +1301,8 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
     if (!(*ord->item)->can_be_substituted_for_gc()) continue;
     while ((gc = li++)) {
       Item_field *const field =
-          get_gc_for_expr(*ord->item, gc, gc->result_type());
+          get_gc_for_expr(*ord->item, gc, gc->result_type(),
+                          /*found=*/nullptr, /*require_same_value=*/true);
       if (field != nullptr) {
         changed = true;
         /* Add new field to field list. */

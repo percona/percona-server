@@ -1066,6 +1066,12 @@ bool contains_function_of_type(Item *item, Item_func::Functype type) {
   @param fld            GCs field
   @param type           Result type to match with Field
   @param[out] found     If given, just return found field, without Item_field
+  @param require_same_value
+                        If true, the GC is only considered a match when it
+                        evaluates to the same value as @p func. Must be used
+                        when the value of the expression itself is consumed
+                        (GROUP BY/ORDER BY), as opposed to the expression only
+                        being used for an index lookup inside a predicate.
 
   @returns
     item new Item_field for matched GC
@@ -1073,7 +1079,7 @@ bool contains_function_of_type(Item *item, Item_func::Functype type) {
 */
 
 Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
-                            Field **found) {
+                            Field **found, bool require_same_value) {
   func = func->real_item();
   Item *expr = fld->gcol_info->expr_item;
 
@@ -1109,6 +1115,18 @@ Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
   for (Item_func::Functype functype :
        {Item_func::COLLATE_FUNC, Item_func::TYPECAST_FUNC,
         Item_func::JSON_UNQUOTE_FUNC}) {
+    /*
+      Unlike the other functions skipped here, JSON_UNQUOTE() changes the value
+      and not only its representation for comparison purposes:
+      JSON_EXTRACT(j,'$.a') evaluates to '"a"' whereas
+      JSON_UNQUOTE(JSON_EXTRACT(j,'$.a')) evaluates to 'a'. Skipping it is only
+      sound when the GC replaces the expression inside a predicate which is
+      evaluated through an index lookup. When the value of the expression
+      itself is consumed, as in GROUP BY/ORDER BY, such substitution changes
+      the query result (PS-9768).
+    */
+    if (require_same_value && functype == Item_func::JSON_UNQUOTE_FUNC)
+      continue;
     if (is_function_of_type(expr, functype) &&
         !is_function_of_type(func, functype)) {
       expr = down_cast<Item_func *>(expr)->get_arg(0);

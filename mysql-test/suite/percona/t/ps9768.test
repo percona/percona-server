@@ -1,0 +1,119 @@
+--echo # PS-9768: Bogus "Can't write; duplicate key in table" error for GROUP BY
+--echo #          on JSON_EXTRACT() when an indexed generated column unquotes
+--echo #          the very same expression.
+--echo #
+--echo # An indexed GC may only replace an ORDER/GROUP BY expression when it
+--echo # evaluates to the same value. JSON_UNQUOTE() in the GC expression must
+--echo # therefore not be skipped when matching, unlike for the WHERE clause.
+
+CREATE TABLE t (
+  id int auto_increment,
+  data1 json,
+  data2 json,
+  `i` bigint GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data1`,_utf8mb4'$.i'))
+  ) STORED,
+  `a` varchar(128) GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  primary key (id),
+  key (a,i),
+  key i (i)
+) ENGINE=innodb;
+
+INSERT INTO t (data1,data2) values
+(JSON_OBJECT('i', 1),JSON_OBJECT('a', "a")),
+(JSON_OBJECT('i', 1),JSON_OBJECT('a', "a")),
+(JSON_OBJECT('i', 1),JSON_OBJECT('a', "b"));
+
+SET SESSION optimizer_trace="enabled=on";
+
+--echo #
+--echo # Case 1: the reported query. Must not fail with ER_DUP_KEY, and must
+--echo #         group on the quoted values returned by JSON_EXTRACT().
+--echo #
+--sorted_result
+SELECT
+    JSON_EXTRACT(data2, '$.a') as `a`,
+    CAST(count(*) AS JSON) as `*`
+FROM test.t
+WHERE
+    i = 1
+GROUP BY
+    JSON_EXTRACT(data2, '$.a');
+
+--echo # Expect 0: the GROUP BY list was not rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 2: ORDER BY on the same expression. JSON comparison sorts numbers
+--echo #         before strings, so 2 precedes "10", while ordering by the
+--echo #         unquoted GC would have put '10' first.
+--echo #
+CREATE TABLE t2 (
+  data2 json,
+  `a` varchar(128) GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  key (a)
+) ENGINE=innodb;
+
+INSERT INTO t2 (data2) VALUES
+(JSON_OBJECT('a', 2)),
+(JSON_OBJECT('a', "10"));
+
+SELECT JSON_EXTRACT(data2, '$.a') AS `a` FROM t2
+  ORDER BY JSON_EXTRACT(data2, '$.a');
+
+--echo # Expect 0: the ORDER BY list was not rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_ORDER_BY%' AS order_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 3: single table DELETE ... ORDER BY uses the same code path, so
+--echo #         the JSON-ordered first row (2) has to be the one deleted.
+--echo #
+DELETE FROM t2 ORDER BY JSON_EXTRACT(data2, '$.a') LIMIT 1;
+SELECT JSON_EXTRACT(data2, '$.a') AS `a` FROM t2;
+
+--echo #
+--echo # Case 4: the optimization is not over-blocked. When the query unquotes
+--echo #         the value itself the GC is value preserving (its collation
+--echo #         matches the one of JSON_UNQUOTE()) and must still be used.
+--echo #
+CREATE TABLE t3 (
+  data2 json,
+  `a` varchar(128) COLLATE utf8mb4_bin GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  key (a)
+) ENGINE=innodb;
+
+INSERT INTO t3 (data2) VALUES
+(JSON_OBJECT('a', "a")),
+(JSON_OBJECT('a', "a")),
+(JSON_OBJECT('a', "b"));
+
+--sorted_result
+SELECT JSON_UNQUOTE(JSON_EXTRACT(data2, '$.a')) AS `a`, count(*) AS `*`
+FROM t3
+GROUP BY JSON_UNQUOTE(JSON_EXTRACT(data2, '$.a'));
+
+--echo # Expect 1: the GROUP BY list was rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 5: WHERE clause behaviour is unchanged, the index over the
+--echo #         unquoting GC is still used for a JSON_EXTRACT() predicate.
+--echo #
+--echo # Expect 1: the condition was rewritten to use GC 'a'
+SELECT JSON_UNQUOTE(JSON_EXTRACT(data2, '$.a')) AS `a` FROM t3
+  WHERE JSON_EXTRACT(data2, '$.a') = 'b';
+SELECT TRACE LIKE '%`a` = %' AS where_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+SET SESSION optimizer_trace="enabled=off";
+
+DROP TABLE t, t2, t3;

@@ -19,8 +19,8 @@ parameters:
   default: false
 
 schedules:
-- cron: "0 2 * * *"
-  displayName: Daily 2:00 AM UTC build
+- cron: "0 3 * * *"
+  displayName: Daily 3:00 AM UTC build
   branches:
     include:
     - 9.7

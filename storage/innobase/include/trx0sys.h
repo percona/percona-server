@@ -553,7 +553,11 @@ struct trx_sys_t {
   take a snapshot of these transactions whose changes are not visible to it.
   We should remove transactions from the list before committing in memory and
   releasing locks to ensure right order of removal and consistent snapshot. */
-  trx_ids_t rw_trx_ids;
+  trx_ids_t long_rw_trx_ids;
+  unsigned char short_rw_trx_ids_bitmap[MAX_SHORT_ACTIVE_BYTES];
+  int short_rw_trx_valid_number;
+  trx_id_t min_short_valid_id;
+  trx_id_t max_short_valid_id;
 
   char pad7[ut::INNODB_CACHE_LINE_SIZE];
 

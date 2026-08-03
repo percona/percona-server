@@ -1,0 +1,26 @@
+# Register a known directory and create a table there.
+# restart: --innodb-directories=MYSQL_TMP_DIR/known_dir
+CREATE TABLE t1(col1 INT PRIMARY KEY) DATA DIRECTORY = 'MYSQL_TMP_DIR/known_dir';
+INSERT INTO t1 VALUES (1), (2), (3);
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+# Restart without the known directory registered. The table's file
+# is untouched on disk, but its absolute path is no longer a known
+# location as far as this server instance is concerned.
+# restart;
+SELECT * FROM t1 ORDER BY col1;
+col1
+1
+2
+3
+# The clone must be rejected: build_file_path() finds the file's
+# absolute path neither inside the clone destination directory
+# nor inside any directory known to InnoDB.
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR HY000: Incorrect file path value: 'MYSQL_TMP_DIR/known_dir/test/t1.ibd'
+# Cleanup
+SET GLOBAL clone_autotune_concurrency = default;
+SET GLOBAL clone_max_concurrency = default;
+UNINSTALL PLUGIN clone;
+DROP TABLE t1;

@@ -18,21 +18,15 @@ jobs:
             UBUNTU_CODE_NAME="noble"
             BASE_OWNER="percona"
             BASE_REPO="percona-server"
-            BASE_BRANCH="8.0"
+            BASE_BRANCH="trunk"
             COMPILER_VERSION="19"
-            BOOST_VERSION="1_77_0"
-            BOOST_DIR="/home/circleci/my_boost"
 
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
             sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${COMPILER_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake libicu-dev libtirpc-dev
 
-            echo "Downloading and extracting Boost."
-            wget --progress=dot:giga -P ${BOOST_DIR} "https://archives.boost.io/release/${BOOST_VERSION//_/.}/source/boost_${BOOST_VERSION}.tar.gz"
-            tar -xzf "${BOOST_DIR}/boost_${BOOST_VERSION}.tar.gz" -C "${BOOST_DIR}"
-
             # Prepare compile_commands.json
             cd ~/project
-            cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_BOOST=${BOOST_DIR} -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
+            cmake -B /home/circleci/debug-build -DCMAKE_BUILD_TYPE=Debug -DWITH_SSL=system -DWITH_AUTHENTICATION_LDAP=ON -DWITH_ROCKSDB=ON -DCMAKE_C_COMPILER=clang-${COMPILER_VERSION} -DCMAKE_CXX_COMPILER=clang++-${COMPILER_VERSION} -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-stdlib=libc++" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWITH_SYSTEM_LIBS=ON -DWITH_FIDO=bundled -DWITH_ZSTD=bundled -DWITH_LZ4=bundled -DWITH_PROTOBUF=bundled ~/project
 
             # Method to fetch JSON from a Github API URL with error handling
             fetch_json() {
@@ -95,11 +89,52 @@ jobs:
 
             echo "Checking clang-format results"
             git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-$COMPILER_VERSION -style=file -p1 >_GIT_DIFF || true
+            FORMAT_OK=true
             if [ ! -s _GIT_DIFF ]; then
               echo The last git commit is clang-formatted;
             else
               cat _GIT_DIFF;
-              false;
+              FORMAT_OK=false;
+
+              if [[ -n "${GITHUB_TOKEN:-}" ]] && [[ -n "${PR_NUMBER:-}" ]]; then
+                DIFF_BODY="$(head -c 60000 _GIT_DIFF)"
+                if [ "$(wc -c < _GIT_DIFF)" -gt 60000 ]; then
+                  DIFF_BODY="${DIFF_BODY}"$'\n... (truncated, see CI log for full diff)'
+                fi
+
+                # Build JSON payload entirely in jq so \n is handled correctly
+                PAYLOAD=$(jq -n --arg diff "$DIFF_BODY" \
+                  '{ body: (
+                    "**clang-format check failed**\n\n"
+                    + "The following changes are needed to fix formatting:\n\n"
+                    + "```diff\n" + $diff + "\n```\n\n"
+                    + "Run locally to fix:\n"
+                    + "```bash\n"
+                    + "git diff -U0 HEAD~1"
+                    + " -- \"*.c\" \"*.cc\" \"*.cpp\""
+                    + " \"*.h\" \"*.hpp\""
+                    + " \"*.i\" \"*.ic\" \"*.ih\""
+                    + " | clang-format-diff -style=file -p1 -i\n"
+                    + "```"
+                  )}')
+
+                echo "Posting comment to PR #${PR_NUMBER}..."
+                COMMENT_URL="https://api.github.com/repos/${BASE_OWNER}/${BASE_REPO}/issues/${PR_NUMBER}/comments"
+                HTTP_CODE=$(curl -sS -w "%{http_code}" -o /tmp/gh_response.json \
+                  -X POST \
+                  -H "Authorization: token ${GITHUB_TOKEN}" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "$COMMENT_URL" \
+                  -d "$PAYLOAD")
+                if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+                  echo "Posted clang-format diff as PR comment (HTTP $HTTP_CODE)"
+                else
+                  echo "Failed to post PR comment (HTTP $HTTP_CODE):"
+                  cat /tmp/gh_response.json
+                fi
+              else
+                echo "Skipping PR comment (GITHUB_TOKEN=${GITHUB_TOKEN:+set}${GITHUB_TOKEN:-unset}, PR_NUMBER=${PR_NUMBER:-unset})"
+              fi
             fi
 
             echo "Checking clang-tidy static code analysis results"
@@ -111,4 +146,10 @@ jobs:
             else
                echo The last git commit has clang-tidy warnings;
                cat _GIT_DIFF_TIDY;
+            fi
+
+            # Fail the job if clang-format found issues
+            if [ "$FORMAT_OK" = false ]; then
+              echo "Failing build due to clang-format violations"
+              exit 1
             fi

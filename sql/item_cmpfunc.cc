@@ -97,7 +97,7 @@ using std::min;
 static const enum_walk walk_options =
     enum_walk::PREFIX | enum_walk::POSTFIX | enum_walk::SUBQUERY;
 
-static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
+  static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                                const Item *warn_item, bool *is_null);
 static Item **cache_converted_constant(THD *thd, Item **value,

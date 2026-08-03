@@ -43,6 +43,7 @@ The tablespace memory cache */
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "clone0api.h"
+#include "debug_sync.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -2910,6 +2911,14 @@ bool Fil_shard::open_file(fil_node_t *file) {
           acquire_right(fil_n_files_open, fil_system->get_open_files_limit());
       if (!have_right_for_open) {
         mutex_release();
+
+        DBUG_EXECUTE_IF(
+            "syncpoint_after_fil_open_file_releases_shard_for_open_limit", {
+          if (fsp_is_session_temporary(file->space->id)) {
+            DEBUG_SYNC(current_thd,
+                       "after_fil_open_file_releases_shard_for_open_limit");
+          }
+        });
 
         if (should_print_message(
                 fil_system->m_TRYING_TO_OPEN_FILE_FOR_LONG_TIME_throttler)) {
@@ -7850,12 +7859,18 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     ut_error;
   }
 
+  /* File is prepared for an IO. Since now complete_io() must be called
+  to decrement number of pending IO operations when the IO is completed
+  (or if we encountered an error before starting it). */
+
   /* Check that at least the start offset is within the bounds of a
   single-table tablespace, including rollback tablespaces. */
   if (file->size <= page_no && space->id != TRX_SYS_SPACE) {
 #ifndef UNIV_HOTBACKUP
     if (req_type.is_write() && bpage != nullptr && bpage->is_stale()) {
       ut_a(bpage->get_space()->id == page_id.space());
+      complete_io(file, req_type);
+      mutex_release();
       return DB_PAGE_IS_STALE;
     }
 #endif /* !UNIV_HOTBACKUP */

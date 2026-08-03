@@ -1740,7 +1740,7 @@ void get_permissible_max_size(const dict_table_t *table,
 @param[in]  page_rec_max maximum size of possible record on leaf page
 @param[in]  page_ptr_max maximum size of possible record on non-leaf page
 @param[out] rec_max_size maximum size of record on page
-@return true if max record size is within limit, false otherwise. */
+@return true if max record size exceeds the limit, false otherwise. */
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
                                       const dict_index_t *index,
                                       const size_t page_rec_max,

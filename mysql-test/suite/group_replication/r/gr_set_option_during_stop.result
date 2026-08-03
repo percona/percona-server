@@ -178,10 +178,16 @@ ORDER BY gb.VARIABLE_NAME;
 SET SESSION sql_log_bin = 1;
 SET @value= @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= @value;
+<<<<<<< HEAD
 Warnings:
 Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 SET @value= @@GLOBAL.group_replication_auto_evict_timeout;
 SET @@GLOBAL.group_replication_auto_evict_timeout= @value;
+||||||| merged common ancestors
+Warnings:
+Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
+=======
+>>>>>>> mysql-8.4.11
 SET @value= @@GLOBAL.group_replication_bootstrap_group;
 SET @@GLOBAL.group_replication_bootstrap_group= @value;
 SET @value= @@GLOBAL.group_replication_certification_loop_chunk_size;

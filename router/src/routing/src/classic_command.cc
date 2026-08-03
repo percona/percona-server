@@ -31,30 +31,8 @@
 
 #include "await_client_or_server.h"
 #include "basic_protocol_splicer.h"
-#include "classic_binlog_dump_forwarder.h"
-#include "classic_change_user_forwarder.h"
-#include "classic_clone_forwarder.h"
 #include "classic_connection_base.h"
-#include "classic_debug_forwarder.h"
 #include "classic_frame.h"
-#include "classic_init_schema_forwarder.h"
-#include "classic_kill_forwarder.h"
-#include "classic_list_fields_forwarder.h"
-#include "classic_ping_forwarder.h"
-#include "classic_query_forwarder.h"
-#include "classic_query_sender.h"
-#include "classic_quit_forwarder.h"
-#include "classic_register_replica_forwarder.h"
-#include "classic_reload_forwarder.h"
-#include "classic_reset_connection_forwarder.h"
-#include "classic_set_option_forwarder.h"
-#include "classic_statistics_forwarder.h"
-#include "classic_stmt_close_forwarder.h"
-#include "classic_stmt_execute_forwarder.h"
-#include "classic_stmt_fetch_forwarder.h"
-#include "classic_stmt_param_append_data_forwarder.h"
-#include "classic_stmt_prepare_forwarder.h"
-#include "classic_stmt_reset_forwarder.h"
 #include "harness_assert.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
@@ -64,7 +42,29 @@
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
 #include "mysqlrouter/utils.h"  // to_string
-#include "processor.h"
+#include "processors/base/processor.h"
+#include "processors/forwarders/classic_binlog_dump_forwarder.h"
+#include "processors/forwarders/classic_change_user_forwarder.h"
+#include "processors/forwarders/classic_clone_forwarder.h"
+#include "processors/forwarders/classic_debug_forwarder.h"
+#include "processors/forwarders/classic_init_schema_forwarder.h"
+#include "processors/forwarders/classic_kill_forwarder.h"
+#include "processors/forwarders/classic_list_fields_forwarder.h"
+#include "processors/forwarders/classic_ping_forwarder.h"
+#include "processors/forwarders/classic_query_forwarder.h"
+#include "processors/forwarders/classic_quit_forwarder.h"
+#include "processors/forwarders/classic_register_replica_forwarder.h"
+#include "processors/forwarders/classic_reload_forwarder.h"
+#include "processors/forwarders/classic_reset_connection_forwarder.h"
+#include "processors/forwarders/classic_set_option_forwarder.h"
+#include "processors/forwarders/classic_statistics_forwarder.h"
+#include "processors/forwarders/classic_stmt_close_forwarder.h"
+#include "processors/forwarders/classic_stmt_execute_forwarder.h"
+#include "processors/forwarders/classic_stmt_fetch_forwarder.h"
+#include "processors/forwarders/classic_stmt_param_append_data_forwarder.h"
+#include "processors/forwarders/classic_stmt_prepare_forwarder.h"
+#include "processors/forwarders/classic_stmt_reset_forwarder.h"
+#include "processors/senders/classic_query_sender.h"
 #include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -568,4 +568,23 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   }
 
   return Result::SendToClient;
+}
+
+std::optional<std::string_view> CommandProcessor::diagnostic_stage_name()
+    const {
+  using namespace std::literals;
+  switch (stage_) {
+    case Stage::IsAuthed:
+      return "IsAuthed"sv;
+    case Stage::FetchDiagnosticArea:
+      return "FetchDiagnosticArea"sv;
+    case Stage::WaitBoth:
+      return "WaitBoth"sv;
+    case Stage::Command:
+      return "Command"sv;
+    case Stage::Done:
+      return "Done"sv;
+  }
+
+  return std::nullopt;
 }

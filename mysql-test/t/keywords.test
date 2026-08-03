@@ -163,3 +163,20 @@ call p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#36584265: Five mistakes in information_schema.keywords_reserved
+--echo #
+
+CREATE TABLE manual(col1 INTEGER);
+CREATE TABLE parallel(col1 INTEGER);
+CREATE TABLE external(col1 INTEGER);
+
+DROP TABLE manual, parallel, external;
+
+--error ER_PARSE_ERROR
+CREATE TABLE CUBE(col1 INTEGER);
+--error ER_PARSE_ERROR
+CREATE TABLE QUALIFY(col1 INTEGER);
+--error ER_PARSE_ERROR
+CREATE TABLE TABLESAMPLE(col1 INTEGER);

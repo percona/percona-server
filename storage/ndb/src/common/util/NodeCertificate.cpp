@@ -489,6 +489,9 @@ int SigningRequest::finalise(EVP_PKEY *key) {
     sk_X509_EXTENSION_pop_free(x, X509_EXTENSION_free);
   }
 
+  /* Set the version field */
+  if (X509_REQ_set_version(m_req, X509_REQ_VERSION_1) == 0) return -35;
+
   /* Sign the CSR with the private key */
   if (X509_REQ_sign(m_req, key, EVP_sha256()) == 0) return -40;
 

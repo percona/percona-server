@@ -65,6 +65,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_higher';
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 
 # The start will fail as the node is declared incompatible with the group
+--disable_warnings ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,ER_WARN_DEPRECATED_SYNTAX ONCE
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 

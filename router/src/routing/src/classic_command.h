@@ -26,7 +26,7 @@
 #ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
 #define ROUTING_CLASSIC_COMMAND_INCLUDED
 
-#include "forwarding_processor.h"
+#include "processors/base/forwarding_processor.h"
 
 #include "await_client_or_server.h"
 
@@ -46,6 +46,7 @@ class CommandProcessor : public ForwardingProcessor {
 
   void stage(Stage stage) { stage_ = stage; }
   Stage stage() const { return stage_; }
+  std::optional<std::string_view> diagnostic_stage_name() const override;
 
  private:
   stdx::expected<Result, std::error_code> is_authed();

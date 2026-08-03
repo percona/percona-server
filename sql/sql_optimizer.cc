@@ -7906,23 +7906,51 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   return false;
 }
 
-/*
-  Add all keys with uses 'field' for some keypart
-  If field->and_level != and_level then only mark key_part as const_part
+/**
+  Add a Key_use entry for a given Key_field.
 
-  RETURN
-   0 - OK
-   1 - Out of memory.
+  @param keyuse_array          Destination array for general keyuses used in
+                               access method selection and range analysis.
+  @param key_field             Key_field describing the equality predicate.
+  @param primary_keyuse_array  Optional separate array that will receive
+                               Key_use entries for the primary key even when
+                               that key is not in keys_in_use_for_query.
+
+  The optimizer normally ignores keys that are masked out by
+  TABLE::keys_in_use_for_query when populating @c keyuse_array. However,
+  some consumers (notably test_if_order_by_key()) rely on
+  TABLE::const_key_parts[] to understand which key parts are constant, even
+  if the primary key itself is not considered as a candidate access method
+  (for example because an INDEX hint forced a secondary index).
+
+  To support such cases without changing access method selection semantics,
+  this function optionally records primary key keyuses into
+  @c primary_keyuse_array when the primary key is not in
+  keys_in_use_for_query. The caller may then derive const_key_parts from
+  those keyuses while keeping the primary key excluded from access planning.
 */
-
-static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
+static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field,
+                         Key_use_array *primary_keyuse_array = nullptr) {
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS)) {
     const Field *const field = key_field->item_field->field;
     Table_ref *const tl = key_field->item_field->table_ref;
     TABLE *const table = tl->table;
 
+    Key_use_array *cur_keyuse_array = keyuse_array;
     for (uint key = 0; key < table->s->keys; key++) {
-      if (!(table->keys_in_use_for_query.is_set(key))) continue;
+      cur_keyuse_array = keyuse_array;
+      if (!(table->keys_in_use_for_query.is_set(key))) {
+        /*
+          When primary_keyuse_array is provided, record Key_use entries for
+          the primary key there even if keys_in_use_for_query masks it out.
+          All other keys remain filtered purely by keys_in_use_for_query.
+        */
+        if (key == table->s->primary_key && primary_keyuse_array != nullptr) {
+          cur_keyuse_array = primary_keyuse_array;
+        } else {
+          continue;
+        }
+      }
       if (table->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
         continue;  // ToDo: ft-keys in non-ft queries.   SerG
 
@@ -7936,7 +7964,7 @@ static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
                                ~(ha_rows)0,  // will be set in optimize_keyuse
                                key_field->null_rejecting, key_field->cond_guard,
                                key_field->sj_pred_no);
-          if (keyuse_array->push_back(keyuse))
+          if (cur_keyuse_array->push_back(keyuse))
             return true; /* purecov: inspected */
         }
       }
@@ -8469,6 +8497,11 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
     return true; /* purecov: inspected */
   and_level = 0;
   field = end = key_fields;
+  // Used to collect primary-key Key_use entries even when the primary key is
+  // not in TABLE::keys_in_use_for_query (e.g. due to an INDEX hint). These
+  // are later converted to TABLE::const_key_parts so ORDER BY/GROUP BY
+  // optimization can still reason about primary-key suffixes for sorting.
+  Key_use_array primary_keyuses(thd->mem_root);
   *sargables = (SARGABLE_PARAM *)key_fields +
                (sz - sizeof((*sargables)[0].field)) / sizeof(SARGABLE_PARAM);
   /* set a barrier for the array of SARGABLE_PARAM */
@@ -8528,7 +8561,23 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
   /* fill keyuse with found key parts */
   for (; field != end; field++) {
-    if (add_key_part(keyuse, field)) return true;
+    if (add_key_part(keyuse, field, &primary_keyuses)) return true;
+  }
+
+  /*
+    Primary-key Key_use entries recorded in primary_keyuses are not considered
+    for access method selection when the primary key has been masked out of
+    keys_in_use_for_query (e.g. by an INDEX hint). However, their const
+    keyparts are still relevant for ORDER BY/GROUP BY optimization via
+    TABLE::const_key_parts[]. Populate const_key_parts for those primary-key
+    parts that are constant for the execution.
+  */
+  for (auto use = primary_keyuses.begin(); use != primary_keyuses.end();
+       ++use) {
+    if (use->val->const_for_execution() &&
+        use->optimize != KEY_OPTIMIZE_REF_OR_NULL) {
+      use->table_ref->table->const_key_parts[use->key] |= use->keypart_map;
+    }
   }
 
   if (query_block->ftfunc_list->elements) {
@@ -9444,14 +9493,16 @@ void JOIN::finalize_derived_keys() {
       1) it is a materialized derived table, and
       2) it is not yet instantiated, and
       3) it has some keys defined, and
-      4) it has not yet been processed (may happen if there are more than one
+      4) keys have been added through this query block, and
+      5) it has not yet been processed (may happen if there are more than one
          local references to the same CTE, which are processed on seeing the
          first reference).
     */
     if (table == nullptr || !tr->uses_materialization() ||  // (1)
         table->is_created() ||                              // (2)
         table->s->keys == 0 ||                              // (3)
-        (processed_tables & tr->map())) {                   // (4)
+        table->s->owner_of_tmp_keys != query_block ||       // (4)
+        (processed_tables & tr->map())) {                   // (5)
       continue;
     }
     /*
@@ -9538,7 +9589,7 @@ void JOIN::finalize_derived_keys() {
       assert(old_idx != new_idx);
 
       if (old_idx > new_idx) {
-        assert(t->s->owner_of_possible_tmp_keys == query_block);
+        assert(t->s->owner_of_tmp_keys == query_block);
         Derived_refs_iterator it1(tr);
         while (TABLE *t1 = it1.get_next()) {
           /*
@@ -9583,11 +9634,9 @@ void JOIN::finalize_derived_keys() {
       }
     }
 
-    // Finally, we know how many keys remain in the table.
-    if (table->s->owner_of_possible_tmp_keys != query_block) continue;
+    // Release lock and remove the unused keys:
+    table->s->owner_of_tmp_keys = nullptr;
 
-    // Release lock:
-    table->s->owner_of_possible_tmp_keys = nullptr;
     it.rewind();
     while (TABLE *t = it.get_next()) {
       t->drop_unused_tmp_keys(it.is_first());
@@ -9986,8 +10035,10 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   used_index(tab->range_scan()) != MAX_KEY) {
                 const uint ref_key = used_index(tab->range_scan());
                 bool skip_quick;
-                read_direction = test_if_order_by_key(
-                    &join->order, tab->table(), ref_key, nullptr, &skip_quick);
+                uint used_key_parts = 0;
+                read_direction =
+                    test_if_order_by_key(&join->order, tab->table(), ref_key,
+                                         &used_key_parts, &skip_quick);
                 if (skip_quick) read_direction = 0;
                 /*
                   If the index provides order there is no need to recheck
@@ -10001,8 +10052,15 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                 if (read_direction == 1 ||
                     (read_direction == -1 &&
                      reverse_sort_possible(tab->range_scan()) &&
-                     !make_reverse(get_used_key_parts(tab->range_scan()),
-                                   tab->range_scan()))) {
+                     // Ensure the reverse range scan uses at least as
+                     // many keyparts as ORDER BY; otherwise a composite
+                     // index might be scanned in reverse using only a
+                     // shorter prefix, and we would incorrectly treat
+                     // ORDER BY as satisfied.
+                     !make_reverse(
+                         std::max(used_key_parts,
+                                  get_used_key_parts(tab->range_scan())),
+                         tab->range_scan()))) {
                   recheck_reason = DONT_RECHECK;
                 }
               }

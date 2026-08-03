@@ -34,6 +34,7 @@
 #include <utility>
 
 #include "basic_protocol_splicer.h"
+#include "classic_command.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
@@ -41,7 +42,8 @@
 #include "mysqlrouter/classic_protocol_session_track.h"
 #include "mysqlrouter/classic_protocol_state.h"
 #include "mysqlrouter/connection_pool_component.h"
-#include "processor.h"
+#include "processors/base/processor.h"
+#include "processors/base/processor_diagnostics.h"
 #include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -89,11 +91,6 @@ encode_server_side_client_greeting(
               ""                                             // attributes
           }),
       shared_capabilities, net::dynamic_buffer(send_buf));
-}
-
-static void log_fatal_error_code(const char *msg, std::error_code ec) {
-  log_error("%s: %s (%s:%d)", msg, ec.message().c_str(), ec.category().name(),
-            ec.value());
 }
 
 void MysqlRoutingClassicConnectionBase::on_handshake_received() {
@@ -807,7 +804,7 @@ void MysqlRoutingClassicConnectionBase::loop() {
     if (!res) {
       auto ec = res.error();
 
-      log_fatal_error_code("classic::loop() processor failed", ec);
+      routing::processor_diagnostics::log_processor_failed(ec, processors_);
 
       // close the connection.
       break;

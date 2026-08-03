@@ -32,7 +32,12 @@ INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 SET(MYSYS_SOURCES
   base64_encode.cc
   array.cc
+<<<<<<< HEAD
   buffered_error_log.cc
+||||||| merged common ancestors
+=======
+  base64_encode.cc
+>>>>>>> mysql-8.4.11
   charset.cc
   dbug.cc
   decimal.cc

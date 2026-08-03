@@ -2091,7 +2091,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   }
 
   /* Compute the maximum possible record size. */
-  for (i = 0; i < dict_index_get_n_unique_in_tree(index); i++) {
+  for (i = 0; i < dict_index_get_n_unique_in_tree_nonleaf(index); i++) {
     const dict_field_t *field = index->get_field(i);
     get_field_max_size(index->table, index, field, rec_max_size);
   }
@@ -2131,6 +2131,79 @@ void get_permissible_max_size(const dict_table_t *table,
                        : page_get_free_space_of_empty(comp) / 2;
     page_ptr_max = page_rec_max;
   }
+}
+
+/** Legacy version of get_field_max_size() which doesn't include the fix for
+Bug#39129182 to keep its original behaviour for LTS releases. This function
+is only used in DDL, to judge if the new shape of the table is acceptable.
+It should not be used in B-tree navigation to decide if X-latch should be
+taken, as this could lead to the deadlock reported in the mentioned bug
+@param[in]      table         innodb table definition cache
+@param[in]      index         index
+@param[in]      field         field
+@param[in,out]  rec_max_size  max record size calculated till now. It
+                              will be increased with the length needed
+                              for this field */
+static void legacy_get_field_max_size(const dict_table_t *table,
+                                      const dict_index_t *index,
+                                      const dict_field_t *field,
+                                      size_t &rec_max_size) {
+  const bool comp = dict_table_is_comp(table);
+  const dict_col_t *col = field->col;
+  ulint field_max_size;
+  ulint field_ext_max_size;
+  /* In dtuple_convert_big_rec(), variable-length columns
+  that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
+  may be chosen for external storage.
+  Fixed-length columns, and all columns of secondary
+  index records are always stored inline. */
+  /* Determine the maximum length of the index field.
+  The field_ext_max_size should be computed as the worst
+  case in rec_get_converted_size_comp() for
+  REC_STATUS_ORDINARY records. */
+  field_max_size = col->get_fixed_size(comp);
+  if (field_max_size && field->fixed_len != 0) {
+    /* dict_index_add_col() should guarantee this */
+    ut_ad(!field->prefix_len || field->fixed_len == field->prefix_len);
+    /* Fixed lengths are not encoded in ROW_FORMAT=COMPACT. */
+    field_ext_max_size = 0;
+    rec_max_size += field_max_size;
+    return;
+  }
+  field_max_size = col->get_max_size();
+  field_ext_max_size = field_max_size < 256 ? 1 : 2;
+  if (field->prefix_len) {
+    if (field->prefix_len < field_max_size) {
+      field_max_size = field->prefix_len;
+    }
+  } else if (field_max_size > BTR_EXTERN_LOCAL_STORED_MAX_SIZE &&
+             index->is_clustered()) {
+    if (dict_table_has_atomic_blobs(table)) {
+      /* In the worst case, we have a locally stored column of
+      BTR_EXTERN_LOCAL_STORED_MAX_SIZE bytes. The length can be stored in one
+      byte. If the column were stored externally, the lengths in the clustered
+      index page would be BTR_EXTERN_FIELD_REF_SIZE and 2. */
+      field_max_size = BTR_EXTERN_LOCAL_STORED_MAX_SIZE;
+      field_ext_max_size = 1;
+    } else {
+      /* In this case, externally stored fields would have 768 byte prefix
+      stored in-line followed by fields reference. */
+      size_t local_stored_length =
+          BTR_EXTERN_FIELD_REF_SIZE + DICT_ANTELOPE_MAX_INDEX_COL_LEN;
+      if (field_max_size > local_stored_length) {
+        field_max_size = local_stored_length;
+        /* Prefix length will be stored in 2 bytes. */
+        field_ext_max_size = 2;
+      }
+    }
+  }
+  if (comp) {
+    /* Add the extra size for ROW_FORMAT=COMPACT.
+    For ROW_FORMAT=REDUNDANT, these bytes were
+    added to rec_max_size before this loop. */
+    rec_max_size += field_ext_max_size;
+  }
+  rec_max_size += field_max_size;
 }
 
 void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
@@ -2232,6 +2305,76 @@ void get_field_max_size(const dict_table_t *table, const dict_index_t *index,
   rec_max_size += field_max_size;
 }
 
+/** Legacy version of dict_index_validate_max_rec_size() which uses
+legacy_get_field_max_size() instead of get_field_max_size(), which doesn't
+include the fix for Bug#39129182 to keep its original behaviour for LTS
+releases. This function is only used in DDL, to judge if the new shape of the
+table is acceptable. It should not be used in B-tree navigation to decide if
+X-latch should be taken, as this could lead to the deadlock reported in the
+mentioned bug.
+@param[in]  table        innodb table definition cache
+@param[in]  index        index
+@param[in]  page_rec_max maximum size of possible record on leaf page
+@param[in]  page_ptr_max maximum size of possible record on non-leaf page
+@return true if max record size exceeds the limit, false otherwise. */
+static bool legacy_dict_index_validate_max_rec_size(const dict_table_t *table,
+                                                    const dict_index_t *index,
+                                                    const size_t page_rec_max,
+                                                    const size_t page_ptr_max) {
+  size_t rec_max_size;
+  const bool comp = dict_table_is_comp(table);
+
+  const page_size_t page_size(dict_table_page_size(table));
+  if (page_size.is_compressed() &&
+      page_size.physical() < univ_page_size.physical()) {
+    /* On a compressed page, there is a two-byte entry in the dense page
+    directory for every record. But there is no record header. */
+    rec_max_size = 2;
+  } else {
+    /* Each record has a header. */
+    rec_max_size = comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES;
+  }
+
+  if (comp) {
+    /* Include the "null" flags in the maximum possible record size. */
+    rec_max_size += UT_BITS_IN_BYTES(index->n_nullable);
+  } else {
+    /* For each column, include a 2-byte offset and a "null" flag.  The 1-byte
+    format is only used in short records that do not contain externally stored
+    columns. Such records could never exceed the page limit, even when using
+    the 2-byte format. */
+    rec_max_size += 2 * index->n_fields;
+  }
+
+  /* Each record would have version stored in 1 byte */
+  if (index->has_row_versions()) {
+    rec_max_size += 1;
+  }
+
+  /* Compute the maximum possible record size. */
+  for (size_t i = 0; i < index->n_fields; i++) {
+    const dict_field_t *field = index->get_field(i);
+    legacy_get_field_max_size(table, index, field, rec_max_size);
+
+    /* Check the size limit on leaf pages. */
+    if (rec_max_size >= page_rec_max) {
+      return true;
+    }
+
+    /* Check the size limit on non-leaf pages. Records stored in non-leaf
+    B-tree pages consist of the unique columns of the record (the key columns
+    of the B-tree) and a node pointer field. When we have processed the unique
+    columns, rec_max_size equals the size of the node pointer record minus the
+    node pointer column. */
+    if (i + 1 == dict_index_get_n_unique_in_tree_nonleaf(index) &&
+        rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
+      return (true);
+    }
+  }
+
+  return (false);
+}
+
 /** A B-tree page should accommodate at least two records. This function finds
 out if this is violated for records of maximum possible length of this index.
 @param[in]   table         table
@@ -2253,10 +2396,8 @@ static bool dict_index_too_big_for_tree(const dict_table_t *table,
   size_t page_ptr_max;
   get_permissible_max_size(table, new_index, page_rec_max, page_ptr_max);
 
-  size_t rec_max_size;
-  bool res = dict_index_validate_max_rec_size(table, new_index, page_rec_max,
-                                              page_ptr_max, rec_max_size);
-  return (res);
+  return legacy_dict_index_validate_max_rec_size(table, new_index, page_rec_max,
+                                                 page_ptr_max);
 }
 
 bool dict_index_validate_max_rec_size(const dict_table_t *table,
@@ -2308,7 +2449,7 @@ bool dict_index_validate_max_rec_size(const dict_table_t *table,
     of the B-tree) and a node pointer field. When we have processed the unique
     columns, rec_max_size equals the size of the node pointer record minus the
     node pointer column. */
-    if (i + 1 == dict_index_get_n_unique_in_tree(index) &&
+    if (i + 1 == dict_index_get_n_unique_in_tree_nonleaf(index) &&
         rec_max_size + REC_NODE_PTR_SIZE >= page_ptr_max) {
       return (true);
     }

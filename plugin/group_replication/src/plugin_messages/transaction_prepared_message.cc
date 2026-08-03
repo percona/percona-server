@@ -81,13 +81,20 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
   unsigned long long payload_item_length = 0;
 
   uint64 gno_aux = 0;
-  decode_payload_item_int8(&slider, &payload_item_type, &gno_aux);
+  if (decode_payload_item_int8(&slider, &payload_item_type, end, &gno_aux) ||
+      payload_item_type != PIT_TRANSACTION_PREPARED_GNO) {
+    set_error("gr::Transaction_prepared_message", __FILE__, __LINE__,
+              "Malformed payload item");
+    return;
+  }
   m_gno = static_cast<rpl_gno>(gno_aux);
 
   mysql::gtid::Uuid sid;
   gr::Gtid_tag tag;
 
-  while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end) {
+  while (slider <= end &&
+         static_cast<size_t>(end - slider) >=
+             Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
     // Read payload item header to find payload item length.
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
@@ -97,19 +104,18 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
       }
     };);
 
-    if (slider + payload_item_length > end) {
-      m_error = std::make_unique<mysql::utils::Error>(
-          "gr::Transaction_prepared_message", __FILE__, __LINE__,
-          "Malformed payload length");
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length) {
+      set_error("gr::Transaction_prepared_message", __FILE__, __LINE__,
+                "Malformed payload length");
       return;
     }
 
     switch (payload_item_type) {
       case PIT_TRANSACTION_PREPARED_SID:
         if (payload_item_length != mysql::gtid::Uuid::BYTE_LENGTH) {
-          m_error = std::make_unique<mysql::utils::Error>(
-              "gr::Transaction_prepared_message", __FILE__, __LINE__,
-              "Invalid SID length in transaction prepared message");
+          set_error("gr::Transaction_prepared_message", __FILE__, __LINE__,
+                    "Invalid SID length in transaction prepared message");
           return;  // reject invalid message
         }
         memcpy(sid.bytes.data(), slider, payload_item_length);
@@ -119,9 +125,9 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
         auto bytes_read = tag.decode_tag(slider, payload_item_length,
                                          gr::Gtid_format::tagged);
         if (bytes_read != payload_item_length) {
-          m_error = std::make_unique<mysql::utils::Error>(
-              "gr::Transaction_prepared_message", __FILE__, __LINE__,
-              "Failed to decode a tag, wrong format");
+          set_error("gr::Transaction_prepared_message", __FILE__, __LINE__,
+                    "Failed to decode a tag, wrong format");
+          return;
         }
         break;
     }
@@ -143,16 +149,4 @@ uint64_t Transaction_prepared_message::get_sent_timestamp(
   DBUG_TRACE;
   return Plugin_gcs_message::get_sent_timestamp(buffer, length,
                                                 PIT_SENT_TIMESTAMP);
-}
-
-bool Transaction_prepared_message::is_valid() const {
-  if (!m_error) {
-    return true;
-  }
-  return m_error->is_error() == false;
-}
-
-const Transaction_prepared_message::Error_ptr &
-Transaction_prepared_message::get_error() const {
-  return m_error;
 }

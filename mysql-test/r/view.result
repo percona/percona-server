@@ -6864,3 +6864,56 @@ Warnings:
 Note	1347	'test.foo1' is not VIEW
 include/assert.inc [View v1 should not exist]
 DROP TABLE foo2, foo1;
+#
+# Bug#38138412 CREATE VIEW causes Assertion `(tlen % 2) == 0'
+#              in strings/ctype-ucs2.cc
+#
+CREATE TABLE t1 (
+id INT,
+c5 VARCHAR(5) CHARACTER SET utf16
+);
+INSERT INTO t1 VALUES(42, "hello");
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE c5 BETWEEN '' AND '4';
+SELECT * FROM v1;
+id	c5
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#38729126: Item_view_ref::used_tables() is wrong, leads to
+#               wrong query result
+CREATE TABLE t1 (f1 INTEGER);
+INSERT INTO t1 VALUES(0),(1);
+CREATE TABLE t2 (f2 INTEGER);
+SELECT dt2.f1, coalesce(dt2.f1,1)=1
+FROM (SELECT dt1.f1 AS f1 FROM t1
+LEFT JOIN
+(SELECT PI() AS f1 FROM t2) AS dt1 ON FALSE) AS dt2;
+f1	coalesce(dt2.f1,1)=1
+NULL	1
+NULL	1
+SELECT dt2.f1
+FROM (SELECT dt1.f1 AS f1 FROM t1
+LEFT JOIN
+(SELECT PI() AS f1 FROM t2) AS dt1 ON FALSE) AS dt2
+WHERE coalesce(dt2.f1,1)=1;
+f1
+NULL
+NULL
+DROP TABLE t1,t2;
+#
+# Bug#39127431: Unexpected behavior of LEFT JOIN + empty subquery
+#               with NULL comparison in WHERE clause
+#
+CREATE TABLE t1 (f1 INT, f2 DOUBLE);
+CREATE TABLE t2 (f1 INT);
+INSERT INTO t1 VALUES (1, 10.0), (2, 20.0);
+INSERT INTO t2 VALUES (1),(2);
+SELECT 15 AS c0
+FROM (SELECT t1.f2 AS c0, dt1.c0 AS c1, t1.f1 AS c3, dt1.c4 AS c4
+FROM t1
+LEFT JOIN (SELECT 57 AS c0, 3 AS c4 FROM t2 WHERE FALSE) AS dt1
+ON (TRUE)
+WHERE TRUE) AS dt2
+WHERE dt2.c3 <= dt2.c4;
+c0
+DROP TABLE t1, t2;

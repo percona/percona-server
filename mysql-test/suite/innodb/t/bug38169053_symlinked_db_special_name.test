@@ -1,0 +1,91 @@
+--echo #
+--echo # Bug#38169053 post-push fix: for a table whose name requires
+--echo # filesystem-charset encoding (e.g. contains '#' or a space), the
+--echo # space name used to rebuild the "expected default path" is the
+--echo # literal, unencoded identifier, so it never matches the actual
+--echo # (encoded) .ibd filename on disk. The file-identity check added by
+--echo # the original fix therefore fails to open that path and falls back
+--echo # to a symlink-unaware ancestor-path comparison. If the schema
+--echo # directory is reached via a symlink, that comparison can
+--echo # misclassify a default-location table as moved, incorrectly
+--echo # setting DD_TABLE_DATA_DIRECTORY and crashing on a later TRUNCATE.
+--echo #
+--echo # A plain partitioned table is included as a control: its "#p#"
+--echo # separator is a literal, un-escaped '#' both in the space name and
+--echo # in the actual .ibd filename (MySQL puts it there itself, it is not
+--echo # a filesystem-charset escape), so the two paths always agree and
+--echo # this case was never affected by the gap. A partitioned table whose
+--echo # base name *also* needs escaping combines both: the base name gets
+--echo # @-encoded, and MySQL's own "#p#" separator is then appended after
+--echo # it un-encoded.
+--echo #
+
+LET $MYSQLD_DATADIR = `SELECT @@datadir`;
+# The external directory MUST be named "bug38169053db" (matching the schema)
+# so that is_valid_location_within_db() accepts the resolved path -- it
+# checks that the last component of the directory matches the schema name.
+LET $EXTERNAL_DIR = $MYSQL_TMP_DIR/bug38169053db;
+
+CREATE DATABASE bug38169053db;
+
+--echo # Table name requiring filesystem-charset escaping: '#'.
+CREATE TABLE bug38169053db.`t#1` (id INT PRIMARY KEY, val VARCHAR(100))
+  ENGINE=InnoDB;
+INSERT INTO bug38169053db.`t#1` VALUES (1,'hello'),(2,'world');
+
+--echo # Table name requiring filesystem-charset escaping: a space.
+CREATE TABLE bug38169053db.`t 1` (id INT PRIMARY KEY, val VARCHAR(100))
+  ENGINE=InnoDB;
+INSERT INTO bug38169053db.`t 1` VALUES (1,'hello'),(2,'world');
+
+--echo # Partitioned table: '#p#' is a natural, non-escaped separator.
+CREATE TABLE bug38169053db.tp (id INT PRIMARY KEY, val VARCHAR(100))
+  ENGINE=InnoDB
+  PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO bug38169053db.tp VALUES (1,'hello'),(2,'world');
+
+--echo # Partitioned table whose base name also requires escaping: '#' plus
+--echo # the natural, non-escaped "#p#" separator in the same filename.
+CREATE TABLE bug38169053db.`tp#1` (id INT PRIMARY KEY, val VARCHAR(100))
+  ENGINE=InnoDB
+  PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO bug38169053db.`tp#1` VALUES (1,'hello'),(2,'world');
+
+--source include/shutdown_mysqld.inc
+
+--mkdir $EXTERNAL_DIR
+--exec cp -a $MYSQLD_DATADIR/bug38169053db/. $EXTERNAL_DIR/
+--exec rm -rf $MYSQLD_DATADIR/bug38169053db
+--exec ln -s $EXTERNAL_DIR $MYSQLD_DATADIR/bug38169053db
+
+# No --innodb-directories needed; the datadir scanner follows symlinks via stat().
+--source include/start_mysqld.inc
+
+--echo # All four tables are still in the default location (no DATA DIRECTORY).
+SHOW CREATE TABLE bug38169053db.`t#1`;
+SHOW CREATE TABLE bug38169053db.`t 1`;
+SHOW CREATE TABLE bug38169053db.tp;
+SHOW CREATE TABLE bug38169053db.`tp#1`;
+
+--echo # TRUNCATE must succeed without hitting the DD_TABLE_DATA_DIRECTORY assertion.
+TRUNCATE TABLE bug38169053db.`t#1`;
+TRUNCATE TABLE bug38169053db.`t 1`;
+TRUNCATE TABLE bug38169053db.tp;
+TRUNCATE TABLE bug38169053db.`tp#1`;
+
+INSERT INTO bug38169053db.`t#1` VALUES (1,'after'),(2,'truncate');
+INSERT INTO bug38169053db.`t 1` VALUES (1,'after'),(2,'truncate');
+INSERT INTO bug38169053db.tp VALUES (1,'after'),(2,'truncate');
+INSERT INTO bug38169053db.`tp#1` VALUES (1,'after'),(2,'truncate');
+
+SELECT * FROM bug38169053db.`t#1` ORDER BY id;
+SELECT * FROM bug38169053db.`t 1` ORDER BY id;
+SELECT * FROM bug38169053db.tp ORDER BY id;
+SELECT * FROM bug38169053db.`tp#1` ORDER BY id;
+
+SHOW CREATE TABLE bug38169053db.`t#1`;
+SHOW CREATE TABLE bug38169053db.`t 1`;
+SHOW CREATE TABLE bug38169053db.tp;
+SHOW CREATE TABLE bug38169053db.`tp#1`;
+
+DROP DATABASE bug38169053db;

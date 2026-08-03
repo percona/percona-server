@@ -1,0 +1,133 @@
+#
+# Bug#38169053 post-push fix: for a table whose name requires
+# filesystem-charset encoding (e.g. contains '#' or a space), the
+# space name used to rebuild the "expected default path" is the
+# literal, unencoded identifier, so it never matches the actual
+# (encoded) .ibd filename on disk. The file-identity check added by
+# the original fix therefore fails to open that path and falls back
+# to a symlink-unaware ancestor-path comparison. If the schema
+# directory is reached via a symlink, that comparison can
+# misclassify a default-location table as moved, incorrectly
+# setting DD_TABLE_DATA_DIRECTORY and crashing on a later TRUNCATE.
+#
+# A plain partitioned table is included as a control: its "#p#"
+# separator is a literal, un-escaped '#' both in the space name and
+# in the actual .ibd filename (MySQL puts it there itself, it is not
+# a filesystem-charset escape), so the two paths always agree and
+# this case was never affected by the gap. A partitioned table whose
+# base name *also* needs escaping combines both: the base name gets
+# @-encoded, and MySQL's own "#p#" separator is then appended after
+# it un-encoded.
+#
+CREATE DATABASE bug38169053db;
+# Table name requiring filesystem-charset escaping: '#'.
+CREATE TABLE bug38169053db.`t#1` (id INT PRIMARY KEY, val VARCHAR(100))
+ENGINE=InnoDB;
+INSERT INTO bug38169053db.`t#1` VALUES (1,'hello'),(2,'world');
+# Table name requiring filesystem-charset escaping: a space.
+CREATE TABLE bug38169053db.`t 1` (id INT PRIMARY KEY, val VARCHAR(100))
+ENGINE=InnoDB;
+INSERT INTO bug38169053db.`t 1` VALUES (1,'hello'),(2,'world');
+# Partitioned table: '#p#' is a natural, non-escaped separator.
+CREATE TABLE bug38169053db.tp (id INT PRIMARY KEY, val VARCHAR(100))
+ENGINE=InnoDB
+PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO bug38169053db.tp VALUES (1,'hello'),(2,'world');
+# Partitioned table whose base name also requires escaping: '#' plus
+# the natural, non-escaped "#p#" separator in the same filename.
+CREATE TABLE bug38169053db.`tp#1` (id INT PRIMARY KEY, val VARCHAR(100))
+ENGINE=InnoDB
+PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO bug38169053db.`tp#1` VALUES (1,'hello'),(2,'world');
+# restart
+# All four tables are still in the default location (no DATA DIRECTORY).
+SHOW CREATE TABLE bug38169053db.`t#1`;
+Table	Create Table
+t#1	CREATE TABLE `t#1` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE bug38169053db.`t 1`;
+Table	Create Table
+t 1	CREATE TABLE `t 1` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE bug38169053db.tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 2 */
+SHOW CREATE TABLE bug38169053db.`tp#1`;
+Table	Create Table
+tp#1	CREATE TABLE `tp#1` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 2 */
+# TRUNCATE must succeed without hitting the DD_TABLE_DATA_DIRECTORY assertion.
+TRUNCATE TABLE bug38169053db.`t#1`;
+TRUNCATE TABLE bug38169053db.`t 1`;
+TRUNCATE TABLE bug38169053db.tp;
+TRUNCATE TABLE bug38169053db.`tp#1`;
+INSERT INTO bug38169053db.`t#1` VALUES (1,'after'),(2,'truncate');
+INSERT INTO bug38169053db.`t 1` VALUES (1,'after'),(2,'truncate');
+INSERT INTO bug38169053db.tp VALUES (1,'after'),(2,'truncate');
+INSERT INTO bug38169053db.`tp#1` VALUES (1,'after'),(2,'truncate');
+SELECT * FROM bug38169053db.`t#1` ORDER BY id;
+id	val
+1	after
+2	truncate
+SELECT * FROM bug38169053db.`t 1` ORDER BY id;
+id	val
+1	after
+2	truncate
+SELECT * FROM bug38169053db.tp ORDER BY id;
+id	val
+1	after
+2	truncate
+SELECT * FROM bug38169053db.`tp#1` ORDER BY id;
+id	val
+1	after
+2	truncate
+SHOW CREATE TABLE bug38169053db.`t#1`;
+Table	Create Table
+t#1	CREATE TABLE `t#1` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE bug38169053db.`t 1`;
+Table	Create Table
+t 1	CREATE TABLE `t 1` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE bug38169053db.tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 2 */
+SHOW CREATE TABLE bug38169053db.`tp#1`;
+Table	Create Table
+tp#1	CREATE TABLE `tp#1` (
+  `id` int NOT NULL,
+  `val` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 2 */
+DROP DATABASE bug38169053db;

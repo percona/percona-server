@@ -411,6 +411,7 @@ struct Builder {
   [[nodiscard]] dberr_t check_duplicates(Thread_ctxs &dupcheck,
                                          Dup *dup) noexcept;
 
+ public:
   /** Cleanup DDL after error in online build
   Note: To be called if DDL must cleanup due to error in online build. Pages
   which are buffer-fixed (in Page_load::release) until the next iteration, must

@@ -1,0 +1,71 @@
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
+# Case 1: bulk_inserter, secondary KEY, ddl_tmpfile_fail.
+CREATE TABLE t1 (
+pk INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c1 VARCHAR(200) NOT NULL,
+KEY idx_c1 (c1)
+) ENGINE=InnoDB;
+# Insert enough rows that idx_c1's sort buffer (see
+# bug39091376-master.opt) overflows -- and so spills to a
+# temporary file -- many times over, long before the scan
+# reaches EOF, while the clustered index's Btree_load is alive.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+16384
+# Rebuild the table into the new tablespace. The clustered
+# builder (processed first, per row) keeps filling its B-tree
+# directly; once idx_c1's sort buffer overflows, force its temp
+# file creation to fail. Force a single-threaded scan so the
+# injected error fires on the same THD that armed it
+# (Sync_point lookups are keyed by current_thd, which a parallel
+# reader worker thread does not share with the connection).
+SET SESSION innodb_parallel_read_threads = 1;
+SET SESSION debug = '+d,ddl_tmpfile_fail';
+ALTER TABLE t1 TABLESPACE ts1;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION debug = '-d,ddl_tmpfile_fail';
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+# The table must remain fully usable after the failed DDL.
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# Case 2: batch_inserter, SPATIAL INDEX, ddl_ins_spatial_fail
+# armed after clustered Btree_load::release().
+CREATE TABLE t1 (
+pk INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c1 VARCHAR(200) NOT NULL,
+g GEOMETRY NOT NULL SRID 0,
+SPATIAL INDEX(g)
+) ENGINE=InnoDB;
+# Insert enough rows that the clustered sort buffer (see
+# bug39091376-master.opt) overflows -- and so
+# Btree_load::release() runs -- many times over, long before
+# the scan reaches EOF, while the clustered index's Btree_load
+# is alive.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+16384
+# Rebuild the table into the new tablespace. After clustered
+# Btree_load::release(), arm ddl_ins_spatial_fail so the R-tree
+# insert path returns DB_FAIL. Force a single-threaded scan so
+# the injected error fires on the same THD that armed it
+# (Sync_point lookups are keyed by current_thd, which a parallel
+# reader worker thread does not share with the connection).
+SET SESSION innodb_parallel_read_threads = 1;
+SET SESSION debug = '+d,ddl_batch_inserter_fail';
+ALTER TABLE t1 TABLESPACE ts1;
+ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
+SET SESSION debug = '-d,ddl_batch_inserter_fail';
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+# The table must remain fully usable after the failed DDL.
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+# Restart to verify the failed DDL left no latched or
+# buffer-fixed pages. On a debug build, clean shutdown calls
+# buf_assert_all_are_replaceable() -- see include/have_debug.inc
+# and the comment at the top of this file.
+# restart

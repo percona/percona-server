@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifdef UNIV_DEBUG
 #include <current_thd.h>
+#include "sync0debug.h"
 #endif /* UNIV_DEBUG */
 
 namespace ddl {
@@ -188,6 +189,18 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
   using Thread_ctx = Parallel_reader::Thread_ctx;
 
+  /* Unfix every builder's Btree_load (not only the one that failed).
+  Builder::~Builder() deletes m_btr_load without finish(), so pages
+  left buffer-fixed by Btree_load::release() would otherwise leak. */
+  auto fail_all_builders = [&](dberr_t e) {
+    ut_d(Sync_point::erase(m_ctx.thd(), "ddl_ins_spatial_fail"));
+    for (auto current_builder : builders) {
+      /* Discard returned error as it is same as e */
+      static_cast<void>(current_builder->handle_error(e));
+    }
+    return e;
+  };
+
   auto batch_inserter = [&](Thread_ctx *thread_ctx) {
     size_t i{};
     bool latches_released{};
@@ -213,7 +226,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       });
 
       if (err != DB_SUCCESS && err != DB_END_OF_INDEX) {
-        return err;
+        return fail_all_builders(err);
       }
 
       ++i;
@@ -245,7 +258,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       });
 
       if (err != DB_SUCCESS && err != DB_END_OF_INDEX) {
-        return err;
+        return fail_all_builders(err);
       }
     }
 

@@ -921,23 +921,14 @@ void reset_thd(THD *thd) {
     Upgrade_error_counter *error_count) {
   invalid_triggers(thd, sn.c_str(), *table);
 
-<<<<<<< HEAD
-    // The TokuDB engine was removed in 8.0.28 Don't upgrade if it is used.
-    if (my_strcasecmp(system_charset_info, table->engine().c_str(), "TokuDB") ==
-        0) {
-      (*error_count)++;
-      LogErr(ERROR_LEVEL, ER_PERCONA_UNSUPPORTED_ENGINE, schema->name().c_str(),
-             table->name().c_str(), table->engine().c_str());
-    }
+  // The TokuDB engine was removed in 8.0.28 Don't upgrade if it is used.
+  if (my_strcasecmp(system_charset_info, table->engine().c_str(), "TokuDB") ==
+      0) {
+    (*error_count)++;
+    LogErr(ERROR_LEVEL, ER_PERCONA_UNSUPPORTED_ENGINE, sn.c_str(),
+           table->name().c_str(), table->engine().c_str());
+  }
 
-    // Check for usage of prefix key index in PARTITION BY KEY() function.
-    if (dd::prefix_key_partition_exists(
-            schema->name().c_str(), table->name().c_str(), table.get(), true))
-||||||| merged common ancestors
-    // Check for usage of prefix key index in PARTITION BY KEY() function.
-    if (dd::prefix_key_partition_exists(
-            schema->name().c_str(), table->name().c_str(), table.get(), true))
-=======
   // Check for usage of prefix key index in PARTITION BY KEY() function.
   if (dd::prefix_key_partition_exists(sn.c_str(), table->name().c_str(), table,
                                       true))
@@ -953,7 +944,6 @@ void reset_thd(THD *thd) {
     Tablespace_hash_set space_names(PSI_INSTRUMENT_ME);
     if (dd::fill_table_and_parts_tablespace_names(
             thd, sn.c_str(), table->name().c_str(), &space_names))
->>>>>>> mysql-8.4.11
       return true;
 
     for (const std::string &name : space_names) {
@@ -965,15 +955,6 @@ void reset_thd(THD *thd) {
     }
   }
 
-<<<<<<< HEAD
-    DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
-
-    return error_count->has_too_many_errors();
-  };
-||||||| merged common ancestors
-    return error_count->has_too_many_errors();
-  };
-=======
   // Check if AUTO_INCREMENT is used with DOUBLE/FLOAT
   for (const auto &col : table->columns()) {
     if (col->is_auto_increment() &&
@@ -984,7 +965,8 @@ void reset_thd(THD *thd) {
              sn.c_str(), table->name().c_str(), col->name().c_str());
     }
   }
->>>>>>> mysql-8.4.11
+
+  DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
 
   return error_count->has_too_many_errors();
 }

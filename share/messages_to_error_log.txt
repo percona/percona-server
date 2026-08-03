@@ -12853,7 +12853,48 @@ ER_AUTH_INITIAL_PLUGIN_OVERRIDE
 # End of 8.1, 8.2, 8.3, 8.4 error messages intended to be written to the server error log.
 #
 
-<<<<<<< HEAD
+
+################################################################################
+# Error numbers backported from 9.7 to 8.4
+# Make sure the error numbers are identical between versions
+################################################################################
+
+start-error-number 15604
+ER_INFO_AUTHENTICATION_OCI
+   eng "authentication_oci plugin reported: %s."
+
+start-error-number 15607
+ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
+   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
+start-error-number 15608
+ER_AUDIT_LOG_OFFLOAD_INFO
+  eng "%s"
+
+start-error-number 15609
+ER_AUDIT_LOG_OFFLOAD_WARNING
+  eng "%s"
+
+start-error-number 15610
+ER_AUDIT_LOG_OFFLOAD_ERROR
+  eng "%s"
+
+start-error-number 15694
+ER_WARN_AUDIT_LOG_SYSVAR_ADJUSTED
+  eng "Variable '%s' was adjusted to value '%lld', to make pruning slower than rotation."
+
+start-error-number 15695
+ER_WARN_AUDIT_LOG_SYSVAR_DISCARDED
+  eng "Variable '%s' value change was discarded, to make pruning slower than rotation."
+
+#
+# WARNING
+#
+# If you attempt to add a new error here, think again:
+# this is most likely incorrect.
+# New errors introduced in 8.4-LTS should go into the 8.1-8.4 section.
+#
+
 
 #
 # Start of Percona Server 8.0 server error log messages
@@ -13455,51 +13496,6 @@ start-error-number 48400
 #
 
 
-||||||| merged common ancestors
-=======
-
-################################################################################
-# Error numbers backported from 9.7 to 8.4
-# Make sure the error numbers are identical between versions
-################################################################################
-
-start-error-number 15604
-ER_INFO_AUTHENTICATION_OCI
-   eng "authentication_oci plugin reported: %s."
-
-start-error-number 15607
-ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
-   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
-
-start-error-number 15608
-ER_AUDIT_LOG_OFFLOAD_INFO
-  eng "%s"
-
-start-error-number 15609
-ER_AUDIT_LOG_OFFLOAD_WARNING
-  eng "%s"
-
-start-error-number 15610
-ER_AUDIT_LOG_OFFLOAD_ERROR
-  eng "%s"
-
-start-error-number 15694
-ER_WARN_AUDIT_LOG_SYSVAR_ADJUSTED
-  eng "Variable '%s' was adjusted to value '%lld', to make pruning slower than rotation."
-
-start-error-number 15695
-ER_WARN_AUDIT_LOG_SYSVAR_DISCARDED
-  eng "Variable '%s' value change was discarded, to make pruning slower than rotation."
-
-#
-# WARNING
-#
-# If you attempt to add a new error here, think again:
-# this is most likely incorrect.
-# New errors introduced in 8.4-LTS should go into the 8.1-8.4 section.
-#
-
->>>>>>> mysql-8.4.11
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.

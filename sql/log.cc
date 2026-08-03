@@ -1609,16 +1609,6 @@ void Query_logger::cleanup() {
 }
 
 bool Query_logger::slow_log_write(THD *thd, const char *query,
-<<<<<<< HEAD
-                                  size_t query_length,
-                                  bool aggregate, ulonglong lock_usec,
-                                  ulonglong exec_usec) {
-  assert(thd->enable_slow_log);
-||||||| merged common ancestors
-                                  size_t query_length, bool aggregate,
-                                  ulonglong lock_usec, ulonglong exec_usec) {
-  assert(thd->enable_slow_log && opt_slow_log);
-=======
                                   size_t query_length, bool aggregate,
                                   ulonglong lock_usec, ulonglong exec_usec) {
   PSI_LogRecord rec(key_slow_query_logger, OTELLogLevel::TLOG_WARN,
@@ -1626,7 +1616,6 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   const bool telemetry_log = rec.check_enabled();
   const bool legacy_log = thd->enable_slow_log && opt_slow_log &&
                           ((*slow_log_handler_list) != nullptr);
->>>>>>> mysql-8.4.11
 
   if (!legacy_log && !telemetry_log) return false;
 
@@ -2035,17 +2024,9 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
     Do not log administrative statements unless the appropriate option is
     set.
   */
-<<<<<<< HEAD
-  if (!thd->enable_slow_log || !opt_slow_log) return false;
-||||||| merged common ancestors
-  if (thd->enable_slow_log && opt_slow_log) {
-    const bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
-=======
   PSI_LogRecord rec(key_slow_query_logger, OTELLogLevel::TLOG_WARN, "");
   const bool telemetry_log = rec.check_enabled();
-  if ((thd->enable_slow_log && opt_slow_log) || telemetry_log) {
-    const bool suppress_logging = log_throttle_qni.log(thd, warn_no_index);
->>>>>>> mysql-8.4.11
+  if ((!thd->enable_slow_log || !opt_slow_log) && !telemetry_log) return false;
 
   /*
     Copy all needed global variables into a session one before doing all checks.

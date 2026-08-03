@@ -2058,7 +2058,7 @@ ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */
   ulint comp;
   ulint i;
   /* maximum possible storage size of a record */
-  ulint rec_max_size;
+  size_t rec_max_size;
 
   if (dict_index_is_ibuf(index)) {
     /* cannot estimate accurately */

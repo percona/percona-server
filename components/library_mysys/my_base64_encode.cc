@@ -26,13 +26,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA  */
 
-<<<<<<<< HEAD:mysys/base64_encode.cc
-#include "base64_encode.h"
-|||||||| merged common ancestors:sql-common/oci/ssl.cc
-#include "ssl.h"
-========
 #include "mysql/components/library_mysys/my_base64_encode.h"
->>>>>>>> mysql-8.4.11:components/library_mysys/my_base64_encode.cc
 #include <openssl/err.h>
 #include <regex>
 #include <sstream>

@@ -4080,14 +4080,17 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                                 std::string(acl_user->host.get_host()));
         if (g_external_roles.find(u) != g_external_roles.end())
           g_external_roles[u].clear();
-        for (const auto &role : external_roles) {
-          ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
-          if (acl_role != nullptr && acl_role->user != nullptr) {
-            grant_role(acl_role, acl_user, false);
-            const name_and_host_t r(std::string(acl_role->user), "");
-            g_external_roles[u].push_back(r);
+        ACL_USER *cached_acl_user =
+            find_acl_user(acl_user->host.get_host(), acl_user->user, true);
+        if (cached_acl_user != nullptr)
+          for (const auto &role : external_roles) {
+            ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
+            if (acl_role != nullptr && acl_role->user != nullptr) {
+              grant_role(acl_role, cached_acl_user, false);
+              const name_and_host_t r(std::string(acl_role->user), "");
+              g_external_roles[u].push_back(r);
+            }
           }
-        }
       }
       /* Assign default role */
       {
@@ -4290,7 +4293,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   ret = 0;
 end:
   if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
-    /* Ready to handle queries */
+  /* Ready to handle queries */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
   LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();

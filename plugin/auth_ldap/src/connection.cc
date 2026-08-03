@@ -309,7 +309,7 @@ groups_t Connection::search_groups(const std::string &user_name,
   std::string filter = std::regex_replace(group_search_filter,
                                           std::regex("\\{UA\\}"), user_name);
   std::string escaped_user_dn =
-      std::regex_replace(user_dn, std::regex("\\\\\""), "\\\\\"");
+      std::regex_replace(user_dn, std::regex(R"(\\\"|[\(\)])"), R"(\$&)");
   filter = std::regex_replace(filter, std::regex("\\{UD\\}"), escaped_user_dn);
 
   LDAPMessage *l_result;

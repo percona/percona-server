@@ -2262,9 +2262,12 @@ constexpr uint32_t BUF_LRU_GROUP_SIZE = 32;
 The per-pool LRU_list_mutex protects only the links between groups (the
 `LRU` member below and the group's position relative to buf_pool->LRU_old).
 Everything else here -- the slots, n_pages, old -- is protected by this
-group's own mutex, at latch level SYNC_BUF_LRU_GROUP (between
-SYNC_BUF_LRU_LIST and SYNC_BUF_BLOCK: a thread holding LRU_list_mutex may
-acquire a group mutex, never the reverse).
+group's own mutex, at latch level SYNC_BUF_LRU_GROUP: BELOW SYNC_BUF_BLOCK
+(a thread holding LRU_list_mutex, a page hash latch, or a page's own block
+mutex may acquire a group mutex; a thread holding only a group mutex may
+not acquire any of those). This mirrors the real call pattern: every
+removal/addition path holds the page's own block mutex before touching
+its group, never the other way around.
 NOTE: this type is introduced as additive foundation; buf_pool->LRU is not
 yet rewired to use it (see PS-11141-8.4-lru-groups P1 vs P2). */
 struct buf_lru_group_t {

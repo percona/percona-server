@@ -1751,9 +1751,12 @@ to this function there will be 'max' blocks in the free list.
 (PS-11141 grouped LRU list): a group is a batching unit, not an atomicity
 unit, so a candidate group's pages are each tried best-effort (ready-for-
 replace pages evicted, ready-for-flush pages dispatched, others skipped),
-exactly as the pre-grouping code tried each page in flat LRU order. No
-group mutex is needed for the scan itself; see
-buf_LRU_free_from_common_LRU_list() for why. */
+exactly as the pre-grouping code tried each page in flat LRU order. Each
+group->pages[] slot is read under that specific group's own mutex (a
+brief, separate critical section per slot); see
+buf_LRU_free_from_common_LRU_list() for why LRU_list_mutex, held
+throughout this function otherwise, is not by itself enough to make that
+array read race-free. */
 static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
                                                          ulint max) {
   ulint scanned = 0;
@@ -1777,7 +1780,12 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
     auto prev_group = UT_LIST_GET_PREV(LRU, group);
     buf_pool->lru_hp.set(prev_group);
 
-    for (auto *bpage : group->pages) {
+    for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
+      buf_page_t *bpage;
+      mutex_enter(&group->mutex);
+      bpage = group->pages[slot];
+      mutex_exit(&group->mutex);
+
       if (bpage == nullptr) {
         continue;
       }
@@ -2170,11 +2178,12 @@ bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   /* PS-11141 grouped LRU list: scan groups tail-to-head; within a group,
-  scan its pages. See buf_LRU_free_from_common_LRU_list() for why no group
-  mutex is needed for the scan itself, and for why this must be a
-  while-loop rather than a for-loop with `.get()` as the increment clause
-  (that would call .get() -- asserting LRU_list_mutex ownership -- even on
-  the iteration where a successful free just released it). */
+  scan its pages, each read under that specific group's own mutex (see
+  buf_LRU_free_from_common_LRU_list() for why LRU_list_mutex alone is not
+  enough for that array read). See the same function for why this must be
+  a while-loop rather than a for-loop with `.get()` as the increment
+  clause (that would call .get() -- asserting LRU_list_mutex ownership --
+  even on the iteration where a successful free just released it). */
   buf_lru_group_t *group = buf_pool->single_scan_itr.start();
 
   while (group != nullptr && !freed) {
@@ -2183,7 +2192,12 @@ bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
     auto prev_group = UT_LIST_GET_PREV(LRU, group);
     buf_pool->single_scan_itr.set(prev_group);
 
-    for (auto *bpage : group->pages) {
+    for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
+      buf_page_t *bpage;
+      mutex_enter(&group->mutex);
+      bpage = group->pages[slot];
+      mutex_exit(&group->mutex);
+
       if (bpage == nullptr) {
         continue;
       }

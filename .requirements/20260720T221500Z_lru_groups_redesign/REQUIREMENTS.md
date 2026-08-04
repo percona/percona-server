@@ -62,13 +62,24 @@ compile-time constant) pages:
 ### Lock ordering (new `SYNC_BUF_LRU_GROUP` level)
 
 ```
-LRU_list_mutex  >  buf_lru_group_t::mutex (SYNC_BUF_LRU_GROUP)  >  block mutex / zip_mutex
+LRU_list_mutex  >  block mutex / zip_mutex  >  buf_lru_group_t::mutex (SYNC_BUF_LRU_GROUP)
 ```
 
-A holder of `LRU_list_mutex` may acquire a group mutex; the converse is
-forbidden — a thread holding only a group mutex must never try to acquire
-`LRU_list_mutex` (lock upgrade is illegal). This is why emptying a group under
-its own mutex must defer group-unlink rather than do it inline.
+**Revised from the original P1 design** (which put the group mutex *above*
+block/zip mutex) after `--innodb-sync-debug` caught a real violation the
+first time it was exercised against a live server: every actual
+removal/addition call path holds the page's own block mutex before
+touching its group (`buf_LRU_block_remove_hashed()` asserts the block
+mutex on entry and calls into group-touching code while holding it,
+mirroring InnoDB's long-standing convention of transitioning a page's
+state under its block mutex before unlinking it from any list). The group
+mutex must therefore be the *lowest* level of the three, acquired last.
+
+A holder of `LRU_list_mutex`, a page hash latch, or a page's own block
+mutex may acquire a group mutex; the converse is forbidden — a thread
+holding only a group mutex must never try to acquire any of those (lock
+upgrade is illegal). This is why emptying a group under its own mutex must
+defer group-unlink rather than do it inline.
 
 ## Requirements
 
@@ -77,9 +88,9 @@ its own mutex must defer group-unlink rather than do it inline.
    level), a list-link to sibling groups, a fixed array of up to
    `BUF_LRU_GROUP_SIZE` page slots, a live-page count, and an `old` flag.
 3. Register `SYNC_BUF_LRU_GROUP` in `storage/innobase/include/sync0types.h`
-   between `SYNC_BUF_LRU_LIST` and `SYNC_BUF_BLOCK` (consistent with the
-   ordering above), and update `LatchDebug` internals in `sync0debug.cc` per
-   the enum's own maintenance comment.
+   below `SYNC_BUF_BLOCK` (consistent with the ordering above), and update
+   `LatchDebug` internals in `sync0debug.cc` per the enum's own maintenance
+   comment.
 4. Add `buf_page_t` back-pointer fields (owning group + slot index) so a page
    can find and lock its group without a list scan.
 5. Provide an ordered, group-aware page iterator/visitor so the ~10

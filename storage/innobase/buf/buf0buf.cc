@@ -2132,13 +2132,22 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
     buf_buddy_realloc()/buf_page_realloc() relocate a page's descriptor in
     place (via buf_LRU_relocate_in_group(), same as buf_relocate()) without
     ever removing it from its group, so a plain nested walk is safe here --
-    unlike a real eviction, no group can become empty/freed mid-loop. */
+    unlike a real eviction, no group can become empty/freed mid-loop. Each
+    slot is still read under that specific group's own mutex, since a
+    future group-mutex-only fast path (not yet implemented) can vacate a
+    slot without LRU_list_mutex, held throughout this loop otherwise;
+    see buf_LRU_free_from_common_LRU_list() in buf0lru.cc. */
     bool stop = false;
     for (auto *group : buf_pool->LRU) {
       if (stop) {
         break;
       }
-      for (auto *bpage : group->pages) {
+      for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
+        buf_page_t *bpage;
+        mutex_enter(&group->mutex);
+        bpage = group->pages[slot];
+        mutex_exit(&group->mutex);
+
         if (bpage == nullptr) {
           continue;
         }

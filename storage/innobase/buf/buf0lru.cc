@@ -1175,12 +1175,17 @@ group is a batching unit, not an atomicity unit -- pinned/dirty pages within
 a candidate group are simply skipped or left to flush, not a reason to
 reject the whole group. Preserves the pre-grouping function's
 single-eviction-per-call contract: returns as soon as one page is freed.
-No group mutex is needed for the scan itself: buf_pool->LRU_list_mutex is
-held throughout this function except inside buf_LRU_free_page()/
-buf_page_free_stale(), which themselves hold it for their entire execution
-and release it only as their very last step on success -- so no other
-thread can observe or mutate a group's contents while we read them here.
-The group-level hazard pointer (lru_scan_itr) protects the *next* scan
+buf_pool->LRU_list_mutex is held throughout this function except inside
+buf_LRU_free_page()/buf_page_free_stale(), which themselves hold it for
+their entire execution and release it only as their very last step on
+success. Each group->pages[] slot is still read under that specific
+group's own mutex (a brief, separate critical section per slot, released
+before any further per-page processing): a future group-mutex-only fast
+path (not yet implemented) will be able to vacate a slot without
+LRU_list_mutex, so LRU_list_mutex alone no longer suffices to read the
+array race-free, even though it remains sufficient for everything else
+this function does. The group-level hazard pointer (lru_scan_itr) protects
+the *next* scan
 position (a group's predecessor) across the brief window between that
 release and this function's own re-entry, exactly as the page-level
 version protected the next page. */
@@ -1208,7 +1213,20 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
     auto prev_group = UT_LIST_GET_PREV(LRU, group);
     buf_pool->lru_scan_itr.set(prev_group);
 
-    for (auto *bpage : group->pages) {
+    for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
+      /* Read the slot (and, in the same group->mutex critical section,
+      confirm in_LRU_list) rather than iterating group->pages directly:
+      a future group-mutex-only fast path may concurrently vacate a
+      different slot of this same array without LRU_list_mutex, so the
+      array itself needs its own group's mutex to read safely, even
+      though LRU_list_mutex (held for this whole function) is still
+      sufficient for everything else below. */
+      buf_page_t *bpage;
+      mutex_enter(&group->mutex);
+      bpage = group->pages[slot];
+      ut_ad(bpage == nullptr || bpage->in_LRU_list);
+      mutex_exit(&group->mutex);
+
       if (bpage == nullptr) {
         continue;
       }
@@ -1217,7 +1235,6 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
       }
       ++scanned;
 
-      ut_ad(bpage->in_LRU_list);
       ut_ad(buf_page_in_file(bpage));
 
       auto block_mutex = buf_page_get_mutex(bpage);
@@ -1973,6 +1990,11 @@ only fast path can reuse this half without the buf_pool->LRU_list_mutex-
 held remainder). Vacates bpage's slot in its current group and decrements
 that group's page count; touches nothing that requires
 buf_pool->LRU_list_mutex, only bpage's own fields and its group's mutex.
+bpage->lru_group/in_LRU_list are cleared inside the same group->mutex
+critical section as the slot vacate (not after releasing it), so that any
+reader who takes group->mutex to look at group->pages[] observes both the
+slot and this page's own fields flip together, with no window where one
+has changed and the other hasn't.
 @param[in,out]  bpage   control block, still linked into its group
 @return true if the group's page count reached zero (a candidate for
 reclaim by the caller's buf_LRU_remove_block_finish() or, in a deferred
@@ -1986,10 +2008,9 @@ static inline bool buf_LRU_detach_from_group(buf_page_t *bpage) {
   group->pages[bpage->lru_slot] = nullptr;
   group->n_pages--;
   const bool now_empty = (group->n_pages == 0);
-  mutex_exit(&group->mutex);
-
   bpage->lru_group = nullptr;
   ut_d(bpage->in_LRU_list = false);
+  mutex_exit(&group->mutex);
 
   return now_empty;
 }
@@ -2203,7 +2224,22 @@ static void buf_LRU_append_to_young_fill_group(buf_pool_t *buf_pool,
   ut_ad(bpage->lru_group == nullptr);
 
   buf_lru_group_t *group = buf_pool->LRU_young_fill_group;
-  if (group == nullptr || group->n_pages == BUF_LRU_GROUP_SIZE || group->old) {
+  bool group_usable = false;
+  if (group != nullptr) {
+    /* Peek group->n_pages/old under its own mutex, not just
+    LRU_list_mutex: a future group-mutex-only fast path can concurrently
+    decrement group->n_pages (never group->old -- see the abandonment
+    comment below) without LRU_list_mutex. The peek can only go stale in
+    the "more room than we saw" direction before we re-check under the
+    same mutex at the actual append below, since nothing else can append
+    to this exact group without LRU_list_mutex, which we hold throughout;
+    see that append's own comment. */
+    mutex_enter(&group->mutex);
+    group_usable = group->n_pages < BUF_LRU_GROUP_SIZE;
+    mutex_exit(&group->mutex);
+    group_usable = group_usable && !group->old;
+  }
+  if (!group_usable) {
     /* group->old can flip true out from under the fill-group pointer (an
     old/young boundary shift promoting this exact group, e.g. via
     buf_LRU_old_adjust_len() or buf_LRU_old_init()); appending into it here
@@ -2243,7 +2279,17 @@ static void buf_LRU_append_to_old_fill_group(buf_pool_t *buf_pool,
   ut_ad(bpage->lru_group == nullptr);
 
   buf_lru_group_t *group = buf_pool->LRU_fill_group;
-  if (group == nullptr || group->n_pages == BUF_LRU_GROUP_SIZE || !group->old) {
+  bool group_usable = false;
+  if (group != nullptr) {
+    /* See the matching comment in buf_LRU_append_to_young_fill_group():
+    peek group->n_pages under its own mutex (group->old is safe to read
+    under LRU_list_mutex alone -- the fast path never touches it). */
+    mutex_enter(&group->mutex);
+    group_usable = group->n_pages < BUF_LRU_GROUP_SIZE;
+    mutex_exit(&group->mutex);
+    group_usable = group_usable && group->old;
+  }
+  if (!group_usable) {
     /* group->old can flip false out from under the fill-group pointer (a
     boundary shift demoting this exact group, e.g. via
     buf_LRU_old_adjust_len()'s shrink branch); appending into it here would

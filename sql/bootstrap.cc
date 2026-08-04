@@ -155,7 +155,26 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
     const Disable_binlog_guard disable_binlog(thd);
     const Disable_sql_log_bin_guard disable_sql_log_bin(thd);
 
-    std::ignore = dd::execute_query(thd, "SET @is_mysql_encrypted = 'N'");
+    /*
+      Tables created in the mysql shared tablespace must specify an ENCRYPTION
+      attribute matching that of the tablespace, so mysql_system_tables.sql
+      needs to know whether the mysql tablespace is encrypted.
+
+      Upstream hard-codes 'N' here because during --initialize the mysql
+      tablespace is known not to be encrypted. That does not hold for Percona
+      Server: with default_table_encryption=ON, mysql.ibd is created encrypted
+      already at bootstrap (PS-5926), so the actual state must be queried.
+
+      Only a handful of tablespaces exist during --initialize, so using
+      I_S.INNODB_TABLESPACES here does not reintroduce the scalability problem
+      that made upstream move this query out of mysql_system_tables.sql
+      (Bug#39114059). That concern applies to the upgrade path, which queries
+      mysql.tablespaces separately in dd::upgrade::fix_mysql_tables().
+    */
+    std::ignore = dd::execute_query(
+        thd,
+        "SET @is_mysql_encrypted = (SELECT ENCRYPTION FROM "
+        "information_schema.INNODB_TABLESPACES WHERE NAME = 'mysql')");
     Compiled_in_command_iterator comp_iter;
     rc = process_iterator(thd, &comp_iter, true);
 

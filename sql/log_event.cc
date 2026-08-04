@@ -8213,7 +8213,9 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case DECIMAL_TYPE:
     {
-      if (val_len < 3)
+      if (val_len < 3 ||
+          !binary_log::is_user_var_decimal_metadata_valid(
+              val, val_len, DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE))
       {
         rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                     ER_THD(thd, ER_SLAVE_FATAL_ERROR),

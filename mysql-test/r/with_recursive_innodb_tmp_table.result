@@ -389,6 +389,8 @@ set @old_internal_tmp_mem_storage_engine =
 set session internal_tmp_mem_storage_engine = 'memory';
 set @old_tmp_table_size = @@tmp_table_size;
 set @@tmp_table_size = 102400;
+Warnings:
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 flush status;
 explain select count(distinct d.col1)
 from (
@@ -423,7 +425,11 @@ count(distinct d.col1)
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0
+set @old_max_heap_table_size = @@max_heap_table_size;
+set @@max_heap_table_size = 16384;
 set @@tmp_table_size = 1024;
+Warnings:
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
 flush status;
 explain select count(distinct d.col1)
 from (
@@ -460,6 +466,7 @@ Variable_name	Value
 Created_tmp_disk_tables	1
 set session internal_tmp_mem_storage_engine =
 @old_internal_tmp_mem_storage_engine;
+set @@max_heap_table_size = @old_max_heap_table_size;
 set @@tmp_table_size = @old_tmp_table_size;
 drop procedure insert_bug_37308710_data;
 drop table t1, t2;

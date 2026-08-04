@@ -9274,7 +9274,16 @@ class Plugin_and_data_dir_option_parser final {
     /* Backup mysql_real_data_home */
     if (mysql_real_data_home[0])
       memcpy(save_homedir_, mysql_real_data_home, strlen(mysql_real_data_home));
-    if (datadir_ != nullptr) {
+    /*
+      An empty value must not clobber the global. Before the buffer was
+      cleared before copying, an empty datadir_ copied zero bytes and thus
+      left the already initialized default in place. Clearing it first would
+      instead leave mysql_real_data_home empty, which breaks every path
+      derived from it - and trips the assert in
+      initialize_manifest_file_components() right after this parser runs.
+      Keep the default in that case, as if --datadir was not given at all.
+    */
+    if (datadir_ != nullptr && datadir_[0] != '\0') {
       memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
       strncpy(mysql_real_data_home, datadir_, sizeof(mysql_real_data_home) - 1);
       mysql_real_data_home[sizeof(mysql_real_data_home) - 1] = '\0';
@@ -9284,7 +9293,8 @@ class Plugin_and_data_dir_option_parser final {
     if (opt_plugin_dir[0])
       memcpy(save_plugindir_, opt_plugin_dir,
              std::min(static_cast<size_t>(FN_REFLEN), strlen(opt_plugin_dir)));
-    if (plugindir_ != nullptr) {
+    /* Same reasoning as for mysql_real_data_home above. */
+    if (plugindir_ != nullptr && plugindir_[0] != '\0') {
       memset(opt_plugin_dir, 0, sizeof(opt_plugin_dir));
       strncpy(opt_plugin_dir, plugindir_, sizeof(opt_plugin_dir) - 1);
       opt_plugin_dir[sizeof(opt_plugin_dir) - 1] = '\0';

@@ -12311,7 +12311,15 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 {
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
   if (m_null_bits != NULL && m_field_metadata != NULL && m_coltype != NULL)
-    is_valid_param= true;
+  {
+    /*
+      Reject malformed TABLE_MAP_EVENT metadata during event parsing before
+      applier processing.
+    */
+    table_def parsed_table_def(m_coltype, m_colcnt, m_field_metadata,
+                               m_field_metadata_size, m_null_bits, m_flags);
+    is_valid_param= parsed_table_def.is_valid();
+  }
   assert(header()->type_code == binary_log::TABLE_MAP_EVENT);
   DBUG_VOID_RETURN;
 }

@@ -871,7 +871,7 @@ table_def::table_def(unsigned char *types, ulong size,
                      uchar *null_bitmap, uint16 flags)
   : m_size(size), m_type(0), m_field_metadata_size(metadata_size),
     m_field_metadata(0), m_null_bits(0), m_flags(flags),
-    m_memory(NULL)
+    m_memory(NULL), m_is_valid(true)
 {
   m_memory= (uchar *)my_multi_malloc(key_memory_table_def_memory,
                                      MYF(MY_WME),
@@ -899,6 +899,49 @@ table_def::table_def(unsigned char *types, ulong size,
     int index= 0;
     for (unsigned int i= 0; i < m_size; i++)
     {
+      /*
+        Number of metadata bytes the switch below consumes for this column.
+        Upstream keeps this next to the reads by extracting them into
+        read_field_metadata(); 5.7 has no such helper, so the sizes are stated
+        here and checked against the encoded metadata block before any of it is
+        read. Without this a table map whose metadata block is shorter than its
+        column types require walks past the end of that block.
+      */
+      uint required_bytes= 0;
+      switch (binlog_type(i)) {
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_DOUBLE:
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_GEOMETRY:
+      case MYSQL_TYPE_JSON:
+      case MYSQL_TYPE_TIME2:
+      case MYSQL_TYPE_DATETIME2:
+      case MYSQL_TYPE_TIMESTAMP2:
+        required_bytes= 1;
+        break;
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_BIT:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_NEWDECIMAL:
+        required_bytes= 2;
+        break;
+      default:
+        required_bytes= 0;
+        break;
+      }
+
+      if (index > metadata_size ||
+          required_bytes > (uint)(metadata_size - index))
+      {
+        m_is_valid= false;
+        break;
+      }
+
       switch (binlog_type(i)) {
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_BLOB:
@@ -959,6 +1002,9 @@ table_def::table_def(unsigned char *types, ulong size,
         break;
       }
     }
+    /* The column types must account for the whole encoded metadata block. */
+    if (m_is_valid && index != metadata_size)
+      m_is_valid= false;
   }
   if (m_size && null_bitmap)
     memcpy(m_null_bits, null_bitmap, (m_size + 7) / 8);

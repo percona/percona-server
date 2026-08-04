@@ -1,0 +1,11 @@
+#
+# Bug#39254867 - reject table-map metadata shorter than the column types
+#
+# A format description event must be established first.
+BINLOG '5Tdyag8BAAAAdwAAAHsAAAAAAAQANS43LjQ0LWVvbC0xMi1kZWJ1Zy1sb2cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlN3JqEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQAAH/45SQ=';
+# R2: one VARCHAR column with its full two metadata bytes decodes.
+BINLOG 'AAAAABMBAAAAKwAAAAAAAAAAAN8AAAAAAAEABHRlc3QAAnQxAAEPAhAAAQ==';
+# R1: the same event one metadata byte short must be rejected while it is
+#     decoded, rather than read past the end of the metadata block.
+BINLOG 'AAAAABMBAAAAKgAAAAAAAAAAAN8AAAAAAAEABHRlc3QAAnQxAAEPARAB';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use

@@ -557,10 +557,24 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
     ut_ad(force);
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
-    /* PS-11141 grouped LRU list: walk groups, then each group's pages. */
+    /* PS-11141 grouped LRU list: walk groups, then each group's pages,
+    each slot read under that specific group's own mutex. This path is
+    reached with LRU_list_mutex already held (asserted above, by way of
+    buf_pool_withdraw_blocks()), so unlike the administrative scans
+    elsewhere that can fully exclude a concurrent drain by acquiring
+    LRU_drain_mutex up front, doing so here would acquire it after
+    LRU_list_mutex, inverting the required order -- fine-grained group
+    locking is used here for that reason, matching
+    buf_pool_withdraw_blocks()'s own relocation loop that this is nested
+    inside of. */
     bpage = nullptr;
     for (auto *group : buf_pool->LRU) {
-      for (auto *candidate : group->pages) {
+      for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
+        buf_page_t *candidate;
+        mutex_enter(&group->mutex);
+        candidate = group->pages[slot];
+        mutex_exit(&group->mutex);
+
         if (candidate != nullptr && candidate->zip.data == src) {
           bpage = candidate;
           break;

@@ -2454,6 +2454,30 @@ struct buf_pool_t {
   wait entry points in sync0rw.cc. */
   BufListMutex LRU_list_mutex;
 
+  /** Mutual exclusion between the promotion drain's group-mutex-only fast
+  path and the debug validators (PS-11141 grouped LRU list, latch level
+  SYNC_BUF_LRU_DRAIN, acquired before LRU_list_mutex). Held by
+  buf_LRU_drain_promote_queue() for the whole of its fast pass plus
+  deferred batched pass, and by buf_LRU_validate_instance() for its whole
+  check: the drain's fast pass mutates group contents under only a
+  group's own mutex, without this one or LRU_list_mutex, so this is the
+  only thing that can guarantee the validator never observes a state
+  mid-drain (some groups already reduced, buf_pool-level counters not yet
+  corrected to match). Nothing else needs to acquire it. */
+  BufListMutex LRU_drain_mutex;
+
+  /** True from just before the promotion drain's group-mutex-only fast
+  pass begins mutating group contents until just after its deferred
+  batched pass finishes correcting buf_pool-level counters to match
+  (PS-11141 grouped LRU list); both transitions happen under
+  LRU_drain_mutex. buf_LRU_old_len_validate(), which runs from inside
+  LRU_list_mutex-held code and therefore cannot also acquire
+  LRU_drain_mutex without inverting that acquisition order, checks this
+  flag instead and skips its recompute-vs-counter assertion while true:
+  a lock-free, best-effort way to avoid a false positive during the one
+  window where LRU_old_len is deliberately, transiently stale. */
+  std::atomic<bool> LRU_drain_active{false};
+
   /** free and withdraw list mutex */
   BufListMutex free_list_mutex;
 

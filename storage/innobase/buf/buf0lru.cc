@@ -323,6 +323,14 @@ static void buf_LRU_drop_page_hash_for_tablespace(buf_pool_t *buf_pool,
 
   ulint num_entries = 0;
 
+  /* PS-11141 grouped LRU list: excludes a concurrent promotion drain's
+  group-mutex-only fast path (not yet implemented) for this whole
+  best-effort scan, rather than adding per-group mutex scoping around
+  each group->pages[] read below -- this function is administrative
+  (DROP TABLE/DISCARD TABLESPACE), not a hot path, so it can afford to
+  fully wait out an in-flight drain instead. */
+  mutex_enter(&buf_pool->LRU_drain_mutex);
+
   mutex_enter(&buf_pool->LRU_list_mutex);
 
 scan_again:
@@ -394,6 +402,7 @@ scan_again:
   }
 
   mutex_exit(&buf_pool->LRU_list_mutex);
+  mutex_exit(&buf_pool->LRU_drain_mutex);
 
   /* Drop any remaining batch of search hashed pages. */
   buf_LRU_drop_page_hash_batch(space_id, page_size, page_arr, num_entries);
@@ -868,8 +877,20 @@ static void buf_LRU_remove_all_pages(buf_pool_t *buf_pool, ulint id) {
 scan_again:
   /* Pages on the promote queue are buf-fixed; the buf_fix_count check below
   would treat them as unremovable and retry forever. Drain on every scan;
-  no-op when the queue is empty. */
+  no-op when the queue is empty. This must happen before acquiring
+  LRU_drain_mutex just below, not after: buf_LRU_drain_promote_queue()
+  acquires that same mutex itself, and it is not recursive. */
   buf_LRU_drain_promote_queue(buf_pool);
+
+  /* PS-11141 grouped LRU list: see the matching comment in
+  buf_LRU_drop_page_hash_for_tablespace() -- this is likewise
+  administrative (DISCARD TABLESPACE), not a hot path, so it fully
+  excludes a concurrent drain's group-mutex-only fast path (not yet
+  implemented) for this whole scan rather than adding per-group mutex
+  scoping around each group->pages[] read below. Every path out of this
+  scan (both goto scan_again sites and the final return) releases this
+  before either looping back to the drain call above or returning. */
+  mutex_enter(&buf_pool->LRU_drain_mutex);
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -956,6 +977,7 @@ scan_again:
         covers uncompressed pages only. */
       } else if (((buf_block_t *)bpage)->ahi.index) {
         mutex_exit(&buf_pool->LRU_list_mutex);
+        mutex_exit(&buf_pool->LRU_drain_mutex);
 
         rw_lock_x_unlock(hash_lock);
 
@@ -1006,6 +1028,7 @@ scan_again:
   }
 
   mutex_exit(&buf_pool->LRU_list_mutex);
+  mutex_exit(&buf_pool->LRU_drain_mutex);
 
   if (!all_freed) {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -1726,9 +1749,21 @@ over groups marked old, and asserts it matches the incrementally-maintained
 buf_pool->LRU_old_len (PS-11141 grouped LRU list). Debug oracle only, used to
 pinpoint which mutating primitive introduces LRU_old_len drift; not a cheap
 call, so it is not part of the sampled buf_LRU_validate_instance() sweep.
+Skips itself while a promotion drain's group-mutex-only fast path (not yet
+implemented) is active: this function runs from inside LRU_list_mutex-held
+code, so unlike buf_LRU_validate_instance() it cannot also acquire
+LRU_drain_mutex (that mutex is ordered above LRU_list_mutex, so acquiring
+it here would invert the drain's own acquisition order) to exclude that
+fast path the same way; skipping is a lock-free, best-effort way to avoid
+a false positive during the one window where LRU_old_len is deliberately,
+transiently stale, at the cost of this oracle occasionally missing a
+window in which a real drift could go unnoticed until a later call.
 @param[in]      buf_pool        buffer pool instance */
 static void buf_LRU_old_len_validate(const buf_pool_t *buf_pool) {
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  if (buf_pool->LRU_drain_active.load(std::memory_order_relaxed)) {
+    return;
+  }
   size_t old_len = 0;
   for (auto *group : buf_pool->LRU) {
     if (group->old) {
@@ -2449,12 +2484,26 @@ re-deriving a bespoke deferred-adjustment path at group granularity; see
 the P2 design notes in .requirements/ for the reasoning. */
 void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(!mutex_own(&buf_pool->LRU_drain_mutex));
 
   /* This is just to avoid the mutex lock and CAS overhead if the queue was
    * empty. */
   if (buf_pool->LRU_promote_head.load(std::memory_order_acquire) == nullptr) {
     return;
   }
+
+  /* PS-11141 grouped LRU list: LRU_drain_mutex, acquired before
+  LRU_list_mutex, brackets this whole call. A future group-mutex-only fast
+  path (not yet implemented) will mutate group contents here without
+  LRU_list_mutex; LRU_drain_mutex is what lets buf_LRU_validate_instance()
+  (which also acquires it) prove it never observes that in-flight, so it
+  must cover the same span the fast path eventually will, starting now.
+  buf_LRU_old_len_validate() cannot acquire this mutex -- it runs from
+  inside LRU_list_mutex-held code -- so LRU_drain_active is set/cleared
+  here instead, purely for that lock-free, best-effort skip; nothing in
+  this function depends on its value. */
+  mutex_enter(&buf_pool->LRU_drain_mutex);
+  buf_pool->LRU_drain_active.store(true, std::memory_order_relaxed);
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -2463,6 +2512,8 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
 
   if (head == nullptr) {
     mutex_exit(&buf_pool->LRU_list_mutex);
+    buf_pool->LRU_drain_active.store(false, std::memory_order_relaxed);
+    mutex_exit(&buf_pool->LRU_drain_mutex);
     return;
   }
 
@@ -2474,6 +2525,8 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   }
 
   mutex_exit(&buf_pool->LRU_list_mutex);
+  buf_pool->LRU_drain_active.store(false, std::memory_order_relaxed);
+  mutex_exit(&buf_pool->LRU_drain_mutex);
 
   /* Release the drained nodes in a second pass, outside the critical
   section: neither the queue-flag store nor buf_block_unfix() needs the
@@ -3251,6 +3304,13 @@ func_exit:
 /** Validates the LRU list for one buffer pool instance.
 @param[in]      buf_pool        buffer pool instance */
 void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
+  /* PS-11141 grouped LRU list: excludes a concurrent promotion drain's
+  group-mutex-only fast path for this whole function, not just each
+  individual LRU_list_mutex-held section below -- see LRU_drain_mutex's
+  declaration in buf0buf.h for why holding LRU_list_mutex alone is not
+  enough to make the exact-equality asserts below provable. */
+  mutex_enter(&buf_pool->LRU_drain_mutex);
+
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   if (buf_pool->LRU_n_pages >= BUF_LRU_OLD_MIN_LEN) {
@@ -3335,6 +3395,8 @@ void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
   }
 
   mutex_exit(&buf_pool->LRU_list_mutex);
+
+  mutex_exit(&buf_pool->LRU_drain_mutex);
 }
 
 /** Validates the LRU list. */
@@ -3350,6 +3412,11 @@ Space_References buf_LRU_count_space_references() {
   for (size_t i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
 
+    /* PS-11141 grouped LRU list: debug-only, not a hot path, so fully
+    excludes a concurrent drain's group-mutex-only fast path (not yet
+    implemented) for this whole scan rather than adding per-group mutex
+    scoping to buf_LRU_for_each_page() itself. */
+    mutex_enter(&buf_pool->LRU_drain_mutex);
     mutex_enter(&buf_pool->LRU_list_mutex);
 
     /* We have the LRU mutex, it is safe to assume the space ID will not be
@@ -3370,6 +3437,7 @@ Space_References buf_LRU_count_space_references() {
     }
 
     mutex_exit(&buf_pool->LRU_list_mutex);
+    mutex_exit(&buf_pool->LRU_drain_mutex);
   }
 
   return result;
@@ -3380,6 +3448,9 @@ Space_References buf_LRU_count_space_references() {
 /** Prints the LRU list for one buffer pool instance.
 @param[in]      buf_pool        buffer pool instance */
 static void buf_LRU_print_instance(buf_pool_t *buf_pool) {
+  /* PS-11141 grouped LRU list: see the matching comment in
+  buf_LRU_count_space_references(). */
+  mutex_enter(&buf_pool->LRU_drain_mutex);
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   buf_LRU_for_each_page(buf_pool, [](buf_page_t *bpage) {
@@ -3431,6 +3502,7 @@ static void buf_LRU_print_instance(buf_pool_t *buf_pool) {
   });
 
   mutex_exit(&buf_pool->LRU_list_mutex);
+  mutex_exit(&buf_pool->LRU_drain_mutex);
 }
 
 /** Prints the LRU list. */

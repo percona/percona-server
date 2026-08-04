@@ -1421,6 +1421,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   ------------------------------- */
   mutex_create(LATCH_ID_BUF_POOL_CHUNKS, &buf_pool->chunks_mutex);
   mutex_create(LATCH_ID_BUF_POOL_LRU_LIST, &buf_pool->LRU_list_mutex);
+  mutex_create(LATCH_ID_BUF_POOL_LRU_DRAIN, &buf_pool->LRU_drain_mutex);
   mutex_create(LATCH_ID_BUF_POOL_FREE_LIST, &buf_pool->free_list_mutex);
   mutex_create(LATCH_ID_BUF_POOL_ZIP_FREE, &buf_pool->zip_free_mutex);
   mutex_create(LATCH_ID_BUF_POOL_ZIP_HASH, &buf_pool->zip_hash_mutex);
@@ -1582,6 +1583,7 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   buf_chunk_t *chunks;
 
   mutex_free(&buf_pool->LRU_list_mutex);
+  mutex_free(&buf_pool->LRU_drain_mutex);
   mutex_free(&buf_pool->free_list_mutex);
   mutex_free(&buf_pool->zip_free_mutex);
   mutex_free(&buf_pool->zip_hash_mutex);

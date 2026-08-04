@@ -241,6 +241,17 @@ enum latch_level_t {
 
   SYNC_BUF_PAGE_HASH,
   SYNC_BUF_LRU_LIST,
+
+  /** Latch level of buf_pool_t::LRU_drain_mutex (PS-11141 grouped LRU
+  list, group-mutex-only drain fast path). Acquired BEFORE SYNC_BUF_LRU_LIST
+  by buf_LRU_drain_promote_queue(), for its entire fast-pass-plus-deferred-
+  pass duration, and by buf_LRU_validate_instance(), for its entire check:
+  this is the only mutual-exclusion point against the drain's group-mutex-
+  only fast pass, which mutates group contents without SYNC_BUF_LRU_LIST,
+  so it is what makes the validator's exact-equality asserts provable
+  rather than merely usually-true. Nothing else needs to acquire it. */
+  SYNC_BUF_LRU_DRAIN,
+
   SYNC_BUF_CHUNKS,
 
   SYNC_DBLWR,
@@ -366,6 +377,7 @@ enum latch_id_t {
   LATCH_ID_BUF_POOL_ZIP,
   LATCH_ID_BUF_POOL_LRU_LIST,
   LATCH_ID_BUF_POOL_LRU_GROUP,
+  LATCH_ID_BUF_POOL_LRU_DRAIN,
   LATCH_ID_BUF_POOL_FREE_LIST,
   LATCH_ID_BUF_POOL_ZIP_FREE,
   LATCH_ID_BUF_POOL_ZIP_HASH,

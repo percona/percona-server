@@ -262,7 +262,13 @@ static void buf_dump(bool obey_shutdown) {
     buf_pool = buf_pool_from_array(i);
 
     /* obtain buf_pool LRU list mutex before allocate, since
-    buf_pool->LRU_n_pages could change */
+    buf_pool->LRU_n_pages could change. Also exclude a concurrent
+    promotion drain's group-mutex-only fast path (PS-11141 grouped LRU
+    list, not yet implemented) for this whole scan: this is a periodic,
+    administrative operation, not a hot path, so it can afford to fully
+    wait out an in-flight drain instead of adding per-group mutex scoping
+    around the group->pages[] read below. */
+    mutex_enter(&buf_pool->LRU_drain_mutex);
     mutex_enter(&buf_pool->LRU_list_mutex);
 
     size_t n_pages = buf_pool->LRU_n_pages;
@@ -270,6 +276,7 @@ static void buf_dump(bool obey_shutdown) {
     /* skip empty buffer pools */
     if (n_pages == 0) {
       mutex_exit(&buf_pool->LRU_list_mutex);
+      mutex_exit(&buf_pool->LRU_drain_mutex);
       continue;
     }
 
@@ -288,6 +295,7 @@ static void buf_dump(bool obey_shutdown) {
 
     if (dump == nullptr) {
       mutex_exit(&buf_pool->LRU_list_mutex);
+      mutex_exit(&buf_pool->LRU_drain_mutex);
       fclose(f);
       buf_dump_status(STATUS_ERR, "Cannot allocate %zu bytes: %s",
                       n_pages * sizeof(*dump), strerror(errno));
@@ -313,6 +321,7 @@ static void buf_dump(bool obey_shutdown) {
     }
 
     mutex_exit(&buf_pool->LRU_list_mutex);
+    mutex_exit(&buf_pool->LRU_drain_mutex);
 
     for (size_t j = 0; j < n_pages && !SHOULD_QUIT(); j++) {
       ret = fprintf(f, SPACE_ID_PF "," PAGE_NO_PF "\n", BUF_DUMP_SPACE(dump[j]),

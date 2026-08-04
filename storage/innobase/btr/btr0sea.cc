@@ -1308,6 +1308,12 @@ static void btr_drop_next_batch(const page_size_t &page_size,
   for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
     to_drop.clear();
     buf_pool_t *buf_pool = buf_pool_from_array(i);
+    /* PS-11141 grouped LRU list: excludes a concurrent promotion drain's
+    group-mutex-only fast path (not yet implemented) for this whole
+    best-effort batch collection, rather than adding per-group mutex
+    scoping around the group->pages[] read below -- this is a periodic
+    AHI-drop scan, not a hot path. */
+    mutex_enter(&buf_pool->LRU_drain_mutex);
     mutex_enter(&buf_pool->LRU_list_mutex);
 
     /* PS-11141 grouped LRU list: walk groups tail-to-head, then each
@@ -1349,6 +1355,7 @@ static void btr_drop_next_batch(const page_size_t &page_size,
     }
 
     mutex_exit(&buf_pool->LRU_list_mutex);
+    mutex_exit(&buf_pool->LRU_drain_mutex);
 
     for (const page_id_t &page_id : to_drop) {
       btr_search_drop_page_hash_when_freed(page_id, page_size);

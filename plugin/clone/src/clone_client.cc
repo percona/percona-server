@@ -1712,18 +1712,34 @@ int Client::set_locators(const uchar *buffer, size_t length) {
 int Client::set_descriptor(const uchar *buffer, size_t length) {
   int err = 0;
 
+  if (length == 0) {
+    err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0),
+             "Wrong Clone RPC response length for COM_RES_DATA_DESC");
+    return (err);
+  }
   /* Get Storage Engine */
   auto db_type = static_cast<enum legacy_db_type>(*buffer);
   ++buffer;
   length--;
 
+  if (length == 0) {
+    err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0),
+             "Wrong Clone RPC response length for COM_RES_DATA_DESC");
+    return (err);
+  }
   /* Get Locator Index */
   auto loc_index = *buffer;
   ++buffer;
   length--;
-
-  auto loc = &m_share->m_storage_vec[loc_index];
-  auto hton = loc->m_hton;
+  if (loc_index >= m_share->m_storage_vec.size()) {
+    err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid locator index");
+    return (err);
+  }
+  auto *loc = &m_share->m_storage_vec[loc_index];
+  auto *hton = loc->m_hton;
 
   if (hton->db_type != db_type) {
     err = ER_CLONE_PROTOCOL;

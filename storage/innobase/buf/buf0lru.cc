@@ -1203,14 +1203,13 @@ single-eviction-per-call contract: returns as soon as one page is freed.
 buf_pool->LRU_list_mutex is held throughout this function except inside
 buf_LRU_free_page()/buf_page_free_stale(), which themselves hold it for
 their entire execution and release it only as their very last step on
-success. Each group->pages[] slot is still read under that specific
-group's own mutex (a brief, separate critical section per slot, released
-before any further per-page processing): a future group-mutex-only fast
-path (not yet implemented) will be able to vacate a slot without
-LRU_list_mutex, so LRU_list_mutex alone no longer suffices to read the
-array race-free, even though it remains sufficient for everything else
-this function does. The group-level hazard pointer (lru_scan_itr) protects
-the *next* scan
+success. Each group's pages[] array is read as one consistent snapshot
+taken under that specific group's own mutex (a brief critical section per
+group, released before any per-page processing): the promotion drain's
+group-mutex-only fast path can vacate a slot without LRU_list_mutex, so
+LRU_list_mutex alone no longer suffices to read the array race-free, even
+though it remains sufficient for everything else this function does. The
+group-level hazard pointer (lru_scan_itr) protects the *next* scan
 position (a group's predecessor) across the brief window between that
 release and this function's own re-entry, exactly as the page-level
 version protected the next page. */
@@ -1238,19 +1237,28 @@ static bool buf_LRU_free_from_common_LRU_list(buf_pool_t *buf_pool,
     auto prev_group = UT_LIST_GET_PREV(LRU, group);
     buf_pool->lru_scan_itr.set(prev_group);
 
+    /* Snapshot the whole array under one group->mutex critical section
+    rather than reading each slot in its own critical section: the
+    group-mutex-only fast path can concurrently vacate any slot of this
+    array without LRU_list_mutex, so the array itself needs its own
+    group's mutex to read safely (LRU_list_mutex, held for this whole
+    function, is not enough by itself), but that only requires the read
+    be a consistent snapshot, not that every slot be read in its own
+    acquisition. A page a concurrent detach removes from this snapshot
+    after we copy it is still a valid, live buf_page_t (descriptors are
+    never freed, only unlinked), and every use below re-validates it
+    under its own block mutex before acting -- buf_LRU_free_page()'s own
+    buf_LRU_detach_from_group() reads bpage->lru_group fresh, so it is
+    correct regardless of which group (if any) the page has since moved
+    to. */
+    std::array<buf_page_t *, BUF_LRU_GROUP_SIZE> pages_snapshot;
+    mutex_enter(&group->mutex);
+    pages_snapshot = group->pages;
+    mutex_exit(&group->mutex);
+
     for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
-      /* Read the slot (and, in the same group->mutex critical section,
-      confirm in_LRU_list) rather than iterating group->pages directly:
-      a future group-mutex-only fast path may concurrently vacate a
-      different slot of this same array without LRU_list_mutex, so the
-      array itself needs its own group's mutex to read safely, even
-      though LRU_list_mutex (held for this whole function) is still
-      sufficient for everything else below. */
-      buf_page_t *bpage;
-      mutex_enter(&group->mutex);
-      bpage = group->pages[slot];
+      buf_page_t *bpage = pages_snapshot[slot];
       ut_ad(bpage == nullptr || bpage->in_LRU_list);
-      mutex_exit(&group->mutex);
 
       if (bpage == nullptr) {
         continue;

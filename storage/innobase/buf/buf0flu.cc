@@ -1752,9 +1752,9 @@ to this function there will be 'max' blocks in the free list.
 unit, so a candidate group's pages are each tried best-effort (ready-for-
 replace pages evicted, ready-for-flush pages dispatched, others skipped),
 exactly as the pre-grouping code tried each page in flat LRU order. Each
-group->pages[] slot is read under that specific group's own mutex (a
-brief, separate critical section per slot); see
-buf_LRU_free_from_common_LRU_list() for why LRU_list_mutex, held
+group's pages[] array is read as one consistent snapshot taken under
+that specific group's own mutex (a brief critical section per group);
+see buf_LRU_free_from_common_LRU_list() for why LRU_list_mutex, held
 throughout this function otherwise, is not by itself enough to make that
 array read race-free. */
 static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
@@ -1780,11 +1780,25 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
     auto prev_group = UT_LIST_GET_PREV(LRU, group);
     buf_pool->lru_hp.set(prev_group);
 
+    /* Snapshot the whole array under one group->mutex critical section
+    instead of one acquisition per slot: the group-mutex-only fast path
+    can concurrently vacate any slot without LRU_list_mutex, so the read
+    needs the group's own mutex, but only for a consistent snapshot, not
+    a separate acquisition per slot. A page a concurrent detach removes
+    from this snapshot afterwards is still a live buf_page_t descriptor,
+    and every use below re-validates it under its own block mutex before
+    acting; buf_LRU_free_page()'s detach reads bpage->lru_group fresh, so
+    it is correct regardless of which group the page has since moved to.
+    We break out of this loop (see group_maybe_freed below) on the first
+    slot whose handling may have freed `group`, so a stale later entry in
+    this same snapshot is never dereferenced afterwards. */
+    std::array<buf_page_t *, BUF_LRU_GROUP_SIZE> pages_snapshot;
+    mutex_enter(&group->mutex);
+    pages_snapshot = group->pages;
+    mutex_exit(&group->mutex);
+
     for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
-      buf_page_t *bpage;
-      mutex_enter(&group->mutex);
-      bpage = group->pages[slot];
-      mutex_exit(&group->mutex);
+      buf_page_t *bpage = pages_snapshot[slot];
 
       if (bpage == nullptr) {
         continue;
@@ -2188,10 +2202,11 @@ bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   /* PS-11141 grouped LRU list: scan groups tail-to-head; within a group,
-  scan its pages, each read under that specific group's own mutex (see
-  buf_LRU_free_from_common_LRU_list() for why LRU_list_mutex alone is not
-  enough for that array read). See the same function for why this must be
-  a while-loop rather than a for-loop with `.get()` as the increment
+  scan its pages, read as one consistent snapshot taken under that
+  group's own mutex (see buf_LRU_free_from_common_LRU_list() for why
+  LRU_list_mutex alone is not enough for that array read). See the same
+  function for why this must be a while-loop rather than a for-loop with
+  `.get()` as the increment
   clause (that would call .get() -- asserting LRU_list_mutex ownership --
   even on the iteration where a successful free just released it). */
   buf_lru_group_t *group = buf_pool->single_scan_itr.start();
@@ -2202,11 +2217,18 @@ bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool) {
     auto prev_group = UT_LIST_GET_PREV(LRU, group);
     buf_pool->single_scan_itr.set(prev_group);
 
+    /* Snapshot the whole array under one group->mutex critical section
+    instead of one acquisition per slot -- see
+    buf_LRU_free_from_common_LRU_list() for why this is safe: the loop
+    breaks immediately on any successful free, so a stale later entry in
+    this same snapshot is never dereferenced afterwards. */
+    std::array<buf_page_t *, BUF_LRU_GROUP_SIZE> pages_snapshot;
+    mutex_enter(&group->mutex);
+    pages_snapshot = group->pages;
+    mutex_exit(&group->mutex);
+
     for (uint32_t slot = 0; slot < BUF_LRU_GROUP_SIZE; ++slot) {
-      buf_page_t *bpage;
-      mutex_enter(&group->mutex);
-      bpage = group->pages[slot];
-      mutex_exit(&group->mutex);
+      buf_page_t *bpage = pages_snapshot[slot];
 
       if (bpage == nullptr) {
         continue;

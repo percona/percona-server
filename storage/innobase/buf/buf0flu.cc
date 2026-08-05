@@ -1795,12 +1795,23 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
       ++scanned;
 
       auto block_mutex = buf_page_get_mutex(bpage);
-      bool evicted = false;
+      /* Set whenever buf_pool->LRU_list_mutex was released and
+      re-acquired while handling this slot -- not just on a successful
+      evict, but also after dispatching a flush, since
+      buf_flush_page_and_try_neighbors() releases and re-acquires it
+      internally (around its call to buf_flush_try_neighbors()) whenever
+      the page was ready for flush, regardless of whether that call
+      itself evicts anything. Either kind of release opens a window in
+      which a concurrent thread (PS-11141 grouped LRU list: another
+      eviction, or a make-young drain's deferred pass) can empty and
+      reclaim -- free -- `group`, so `group` must not be dereferenced
+      again afterwards. */
+      bool group_maybe_freed = false;
 
       if (bpage->was_stale()) {
         if (buf_page_free_stale(buf_pool, bpage)) {
           ++evict_count;
-          evicted = true;
+          group_maybe_freed = true;
           mutex_enter(&buf_pool->LRU_list_mutex);
         }
       } else {
@@ -1811,7 +1822,7 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
           clean and is not IO-fixed or buffer fixed. */
           if (buf_LRU_free_page(bpage, true)) {
             ++evict_count;
-            evicted = true;
+            group_maybe_freed = true;
             mutex_enter(&buf_pool->LRU_list_mutex);
           } else {
             mutex_exit(block_mutex);
@@ -1822,6 +1833,7 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
           thread will put it on the free list in the IO completion routine. */
           mutex_exit(block_mutex);
           buf_flush_page_and_try_neighbors(bpage, BUF_FLUSH_LRU, max, &count);
+          group_maybe_freed = true;
         } else if (acquired) {
           /* Can't evict or dispatch this block. Go to the next one. */
           mutex_exit(block_mutex);
@@ -1835,14 +1847,12 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
       lru_len = buf_pool->LRU_n_pages;
       withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
-      if (evicted) {
-        /* A successful evict may have emptied and freed `group` (if this
-        was its last live page): stop touching group->pages and move on
-        to the next group via the hazard pointer, which was already set
-        to this group's predecessor above. This trades a little
-        in-group batching (the rest of this group, if it survives, is
-        picked up on a later call) for never dereferencing a possibly-
-        freed group. */
+      if (group_maybe_freed) {
+        /* stop touching group->pages and move on to the next group via
+        the hazard pointer, which was already set to this group's
+        predecessor above. This trades a little in-group batching (the
+        rest of this group, if it survives, is picked up on a later
+        call) for never dereferencing a possibly-freed group. */
         break;
       }
     }

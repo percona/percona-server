@@ -57,9 +57,9 @@ static const char *s_component_metadata[][2] = {
 
 /* Config names */
 static const std::string config_options[] = {
-    "read_local_config",         "timeout",  "vault_url",
-    "secret_mount_point",        "vault_ca", "token",
-    "secret_mount_point_version"};
+    "read_local_config",          "timeout",        "vault_url",
+    "secret_mount_point",         "vault_ca",       "token",
+    "secret_mount_point_version", "vault_namespace"};
 
 namespace {
 
@@ -284,6 +284,20 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
     }
   }
 
+  if (!config_reader->has_element(config_options[7])) {
+    // Not mandatory field
+    if (config_reader->is_string(config_options[7])) {
+      return true;
+    }
+
+    if (!config_reader->get_element<std::string>(config_options[7],
+                                                 fetched_conf_value)) {
+      boost::algorithm::trim(fetched_conf_value);
+      config_pod_tmp->vault_namespace = {fetched_conf_value.c_str(),
+                                         fetched_conf_value.length()};
+    }
+  }
+
   if (!check_config_valid(config_pod_tmp.get())) {
     return true;
   }
@@ -365,6 +379,15 @@ bool create_config(
 
   metadata->push_back(
       std::make_pair("secret_mount_point_version", mount_point_version_str));
+
+  metadata->push_back(std::make_pair(
+      "vault_namespace",
+      ((global_config_available)
+           ? ((config_pod.vault_namespace.length() == 0)
+                  ? "<NONE>"
+                  : std::string{config_pod.vault_namespace.c_str(),
+                                config_pod.vault_namespace.length()})
+           : "<NOT APPLICABLE>")));
 
   return false;
 }

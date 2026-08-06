@@ -57,8 +57,8 @@ static const char *s_component_metadata[][2] = {
 
 /* Config names */
 static const std::string config_options[] = {
-    "read_local_config",         "timeout",  "vault_url",
-    "secret_mount_point",        "vault_ca", "token",
+    "read_local_config",          "timeout",        "vault_url",
+    "secret_mount_point",         "vault_ca",       "token",
     "secret_mount_point_version", "vault_namespace"};
 
 namespace {

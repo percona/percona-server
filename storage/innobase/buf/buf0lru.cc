@@ -2019,15 +2019,11 @@ static void buf_lru_group_release(buf_pool_t *buf_pool,
   ut_ad(group->n_pages == 0);
   ut_ad(!group->in_LRU_list);
 
-  if (buf_pool->LRU_group_cache_len < BUF_LRU_GROUP_CACHE_MAX) {
-    group->cache_next = buf_pool->LRU_group_cache;
-    buf_pool->LRU_group_cache = group;
-    buf_pool->LRU_group_cache_len++;
-    return;
-  }
-
-  mutex_free(&group->mutex);
-  ut::delete_(group);
+  /* Deliberately unconditional: see buf_pool_t::LRU_group_cache for why
+  this cache must never heap-free during normal operation. */
+  group->cache_next = buf_pool->LRU_group_cache;
+  buf_pool->LRU_group_cache = group;
+  buf_pool->LRU_group_cache_len++;
 }
 
 /** Frees every group cached in buf_pool->LRU_group_cache. Called at buffer

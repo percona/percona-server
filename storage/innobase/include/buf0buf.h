@@ -2258,14 +2258,6 @@ class LRUGroupItr : public LRUGroupHp {
 grouped LRU list: PS-11141). */
 constexpr uint32_t BUF_LRU_GROUP_SIZE = 32;
 
-/** Maximum number of unlinked buf_lru_group_t objects a buffer pool keeps
-cached for reuse (PS-11141 grouped LRU list; see
-buf_pool_t::LRU_group_cache). Only needs to absorb the create/destroy
-churn of the steady state, where groups are created and destroyed at
-roughly the same rate, so a small cache is enough; the bound keeps a pool
-whose group count has shrunk from pinning its peak footprint. */
-constexpr size_t BUF_LRU_GROUP_CACHE_MAX = 64;
-
 /** A node of buf_pool->LRU: a group of up to BUF_LRU_GROUP_SIZE pages.
 The per-pool LRU_list_mutex protects only the links between groups (the
 `LRU` member below and the group's position relative to buf_pool->LRU_old).
@@ -2750,15 +2742,28 @@ struct buf_pool_t {
   mutex_create()/mutex_free() pair (the latter including PFS
   registration) would otherwise be paid there, while LRU_list_mutex is
   held. Recycling whole group objects, mutex included, removes all of
-  that from the steady state. It also means a group object is never
-  returned to the heap while the pool lives, which is what makes a group
-  pointer captured without LRU_list_mutex safe to dereference later under
-  it (see buf_lru_group_t::in_LRU_list). */
+  that from the steady state.
+  Deliberately unbounded: a group object is never returned to the heap
+  while the pool lives (only buf_LRU_free_group_cache(), at teardown,
+  frees any of these), which is what makes a group pointer captured
+  without LRU_list_mutex (the promotion drain's fast pass records which
+  group its detach emptied) safe to dereference later, under
+  LRU_list_mutex, without a use-after-free -- see buf_lru_group_t::
+  in_LRU_list. A bounded cache that heap-frees its overflow would break
+  that: the drain's captured pointer is read again in its own deferred
+  pass, arbitrarily later and without any lock held in between, so
+  nothing prevents an unrelated thread from independently reclaiming and,
+  had the cache been full, freeing that same group first. The memory this
+  can pin is bounded by the pool's peak historical group count, at
+  roughly one buf_lru_group_t (a mutex plus BUF_LRU_GROUP_SIZE pointers)
+  per BUF_LRU_GROUP_SIZE pages of peak footprint -- a small fraction of
+  the pool's own memory budget, and a firm bound rather than the
+  unbounded growth a real leak would produce. */
   buf_lru_group_t *LRU_group_cache{nullptr};
 
   /** Number of groups currently on LRU_group_cache. Protected by
-  LRU_list_mutex. Bounded by BUF_LRU_GROUP_CACHE_MAX so a pool that
-  shrinks does not pin the peak group count in memory forever. */
+  LRU_list_mutex. Diagnostic only; see LRU_group_cache for why nothing
+  acts on this to bound the cache. */
   size_t LRU_group_cache_len{0};
 
   alignas(64) std::atomic<buf_page_t *> LRU_promote_head{nullptr};

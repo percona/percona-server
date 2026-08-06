@@ -742,6 +742,17 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
         record);
     LogComponentErr(INFORMATION_LEVEL, ER_AUDIT_BLOCKED_EVENT, ev_name.data(),
                     event_class);
+    /*
+      Report the abort ourselves. Without this the server falls back to
+      ER_AUDIT_API_ABORT with its generic "Aborted by Audit API ('%s';%d)"
+      text (sql_audit.cc, mysql_audit_notify()), which it only emits when the
+      handler left no error of its own. Keep that error number - it is what
+      the audit API uses for an aborted event - and only give it the wording
+      documented for an audit log filter abort. The blocked event class stays
+      available in the error log through ER_AUDIT_BLOCKED_EVENT above.
+    */
+    my_printf_error(ER_AUDIT_API_ABORT,
+                    "Statement was aborted by an audit log filter.", MYF(0));
     return 1;
   }
 

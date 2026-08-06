@@ -1,0 +1,25 @@
+#
+# No read sequence has ever been initialized in this session.
+#
+SELECT audit_log_read();
+ERROR HY000: audit_log_read UDF failed; Reader not initialized.
+#
+# Still not initialized after a bookmark read is prepared but the
+# sequence is closed again.
+#
+SELECT audit_log_read(audit_log_read_bookmark());
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+SELECT audit_log_read();
+ERROR HY000: audit_log_read UDF failed; Reader not initialized.
+#
+# Genuinely wrong arguments keep reporting the argument as the problem.
+#
+SELECT audit_log_read('{"timestamp": "2026-01-01 00:00:00"}');
+ERROR HY000: audit_log_read UDF failed; Wrong argument format
+SELECT audit_log_read('[]');
+ERROR HY000: audit_log_read UDF failed; Wrong argument format
+#
+# Cleanup
+#

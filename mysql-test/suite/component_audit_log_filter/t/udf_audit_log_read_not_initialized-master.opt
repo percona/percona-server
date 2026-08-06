@@ -1,0 +1,2 @@
+--loose-audit_log_filter.format=JSON
+--loose-audit_log_filter.file=udf_audit_log_read_not_initialized.json.log

@@ -13345,7 +13345,7 @@ ER_AUDIT_TABLE_READ_FIELD_FAILURE
   eng "Failed to read %s.%s"
 
 ER_AUDIT_TABLE_FILTER_WRONG_FORMAT
-  eng "audit_log_filter name: %s, filter: %s has wrong format, consider using audit_log_filter.event_mode=FULL"
+  eng "audit_log_filter name: %s, filter: %s has wrong format: %s"
 
 ER_AUDIT_TABLE_FILTER_INSERT_COMMIT_FAILURE
   eng "Failed to insert filtering rule '%s', '%s', commit failed"

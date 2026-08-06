@@ -43,6 +43,7 @@ call mtr.add_suppression("Audit Log Filter is disabled. Enable it with audit_log
 CREATE USER 'user1'@'%' IDENTIFIED BY '111';
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
 
+--source include/count_sessions.inc
 connect(conn1, localhost, user1, 111, test);
 
 --connection conn1
@@ -58,6 +59,12 @@ SELECT @@global.audit_log_filter.disable;
 
 --disconnect conn1
 --connection default
+
+# Wait for the disconnected session to be gone: while it is alive it still
+# holds cached references to the component's event_tracking_* service
+# implementations, which makes UNINSTALL COMPONENT fail with
+# ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE.
+--source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Cleanup

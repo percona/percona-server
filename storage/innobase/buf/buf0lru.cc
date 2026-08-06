@@ -2497,6 +2497,32 @@ void buf_LRU_make_block_young(buf_page_t *bpage) {
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
+  /* A page owned by the promotion drain's pipeline (PS-11141 grouped LRU
+  list) must not have its group membership touched by anyone else, from
+  the moment it is enqueued until the drain's deferred pass has finished
+  re-appending it: buf_LRU_enqueue_promote() buffer-fixes the page for
+  that whole window, and LRU_in_promote_queue stays true for exactly the
+  same window (cleared only in the drain's final unfix loop, after the
+  deferred pass -- see buf_LRU_drain_promote_queue()). An unrelated caller
+  holding its own, separate buf-fix on the same page can legitimately
+  reach here while it is queued -- e.g. purge's
+  ibuf_update_free_bits_if_full() calls buf_page_make_young() directly,
+  bypassing the threshold/queue routing that buf_page_make_young_if_needed()
+  applies -- so checking only bpage->lru_group == nullptr is not enough:
+  that catches the page already having been detached by the drain's fast
+  pass, but not the reverse interleaving, where this call's own
+  buf_LRU_remove_block() -> buf_LRU_detach_from_group() wins the group's
+  mutex first, moves the page to a different group, and the drain's fast
+  pass -- already holding a pointer to the *old* group from before this
+  call ran -- then fails its own slot-consistency check against a group
+  it no longer belongs to. Checking the flag instead of the group pointer
+  avoids entering the race at all: if the page is queued, skip entirely
+  and let the drain's own re-append (which already lands the page at the
+  young head) satisfy this call's intent. */
+  if (bpage->LRU_in_promote_queue.load(std::memory_order_acquire)) {
+    return;
+  }
+
   if (bpage->old) {
     buf_pool->stat.n_pages_made_young++;
   }
@@ -2511,6 +2537,20 @@ void buf_LRU_make_block_old(buf_page_t *bpage) {
   ut_d(buf_pool_t *buf_pool =) buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  /* See the matching comment in buf_LRU_make_block_young(): a page owned
+  by the promotion drain's pipeline must not have its group membership
+  touched by anyone else for as long as LRU_in_promote_queue is true.
+  Unlike make-young, the drain's re-append always lands the page in a
+  fresh *young* group, so skipping here silently drops this call's "push
+  toward old" intent for one attempt -- acceptable, since normal aging
+  will demote the page again on a later pass, and the alternative is a
+  crash (either an assert on a null group, or a slot-consistency assert
+  in the drain's own detach once this call's write and the drain's read
+  race each other). */
+  if (bpage->LRU_in_promote_queue.load(std::memory_order_acquire)) {
+    return;
+  }
 
   buf_LRU_remove_block(bpage);
   buf_LRU_add_block_low(bpage, true);

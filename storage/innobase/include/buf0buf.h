@@ -2258,6 +2258,14 @@ class LRUGroupItr : public LRUGroupHp {
 grouped LRU list: PS-11141). */
 constexpr uint32_t BUF_LRU_GROUP_SIZE = 32;
 
+/** Maximum number of unlinked buf_lru_group_t objects a buffer pool keeps
+cached for reuse (PS-11141 grouped LRU list; see
+buf_pool_t::LRU_group_cache). Only needs to absorb the create/destroy
+churn of the steady state, where groups are created and destroyed at
+roughly the same rate, so a small cache is enough; the bound keeps a pool
+whose group count has shrunk from pinning its peak footprint. */
+constexpr size_t BUF_LRU_GROUP_CACHE_MAX = 64;
+
 /** A node of buf_pool->LRU: a group of up to BUF_LRU_GROUP_SIZE pages.
 The per-pool LRU_list_mutex protects only the links between groups (the
 `LRU` member below and the group's position relative to buf_pool->LRU_old).
@@ -2287,6 +2295,22 @@ struct buf_lru_group_t {
   /** true if this group is on the old side of buf_pool->LRU_old.
   Protected by mutex. */
   bool old{false};
+
+  /** true while this group is linked into buf_pool->LRU, false while it
+  sits on buf_pool->LRU_group_cache instead (PS-11141 grouped LRU list).
+  Protected by buf_pool->LRU_list_mutex, like the LRU node itself.
+  Group objects are recycled through that cache rather than returned to
+  the heap, so a group pointer captured without LRU_list_mutex (the
+  promotion drain's fast pass records the groups its detaches emptied)
+  always remains safe to dereference; this flag is what lets the drain's
+  deferred pass tell, under LRU_list_mutex, whether such a pointer still
+  designates a linked group before acting on it. */
+  bool in_LRU_list{false};
+
+  /** Next group on buf_pool->LRU_group_cache; meaningless (and not
+  maintained) while in_LRU_list is true. Protected by
+  buf_pool->LRU_list_mutex. */
+  buf_lru_group_t *cache_next{nullptr};
 };
 
 /** Struct that is embedded in the free zip blocks */
@@ -2465,18 +2489,6 @@ struct buf_pool_t {
   mid-drain (some groups already reduced, buf_pool-level counters not yet
   corrected to match). Nothing else needs to acquire it. */
   BufListMutex LRU_drain_mutex;
-
-  /** True from just before the promotion drain's group-mutex-only fast
-  pass begins mutating group contents until just after its deferred
-  batched pass finishes correcting buf_pool-level counters to match
-  (PS-11141 grouped LRU list); both transitions happen under
-  LRU_drain_mutex. buf_LRU_old_len_validate(), which runs from inside
-  LRU_list_mutex-held code and therefore cannot also acquire
-  LRU_drain_mutex without inverting that acquisition order, checks this
-  flag instead and skips its recompute-vs-counter assertion while true:
-  a lock-free, best-effort way to avoid a false positive during the one
-  window where LRU_old_len is deliberately, transiently stale. */
-  std::atomic<bool> LRU_drain_active{false};
 
   /** free and withdraw list mutex */
   BufListMutex free_list_mutex;
@@ -2728,6 +2740,26 @@ struct buf_pool_t {
   fresh page reads and buf_LRU_make_block_old(). When (re)created, linked as
   LRU_old's immediate group-successor. Protected by LRU_list_mutex. */
   buf_lru_group_t *LRU_fill_group{nullptr};
+
+  /** Head of a cache of unlinked, empty buf_lru_group_t objects available
+  for reuse (PS-11141 grouped LRU list), singly linked through
+  buf_lru_group_t::cache_next. Protected by LRU_list_mutex.
+  Group create/destroy sits directly in the LRU hot path -- one group is
+  created per BUF_LRU_GROUP_SIZE page insertions and destroyed whenever a
+  group's last page leaves -- and both a heap allocation and a
+  mutex_create()/mutex_free() pair (the latter including PFS
+  registration) would otherwise be paid there, while LRU_list_mutex is
+  held. Recycling whole group objects, mutex included, removes all of
+  that from the steady state. It also means a group object is never
+  returned to the heap while the pool lives, which is what makes a group
+  pointer captured without LRU_list_mutex safe to dereference later under
+  it (see buf_lru_group_t::in_LRU_list). */
+  buf_lru_group_t *LRU_group_cache{nullptr};
+
+  /** Number of groups currently on LRU_group_cache. Protected by
+  LRU_list_mutex. Bounded by BUF_LRU_GROUP_CACHE_MAX so a pool that
+  shrinks does not pin the peak group count in memory forever. */
+  size_t LRU_group_cache_len{0};
 
   alignas(64) std::atomic<buf_page_t *> LRU_promote_head{nullptr};
   std::atomic<size_t> LRU_promote_queue_len{0};

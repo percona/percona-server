@@ -1753,34 +1753,6 @@ loop:
   goto loop;
 }
 
-#ifdef UNIV_DEBUG
-/** Recomputes the old-sublist page count from scratch by summing n_pages
-over groups marked old, and asserts it matches the incrementally-maintained
-buf_pool->LRU_old_len (PS-11141 grouped LRU list). Debug oracle only; not a
-cheap call, so it is not part of the sampled buf_LRU_validate_instance()
-sweep. Skips itself while a promotion drain's group-mutex-only fast path is
-active: this function runs from inside LRU_list_mutex-held code, so unlike
-buf_LRU_validate_instance() it cannot also acquire LRU_drain_mutex (that
-mutex is ordered above LRU_list_mutex, so acquiring it here would invert
-the drain's own acquisition order) to exclude that fast path the same way;
-skipping is a lock-free, best-effort way to avoid a false positive during
-the one window where LRU_old_len is deliberately, transiently stale.
-@param[in]      buf_pool        buffer pool instance */
-static void buf_LRU_old_len_validate(const buf_pool_t *buf_pool) {
-  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
-  if (buf_pool->LRU_drain_active.load(std::memory_order_relaxed)) {
-    return;
-  }
-  size_t old_len = 0;
-  for (auto *group : buf_pool->LRU) {
-    if (group->old) {
-      old_len += group->n_pages;
-    }
-  }
-  ut_a(buf_pool->LRU_old_len == old_len);
-}
-#endif /* UNIV_DEBUG */
-
 /** Calculates the desired number for the old blocks list, in pages.
 Note: UT_LIST_GET_LEN(buf_pool->LRU) is a GROUP count (PS-11141 grouped LRU
 list); the page count is buf_pool->LRU_n_pages.
@@ -2005,28 +1977,72 @@ void buf_LRU_relocate_in_group(buf_page_t *bpage, buf_page_t *dpage) {
   mutex_exit(&group->mutex);
 }
 
-/** Allocates and initializes a new, empty LRU group (PS-11141 grouped LRU
-list). Not yet linked into buf_pool->LRU.
-@param[in]      buf_pool        buffer pool instance
-@return the new group */
+/** Obtains an empty LRU group (PS-11141 grouped LRU list), reusing one from
+buf_pool->LRU_group_cache when available and only allocating (and creating a
+mutex) when the cache is empty. Not yet linked into buf_pool->LRU.
+@param[in,out]  buf_pool        buffer pool instance
+@return an empty group */
 static buf_lru_group_t *buf_lru_group_alloc(buf_pool_t *buf_pool) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  if (buf_lru_group_t *group = buf_pool->LRU_group_cache; group != nullptr) {
+    buf_pool->LRU_group_cache = group->cache_next;
+    buf_pool->LRU_group_cache_len--;
+    group->cache_next = nullptr;
+    /* A cached group was empty when it was cached and nothing touches an
+    unlinked group, so its slots are all still null and its mutex is
+    still live: only the classification flags need resetting. */
+    ut_ad(group->n_pages == 0);
+    ut_ad(!group->in_LRU_list);
+    group->old = false;
+    return group;
+  }
+
   auto *group = ut::new_withkey<buf_lru_group_t>(UT_NEW_THIS_FILE_PSI_KEY);
   mutex_create(LATCH_ID_BUF_POOL_LRU_GROUP, &group->mutex);
   group->pages.fill(nullptr);
   group->n_pages = 0;
   group->old = false;
+  group->in_LRU_list = false;
+  group->cache_next = nullptr;
   return group;
 }
 
-/** Frees an empty LRU group. Must already be unlinked from buf_pool->LRU.
-@param[in]      group   empty group to free */
-static void buf_lru_group_free(buf_lru_group_t *group) {
+/** Releases an empty LRU group, caching it in buf_pool->LRU_group_cache for
+reuse rather than returning it to the heap (see that member for why). Must
+already be unlinked from buf_pool->LRU.
+@param[in,out]  buf_pool        buffer pool instance
+@param[in,out]  group           empty, unlinked group to release */
+static void buf_lru_group_release(buf_pool_t *buf_pool,
+                                  buf_lru_group_t *group) {
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(group->n_pages == 0);
+  ut_ad(!group->in_LRU_list);
+
+  if (buf_pool->LRU_group_cache_len < BUF_LRU_GROUP_CACHE_MAX) {
+    group->cache_next = buf_pool->LRU_group_cache;
+    buf_pool->LRU_group_cache = group;
+    buf_pool->LRU_group_cache_len++;
+    return;
+  }
+
   mutex_free(&group->mutex);
   ut::delete_(group);
 }
 
-/** Return type of buf_LRU_detach_from_group(): both fields are read/decided
+/** Frees every group cached in buf_pool->LRU_group_cache. Called at buffer
+pool teardown, after the LRU list itself is empty.
+@param[in,out]  buf_pool        buffer pool instance */
+void buf_LRU_free_group_cache(buf_pool_t *buf_pool) {
+  while (buf_lru_group_t *group = buf_pool->LRU_group_cache) {
+    buf_pool->LRU_group_cache = group->cache_next;
+    mutex_free(&group->mutex);
+    ut::delete_(group);
+  }
+  buf_pool->LRU_group_cache_len = 0;
+}
+
+/** Return type of buf_LRU_detach_from_group(): every field is read/decided
 while holding the page's group mutex, so a caller with no other protection
 (a group-mutex-only fast path) still observes them consistently with any
 concurrent writer that also needs that same group's mutex. */
@@ -2037,6 +2053,11 @@ struct Detach_from_group_result {
   bool group_now_empty;
   /** buf_page_is_old(bpage) as observed at the moment of detach. */
   bool was_old;
+  /** The group the page was detached from. Safe to retain even without
+  LRU_list_mutex (group objects are recycled, never freed, while the pool
+  lives), but may be stale by the time a deferred caller looks at it -- see
+  Drained_page_info for the predicate such a caller must re-check. */
+  buf_lru_group_t *group;
 };
 
 /** Group-mutex-only half of block removal (PS-11141 grouped LRU list,
@@ -2088,7 +2109,7 @@ static inline Detach_from_group_result buf_LRU_detach_from_group(
   bpage->lru_group = nullptr;
   mutex_exit(&group->mutex);
 
-  return {now_empty, was_old};
+  return {now_empty, was_old, group};
 }
 
 /** Reclaims an empty LRU group (PS-11141 grouped LRU list), split out of
@@ -2142,7 +2163,8 @@ static void buf_LRU_reclaim_empty_group(buf_pool_t *buf_pool,
   buf_LRU_adjust_group_hp(buf_pool, group);
 
   UT_LIST_REMOVE(buf_pool->LRU, group);
-  buf_lru_group_free(group);
+  group->in_LRU_list = false;
+  buf_lru_group_release(buf_pool, group);
 }
 
 /** buf_pool->LRU_list_mutex-held remainder of block removal (PS-11141
@@ -2219,7 +2241,6 @@ static inline void buf_LRU_remove_block_finish(buf_page_t *bpage,
     buf_pool->LRU_old = nullptr;
     buf_pool->LRU_old_len = 0;
 
-    ut_d(buf_LRU_old_len_validate(buf_pool));
     return;
   }
 
@@ -2227,8 +2248,6 @@ static inline void buf_LRU_remove_block_finish(buf_page_t *bpage,
 
   /* Adjust the length of the old block list if necessary */
   buf_LRU_old_adjust_len(buf_pool);
-
-  ut_d(buf_LRU_old_len_validate(buf_pool));
 }
 
 /** Removes a block from the LRU list (PS-11141 grouped LRU list): vacates
@@ -2331,6 +2350,7 @@ static void buf_LRU_append_to_young_fill_group(buf_pool_t *buf_pool,
     LRU_old_len. Abandon the stale pointer and start a fresh group instead. */
     group = buf_lru_group_alloc(buf_pool);
     UT_LIST_ADD_FIRST(buf_pool->LRU, group);
+    group->in_LRU_list = true;
     buf_pool->LRU_young_fill_group = group;
   }
 
@@ -2388,6 +2408,7 @@ static void buf_LRU_append_to_old_fill_group(buf_pool_t *buf_pool,
       whose length check ensures LRU_old is already defined here. */
       UT_LIST_ADD_FIRST(buf_pool->LRU, group);
     }
+    group->in_LRU_list = true;
     buf_pool->LRU_fill_group = group;
   }
 
@@ -2473,8 +2494,6 @@ static inline void buf_LRU_add_block_low(buf_page_t *bpage, bool old,
   if (buf_page_belongs_to_unzip_LRU(bpage)) {
     buf_unzip_LRU_add_block((buf_block_t *)bpage, old);
   }
-
-  ut_d(buf_LRU_old_len_validate(buf_pool));
 }
 
 /** Adds a block to the LRU list. Please make sure that the page_size is
@@ -2561,19 +2580,24 @@ group-mutex-only fast pass for use by its later LRU_list_mutex-held
 deferred pass (PS-11141 grouped LRU list): buf_page_is_old(bpage) is no
 longer meaningful (its group membership is gone) once the fast pass detaches
 the page, so was_old must be captured before that happens.
-Deliberately does NOT carry a buf_lru_group_t* pointer to the page's former
-group: between this page's detach (group-mutex only, no LRU_list_mutex) and
-the deferred pass acquiring LRU_list_mutex, that same group could be
-repopulated by a concurrent fresh-page insertion and then independently
-emptied and reclaimed -- freed -- by an unrelated, non-deferred remover (a
-regular eviction), which holds LRU_list_mutex throughout its own removal
-with no window for anyone else to interfere. Re-dereferencing a group
-pointer captured before that could be a use-after-free. The deferred pass
-instead finds empty groups by walking the live buf_pool->LRU list under
-LRU_list_mutex, where any group reached is by definition still linked. */
+emptied_group is the page's former group when this detach took its last
+page (nullptr otherwise), recorded so the deferred pass can reclaim exactly
+the groups this batch emptied instead of rescanning the whole list.
+Dereferencing it later is safe even though it is captured without
+LRU_list_mutex: group objects are recycled through
+buf_pool->LRU_group_cache and never returned to the heap while the pool
+lives (see that member), so the pointer cannot dangle. It can, however, go
+stale -- between this detach and the deferred pass, the group may be
+repopulated by a concurrent fresh-page insertion, or emptied and reclaimed
+by an unrelated remover and then reused as a different group entirely. The
+deferred pass therefore does not trust the capture: it re-checks
+in_LRU_list && n_pages == 0 under LRU_list_mutex and reclaims only on that
+predicate, which is correct regardless of identity, since reclaiming *any*
+linked, empty group is always a legitimate action. */
 struct Drained_page_info {
   buf_page_t *bpage;
   bool was_old;
+  buf_lru_group_t *emptied_group;
 };
 
 /** Drains the deferred make-young promotion queue (PS-11141 grouped LRU
@@ -2612,38 +2636,18 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   observes that in-flight -- between the fast pass detaching a page and
   the deferred pass correcting buf_pool->LRU_n_pages/LRU_old_len to
   match, those counters are deliberately, transiently stale-high by up to
-  this batch's size. buf_LRU_old_len_validate() cannot acquire this mutex
-  -- it runs from inside LRU_list_mutex-held code, and acquiring a latch
-  ordered above LRU_list_mutex there would invert this function's own
-  acquisition order -- so LRU_drain_active is set/cleared here instead,
-  purely for that lock-free, best-effort skip. */
+  this batch's size. Validators that run from inside LRU_list_mutex-held
+  code cannot acquire this mutex (that would invert this function's own
+  acquisition order), so any such validator must not check invariants
+  this window deliberately breaks -- only the top-level
+  buf_LRU_validate_instance(), which brackets itself with this mutex,
+  may. */
   mutex_enter(&buf_pool->LRU_drain_mutex);
-
-  /* Publish LRU_drain_active while briefly holding LRU_list_mutex, rather
-  than via a bare atomic store: every checker of this flag (the debug
-  oracle and its immediate-verify siblings) runs from code that itself
-  holds LRU_list_mutex. A plain relaxed store here has no synchronizes-
-  with relationship to those checkers at all -- there is no shared lock
-  between "this store" and "that load" to order them -- so a checker
-  could observe LRU_drain_active == false even though this store has
-  already, in real time, executed, right up until the fast pass below
-  (group-mutex only) has already mutated some group's contents. Taking
-  LRU_list_mutex here just long enough to publish the flag means any
-  thread that subsequently acquires LRU_list_mutex (which every checker
-  must do) is guaranteed, by ordinary mutex acquire/release semantics, to
-  observe the new value -- closing that gap without holding the mutex for
-  the fast pass itself. */
-  mutex_enter(&buf_pool->LRU_list_mutex);
-  buf_pool->LRU_drain_active.store(true, std::memory_order_relaxed);
-  mutex_exit(&buf_pool->LRU_list_mutex);
 
   buf_page_t *head =
       buf_pool->LRU_promote_head.exchange(nullptr, std::memory_order_acquire);
 
   if (head == nullptr) {
-    mutex_enter(&buf_pool->LRU_list_mutex);
-    buf_pool->LRU_drain_active.store(false, std::memory_order_relaxed);
-    mutex_exit(&buf_pool->LRU_list_mutex);
     mutex_exit(&buf_pool->LRU_drain_mutex);
     return;
   }
@@ -2654,7 +2658,6 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   already null, was_old/its group are both meaningless -- so it is simply
   skipped, exactly as the pre-fast-path version skipped it. */
   std::vector<Drained_page_info> drained_pages;
-  bool any_group_emptied = false;
 
   for (buf_page_t *bpage = head; bpage != nullptr;
        bpage = bpage->LRU_promote_next) {
@@ -2667,15 +2670,15 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
     bpage's block mutex, the only two protections buf_page_is_old()'s
     assertion recognizes, and an unsynchronized read here would race
     against a concurrent buf_LRU_old_adjust_len() flipping this exact
-    page's "old" flag under this same group's mutex. The group pointer
-    itself is deliberately discarded here -- see Drained_page_info's
-    comment for why the deferred pass below cannot safely act on a group
-    pointer captured this early; any_group_emptied only remembers
-    whether the batch emptied *something*, to decide if the list-walk
-    reclaim below is needed at all. */
+    page's "old" flag under this same group's mutex. The group pointer is
+    recorded only when this detach emptied the group, giving the deferred
+    pass the exact, O(batch)-sized set of reclaim candidates; see
+    Drained_page_info for why retaining it is safe and what the deferred
+    pass must re-check before acting on it. */
     const auto detached = buf_LRU_detach_from_group(bpage);
-    any_group_emptied = any_group_emptied || detached.group_now_empty;
-    drained_pages.push_back({bpage, detached.was_old});
+    drained_pages.push_back(
+        {bpage, detached.was_old,
+         detached.group_now_empty ? detached.group : nullptr});
   }
 
   /* Deferred batched pass: LRU_list_mutex held once for the whole batch. */
@@ -2700,40 +2703,40 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
                                 /*group_now_empty=*/false,
                                 /*defer_reclaim=*/true);
   }
-  /* Reclaim now-empty groups by walking the live LRU list, not by
-  re-dereferencing a group pointer captured during the fast pass above:
-  see Drained_page_info's comment for the use-after-free this avoids. A
-  group reached via this walk is, by definition, still linked, so
-  n_pages can be read here without also taking its own mutex -- the only
-  writer that does not also hold LRU_list_mutex is a drain's own fast
-  pass, and only one drain runs at a time (LRU_drain_mutex), namely this
-  one, which has already finished its fast pass by this point. Gated on
-  any_group_emptied: this walk is O(groups) in the whole buffer pool,
-  not O(this batch), so it must not run on every drain call regardless of
-  whether this batch had anything to reclaim -- the common case (a large
-  pool, most drains not fully draining any single group) must stay O(batch
-  size). No other path can leave a group empty-but-linked (every other
-  remover reclaims inline, atomically, under the same LRU_list_mutex hold
-  as its removal), so skipping the walk here is safe, not just fast. prev
-  is captured before a reclaim of the current group, which can unlink and
-  free it but never its predecessor, so the walk remains valid across a
-  reclaim. Must run before the re-append loop below, which can allocate
-  new groups that must not be inspected here; running it after the
-  counter loop just above is fine, since that loop allocates nothing
-  either. buf_LRU_reclaim_empty_group() re-reads buf_pool->LRU_old itself
-  on every call, so a run of several consecutive empty groups chains
-  through correctly: each promoted predecessor that later turns out to
-  also be empty is evaluated fresh against whatever buf_pool->LRU_old has
-  since become, and since an empty group always contributes zero pages
-  when promoted, no count is ever double-added. */
-  if (any_group_emptied) {
-    for (buf_lru_group_t *group = UT_LIST_GET_LAST(buf_pool->LRU);
-         group != nullptr;) {
-      buf_lru_group_t *const prev = UT_LIST_GET_PREV(LRU, group);
-      if (group->n_pages == 0) {
-        buf_LRU_reclaim_empty_group(buf_pool, group);
-      }
-      group = prev;
+  /* Reclaim exactly the groups this batch emptied, O(batch) rather than
+  O(all groups in the pool). An earlier version instead walked the whole
+  buf_pool->LRU list here whenever the batch had emptied anything, to
+  avoid re-dereferencing a group pointer captured by the fast pass without
+  LRU_list_mutex. That walk turned out to be a serious scalability
+  problem: it runs while holding LRU_list_mutex, its length is
+  proportional to the buffer pool size (pool pages / BUF_LRU_GROUP_SIZE --
+  tens of thousands of groups on a large pool), and under real eviction
+  pressure the "did this batch empty anything" gate is true most of the
+  time, so it was very far from the O(batch) common case it was assumed to
+  be.
+  Acting on the captured pointers is safe now that group objects are
+  recycled through buf_pool->LRU_group_cache instead of being freed, so
+  they cannot dangle; a capture can still be stale, which the
+  in_LRU_list && n_pages == 0 re-check below handles. That predicate is
+  evaluated here under LRU_list_mutex and is sufficient on its own:
+  reclaiming any linked, empty group is always legitimate, so it does not
+  matter whether the pointer still designates the same logical group it
+  did at capture time. n_pages can be read without the group's own mutex
+  for the same reason as before -- the only writer that does not hold
+  LRU_list_mutex is a drain's fast pass, only one drain runs at a time
+  (LRU_drain_mutex), and this one has already finished its fast pass.
+  Duplicate captures (a group emptied, refilled and re-emptied within one
+  batch) are harmless: the first reclaim clears in_LRU_list, so later
+  entries for it fail the predicate. Must still run before the re-append
+  loop below, which can allocate new groups that must not be reclaimed
+  here. buf_LRU_reclaim_empty_group() re-reads buf_pool->LRU_old itself,
+  so consecutive empty groups chain through correctly, and an empty group
+  contributes zero pages when promoted, so no count is ever
+  double-added. */
+  for (const auto &info : drained_pages) {
+    buf_lru_group_t *const group = info.emptied_group;
+    if (group != nullptr && group->in_LRU_list && group->n_pages == 0) {
+      buf_LRU_reclaim_empty_group(buf_pool, group);
     }
   }
 
@@ -2758,7 +2761,6 @@ void buf_LRU_drain_promote_queue(buf_pool_t *buf_pool) {
   }
 
   mutex_exit(&buf_pool->LRU_list_mutex);
-  buf_pool->LRU_drain_active.store(false, std::memory_order_relaxed);
   mutex_exit(&buf_pool->LRU_drain_mutex);
 
   /* Release the drained nodes in a second pass, outside the critical

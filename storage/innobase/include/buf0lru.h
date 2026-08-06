@@ -203,6 +203,12 @@ and dpage occupies its former slot.
 @param[in,out]  dpage   new page descriptor, taking over bpage's slot */
 void buf_LRU_relocate_in_group(buf_page_t *bpage, buf_page_t *dpage);
 
+/** Frees every group cached in buf_pool->LRU_group_cache (PS-11141 grouped
+LRU list). Called once per instance at buffer pool teardown, after the LRU
+list itself has been emptied.
+@param[in,out]  buf_pool        buffer pool instance */
+void buf_LRU_free_group_cache(buf_pool_t *buf_pool);
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the LRU list. */
 void buf_LRU_validate(void);

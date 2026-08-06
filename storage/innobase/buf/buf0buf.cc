@@ -1626,6 +1626,11 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
     group = prev_group;
   }
 
+  /* Groups retired from the list are recycled through
+  buf_pool->LRU_group_cache rather than freed (PS-11141 grouped LRU list),
+  so whatever is still cached at teardown must be freed here too. */
+  buf_LRU_free_group_cache(buf_pool);
+
   ut::free(buf_pool->watch);
   buf_pool->watch = nullptr;
   mutex_enter(&buf_pool->chunks_mutex);

@@ -1,0 +1,51 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "general"}}}');
+audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "general"}}}')
+OK
+#
+# A condition with too few operands. The reported reason must be the
+# one from the parser, not a suggestion to change the event mode.
+#
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"or": [{"field": {"name": "general_command.str", "value": "Execute"}}]}}}}}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+ERROR: Filter 'filter_1' has wrong format: there should be at least two fields provided for 'or' condition
+#
+# A different defect must give a different reason.
+#
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "no_such_class"}}}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+ERROR: Filter 'filter_1' has wrong format: unknown event class name 'no_such_class'
+#
+# Valid JSON - the column type enforces that much - but not a filter.
+#
+UPDATE mysql.audit_log_filter SET filter = '{"not_a_filter": 1}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+ERROR: Filter 'filter_1' has wrong format: missing or invalid 'filter' object
+#
+# The same definitions are rejected with the same reason by
+# audit_log_filter_set_filter(), which never had this problem.
+#
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"or": [{"field": {"name": "general_command.str", "value": "Execute"}}]}}}}}');
+audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"or": [{"field": {"name": "general_command.str", "value": "Execute"}}]}}}}}')
+ERROR: Incorrect rule definition: there should be at least two fields provided for 'or' condition
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "no_such_class"}}}');
+audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "no_such_class"}}}')
+ERROR: Incorrect rule definition: unknown event class name 'no_such_class'
+#
+# A well formed filter still loads.
+#
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "general"}}}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+audit_log_filter_flush()
+OK
+#
+# Cleanup
+#
+SELECT audit_log_filter_remove_filter('filter_1');
+audit_log_filter_remove_filter('filter_1')
+OK

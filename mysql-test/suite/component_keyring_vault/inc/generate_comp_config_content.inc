@@ -62,3 +62,17 @@ if ($vault_conf_mount_point_version)
 {
   --let $config_content = `SELECT CONCAT('$config_content', ', \"secret_mount_point_version\": \"', '$vault_conf_mount_point_version', '\"')`
 }
+
+--let $vault_namespace =
+if ($vault_conf_namespace)
+{
+  --let $vault_namespace = $vault_conf_namespace
+}
+if (!$vault_namespace)
+{
+  --let $vault_namespace = $MTR_VAULT_NAMESPACE
+}
+if ($vault_namespace)
+{
+  --let $config_content = `SELECT CONCAT('$config_content', ', \"vault_namespace\": \"', '$vault_namespace', '\"')`
+}

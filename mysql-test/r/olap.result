@@ -2723,6 +2723,7 @@ GROUP BY GROUPING SETS ( ( SQ1_field1 ) ) );
 COUNT( pk )
 0
 DROP TABLE t;
+<<<<<<< HEAD
 #
 # PS-8328: MySQL 8 Crash when using group_concat with group by with
 #          rollup.
@@ -2755,3 +2756,35 @@ i	string	GROUP_CONCAT(string)
 20	NULL	something_completely_else
 NULL	NULL	something,something_else,something_completely_else
 DROP TABLE t1;
+||||||| merged common ancestors
+=======
+#
+# Bug 35722845 - Cannot find column on derived table with given
+# names and ROLLUP
+#
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (1), (2);
+SELECT s
+FROM (
+SELECT SUM(a)
+FROM t
+GROUP BY a WITH ROLLUP
+) AS dt (s)
+ORDER BY s;
+s
+1
+2
+3
+SELECT S
+FROM (
+SELECT SUM(a) AS s
+FROM t
+GROUP BY a WITH ROLLUP
+) AS dt (S)
+ORDER BY S;
+S
+1
+2
+3
+DROP TABLE t;
+>>>>>>> mysql-9.7.2

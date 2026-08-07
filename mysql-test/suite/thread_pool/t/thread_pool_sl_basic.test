@@ -22,14 +22,11 @@
 ##################################################################
 # Build some prereqisites                                        #
 ##################################################################
-SET @default_val =                   6;
+SET @default_val = @@GLOBAL.thread_pool_stall_limit;
 let $default_val=`SELECT @default_val`;
-SET @min_val     =                   4;
-SET @max_val     =                 600;
 SET @some_val    =                 100;
 let $some_val=      `SELECT @some_val`;
-SELECT @min_val < @some_val AND @some_val < @max_val
-   AND @some_val <> @default_val AS "Expect 1";
+SELECT @some_val <> @default_val AS "Expect 1";
 CREATE USER low_priv@localhost;
 GRANT USAGE ON test.* TO low_priv@localhost;
 --connect (low_priv,localhost,low_priv,,test)
@@ -93,51 +90,45 @@ DROP USER low_priv@localhost;
 
 --echo #---------------------BS_DYNVARS_103_03----------------------#
 ####################################################################
-# Change the value of thread_pool_stall_limit to legal value       #
+# Check another legal value shared by all implementations          #
 ####################################################################
-SET @@GLOBAL.thread_pool_stall_limit = @some_val;
-SET @@GLOBAL.thread_pool_stall_limit = @min_val;
-SELECT @@GLOBAL.thread_pool_stall_limit = @min_val AS "Expect 1";
-
-SET @@GLOBAL.thread_pool_stall_limit = @some_val;
-SET @@GLOBAL.thread_pool_stall_limit = @max_val;
-SELECT @@GLOBAL.thread_pool_stall_limit = @max_val AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = 10;
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 
 
 --echo #---------------------BS_DYNVARS_103_04----------------------#
 ####################################################################
 # Change the value of thread_pool_stall_limit to illegal value     #
+# Note: in compat mode this variable is owned by the server as a   #
+# plain core Sys_var_uint (VALID_RANGE(10, UINT_MAX) milliseconds), #
+# not by the Oracle plugin's own MYSQL_SYSVAR_ULONG (which used a  #
+# check function to hard-reject out-of-range values). A core       #
+# Sys_var_uint instead clamps an out-of-range numeric value to the #
+# nearest bound and raises a truncation warning, so these cases no #
+# longer error; genuinely wrong-typed values (below) still do.     #
 ####################################################################
 SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 
-let $val= `SELECT @min_val - 1`;
---replace_result $val <@min_val_-_1>
---error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.thread_pool_stall_limit = @min_val - 1;
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = 9;
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 
---error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.thread_pool_stall_limit = 0;
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 
-let $val= `SELECT @max_val + 1`;
---replace_result $val <@max_val_+_1>
---error ER_WRONG_VALUE_FOR_VAR
-SET @@GLOBAL.thread_pool_stall_limit = @max_val + 1;
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
-
---error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.thread_pool_stall_limit = -1;
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 
 # From the manual:
 #    However, the values TRUE and FALSE are merely aliases for 1 and 0.
---error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.thread_pool_stall_limit = TRUE;
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
---error ER_WRONG_VALUE_FOR_VAR
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 SET @@GLOBAL.thread_pool_stall_limit = FALSE;
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 
 --error ER_WRONG_TYPE_FOR_VAR
 SET @@GLOBAL.thread_pool_stall_limit = 3.14159;
@@ -197,4 +188,3 @@ SET @@GLOBAL.thread_pool_stall_limit = @initial_val;
 # The user low_priv was disconnected long time ago. Take care that he
 # has really disappeared from the processlist
 --source ../inc/wait_until_disappeared.inc
-

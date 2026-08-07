@@ -1,6 +1,10 @@
 # Check for expected content in mysqld.1.err
-include/assert_grep.inc [option 'thread-pool-size':.*value .* adjusted to 1 found]
+include/assert_grep.inc [option 'thread_pool_size':.*value .* adjusted to 1 found]
 SET SESSION thread_pool_size = 0;
-ERROR HY000: Variable 'thread_pool_size' is a read only variable
+ERROR HY000: Variable 'thread_pool_size' is a GLOBAL variable and should be set with SET GLOBAL
 SET GLOBAL thread_pool_size = 0;
-ERROR HY000: Variable 'thread_pool_size' is a read only variable
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_size value: '0'
+SELECT @@GLOBAL.thread_pool_size AS "Expect 1";
+Expect 1
+1

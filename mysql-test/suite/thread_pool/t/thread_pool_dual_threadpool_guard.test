@@ -1,0 +1,18 @@
+--source include/have_thread_pool.inc
+
+CALL mtr.add_suppression(
+  "Configuration error: --thread-handling=pool-of-threads cannot be used with thread_pool plugin");
+CALL mtr.add_suppression("Plugin 'thread_pool' init function returned error.");
+
+--echo ### Start with both thread pools enabled
+--let $restart_parameters=restart:--thread-handling=pool-of-threads
+--source include/restart_mysqld.inc
+
+--echo ### Waiting for the expected error message
+--let $grep_pattern=Configuration error: --thread-handling=pool-of-threads cannot be used with thread_pool plugin
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/wait_for_pattern_in_file.inc
+
+--echo ### Start again
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc

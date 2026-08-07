@@ -61,7 +61,6 @@ JSON_KEYS(data, '$.mysql_static_variables'),
 '$[*]' COLUMNS (key_name VARCHAR(100) PATH '$')
 ) AS jt;
 key_name
-thread_pool_size
 thread_pool_dedicated_listeners
 thread_pool_max_transactions_limit
 thread_pool_query_threads_per_group

@@ -83,17 +83,33 @@
 # [Warning] [MY-000082] [Server] option 'thread-pool-size': value -1 adjusted to 1.
 # [Warning] [MY-000081] [Server] option 'thread-pool-size': unsigned value 513 adjusted to 512.
 # Note: No tests are currently using $tp_size_max_warn as it can consume more resources.
+#
+# In PERCONA_THREADPOOL_COMPAT mode this option is parsed against the
+# server-owned (Percona) thread_pool_size sysvar (VALID_RANGE(1,
+# MAX_THREAD_GROUPS=1024)), not the Oracle plugin's own (VALID_RANGE(1,
+# 512)); the min bound is unchanged, but the max bound is now 1024. Core
+# Sys_var startup-adjustment warnings also print the variable name with
+# underscores ('thread_pool_size'), unlike plugin vars, which print it
+# with dashes ('thread-pool-size') as above.
 
---let $tp_size_min_warn= option 'thread-pool-size':.*value .* adjusted to 1
---let $tp_size_max_warn= option 'thread-pool-size':.*value .* adjusted to 512
+--let $tp_size_min_warn= option 'thread_pool_size':.*value .* adjusted to 1
+--let $tp_size_max_warn= option 'thread_pool_size':.*value .* adjusted to 1024
 
 #---------- thread_pool_stall_limit ----------
 # Snip of mysqld.1.err
-# [Warning] [MY-000082] [Server] option 'thread-pool-stall-limit': value 3 adjusted to 4.
-# [Warning] [MY-000081] [Server] option 'thread-pool-stall-limit': unsigned value 700 adjusted to 600.
+# [Warning] [MY-000082] [Server] option 'thread-pool-stall-limit': value 3 adjusted to 10.
+# [Warning] [MY-000081] [Server] option 'thread-pool-stall-limit': unsigned value 4294967296 adjusted to 4294967295.
+#
+# In PERCONA_THREADPOOL_COMPAT mode this option is parsed against the
+# server-owned (Percona) thread_pool_stall_limit sysvar (milliseconds,
+# VALID_RANGE(10, UINT_MAX)), not the Oracle plugin's own (centiseconds,
+# VALID_RANGE(4, 600)); there is no longer a practically-reachable "too
+# large" value, so the max case below only exercises unsigned overflow.
+# Like thread_pool_size above, the core Sys_var prints the variable name
+# with underscores, not dashes.
 
---let $tp_sl_min_warn= option 'thread-pool-stall-limit':.*value .* adjusted to 4
---let $tp_sl_max_warn= option 'thread-pool-stall-limit':.*value .* adjusted to 600
+--let $tp_sl_min_warn= option 'thread_pool_stall_limit':.*value .* adjusted to 10
+--let $tp_sl_max_warn= option 'thread_pool_stall_limit':.*value .* adjusted to 4294967295
 
 #---------- thread_pool_size_transaction_delay value ----------
 # Snip of mysqld.1.err

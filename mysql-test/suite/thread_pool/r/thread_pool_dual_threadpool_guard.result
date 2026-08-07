@@ -1,0 +1,9 @@
+CALL mtr.add_suppression(
+"Configuration error: --thread-handling=pool-of-threads cannot be used with thread_pool plugin");
+CALL mtr.add_suppression("Plugin 'thread_pool' init function returned error.");
+### Start with both thread pools enabled
+# restart:--thread-handling=pool-of-threads
+### Waiting for the expected error message
+include/wait_for_pattern_in_file.inc [Configuration error: --thread-handling=pool-of-threads cannot be used with thread_pool plugin]
+### Start again
+# restart:

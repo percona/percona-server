@@ -1,4 +1,9 @@
 # Set thread pool to a small value to avoid creating too many threads.
+# thread-pool-stall-limit=1000000 (ms) is now well within the server-owned
+# (Percona) VALID_RANGE(10, UINT_MAX) used in compat mode, so it no longer
+# triggers a clamp; use an unsigned-overflow value instead to exercise the
+# max-bound clamp, matching the pattern used for e.g.
+# thread-pool-prio-kickup-timer.
 --thread-pool-size=1
---thread-pool-stall-limit=1000000
+--thread-pool-stall-limit=4294967296
 --force-restart

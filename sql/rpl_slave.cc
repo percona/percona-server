@@ -8399,6 +8399,74 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   /*
+    Check that the format description event currently in use is able to
+    describe this event type.
+
+    Why this check is needed here, when read_log_event() already makes it:
+
+    post_header_len is sized from the format description event, so reading
+    post_header_len[event_type - 1] for an event type beyond
+    number_of_event_types reads past the end of that array - it is a
+    std::vector, and operator[] is not bounds checked. Several of the events
+    handled below are constructed directly from the buffer rather than through
+    Log_event::read_log_event(), so they never reach the equivalent check made
+    there. Rotate_event is the one that matters: its constructor reads
+    post_header_len[ROTATE_EVENT - 1] (libbinlogevents/src/control_events.cpp).
+    The array length is taken from the source's format description event, so it
+    is not under our control.
+
+    Why FORMAT_DESCRIPTION_EVENT must be exempt:
+
+    Until the source's own format description event arrives, the receiver holds
+    the placeholder installed by get_master_version_and_clock(), which assumes a
+    pre-5.0 source - binlog version 3, and therefore
+    number_of_event_types = FORMAT_DESCRIPTION_EVENT - 1 = 14. The event that
+    replaces that placeholder is itself a FORMAT_DESCRIPTION_EVENT, type 15, so
+    without the exemption the condition below holds for it and every stream is
+    refused at its first event, leaving no channel able to start.
+    Log_event::read_log_event() carries the same exemption, for the same reason.
+
+    Why the upstream fix this is ported from has no such exemption:
+
+    8.0 dropped support for binlog versions 1 and 3, so the switch that builds a
+    format description event from a version number has only the version 4 case
+    left and FORMAT_DESCRIPTION_EVENT - 1 appears nowhere in it. Its placeholder
+    is therefore always built with number_of_event_types = LOG_EVENT_TYPES,
+    which is larger than FORMAT_DESCRIPTION_EVENT, and the condition is never
+    true for that event. Both older versions are still supported here, so the
+    placeholder can carry 14 and the exemption is required. This is the one
+    deliberate difference from upstream in this hunk.
+
+    Why the exemption is safe:
+
+    Format_description_event's constructor rebuilds post_header_len from the
+    incoming buffer instead of indexing the array of the event it replaces, so
+    it performs none of the out of bounds read this check exists to prevent. A
+    malformed one does not slip through either: the FORMAT_DESCRIPTION_EVENT
+    case below refuses a NULL decode result before it can be installed.
+  */
+  /* make the fde have fewer event types than those that come down the pipe. */
+  DBUG_EXECUTE_IF("queue_event_unknown_event_type_by_fd_event",
+    {
+      mi->get_mi_description_event()->
+        post_header_len.resize(binary_log::START_EVENT_V3);
+      mi->get_mi_description_event()->
+        number_of_event_types= binary_log::START_EVENT_V3;
+    });
+
+  if (event_type > mi->get_mi_description_event()->number_of_event_types &&
+      event_type != binary_log::FORMAT_DESCRIPTION_EVENT)
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_CORRUPT_EVENT,
+               "Event type '%s' is not recognized by the format description "
+               "event currently in use. Please, restart the receiver thread. "
+               "If the problem persists, inspecting the relay logs may help "
+               "diagnosing the issue.",
+               Log_event::get_type_str(event_type));
+    goto err;
+  }
+
+  /*
     Simulate an unknown ignorable log event by rewriting a Xid
     log event before queuing it into relay log.
   */

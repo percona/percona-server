@@ -1,0 +1,91 @@
+# ==== Purpose ====
+#
+# Bug#39254896 - check event_type validity on receiver thread
+#
+# The receiver thread reads post_header_len[event_type - 1] from the format
+# description event it holds. post_header_len is sized from that event, so an
+# event type beyond number_of_event_types reads past the end of the array.
+#
+# On this line the equivalent check already exists in
+# Log_event::read_log_event() (sql/log_event.cc), but the receiver constructs
+# some events directly from the buffer and so never reaches it. This test
+# covers the receiver-side check.
+#
+# ==== Requirements ====
+#
+# R1. With a format description event that describes fewer event types than
+#     the stream actually carries, the receiver must refuse the event rather
+#     than decode it against a too-short post_header_len.
+# R2. Ordinary replication must still work once the injection is removed.
+#
+# ==== Implementation ====
+#
+# The debug point queue_event_unknown_event_type_by_fd_event shrinks the format
+# description event held in the receiver context. With the injection active the
+# first event of the stream already exceeds the shrunken count, so the outcome
+# is deterministic and needs no activity on the source.
+#
+# ==== References ====
+#
+# Bug#39254896 mysql/mysql-server@b037bceecd3
+
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug#39254896 - check event_type validity on receiver thread
+--echo #
+
+--source include/rpl_connection_slave.inc
+
+call mtr.add_suppression("Corrupted replication event was detected");
+call mtr.add_suppression("is not recognized by the format description event");
+call mtr.add_suppression("Relay log write failure: could not queue event from master");
+
+--source include/stop_slave.inc
+
+--echo # Make the format description event held by the receiver describe fewer
+--echo # event types than the source actually sends.
+SET GLOBAL DEBUG='+d,queue_event_unknown_event_type_by_fd_event';
+
+START SLAVE IO_THREAD;
+
+--echo # R1: the receiver must refuse the event rather than decoding it against
+--echo #     a too-short post_header_len.
+--let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 0
+--source include/wait_for_slave_io_error.inc
+
+--echo # R1: and the rejection must be the specific one, naming the event type.
+#
+# Presence, not a count: the three binlog-format combinations share one error
+# log, so an exact count would grow with each combination.
+--let $assert_text= receiver rejected an event type the format description event does not describe
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= is not recognized by the format description event currently in use
+--let $assert_count=
+--let $assert_match= is not recognized by the format description event currently in use
+--source include/assert_grep.inc
+
+--echo # Cleanup: drop the injection and rebuild the channel from scratch.
+SET GLOBAL DEBUG='';
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--echo # R2: ordinary replication still works once the injection is gone.
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+SELECT * FROM t1;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

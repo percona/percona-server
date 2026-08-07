@@ -1,0 +1,43 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug#39254896 - check event_type validity on receiver thread
+#
+[connection slave]
+call mtr.add_suppression("Corrupted replication event was detected");
+call mtr.add_suppression("is not recognized by the format description event");
+call mtr.add_suppression("Relay log write failure: could not queue event from master");
+include/stop_slave.inc
+# Make the format description event held by the receiver describe fewer
+# event types than the source actually sends.
+SET GLOBAL DEBUG='+d,queue_event_unknown_event_type_by_fd_event';
+START SLAVE IO_THREAD;
+# R1: the receiver must refuse the event rather than decoding it against
+#     a too-short post_header_len.
+include/wait_for_slave_io_error.inc [errno=1595]
+# R1: and the rejection must be the specific one, naming the event type.
+include/assert_grep.inc [receiver rejected an event type the format description event does not describe]
+# Cleanup: drop the injection and rebuild the channel from scratch.
+SET GLOBAL DEBUG='';
+include/stop_slave_sql.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+RESET SLAVE;
+[connection slave]
+include/start_slave.inc
+# R2: ordinary replication still works once the injection is gone.
+[connection master]
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT * FROM t1;
+a
+1
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

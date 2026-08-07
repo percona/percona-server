@@ -938,15 +938,6 @@ void reset_thd(THD *thd) {
     }
   }
 
-<<<<<<< HEAD
-    DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
-
-    return error_count->has_too_many_errors();
-  };
-||||||| merged common ancestors
-    return error_count->has_too_many_errors();
-  };
-=======
   // Check if AUTO_INCREMENT is used with DOUBLE/FLOAT
   for (const auto &col : table->columns()) {
     if (col->is_auto_increment() &&
@@ -957,7 +948,8 @@ void reset_thd(THD *thd) {
              sn.c_str(), table->name().c_str(), col->name().c_str());
     }
   }
->>>>>>> mysql-9.7.2
+
+    DBUG_EXECUTE_IF("upgrade_failed_during_init", (*error_count)++;);
 
   return error_count->has_too_many_errors();
 }

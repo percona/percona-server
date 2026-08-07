@@ -151,16 +151,10 @@ let $field= State;
 let $condition= = 'Replica has read all relay log; waiting for more updates';
 -- source include/wait_show_condition.inc
 
-<<<<<<< HEAD
---let $slave_param= Seconds_Behind_Source
---let $slave_param_value= 0
---source include/rpl/wait_for_replica_status.inc
-||||||| merged common ancestors
--- let $sbm= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
-let $assert_text= Seconds_Behind_Source must be 0;
-let $assert_cond= $sbm = 0;
-source include/assert.inc;
-=======
+# In MTA, Seconds_Behind_Source is updated by the checkpoint routine after
+# workers have applied their queued events.
+--source include/rpl/wait_for_mta_checkpoint.inc
+
 # In MTA, Seconds_Behind_Source is updated by the checkpoint routine after
 # workers have applied their queued events.
 --source include/rpl/wait_for_mta_checkpoint.inc
@@ -169,7 +163,10 @@ source include/assert.inc;
 let $assert_text= Seconds_Behind_Source must be 0;
 let $assert_cond= $sbm = 0;
 source include/assert.inc;
->>>>>>> mysql-9.7.2
+
+--let $slave_param= Seconds_Behind_Source
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
 
 -- connection slave
 LOCK TABLE t1 WRITE;

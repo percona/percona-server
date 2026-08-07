@@ -227,7 +227,6 @@ component_group_replication_resource_manager plugin_output_directory no GROUP_RE
 
 # Group Replication primary election prefer most updated
 component_group_replication_elect_prefers_most_updated plugin_output_directory no GROUP_REPLICATION_PRIMARY_ELECT_PREFER_MOST_UPDATED component_group_replication_group_replication_elect_prefers_most_updated
-<<<<<<< HEAD
 
 # Percona additions
 auth_socket        plugin_output_directory  no  SOCKET_AUTH
@@ -246,8 +245,6 @@ component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIO
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT
 component_js_lang                   plugin_output_directory  no  JS_LANG_COMPONENT
 auth_openid_connect                 plugin_output_directory  no  AUTH_OIDC             auth_openid_connect
-||||||| merged common ancestors
-=======
 
 # Thread Pool Plugin
 thread_pool                      plugin_output_directory  no ONLY_THREADPOOL_PLUGIN   thread_pool
@@ -256,4 +253,3 @@ thread_pool                      plugin_output_directory  no TP_THREAD_GROUP_STA
 thread_pool                      plugin_output_directory  no TP_THREAD_STATE_PLUGIN       TP_THREAD_STATE
 thread_pool                      plugin_output_directory  no TP_THREAD_TWO_PLUGIN         TP_THREAD_GROUP_STATS,TP_THREAD_STATE
 
->>>>>>> mysql-9.7.2

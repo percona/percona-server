@@ -366,29 +366,30 @@ drop table t1;
 #
 create table t1 (
 id int primary key,
-col1 varchar(32),
+col1 varchar(300) character set latin1,
 key index_col1(col1)
 );
 create table t2 (
 id int primary key,
-col1 varchar(32)
+col1 varchar(300) character set latin1
 );
 create procedure insert_bug_37308710_data()
 begin
 declare num int;
 set num = 1;
-while num < 100 do
-insert into t1 values (num, lpad(num, 32, '0'));
-insert into t2 values (num, lpad(num, 32, '0'));
+while num <= 4000 do
+insert into t1 values (num, lpad(num, 300, '0'));
+insert into t2 values (num, lpad(num, 300, '0'));
 set num = num + 1;
 end while;
 end//
-call insert_bug_37308710_data();
 set @old_internal_tmp_mem_storage_engine =
 @@session.internal_tmp_mem_storage_engine;
 set session internal_tmp_mem_storage_engine = 'memory';
 set @old_tmp_table_size = @@tmp_table_size;
-set @@tmp_table_size = 102400;
+set @old_max_heap_table_size = @@max_heap_table_size;
+set @@max_heap_table_size = 16*1024*1024;
+set @@tmp_table_size = 16*1024*1024;
 flush status;
 explain select count(distinct d.col1)
 from (
@@ -401,13 +402,13 @@ from t1
 join t2 on d.col1 = t2.col1
 where t2.id = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	PRIMARY	<derived2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	131	const	1	100.00	Using index
-2	DERIVED	t1	NULL	index	NULL	index_col1	131	NULL	99	100.00	Using index
-3	UNION	t1	NULL	index	NULL	index_col1	131	NULL	99	100.00	Using index
-4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+1	PRIMARY	t2	NULL	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
+1	PRIMARY	<derived2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	303	const	#	100.00	Using index
+2	DERIVED	t1	NULL	index	NULL	index_col1	303	NULL	#	100.00	Using index
+3	UNION	t1	NULL	index	NULL	index_col1	303	NULL	#	100.00	Using index
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select count(distinct `d`.`col1`) AS `count(distinct d.col1)` from (/* select#2 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1`) `d` join `test`.`t2` where ((`d`.`col1` = '00000000000000000000000000000001'))
+Note	1003	/* select#1 */ select count(distinct `d`.`col1`) AS `count(distinct d.col1)` from (/* select#2 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1`) `d` join `test`.`t2` where ((`d`.`col1` = '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001'))
 select count(distinct d.col1)
 from (
 select t1.col1
@@ -423,7 +424,7 @@ count(distinct d.col1)
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0
-set @@tmp_table_size = 1024;
+set @@tmp_table_size = 1024*1024;
 flush status;
 explain select count(distinct d.col1)
 from (
@@ -436,13 +437,13 @@ from t1
 join t2 on d.col1 = t2.col1
 where t2.id = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	PRIMARY	<derived2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	131	const	1	100.00	Using index
-2	DERIVED	t1	NULL	index	NULL	index_col1	131	NULL	99	100.00	Using index
-3	UNION	t1	NULL	index	NULL	index_col1	131	NULL	99	100.00	Using index
-4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+1	PRIMARY	t2	NULL	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
+1	PRIMARY	<derived2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	303	const	#	100.00	Using index
+2	DERIVED	t1	NULL	index	NULL	index_col1	303	NULL	#	100.00	Using index
+3	UNION	t1	NULL	index	NULL	index_col1	303	NULL	#	100.00	Using index
+4	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select count(distinct `d`.`col1`) AS `count(distinct d.col1)` from (/* select#2 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1`) `d` join `test`.`t2` where ((`d`.`col1` = '00000000000000000000000000000001'))
+Note	1003	/* select#1 */ select count(distinct `d`.`col1`) AS `count(distinct d.col1)` from (/* select#2 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` union /* select#3 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1`) `d` join `test`.`t2` where ((`d`.`col1` = '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001'))
 select count(distinct d.col1)
 from (
 select t1.col1
@@ -461,6 +462,7 @@ Created_tmp_disk_tables	1
 set session internal_tmp_mem_storage_engine =
 @old_internal_tmp_mem_storage_engine;
 set @@tmp_table_size = @old_tmp_table_size;
+set @@max_heap_table_size = @old_max_heap_table_size;
 drop procedure insert_bug_37308710_data;
 drop table t1, t2;
 # cleanup

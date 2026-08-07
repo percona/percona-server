@@ -74,15 +74,28 @@ drop table t1;
 --echo # Bug 37308710 - const access after MEMORY to InnoDB temp-table overflow
 --echo #
 
+# Note (PXC): the upstream reproducer relied on `tmp_table_size` values below
+# 1 MiB (102400 and 1024 bytes) to keep the small case in memory and force the
+# large case onto disk. Percona's PS-8647 patch in sql/sys_vars.cc silently
+# clamps any tmp_table_size < 1 MiB up to 1 MiB (and emits a warning), so the
+# original values no longer differentiate the two runs and the small case
+# never overflows to disk. To preserve the intent of the test on PXC we widen
+# col1, insert enough rows to make the materialized derived table exceed
+# 1 MiB, and use tmp_table_size values at/above the 1-MiB clamp threshold:
+#   - big case:   tmp_table_size = 16 MiB   -> data fits in MEMORY
+#   - small case: tmp_table_size =  1 MiB   -> data overflows to InnoDB
+#                                              (also exactly at the PS-8647
+#                                               floor, so no clamp warning)
+
 create table t1 (
   id int primary key,
-  col1 varchar(32),
+  col1 varchar(300) character set latin1,
   key index_col1(col1)
 );
 
 create table t2 (
   id int primary key,
-  col1 varchar(32)
+  col1 varchar(300) character set latin1
 );
 
 delimiter //;
@@ -90,21 +103,26 @@ create procedure insert_bug_37308710_data()
 begin
   declare num int;
   set num = 1;
-  while num < 100 do
-    insert into t1 values (num, lpad(num, 32, '0'));
-    insert into t2 values (num, lpad(num, 32, '0'));
+  while num <= 4000 do
+    insert into t1 values (num, lpad(num, 300, '0'));
+    insert into t2 values (num, lpad(num, 300, '0'));
     set num = num + 1;
   end while;
 end//
 delimiter ;//
 
+--disable_query_log
 call insert_bug_37308710_data();
+--enable_query_log
 
 set @old_internal_tmp_mem_storage_engine =
   @@session.internal_tmp_mem_storage_engine;
 set session internal_tmp_mem_storage_engine = 'memory';
 set @old_tmp_table_size = @@tmp_table_size;
-set @@tmp_table_size = 102400;
+set @old_max_heap_table_size = @@max_heap_table_size;
+# Ensure MEMORY-table cap is not the earlier section's 61000-byte value.
+set @@max_heap_table_size = 16*1024*1024;
+set @@tmp_table_size = 16*1024*1024;
 
 let $query =
 select count(distinct d.col1)
@@ -119,13 +137,19 @@ join t2 on d.col1 = t2.col1
 where t2.id = 1;
 
 flush status;
+# InnoDB's live rows-estimate for t1 fluctuates between runs; mask it out
+# so the test only checks the columns we actually care about.
+--replace_column 10 #
 eval explain $query;
 eval $query;
 show status like 'Created_tmp_disk_tables';
 
-set @@tmp_table_size = 1024;
+set @@tmp_table_size = 1024*1024;
 
 flush status;
+# InnoDB's live rows-estimate for t1 fluctuates between runs; mask it out
+# so the test only checks the columns we actually care about.
+--replace_column 10 #
 eval explain $query;
 eval $query;
 show status like 'Created_tmp_disk_tables';
@@ -133,6 +157,7 @@ show status like 'Created_tmp_disk_tables';
 set session internal_tmp_mem_storage_engine =
   @old_internal_tmp_mem_storage_engine;
 set @@tmp_table_size = @old_tmp_table_size;
+set @@max_heap_table_size = @old_max_heap_table_size;
 drop procedure insert_bug_37308710_data;
 drop table t1, t2;
 

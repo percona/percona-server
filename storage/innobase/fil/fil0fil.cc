@@ -9920,8 +9920,6 @@ static bool fil_ibd_same_as_default_path(const char *space_name,
   /* Build the implicit default path for this table name under @@datadir. */
   char *default_path = Fil_path::make("", space_name, IBD);
 
-  auto guard = create_scope_guard([&]() { ut::free(default_path); });
-
   if (default_path == nullptr || default_path[0] == '\0') {
     return false;
   }
@@ -9945,6 +9943,7 @@ static bool fil_ibd_same_as_default_path(const char *space_name,
 
   df_found.close();
   df_default.close();
+  ut::free(default_path);
 
   return same;
 }

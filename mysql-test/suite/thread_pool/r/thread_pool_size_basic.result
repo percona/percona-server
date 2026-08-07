@@ -1,4 +1,4 @@
-SET @default_val = 16;
+SET @default_val = @@GLOBAL.thread_pool_size;
 CREATE USER low_priv@localhost;
 GRANT USAGE ON test.* TO low_priv@localhost;
 SET @default_val = <default_val>;
@@ -11,11 +11,17 @@ Expect 1
 1
 DROP USER low_priv@localhost;
 #---------------------BS_STVARS_051_02----------------------#
-SET @@GLOBAL.thread_pool_size = 0;
-ERROR HY000: Variable 'thread_pool_size' is a read only variable
+SET @@GLOBAL.thread_pool_size = @default_val;
 SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
 Expect 1
 1
+SET @@GLOBAL.thread_pool_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_size value: '0'
+SELECT @@GLOBAL.thread_pool_size AS "Expect 1";
+Expect 1
+1
+SET @@GLOBAL.thread_pool_size = @default_val;
 #---------------------BS_STVARS_051_03----------------------#
 SELECT @@GLOBAL.thread_pool_size = VARIABLE_VALUE AS "Expect 1"
 FROM performance_schema.global_variables

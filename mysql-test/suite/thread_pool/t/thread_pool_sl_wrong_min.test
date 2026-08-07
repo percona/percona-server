@@ -4,9 +4,16 @@
 
 --source ../inc/wrong_value.inc
 
-# Test by setting a wrong min value at runtime
+# Test by setting a wrong min value at runtime.
+# 3 is below both the Oracle plugin's own min (4, centiseconds) and the
+# server-owned (Percona) min in compat mode (10, milliseconds), so this
+# stays invalid under either implementation. In compat mode, though, the
+# variable is a plain core Sys_var_uint owned by the server, which clamps
+# out-of-range SET GLOBAL values to the nearest bound with a truncation
+# warning instead of hard-rejecting them (unlike the Oracle plugin's own
+# MYSQL_SYSVAR_ULONG, which used a check function to reject them outright).
 --error ER_GLOBAL_VARIABLE
 SET SESSION thread_pool_stall_limit = 3;
 
---error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL thread_pool_stall_limit = 3;
+SELECT @@GLOBAL.thread_pool_stall_limit AS "Expect 10";

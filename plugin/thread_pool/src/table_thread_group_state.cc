@@ -128,7 +128,7 @@ static Table_thread_group_state_row make_row(const tp_group_t &grp) {
           grp.queued_queries.elements(),
           grp.queued_trans.elements(),
           static_cast<srv_utils::PSI_int_unsigned_NOT_NULL>(
-              thread_pool_stall_limit),
+              effective_thread_pool_stall_limit()),
           static_cast<srv_utils::PSI_int_unsigned_NOT_NULL>(
               thread_pool_prio_kickup_timer),
           tp_algorithm(),

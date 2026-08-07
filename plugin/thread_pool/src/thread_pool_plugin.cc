@@ -52,6 +52,7 @@
 #include "plugin/thread_pool/src/thread_pool_tables.h"
 
 #include "scope_guard.h"
+#include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/derror.h"
 #include "sql/sql_error.h"
 #include "sql/sql_plugin_var.h"
@@ -109,6 +110,13 @@ using Dyn_priv_reg = const s_mysql_dynamic_privilege_register;
 
 unsigned int longrun_trx_limit_ = 0;
 
+#ifdef PERCONA_THREADPOOL_COMPAT
+extern MYSQL_PLUGIN_IMPORT uint threadpool_size;
+// threadpool_stall_limit and percona_stall_limit_to_plugin_units() are
+// declared in thread_pool.h, shared with get_stall_limit_us() so runtime
+// changes to the Percona sysvar are picked up live, not just at plugin init.
+#endif
+
 /**
   Read the value of the system variable and convert it into a bool
   @param[in]  reg_srv  Registry Service
@@ -147,6 +155,14 @@ static int thread_pool_plugin_init(void *plugin [[maybe_unused]]) {
 
   auto log_grd = create_scope_guard(
       []() { deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs); });
+
+  if (Connection_handler_manager::thread_handling ==
+      Connection_handler_manager::SCHEDULER_THREAD_POOL) {
+    LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+           "Configuration error: --thread-handling=pool-of-threads cannot be "
+           "used with thread_pool plugin");
+    return TP_INIT_FAILURE;
+  }
 
   // Initialize container_aware to fetch available system resources
   const auto use_cgroup = get_system_variable_value(reg_srv, "container_aware");
@@ -328,6 +344,7 @@ static void log_sysvar_change(const char *sysvar_name, const VT &ov,
          ss.str().c_str());
 }
 
+#ifndef PERCONA_THREADPOOL_COMPAT
 /**
   Check the new value to thread_pool_stall_limit
 
@@ -346,6 +363,7 @@ static int stall_limit_check(THD *, SYS_VAR *, void *save,
   if (new_val >= TP_MIN_STALL_LIMIT && new_val <= TP_MAX_STALL_LIMIT) return 0;
   return 1;
 }
+#endif
 
 /**
   Verify the new priority value of thread_pool_high_priority_connection
@@ -645,6 +663,7 @@ static void update_query_threads_per_group(MYSQL_THD, SYS_VAR *, void *,
                     thread_pool_query_threads_per_group_new);
 }
 
+#ifndef PERCONA_THREADPOOL_COMPAT
 static MYSQL_SYSVAR_ULONG(
     size, thread_pool_size, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
     "How many thread groups we should create to handle query requests"
@@ -655,6 +674,7 @@ static MYSQL_SYSVAR_ULONG(
     // initialization.
     DEF_POOL_SIZE, TP_MIN_POOL_SIZE, TP_MAX_POOL_SIZE,
     1);  // def, min, max, blk
+#endif
 
 static MYSQL_SYSVAR_ULONG(
     algorithm, thread_pool_algorithm, PLUGIN_VAR_READONLY | PLUGIN_VAR_RQCMDARG,
@@ -665,6 +685,7 @@ static MYSQL_SYSVAR_ULONG(
     DEF_ALGORITHM, LOW_CONCURRENCY_ALGORITHM, HIGH_CONCURRENCY_ALGORITHM,
     1);  // def, min, max, blk
 
+#ifndef PERCONA_THREADPOOL_COMPAT
 /* This parameter is allowed to change in runtime */
 static MYSQL_SYSVAR_ULONG(
     stall_limit, thread_pool_stall_limit, PLUGIN_VAR_RQCMDARG,
@@ -672,6 +693,7 @@ static MYSQL_SYSVAR_ULONG(
     stall_limit_check, nullptr,  // check, update
     DEF_STALL_LIMIT, TP_MIN_STALL_LIMIT, TP_MAX_STALL_LIMIT,
     1);  // def, min, max, blk
+#endif
 
 /* This parameter is allowed to change in runtime */
 static MYSQL_SYSVAR_ULONG(
@@ -832,20 +854,48 @@ static inline bool update_config_defaults(SERVICE_TYPE(registry) * reg_svc) {
   SERVICE_TYPE(system_variable_source) *sysvar_source_svc =
       reinterpret_cast<SERVICE_TYPE(system_variable_source) *>(source_service);
   assert(sysvar_source_svc != nullptr);
+  enum_variable_source src = COMPILED;
+  int result [[maybe_unused]] = 0;
 
+#ifdef PERCONA_THREADPOOL_COMPAT
+  /*
+    In compat mode, thread_pool_size/thread_pool_stall_limit are provided by
+    server-level vars (Percona implementation). If the user did not configure
+    them explicitly, keep Oracle plugin defaults instead of inheriting Percona
+    compiled defaults so plugin behavior remains unchanged at startup.
+  */
+  result = sysvar_source_svc->get(STRING_WITH_LEN("thread_pool_size"), &src);
+  assert(!result);
+  if (src == COMPILED) {
+    thread_pool_size =
+        std::clamp(my_num_vcpus() / 2, uint32_t{1}, uint32_t{16});
+  } else {
+    thread_pool_size = std::clamp<ulong>(static_cast<ulong>(threadpool_size),
+                                         TP_MIN_POOL_SIZE, TP_MAX_POOL_SIZE);
+  }
+
+  result =
+      sysvar_source_svc->get(STRING_WITH_LEN("thread_pool_stall_limit"), &src);
+  assert(!result);
+  if (src == COMPILED) {
+    thread_pool_stall_limit = DEF_STALL_LIMIT;
+  } else {
+    thread_pool_stall_limit =
+        percona_stall_limit_to_plugin_units(threadpool_stall_limit);
+  }
+#else
   /* thread_pool_size: Update the default value */
   ulong thread_pool_size_default =
       std::clamp(my_num_vcpus() / 2, uint32_t{1}, uint32_t{16});
   size.def_val = thread_pool_size_default;
 
   /* thread_pool_size: Set to default if not configured */
-  enum_variable_source src = COMPILED;
-  auto result [[maybe_unused]] =
-      sysvar_source_svc->get(STRING_WITH_LEN("thread_pool_size"), &src);
+  result = sysvar_source_svc->get(STRING_WITH_LEN("thread_pool_size"), &src);
   assert(!result);
   if (src == COMPILED) {
     thread_pool_size = size.def_val;
   }
+#endif
 
   /* thread_pool_max_transactions_limit: Update the default value */
   uint thread_pool_max_transactions_limit_default =
@@ -948,9 +998,13 @@ static inline bool update_config_defaults(SERVICE_TYPE(registry) * reg_svc) {
 }
 
 static SYS_VAR *thread_pool_system_vars[] = {
+#ifndef PERCONA_THREADPOOL_COMPAT
     MYSQL_SYSVAR(size),
+#endif
     MYSQL_SYSVAR(algorithm),
+#ifndef PERCONA_THREADPOOL_COMPAT
     MYSQL_SYSVAR(stall_limit),
+#endif
     MYSQL_SYSVAR(prio_kickup_timer),
     MYSQL_SYSVAR(high_priority_connection),
     MYSQL_SYSVAR(max_unused_threads),

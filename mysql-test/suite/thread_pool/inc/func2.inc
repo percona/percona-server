@@ -45,7 +45,13 @@ FROM performance_schema.tp_thread_group_state;
 
 --echo # 3. Check the current values of the columns STALL_LIMIT, PRIO_KICKUP_TIMER, ALGORITHM
 --echo #    against the content of the "pool of threads" variables
-SELECT STALL_LIMIT = @@GLOBAL.thread_pool_stall_limit
+# STALL_LIMIT is the plugin's internal representation, in 10ms units
+# (PERCONA_THREADPOOL_COMPAT mode: @@GLOBAL.thread_pool_stall_limit is the
+# server-owned (Percona) sysvar, in milliseconds; converting it with the
+# same clamp(ceil(ms/10), 4, 600) formula the plugin itself uses --
+# see percona_stall_limit_to_plugin_units() in
+# plugin/thread_pool/src/thread_pool.h -- must match STALL_LIMIT).
+SELECT STALL_LIMIT = LEAST(GREATEST(CEIL(@@GLOBAL.thread_pool_stall_limit / 10), 4), 600)
    AND PRIO_KICKUP_TIMER = @@GLOBAL.thread_pool_prio_kickup_timer
    AND ALGORITHM = CASE @@GLOBAL.thread_pool_algorithm
                    WHEN 0 THEN 'Low Concurrency'

@@ -4,9 +4,18 @@
 
 --source ../inc/wrong_value.inc
 
-# Test by setting a wrong min value at runtime
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+# Test by setting a wrong min value at runtime.
+# thread_pool_size is a GLOBAL-only variable. In compat mode it is owned by
+# the server (Percona implementation) as a plain core Sys_var_uint, and is
+# no longer read-only there, so:
+# - SET SESSION still errors, but on the ordinary scope check, not on the
+#   Oracle plugin's former PLUGIN_VAR_READONLY flag.
+# - SET GLOBAL to an out-of-range value no longer hard-errors either: core
+#   Sys_var_uint clamps to the nearest bound and raises a truncation
+#   warning instead (unlike the Oracle plugin's own MYSQL_SYSVAR_ULONG,
+#   which used a check function to hard-reject out-of-range values).
+--error ER_GLOBAL_VARIABLE
 SET SESSION thread_pool_size = 0;
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL thread_pool_size = 0;
+SELECT @@GLOBAL.thread_pool_size AS "Expect 1";

@@ -22,7 +22,12 @@
 ##################################################################
 # Build some prereqisites                                        #
 ##################################################################
-SET @default_val = 16;
+# In compat mode this variable is owned by the server (Percona
+# implementation), whose default can differ from the Oracle plugin's own
+# (vcpus/2 clamped to 16) default; read the actual value instead of
+# assuming a fixed default. The exact default is validated elsewhere, in
+# thread_pool_defaults.test.
+SET @default_val = @@GLOBAL.thread_pool_size;
 let $default_val=`SELECT @default_val`;
 CREATE USER low_priv@localhost;
 GRANT USAGE ON test.* TO low_priv@localhost;
@@ -51,10 +56,22 @@ DROP USER low_priv@localhost;
 ####################################################################
 # Check if Value can be set                                        #
 ####################################################################
-# Expected error ER_INCORRECT_GLOBAL_LOCAL_VAR, variable is read only
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.thread_pool_size = 0;
+# In compat mode this variable is owned by the server (Percona
+# implementation), which allows GLOBAL writes at runtime (unlike the
+# Oracle plugin's own read-only sysvar). As a plain core Sys_var_uint, an
+# out-of-range value is clamped to the nearest bound with a truncation
+# warning rather than rejected outright. Note that the Oracle thread_pool
+# plugin only reads this value once at plugin startup, so changing it here
+# has no effect on the running pool's actual thread-group count until the
+# server is restarted.
+SET @@GLOBAL.thread_pool_size = @default_val;
 SELECT @@GLOBAL.thread_pool_size = @default_val AS "Expect 1";
+
+SET @@GLOBAL.thread_pool_size = 0;
+SELECT @@GLOBAL.thread_pool_size AS "Expect 1";
+
+# Restore, since later checks in this test still expect @default_val.
+SET @@GLOBAL.thread_pool_size = @default_val;
 
 
 --echo #---------------------BS_STVARS_051_03----------------------#

@@ -153,12 +153,16 @@ CREATE TABLE my_table (
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --eval INSERT INTO my_table (data) VALUES (CAST(LOAD_FILE('$MYSQLD_DATADIR/mysqld-auto.cnf') AS CHAR CHARACTER SET utf8mb4));
 
-# Verify that the following variables is present in the static section
-# of the mysqld-auto.cnf
-# 1. thread_pool_size
-# 2. thread_pool_query_threads_per_group
-# 3. thread_pool_max_transactions_limit
-# 4. thread_pool_dedicated_listeners
+# Verify that the following variables are present in mysqld-auto.cnf:
+# 1. thread_pool_size            -- in compat mode this is the server-owned
+#                                    (Percona) sysvar, a normal writable
+#                                    GLOBAL_VAR (not PLUGIN_VAR_READONLY like
+#                                    the Oracle plugin's own), so it persists
+#                                    under mysql_dynamic_variables instead of
+#                                    mysql_static_variables.
+# 2. thread_pool_query_threads_per_group  -- static, unaffected
+# 3. thread_pool_max_transactions_limit   -- static, unaffected
+# 4. thread_pool_dedicated_listeners      -- static, unaffected
 
 SELECT JSON_UNQUOTE(jt.key_name) AS key_name FROM my_table,
 JSON_TABLE(
@@ -167,7 +171,7 @@ JSON_TABLE(
 ) AS jt;
 
 # Assert that the variables are present as keys in the JSON data
---assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_size') FROM my_table`)
+--assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_dynamic_variables.thread_pool_size') FROM my_table`)
 --assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_query_threads_per_group') FROM my_table`)
 --assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_max_transactions_limit') FROM my_table`)
 --assert (`SELECT JSON_CONTAINS_PATH(data, 'one', '$.mysql_static_variables.thread_pool_dedicated_listeners') FROM my_table`)

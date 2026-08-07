@@ -12,5 +12,5 @@ thread-pool-max-unused-threads=1000000
 thread-pool-prio-kickup-timer=4294967296
 thread-pool-query-threads-per-group=0
 thread-pool-size=0
-thread-pool-stall-limit=1000000
+thread-pool-stall-limit=4294967296
 thread-pool-transaction-delay=-100

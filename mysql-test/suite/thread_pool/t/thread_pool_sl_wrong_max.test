@@ -4,9 +4,17 @@
 
 --source ../inc/wrong_value.inc
 
-# Test by setting a wrong max value at runtime
+# Test by setting a wrong max value at runtime.
+# 601 was above the Oracle plugin's own max (600, centiseconds), but is
+# well within the server-owned (Percona) max in compat mode (UINT_MAX
+# milliseconds); use an unsigned-overflow value instead, which is out of
+# range under either implementation. In compat mode the variable is a
+# plain core Sys_var_uint owned by the server, which clamps out-of-range
+# SET GLOBAL values to the nearest bound with a truncation warning instead
+# of hard-rejecting them (unlike the Oracle plugin's own MYSQL_SYSVAR_ULONG,
+# which used a check function to reject them outright).
 --error ER_GLOBAL_VARIABLE
-SET SESSION thread_pool_stall_limit = 601;
+SET SESSION thread_pool_stall_limit = 4294967296;
 
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL thread_pool_stall_limit = 601;
+SET GLOBAL thread_pool_stall_limit = 4294967296;
+SELECT @@GLOBAL.thread_pool_stall_limit AS "Expect 4294967295";

@@ -44,4 +44,6 @@ MYSQL_ADD_PLUGIN(thread_pool
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="thread_pool")
-
+# Keep Percona compatibility by default: avoid registering plugin vars that
+# collide with server-level thread_pool_* variables.
+ADD_DEFINITIONS(-DPERCONA_THREADPOOL_COMPAT)

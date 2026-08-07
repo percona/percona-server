@@ -36,6 +36,7 @@
 */
 
 #include <sys/types.h>
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <iomanip>  // std::put_time
@@ -44,7 +45,8 @@
 
 #include <mysql/thread_pool_priv.h>
 #include "my_compiler.h"
-#include "my_systime.h"  // Our gmtime_r(const time_t*,...)
+#include "my_sharedlib.h"  // MYSQL_PLUGIN_IMPORT
+#include "my_systime.h"    // Our gmtime_r(const time_t*,...)
 
 #include <mysql/components/services/log_builtins.h>
 
@@ -131,12 +133,42 @@ inline constexpr auto TP_MIN_STALL_LIMIT = 4;
 inline constexpr auto TP_MAX_STALL_LIMIT = 600;
 extern ulong thread_pool_stall_limit;
 
+#ifdef PERCONA_THREADPOOL_COMPAT
+// In compat mode "thread_pool_stall_limit" is owned by the server as the
+// Percona thread_pool_stall_limit global (milliseconds), not by this
+// plugin's own sysvar, and can be changed at runtime via SET GLOBAL.
+extern MYSQL_PLUGIN_IMPORT uint threadpool_stall_limit;
+
+/** Converts a Percona thread_pool_stall_limit value (milliseconds) into
+    this plugin's internal centisecond units, clamped to the range the
+    plugin supports. */
+inline ulong percona_stall_limit_to_plugin_units(uint value_ms) {
+  return std::clamp<ulong>((static_cast<ulong>(value_ms) + 9) / 10,
+                            TP_MIN_STALL_LIMIT, TP_MAX_STALL_LIMIT);
+}
+#endif
+
+/** Returns the current effective thread_pool_stall_limit, in this plugin's
+    internal centisecond units.
+    In compat mode this is read live from the server-owned (Percona) global,
+    so that "SET GLOBAL thread_pool_stall_limit" takes effect immediately
+    instead of only at the next plugin startup; otherwise it is just the
+    plugin's own sysvar, which is already kept live by the SQL layer. */
+inline ulong effective_thread_pool_stall_limit() {
+#ifdef PERCONA_THREADPOOL_COMPAT
+  return percona_stall_limit_to_plugin_units(threadpool_stall_limit);
+#else
+  return thread_pool_stall_limit;
+#endif
+}
+
 /** Returns the value of the system variable thread_pool_stall_limit (which
     is in centiseconds) converted to Musec (std::chrono::microseconds).
     @note Technically this is a race, since we do not take the sys_var mutex
     here but this is "established practice". */
 inline Musec get_stall_limit_us() {
-  return Musec(thread_pool_stall_limit * 10 * 1000);
+  return Musec(static_cast<std::int64_t>(effective_thread_pool_stall_limit()) *
+               10 * 1000);
 }
 
 // Priority kickup timer in milliseconds.

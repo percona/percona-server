@@ -21,7 +21,7 @@ Expect 1
 1
 # 3. Check the current values of the columns STALL_LIMIT, PRIO_KICKUP_TIMER, ALGORITHM
 #    against the content of the "pool of threads" variables
-SELECT STALL_LIMIT = @@GLOBAL.thread_pool_stall_limit
+SELECT STALL_LIMIT = LEAST(GREATEST(CEIL(@@GLOBAL.thread_pool_stall_limit / 10), 4), 600)
 AND PRIO_KICKUP_TIMER = @@GLOBAL.thread_pool_prio_kickup_timer
 AND ALGORITHM = CASE @@GLOBAL.thread_pool_algorithm
 WHEN 0 THEN 'Low Concurrency'

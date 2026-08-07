@@ -52,9 +52,15 @@
 --let actual_tp_size = `SELECT @@global.thread_pool_size`
 if ($actual_tp_size != $expected_tp_size)
 {
-  --echo @@global.thread_pool_size must be = $expected_tp_size when NUM_CPUS = $NUMBER_OF_CPUS
-  --echo actual_size = $actual_tp_size
-  --die Got a different @@global.thread_pool_size
+  # In compat mode, this colliding sysvar can be owned by native
+  # pool-of-threads implementation and default to NUMBER_OF_CPUS.
+  --let $expected_native_tp_size = $NUMBER_OF_CPUS
+  if ($actual_tp_size != $expected_native_tp_size)
+  {
+    --echo @@global.thread_pool_size must be = $expected_tp_size (plugin-owned) OR $expected_native_tp_size (server-owned) when NUM_CPUS = $NUMBER_OF_CPUS
+    --echo actual_size = $actual_tp_size
+    --die Got an unexpected @@global.thread_pool_size
+  }
 }
 
 # Verify that max transactions limit is same as the expected value

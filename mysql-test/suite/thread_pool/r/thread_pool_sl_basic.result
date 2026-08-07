@@ -1,9 +1,6 @@
-SET @default_val =                   6;
-SET @min_val     =                   4;
-SET @max_val     =                 600;
+SET @default_val = @@GLOBAL.thread_pool_stall_limit;
 SET @some_val    =                 100;
-SELECT @min_val < @some_val AND @some_val < @max_val
-AND @some_val <> @default_val AS "Expect 1";
+SELECT @some_val <> @default_val AS "Expect 1";
 Expect 1
 1
 CREATE USER low_priv@localhost;
@@ -39,48 +36,47 @@ SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 DROP USER low_priv@localhost;
 #---------------------BS_DYNVARS_103_03----------------------#
-SET @@GLOBAL.thread_pool_stall_limit = @some_val;
-SET @@GLOBAL.thread_pool_stall_limit = @min_val;
-SELECT @@GLOBAL.thread_pool_stall_limit = @min_val AS "Expect 1";
-Expect 1
-1
-SET @@GLOBAL.thread_pool_stall_limit = @some_val;
-SET @@GLOBAL.thread_pool_stall_limit = @max_val;
-SELECT @@GLOBAL.thread_pool_stall_limit = @max_val AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = 10;
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 Expect 1
 1
 #---------------------BS_DYNVARS_103_04----------------------#
 SET @@GLOBAL.thread_pool_stall_limit = @some_val;
-SET @@GLOBAL.thread_pool_stall_limit = @min_val - 1;
-ERROR 42000: Variable 'thread_pool_stall_limit' can't be set to the value of '<@min_val_-_1>'
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+SET @@GLOBAL.thread_pool_stall_limit = 9;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '9'
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 Expect 1
 1
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 SET @@GLOBAL.thread_pool_stall_limit = 0;
-ERROR 42000: Variable 'thread_pool_stall_limit' can't be set to the value of '0'
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '0'
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 Expect 1
 1
-SET @@GLOBAL.thread_pool_stall_limit = @max_val + 1;
-ERROR 42000: Variable 'thread_pool_stall_limit' can't be set to the value of '<@max_val_+_1>'
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
-Expect 1
-1
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 SET @@GLOBAL.thread_pool_stall_limit = -1;
-ERROR 42000: Variable 'thread_pool_stall_limit' can't be set to the value of '-1'
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '-1'
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 Expect 1
 1
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 SET @@GLOBAL.thread_pool_stall_limit = TRUE;
-ERROR 42000: Variable 'thread_pool_stall_limit' can't be set to the value of '1'
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '1'
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 Expect 1
 1
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 SET @@GLOBAL.thread_pool_stall_limit = FALSE;
-ERROR 42000: Variable 'thread_pool_stall_limit' can't be set to the value of '0'
-SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_stall_limit value: '0'
+SELECT @@GLOBAL.thread_pool_stall_limit = 10 AS "Expect 1";
 Expect 1
 1
+SET @@GLOBAL.thread_pool_stall_limit = @some_val;
 SET @@GLOBAL.thread_pool_stall_limit = 3.14159;
 ERROR 42000: Incorrect argument type to variable 'thread_pool_stall_limit'
 SELECT @@GLOBAL.thread_pool_stall_limit = @some_val AS "Expect 1";

@@ -119,6 +119,7 @@ SET(TESTS
   filesort_buffer
   filesort_compare
   filesort_mergechunk
+  hnsw
   inplace_vector
   integer_digits
   intrusive_list_iterator

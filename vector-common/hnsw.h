@@ -42,7 +42,7 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
   Approximate nearest-neighbor index over float vectors, following the
   algorithms from: https://arxiv.org/abs/1603.09320
 
-  Supports insert and k-NN search.
+  Supports insert, k-NN search, and streaming NN search.
 
   @tparam ArenaAllocator
     Arena allocator for graph nodes (and trailing vector / neighbor storage).
@@ -53,13 +53,12 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     Not assumed thread-safe.
 
   @todo (not in order of priority)
-        1) Thread safety (interwined with persistence callbacks).
-        2) Streaming API.
-        3) Support for deletes (might be unnecessary).
-        4) Persistence callback API.
-        5) Support for arbitrary PKs and additional data (e.g. versioning).
-        6) Memory limits/expulsion strategy.
-        7) Performance optimizations (visited set?).
+        1) Thread safety (intertwined with persistence callbacks).
+        2) Support for deletes (might be unnecessary).
+        3) Persistence callback API.
+        4) Support for arbitrary PKs and additional data (e.g. versioning).
+        5) Memory limits/expulsion strategy.
+        6) Performance optimizations (visited set?).
 */
 template <typename ArenaAllocator>
 class HNSW {
@@ -214,6 +213,268 @@ class HNSW {
     return result;
   }
 
+ private:
+  class Node;
+
+  struct NodeDist {
+    Node *node;
+    double distance;
+  };
+
+  struct NodeDistMinCmp {
+    bool operator()(const NodeDist &a, const NodeDist &b) const {
+      return a.distance > b.distance;
+    }
+  };
+
+  struct NodeDistMaxCmp {
+    bool operator()(const NodeDist &a, const NodeDist &b) const {
+      return a.distance < b.distance;
+    }
+  };
+
+  typedef std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMinCmp>
+      NodeDistMinQueue;
+
+ public:
+  /**
+    Mutable state for a batched streaming nearest-neighbor search.
+
+    Owned by the caller. Pass the same instance to nn_search_start() and
+    repeated nn_search_next() calls. Call reset() before starting another
+    search on the same context (asserted in debug builds). Destruction
+    also releases resources.
+
+    The HNSW index must outlive an in-progress search on this context.
+  */
+  class NNSearchContext {
+   public:
+    NNSearchContext() = default;
+    ~NNSearchContext() { reset(); }
+    NNSearchContext(const NNSearchContext &) = delete;
+    NNSearchContext &operator=(const NNSearchContext &) = delete;
+    NNSearchContext(NNSearchContext &&) = delete;
+    NNSearchContext &operator=(NNSearchContext &&) = delete;
+
+    /**
+      Release the query copy and clear search state.
+      Required before a subsequent nn_search_start() on this context.
+    */
+    void reset() {
+      free(const_cast<char *>(m_query_vec));
+      m_query_vec = nullptr;
+      m_batch_size = 0;
+      m_ef_search = 0;
+
+      m_visited = std::unordered_set<Node *>();
+      m_discarded = {};
+
+      m_results_batch.clear();
+      m_current_batch_pos = 0;
+      m_seen_distance = -std::numeric_limits<double>::infinity();
+    }
+
+   private:
+    void init(const HNSW &hnsw, const char *q, size_t batch_size,
+              size_t ef_search) {
+      char *query_vec = (char *)malloc(hnsw.m_dimensions * sizeof(float));
+      // TODO: revisit once we add memory limits.
+      if (query_vec == nullptr) throw std::bad_alloc();
+      memcpy(query_vec, q, hnsw.m_dimensions * sizeof(float));
+      assert(m_query_vec == nullptr);
+      m_query_vec = query_vec;
+      m_batch_size = batch_size;
+      m_ef_search = ef_search;
+      assert(m_visited.empty());
+      assert(m_discarded.empty());
+      assert(m_results_batch.empty());
+      assert(m_current_batch_pos == 0);
+      assert(m_seen_distance == -std::numeric_limits<double>::infinity());
+    }
+
+    // Search parameters
+    // Query vector is owned via malloc/free (not the HNSW arena):
+    // NNSearchContext outlives individual next() calls but is much
+    // shorter-lived than the index, and must be releasable on
+    // reset()/destruction independently of m_allocator.
+    const char *m_query_vec{nullptr};
+    size_t m_batch_size{0};
+    size_t m_ef_search{0};
+
+    // Search state
+    //
+    // TODO: Is it possible to use minimal seen distance + result from
+    //       previous batch as the only search state, like MariaDB does?
+    //       Our implementation is more complex, but should be more exact.
+    std::unordered_set<Node *> m_visited;
+    // Min-heap of nodes which were removed from the tentative result set
+    // and neighbors of nodes which are or were present in the result set
+    // which themselves were considered to be not good enough to be included
+    // into it while preparing the current/previous batch.
+    // We use this "ring" of nodes to prime the algorithm in order to produce
+    // the next batch.
+    NodeDistMinQueue m_discarded;
+
+    // Results
+    std::vector<NodeDist> m_results_batch;
+    size_t m_current_batch_pos{0};
+    double m_seen_distance{-std::numeric_limits<double>::infinity()};
+
+    friend class HNSW;
+  };
+
+  /**
+    Start a streaming approximate nearest-neighbor search on @p ctx.
+
+    @param ctx         Fresh or reset() context owned by the caller.
+    @param q           Query vector (copied into @p ctx).
+    @param batch_size  Results fetched per internal batch; must be > 0.
+    @param ef_search   Search width (clamped to at least batch_size).
+
+    @note This API is not intended to scan the entire or large part of the
+          index as it is approximate and likely to omit some nodes.
+          Optimizer should avoid using this API for queries which are likely
+          to do so.
+  */
+  void nn_search_start(NNSearchContext *ctx, const char *q, size_t batch_size,
+                       size_t ef_search) const {
+    assert(batch_size > 0);
+    size_t ef = std::max(batch_size, ef_search);
+    ctx->init(*this, q, batch_size, ef);
+
+    if (m_entry_point == nullptr) {
+      return;
+    }
+    const uint8_t max_layer = m_entry_point->m_layer;
+    NodeDist nearest_entry = {m_entry_point, dist(q, m_entry_point)};
+    for (int l = max_layer; l > 0; --l) {
+      nearest_entry = search_layer_ef_1(q, nearest_entry, l);
+    }
+
+    SearchLayerResult nearest{nearest_entry};
+    NodeDistMinQueue candidates;
+    candidates.push(nearest_entry);
+
+    assert(ctx->m_visited.empty());
+    ctx->m_visited.insert(nearest_entry.node);
+
+    assert(ctx->m_discarded.empty());
+
+    search_layer_core(q, &nearest, &candidates, &ctx->m_visited,
+                      &ctx->m_discarded, ef, 0);
+
+    // We can safely ignore nodes left in candidates heap. There can
+    // be only nodes in it which were part of the tentative result
+    // set in the past but were removed from it at some point.
+    // They will be present in the discarded heap as well.
+
+    // Intuitively, using the whole nearest/result set should negatively impact
+    // recall. Quick tests were not conclusive. TODO: Thoroughly investigate
+    // this.
+    while (nearest.size() > batch_size) {
+      ctx->m_discarded.push(nearest.top());
+      nearest.pop();
+    }
+
+    ctx->m_results_batch.resize(nearest.size());
+    for (size_t i = nearest.size(); i > 0; --i) {
+      ctx->m_results_batch[i - 1] = nearest.top();
+      nearest.pop();
+    }
+    assert(ctx->m_current_batch_pos == 0);
+  }
+
+  /**
+    Return the next neighbor from a streaming search, or {false, 0} when done.
+
+    Yields base_pk values in non-decreasing distance order.
+
+    @note Since underlying algorithm is not exact, it might sometimes produce
+          results out of order (then they belong to different batches).
+          We solve this problem by omitting offending nodes from the result.
+
+          Due to this and due to HNSW inherent properties this API is not
+          intended for scanning the entire index or large part of it.
+          Optimizer should avoid using this API for such cases.
+
+    @param ctx  Context previously passed to nn_search_start().
+  */
+  std::pair<bool, uint64_t> nn_search_next(NNSearchContext *ctx) const {
+    while (true) {
+      if (ctx->m_current_batch_pos >= ctx->m_results_batch.size()) {
+        if (ctx->m_current_batch_pos < ctx->m_batch_size) {
+          // The last batch was too short. This means that we have reached the
+          // end of the graph. There should be no leftover discarded nodes.
+          assert(ctx->m_discarded.empty());
+          return {false, 0};
+        } else {
+          // If there are no discarded nodes left, we have reached the end of
+          // the graph and there will be no more results.
+          if (ctx->m_discarded.empty()) {
+            return {false, 0};
+          }
+
+          SearchLayerResult nearest;
+          NodeDistMinQueue candidates;
+
+          while (nearest.size() < ctx->m_ef_search &&
+                 !ctx->m_discarded.empty()) {
+            nearest.push(ctx->m_discarded.top());
+            // Some of the nodes from the discarded heap (those which were
+            // removed from the tentative result set) might had their
+            // neighbors considered already in the past. This is OK.
+            // The visited set will filter such nodes' neighbors out.
+            // OTOH, nodes from discarded heap which were added there
+            // without entering the result set (or nodes which were
+            // removed from the result set before their neighbors were
+            // considered), do not have their neighbors inspected yet.
+            // Hence we need to add them to the candidates heap.
+            candidates.push(ctx->m_discarded.top());
+            assert(ctx->m_visited.count(ctx->m_discarded.top().node) > 0);
+            ctx->m_discarded.pop();
+          }
+
+          search_layer_core(ctx->m_query_vec, &nearest, &candidates,
+                            &ctx->m_visited, &ctx->m_discarded,
+                            ctx->m_ef_search, 0);
+
+          // Similarly to nn_search_start(), we can safely ignore nodes left
+          // in candidates heap. They will be present in the discarded heap.
+
+          // Again, the idea is that using the whole nearest/result set here
+          // should negatively impact recall. Quick tests were not conclusive.
+          // TODO: Thoroughly investigate this.
+          while (nearest.size() > ctx->m_batch_size) {
+            ctx->m_discarded.push(nearest.top());
+            nearest.pop();
+          }
+
+          // Since search_layer_core() got some candidates, there must be at
+          // least one result.
+          assert(nearest.size() > 0);
+
+          ctx->m_results_batch.resize(nearest.size());
+          for (size_t i = nearest.size(); i > 0; --i) {
+            ctx->m_results_batch[i - 1] = nearest.top();
+            nearest.pop();
+          }
+          ctx->m_current_batch_pos = 0;
+        }
+      }
+      const NodeDist &result = ctx->m_results_batch[ctx->m_current_batch_pos];
+      ctx->m_current_batch_pos++;
+
+      // The result from the new batch might be closer than the last seen
+      // result, from the previous batch. If so, we must skip it to ensure
+      // non-decreasing distance order. This is accepted trade-off/consequence
+      // of using approximate algorithm.
+      if (result.distance < ctx->m_seen_distance) continue;
+
+      ctx->m_seen_distance = result.distance;
+      return {true, result.node->m_base_pk};
+    }
+  }
+
 #ifndef NDEBUG
   /**
     Check internal graph consistency (debug builds only).
@@ -328,7 +589,10 @@ class HNSW {
       void *raw_mem =
           allocator.allocate(ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(vec_size) +
                              ALIGN_SIZE(neighbors_size));
-      assert(raw_mem != nullptr);
+
+      // TODO: revisit once we add memory limits.
+      if (raw_mem == nullptr) throw std::bad_alloc();
+
       assert(ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(vec_size) ==
              hnsw.m_neighbors_offset);
       Node *node = new (raw_mem) Node(id, base_pk, layer);
@@ -379,11 +643,6 @@ class HNSW {
     return ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(dimensions * sizeof(float));
   }
 
-  struct NodeDist {
-    Node *node;
-    double distance;
-  };
-
   ArenaAllocator m_allocator;
   const size_t m_dimensions;
   vec_dist_func_t *const m_dist_func;
@@ -428,18 +687,6 @@ class HNSW {
         std::min<double>(-std::log(u) * m_layer_factor, layer_cap));
   }
 
-  struct NodeDistMinCmp {
-    bool operator()(const NodeDist &a, const NodeDist &b) const {
-      return a.distance > b.distance;
-    }
-  };
-
-  struct NodeDistMaxCmp {
-    bool operator()(const NodeDist &a, const NodeDist &b) const {
-      return a.distance < b.distance;
-    }
-  };
-
   /**
     Max-heap of (node, distance) pairs for a single-layer HNSW search.
 
@@ -449,6 +696,7 @@ class HNSW {
   */
   struct SearchLayerResult
       : std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMaxCmp> {
+    SearchLayerResult() = default;
     explicit SearchLayerResult(const NodeDist &ep) { this->push(ep); }
 
     SearchLayerResult(const SearchLayerResult &) = delete;
@@ -530,10 +778,11 @@ class HNSW {
     std::unordered_set<Node *> visited;  // v in the paper
     // Guesstimate the number of unique nodes to visit in the layer.
     visited.reserve(ef * get_Mmax(layer));
-    // C in the paper
-    std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMinCmp>
-        candidates;
-    // W in the paper
+    // C in the paper. Min-heap of nodes which neighbors we are going to
+    // consider for inclusion in the result set.
+    NodeDistMinQueue candidates;
+    // W in the paper. Max-heap of nodes which are already in the tentative
+    // result set (i.e. tentatively the closest ef nodes).
     SearchLayerResult result = std::move(entry_points);
 
     for (const NodeDist &entry : result) {
@@ -542,33 +791,70 @@ class HNSW {
       candidates.push(entry);
     }
 
-    while (!candidates.empty()) {
-      const NodeDist c = candidates.top();
-      candidates.pop();
+    search_layer_core(q, &result, &candidates, &visited, nullptr, ef, layer);
 
-      if (c.distance > result.top().distance) {
+    return result;
+  }
+
+  /**
+    Core of SEARCH-LAYER() algorithm from the HNSW paper used by search_layer()
+    and streaming search.
+
+    @param q           Query vector.
+    @param result      In/out result/working set max-heap (W in the paper).
+                       Must be non-empty on entry.
+    @param candidates  In/out min-heap of nodes whose neighbors to consider
+                       (C in the paper).
+    @param visited     In/out visited set (v in the paper).
+    @param discarded   Optional sink for evicted W entries and neighbors
+                       of C entries which were not admitted to W and C;
+                       nullptr to drop them.
+    @param ef          Maximum size of @p result.
+    @param layer       Layer index to search.
+*/
+  void search_layer_core(const char *q, SearchLayerResult *result,
+                         NodeDistMinQueue *candidates,
+                         std::unordered_set<Node *> *visited,
+                         NodeDistMinQueue *discarded, size_t ef,
+                         uint8_t layer) const {
+    assert(result != nullptr && !result->empty());
+    assert(candidates != nullptr && !candidates->empty());
+    // Early exit should not be possible as we populate C == W initially.
+    assert(candidates->top().distance <= result->top().distance);
+    assert(visited != nullptr);
+
+    while (!candidates->empty()) {
+      const NodeDist c = candidates->top();
+      candidates->pop();
+
+      if (c.distance > result->top().distance) {
         break;
       }
 
       for (Node *const *it = c.node->neighbors_begin(*this, layer);
            it != c.node->neighbors_end(*this, layer) && *it != nullptr; ++it) {
         Node *e = *it;
-        if (!visited.insert(e).second) {
+        if (!visited->insert(e).second) {
           continue;
         }
 
         const double e_dist = dist(q, e);
-        if (e_dist < result.top().distance || result.size() < ef) {
-          candidates.push({e, e_dist});
-          result.push({e, e_dist});
-          if (result.size() > ef) {
-            result.pop();
+        if (e_dist < result->top().distance || result->size() < ef) {
+          candidates->push({e, e_dist});
+          result->push({e, e_dist});
+          if (result->size() > ef) {
+            if (discarded != nullptr) {
+              discarded->push(result->top());
+            }
+            result->pop();
+          }
+        } else {
+          if (discarded != nullptr) {
+            discarded->push({e, e_dist});
           }
         }
       }
     }
-
-    return result;
   }
 
   /**

@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <random>
+#include <limits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -61,6 +61,29 @@ static std::vector<float> make_vec(std::initializer_list<float> values) {
 
 static const char *as_bytes(const std::vector<float> &v) {
   return reinterpret_cast<const char *>(v.data());
+}
+
+/**
+  Deterministic pseudo-random coordinate in [-1, 1).
+
+  Used instead of std::mt19937 / std::uniform_real_distribution so point
+  clouds are identical across standard libraries.
+*/
+static float pseudo_coord(uint64_t *state) {
+  *state = *state * 6364136223846793005ULL + 1442695040888963407ULL;
+  return static_cast<float>((*state >> 40) & 0xFFFF) / 32768.0f - 1.0f;
+}
+
+static std::vector<std::vector<float>> make_pseudo_random_points(
+    size_t count, size_t dims, uint64_t *state) {
+  std::vector<std::vector<float>> points(count);
+  for (size_t i = 0; i < count; ++i) {
+    points[i].resize(dims);
+    for (size_t d = 0; d < dims; ++d) {
+      points[i][d] = pseudo_coord(state);
+    }
+  }
+  return points;
 }
 
 class HnswTest : public ::testing::Test {
@@ -188,28 +211,23 @@ TEST_F(HnswTest, BruteForceRecall) {
   constexpr size_t kK = 10;
   constexpr size_t kEfSearch = 50;
   // HNSW is approximate; require strong average recall@k on this seeded set.
-  constexpr double kMinAvgRecall = 0.9;
+  constexpr double kMinAvgRecall = 0.95;
 
   TestHnsw index(kRecallDims, euclidean, kM, kEfConstruction);
 
-  std::mt19937 rng(42);
-  std::uniform_real_distribution<float> coord(-1.0f, 1.0f);
-
-  std::vector<std::vector<float>> points(kNumPoints);
+  uint64_t state = 42;
+  const auto points =
+      make_pseudo_random_points(kNumPoints, kRecallDims, &state);
   for (size_t i = 0; i < kNumPoints; ++i) {
-    points[i].resize(kRecallDims);
-    for (size_t d = 0; d < kRecallDims; ++d) {
-      points[i][d] = coord(rng);
-    }
     index.insert(i, /*base_pk=*/i, as_bytes(points[i]));
   }
 
+  const auto queries =
+      make_pseudo_random_points(kNumQueries, kRecallDims, &state);
+
   double recall_sum = 0.0;
   for (size_t q = 0; q < kNumQueries; ++q) {
-    std::vector<float> query(kRecallDims);
-    for (size_t d = 0; d < kRecallDims; ++d) {
-      query[d] = coord(rng);
-    }
+    const std::vector<float> &query = queries[q];
 
     std::vector<std::pair<double, uint64_t>> exact;
     exact.reserve(kNumPoints);
@@ -262,6 +280,305 @@ TEST_F(HnswTest, DuplicateBasePkAllowed) {
   ASSERT_EQ(2U, result.size());
   EXPECT_EQ(42U, result[0]);
   EXPECT_EQ(42U, result[1]);
+}
+
+static std::vector<uint64_t> drain_stream(const TestHnsw &index,
+                                          const char *query, size_t batch_size,
+                                          size_t ef_search,
+                                          size_t max_results = 1000) {
+  TestHnsw::NNSearchContext ctx;
+  index.nn_search_start(&ctx, query, batch_size, ef_search);
+  std::vector<uint64_t> out;
+  for (size_t i = 0; i < max_results; ++i) {
+    const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
+    if (!step.first) {
+      break;
+    }
+    out.push_back(step.second);
+  }
+  return out;
+}
+
+TEST_F(HnswTest, StreamEmptyIndex) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  TestHnsw::NNSearchContext ctx;
+  const auto query = make_vec({0.0f, 0.0f});
+  index.nn_search_start(&ctx, as_bytes(query), /*batch_size=*/8,
+                        /*ef_search=*/16);
+  EXPECT_FALSE(index.nn_search_next(&ctx).first);
+}
+
+TEST_F(HnswTest, StreamMatchesKnnFirstBatch) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  index.insert(10, 3010, as_bytes(make_vec({0.0f, 0.0f})));
+  index.insert(11, 3011, as_bytes(make_vec({1.0f, 0.0f})));
+  index.insert(12, 3012, as_bytes(make_vec({2.0f, 0.0f})));
+  index.insert(13, 3013, as_bytes(make_vec({3.0f, 0.0f})));
+  index.insert(14, 3014, as_bytes(make_vec({4.0f, 0.0f})));
+
+  const auto query = make_vec({0.1f, 0.0f});
+  constexpr size_t kEf = 3;
+  const auto knn = index.k_nn_search(as_bytes(query), kEf, kEf);
+  const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/kEf,
+                                     /*ef_search=*/kEf);
+
+  ASSERT_GE(streamed.size(), knn.size());
+  for (size_t i = 0; i < knn.size(); ++i) {
+    EXPECT_EQ(knn[i], streamed[i]) << "i=" << i;
+  }
+}
+
+TEST_F(HnswTest, StreamMultipleBatchesNoDuplicates) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  for (uint64_t i = 0; i < 30; ++i) {
+    const auto v = make_vec({static_cast<float>(i), 0.0f});
+    index.insert(i, 1000 + i, as_bytes(v));
+  }
+  const auto query = make_vec({0.0f, 0.0f});
+  // Small batch/ef forces continuation refills across batches.
+  const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/3,
+                                     /*ef_search=*/8);
+
+  EXPECT_GE(streamed.size(), 3U);
+  std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+  EXPECT_EQ(seen.size(), streamed.size());
+}
+
+TEST_F(HnswTest, StreamDistancesNonDecreasingAcrossBatches) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+
+  std::vector<std::vector<float>> points;
+  for (uint64_t i = 0; i < 40; ++i) {
+    points.push_back(make_vec({static_cast<float>(i), 0.0f}));
+    index.insert(i, /*base_pk=*/i, as_bytes(points.back()));
+  }
+
+  const auto query = make_vec({0.0f, 0.0f});
+  // batch_size < ef_search forces refills while still returning many hits.
+  const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/3,
+                                     /*ef_search=*/10, /*max_results=*/30);
+
+  ASSERT_GT(streamed.size(), 3U);  // more than one batch worth
+
+  double prev_dist = -std::numeric_limits<double>::infinity();
+  for (size_t i = 0; i < streamed.size(); ++i) {
+    const uint64_t pk = streamed[i];
+    ASSERT_LT(pk, points.size());
+    const double d = euclidean(as_bytes(query), as_bytes(points[pk]),
+                               static_cast<uint32_t>(kDims));
+    EXPECT_GE(d, prev_dist) << "i=" << i << " pk=" << pk;
+    prev_dist = d;
+  }
+}
+
+TEST_F(HnswTest, StreamDrainsEntireGraph) {
+  constexpr size_t kNumPoints = 25;
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+
+  for (uint64_t i = 0; i < kNumPoints; ++i) {
+    const auto v = make_vec({static_cast<float>(i), 0.0f});
+    index.insert(i, /*base_pk=*/1000 + i, as_bytes(v));
+  }
+
+  const auto query = make_vec({0.0f, 0.0f});
+  // Small batches, wide search; max_results above graph size so we can finish.
+  const auto streamed =
+      drain_stream(index, as_bytes(query), /*batch_size=*/4,
+                   /*ef_search=*/32, /*max_results=*/kNumPoints + 10);
+
+  ASSERT_EQ(kNumPoints, streamed.size());
+
+  std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+  EXPECT_EQ(kNumPoints, seen.size());
+  for (uint64_t i = 0; i < kNumPoints; ++i) {
+    EXPECT_EQ(1U, seen.count(1000 + i)) << "missing base_pk=" << (1000 + i);
+  }
+}
+
+TEST_F(HnswTest, StreamDrainsEntireGraphWithEfSmallerThanGraph) {
+  constexpr size_t kNumPoints = 100;
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+
+  for (uint64_t i = 0; i < kNumPoints; ++i) {
+    const auto v = make_vec({static_cast<float>(i), 0.0f});
+    index.insert(i, /*base_pk=*/1000 + i, as_bytes(v));
+  }
+
+  const auto query = make_vec({0.0f, 0.0f});
+  const auto streamed =
+      drain_stream(index, as_bytes(query), /*batch_size=*/4,
+                   /*ef_search=*/8, /*max_results=*/kNumPoints + 10);
+
+  const std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+  EXPECT_EQ(streamed.size(), seen.size()) << "stream returned duplicate rows";
+  EXPECT_EQ(kNumPoints, seen.size()) << "stream ended after " << seen.size()
+                                     << " of " << kNumPoints << " rows";
+}
+
+TEST_F(HnswTest, StreamNoDuplicatesInMultiDimensionalGraph) {
+  constexpr size_t kStreamDims = 8;
+  constexpr size_t kStreamM = 4;
+  constexpr size_t kNumPoints = 100;
+  constexpr size_t kNumQueries = 4;
+  constexpr size_t kBatchSize = 4;
+  constexpr size_t kEfSearch = 8;
+
+  TestHnsw index(kStreamDims, euclidean, kStreamM, kEfConstruction);
+
+  uint64_t state = 12345;
+  const auto points =
+      make_pseudo_random_points(kNumPoints, kStreamDims, &state);
+  for (size_t i = 0; i < kNumPoints; ++i) {
+    index.insert(i, /*base_pk=*/i, as_bytes(points[i]));
+  }
+
+  const auto queries =
+      make_pseudo_random_points(kNumQueries, kStreamDims, &state);
+  for (size_t q = 0; q < kNumQueries; ++q) {
+    const auto streamed =
+        drain_stream(index, as_bytes(queries[q]), kBatchSize, kEfSearch,
+                     /*max_results=*/kNumPoints * 2);
+    const std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+    EXPECT_EQ(streamed.size(), seen.size())
+        << "q=" << q << ": stream yielded " << (streamed.size() - seen.size())
+        << " duplicate rows out of " << streamed.size();
+  }
+}
+
+TEST_F(HnswTest, StreamYieldsEachNodeAtMostOnce) {
+  constexpr size_t kStreamM = 2;
+  constexpr size_t kStreamEfConstruction = 2;
+  constexpr uint32_t kStreamSeed = 157;
+  constexpr size_t kBatchSize = 1;
+  constexpr size_t kEfSearch = 4;
+
+  TestHnsw index(kDims, euclidean, kStreamM, kStreamEfConstruction,
+                 kStreamSeed);
+
+  for (uint64_t i = 0; i < 5; ++i) {
+    index.insert(
+        i, i,
+        as_bytes(make_vec({100.0f + 0.5f * static_cast<float>(i), 0.0f})));
+  }
+  for (uint64_t i = 5; i < 10; ++i) {
+    index.insert(
+        i, i,
+        as_bytes(make_vec({100.0f + 0.5f * static_cast<float>(i - 5), 1.0f})));
+  }
+  for (uint64_t i = 10; i < 15; ++i) {
+    index.insert(
+        i, i,
+        as_bytes(make_vec({100.0f + 0.5f * static_cast<float>(i - 10), 2.0f})));
+  }
+  for (uint64_t i = 100; i < 105; ++i) {
+    index.insert(
+        i, i, as_bytes(make_vec({0.5f * static_cast<float>(i - 100), 0.0f})));
+  }
+  for (uint64_t i = 105; i < 110; ++i) {
+    index.insert(
+        i, i, as_bytes(make_vec({0.5f * static_cast<float>(i - 105), 1.0f})));
+  }
+  for (uint64_t i = 110; i < 115; ++i) {
+    index.insert(
+        i, i, as_bytes(make_vec({0.5f * static_cast<float>(i - 110), 2.0f})));
+  }
+
+  const auto query = make_vec({0.0f, 0.0f});
+  const auto streamed = drain_stream(index, as_bytes(query), kBatchSize,
+                                     kEfSearch, /*max_results=*/30);
+  std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+  EXPECT_EQ(seen.size(), streamed.size())
+      << "stream must not yield the same base_pk twice";
+}
+
+TEST_F(HnswTest, StreamExhaustThenNextStaysDone) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  index.insert(1, 100, as_bytes(make_vec({0.0f, 0.0f})));
+  TestHnsw::NNSearchContext ctx;
+  index.nn_search_start(&ctx, as_bytes(make_vec({0.0f, 0.0f})),
+                        /*batch_size=*/8, /*ef_search=*/16);
+  ASSERT_TRUE(index.nn_search_next(&ctx).first);
+  EXPECT_FALSE(index.nn_search_next(&ctx).first);
+  EXPECT_FALSE(index.nn_search_next(&ctx).first);
+}
+
+TEST_F(HnswTest, StreamRestartContext) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  index.insert(1, 100, as_bytes(make_vec({0.0f, 0.0f})));
+  index.insert(2, 200, as_bytes(make_vec({5.0f, 0.0f})));
+
+  TestHnsw::NNSearchContext ctx;
+  const auto q = make_vec({0.0f, 0.0f});
+  index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8, /*ef_search=*/16);
+  ASSERT_EQ(100U, index.nn_search_next(&ctx).second);
+
+  // Re-start on same context must work after reset.
+  ctx.reset();
+
+  index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8, /*ef_search=*/16);
+  const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
+  ASSERT_TRUE(step.first);
+  EXPECT_EQ(100U, step.second);
+}
+
+TEST_F(HnswTest, StreamBruteForceRecall) {
+  constexpr size_t kRecallDims = 16;
+  constexpr size_t kM = 5;
+  constexpr size_t kNumPoints = 2000;
+  constexpr size_t kNumQueries = 20;
+  constexpr size_t kK = 125;
+  // Batch size smaller than kK, so we have multiple batches.
+  constexpr size_t kBatchSize = 10;
+  // Ef_search is big enough to get good recall, but still smaller than kK.
+  // So we have more than one candidate set refills.
+  constexpr size_t kEfSearch = 50;
+  // Multi-batch streaming is more approximate, hence worse recall.
+  constexpr double kMinAvgRecall = 0.9;
+
+  TestHnsw index(kRecallDims, euclidean, kM, kEfConstruction);
+
+  uint64_t state = 42;
+  const auto points =
+      make_pseudo_random_points(kNumPoints, kRecallDims, &state);
+  for (size_t i = 0; i < kNumPoints; ++i) {
+    index.insert(i, /*base_pk=*/i, as_bytes(points[i]));
+  }
+
+  const auto queries =
+      make_pseudo_random_points(kNumQueries, kRecallDims, &state);
+
+  double recall_sum = 0.0;
+  for (size_t q = 0; q < kNumQueries; ++q) {
+    const std::vector<float> &query = queries[q];
+
+    std::vector<std::pair<double, uint64_t>> exact;
+    exact.reserve(kNumPoints);
+    for (size_t i = 0; i < kNumPoints; ++i) {
+      exact.emplace_back(euclidean(as_bytes(query), as_bytes(points[i]),
+                                   static_cast<uint32_t>(kRecallDims)),
+                         i);
+    }
+    std::partial_sort(exact.begin(), exact.begin() + kK, exact.end());
+    std::unordered_set<uint64_t> exact_ids;
+    for (size_t i = 0; i < kK; ++i) {
+      exact_ids.insert(exact[i].second);
+    }
+
+    const auto streamed =
+        drain_stream(index, as_bytes(query), kBatchSize, kEfSearch,
+                     /*max_results=*/kK);
+    ASSERT_EQ(kK, streamed.size()) << "q=" << q;
+
+    size_t hits = 0;
+    for (uint64_t pk : streamed) {
+      hits += exact_ids.count(pk);
+    }
+    recall_sum += static_cast<double>(hits) / static_cast<double>(kK);
+  }
+
+  const double avg_recall = recall_sum / static_cast<double>(kNumQueries);
+  EXPECT_GE(avg_recall, kMinAvgRecall)
+      << "avg stream recall@125=" << avg_recall;
 }
 
 #ifndef NDEBUG

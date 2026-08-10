@@ -276,6 +276,10 @@ Logfile log_file;
 // File to store the progress
 Logfile progress_file;
 
+// Set when show_diff has already printed the diff to stderr, so that
+// die() can skip the redundant show_tail output.
+static bool diff_printed_to_stderr = false;
+
 /// Info on properties that can be set with '--disable_X' and
 /// '--disable_X' commands.
 struct Property {
@@ -1712,7 +1716,8 @@ void die(const char *fmt, ...) {
 
   fflush(stderr);
 
-  if (result_file_name) log_file.show_tail(opt_tail_lines);
+  if (result_file_name && !diff_printed_to_stderr)
+    log_file.show_tail(opt_tail_lines);
 
   // Help debugging by displaying any warnings that might have
   // been produced prior to the error.
@@ -2222,9 +2227,11 @@ static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
   if (ds)
     // Add the diff to output
     dynstr_append_mem(ds, ds_diff.str, ds_diff.length);
-  else
+  else {
     // Print diff directly to stderr
     fprintf(stderr, "%s\n", ds_diff.str);
+    diff_printed_to_stderr = true;
+  }
 
   dynstr_free(&ds_diff);
   return false;

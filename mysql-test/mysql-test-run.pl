@@ -5723,8 +5723,6 @@ sub run_testcase ($) {
           goto SRVDIED;
         }
 
-        error_logs_to_comment($tinfo);
-
         # Test case failure reported by mysqltest
         report_failure_and_restart($tinfo);
       } else {

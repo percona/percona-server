@@ -1,0 +1,65 @@
+# Bug#39253040 Donor-controlled dlopen() with path traversal during clone
+# plugin validation.
+#
+# Clone plugin validation must reject a donor-supplied shared object name
+# instead of handing it to dlopen() unchecked. This test stands in for a
+# malicious donor by injecting a traversal-style shared object name
+# ("../clone_path_traversal.so") into the recipient's donor-plugin
+# processing via a debug point, and verifies that the recipient rejects
+# it with ER_CLONE_PLUGIN_MATCH rather than attempting to load it.
+#
+# clone_os_test_load() only calls dlopen()/dlclose() with no further
+# checks, so a traversal path pointing at a file that does not exist
+# would also end up rejected (dlopen failure) even without the
+# check_valid_path() guard added by this fix, making such a test
+# unable to tell a validation rejection apart from a "file not found".
+# To make this a real regression test for the fix, plant a real,
+# loadable shared object exactly where the injected path
+# ("<plugin_dir>/../clone_path_traversal.so") resolves to, by copying
+# the already-installed clone plugin binary there. Without
+# check_valid_path(), plugin_is_loadable() would happily dlopen() it
+# and clone would not report ER_CLONE_PLUGIN_MATCH for it at all.
+
+--source include/not_windows.inc
+--source include/have_debug.inc
+--source include/not_asan_mac.inc
+
+--let $HOST = 127.0.0.1
+--let $PORT = `select @@port`
+--let $USER = root
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+# Use the server's actual runtime @@plugin_dir to compute where the
+# injected "../clone_path_traversal.so" so_name will resolve to.
+#
+# plugin_dir resolves via a symlink on some builds (e.g. lib/plugin ->
+# plugin_output_directory). unpack_filename()/cleanup_dirname() in
+# mysys collapse ".." lexically (pure string manipulation, no syscalls),
+# so plugin_is_loadable() ends up looking one level above the *symlink*
+# itself, not above the directory the symlink resolves to. A shell "cp"
+# or "ls" given the same "plugin_dir/../foo" string instead follows the
+# symlink at the kernel level and lands one level above the resolved
+# target - a different, real directory. Compute the lexical parent with
+# plain string ops (strip the trailing path component) to match what
+# the server code will actually use.
+--let $PLUGIN_DIR = `SELECT TRIM(TRAILING '/' FROM @@plugin_dir)`
+--let $PLUGIN_DIR_BASENAME = `SELECT SUBSTRING_INDEX('$PLUGIN_DIR', '/', -1)`
+--let $PLUGIN_DIR_LEXICAL_PARENT = `SELECT LEFT('$PLUGIN_DIR', LENGTH('$PLUGIN_DIR') - LENGTH('$PLUGIN_DIR_BASENAME') - 1)`
+--let $TRAVERSAL_SO = $PLUGIN_DIR_LEXICAL_PARENT/clone_path_traversal.so
+--copy_file $CLONE_PLUGIN_DIR/$CLONE_PLUGIN $TRAVERSAL_SO
+
+SET GLOBAL DEBUG = '+d,clone_inject_invalid_donor_plugin_so';
+
+--let $remote_clone = 1
+--let $clone_remote_err = ER_CLONE_PLUGIN_MATCH
+--source ../include/clone_command.inc
+
+SET GLOBAL DEBUG = '-d,clone_inject_invalid_donor_plugin_so';
+
+--remove_file $TRAVERSAL_SO
+
+UNINSTALL PLUGIN clone;

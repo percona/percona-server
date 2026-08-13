@@ -435,6 +435,18 @@ MYSQL_ADD_EXECUTABLE(vector_distance_benchmark-t vector_distance_benchmark-t.cc
   SKIP_INSTALL
 )
 
+# HNSW recall / memory / throughput benchmark over a synthetic vector set.
+# Deliberately NOT in the TESTS list above: that list is merged into
+# merge_small_tests-t, which ctest runs, and this builds a 20k-node index.
+# See the file header for how to build and run it.
+MYSQL_ADD_EXECUTABLE(hnsw_bench-t hnsw_bench-t.cc
+  COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
+  ENABLE_EXPORTS
+  EXCLUDE_FROM_ALL
+  LINK_LIBRARIES sqlgunitlib gunit_small extra::boost
+  SKIP_INSTALL
+)
+
 # Disable by default, since it dumps a stack trace.
 # We don't want ppl to think there was a segfault or something.
 # See also the mtr test main.print_stacktrace

@@ -23,68 +23,10 @@
 #include <utility>
 #include <vector>
 
-#include "my_alloc.h"
+#include "unittest/gunit/hnsw_test_utils.h"
 #include "vector-common/hnsw.h"
 
 namespace hnsw_unittest {
-
-/**
-  Arena allocator backed by MEM_ROOT for HNSW unit tests.
-  All blocks are freed when the allocator (and its MEM_ROOT) is destroyed.
-*/
-class ArenaAllocator {
- public:
-  ArenaAllocator() : m_mem_root(PSI_NOT_INSTRUMENTED, 4096) {}
-
-  void *allocate(size_t size) { return m_mem_root.Alloc(size); }
-
- private:
-  MEM_ROOT m_mem_root;
-};
-
-using TestHnsw = HNSW<ArenaAllocator>;
-
-static double euclidean(const char *a_raw, const char *b_raw, uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  double sum = 0.0;
-  for (uint32_t i = 0; i < dims; ++i) {
-    const double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
-    sum += d * d;
-  }
-  return std::sqrt(sum);
-}
-
-static std::vector<float> make_vec(std::initializer_list<float> values) {
-  return std::vector<float>(values);
-}
-
-static const char *as_bytes(const std::vector<float> &v) {
-  return reinterpret_cast<const char *>(v.data());
-}
-
-/**
-  Deterministic pseudo-random coordinate in [-1, 1).
-
-  Used instead of std::mt19937 / std::uniform_real_distribution so point
-  clouds are identical across standard libraries.
-*/
-static float pseudo_coord(uint64_t *state) {
-  *state = *state * 6364136223846793005ULL + 1442695040888963407ULL;
-  return static_cast<float>((*state >> 40) & 0xFFFF) / 32768.0f - 1.0f;
-}
-
-static std::vector<std::vector<float>> make_pseudo_random_points(
-    size_t count, size_t dims, uint64_t *state) {
-  std::vector<std::vector<float>> points(count);
-  for (size_t i = 0; i < count; ++i) {
-    points[i].resize(dims);
-    for (size_t d = 0; d < dims; ++d) {
-      points[i][d] = pseudo_coord(state);
-    }
-  }
-  return points;
-}
 
 class HnswTest : public ::testing::Test {
  protected:
@@ -280,23 +222,6 @@ TEST_F(HnswTest, DuplicateBasePkAllowed) {
   ASSERT_EQ(2U, result.size());
   EXPECT_EQ(42U, result[0]);
   EXPECT_EQ(42U, result[1]);
-}
-
-static std::vector<uint64_t> drain_stream(const TestHnsw &index,
-                                          const char *query, size_t batch_size,
-                                          size_t ef_search,
-                                          size_t max_results = 1000) {
-  TestHnsw::NNSearchContext ctx;
-  index.nn_search_start(&ctx, query, batch_size, ef_search);
-  std::vector<uint64_t> out;
-  for (size_t i = 0; i < max_results; ++i) {
-    const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
-    if (!step.first) {
-      break;
-    }
-    out.push_back(step.second);
-  }
-  return out;
 }
 
 TEST_F(HnswTest, StreamEmptyIndex) {

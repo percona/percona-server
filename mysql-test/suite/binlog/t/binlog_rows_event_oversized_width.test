@@ -1,0 +1,111 @@
+# ==== Purpose ====
+#
+# Bug#39282350 - Validate rows event width earlier
+#
+# Rows_event's decoder read the column-count width with net_field_length_ll()
+# and rejected only width == 0. Any other nonzero value was accepted and used to
+# size the column bitmaps. The width is attacker controlled: it comes off the
+# wire from a malicious or corrupted source, or out of a crafted binlog. An
+# oversized width then drives large bitmap allocations and later decoding steps
+# that assume a sane column count (bounded by MAX_FIELDS / 4096).
+#
+# ==== Requirements ====
+#
+# R1. A WRITE_ROWS_EVENT encoding width > 4096 must be rejected while the event
+#     is being decoded.
+#
+# R2. A well-formed WRITE_ROWS_EVENT with a normal width must still decode and
+#     apply, so that R1 is not satisfied by refusing rows events in general.
+#
+# ==== Implementation ====
+#
+# Craft the events as BINLOG statements (no debug sync). The table map and the
+# well-formed write-rows event are applied in one BINLOG statement so the map
+# stays open across apply (same pattern as flush_read_lock.test). The malformed
+# event carries width=4097 and a full 513-byte column bitmap
+# ((4097 + 7) / 8) and no row image.
+#
+# Without the bound: deserialization succeeds and apply is a no-op (no bytes
+# remain after the column bitmap, so m_curr_row == m_rows_end and no row is
+# unpacked). BINLOG returns success — that is the bug.
+# With the bound: decode fails first with ER_SYNTAX_ERROR.
+#
+# A 512-byte bitmap is not enough to discriminate: assign would fail first and
+# also report ER_SYNTAX_ERROR, so the test would pass either way.
+#
+# ==== How the BINLOG payloads were built ====
+#
+# FDE and R2 (TABLE_MAP + WRITE_ROWS) are real events captured with checksums
+# off and pasted verbatim from mysqlbinlog. To regenerate:
+#   SET GLOBAL binlog_checksum = NONE;   -- rotates the binlog
+#   RESET MASTER;                        -- fresh binlog whose FDE records NONE
+#   SET SESSION binlog_format = ROW;
+#   CREATE TABLE t1 (a INT);
+#   INSERT INTO t1 VALUES (1);
+#   \! mysqlbinlog <datadir>/binlog.000001
+# Copy the FDE BINLOG statement and the INSERT's BINLOG statement; mysqlbinlog
+# emits TABLE_MAP + WRITE_ROWS in one statement (two base64 chunks, decoded via
+# MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS). Decode any payload with:
+#   echo '<base64>' | base64 -d | xxd
+#
+# Checksums are OFF. The FDE (8.0.46-eol-2-debug) carries checksum alg 0x00
+# (BINLOG_CHECKSUM_ALG_OFF), so every following event is read with no trailing
+# 4-byte CRC: event_size == 19-byte header + body, with no reserved tail. This
+# is what keeps the byte math below exact. With checksums ON the decoder
+# reserves the last 4 bytes of each event (Log_event_footer calls
+# shrink_limit(BINLOG_CHECKSUM_LEN), and the CRC is not even verified on the
+# BINLOG path), which would silently steal 4 bytes from R1's column bitmap and
+# make decode fail on "out of buffer bounds" instead of on the width bound —
+# i.e. the test would pass even with the fix reverted.
+#
+# TABLE_MAP maps table_id 0x81 (129) -> test.t1 (one INT column).
+#
+# Well-formed WRITE_ROWS (type 30) body after the 19-byte common header:
+#   table_id      6 bytes  = 0x81   (the mapped table)
+#   flags         2 bytes  = STMT_END_F (1)
+#   var_header_len 2 bytes = 2  (V2 post-header; no extra-row-info chunks)
+#   width         1 byte   = 1
+#   cols bitmap   1 byte   = 0xff
+#   null bits     1 byte   = 0x00   (column present, not null)
+#   INT value     4 bytes  = 1
+# Applying it inserts a=1.
+#
+# Malformed WRITE_ROWS (R1) is hand-crafted by cloning the WRITE_ROWS event
+# above: its 19-byte common header and 10-byte post-header (table_id 0x81, rows
+# flags, var_header_len) are copied byte-for-byte, so R1 differs from the
+# well-formed event in only four places, all unavoidable:
+#   event_size    -> 545 (0x221)          (forced by the larger body)
+#   width         3 bytes = net_store_length(4097) = 0xfc 0x01 0x10
+#   cols bitmap 513 bytes = all zero      ((4097 + 7) / 8)
+#   (no row image)
+# event_len = 19 + 6 + 2 + 2 + 3 + 513 = 545. The full 513-byte bitmap must be
+# present (and, per the checksum note above, fully readable) so decode does not
+# fail earlier on "out of buffer bounds"; R1 reuses the mapped table_id 0x81,
+# but decode rejects it at the width bound before any apply.
+#
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Bug#39282350 - reject rows-event metadata with an oversized width
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+--echo # A format description event must be established first.
+BINLOG '7np/ag8BAAAAegAAAH4AAAABAAQAOC4wLjQ2LWVvbC0yLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADuen9qEwANAAgAAAAABAAEAAAAYgAEGggAAAAICAgCAAAACgoKKioAEjQA
+CigAAJp5cks=';
+
+--echo # R2: table map + well-formed WRITE_ROWS_EVENT (width=1) in one statement equivalent to INSERT INTO t1 VALUES (1);.
+BINLOG '+np/ahMBAAAALAAAAAsCAAAAAIEAAAAAAAEABHRlc3QAAnQxAAEDAAEBAQA=
++np/ah4BAAAAJAAAAC8CAAAAAIEAAAAAAAEAAgAB/wABAAAA';
+
+--echo # R1: WRITE_ROWS_EVENT with width=4097 must be rejected while it is
+--echo #     decoded, not accepted and passed on to bitmap/row consumers.
+--error ER_SYNTAX_ERROR
+BINLOG '+np/ah4BAAAAIQIAAC8CAAAAAIEAAAAAAAEAAgD8ARAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+
+SELECT * FROM t1;
+DROP TABLE t1;

@@ -691,6 +691,9 @@ public:
   virtual ~Rows_event();
 
 protected:
+  // Maximum number of columns supported by a rows event.
+  static const unsigned long max_fields= 4096;
+
   Log_event_type  m_type;     /** Actual event type */
 
   /** Post header content */

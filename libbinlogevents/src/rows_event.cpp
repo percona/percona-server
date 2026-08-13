@@ -289,6 +289,11 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   unsigned char const *const ptr_width= var_start;
   unsigned char *ptr_after_width= (unsigned char*) ptr_width;
   m_width = get_field_length(&ptr_after_width);
+  if (m_width == 0 || m_width > Rows_event::max_fields)
+  {
+    m_width= 0;
+    return;
+  }
   n_bits_len= (m_width + 7) / 8;
   /* Avoid reading out of buffer */
   if (ptr_after_width + n_bits_len > (const unsigned char *)(buf +

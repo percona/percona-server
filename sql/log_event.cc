@@ -14868,7 +14868,8 @@ Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
   : binary_log::Heartbeat_event(buf, event_len, description_event),
     Log_event(header(), footer())
 {
-  if ((log_ident != NULL && header()->log_pos >= BIN_LOG_HEADER_SIZE))
+  if (log_ident != NULL && ident_len > 0 &&
+      header()->log_pos >= BIN_LOG_HEADER_SIZE)
     is_valid_param= true;
 }
 #endif

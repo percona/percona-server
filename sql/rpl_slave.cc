@@ -8756,7 +8756,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       char llbuf[22];
       sprintf(errbuf, "inconsistent heartbeat event content; the event's data: "
               "log_file_name %-.512s log_pos %s",
-              hb.get_log_ident(), llstr(hb.common_header->log_pos, llbuf));
+              hb.get_log_ident() ? hb.get_log_ident() : "",
+              llstr(hb.common_header->log_pos, llbuf));
       mi->report(ERROR_LEVEL, ER_SLAVE_HEARTBEAT_FAILURE,
                  ER(ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;

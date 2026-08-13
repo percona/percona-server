@@ -1,0 +1,39 @@
+#
+# Bug#39377010 - reject header-only heartbeat events
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+# Adding debug point 'binlog_sender_header_only_heartbeat' to @@GLOBAL.debug
+call mtr.add_suppression("Unexpected master's heartbeat data");
+call mtr.add_suppression("Relay log write failure: could not queue event from master");
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+include/start_slave_io.inc
+# R1: header-only heartbeat must fail on the receiver path.
+include/wait_for_slave_io_error.inc [errno=1595]
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/assert_grep.inc [Found heartbeat validation failure in the slave error log]
+# R2: normal heartbeats must work after removing the malformed hook.
+[connection master]
+# Removing debug point 'binlog_sender_header_only_heartbeat' from @@GLOBAL.debug
+CREATE TABLE t1 (a INT);
+include/stop_slave.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+# Clean up
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

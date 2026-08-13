@@ -996,14 +996,27 @@ Heartbeat_event::Heartbeat_event(const char* buf, unsigned int event_len,
                                  description_event)
 : Binary_log_event(&buf, description_event->binlog_version,
                    description_event->server_version),
-  log_ident(buf)
+  log_ident(NULL), ident_len(0)
 {
   //buf is advanced in Binary_log_event constructor to point to
   //beginning of post-header
   unsigned char header_size= description_event->common_header_len;
+  if (header()->log_pos < BIN_LOG_HEADER_SIZE)
+    return;
+
+  if (event_len <= header_size)
+    return;
+
   ident_len= event_len - header_size;
   if (ident_len > FN_REFLEN - 1)
     ident_len= FN_REFLEN - 1;
+
+  log_ident= buf;
+  if (log_ident == NULL)
+  {
+    ident_len= 0;
+    return;
+  }
 }
 
 #ifndef HAVE_MYSYS

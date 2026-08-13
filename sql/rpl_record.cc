@@ -350,7 +350,13 @@ unpack_row(Relay_log_info const *rli,
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
         uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
-        if ( pack_ptr + len > row_end )
+        // Reject fields whose reported packed length exceeds the remaining event
+        // payload, or (for fixed-size destinations) the destination field's max
+        // packed capacity. Blob-family fields allocate their value buffer
+        // dynamically, so they have no fixed slot to overflow -- for them the
+        // event-payload bound (row_end) is the only meaningful limit.
+        if (pack_ptr + len > row_end ||
+          (!(f->flags & BLOB_FLAG) && len > f->max_packed_col_length()))
         {
           pack_ptr+= len;
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));

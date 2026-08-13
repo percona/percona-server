@@ -1,0 +1,63 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Well-formed values at the exact packed-length bound replicate.
+[connection master]
+CREATE TABLE t_boundary (id INT PRIMARY KEY, c_char CHAR(255), c_varchar1 VARCHAR(255), c_varchar2 VARCHAR(300), c_tinytext TINYTEXT, c_text TEXT, c_mediumtext MEDIUMTEXT, c_longblob LONGBLOB, c_json JSON, c_geom GEOMETRY) ENGINE=InnoDB CHARACTER SET latin1;
+INSERT INTO t_boundary VALUES (1, REPEAT('a', 255), REPEAT('b', 255), REPEAT('c', 300), REPEAT('d', 255), REPEAT('e', 1000), REPEAT('f', 2000), REPEAT('g', 3000), CAST(CONCAT('"', REPEAT('j', 400), '"') AS JSON), ST_GeomFromText('LINESTRING(0 0,1 1,2 2,3 3,4 4,5 5,6 6,7 7,8 8,9 9,10 10,11 11,12 12,13 13,14 14,15 15,16 16,17 17,18 18,19 19)'));
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [CHAR and VARCHAR values whose packed length equals the destination bound replicated]
+include/assert.inc [blob values replicated for every blob pack length]
+include/assert.inc [the JSON value replicated]
+include/assert.inc [the GEOMETRY value replicated]
+
+# 2. The same bound is applied to update and delete row images.
+[connection master]
+UPDATE t_boundary SET c_varchar2 = REPEAT('C', 300), c_text = REPEAT('E', 1000) WHERE id = 1;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [the update replicated, so the before and after images both unpacked]
+[connection master]
+DELETE FROM t_boundary WHERE id = 1;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [the delete replicated, so the before image unpacked]
+
+# 3. Create the destination table for the forged events.
+[connection master]
+CREATE TABLE t1 (c1 VARCHAR(10)) CHARACTER SET latin1;
+include/sync_slave_sql_with_master.inc
+
+# 4. Replay the forged events locally through the BINLOG statement.
+#    The oversized packed value must be rejected before it is unpacked.
+[connection master]
+SET SESSION SQL_LOG_BIN= 0;
+BINLOG '
+NDeMag8BAAAAdwAAAHsAAAABAAQANS43LjQ0LWVvbC0xMi1kZWJ1Zy1sb2cAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA0N4xqEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQA
+ANy1b14=
+'/*!*/;
+CALL mtr.add_suppression("Could not execute Write_rows event on table test.t1; Corrupted replication event was detected");
+BINLOG '
+NTeMahMBAAAAKwAAAPsBAAAAAG0AAAAAAAEABHRlc3QAAnQxAAEPAgoAAQ==
+NTeMah4BAAAAIAEAABsDAAAAAG0AAAAAAAEAAgAB//7/eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4
+'/*!*/;
+ERROR HY000: Corrupted replication event was detected
+SET SESSION SQL_LOG_BIN= 1;
+
+# 5. The destination table is intact and no row was written.
+include/assert.inc [no row was unpacked into the destination table]
+
+# 6. Clean up.
+DROP TABLE t1, t_boundary;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

@@ -1651,6 +1651,15 @@ void Slave_committed_queue::free_dynamic_items()
   for (i= entry, k= 0; k < len; i= (i + 1) % size, k++)
   {
     Slave_job_group *ptr_g= &m_Q[i];
+    if (ptr_g->new_fd_event)
+    {
+      assert(ptr_g->new_fd_event->usage_counter.atomic_get() > 0);
+      if (ptr_g->new_fd_event->usage_counter.atomic_add(-1) == 1)
+      {
+        delete ptr_g->new_fd_event;
+      }
+      ptr_g->new_fd_event= NULL;
+    }
     if (ptr_g->group_relay_log_name)
     {
       my_free(ptr_g->group_relay_log_name);
@@ -2786,6 +2795,44 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
                                              &worker->ts_exec[1]);
     /* Adapting to possible new Format_description_log_event */
     ptr_g= rli->gaq->get_job_group(ev->mts_group_idx);
+    DBUG_EXECUTE_IF("mta_pending_fd_event_on_stop", {
+      /*
+        Deterministically reproduce the leak fixed for Bug#39319907
+        : the Coordinator queues a Format_description notification
+        for a group via Slave_job_group::new_fd_event, taking a reference on
+        the shared FD event, but the Worker stops before consuming it. Here we
+        mimic that queued-but-unconsumed reference and then error out before
+        the consumption code below runs, so the reference is left dangling in
+        the GAQ. Slave_committed_queue::free_dynamic_items() must release it at
+        GAQ teardown; without the fix the Format_description_log_event leaks.
+      */
+      if (ptr_g->new_fd_event == NULL)
+      {
+        ptr_g->new_fd_event= rli->get_rli_description_event();
+        ptr_g->new_fd_event->usage_counter.atomic_add(1);
+      }
+      /*
+        Bind the Worker to the group before reporting, exactly as
+        slave_worker_exec_event() does further below. The failing group is
+        resolved through gaq_index, which is still the out-of-range sentinel
+        at this point.
+      */
+      worker->set_gaq_index(ev->mts_group_idx);
+      /*
+        do_report() formats the worker's cached master_log_pos into the error
+        message (end_log_pos %llu). That field is normally set by
+        slave_worker_exec_event() as each event is applied, which we skip by
+        erroring out here, so seed it from the current event exactly as that
+        path would so that do_report() does not format an uninitialised value.
+      */
+      worker->set_master_log_pos(
+          static_cast<ulong>(ev->common_header->log_pos));
+      worker->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                     "Injected pending Format_description notification at MTA "
+                     "stop");
+      error= 1;
+      goto err;
+    });
     if (ptr_g->new_fd_event)
     {
       worker->set_rli_description_event(ptr_g->new_fd_event);

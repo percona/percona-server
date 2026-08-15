@@ -1,0 +1,84 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Set up the replica to apply transactions in parallel, per database.
+[connection slave]
+CALL mtr.add_suppression("Replication encountered an internal error and could not complete");
+CALL mtr.add_suppression("worker thread retried transaction");
+CALL mtr.add_suppression("Lock wait timeout exceeded");
+CALL mtr.add_suppression("Could not execute Write_rows event on table test.t1");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Coordinator stopped because there were error");
+SET @saved_parallel_type= @@GLOBAL.replica_parallel_type;
+Warnings:
+Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
+SET @saved_parallel_workers= @@GLOBAL.replica_parallel_workers;
+SET @saved_preserve_commit_order= @@GLOBAL.replica_preserve_commit_order;
+SET @saved_transaction_retries= @@GLOBAL.replica_transaction_retries;
+SET @saved_lock_wait_timeout= @@GLOBAL.innodb_lock_wait_timeout;
+include/stop_slave.inc
+SET @@GLOBAL.replica_preserve_commit_order= OFF;
+SET @@GLOBAL.replica_parallel_type= 'DATABASE';
+SET @@GLOBAL.replica_parallel_workers= 2;
+SET @@GLOBAL.replica_transaction_retries= 1;
+SET @@GLOBAL.innodb_lock_wait_timeout= 1;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+
+# 2. Make the coordinator fail while setting the MTA context.
+[connection slave]
+include/stop_slave_sql.inc
+# Adding debug point 'error_on_set_mta_context_main' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (1);
+[connection slave]
+START REPLICA SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=13117]
+
+# 3. The applier resumes once the failure is no longer injected.
+# Removing debug point 'error_on_set_mta_context_main' from @@GLOBAL.debug
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [the transaction is applied after resuming the applier]
+
+# 4. Make a worker fail while setting the MTA context on a retry.
+# Adding debug point 'error_on_set_mta_context_trx_retry' to @@GLOBAL.debug
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (2);
+[connection master]
+INSERT INTO t1 VALUES (2);
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1213,1205]
+
+# 5. The applier resumes once the failure is no longer injected.
+[connection slave1]
+ROLLBACK;
+[connection slave]
+# Removing debug point 'error_on_set_mta_context_trx_retry' from @@GLOBAL.debug
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [the retried transaction is applied after resuming the applier]
+
+# 6. Clean up.
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave.inc
+SET @@GLOBAL.replica_parallel_type= @saved_parallel_type;
+SET @@GLOBAL.replica_parallel_workers= @saved_parallel_workers;
+SET @@GLOBAL.replica_preserve_commit_order= @saved_preserve_commit_order;
+SET @@GLOBAL.replica_transaction_retries= @saved_transaction_retries;
+SET @@GLOBAL.innodb_lock_wait_timeout= @saved_lock_wait_timeout;
+include/start_slave.inc
+include/rpl_end.inc

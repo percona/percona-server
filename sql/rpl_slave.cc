@@ -31,6 +31,7 @@
   replication slave.
 */
 
+#include "mysqld_error.h"
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
 
@@ -67,6 +68,7 @@
 
 #include <signal.h>
 #include <algorithm>
+#include <sstream>
 
 using std::min;
 using std::max;
@@ -8274,6 +8276,20 @@ static int queue_old_event(Master_info *mi, const char *buf,
   }
 }
 
+/// Check whether queue_event() constructs this event type directly instead of
+/// using the general deserialization path.
+///
+/// @param event_type The incoming event type.
+///
+/// @retval true if queue_event() uses direct construction for this event type.
+/// @retval false otherwise.
+static bool queue_event_uses_direct_construction(Log_event_type event_type) {
+  return event_type == binary_log::ROTATE_EVENT ||
+         event_type == binary_log::HEARTBEAT_LOG_EVENT ||
+         event_type == binary_log::GTID_LOG_EVENT ||
+         event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT;
+}
+
 /**
   Store an event received from the master connection into the relay
   log.
@@ -8384,6 +8400,22 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     mi->report(ERROR_LEVEL, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE,
                "%s", ER(ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE));
+    goto err;
+  }
+
+  if (queue_event_uses_direct_construction(event_type) &&
+      (event_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
+       event_len != uint4korr(buf + EVENT_LEN_OFFSET))) {
+    std::stringstream ss;
+    const uint32 header_event_len = event_len < LOG_EVENT_MINIMAL_HEADER_LEN
+                                        ? 0
+                                        : uint4korr(buf + EVENT_LEN_OFFSET);
+    ss << "Rejected malformed " << Log_event::get_type_str(event_type)
+       << " event from source: received packet length " << event_len
+       << " does not match event header length " << header_event_len
+       << ". Verify the source and binary log stream integrity.";
+    mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE, "%s",
+               ss.str().c_str());
     goto err;
   }
 

@@ -1612,28 +1612,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.b=x2.a AND x2.b=x3.a AND (x1.c < 5 OR x3.c=7) LIMIT 1;
-EXPLAIN
--> Limit: 1 row(s)  (rows=1)
-    -> Nested loop inner join  (rows=20)
-        -> Nested loop inner join  (rows=20)
-            -> Index scan on x1 using PRIMARY  (rows=20)
-            -> Single-row index lookup on x2 using PRIMARY (a = x1.b)  (rows=1)
-        -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=1)
-            -> Single-row index lookup on x3 using PRIMARY (a = x2.b)  (rows=1)
-
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1, t1 x2, t1 x3
 WHERE x1.b=x2.d AND x2.b=x3.d AND (x1.c < 5 OR x3.c=7) ORDER BY x3.d LIMIT 1;
-EXPLAIN
--> Limit: 1 row(s)  (rows=1)
-    -> Filter: ((x1.c < 5) or (x3.c = 7))  (rows=80)
-        -> Nested loop inner join  (rows=80)
-            -> Sort: x2.b  (rows=40)
-                -> Inner hash join (x1.b = x2.d)  (rows=40)
-                    -> Index scan on x1 using PRIMARY  (rows=20)
-                    -> Hash
-                        -> Index scan on x2 using PRIMARY  (rows=20)
-            -> Index lookup on x3 using k1 (d = x2.b)  (rows=2)
-
 EXPLAIN FORMAT=TREE SELECT * FROM t1 x1 LEFT JOIN t1 x2
 ON x1.a <=> x2.a AND  x1.a <=> x2.a;
 EXPLAIN

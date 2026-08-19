@@ -91,7 +91,7 @@ line
 "Keys for CTE 'cte1' considered during planning':",
 " - <auto_key0> : {'v1'}"
 "Keys for CTE 'cte1' considered during planning':",
-" - <auto_key0> : {'v2'}"
+" - <auto_key1> : {'v2'}"
 EXPLAIN FORMAT=TREE WITH cte1 AS
 (SELECT SUM(x1.b + x2.b) v1, x1.d v2, MAX(x1.b + x2.b) v3 FROM t1 x1, t1 x2
 WHERE x1.c=x2.c GROUP BY x1.d)
@@ -122,7 +122,7 @@ line
 "Keys for CTE 'cte1' considered during planning':",
 " - <auto_key0> : {'v1'}"
 "Keys for CTE 'cte1' considered during planning':",
-" - <auto_key0> : {'v2'}"
+" - <auto_key1> : {'v2'}"
 DROP TABLE t1;
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (0,0), (1,2), (2,2);

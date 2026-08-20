@@ -7,7 +7,7 @@ Warnings:
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a trigger.
 'root' user used by component's 1st verison does not exist. Telemetry dir should contain 1 file.
-1
+XXX.json
 RENAME USER 'root.tmp'@'localhost' to 'root'@'localhost';
 Warnings:
 Warning	4005	User 'root'@'localhost' is referenced as a definer account in a stored routine.
@@ -16,7 +16,7 @@ Warning	4005	User 'root'@'localhost' is referenced as a definer account in a tri
 RENAME USER 'percona.telemetry'@'localhost' to 'percona.telemetry.tmp'@'localhost';
 include/assert.inc [No orphaned sessions expected in processlist]
 'percona.telemetry' user used by component does not exist. Telemetry dir should still contain 1 file.
-1
+XXX.json
 RENAME USER 'percona.telemetry.tmp'@'localhost' to 'percona.telemetry'@'localhost';
 # restart:--percona_telemetry.grace_interval=30 --percona_telemetry.scrape_interval=30 --percona_telemetry.telemetry_root_dir=<telemetry_root_dir>
 DROP USER 'percona.telemetry'@'localhost';

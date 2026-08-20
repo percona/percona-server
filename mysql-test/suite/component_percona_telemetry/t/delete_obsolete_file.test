@@ -31,10 +31,9 @@ CALL mtr.add_suppression("Component percona_telemetry reported: 'Skipping file d
 
 --echo File with the name not conforming to the pattern still should be there
 --file_exists $untouchable_file
---exec ls -1 $telemetry_root_dir | grep $untouchable_file_name | wc -l
 
---echo Obsolete file should be removed
---exec ls -1 $telemetry_root_dir | grep $obsolete_file_name | wc -l
+--echo Obsolete file should be removed (the below command returns nothing)
+--list_files $telemetry_root_dir $obsolete_file_name
 
 # cleanup
 --force-rmdir $telemetry_root_dir

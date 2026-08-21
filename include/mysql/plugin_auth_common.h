@@ -102,6 +102,12 @@
 */
 #define CR_OK_AUTH_IN_SANDBOX_MODE -3
 /**
+  Authentication was successful with limited operations.
+  User should change the password.
+*/
+#define CR_OK_FORCE_PASSWORD_CHANGE -4
+
+/**
 Flag to be passed back to server from authentication plugins via
 authenticated_as when proxy mapping should be done by the server.
 */

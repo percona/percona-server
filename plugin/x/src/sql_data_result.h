@@ -27,6 +27,7 @@
 #define PLUGIN_X_SRC_SQL_DATA_RESULT_H_
 
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -86,6 +87,7 @@ class Sql_data_result {
   void get_next_field(bool *value);
   void get_next_field(std::string *value);
   void get_next_field(char **value);
+  void get_next_field(std::optional<std::string> *value);
   template <typename T>
   void get_next_field(T *value) {
     static_assert(std::is_integral<T>::value, "Integral required.");

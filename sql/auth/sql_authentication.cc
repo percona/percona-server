@@ -3836,6 +3836,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   int res = CR_OK;
   int ret = 1;
   MPVIO_EXT mpvio;
+  bool password_change_directive_from_plugin = false;
   LEX_CSTRING auth_plugin_name = default_auth_plugin_name;
   Thd_charset_adapter charset_adapter(thd);
 
@@ -3905,6 +3906,17 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                          mpvio.acl_user->plugin.str));
     auth_plugin_name = mpvio.acl_user->plugin;
     res = do_auth_once(thd, auth_plugin_name, &mpvio);
+  }
+
+  if (res == CR_OK_FORCE_PASSWORD_CHANGE) {
+    password_change_directive_from_plugin = true;
+    /*
+      Set to CR_OK so that rest of the logic remains unchanged.
+      When it is time to set the password expired flat in
+      Security context, password_change_directive_from_plugin
+      will be used.
+    */
+    res = CR_OK;
   }
 
   if (res == CR_OK) {
@@ -4215,7 +4227,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         proxied user password expires.
       */
       sctx->set_password_expired(mpvio.acl_user->password_expired ||
-                                 password_time_expired);
+                                 password_time_expired ||
+                                 password_change_directive_from_plugin);
     } else {
       sctx->skip_grants();
       /*
@@ -4290,7 +4303,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   ret = 0;
 end:
   if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
-    /* Ready to handle queries */
+  /* Ready to handle queries */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
   LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();

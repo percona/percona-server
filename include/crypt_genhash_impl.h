@@ -27,9 +27,17 @@
 
 #ifndef CRYPT_HASHGEN_IMPL_H
 #define CRYPT_HASHGEN_IMPL_H
+
+// sha256 rounds
 #define ROUNDS_DEFAULT 5000
 #define ROUNDS_MIN ROUNDS_DEFAULT
 #define ROUNDS_MAX (0xFFF * 1000)
+
+// caching_sha2 rounds
+#define SHA2_ROUNDS_DEFAULT 10000
+#define SHA2_ROUNDS_MIN 5000
+#define SHA2_ROUNDS_MAX (0xFFF * 1000)
+
 #define MIXCHARS 32
 #define CRYPT_SALT_LENGTH 20
 #define CRYPT_MAGIC_LENGTH 3

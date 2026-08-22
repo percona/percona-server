@@ -248,7 +248,6 @@ static bool create_thd_and_authenticate_conn(connection_context_t *,
                                              tp_group_t *, tp_thread_t *);
 static void tp_create_connect_thread(tp_group_t *my_tp_group);
 static void tp_wake_thread(tp_group_t *my_tp_group, wake_level level);
-static inline bool is_query_ready_to_process(tp_group_t *my_tp_group);
 
 /* Global Variables */
 
@@ -1498,10 +1497,12 @@ static inline bool is_high_prio_query_available(tp_group_t *my_tp_group) {
   credit available to execute it.
 
   @param my_tp_group        Thread group data
+  @param next               Highest-priority queued query, if any
 
   @retval                   true if query available to execute
 */
-static inline bool is_query_ready_to_process(tp_group_t *my_tp_group) {
+static inline bool is_query_ready_to_process(tp_group_t *my_tp_group,
+                                             tp_client_low_level_t **next) {
   DBUG_TRACE;
   DBUG_LOG("tp_enter",
            "Thread group id "
@@ -1510,8 +1511,8 @@ static inline bool is_query_ready_to_process(tp_group_t *my_tp_group) {
                << ", Num trans queued " << my_tp_group->queued_trans.elements()
                << ", max_active_threads " << my_tp_group->max_active_threads);
 
-  tp_client_low_level_t *next = next_queued_query(my_tp_group);
-  if (next == nullptr) {
+  *next = next_queued_query(my_tp_group);
+  if (*next == nullptr) {
     DBUG_LOG("tp_query_ready", "No queued query");
     return false;
   }
@@ -1521,7 +1522,7 @@ static inline bool is_query_ready_to_process(tp_group_t *my_tp_group) {
     return true;
   }
   DBUG_PRINT("tp_query_ready", ("Credit is NOT avalable"));
-  next->conn_state = Connection_state::WAITING_FOR_CREDIT;
+  (*next)->conn_state = Connection_state::WAITING_FOR_CREDIT;
   return false;
 }
 
@@ -1721,16 +1722,28 @@ void process_direct_query(tp_thread_t *my_thread_data,
   @param my_thread_data     Thread data
 */
 static void process_queued_query(tp_group_t *my_tp_group,
-                                 tp_thread_t *my_thread_data) {
+                                 tp_thread_t *my_thread_data,
+                                 tp_client_low_level_t *client_cntx) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&my_tp_group->LOCK_group);
 
-  auto &client_cntx = my_thread_data->client_low_level_cntx;
+  auto &thread_client_cntx = my_thread_data->client_low_level_cntx;
   // Get a connection context for the highest priority query around
-  assert(client_cntx == nullptr);
-  client_cntx = pop_highest_priority_query(my_tp_group);
+  assert(thread_client_cntx == nullptr);
+  if (client_cntx == nullptr) {
+    client_cntx = pop_highest_priority_query(my_tp_group);
+  } else {
+    auto *queue = my_tp_group->queued_queries.front() == client_cntx
+                      ? &my_tp_group->queued_queries
+                      : &my_tp_group->queued_trans;
+    assert(queue->front() == client_cntx);
+    queue->remove(client_cntx);
+    assert(client_cntx->is_queued);
+    client_cntx->is_queued = false;
+  }
 
   if (client_cntx == nullptr) return;
+  thread_client_cntx = client_cntx;
 
   DBUG_PRINT(
       "tp",
@@ -2004,8 +2017,9 @@ static inline bool dedicated_listener_loop(tp_group_t *my_tp_group,
 static inline bool query_worker_thread_loop(tp_group_t *my_tp_group,
                                             tp_thread_t *my_thread_data) {
   while (!is_tp_shutdown()) {
-    if (is_query_ready_to_process(my_tp_group))
-      process_queued_query(my_tp_group, my_thread_data);
+    tp_client_low_level_t *next = nullptr;
+    if (is_query_ready_to_process(my_tp_group, &next))
+      process_queued_query(my_tp_group, my_thread_data, nullptr);
     else {
       std::uint32_t txnlim =
           configured_max_transactions_limit_per_group(my_tp_group);
@@ -2044,7 +2058,9 @@ static inline bool low_concurrency_algorithm(tp_group_t *my_tp_group,
     CPU caches since it will reuse mostly the same threads all the time.
   */
   DBUG_TRACE;
-  while ((!is_query_ready_to_process(my_tp_group)) && (!is_tp_shutdown())) {
+  while (!is_tp_shutdown()) {
+    tp_client_low_level_t *next = nullptr;
+    if (is_query_ready_to_process(my_tp_group, &next)) break;
     /*
       Even in the low concurrency case it is possible to come here
       with no queries queued up after the last query being delayed by
@@ -2085,8 +2101,11 @@ static inline bool low_concurrency_algorithm(tp_group_t *my_tp_group,
     handle_waiting_thread(my_tp_group, my_thread_data, false);
   }
 
-  while (is_query_ready_to_process(my_tp_group) && (!is_tp_shutdown())) {
-    process_queued_query(my_tp_group, my_thread_data);
+  while (!is_tp_shutdown()) {
+    tp_client_low_level_t *next = nullptr;
+    next = nullptr;
+    if (!is_query_ready_to_process(my_tp_group, &next)) break;
+    process_queued_query(my_tp_group, my_thread_data, nullptr);
     if (my_tp_group->waiting_thread == nullptr &&
         !is_high_prio_query_available(my_tp_group)) {
       handle_waiting_thread(my_tp_group, my_thread_data, false);
@@ -2105,14 +2124,16 @@ static inline bool low_concurrency_algorithm(tp_group_t *my_tp_group,
 static inline bool high_concurrency_algorithm(tp_group_t *my_tp_group,
                                               tp_thread_t *my_thread_data) {
   DBUG_TRACE;
+  tp_client_low_level_t *next = nullptr;
   if ((my_tp_group->waiting_thread != nullptr &&
-       (!is_query_ready_to_process(my_tp_group)) && !is_tp_shutdown())) {
+       (!is_query_ready_to_process(my_tp_group, &next)) && !is_tp_shutdown())) {
     return handle_worker_thread_sleep(my_tp_group, my_thread_data);
   }
 
-  while (is_query_ready_to_process(my_tp_group) && (!is_tp_shutdown())) {
-    if ((count_waiting_queries(my_tp_group) > 1) ||
-        my_tp_group->waiting_thread == nullptr) {
+  while (!is_tp_shutdown()) {
+    tp_client_low_level_t *next = nullptr;
+    if (!is_query_ready_to_process(my_tp_group, &next)) break;
+    if (count_waiting_queries(my_tp_group) > 1) {
       /*
         There are either more queries to execute or there is a waiting
         thread to handle. We will wake up another thread to handle
@@ -2142,7 +2163,7 @@ static inline bool high_concurrency_algorithm(tp_group_t *my_tp_group,
         continue;
       }
     }
-    process_queued_query(my_tp_group, my_thread_data);
+    process_queued_query(my_tp_group, my_thread_data, nullptr);
   }
 
   if (my_tp_group->waiting_thread == nullptr && !is_tp_shutdown()) {
@@ -2925,9 +2946,10 @@ extern "C" void *tp_stall_check_thread_main(void *) {
     for (uint i = 0; (i < tp_groups) && (!is_tp_shutdown()); i++) {
       tp_group_t *cur_group = &(tp_group_list[i]);
 
+      tp_client_low_level_t *next = nullptr;
       DBUG_LOG("tp_scv", "SC: " << X_(cur_group->group_idx)
                                 << X_(cur_group->waiting_thread)
-                                << X_(is_query_ready_to_process(cur_group)));
+                                << X_(is_query_ready_to_process(cur_group, &next)));
       mysql_mutex_lock(&cur_group->LOCK_group);
       mark_and_count_stalled_threads(cur_group, stall_check_timpt);
       auto change_active_threads = update_max_active_threads(cur_group);
@@ -2972,7 +2994,7 @@ extern "C" void *tp_stall_check_thread_main(void *) {
                                          stall_check_timpt);
       if (change_active_threads > 0 || (cur_group->threads_for_consumer == 0 &&
                                         cur_group->threads_for_reserve == 0 &&
-                                        is_query_ready_to_process(cur_group))) {
+                                        is_query_ready_to_process(cur_group, &next))) {
         /*
           With the change in max_active_threads it might be credit available
           to start up new jobs and we might be missing threads to execute
@@ -3001,7 +3023,7 @@ extern "C" void *tp_stall_check_thread_main(void *) {
                           cur_group->group_idx));
         wake_thread = true;
       } else if (configured_max_transactions_limit_per_group(cur_group) > 0 &&
-                 is_query_ready_to_process(cur_group)) {
+                 is_query_ready_to_process(cur_group, &next)) {
         // This will catch the case when MTL has been increased and thereby
         // making a query which was waiting for credit able to start processing.
         // It is perhaps overly aggressive, as it will wake up threads also when

@@ -193,7 +193,7 @@ class BenchFixture {
                       m_ef_construction);
     }
     for (size_t i = 0; i < m_num_points; ++i) {
-      m_index->insert(i, /*base_pk=*/i, as_bytes(m_points[i]));
+      m_index->insert(i + 1, /*base_pk=*/i, as_bytes(m_points[i]));
     }
     m_build_seconds = seconds_since(build_start);
 
@@ -236,7 +236,7 @@ class BenchFixture {
   size_t arena_requested_bytes() const { return m_arena.bytes_requested; }
   size_t arena_requests() const { return m_arena.requests_number; }
 
-  const BorrowedHnsw &index() const { return *m_index; }
+  BorrowedHnsw &index() { return *m_index; }
   const std::vector<float> &query(size_t q) const { return m_queries[q]; }
   const std::unordered_set<uint64_t> &ground_truth(size_t q) const {
     return m_ground_truth[q];
@@ -288,8 +288,8 @@ class BenchFixture {
 
 /** Built on first use, so a --gtest_filter run only pays for what it selects.
  */
-static const BenchFixture &fixture() {
-  static const BenchFixture instance;
+static BenchFixture &fixture() {
+  static BenchFixture instance;
   return instance;
 }
 
@@ -299,7 +299,7 @@ struct RecallStats {
   double worst = 1.0;
 };
 
-static RecallStats measure_knn_recall(const BenchFixture &f, size_t ef_search) {
+static RecallStats measure_knn_recall(BenchFixture &f, size_t ef_search) {
   RecallStats stats;
   for (size_t q = 0; q < f.num_queries(); ++q) {
     const std::vector<uint64_t> found =
@@ -312,8 +312,7 @@ static RecallStats measure_knn_recall(const BenchFixture &f, size_t ef_search) {
   return stats;
 }
 
-static RecallStats measure_stream_recall(const BenchFixture &f,
-                                         size_t ef_search) {
+static RecallStats measure_stream_recall(BenchFixture &f, size_t ef_search) {
   RecallStats stats;
   for (size_t q = 0; q < f.num_queries(); ++q) {
     const std::vector<uint64_t> found =
@@ -329,7 +328,7 @@ static RecallStats measure_stream_recall(const BenchFixture &f,
 }
 
 TEST(HnswBenchmark, RecallVsEfSearch) {
-  const BenchFixture &f = fixture();
+  BenchFixture &f = fixture();
   f.print_config();
 
   std::printf("  %9s | %9s %9s | %9s %9s | %8s\n", "ef_search", "knn_avg",
@@ -380,7 +379,7 @@ TEST(HnswBenchmark, RecallVsEfSearch) {
 }
 
 TEST(HnswBenchmark, StreamFullDrainQuality) {
-  const BenchFixture &f = fixture();
+  BenchFixture &f = fixture();
 
   // A full drain costs O(N * Mmax) distance evaluations, so sample a few
   // queries rather than the whole set.
@@ -480,7 +479,7 @@ static void BM_HnswKnnSearch(size_t num_iterations) {
                   "(configure with -DWITH_DEBUG=OFF for meaningful results)";
 #endif
   StopBenchmarkTiming();
-  const BenchFixture &f = fixture();
+  BenchFixture &f = fixture();
   constexpr size_t kEfSearch = 64;
 
   StartBenchmarkTiming();
@@ -500,7 +499,7 @@ static void BM_HnswStreamSearch(size_t num_iterations) {
                   "(configure with -DWITH_DEBUG=OFF for meaningful results)";
 #endif
   StopBenchmarkTiming();
-  const BenchFixture &f = fixture();
+  BenchFixture &f = fixture();
   constexpr size_t kEfSearch = 64;
 
   StartBenchmarkTiming();

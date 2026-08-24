@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -52,7 +53,124 @@ class ArenaAllocator {
   MEM_ROOT m_mem_root;
 };
 
-using TestHnsw = HNSW<ArenaAllocator>;
+/**
+  No-op Persistor for unit tests and benchmarks.
+
+  Stateless: no members. Context is an empty tag type; callers may pass nullptr.
+*/
+struct NullPersistor {
+  struct Context {};
+
+  template <typename NeighborIds>
+  void insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                 NeighborIds) {}
+  template <typename NeighborIds>
+  void update_neighbors_cb(Context *, uint64_t, NeighborIds) {}
+  void update_entry_point_cb(Context *, uint64_t) {}
+  template <typename Hnsw>
+  void load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
+    assert(false);
+  }
+};
+
+using TestHnsw = HNSW<ArenaAllocator, NullPersistor>;
+
+inline const char *as_bytes(const std::vector<float> &v) {
+  return reinterpret_cast<const char *>(v.data());
+}
+
+inline std::vector<float> make_vec(std::initializer_list<float> values) {
+  return std::vector<float>(values);
+}
+
+/** Snapshot of one graph node as persisted by RecordingPersistor. */
+struct StoredNode {
+  uint64_t base_pk = 0;
+  uint8_t layer = 0;
+  std::vector<float> vec;
+  /// Latest neighbor slot ids ((layer + 2) * M); 0 = empty slot.
+  std::vector<uint64_t> neighbor_ids;
+};
+
+/**
+  In-memory Persistor for round-trip / lazy-load tests.
+
+  Stateless: all data lives in Context. Captures insert and neighbor updates
+  into Context::nodes; replays via load_node_cb using HNSW load_* helpers.
+*/
+struct RecordingPersistor {
+  struct Context {
+    size_t dims = 0;
+    std::unordered_map<uint64_t, StoredNode> nodes;
+    uint64_t entry_point = 0;
+    /// Number of load_node_cb invocations per graph id (lazy-load tests).
+    std::unordered_map<uint64_t, size_t> load_counts;
+  };
+
+  template <typename NeighborIds>
+  void insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
+                 uint8_t layer, NeighborIds neighbors) {
+    StoredNode &row = ctx->nodes[id];
+    row.base_pk = base_pk;
+    row.layer = layer;
+    row.vec.assign(reinterpret_cast<const float *>(q),
+                   reinterpret_cast<const float *>(q) + ctx->dims);
+    row.neighbor_ids.assign(neighbors.begin(), neighbors.end());
+  }
+
+  template <typename NeighborIds>
+  void update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
+    ctx->nodes.at(id).neighbor_ids.assign(neighbors.begin(), neighbors.end());
+  }
+
+  void update_entry_point_cb(Context *ctx, uint64_t id) {
+    ctx->entry_point = id;
+  }
+
+  template <typename Hnsw>
+  void load_node_cb(Context *ctx, Hnsw &hnsw,
+                    typename Hnsw::LoadNodeHandle handle) {
+    const uint64_t id = hnsw.load_node_id(handle);
+    const StoredNode &row = ctx->nodes.at(id);
+    hnsw.load_set_layer(handle, row.layer);
+    hnsw.load_set_vec(handle, as_bytes(row.vec));
+    hnsw.load_set_base_pk(handle, row.base_pk);
+    hnsw.load_node_neighbors(handle, row.neighbor_ids);
+    ++ctx->load_counts[id];
+  }
+};
+
+using LoadTestHnsw = HNSW<ArenaAllocator, RecordingPersistor>;
+
+/** Graph data used by round-trip persistence tests. */
+struct RoundTripFixture {
+  RecordingPersistor::Context store;
+  std::vector<std::vector<float>> points;
+  std::vector<uint64_t> graph_ids;
+  std::vector<uint64_t> base_pks;
+  std::vector<float> query;
+};
+
+/** Fixed 4-node corner graph (regression-friendly). */
+inline RoundTripFixture make_fixed_round_trip_fixture(size_t dims) {
+  assert(dims == 2);
+  RoundTripFixture fixture;
+  fixture.store.dims = dims;
+  fixture.points = {make_vec({0.0f, 0.0f}), make_vec({10.0f, 0.0f}),
+                    make_vec({0.0f, 10.0f}), make_vec({10.0f, 10.0f})};
+  fixture.graph_ids = {101, 102, 103, 104};
+  fixture.base_pks = {2001, 2002, 2003, 2004};
+  fixture.query = make_vec({9.5f, 9.5f});
+  return fixture;
+}
+
+inline void populate_round_trip_index(LoadTestHnsw &index,
+                                      RoundTripFixture *fixture) {
+  for (size_t i = 0; i < fixture->points.size(); ++i) {
+    index.insert(fixture->graph_ids[i], fixture->base_pks[i],
+                 as_bytes(fixture->points[i]), &fixture->store);
+  }
+}
 
 /**
   Caller-owned arena plus request counters, for measuring an index's memory.
@@ -103,7 +221,7 @@ class BorrowedArenaAllocator {
   ArenaStats *m_arena;
 };
 
-using BorrowedHnsw = HNSW<BorrowedArenaAllocator>;
+using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor>;
 
 /** Scoped arm of g_pending_arena; construct the index inside its scope. */
 class ArenaHandover {
@@ -124,14 +242,6 @@ inline double euclidean(const char *a_raw, const char *b_raw, uint32_t dims) {
     sum += d * d;
   }
   return std::sqrt(sum);
-}
-
-inline std::vector<float> make_vec(std::initializer_list<float> values) {
-  return std::vector<float>(values);
-}
-
-inline const char *as_bytes(const std::vector<float> &v) {
-  return reinterpret_cast<const char *>(v.data());
 }
 
 /**
@@ -155,6 +265,27 @@ inline std::vector<std::vector<float>> make_pseudo_random_points(
     }
   }
   return points;
+}
+
+/**
+  Pseudo-random graph: @p count nodes, deterministic given @p seed.
+  Graph ids are 1..count; base_pk equals graph id - 1.
+*/
+inline RoundTripFixture make_random_round_trip_fixture(size_t dims,
+                                                       size_t count,
+                                                       uint64_t seed) {
+  RoundTripFixture fixture;
+  fixture.store.dims = dims;
+  uint64_t state = seed;
+  fixture.points = make_pseudo_random_points(count, dims, &state);
+  fixture.graph_ids.resize(count);
+  fixture.base_pks.resize(count);
+  for (size_t i = 0; i < count; ++i) {
+    fixture.graph_ids[i] = i + 1;
+    fixture.base_pks[i] = i;
+  }
+  fixture.query = make_pseudo_random_points(/*count=*/1, dims, &state)[0];
+  return fixture;
 }
 
 /**
@@ -197,11 +328,12 @@ inline std::vector<std::vector<float>> make_clustered_points(
   base_pk values in the order the stream yielded them.
 */
 template <typename Hnsw>
-inline std::vector<uint64_t> drain_stream(const Hnsw &index, const char *query,
-                                          size_t batch_size, size_t ef_search,
-                                          size_t max_results = 1000) {
+inline std::vector<uint64_t> drain_stream(
+    Hnsw &index, const char *query, size_t batch_size, size_t ef_search,
+    size_t max_results = 1000,
+    typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
   typename Hnsw::NNSearchContext ctx;
-  index.nn_search_start(&ctx, query, batch_size, ef_search);
+  index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
   std::vector<uint64_t> out;
   for (size_t i = 0; i < max_results; ++i) {
     const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);

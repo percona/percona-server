@@ -161,7 +161,7 @@ TEST_F(HnswTest, BruteForceRecall) {
   const auto points =
       make_pseudo_random_points(kNumPoints, kRecallDims, &state);
   for (size_t i = 0; i < kNumPoints; ++i) {
-    index.insert(i, /*base_pk=*/i, as_bytes(points[i]));
+    index.insert(i + 1, /*base_pk=*/i, as_bytes(points[i]));
   }
 
   const auto queries =
@@ -257,7 +257,7 @@ TEST_F(HnswTest, StreamMultipleBatchesNoDuplicates) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
   for (uint64_t i = 0; i < 30; ++i) {
     const auto v = make_vec({static_cast<float>(i), 0.0f});
-    index.insert(i, 1000 + i, as_bytes(v));
+    index.insert(i + 1, 1000 + i, as_bytes(v));
   }
   const auto query = make_vec({0.0f, 0.0f});
   // Small batch/ef forces continuation refills across batches.
@@ -275,7 +275,7 @@ TEST_F(HnswTest, StreamDistancesNonDecreasingAcrossBatches) {
   std::vector<std::vector<float>> points;
   for (uint64_t i = 0; i < 40; ++i) {
     points.push_back(make_vec({static_cast<float>(i), 0.0f}));
-    index.insert(i, /*base_pk=*/i, as_bytes(points.back()));
+    index.insert(i + 1, /*base_pk=*/i, as_bytes(points.back()));
   }
 
   const auto query = make_vec({0.0f, 0.0f});
@@ -302,7 +302,7 @@ TEST_F(HnswTest, StreamDrainsEntireGraph) {
 
   for (uint64_t i = 0; i < kNumPoints; ++i) {
     const auto v = make_vec({static_cast<float>(i), 0.0f});
-    index.insert(i, /*base_pk=*/1000 + i, as_bytes(v));
+    index.insert(i + 1, /*base_pk=*/1000 + i, as_bytes(v));
   }
 
   const auto query = make_vec({0.0f, 0.0f});
@@ -326,7 +326,7 @@ TEST_F(HnswTest, StreamDrainsEntireGraphWithEfSmallerThanGraph) {
 
   for (uint64_t i = 0; i < kNumPoints; ++i) {
     const auto v = make_vec({static_cast<float>(i), 0.0f});
-    index.insert(i, /*base_pk=*/1000 + i, as_bytes(v));
+    index.insert(i + 1, /*base_pk=*/1000 + i, as_bytes(v));
   }
 
   const auto query = make_vec({0.0f, 0.0f});
@@ -354,7 +354,7 @@ TEST_F(HnswTest, StreamNoDuplicatesInMultiDimensionalGraph) {
   const auto points =
       make_pseudo_random_points(kNumPoints, kStreamDims, &state);
   for (size_t i = 0; i < kNumPoints; ++i) {
-    index.insert(i, /*base_pk=*/i, as_bytes(points[i]));
+    index.insert(i + 1, /*base_pk=*/i, as_bytes(points[i]));
   }
 
   const auto queries =
@@ -382,30 +382,33 @@ TEST_F(HnswTest, StreamYieldsEachNodeAtMostOnce) {
 
   for (uint64_t i = 0; i < 5; ++i) {
     index.insert(
-        i, i,
+        i + 1, i + 1,
         as_bytes(make_vec({100.0f + 0.5f * static_cast<float>(i), 0.0f})));
   }
   for (uint64_t i = 5; i < 10; ++i) {
     index.insert(
-        i, i,
+        i + 1, i + 1,
         as_bytes(make_vec({100.0f + 0.5f * static_cast<float>(i - 5), 1.0f})));
   }
   for (uint64_t i = 10; i < 15; ++i) {
     index.insert(
-        i, i,
+        i + 1, i + 1,
         as_bytes(make_vec({100.0f + 0.5f * static_cast<float>(i - 10), 2.0f})));
   }
   for (uint64_t i = 100; i < 105; ++i) {
     index.insert(
-        i, i, as_bytes(make_vec({0.5f * static_cast<float>(i - 100), 0.0f})));
+        i + 1, i + 1,
+        as_bytes(make_vec({0.5f * static_cast<float>(i - 100), 0.0f})));
   }
   for (uint64_t i = 105; i < 110; ++i) {
     index.insert(
-        i, i, as_bytes(make_vec({0.5f * static_cast<float>(i - 105), 1.0f})));
+        i + 1, i + 1,
+        as_bytes(make_vec({0.5f * static_cast<float>(i - 105), 1.0f})));
   }
   for (uint64_t i = 110; i < 115; ++i) {
     index.insert(
-        i, i, as_bytes(make_vec({0.5f * static_cast<float>(i - 110), 2.0f})));
+        i + 1, i + 1,
+        as_bytes(make_vec({0.5f * static_cast<float>(i - 110), 2.0f})));
   }
 
   const auto query = make_vec({0.0f, 0.0f});
@@ -466,7 +469,7 @@ TEST_F(HnswTest, StreamBruteForceRecall) {
   const auto points =
       make_pseudo_random_points(kNumPoints, kRecallDims, &state);
   for (size_t i = 0; i < kNumPoints; ++i) {
-    index.insert(i, /*base_pk=*/i, as_bytes(points[i]));
+    index.insert(i + 1, /*base_pk=*/i, as_bytes(points[i]));
   }
 
   const auto queries =
@@ -506,6 +509,145 @@ TEST_F(HnswTest, StreamBruteForceRecall) {
       << "avg stream recall@125=" << avg_recall;
 }
 
+namespace {
+
+void assert_round_trip_knn(RoundTripFixture *fixture, size_t dims, size_t M,
+                           size_t ef_construction, size_t k, size_t ef_search,
+                           bool validate_built [[maybe_unused]]) {
+  LoadTestHnsw built(dims, euclidean, M, ef_construction);
+  populate_round_trip_index(built, fixture);
+  ASSERT_GT(fixture->store.entry_point, 0U);
+#ifndef NDEBUG
+  if (validate_built) {
+    EXPECT_TRUE(built.validate());
+  }
+#endif
+
+  LoadTestHnsw reloaded(dims, euclidean, M, ef_construction);
+  reloaded.init_from_entry_point(fixture->store.entry_point, &fixture->store);
+
+  const auto from_built = built.k_nn_search(as_bytes(fixture->query), k,
+                                            ef_search, &fixture->store);
+  const auto from_reloaded = reloaded.k_nn_search(as_bytes(fixture->query), k,
+                                                  ef_search, &fixture->store);
+
+  ASSERT_EQ(from_built.size(), from_reloaded.size());
+  EXPECT_EQ(from_built, from_reloaded);
+}
+
+void assert_round_trip_stream(RoundTripFixture *fixture, size_t dims, size_t M,
+                              size_t ef_construction, size_t batch_size,
+                              size_t ef_search, size_t max_results) {
+  LoadTestHnsw built(dims, euclidean, M, ef_construction);
+  populate_round_trip_index(built, fixture);
+  ASSERT_GT(fixture->store.entry_point, 0U);
+
+  LoadTestHnsw reloaded(dims, euclidean, M, ef_construction);
+  reloaded.init_from_entry_point(fixture->store.entry_point, &fixture->store);
+
+  const auto stream_built = drain_stream(built, as_bytes(fixture->query),
+                                         batch_size, ef_search, max_results);
+  const auto stream_reloaded =
+      drain_stream(reloaded, as_bytes(fixture->query), batch_size, ef_search,
+                   max_results, &fixture->store);
+
+  ASSERT_EQ(stream_built.size(), stream_reloaded.size());
+  EXPECT_EQ(stream_built, stream_reloaded);
+}
+
+}  // namespace
+
+TEST_F(HnswTest, RoundTripSmallGraph) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  assert_round_trip_knn(&fixture, kDims, kM, kEfConstruction,
+                        /*k=*/3, /*ef_search=*/16, /*validate_built=*/true);
+}
+
+TEST_F(HnswTest, RoundTripRandomGraph) {
+  constexpr size_t kNumPoints = 1000;
+  constexpr uint64_t kSeed = 4242;
+  RoundTripFixture fixture =
+      make_random_round_trip_fixture(kDims, kNumPoints, kSeed);
+  assert_round_trip_knn(&fixture, kDims, kM, kEfConstruction,
+                        /*k=*/10, /*ef_search=*/50, /*validate_built=*/false);
+}
+
+TEST_F(HnswTest, RoundTripStreamSearch) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  assert_round_trip_stream(&fixture, kDims, kM, kEfConstruction,
+                           /*batch_size=*/2, /*ef_search=*/16,
+                           /*max_results=*/3);
+}
+
+TEST_F(HnswTest, RoundTripStreamRandomGraph) {
+  constexpr size_t kNumPoints = 1000;
+  constexpr uint64_t kSeed = 5150;
+  RoundTripFixture fixture =
+      make_random_round_trip_fixture(kDims, kNumPoints, kSeed);
+  assert_round_trip_stream(&fixture, kDims, kM, kEfConstruction,
+                           /*batch_size=*/5, /*ef_search=*/50,
+                           /*max_results=*/25);
+}
+
+TEST_F(HnswTest, InitFromEntryPointLoadsEP) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  LoadTestHnsw reloaded(kDims, euclidean, kM, kEfConstruction);
+  reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+
+  EXPECT_EQ(1U, fixture.store.load_counts.size());
+  EXPECT_EQ(1U, fixture.store.load_counts.at(fixture.store.entry_point));
+  for (uint64_t id : fixture.graph_ids) {
+    if (id == fixture.store.entry_point) {
+      continue;
+    }
+    EXPECT_EQ(0U, fixture.store.load_counts.count(id));
+  }
+}
+
+TEST_F(HnswTest, SearchLoadsNeighborsOnDemand) {
+  constexpr size_t kNumPoints = 1000;
+  constexpr uint64_t kSeed = 7777;
+  RoundTripFixture fixture =
+      make_random_round_trip_fixture(kDims, kNumPoints, kSeed);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  LoadTestHnsw reloaded(kDims, euclidean, kM, kEfConstruction);
+  reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(1U, fixture.store.load_counts.size());
+
+  const auto hits =
+      reloaded.k_nn_search(as_bytes(fixture.query), 10, 50, &fixture.store);
+  ASSERT_GE(hits.size(), 1U);
+  EXPECT_GT(fixture.store.load_counts.size(), 1U);
+  EXPECT_LT(fixture.store.load_counts.size(), fixture.graph_ids.size());
+}
+
+TEST_F(HnswTest, LoadNodeIdempotent) {
+  constexpr size_t kNumPoints = 1000;
+  constexpr uint64_t kSeed = 8888;
+  RoundTripFixture fixture =
+      make_random_round_trip_fixture(kDims, kNumPoints, kSeed);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  LoadTestHnsw reloaded(kDims, euclidean, kM, kEfConstruction);
+  reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+
+  const auto query = as_bytes(fixture.query);
+  (void)reloaded.k_nn_search(query, 10, 50, &fixture.store);
+  const auto counts_after_first = fixture.store.load_counts;
+
+  (void)reloaded.k_nn_search(query, 10, 50, &fixture.store);
+  EXPECT_EQ(counts_after_first, fixture.store.load_counts);
+}
+
 #ifndef NDEBUG
 TEST_F(HnswTest, GraphInvariants) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
@@ -513,7 +655,7 @@ TEST_F(HnswTest, GraphInvariants) {
 
   for (uint64_t i = 0; i < 50; ++i) {
     const auto v = make_vec({static_cast<float>(i), static_cast<float>(i % 7)});
-    index.insert(i, 1000 + i, as_bytes(v));
+    index.insert(i + 1, 1000 + i, as_bytes(v));
     EXPECT_TRUE(index.validate()) << "after insert i=" << i;
   }
 }
@@ -523,6 +665,12 @@ TEST(HnswDeathTest, SearchKZeroAsserts) {
   const auto v = make_vec({0.0f, 0.0f});
   index.insert(1, 100, as_bytes(v));
   EXPECT_DEATH_IF_SUPPORTED(index.k_nn_search(as_bytes(v), /*k=*/0, 16), "");
+}
+
+TEST(HnswDeathTest, ZeroIdAsserts) {
+  TestHnsw index(2, euclidean, 4, 16);
+  const auto v = make_vec({1.0f, 2.0f});
+  EXPECT_DEATH_IF_SUPPORTED(index.insert(0, 100, as_bytes(v)), "");
 }
 
 TEST(HnswDeathTest, DuplicateIdAsserts) {

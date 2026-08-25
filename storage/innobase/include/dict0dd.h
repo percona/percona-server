@@ -1401,6 +1401,16 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 bool dd_create_fts_common_table(const dict_table_t *parent_table,
                                 dict_table_t *table, bool is_config);
 
+/** Create dd table for the auxiliary table of a vector (HNSW) index.
+Mirrors dd_create_fts_index_table; the schema is the fixed 5-column
+(id, vec, row_ref, level, neighbors) layout from vec0aux.h.
+@param[in]      parent_table    parent table that owns the vector index
+@param[in,out]  table           in-memory aux table (its dd_space_id is
+                                populated as a side effect)
+@return true on success, false on failure */
+bool dd_create_vec_aux_table(const dict_table_t *parent_table,
+                             dict_table_t *table);
+
 /** Drop dd table & tablespace for fts aux table
 @param[in]      name            table name
 @param[in]      file_per_table  flag whether use file per table

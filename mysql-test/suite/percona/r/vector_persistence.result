@@ -1,0 +1,69 @@
+#
+# PS-11299: Vector index persistence — phase 1.
+# CREATE TABLE creates one aux .ibd per vector index and auto-adds the
+# hidden percona_vec_aux_id column. SHOW CREATE must not expose percona_vec_aux_id.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR(8) NOT NULL,
+KEY (v1) TYPE hnsw
+);
+# SHOW CREATE TABLE must NOT mention percona_vec_aux_id (HT_HIDDEN_SE).
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v1` (`v1`) TYPE `hnsw`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Exactly one aux .ibd per vector index must exist on disk.
+# Names are vec_<hex_table_id>_<hex_index_id>.ibd — mask the ids so the
+# result file is stable across runs.
+percona_vec_hnsw_<TID>_<IID>.ibd
+# User cannot declare a column named percona_vec_aux_id when the table has a
+# vector index — the name is reserved.
+CREATE TABLE t2 (
+id BIGINT UNSIGNED PRIMARY KEY,
+percona_vec_aux_id BIGINT UNSIGNED,
+v1 VECTOR(8) NOT NULL,
+KEY (v1) TYPE hnsw
+);
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+# ... and it is rejected on a table with no vector index too - the
+# name is reserved unconditionally, so a table cannot be set up now
+# in a way that would break ALTER ... ADD KEY ... TYPE hnsw later.
+CREATE TABLE t3 (
+id BIGINT UNSIGNED PRIMARY KEY,
+percona_vec_aux_id BIGINT UNSIGNED
+);
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+#
+# RENAME TABLE — aux name is "<db>/vec_<table_id>_<index_id>" so a
+# same-schema rename is a no-op on disk. Cross-schema rename
+# moves each aux .ibd to the new schema directory and reparents
+# its dd::Table — full FTS parity via dd_rename_fts_table.
+#
+#
+# TRUNCATE TABLE — InnoDB implements truncate as drop+create, so the
+# aux table gets removed and recreated. New table_id/index_id means
+# the aux .ibd name changes, but the count stays at one per vector
+# index.
+#
+# Capture the aux name before truncate.
+vec_<BEFORE>.ibd
+TRUNCATE TABLE t1;
+# Still exactly one aux .ibd in test/ (likely with a different id).
+vec_<AFTER>.ibd
+# Same-schema rename: aux file unchanged.
+RENAME TABLE t1 TO t1_renamed;
+percona_vec_hnsw_<TID>_<IID>.ibd
+# Cross-schema rename: aux follows the parent to the new schema dir.
+CREATE DATABASE vec_other;
+RENAME TABLE t1_renamed TO vec_other.t1;
+# No more percona_vec_*.ibd in test/.
+# ... they now live under vec_other/.
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE vec_other.t1;
+DROP DATABASE vec_other;
+# After DROP TABLE the aux .ibd files must be gone too — no orphans.

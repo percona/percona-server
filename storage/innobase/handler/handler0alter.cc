@@ -111,6 +111,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "ut0new.h"
 #include "ut0stage.h"
+#include "vec0aux.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "ha_innopart.h"
@@ -3428,27 +3429,45 @@ to column numbers in altered_table */
 
   i = table->s->fields - old_table->n_v_cols;
 
-  /* Add the InnoDB hidden FTS_DOC_ID column, if any. */
-  if (i + DATA_N_SYS_COLS < old_table->n_cols) {
-    /* There should be exactly one extra field,
-    the FTS_DOC_ID. */
-    assert(DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID));
-    assert(i + DATA_N_SYS_COLS + 1 == old_table->n_cols);
-    assert(!strcmp(old_table->get_col_name(i), FTS_DOC_ID_COL_NAME));
-    if (altered_table->s->fields + DATA_N_SYS_COLS - new_table->n_v_cols <
-        new_table->n_cols) {
-      assert(DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_FTS_HAS_DOC_ID));
-      assert(altered_table->s->fields + DATA_N_SYS_COLS + 1 ==
-             static_cast<ulint>(new_table->n_cols + new_table->n_v_cols));
-      col_map[i] = altered_table->s->fields - new_table->n_v_cols;
-    } else {
-      assert(!DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_FTS_HAS_DOC_ID));
-      col_map[i] = ULINT_UNDEFINED;
-    }
+  /* InnoDB-owned hidden auxiliary columns (FTS_DOC_ID, percona_vec_aux_id) sit
+  between the user columns and the system columns. They are added in the
+  same order by fill_dict_columns / create_table_def: FTS_DOC_ID first,
+  then percona_vec_aux_id. Map each one, in that order, to its slot on the new
+  table (or ULINT_UNDEFINED when the new table dropped it).
 
+  This replaces a block that assumed at most ONE hidden column and that
+  it was always FTS_DOC_ID. */
+  const bool old_has_doc_id =
+      DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID);
+  const bool old_has_vec_aux_col =
+      DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_HAS_VEC_AUX_COL);
+  const bool new_has_doc_id =
+      DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_FTS_HAS_DOC_ID);
+  const bool new_has_vec_aux_col =
+      DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_HAS_VEC_AUX_COL);
+
+  const ulint old_extra =
+      (old_has_doc_id ? 1u : 0u) + (old_has_vec_aux_col ? 1u : 0u);
+  assert(i + DATA_N_SYS_COLS + old_extra == old_table->n_cols);
+
+  ulint new_hidden_slot = altered_table->s->fields - new_table->n_v_cols;
+#ifdef UNIV_DEBUG
+  const ulint new_extra =
+      (new_has_doc_id ? 1u : 0u) + (new_has_vec_aux_col ? 1u : 0u);
+  assert(altered_table->s->fields + DATA_N_SYS_COLS + new_extra ==
+         static_cast<ulint>(new_table->n_cols + new_table->n_v_cols));
+#endif
+
+  if (old_has_doc_id) {
+    assert(!strcmp(old_table->get_col_name(i), FTS_DOC_ID_COL_NAME));
+    col_map[i] = new_has_doc_id ? new_hidden_slot++ : ULINT_UNDEFINED;
     i++;
-  } else {
-    assert(!DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID));
+  }
+
+  if (old_has_vec_aux_col) {
+    assert(!strcmp(old_table->get_col_name(i), VEC_AUX_ID_COL_NAME));
+    col_map[i] = new_has_vec_aux_col ? new_hidden_slot++ : ULINT_UNDEFINED;
+    i++;
   }
 
   for (; i < old_table->n_cols; i++) {

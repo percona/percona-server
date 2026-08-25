@@ -929,7 +929,7 @@ try_again:
       dict_sys_mutex_exit();
 
       if (node->table != nullptr) {
-        if (node->table->is_fts_aux()) {
+        if (node->table->is_aux()) {
           table_id_t parent_id = node->table->parent_id;
 
           dd_table_close(node->table, thd, &node->mdl, false);
@@ -974,7 +974,7 @@ try_again:
         node->table = nullptr;
 
       } else {
-        bool is_aux = node->table->is_fts_aux();
+        bool is_aux = node->table->is_aux();
 
         dd_table_close(node->table, thd, &node->mdl, false);
         if (is_aux && node->parent) {
@@ -1006,7 +1006,7 @@ try_again:
       dd_table_close(node->table, thd, &node->mdl, false);
       node->table = nullptr;
     } else {
-      bool is_aux = node->table->is_fts_aux();
+      bool is_aux = node->table->is_aux();
       dd_table_close(node->table, thd, &node->mdl, false);
       if (is_aux && node->parent) {
         dd_table_close(node->parent, thd, &node->parent_mdl, false);
@@ -1034,7 +1034,7 @@ try_again:
       }
       node->table = nullptr;
     } else {
-      bool is_aux = node->table->is_fts_aux();
+      bool is_aux = node->table->is_aux();
       dd_table_close(node->table, thd, &node->mdl, false);
       if (is_aux && node->parent) {
         dd_table_close(node->parent, thd, &node->parent_mdl, false);
@@ -1127,7 +1127,7 @@ try_again:
       dd_table_close(node->table, thd, &node->mdl, false);
       node->table = nullptr;
     } else {
-      bool is_aux = node->table->is_fts_aux();
+      bool is_aux = node->table->is_aux();
       dd_table_close(node->table, thd, &node->mdl, false);
       if (is_aux && node->parent) {
         dd_table_close(node->parent, thd, &node->parent_mdl, false);

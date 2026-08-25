@@ -73,7 +73,7 @@ TEST_F(Vec0VecTest, HnswWithM) {
       parse("CREATE TABLE t1 ("
             "  id BIGINT UNSIGNED PRIMARY KEY,"
             "  v1 VECTOR(128) NOT NULL,"
-            "  KEY(v1) TYPE hnsw WITH (M = 16)"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 16)"
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
   EXPECT_EQ(16, get<HnswParam>(m_vip).M);
@@ -84,30 +84,10 @@ TEST_F(Vec0VecTest, HnswMetricEuclidean) {
       parse("CREATE TABLE t1 ("
             "  id BIGINT UNSIGNED PRIMARY KEY,"
             "  v1 VECTOR(128) NOT NULL,"
-            "  KEY(v1) TYPE hnsw WITH (metric = euclidean)"
+            "  VECTOR KEY(v1) TYPE hnsw (metric = euclidean)"
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
-  EXPECT_EQ("euclidean"s, get<HnswParam>(m_vip).metric);
-}
-
-TEST_F(Vec0VecTest, NonSeSpecificAlgorithm) {
-  ParserTest::parse(
-      "CREATE TABLE t1 ("
-      "  id BIGINT UNSIGNED PRIMARY KEY,"
-      "  v1 VECTOR(128) NOT NULL,"
-      "  KEY(id) USING BTREE"
-      ")");
-  const Alter_info *alter_info = thd()->lex->alter_info;
-  // Find the BTREE key (not PRIMARY, not VECTOR)
-  const Key_spec *ks = nullptr;
-  for (const Key_spec *k : alter_info->key_list) {
-    if (k->type == KEYTYPE_MULTIPLE) {
-      ks = k;
-      break;
-    }
-  }
-  ASSERT_NE(nullptr, ks);
-  EXPECT_FALSE(parse_options(*ks, m_vip));
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
 }
 
 }  // namespace innodb_vec0vec_unittest

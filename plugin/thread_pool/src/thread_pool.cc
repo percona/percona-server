@@ -164,6 +164,18 @@ static int max_connect_threads_per_group = -1;
 */
 static constexpr int CONNECT_THREAD_IDLE_TIMEOUT_SECS = 60;
 
+/**
+  Time in seconds a "reserve" (cold) query worker thread can sit idle on
+  COND_reserve before it exits. Without this, threads created to absorb a
+  burst of concurrency (see tp_wake_thread()/WAKE_OR_CREATE_ONE) sleep on an
+  untimed mysql_cond_wait() forever once the burst subsides, so the group's
+  thread count only ever grows and never comes back down between bursts.
+  "Hot" consumer threads (bounded by threads_user_request, see
+  handle_worker_thread_sleep()) are unaffected by this timeout and are kept
+  ready indefinitely, same as before.
+*/
+static constexpr int QUERY_WORKER_RESERVE_IDLE_TIMEOUT_SECS = 60;
+
 /* Structures */
 /* thread pool group low level */
 struct tp_group_low_level_t;
@@ -208,6 +220,7 @@ static void check_trans_queue_for_prio_kickups(tp_group_t *my_tp_group,
 
 static tp_client_low_level_t *pop_highest_priority_query(
     tp_group_t *my_tp_group);
+static inline uint count_waiting_queries(tp_group_t *my_tp_group);
 
 /* Methods and definitions to handle KILL thread_id */
 
@@ -248,6 +261,7 @@ static bool create_thd_and_authenticate_conn(connection_context_t *,
                                              tp_group_t *, tp_thread_t *);
 static void tp_create_connect_thread(tp_group_t *my_tp_group);
 static void tp_wake_thread(tp_group_t *my_tp_group, wake_level level);
+static inline bool tp_should_skip_wakeup(tp_group_t *my_tp_group);
 
 /* Global Variables */
 
@@ -1387,11 +1401,23 @@ static inline ulonglong tp_thread_create_ctrl_interval() {
     of more than the latest thread used. However to keep track of this one
     thread gives a significant boost of 5-10% in performance in experiments.
 */
+static inline bool tp_should_skip_wakeup(tp_group_t *my_tp_group) {
+  if (count_waiting_queries(my_tp_group) > 0) return false;
+  if (my_tp_group->waiting_thread != nullptr) return false;
+  if (my_tp_group->threads_for_consumer > 0) return false;
+  if (my_tp_group->threads_for_reserve > 0) return false;
+  return true;
+}
+
 static void tp_wake_thread(tp_group_t *my_tp_group, wake_level level) {
   DBUG_TRACE;
   DBUG_PRINT("tp_enter", ("wake thread in Thread group id %d, level %d",
                           my_tp_group->group_idx, level));
   mysql_mutex_assert_owner(&my_tp_group->LOCK_group);
+
+  if (tp_should_skip_wakeup(my_tp_group) && level == WAKE_IF_CONSUMER) {
+    return;
+  }
 #ifndef NDEBUG
   bool skip_thread_wakeup = false;
   DBUG_EXECUTE_IF("test_throttle_thread_create", {
@@ -1419,10 +1445,16 @@ static void tp_wake_thread(tp_group_t *my_tp_group, wake_level level) {
         mysql_cond_signal(&my_tp_group->COND_reserve);
       } else {
         if (level == WAKE_OR_CREATE_ONE) {
+          if (count_waiting_queries(my_tp_group) == 0 &&
+              my_tp_group->waiting_thread == nullptr &&
+              my_tp_group->threads_active == 0) {
+            return;
+          }
           if (my_tp_group->num_query_threads >
                   1 + my_tp_group->stats.connection_count ||
-              my_tp_group->num_query_threads.load() > MAX_THREADS_PER_GROUP)
+              my_tp_group->num_query_threads.load() > MAX_THREADS_PER_GROUP) {
             return;
+          }
           if (my_tp_group->threads_active == 0 ||
               (tp_thread_create_control_ctx.total_query_threads <
                (3 * tp_thread_create_control_ctx.vcpu_count))) {
@@ -1452,8 +1484,11 @@ static void tp_wake_thread(tp_group_t *my_tp_group, wake_level level) {
             }
           }
         }
+        // else level == WAKE_IF_CREATED: no reserve thread available and we
+        // don't create new threads at this wake level.
       }
     }
+    // else level == WAKE_IF_CONSUMER: no consumer thread available to wake.
   }
 }
 
@@ -1535,8 +1570,23 @@ static inline bool is_query_ready_to_process(tp_group_t *my_tp_group,
 static inline void queue_query(tp_group_t *my_tp_group,
                                tp_client_low_level_t *client_cntx) {
   DBUG_TRACE;
-  assert(client_cntx);
-
+  assert(client_cntx != nullptr);
+  /*
+    NOTE: do NOT assert client_cntx->processing_thread == nullptr here.
+    tp_client_low_level_rearm() (called from tp_process_event(), at the
+    tail end of the previous owner's dispatch) re-arms this connection's
+    socket for polling *before* that owner has released LOCK_group and
+    cleared processing_thread (see the note on
+    unassign_thread_from_connection() and the documented race in
+    handle_failed_connection(): "Owner of active_flag completes a query
+    ... A new query is received on the connection and put into one of
+    the query queues" while the owner "is still not scheduled and is
+    still waiting to release the active_flag"). So a listener thread can
+    legitimately observe and queue a ready event here while
+    processing_thread still points at the previous, not-yet-detached
+    owner. assign_thread_to_connection() already handles taking over
+    ("steals connection") from a stale owner for exactly this reason.
+  */
   DBUG_PRINT("tp", ("Queueing query from connection id %lu",
                     client_cntx->connection_id));
   if (thd_is_transaction_active(client_cntx->thd) ||
@@ -1548,6 +1598,14 @@ static inline void queue_query(tp_group_t *my_tp_group,
   }
   client_cntx->is_queued = true;
   client_cntx->conn_state = Connection_state::QUEUED;
+  client_cntx->time_of_enqueueing = tp_now();
+  /*
+    NOTE: stats.queries_queued is intentionally NOT incremented here.
+    handle_waiting_thread() already bumps it in bulk (+= events_ready)
+    for the exact same batch of events this function is called for, one
+    per element. Incrementing it here too would double-count every
+    queued query.
+  */
 }
 
 /**
@@ -1722,25 +1780,14 @@ void process_direct_query(tp_thread_t *my_thread_data,
   @param my_thread_data     Thread data
 */
 static void process_queued_query(tp_group_t *my_tp_group,
-                                 tp_thread_t *my_thread_data,
-                                 tp_client_low_level_t *client_cntx) {
+                                 tp_thread_t *my_thread_data) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&my_tp_group->LOCK_group);
 
   auto &thread_client_cntx = my_thread_data->client_low_level_cntx;
   // Get a connection context for the highest priority query around
   assert(thread_client_cntx == nullptr);
-  if (client_cntx == nullptr) {
-    client_cntx = pop_highest_priority_query(my_tp_group);
-  } else {
-    auto *queue = my_tp_group->queued_queries.front() == client_cntx
-                      ? &my_tp_group->queued_queries
-                      : &my_tp_group->queued_trans;
-    assert(queue->front() == client_cntx);
-    queue->remove(client_cntx);
-    assert(client_cntx->is_queued);
-    client_cntx->is_queued = false;
-  }
+  tp_client_low_level_t *client_cntx = pop_highest_priority_query(my_tp_group);
 
   if (client_cntx == nullptr) return;
   thread_client_cntx = client_cntx;
@@ -1810,12 +1857,31 @@ static bool become_reserve_thread(tp_group_t *my_tp_group,
   DBUG_PRINT("tp", ("Become a waiting reserve thread in Thread group id %d",
                     my_tp_group->group_idx));
   set_state(my_thread_data, Thread_state::SLEEPING_CONSUMER);
-  std::ignore =
-      mysql_cond_wait(&my_tp_group->COND_reserve, &my_tp_group->LOCK_group);
+
+  /*
+    Use a timed wait rather than an indefinite one so that a reserve thread
+    which stays idle for too long can exit instead of sleeping on
+    COND_reserve for the remaining lifetime of the server. Without this, a
+    burst of concurrency that grows the reserve pool (see
+    tp_wake_thread()/WAKE_OR_CREATE_ONE) leaves the thread count elevated
+    long after the burst has passed, since nothing else ever shrinks it back
+    down.
+  */
+  struct timespec absolute_time;
+  set_timespec(&absolute_time, QUERY_WORKER_RESERVE_IDLE_TIMEOUT_SECS);
+  int rc = mysql_cond_timedwait(&my_tp_group->COND_reserve,
+                                &my_tp_group->LOCK_group, &absolute_time);
   set_state(my_thread_data, Thread_state::MANAGING);
+  my_tp_group->threads_for_reserve--;
+
+  if (is_timeout(rc)) {
+    DBUG_PRINT("tp", ("Reserve thread idle timeout, exiting in Thread group "
+                      "id %d",
+                      my_tp_group->group_idx));
+    return true;
+  }
   DBUG_PRINT("tp", ("Reserve thread wakes up in Thread group id %d",
                     my_tp_group->group_idx));
-  my_tp_group->threads_for_reserve--;
   return false;
 }
 
@@ -2019,12 +2085,17 @@ static inline bool query_worker_thread_loop(tp_group_t *my_tp_group,
   while (!is_tp_shutdown()) {
     tp_client_low_level_t *next = nullptr;
     if (is_query_ready_to_process(my_tp_group, &next))
-      process_queued_query(my_tp_group, my_thread_data, nullptr);
+      process_queued_query(my_tp_group, my_thread_data);
     else {
       std::uint32_t txnlim =
           configured_max_transactions_limit_per_group(my_tp_group);
       if (txnlim != 0 && my_tp_group->query_threads_count > txnlim) return true;
-      handle_worker_thread_sleep(my_tp_group, my_thread_data);
+      // NOTE: the return value must be checked -- become_reserve_thread()
+      // (reached via handle_worker_thread_sleep()) now returns true both
+      // when the reserve pool is already at capacity and after its idle
+      // timeout expires. Ignoring it here would leave the thread spinning
+      // through this loop instead of actually exiting.
+      if (handle_worker_thread_sleep(my_tp_group, my_thread_data)) return true;
     }
   }
   return false;
@@ -2103,9 +2174,8 @@ static inline bool low_concurrency_algorithm(tp_group_t *my_tp_group,
 
   while (!is_tp_shutdown()) {
     tp_client_low_level_t *next = nullptr;
-    next = nullptr;
     if (!is_query_ready_to_process(my_tp_group, &next)) break;
-    process_queued_query(my_tp_group, my_thread_data, nullptr);
+    process_queued_query(my_tp_group, my_thread_data);
     if (my_tp_group->waiting_thread == nullptr &&
         !is_high_prio_query_available(my_tp_group)) {
       handle_waiting_thread(my_tp_group, my_thread_data, false);
@@ -2133,7 +2203,8 @@ static inline bool high_concurrency_algorithm(tp_group_t *my_tp_group,
   while (!is_tp_shutdown()) {
     tp_client_low_level_t *next = nullptr;
     if (!is_query_ready_to_process(my_tp_group, &next)) break;
-    if (count_waiting_queries(my_tp_group) > 1) {
+    if (count_waiting_queries(my_tp_group) > 1 ||
+        my_tp_group->waiting_thread == nullptr) {
       /*
         There are either more queries to execute or there is a waiting
         thread to handle. We will wake up another thread to handle
@@ -2163,7 +2234,7 @@ static inline bool high_concurrency_algorithm(tp_group_t *my_tp_group,
         continue;
       }
     }
-    process_queued_query(my_tp_group, my_thread_data, nullptr);
+    process_queued_query(my_tp_group, my_thread_data);
   }
 
   if (my_tp_group->waiting_thread == nullptr && !is_tp_shutdown()) {
@@ -4770,9 +4841,16 @@ static inline tp_client_low_level_t *pop_highest_priority_query(
   tp_client_low_level_t *client_cntx = next_queue->front();
 
   if (client_cntx != nullptr) {
-    next_queue->remove(client_cntx);
     assert(client_cntx->is_queued);
+    // NOTE: do NOT assert processing_thread == nullptr here -- see the
+    // matching note in queue_query(). A connection can be queued while
+    // its previous owner has rearmed but not yet cleared
+    // processing_thread; assign_thread_to_connection() (called on this
+    // same connection right after it's popped here) already handles
+    // taking over from a stale owner in that case.
+    next_queue->remove(client_cntx);
     client_cntx->is_queued = false;
+    client_cntx->conn_state = Connection_state::ATTACHED;
   }
 
   return client_cntx;
@@ -5144,19 +5222,25 @@ int fill_thread_group_stats_table(THD *thd, Table_ref *tables, Item *) {
     cur_group = &(tp_group_list[i]);
     /* Read the variables under mutex protection */
     mysql_mutex_lock(&cur_group->LOCK_group);
-    tp_group_statistics_t stats{cur_group->stats.connection_count,
-                                cur_group->stats.connections_started,
-                                cur_group->stats.connections_closed,
-                                cur_group->stats.queries_executed.load(),
-                                cur_group->stats.queries_queued,
-                                cur_group->stats.threads_created,
-                                cur_group->stats.prio_kickups,
-                                cur_group->stats.stalled_queries_executed,
-                                cur_group->stats.become_consumer_thread,
-                                cur_group->stats.become_reserve_thread,
-                                cur_group->stats.become_listen_thread,
-                                cur_group->stats.wake_thread_stall_checker,
-                                {}};
+    // NOTE: use designated initializers here, not a positional list.
+    // tp_group_statistics_t's field order does not match the I_S table's
+    // column order, and a positional initializer would silently mis-assign
+    // every field should the two orders ever diverge.
+    tp_group_statistics_t stats{
+        .connection_count = cur_group->stats.connection_count,
+        .connections_started = cur_group->stats.connections_started,
+        .connections_closed = cur_group->stats.connections_closed,
+        .queries_executed = cur_group->stats.queries_executed.load(),
+        .queries_queued = cur_group->stats.queries_queued,
+        .threads_created = cur_group->stats.threads_created,
+        .prio_kickups = cur_group->stats.prio_kickups,
+        .stalled_queries_executed = cur_group->stats.stalled_queries_executed,
+        .become_consumer_thread = cur_group->stats.become_consumer_thread,
+        .become_reserve_thread = cur_group->stats.become_reserve_thread,
+        .become_listen_thread = cur_group->stats.become_listen_thread,
+        .wake_thread_stall_checker = cur_group->stats.wake_thread_stall_checker,
+        .wait_counts = {},
+    };
     std::uninitialized_copy(std::begin(cur_group->stats.wait_counts),
                             std::end(cur_group->stats.wait_counts),
                             std::begin(stats.wait_counts));

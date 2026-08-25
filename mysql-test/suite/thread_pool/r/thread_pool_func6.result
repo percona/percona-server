@@ -1,6 +1,7 @@
 CREATE USER mysqltest_u1@localhost;
 GRANT USAGE ON test.* TO mysqltest_u1@localhost;
 SET GLOBAL max_connections = 3;
+call mtr.add_suppression("Too many connections");
 # -----------------------------------------------------------------------
 # Should have success
 SELECT CAST(@@global.max_connections AS SIGNED INTEGER) - COUNT(*)

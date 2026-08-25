@@ -18,6 +18,11 @@ let $saved_max_connections = `SELECT @@global.max_connections`;
 CREATE USER mysqltest_u1@localhost;
 GRANT USAGE ON test.* TO mysqltest_u1@localhost;
 SET GLOBAL max_connections = 3;
+# This test deliberately drives max_connections down to force connection
+# attempts to be rejected, which logs "Too many connections" warnings to
+# the server error log (see thread_pool_connection_handler.test and
+# include/admin_interface.inc for the same pattern).
+call mtr.add_suppression("Too many connections");
 
 --echo # -----------------------------------------------------------------------
 --echo # Should have success

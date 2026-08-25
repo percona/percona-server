@@ -51,6 +51,7 @@
 #include "sql/sql_const.h"
 #include "sql_string.h"
 #include "template_utils.h"  // pointer_cast
+#include "vector-common/vector_constants.h"
 
 #include <openssl/evp.h>
 
@@ -1311,14 +1312,8 @@ class Item_func_from_vector final : public Item_str_ascii_func {
 };
 
 class Item_func_vector_distance final : public Item_real_func {
-  enum metric_type {
-    EUCLIDEAN,
-    EUCLIDEAN_SQUARED,
-    COSINE,
-    DOT_PRODUCT,
-    MANHATTAN
-  };
-  metric_type m_metric{EUCLIDEAN};
+  using Metric = vector_constants::Metric;
+  Metric m_metric{Metric::kEuclidean};
 
  public:
   Item_func_vector_distance(const POS &pos, Item *a, Item *b, Item *c)

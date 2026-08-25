@@ -4311,29 +4311,13 @@ bool Item_func_vector_distance::resolve_type(THD *thd) {
     return true;
   }
 
-  static constexpr struct {
-    std::string_view name;
-    metric_type metric;
-  } kMetrics[] = {
-      {"euclidean", EUCLIDEAN}, {"euclidean_squared", EUCLIDEAN_SQUARED},
-      {"cosine", COSINE},       {"dot", DOT_PRODUCT},
-      {"manhattan", MANHATTAN},
-  };
-
-  // my_strnncoll is length-aware: embedded NUL + trailing bytes cannot match.
-  const auto *it = std::find_if(
-      std::begin(kMetrics), std::end(kMetrics), [&](const auto &candidate) {
-        return !my_strnncoll(&my_charset_latin1,
-                             pointer_cast<const uchar *>(metric_n->ptr()),
-                             metric_n->length(),
-                             pointer_cast<const uchar *>(candidate.name.data()),
-                             candidate.name.size());
-      });
-  if (it == std::end(kMetrics)) {
+  std::string_view name(metric_n->ptr(), metric_n->length());
+  const auto *m = vector_constants::metric_from_name(name);
+  if (m == nullptr) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }
-  m_metric = it->metric;
+  m_metric = *m;
 
   // Cosine can return NULL for zero-length vectors at runtime. Mark nullable
   // unconditionally so that derived columns and metadata (SHOW CREATE TABLE)
@@ -4385,13 +4369,13 @@ double Item_func_vector_distance::val_real() {
   }
 
   switch (m_metric) {
-    case EUCLIDEAN:
+    case Metric::kEuclidean:
       return check_float_overflow(std::sqrt(
           vector_distance_euclidean_squared(a->ptr(), b->ptr(), a_dims)));
-    case EUCLIDEAN_SQUARED:
+    case Metric::kEuclideanSquared:
       return check_float_overflow(
           vector_distance_euclidean_squared(a->ptr(), b->ptr(), a_dims));
-    case COSINE: {
+    case Metric::kCosine: {
       const double dist = vector_distance_cosine(a->ptr(), b->ptr(), a_dims);
       if (std::isinf(dist)) {
         // +Inf sentinel from vector_distance_cosine: zero-vector(s) → undefined
@@ -4402,10 +4386,10 @@ double Item_func_vector_distance::val_real() {
       // NaN/Inf input elements propagated through → ER_DATA_OUT_OF_RANGE
       return check_float_overflow(dist);
     }
-    case DOT_PRODUCT:
+    case Metric::kDotProduct:
       return check_float_overflow(
           -vector_distance_dot(a->ptr(), b->ptr(), a_dims));
-    case MANHATTAN:
+    case Metric::kManhattan:
       return check_float_overflow(
           vector_distance_manhattan(a->ptr(), b->ptr(), a_dims));
     default:

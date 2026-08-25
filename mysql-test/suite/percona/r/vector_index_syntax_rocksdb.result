@@ -1,5 +1,5 @@
 CREATE TABLE t1 (
-a CHAR( 2 ),
+a CHAR ( 2 ),
 KEY ( a(1) )
 ) ENGINE = ROCKSDB;
 # Ensure the index type is SE_SPECIFIC and doesn't erroneously show up a VECTOR

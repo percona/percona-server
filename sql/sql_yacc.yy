@@ -1784,7 +1784,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <cast_type> cast_type opt_returning_type
 
-%type <lexer.keyword> ident_keyword label_keyword role_keyword
+%type <lexer.keyword> ident_keyword ident_keyword_except_vector
+        label_keyword role_keyword
         lvalue_keyword
         ident_keywords_unambiguous
         ident_keywords_ambiguous_1_roles_and_labels
@@ -2147,6 +2148,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <index_options> opt_index_options index_options  opt_fulltext_index_options
           fulltext_index_options opt_spatial_index_options spatial_index_options
+          opt_vector_index_options vector_index_options
 
 %type <vector_index_param> vector_index_param
 
@@ -2157,7 +2159,9 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <index_option> index_option common_index_option fulltext_index_option
           spatial_index_option
+          vector_index_option
           index_type_clause
+          vector_index_type_clause
           opt_index_type_clause
 
 %type <alter_table_algorithm> alter_algorithm_option_value
@@ -2165,7 +2169,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <alter_table_lock> alter_lock_option_value alter_lock_option
 
-%type <table_constraint_def> table_constraint_def
+%type <table_constraint_def> table_constraint_def vector_index_def
 
 %type <index_name_and_type> opt_index_name_and_type
 
@@ -2264,7 +2268,10 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <column_def> column_def
 
+%type <lexer.lex_str> ident_except_vector
+
 %type <table_element> table_element
+        ambiguous_table_element_def
 
 %type <table_element_list> table_element_list
 
@@ -3619,6 +3626,15 @@ create_index_stmt:
                                              nullptr, $6, $8, $10,
                                              $11.algo.get_or_default(),
                                              $11.lock.get_or_default());
+          }
+        | CREATE VECTOR_SYM INDEX_SYM ident ON_SYM table_ident
+          '(' key_list_with_expression ')' vector_index_type_clause opt_vector_index_options
+          opt_index_lock_and_algorithm
+          {
+            $$= NEW_PTN PT_create_index_stmt(@$, YYMEM_ROOT, KEYTYPE_VECTOR, $4,
+                                             $10, $6, $8, $11,
+                                             $12.algo.get_or_default(),
+                                             $12.lock.get_or_default());
           }
         ;
 /*
@@ -7075,10 +7091,31 @@ table_element_list:
 table_element:
           column_def            { $$= $1; }
         | table_constraint_def  { $$= $1; }
+        | ambiguous_table_element_def { $$= $1; }
         ;
 
+ambiguous_table_element_def:
+          vector_index_def { $$= $1; }
+        | VECTOR_SYM field_def opt_references
+          {
+            LEX_STRING name;
+            name.str= YYTHD->strmake($1.str, $1.length);
+            if (name.str == nullptr)
+              MYSQL_YYABORT;
+            name.length= $1.length;
+            $$= NEW_PTN PT_column_def(@$, name, $2, $3);
+          }
+        ;
+
+vector_index_def:
+          VECTOR_SYM key_or_index opt_ident '(' key_list_with_expression ')'
+          vector_index_type_clause opt_vector_index_options
+          {
+            $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_VECTOR, $3, $7, $5, $8);
+          }
+
 column_def:
-          ident field_def opt_references
+          ident_except_vector field_def opt_references
           {
             $$= NEW_PTN PT_column_def(@$, $1, $2, $3);
           }
@@ -8136,6 +8173,30 @@ common_index_option:
           }
         ;
 
+opt_vector_index_options:
+          %empty { $$.init(YYMEM_ROOT); }
+        | vector_index_options
+        ;
+
+vector_index_options:
+          vector_index_option
+          {
+            $$.init(YYMEM_ROOT);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | vector_index_options vector_index_option
+          {
+            if ($1.push_back($2))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+vector_index_option:
+          common_index_option
+        ;
+
 /*
   The syntax for defining an index is:
 
@@ -8164,15 +8225,13 @@ opt_index_type_clause:
         | index_type_clause
         ;
 
-index_type_clause:
-          USING index_type    { $$= NEW_PTN PT_index_type(@$, $2); }
-        | USING IDENT_sys opt_vector_index_param_clause
+vector_index_type_clause:
+          USING IDENT_sys opt_vector_index_param_clause
           {
              // At the moment, we assume that all indexes other than BTREE,
              // RTREE and HASH are vector indexes.
              $$= NEW_PTN PT_vector_index_type(@$, to_lex_cstring($2), $3);
           }
-        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type(@$, $2); }
         | TYPE_SYM IDENT_sys opt_vector_index_param_clause
           {
              // For now we assume that all indexes other than BTREE, RTREE
@@ -8181,15 +8240,20 @@ index_type_clause:
           }
         ;
 
+index_type_clause:
+          USING index_type    { $$= NEW_PTN PT_index_type(@$, $2); }
+        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type(@$, $2); }
+        ;
+
 opt_vector_index_param_clause:
           %empty { $$.init(YYMEM_ROOT); }
         | vector_index_param_clause
         ;
 
 vector_index_param_clause:
-          WITH '(' vector_index_param_list ')'
+          '(' vector_index_param_list ')'
           {
-            $$= $3;
+            $$= $2;
           }
         ;
 
@@ -9234,15 +9298,39 @@ alter_commands_modifier_list:
         ;
 
 alter_list_item:
-          ADD opt_column ident field_def opt_references opt_place
+          ADD opt_column ident_except_vector field_def opt_references opt_place
           {
             $$= NEW_PTN PT_alter_table_add_column(@$, $3, $4, $5, $6);
+          }
+        | ADD VECTOR_SYM field_def opt_references opt_place
+          {
+            LEX_STRING name;
+            name.str= YYTHD->strmake($2.str, $2.length);
+            if (name.str == nullptr)
+              MYSQL_YYABORT;
+            name.length= $2.length;
+
+            $$= NEW_PTN PT_alter_table_add_column(@$, name, $3, $4, $5);
+          }
+        | ADD COLUMN_SYM VECTOR_SYM field_def opt_references opt_place
+          {
+            LEX_STRING name;
+            name.str= YYTHD->strmake($3.str, $3.length);
+            if (name.str == nullptr)
+              MYSQL_YYABORT;
+            name.length= $3.length;
+
+            $$= NEW_PTN PT_alter_table_add_column(@$, name, $4, $5, $6);
           }
         | ADD opt_column '(' table_element_list ')'
           {
             $$= NEW_PTN PT_alter_table_add_columns(@$, $4);
           }
         | ADD table_constraint_def
+          {
+            $$= NEW_PTN PT_alter_table_add_constraint(@$, $2);
+          }
+        | ADD vector_index_def
           {
             $$= NEW_PTN PT_alter_table_add_constraint(@$, $2);
           }
@@ -15929,6 +16017,18 @@ TEXT_STRING_validated:
           }
         ;
 
+ident_except_vector:
+          IDENT_sys    { $$=$1; }
+        | ident_keyword_except_vector
+          {
+            THD *thd= YYTHD;
+            $$.str= thd->strmake($1.str, $1.length);
+            if ($$.str == nullptr)
+              MYSQL_YYABORT;
+            $$.length= $1.length;
+          }
+        ;
+
 ident:
           IDENT_sys    { $$=$1; }
         | ident_keyword
@@ -16055,6 +16155,11 @@ schema:
   one of `ident_keywords_ambiguous_...` rules instead.
 */
 ident_keyword:
+          ident_keyword_except_vector
+        | VECTOR_SYM
+        ;
+
+ident_keyword_except_vector:
           ident_keywords_unambiguous
         | ident_keywords_ambiguous_1_roles_and_labels
         | ident_keywords_ambiguous_2_labels
@@ -16127,6 +16232,7 @@ ident_keywords_ambiguous_2_labels:
 */
 label_keyword:
           ident_keywords_unambiguous
+        | VECTOR_SYM
         | ident_keywords_ambiguous_3_roles
         | ident_keywords_ambiguous_4_system_variables
         ;
@@ -16593,7 +16699,6 @@ ident_keywords_unambiguous:
         | XML_SYM
         | YEAR_SYM
         | ZONE_SYM
-        | VECTOR_SYM
         ;
 
 /*
@@ -16606,6 +16711,7 @@ ident_keywords_unambiguous:
 */
 role_keyword:
           ident_keywords_unambiguous
+        | VECTOR_SYM
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_4_system_variables
         ;
@@ -16620,6 +16726,7 @@ role_keyword:
 */
 lvalue_keyword:
           ident_keywords_unambiguous
+        | VECTOR_SYM
         | ident_keywords_ambiguous_1_roles_and_labels
         | ident_keywords_ambiguous_2_labels
         | ident_keywords_ambiguous_3_roles

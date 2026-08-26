@@ -39,10 +39,12 @@ Created 2020-11-01 by Sunny Bains. */
 #include "ddl0impl-merge.h"
 #include "ddl0impl-rtree.h"
 #include "lob0lob.h"
+#include "mach0data.h"
 #include "os0thread-create.h"
 #include "row0ext.h"
 #include "row0vers.h"
 #include "ut0stage.h"
+#include "vec0aux.h"
 
 namespace ddl {
 
@@ -920,9 +922,38 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
     const auto col = ifield->col;
     const auto col_no = dict_col_get_no(col);
 
-    /* Process the Doc ID column. */
-    if (likely(fts.m_doc_id == nullptr || !fts.m_doc_id->is_generated() ||
-               col_no != m_index->table->fts->doc_col || col->is_virtual())) {
+    /* Process the hidden percona_vec_aux_id column, mirroring FTS's
+    Gen_sequence-vs-Fetch_sequence split (see the sequence choice at
+    ~line 722): GENERATE a fresh id only when this ALTER is
+    introducing the column (source table lacks it — the source field
+    would be SQL_NULL but the new column is NOT NULL); when the
+    source table already has percona_vec_aux_id, fall through to the normal
+    copy branch so the existing values survive the rebuild — exactly
+    like FTS_DOC_ID does via Fetch_sequence. Preserving the ids is
+    what keeps base→aux linkage carry-over possible (PS-11300+).
+    Note: a rebuild with a SURVIVING vector index is refused in
+    check_if_supported_inplace_alter, so the copy case here only
+    arises for tables that retain percona_vec_aux_id without a vector
+    index (Option A retention after DROP INDEX). */
+    const bool is_new_vec_aux_col =
+        DICT_TF2_FLAG_IS_SET(m_index->table, DICT_TF2_HAS_VEC_AUX_COL) &&
+        !DICT_TF2_FLAG_IS_SET(m_ctx.m_old_table, DICT_TF2_HAS_VEC_AUX_COL) &&
+        col_no == m_index->table->vec_aux_col && !col->is_virtual();
+
+    if (is_new_vec_aux_col) {
+      const uint64_t id = vec_assign_next_aux_id(m_index->table);
+      auto key_buf = m_thread_ctxs[ctx.m_thread_id]->m_key_buffer;
+      uint64_t *buf = static_cast<uint64_t *>(
+          mem_heap_alloc(key_buf->m_heap, sizeof(*buf)));
+      mach_write_to_8(reinterpret_cast<byte *>(buf), id);
+      dfield_set_data(field, buf, sizeof(*buf));
+      /* Copy the full type — mbminmaxlen too, or dict_col_t::assert_equal
+      trips (dict0mem.h:789) further down the rebuild pipeline. */
+      col->copy_type(dfield_get_type(field));
+    } else if (likely(fts.m_doc_id == nullptr ||
+                      !fts.m_doc_id->is_generated() ||
+                      col_no != m_index->table->fts->doc_col ||
+                      col->is_virtual())) {
       dfield_t *src_field;
 
       /* Use callback to get the virtual column value */

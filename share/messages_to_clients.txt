@@ -11208,6 +11208,9 @@ ER_CANT_DROP_CF
 # End of MyRocks specific client messages
 #
 
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR
+  eng "InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild"
+
 
 ################################################################################
 # DO NOT add messages for the error-log to this file;

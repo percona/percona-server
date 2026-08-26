@@ -11,10 +11,22 @@
 # is_vector() entry in ctx->add_index.
 #
 CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+# The FIRST ADD does not use the INPLACE prepare path at all — the
+# hidden column has to materialize, so it falls back to COPY. With
+# the knob ARMED it must therefore SUCCEED: a standing guard that
+# the INPLACE path was not entered.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+percona_vec_hnsw_<TID>_<IID>.ibd
+# Drop it again. The hidden column is retained, so the NEXT ADD
+# runs INPLACE and does reach the prepare path — which is where the
+# injected failure belongs.
+ALTER TABLE tva DROP KEY v;
 # Inject failure so the prepare path bails out *after* the aux was
 # created. The DDL must error and the aux must not be left behind.
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
-ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6), ALGORITHM=INPLACE;
 Got one of the listed errors
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 # No vec_<TID>_<IID>.ibd files left behind. (If the cleanup is

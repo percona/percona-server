@@ -11,7 +11,7 @@
 #
 # Without the dict0inst.cc fix, the next reload (server restart
 # or any path that goes through dd_open_table_one) hits the
-# `vec_add_idx_id_column` invariant or the n_fields check —
+# `vec_add_aux_id_column` invariant or the n_fields check —
 # debug crash, release misbehavior.
 #
 CREATE TABLE t1 (

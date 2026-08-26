@@ -11346,7 +11346,11 @@ int ha_innobase::change_active_index(
 
   /* Initialization of search_tuple is not needed for FT index
   since FT search returns rank only. In addition engine should
-  be able to retrieve FTS_DOC_ID column value if necessary. */
+  be able to retrieve FTS_DOC_ID column value if necessary.
+  Note: for vector indexes we take the "else" branch below — the
+  setup work is wasted (subsequent fetch is blocked at line 11058)
+  but harmless. Not worth an extra branch here; keeping FTS-only
+  gate for minimal churn. See PS-11299 audit N2. */
   if ((m_prebuilt->index->type & DICT_FTS)) {
     if (table->fts_doc_id_field &&
         bitmap_is_set(table->read_set,
@@ -12654,16 +12658,11 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
     fts_add_doc_id_column(table, heap);
   }
 
-  /* Materialize the hidden percona_vec_aux_id column on dict_table_t, in the
-  same simple shape as fts_add_doc_id_column above: no phy_pos
-  plumbing, which holds only while the table cannot reach
-  row_versions > 0.
-
-  That invariant is not yet enforced here. It depends on INSTANT
-  ADD/DROP COLUMN being refused for vec-indexed tables in
-  innobase_support_instant(), which lands with the rest of the
-  INSTANT/BULK gates in a later commit. Until then this is an
-  assumption, not a guarantee. */
+  /* Materialize the hidden percona_vec_aux_id column on dict_table_t, in
+  the same simple shape as fts_add_doc_id_column above: no phy_pos
+  plumbing. That holds because the table cannot reach row_versions > 0
+  — INSTANT ADD/DROP COLUMN is refused for tables owning this column,
+  in check_if_supported_inplace_alter. */
   if (has_vec_aux_col_in_dd) {
     vec_add_aux_id_column(table, heap);
   }
@@ -17832,6 +17831,20 @@ ha_rows ha_innobase::records_in_range(
     goto func_exit;
   }
 
+  /* DEVIATION FROM FTS: no FTS guard exists here because the SQL layer
+  never issues range scans on FULLTEXT keys, so FTS indexes are
+  unreachable by construction. Vector keys ARE currently considered by
+  the optimizer (it lacks an HA_VECTOR exclusion in its cost paths —
+  known phase-1 issue, see the SELECT COUNT(*) FORCE INDEX workarounds
+  in percona.vector_audit_gaps). Without this guard a range estimate
+  would walk the vec index's nonexistent B-tree (page == FIL_NULL).
+  Return "no estimate" instead. PS-11300 tracks teaching the optimizer
+  to skip vector indexes for regular scans. */
+  if (index->is_vector()) {
+    n_rows = HA_POS_ERROR;
+    goto func_exit;
+  }
+
   heap = mem_heap_create(
       2 * (key->actual_key_parts * sizeof(dfield_t) + sizeof(dtuple_t)),
       UT_LOCATION_HERE);
@@ -19435,8 +19448,8 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     if (index == m_prebuilt->table->first_index()) {
       n_rows_in_table = n_rows;
-    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table) &&
-               (!index->is_multi_value()) &&
+    } else if (!(index->type & DICT_FTS) && !index->is_vector() &&
+               (n_rows != n_rows_in_table) && (!index->is_multi_value()) &&
                (!dict_index_is_spatial(index) || (n_rows < n_rows_in_table) ||
                 (n_dups < n_rows - n_rows_in_table))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,

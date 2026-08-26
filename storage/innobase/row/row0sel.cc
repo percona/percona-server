@@ -4364,11 +4364,12 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
   ut_a(!trx->has_search_latch);
 
-  /* We don't support FTS queries from the HANDLER interfaces, because
-  we implemented FTS as reversed inverted index with auxiliary tables.
-  So anything related to traditional index query would not apply to
-  it. */
-  if (prebuilt->index->type & DICT_FTS) {
+  /* We don't support FTS or Vector queries from the HANDLER interfaces:
+  both are implemented via auxiliary tables (FTS as reversed inverted
+  index; vec as an aux HNSW table). Vec's secondary tree has
+  page == FIL_NULL so proceeding into btr_pcur_open would crash. */
+  if ((prebuilt->index->type & DICT_FTS) ||
+      dict_index_is_vector(prebuilt->index)) {
     return DB_END_OF_INDEX;
   }
 

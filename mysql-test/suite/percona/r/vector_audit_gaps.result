@@ -1,0 +1,105 @@
+#
+# PS-11299 round-2 parity audit — regression coverage for gaps that
+# weren't caught by round-1's write-path walker fixes.
+#
+# Each section exercises one audit finding:
+#   C1  CHECK TABLE on a populated vec-indexed table must succeed
+#       without reporting the vec index as corrupt (row_scan_index_
+#       for_mysql at row0mysql.cc:5090).
+#   C2  DROP TABLE in a general tablespace with a vec index must
+#       not hit the free-tree-log path for the vec index
+#       (log0ddl.cc:976).
+#   I2  Adding a FOREIGN KEY whose column also has a vector index
+#       must not pick the vec index as the FK backing index
+#       (innobase_find_fk_index at handler0alter.cc:1946).
+#   I3  HANDLER ... READ on a vec index must not crash on
+#       FIL_NULL; row_search_mvcc returns DB_END_OF_INDEX.
+#
+# === C1: CHECK TABLE on populated vec-indexed table ===
+CREATE TABLE t_check (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6));
+INSERT INTO t_check VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+INSERT INTO t_check VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
+INSERT INTO t_check VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'));
+CHECK TABLE t_check;
+Table	Op	Msg_type	Msg_text
+test.t_check	check	status	OK
+DROP TABLE t_check;
+# === C2: DROP TABLE with vec index in a general tablespace ===
+CREATE TABLESPACE ts_vec ADD DATAFILE 'ts_vec.ibd';
+CREATE TABLE t_gen (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6))
+TABLESPACE = ts_vec;
+INSERT INTO t_gen VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+# DROP must NOT invoke write_free_tree_log on the vec index —
+# its page == FIL_NULL and the debug assert would fire.
+DROP TABLE t_gen;
+DROP TABLESPACE ts_vec;
+# === I2: FK column that also has a vector index ===
+CREATE TABLE t_parent (id BIGINT UNSIGNED PRIMARY KEY);
+CREATE TABLE t_child (id BIGINT UNSIGNED PRIMARY KEY,
+parent_id BIGINT UNSIGNED,
+v VECTOR(8) NOT NULL,
+KEY k (parent_id),
+KEY (v) TYPE hnsw WITH (M = 6));
+# The FK column has a plain BTREE (KEY k). Vec index is on a
+# different column, so this test is a smoke check — the vec
+# index must not be considered.
+ALTER TABLE t_child
+ADD CONSTRAINT fk_child_parent FOREIGN KEY (parent_id)
+REFERENCES t_parent(id);
+INSERT INTO t_parent VALUES (1);
+INSERT INTO t_child VALUES (1, 1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+DROP TABLE t_child, t_parent;
+# === I3: HANDLER READ on vec index returns 0 rows, no crash ===
+CREATE TABLE t_hand (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY vidx (v) TYPE hnsw WITH (M = 6));
+INSERT INTO t_hand VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+INSERT INTO t_hand VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
+HANDLER t_hand OPEN;
+# First read via the vec index — should return no rows,
+# not proceed into btr_pcur_open on FIL_NULL.
+HANDLER t_hand READ vidx FIRST;
+id	v
+HANDLER t_hand READ vidx NEXT;
+id	v
+HANDLER t_hand CLOSE;
+DROP TABLE t_hand;
+# === F1: rebuild on populated vec-indexed table ===
+# INPLACE rebuild with a surviving vector index is refused
+# (FTS-parity gate in check_if_supported_inplace_alter — the aux
+# contents cannot be carried across a native rebuild). The
+# server-picked fallback (COPY) must preserve all rows and keep
+# the percona_vec_aux_id stamp path working.
+CREATE TABLE t_rebuild (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c INT,
+KEY (v) TYPE hnsw WITH (M = 6));
+INSERT INTO t_rebuild VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 10);
+INSERT INTO t_rebuild VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'), 20);
+INSERT INTO t_rebuild VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'), 30);
+# Explicit INPLACE rebuild: refused with the vector reason.
+ALTER TABLE t_rebuild FORCE, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
+# Server-picked algorithm falls back to COPY and succeeds.
+ALTER TABLE t_rebuild FORCE;
+# SELECT must return all 3 rows correctly (no col-count mismatch).
+SELECT id, c, VECTOR_TO_STRING(v) FROM t_rebuild
+FORCE INDEX (PRIMARY) ORDER BY id;
+id	c	VECTOR_TO_STRING(v)
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+# INSERT after rebuild must still stamp percona_vec_aux_id and work.
+INSERT INTO t_rebuild VALUES (4, STRING_TO_VECTOR('[4,4,4,4,4,4,4,4]'), 40);
+SELECT id, c, VECTOR_TO_STRING(v) FROM t_rebuild
+FORCE INDEX (PRIMARY) ORDER BY id;
+id	c	VECTOR_TO_STRING(v)
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
+DROP TABLE t_rebuild;

@@ -36,12 +36,14 @@ naming. No population — that lands in PS-11300. */
 
 #include "current_thd.h"
 #include "data0type.h"
+#include "data0types.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "fts0fts.h"
 #include "fts0priv.h"
+#include "mach0data.h"
 #include "row0mysql.h"
 #include "trx0trx.h"
 #include "univ.i"
@@ -201,6 +203,48 @@ void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
       dtype_form_prtype(DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE, 0),
       sizeof(uint64_t), false);
   DICT_TF2_FLAG_SET(table, DICT_TF2_HAS_VEC_AUX_COL);
+  /* Remember the ordinal position so the INSERT path can locate the
+  dfield slot in O(1) — same trick FTS uses with table->fts->doc_col. */
+  table->vec_aux_col = table->n_def - 1;
+}
+
+void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap) {
+  ut_a(table != nullptr);
+  ut_a(row != nullptr);
+  ut_a(heap != nullptr);
+  if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    return;
+  }
+  ut_a(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_a(table->vec_aux_col < dtuple_get_n_fields(row));
+
+  const uint64_t id = vec_assign_next_aux_id(table);
+
+  /* Mirrors fts_create_doc_id: allocate the value on `heap` so it
+  outlives this call, then point the dfield at it. Big-endian (mach
+  format) so a clustered-index range scan on this column would order
+  numerically — matches how FTS_DOC_ID is laid out. */
+  uint64_t *buf = static_cast<uint64_t *>(mem_heap_alloc(heap, sizeof(*buf)));
+  mach_write_to_8(reinterpret_cast<byte *>(buf), id);
+
+  dfield_t *dfield = dtuple_get_nth_field(row, table->vec_aux_col);
+  dfield_set_data(dfield, buf, sizeof(*buf));
+}
+
+uint64_t vec_assign_next_aux_id(dict_table_t *table) {
+  ut_a(table != nullptr);
+  ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
+  /* fetch_add returns the OLD value; +1 makes the first assignment 1.
+  Phase 1 (PS-11299): the counter resets to 0 on every restart, which
+  yields duplicate percona_vec_aux_id values for inserts after a restart. This
+  is intentionally benign right now: the aux table is empty (HNSW
+  population is PS-11300) so nothing actually depends on uniqueness.
+  PS-11300 will replace this with autoinc-style dynamic-metadata
+  persistence (DD_TABLE_AUTOINC in se_private_data) so the counter
+  survives restart. */
+  return table->vec_aux_autoinc_next_id.fetch_add(1,
+                                                  std::memory_order_acq_rel) +
+         1;
 }
 
 namespace {

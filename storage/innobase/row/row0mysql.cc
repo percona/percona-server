@@ -1114,6 +1114,12 @@ static void row_mysql_convert_row_to_innobase(
 
     fts_create_doc_id(prebuilt->table, row, prebuilt->heap);
   }
+
+  /* Same pattern for the hidden percona_vec_aux_id column (vector indexes).
+  The SQL layer leaves the dfield set to SQL_NULL because the column
+  is HT_HIDDEN_SE; without this stamp, rec_get_converted_size_*
+  asserts on NOT-NULL + SQL_NULL. */
+  vec_stamp_aux_id(prebuilt->table, row, prebuilt->heap);
 }
 
 /** Handles user errors and lock waits detected by the database engine.
@@ -5085,10 +5091,11 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
     indexes of the old table will remain valid and the new
     table will be unaccessible to MySQL until the
     completion of the ALTER TABLE. */
-  } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
-    /* Full Text index are implemented by auxiliary tables,
-    not the B-tree. We also skip secondary indexes that are
-    being created online. */
+  } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
+             index->is_vector()) {
+    /* Full Text and Vector indexes are implemented by auxiliary tables,
+    not the B-tree — page == FIL_NULL. We also skip secondary indexes
+    that are being created online. */
     return (DB_SUCCESS);
   }
 

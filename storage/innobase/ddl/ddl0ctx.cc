@@ -85,9 +85,20 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   m_need_observer = m_old_table != m_new_table;
 
   for (size_t i = 0; i < n_indexes; ++i) {
+    /* Vector indexes have no merge-sort build path — their per-index
+    aux table holds the (eventual) HNSW graph and is populated by the
+    INSERT path in PS-11300, not by the DDL builder. Skipping here
+    keeps the merge-sort Compare_key (which asserts n_unique > 0) from
+    being invoked on a vector index with 0 key fields. Same shape as
+    FTS, except FTS has its own setup_fts_build path; vector's
+    equivalent will land in PS-11300. */
+    if (indexes[i]->is_vector()) {
+      continue;
+    }
+
     m_indexes.push_back(indexes[i]);
 
-    if (i == 0) {
+    if (m_indexes.size() == 1) {
       ut_a(!m_skip_pk_sort || m_indexes.back()->is_clustered());
       m_n_uniq = dict_index_get_n_unique(m_indexes.back());
     }
@@ -514,6 +525,16 @@ dberr_t Context::read_init(Cursor *cursor) noexcept {
 }
 
 dberr_t Context::build() noexcept {
+  /* If every requested index was filtered out (e.g. ALTER ADD only
+  vector indexes), there is nothing to merge-sort. The Loader's
+  Parallel_cursor asserts on an empty builder set, so short-circuit
+  here. The dict_index_t entries were already added to dict_sys
+  during prepare; the build phase has no per-row work for vector
+  indexes in phase 1. */
+  if (m_indexes.empty()) {
+    return cleanup(DB_SUCCESS);
+  }
+
   Loader loader{*this};
 
   const auto err = cleanup(loader.build_all());

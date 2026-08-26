@@ -286,7 +286,7 @@ scan_again:
 
     buf_block_t *block = reinterpret_cast<buf_block_t *>(bpage);
 
-    mutex_enter(&block->mutex);
+    BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
 
     block->ahi.validate();
 
@@ -1061,7 +1061,7 @@ static bool buf_LRU_free_from_unzip_LRU_list(buf_pool_t *buf_pool,
 
     prev_block = UT_LIST_GET_PREV(unzip_LRU, block);
 
-    mutex_enter(&block->mutex);
+    BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
 
     ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
     ut_ad(block->in_unzip_LRU_list);
@@ -2562,7 +2562,7 @@ static void buf_LRU_print_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   for (auto bpage : buf_pool->LRU) {
-    mutex_enter(buf_page_get_mutex(bpage));
+    BUF_MUTEX_ENTER_INSTRUMENTED(buf_page_get_mutex(bpage));
 
     fprintf(stderr, "BLOCK space " UINT32PF " page " UINT32PF " ",
             bpage->id.space(), bpage->id.page_no());

@@ -57,6 +57,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "buf0mutex_stats.h"
 #include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0load.h"
@@ -1176,6 +1177,10 @@ static void srv_init(void) {
 
     srv_buf_dump_event = os_event_create();
 
+#ifdef UNIV_BUF_MUTEX_STATS
+    srv_buf_mutex_stats_event = os_event_create();
+#endif /* UNIV_BUF_MUTEX_STATS */
+
     buf_flush_event = os_event_create();
 
     buf_flush_tick_event = os_event_create();
@@ -1227,6 +1232,9 @@ void srv_free(void) {
     os_event_destroy(srv_error_event);
     os_event_destroy(srv_monitor_event);
     os_event_destroy(srv_buf_dump_event);
+#ifdef UNIV_BUF_MUTEX_STATS
+    os_event_destroy(srv_buf_mutex_stats_event);
+#endif /* UNIV_BUF_MUTEX_STATS */
     os_event_destroy(buf_flush_event);
     os_event_destroy(buf_flush_tick_event);
   }

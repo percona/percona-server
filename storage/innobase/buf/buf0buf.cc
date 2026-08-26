@@ -1632,10 +1632,10 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
   rw_lock_t *hash_lock = buf_page_hash_lock_get(buf_pool, block->page.id);
 
   rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
-  mutex_enter(&block->mutex);
+  BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
 
   if (buf_page_can_relocate(&block->page)) {
-    mutex_enter(&new_block->mutex);
+    BUF_MUTEX_ENTER_INSTRUMENTED(&new_block->mutex);
 
     memcpy(new_block->frame, block->frame, UNIV_PAGE_SIZE);
     new (&new_block->page) buf_page_t(block->page);
@@ -2767,7 +2767,7 @@ void buf_pool_clear_hash_index(void) {
         us to not change blocks that are kept in private in
         BUF_BLOCK_REMOVE_HASH state by some concurrently executed
         buf_LRU_free_page(). */
-        mutex_enter(&block->mutex);
+        BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
         auto block_mutex_guard =
             create_scope_guard([block]() { mutex_exit(&block->mutex); });
 
@@ -5381,7 +5381,7 @@ void buf_read_page_handle_error(buf_page_t *bpage) {
 
   rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
 
-  mutex_enter(buf_page_get_mutex(bpage));
+  BUF_MUTEX_ENTER_INSTRUMENTED(buf_page_get_mutex(bpage));
 
   ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
   ut_ad(bpage->buf_fix_count == 0);
@@ -5468,7 +5468,7 @@ void buf_page_force_evict(const page_id_t &page_id,
       mutex_enter(&buf_pool->LRU_list_mutex);
       mtr.commit();
       ut_ad(buf_page_peek(page_id));
-      mutex_enter(&block->mutex);
+      BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
       bool success = buf_LRU_free_page(bpage, true);
       if (success) {
         break;
@@ -5481,7 +5481,7 @@ void buf_page_force_evict(const page_id_t &page_id,
       mutex_enter(&buf_pool->LRU_list_mutex);
       mtr.commit();
       ut_ad(buf_page_peek(page_id));
-      mutex_enter(&block->mutex);
+      BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
       bool success = false;
       if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
         const bool sync = true;

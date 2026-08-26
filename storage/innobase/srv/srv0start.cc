@@ -58,6 +58,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0cur.h"
 #include "buf0buf.h"
 #include "buf0dump.h"
+#include "buf0mutex_stats.h"
 #include "current_thd.h"
 #include "data0data.h"
 #include "data0type.h"
@@ -173,6 +174,7 @@ mysql_pfs_key_t log_archiver_thread_key;
 mysql_pfs_key_t page_archiver_thread_key;
 mysql_pfs_key_t buf_pool_create_thread_key;
 mysql_pfs_key_t buf_dump_thread_key;
+mysql_pfs_key_t buf_mutex_stats_thread_key;
 mysql_pfs_key_t buf_resize_thread_key;
 mysql_pfs_key_t clone_ddl_thread_key;
 mysql_pfs_key_t clone_gtid_thread_key;
@@ -1354,6 +1356,11 @@ static const Thread_to_stop threads_to_stop[]{
 
     {"buf_dump", srv_threads.m_buf_dump,
      []() { os_event_set(srv_buf_dump_event); }, SRV_SHUTDOWN_CLEANUP},
+
+#ifdef UNIV_BUF_MUTEX_STATS
+    {"buf_mutex_stats", srv_threads.m_buf_mutex_stats,
+     []() { os_event_set(srv_buf_mutex_stats_event); }, SRV_SHUTDOWN_CLEANUP},
+#endif /* UNIV_BUF_MUTEX_STATS */
 
     {"buf_resize", srv_threads.m_buf_resize,
      []() { os_event_set(srv_buf_resize_event); }, SRV_SHUTDOWN_CLEANUP},
@@ -2549,6 +2556,15 @@ void srv_start_threads_after_ddl_recovery() {
       os_thread_create(buf_dump_thread_key, 0, buf_dump_thread);
 
   srv_threads.m_buf_dump.start();
+
+#ifdef UNIV_BUF_MUTEX_STATS
+  /* Diagnostic thread for PS-11120 (InnoDB block mutex contention);
+  dumps per-call-site page/block mutex wait stats to a CSV file. */
+  srv_threads.m_buf_mutex_stats =
+      os_thread_create(buf_mutex_stats_thread_key, 0, buf_mutex_stats_thread);
+
+  srv_threads.m_buf_mutex_stats.start();
+#endif /* UNIV_BUF_MUTEX_STATS */
 
   /* Resume unfinished (un)encryption process in background thread. */
   if (!ts_encrypt_ddl_records.empty()) {

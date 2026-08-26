@@ -1974,7 +1974,7 @@ static bool btr_search_hash_table_validate(ulint part_id) {
         ut_a(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
       }
 
-      mutex_enter(&block->mutex);
+      BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
       mutex_exit(&buf_pool->LRU_list_mutex);
 
       const auto index = block->ahi.index.load();

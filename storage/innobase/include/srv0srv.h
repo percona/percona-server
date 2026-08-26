@@ -193,6 +193,9 @@ struct Srv_threads {
   /** Buffer pool dump thread. */
   IB_thread m_buf_dump;
 
+  /** Block/page mutex contention stats (CSV dump) thread. */
+  IB_thread m_buf_mutex_stats;
+
   /** Buffer pool resize thread. */
   IB_thread m_buf_resize;
 
@@ -791,6 +794,7 @@ extern mysql_pfs_key_t log_archiver_thread_key;
 extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_pool_create_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
+extern mysql_pfs_key_t buf_mutex_stats_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
 extern mysql_pfs_key_t clone_ddl_thread_key;
 extern mysql_pfs_key_t clone_gtid_thread_key;

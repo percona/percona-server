@@ -820,6 +820,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(buf_dump_thread, "ib_buf_dump", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(buf_mutex_stats_thread, "ib_buf_mtx_st", PSI_FLAG_SINGLETON,
+                   0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(clone_ddl_thread, "ib_clone_ddl", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(clone_gtid_thread, "ib_clone_gtid", PSI_FLAG_SINGLETON, 0,
@@ -21476,7 +21478,7 @@ Keep the compressed pages in the buffer pool.
       ut_ad(block->in_unzip_LRU_list);
       ut_ad(block->page.in_LRU_list);
 
-      mutex_enter(&block->mutex);
+      BUF_MUTEX_ENTER_INSTRUMENTED(&block->mutex);
 
       if (!buf_LRU_free_page(&block->page, false)) {
         mutex_exit(&block->mutex);

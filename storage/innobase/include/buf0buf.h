@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0buf_h
 #define buf0buf_h
 
+#include "buf0mutex_stats.h"
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "hash0hash.h"
@@ -2610,10 +2611,7 @@ Use these instead of accessing buffer pool mutexes directly. */
     mutex_exit(&(b)->flush_list_mutex); \
   } while (0)
 /** Acquire the block->mutex. */
-#define buf_page_mutex_enter(b) \
-  do {                          \
-    mutex_enter(&(b)->mutex);   \
-  } while (0)
+#define buf_page_mutex_enter(b) BUF_MUTEX_ENTER_INSTRUMENTED(&(b)->mutex)
 
 /** Release the block->mutex. */
 #define buf_page_mutex_exit(b) \

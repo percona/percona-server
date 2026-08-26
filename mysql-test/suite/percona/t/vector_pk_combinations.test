@@ -1,0 +1,133 @@
+--echo #
+--echo # PS-11299: vector index + PRIMARY KEY interaction matrix.
+--echo #
+--echo # PS-11264 requires a vector-indexed table to have a PRIMARY KEY
+--echo # (current temporary restriction: BIGINT UNSIGNED). This test
+--echo # captures the rules across CREATE / ALTER combinations.
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--echo #
+--echo # === A. Table without PK but with KEY in CREATE ===
+--echo # Must be rejected: a vector index needs a PK to anchor row_ref.
+--echo #
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE a1 (
+  v VECTOR(8) NOT NULL,
+  KEY (v) TYPE hnsw WITH (M = 6)
+);
+
+--echo #
+--echo # === B. Table with VECTOR column only, no vector index, no PK ===
+--echo # OK — vector column does not by itself require a PK; the
+--echo # requirement only fires when there is a vector INDEX.
+--echo #
+CREATE TABLE b1 (
+  v VECTOR(8) NOT NULL,
+  c INT
+);
+SHOW CREATE TABLE b1;
+DROP TABLE b1;
+
+--echo #
+--echo # === C. ALTER ADD PRIMARY KEY then ADD KEY in one statement ===
+--echo # PRIMARY KEY appears earlier in the statement; vector index needs
+--echo # a PK at the moment of validation. Same-ALTER ordering must work.
+--echo #
+CREATE TABLE c1 (
+  id BIGINT UNSIGNED NOT NULL,
+  v VECTOR(8) NOT NULL,
+  c INT
+);
+--disable_abort_on_error
+ALTER TABLE c1 ADD PRIMARY KEY (id),
+                ADD KEY (v) TYPE hnsw WITH (M = 6);
+--enable_abort_on_error
+SHOW CREATE TABLE c1;
+DROP TABLE c1;
+
+--echo #
+--echo # === D. ALTER ADD KEY without an existing PK ===
+--echo # Table has no PK and we attempt to add a vector key. Rejected.
+--echo #
+CREATE TABLE d1 (
+  id BIGINT UNSIGNED NOT NULL,
+  v VECTOR(8) NOT NULL
+);
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE d1 ADD KEY (v) TYPE hnsw WITH (M = 6);
+DROP TABLE d1;
+
+--echo #
+--echo # === E. Promotion: UNIQUE NOT NULL becomes PK, with KEY ===
+--echo # MySQL promotes the first UNIQUE NOT NULL key to PRIMARY KEY
+--echo # when no explicit PRIMARY KEY is declared. The vector index must
+--echo # see the promoted PK as the anchor.
+--echo #
+--disable_abort_on_error
+CREATE TABLE e1 (
+  id BIGINT UNSIGNED NOT NULL,
+  v VECTOR(8) NOT NULL,
+  UNIQUE KEY u_id (id),
+  KEY (v) TYPE hnsw WITH (M = 6)
+);
+--enable_abort_on_error
+--echo # NOTE: PS-11264 requires an EXPLICIT BIGINT UNSIGNED PRIMARY KEY.
+--echo # The UNIQUE NOT NULL → PK promotion does NOT satisfy this; CREATE
+--echo # is rejected. A future relaxation could accept promoted PKs.
+--disable_warnings
+DROP TABLE IF EXISTS e1;
+--enable_warnings
+
+--echo #
+--echo # === F. ALTER ADD UNIQUE NOT NULL (promotable) + ADD KEY ===
+--echo # Same as C but the PK source is a promoted UNIQUE rather than an
+--echo # explicit PRIMARY clause.
+--echo #
+CREATE TABLE f1 (
+  id BIGINT UNSIGNED NOT NULL,
+  v VECTOR(8) NOT NULL
+);
+--disable_abort_on_error
+ALTER TABLE f1 ADD UNIQUE KEY u_id (id),
+                ADD KEY (v) TYPE hnsw WITH (M = 6);
+--enable_abort_on_error
+--echo # Same finding as E — UNIQUE-NOT-NULL promotion via ALTER doesn't
+--echo # satisfy PS-11264's BIGINT UNSIGNED PRIMARY KEY requirement either.
+SHOW CREATE TABLE f1;
+DROP TABLE f1;
+
+--echo #
+--echo # === G. Drop PK on a table that has a KEY ===
+--echo # Vector index can't live without a PK. The DROP must fail.
+--echo #
+CREATE TABLE g1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  KEY (v) TYPE hnsw WITH (M = 6)
+);
+--error 0,ER_NOT_SUPPORTED_YET,ER_REQUIRES_PRIMARY_KEY
+ALTER TABLE g1 DROP PRIMARY KEY;
+SHOW CREATE TABLE g1;
+DROP TABLE g1;
+
+--echo #
+--echo # === H. Same-ALTER: DROP PK + ADD new PK on a vector-indexed table ===
+--echo # The OLD pk is removed but a new one is added in the same statement.
+--echo # End-state has a PK, so the vector index is still valid.
+--echo #
+CREATE TABLE h1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  id2 BIGINT UNSIGNED NOT NULL,
+  v VECTOR(8) NOT NULL,
+  KEY (v) TYPE hnsw WITH (M = 6)
+);
+--disable_abort_on_error
+ALTER TABLE h1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
+--enable_abort_on_error
+SHOW CREATE TABLE h1;
+DROP TABLE h1;
+
+--echo # No aux files leaked.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

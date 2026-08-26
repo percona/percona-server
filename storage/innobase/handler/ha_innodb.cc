@@ -16242,6 +16242,22 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
     return HA_ERR_NOT_ALLOWED_COMMAND;
   }
 
+  /* DEVIATION FROM FTS: FTS supports DISCARD/IMPORT — fts_drop_orphaned
+  _tables + the FTS aux rebuild inside innobase_import_tablespace roll
+  the aux .ibd files with the parent. Vec has no serialize/restore
+  path for HNSW graph state across .ibd swap yet, so we hard-block
+  DISCARD/IMPORT on any vec-flagged table. Phase 2 (PS-11300) will
+  lift the block once HNSW aux can round-trip through IMPORT. */
+  if (DICT_TF2_FLAG_IS_SET(dict_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    my_printf_error(ER_NOT_ALLOWED_COMMAND,
+                    "InnoDB: Cannot %s table `%s` because it has a vector"
+                    " index. DISCARD/IMPORT TABLESPACE is not yet supported"
+                    " for tables with vector indexes.",
+                    MYF(0), discard ? "discard" : "import",
+                    dict_table->name.m_name);
+    return HA_ERR_NOT_ALLOWED_COMMAND;
+  }
+
   TrxInInnoDB trx_in_innodb(m_prebuilt->trx);
 
   if (trx_in_innodb.is_aborted()) {

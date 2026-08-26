@@ -37,6 +37,7 @@ Created 2020-11-01 by Sunny Bains. */
 #include "handler0alter.h"
 #include "lock0lock.h"
 #include "row0log.h"
+#include "vec0aux.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -412,6 +413,25 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
 
           index = prev;
 
+        } else if (index->is_vector()) {
+          /* Mirror the FTS branch above for a completed-but-uncommitted
+          vector index: drop its aux table and remove it from the cache
+          immediately. Safe for the same reason as FTS — ADD VECTOR
+          INDEX is not allowed with LOCK=NONE (see the HA_VECTOR gate
+          in innobase_support_inplace_alter), so no concurrent thread
+          holds an entry_list referencing this index. Deferring to the
+          ABORTED/CORRUPT path below would leak the aux .ibd: the
+          deferred-drop machinery frees B-trees, and a vec index has
+          none — its storage is the aux table. */
+          auto prev = UT_LIST_GET_PREV(indexes, index);
+          ut_ad(prev != nullptr);
+
+          (void)vec_aux_drop_one_table(trx, table, index->id);
+
+          dict_index_remove_from_cache(table, index);
+
+          index = prev;
+
         } else {
           rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
@@ -472,6 +492,16 @@ static void drop_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
       if (index->type & DICT_FTS) {
         ut_a(table->fts);
         fts_drop_index(table, index, trx, nullptr);
+      }
+
+      /* Mirror the FTS aux drop above for an uncommitted vector index —
+      this is the prepare_inplace_alter_table failure path (reached via
+      error_handled: → ddl::drop_indexes). The vec index's storage is
+      its aux table, not a B-tree, so dropping the index from the cache
+      below without this call would orphan the aux .ibd in dict_sys
+      and on disk. */
+      if (index->is_vector()) {
+        (void)vec_aux_drop_one_table(trx, table, index->id);
       }
 
       switch (dict_index_get_online_status(index)) {

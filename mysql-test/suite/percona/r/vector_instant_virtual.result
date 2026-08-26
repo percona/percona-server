@@ -1,0 +1,62 @@
+#
+# PS-11299: INSTANT_VIRTUAL_ONLY ALTER on a vec-indexed table
+# must preserve the hidden percona_vec_aux_id column in dd::Table.
+#
+# Trigger: ALTER ADD COLUMN ... AS (expr) VIRTUAL on a table
+# that has a vector index. This goes through
+# Instant_ddl_impl::commit_instant_ddl's INSTANT_VIRTUAL_ONLY
+# branch, which rebuilds the new dd::Table from altered_table->s
+# (which has no SE-hidden cols) and so loses percona_vec_aux_id unless
+# we explicitly re-add it.
+#
+# Without the dict0inst.cc fix, the next reload (server restart
+# or any path that goes through dd_open_table_one) hits the
+# `vec_add_idx_id_column` invariant or the n_fields check —
+# debug crash, release misbehavior.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c1 INT,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+# Add a virtual column — should take INSTANT_VIRTUAL_ONLY path.
+ALTER TABLE t1 ADD COLUMN c1_plus_one INT AS (c1 + 1) VIRTUAL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c1_plus_one` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Restart server. dd_open_table_one rebuilds dict_table_t from
+# the dd::Table. percona_vec_aux_id must still be there.
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c1_plus_one` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ALTER ADD another virtual column post-restart — percona_vec_aux_id
+# must still be there.
+ALTER TABLE t1 ADD COLUMN c1_plus_two INT AS (c1 + 2) VIRTUAL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c1_plus_one` int GENERATED ALWAYS AS ((`c1` + 1)) VIRTUAL,
+  `c1_plus_two` int GENERATED ALWAYS AS ((`c1` + 2)) VIRTUAL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

@@ -27,11 +27,16 @@ while ($pass != 2) {
 
   --echo # Initialization - create table, resets autoincrement value.
   CREATE TABLE t (a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB;
+<<<<<<< HEAD
 
   # 98 and 99 added by Percona to make sure all happens within the single log block
   INSERT INTO t (a) VALUES (98);
   INSERT INTO t (a) VALUES (99);
 
+||||||| parent of 4014d80e246 (EOL 2 - Test - PS-11437 Pre-allocate undo before log_first_rec_group's byte budget)
+=======
+  CREATE TABLE undo_prealloc (a INT PRIMARY KEY) ENGINE = InnoDB;
+>>>>>>> 4014d80e246 (EOL 2 - Test - PS-11437 Pre-allocate undo before log_first_rec_group's byte budget)
   INSERT INTO t (a) VALUES (100);
 
   # Enable all METRICS within log module
@@ -39,15 +44,27 @@ while ($pass != 2) {
 
   --source ../include/log_disable_page_cleaners.inc
 
+  # Allocate insert undo before positioning the log. Keep it active because
+  # creating a fresh insert undo log can generate more redo than fits in the
+  # single log block required by this scenario.
+  SET AUTOCOMMIT = 0;
+  INSERT INTO undo_prealloc VALUES (1);
+
+  connect (log_block_filler,localhost,root,,);
+  connection log_block_filler;
+
   --echo # 0. Move to the next log block.
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (101);
   let $log_fill_block_and_crash = 0;
   --source ../include/log_fill_block.inc
+
+  connection default;
+  disconnect log_block_filler;
+
   let $start_lsn = $end_lsn;
 
   --echo # 1. Execute tiny mini-transaction in the current block [only pass 0]
   if ($pass == 0) {
-    SET AUTOCOMMIT = 0;
     INSERT INTO t (a) VALUES(102);
 
     if ($debug_test) {
@@ -122,7 +139,7 @@ while ($pass != 2) {
     --echo LSN: $end_lsn
   }
 
-  DROP TABLE t;
+  DROP TABLE t, undo_prealloc;
   inc $pass;
 }
 
@@ -144,6 +161,7 @@ while ($pass != 4) {
 
   --echo # Initialization - create table, resets autoincrement value.
   CREATE TABLE t (a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE = InnoDB;
+  CREATE TABLE undo_prealloc (a INT PRIMARY KEY) ENGINE = InnoDB;
   INSERT INTO t (a) VALUES (200);
 
   # Enable all METRICS within log module
@@ -151,10 +169,22 @@ while ($pass != 4) {
 
   --source ../include/log_disable_page_cleaners.inc
 
+  # Allocate insert undo before positioning the log. Keep it active because
+  # creating a fresh insert undo log can generate more redo than fits in the
+  # single log block required by this scenario.
+  SET AUTOCOMMIT = 0;
+  INSERT INTO undo_prealloc VALUES (1);
+
+  connect (log_block_filler,localhost,root,,);
+  connection log_block_filler;
+
   --echo # 0. Move to the next log block
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (201);
   let $log_fill_block_and_crash = 0;
   --source ../include/log_fill_block.inc
+
+  connection default;
+  disconnect log_block_filler;
 
   --echo # 1. Execute tiny mini-transaction in the current block [pass 0, 2]
   let $insert_202 = 0;
@@ -165,7 +195,6 @@ while ($pass != 4) {
     let $insert_202 = 1;
   }
   if ($insert_202 == 1) {
-    SET AUTOCOMMIT = 0;
     INSERT INTO t (a) VALUES (202);
   }
 
@@ -206,7 +235,7 @@ while ($pass != 4) {
   --disable_query_log
   --disable_result_log
 
-  DROP TABLE t;
+  DROP TABLE t, undo_prealloc;
   inc $pass;
 }
 

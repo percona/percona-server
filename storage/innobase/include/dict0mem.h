@@ -2464,8 +2464,8 @@ detect this and will eventually quit sooner. */
   one-vec-index-per-table cap. Until then, direct fields are the
   honest representation. */
 
-  /** Counter for the hidden percona_vec_aux_id column (auto-assigned on INSERT).
-  Valid IDs start at 1. Set by vec_assign_next_idx_id via fetch_add.
+  /** Counter for the hidden percona_vec_aux_id column (auto-assigned on
+  INSERT). Valid IDs start at 1. Set by vec_assign_next_aux_id via fetch_add.
   Phase 1 (PS-11299): not persisted across restart — duplicates are
   benign because the aux table is empty. PS-11300 will switch to the
   autoinc-style dynamic-metadata persistence path. */

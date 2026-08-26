@@ -36,6 +36,7 @@ pars_sql/que_eval_sql, which serializes on the global pars_mutex. */
 #ifndef vec0aux_h
 #define vec0aux_h
 
+#include "data0types.h"
 #include "dict0mem.h"
 #include "trx0trx.h"
 #include "univ.i"
@@ -183,5 +184,17 @@ during DD load when the dd::Table has a hidden percona_vec_aux_id.
 @param[in,out]  table   dict_table_t under construction
 @param[in,out]  heap    memory heap for column allocation */
 void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap);
+
+/** Atomically assign the next percona_vec_aux_id for a row about to be
+inserted. Valid ids start at 1. Stamped into the hidden percona_vec_aux_id
+dfield by the INSERT path. See the implementation comment for the phase-1
+persistence caveat. */
+uint64_t vec_assign_next_aux_id(dict_table_t *table);
+
+/** Stamp the hidden percona_vec_aux_id dfield in `row` with the next id from
+the per-table counter. No-op for tables without the hidden column.
+Allocations come from `heap` so they outlive this call. Called from
+the INSERT path (mirrors fts_create_doc_id). */
+void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap);
 
 #endif /* vec0aux_h */

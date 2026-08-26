@@ -14,17 +14,29 @@
 # The second drop is a no-op for indexes the first drop handled.
 #
 CREATE TABLE tvr (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
-# Bump current_row_version on the base so the upcoming ADD VECTOR
-# INDEX must take the rebuild path (add_vec_aux_col ⇒ new_clustered).
-ALTER TABLE tvr ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+# The FIRST ADD materializes the hidden column and so falls back to
+# COPY, which never enters the INPLACE prepare path. With the knob
+# ARMED it must therefore succeed.
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+# Drop it. The hidden column is retained, so a later ADD is
+# eligible for INPLACE again.
+ALTER TABLE tvr DROP KEY v;
+# Add a column in the same ALTER so it must take the INPLACE
+# *rebuild* path, which is the path whose rollback this covers.
+# (INSTANT ADD COLUMN, used here before, is refused once the hidden
+# column exists.)
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),
+ALGORITHM=INPLACE;
 Got one of the listed errors
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 # No vec aux .ibd left behind after rebuild rollback.
 # Retry must succeed — both the original-table dict_sys slots
 # and any aux name slots are free.
-ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
+ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),
+ALGORITHM=INPLACE;
 SHOW CREATE TABLE tvr;
 Table	Create Table
 tvr	CREATE TABLE `tvr` (

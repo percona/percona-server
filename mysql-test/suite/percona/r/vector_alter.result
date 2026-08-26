@@ -1,0 +1,257 @@
+#
+# PS-11299: ALTER TABLE interactions with vector indexes.
+# Section A/B: column ops on tables that already have a vector index.
+# Section C: non-vector secondary index ADD/DROP alongside vector.
+# Section D: ADD INDEX after INSTANT column ADD (forces rebuild).
+# Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
+# Section F: DROP vector index then INSTANT ADD COLUMN.
+#
+#
+# === Section A: ADD COLUMN on a table that already has a vector index
+#
+CREATE TABLE ta1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+# A.1 ADD COLUMN ... ALGORITHM=INSTANT — blocked on vec-indexed tables
+# (parallel to FTS's ER_INNODB_FT_LIMIT). Enabling this needs a fix
+# in ha_innobase::build_template to skip HT_HIDDEN_SE cols when
+# computing the InnoDB→MySQL column map. Deferred to PS-11300.
+ALTER TABLE ta1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+Got one of the listed errors
+# Fallback: server-picked algorithm succeeds (INPLACE or COPY).
+ALTER TABLE ta1 ADD COLUMN c1 INT;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# A.2 ADD COLUMN ... ALGORITHM=INPLACE — refused: any rebuild-class
+# INPLACE on a vec-indexed table is rejected (mirrors FTS's
+# ER_INNODB_FT_LIMIT policy — aux contents can't survive a native
+# rebuild). COPY is the supported route.
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
+# Fallback: server-picked algorithm (COPY) succeeds.
+ALTER TABLE ta1 ADD COLUMN c2 INT;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# A.3 ADD COLUMN ... ALGORITHM=COPY (full rebuild — aux .ibd gets a new id)
+ALTER TABLE ta1 ADD COLUMN c3 INT, ALGORITHM=COPY;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+percona_vec_hnsw_<TID>_<IID>.ibd
+# A.4 Default ADD COLUMN (server picks algorithm)
+ALTER TABLE ta1 ADD COLUMN c4 INT;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE ta1;
+#
+# === Section B: DROP COLUMN on a table with a vector index
+#
+CREATE TABLE tb1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c1 INT, c2 INT, c3 INT,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+# B.1 DROP COLUMN ... ALGORITHM=INSTANT — blocked (see A.1 note)
+ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
+Got one of the listed errors
+# Fallback: server-picked algorithm succeeds.
+ALTER TABLE tb1 DROP COLUMN c1;
+# B.2 DROP COLUMN ... ALGORITHM=COPY
+ALTER TABLE tb1 DROP COLUMN c2, ALGORITHM=COPY;
+SHOW CREATE TABLE tb1;
+Table	Create Table
+tb1	CREATE TABLE `tb1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c3` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tb1;
+#
+# === Section C: ADD/DROP non-vector secondary index alongside vector
+#
+CREATE TABLE tc1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c INT,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+# C.1 ADD a non-vector secondary index
+ALTER TABLE tc1 ADD INDEX ix_c (c);
+SHOW INDEXES FROM tc1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tc1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+tc1	1	v	1	v	A	0	1	NULL		VECTOR			YES	NULL
+tc1	1	ix_c	1	c	A	0	NULL	NULL	YES	BTREE			YES	NULL
+# C.2 DROP that secondary index
+ALTER TABLE tc1 DROP INDEX ix_c;
+SHOW INDEXES FROM tc1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tc1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+tc1	1	v	1	v	A	0	1	NULL		VECTOR			YES	NULL
+DROP TABLE tc1;
+#
+# === Section D: ADD INDEX after INSTANT ADD COLUMN
+#
+# Until PS-11299's rebuild-forcing fix, this crashed at dict0dd.cc:2682
+# because percona_vec_aux_id was missing from the rebuilt dict_table_t while
+# the dd::Table carried it. ADD INDEX now forces a rebuild that
+# materializes percona_vec_aux_id on a fresh dict_table_t (current_row_version=0),
+# mirroring how ADD FULLTEXT forces a rebuild via add_fts_doc_id.
+CREATE TABLE td1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL
+);
+# D.1 INSTANT ADD COLUMN bumps current_row_version on the base table.
+ALTER TABLE td1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+ALTER TABLE td1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+# D.2 Adding the first vector index now succeeds — rebuild forced.
+CREATE INDEX vix ON td1 (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE td1;
+Table	Create Table
+td1	CREATE TABLE `td1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `vix` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE td1;
+#
+# === Section E: ADD INDEX after INSTANT DROP COLUMN
+#
+CREATE TABLE te1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c1 INT, c2 INT
+);
+ALTER TABLE te1 DROP COLUMN c1, ALGORITHM=INSTANT;
+CREATE INDEX vix ON te1 (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE te1;
+Table	Create Table
+te1	CREATE TABLE `te1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `vix` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE te1;
+#
+# === Section F: DROP vector index then INSTANT ADD COLUMN
+#
+# The hidden percona_vec_aux_id column is retained across DROP of the last
+# vector index in the current implementation. Consequently INSTANT
+# ADD is still blocked here (the retained hidden col would sit
+# between user cols and the INSTANT-added tail column, tripping
+# the row0sel.ic:199 mismatch on subsequent SELECT). Once
+# PS-11300 either clears percona_vec_aux_id on last-DROP-INDEX or fixes
+# the SELECT column mapping, this section can flip to expect
+# success.
+CREATE TABLE tf1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+ALTER TABLE tf1 DROP KEY v;
+ALTER TABLE tf1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+Got one of the listed errors
+# Server-picked algorithm succeeds (rebuild).
+ALTER TABLE tf1 ADD COLUMN c1 INT;
+SHOW CREATE TABLE tf1;
+Table	Create Table
+tf1	CREATE TABLE `tf1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tf1;
+#
+# === Section G: native rebuild refused on vec-indexed tables ===
+# Mirrors FTS's ER_INNODB_FT_LIMIT policy: a native (INPLACE)
+# rebuild re-inserts every row under a new table_id/index_id, so
+# the vec aux table would be re-minted empty and the HNSW graph
+# lost. ALGORITHM=COPY rebuilds the aux organically via per-row
+# INSERT stamping.
+CREATE TABLE tg1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+# G.1 Explicit ALGORITHM=INPLACE rebuild: refused with the vector
+# reason (parallel to FTS's refusal on FTS-indexed tables).
+ALTER TABLE tg1 FORCE, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
+# G.2 Server-picked algorithm: silently falls back to COPY.
+ALTER TABLE tg1 FORCE;
+# G.3 OPTIMIZE TABLE: same fallback, data survives, one aux .ibd.
+OPTIMIZE TABLE tg1;
+Table	Op	Msg_type	Msg_text
+test.tg1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tg1	optimize	status	OK
+SELECT id, VECTOR_TO_STRING(v) FROM tg1 FORCE INDEX (PRIMARY);
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+percona_vec_hnsw_<TID>_<IID>.ibd
+# G.4 First ADD INDEX is refused for INPLACE and falls back to
+# COPY: the hidden column must materialize, and the native rebuild
+# has no pass that builds the index contents. Every ADD after a
+# DROP is eligible for INPLACE, since the column is retained.
+CREATE TABLE tg2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+INSERT INTO tg2 VALUES (1, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
+ALTER TABLE tg2 ADD KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
+# Server-picked algorithm succeeds via COPY.
+ALTER TABLE tg2 ADD KEY vk (v) TYPE hnsw;
+SELECT id, VECTOR_TO_STRING(v) FROM tg2 FORCE INDEX (PRIMARY);
+id	VECTOR_TO_STRING(v)
+1	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+# And now the re-ADD may run INPLACE.
+ALTER TABLE tg2 DROP KEY vk;
+ALTER TABLE tg2 ADD KEY vk2 (v) TYPE hnsw, ALGORITHM=INPLACE;
+SELECT id, VECTOR_TO_STRING(v) FROM tg2 FORCE INDEX (PRIMARY);
+id	VECTOR_TO_STRING(v)
+1	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+DROP TABLE tg1, tg2;
+# After all DROP TABLEs, no aux .ibd left over.

@@ -20,13 +20,25 @@
 
 CREATE TABLE tvr (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 
---echo # Bump current_row_version on the base so the upcoming ADD VECTOR
---echo # INDEX must take the rebuild path (add_vec_aux_col ⇒ new_clustered).
-ALTER TABLE tvr ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+--echo # The FIRST ADD materializes the hidden column and so falls back to
+--echo # COPY, which never enters the INPLACE prepare path. With the knob
+--echo # ARMED it must therefore succeed.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 
+--echo # Drop it. The hidden column is retained, so a later ADD is
+--echo # eligible for INPLACE again.
+ALTER TABLE tvr DROP KEY v;
+
+--echo # Add a column in the same ALTER so it must take the INPLACE
+--echo # *rebuild* path, which is the path whose rollback this covers.
+--echo # (INSTANT ADD COLUMN, used here before, is refused once the hidden
+--echo # column exists.)
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 --error ER_GET_ERRNO,ER_OUT_OF_RESOURCES,ER_TOO_MANY_CONCURRENT_TRXS,1
-ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
+ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),
+                ALGORITHM=INPLACE;
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 
 --echo # No vec aux .ibd left behind after rebuild rollback.
@@ -34,7 +46,8 @@ SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 
 --echo # Retry must succeed — both the original-table dict_sys slots
 --echo # and any aux name slots are free.
-ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
+ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),
+                ALGORITHM=INPLACE;
 SHOW CREATE TABLE tvr;
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

@@ -13,6 +13,16 @@ CREATE TABLE t1 (
 --echo # SHOW CREATE TABLE must NOT mention percona_vec_aux_id (HT_HIDDEN_SE).
 SHOW CREATE TABLE t1;
 
+--echo # Aux tables are HT_HIDDEN_SE — invisible to user-facing catalog
+--echo # views (SHOW TABLES, I_S.TABLES) but registered in DD and so
+--echo # visible to InnoDB's internal I_S.INNODB_TABLES. Same as FTS aux.
+SHOW TABLES;
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec_%';
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+/percona_vec_hnsw_<TID>_<IID>/
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE NAME LIKE 'test/percona_vec_%';
+
 --echo # Exactly one aux .ibd per vector index must exist on disk.
 --echo # Names are vec_<hex_table_id>_<hex_index_id>.ibd — mask the ids so the
 --echo # result file is stable across runs.
@@ -63,6 +73,17 @@ TRUNCATE TABLE t1;
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/vec_<AFTER>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
+--echo #
+--echo # OPTIMIZE TABLE — for InnoDB this maps to ALTER TABLE FORCE
+--echo # (full rebuild). Aux table should be re-minted with the new
+--echo # parent table_id; count stays at one per vector index. Same
+--echo # shape as TRUNCATE.
+--echo #
+OPTIMIZE TABLE t1;
+--echo # Still exactly one aux .ibd in test/ post-OPTIMIZE.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/vec_<POST_OPTIMIZE>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
 --echo # Same-schema rename: aux file unchanged.
 RENAME TABLE t1 TO t1_renamed;
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
@@ -79,6 +100,81 @@ RENAME TABLE t1_renamed TO vec_other.t1;
 
 DROP TABLE vec_other.t1;
 DROP DATABASE vec_other;
+
+--echo #
+--echo # ALTER TABLE — ADD INDEX creates a fresh aux .ibd; DROP INDEX
+--echo # removes it. Use a base table created WITHOUT a vector index so we
+--echo # exercise the ADD path on an existing table.
+--echo #
+
+CREATE TABLE t_alter (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR(8) NOT NULL
+);
+--echo # No percona_vec_*.ibd yet.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+CREATE INDEX v1 ON t_alter (v1) TYPE hnsw;
+--echo # Aux .ibd now exists.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+ALTER TABLE t_alter DROP INDEX v1;
+--echo # Aux .ibd gone after DROP INDEX.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE t_alter;
+
+--echo #
+--echo # ALTER round-trip — drop the only vector index, then add another.
+--echo # The hidden percona_vec_aux_id column is carried forward into the new
+--echo # dd::Table by dd_commit_inplace_alter_table (mirroring FTS_DOC_ID);
+--echo # if the SQL layer subsequently prunes it because no index points at
+--echo # it, the next ALTER ADD INDEX recreates it transparently —
+--echo # the round-trip succeeds either way.
+--echo #
+
+CREATE TABLE t_rt (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR(8) NOT NULL,
+  KEY (v1) TYPE hnsw
+);
+
+--echo # percona_vec_aux_id reservation while a vector index exists.
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
+
+ALTER TABLE t_rt DROP INDEX v1;
+--echo # Aux .ibd gone after DROP INDEX.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # Re-add a vector index. Must succeed with no duplicate-column error,
+--echo # aux is recreated, percona_vec_aux_id is re-established by InnoDB.
+CREATE INDEX v2 ON t_rt (v1) TYPE hnsw;
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # And percona_vec_aux_id is again reserved (the new vector index is back).
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
+
+DROP TABLE t_rt;
+
+--echo #
+--echo # DISCARD / IMPORT TABLESPACE on a table with a vector index is
+--echo # rejected in phase 1 — per-aux tablespace import is not yet
+--echo # designed. The block lives at the very entry of
+--echo # ha_innobase::discard_or_import_tablespace.
+--echo #
+
+CREATE TABLE t_disc (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR(8) NOT NULL,
+  KEY (v1) TYPE hnsw
+);
+--error ER_NOT_ALLOWED_COMMAND
+ALTER TABLE t_disc DISCARD TABLESPACE;
+DROP TABLE t_disc;
 
 --echo # After DROP TABLE the aux .ibd files must be gone too — no orphans.
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

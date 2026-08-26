@@ -1,0 +1,70 @@
+#
+# PS-11299 corner-case lifecycle coverage:
+#   A. CREATE TABLE LIKE copies a vec-indexed table — both must
+#      end up with their own aux .ibd, both must round-trip the
+#      KEY ... WITH (...) clause, both auxes must be
+#      cleaned on DROP TABLE.
+#   B. DROP DATABASE on a schema with vec-indexed tables must
+#      remove every percona_vec_*.ibd in that schema directory.
+#   C. RENAME TABLE across schemas takes the aux .ibd along.
+#
+#
+# === A. CREATE TABLE LIKE on a vec-indexed table ===
+#
+CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6));
+# Two distinct aux .ibd (one per parent table).
+CREATE TABLE dst LIKE src;
+SHOW CREATE TABLE dst;
+Table	Create Table
+dst	CREATE TABLE `dst` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE src, dst;
+# No percona_vec_*.ibd left behind.
+#
+# === B. DROP DATABASE cleans every vec aux .ibd ===
+#
+CREATE DATABASE veclab;
+USE veclab;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6));
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+USE test;
+DROP DATABASE veclab;
+# Schema dir removed entirely — no orphan vec aux.
+#
+# === C. Cross-schema RENAME moves aux .ibd ===
+#
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6));
+CREATE DATABASE vec_target;
+RENAME TABLE test.t3 TO vec_target.t3;
+# aux follows the parent into vec_target/.
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP DATABASE vec_target;
+#
+# === D. Partitioned tables reject KEY (phase 1) ===
+# Rejected above the storage engine, in mysql_prepare_create_table.
+# We used to mask HA_CAN_VECTOR out of
+# HA_INNOPART_DISABLED_TABLE_FLAGS the way FTS masks
+# HA_CAN_FULLTEXT, but that fired first and reported
+# ER_TABLE_CANT_HANDLE_INDEX instead of the clearer message.
+#
+CREATE TABLE t_part (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6))
+PARTITION BY HASH(id) PARTITIONS 4;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'

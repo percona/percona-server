@@ -1,0 +1,104 @@
+#
+# PS-11299: PRIMARY KEY lifecycle on a vector-indexed table.
+#
+# PS-11264's current restriction: a vector index requires an
+# explicit BIGINT UNSIGNED PRIMARY KEY (there is no
+# GEN_CLUST_INDEX fallback like FTS has — vector's aux row_ref
+# is keyed by the user PK). This test exercises the PK-change
+# paths to confirm we never end up with a vector index whose
+# anchor PK has gone away.
+#
+# Behavior summary:
+#   DROP PK alone                       — rejected (ER 7034)
+#   DROP PK + ADD wrong-type PK         — rejected (ER 7034)
+#   DROP PK + ADD BIGINT UNSIGNED PK    — accepted, vec preserved
+#   FTS DROP PK (control)               — accepted (GEN_CLUST fallback)
+#
+#
+# === A. DROP PRIMARY KEY alone on a vector-indexed table ===
+#
+CREATE TABLE a1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6));
+ALTER TABLE a1 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+# Table unchanged — PK and KEY both still there.
+SHOW CREATE TABLE a1;
+Table	Create Table
+a1	CREATE TABLE `a1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE a1;
+#
+# === B. DROP PK + ADD non-BIGINT-UNSIGNED PK (same ALTER) ===
+# The new PK is INT, not BIGINT UNSIGNED — rejected.
+#
+CREATE TABLE b1 (id BIGINT UNSIGNED PRIMARY KEY, id2 INT NOT NULL,
+v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+ALTER TABLE b1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+SHOW CREATE TABLE b1;
+Table	Create Table
+b1	CREATE TABLE `b1` (
+  `id` bigint unsigned NOT NULL,
+  `id2` int NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE b1;
+#
+# === C. DROP PK + ADD BIGINT UNSIGNED PK on a different column ===
+# End state still satisfies the vec PK rule — accepted.
+#
+CREATE TABLE c1 (id BIGINT UNSIGNED PRIMARY KEY, id2 BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+ALTER TABLE c1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
+SHOW CREATE TABLE c1;
+Table	Create Table
+c1	CREATE TABLE `c1` (
+  `id` bigint unsigned NOT NULL,
+  `id2` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id2`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# One vector aux file present (re-minted with the new table_id).
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE c1;
+#
+# === D. DROP PK in a separate ALTER (not same-statement re-add) ===
+# Same rejection as A — the intermediate state has no PK.
+#
+CREATE TABLE d1 (id BIGINT UNSIGNED PRIMARY KEY, id2 BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+ALTER TABLE d1 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+SHOW CREATE TABLE d1;
+Table	Create Table
+d1	CREATE TABLE `d1` (
+  `id` bigint unsigned NOT NULL,
+  `id2` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE d1;
+#
+# === E. FTS control — DROP PK on a fulltext-indexed table works ===
+# FTS falls back to GEN_CLUST_INDEX, so it does not need a user PK.
+# This is the symmetry break with vector indexes — by design.
+#
+CREATE TABLE e1 (id BIGINT UNSIGNED PRIMARY KEY, c VARCHAR(100),
+FULLTEXT KEY (c));
+ALTER TABLE e1 DROP PRIMARY KEY;
+SHOW CREATE TABLE e1;
+Table	Create Table
+e1	CREATE TABLE `e1` (
+  `id` bigint unsigned NOT NULL,
+  `c` varchar(100) DEFAULT NULL,
+  FULLTEXT KEY `c` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE e1;

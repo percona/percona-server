@@ -34,6 +34,7 @@ naming. No population — that lands in PS-11300. */
 #include <cstdio>
 #include <cstring>
 
+#include "current_thd.h"
 #include "data0type.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
@@ -116,6 +117,8 @@ void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
   ut_a(written > 0);
   ut_a(static_cast<size_t>(written) < name_out_len);
 }
+
+
 
 
 
@@ -343,6 +346,27 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
                          sizeof(aux_name));
 
   const bool file_per_table = dict_table_is_file_per_table(parent);
+
+  /* Open the aux with MDL before row_drop_table_for_mysql. Without
+  this, row_drop_table_for_mysql's call into dd_table_open_on_name
+  trips dictionary_client.cc:734 because the SQL layer never
+  acquires MDL on the hidden aux. Mirrors fts_drop_table at
+  fts0fts.cc:1301-1313. Callers of vec_aux_drop_one_table always
+  hold dict_sys (parent row_drop_table_for_mysql, ALTER commit
+  drop-index loop, error_handling), so pass dict_locked=true and
+  let dd_table_open_on_name handle the release-around-MDL-acquire
+  dance internally — same convention FTS uses. */
+  THD *thd = current_thd;
+  MDL_ticket *aux_mdl = nullptr;
+  if (thd != nullptr) {
+    dict_table_t *aux = dd_table_open_on_name(
+        thd, &aux_mdl, aux_name, true,
+        static_cast<dict_err_ignore_t>(DICT_ERR_IGNORE_INDEX_ROOT |
+                                       DICT_ERR_IGNORE_CORRUPT));
+    if (aux != nullptr) {
+      dd_table_close(aux, thd, &aux_mdl, true);
+    }
+  }
 
   dberr_t err = row_drop_table_for_mysql(aux_name, trx, false, nullptr);
   if (err != DB_SUCCESS && err != DB_TABLE_NOT_FOUND) {

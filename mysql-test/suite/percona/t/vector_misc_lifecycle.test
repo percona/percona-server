@@ -1,0 +1,73 @@
+--echo #
+--echo # PS-11299 corner-case lifecycle coverage:
+--echo #   A. CREATE TABLE LIKE copies a vec-indexed table — both must
+--echo #      end up with their own aux .ibd, both must round-trip the
+--echo #      KEY ... WITH (...) clause, both auxes must be
+--echo #      cleaned on DROP TABLE.
+--echo #   B. DROP DATABASE on a schema with vec-indexed tables must
+--echo #      remove every percona_vec_*.ibd in that schema directory.
+--echo #   C. RENAME TABLE across schemas takes the aux .ibd along.
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--echo #
+--echo # === A. CREATE TABLE LIKE on a vec-indexed table ===
+--echo #
+CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
+                  v VECTOR(8) NOT NULL,
+                  KEY (v) TYPE hnsw WITH (M = 6));
+--echo # Two distinct aux .ibd (one per parent table).
+CREATE TABLE dst LIKE src;
+SHOW CREATE TABLE dst;
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE src, dst;
+--echo # No percona_vec_*.ibd left behind.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo #
+--echo # === B. DROP DATABASE cleans every vec aux .ibd ===
+--echo #
+CREATE DATABASE veclab;
+USE veclab;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(8) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 6));
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(8) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/veclab percona_vec_*.ibd
+USE test;
+DROP DATABASE veclab;
+--echo # Schema dir removed entirely — no orphan vec aux.
+
+--echo #
+--echo # === C. Cross-schema RENAME moves aux .ibd ===
+--echo #
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(8) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 6));
+CREATE DATABASE vec_target;
+RENAME TABLE test.t3 TO vec_target.t3;
+--echo # aux follows the parent into vec_target/.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/vec_target percona_vec_*.ibd
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+DROP DATABASE vec_target;
+
+--echo #
+--echo # === D. Partitioned tables reject KEY (phase 1) ===
+--echo # Rejected above the storage engine, in mysql_prepare_create_table.
+--echo # We used to mask HA_CAN_VECTOR out of
+--echo # HA_INNOPART_DISABLED_TABLE_FLAGS the way FTS masks
+--echo # HA_CAN_FULLTEXT, but that fired first and reported
+--echo # ER_TABLE_CANT_HANDLE_INDEX instead of the clearer message.
+--echo #
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t_part (id BIGINT UNSIGNED PRIMARY KEY,
+                     v VECTOR(8) NOT NULL,
+                     KEY (v) TYPE hnsw WITH (M = 6))
+  PARTITION BY HASH(id) PARTITIONS 4;

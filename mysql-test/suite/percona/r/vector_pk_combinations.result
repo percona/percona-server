@@ -1,0 +1,145 @@
+#
+# PS-11299: vector index + PRIMARY KEY interaction matrix.
+#
+# PS-11264 requires a vector-indexed table to have a PRIMARY KEY
+# (current temporary restriction: BIGINT UNSIGNED). This test
+# captures the rules across CREATE / ALTER combinations.
+#
+#
+# === A. Table without PK but with KEY in CREATE ===
+# Must be rejected: a vector index needs a PK to anchor row_ref.
+#
+CREATE TABLE a1 (
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+#
+# === B. Table with VECTOR column only, no vector index, no PK ===
+# OK — vector column does not by itself require a PK; the
+# requirement only fires when there is a vector INDEX.
+#
+CREATE TABLE b1 (
+v VECTOR(8) NOT NULL,
+c INT
+);
+SHOW CREATE TABLE b1;
+Table	Create Table
+b1	CREATE TABLE `b1` (
+  `v` vector(8) NOT NULL,
+  `c` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE b1;
+#
+# === C. ALTER ADD PRIMARY KEY then ADD KEY in one statement ===
+# PRIMARY KEY appears earlier in the statement; vector index needs
+# a PK at the moment of validation. Same-ALTER ordering must work.
+#
+CREATE TABLE c1 (
+id BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL,
+c INT
+);
+ALTER TABLE c1 ADD PRIMARY KEY (id),
+ADD KEY (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE c1;
+Table	Create Table
+c1	CREATE TABLE `c1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE c1;
+#
+# === D. ALTER ADD KEY without an existing PK ===
+# Table has no PK and we attempt to add a vector key. Rejected.
+#
+CREATE TABLE d1 (
+id BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL
+);
+ALTER TABLE d1 ADD KEY (v) TYPE hnsw WITH (M = 6);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+DROP TABLE d1;
+#
+# === E. Promotion: UNIQUE NOT NULL becomes PK, with KEY ===
+# MySQL promotes the first UNIQUE NOT NULL key to PRIMARY KEY
+# when no explicit PRIMARY KEY is declared. The vector index must
+# see the promoted PK as the anchor.
+#
+CREATE TABLE e1 (
+id BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL,
+UNIQUE KEY u_id (id),
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+# NOTE: PS-11264 requires an EXPLICIT BIGINT UNSIGNED PRIMARY KEY.
+# The UNIQUE NOT NULL → PK promotion does NOT satisfy this; CREATE
+# is rejected. A future relaxation could accept promoted PKs.
+DROP TABLE IF EXISTS e1;
+#
+# === F. ALTER ADD UNIQUE NOT NULL (promotable) + ADD KEY ===
+# Same as C but the PK source is a promoted UNIQUE rather than an
+# explicit PRIMARY clause.
+#
+CREATE TABLE f1 (
+id BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL
+);
+ALTER TABLE f1 ADD UNIQUE KEY u_id (id),
+ADD KEY (v) TYPE hnsw WITH (M = 6);
+# Same finding as E — UNIQUE-NOT-NULL promotion via ALTER doesn't
+# satisfy PS-11264's BIGINT UNSIGNED PRIMARY KEY requirement either.
+SHOW CREATE TABLE f1;
+Table	Create Table
+f1	CREATE TABLE `f1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  UNIQUE KEY `u_id` (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE f1;
+#
+# === G. Drop PK on a table that has a KEY ===
+# Vector index can't live without a PK. The DROP must fail.
+#
+CREATE TABLE g1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+ALTER TABLE g1 DROP PRIMARY KEY;
+SHOW CREATE TABLE g1;
+Table	Create Table
+g1	CREATE TABLE `g1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE g1;
+#
+# === H. Same-ALTER: DROP PK + ADD new PK on a vector-indexed table ===
+# The OLD pk is removed but a new one is added in the same statement.
+# End-state has a PK, so the vector index is still valid.
+#
+CREATE TABLE h1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+id2 BIGINT UNSIGNED NOT NULL,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+ALTER TABLE h1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
+SHOW CREATE TABLE h1;
+Table	Create Table
+h1	CREATE TABLE `h1` (
+  `id` bigint unsigned NOT NULL,
+  `id2` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id2`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE h1;
+# No aux files leaked.

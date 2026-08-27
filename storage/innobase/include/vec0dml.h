@@ -115,4 +115,31 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
                            const byte *neighbors, ulint neighbors_len,
                            const uint64_t *new_base_pk = nullptr);
 
+/** One node read back from the aux table. Pointers are into a caller
+supplied heap and live as long as it does. */
+struct vec_aux_read_t {
+  const byte *vec{nullptr};
+  ulint vec_len{0};
+  uint64_t base_pk{0};
+  const byte *neighbors{nullptr};
+  ulint neighbors_len{0};
+  uint8_t level{0};
+};
+
+/** Read one node from a vector aux table by label.
+
+A plain point lookup on the aux primary key, which is what the label is.
+No read view is taken: the graph is shared by every transaction rather
+than being per-transaction state, so there is no snapshot it belongs to.
+A node read here that later turns out to belong to a rolled-back
+statement becomes an orphan, and the read path already filters orphans
+by resolving base_pk under the reader's own view.
+@param[in]      aux   the aux table, open
+@param[in]      id    the label
+@param[in,out]  heap  heap the returned bytes are copied onto
+@param[out]     out   the node
+@return DB_SUCCESS, DB_RECORD_NOT_FOUND, or an error */
+dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
+                          vec_aux_read_t *out);
+
 #endif /* vec0dml_h */

@@ -25,8 +25,10 @@ vector index keeps in memory.
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <vector>
 
 #include "db0err.h"
@@ -35,6 +37,7 @@ vector index keeps in memory.
 #include "univ.i"
 #include "ut0rnd.h"
 #include "vec0arena.h"
+#include "vec0dml.h"
 #include "vec0index.h"
 #include "vec0vec.h"
 
@@ -86,17 +89,51 @@ A template only because LoadNodeHandle is nested in the instantiation,
 which also means it must be defined wherever it is instantiated — the
 graph's search path can call it, so the definition cannot live in a .cc.
 
-Not implemented yet: the load path lands with P3. Until then it fails
-explicitly rather than quietly returning an empty node, which would look
-to the graph like a real node with no vector and no neighbours. Nothing
-can reach it today anyway: a node is only faulted in when the graph was
-built from the aux, and nothing builds it yet. */
+A node is faulted in when traversal reaches a stub — one created by a
+neighbour list naming an id whose node has not been read yet. */
 template <typename Hnsw>
-dberr_t vec_persist_load_node(Vec_ctx *ctx [[maybe_unused]],
-                              Hnsw &hnsw [[maybe_unused]],
-                              typename Hnsw::LoadNodeHandle handle
-                              [[maybe_unused]]) {
-  return DB_UNSUPPORTED;
+dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
+                              typename Hnsw::LoadNodeHandle handle) {
+  const uint64_t id = hnsw.load_node_id(handle);
+  ut_a(id != 0); /* record 0 is metadata, never a node */
+
+  mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
+  vec_aux_read_t node;
+  dberr_t err = vec_aux_read_node(ctx->aux, id, heap, &node);
+  if (err != DB_SUCCESS) {
+    mem_heap_free(heap);
+    return err;
+  }
+
+  if (node.vec_len != ctx->vec_bytes) {
+    mem_heap_free(heap);
+    return DB_CORRUPTION;
+  }
+
+  /* The neighbour blob must cover exactly the node's slots. Checking it
+  is not paranoia: the count is derived from level and M rather than
+  stored, so a mismatch means the row and the index disagree about the
+  shape of the graph, and load_node_neighbors would read past the blob. */
+  if (node.neighbors_len != vec_aux_neighbors_blob_len(node.level, ctx->m)) {
+    mem_heap_free(heap);
+    return DB_CORRUPTION;
+  }
+
+  /* Order matters: load_node_neighbors sizes its allocation from the
+  layer, so the layer has to be set first. */
+  hnsw.load_set_layer(handle, node.level);
+  hnsw.load_set_vec(handle, reinterpret_cast<const char *>(node.vec));
+  hnsw.load_set_base_pk(handle, node.base_pk);
+
+  std::vector<uint64_t> ids;
+  ids.reserve(node.neighbors_len / 8);
+  for (ulint off = 0; off + 8 <= node.neighbors_len; off += 8) {
+    ids.push_back(mach_read_from_8(node.neighbors + off));
+  }
+  hnsw.load_node_neighbors(handle, ids);
+
+  mem_heap_free(heap);
+  return DB_SUCCESS;
 }
 
 /** Sink for the graph's persistence callbacks.
@@ -205,6 +242,28 @@ struct vec_t : public Vec_runtime {
 
   /** The graph. Owns its arena and its persistor by value. */
   Vec_hnsw *hnsw{nullptr};
+  /** Serialises the one-time build of the graph. Cold path only — nothing
+  on this object is locked once `loaded` is true.
+
+  The HNSW class is thread-safe for everything we do afterwards: concurrent
+  insert() and search on one instance, and concurrent loads of the same
+  lazily faulted node (load_node() takes a striped lock and re-checks the
+  node state under it). None of that needs a latch from us.
+
+  The one thing the class declines is init_from_entry_point() running
+  alongside insert or search (hnsw.h) — it mutates m_nodes and the arena
+  without taking m_global_lock, which insert() does take. This mutex makes
+  that unreachable rather than merely unlikely: `loaded` goes false to true
+  exactly once, and only after the graph is fully built, so no thread can
+  reach insert() or k_nn_search() until init has finished. There is nobody
+  to exclude, so the hot paths take nothing at all.
+
+  Not std::call_once: vec_runtime_load reports failure by *returning*
+  DB_OUT_OF_MEMORY rather than throwing, and call_once would consume the
+  flag on a normal return — leaving the index permanently unloaded after a
+  transient failure. Here a failure simply leaves `loaded` false and the
+  next statement retries. */
+  std::mutex load_mutex;
   /* No latch yet. The class is not thread-safe, so writers will have to
   be serialised (design section 17) — but nothing calls insert() until
   the DML hooks land, and a latch here would be an unused field with
@@ -217,8 +276,10 @@ struct vec_t : public Vec_runtime {
   uint32_t dims{0};
   uint32_t m{0};
   uint32_t ef_construction{0};
-  /** True once the graph has been built from the aux table. */
-  bool loaded{false};
+  /** True once the graph has been built from the aux table. Atomic, with
+  release/acquire ordering: it publishes the `hnsw` pointer to every thread
+  that sees it true, which is what lets the hot paths run unlocked. */
+  std::atomic<bool> loaded{false};
 };
 
 /** Open (lazily create) the runtime for a vector index.
@@ -233,3 +294,40 @@ and the row-level code that needs the graph has only dict objects.
 @return the runtime, or nullptr if the parameters could not be read */
 vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
                         THD *thd);
+
+/** Add one row's vector to every vector index on the table.
+
+Called after the base row is inserted, with the row that carries the
+label already stamped into its hidden column.
+
+The aux writes ride a SUB-TRANSACTION, not the caller's. That is the
+whole point of the design: the graph is an in-memory cache whose only
+durable form is the aux table, and a node that survives in memory while
+its aux rows roll back would leave the two permanently disagreeing. So
+the aux commits independently, and the invariant is one-directional —
+the aux is a superset of the committed base rows. Orphans are filtered
+at read time by looking base_pk up under the reader's view.
+@param[in,out]  trx    the user's transaction (for the base row, not the aux)
+@param[in,out]  table  the base table
+@param[in]      row    the inserted row, label already stamped
+@param[in]      thd    session
+@return DB_SUCCESS, or an error */
+dberr_t vec_insert_row(trx_t *trx, dict_table_t *table, const dtuple_t *row,
+                       THD *thd);
+
+/** Add the new node for a vector-column UPDATE.
+
+A node is immutable, so a changed vector is an INSERT of a new node
+under the label calc_row_difference already put into the update vector.
+The superseded node is left exactly as it is — it is still the right
+answer for read views that predate this statement, and removing it would
+break their isolation rather than tidy up.
+@param[in,out]  trx    the user's transaction
+@param[in,out]  table  the base table
+@param[in]      label  the fresh label, from trx->vec_next_label
+@param[in]      q      the new vector, dims * sizeof(float) bytes
+@param[in]      base_pk  the row's primary key, unchanged by this update
+@param[in]      thd    session
+@return DB_SUCCESS, or an error */
+dberr_t vec_update_row(trx_t *trx, dict_table_t *table, uint64_t label,
+                       const char *q, ulint q_len, uint64_t base_pk, THD *thd);

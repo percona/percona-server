@@ -1,0 +1,56 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: the indexed column comes from the index, not from a scan.
+--echo #
+--echo # VECTOR, BLOB, TEXT and JSON all map to DATA_BLOB in the InnoDB
+--echo # dictionary, so "the first BLOB column" does not identify the
+--echo # vector. A DICT_VECTOR index carries its key part like any other
+--echo # index — only n_uniq is zero — so the column is the index's own
+--echo # field. These tables put blobs AHEAD of the vector to prove it.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 txt TEXT,
+                 j JSON,
+                 b BLOB,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+INSERT INTO t1 VALUES (7, 'hello', '{"a":1}', 'zz', STRING_TO_VECTOR('[1,0,0,0]'));
+INSERT INTO t1 VALUES (8, 'world', '{"b":2}', 'yy', STRING_TO_VECTOR('[0,1,0,0]'));
+--echo # Two nodes, base_pk 7 and 8 — the vector was indexed, not the TEXT.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Survives a restart: the column is resolved the same way when the
+--echo # index comes back from the DD.
+--source include/restart_mysqld.inc
+INSERT INTO t1 VALUES (9, 'again', '{"c":3}', 'xx', STRING_TO_VECTOR('[0,0,1,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Updating a blob that sits before the vector must not touch the
+--echo # graph, and must not burn a label.
+UPDATE t1 SET txt = 'changed', j = '{"z":9}', b = 'ww' WHERE id = 7;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Updating the vector still does, and picks up the right bytes.
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 7;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Same shape reached through ALTER TABLE ADD KEY rather than CREATE.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, b BLOB, v VECTOR(4) NOT NULL);
+ALTER TABLE t2 ADD KEY (v) TYPE hnsw WITH (M = 4);
+INSERT INTO t2 VALUES (1, 'blob-here', STRING_TO_VECTOR('[1,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t2';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1, t2;

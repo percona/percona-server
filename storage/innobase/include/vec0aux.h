@@ -185,6 +185,65 @@ during DD load when the dd::Table has a hidden percona_vec_aux_id.
 @param[in,out]  heap    memory heap for column allocation */
 void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap);
 
+/** Read the label stamped into a row's hidden percona_vec_aux_id column.
+
+The analog of fts_get_doc_id_from_row: after the insert path has stamped
+the column, this is how the graph side learns which label the row got.
+@param[in]  table  the base table
+@param[in]  row    the row, as converted for InnoDB
+@return the label; never 0 for a stamped row */
+uint64_t vec_get_aux_id_from_row(const dict_table_t *table,
+                                 const dtuple_t *row);
+
+/** The table column the vector index covers.
+
+The table-level form of what vec_row_vector_bytes() does per index: the
+column is index->get_field(0)->col, because a DICT_VECTOR index carries
+its key part like any other index. It is not searched for — VECTOR,
+BLOB, TEXT and JSON all map to DATA_BLOB, so no type test can pick it
+out. Ignore the field's prefix_len, which is 1 for a vector key part and
+describes nothing about the column.
+
+Assumes at most one vector index per table (design section 23).
+
+@param[in]  table  base table
+@return the column number, or ULINT_UNDEFINED if the table has no
+vector index */
+ulint vec_indexed_col_no(const dict_table_t *table);
+
+/** Does this update field change a column covered by a vector index?
+@param[in]  table   the base table
+@param[in]  ufield  one field of the update vector
+@return true if it does */
+bool vec_upd_changes_indexed_vector(const dict_table_t *table,
+                                    const upd_field_t *ufield);
+
+/** Fill an update field so it sets the hidden label column to `label`.
+
+The mirror of fts_update_doc_id: this is how a fresh label joins the
+user's UPDATE rather than being written by a second statement.
+@param[in]      table   the base table
+@param[in,out]  ufield  the update field to fill
+@param[in]      label   the new label */
+void vec_update_aux_id(dict_table_t *table, upd_field_t *ufield,
+                       uint64_t *next_label);
+
+/** The new vector value carried by an update vector, if it changes one.
+@param[in]   table  the base table
+@param[in]   update the update vector
+@param[out]  len    its length in bytes
+@return the bytes, or nullptr if this update does not change the vector */
+const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
+                               ulint *len);
+
+/** The primary key of the row an update node is positioned on.
+@param[in]   table  the base table
+@param[in]   node   the update node
+@param[out]  pk     the key
+@return true if it could be read */
+bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
+                    uint64_t *pk);
+
 /** Atomically assign the next percona_vec_aux_id for a row about to be
 inserted. Valid ids start at 1. Stamped into the hidden percona_vec_aux_id
 dfield by the INSERT path. See the implementation comment for the phase-1

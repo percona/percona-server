@@ -40,6 +40,11 @@ connection default;
 # Test various error conditions.
 
 # Test ER_CON_COUNT_ERROR.
+# With thread pool, this is rejected by the connection handler thread
+# before a THD/client session exists to report the error to, so it is
+# also logged to the error log (unlike the one-thread-per-connection
+# handler, which can report it to the client alone); suppress that.
+call mtr.add_suppression("Too many connections");
 set global max_connections= 3;
 connect (con1, localhost, root,,mysql);
 connect (con2, localhost, root,,mysql);

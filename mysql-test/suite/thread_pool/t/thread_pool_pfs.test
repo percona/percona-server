@@ -99,9 +99,7 @@ SELECT event_name FROM performance_schema.memory_summary_by_thread_by_event_name
 
 --echo #
 --echo # Verify that user connection does not uses thread pool mutexes.
---echo # User connections uses only SQL mutexes. Query lists
---echo # `wait/synch/mutex/thread_pool/tp_group_t::LOCK_group` acquired to
---echo # update thread group by thd_begin_wait().
+--echo # User connections uses only SQL mutexes.
 SELECT event_name FROM performance_schema.events_waits_summary_by_thread_by_event_name
        WHERE thread_id IN (SELECT thread_id FROM performance_schema.threads
                                   WHERE processlist_id = CONNECTION_ID())

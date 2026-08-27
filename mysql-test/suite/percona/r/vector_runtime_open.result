@@ -1,0 +1,57 @@
+#
+# PS-11300: opening a table gives every vector index on it a runtime,
+# carrying the parameters the user wrote in WITH(...).
+#
+# Worth testing directly: until the open-time parse landed, those
+# values were read at DDL time and discarded, so SHOW CREATE would
+# echo them back correctly while the engine had never seen them.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6));
+# Touch the table so the handler opens it: the runtime is created
+# in ha_innobase::open, which CREATE TABLE alone does not reach.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+dims=8 M=6 ef_construction=200 loaded=0
+# Defaults when WITH(...) is absent: M=25, ef_construction=200.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw);
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+dims=4 M=25 ef_construction=200 loaded=0
+# metric alone; M keeps its default. ef_construction is NOT
+# settable — the WITH(...) parser accepts only M and metric — so it
+# is always the built-in 200, and asking for it is an error.
+CREATE TABLE bad (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (ef_construction = 99));
+ERROR HY000: Illegal index construction parameter: ef_construction.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(16) NOT NULL,
+KEY (v) TYPE hnsw WITH (metric = euclidean));
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+0
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+dims=16 M=25 ef_construction=200 loaded=0
+# The runtime survives a restart's re-open, rebuilt from the DD.
+# restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+dims=8 M=6 ef_construction=200 loaded=0
+DROP TABLE t1, t2, t3;

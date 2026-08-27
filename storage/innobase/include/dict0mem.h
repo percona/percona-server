@@ -1096,6 +1096,8 @@ constexpr uint32_t MAX_KEY_LENGTH_BITS = 12;
 
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or false in dict_mem_index_create(). */
+struct Vec_runtime;
+
 struct dict_index_t {
   /** id of the index */
   space_index_t id;
@@ -1264,6 +1266,17 @@ struct dict_index_t {
 
   /** tracking all R-Tree search cursors */
   rtr_info_track_t *rtr_track;
+
+  /** In-memory state for an open vector index: the HNSW graph, its arena,
+  the persistor, and the parameters read back from the DD. nullptr until
+  something first opens the index, and nullptr for every non-vector index.
+
+  Raw pointer on purpose. This struct is never constructed or destructed —
+  the memory is zeroed and dict_mem_fill_index_struct() stands in for a
+  constructor — so the zeroing gives us a null start for free, and
+  dict_mem_index_free() releases it by hand, as it already does for
+  fields_array. */
+  Vec_runtime *vec;
 
   /** id of the transaction that created this index, or 0 if the index existed
   when InnoDB was started up */
@@ -2471,6 +2484,12 @@ detect this and will eventually quit sooner. */
   autoinc-style dynamic-metadata persistence path. */
   std::atomic<uint64_t> vec_aux_autoinc_next_id;
 
+  /** Watermark of vec_aux_autoinc_next_id already redo-logged for
+  dynamic-metadata persistence — the autoinc_persisted analog, but
+  lock-free: advanced only by CAS-max in dict_table_vec_next_id_log, so
+  it never regresses. Assignments at or below it need no new redo. */
+  std::atomic<uint64_t> vec_aux_autoinc_persisted;
+
   /** Ordinal position of percona_vec_aux_id in cols[]. ULINT_UNDEFINED when the
   table has no hidden percona_vec_aux_id column. Set by vec_add_aux_id_column. */
   ulint vec_aux_col;
@@ -2890,9 +2909,20 @@ enum persistent_type_t {
   PM_TABLESPACE_SIZE = 4,
   PM_TABLESPACE_MAX_TRX_ID = 5, */
 
+  /** Persistent metadata type for the hidden vec_idx_id counter of
+  vector-indexed tables (PS-11300). Deliberately far from the dense
+  upstream range: upstream owns this namespace and allocates small
+  values (3..5 are already earmarked above), so a distant byte can
+  never be misparsed as a future upstream type on a crossed-over
+  datadir — only rejected. Only tables carrying vector remnants (which
+  are upstream-incompatible anyway, via the hidden SE column) ever
+  write this entry, and any cleanup rebuild sheds it with the old
+  table_id. */
+  PM_TABLE_VEC_IDX_ID = 200,
+
   /** The biggest type, which should be 1 bigger than the last
   true type */
-  PM_BIGGEST_TYPE = 3
+  PM_BIGGEST_TYPE = 201
 };
 
 typedef std::vector<index_id_t, ut::allocator<index_id_t>> corrupted_ids_t;
@@ -2904,7 +2934,11 @@ class PersistentTableMetadata {
   @param[in]    id      table id
   @param[in]    version table dynamic metadata version */
   PersistentTableMetadata(table_id_t id, uint64_t version)
-      : m_id(id), m_version(version), m_corrupted_ids(), m_autoinc(0) {}
+      : m_id(id),
+        m_version(version),
+        m_corrupted_ids(),
+        m_autoinc(0),
+        m_vec_next_id(0) {}
 
   /** Get the corrupted indexes' IDs
   @return the vector of indexes' IDs */
@@ -2947,6 +2981,23 @@ class PersistentTableMetadata {
   @return the autoinc counter */
   uint64_t get_autoinc() const { return (m_autoinc); }
 
+  /** Set the hidden vec_idx_id counter of the table if it's bigger
+  (the exact analog of set_autoinc_if_bigger; PS-11300)
+  @param[in]    value   vec_idx_id counter */
+  void set_vec_next_id_if_bigger(uint64_t value) {
+    if (value > m_vec_next_id) {
+      m_vec_next_id = value;
+    }
+  }
+
+  /** Set the hidden vec_idx_id counter of the table
+  @param[in]    value   vec_idx_id counter */
+  void set_vec_next_id(uint64_t value) { m_vec_next_id = value; }
+
+  /** Get the hidden vec_idx_id counter of the table
+  @return the vec_idx_id counter */
+  uint64_t get_vec_next_id() const { return (m_vec_next_id); }
+
  private:
   /** Table ID which this metadata belongs to */
   table_id_t m_id;
@@ -2959,6 +3010,10 @@ class PersistentTableMetadata {
 
   /** Autoinc counter of the table */
   uint64_t m_autoinc;
+
+  /** Hidden vec_idx_id counter of vector-indexed tables (PS-11300);
+  0 when the table never consumed one */
+  uint64_t m_vec_next_id;
 
   /* TODO: We will add update_time, etc. here and APIs accordingly */
 };
@@ -3088,6 +3143,41 @@ class AutoIncPersister : public Persister {
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
+  ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
+             bool *corrupt) const override;
+
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const override;
+};
+
+/** Persister for the hidden vec_idx_id counter of vector-indexed
+tables (PS-11300) — the structural twin of AutoIncPersister: the
+counter is a hidden per-table autoinc stamped into the vec_idx_id
+column, and it must survive restart AND crash so labels are never
+reissued (an id consumed by a NULL-vector row or a rolled-back insert
+exists nowhere the aux-table maximum can see). */
+class VecIdxIdPersister : public Persister {
+ public:
+  /** Write the vec_idx_id counter of a table.
+  @param[in]    metadata        persistent metadata
+  @param[out]   buffer          write buffer
+  @param[in]    size            size of write buffer
+  @return the length of bytes written */
+  ulint write(const PersistentTableMetadata &metadata, byte *buffer,
+              ulint size) const override;
+
+  /** @return 1 type byte + max 11 bytes of much-compressed u64 */
+  inline ulint get_write_size(const PersistentTableMetadata &metadata
+                              [[maybe_unused]]) const override {
+    return (12);
+  }
+
+  /** Read the vec_idx_id counter from buffer into metadata.
+  @param[out]   metadata        metadata where we store the read data
+  @param[in]    buffer          buffer to read
+  @param[in]    size            size of buffer
+  @param[out]   corrupt         true if buffer content is corrupted
+  @return bytes consumed, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const override;
 

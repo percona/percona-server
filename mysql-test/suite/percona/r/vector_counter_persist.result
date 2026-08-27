@@ -1,0 +1,51 @@
+#
+# PS-11300: the hidden percona_vec_aux_id counter is persisted
+# autoinc-style (PM_TABLE_VEC_IDX_ID dynamic metadata, redo-logged at
+# assignment), so a label is NEVER reissued — not across restart, not
+# across crash.
+#
+# Tested through the assignment path rather than by reading the aux
+# maximum back. That matters: ids can be consumed WITHOUT ever
+# reaching the aux table — a rolled-back INSERT burns one — so the aux
+# maximum is not the source of truth, and a test that read it would
+# pass even with the counter reset on restart.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+# Three labels. First must be 1: 0 is reserved as the graph's
+# empty-slot sentinel, which is what lets aux record 0 hold the
+# entry point instead of a node.
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=1
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=2
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=3
+# Restart. The counter must resume past 3, not from 0.
+# restart
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=4
+# A second restart with no assignment in between must not lose it.
+# restart
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=5
+# A different table has its own counter, starting at 1 again.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+SET SESSION innodb_interpreter = 'vec_next_id test/t2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=1
+DROP TABLE t1, t2;

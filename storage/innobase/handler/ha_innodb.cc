@@ -214,6 +214,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql-common/json_dom.h"
 
 #include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "vec0vec.h"
 
 #include "os0enc.h"
@@ -8394,6 +8395,38 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   if (m_prebuilt->table->is_aux()) {
     dict_table_close(m_prebuilt->table, false, false);
+  }
+
+  /* Give every vector index on this table its runtime, if it has none
+  yet. Here rather than deeper down because this is where the index
+  PARAMETERS are reachable: M, ef_construction and the metric come from
+  the DD through KEY, and the row-level code that will need the graph
+  (row0mysql) has only dict objects. The runtime itself is per index and
+  lives on dict_index_t, so it outlives this handler and is shared by
+  every session that opens the table.
+
+  A failure here is not fatal to the open: without a runtime the index
+  simply has no graph, and the DML path reports the problem when it
+  tries to use one. Refusing the open would take the whole table
+  offline for a vector index that may not even be queried. */
+  for (dict_index_t *index = m_prebuilt->table->first_index();
+       index != nullptr; index = index->next()) {
+    if (!index->is_vector() || index->vec != nullptr) continue;
+
+    /* Match by name, which is how InnoDB pairs a KEY with a
+    dict_index_t everywhere else — dict_table_get_index_on_name() is the
+    same lookup. Index names are unique within a table, so this is exact. */
+    const KEY *key = nullptr;
+    for (uint i = 0; i < table->s->keys; i++) {
+      if ((table->key_info[i].flags & HA_VECTOR) != 0 &&
+          innobase_strcasecmp(table->key_info[i].name, index->name) == 0) {
+        key = &table->key_info[i];
+        break;
+      }
+    }
+    if (key == nullptr) continue;
+
+    (void)vec_runtime_open(index, key, table, thd);
   }
 
   return 0;

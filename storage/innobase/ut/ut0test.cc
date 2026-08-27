@@ -36,6 +36,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "page0zip.h"
 #include "scope_guard.h"
+#include "trx0trx.h"
+#include "vec0aux.h"
+#include "vec0dml.h"
+#include "vec0hnsw.h"
+#include "vec0index.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
@@ -72,6 +77,11 @@ Tester::Tester() noexcept {
   DISPATCH(make_ondisk_root_page_zeroes);
   DISPATCH(make_page_dirty);
   DISPATCH(open_table);
+  DISPATCH(vec_aux_insert_row);
+  DISPATCH(vec_aux_update_row);
+  DISPATCH(vec_aux_dump);
+  DISPATCH(vec_next_id);
+  DISPATCH(vec_runtime_info);
   DISPATCH(print_dblwr_has_encrypted_pages);
   DISPATCH(print_tree);
 }
@@ -355,6 +365,427 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   sout << page_type;
   set_output(sout);
 
+  return RET_PASS;
+}
+
+/* ---------- PS-11300 vector aux DML test surface ---------- */
+
+/** Locate the vector aux dict_table_t for a base table.
+@return aux table (opened, caller closes) or nullptr */
+/* MDL tickets for the pair opened by vec_test_open_aux; released by
+vec_test_close_aux. After a restart nothing is dict-cached, so the opens
+go through the DD layer, which requires real MDL. */
+struct vec_test_tables_t {
+  dict_table_t *base{nullptr};
+  dict_table_t *aux{nullptr};
+  MDL_ticket *base_mdl{nullptr};
+  MDL_ticket *aux_mdl{nullptr};
+};
+
+static bool vec_test_open_aux(const std::string &base_name,
+                              vec_test_tables_t &t, uint32_t *dims_out) {
+  t.base = dd_table_open_on_name(current_thd, &t.base_mdl, base_name.c_str(),
+                                 false, DICT_ERR_IGNORE_NONE);
+  if (t.base == nullptr) {
+    return false;
+  }
+
+  const dict_index_t *vec_index = nullptr;
+  for (const dict_index_t *idx = t.base->first_index(); idx != nullptr;
+       idx = idx->next()) {
+    if (idx->is_vector()) {
+      vec_index = idx;
+      break;
+    }
+  }
+  if (vec_index == nullptr) {
+    dd_table_close(t.base, current_thd, &t.base_mdl, false);
+    t.base = nullptr;
+    return false;
+  }
+
+  if (dims_out != nullptr) {
+    /* The dict col is BLOB-typed (Field_vector : Field_blob); its dict
+    length is blob metadata, not the vector width. The debug commands
+    derive dims from the data instead. */
+    *dims_out = 0;
+  }
+
+  char aux_name[MAX_FULL_NAME_LEN];
+  vec_aux_get_table_name(t.base, vec_index->id, Vec_index_type::HNSW, aux_name,
+                         sizeof(aux_name));
+
+  t.aux = dd_table_open_on_name(current_thd, &t.aux_mdl, aux_name, false,
+                                DICT_ERR_IGNORE_NONE);
+  if (t.aux == nullptr) {
+    dd_table_close(t.base, current_thd, &t.base_mdl, false);
+    t.base = nullptr;
+    return false;
+  }
+  return true;
+}
+
+static void vec_test_close_aux(vec_test_tables_t &t) {
+  if (t.aux != nullptr) {
+    dd_table_close(t.aux, current_thd, &t.aux_mdl, false);
+  }
+  if (t.base != nullptr) {
+    dd_table_close(t.base, current_thd, &t.base_mdl, false);
+  }
+}
+
+/** Parse "1:2|3" into per-level neighbor label lists; "-" = empty. */
+static bool vec_test_parse_nb(const std::string &spec,
+                              std::vector<std::vector<std::size_t>> &out) {
+  out.clear();
+  if (spec == "-") {
+    return false;
+  }
+  size_t pos = 0;
+  while (pos <= spec.size()) {
+    size_t bar = spec.find('|', pos);
+    if (bar == std::string::npos) bar = spec.size();
+    std::vector<std::size_t> level;
+    size_t p = pos;
+    while (p < bar) {
+      size_t colon = spec.find(':', p);
+      if (colon == std::string::npos || colon > bar) colon = bar;
+      try {
+        level.push_back(std::stoull(spec.substr(p, colon - p)));
+      } catch (...) {
+        return true;
+      }
+      p = colon + 1;
+    }
+    out.push_back(std::move(level));
+    if (bar == spec.size()) break;
+    pos = bar + 1;
+  }
+  return false;
+}
+
+Ret_t Tester::vec_aux_insert_row(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_aux_insert_row()");
+  ut_ad(tokens[0] == "vec_aux_insert_row");
+  std::ostringstream sout;
+  /* tokens: 0=cmd 1=db/table 2=id 3=level 4=vec_csv 5=nb_spec */
+  if (tokens.size() != 6) {
+    XLOG("FAIL: usage: vec_aux_insert_row db/table id level vec_csv nb_spec");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  dict_table_t *aux = tt.aux;
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  uint64_t id;
+  int level;
+  std::vector<float> vec;
+  std::vector<std::vector<std::size_t>> neighbors;
+  try {
+    id = std::stoull(tokens[2]);
+    level = std::stoi(tokens[3]);
+    size_t pos = 0;
+    const std::string &csv = tokens[4];
+    while (pos <= csv.size()) {
+      size_t comma = csv.find(',', pos);
+      if (comma == std::string::npos) comma = csv.size();
+      vec.push_back(std::stof(csv.substr(pos, comma - pos)));
+      if (comma == csv.size()) break;
+      pos = comma + 1;
+    }
+  } catch (...) {
+    XLOG("FAIL: bad numeric argument");
+    set_output(sout);
+    return RET_FAIL;
+  }
+  if (vec.empty()) {
+    XLOG("FAIL: empty vector");
+    set_output(sout);
+    return RET_FAIL;
+  }
+  dims = static_cast<uint32_t>(vec.size());
+  if (vec_test_parse_nb(tokens[5], neighbors)) {
+    XLOG("FAIL: bad nb_spec");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  /* Flatten the per-level nb_spec into the on-disk shape: one 8-byte
+  big-endian id per slot, 0 for an empty slot, no header. */
+  std::vector<byte> nb_blob;
+  for (const auto &lvl : neighbors) {
+    for (std::size_t label : lvl) {
+      byte buf[8];
+      mach_write_to_8(buf, static_cast<uint64_t>(label));
+      nb_blob.insert(nb_blob.end(), buf, buf + 8);
+    }
+  }
+
+  vec_aux_row_t row;
+  row.id = id;
+  row.vec = vec.data();
+  row.dims = dims;
+  row.base_pk = id;
+  row.level = level;
+  row.neighbors = nb_blob.data();
+  row.neighbors_len = nb_blob.size();
+
+  trx_t *trx = trx_allocate_for_background();
+  trx_start_internal(trx, UT_LOCATION_HERE);
+  const dberr_t err = ::vec_aux_insert(trx, aux, row);
+  trx_commit_for_mysql(trx);
+  trx_free_for_background(trx);
+
+  if (err != DB_SUCCESS) {
+    XLOG("FAIL: vec_aux_insert err=" << static_cast<int>(err));
+    set_output(sout);
+    return RET_FAIL;
+  }
+  XLOG("PASS: inserted id=" << id);
+  set_output(sout);
+  return RET_PASS;
+}
+
+/* Dump the aux table by scanning its clustered index directly.
+
+Deliberately does NOT go through a load path: this probe exists to check
+what the write path actually put on disk, so reading it back through the
+same abstractions the writer used would hide exactly the mistakes it is
+meant to catch. Neighbour slots print as the flat id sequence, trailing
+zeros trimmed, since a zero is an empty slot rather than a neighbour. */
+/* Assign the next label for a table's vector index, the way the write
+path will, and print it.
+
+Exists because the counter has to be testable BEFORE any DML writes an
+aux row: what needs proving is that an id is durable the moment it is
+consumed, including ids the aux never sees (a rolled-back insert
+consumes one). Reading the aux maximum back would test something
+weaker and would pass even with the counter reset on restart. */
+/* Print the runtime's parameters for a table's vector index.
+
+Proves the WITH(...) values actually reach the engine. Until now they
+were parsed at DDL time and thrown away, so a test that only checked
+SHOW CREATE would pass whether or not the runtime ever saw them. */
+Ret_t Tester::vec_runtime_info(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_runtime_info()");
+  ut_ad(tokens[0] == "vec_runtime_info");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_runtime_info db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  const dict_index_t *vindex = nullptr;
+  for (const dict_index_t *idx = tt.base->first_index(); idx != nullptr;
+       idx = idx->next()) {
+    if (idx->is_vector()) {
+      vindex = idx;
+      break;
+    }
+  }
+  if (vindex == nullptr) {
+    XLOG("FAIL: no vector index");
+    set_output(sout);
+    return RET_FAIL;
+  }
+  if (vindex->vec == nullptr) {
+    XLOG("no runtime");
+    set_output(sout);
+    return RET_PASS;
+  }
+
+  const auto *vec = static_cast<const vec_t *>(vindex->vec);
+  XLOG("dims=" << vec->dims << " M=" << vec->m << " ef_construction="
+               << vec->ef_construction << " loaded=" << (vec->loaded ? 1 : 0));
+  set_output(sout);
+  return RET_PASS;
+}
+
+Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_next_id()");
+  ut_ad(tokens[0] == "vec_next_id");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_next_id db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  const uint64_t id = vec_assign_next_aux_id(tt.base);
+  XLOG("id=" << id);
+  set_output(sout);
+  return RET_PASS;
+}
+
+Ret_t Tester::vec_aux_dump(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_aux_dump()");
+  ut_ad(tokens[0] == "vec_aux_dump");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_aux_dump db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  dict_table_t *aux = tt.aux;
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  dict_index_t *clust = aux->first_index();
+  const ulint pos_base_pk =
+      dict_col_get_clust_pos(aux->get_col(2), clust); /* base_pk */
+  const ulint pos_level =
+      dict_col_get_clust_pos(aux->get_col(3), clust); /* level */
+  const ulint pos_nb =
+      dict_col_get_clust_pos(aux->get_col(4), clust); /* neighbors */
+
+  std::ostringstream rows;
+  uint64_t count = 0;
+  uint64_t max_id = 0;
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  btr_pcur_t pcur;
+  pcur.open_at_side(true, clust, BTR_SEARCH_LEAF, true, 0, &mtr);
+
+  mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
+  while (pcur.move_to_next_user_rec(&mtr) == DB_SUCCESS) {
+    const rec_t *rec = pcur.get_rec();
+    if (rec_get_deleted_flag(rec, dict_table_is_comp(aux))) continue;
+
+    ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
+                                     UT_LOCATION_HERE, &heap);
+    ulint len;
+    const byte *p = rec_get_nth_field(clust, rec, offsets, 0, &len);
+    const uint64_t id = mach_read_from_8(p);
+
+    p = rec_get_nth_field(clust, rec, offsets, pos_level, &len);
+    const uint32_t level = len == 1 ? p[0] : 0;
+
+    p = rec_get_nth_field(clust, rec, offsets, pos_base_pk, &len);
+    const uint64_t base_pk = len == 8 ? mach_read_from_8(p) : 0;
+
+    p = rec_get_nth_field(clust, rec, offsets, pos_nb, &len);
+    std::vector<uint64_t> nb;
+    if (len != UNIV_SQL_NULL) {
+      for (ulint off = 0; off + 8 <= len; off += 8) {
+        nb.push_back(mach_read_from_8(p + off));
+      }
+    }
+    while (!nb.empty() && nb.back() == 0) nb.pop_back();
+
+    rows << "id=" << id << " level=" << level << " base_pk=" << base_pk
+         << " nb=";
+    for (size_t i = 0; i < nb.size(); i++) {
+      if (i != 0) rows << ",";
+      rows << nb[i];
+    }
+    rows << "\n";
+
+    count++;
+    if (id > max_id) max_id = id;
+  }
+  mem_heap_free(heap);
+  pcur.close();
+  mtr_commit(&mtr);
+
+  XLOG("count=" << count << " max_id=" << max_id);
+  sout << "\n" << rows.str();
+  set_output(sout);
+  return RET_PASS;
+}
+
+Ret_t Tester::vec_aux_update_row(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_aux_update_row()");
+  ut_ad(tokens[0] == "vec_aux_update_row");
+  std::ostringstream sout;
+  /* tokens: 0=cmd 1=db/table 2=id 3=nb_spec */
+  if (tokens.size() != 4) {
+    XLOG("FAIL: usage: vec_aux_update_row db/table id nb_spec");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  if (!vec_test_open_aux(tokens[1], tt, nullptr)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  dict_table_t *aux = tt.aux;
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  uint64_t id;
+  std::vector<std::vector<std::size_t>> neighbors;
+  try {
+    id = std::stoull(tokens[2]);
+  } catch (...) {
+    XLOG("FAIL: bad id");
+    set_output(sout);
+    return RET_FAIL;
+  }
+  if (vec_test_parse_nb(tokens[3], neighbors)) {
+    XLOG("FAIL: bad nb_spec");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  std::vector<byte> nb_blob;
+  for (const auto &lvl : neighbors) {
+    for (std::size_t label : lvl) {
+      byte buf[8];
+      mach_write_to_8(buf, static_cast<uint64_t>(label));
+      nb_blob.insert(nb_blob.end(), buf, buf + 8);
+    }
+  }
+
+  trx_t *trx = trx_allocate_for_background();
+  trx_start_internal(trx, UT_LOCATION_HERE);
+  const dberr_t err =
+      ::vec_aux_update_row(trx, aux, id, nb_blob.data(), nb_blob.size());
+  trx_commit_for_mysql(trx);
+  trx_free_for_background(trx);
+
+  if (err != DB_SUCCESS) {
+    XLOG("FAIL: vec_aux_update_row err=" << static_cast<int>(err));
+    set_output(sout);
+    return RET_FAIL;
+  }
+  XLOG("PASS: updated id=" << id);
+  set_output(sout);
   return RET_PASS;
 }
 

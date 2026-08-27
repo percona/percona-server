@@ -47,6 +47,10 @@ limits" TODOs). Byte accounting for innodb_hnsw_max_memory belongs here
 later — this is the single point every graph byte passes through — but
 the refusal itself has to happen before insert() starts mutating, not
 inside allocate(), because there is no per-block free to unwind with. */
+/** Bytes held by every Vec_arena in the server, chunk headers included.
+What innodb_hnsw_max_memory is measured against. */
+uint64_t vec_arena_global_bytes();
+
 class Vec_arena {
  public:
   Vec_arena() = default;

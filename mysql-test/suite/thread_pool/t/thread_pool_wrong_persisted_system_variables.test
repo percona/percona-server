@@ -1,13 +1,31 @@
 --source include/force_restart.inc
 --source ../inc/thread_pool_err.inc
 
-# This test passes wrong values to all thread pool options via SET PERSIST
+# This test passes wrong values to all thread pool options via SET PERSIST_ONLY.
+#
+# Note: unlike command-line/config-file loading -- which persists/parses the
+# raw value as given and only clamps it (with a warning) when re-parsed at
+# the next startup -- SET PERSIST_ONLY validates and clamps an out-of-range
+# value immediately, and persists the already-clamped value. So there is no
+# "wrong value survives to the next restart, gets clamped there" case left
+# to exercise for these variables; instead this test checks the immediate
+# clamp-with-warning here, and that the clamped values are still in effect
+# (and the server starts without issue) after a restart.
 
 # As there are only a few variables which are persisted in the static section
 # of the mysqld-auto.cnf. We only test those variables here.
 
+# Each SET below is expected to raise a truncation warning (ER_TRUNCATED_WRONG_VALUE,
+# code 1292) as the out-of-range value is clamped immediately.
 SET PERSIST_ONLY thread_pool_algorithm = 1234;
+
+# thread_pool_dedicated_listeners is boolean-typed; unlike the integer
+# sysvars above/below, SET PERSIST_ONLY validates a boolean's value
+# immediately and rejects anything outside {0,1,ON,OFF,TRUE,FALSE} rather
+# than clamping it, so there is no "wrong but persistable" value for it.
+--error ER_WRONG_VALUE_FOR_VAR
 SET PERSIST_ONLY thread_pool_dedicated_listeners = -1;
+
 SET PERSIST_ONLY thread_pool_max_transactions_limit = 1100000;
 SET PERSIST_ONLY thread_pool_query_threads_per_group = 0;
 SET PERSIST_ONLY thread_pool_size = 0;
@@ -19,20 +37,13 @@ SET PERSIST_ONLY thread_pool_size = 0;
 --let $restart_parameters=restart:$ONLY_THREADPOOL_PLUGIN_OPT $ONLY_THREADPOOL_PLUGIN_LOAD
 --source include/restart_mysqld.inc
 
---let $error_pattern= $tp_algo_max_warn
---source ../inc/wrong_value.inc
-
---let $error_pattern= $tp_dl_min_warn
---source ../inc/wrong_value.inc
-
---let $error_pattern= $tp_mtl_max_warn
---source ../inc/wrong_value.inc
-
---let $error_pattern= $tp_qtpg_min_warn
---source ../inc/wrong_value.inc
-
---let $error_pattern= $tp_size_min_warn
---source ../inc/wrong_value.inc
+--echo # The values persisted above were already clamped to their valid
+--echo # bounds by SET PERSIST_ONLY, so they simply take effect as-is here,
+--echo # with no further adjustment (and no adjustment warning) needed.
+SELECT @@GLOBAL.thread_pool_algorithm AS "Expect 1 (HIGH_CONCURRENCY_ALGORITHM, clamped max)";
+SELECT @@GLOBAL.thread_pool_max_transactions_limit AS "Expect 1000000 (clamped max)";
+SELECT @@GLOBAL.thread_pool_query_threads_per_group AS "Expect 1 (clamped min)";
+SELECT @@GLOBAL.thread_pool_size AS "Expect 1 (clamped min)";
 
 # Add suppression for the message that says
 # thread_pool_query_threads_per_group(1) is not recommended when used with

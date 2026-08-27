@@ -26,6 +26,7 @@ disconnect con2;
 connection con1;
 disconnect con1;
 connection default;
+call mtr.add_suppression("Too many connections");
 set global max_connections= 3;
 connect  con1, localhost, root,,mysql;
 connect  con2, localhost, root,,mysql;

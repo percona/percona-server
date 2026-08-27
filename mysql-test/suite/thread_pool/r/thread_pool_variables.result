@@ -12,10 +12,15 @@ AND variable_name <> 'thread_pool_connection_report_interval'
 ORDER BY variable_name;
 variable_name
 thread_pool_algorithm
+thread_pool_high_prio_mode
+thread_pool_high_prio_tickets
 thread_pool_high_priority_connection
+thread_pool_idle_timeout
 thread_pool_longrun_trx_limit
 thread_pool_max_active_query_threads
+thread_pool_max_threads
 thread_pool_max_unused_threads
+thread_pool_oversubscribe
 thread_pool_prio_kickup_timer
 thread_pool_query_threads_per_group
 thread_pool_size

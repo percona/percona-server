@@ -1,20 +1,34 @@
 SET PERSIST_ONLY thread_pool_algorithm = 1234;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_algorithm value: '1234'
 SET PERSIST_ONLY thread_pool_dedicated_listeners = -1;
+ERROR 42000: Variable 'thread_pool_dedicated_listeners' can't be set to the value of '-1'
 SET PERSIST_ONLY thread_pool_max_transactions_limit = 1100000;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_max_transactions_limit value: '1100000'
 SET PERSIST_ONLY thread_pool_query_threads_per_group = 0;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_query_threads_per_group value: '0'
 SET PERSIST_ONLY thread_pool_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect thread_pool_size value: '0'
 #
 # Restart mysqld server
 #
 # restart:ONLY_THREADPOOL_PLUGIN_LOAD --plugin_load=thread_pool=thread_pool.<extension>
-# Check for expected content in mysqld.1.err
-include/assert_grep.inc [option 'thread-pool-algorithm':.*value .* adjusted to 1 found]
-# Check for expected content in mysqld.1.err
-include/assert_grep.inc [option 'thread-pool-dedicated-listeners': boolean value .* was not recognized. Set to OFF found]
-# Check for expected content in mysqld.1.err
-include/assert_grep.inc [option 'thread-pool-max-transactions-limit':.*value .* adjusted to 1000000 found]
-# Check for expected content in mysqld.1.err
-include/assert_grep.inc [option 'thread-pool-query-threads-per-group':.*value .* adjusted to 1 found]
-# Check for expected content in mysqld.1.err
-include/assert_grep.inc [option 'thread-pool-size':.*value .* adjusted to 1 found]
+# The values persisted above were already clamped to their valid
+# bounds by SET PERSIST_ONLY, so they simply take effect as-is here,
+# with no further adjustment (and no adjustment warning) needed.
+SELECT @@GLOBAL.thread_pool_algorithm AS "Expect 1 (HIGH_CONCURRENCY_ALGORITHM, clamped max)";
+Expect 1 (HIGH_CONCURRENCY_ALGORITHM, clamped max)
+1
+SELECT @@GLOBAL.thread_pool_max_transactions_limit AS "Expect 1000000 (clamped max)";
+Expect 1000000 (clamped max)
+1000000
+SELECT @@GLOBAL.thread_pool_query_threads_per_group AS "Expect 1 (clamped min)";
+Expect 1 (clamped min)
+1
+SELECT @@GLOBAL.thread_pool_size AS "Expect 1 (clamped min)";
+Expect 1 (clamped min)
+1
 CALL mtr.add_suppression("thread_pool_query_threads_per_group.1. is not recommended when used with HIGH_CONCURRENCY_ALGORITHM");

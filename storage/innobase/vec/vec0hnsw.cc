@@ -26,6 +26,8 @@ The HNSW runtime and the persistence callbacks behind it.
 
 #include "vec0hnsw.h"
 
+#include "srv0srv.h"
+
 #include <variant>
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -356,6 +358,28 @@ they are the same operation: a node is immutable, so a changed vector is
 a new node rather than an edit of the old one. */
 static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
                             uint64_t base_pk, const char *q, THD *thd) {
+  /* innodb_hnsw_max_memory, checked BEFORE insert() starts mutating.
+
+  Vec_arena::allocate() is the single point every graph byte passes
+  through and would be the natural place to refuse — but refusing there
+  returns nullptr, which hnsw.h turns into a throw (four sites, e.g.
+  Node::create) partway through a rewire, with neighbours already
+  relinked and no per-block free to unwind with. So the refusal happens
+  here instead, at the entry to the operation, where nothing has been
+  touched yet and DB_OUT_OF_MEMORY simply fails the statement.
+
+  This is a charge check, not a prediction: it asks whether the budget is
+  already spent, not whether this insert would fit. Sizing the insert is
+  not possible from outside the class — sizeof(Node) is private, and one
+  insert also allocates stubs for lazily loaded neighbours and a copy of
+  the query vector. The budget can therefore be exceeded by at most what
+  one insert allocates, which is the price of refusing before mutating
+  rather than during. */
+  if (srv_hnsw_max_memory != 0 &&
+      vec_arena_global_bytes() >= srv_hnsw_max_memory) {
+    return DB_OUT_OF_MEMORY;
+  }
+
   MDL_ticket *mdl = nullptr;
   dict_table_t *aux = vec_aux_open_for_dml(table, vec->index_id, thd, &mdl);
   if (aux == nullptr) return DB_TABLE_NOT_FOUND;
@@ -446,8 +470,7 @@ static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
 }
 
 dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
-                       size_t ef_search, std::vector<uint64_t> *out,
-                       THD *thd) {
+                       size_t ef_search, std::vector<uint64_t> *out, THD *thd) {
   ut_a(index != nullptr && index->is_vector());
   ut_a(q != nullptr && out != nullptr);
   out->clear();
@@ -483,8 +506,8 @@ dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
   unloaded stubs in through load_node_cb — but load_node() takes a striped
   lock and re-checks the node state under it, so two threads faulting the
   same node cannot collide. */
-  *out = vec->hnsw->k_nn_search(reinterpret_cast<const char *>(q), k,
-                                ef_search, &ctx);
+  *out = vec->hnsw->k_nn_search(reinterpret_cast<const char *>(q), k, ef_search,
+                                &ctx);
 
   const dberr_t err = ctx.err;
   vec_aux_close_for_dml(aux, thd, &mdl);
@@ -497,6 +520,13 @@ dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
   ut_a(trx != nullptr);
   ut_a(vec_index != nullptr && vec_index->is_vector());
   ut_a(dims != 0 && m != 0);
+
+  /* Same pre-flight as the DML path (design section 17a): refuse before
+  building anything rather than throwing partway through. */
+  if (srv_hnsw_max_memory != 0 &&
+      vec_arena_global_bytes() >= srv_hnsw_max_memory) {
+    return DB_OUT_OF_MEMORY;
+  }
 
   std::vector<vec_base_row_t> rows;
   dberr_t err = vec_base_collect_rows(table, vec_index, dims, &rows);
@@ -533,6 +563,12 @@ dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
     graph->insert(row.id, row.base_pk,
                   reinterpret_cast<const char *>(row.vec.data()), &ctx);
     if (ctx.err != DB_SUCCESS) break;
+
+    if (srv_hnsw_max_memory != 0 &&
+        vec_arena_global_bytes() >= srv_hnsw_max_memory) {
+      ctx.err = DB_OUT_OF_MEMORY;
+      break;
+    }
   }
 
   err = ctx.err;

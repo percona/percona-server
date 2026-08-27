@@ -1160,6 +1160,11 @@ handle_new_error:
     case DB_CANNOT_ADD_CONSTRAINT:
     case DB_TOO_MANY_CONCURRENT_TRXS:
     case DB_OUT_OF_FILE_SPACE:
+    /* A resource ceiling was reached, not a corrupt engine: roll the
+    statement back and report it, the same as running out of file space.
+    Reaching the default branch below would call ib::fatal and take the
+    server down. innodb_hnsw_max_memory refuses here. */
+    case DB_OUT_OF_MEMORY:
     case DB_READ_ONLY:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:

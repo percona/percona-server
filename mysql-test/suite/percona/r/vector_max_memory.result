@@ -1,0 +1,63 @@
+#
+# PS-11300: innodb_hnsw_max_memory bounds graph memory server-wide.
+#
+# The check is at the entry to an insert, not inside the arena.
+# Vec_arena::allocate() is where every graph byte passes, but
+# refusing there returns nullptr, which hnsw.h turns into a throw
+# partway through a rewire with no per-block free to unwind with.
+# Refusing before insert() starts touching the graph fails the
+# statement cleanly instead.
+#
+SELECT @@global.innodb_hnsw_max_memory > 0 AS has_default;
+has_default
+1
+SET @saved = @@global.innodb_hnsw_max_memory;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+# Under the default bound, inserts work.
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1 distinct_ids=1 distinct_base_pks=1 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# Drop the bound to 1 byte: already spent, so the next insert is
+# refused rather than half-applied.
+SET GLOBAL innodb_hnsw_max_memory = 1;
+INSERT INTO t1 VALUES (2, STRING_TO_VECTOR('[0,1,0,0]'));
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+# The refused row is not in the table and left no node behind.
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+id
+1
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1 distinct_ids=1 distinct_base_pks=1 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# The refusal still burned a label — it was minted during row
+# conversion, before the graph was reached — so ids resume at 3 and
+# labels_contiguous_from_1 goes to 0 below. That is the
+# never-reissue rule working, not a leak: a burned label costs
+# nothing, while a reissued one would let two rows claim one node.
+#
+# The variable is dynamic: raising it unblocks the workload with
+# no restart.
+SET GLOBAL innodb_hnsw_max_memory = @saved;
+INSERT INTO t1 VALUES (2, STRING_TO_VECTOR('[0,1,0,0]'));
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+id
+1
+2
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=0
+# 0 means no limit.
+SET GLOBAL innodb_hnsw_max_memory = 0;
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=0
+SET GLOBAL innodb_hnsw_max_memory = @saved;
+DROP TABLE t1;

@@ -23586,6 +23586,14 @@ static MYSQL_SYSVAR_BOOL(
     nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_ULONGLONG(
+    hnsw_max_memory, srv_hnsw_max_memory, PLUGIN_VAR_RQCMDARG,
+    "Upper bound, in bytes, on memory held by HNSW vector index graphs"
+    " across all tables and indexes. An INSERT or UPDATE that would build"
+    " a graph node while the bound is already reached is refused with"
+    " ER_OUT_OF_RESOURCES. 0 means no limit.",
+    nullptr, nullptr, 1ULL << 30, 0, ~0ULL, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(
     stats_transient_sample_pages, srv_stats_transient_sample_pages,
     PLUGIN_VAR_RQCMDARG,
     "The number of leaf index pages to sample when calculating transient"
@@ -24908,6 +24916,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(ft_user_stopword_table),
     MYSQL_SYSVAR(disable_sort_file_cache),
     MYSQL_SYSVAR(stats_on_metadata),
+    MYSQL_SYSVAR(hnsw_max_memory),
     MYSQL_SYSVAR(stats_transient_sample_pages),
     MYSQL_SYSVAR(stats_persistent),
     MYSQL_SYSVAR(stats_persistent_sample_pages),

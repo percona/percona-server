@@ -26,6 +26,8 @@ Arena allocator for HNSW graph nodes.
 
 #include "vec0arena.h"
 
+#include <atomic>
+
 #include <new>
 
 #include "ut0new.h"
@@ -38,6 +40,17 @@ constexpr size_t vec_arena_align(size_t n) {
 }
 }  // namespace
 
+/** Bytes held by every Vec_arena in the server, chunk headers included.
+
+The budget innodb_hnsw_max_memory promises is server-wide — across all
+tables and all indexes — and every graph byte passes through
+Vec_arena::allocate(), so one counter here covers exactly that scope. */
+static std::atomic<uint64_t> vec_arena_bytes{0};
+
+uint64_t vec_arena_global_bytes() {
+  return vec_arena_bytes.load(std::memory_order_relaxed);
+}
+
 Vec_arena::~Vec_arena() {
   Chunk *chunk = m_head;
   while (chunk != nullptr) {
@@ -46,6 +59,7 @@ Vec_arena::~Vec_arena() {
     chunk = next;
   }
   m_head = nullptr;
+  vec_arena_bytes.fetch_sub(m_bytes_allocated, std::memory_order_relaxed);
   m_bytes_allocated = 0;
 }
 
@@ -76,6 +90,7 @@ void *Vec_arena::allocate(size_t size) {
   chunk->m_used = want;
   m_head = chunk;
   m_bytes_allocated += header + usable;
+  vec_arena_bytes.fetch_add(header + usable, std::memory_order_relaxed);
 
   return reinterpret_cast<char *>(chunk) + header;
 }

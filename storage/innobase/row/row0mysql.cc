@@ -81,6 +81,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
 #include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "zlib.h"
 
 #include "current_thd.h"
@@ -2091,6 +2092,18 @@ run_again:
     return (err);
   }
 
+  /* Add the row to every vector index's graph, and through the
+  persistor to its aux table. After the base row insert succeeded, and
+  reading the label back from the row the same way FTS reads its doc id
+  below. */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    err = vec_insert_row(trx, table, node->row, trx->mysql_thd);
+    if (err != DB_SUCCESS) {
+      trx->error_state = err;
+      goto error_exit;
+    }
+  }
+
   if (dict_table_has_fts_index(table)) {
     doc_id_t doc_id;
 
@@ -2900,6 +2913,40 @@ run_again:
     ut_ad(err == DB_SUCCESS);
     if (err != DB_SUCCESS) {
       goto error;
+    }
+  }
+
+  /* A vector-column UPDATE adds the new node. calc_row_difference has
+  already minted the label and put it into the update vector, so the row
+  written above already names the new node — this only has to create it.
+
+  DELETE deliberately does nothing here: the node has to stay for read
+  views still entitled to the row, and the read path filters it by
+  resolving base_pk under the reader's own view. */
+  {
+    /* Storage byte order — vec_update_aux_id wrote it back over this
+    member so it could double as the update field's buffer. */
+    const uint64_t label =
+        mach_read_from_8(reinterpret_cast<const byte *>(&trx->vec_next_label));
+    trx->vec_next_label = 0;
+
+    if (!node->is_delete && label != 0) {
+      /* Both of these were established by calc_row_difference before it
+      minted the label, so a miss here means the row now names a node
+      that will never exist. Assert rather than skip, matching
+      vec_insert_row. */
+      ulint q_len = 0;
+      const char *q = vec_upd_new_vector(table, node->update, &q_len);
+      ut_a(q != nullptr);
+
+      uint64_t base_pk = 0;
+      ut_a(vec_upd_row_pk(table, node, &base_pk));
+
+      err =
+          vec_update_row(trx, table, label, q, q_len, base_pk, trx->mysql_thd);
+      if (err != DB_SUCCESS) {
+        goto error;
+      }
     }
   }
 

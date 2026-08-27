@@ -94,7 +94,11 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
                        const vec_aux_row_t &row) {
   ut_a(trx != nullptr);
   ut_a(aux != nullptr);
-  ut_a(row.vec != nullptr);
+  /* Record 0 is index metadata, not a node: it names the graph's entry
+  point and legitimately carries no vector and no neighbours. Every real
+  node has both — id 0 is reserved as the empty-slot sentinel, so a node
+  can never occupy record 0. */
+  ut_a(row.vec != nullptr || (row.id == 0 && row.dims == 0));
   ut_a(row.neighbors != nullptr || row.neighbors_len == 0);
 
   /* The aux column is TINYINT; the HNSW level is geometrically
@@ -360,3 +364,107 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
 /** Copy one (possibly externally stored) field of an aux clustered-index
 record into a byte vector.
 @return true on success */
+
+/** Copy one record field onto a heap, materialising an off-page BLOB.
+
+The vector and neighbour columns are BLOBs, so a large VECTOR(n) can be
+stored off-page; reading the record field directly would hand back a
+20-byte reference rather than the data. */
+static bool vec_aux_copy_field(const dict_index_t *clust, const rec_t *rec,
+                               const ulint *offsets, ulint pos,
+                               mem_heap_t *heap, const byte **out,
+                               ulint *out_len) {
+  ulint len;
+  const byte *data = rec_get_nth_field(clust, rec, offsets, pos, &len);
+
+  if (len == UNIV_SQL_NULL) {
+    *out = nullptr;
+    *out_len = 0;
+    return true;
+  }
+
+  if (rec_offs_nth_extern(clust, offsets, pos)) {
+    data = lob::btr_rec_copy_externally_stored_field(
+        nullptr, clust, rec, offsets, dict_table_page_size(clust->table), pos,
+        &len, nullptr, false, heap);
+    if (data == nullptr) return false;
+    *out = data;
+    *out_len = len;
+    return true;
+  }
+
+  *out = static_cast<const byte *>(mem_heap_dup(heap, data, len));
+  *out_len = len;
+  return true;
+}
+
+dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
+                          vec_aux_read_t *out) {
+  ut_a(aux != nullptr);
+  ut_a(out != nullptr);
+
+  dict_index_t *clust = aux->first_index();
+
+  dtuple_t *ref = dtuple_create(heap, 1);
+  dict_index_copy_types(ref, clust, 1);
+  byte key[8];
+  mach_write_to_8(key, id);
+  dfield_set_data(dtuple_get_nth_field(ref, 0), key, sizeof key);
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  btr_pcur_t pcur;
+  pcur.open_no_init(clust, ref, PAGE_CUR_LE, BTR_SEARCH_LEAF, 0, &mtr,
+                    UT_LOCATION_HERE);
+
+  const rec_t *rec = pcur.get_rec();
+  if (!page_rec_is_user_rec(rec) ||
+      pcur.get_low_match() < dict_index_get_n_unique(clust)) {
+    pcur.close();
+    mtr_commit(&mtr);
+    return DB_RECORD_NOT_FOUND;
+  }
+
+  mem_heap_t *offs_heap = nullptr;
+  ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
+                                   UT_LOCATION_HERE, &offs_heap);
+
+  /* Column positions in the RECORD, not user-column ordinals: a
+  clustered record is the key, then DB_TRX_ID and DB_ROLL_PTR, then the
+  rest. Using the ordinal directly lands on DB_ROLL_PTR. */
+  const ulint p_vec =
+      dict_col_get_clust_pos(aux->get_col(VEC_AUX_COL_VEC), clust);
+  const ulint p_base_pk =
+      dict_col_get_clust_pos(aux->get_col(VEC_AUX_COL_BASE_PK), clust);
+  const ulint p_level =
+      dict_col_get_clust_pos(aux->get_col(VEC_AUX_COL_LEVEL), clust);
+  const ulint p_nb =
+      dict_col_get_clust_pos(aux->get_col(VEC_AUX_COL_NEIGHBORS), clust);
+
+  dberr_t err = DB_SUCCESS;
+  ulint len;
+  const byte *p;
+
+  p = rec_get_nth_field(clust, rec, offsets, p_base_pk, &len);
+  if (len != 8) {
+    err = DB_CORRUPTION;
+    goto done;
+  }
+  out->base_pk = mach_read_from_8(p);
+
+  p = rec_get_nth_field(clust, rec, offsets, p_level, &len);
+  out->level = len == 1 ? p[0] : 0;
+
+  if (!vec_aux_copy_field(clust, rec, offsets, p_vec, heap, &out->vec,
+                          &out->vec_len) ||
+      !vec_aux_copy_field(clust, rec, offsets, p_nb, heap, &out->neighbors,
+                          &out->neighbors_len)) {
+    err = DB_CORRUPTION;
+  }
+
+done:
+  if (offs_heap != nullptr) mem_heap_free(offs_heap);
+  pcur.close();
+  mtr_commit(&mtr);
+  return err;
+}

@@ -1,5 +1,5 @@
-# Test for Bug#120323: "Row size too large (> 8126)" regression
-# https://bugs.mysql.com/bug.php?id=120323
+# Bug#39249507 Regression : "Row size too large (> 8126)" error with table 
+#              using InnoDb DYNAMIC row format
 #
 # MySQL 8.0.46 / 8.4.9 introduced a regression where CREATE TABLE fails
 # for tables with many varchar(41-255) columns using ROW_FORMAT=DYNAMIC.
@@ -7,11 +7,7 @@
 # that prevents columns with col->len <= 255 from being counted as
 # external-storage eligible, inflating the row-size estimate.
 
---disable_warnings
-DROP DATABASE IF EXISTS bug120323;
---enable_warnings
-CREATE DATABASE bug120323;
-USE bug120323;
+--source include/have_innodb_16k.inc
 
 --echo #
 --echo # Test 1: 100 x varchar(200) latin1 columns with ROW_FORMAT=DYNAMIC
@@ -31,7 +27,7 @@ while ($i <= 100)
 }
 --let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
 --eval $create_stmt
-SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar200';
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='test' AND table_name='t_varchar200';
 DROP TABLE t_varchar200;
 
 --echo #
@@ -51,7 +47,7 @@ while ($i <= 100)
 }
 --let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
 --eval $create_stmt
-SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar255';
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='test' AND table_name='t_varchar255';
 DROP TABLE t_varchar255;
 
 --echo #
@@ -72,7 +68,7 @@ while ($i <= 100)
 }
 --let $create_stmt= $create_stmt ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=latin1
 --eval $create_stmt
-SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='bug120323' AND table_name='t_varchar256';
+SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='test' AND table_name='t_varchar256';
 DROP TABLE t_varchar256;
 
 --echo #
@@ -132,5 +128,3 @@ while ($i <= 100)
 --eval $create_stmt
 DROP TABLE t_varchar40;
 
-# cleanup
-DROP DATABASE bug120323;

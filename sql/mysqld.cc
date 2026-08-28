@@ -6711,16 +6711,20 @@ void unregister_server_metric_sources() {
 }
 
 PSI_logger_key key_error_logger = 0;
+PSI_logger_key key_slow_query_logger = 0;
+PSI_logger_key key_general_logger = 0;
 
-static PSI_logger_info_v1 err_loggers[] = {
-    {"error_log", "MySQL error logger", 0, &key_error_logger}};
+static PSI_logger_info_v1 sql_loggers[] = {
+    {"error_log", "MySQL error logger", 0, &key_error_logger},
+    {"slow_log", "MySQL slow query logger", 0, &key_slow_query_logger},
+    {"general_log", "MySQL general logger", 0, &key_general_logger}};
 
 void register_server_telemetry_loggers() {
-  mysql_log_client_register(err_loggers, std::size(err_loggers), "error");
+  mysql_log_client_register(sql_loggers, std::size(sql_loggers), "sql");
 }
 
 void unregister_server_telemetry_loggers() {
-  mysql_log_client_unregister(err_loggers, std::size(err_loggers));
+  mysql_log_client_unregister(sql_loggers, std::size(sql_loggers));
 }
 
 int init_common_variables() {
@@ -9270,15 +9274,31 @@ class Plugin_and_data_dir_option_parser final {
     /* Backup mysql_real_data_home */
     if (mysql_real_data_home[0])
       memcpy(save_homedir_, mysql_real_data_home, strlen(mysql_real_data_home));
-    if (datadir_ != nullptr)
-      memcpy(mysql_real_data_home, datadir_, strlen(datadir_));
+    /*
+      An empty value must not clobber the global. Before the buffer was
+      cleared before copying, an empty datadir_ copied zero bytes and thus
+      left the already initialized default in place. Clearing it first would
+      instead leave mysql_real_data_home empty, which breaks every path
+      derived from it - and trips the assert in
+      initialize_manifest_file_components() right after this parser runs.
+      Keep the default in that case, as if --datadir was not given at all.
+    */
+    if (datadir_ != nullptr && datadir_[0] != '\0') {
+      memset(mysql_real_data_home, 0, sizeof(mysql_real_data_home));
+      strncpy(mysql_real_data_home, datadir_, sizeof(mysql_real_data_home) - 1);
+      mysql_real_data_home[sizeof(mysql_real_data_home) - 1] = '\0';
+    }
 
     /* Backup opt_plugin_dir */
     if (opt_plugin_dir[0])
       memcpy(save_plugindir_, opt_plugin_dir,
              std::min(static_cast<size_t>(FN_REFLEN), strlen(opt_plugin_dir)));
-    if (plugindir_ != nullptr)
-      memcpy(opt_plugin_dir, plugindir_, strlen(plugindir_));
+    /* Same reasoning as for mysql_real_data_home above. */
+    if (plugindir_ != nullptr && plugindir_[0] != '\0') {
+      memset(opt_plugin_dir, 0, sizeof(opt_plugin_dir));
+      strncpy(opt_plugin_dir, plugindir_, sizeof(opt_plugin_dir) - 1);
+      opt_plugin_dir[sizeof(opt_plugin_dir) - 1] = '\0';
+    }
 
     valid_ = true;
   }
@@ -12955,7 +12975,8 @@ static bool process_opt_pfs_meter(char *argument) {
 pfs_error_meter:
   if (error) {
     // trunk: LogErr(WARNING_LEVEL, ER_INVALID_METER, orig_argument);
-    std::string msg_84("Invalid meter name or value for performance_schema_meter '");
+    std::string msg_84(
+        "Invalid meter name or value for performance_schema_meter '");
     msg_84.append(orig_argument);
     msg_84.append("'.");
     LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, msg_84.c_str());
@@ -13062,7 +13083,8 @@ static bool process_opt_pfs_logger(char *argument) {
 pfs_error_logger:
   if (error) {
     // trunk: LogErr(WARNING_LEVEL, ER_INVALID_LOGGER, orig_argument);
-    std::string msg_84("Invalid logger name or value for performance_schema_logger '");
+    std::string msg_84(
+        "Invalid logger name or value for performance_schema_logger '");
     msg_84.append(orig_argument);
     msg_84.append("'.");
     LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, msg_84.c_str());

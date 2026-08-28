@@ -1,0 +1,46 @@
+####################################################################
+# PS-11135: audit_log_read() called without an argument and without an
+# open read sequence must say that the reader is not initialized.
+#
+# The arguments are fine in that case - there are none - so the old
+# "Wrong argument format" was misleading. Upstream reports "Reader not
+# initialized." for all three variants of it: a sequence that was never
+# started, one that has been closed, and one that ended because the
+# previous read returned null.
+####################################################################
+
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--echo #
+--echo # No read sequence has ever been initialized in this session.
+--echo #
+--error ER_UDF_ERROR
+SELECT audit_log_read();
+
+--echo #
+--echo # Still not initialized after a bookmark read is prepared but the
+--echo # sequence is closed again.
+--echo #
+--disable_result_log
+SELECT audit_log_read(audit_log_read_bookmark());
+--enable_result_log
+SELECT audit_log_read('null');
+
+--error ER_UDF_ERROR
+SELECT audit_log_read();
+
+--echo #
+--echo # Genuinely wrong arguments keep reporting the argument as the problem.
+--echo #
+--error ER_UDF_ERROR
+SELECT audit_log_read('{"timestamp": "2026-01-01 00:00:00"}');
+--error ER_UDF_ERROR
+SELECT audit_log_read('[]');
+
+--echo #
+--echo # Cleanup
+--echo #
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

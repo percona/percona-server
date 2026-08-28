@@ -1383,6 +1383,23 @@ eval $query;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug#36368181: Assertion failure in operator() at sql/sql_derived.cc
+--echo #
+CREATE TABLE t1 (f1 INTEGER);
+# dt2.field1 which is used in condition pushdown has an expression which
+# involves one outer reference "dt1.f1" which is also a view reference
+# (since dt1 gets merged) and a column which is not a outer reference
+# "t1.f1". This would earlier fail some checks during cloning.
+SELECT *
+FROM (SELECT * FROM t1) AS dt1
+WHERE (SELECT 1
+       FROM (SELECT (dt1.f1+t1.f1) AS field1
+             FROM t1
+             GROUP BY field1) dt2
+       WHERE dt2.field1 = 1);
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#34781533: Result set is incorrect
 --echo #
 
@@ -1699,4 +1716,45 @@ DEALLOCATE PREPARE ps_select_latin1_on;
 DEALLOCATE PREPARE ps_select_latin1_off;
 
 DROP VIEW v1;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#38888307: UNION ALL + AND + WHERE IS UNKNOWN
+--echo #               query results are incorrect
+--echo #
+
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER, f3 INTEGER);
+INSERT INTO t1 VALUES (1, NULL, NULL), (2, 0, 0), (3, 1, 1);
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      UNION ALL
+      SELECT (f1 AND f2) AS col0 FROM t1
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      UNION
+      SELECT (f1 AND f2) AS col0 FROM t1
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      INTERSECT
+      SELECT (f1 AND f2) AS col0 FROM t1
+) AS dt
+WHERE (dt.col0) IS NULL;
+
+CREATE TABLE t2(f1 INTEGER, f2 INTEGER, f3 INTEGER);
+INSERT INTO t2 VALUES (2, 0, 0), (3, 1, 1);
+
+SELECT *
+FROM (SELECT (f1 AND f2) AS col0 FROM t1
+      EXCEPT
+      SELECT (f1 AND f2) AS col0 FROM t2
+) AS dt
+WHERE (dt.col0) IS NULL;
+
 DROP TABLE t1, t2;

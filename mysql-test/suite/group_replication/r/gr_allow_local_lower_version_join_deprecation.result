@@ -28,8 +28,6 @@ Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated an
 #    Verify warning is not logged in error logs.
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
-Warnings:
-Warning	1681	'group_replication_allow_local_lower_version_join' is deprecated and will be removed in a future release.
 
 ############################################################
 # 4. Start Group Replication on server start.

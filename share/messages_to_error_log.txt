@@ -12375,6 +12375,9 @@ ER_AUDIT_LOG_JSON_INVALID_FILTER_CANNOT_BE_USED
 ER_WARN_AUDIT_LOG_FILTER_RECOVERY_LOGGING_DISABLED_LOG
   eng "The '%s' variable is set to LOG_NOTHING_IF_INVALID_FILTER_DETECTED, meaning audit events will not be logged if the filter is invalid. Consider changing this variable to LOG_ALL_IF_INVALID_FILTER_DETECTED to ensure that all events are logged, even when the filter is invalid."
 
+ER_SERVER_UPGRADE_CHECK_STATUS_MESSAGE
+  eng "%s"
+
 #
 # End of 8.0 error messages intended to be written to the server error log.
 #
@@ -12851,6 +12854,48 @@ ER_AUTH_INITIAL_PLUGIN_OVERRIDE
 #
 
 
+################################################################################
+# Error numbers backported from 9.7 to 8.4
+# Make sure the error numbers are identical between versions
+################################################################################
+
+start-error-number 15604
+ER_INFO_AUTHENTICATION_OCI
+   eng "authentication_oci plugin reported: %s."
+
+start-error-number 15607
+ER_AUDIT_LOG_INVALID_ROTATE_ON_TIME_VALUE
+   eng "Invalid audit_log_rotate_on_time interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
+start-error-number 15608
+ER_AUDIT_LOG_OFFLOAD_INFO
+  eng "%s"
+
+start-error-number 15609
+ER_AUDIT_LOG_OFFLOAD_WARNING
+  eng "%s"
+
+start-error-number 15610
+ER_AUDIT_LOG_OFFLOAD_ERROR
+  eng "%s"
+
+start-error-number 15694
+ER_WARN_AUDIT_LOG_SYSVAR_ADJUSTED
+  eng "Variable '%s' was adjusted to value '%lld', to make pruning slower than rotation."
+
+start-error-number 15695
+ER_WARN_AUDIT_LOG_SYSVAR_DISCARDED
+  eng "Variable '%s' value change was discarded, to make pruning slower than rotation."
+
+#
+# WARNING
+#
+# If you attempt to add a new error here, think again:
+# this is most likely incorrect.
+# New errors introduced in 8.4-LTS should go into the 8.1-8.4 section.
+#
+
+
 #
 # Start of Percona Server 8.0 server error log messages
 #
@@ -13300,7 +13345,7 @@ ER_AUDIT_TABLE_READ_FIELD_FAILURE
   eng "Failed to read %s.%s"
 
 ER_AUDIT_TABLE_FILTER_WRONG_FORMAT
-  eng "audit_log_filter name: %s, filter: %s has wrong format, consider using audit_log_filter.event_mode=FULL"
+  eng "audit_log_filter name: %s, filter: %s has wrong format: %s"
 
 ER_AUDIT_TABLE_FILTER_INSERT_COMMIT_FAILURE
   eng "Failed to insert filtering rule '%s', '%s', commit failed"

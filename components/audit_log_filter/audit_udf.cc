@@ -852,7 +852,14 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
       return result;
     }
 
-    if (!json_doc.IsNull()) {
+    /*
+      Only an object has members to validate. Testing for "not null" was not
+      enough: GetObject() asserts on IsObject(), so any other JSON value -
+      an array, a number, a string, a boolean - aborted a debug server and
+      read a non-object as an object in a release one. Values which are
+      neither an object nor null are rejected as a wrong argument below.
+    */
+    if (json_doc.IsObject()) {
       for (const auto &member : json_doc.GetObject()) {
         const auto *member_name = member.name.GetString();
         if (log_read_udf_allowed_args.count(member_name) == 0) {
@@ -951,7 +958,13 @@ char *AuditUdf::audit_log_read_udf(AuditUdf *udf [[maybe_unused]],
       return result;
     }
   } else if (reader_context == nullptr) {
-    my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Wrong argument format");
+    /*
+      audit_log_read() without an argument and without an open read sequence:
+      the sequence was never initialized, it has been closed, or it ended
+      because a previous read returned null. The arguments are fine, so say
+      what is actually wrong, as upstream does.
+    */
+    my_error(ER_UDF_ERROR, MYF(0), "audit_log_read", "Reader not initialized.");
     *error = 1;
     return result;
   }

@@ -42,7 +42,7 @@ class FileLogger {
     // to be thread-safe each call opens the file by itself
     FILE *outfile = fopen(m_path.c_str(), "a+");
     if (outfile) {
-      char msg[2048];
+      char msg[20480];
 
       va_list args;
       va_start(args, format);

@@ -6004,6 +6004,7 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
       Item_field *f = down_cast<Item_field *>(new_item);
       Item_field *cpy = new (parent_lex->thd->mem_root) Item_field(f->field);
       if (cpy == nullptr) return true;
+      cpy->increment_ref_count();
       *expr = cpy;
     }
 

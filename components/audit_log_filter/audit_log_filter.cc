@@ -75,7 +75,24 @@ SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 namespace audit_log_filter {
 namespace {
 
-std::unique_ptr<AuditLogFilter> audit_log_filter;
+/*
+  Deliberately a raw pointer, and deliberately not destroyed when the server
+  goes down without unloading the component.
+
+  If the server terminates early - on an invalid --authentication-policy, say -
+  it never calls audit_log_filter_deinit(), so anything with a non-trivial
+  destructor here would be destroyed during static destruction instead.
+  Destroying AuditLogFilter that late destroys its AuditUdf member, whose
+  destructor calls AuditUdf::deinit() -> SysVars::get_comp_registry_srv(), and
+  the comp_registry_srv static that returns may already have been destroyed
+  itself: that aborts a debug build on the assertion inside
+  get_comp_registry_srv() and is undefined behaviour in a release one
+  (PS-11273).
+
+  Leaking the instance on that path is intentional - the process is on its way
+  out - so please do not turn this back into a smart pointer.
+*/
+AuditLogFilter *audit_log_filter{nullptr};
 
 class EventsConsumer {
  public:
@@ -191,7 +208,7 @@ bool is_stored_program_statement(MYSQL_THD thd) {
 }  // namespace
 
 AuditLogFilter *get_audit_log_filter_instance() noexcept {
-  return audit_log_filter.get();
+  return audit_log_filter;
 }
 
 /*
@@ -388,7 +405,10 @@ mysql_service_status_t audit_log_filter_init() try {
   // Disarm the scope guard only after all potentially-throwing operations
   // succeeded, so that SysVars cleanup still runs on exception.
   comp_registry_srv = nullptr;
-  audit_log_filter = std::move(local_audit_log_filter);
+  // deinit() clears the pointer, so there should be nothing here. Delete
+  // rather than overwrite, so that initializing twice cannot leak.
+  delete audit_log_filter;
+  audit_log_filter = local_audit_log_filter.release();
   return 0;
 } catch (const std::exception &e) {
   LogComponentErr(ERROR_LEVEL, ER_AUDIT_INIT_EXCEPTION, e.what());
@@ -421,7 +441,8 @@ mysql_service_status_t audit_log_filter_deinit() try {
   SysVars::deinit();
   SysVars::release_comp_registry_srv();
 
-  audit_log_filter.reset();
+  delete audit_log_filter;
+  audit_log_filter = nullptr;
 
   return 0;
 } catch (const std::exception &e) {
@@ -721,6 +742,17 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
         record);
     LogComponentErr(INFORMATION_LEVEL, ER_AUDIT_BLOCKED_EVENT, ev_name.data(),
                     event_class);
+    /*
+      Report the abort ourselves. Without this the server falls back to
+      ER_AUDIT_API_ABORT with its generic "Aborted by Audit API ('%s';%d)"
+      text (sql_audit.cc, mysql_audit_notify()), which it only emits when the
+      handler left no error of its own. Keep that error number - it is what
+      the audit API uses for an aborted event - and only give it the wording
+      documented for an audit log filter abort. The blocked event class stays
+      available in the error log through ER_AUDIT_BLOCKED_EVENT above.
+    */
+    my_printf_error(ER_AUDIT_API_ABORT,
+                    "Statement was aborted by an audit log filter.", MYF(0));
     return 1;
   }
 

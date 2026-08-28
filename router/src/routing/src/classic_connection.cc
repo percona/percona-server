@@ -27,9 +27,9 @@
 
 #include <memory>
 
-#include "classic_flow.h"
 #include "mysqlrouter/connection_pool.h"
 #include "mysqlrouter/connection_pool_component.h"
+#include "processors/session/classic_flow.h"
 
 void MysqlRoutingClassicConnection::async_run() {
   this->accepted();

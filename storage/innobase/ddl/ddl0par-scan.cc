@@ -69,9 +69,8 @@ struct Parallel_cursor : public Cursor {
   /** Copy the row data, by default only the pointers are copied.
   @param[in] thread_id          Scan thread ID.
   @param[in,out] row            Row to copy.
-  @return DB_SUCCESS or error code. */
-  [[nodiscard]] virtual dberr_t copy_row(size_t thread_id,
-                                         Row &row) noexcept override;
+  */
+  virtual void copy_row(size_t thread_id, Row &row) noexcept override;
 
   /** @return true if EOF reached. */
   [[nodiscard]] virtual bool eof() const noexcept override { return m_eof; }
@@ -245,6 +244,10 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
       });
 
       if (err != DB_SUCCESS && err != DB_END_OF_INDEX) {
+        for (auto current_builder : builders) {
+          /* Discard returned error as it is same as err */
+          static_cast<void>(current_builder->handle_error(err));
+        }
         return err;
       }
     }
@@ -359,7 +362,7 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
 
         /* We only need to copy the data when the heap is emptied.
         @see Parallel_cursor::copy_row */
-        auto err = row.build(m_ctx, m_index, heap, ROW_COPY_POINTERS);
+        auto err = row.build(m_ctx, heap);
 
         if (err != DB_SUCCESS) {
           return err;
@@ -401,15 +404,11 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
   return cleanup(m_heaps, err);
 }
 
-dberr_t Parallel_cursor::copy_row(size_t thread_id, Row &row) noexcept {
+void Parallel_cursor::copy_row(size_t thread_id, Row &row) noexcept {
   ut_a(!eof());
 
   auto heap = m_heaps[thread_id];
-
-  row.m_offsets = rec_get_offsets(row.m_rec, index(), nullptr, ULINT_UNDEFINED,
-                                  UT_LOCATION_HERE, &heap);
-
-  return row.build(m_ctx, index(), heap, ROW_COPY_DATA);
+  row.deep_copy(heap);
 }
 
 Cursor *Cursor::create_cursor(ddl::Context &ctx) noexcept {

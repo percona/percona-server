@@ -145,6 +145,11 @@ TARGET_INCLUDE_DIRECTORIES(routertest_http_matcher
   ${PROJECT_SOURCE_DIR}/src/http/include/
   )
 
+add_googletest_file(test_server_limits.cc
+  MODULE http
+  LIB_DEPENDS http_server_lib
+  )
+
 IF(LIBFUZZER_COMPILE_FLAGS)
   ## http_auth_backend
   MYSQL_ADD_EXECUTABLE(routertest_fuzz_http_auth_backend

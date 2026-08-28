@@ -211,7 +211,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -219,7 +219,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -241,8 +241,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -251,8 +251,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -276,10 +276,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -288,10 +288,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -313,14 +313,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -329,14 +329,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -369,11 +369,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -381,11 +381,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -420,13 +420,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -434,13 +434,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -473,15 +473,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -489,15 +489,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -531,10 +531,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -543,10 +543,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -582,12 +582,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -596,12 +596,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -635,14 +635,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -651,14 +651,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -679,7 +679,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -687,7 +687,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -709,8 +709,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -719,8 +719,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -744,10 +744,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -756,10 +756,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -781,14 +781,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -797,14 +797,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -837,11 +837,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -849,11 +849,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -888,13 +888,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -902,13 +902,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -941,15 +941,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -957,15 +957,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -999,10 +999,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1011,10 +1011,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1050,12 +1050,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1064,12 +1064,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1103,14 +1103,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1119,14 +1119,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1147,7 +1147,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1155,7 +1155,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1177,8 +1177,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1187,8 +1187,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1212,10 +1212,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1224,10 +1224,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1249,14 +1249,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1265,14 +1265,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1305,11 +1305,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1317,11 +1317,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1356,13 +1356,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1370,13 +1370,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1409,15 +1409,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1425,15 +1425,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1467,10 +1467,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1479,10 +1479,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1518,12 +1518,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1532,12 +1532,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1571,14 +1571,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1587,14 +1587,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1615,7 +1615,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1623,7 +1623,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1645,8 +1645,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1655,8 +1655,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1680,10 +1680,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1692,10 +1692,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1717,14 +1717,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1733,14 +1733,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1773,11 +1773,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1785,11 +1785,11 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1824,13 +1824,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1838,13 +1838,13 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1877,15 +1877,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1893,15 +1893,15 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1935,10 +1935,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1947,10 +1947,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -1986,12 +1986,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2000,12 +2000,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -2039,14 +2039,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2055,14 +2055,14 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -2086,7 +2086,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2094,7 +2094,7 @@ include/rpl/deprecated/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -2116,8 +2116,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2126,8 +2126,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -2151,10 +2151,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -2163,10 +2163,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 

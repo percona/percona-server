@@ -27,12 +27,28 @@ LOCK TABLE t1 READ;
 --connection con2
 
 # User1 has a READ LOCK
-# User2 waiting for WRITE LOCK
---send LOCK TABLE t1 write;
+# User2 waiting for an EXCLUSIVE MDL lock.
+#
+# The blocking statement must request MDL_EXCLUSIVE, not the
+# MDL_SHARED_NO_READ_WRITE of "LOCK TABLE t1 write". The waiting thread
+# is reported as the owner of its MDL_wait::LOCK_wait_status mutex, and
+# that flag is sticky: a mutex held across a condition wait is never
+# unlocked as far as the Performance Schema is concerned, while
+# "UPDATE performance_schema.threads SET instrumented = 'NO'" below makes
+# it one-way, since an unlock always clears the owner but a re-lock never
+# restores it for an uninstrumented thread. Only MDL_EXCLUSIVE requests
+# enable notification of conflicting locks (MDL_object_lock, see
+# object_lock_needs_notification() in sql/mdl.cc), which makes the waiting
+# thread leave and re-enter the wait once a second, so the owner is
+# cleared within a second of instrumentation being disabled. With
+# MDL_SHARED_NO_READ_WRITE the wait is entered once and never left, and
+# whether the owner is still reported by the LOCKED_BY_THREAD_ID test
+# below depends on unrelated background MDL activity on t1.
+--send TRUNCATE TABLE t1;
 
 --connection default
 
-# Wait for the LOCK TABLE t1 write to block
+# Wait for the TRUNCATE TABLE t1 to block
 let $wait_condition=
   select count(*) = 1 from performance_schema.events_waits_current
   where event_name = 'wait/lock/metadata/sql/mdl'
@@ -41,6 +57,15 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 --connection default
+
+# The waiting thread releases and re-acquires LOCK_wait_status once a
+# second, so make sure the mutex is seen locked before it is sampled.
+let $wait_condition=
+  select count(*) >= 1 from performance_schema.mutex_instances
+  where name = 'wait/synch/mutex/sql/MDL_wait::LOCK_wait_status'
+  and locked_by_thread_id is not null
+  and locked_by_thread_id != @innodb_stats_thread_id;
+--source include/wait_condition.inc
 
 eval SELECT object_instance_begin, locked_by_thread_id
   INTO @object_instance_begin, @target_id
@@ -73,14 +98,13 @@ let $key_group = 14;
 --connection con1
 
 # User1 releases a READ LOCK
-# User2 granted a WRITE LOCK
+# User2 granted the EXCLUSIVE lock
 UNLOCK TABLES;
 
 --connection con2
 
-# Complete LOCK TABLE t1 write
+# Complete TRUNCATE TABLE t1
 --reap
-UNLOCK TABLES;
 
 --connection default
 

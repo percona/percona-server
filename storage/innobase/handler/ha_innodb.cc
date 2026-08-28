@@ -7098,6 +7098,23 @@ ulong ha_innobase::index_flags(uint key, uint, bool) const {
     return (0);
   }
 
+  /* A vector index advertises nothing, exactly as FULLTEXT does above.
+
+  It has no B-tree: DICT_VECTOR sits in the "no real tree" family beside
+  DICT_FTS, and its root page may be FIL_NULL. Claiming the default
+  capabilities below would let the optimizer choose it for an ordinary
+  scan, and HA_KEYREAD_ONLY in particular makes it look like the
+  narrowest covering index on the table — so SELECT COUNT(*) picks it,
+  scans a tree that is not there, and silently returns 0.
+
+  Reading it requires an API that can express "the k nearest to q", which
+  the index_* family cannot. That is a separate handler family, the way
+  ft_init/ft_read is for FULLTEXT, and until it exists a vector index is
+  simply not readable by the optimizer. */
+  if (table_share->key_info[key].algorithm == HA_KEY_ALG_VECTOR) {
+    return (0);
+  }
+
   ulong flags = HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE |
                 HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN;
 

@@ -118,14 +118,14 @@ ALTER TABLE tc1 ADD INDEX ix_c (c);
 SHOW INDEXES FROM tc1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 tc1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
-tc1	1	v	1	v	A	0	1	NULL		VECTOR			YES	NULL
+tc1	1	v	1	v	NULL	0	NULL	NULL		VECTOR			YES	NULL
 tc1	1	ix_c	1	c	A	0	NULL	NULL	YES	BTREE			YES	NULL
 # C.2 DROP that secondary index
 ALTER TABLE tc1 DROP INDEX ix_c;
 SHOW INDEXES FROM tc1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 tc1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
-tc1	1	v	1	v	A	0	1	NULL		VECTOR			YES	NULL
+tc1	1	v	1	v	NULL	0	NULL	NULL		VECTOR			YES	NULL
 DROP TABLE tc1;
 #
 # === Section D: ADD INDEX after INSTANT ADD COLUMN

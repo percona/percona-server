@@ -20,9 +20,10 @@
 
 CREATE TABLE tvr (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 
---echo # The FIRST ADD materializes the hidden column and so falls back to
---echo # COPY, which never enters the INPLACE prepare path. With the knob
---echo # ARMED it must therefore succeed.
+--echo # The FIRST ADD materializes the hidden column and so falls back
+--echo # to COPY, which never enters the INPLACE prepare path. With the
+--echo # knob ARMED it must therefore succeed — a standing guard that
+--echo # COPY is what runs.
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
@@ -33,8 +34,8 @@ ALTER TABLE tvr DROP KEY v;
 
 --echo # Add a column in the same ALTER so it must take the INPLACE
 --echo # *rebuild* path, which is the path whose rollback this covers.
---echo # (INSTANT ADD COLUMN, used here before, is refused once the hidden
---echo # column exists.)
+--echo # (INSTANT ADD COLUMN, which this test used to use for the same
+--echo # purpose, is refused once the hidden column exists.)
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 --error ER_GET_ERRNO,ER_OUT_OF_RESOURCES,ER_TOO_MANY_CONCURRENT_TRXS,1
 ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),

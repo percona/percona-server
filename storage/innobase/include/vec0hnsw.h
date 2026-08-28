@@ -329,5 +329,58 @@ break their isolation rather than tidy up.
 @param[in]      base_pk  the row's primary key, unchanged by this update
 @param[in]      thd    session
 @return DB_SUCCESS, or an error */
+/** Populate a newly added vector index from the rows already in the
+table — the ddl0fts analog for HNSW.
+
+Runs during ALGORITHM=INPLACE ADD, from one clustered scan, without
+rebuilding the table or writing a single base row. Each row is inserted
+into a PRIVATE graph under the label already stamped in its
+percona_vec_aux_id column, so a rebuild preserves labels rather than
+minting new ones, and the ordinary persistence callbacks write the aux
+rows.
+
+Those writes ride @p trx — the ALTER's own transaction, not a
+sub-transaction as DML uses. That is deliberate and is the opposite of
+the sub-transaction rule in the design: the aux does not exist yet
+outside this ALTER, so if the ALTER fails its rows must disappear with
+it. There is no committed base row for them to be a superset of until
+the ALTER commits.
+
+The private graph is discarded on return. The index's runtime is built
+lazily from the committed aux on first access, so nothing has to be
+handed over.
+
+@param[in]  trx              the ALTER's transaction
+@param[in]  table            base table
+@param[in]  vec_index        the index being built
+@param[in]  dims             vector dimensions
+@param[in]  m                HNSW M
+@param[in]  ef_construction  HNSW ef_construction
+@param[in]  thd              session, for opening the aux
+@return DB_SUCCESS, DB_OUT_OF_MEMORY if the graph budget is spent, or a
+storage error */
+/** Search the graph, loading it from the aux table first if needed.
+
+The raw graph search: it returns what k_nn_search() returns, which is
+base_pks in ascending distance order. It does NOT apply the MVCC checks
+of design section 14 — check (2) needs a read view and check (1) needs a
+node id the search does not yet return (Part II section 24). It is the
+primitive the read path will build on, and today it is what proves the
+graph was persisted, reloaded and is answering correctly.
+
+@param[in]   index      the vector index
+@param[in]   q          query vector, dims floats
+@param[in]   k          how many neighbours to return
+@param[in]   ef_search  search width
+@param[out]  out        base_pks, closest first
+@param[in]   thd        session, for opening the aux
+@return DB_SUCCESS or a storage error */
+dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
+                       size_t ef_search, std::vector<uint64_t> *out, THD *thd);
+
+dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
+                        dict_index_t *vec_index, uint32_t dims, uint32_t m,
+                        uint32_t ef_construction, THD *thd);
+
 dberr_t vec_update_row(trx_t *trx, dict_table_t *table, uint64_t label,
                        const char *q, ulint q_len, uint64_t base_pk, THD *thd);

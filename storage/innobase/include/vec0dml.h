@@ -117,6 +117,36 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
 
 /** One node read back from the aux table. Pointers are into a caller
 supplied heap and live as long as it does. */
+/** One base-table row, as the index build needs it. */
+struct vec_base_row_t {
+  /** The row's already-stamped percona_vec_aux_id — reused as the graph
+  label, so a rebuild preserves the labels rather than minting new ones. */
+  uint64_t id;
+  /** The vector, materialised (an off-page BLOB is fetched, not a
+  20-byte reference). */
+  std::vector<float> vec;
+  /** The row's primary key, in storage form. */
+  uint64_t base_pk;
+};
+
+/** Collect every committed row that the index build should insert.
+
+One clustered scan of the base table. Delete-marked records are skipped:
+they are committed deletes pending purge, not rows. Uncommitted changes
+cannot be present — the ALTER holds at least a shared lock and waited out
+prior writers at MDL upgrade — which is what lets this read records
+directly rather than through a read view.
+
+@param[in]   base       base table
+@param[in]   vec_index  the vector index being built; its field 0 names
+                        the column to read
+@param[in]   dims       expected dimensions, for validation
+@param[out]  rows       the collected rows
+@return DB_SUCCESS, or DB_CORRUPTION if a vector is the wrong width */
+dberr_t vec_base_collect_rows(dict_table_t *base,
+                              const dict_index_t *vec_index, uint32_t dims,
+                              std::vector<vec_base_row_t> *rows);
+
 struct vec_aux_read_t {
   const byte *vec{nullptr};
   ulint vec_len{0};

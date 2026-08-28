@@ -112,6 +112,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0stage.h"
 #include "vec0aux.h"
+#include "vec0hnsw.h"
+#include "vec0vec.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "ha_innopart.h"
@@ -1052,18 +1054,26 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   }
 
   /* ADD VECTOR INDEX runs INPLACE only when the hidden
-  percona_vec_aux_id column already exists — retained after a DROP INDEX,
-  or present after an IMPORT.
+  percona_vec_aux_id column already exists — retained after a DROP INDEX
+  (see the retention note in prepare_inplace_alter_table_dict) or present
+  after an IMPORT.
 
-  The FIRST ever ADD must fall back to COPY. The hidden column has to
-  materialize in the clustered record, and adding a column means
-  rewriting every row anyway; more importantly the native rebuild stamps
-  the column on each copied row and stops there, with no pass that builds
-  the index contents. COPY routes each row through write_row instead.
+  When it does, vec_build_index() populates the graph and the aux from
+  one clustered scan, reusing each row's already-stamped id as its label,
+  without rebuilding the table or writing a base row. That is the ddl0fts
+  analog for HNSW.
+
+  The FIRST ever ADD is different and must fall back to COPY: the hidden
+  column has to materialize in the clustered record, and adding a column
+  means rewriting every row. The native rebuild would stamp the column on
+  each copied row and stop there — no HNSW build pass — leaving an index
+  that silently returns nothing for every pre-existing row. COPY routes
+  each row through write_row instead, which builds the graph organically.
 
   DEVIATION FROM FTS is narrower than it looks: FTS's first ADD FULLTEXT
   also rebuilds. What FTS has and we do not is a build pass during that
-  rebuild (row0ft), which is why its rebuild leaves a populated index. */
+  rebuild (row0ft), which is why its rebuild leaves a populated index and
+  ours would not. */
   if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
       const KEY *key =
@@ -1433,7 +1443,11 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     organically because every row goes through the normal INSERT
     stamping path. The FIRST ADD VECTOR INDEX does not reach this gate —
     the old table has no vector index yet — which is why it is refused
-    earlier, on the added keys.
+    earlier, on the added keys. An earlier revision of this comment
+    argued the first ADD was safe here because it matched FTS's
+    first-ADD-FULLTEXT rebuild; the shape matches but the outcome does
+    not, because FTS has a build pass during the rebuild and we do
+    not, so that rebuild produced an empty graph over existing rows.
 
     This refusal is full FTS parity — no deviation today. If a later
     phase implements aux carry-over (copy percona_vec_aux_id, re-parent the
@@ -1476,12 +1490,31 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         break;
       }
       /* Mirror the FTS restriction above for vector indexes: ADD
-      VECTOR INDEX must not run with LOCK=NONE. The rollback path
-      (ddl::mark_secondary_indexes) drops an uncommitted vec index
-      and its aux table from the cache immediately — safe only when
-      no concurrent thread can hold a prebuilt ins_node entry_list
-      referencing the index, which SHARED lock guarantees. Same
-      reasoning FTS documents at ddl0ddl.cc mark_secondary_indexes. */
+      VECTOR INDEX must not run with LOCK=NONE. Two independent
+      reasons now, either of which is sufficient:
+
+      1. The rollback path (ddl::mark_secondary_indexes) drops an
+         uncommitted vec index and its aux table from the cache
+         immediately — safe only when no concurrent thread can hold a
+         prebuilt ins_node entry_list referencing the index, which
+         SHARED lock guarantees. Same reasoning FTS documents at
+         ddl0ddl.cc mark_secondary_indexes.
+
+      2. vec_build_index() populates the graph from one clustered scan
+         taken after the index build, outside ddl::Builder. Under
+         LOCK=NONE a concurrent INSERT would land in the row log and be
+         applied to the new index by row_log_apply, which knows nothing
+         about the graph — the row would exist in the table and not in
+         the index.
+
+      Reason 2 is the same trade FTS states directly above: "we could do
+      without a lock ... but in that case we would have to apply the
+      modification log to the full-text indexes." Upstream never built
+      that, so ADD FULLTEXT requires LOCK=SHARED too — the branch above
+      sets online = false unconditionally for HA_FULLTEXT. We are at
+      parity, and deliberately so: supporting LOCK=NONE here would be a
+      deviation BEYOND FTS, and would have to be justified as one rather
+      than treated as finishing an unfinished job. */
       if (key->flags & HA_VECTOR) {
         online = false;
         break;
@@ -6661,6 +6694,66 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
     DBUG_EXECUTE_IF("create_index_fail", err = DB_DUPLICATE_KEY;
                     m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
+
+    /* Populate any vector index this ALTER added.
+
+    The index build above is a no-op for a vector index — there is no
+    merge-sortable key to build — so the graph is built here instead,
+    from one clustered scan (vec_build_index). This only runs on the
+    INPLACE path; ADD on a table without the hidden column was refused in
+    check_if_supported_inplace_alter and came through COPY, where
+    write_row builds the graph row by row.
+
+    The aux rows are written on the ALTER's own transaction, so a failure
+    below rolls them back with everything else. */
+    if (err == DB_SUCCESS) {
+      for (ulint i = 0; i < ctx->num_to_add_index && err == DB_SUCCESS; i++) {
+        dict_index_t *vec_index = ctx->add_index[i];
+        if (!vec_index->is_vector()) continue;
+
+        const KEY *vkey = nullptr;
+        for (uint k = 0; k < altered_table->s->keys; k++) {
+          if ((altered_table->key_info[k].flags & HA_VECTOR) != 0 &&
+              innobase_strcasecmp(altered_table->key_info[k].name,
+                                  vec_index->name) == 0) {
+            vkey = &altered_table->key_info[k];
+            break;
+          }
+        }
+        if (vkey == nullptr) continue;
+
+        storage::innobase::vec::VectorIndexParam vip;
+        if (storage::innobase::vec::parse_options(*vkey, vip)) {
+          err = DB_ERROR;
+          break;
+        }
+        const auto *hp =
+            std::get_if<storage::innobase::vec::HnswParam>(&vip);
+        if (hp == nullptr) {
+          err = DB_ERROR;
+          break;
+        }
+
+        /* Same resolution as vec_runtime_open: the key part describes a
+        1-byte prefix, but its field_index() is correct. */
+        const Field *f =
+            altered_table->field[vkey->key_part[0].field->field_index()];
+        if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
+          err = DB_ERROR;
+          break;
+        }
+        const uint32_t dims =
+            down_cast<const Field_vector *>(f)->get_max_dimensions();
+
+        err = vec_build_index(m_prebuilt->trx, ctx->new_table, vec_index, dims,
+                              static_cast<uint32_t>(hp->M),
+                              static_cast<uint32_t>(hp->ef_construction),
+                              m_user_thd);
+        if (err != DB_SUCCESS) {
+          m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;
+        }
+      }
+    }
 
     /* After an error, remove all those index definitions
     from the dictionary which were defined. */

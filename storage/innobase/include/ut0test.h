@@ -268,6 +268,12 @@ struct Tester {
   Usage: vec_aux_verify db/table */
   [[nodiscard]] Ret_t vec_aux_verify(std::vector<std::string> &tokens) noexcept;
 
+  /** Run a k-NN search against the graph, loading it from the aux first.
+  Proves the graph was persisted, reloaded and answers correctly — the
+  only way to query it until the server read path exists.
+  Usage: vec_knn db/table k ef v0,v1,v2,... */
+  [[nodiscard]] Ret_t vec_knn(std::vector<std::string> &tokens) noexcept;
+
   /** Assign the next vector label for a table and print it.
   Usage: vec_next_id db/table
   @param[in]  tokens  the command

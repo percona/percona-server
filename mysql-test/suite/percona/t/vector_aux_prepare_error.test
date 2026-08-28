@@ -17,10 +17,10 @@
 
 CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 
---echo # The FIRST ADD does not use the INPLACE prepare path at all — the
---echo # hidden column has to materialize, so it falls back to COPY. With
---echo # the knob ARMED it must therefore SUCCEED: a standing guard that
---echo # the INPLACE path was not entered.
+--echo # The FIRST ADD does not use the INPLACE prepare path at all —
+--echo # the hidden column has to materialize, so it falls back to COPY.
+--echo # With the knob ARMED it must therefore SUCCEED: that is a
+--echo # standing guard that the INPLACE path was not entered.
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
@@ -28,8 +28,8 @@ SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
 --echo # Drop it again. The hidden column is retained, so the NEXT ADD
---echo # runs INPLACE and does reach the prepare path — which is where the
---echo # injected failure belongs.
+--echo # runs INPLACE and does reach the prepare path — which is where
+--echo # the injected failure belongs.
 ALTER TABLE tva DROP KEY v;
 
 --echo # Inject failure so the prepare path bails out *after* the aux was

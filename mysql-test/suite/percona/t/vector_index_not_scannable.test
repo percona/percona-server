@@ -1,0 +1,58 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: a vector index advertises no scan capabilities.
+--echo #
+--echo # It has no B-tree — DICT_VECTOR is in the "no real tree" family
+--echo # beside DICT_FTS, and its root page may be FIL_NULL. While
+--echo # index_flags() claimed the default capabilities, the optimizer
+--echo # treated it as an ordinary index: HA_KEYREAD_ONLY made it look
+--echo # like the narrowest covering index on the table, so COUNT(*)
+--echo # chose it, scanned a tree that is not there, and returned 0 with
+--echo # no error and no warning.
+--echo #
+--echo # index_flags() now returns 0 for a vector index, exactly as it
+--echo # already did for FULLTEXT. Reading one needs an API that can
+--echo # express "the k nearest to q", which the index_* family cannot.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, 10, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (2, 20, STRING_TO_VECTOR('[0,1,0,0]')),
+                     (3, 30, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo # COUNT(*) must be 3, and must not plan over the vector index.
+SELECT COUNT(*) FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1;
+
+--echo # Same answer with the primary key forced — i.e. the unforced plan
+--echo # is now correct on its own, not merely correct when steered.
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # The vector index is not offered for ordinary reads at all.
+SELECT COUNT(*) FROM t1 WHERE k > 0;
+SELECT id FROM t1 ORDER BY id;
+
+--echo # Forcing it is accepted but has no effect: an index that
+--echo # advertises no capabilities cannot be used for a scan, so the
+--echo # optimizer plans around it and the answer is still right. The
+--echo # hint is ignored, not honoured-and-wrong, which is the outcome
+--echo # that matters here.
+SELECT COUNT(*) FROM t1 FORCE INDEX (v);
+
+--echo # A non-vector index on the same table still works normally.
+ALTER TABLE t1 ADD KEY kk (k);
+SELECT COUNT(*) FROM t1 FORCE INDEX (kk);
+EXPLAIN SELECT COUNT(*) FROM t1 FORCE INDEX (kk);
+
+--echo # And the graph itself is unaffected: still populated, still
+--echo # answering.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_knn test/t1 1 16 0,0,1,0';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

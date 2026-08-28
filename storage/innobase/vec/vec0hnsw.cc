@@ -445,6 +445,102 @@ static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
   return ctx.err;
 }
 
+dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
+                       size_t ef_search, std::vector<uint64_t> *out,
+                       THD *thd) {
+  ut_a(index != nullptr && index->is_vector());
+  ut_a(q != nullptr && out != nullptr);
+  out->clear();
+
+  if (index->vec == nullptr) return DB_TABLE_NOT_FOUND;
+  auto *vec = static_cast<vec_t *>(index->vec);
+
+  MDL_ticket *mdl = nullptr;
+  dict_table_t *aux =
+      vec_aux_open_for_dml(vec->table, vec->index_id, thd, &mdl);
+  if (aux == nullptr) return DB_TABLE_NOT_FOUND;
+
+  if (!vec->loaded.load(std::memory_order_acquire)) {
+    std::lock_guard<std::mutex> g(vec->load_mutex);
+    if (!vec->loaded.load(std::memory_order_relaxed)) {
+      const dberr_t lerr = vec_runtime_load(vec, aux, thd);
+      if (lerr != DB_SUCCESS) {
+        vec_aux_close_for_dml(aux, thd, &mdl);
+        return lerr;
+      }
+    }
+  }
+
+  Vec_ctx ctx;
+  ctx.trx = nullptr;
+  ctx.aux = aux;
+  ctx.thd = thd;
+  ctx.m = vec->m;
+  ctx.vec_bytes = vec->dims * sizeof(float);
+  ctx.err = DB_SUCCESS;
+
+  /* Unlocked, like the insert path. A search does mutate — it faults
+  unloaded stubs in through load_node_cb — but load_node() takes a striped
+  lock and re-checks the node state under it, so two threads faulting the
+  same node cannot collide. */
+  *out = vec->hnsw->k_nn_search(reinterpret_cast<const char *>(q), k,
+                                ef_search, &ctx);
+
+  const dberr_t err = ctx.err;
+  vec_aux_close_for_dml(aux, thd, &mdl);
+  return err;
+}
+
+dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
+                        dict_index_t *vec_index, uint32_t dims, uint32_t m,
+                        uint32_t ef_construction, THD *thd) {
+  ut_a(trx != nullptr);
+  ut_a(vec_index != nullptr && vec_index->is_vector());
+  ut_a(dims != 0 && m != 0);
+
+  std::vector<vec_base_row_t> rows;
+  dberr_t err = vec_base_collect_rows(table, vec_index, dims, &rows);
+  if (err != DB_SUCCESS) return err;
+  if (rows.empty()) return DB_SUCCESS;
+
+  MDL_ticket *mdl = nullptr;
+  dict_table_t *aux = vec_aux_open_for_dml(table, vec_index->id, thd, &mdl);
+  if (aux == nullptr) return DB_TABLE_NOT_FOUND;
+
+  Vec_ctx ctx;
+  ctx.trx = trx;
+  ctx.aux = aux;
+  ctx.thd = thd;
+  ctx.m = m;
+  ctx.vec_bytes = dims * sizeof(float);
+  ctx.err = DB_SUCCESS;
+
+  /* A private graph, discarded below. It is not installed on the index:
+  a half-built graph must never be reachable, and if the ALTER fails
+  there is nothing to unwind. */
+  auto *graph = ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims,
+                                          &vector_distance_euclidean_squared,
+                                          m, ef_construction);
+  if (graph == nullptr) {
+    vec_aux_close_for_dml(aux, thd, &mdl);
+    return DB_OUT_OF_MEMORY;
+  }
+
+  for (const vec_base_row_t &row : rows) {
+    /* Label 0 is the empty-slot sentinel and can never be a node. A row
+    carrying it means the stamping path missed it. */
+    ut_a(row.id != 0);
+    graph->insert(row.id, row.base_pk,
+                  reinterpret_cast<const char *>(row.vec.data()), &ctx);
+    if (ctx.err != DB_SUCCESS) break;
+  }
+
+  err = ctx.err;
+  ut::delete_(graph);
+  vec_aux_close_for_dml(aux, thd, &mdl);
+  return err;
+}
+
 dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
                        uint64_t label, const char *q, ulint q_len,
                        uint64_t base_pk, THD *thd) {

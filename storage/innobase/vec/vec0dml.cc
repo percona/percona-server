@@ -398,6 +398,98 @@ static bool vec_aux_copy_field(const dict_index_t *clust, const rec_t *rec,
   return true;
 }
 
+dberr_t vec_base_collect_rows(dict_table_t *base,
+                              const dict_index_t *vec_index, uint32_t dims,
+                              std::vector<vec_base_row_t> *rows) {
+  ut_a(base != nullptr);
+  ut_a(vec_index != nullptr);
+  ut_a(rows != nullptr);
+  ut_a(dims != 0);
+  ut_a(base->vec_aux_col != ULINT_UNDEFINED);
+
+  rows->clear();
+
+  dict_index_t *clust = base->first_index();
+
+  /* The column comes from the index, never from a scan for a BLOB —
+  VECTOR, BLOB, TEXT and JSON all collapse to DATA_BLOB. See
+  vec_indexed_col_no(). */
+  ut_a(vec_index->n_fields == 1);
+  const dict_col_t *vec_col = vec_index->get_field(0)->col;
+  const ulint pos_vec = dict_col_get_clust_pos(vec_col, clust);
+  const ulint pos_id =
+      dict_col_get_clust_pos(base->get_col(base->vec_aux_col), clust);
+
+  mem_heap_t *offset_heap = nullptr;
+  mem_heap_t *row_heap = mem_heap_create(2048, UT_LOCATION_HERE);
+  dberr_t err = DB_SUCCESS;
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  btr_pcur_t pcur;
+  pcur.open_at_side(true /* left */, clust, BTR_SEARCH_LEAF, true, 0, &mtr);
+
+  ulint n_scanned = 0;
+
+  while (pcur.move_to_next_user_rec(&mtr) == DB_SUCCESS) {
+    const rec_t *rec = pcur.get_rec();
+
+    ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
+                                     UT_LOCATION_HERE, &offset_heap);
+
+    if (!rec_get_deleted_flag(rec, dict_table_is_comp(base))) {
+      const byte *vec_data = nullptr;
+      ulint vec_len = 0;
+      if (!vec_aux_copy_field(clust, rec, offsets, pos_vec, row_heap, &vec_data,
+                              &vec_len)) {
+        err = DB_CORRUPTION;
+        break;
+      }
+      /* An indexed vector column is NOT NULL (sql_table.cc), so a null
+      here means the record does not match the index we are building. */
+      if (vec_data != nullptr) {
+        if (vec_len != dims * sizeof(float)) {
+          err = DB_CORRUPTION;
+          break;
+        }
+
+        ulint id_len = 0;
+        const byte *id_ptr =
+            rec_get_nth_field(clust, rec, offsets, pos_id, &id_len);
+        ut_a(id_len == 8);
+
+        ulint pk_len = 0;
+        const byte *pk_ptr = rec_get_nth_field(clust, rec, offsets, 0, &pk_len);
+        ut_a(pk_len == 8);
+
+        const float *f = reinterpret_cast<const float *>(vec_data);
+        rows->push_back({mach_read_from_8(id_ptr),
+                         std::vector<float>(f, f + dims),
+                         mach_read_from_8(pk_ptr)});
+
+        mem_heap_empty(row_heap);
+      }
+    }
+
+    /* Batch the mtr so one long scan does not pin pages for its whole
+    duration; store and restore the cursor across the boundary. */
+    if (++n_scanned % 512 == 0) {
+      pcur.store_position(&mtr);
+      mtr_commit(&mtr);
+      mtr_start(&mtr);
+      pcur.restore_position(BTR_SEARCH_LEAF, &mtr, UT_LOCATION_HERE);
+    }
+  }
+
+  pcur.close();
+  mtr_commit(&mtr);
+
+  if (offset_heap != nullptr) mem_heap_free(offset_heap);
+  mem_heap_free(row_heap);
+
+  return err;
+}
+
 dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
                           vec_aux_read_t *out) {
   ut_a(aux != nullptr);

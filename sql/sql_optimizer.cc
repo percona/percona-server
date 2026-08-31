@@ -76,6 +76,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_row.h"
+#include "sql/item_strfunc.h"  // Item_func_vector_distance
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/iterators/basic_row_iterators.h"
@@ -834,6 +835,10 @@ bool JOIN::optimize(bool finalize_access_paths) {
 
   /* Perform FULLTEXT search before all regular searches */
   if (query_block->has_ft_funcs() && optimize_fts_query()) return true;
+
+  if (!thd->lex->using_hypergraph_optimizer() &&
+      query_block->has_vector_funcs() && optimize_vector_query())
+    return true;
 
   /*
     By setting child_subquery_can_materialize so late we gain the following:
@@ -2258,6 +2263,18 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   /* Sorting a single row can always be skipped */
   if (tab->type() == JT_EQ_REF || tab->type() == JT_CONST ||
       tab->type() == JT_SYSTEM) {
+    return true;
+  }
+
+  /* JT_VECTOR produces rows in ascending distance order — exactly the
+  single ORDER BY expression optimize_vector_query activated it for.
+  The sort is redundant (PS-11300). */
+  if (tab->type() == JT_VECTOR) {
+    assert(order.order != nullptr && order.order->next == nullptr &&
+           order.order->direction != ORDER_DESC &&
+           is_function_of_type(*order.order->item,
+                               Item_func::VECTOR_DISTANCE_FUNC) &&
+           select_limit != HA_POS_ERROR);
     return true;
   }
 
@@ -11048,6 +11065,77 @@ bool JOIN::optimize_fts_query() {
   }
 
   return init_ftfuncs(thd, query_block);
+}
+
+bool JOIN::optimize_vector_query() {
+  ASSERT_BEST_REF_IN_JOIN_ORDER(this);
+
+  // Only used by the old optimizer.
+  assert(!thd->lex->using_hypergraph_optimizer());
+
+  /* Only the canonical approximate-kNN shape activates the index:
+  a single-table block whose single ascending ORDER BY expression is a
+  distance call over the indexed column with a constant query vector,
+  under a finite LIMIT. Any other placement of a distance call (WHERE,
+  projection, no LIMIT) stays on the exact path — an approximate index
+  inside a filter silently drops qualifying rows. */
+  if (primary_tables != 1 || const_tables != 0) return false;
+  if (m_select_limit == HA_POS_ERROR) return false;
+  if (order.order == nullptr || order.order->next != nullptr ||
+      order.order->direction == ORDER_DESC) {
+    return false;
+  }
+
+  Item *order_item = (*order.order->item)->real_item();
+  if (!is_function_of_type(order_item, Item_func::VECTOR_DISTANCE_FUNC)) {
+    return false;
+  }
+  auto *dist_fn = down_cast<Item_func_vector_distance *>(order_item);
+
+  /* The index's construction metric is (squared) euclidean — the only
+  one CREATE accepts today; other query metrics order differently and
+  fall back to the exact path. */
+  if (!dist_fn->l2_index_servable()) return false;
+
+  const auto arg1 = dist_fn->arguments()[0]->real_item();
+  const auto arg2 = dist_fn->arguments()[1]->real_item();
+
+  Item *const_vector_expr;
+  const Field *vector_column;
+  if (arg1->type() == Item::FIELD_ITEM && arg2->const_for_execution()) {
+    vector_column = down_cast<const Item_field *>(arg1)->field;
+    const_vector_expr = arg2;
+  } else if (arg2->type() == Item::FIELD_ITEM && arg1->const_for_execution()) {
+    vector_column = down_cast<const Item_field *>(arg2)->field;
+    const_vector_expr = arg1;
+  } else {
+    return false;
+  }
+
+  if (vector_column->type() != MYSQL_TYPE_VECTOR) return false;
+
+  JOIN_TAB *tab = best_ref[0];
+  const TABLE *table = tab->table();
+  if (table == nullptr || table != vector_column->table) return false;
+
+  for (uint idx = 0; idx < table->s->keys; ++idx) {
+    const auto &index = table->key_info[idx];
+    /* Compare by position, not Field pointer: KEY_PART_INFO::field is
+    a key-image copy of the table field, not the same object the
+    Item_field resolved to. */
+    if (index.flags & HA_VECTOR && table->keys_in_use_for_query.is_set(idx) &&
+        index.key_part[0].field->field_index() ==
+            vector_column->field_index()) {
+      tab->set_type(JT_VECTOR);
+      tab->ref().key = idx;
+      tab->ref().key_parts = 0;
+      tab->set_index(idx);
+      tab->set_vec(const_vector_expr);
+      tab->set_vec_limit(m_select_limit);
+      return false;
+    }
+  }
+  return false;
 }
 
 /**

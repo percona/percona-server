@@ -4279,6 +4279,18 @@ bool Item_func_vector_distance::do_itemize(Parse_context *pc, Item **res) {
   // between source and replica hardware and yield slightly different
   // floating-point results.
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+
+  /* Register with the query block so the optimizer can consider the
+  vector index for the canonical kNN shape (ORDER BY ... LIMIT). WHERE
+  placement is registered too, but only the ORDER BY shape activates
+  the index — an approximate index inside a filter would silently drop
+  qualifying rows (PS-11300-search-design.md par 1.2). */
+  const auto select = pc->select;
+  if (select->parsing_place == CTX_WHERE ||
+      select->parsing_place == CTX_ORDER_BY) {
+    select->add_vector_func_to_list(this);
+  }
+
   return false;
 }
 

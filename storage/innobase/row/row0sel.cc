@@ -73,6 +73,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+#include "vec0aux.h"
 
 #include "my_dbug.h"
 
@@ -2846,6 +2847,16 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
       prebuilt->fts_doc_id =
           fts_get_doc_id_from_rec(rec_index->table, rec, rec_index, nullptr);
     }
+  }
+
+  /* Same idea for the vector index's hidden label, and the same reason it
+  is read here rather than through the row template: the column exists
+  only inside InnoDB. Only the clustered record carries it. */
+  prebuilt->vec_aux_id = 0;
+  if (rec_index->table->vec_aux_col != ULINT_UNDEFINED &&
+      rec_index->is_clustered() && !clust_templ_for_sec) {
+    prebuilt->vec_aux_id =
+        vec_get_aux_id_from_rec(rec_index->table, rec, rec_index);
   }
 
   return true;

@@ -675,7 +675,7 @@ Ret_t Tester::vec_knn(std::vector<std::string> &tokens) noexcept {
     return RET_FAIL;
   }
 
-  std::vector<uint64_t> hits;
+  std::vector<vec_hit_t> hits;
   const dberr_t err =
       vec_knn_search(vindex, q.data(), k, ef, &hits, current_thd);
   if (err != DB_SUCCESS) {
@@ -688,7 +688,7 @@ Ret_t Tester::vec_knn(std::vector<std::string> &tokens) noexcept {
   line << "hits=" << hits.size() << " base_pks=";
   for (size_t i = 0; i < hits.size(); i++) {
     if (i != 0) line << ",";
-    line << hits[i];
+    line << hits[i].base_pk;
   }
   XLOG(line.str());
   set_output(sout);

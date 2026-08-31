@@ -195,6 +195,34 @@ the column, this is how the graph side learns which label the row got.
 uint64_t vec_get_aux_id_from_row(const dict_table_t *table,
                                  const dtuple_t *row);
 
+/** Read the label stamped into a clustered index record.
+
+The record-level form of vec_get_aux_id_from_row, and the analog of
+fts_get_doc_id_from_rec: the read path has a record and offsets in hand,
+not a converted row, so it cannot use the dtuple form. Reading straight
+from the record is what lets the label be checked without adding the
+hidden column to the MySQL row template.
+
+@param[in]  table  the base table
+@param[in]  rec    a record of `index` containing percona_vec_aux_id
+@param[in]  index  the index `rec` belongs to
+@return the label; never 0 for a stamped row */
+uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
+                                 const dict_index_t *index);
+
+/** One kNN candidate: the graph node that matched, and the base row it
+names.
+
+The node id is what MVCC check (1) compares against the visible row
+version's percona_vec_aux_id. Both members are needed because a stale
+node and the node that replaced it share a base_pk — an UPDATE of the
+vector stamps a fresh label on the same row — so base_pk alone cannot
+tell the live node from the dead one. */
+struct vec_hit_t {
+  uint64_t id;
+  uint64_t base_pk;
+};
+
 /** The table column the vector index covers.
 
 The table-level form of what vec_row_vector_bytes() does per index: the

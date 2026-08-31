@@ -1201,6 +1201,12 @@ static MYSQL_THDVAR_STR(tmpdir,
 
 /* Default value is updated later in innodb_init_params due to the dependency on
 --container_aware startup option */
+static MYSQL_THDVAR_ULONG(
+    hnsw_ef_search, PLUGIN_VAR_RQCMDARG,
+    "Minimum candidate-list width for HNSW vector index searches (kNN"
+    " recall/latency knob; the effective width is max(ef, LIMIT))",
+    nullptr, nullptr, 40, 1, 100000, 0);
+
 static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           "Number of threads to do parallel read.", nullptr,
                           nullptr, 4,                   /* Default. */
@@ -7093,25 +7099,19 @@ const char *ha_innobase::table_type() const { return (innobase_hton_name); }
  @return flags of supported operations */
 
 ulong ha_innobase::index_flags(uint key, uint, bool) const {
+  /* A vector index advertises nothing, as FULLTEXT does: it is a stub at
+  the B-tree level, with the data in the aux table and the in-memory
+  graph, and its root page may be FIL_NULL. Claiming the default
+  capabilities lets the optimizer choose it for an ordinary scan, and
+  HA_KEYREAD_ONLY in particular makes it look like the narrowest covering
+  index on the table — which is how find_shortest_key picked it for
+  SELECT COUNT(*) and returned 0 from a tree that is not there.
+
+  Reads go exclusively through the JT_VECTOR kNN path
+  (vec_init / vec_read_first / vec_read_next), because "the k nearest to
+  q" cannot be expressed through the index_* family. */
   if (table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT ||
       table_share->key_info[key].algorithm == HA_KEY_ALG_VECTOR) {
-    return (0);
-  }
-
-  /* A vector index advertises nothing, exactly as FULLTEXT does above.
-
-  It has no B-tree: DICT_VECTOR sits in the "no real tree" family beside
-  DICT_FTS, and its root page may be FIL_NULL. Claiming the default
-  capabilities below would let the optimizer choose it for an ordinary
-  scan, and HA_KEYREAD_ONLY in particular makes it look like the
-  narrowest covering index on the table — so SELECT COUNT(*) picks it,
-  scans a tree that is not there, and silently returns 0.
-
-  Reading it requires an API that can express "the k nearest to q", which
-  the index_* family cannot. That is a separate handler family, the way
-  ft_init/ft_read is for FULLTEXT, and until it exists a vector index is
-  simply not readable by the optimizer. */
-  if (table_share->key_info[key].algorithm == HA_KEY_ALG_VECTOR) {
     return (0);
   }
 
@@ -8485,6 +8485,9 @@ uint ha_innobase::max_supported_key_part_length(
 
 int ha_innobase::close() {
   DBUG_TRACE;
+
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
 
   if (m_prebuilt->m_temp_read_shared) {
     temp_prebuilt_vec *vec = m_prebuilt->table->temp_prebuilt;
@@ -10967,6 +10970,15 @@ int ha_innobase::index_init(uint keynr, /*!< in: key (index) number */
 int ha_innobase::index_end(void) {
   DBUG_TRACE;
 
+  /* Where a vector scan ends. VectorSearchIterator's destructor calls
+  ha_index_or_rnd_end(), and vec_init() went through rnd_init(), so this
+  is the one hook both the normal end and an early exit reach — including
+  the LIMIT being satisfied, where vec_read_next is simply never called
+  again. The scan holds the aux table open and its MDL ticket, so leaking
+  it would keep a concurrent ALTER waiting. */
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
+
   if (m_prebuilt->index->last_sel_cur) {
     m_prebuilt->index->last_sel_cur->release();
   }
@@ -12165,6 +12177,134 @@ next_record:
   }
 
   return (HA_ERR_END_OF_FILE);
+}
+
+int ha_innobase::vec_init() {
+  DBUG_TRACE;
+
+  /* The kNN candidates are fetched from the base table by PRIMARY KEY
+  (row_ref is the PK image); rnd_init sets up the clustered-index
+  positioning the per-candidate row_search_for_mysql below relies on. */
+  return rnd_init(false);
+}
+
+/** Build the clustered-index search tuple for a candidate's base_pk.
+The primary key of a vector-indexed table is a single BIGINT UNSIGNED
+(§23), so its storage form is the 8 bytes mach_write_to_8 produces. */
+static void innobase_vec_build_pk_tuple(dtuple_t *tuple,
+                                        const dict_index_t *clust_index,
+                                        const byte *pk_image) {
+  ut_a(dict_index_get_n_unique(clust_index) == 1);
+
+  dtuple_set_n_fields(tuple, 1);
+  dict_index_copy_types(tuple, clust_index, 1);
+
+  dfield_t *dfield = dtuple_get_nth_field(tuple, 0);
+  dfield_set_data(dfield, pk_image, 8);
+  dtuple_set_n_fields_cmp(tuple, 1);
+}
+
+int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
+  DBUG_TRACE;
+
+  dict_index_t *vindex = vec_index_of(m_prebuilt->table);
+  if (vindex == nullptr || vindex->vec == nullptr) {
+    return HA_ERR_END_OF_FILE;
+  }
+
+  String buff_vec;
+  String *vec = item->val_str(&buff_vec);
+  if (vec == nullptr || vec->ptr() == nullptr) {
+    /* NULL query vector: no rows are "near" it. */
+    return HA_ERR_END_OF_FILE;
+  }
+
+  const uint32 vec_dims =
+      get_dimensions(vec->length(), Field_vector::precision);
+  if (vec_dims == UINT32_MAX || vec_dims != vec_index_dims(vindex)) {
+    return HA_ERR_END_OF_FILE;
+  }
+
+  m_vec_query.assign(vec->ptr(), vec->length());
+
+  /* A re-executed statement can reach here with a scan still open. */
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
+
+  /* LIMIT sizes the batch, not the scan: a filter above the iterator may
+  consume any number of candidates, and the scan simply continues. */
+  const dberr_t err =
+      vec_knn_open(vindex, reinterpret_cast<const float *>(m_vec_query.data()),
+                   std::max<size_t>(limit, 1),
+                   THDVAR(m_user_thd, hnsw_ef_search), m_user_thd,
+                   &m_vec_search);
+  if (err != DB_SUCCESS) {
+    return convert_error_code_to_mysql(err, m_prebuilt->table->flags,
+                                       m_user_thd);
+  }
+
+  return vec_read_next(buf);
+}
+
+int ha_innobase::vec_read_next(uchar *buf) {
+  DBUG_TRACE;
+
+  dict_table_t *table = m_prebuilt->table;
+  if (m_vec_search == nullptr) return HA_ERR_END_OF_FILE;
+
+  for (;;) {
+    vec_hit_t hit;
+    if (!vec_knn_next(m_vec_search, &hit)) {
+      /* Either the graph is exhausted or a lazy node load failed; only
+      the second is an error, and it is reported separately because
+      vec_knn_next answers just "is there another candidate". */
+      const dberr_t serr = vec_knn_error(m_vec_search);
+      if (serr != DB_SUCCESS) {
+        return convert_error_code_to_mysql(serr, table->flags, m_user_thd);
+      }
+      return HA_ERR_END_OF_FILE;
+    }
+
+    byte pk_image[8];
+    mach_write_to_8(pk_image, hit.base_pk);
+
+    dict_index_t *clust_index = table->first_index();
+    m_prebuilt->index = clust_index;
+    dtuple_t *tuple = m_prebuilt->search_tuple;
+    innobase_vec_build_pk_tuple(tuple, clust_index, pk_image);
+
+    auto ret = innobase_srv_conc_enter_innodb(m_prebuilt);
+    if (ret == DB_SUCCESS) {
+      ret = row_search_for_mysql(buf, PAGE_CUR_GE, m_prebuilt, ROW_SEL_EXACT,
+                                 0);
+      innobase_srv_conc_exit_innodb(m_prebuilt);
+    }
+
+    if (ret == DB_SUCCESS) {
+      /* MVCC check (1). The row exists and is visible, but the version
+      this reader sees need not be the one the graph node describes: an
+      UPDATE of the vector stamps a fresh label and leaves the old node
+      behind, so the node is stale for anyone whose view has the new
+      version. row_search_for_mysql has just read the label out of the
+      visible record; the node id is what the graph returned for it.
+      Equal means the node still describes this version. */
+      if (m_prebuilt->vec_aux_id != hit.id) {
+        continue;
+      }
+      return 0;
+    }
+
+    /* MVCC check (2). Not found, or not visible under this reader's read
+    view: an uncommitted point from another transaction, a row deleted
+    after the graph saw it, or an orphan from a rolled-back insert. Skip
+    to the next candidate — returning EOF here would truncate results
+    under concurrency. */
+    if (ret == DB_RECORD_NOT_FOUND || ret == DB_END_OF_INDEX) {
+      continue;
+    }
+
+    return convert_error_code_to_mysql(ret, table->flags, m_user_thd);
+  }
 }
 
 /*************************************************************************
@@ -19664,6 +19804,14 @@ exists for readability only. ha_innobase::reset() doesn't give any
 clue about the method. */
 
 int ha_innobase::end_stmt() {
+  /* An open vector scan cannot outlive the statement. index_end() is the
+  ordinary end, reached through the iterator's destructor, but that runs
+  ha_index_or_rnd_end() — a no-op once ha_reset() has cleared `inited`,
+  which happens first. The scan pins the aux table, so leaking it here
+  makes the next DROP of that table fail its reference-count assertion. */
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
+
   if (m_prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(m_prebuilt);
   }
@@ -24872,6 +25020,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(fill_factor),
     MYSQL_SYSVAR(ft_cache_size),
     MYSQL_SYSVAR(ft_total_cache_size),
+    MYSQL_SYSVAR(hnsw_ef_search),
     MYSQL_SYSVAR(ft_result_cache_limit),
     MYSQL_SYSVAR(ft_enable_stopword),
     MYSQL_SYSVAR(ft_max_token_size),

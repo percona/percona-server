@@ -244,6 +244,32 @@ uint64_t vec_get_aux_id_from_row(const dict_table_t *table,
   return mach_read_from_8(static_cast<const byte *>(dfield_get_data(df)));
 }
 
+uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
+                                 const dict_index_t *index) {
+  ut_a(table->vec_aux_col != ULINT_UNDEFINED);
+
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  ulint *offsets = offsets_;
+  mem_heap_t *heap = nullptr;
+
+  rec_offs_init(offsets_);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
+
+  const ulint pos = index->get_col_pos(table->vec_aux_col);
+  ut_a(pos != ULINT_UNDEFINED);
+
+  ulint len;
+  const byte *data = rec_get_nth_field(nullptr, rec, offsets, pos, &len);
+  ut_a(len == 8);
+  const uint64_t label = mach_read_from_8(data);
+
+  if (heap != nullptr) {
+    mem_heap_free(heap);
+  }
+  return label;
+}
+
 ulint vec_indexed_col_no(const dict_table_t *table) {
   for (const dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {

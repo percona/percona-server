@@ -1328,6 +1328,13 @@ class Item_func_vector_distance final : public Item_real_func {
   const char *func_name() const override { return "distance"; }
   enum Functype functype() const override { return VECTOR_DISTANCE_FUNC; }
   double val_real() override;
+
+  /** @return true if an L2 (euclidean) HNSW index orders rows the same
+  way this call does — EUCLIDEAN is a monotonic (sqrt) transform of the
+  index's native squared metric, so both are servable (PS-11300). */
+  bool l2_index_servable() const {
+    return m_metric == EUCLIDEAN || m_metric == EUCLIDEAN_SQUARED;
+  }
 };
 
 class Item_func_uncompress final : public Item_str_func {

@@ -3309,6 +3309,10 @@ bool Query_block::convert_subquery_to_semijoin(
       add_ftfunc_list(subq_query_block->ftfunc_list))
     return true; /* purecov: inspected */
 
+  if (subq_query_block->vector_func_list->elements &&
+      add_vector_func_list(subq_query_block->vector_func_list))
+    return true;
+
   if (do_aj)
     has_aj_nests = true;
   else
@@ -3575,6 +3579,11 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
   if (derived_query_block->ftfunc_list->elements &&
       add_ftfunc_list(derived_query_block->ftfunc_list))
     return true; /* purecov: inspected */
+
+  // Add any vector distance functions from derived table into outer query
+  if (derived_query_block->vector_func_list->elements &&
+      add_vector_func_list(derived_query_block->vector_func_list))
+    return true;
 
   /*
     The "laterality" of this nest is not interesting anymore; it was
@@ -3963,6 +3972,16 @@ bool Query_block::add_ftfunc_list(List<Item_func_match> *ftfuncs) {
   List_iterator_fast<Item_func_match> li(*ftfuncs);
   while ((ifm = li++)) {
     if (ftfunc_list->push_back(ifm)) return true; /* purecov: inspected */
+  }
+  return false;
+}
+
+bool Query_block::add_vector_func_list(
+    List<Item_func_vector_distance> *vfuncs) {
+  Item_func_vector_distance *vf;
+  List_iterator_fast<Item_func_vector_distance> li(*vfuncs);
+  while ((vf = li++)) {
+    if (vector_func_list->push_back(vf)) return true;
   }
   return false;
 }

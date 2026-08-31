@@ -877,6 +877,13 @@ class JOIN {
   bool optimize_fts_query();
 
   /**
+    Activate JT_VECTOR access for the canonical approximate-kNN shape:
+    single table, ORDER BY <distance-func>(vector_col, const) with a
+    finite LIMIT, L2-servable metric (PS-11300).
+  */
+  bool optimize_vector_query();
+
+  /**
     Checks if the chosen plan suffers from a problem related to full-text search
     and streaming aggregation, which is likely to cause wrong results or make
     the query misbehave in other ways, and raises an error if so. Only to be

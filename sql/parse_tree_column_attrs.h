@@ -498,8 +498,9 @@ class PT_column_format_column_attr : public PT_column_attr_base {
   column_format_type format;
 
  public:
-  explicit PT_column_format_column_attr(const POS &pos,
-      column_format_type format, const LEX_CSTRING &zip_dict_name) noexcept
+  explicit PT_column_format_column_attr(
+      const POS &pos, column_format_type format,
+      const LEX_CSTRING &zip_dict_name) noexcept
       : super(pos), format(format), m_zip_dict_name(zip_dict_name) {}
 
   void apply_type_flags(ulong *type_flags) const override {

@@ -239,8 +239,9 @@ Upgrade_error_counter Upgrade_error_counter::operator++(int) {
 namespace {
 
 static std::vector<uint> ignored_errors{
-    ER_DUP_FIELDNAME, ER_DUP_KEYNAME, ER_BAD_FIELD_ERROR,
-    ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2, ER_DUP_ENTRY, ER_NO_SUCH_TABLE};
+    ER_DUP_FIELDNAME,   ER_DUP_KEYNAME,
+    ER_BAD_FIELD_ERROR, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
+    ER_DUP_ENTRY,       ER_NO_SUCH_TABLE};
 
 template <typename T>
 class Server_option_guard {
@@ -1416,7 +1417,8 @@ static const char *percona_telemetry_install[] = {
     "THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',"
     "CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);\n",
     "UPDATE mysql.user SET Select_priv = 'Y', Repl_slave_priv = 'Y', "
-    "Repl_client_priv = 'Y' WHERE User = 'percona.telemetry' AND Host = 'localhost';\n",
+    "Repl_client_priv = 'Y' WHERE User = 'percona.telemetry' AND Host = "
+    "'localhost';\n",
     "UPDATE mysql.user SET Shutdown_priv = 'N', Super_priv = 'N', "
     "Create_role_priv = 'N', Drop_role_priv = 'N' WHERE User = "
     "'percona.telemetry' AND Host = 'localhost';\n",
@@ -1426,7 +1428,8 @@ static const char *percona_telemetry_uninstall[] = {
     "USE mysql;\n",
     "DELETE FROM mysql.component WHERE "
     "component_urn=\"file://component_percona_telemetry\"\n;",
-    "DELETE FROM mysql.user WHERE user='percona.telemetry' AND Host = 'localhost';\n",
+    "DELETE FROM mysql.user WHERE user='percona.telemetry' AND Host = "
+    "'localhost';\n",
     NULL};
 
 /**

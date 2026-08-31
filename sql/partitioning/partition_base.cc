@@ -24,8 +24,8 @@
 #define MYSQL_SERVER 1
 #define LOG_SUBSYSTEM_TAG "partition_base"
 
-#include "partition_base.h"
 #include "mysql/psi/mysql_file.h"
+#include "partition_base.h"
 #include "pfs_file_provider.h"
 #include "scope_guard.h"
 #include "sql/partition_info.h"  // partition_info
@@ -2387,8 +2387,7 @@ int Partition_base::rnd_init_in_part(uint part_id, bool scan) {
     @retval != 0  Error code
 */
 
-int Partition_base::rnd_end_in_part(uint part_id,
-                                    bool scan [[maybe_unused]]) {
+int Partition_base::rnd_end_in_part(uint part_id, bool scan [[maybe_unused]]) {
   return m_file[part_id]->ha_rnd_end();
 }
 

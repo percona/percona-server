@@ -1785,7 +1785,8 @@ extern "C" long long thd_start_time(const THD *thd) {
 
 extern "C" void thd_kill(ulong id) {
   Find_thd_with_id find_thd_with_id(id, false);
-  THD_ptr thd_ptr = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  THD_ptr thd_ptr =
+      Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (!thd_ptr) return;
 
   thd_ptr->awake(THD::KILL_CONNECTION);
@@ -2233,9 +2234,9 @@ void THD::shutdown_active_vio() {
 const char *get_client_host(const THD &client) noexcept {
   return client.security_context()->host_or_ip().length
              ? client.security_context()->host_or_ip().str
-             : client.security_context()->host().length
-                   ? client.security_context()->host().str
-                   : "";
+         : client.security_context()->host().length
+             ? client.security_context()->host().str
+             : "";
 }
 
 void THD::shutdown_clone_vio() {

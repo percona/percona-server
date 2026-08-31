@@ -2448,7 +2448,6 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
   close_temporary(thd, table, free_share, delete_table);
 
   mysql_mutex_unlock(&thd->LOCK_temporary_tables);
-
 }
 
 /*
@@ -10937,8 +10936,8 @@ Table_node::Table_node(const TABLE *table_arg)
   }
 }
 
-inline Column_node *Table_node::get_column_node(const Field *field) const
-    noexcept {
+inline Column_node *Table_node::get_column_node(
+    const Field *field) const noexcept {
   return columns[field->field_index()];
 }
 
@@ -10993,8 +10992,8 @@ class Const_ordered_table_node final : public Or_node {
 
 Const_ordered_table_node::Const_ordered_table_node(const TABLE *table_arg)
     : table(table_arg),
-      ordered_table_node(new (*THR_MALLOC) Table_node(table)),
-      const_table_node(new (*THR_MALLOC) Table_node(table)) {
+      ordered_table_node(new(*THR_MALLOC) Table_node(table)),
+      const_table_node(new(*THR_MALLOC) Table_node(table)) {
   add_successor(ordered_table_node);
   add_successor(const_table_node);
 }
@@ -11138,7 +11137,7 @@ void Join_node::add_const_equi_columns(Item *cond) {
   if (is_cond_or(cond)) return;
   if (is_cond_and(cond)) {
     const List<Item> *args = ((const Item_cond *)cond)->argument_list();
-    List_iterator<Item> it(*const_cast<List<Item>*>(args));
+    List_iterator<Item> it(*const_cast<List<Item> *>(args));
     Item *c;
     while ((c = it++)) add_const_equi_columns(c);
     return;
@@ -11181,7 +11180,7 @@ void Join_node::add_const_equi_columns(Item *cond) {
       }
     } else {
       auto it = equal->get_fields().begin();
-      Item_field& first_item = *it++;
+      Item_field &first_item = *it++;
       for (; it != equal->get_fields().end(); ++it) {
         add_equi_column(first_item.field, it->field);
       }

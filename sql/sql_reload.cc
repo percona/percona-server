@@ -53,7 +53,7 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // reset_mqh
 #include "sql/sql_const.h"
-#include "sql/sql_error.h"    // push_deprecated_warn_no_replacement
+#include "sql/sql_error.h"  // push_deprecated_warn_no_replacement
 #include "sql/sql_profile.h"
 #include "sql/sql_servers.h"  // servers_reload
 #include "sql/system_variables.h"
@@ -252,8 +252,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
   }
 
-  assert(!thd || thd->locked_tables_mode ||
-         !thd->mdl_context.has_locks() ||
+  assert(!thd || thd->locked_tables_mode || !thd->mdl_context.has_locks() ||
          !thd->handler_tables_hash.empty() ||
          thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
          thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||

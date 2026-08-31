@@ -1162,38 +1162,37 @@ bool Log_event::need_checksum() {
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options)
             : mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
 
-  assert(
-      !ret ||
-      ((common_footer->checksum_alg ==
-            static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
-        /*
-           Stop event closes the relay-log and its checksum alg
-           preference is set by the caller can be different
-           from the server's binlog_checksum_options.
-        */
-        get_type_code() == mysql::binlog::event::STOP_EVENT ||
-        /*
-           Rotate:s can be checksummed regardless of the server's
-           binlog_checksum_options. That applies to both
-           the local RL's Rotate and the master's Rotate
-           which IO thread instantiates via queue_binlog_ver_3_event.
-        */
-        get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
-        /*
-           The previous event has its checksum option defined
-           according to the format description event.
-        */
-        get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
-        /* FD is always checksummed */
-        get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
-        /*
-           View_change_log_event is queued into relay log by the
-           local member, which may have a different checksum algorithm
-           than the one of the event source.
-        */
-        get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) &&
-       common_footer->checksum_alg !=
-           mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
+  assert(!ret ||
+         ((common_footer->checksum_alg ==
+               static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) ||
+           /*
+              Stop event closes the relay-log and its checksum alg
+              preference is set by the caller can be different
+              from the server's binlog_checksum_options.
+           */
+           get_type_code() == mysql::binlog::event::STOP_EVENT ||
+           /*
+              Rotate:s can be checksummed regardless of the server's
+              binlog_checksum_options. That applies to both
+              the local RL's Rotate and the master's Rotate
+              which IO thread instantiates via queue_binlog_ver_3_event.
+           */
+           get_type_code() == mysql::binlog::event::ROTATE_EVENT ||
+           /*
+              The previous event has its checksum option defined
+              according to the format description event.
+           */
+           get_type_code() == mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT ||
+           /* FD is always checksummed */
+           get_type_code() == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT ||
+           /*
+              View_change_log_event is queued into relay log by the
+              local member, which may have a different checksum algorithm
+              than the one of the event source.
+           */
+           get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) &&
+          common_footer->checksum_alg !=
+              mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF));
 
   assert(common_footer->checksum_alg !=
          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
@@ -1539,8 +1538,8 @@ static void my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits) {
   my_b_printf(file, "b'");
   for (bitnum = skip_bits; bitnum < nbits8; bitnum++) {
     const int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
-    [[maybe_unused]]
-    int write_res = my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
+    [[maybe_unused]] int write_res =
+        my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
     assert(write_res == 0);
   }
   my_b_printf(file, "'");
@@ -4046,8 +4045,8 @@ void Query_log_event::print_query_header(
   end = my_stpcpy(end, print_event_info->delimiter);
   *end++ = '\n';
   assert(end < buff + sizeof(buff));
-  [[maybe_unused]]
-  int write_res = my_b_write(file, (uchar *)buff, (uint)(end - buff));
+  [[maybe_unused]] int write_res =
+      my_b_write(file, (uchar *)buff, (uint)(end - buff));
   assert(write_res == 0);
   if (!print_event_info->require_row_format &&
       (!print_event_info->thread_id_printed ||
@@ -4220,8 +4219,8 @@ void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   DBUG_EXECUTE_IF("simulate_file_write_error",
                   { head->write_pos = head->write_end - 500; });
   print_query_header(head, print_event_info);
-  [[maybe_unused]]
-  int write_res = my_b_write(head, pointer_cast<const uchar *>(query), q_len);
+  [[maybe_unused]] int write_res =
+      my_b_write(head, pointer_cast<const uchar *>(query), q_len);
   assert(write_res == 0);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
 }
@@ -5507,9 +5506,8 @@ void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   print_header(head, print_event_info, false);
   my_b_printf(head, "\tRotate to ");
   if (new_log_ident) {
-    [[maybe_unused]]
-    int write_res = my_b_write(head, pointer_cast<const uchar *>(new_log_ident),
-                               (uint)ident_len);
+    [[maybe_unused]] int write_res = my_b_write(
+        head, pointer_cast<const uchar *>(new_log_ident), (uint)ident_len);
     assert(write_res == 0);
   }
   my_b_printf(head, "  pos: %s\n", llstr(pos, buf));
@@ -6649,8 +6647,8 @@ void User_var_log_event::print(FILE *,
   quoted_len =
       my_strmov_quoted_identifier((char *)quoted_id, (const char *)name_id);
   quoted_id[quoted_len] = '\0';
-  [[maybe_unused]]
-  int write_res = my_b_write(head, (uchar *)quoted_id, quoted_len);
+  [[maybe_unused]] int write_res =
+      my_b_write(head, (uchar *)quoted_id, quoted_len);
   assert(write_res == 0);
 
   if (is_null) {
@@ -7846,16 +7844,16 @@ Rows_log_event::Rows_log_event(
                     /* Check extra data has expected value */
                     check_extra_row_ndb_info(m_extra_row_info.get_ndb_info()););
 
-  /*
-     m_cols and m_cols_ai are of the type MY_BITMAP, which are members of
-     class Rows_log_event, and are used while applying the row events on
-     the slave.
-     The bitmap integer is initialized by copying the contents of the
-     vector column_before_image for m_cols.bitamp, and vector
-     column_after_image for m_cols_ai.bitmap. m_cols_ai is only initialized
-     for UPDATE_ROWS_EVENTS, else it is equal to the before image.
-  */
-  /* if bitmap_init fails, is_valid will be set to false */
+    /*
+       m_cols and m_cols_ai are of the type MY_BITMAP, which are members of
+       class Rows_log_event, and are used while applying the row events on
+       the slave.
+       The bitmap integer is initialized by copying the contents of the
+       vector column_before_image for m_cols.bitamp, and vector
+       column_after_image for m_cols_ai.bitmap. m_cols_ai is only initialized
+       for UPDATE_ROWS_EVENTS, else it is equal to the before image.
+    */
+    /* if bitmap_init fails, is_valid will be set to false */
 #if defined(__GNUC__) && (__GNUC__ >= 14)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
@@ -10124,9 +10122,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         break;
 
       case ROW_LOOKUP_NOT_NEEDED:
-        assert(get_general_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT ||
-               get_general_type_code() == mysql::binlog::event::DELETE_ROWS_EVENT ||
-               get_general_type_code() == mysql::binlog::event::UPDATE_ROWS_EVENT);
+        assert(
+            get_general_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT ||
+            get_general_type_code() ==
+                mysql::binlog::event::DELETE_ROWS_EVENT ||
+            get_general_type_code() == mysql::binlog::event::UPDATE_ROWS_EVENT);
 
         /* No need to scan for rows, just apply it */
         do_apply_row_ptr = &Rows_log_event::do_apply_row;

@@ -593,8 +593,8 @@ bool File_query_log::open() {
 
   {
     char log_creation_time[iso8601_size];
-    Mysql_timestamp_imp::make_iso8601_timestamp(log_creation_time, my_micro_time(),
-                           iso8601_sysvar_logtimestamps);
+    Mysql_timestamp_imp::make_iso8601_timestamp(
+        log_creation_time, my_micro_time(), iso8601_sysvar_logtimestamps);
 
     char *end;
     const size_t len =
@@ -1989,7 +1989,8 @@ static void copy_global_to_session(THD *thd, ulong flag, const Val *val) {
                     std::is_unsigned<Val>::value,
                 "Check value type passed to copy_global_to_session template");
 
-  const ptrdiff_t offset = ((const char *)val - (const char *)&global_system_variables);
+  const ptrdiff_t offset =
+      ((const char *)val - (const char *)&global_system_variables);
   if (opt_slow_query_log_use_global_control & (1ULL << flag))
     *(Val *)((char *)&thd->variables + offset) = *val;
 }
@@ -2023,7 +2024,8 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
        opt_log_queries_not_using_indexes &&
        !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND));
   const bool log_this_query =
-      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index || warn_failed_query) &&
+      ((thd->server_status & SERVER_QUERY_WAS_SLOW) || warn_no_index ||
+       warn_failed_query) &&
       (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
 
   // The docs say slow queries must be counted even when the log is off.
@@ -2100,7 +2102,7 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
     }
 
     const bool suppress_logging =
-      log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
+        log_throttle_qni.log(thd, warn_no_index && warn_failed_query);
 
     if (!suppress_logging && log_this_query) return true;
   }

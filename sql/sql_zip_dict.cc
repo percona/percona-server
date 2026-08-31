@@ -165,9 +165,9 @@ delete)
 @return TABLE* on success else nullptr */
 static TABLE *open_dictionary_table_write(THD *thd) {
   Table_ref tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
-                       COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
-                       MDL_SHARED_NO_READ_WRITE);
+                      STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+                      COMPRESSION_DICTIONARY_TABLE, TL_WRITE,
+                      MDL_SHARED_NO_READ_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
 
   const uint flags = (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |
@@ -196,8 +196,8 @@ static TABLE *open_dictionary_table_read(THD *thd) {
   thd->begin_attachable_ro_transaction();
 
   Table_ref tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_DB),
-                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
-                       COMPRESSION_DICTIONARY_TABLE, TL_READ);
+                      STRING_WITH_LEN(COMPRESSION_DICTIONARY_TABLE),
+                      COMPRESSION_DICTIONARY_TABLE, TL_READ);
   tablelist.next_local = tablelist.next_global = nullptr;
 
   uint flags = (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |
@@ -247,9 +247,9 @@ table mysql.compression_dictionary
 
 static TABLE *open_dictionary_cols_table_write(THD *thd) {
   Table_ref tablelist(STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_DB),
-                       STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
-                       COMPRESSION_DICTIONARY_COLS_TABLE,
-                       TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);
+                      STRING_WITH_LEN(COMPRESSION_DICTIONARY_COLS_TABLE),
+                      COMPRESSION_DICTIONARY_COLS_TABLE,
+                      TL_WRITE_CONCURRENT_DEFAULT, MDL_SHARED_WRITE);
   tablelist.next_local = tablelist.next_global = nullptr;
 
   const uint flags = (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |

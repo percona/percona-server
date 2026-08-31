@@ -64,8 +64,8 @@
 #include "sql/sql_class.h"      // THD
 #include "sql/system_variables.h"
 #include "sql_string.h"
-#include "strings/m_ctype_internals.h"
 #include "string_with_len.h"
+#include "strings/m_ctype_internals.h"
 #include "typelib.h"
 #include "unsafe_string_append.h"
 

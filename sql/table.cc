@@ -2088,7 +2088,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   assert(share->fields >= frm_context->stored_fields);
   assert(share->reclength >= share->stored_rec_length);
 
-
   /* Use share mem root for zip dict name and data */
   for (uint i2 = 0; i2 < share->fields; ++i2) {
     Field *field = share->field[i2];

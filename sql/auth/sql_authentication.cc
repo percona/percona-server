@@ -3128,9 +3128,10 @@ skip_to_ssl:
       SSL context is kept till the end of function
     */
     {
-      const bool admin_ctx = thd->is_admin_connection() && g_admin_ssl_configured;
+      const bool admin_ctx =
+          thd->is_admin_connection() && g_admin_ssl_configured;
       Lock_and_access_ssl_acceptor_context context(admin_ctx ? mysql_admin
-                                                            : mysql_main);
+                                                             : mysql_main);
 
       /* Do the SSL layering. */
       if (!context.have_ssl()) return packet_error;
@@ -4662,7 +4663,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   ret = 0;
 end:
   if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
-  /* Ready to handle queries */
+    /* Ready to handle queries */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
   LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();

@@ -530,7 +530,8 @@ class PT_table_sequence_function : public PT_table_reference {
   typedef PT_table_reference super;
 
  public:
-  PT_table_sequence_function(const POS &pos, Item *expr, const LEX_CSTRING &table_alias)
+  PT_table_sequence_function(const POS &pos, Item *expr,
+                             const LEX_CSTRING &table_alias)
       : super(pos), m_expr(expr), m_table_alias(table_alias) {}
 
   bool do_contextualize(Parse_context *pc) override;

@@ -530,7 +530,8 @@ class PT_table_sequence_function : public PT_table_reference {
   typedef PT_table_reference super;
 
  public:
-  PT_table_sequence_function(const POS &pos, Item *expr, const LEX_CSTRING &table_alias)
+  PT_table_sequence_function(const POS &pos, Item *expr,
+                             const LEX_CSTRING &table_alias)
       : super(pos), m_expr(expr), m_table_alias(table_alias) {}
 
   bool do_contextualize(Parse_context *pc) override;
@@ -3098,8 +3099,8 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
     @param opt_query_expression       NULL or the @SQL{@B{SELECT}} clause.
   */
   PT_create_table_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, bool is_temporary,
-      bool only_if_not_exists, Table_ident *table_name,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      bool is_temporary, bool only_if_not_exists, Table_ident *table_name,
       const Mem_root_array<PT_table_element *> *opt_table_element_list,
       const Mem_root_array<PT_create_table_option *> *opt_create_table_options,
       PT_partition *opt_partitioning, On_duplicate on_duplicate,
@@ -3124,9 +3125,10 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
     @param table_name         @SQL{CREATE %TABLE ... @B{@<table name@>}}.
     @param opt_like_clause    NULL or the @SQL{@B{LIKE @<table name@>}} clause.
   */
-  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                       bool is_temporary, bool only_if_not_exists,
-                       Table_ident *table_name, Table_ident *opt_like_clause)
+  PT_create_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                       PT_hint_list *opt_hints, bool is_temporary,
+                       bool only_if_not_exists, Table_ident *table_name,
+                       Table_ident *opt_like_clause)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
         is_temporary(is_temporary),
@@ -4969,7 +4971,8 @@ class PT_alter_table_import_tablespace final
 class PT_alter_table_stmt final : public PT_table_ddl_stmt_base {
  public:
   explicit PT_alter_table_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, Table_ident *table_name,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      Table_ident *table_name,
       Mem_root_array<PT_ddl_table_option *> *opt_actions,
       Alter_info::enum_alter_table_algorithm algo,
       Alter_info::enum_alter_table_lock lock,
@@ -4998,8 +5001,8 @@ class PT_alter_table_stmt final : public PT_table_ddl_stmt_base {
 class PT_alter_table_standalone_stmt final : public PT_table_ddl_stmt_base {
  public:
   explicit PT_alter_table_standalone_stmt(
-      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints, Table_ident *table_name,
-      PT_alter_table_standalone_action *action,
+      const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+      Table_ident *table_name, PT_alter_table_standalone_action *action,
       Alter_info::enum_alter_table_algorithm algo,
       Alter_info::enum_alter_table_lock lock,
       Alter_info::enum_with_validation validation)
@@ -5048,8 +5051,8 @@ class PT_repair_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_analyze_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                        bool no_write_to_binlog,
+  PT_analyze_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                        PT_hint_list *opt_hints, bool no_write_to_binlog,
                         Mem_root_array<Table_ident *> *table_list,
                         Sql_cmd_analyze_table::Histogram_command command,
                         int num_buckets, List<String> *columns, LEX_STRING data,
@@ -5079,7 +5082,8 @@ class PT_analyze_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_check_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+  PT_check_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                      PT_hint_list *opt_hints,
                       Mem_root_array<Table_ident *> *table_list,
                       decltype(HA_CHECK_OPT::flags) flags,
                       decltype(HA_CHECK_OPT::sql_flags) sql_flags)
@@ -5100,8 +5104,8 @@ class PT_check_table_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_optimize_table_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_optimize_table_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
-                         bool no_write_to_binlog,
+  PT_optimize_table_stmt(const POS &pos, MEM_ROOT *mem_root,
+                         PT_hint_list *opt_hints, bool no_write_to_binlog,
                          Mem_root_array<Table_ident *> *table_list)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),
@@ -5261,7 +5265,8 @@ class PT_load_index_partitions_stmt final : public PT_table_ddl_stmt_base {
 
 class PT_load_index_stmt final : public PT_table_ddl_stmt_base {
  public:
-  PT_load_index_stmt(const POS &pos, MEM_ROOT *mem_root, PT_hint_list *opt_hints,
+  PT_load_index_stmt(const POS &pos, MEM_ROOT *mem_root,
+                     PT_hint_list *opt_hints,
                      Mem_root_array<PT_preload_keys *> *preload_list)
       : PT_table_ddl_stmt_base(pos, mem_root),
         m_opt_hints(opt_hints),

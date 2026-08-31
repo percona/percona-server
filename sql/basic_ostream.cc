@@ -75,8 +75,7 @@ bool IO_CACHE_ostream::truncate(my_off_t offset) {
 
   if (my_chsize(m_io_cache.file, offset, 0, MYF(MY_WME))) return true;
 
-  [[maybe_unused]]
-  const auto reinit_res =
+  [[maybe_unused]] const auto reinit_res =
       reinit_io_cache(&m_io_cache, WRITE_CACHE, offset, false, true);
   assert(reinit_res == 0);
   return false;

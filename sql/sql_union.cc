@@ -91,7 +91,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_tmp_table.h"  // tmp tables
+#include "sql/sql_tmp_table.h"   // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thd_raii.h"
 #include "sql/visible_fields.h"
@@ -1860,7 +1860,8 @@ void Query_expression::cleanup(bool full) {
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) {
 #ifndef NDEBUG
     if (cleaned == UC_CLEAN)
-      for (Query_block *qb = first_query_block(); qb; qb = qb->next_query_block())
+      for (Query_block *qb = first_query_block(); qb;
+           qb = qb->next_query_block())
         assert(!qb->join);
 #endif
     return;

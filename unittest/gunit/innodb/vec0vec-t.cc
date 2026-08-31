@@ -87,7 +87,7 @@ TEST_F(Vec0VecTest, HnswMetricEuclidean) {
             "  KEY(v1) TYPE hnsw WITH (metric = euclidean)"
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
-  EXPECT_EQ("euclidean"s, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
 }
 
 TEST_F(Vec0VecTest, NonSeSpecificAlgorithm) {

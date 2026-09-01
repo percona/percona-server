@@ -262,6 +262,10 @@ our $ports_per_thread   = 30;
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
 #
+# @DEFAULT_SUITES is divided into three groups, separated by blank lines:
+#   1. Default upstream MTR suites
+#   2. Percona-added MTR suites
+#   3. Non-default upstream MTR suites
 our @DEFAULT_SUITES = qw(
   auth_sec
   binlog
@@ -303,6 +307,7 @@ our @DEFAULT_SUITES = qw(
   component_keyring_file
 
   audit_log
+  auth_openid_connect
   component_audit_log_filter
   percona
   percona_binlog

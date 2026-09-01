@@ -1,6 +1,12 @@
 --source include/big_test.inc
 --source include/have_encryption_udf_component.inc
 
+let $have_arm64 = `SELECT convert(@@version_compile_machine USING latin1) IN ("arm64", "aarch64")`;
+if ($have_arm64)
+{
+   skip Test requires: 'not ARM64';
+}
+
 --let $key_length = 4096
 
 --source ../include/dh.inc

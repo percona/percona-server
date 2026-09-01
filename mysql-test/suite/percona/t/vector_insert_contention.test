@@ -1,0 +1,115 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: many concurrent INSERTs into one vector index.
+--echo #
+--echo # vector_concurrent_insert covers correctness under a light,
+--echo # near-uncontended interleaving. This one drives enough load to
+--echo # make the graph's hot rows actually contend.
+--echo #
+--echo # Contention is expected here and is not a failure. Every insert
+--echo # rewires the nodes near the entry point, so the aux rows for the
+--echo # first-inserted nodes are touched by almost every insert, and the
+--echo # sub-transaction holds their X locks until the whole graph insert
+--echo # finishes. Statements therefore queue on those rows and some are
+--echo # rolled back by the deadlock detector or the lock wait timeout.
+--echo #
+--echo # What must hold regardless is the invariant: whatever survives is
+--echo # consistent. One node per committed row, no id issued twice, no
+--echo # two nodes naming the same row. A statement that aborts must take
+--echo # its aux rows with it and leave nothing behind.
+--echo #
+
+--let $to_save = `SELECT @@global.innodb_lock_wait_timeout`
+# Keep the test quick: contention here resolves or times out, and the
+# default 50s would make a timing-out connection dominate the runtime.
+SET GLOBAL innodb_lock_wait_timeout = 3;
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+                v VECTOR(4) NOT NULL,
+                KEY (v) TYPE hnsw WITH (M = 4));
+
+DELIMITER |;
+CREATE PROCEDURE ins(n INT, seedv INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < n DO
+    INSERT INTO t (v) VALUES (STRING_TO_VECTOR(CONCAT('[',
+        (seedv*7+i)%97/97.0, ',', (seedv*13+i)%89/89.0, ',',
+        (seedv*3+i)%83/83.0, ',', (seedv*11+i)%79/79.0, ']')));
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+
+--connect (c1,localhost,root,,test)
+--connect (c2,localhost,root,,test)
+--connect (c3,localhost,root,,test)
+--connect (c4,localhost,root,,test)
+--connect (c5,localhost,root,,test)
+--connect (c6,localhost,root,,test)
+
+--connection c1
+--send CALL ins(120, 1)
+--connection c2
+--send CALL ins(120, 2)
+--connection c3
+--send CALL ins(120, 3)
+--connection c4
+--send CALL ins(120, 4)
+--connection c5
+--send CALL ins(120, 5)
+--connection c6
+--send CALL ins(120, 6)
+
+# Which connections lose the race varies run to run, so the errors are
+# tolerated rather than recorded.
+--connection c1
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c2
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c3
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c4
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c5
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c6
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+
+--connection default
+
+# How many rows survived depends on who aborted, so the count is compared
+# against the graph rather than recorded. labels_contiguous_from_1 is left
+# out of the comparison: a rolled-back insert has already consumed its
+# label, so gaps are expected exactly when contention aborted something.
+--let $rows = `SELECT COUNT(*) FROM t FORCE INDEX (PRIMARY)`
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t';
+--let $ok = `SELECT @@session.innodb_interpreter_output LIKE 'nodes=$rows distinct_ids=$rows distinct_base_pks=$rows dup_ids=0 dup_base_pks=0%'`
+
+if (!$ok) {
+  --let $got = `SELECT @@session.innodb_interpreter_output`
+  --echo Committed rows: $rows
+  --echo Graph:          $got
+  --die graph and table disagree after concurrent INSERT
+}
+
+--echo # Graph and table agree: one node per committed row, no duplicate
+--echo # ids, no two nodes naming the same row.
+
+--disconnect c1
+--disconnect c2
+--disconnect c3
+--disconnect c4
+--disconnect c5
+--disconnect c6
+--connection default
+DROP PROCEDURE ins;
+DROP TABLE t;
+--eval SET GLOBAL innodb_lock_wait_timeout = $to_save

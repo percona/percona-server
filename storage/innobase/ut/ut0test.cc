@@ -80,6 +80,7 @@ Tester::Tester() noexcept {
   DISPATCH(vec_aux_insert_row);
   DISPATCH(vec_aux_update_row);
   DISPATCH(vec_aux_dump);
+  DISPATCH(vec_aux_verify);
   DISPATCH(vec_next_id);
   DISPATCH(vec_runtime_info);
   DISPATCH(print_dblwr_has_encrypted_pages);
@@ -724,6 +725,87 @@ Ret_t Tester::vec_aux_dump(std::vector<std::string> &tokens) noexcept {
 
   XLOG("count=" << count << " max_id=" << max_id);
   sout << "\n" << rows.str();
+  set_output(sout);
+  return RET_PASS;
+}
+
+/* Order-independent consistency check on a vector aux table.
+
+vec_aux_dump prints per-node detail, which makes it useless for a
+concurrency test: the id -> base_pk mapping depends on how the inserts
+interleaved, so the recorded result would flake. This reports only
+invariants that must hold whatever the interleaving, so it stays valid
+once concurrent graph mutation is allowed. */
+Ret_t Tester::vec_aux_verify(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_aux_verify()");
+  ut_ad(tokens[0] == "vec_aux_verify");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_aux_verify db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  dict_table_t *aux = tt.aux;
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  dict_index_t *clust = aux->first_index();
+  const ulint pos_base_pk = dict_col_get_clust_pos(aux->get_col(2), clust);
+
+  std::set<uint64_t> ids;
+  std::set<uint64_t> base_pks;
+  uint64_t nodes = 0;
+  uint64_t dup_ids = 0;
+  uint64_t dup_base_pks = 0;
+  uint64_t max_id = 0;
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  btr_pcur_t pcur;
+  pcur.open_at_side(true, clust, BTR_SEARCH_LEAF, true, 0, &mtr);
+
+  mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
+  while (pcur.move_to_next_user_rec(&mtr) == DB_SUCCESS) {
+    const rec_t *rec = pcur.get_rec();
+    if (rec_get_deleted_flag(rec, dict_table_is_comp(aux))) continue;
+
+    ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
+                                     UT_LOCATION_HERE, &heap);
+    ulint len;
+    const byte *p = rec_get_nth_field(clust, rec, offsets, 0, &len);
+    const uint64_t id = mach_read_from_8(p);
+
+    /* Record 0 is the index metadata, not a node: its base_pk carries
+    the entry point. */
+    if (id == 0) continue;
+
+    if (!ids.insert(id).second) dup_ids++;
+    if (id > max_id) max_id = id;
+    nodes++;
+
+    p = rec_get_nth_field(clust, rec, offsets, pos_base_pk, &len);
+    const uint64_t base_pk = len == 8 ? mach_read_from_8(p) : 0;
+    if (!base_pks.insert(base_pk).second) dup_base_pks++;
+  }
+  mem_heap_free(heap);
+  pcur.close();
+  mtr_commit(&mtr);
+
+  /* Labels are issued from one counter and never reused, so with no
+  UPDATE and no rollback the ids must be exactly 1..nodes. */
+  const bool contiguous = (max_id == nodes) && (dup_ids == 0);
+
+  XLOG("nodes=" << nodes << " distinct_ids=" << ids.size()
+                << " distinct_base_pks=" << base_pks.size()
+                << " dup_ids=" << dup_ids << " dup_base_pks=" << dup_base_pks
+                << " labels_contiguous_from_1=" << (contiguous ? 1 : 0));
   set_output(sout);
   return RET_PASS;
 }

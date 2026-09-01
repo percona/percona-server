@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "field_types.h"
 #include "memory_debugging.h"
@@ -68,6 +69,8 @@
 #include "sql/table.h"
 #include "sql_string.h"
 #include "template_utils.h"
+
+bool is_prefix_index(TABLE *table, uint idx);
 
 /*
   A null_sel_tree is used in get_func_mm_tree_from_in_predicate to pass
@@ -1389,6 +1392,76 @@ impossible_cond:
   return true;
 }
 
+/**
+  Creates a search key for a value that may be larger than the index it
+  searches.
+
+  The code inside save_value_and_handle_conversion() cannot create a
+  search key if the value is larger than the declared size of the index. This
+  happens because the code instantiating search keys is tied to the Field
+  class, which doesn't allocate room for keys larger than the index. For unicode
+  strings, there is no limit for how large the search key can be. For instance,
+  multiple character can match a single character, for example "ae" can match
+  "æ" in many collations. A more contrived example is that any number of SMALL
+  HYPHEN (U+00AD) can be in the search string as they are ignored in string
+  matching.
+
+  If any one search key cannot be created, the optimizer falls back
+  to table scan. This function act as a second chance, allocating as large a
+  buffer as needed and creates the search key there instead. Since the scenario
+  can only happen for strings, the procedure is much simpler than for arbitrary
+  types.
+
+  @param value      The search value.
+  @param field      The column the value is being compared against.
+  @param key_part   The index column for the index being considered.
+  @param alloc      MEM_ROOT used to allocate the key buffer from.
+
+  @return Pointer to the key buffer, or nullptr if the search key could not be
+          created.
+*/
+static uchar *make_oversized_search_key(Item *value, const Field *field,
+                                        const KEY_PART *key_part,
+                                        MEM_ROOT *alloc) {
+  const size_t null_bytes = field->is_nullable() ? 1 : 0;
+  const size_t size_bytes = 2;
+  String buf;
+  auto *str_value = value->val_str(&buf);
+  if (str_value == nullptr) return nullptr;
+
+  const CHARSET_INFO *cs = field->charset();
+  size_t key_len =
+      cs->coll->strnxfrmlen(cs, str_value->length() * cs->mbmaxlen);
+  auto *key_buf =
+      static_cast<char *>(alloc->Alloc(null_bytes + size_bytes + key_len));
+  if (key_buf == nullptr) return nullptr;
+
+  int nchars = is_prefix_index(field->table, key_part->key)
+                   ? key_part->length / cs->mbmaxlen
+                   : key_len / cs->mbmaxlen;
+
+  const char *well_formed_error_pos;
+  const char *cannot_convert_error_pos;
+  const char *from_end_pos;
+
+  auto num_bytes_in_key = well_formed_copy_nchars(
+      cs, key_buf + null_bytes + size_bytes, str_value->length(), cs,
+      str_value->ptr(), str_value->length(), nchars, &well_formed_error_pos,
+      &cannot_convert_error_pos, &from_end_pos);
+
+  if (well_formed_error_pos != nullptr || cannot_convert_error_pos != nullptr) {
+    return nullptr;
+  }
+
+  if (field->is_nullable()) {
+    key_buf[0] = char{field->is_real_null()};
+  }
+
+  int2store(key_buf + null_bytes, num_bytes_in_key);
+
+  return reinterpret_cast<uchar *>(key_buf);
+}
+
 static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
                              Field *field, KEY_PART *key_part,
                              Item_func::Functype type, Item *value,
@@ -1397,7 +1470,7 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
   bool optimize_range;
   SEL_ROOT *tree = nullptr;
   MEM_ROOT *const alloc = param->temp_mem_root;
-  uchar *str;
+  uchar *str{nullptr};
   const char *impossible_cond_cause = nullptr;
   DBUG_TRACE;
 
@@ -1581,6 +1654,17 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
         &tree, value, type, field, &impossible_cond_cause, alloc,
         param->query_block, inexact);
 
+    if (always_true_or_false && *inexact && is_string_type(field->type()) &&
+        (!is_prefix_index(field->table, key_part->key) ||
+         type == Item_func::EQ_FUNC)) {
+      // The handler cannot currently handle non-equality ranges on prefix
+      // indexes.
+      str = make_oversized_search_key(value, field, key_part, alloc);
+      if (str != nullptr) {
+        always_true_or_false = false;
+      }
+    }
+
     if (field->type() == MYSQL_TYPE_GEOMETRY &&
         save_geom_type != Field::GEOM_GEOMETRY) {
       down_cast<Field_geom *>(field)->geom_type = save_geom_type;
@@ -1599,12 +1683,15 @@ static SEL_ROOT *get_mm_leaf(THD *thd, RANGE_OPT_PARAM *param, Item *cond_func,
     goto end;
   }
 
-  str = (uchar *)alloc->Alloc(key_part->store_length + 1);
-  if (!str) goto end;
-  if (field->is_nullable())
-    *str = (uchar)field->is_real_null();  // Set to 1 if null
-  field->get_key_image(str + null_bytes, key_part->length,
-                       key_part->image_type);
+  if (str == nullptr) {
+    // Create the search key if we didn't already.
+    str = (uchar *)alloc->Alloc(key_part->store_length + 1);
+    if (!str) goto end;
+    if (field->is_nullable())
+      *str = (uchar)field->is_real_null();  // Set to 1 if null
+    field->get_key_image(str + null_bytes, key_part->length,
+                         key_part->image_type);
+  }
   SEL_ARG *root;
   root =
       new (alloc) SEL_ARG(field, str, str, !(key_part->flag & HA_REVERSE_SORT));

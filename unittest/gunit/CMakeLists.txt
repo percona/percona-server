@@ -121,6 +121,7 @@ SET(TESTS
   filesort_compare
   filesort_mergechunk
   hnsw
+  hnsw_concurrency
   inplace_vector
   integer_digits
   intrusive_list_iterator

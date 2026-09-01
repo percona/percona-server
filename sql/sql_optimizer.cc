@@ -1227,6 +1227,11 @@ bool JOIN::push_to_engines() {
     list. When a match is found, the expression is replaced with a new
     Item_field for the matched GC field. Also, this new field is added to
     the hidden part of all_fields list.
+    Unlike for the WHERE condition, substitutions here must preserve the
+    value of the expression, since that value is consumed by the executor
+    and not merely used to look up rows in an index. JSON_UNQUOTE(),
+    CAST(), and multi-valued indexes are therefore excluded, and string
+    GCs must match the expression's collation. @see get_gc_for_expr()
 
   @param thd         thread handle
   @param query_block  the current select
@@ -1282,6 +1287,15 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
   List_iterator<Field> li(indexed_gc);
 
   while ((gc = li++)) {
+    /*
+      A multi-valued index's field holds the set of values the expression
+      evaluates to, and not the value itself, so it can never replace an
+      ORDER/GROUP BY expression.
+    */
+    if (gc->is_array()) {
+      li.remove();
+      continue;
+    }
     Key_map tkm = gc->part_of_key;
     tkm.intersect(group_list ? gc->table->keys_in_use_for_group_by
                              : gc->table->keys_in_use_for_order_by);
@@ -1296,8 +1310,23 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
     li.rewind();
     if (!(*ord->item)->can_be_substituted_for_gc()) continue;
     while ((gc = li++)) {
+      /*
+        Grouping and sorting are performed according to the collation, so a GC
+        whose collation differs from the one of the expression does not order
+        or group the rows the same way: e.g. a case insensitive GC merges
+        values which the expression keeps apart. Unlike for the WHERE
+        condition, where this only matters for functional indexes
+        (@see substitute_gc_expression()), the value of an ORDER/GROUP BY
+        expression is consumed by the executor, so require the collations to
+        match for every string GC.
+      */
+      if (gc->result_type() == STRING_RESULT &&
+          gc->match_collation_to_optimize_range() &&
+          (*ord->item)->collation.collation != gc->charset())
+        continue;
       Item_field *const field =
-          get_gc_for_expr(*ord->item, gc, gc->result_type());
+          get_gc_for_expr(*ord->item, gc, gc->result_type(),
+                          /*found=*/nullptr, /*require_same_value=*/true);
       if (field != nullptr) {
         changed = true;
         /* Add new field to field list. */

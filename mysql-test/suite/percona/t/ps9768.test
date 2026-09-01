@@ -1,0 +1,317 @@
+--echo # PS-9768: Bogus "Can't write; duplicate key in table" error for GROUP BY
+--echo #          on JSON_EXTRACT() when an indexed generated column unquotes
+--echo #          the very same expression.
+--echo #
+--echo # An indexed GC may only replace an ORDER/GROUP BY expression when it
+--echo # evaluates to the same value. JSON_UNQUOTE() in the GC expression must
+--echo # therefore not be skipped when matching, unlike for the WHERE clause.
+
+CREATE TABLE t (
+  id int auto_increment,
+  data1 json,
+  data2 json,
+  `i` bigint GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data1`,_utf8mb4'$.i'))
+  ) STORED,
+  `a` varchar(128) GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  primary key (id),
+  key (a,i),
+  key i (i)
+) ENGINE=innodb;
+
+INSERT INTO t (data1,data2) values
+(JSON_OBJECT('i', 1),JSON_OBJECT('a', "a")),
+(JSON_OBJECT('i', 1),JSON_OBJECT('a', "a")),
+(JSON_OBJECT('i', 1),JSON_OBJECT('a', "b"));
+
+SET SESSION optimizer_trace="enabled=on";
+
+--echo #
+--echo # Case 1: the reported query. Must not fail with ER_DUP_KEY, and must
+--echo #         group on the quoted values returned by JSON_EXTRACT().
+--echo #
+--sorted_result
+SELECT
+    JSON_EXTRACT(data2, '$.a') as `a`,
+    CAST(count(*) AS JSON) as `*`
+FROM test.t
+WHERE
+    i = 1
+GROUP BY
+    JSON_EXTRACT(data2, '$.a');
+
+--echo # Expect 0: the GROUP BY list was not rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 2: ORDER BY on the same expression. JSON comparison sorts numbers
+--echo #         before strings, so 2 precedes "10", while ordering by the
+--echo #         unquoted GC would have put '10' first.
+--echo #
+CREATE TABLE t2 (
+  data2 json,
+  `a` varchar(128) GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  key (a)
+) ENGINE=innodb;
+
+INSERT INTO t2 (data2) VALUES
+(JSON_OBJECT('a', 2)),
+(JSON_OBJECT('a', "10"));
+
+SELECT JSON_EXTRACT(data2, '$.a') AS `a` FROM t2
+  ORDER BY JSON_EXTRACT(data2, '$.a');
+
+--echo # Expect 0: the ORDER BY list was not rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_ORDER_BY%' AS order_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 3: single table DELETE ... ORDER BY uses the same code path, so
+--echo #         the JSON-ordered first row (2) has to be the one deleted.
+--echo #
+DELETE FROM t2 ORDER BY JSON_EXTRACT(data2, '$.a') LIMIT 1;
+SELECT JSON_EXTRACT(data2, '$.a') AS `a` FROM t2;
+
+--echo #
+--echo # Case 4: the optimization is not over-blocked. When the query unquotes
+--echo #         the value itself the GC is value preserving (its collation
+--echo #         matches the one of JSON_UNQUOTE()) and must still be used.
+--echo #
+CREATE TABLE t3 (
+  data2 json,
+  `a` varchar(128) COLLATE utf8mb4_bin GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  key (a)
+) ENGINE=innodb;
+
+INSERT INTO t3 (data2) VALUES
+(JSON_OBJECT('a', "a")),
+(JSON_OBJECT('a', "a")),
+(JSON_OBJECT('a', "b"));
+
+--sorted_result
+SELECT JSON_UNQUOTE(JSON_EXTRACT(data2, '$.a')) AS `a`, count(*) AS `*`
+FROM t3
+GROUP BY JSON_UNQUOTE(JSON_EXTRACT(data2, '$.a'));
+
+--echo # Expect 1: the GROUP BY list was rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 5: WHERE clause behaviour is unchanged, the index over the
+--echo #         unquoting GC is still used for a JSON_EXTRACT() predicate.
+--echo #
+--echo # Expect 1: the condition was rewritten to use GC 'a'
+SELECT JSON_UNQUOTE(JSON_EXTRACT(data2, '$.a')) AS `a` FROM t3
+  WHERE JSON_EXTRACT(data2, '$.a') = 'b';
+SELECT TRACE LIKE '%`a` = %' AS where_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 6: a multi-valued index's field holds the set of values the
+--echo #         expression evaluates to, not the value itself, so it must
+--echo #         never replace a GROUP BY expression. Two distinct arrays
+--echo #         are two groups.
+--echo #
+CREATE TABLE t4 (j json, INDEX mvi ((CAST(j->'$.arr' AS UNSIGNED ARRAY))));
+INSERT INTO t4 VALUES ('{"arr":[1,2,3]}'), ('{"arr":[4,5,6]}');
+
+--echo # Warnings are off: the hypergraph optimizer notes that it does not
+--echo # support sorting of non-scalar JSON values.
+--disable_warnings
+--sorted_result
+SELECT j->'$.arr' AS c, count(*) AS `*` FROM t4 GROUP BY j->'$.arr';
+--enable_warnings
+
+--echo # Expect 0: the GROUP BY list was not rewritten to use the array field
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo # The multi-valued index is still used for the predicates it supports:
+--echo # the predicand is substituted with the array field, which the trace
+--echo # prints as its expression, CAST(.. AS UNSIGNED ARRAY).
+SELECT * FROM t4 WHERE 3 MEMBER OF (j->'$.arr');
+--echo # Expect 1
+SELECT TRACE LIKE '%as unsigned array%' AS predicand_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+SELECT * FROM t4 WHERE JSON_CONTAINS(j->'$.arr', '[3]');
+--echo # Expect 1
+SELECT TRACE LIKE '%as unsigned array%' AS predicand_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--sorted_result
+SELECT * FROM t4 WHERE JSON_OVERLAPS(j->'$.arr', '[3,7]');
+--echo # Expect 1
+SELECT TRACE LIKE '%as unsigned array%' AS predicand_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 7: grouping and sorting follow the collation, so a GC whose
+--echo #         collation differs from the one of the expression must not
+--echo #         replace it. JSON_UNQUOTE() returns utf8mb4_bin while the
+--echo #         functional index below is utf8mb4_0900_ai_ci, hence 'a' and
+--echo #         'A' are two groups but would be merged into one.
+--echo #
+CREATE TABLE t5 (data2 json, INDEX idx ((CAST(data2->>'$.a' AS CHAR(30)))));
+INSERT INTO t5 VALUES (JSON_OBJECT('a','a')), (JSON_OBJECT('a','A'));
+
+--sorted_result
+SELECT data2->>'$.a' AS c, count(*) AS `*` FROM t5 GROUP BY data2->>'$.a';
+
+--echo # Expect 0: the GROUP BY list was not rewritten to use the index
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo # Same for ORDER BY, utf8mb4_bin sorts 'A' before 'a'
+SELECT data2->>'$.a' AS c FROM t5 ORDER BY data2->>'$.a';
+SELECT TRACE LIKE '%resulting_ORDER_BY%' AS order_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo # When the query asks for the same collation the index is still used
+--sorted_result
+SELECT CAST(data2->>'$.a' AS CHAR(30)) AS c, count(*) AS `*` FROM t5
+  GROUP BY CAST(data2->>'$.a' AS CHAR(30));
+--echo # Expect 1
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo # WHERE pushdown to the functional index is unaffected: the condition
+--echo # is rewritten to the hidden field, printed as its CAST() expression.
+--sorted_result
+SELECT data2 FROM t5 WHERE CAST(data2->>'$.a' AS CHAR(30)) = 'a';
+--echo # Expect 1
+SELECT TRACE LIKE '%as char(30) charset utf8mb4) = %' AS where_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 8: the same collation mismatch on a plain generated column
+--echo #
+CREATE TABLE t6 (
+  data2 json,
+  `a` varchar(128) GENERATED ALWAYS AS (
+    json_unquote(json_extract(`data2`,_utf8mb4'$.a'))
+  ) STORED,
+  key (a)
+) ENGINE=innodb;
+INSERT INTO t6 (data2) VALUES (JSON_OBJECT('a','a')), (JSON_OBJECT('a','A'));
+
+--sorted_result
+SELECT json_unquote(json_extract(data2,'$.a')) AS c, count(*) AS `*` FROM t6
+  GROUP BY json_unquote(json_extract(data2,'$.a'));
+
+--echo # Expect 0: the GROUP BY list was not rewritten to use GC 'a'
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 9: a numeric GC has no collation to compare, it must still be
+--echo #         substituted.
+--echo #
+CREATE TABLE t7 (f1 int, gc int GENERATED ALWAYS AS (f1 + 1) STORED, key (gc));
+INSERT INTO t7 (f1) VALUES (1),(1),(2);
+
+--sorted_result
+SELECT f1 + 1 AS c, count(*) AS `*` FROM t7 GROUP BY f1 + 1;
+
+--echo # Expect 1
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 10: require_same_value also refuses to strip TYPECAST, so a
+--echo #          functional index CAST(.. AS UNSIGNED) must not replace
+--echo #          GROUP BY on the inner expression. '1' and '01' stay two
+--echo #          groups, matching IGNORE INDEX FOR GROUP BY. Exact CAST()
+--echo #          GROUP BY and WHERE pushdown must keep working.
+--echo #
+CREATE TABLE t8 (
+  data2 json,
+  INDEX idx ((CAST(data2->>'$.n' AS UNSIGNED)))
+);
+INSERT INTO t8 VALUES
+  (JSON_OBJECT('n','1')),
+  (JSON_OBJECT('n','01')),
+  (JSON_OBJECT('n','2'));
+
+--sorted_result
+SELECT data2->>'$.n' AS c, count(*) AS `*` FROM t8 GROUP BY data2->>'$.n';
+--echo # Expect 0: TYPECAST on the index expression is not skipped
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--sorted_result
+SELECT data2->>'$.n' AS c, count(*) AS `*` FROM t8
+  IGNORE INDEX FOR GROUP BY (idx) GROUP BY data2->>'$.n';
+
+--sorted_result
+SELECT CAST(data2->>'$.n' AS UNSIGNED) AS c, count(*) AS `*` FROM t8
+  GROUP BY CAST(data2->>'$.n' AS UNSIGNED);
+--echo # Expect 1: exact CAST match is still substituted
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--sorted_result
+SELECT data2 FROM t8 WHERE CAST(data2->>'$.n' AS UNSIGNED) = 1;
+--echo # Expect 1: WHERE pushdown unchanged
+SELECT TRACE LIKE '%as unsigned%' AS where_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--echo #
+--echo # Case 11: same for a length-changing CAST with a matching collation.
+--echo #          'aa' and 'ab' must remain two groups. Non-strict sql_mode is
+--echo #          required so truncated functional-index values can be stored.
+--echo #
+SET @old_sql_mode= @@sql_mode;
+SET sql_mode='';
+CREATE TABLE t9 (
+  data2 json,
+  INDEX idx (((CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4)) COLLATE utf8mb4_bin))
+);
+INSERT INTO t9 VALUES
+  (JSON_OBJECT('a','aa')),
+  (JSON_OBJECT('a','ab')),
+  (JSON_OBJECT('a','b'));
+SET sql_mode= @old_sql_mode;
+
+--disable_warnings
+--sorted_result
+SELECT data2->>'$.a' AS c, count(*) AS `*` FROM t9 GROUP BY data2->>'$.a';
+--enable_warnings
+--echo # Expect 0: TYPECAST on the index expression is not skipped
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--sorted_result
+SELECT data2->>'$.a' AS c, count(*) AS `*` FROM t9
+  IGNORE INDEX FOR GROUP BY (idx) GROUP BY data2->>'$.a';
+
+--disable_warnings
+--sorted_result
+SELECT CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin AS c,
+       count(*) AS `*` FROM t9
+  GROUP BY CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin;
+--enable_warnings
+--echo # Expect 1: exact CAST/COLLATE match is still substituted
+SELECT TRACE LIKE '%resulting_GROUP_BY%' AS group_by_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+--disable_warnings
+--sorted_result
+SELECT data2 FROM t9
+  WHERE CAST(data2->>'$.a' AS CHAR(1) CHARSET utf8mb4) COLLATE utf8mb4_bin = 'a';
+--enable_warnings
+--echo # Expect 1: WHERE pushdown unchanged
+SELECT TRACE LIKE '%collate%utf8mb4_bin% = %' AS where_substituted
+  FROM information_schema.OPTIMIZER_TRACE;
+
+SET SESSION optimizer_trace="enabled=off";
+
+DROP TABLE t, t2, t3, t4, t5, t6, t7, t8, t9;

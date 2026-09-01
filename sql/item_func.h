@@ -4068,7 +4068,8 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
-                            Field **found = nullptr);
+                            Field **found = nullptr,
+                            bool require_same_value = false);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 

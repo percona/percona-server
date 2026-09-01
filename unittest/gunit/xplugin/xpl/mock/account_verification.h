@@ -43,7 +43,7 @@ class Account_verification : public iface::Account_verification {
   MOCK_METHOD(const std::string &, get_salt, (), (const, override));
   MOCK_METHOD(bool, verify_authentication_string,
               (const std::string &, const std::string &, const std::string &,
-               const std::string &),
+               const std::string &, const bool),
               (const, override));
 };
 

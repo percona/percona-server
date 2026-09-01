@@ -17,6 +17,7 @@
 #define HNSW_H_INCLUDED
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -24,6 +25,7 @@
 #include <cstring>
 #include <iterator>
 #include <limits>
+#include <mutex>
 #include <new>
 #include <queue>
 #include <random>
@@ -46,13 +48,19 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
 
   Supports insert, k-NN search, and streaming NN search.
 
+  Thread safety: concurrent insert() and search (k_nn_search / streaming) on
+  the same instance are supported (assuming that insert ids are new and unique),
+  provided RandomEngine is thread-safe if inserts may run concurrently.
+  init_from_entry_point() and validate() must not run concurrently with insert
+  or search. Persistor callbacks must not re-enter the same HNSW instance.
+
   @tparam ArenaAllocator
     Arena allocator for graph nodes (and trailing vector / neighbor storage).
     Must provide void *allocate(size_t size); there is no per-block free.
     Returned memory must stay valid for this object's lifetime; destroying
     the allocator frees the arena. HNSW does not destroy Nodes and must not
     outlive the allocator. allocate() may return nullptr (asserted).
-    Not assumed thread-safe.
+    Not assumed thread-safe; HNSW serializes allocate() calls.
 
   @tparam Persistor
     Persistence / SE callback sink. Default-constructed once and stored by
@@ -66,15 +74,20 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
       - insert_cb(Context *, id, base_pk, q, layer, NeighborIdRange);
       - update_neighbors_cb(Context *, id, NeighborIdRange);
       - update_entry_point_cb(Context *, id);
-      - load_node_cb(Context *, HNSW &, LoadNodeHandle): fill an unloaded
-        node from storage. @p handle is opaque; use only the HNSW load_*
-        helpers on it. Must call, in order: load_set_layer(), load_set_vec(),
-        load_set_base_pk(), then load_node_neighbors() (allocates neighbor
-        storage and wires slots). After return, HNSW marks the node loaded.
-        Neighbor ids use the same layout as NeighborIdRange (0 = empty slot;
-        size (layer + 2) * M). Stubs created for referenced neighbors may
-        remain unloaded until touched. A no-op is fine when every node is
-        always fully resident (unit tests).
+      - load_node_cb(Context *, HNSW &, LoadNodeHandle) -> bool: fill a
+        NODE_DUMMY node from storage. @p handle is opaque; use only the
+        HNSW load_* helpers on it. On success must call, in order:
+        load_set_layer(), load_set_vec(), load_set_base_pk(), then
+        load_node_neighbors() (allocates neighbor storage and wires slots),
+        then return true. HNSW then marks the node NODE_COMPLETE.
+        On failure return false without relying on a partial fill; HNSW
+        marks the node NODE_LOST. Neighbor ids use NeighborIdRange layout
+        (0 = empty slot; size (layer + 2) * M). Stubs created for
+        referenced neighbors stay unloaded until touched.
+        Returning true without completing the load_* sequence leaves a
+        corrupt COMPLETE node — do not do that.
+        A callback that must never run is fine when every node is always
+        resident (unit tests with NullPersistor).
 
     insert(), k_nn_search(), and streaming search may call load_node_cb when
     they touch unloaded stubs; pass PersistorContext * through those calls.
@@ -92,8 +105,13 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     duration of that callback invocation. Persistor must copy any data it
     needs to retain before returning.
 
+    Transactions: current assumption that each callback is executed using
+    its own transaction, which commits at callback return, independent of
+    user's transaction.
+
     Cold start / recovery uses init_from_entry_point(), which loads the
-    entry-point node via load_node_cb.
+    entry-point node via load_node_cb and requires success (asserted); the
+    entry point is then NODE_COMPLETE.
 
     Index metadata is not persisted by HNSW itself. The class users must
     store it alongside the graph (at minimum: vector dimensions, M, distance
@@ -104,19 +122,77 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
 
     A no-op Persistor is sufficient for many tests.
 
+  @tparam RandomEngine
+    Uniform random bit generator used for random layer assignment on insert
+    (constructible from the constructor @p seed). HNSW does not synchronize
+    access to the engine: if concurrent insert() calls are expected, the
+    provided engine must be thread-safe. The default
+    std::default_random_engine is not thread-safe.
+
   @todo (not in order of priority)
-        1) Thread safety (intertwined with persistence callbacks).
-        2) Better error handling (e.g. errors from persistor callbacks, OOMs).
-        3) Support for deletes (might be unnecessary).
-        4) Support for transactions (might be unnecessary).
-        5) Support for arbitrary PKs.
-        6) Memory limits/expulsion strategy.
-        7) Performance optimizations (visited set?).
+        1) Better error handling (e.g. errors from persistor callbacks, OOMs).
+        2) Support for deletes (might be unnecessary).
+        3) Support for transactions (might be unnecessary).
+        4) Support for arbitrary PKs.
+        5) Memory limits/expulsion strategy.
+        6) Performance optimizations (visited set?).
 */
-template <typename ArenaAllocator, typename Persistor>
+template <typename ArenaAllocator, typename Persistor,
+          typename RandomEngine = std::default_random_engine>
 class HNSW {
  public:
   using PersistorContext = typename Persistor::Context;
+
+  /**
+    Lifecycle of an in-memory graph node.
+
+    Transitions (only via Node setters / load_node()):
+      Newly inserted node case:
+        NODE_NEW  --set_linking()--> NODE_LINKING --set_complete()-->
+          NODE_COMPLETE
+      Loaded node case:
+        NODE_DUMMY  --set_complete()--> NODE_COMPLETE   (successful lazy load)
+        NODE_DUMMY  --set_lost()-----> NODE_LOST        (failed lazy load)
+
+    Meaning:
+      NODE_NEW      Fresh insert allocation (Node::create(..., NODE_NEW)).
+                    Id is known; layer, vector, base_pk, and neighbor storage
+                    are filled while still NEW, then set_linking() publishes
+                    the node as linkable. Must not appear in any neighbor
+                    list or be reachable from search; not a loadable stub.
+      NODE_LINKING  Insert in progress: layer and vector are set, and neighbor
+                    storage is allocated, but the neighbor list is not fully
+                    constructed and must not be relied on (slots may still be
+                    empty or only partially wired). The node may already appear
+                    in other nodes' neighbor lists; search skips LINKING until
+                    NODE_COMPLETE.
+      NODE_COMPLETE Fully published: neighbor lists are complete and safe for
+                    search and for Persistor neighbor snapshots. Entry point is
+                    always COMPLETE.
+      NODE_DUMMY    Lazy-load stub: id known, layer/vec/neighbors not valid yet.
+                    Created via Node::create(..., NODE_DUMMY) for neighbor ids
+                    seen before the node is loaded (see load_node_neighbors()).
+      NODE_LOST     Lazy load failed; accessors must not be used. May remain
+                    as a neighbor-slot pointer; search skips it.
+                    The main scenario where NODE_LOST nodes can occur is when
+                    insertion crash before calling insert_cb, but after some
+                    concurrent insertion already persisted neighbor lists of
+                    a node to which the lost node was added as a neighbor.
+
+    Search expands only NODE_COMPLETE neighbors (loads DUMMY, skips LINKING
+    and LOST). NODE_NEW must not be observed on search/insert graph edges
+    (debug builds assert). Insert reverse-edge selection may also use
+    NODE_LINKING so a concurrent in-progress insert can be linked before it
+    is published; that path uses the LINKING node's vector, not its neighbor
+    list.
+  */
+  enum NodeState : uint8_t {
+    NODE_NEW,
+    NODE_LINKING,
+    NODE_COMPLETE,
+    NODE_DUMMY,
+    NODE_LOST
+  };
 
   class NeighborIdIterator;
   struct NeighborIdRange;
@@ -136,7 +212,8 @@ class HNSW {
                            must be >= 2.
     @param ef_construction Size of the dynamic candidate list during INSERT;
                            clamped to at least M.
-    @param seed            RNG seed for random layer assignment (default 42).
+    @param seed            Seed passed to RandomEngine for random layer
+                           assignment (default 42).
   */
   HNSW(size_t dimensions, vec_dist_func_t *dist_func, size_t M,
        size_t ef_construction, uint32_t seed = 42)
@@ -172,37 +249,57 @@ class HNSW {
   void insert(uint64_t id, uint64_t base_pk, const char *q,
               PersistorContext *persistor_ctx = nullptr) {
     assert(id != 0);
-    const uint8_t max_layer =
-        m_entry_point == nullptr ? 0 : m_entry_point->layer();
+    Node *entry_point = m_entry_point.load();
+    uint8_t max_layer = entry_point == nullptr ? 0 : entry_point->layer();
     const uint8_t target_layer = random_layer(max_layer);
 
-    Node *new_node =
-        Node::create(m_allocator, *this, id, base_pk, q, target_layer);
+    Node *new_node;
+    {
+      // Protect allocator and nodes maps ops.
+      std::scoped_lock lock(m_global_lock);
 
-    auto inserted [[maybe_unused]] = m_nodes.emplace(id, new_node);
-    assert(inserted.second);
+      new_node = Node::create(m_allocator, *this, id, NODE_NEW);
 
-    // Newly inserted node is always marked as loaded.
-    assert(new_node->loaded());
+      auto inserted [[maybe_unused]] = m_nodes.emplace(id, new_node);
+      assert(inserted.second);
 
-    if (m_entry_point == nullptr) {
-      m_entry_point = new_node;
-      m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
-                            neighbor_ids(new_node));
-      m_persistor.update_entry_point_cb(persistor_ctx, id);
-      return;
+      new_node->set_layer(target_layer);
+      new_node->alloc_neighbors(m_allocator, *this);
     }
 
-    // HNSW entry point is always loaded.
-    assert(m_entry_point->loaded());
+    new_node->set_base_pk(base_pk);
+    new_node->set_vec(*this, q);
+    new_node->set_linking();
 
-    NodeDist nearest_entry = {m_entry_point, dist(q, m_entry_point)};
+    if (entry_point == nullptr) {
+      std::scoped_lock lock(m_entry_point_lock);
+      entry_point = m_entry_point.load();
+      if (entry_point == nullptr) {
+        new_node->set_complete();
+        m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
+                              neighbor_ids(new_node));
+        m_persistor.update_entry_point_cb(persistor_ctx, id);
+        m_entry_point.store(new_node);
+        return;
+      } else {
+        max_layer = entry_point->layer();
+      }
+    }
+
+    // TODO: Think about possible optimizations of this.
+    std::vector<Node *> scratch_buffer(get_Mmax(0));
+
+    // HNSW entry point is always complete.
+    assert(entry_point->state() == NODE_COMPLETE);
+
+    NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
     for (int l = max_layer; l > target_layer; --l) {
-      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx);
+      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx,
+                                        scratch_buffer.data());
     }
 
-    // search_layer_ef_1() post condition: the nearest entry node is loaded.
-    assert(nearest_entry.node->loaded());
+    // search_layer_ef_1() post condition: the nearest entry node is complete.
+    assert(nearest_entry.node->state() == NODE_COMPLETE);
 
     SearchLayerResult nearest{nearest_entry};
     std::set<Node *> updated_neighbors;
@@ -210,10 +307,15 @@ class HNSW {
     for (int l = std::min(max_layer, target_layer); l >= 0; --l) {
       const size_t Mmax = get_Mmax(l);
       nearest = search_layer(q, std::move(nearest), m_ef_construction, l,
-                             persistor_ctx);
+                             persistor_ctx, scratch_buffer.data());
       // Paper and reference implementation both use M when selecting neighbors
       // for layer 0 for newly inserted node, but it seems to be a typo.
       // Both MariaDB and pgVector use 2 * M for layer 0, so we do too.
+      //
+      // Note that thanks to the fact that nodes in the process of being
+      // linked (NODE_LINKING state) are never choosen as neighbors for
+      // concurrent insertions we can safely iterate over and modify
+      // the new node's neighbors without any additional locking.
       Node **new_node_neighbors = new_node->neighbors_begin(*this, l);
       const size_t n [[maybe_unused]] =
           select_neighbors(q, nearest, Mmax, new_node_neighbors);
@@ -223,8 +325,11 @@ class HNSW {
            it != new_node->neighbors_end(*this, l) && *it != nullptr; ++it) {
         Node *neighbor = *it;
         // search_layer() + select_neighbors() post condition:
-        // all neighbors of the newly inserted node are loaded.
-        assert(neighbor->loaded());
+        // all neighbors of the newly inserted node are complete.
+        assert(neighbor->state() == NODE_COMPLETE);
+
+        // Back-linking neighbors requires locking though.
+        lock_node(neighbor);
         Node **it2 = neighbor->neighbors_begin(*this, l);
         while (it2 != neighbor->neighbors_end(*this, l) && *it2 != nullptr) {
           ++it2;
@@ -232,39 +337,94 @@ class HNSW {
         if (it2 != neighbor->neighbors_end(*this, l)) {
           *it2 = new_node;
         } else {
+          // Copy existing neighbors to scratch buffer to avoid
+          // holding the lock while performing expensive calculations
+          // and potential loads of not yet loaded nodes.
+          //
+          // Note that after we unlock node and before we do the re-lock +
+          // write-back below, another insert may append to or rewrite this
+          // same neighbor list. Blindly installing our pruned selection can
+          // then drop that concurrent update. Worst case is a slightly worse
+          // local graph (lost edge / suboptimal neighbors), which we accept.
+          std::copy(neighbor->neighbors_begin(*this, l),
+                    neighbor->neighbors_end(*this, l), scratch_buffer.data());
+          unlock_node(neighbor);
+
           std::vector<NodeDist> candidate_neighbors;
           candidate_neighbors.reserve(Mmax + 1);
-          for (Node *const *nb = neighbor->neighbors_begin(*this, l);
-               nb != neighbor->neighbors_end(*this, l); ++nb) {
-            // However, neighbors of neighbors might be not loaded yet.
-            load_node_if_necessary(persistor_ctx, *nb);
-            candidate_neighbors.push_back({*nb, dist(neighbor->vec(), *nb)});
+          for (size_t i = 0; i < Mmax; ++i) {
+            Node *nb = scratch_buffer[i];
+            assert(nb != nullptr);
+            NodeState nb_state = nb->state();
+
+            // Nodes in the NODE_NEW state are not yet part of the graph.
+            assert(nb_state != NODE_NEW);
+
+            // Skip nodes which are lost.
+            //
+            // NB: Note that unlike in search case we don't skip nodes in the
+            //     process of being linked here. The rationale is:
+            // 1) They have vector set so should be fine for select_neighbors()
+            //    algorithm.
+            // 2) We will have at least one such node, the newly inserted node
+            //    itself, in the candidate list anyway.
+            // 3) They represent work done by concurrent insertions, which we
+            //    probably don't want to throw away.
+            if (nb_state == NODE_LOST) continue;
+
+            // Load the neighbor if it is not loaded yet, skip if it is lost.
+            if (nb_state == NODE_DUMMY && !load_node(persistor_ctx, nb))
+              continue;
+
+            candidate_neighbors.push_back({nb, dist(neighbor->vec(), nb)});
           }
           candidate_neighbors.push_back(
               {new_node, dist(neighbor->vec(), new_node)});
 
           const size_t selected [[maybe_unused]] =
               select_neighbors(neighbor->vec(), candidate_neighbors, Mmax,
-                               neighbor->neighbors_begin(*this, l));
+                               scratch_buffer.data());
           assert(selected == Mmax);
+
+          lock_node(neighbor);
+          std::copy(scratch_buffer.data(), scratch_buffer.data() + Mmax,
+                    neighbor->neighbors_begin(*this, l));
         }
+        unlock_node(neighbor);
         updated_neighbors.insert(neighbor);
       }
     }
 
     m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
                           neighbor_ids(new_node));
+
+    // Mark the node as complete. Doing this after calling persistor insert
+    // callback ensures that nodes marked as such are always known to persistor.
+    new_node->set_complete();
+
     for (Node *neighbor : updated_neighbors) {
       // search_layer() + select_neighbors() post condition:
-      // all neighbors of newly inserted node are loaded.
-      assert(neighbor->loaded());
+      // all neighbors of newly inserted node are complete.
+      // They have proper neighbor lists set and are known to persistor already.
+      assert(neighbor->state() == NODE_COMPLETE);
+      // Lock the neighbor so we can safely read its neighbor lists.
+      // TODO: Think about possible optimizations of this/not holding
+      //       the lock during the callback.
+      lock_node(neighbor);
       m_persistor.update_neighbors_cb(persistor_ctx, neighbor->id(),
                                       neighbor_ids(neighbor));
+      unlock_node(neighbor);
     }
 
     if (target_layer > max_layer) {
-      m_entry_point = new_node;
-      m_persistor.update_entry_point_cb(persistor_ctx, id);
+      std::scoped_lock lock(m_entry_point_lock);
+      // Check if our new node still should be made the entry point.
+      // Another node that just has been inserted concurrently might
+      // already have taken the spot.
+      if (target_layer > m_entry_point.load()->layer()) {
+        m_persistor.update_entry_point_cb(persistor_ctx, id);
+        m_entry_point.store(new_node);
+      }
     }
   }
 
@@ -290,26 +450,31 @@ class HNSW {
                                     PersistorContext *persistor_ctx = nullptr) {
     assert(k > 0);
 
-    if (m_entry_point == nullptr) {
+    Node *const entry_point = m_entry_point.load();
+
+    if (entry_point == nullptr) {
       return {};
     }
 
-    // Entry point is always loaded.
-    assert(m_entry_point->loaded());
+    // Entry point is always complete.
+    assert(entry_point->state() == NODE_COMPLETE);
 
-    const uint8_t max_layer = m_entry_point->layer();
-    NodeDist nearest_entry = {m_entry_point, dist(q, m_entry_point)};
+    std::vector<Node *> scratch_buffer(get_Mmax(0));
+
+    const uint8_t max_layer = entry_point->layer();
+    NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
     for (int l = max_layer; l > 0; --l) {
-      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx);
+      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx,
+                                        scratch_buffer.data());
     }
-    // search_layer_ef_1() post condition: the nearest entry node is loaded.
-    assert(nearest_entry.node->loaded());
+    // search_layer_ef_1() post condition: the nearest entry node is complete.
+    assert(nearest_entry.node->state() == NODE_COMPLETE);
 
     // Asking for more rows than the configured search width silently
     // widens the search.
-    SearchLayerResult nearest =
-        search_layer(q, SearchLayerResult{nearest_entry},
-                     std::max(ef_search, k), 0, persistor_ctx);
+    SearchLayerResult nearest = search_layer(
+        q, SearchLayerResult{nearest_entry}, std::max(ef_search, k), 0,
+        persistor_ctx, scratch_buffer.data());
     // 'nearest' is a max-heap, so we need to throw away
     // the extra elements to get the closest k elements.
     while (nearest.size() > k) {
@@ -356,6 +521,9 @@ class HNSW {
     search on the same context (asserted in debug builds). Destruction
     also releases resources.
 
+    Not thread-safe: a single NNSearchContext must not be shared across
+    threads. Concurrent streaming searches need a distinct context each.
+
     The HNSW index must outlive an in-progress search on this context.
     nn_search_start() stores the PersistorContext * passed to it; later
     nn_search_next() batch refills may invoke Persistor::load_node_cb through
@@ -382,6 +550,7 @@ class HNSW {
 
       m_visited = std::unordered_set<Node *>();
       m_discarded = {};
+      m_scratch_buffer.clear();
 
       m_results_batch.clear();
       m_current_batch_pos = 0;
@@ -400,6 +569,7 @@ class HNSW {
       m_batch_size = batch_size;
       m_ef_search = ef_search;
       m_persistor_ctx = persistor_ctx;
+      m_scratch_buffer.resize(hnsw.get_Mmax(0));
       assert(m_visited.empty());
       assert(m_discarded.empty());
       assert(m_results_batch.empty());
@@ -432,6 +602,9 @@ class HNSW {
     // We use this "ring" of nodes to prime the algorithm in order to produce
     // the next batch.
     NodeDistMinQueue m_discarded;
+
+    /// Scratch for lock-and-copy of a node's neighbor layer (size 2*M).
+    std::vector<Node *> m_scratch_buffer;
 
     // Results
     std::vector<NodeDist> m_results_batch;
@@ -469,18 +642,21 @@ class HNSW {
     size_t ef = std::max(batch_size, ef_search);
     ctx->init(*this, q, batch_size, ef, persistor_ctx);
 
-    if (m_entry_point == nullptr) {
+    Node *const entry_point = m_entry_point.load();
+
+    if (entry_point == nullptr) {
       return;
     }
-    // Entry point is always loaded.
-    assert(m_entry_point->loaded());
-    const uint8_t max_layer = m_entry_point->layer();
-    NodeDist nearest_entry = {m_entry_point, dist(q, m_entry_point)};
+    // Entry point is always complete.
+    assert(entry_point->state() == NODE_COMPLETE);
+    const uint8_t max_layer = entry_point->layer();
+    NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
     for (int l = max_layer; l > 0; --l) {
-      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx);
+      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx,
+                                        ctx->m_scratch_buffer.data());
     }
-    // search_layer_ef_1() post condition: the nearest entry node is loaded.
-    assert(nearest_entry.node->loaded());
+    // search_layer_ef_1() post condition: the nearest entry node is complete.
+    assert(nearest_entry.node->state() == NODE_COMPLETE);
 
     SearchLayerResult nearest{nearest_entry};
     NodeDistMinQueue candidates;
@@ -492,7 +668,8 @@ class HNSW {
     assert(ctx->m_discarded.empty());
 
     search_layer_core(q, &nearest, &candidates, &ctx->m_visited,
-                      &ctx->m_discarded, ef, 0, persistor_ctx);
+                      &ctx->m_discarded, ef, 0, persistor_ctx,
+                      ctx->m_scratch_buffer.data());
 
     // We can safely ignore nodes left in candidates heap. There can
     // be only nodes in it which were part of the tentative result
@@ -504,8 +681,8 @@ class HNSW {
     // this.
     while (nearest.size() > batch_size) {
       // search_layer_core() post condition:
-      // all nodes in the nearest set are loaded.
-      assert(nearest.top().node->loaded());
+      // all nodes in the nearest set are complete.
+      assert(nearest.top().node->state() == NODE_COMPLETE);
       ctx->m_discarded.push(nearest.top());
       nearest.pop();
     }
@@ -513,8 +690,8 @@ class HNSW {
     ctx->m_results_batch.resize(nearest.size());
     for (size_t i = nearest.size(); i > 0; --i) {
       // search_layer_core() post condition:
-      // all nodes in the nearest set are loaded.
-      assert(nearest.top().node->loaded());
+      // all nodes in the nearest set are complete.
+      assert(nearest.top().node->state() == NODE_COMPLETE);
       ctx->m_results_batch[i - 1] = nearest.top();
       nearest.pop();
     }
@@ -573,16 +750,17 @@ class HNSW {
             candidates.push(ctx->m_discarded.top());
             assert(ctx->m_visited.count(ctx->m_discarded.top().node) > 0);
             // Earlier search_layer_core() post condition:
-            // all nodes in the discarded heap are loaded.
+            // all nodes in the discarded heap are complete.
             // Upcoming search_layer_core() pre condition:
-            // all nodes in the candidates heap must be loaded.
-            assert(ctx->m_discarded.top().node->loaded());
+            // all nodes in the candidates heap must be complete.
+            assert(ctx->m_discarded.top().node->state() == NODE_COMPLETE);
             ctx->m_discarded.pop();
           }
 
           search_layer_core(ctx->m_query_vec, &nearest, &candidates,
                             &ctx->m_visited, &ctx->m_discarded,
-                            ctx->m_ef_search, 0, ctx->m_persistor_ctx);
+                            ctx->m_ef_search, 0, ctx->m_persistor_ctx,
+                            ctx->m_scratch_buffer.data());
 
           // Similarly to nn_search_start(), we can safely ignore nodes left
           // in candidates heap. They will be present in the discarded heap.
@@ -592,8 +770,8 @@ class HNSW {
           // TODO: Thoroughly investigate this.
           while (nearest.size() > ctx->m_batch_size) {
             // search_layer_core() post condition:
-            // all nodes in the nearest set are loaded.
-            assert(nearest.top().node->loaded());
+            // all nodes in the nearest set are complete.
+            assert(nearest.top().node->state() == NODE_COMPLETE);
             ctx->m_discarded.push(nearest.top());
             nearest.pop();
           }
@@ -605,8 +783,8 @@ class HNSW {
           ctx->m_results_batch.resize(nearest.size());
           for (size_t i = nearest.size(); i > 0; --i) {
             // search_layer_core() post condition:
-            // all nodes in the nearest set are loaded.
-            assert(nearest.top().node->loaded());
+            // all nodes in the nearest set are complete.
+            assert(nearest.top().node->state() == NODE_COMPLETE);
             ctx->m_results_batch[i - 1] = nearest.top();
             nearest.pop();
           }
@@ -635,21 +813,25 @@ class HNSW {
     (see @tparam Persistor). Only the entry-point node is loaded immediately;
     other nodes load on demand during insert() or search.
 
+    @note This API is not thread-safe. It must not be called concurrently
+          with any insert or search operations.
+
     @param id             Graph node id of the persisted entry point.
     @param persistor_ctx  Context passed to load_node_cb..
   */
   void init_from_entry_point(uint64_t id, PersistorContext *persistor_ctx) {
-    assert(m_entry_point == nullptr);
+    assert(m_entry_point.load() == nullptr);
     assert(m_nodes.size() == 0);
-    Node *node = Node::create(m_allocator, *this, id);
+    Node *node = Node::create(m_allocator, *this, id, NODE_DUMMY);
     m_nodes.insert({id, node});
-    load_node_if_necessary(persistor_ctx, node);
-    m_entry_point = node;
-    assert(m_entry_point->loaded());
+    bool loaded [[maybe_unused]] = load_node(persistor_ctx, node);
+    assert(loaded);
+    m_entry_point.store(node);
+    assert(m_entry_point.load()->state() == NODE_COMPLETE);
   }
 
   /**
-    Graph id of an unloaded or loaded node referenced by @p handle.
+    Graph id of a NODE_DUMMY stub or loaded node referenced by @p handle.
     Valid before load_set_* calls (id is known at stub creation).
   */
   uint64_t load_node_id(LoadNodeHandle handle) const {
@@ -658,7 +840,7 @@ class HNSW {
   }
 
   /**
-    Set top layer for an unloaded node (Persistor::load_node_cb).
+    Set top layer for a NODE_DUMMY stub (Persistor::load_node_cb).
     Must be called before load_node_neighbors().
   */
   void load_set_layer(LoadNodeHandle handle, uint8_t layer) {
@@ -667,7 +849,7 @@ class HNSW {
   }
 
   /**
-    Copy vector data into an unloaded node (Persistor::load_node_cb).
+    Copy vector data into a NODE_DUMMY stub (Persistor::load_node_cb).
     @p q must point to @p dimensions floats (same layout as insert()).
   */
   void load_set_vec(LoadNodeHandle handle, const char *q) {
@@ -676,7 +858,7 @@ class HNSW {
   }
 
   /**
-    Set base-table row pk for an unloaded node (Persistor::load_node_cb).
+    Set base-table row pk for a NODE_DUMMY stub (Persistor::load_node_cb).
   */
   void load_set_base_pk(LoadNodeHandle handle, uint64_t base_pk) {
     Node *node = static_cast<Node *>(handle);
@@ -685,8 +867,8 @@ class HNSW {
 
   /**
     Allocate neighbor storage and fill slots from persisted node ids.
-    0-id means slot is empty. If neighbor is not loaded yet, creates
-    a stub node for it.
+    0-id means slot is empty. If a neighbor id is not yet in m_nodes, creates
+    a NODE_DUMMY stub for it.
 
     Called from Persistor::load_node_cb after load_set_layer().
     @p ids must cover exactly all neighbor slots (size (layer+2)*M).
@@ -695,7 +877,11 @@ class HNSW {
   void load_node_neighbors(LoadNodeHandle handle, Range ids) {
     Node *node = static_cast<Node *>(handle);
     assert(node != nullptr);
-    assert(!node->loaded());
+    assert(node->state() == NODE_DUMMY);
+
+    // Protect all allocations and nodes map ops in this function.
+    std::scoped_lock lock(m_global_lock);
+
     node->alloc_neighbors(m_allocator, *this);
     Node **neighbor_out = node->all_neighbors_begin(*this);
     Node **const neighbor_end [[maybe_unused]] = node->all_neighbors_end(*this);
@@ -710,7 +896,7 @@ class HNSW {
       if (it != m_nodes.end()) {
         neighbor_node = it->second;
       } else {
-        neighbor_node = Node::create(m_allocator, *this, id);
+        neighbor_node = Node::create(m_allocator, *this, id, NODE_DUMMY);
         auto inserted [[maybe_unused]] = m_nodes.emplace(id, neighbor_node);
         assert(inserted.second);
       }
@@ -723,17 +909,20 @@ class HNSW {
   /**
     Check internal graph consistency (debug builds only).
 
-    Requires every node in m_nodes to be fully loaded.
+    Requires every node in m_nodes to be fully loaded/completed.
     Must not be called until all nodes that will be checked
-    have been loaded.
+    have been loaded/completed.
+
+    @note This API is not thread-safe. It is intended for
+          use in unit tests and debug builds only.
   */
   bool validate() const {
     // Empty index <=> no entry point.
     if (m_nodes.empty()) {
-      return m_entry_point == nullptr;
+      return m_entry_point.load() == nullptr;
     }
     // Non-empty index must have an entry point.
-    if (m_entry_point == nullptr) {
+    if (m_entry_point.load() == nullptr) {
       return false;
     }
 
@@ -746,12 +935,12 @@ class HNSW {
         return false;
       }
       max_layer = std::max(max_layer, node->layer());
-      if (node == m_entry_point) {
+      if (node == m_entry_point.load()) {
         found_ep = true;
       }
     }
     // Entry point must be in the map and sit on the highest layer.
-    if (!found_ep || m_entry_point->layer() != max_layer) {
+    if (!found_ep || m_entry_point.load()->layer() != max_layer) {
       return false;
     }
 
@@ -827,35 +1016,18 @@ class HNSW {
    public:
     /**
       Allocate and initialize a node in @p allocator (see class layout).
+
+      @param state  Initial lifecycle state: NODE_NEW for insert(),
+                    NODE_DUMMY for lazy-load stubs in load_node_neighbors().
     */
     static Node *create(ArenaAllocator &allocator, const HNSW &hnsw,
-                        uint64_t id, uint64_t base_pk, const char *vec,
-                        uint8_t layer) {
-      // TODO: Needs to be adjusted to support quantization.
-      const size_t vec_size = hnsw.m_dimensions * sizeof(float);
-      void *raw_mem =
-          allocator.allocate(ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(vec_size));
-
-      // TODO: revisit once we add memory limits.
-      if (raw_mem == nullptr) throw std::bad_alloc();
-
-      Node *node = new (raw_mem) Node(id);
-      node->m_layer = layer;
-      node->m_base_pk = base_pk;
-      node->set_vec(hnsw, vec);
-      node->alloc_neighbors(allocator, hnsw);
-      node->m_loaded = true;
-      return node;
-    }
-
-    static Node *create(ArenaAllocator &allocator, const HNSW &hnsw,
-                        uint64_t id) {
+                        uint64_t id, NodeState state) {
       // TODO: Needs to be adjusted to support quantization.
       const size_t vec_size = hnsw.m_dimensions * sizeof(float);
       void *raw_mem =
           allocator.allocate(ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(vec_size));
       if (raw_mem == nullptr) throw std::bad_alloc();
-      Node *node = new (raw_mem) Node(id);
+      Node *node = new (raw_mem) Node(id, state);
       return node;
     }
 
@@ -866,18 +1038,42 @@ class HNSW {
 
     uint64_t id() const { return m_id; }
 
-    bool loaded() const { return m_loaded; }
-    void set_loaded() {
-      assert(!m_loaded);
-      m_loaded = true;
+    NodeState state() const { return m_state.load(); }
+
+    void set_linking() {
+      assert(m_state.load() == NODE_NEW);
+      m_state.store(NODE_LINKING);
+    }
+
+    void set_complete() {
+#ifndef NDEBUG
+      // While in this particular case doing single load vs multiple in a
+      // single assert expression is not important, we do this for the sake
+      // of consistency with other places where it is important.
+      const NodeState s = m_state.load();
+      assert(s == NODE_NEW ||  // the very first node case.
+             s == NODE_LINKING || s == NODE_DUMMY);
+#endif
+      m_state.store(NODE_COMPLETE);
+    }
+
+    void set_lost() {
+      assert(m_state.load() == NODE_DUMMY);
+      m_state.store(NODE_LOST);
     }
 
     uint8_t layer() const {
-      assert(m_loaded);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      assert(s == NODE_COMPLETE || s == NODE_LINKING);
+#endif
       return m_layer;
     }
     void set_layer(uint8_t layer) {
-      assert(!m_loaded);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      assert(s == NODE_NEW || s == NODE_DUMMY);
+#endif
       m_layer = layer;
     }
 
@@ -886,21 +1082,33 @@ class HNSW {
              ALIGN_SIZE(sizeof(Node));
     }
     void set_vec(const HNSW &hnsw, const char *v) {
-      assert(!m_loaded);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      assert(s == NODE_NEW || s == NODE_DUMMY);
+#endif
       memcpy(const_cast<char *>(vec()), v, hnsw.m_dimensions * sizeof(float));
     }
 
     uint64_t base_pk() const {
-      assert(m_loaded);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      assert(s == NODE_COMPLETE || s == NODE_LINKING);
+#endif
       return m_base_pk;
     }
     void set_base_pk(uint64_t base_pk) {
-      assert(!m_loaded);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      assert(s == NODE_NEW || s == NODE_DUMMY);
+#endif
       m_base_pk = base_pk;
     }
 
     void alloc_neighbors(ArenaAllocator &allocator, const HNSW &hnsw) {
-      assert(!m_loaded);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      assert(s == NODE_NEW || s == NODE_DUMMY);
+#endif
       const size_t neighbors_size =
           (static_cast<size_t>(m_layer) + 2) * hnsw.m_M * sizeof(Node *);
       m_neighbors = static_cast<Node **>(allocator.allocate(neighbors_size));
@@ -926,11 +1134,14 @@ class HNSW {
    private:
     /// Unique graph node id (0 is reserved; see insert() / NeighborIdIterator).
     const uint64_t m_id;
-    /// Set to true once the node is fully loaded or when it is fully
-    /// initialized by insert().
-    bool m_loaded;
+    /**
+      Node lifecycle state; see HNSW::NodeState.
+    */
+    std::atomic<NodeState> m_state;
 
-    // The vector and the below fields are valid only when m_loaded is true.
+    // Layer, base_pk, vector bytes, and neighbor storage are filled while
+    // NODE_NEW (insert) or NODE_DUMMY (load helpers), then become readable
+    // to other threads once the node is NODE_LINKING or NODE_COMPLETE.
 
     /// Top layer on which the node is present
     /// (it is also present on all lower layers).
@@ -939,7 +1150,12 @@ class HNSW {
     uint64_t m_base_pk;
     /**
       Outgoing neighbor slots; separate arena block (see class comment).
-      Uninitialized on unloaded stubs until load_node_neighbors() / insert().
+      Uninitialized on NODE_DUMMY stubs until load_node_neighbors() is called.
+      Allocated while NODE_NEW during insert() before set_linking().
+
+      One should not rely on the neighbor slots being correctly filled until
+      node is transitioned to NODE_COMPLETE state.
+
       When allocated: (m_layer + 2) * M pointers, layers packed high-to-low
       (layer L at offset (m_layer - L) * M, width get_Mmax(L)); unused slots
       are nullptr. Persistor serializes the same flat id sequence via
@@ -947,7 +1163,7 @@ class HNSW {
     */
     Node **m_neighbors;
 
-    explicit Node(uint64_t id) : m_id(id), m_loaded(false) {}
+    explicit Node(uint64_t id, NodeState state) : m_id(id), m_state(state) {}
   };
 
  public:
@@ -1009,17 +1225,18 @@ class HNSW {
                            node->all_neighbors_end(*this)};
   }
 
-  ArenaAllocator m_allocator;
-  /// Stateless callback sink; see @tparam Persistor.
-  Persistor m_persistor;
   const size_t m_dimensions;
   vec_dist_func_t *const m_dist_func;
   const size_t m_M;
   const size_t m_ef_construction;
   const double m_layer_factor;
 
+  // Lock protecting allocator and nodes map.
+  std::mutex m_global_lock;
+  ArenaAllocator m_allocator;
   // Nodes are arena-allocated; pointers are non-owning.
   std::unordered_map<uint64_t, Node *> m_nodes;
+
   /**
     Search / insert entry point (HNSW paper).
 
@@ -1030,10 +1247,27 @@ class HNSW {
         max). Nodes inserted later on that same layer do not replace it.
     Updated on first insert and when a new node is assigned a layer higher
     than the current max.
-  */
-  Node *m_entry_point{nullptr};
-  std::default_random_engine m_rng;
 
+    @note This is an atomic pointer which is also protected by
+          m_entry_point_lock. Readers can safely read the pointer
+          value using atomic load operation. Writers must both
+          acquire the lock and perform the atomic store operation.
+          This ensures that changes of entry point in memory and
+          on disk (through the Persistor) are done in-sync, and
+          can't be affected by possible concurrent modifications
+          of entry point.
+  */
+  std::atomic<Node *> m_entry_point{nullptr};
+  /// Lock protecting entry point from concurrent modifications
+  /// and ensuring that changes of entry point in memory and on disk
+  /// are synchronized.
+  std::mutex m_entry_point_lock;
+
+  /// Layer-assignment RNG; see @tparam RandomEngine.
+  RandomEngine m_rng;
+
+  /// Stateless callback sink; see @tparam Persistor.
+  Persistor m_persistor;
   /**
     Max neighbor slots on @p layer: 2*M on layer 0 (as suggested by the HNSW
     paper), M on higher layers.
@@ -1092,6 +1326,43 @@ class HNSW {
     return m_dist_func(q, node->vec(), static_cast<uint32_t>(m_dimensions));
   }
 
+  static constexpr size_t kNodeLockStripes = 16;  // Should be a power of 2.
+
+  /// One mutex per cache line to avoid false sharing between stripes.
+  struct alignas(64) LockStripe {
+    std::mutex mutex;
+  };
+
+  // Array of mutexes which protect neighbor lists in nodes.
+  LockStripe m_node_locks[kNodeLockStripes];
+
+  static size_t node_lock_index(const Node *node) {
+    return static_cast<size_t>(node->id()) & (kNodeLockStripes - 1);
+  }
+
+  void lock_node(const Node *node) {
+    m_node_locks[node_lock_index(node)].mutex.lock();
+  }
+  void unlock_node(const Node *node) {
+    m_node_locks[node_lock_index(node)].mutex.unlock();
+  }
+
+  static constexpr size_t kLoadNodeLockStripes = 4;  // Should be a power of 2.
+
+  // Array of mutexes which protect from concurrent loads of the same node.
+  LockStripe m_load_node_locks[kLoadNodeLockStripes];
+
+  static size_t load_node_lock_index(const Node *node) {
+    return static_cast<size_t>(node->id()) & (kLoadNodeLockStripes - 1);
+  }
+
+  void lock_load_node(const Node *node) {
+    m_load_node_locks[load_node_lock_index(node)].mutex.lock();
+  }
+  void unlock_load_node(const Node *node) {
+    m_load_node_locks[load_node_lock_index(node)].mutex.unlock();
+  }
+
   /**
     Greedy one-nearest-neighbor search on a single layer (ef = 1).
 
@@ -1107,29 +1378,60 @@ class HNSW {
     @param entry_point  Entry element on this layer (node and distance to q).
     @param layer        Layer index to search.
     @param persistor_ctx  Persistor call context for lazy load during search.
+    @param scratch_buffer  Caller-owned buffer of at least get_Mmax(layer)
+                           Node* slots (callers typically allocate get_Mmax(0)
+                           = 2*M). Used to lock-and-copy the current node's
+                           neighbor list so distance / load work runs without
+                           holding the node stripe lock. Not reentrant: must
+                           not be shared across concurrent calls.
 
-    @note Pre condition: @p entry_point node is loaded.
-          Post condition: the returned nearest neighbor node is loaded.
+    @note Pre condition: @p entry_point node is complete.
+          Post condition: the returned nearest neighbor node is complete.
 
     @return Nearest neighbor of q found on the given layer, with distance.
   */
   NodeDist search_layer_ef_1(const char *q, const NodeDist &entry_point,
-                             uint8_t layer, PersistorContext *persistor_ctx) {
+                             uint8_t layer, PersistorContext *persistor_ctx,
+                             Node **scratch_buffer) {
     Node *best_node = entry_point.node;
     double best_dist = entry_point.distance;
+    const size_t Mmax = get_Mmax(layer);
 
     for (;;) {
       Node *cur_node = best_node;
 
-      // The node we are currently inspecting must be loaded.
-      assert(cur_node->loaded());
+      // The node we are currently inspecting must be complete.
+      assert(cur_node->state() == NODE_COMPLETE);
 
-      for (Node *const *it = cur_node->neighbors_begin(*this, layer);
-           it != cur_node->neighbors_end(*this, layer) && *it != nullptr;
-           ++it) {
-        Node *neighbor = *it;
-        // Neighbors of the current node might be not loaded yet.
-        load_node_if_necessary(persistor_ctx, neighbor);
+      // Copy neighbors to scratch buffer to avoid expensive distance
+      // calculations under the lock and complex handling of not yet
+      // loaded node case.
+      lock_node(cur_node);
+      std::copy(cur_node->neighbors_begin(*this, layer),
+                cur_node->neighbors_end(*this, layer), scratch_buffer);
+      unlock_node(cur_node);
+
+      for (size_t i = 0; i < Mmax && scratch_buffer[i] != nullptr; ++i) {
+        Node *neighbor = scratch_buffer[i];
+        NodeState neighbor_state = neighbor->state();
+
+        // Nodes in the NODE_NEW state are not yet part of the graph.
+        assert(neighbor_state != NODE_NEW);
+
+        // Skip nodes which are in the process of being linked or lost.
+        // The former might not have proper neighbor list on this layer
+        // yet, so by following them we might end up in the graph deadend.
+        // OTOH such nodes represent rows which should not be visible to
+        // the current search anyway, so it is safe to skip them.
+        if (neighbor_state == NODE_LINKING || neighbor_state == NODE_LOST)
+          continue;
+
+        // Load the neighbor if it is not loaded yet, skip if it is lost.
+        if (neighbor_state == NODE_DUMMY && !load_node(persistor_ctx, neighbor))
+          continue;
+
+        assert(neighbor->state() == NODE_COMPLETE);
+
         const double neighbor_dist = dist(q, neighbor);
         if (neighbor_dist < best_dist) {
           best_node = neighbor;
@@ -1155,9 +1457,11 @@ class HNSW {
     @param ef  Size of the dynamic candidate / result list.
     @param layer  Layer index to search.
     @param persistor_ctx  Persistor call context for lazy load during search.
+    @param scratch_buffer  Caller-owned neighbor scratch; see
+                           search_layer_ef_1().
 
-    @note Pre condition: @p entry_points nodes are loaded.
-          Post condition: all nodes in the result set are loaded.
+    @note Pre condition: @p entry_points nodes are complete.
+          Post condition: all nodes in the result set are complete.
 
     @return Up to ef nearest neighbors of q on the given layer (as a
             max-heap of node/distance pairs; not sorted by distance when
@@ -1165,7 +1469,8 @@ class HNSW {
   */
   SearchLayerResult search_layer(const char *q, SearchLayerResult entry_points,
                                  size_t ef, uint8_t layer,
-                                 PersistorContext *persistor_ctx) {
+                                 PersistorContext *persistor_ctx,
+                                 Node **scratch_buffer) {
     assert(!entry_points.empty());
     std::unordered_set<Node *> visited;  // v in the paper
     // Guesstimate the number of unique nodes to visit in the layer.
@@ -1180,13 +1485,13 @@ class HNSW {
     for (const NodeDist &entry : result) {
       const bool res [[maybe_unused]] = visited.insert(entry.node).second;
       assert(res == true);
-      // Entry point nodes must be loaded.
-      assert(entry.node->loaded());
+      // Entry point nodes must be complete.
+      assert(entry.node->state() == NODE_COMPLETE);
       candidates.push(entry);
     }
 
     search_layer_core(q, &result, &candidates, &visited, nullptr, ef, layer,
-                      persistor_ctx);
+                      persistor_ctx, scratch_buffer);
 
     return result;
   }
@@ -1207,21 +1512,26 @@ class HNSW {
     @param ef          Maximum size of @p result.
     @param layer       Layer index to search.
     @param persistor_ctx  Persistor call context for lazy load during search.
+    @param scratch_buffer  Caller-owned neighbor scratch; see
+                           search_layer_ef_1().
 
-    @note Pre condition: @p entry_points nodes are loaded.
-          Post condition: all nodes in the result set are loaded.
-          Post condition: all nodes in the discarded heap are loaded.
-*/
+    @note Pre condition: @p entry_points nodes are complete.
+          Post condition: all nodes in the result set are complete.
+          Post condition: all nodes in the discarded heap are complete.
+  */
   void search_layer_core(const char *q, SearchLayerResult *result,
                          NodeDistMinQueue *candidates,
                          std::unordered_set<Node *> *visited,
                          NodeDistMinQueue *discarded, size_t ef, uint8_t layer,
-                         PersistorContext *persistor_ctx) {
+                         PersistorContext *persistor_ctx,
+                         Node **scratch_buffer) {
     assert(result != nullptr && !result->empty());
     assert(candidates != nullptr && !candidates->empty());
     // Early exit should not be possible as we populate C == W initially.
     assert(candidates->top().distance <= result->top().distance);
     assert(visited != nullptr);
+
+    const size_t Mmax = get_Mmax(layer);
 
     while (!candidates->empty()) {
       const NodeDist c = candidates->top();
@@ -1231,14 +1541,48 @@ class HNSW {
         break;
       }
 
-      // The node we are currently inspecting must be loaded.
-      assert(c.node->loaded());
+      // The node we are currently inspecting must be complete.
+      assert(c.node->state() == NODE_COMPLETE);
 
-      for (Node *const *it = c.node->neighbors_begin(*this, layer);
-           it != c.node->neighbors_end(*this, layer) && *it != nullptr; ++it) {
-        Node *e = *it;
-        // Neighbors of the current node might be not loaded yet.
-        load_node_if_necessary(persistor_ctx, e);
+      lock_node(c.node);
+      std::copy(c.node->neighbors_begin(*this, layer),
+                c.node->neighbors_end(*this, layer), scratch_buffer);
+      unlock_node(c.node);
+
+      for (size_t i = 0; i < Mmax && scratch_buffer[i] != nullptr; ++i) {
+        Node *e = scratch_buffer[i];
+        NodeState e_state = e->state();
+
+        // Nodes in the NODE_NEW state are not yet part of the graph.
+        assert(e_state != NODE_NEW);
+
+        // Skip nodes which are in the process of being linked or lost.
+        // Let us discuss the rationale for the former in more detail.
+        // There are two cases to consider:
+        // 1. We are executing a search or a streaming search and
+        //    are looking for nodes which are closest to the query
+        //    on the layer 0. In this case neighbor nodes in the linking
+        //    state do not have their neighbors on that level set yet,
+        //    so they won't help us reaching other nodes. OTOH they are not
+        //    interesting to us themselves since associated rows are not
+        //    supposed to be visible to the search anyway.
+        //    Hence it is reasonable to skip them.
+        // 2. We are executing an insert and are selecting neighbors for
+        //    the new node. In this case neighbor nodes in the linking
+        //    state might not have proper neighbor list set on that layer
+        //    as well. So they won't help us reaching other nodes.
+        //    In theory, they might be interesting as candidate neighbors
+        //    for our new node. But in practice, allowing that would
+        //    complicate linking and back-linking process too much.
+        //    Hence we skip them as well. The downside of this is that we
+        //    might get slightly worse graph as result, but this situation
+        //    should be rare and will be eventually remedied by the later
+        //    insertions.
+        if (e_state == NODE_LINKING || e_state == NODE_LOST) continue;
+
+        // Load the neighbor if it is not loaded yet, skip if it is lost.
+        if (e_state == NODE_DUMMY && !load_node(persistor_ctx, e)) continue;
+
         if (!visited->insert(e).second) {
           continue;
         }
@@ -1276,8 +1620,9 @@ class HNSW {
                 selected neighbors are written to out[0 .. return_value).
                 Together with r_size/return value corresponds to R in the paper.
 
-    @note Pre condition: all nodes in the candidates set are loaded.
-          Post condition: all nodes in the output buffer are loaded.
+    @note Pre condition: all nodes in the candidates set are complete or in the
+    linking state. Post condition: all nodes in the output buffer are complete
+    or in the linking state.
 
     @return Number of neighbors written to out (at most max_neighbors).
   */
@@ -1292,8 +1637,15 @@ class HNSW {
     std::vector<Node *> discarded;  // Wd from the paper.
 
     for (const NodeDist &entry : candidates) {
-      // Candidates must be loaded.
-      assert(entry.node->loaded());
+      // Candidates must be complete or in the linking state.
+      //
+      // Note it is important to do only one atomic load of the state here,
+      // otherwise we might get spurious failures due to concurrent LINKING
+      // -> COMPLETE transitions.
+#ifndef NDEBUG
+      NodeState entry_state = entry.node->state();
+      assert(entry_state == NODE_COMPLETE || entry_state == NODE_LINKING);
+#endif
       work_queue.push(entry);
     }
 
@@ -1327,13 +1679,40 @@ class HNSW {
     return r_size;
   }
 
-  void load_node_if_necessary(PersistorContext *persistor_ctx, Node *node) {
-    if (node->loaded()) return;
-    // Load callback must call, in order: load_set_layer(), load_set_vec(),
-    // load_set_base_pk(), load_node_neighbors().
-    m_persistor.load_node_cb(persistor_ctx, *this,
-                             static_cast<LoadNodeHandle>(node));
-    node->set_loaded();
+  bool load_node(PersistorContext *persistor_ctx, Node *node) {
+    // Lock the node to avoid concurrent loads of the same node.
+    lock_load_node(node);
+    // We need to re-check the state under the lock.
+    switch (node->state()) {
+      case NODE_DUMMY: {
+        // Most likely case, indeed, the node needs to be loaded.
+        //
+        // Load callback must call, in order: load_set_layer(), load_set_vec(),
+        // load_set_base_pk(), load_node_neighbors().
+        bool loaded = m_persistor.load_node_cb(
+            persistor_ctx, *this, static_cast<LoadNodeHandle>(node));
+        if (loaded) {
+          node->set_complete();
+        } else {
+          node->set_lost();
+        }
+        unlock_load_node(node);
+        return loaded;
+      }
+      case NODE_COMPLETE:
+        unlock_load_node(node);
+        return true;
+      case NODE_LOST:
+        unlock_load_node(node);
+        return false;
+      case NODE_NEW:
+      case NODE_LINKING:
+      default:
+        // NODE_NEW/LINKING are insert-owned, not loadable stubs.
+        assert(false);
+        unlock_load_node(node);
+        return false;
+    }
   }
 };
 

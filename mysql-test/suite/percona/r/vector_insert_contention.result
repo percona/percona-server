@@ -1,0 +1,45 @@
+#
+# PS-11300: many concurrent INSERTs into one vector index.
+#
+# vector_concurrent_insert covers correctness under a light,
+# near-uncontended interleaving. This one drives enough load to
+# make the graph's hot rows actually contend.
+#
+# Contention is expected here and is not a failure. Every insert
+# rewires the nodes near the entry point, so the aux rows for the
+# first-inserted nodes are touched by almost every insert, and the
+# sub-transaction holds their X locks until the whole graph insert
+# finishes. Statements therefore queue on those rows and some are
+# rolled back by the deadlock detector or the lock wait timeout.
+#
+# What must hold regardless is the invariant: whatever survives is
+# consistent. One node per committed row, no id issued twice, no
+# two nodes naming the same row. A statement that aborts must take
+# its aux rows with it and leave nothing behind.
+#
+SET GLOBAL innodb_lock_wait_timeout = 3;
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+CREATE PROCEDURE ins(n INT, seedv INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < n DO
+INSERT INTO t (v) VALUES (STRING_TO_VECTOR(CONCAT('[',
+(seedv*7+i)%97/97.0, ',', (seedv*13+i)%89/89.0, ',',
+(seedv*3+i)%83/83.0, ',', (seedv*11+i)%79/79.0, ']')));
+SET i = i + 1;
+END WHILE;
+END|
+CALL ins(120, 1);
+CALL ins(120, 2);
+CALL ins(120, 3);
+CALL ins(120, 4);
+CALL ins(120, 5);
+CALL ins(120, 6);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t';
+# Graph and table agree: one node per committed row, no duplicate
+# ids, no two nodes naming the same row.
+DROP PROCEDURE ins;
+DROP TABLE t;
+SET GLOBAL innodb_lock_wait_timeout = 50;

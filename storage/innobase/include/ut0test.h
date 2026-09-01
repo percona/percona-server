@@ -262,6 +262,12 @@ struct Tester {
   @return RET_PASS on success, or the error code. */
   [[nodiscard]] Ret_t vec_aux_dump(std::vector<std::string> &tokens) noexcept;
 
+  /** Order-independent consistency check on a vector aux table. Reports
+  only invariants that hold whatever order concurrent inserts ran in, so
+  it stays usable once concurrent graph mutation is allowed.
+  Usage: vec_aux_verify db/table */
+  [[nodiscard]] Ret_t vec_aux_verify(std::vector<std::string> &tokens) noexcept;
+
   /** Assign the next vector label for a table and print it.
   Usage: vec_next_id db/table
   @param[in]  tokens  the command

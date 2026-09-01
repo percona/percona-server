@@ -1,0 +1,47 @@
+#
+# PS-9638 - Enable CHECK TABLE EXTENDED to detect InnoDB LOB corruptions
+#
+call mtr.add_suppression("\\[ERROR\\] .* Invalid record! External LOB first page cannot be shared between two records");
+call mtr.add_suppression("\\[ERROR\\] .* The external LOB first page is \\[page id: space=\\d+, page number=\\d+\\]");
+call mtr.add_suppression("\\[ERROR\\] .* The first occurence of the external LOB first page is in record : page_no: \\d+ with heap_no: \\d+");
+call mtr.add_suppression("\\[ERROR\\] .* The second occurence of the external LOB first page is in record: page_no: \\d+ with heap no: \\d+");
+call mtr.add_suppression("\\[ERROR\\] .* Apparent corruption in space \\d+ page \\d+ index `PRIMARY`");
+call mtr.add_suppression("\\[ERROR\\] .* In page \\d+ of index `PRIMARY` of table `test`.`t1`");
+call mtr.add_suppression("\\[Warning\\] .* Cannot open table test/t1Please refer to .*innodb-troubleshooting.html for how to resolve the issue.");
+CREATE TABLE t1 (id INT PRIMARY KEY,  make_big CHAR(200),  val LONGBLOB, INDEX idx1(val(50)));
+INSERT INTO t1 (id,val) VALUES (1,REPEAT('a',1000000));
+INSERT INTO t1 (id,val) VALUES (2,REPEAT('b',1000000));
+INSERT INTO t1 (id,val) VALUES (3,REPEAT('c',1000000));
+INSERT INTO t1 (id,val) VALUES (4,REPEAT('d',1000000));
+INSERT INTO t1 (id,val) VALUES (5,REPEAT('e',1000000));
+INSERT INTO t1 (id,val) VALUES (6,REPEAT('f',1000000));
+SET DEBUG='+d, simulate_lob_corruption';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index PRIMARY is corrupted.
+test.t1	check	error	Corrupt
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+DROP TABLE t1;
+case 2: compressed table
+CREATE TABLE t1 (id INT PRIMARY KEY,  make_big CHAR(200),  val LONGBLOB, INDEX idx1(val(50))) ROW_FORMAT=COMPRESSED;
+INSERT INTO t1 (id,val) VALUES (1,REPEAT('a',1000000));
+INSERT INTO t1 (id,val) VALUES (2,REPEAT('b',1000000));
+INSERT INTO t1 (id,val) VALUES (3,REPEAT('c',1000000));
+INSERT INTO t1 (id,val) VALUES (4,REPEAT('d',1000000));
+INSERT INTO t1 (id,val) VALUES (5,REPEAT('e',1000000));
+INSERT INTO t1 (id,val) VALUES (6,REPEAT('f',1000000));
+SET DEBUG='+d, simulate_lob_corruption';
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index PRIMARY is corrupted.
+test.t1	check	error	Corrupt
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+DROP TABLE t1;

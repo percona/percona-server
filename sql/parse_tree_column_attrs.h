@@ -218,7 +218,8 @@ class PT_secondary_column_attr : public PT_column_attr_base {
 */
 class PT_unique_combo_clustering_key_column_attr : public PT_column_attr_base {
  public:
-  explicit PT_unique_combo_clustering_key_column_attr(const POS &pos, enum keytype key_type)
+  explicit PT_unique_combo_clustering_key_column_attr(const POS &pos,
+                                                      enum keytype key_type)
       : PT_column_attr_base(pos), m_key_type(key_type) {}
 
   void apply_type_flags(ulong *type_flags) const noexcept override {

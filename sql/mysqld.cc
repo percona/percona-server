@@ -825,8 +825,8 @@ MySQL clients support the protocol:
 #include "sql/regexp/regexp_facade.h"     // regexp::regexp_lib_charset
 #include "sql/replication.h"              // thd_enter_cond
 #include "sql/resourcegroups/resource_group_mgr.h"  // init, post_init
-#include "sql/statement/statement.h"
 #include "sql/sql_profile.h"
+#include "sql/statement/statement.h"
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
@@ -14001,15 +14001,13 @@ static bool check_secure_path(const char *opt_var, const char *variable_name,
 
   auto check_path_overlap = [&](char *buffer, size_t len, const char *message) {
     if (!case_insensitive_fs) {
-      if (!strncmp(buffer, opt_var,
-                   len < opt_var_len ? len : opt_var_len)) {
+      if (!strncmp(buffer, opt_var, len < opt_var_len ? len : opt_var_len)) {
         warn = true;
         strcpy(whichdir, message);
       }
     } else {
-      char *longer_str = opt_datadir_len > opt_var_len
-                             ? buffer
-                             : const_cast<char *>(opt_var);
+      char *longer_str =
+          opt_datadir_len > opt_var_len ? buffer : const_cast<char *>(opt_var);
       const size_t smaller_len = std::min(len, opt_var_len);
       const char restore = longer_str[smaller_len];
       longer_str[smaller_len] = '\0';

@@ -4286,7 +4286,8 @@ bool Sys_var_charptr::global_update(THD *, set_var *var) {
   const size_t len = var->save_result.string_value.length;
   char *old_val = nullptr;
 
-  // Save old value before allocating new one to avoid leak on allocation failure
+  // Save old value before allocating new one to avoid leak on allocation
+  // failure
   if ((flags & ALLOCATED) || option.var_type == GET_STR_ALLOC) {
     old_val = global_var(char *);
   }

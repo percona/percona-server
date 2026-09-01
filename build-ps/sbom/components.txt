@@ -1,0 +1,62 @@
+# Third-party component registry for Percona Server for MySQL SBOM generation.
+#
+# Vendored C/C++ trees carry no package manifest, so no scanner can derive this
+# inventory. This file is authoritative. check-components.sh validates it
+# against the source tree on every build and fails on drift.
+#
+# Format (pipe-separated, surrounding space ignored, '#' starts a comment):
+#
+#   name | version | license | ships | linkage | path | version-src | notes
+#
+#   ships        yes       present in every shipped artifact
+#                tarball   present only in the binary tarball
+#                no        present in the source tree but not built or not shipped
+#                uncertain needs a decision; an error unless allowlisted
+#   linkage      shared-lib | static | header-only | data | source
+#   path         tree path used for validation; '-' if not applicable
+#   version-src  dir            version must appear in the final path component
+#                file:<path>    version must appear literally in that file
+#                none           no automated verification is possible
+#   license      SPDX identifier or expression
+#
+# Components at a path listed in .gitmodules are resolved to their pinned commit
+# at build time; that commit is emitted alongside the version.
+#
+# Only ships=yes and ships=tarball rows are emitted, filtered by artifact.
+
+# --- shipped: bundled libraries installed as files ---------------------------
+protobuf         | 24.4         | BSD-3-Clause | yes | shared-lib  | extra/protobuf/protobuf-24.4                 | dir | ships under lib/mysql/private and lib/mysqlrouter/private
+utf8_range       | unknown      | MIT          | yes | static      | extra/protobuf/protobuf-24.4/third_party/utf8_range | none | vendored inside bundled protobuf and compiled into it; no independent version marker upstream
+abseil-cpp       | 20230802.1   | Apache-2.0   | yes | shared-lib  | extra/abseil/abseil-cpp-20230802.1           | dir | slaved to WITH_PROTOBUF=bundled; ships libabsl_*
+icu              | 77.1         | Unicode-3.0  | yes | shared-lib  | extra/icu/icu-release-77-1                   | dir | ships as percona-icu-data-files; no LICENSE in tree, headers cite unicode.org/copyright.html
+rocksdb          | 9.3.1        | (GPL-2.0-only OR Apache-2.0) AND BSD-3-Clause | yes | shared-lib | storage/rocksdb/rocksdb | file:storage/rocksdb/MYROCKS_VERSION | submodule; ships ha_rocksdb.so in percona-server-rocksdb; MyRocks patch level 9.3.1-5; BSD-3 covers LevelDB-derived code
+
+# --- shipped: bundled libraries linked into the binaries ---------------------
+zlib             | 1.3.2        | Zlib         | yes | static      | extra/zlib/zlib-1.3.2                        | dir | -DWITH_ZLIB=bundled in all three recipes
+zstd             | 1.5.7        | BSD-3-Clause | yes | static      | extra/zstd/zstd-1.5.7                        | dir | -DWITH_ZSTD=bundled; COPYING GPL-2.0 covers the CLI, which is not built
+lz4              | 1.10.0       | BSD-2-Clause | yes | static      | extra/lz4/lz4-1.10.0                         | dir | only lib/ is compiled; programs/ GPL-2.0 not built
+xxhash           | 0.8.3        | BSD-2-Clause | yes | static      | extra/xxhash/xxHash-0.8.3                    | dir | unconditional; no LICENSE in tree, BSD-2 asserted from header
+libbacktrace     | 793921876c981 | BSD-3-Clause | yes | static     | extra/libbacktrace/sha793921876c981          | dir | WITH_EXT_BACKTRACE defaults ON on Linux; version is the pinned commit; no LICENSE in tree
+libedit          | 20240808-3.1 | BSD-3-Clause | yes | static      | extra/libedit/libedit-20240808-3.1           | dir | -DWITH_EDITLINE=bundled
+libcno           | 208939f540957a35b337dacdd5c5e34d51821bd2 | MIT | yes | static | extra/libcno/libcno-208939f540957a35b337dacdd5c5e34d51821bd2 | dir | unconditional; static into the router HTTP libs; WITH_ROUTER defaults ON
+libcbor          | 0.11.0       | MIT          | yes | static      | extra/libcbor/libcbor-0.11.0                 | dir | slaved to WITH_FIDO=bundled; disabled on EL7 where add_fido_plugins is 0
+libfido2         | 1.15.0       | BSD-2-Clause | yes | static      | extra/libfido2/libfido2-1.15.0               | dir | bundled on DEB and tarball, and on RPM for EL8+; none on EL7
+libkmip          | 82988b2de6a0687791a3ae549fc2bd5cbeb457ab | Apache-2.0 OR BSD-3-Clause | yes | static | extra/libkmip | none | submodule; version is the pinned commit; only component_keyring_kmip.so ships, static libs are stripped
+coredumper       | 8f2623b6d34bfc4e691bdf67b4a0d37c77513ac7 | BSD-3-Clause | yes | static | extra/coredumper | none | submodule; version is the pinned commit; ships /usr/lib/libcoredumper.a
+opensslpp        | 1.0.0        | GPL-2.0-only | yes | static      | extra/opensslpp                              | file:extra/opensslpp/CMakeLists.txt | Percona-authored; WITH_ENCRYPTION_UDF=ON except RHEL6; no LICENSE in tree
+v8               | 12.9.202.22  | BSD-3-Clause | yes | static      | -                                            | file:cmake/v8.cmake | external prebuilt input, never in the source tree; static into component_js_lang.so
+
+# --- shipped: header-only, compiled into the binaries ------------------------
+boost            | 1.84.0       | BSL-1.0      | yes | header-only | extra/boost/boost_1_84_0                     | dir | always bundled, boost.cmake hardcodes the tree; trimmed subset; no LICENSE in tree
+rapidjson        | 1.1.0        | MIT          | yes | header-only | extra/rapidjson                              | none | -DWITH_RAPIDJSON=bundled; version is only in preprocessor defines, not as a literal
+unordered_dense  | 4.4.0        | MIT          | yes | header-only | extra/unordered_dense/unordered_dense-4.4.0  | dir | unconditional
+jwt-cpp          | 0.7.2        | MIT          | yes | header-only | extra/jwt-cpp                                | file:extra/jwt-cpp/CMakeLists.txt | submodule; WITH_AUTH_OPENID_CONNECT defaults ON
+
+# --- shipped in the binary tarball only --------------------------------------
+curl             | 8.14.1       | curl         | tarball | static  | extra/curl/curl-8.14.1                       | dir | -DWITH_CURL=bundled in build-binary.sh; RPM and DEB use the system libcurl
+tirpc            | 1.3.5        | BSD-3-Clause | tarball | static  | extra/tirpc/libtirpc-1.3.5                   | dir | forced bundled on EL8/EL9 by the tarball custom-OpenSSL path; RPM and DEB use system libtirpc
+
+# --- not shipped -------------------------------------------------------------
+googletest       | 1.17.0       | BSD-3-Clause | no  | source      | extra/googletest/googletest-1.17.0           | dir | compiled by the PGO-consume pass but no test artifact is packaged
+gperftools       | 2.15         | BSD-3-Clause | no  | source      | extra/gperftools/gperftools-2.15             | dir | WITH_TCMALLOC defaults OFF and is never passed
+doxygen-awesome  | 2.2.0        | MIT          | no  | data        | extra/doxygen-awesome/2.2.0                  | dir | documentation CSS only; no CMake reference

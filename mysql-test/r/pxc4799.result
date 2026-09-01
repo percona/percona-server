@@ -1,0 +1,22 @@
+#
+#  PXC-4799 : "PXC member used for backups fails with Inconsistency
+#             when pending DDL clashes with FTRWL" - single node test.
+#
+connect  con1, localhost, root,,;
+connection default;
+LOCK INSTANCE FOR BACKUP;
+connection con1;
+CREATE TABLE t1 (a INT);
+connection default;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+connection con1;
+# Reap result of CREATE TABLE t1
+#
+# Without the patch the CREAT TABLE statement would failed with
+# ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+# Clean up.
+DROP TABLE t1;
+disconnect con1;
+connection default;

@@ -459,16 +459,16 @@ class Idp_configs {
    * @param token  The ID token to verify.
    * @param idp_name The name of the IDP to use for verification.
    * @param ext_user  The expected external username (subject) in the token.
-   * @param ext_group The expected external group in the token.
+   * @param groups_to_proxied Token's group - proxied account map.
    * @param roles   A string to be populated with the mapped database roles
    * @return The proxy user name
    * (comma-separated) if verification is successful.
    */
-  static std::string verify_token(const Id_token &token,
-                                  const std::string &idp_name,
-                                  const std::string &ext_user,
-                                  const std::string &ext_group,
-                                  std::string &roles);
+  static std::string verify_token(
+      const Id_token &token, const std::string &idp_name,
+      const std::string &ext_user,
+      const std::vector<std::pair<std::string, std::string>> &groups_to_proxied,
+      std::string &roles);
 
   /**
    * @brief Validates the variable syntax, checks if the variable

@@ -8,7 +8,7 @@ INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
 CREATE USER '/accounting' IDENTIFIED WITH 'mysql_no_login';
 CREATE USER '/marketing' IDENTIFIED WITH 'mysql_no_login';
 
-## First group proxying
+## Any group proxying
 CREATE USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\"}';
 GRANT PROXY ON '/accounting' TO ''@'';
 GRANT PROXY ON '/marketing' TO ''@'';
@@ -25,6 +25,60 @@ mysql_oidc_user@localhost	/accounting@%
 
 IDP kkuser-no-groups user is not member of any group:
 expecting access denied
+
+## Single group proxying
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : \"/accounting\"}';
+
+IDP kk_proxy_user user is not member of /accounting group:
+expecting access denied
+
+IDP kkuser user is member of /accounting group:
+expecting USER is mysql_oidc_user, CURRENT_USER is /accounting
+user()	current_user()
+mysql_oidc_user@localhost	/accounting@%
+
+IDP kkuser-no-groups user is not member of any group:
+expecting access denied
+
+## Single group proxying with group name - proxied account mapping
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : [\"/accounting\",\"acc\"]}';
+CREATE USER 'acc' IDENTIFIED WITH 'mysql_no_login';
+GRANT PROXY ON 'acc' TO ''@'';
+
+IDP kkuser user is member of /accounting group, but the group in IDENTIFIED AS is incorrectly defined
+expecting access denied
+
+## Multiple group proxying with group name - proxied account mapping
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : [[\"/accounting\",\"acc\"], [\"/marketing\",\"mar\"]]}';
+CREATE USER 'mar' IDENTIFIED WITH 'mysql_no_login';
+GRANT PROXY ON 'mar' TO ''@'';
+
+IDP kk_proxy_user user is member of /marketing group:
+expecting USER is mysql_oidc_user, CURRENT_USER is mar
+user()	current_user()
+mysql_oidc_user@localhost	mar@%
+
+IDP kkuser user is member of /accounting group:
+expecting USER is mysql_oidc_user, CURRENT_USER is acc
+user()	current_user()
+mysql_oidc_user@localhost	acc@%
+
+IDP kkuser-no-groups user is not member of any group:
+expecting access denied
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"oidc-idp\", \"group"\ : [[\"/accounting\",\"acc\"], [\"/marketing\",\"mar\"]]}';
+
+IDP user is member of many groups:
+expecting the first from AS clause (/accounting) is selected, CURRENT_USER is acc
+user()	current_user()
+mysql_oidc_user@localhost	acc@%
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"oidc-idp\", \"group"\ : [[\"/marketing\",\"mar\"],[\"/accounting\",\"acc\"]]}';
+
+IDP user is member of many groups:
+expecting the first from AS clause (/marketing) is selected, CURRENT_USER is mar
+user()	current_user()
+mysql_oidc_user@localhost	mar@%
+DROP USER acc;
+DROP USER mar;
 DROP USER ''@'';
 
 ## Named group proxying
@@ -54,9 +108,9 @@ Variable_name	Value
 auth_openid_connect_configured_group_role_maps	4
 auth_openid_connect_configured_idps	3
 auth_openid_connect_configured_idps_using_jwks	2
-auth_openid_connect_users_authenticated	4
-auth_openid_connect_users_denied	2
-auth_openid_connect_users_proxied	4
+auth_openid_connect_users_authenticated	9
+auth_openid_connect_users_denied	6
+auth_openid_connect_users_proxied	9
 auth_openid_connect_users_with_roles	0
 
 ### CLEANUP

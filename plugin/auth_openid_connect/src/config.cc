@@ -483,15 +483,16 @@ void Idp_configs::set(const char *variable) noexcept {
   }
 }
 
-std::string Idp_configs::verify_token(const Id_token &token,
-                                      const std::string &idp_name,
-                                      const std::string &ext_user,
-                                      const std::string &ext_group,
-                                      std::string &roles) {
+std::string Idp_configs::verify_token(
+    const Id_token &token, const std::string &idp_name,
+    const std::string &ext_user,
+    const std::vector<std::pair<std::string, std::string>> &groups_to_proxied,
+    std::string &roles) {
   // No change to the configuration is allowed while verifying the token,
   // use lock
   const std::shared_lock lock(mutex(), lock_timeout);
   if (!lock.owns_lock())
     throw std::runtime_error("failed to acquire shared lock on configuration");
-  return token.verify(ext_user, ext_group, current()->get_idp(idp_name), roles);
+  return token.verify(ext_user, groups_to_proxied, current()->get_idp(idp_name),
+                      roles);
 }

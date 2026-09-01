@@ -34,7 +34,7 @@ function set_suites() {
     WORKER_3_MTR_SUITES="main|big,binlog|nobig,percona_binlog|nobig,innodb_zip|nobig,engines/funcs|nobig,innodb_gis|big,parts|big,binlog_nogtid|nobig,collations,sysschema|nobig,rocksdb_sys_vars,connection_control|nobig,jdv"
     WORKER_4_MTR_SUITES="innodb|big,group_replication|nobig,rpl_gtid|nobig,percona_rpl_gtid|nobig,binlog|big,percona_binlog|big,innodb_fts|nobig,binlog_nogtid|big,funcs_1|nobig,innodb_gis|nobig,perfschema|big,federated|nobig,gis|big"
     WORKER_5_MTR_SUITES="main|nobig,rpl|big,percona_rpl|big,rpl_nogtid|big,component_encryption_udf|big,x|nobig,binlog_gtid|nobig,component_keyring_file|nobig,funcs_2|big,test_services,binlog_gtid|big,stress|nobig,information_schema,component_js_lang|nobig,component_connection_control|big"
-    WORKER_6_MTR_SUITES="group_replication|big,percona_innodb|nobig,rocksdb|big,innodb_undo|nobig,stress|big,x|big,auth_sec|nobig,rocksdb_rpl|big,gcol|nobig,query_rewrite_plugins,secondary_engine,interactive_utilities,connection_control|big,percona|big"
+    WORKER_6_MTR_SUITES="group_replication|big,percona_innodb|nobig,rocksdb|big,innodb_undo|nobig,stress|big,x|big,auth_sec|nobig,auth_openid_connect,rocksdb_rpl|big,gcol|nobig,query_rewrite_plugins,secondary_engine,interactive_utilities,connection_control|big,percona|big"
     WORKER_7_MTR_SUITES="rpl|nobig,percona_rpl|nobig,innodb_undo|big,perfschema|nobig,component_keyring_file|big,percona_innodb|big,sys_vars|nobig,auth_sec|big,opt_trace|nobig,json,engines/iuds|nobig,test_service_sql_api,service_status_var_registration,opt_trace|big"
     WORKER_8_MTR_SUITES="engines/funcs|big,clone|big,rocksdb|nobig,clone|nobig,parts|nobig,federated|big,engines/iuds|big,gis|nobig,sys_vars|big,gcol|big,funcs_2|nobig,service_udf_registration,percona-pam-for-mysql"
   elif [[ "$1" == "RelWithDebInfo" ]]; then
@@ -43,7 +43,7 @@ function set_suites() {
     WORKER_1_MTR_SUITES="main|nobig,main|big,parts,percona,component_audit_log_filter,engines/iuds,component_connection_control,opt_trace,information_schema"
     WORKER_2_MTR_SUITES="component_encryption_udf,innodb_zip,gis,json,component_js_lang,router"
     WORKER_3_MTR_SUITES="group_replication|big,binlog,percona_binlog,test_service_sql_api,component_masking_functions,connection_control,service_sys_var_registration,jdv"
-    WORKER_4_MTR_SUITES="rocksdb|big,rpl_gtid,percona_rpl_gtid,auth_sec,engines/funcs,innodb_undo,interactive_utilities,query_rewrite_plugins,audit_null"
+    WORKER_4_MTR_SUITES="rocksdb|big,rpl_gtid,percona_rpl_gtid,auth_sec,auth_openid_connect,engines/funcs,innodb_undo,interactive_utilities,query_rewrite_plugins,audit_null"
     WORKER_5_MTR_SUITES="rocksdb|nobig,percona_innodb,sys_vars,perfschema,innodb_fts,binlog_gtid,rpl_encryption,service_udf_registration,procfs"
     WORKER_6_MTR_SUITES="rpl|nobig,percona_rpl|nobig,rpl_nogtid|big,rocksdb_rpl,clone,innodb_gis,funcs_1,funcs_2,collations,jp,percona-pam-for-mysql"
     WORKER_7_MTR_SUITES="group_replication|nobig,rpl_nogtid|nobig,innodb|nobig,component_keyring_file,rocksdb_stress,gcol,stress,test_services,secondary_engine,service_status_var_registration"
@@ -58,6 +58,6 @@ function set_suites() {
     WORKER_5_MTR_SUITES="main|big,innodb_gis|big,rpl_gtid|big,percona_rpl_gtid|big,binlog|big,percona_binlog|big,funcs_1,auth_sec|big,binlog_gtid|nobig,opt_trace,secondary_engine,service_status_var_registration"
     WORKER_6_MTR_SUITES="main|nobig,group_replication|nobig,parts|big,innodb_undo|big,innodb_fts|nobig,perfschema|big,engines/iuds,innodb_zip|nobig,rocksdb_sys_vars,component_connection_control,service_udf_registration"
     WORKER_7_MTR_SUITES="innodb|big,rpl|nobig,percona_rpl|nobig,engines/funcs,sys_vars,x|nobig,component_keyring_file|nobig,stress,funcs_2,json,interactive_utilities,procfs"
-    WORKER_8_MTR_SUITES="component_encryption_udf,innodb|nobig,innodb_fts|big,rpl_gtid|nobig,percona_rpl_gtid|nobig,gcol,gis,auth_sec|nobig,binlog_gtid|big,test_service_sql_api,connection_control,percona-pam-for-mysql"
+    WORKER_8_MTR_SUITES="component_encryption_udf,innodb|nobig,innodb_fts|big,rpl_gtid|nobig,percona_rpl_gtid|nobig,gcol,gis,auth_sec|nobig,auth_openid_connect,binlog_gtid|big,test_service_sql_api,connection_control,percona-pam-for-mysql"
   fi
 }

@@ -1,0 +1,6 @@
+dn: cn=Test(User),ou=people,dc=planetexpress,dc=com
+objectClass: inetOrgPerson
+cn: Test(User)
+sn: User
+uid: testparenuser
+userPassword: testpass123

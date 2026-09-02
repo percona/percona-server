@@ -83,8 +83,8 @@ double self_match_hit_rate(
   for (size_t i = 0; i < points.size(); ++i) {
     const auto result =
         index.k_nn_search(as_bytes(points[i]), k, ef_search, persistor_ctx);
-    for (uint64_t pk : result) {
-      if (pk == base_pks[i]) {
+    for (const auto &hit : result) {
+      if (hit.base_pk == base_pks[i]) {
         ++hits;
         break;
       }
@@ -200,7 +200,7 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesStableGraph) {
   ASSERT_FALSE(baseline.empty());
 
   ThreadBarrier barrier(kNumThreads);
-  std::vector<std::vector<uint64_t>> results(kNumThreads);
+  std::vector<std::vector<ConcurrentTestHnsw::SearchHit>> results(kNumThreads);
   std::vector<std::thread> threads;
   threads.reserve(kNumThreads);
   for (size_t t = 0; t < kNumThreads; ++t) {
@@ -339,12 +339,13 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndStreaming) {
                             /*ef_search=*/32);
       std::unordered_set<uint64_t> seen;
       for (size_t i = 0; i < 40; ++i) {
-        const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
+        const std::pair<bool, ConcurrentTestHnsw::SearchHit> step =
+            index.nn_search_next(&ctx);
         if (!step.first) {
           break;
         }
-        EXPECT_TRUE(seen.insert(step.second).second)
-            << "duplicate base_pk in stream thread " << t;
+        EXPECT_TRUE(seen.insert(step.second.id).second)
+            << "duplicate node id in stream thread " << t;
       }
     });
   }
@@ -436,7 +437,7 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesColdGraph) {
   ASSERT_EQ(1U, fixture.store.load_counts.at(fixture.store.entry_point));
 
   ThreadBarrier barrier(kNumThreads);
-  std::vector<std::vector<uint64_t>> results(kNumThreads);
+  std::vector<std::vector<ConcurrentLoadHnsw::SearchHit>> results(kNumThreads);
   std::vector<std::thread> threads;
   threads.reserve(kNumThreads);
   for (size_t t = 0; t < kNumThreads; ++t) {
@@ -452,7 +453,13 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesColdGraph) {
 
   for (size_t t = 0; t < kNumThreads; ++t) {
     ASSERT_FALSE(results[t].empty()) << "thread " << t;
-    EXPECT_EQ(baseline, results[t]) << "thread " << t;
+    ASSERT_EQ(baseline.size(), results[t].size()) << "thread " << t;
+    for (size_t i = 0; i < baseline.size(); ++i) {
+      EXPECT_EQ(baseline[i].id, results[t][i].id)
+          << "thread " << t << " i=" << i;
+      EXPECT_EQ(baseline[i].base_pk, results[t][i].base_pk)
+          << "thread " << t << " i=" << i;
+    }
   }
   EXPECT_GT(fixture.store.load_counts.size(), 1U);
 }
@@ -523,12 +530,13 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndSearchWhileLazyLoading) {
                            /*ef_search=*/32, &fixture.store);
       std::unordered_set<uint64_t> seen;
       for (size_t i = 0; i < 30; ++i) {
-        const std::pair<bool, uint64_t> step = cold.nn_search_next(&ctx);
+        const std::pair<bool, ConcurrentLoadHnsw::SearchHit> step =
+            cold.nn_search_next(&ctx);
         if (!step.first) {
           break;
         }
-        EXPECT_TRUE(seen.insert(step.second).second)
-            << "duplicate base_pk in stream thread " << t;
+        EXPECT_TRUE(seen.insert(step.second.id).second)
+            << "duplicate node id in stream thread " << t;
       }
     });
   }

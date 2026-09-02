@@ -49,7 +49,8 @@ TEST_F(HnswTest, InsertSingleAndSearchExact) {
 
   const auto result = index.k_nn_search(as_bytes(v0), 1, 8);
   ASSERT_EQ(1U, result.size());
-  EXPECT_EQ(1001U, result[0]);
+  EXPECT_EQ(42U, result[0].id);
+  EXPECT_EQ(1001U, result[0].base_pk);
 }
 
 TEST_F(HnswTest, InsertMultipleSearchNearest) {
@@ -67,7 +68,8 @@ TEST_F(HnswTest, InsertMultipleSearchNearest) {
   const auto query = make_vec({9.5f, 9.5f});
   const auto result = index.k_nn_search(as_bytes(query), 1, 16);
   ASSERT_EQ(1U, result.size());
-  EXPECT_EQ(2003U, result[0]);
+  EXPECT_EQ(103U, result[0].id);
+  EXPECT_EQ(2003U, result[0].base_pk);
 }
 
 TEST_F(HnswTest, SearchReturnsKResults) {
@@ -88,11 +90,12 @@ TEST_F(HnswTest, SearchReturnsKResults) {
   const auto result = index.k_nn_search(as_bytes(query), 3, 16);
   ASSERT_EQ(3U, result.size());
 
-  std::unordered_set<uint64_t> base_pks(result.begin(), result.end());
+  const auto base_pks = base_pks_of(result);
+  std::unordered_set<uint64_t> base_pk_set(base_pks.begin(), base_pks.end());
   // Closest three to (0.1, 0) should be base_pks 3010, 3011, 3012.
-  EXPECT_EQ(1U, base_pks.count(3010));
-  EXPECT_EQ(1U, base_pks.count(3011));
-  EXPECT_EQ(1U, base_pks.count(3012));
+  EXPECT_EQ(1U, base_pk_set.count(3010));
+  EXPECT_EQ(1U, base_pk_set.count(3011));
+  EXPECT_EQ(1U, base_pk_set.count(3012));
 }
 
 TEST_F(HnswTest, SearchKLargerThanIndexSize) {
@@ -121,9 +124,9 @@ TEST_F(HnswTest, SearchResultsOrderedByDistance) {
   const auto query = make_vec({0.0f, 0.0f});
   const auto result = index.k_nn_search(as_bytes(query), 3, 16);
   ASSERT_EQ(3U, result.size());
-  EXPECT_EQ(5020U, result[0]);
-  EXPECT_EQ(5022U, result[1]);
-  EXPECT_EQ(5021U, result[2]);
+  EXPECT_EQ(5020U, result[0].base_pk);
+  EXPECT_EQ(5022U, result[1].base_pk);
+  EXPECT_EQ(5021U, result[2].base_pk);
 }
 
 TEST_F(HnswTest, ExactMatchIsFirstResult) {
@@ -141,7 +144,8 @@ TEST_F(HnswTest, ExactMatchIsFirstResult) {
   for (size_t i = 0; i < points.size(); ++i) {
     const auto result = index.k_nn_search(as_bytes(points[i]), 1, 32);
     ASSERT_EQ(1U, result.size()) << "i=" << i;
-    EXPECT_EQ(5000 + i, result[0]) << "i=" << i;
+    EXPECT_EQ(1000 + i, result[0].id) << "i=" << i;
+    EXPECT_EQ(5000 + i, result[0].base_pk) << "i=" << i;
   }
 }
 
@@ -188,8 +192,8 @@ TEST_F(HnswTest, BruteForceRecall) {
     ASSERT_EQ(kK, approx.size()) << "q=" << q;
 
     size_t hits = 0;
-    for (uint64_t pk : approx) {
-      hits += exact_ids.count(pk);
+    for (const auto &hit : approx) {
+      hits += exact_ids.count(hit.base_pk);
     }
     recall_sum += static_cast<double>(hits) / static_cast<double>(kK);
   }
@@ -208,7 +212,8 @@ TEST_F(HnswTest, SearchEfZeroStillReturnsK) {
   const auto result =
       index.k_nn_search(as_bytes(query), /*k=*/1, /*ef_search=*/0);
   ASSERT_EQ(1U, result.size());
-  EXPECT_EQ(100U, result[0]);
+  EXPECT_EQ(1U, result[0].id);
+  EXPECT_EQ(100U, result[0].base_pk);
 }
 
 TEST_F(HnswTest, DuplicateBasePkAllowed) {
@@ -220,8 +225,10 @@ TEST_F(HnswTest, DuplicateBasePkAllowed) {
   const auto result =
       index.k_nn_search(as_bytes(make_vec({0.0f, 0.0f})), 2, 16);
   ASSERT_EQ(2U, result.size());
-  EXPECT_EQ(42U, result[0]);
-  EXPECT_EQ(42U, result[1]);
+  EXPECT_EQ(1U, result[0].id);
+  EXPECT_EQ(42U, result[0].base_pk);
+  EXPECT_EQ(2U, result[1].id);
+  EXPECT_EQ(42U, result[1].base_pk);
 }
 
 TEST_F(HnswTest, StreamEmptyIndex) {
@@ -265,8 +272,10 @@ TEST_F(HnswTest, StreamMultipleBatchesNoDuplicates) {
                                      /*ef_search=*/8);
 
   EXPECT_GE(streamed.size(), 3U);
-  std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
-  EXPECT_EQ(seen.size(), streamed.size());
+  std::unordered_set<uint64_t> seen;
+  for (const auto &hit : streamed) {
+    EXPECT_TRUE(seen.insert(hit.id).second);
+  }
 }
 
 TEST_F(HnswTest, StreamDistancesNonDecreasingAcrossBatches) {
@@ -287,7 +296,7 @@ TEST_F(HnswTest, StreamDistancesNonDecreasingAcrossBatches) {
 
   double prev_dist = -std::numeric_limits<double>::infinity();
   for (size_t i = 0; i < streamed.size(); ++i) {
-    const uint64_t pk = streamed[i];
+    const uint64_t pk = streamed[i].base_pk;
     ASSERT_LT(pk, points.size());
     const double d = euclidean(as_bytes(query), as_bytes(points[pk]),
                                static_cast<uint32_t>(kDims));
@@ -313,10 +322,16 @@ TEST_F(HnswTest, StreamDrainsEntireGraph) {
 
   ASSERT_EQ(kNumPoints, streamed.size());
 
-  std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
-  EXPECT_EQ(kNumPoints, seen.size());
+  std::unordered_set<uint64_t> seen_pks = [&] {
+    std::unordered_set<uint64_t> s;
+    for (const auto &hit : streamed) {
+      s.insert(hit.base_pk);
+    }
+    return s;
+  }();
+  EXPECT_EQ(kNumPoints, seen_pks.size());
   for (uint64_t i = 0; i < kNumPoints; ++i) {
-    EXPECT_EQ(1U, seen.count(1000 + i)) << "missing base_pk=" << (1000 + i);
+    EXPECT_EQ(1U, seen_pks.count(1000 + i)) << "missing base_pk=" << (1000 + i);
   }
 }
 
@@ -334,7 +349,13 @@ TEST_F(HnswTest, StreamDrainsEntireGraphWithEfSmallerThanGraph) {
       drain_stream(index, as_bytes(query), /*batch_size=*/4,
                    /*ef_search=*/8, /*max_results=*/kNumPoints + 10);
 
-  const std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+  const std::unordered_set<uint64_t> seen = [&] {
+    std::unordered_set<uint64_t> s;
+    for (const auto &hit : streamed) {
+      s.insert(hit.id);
+    }
+    return s;
+  }();
   EXPECT_EQ(streamed.size(), seen.size()) << "stream returned duplicate rows";
   EXPECT_EQ(kNumPoints, seen.size()) << "stream ended after " << seen.size()
                                      << " of " << kNumPoints << " rows";
@@ -363,7 +384,13 @@ TEST_F(HnswTest, StreamNoDuplicatesInMultiDimensionalGraph) {
     const auto streamed =
         drain_stream(index, as_bytes(queries[q]), kBatchSize, kEfSearch,
                      /*max_results=*/kNumPoints * 2);
-    const std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+    const std::unordered_set<uint64_t> seen = [&] {
+      std::unordered_set<uint64_t> s;
+      for (const auto &hit : streamed) {
+        s.insert(hit.id);
+      }
+      return s;
+    }();
     EXPECT_EQ(streamed.size(), seen.size())
         << "q=" << q << ": stream yielded " << (streamed.size() - seen.size())
         << " duplicate rows out of " << streamed.size();
@@ -414,9 +441,12 @@ TEST_F(HnswTest, StreamYieldsEachNodeAtMostOnce) {
   const auto query = make_vec({0.0f, 0.0f});
   const auto streamed = drain_stream(index, as_bytes(query), kBatchSize,
                                      kEfSearch, /*max_results=*/30);
-  std::unordered_set<uint64_t> seen(streamed.begin(), streamed.end());
+  std::unordered_set<uint64_t> seen;
+  for (const auto &hit : streamed) {
+    EXPECT_TRUE(seen.insert(hit.id).second);
+  }
   EXPECT_EQ(seen.size(), streamed.size())
-      << "stream must not yield the same base_pk twice";
+      << "stream must not yield the same node id twice";
 }
 
 TEST_F(HnswTest, StreamExhaustThenNextStaysDone) {
@@ -438,15 +468,16 @@ TEST_F(HnswTest, StreamRestartContext) {
   TestHnsw::NNSearchContext ctx;
   const auto q = make_vec({0.0f, 0.0f});
   index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8, /*ef_search=*/16);
-  ASSERT_EQ(100U, index.nn_search_next(&ctx).second);
+  ASSERT_EQ(100U, index.nn_search_next(&ctx).second.base_pk);
 
   // Re-start on same context must work after reset.
   ctx.reset();
 
   index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8, /*ef_search=*/16);
-  const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
+  const std::pair<bool, TestHnsw::SearchHit> step = index.nn_search_next(&ctx);
   ASSERT_TRUE(step.first);
-  EXPECT_EQ(100U, step.second);
+  EXPECT_EQ(1U, step.second.id);
+  EXPECT_EQ(100U, step.second.base_pk);
 }
 
 TEST_F(HnswTest, StreamBruteForceRecall) {
@@ -498,8 +529,8 @@ TEST_F(HnswTest, StreamBruteForceRecall) {
     ASSERT_EQ(kK, streamed.size()) << "q=" << q;
 
     size_t hits = 0;
-    for (uint64_t pk : streamed) {
-      hits += exact_ids.count(pk);
+    for (const auto &hit : streamed) {
+      hits += exact_ids.count(hit.base_pk);
     }
     recall_sum += static_cast<double>(hits) / static_cast<double>(kK);
   }

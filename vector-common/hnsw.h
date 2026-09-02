@@ -397,10 +397,17 @@ class HNSW {
           candidate_neighbors.push_back(
               {new_node, dist(neighbor->vec(), new_node)});
 
-          const size_t selected [[maybe_unused]] =
+          const size_t selected =
               select_neighbors(neighbor->vec(), candidate_neighbors, Mmax,
                                scratch_buffer.data());
-          assert(selected == Mmax);
+          assert(selected <= Mmax);
+
+          // If some candidates were skipped as LOST / failed lazy load,
+          // select_neighbors may return fewer than Mmax; clear the tail so
+          // write-back does not leave stale pointers past the packed prefix.
+          for (size_t i = selected; i < Mmax; ++i) {
+            scratch_buffer[i] = nullptr;
+          }
 
           lock_node(neighbor);
           std::copy(scratch_buffer.data(), scratch_buffer.data() + Mmax,

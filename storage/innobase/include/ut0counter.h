@@ -69,12 +69,15 @@ struct counter_indexer_t : public generic_indexer_t<Type, N> {
 
   enum { fast = 1 };
 
-  /** @return result from RDTSC or similar functions. */
-  static size_t get_rnd_index() UNIV_NOTHROW {
-    size_t c = static_cast<size_t>(my_timer_cycles());
-
+  /** @param[in] c timer sample; defaults to the current cycle counter
+  @return mixed timer sample, or the platform fallback when c is zero. */
+  static size_t get_rnd_index(size_t c = static_cast<size_t>(my_timer_cycles()))
+      UNIV_NOTHROW {
     if (c != 0) {
-      return (c);
+      /* Fold bits 6 and above into the low bits used for shard selection.
+      This spreads samples with fixed strides up to 64 across power-of-two
+      shard counts. It does not guarantee coverage for arbitrary timers. */
+      return c ^ (c >> 6);
     } else {
       /* We may go here if my_timer_cycles() returns 0,
       so we have to have the plan B for the counter. */

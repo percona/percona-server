@@ -36,38 +36,28 @@ this program; if not, write to the Free Software Foundation, Inc.,
 extern ulint sync_array_size;
 extern sync_array_t **sync_wait_array;
 
-#include "ut0counter.h"
-
-/** Get an instance of the sync wait array.
- @return an instance of the sync wait array. */
-
-static inline sync_array_t *sync_array_get() {
-  if (sync_array_size <= 1) {
-    return (sync_wait_array[0]);
-  }
-
-  return (
-      sync_wait_array[default_indexer_t<>::get_rnd_index() % sync_array_size]);
-}
-
+template <typename Indexer>
 static inline sync_array_t *sync_array_get_and_reserve_cell(
     void *object, ulint type, ut::Location location, sync_cell_t **cell) {
   sync_array_t *sync_arr = nullptr;
 
   *cell = nullptr;
-  /* Random start, then walk every instance once (Bug#119585). */
-  ulint start = default_indexer_t<>::get_rnd_index() % sync_array_size;
-  for (ulint i = 0; i < sync_array_size && *cell == nullptr; ++i) {
-    /* Although the sync_array is get in a random way currently,
-    we still try at most sync_array_size times, in case any
-    of the sync_array we get is full */
-    sync_arr = sync_wait_array[(start + i) % sync_array_size];
+  /* Skip the timer and modulo for the default single-array configuration. */
+  size_t index =
+      sync_array_size > 1 ? Indexer::get_rnd_index() % sync_array_size : 0;
+  /* Walk each instance at most once from the random start (Bug#119585). */
+  for (size_t i = 0; i < sync_array_size; ++i) {
+    sync_arr = sync_wait_array[index];
     *cell = sync_array_reserve_cell(sync_arr, object, type, location);
+    if (*cell != nullptr) {
+      return sync_arr;
+    }
+    if (++index == sync_array_size) {
+      index = 0;
+    }
   }
 
-  /* This won't be true every time, for the loop above may execute
-  more than srv_sync_array_size times to reserve a cell.
-  But an assertion here makes the code more solid. */
+  /* Every instance was tried without finding a free cell. */
   ut_a(*cell != nullptr);
 
   return (sync_arr);

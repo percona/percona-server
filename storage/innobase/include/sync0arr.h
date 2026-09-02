@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define sync0arr_h
 
 #include "univ.i"
+#include "ut0counter.h"
 
 /** Synchronization wait array cell */
 struct sync_cell_t;
@@ -45,13 +46,15 @@ struct sync_array_t;
 /** Get an instance of the sync wait array and reserve a wait array cell in
 the instance for waiting for an object. The event of the cell is reset to
 nonsignalled state.
-If reserving cell of the instance fails, try to get another new instance until
-we can reserve an empty cell of it.
+Start at a random instance and visit each instance at most once until a cell
+is reserved. Abort if every reservation attempt fails.
+@tparam Indexer  supplies the random starting index; injectable for testing
 @param[in]      object  pointer to the object to wait for
 @param[in]      type    lock request type
 @param[in]      location        location where requested
 @param[out]     cell    the cell reserved, never NULL
 @return the sync array found, never NULL. */
+template <typename Indexer = default_indexer_t<>>
 static inline sync_array_t *sync_array_get_and_reserve_cell(
     void *object, ulint type, ut::Location location, sync_cell_t **cell);
 
@@ -102,9 +105,6 @@ void sync_array_init(ulint n_threads); /*!< in: Number of slots to create */
 
 /** Close sync array wait sub-system. */
 void sync_array_close();
-
-/** Get an instance of the sync wait array. */
-static inline sync_array_t *sync_array_get();
 
 #include "sync0arr.ic"
 

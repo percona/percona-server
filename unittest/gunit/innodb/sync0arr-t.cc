@@ -1,4 +1,4 @@
-/* Copyright (c) 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Percona LLC and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <gtest/gtest.h>
 #include <cstdlib>
+#include <new>
 #include <vector>
 
 #include "os0event.h"
@@ -52,6 +53,9 @@ struct rw_lock_holder {
 
   rw_lock_holder() {
     lock = static_cast<rw_lock_t *>(std::malloc(sizeof(rw_lock_t)));
+    if (lock == nullptr) {
+      throw std::bad_alloc();
+    }
     rw_lock_create(PSI_NOT_INSTRUMENTED, lock, LATCH_ID_BUF_BLOCK_LOCK);
   }
 
@@ -61,21 +65,27 @@ struct rw_lock_holder {
   }
 };
 
-class sync0arr : public ::testing::Test {
- protected:
-  /* innodb_sync_array_size max. One slot per instance. */
-  static constexpr ulint k_n_arrays = 1024;
-  static constexpr ulint k_n_threads = 1024;
-  /* Old independent sampling fails with P=((n-1)/n)^n ~ 1/e per call.
-  1024 successes is enough to expose that; 2/2 is not. */
-  static constexpr int k_trials = 1024;
+struct counting_indexer {
+  static inline size_t index{0};
+  static inline size_t calls{0};
 
+  static size_t get_rnd_index() {
+    ++calls;
+    return index;
+  }
+};
+
+class sync0arr : public ::testing::TestWithParam<size_t> {
+ protected:
   void SetUp() override {
     saved_sync_array_size = srv_sync_array_size;
-    srv_sync_array_size = k_n_arrays;
+    srv_sync_array_size = GetParam();
+    counting_indexer::calls = 0;
+    counting_indexer::index = 0;
     os_event_global_init();
-    sync_check_init(k_n_threads);
-    ASSERT_EQ(sync_array_size, k_n_arrays);
+    /* One cell per instance. */
+    sync_check_init(GetParam());
+    ASSERT_EQ(sync_array_size, GetParam());
     ASSERT_EQ(sync_wait_array[0]->n_cells, 1UL);
   }
 
@@ -88,24 +98,51 @@ class sync0arr : public ::testing::Test {
   ulong saved_sync_array_size{1};
 };
 
-TEST_F(sync0arr, reserve_succeeds_when_one_instance_has_space) {
+TEST_P(sync0arr, reserve_succeeds_when_one_instance_has_space) {
   /* Destroy cells before lock: declare lock first. */
   rw_lock_holder lock;
-  std::vector<reserved_cell> filled(k_n_arrays - 1);
+  std::vector<reserved_cell> filled(GetParam() - 1);
 
-  for (ulint i = 0; i < k_n_arrays - 1; ++i) {
-    filled[i].arr = sync_wait_array[i];
+  for (size_t i = 0; i < filled.size(); ++i) {
+    filled[i].arr = sync_wait_array[i + 1];
     filled[i].cell = sync_array_reserve_cell(filled[i].arr, lock.lock,
                                              RW_LOCK_S, UT_LOCATION_HERE);
-    ASSERT_NE(filled[i].cell, nullptr) << "array " << i;
+    ASSERT_NE(filled[i].cell, nullptr) << "array " << i + 1;
   }
 
-  for (int trial = 0; trial < k_trials; ++trial) {
+  /* Start just after the free instance, forcing a full walk and wraparound.
+  Repeated sampling of this index cannot find the free cell. Use an index
+  larger than the array count to exercise the initial modulo as well. */
+  counting_indexer::index = GetParam() + 1;
+  for (size_t trial = 0; trial < 2; ++trial) {
     reserved_cell extra;
-    extra.arr = sync_array_get_and_reserve_cell(lock.lock, RW_LOCK_S,
-                                                UT_LOCATION_HERE, &extra.cell);
+    extra.arr = sync_array_get_and_reserve_cell<counting_indexer>(
+        lock.lock, RW_LOCK_S, UT_LOCATION_HERE, &extra.cell);
     ASSERT_NE(extra.cell, nullptr) << "trial " << trial;
+    EXPECT_EQ(extra.arr, sync_wait_array[0]);
+    EXPECT_EQ(counting_indexer::calls, GetParam() > 1 ? trial + 1 : 0);
   }
+
+  /* Also exercise the default indexer through the production entry point. */
+  reserved_cell extra;
+  extra.arr = sync_array_get_and_reserve_cell(lock.lock, RW_LOCK_S,
+                                              UT_LOCATION_HERE, &extra.cell);
+  ASSERT_NE(extra.cell, nullptr);
+  EXPECT_EQ(extra.arr, sync_wait_array[0]);
 }
+
+TEST_P(sync0arr, reserve_uses_starting_instance_when_it_has_space) {
+  rw_lock_holder lock;
+  reserved_cell extra;
+  counting_indexer::index = 2 * GetParam() - 1;
+  extra.arr = sync_array_get_and_reserve_cell<counting_indexer>(
+      lock.lock, RW_LOCK_S, UT_LOCATION_HERE, &extra.cell);
+  ASSERT_NE(extra.cell, nullptr);
+  EXPECT_EQ(extra.arr, sync_wait_array[GetParam() - 1]);
+  EXPECT_EQ(counting_indexer::calls, GetParam() > 1 ? 1U : 0U);
+}
+
+INSTANTIATE_TEST_SUITE_P(array_sizes, sync0arr,
+                         ::testing::Values(1, 2, 3, 1024));
 
 }  // namespace innodb_sync0arr_unittest

@@ -55,11 +55,13 @@ static inline sync_array_t *sync_array_get_and_reserve_cell(
   sync_array_t *sync_arr = nullptr;
 
   *cell = nullptr;
+  /* Random start, then walk every instance once (Bug#119585). */
+  ulint start = default_indexer_t<>::get_rnd_index() % sync_array_size;
   for (ulint i = 0; i < sync_array_size && *cell == nullptr; ++i) {
     /* Although the sync_array is get in a random way currently,
     we still try at most sync_array_size times, in case any
     of the sync_array we get is full */
-    sync_arr = sync_array_get();
+    sync_arr = sync_wait_array[(start + i) % sync_array_size];
     *cell = sync_array_reserve_cell(sync_arr, object, type, location);
   }
 

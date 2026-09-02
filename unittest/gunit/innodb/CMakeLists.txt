@@ -46,6 +46,7 @@ SET(TESTS
   os0file
   os0thread-create
   srv0conc
+  sync0arr
   sync0rw
   ut0bitset
   ut0crc32

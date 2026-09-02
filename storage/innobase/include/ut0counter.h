@@ -74,7 +74,9 @@ struct counter_indexer_t : public generic_indexer_t<Type, N> {
     size_t c = static_cast<size_t>(my_timer_cycles());
 
     if (c != 0) {
-      return (c);
+      /* RDTSC on some CPUs advances by 20-36 (sometimes 64), so
+      low bits stick. XOR from bit 6 fills them. */
+      return c ^ (c >> 6);
     } else {
       /* We may go here if my_timer_cycles() returns 0,
       so we have to have the plan B for the counter. */

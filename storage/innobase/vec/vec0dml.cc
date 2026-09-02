@@ -313,7 +313,7 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
   }
 
   /* A primary-key change on the base row re-points the node at the new
-  key (design §10). DELETE does NOT come through here: it writes nothing
+  key (design: "UPDATE"). DELETE does NOT come through here: it writes nothing
   at all, because the node has to stay for read views still entitled to
   the row. The old branch nulled a row_ref column here as a tombstone;
   this design has no tombstone and base_pk is NOT NULL. */

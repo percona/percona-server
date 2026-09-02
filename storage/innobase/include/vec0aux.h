@@ -232,7 +232,7 @@ BLOB, TEXT and JSON all map to DATA_BLOB, so no type test can pick it
 out. Ignore the field's prefix_len, which is 1 for a vector key part and
 describes nothing about the column.
 
-Assumes at most one vector index per table (design section 23).
+Assumes at most one vector index per table (design: "Limitations").
 
 @param[in]  table  base table
 @return the column number, or ULINT_UNDEFINED if the table has no

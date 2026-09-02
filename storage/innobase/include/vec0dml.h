@@ -101,7 +101,7 @@ searched UPDATE's read would have taken: IX on the table and an explicit
 X on the record.
 
 Passing new_base_pk re-points the node at a new primary key, which is
-what a base-row primary-key change needs (design section 10). DELETE does
+what a base-row primary-key change needs (design: "UPDATE"). DELETE does
 not come through here at all: it writes nothing, because the node has to
 stay for read views still entitled to the row.
 @param[in,out]  trx            transaction to update on

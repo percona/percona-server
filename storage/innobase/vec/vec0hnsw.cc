@@ -73,7 +73,8 @@ transaction contributes undo and redo, not exclusion.
 
 What is given up is per-insert atomicity: a callback failing midway leaves the
 earlier callbacks committed, so the aux keeps a node whose base row may never
-commit. That is the orphan section 13 already accepts and filters at read
+commit. That is the orphan the design's "Rollback, and why orphans are
+acceptable" accepts and filters at read
 time — and it is the better direction to diverge in, because the in-memory
 rewire cannot be undone either. Rolling the whole insert back left memory
 holding a node the aux had discarded. */
@@ -404,7 +405,7 @@ static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
   everything below durable, ours included. The invariant "aux superset of
   committed base rows" therefore holds by LSN ordering, and a flush here
   buys nothing. If the user's transaction never commits, the aux rows are an
-  orphan at worst, which section 13 accepts.
+  orphan at worst, which the design's rollback section accepts.
 
   This is what makes committing per callback affordable. Measured on an idle
   128-core box, RelWithDebInfo, 40000 single-threaded inserts: 8.5s for one
@@ -461,7 +462,8 @@ static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
 
     This now rolls back only the callback that failed: everything before it
     was committed by vec_ctx_step_commit. The earlier rows stand, which is
-    the orphan section 13 accepts, and is the direction that keeps the aux
+    the orphan the design's rollback section accepts, and is the direction
+    that keeps the aux
     tracking memory rather than diverging from it. */
     trx_rollback_to_savepoint(aux_trx, nullptr);
   }
@@ -649,7 +651,7 @@ dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
   ut_a(vec_index != nullptr && vec_index->is_vector());
   ut_a(dims != 0 && m != 0);
 
-  /* Same pre-flight as the DML path (design section 17a): refuse before
+  /* Same pre-flight as the DML path (design: "Memory limits"): refuse before
   building anything rather than throwing partway through. */
   if (srv_hnsw_max_memory != 0 &&
       vec_arena_global_bytes() >= srv_hnsw_max_memory) {

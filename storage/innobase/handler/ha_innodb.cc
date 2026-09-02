@@ -12190,7 +12190,8 @@ int ha_innobase::vec_init() {
 
 /** Build the clustered-index search tuple for a candidate's base_pk.
 The primary key of a vector-indexed table is a single BIGINT UNSIGNED
-(§23), so its storage form is the 8 bytes mach_write_to_8 produces. */
+(the design's "Limitations"), so its storage form is the 8 bytes
+mach_write_to_8 produces. */
 static void innobase_vec_build_pk_tuple(dtuple_t *tuple,
                                         const dict_index_t *clust_index,
                                         const byte *pk_image) {

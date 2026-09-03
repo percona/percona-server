@@ -187,6 +187,7 @@ static dberr_t srv_conc_enter_innodb_with_atomics(
     }
 
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_in_us));
+    trx->stats.bump_innodb_enter_wait(*trx, sleep_in_us);
 
     trx->op_info = "";
 

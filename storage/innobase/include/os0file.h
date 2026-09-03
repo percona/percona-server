@@ -71,6 +71,8 @@ string so that it never conflicts with MySQL schema directory. */
 /** File node of a tablespace or the log data space */
 struct fil_node_t;
 
+struct trx_t;
+
 extern bool os_has_said_disk_full;
 
 /** Number of retries for partial I/O's */
@@ -925,12 +927,16 @@ The wrapper functions have the prefix of "innodb_". */
 #define os_file_close_pfs(file) pfs_os_file_close_func(file, UT_LOCATION_HERE)
 
 #define os_aio(type, mode, name, file, buf, offset, n, read_only, message1,    \
-               message2)                                                       \
+               message2, space_id, trx, should_buffer)                         \
   pfs_os_aio_func(type, mode, name, file, buf, offset, n, read_only, message1, \
-                  message2, UT_LOCATION_HERE)
+                  message2, space_id, trx, should_buffer, UT_LOCATION_HERE)
 
-#define os_file_read_pfs(type, file_name, file, buf, offset, n) \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, UT_LOCATION_HERE)
+#define os_file_read_pfs(type, file_name, file, buf, offset, n)         \
+  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, \
+                        UT_LOCATION_HERE)
+
+#define os_file_read_trx_pfs(file, buf, offset, n, trx) \
+  pfs_os_file_read_func(file, buf, offset, n, trx, UT_LOCATION_HERE)
 
 #define os_file_read_first_page_pfs(type, file_name, file, buf, n) \
   pfs_os_file_read_first_page_func(type, file_name, file, buf, n,  \
@@ -1043,11 +1049,9 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(IORequest &type,
-                                            const char *file_name,
-                                            pfs_os_file_t file, void *buf,
-                                            os_offset_t offset, ulint n,
-                                            ut::Location src_location);
+static inline dberr_t pfs_os_file_read_func(
+    IORequest &type, const char *file_name, pfs_os_file_t file, void *buf,
+    os_offset_t offset, ulint n, trx_t *trx, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1137,12 +1141,20 @@ must not cross a file boundary; in AIO this must be a block size multiple
 @param[in,out]  m2              message for the AIO handler (can be used to
                                 identify a completed AIO operation); ignored
                                 if mode is OS_AIO_SYNC
+@param[in]      should_buffer   Whether to buffer an aio request.
+                                AIO read ahead uses this. If you plan to
+                                use this parameter, make sure you remember to
+                                call os_aio_dispatch_read_array_submit()
+                                when you're ready to commit all your
+                                requests.
 @param[in]      location    location where func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
                                       const char *name, pfs_os_file_t file,
                                       void *buf, os_offset_t offset, ulint n,
                                       bool read_only, fil_node_t *m1, void *m2,
+                                      space_id_t space_id, trx_t *trx,
+                                      bool should_buffer,
                                       ut::Location location);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
@@ -1269,9 +1281,9 @@ to original un-instrumented file I/O APIs */
 #define os_file_close_pfs(file) os_file_close_func(file)
 
 #define os_aio(type, mode, name, file, buf, offset, n, read_only, message1, \
-               message2)                                                    \
+               message2, space_id, trx, should_buffer)                      \
   os_aio_func(type, mode, name, file, buf, offset, n, read_only, message1,  \
-              message2)
+              message2, space_id, trx, should_buffer)
 
 #define os_file_read_pfs(type, file_name, file, buf, offset, n) \
   os_file_read_func(type, file_name, file, buf, offset, n)
@@ -1290,6 +1302,9 @@ to original un-instrumented file I/O APIs */
                                               offset, n, o)                   \
   os_file_read_no_error_handling_func(type, file_name, OS_FILE_FROM_FD(file), \
                                       buf, offset, n, o)
+
+#define os_file_read_trx_pfs(file, buf, offset, n, trx) \
+  os_file_read_func(file, buf, offset, n, trx)
 
 #define os_file_write_pfs(type, name, file, buf, offset, n) \
   os_file_write_func(type, name, file, buf, offset, n)
@@ -1457,7 +1472,8 @@ Requests a synchronous read operation of page 0 of IBD file.
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_func(IORequest &type, const char *file_name,
                                         os_file_t file, void *buf,
-                                        os_offset_t offset, ulint n);
+                                        os_offset_t offset, ulint n,
+                                        trx_t *trx);
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1598,10 +1614,15 @@ must not cross a file boundary; in AIO this must be a block size multiple
 identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
 @param[in,out]  m2              message for the AIO handler (can be used to
 identify a completed AIO operation); ignored if mode is OS_AIO_SYNC
+@param[in]	should_buffer	Whether to buffer an aio request.
+AIO read ahead uses this. If you plan to use this parameter,
+make sure you remember to call os_aio_dispatch_read_array_submit()
+when you're ready to commit all your requests.
 @return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
-                    bool read_only, fil_node_t *m1, void *m2);
+                    bool read_only, fil_node_t *m1, void *m2,
+                    space_id_t space_id, trx_t *trx, bool should_buffer);
 
 /** Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */

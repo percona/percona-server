@@ -82,6 +82,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
+#include "trx0trx.h"
 #include "ut0new.h"
 
 #include "scope_guard.h"
@@ -3332,6 +3333,7 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
   BPageMutex *block_mutex;
   rw_lock_t *hash_lock;
   bool discard_attempted = false;
+  trx_t *trx = innobase_get_trx_for_slow_log();
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
   Counter::inc(buf_pool->stat.m_n_page_gets, page_id.page_no());
@@ -3351,7 +3353,7 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
     /* Page not in buf_pool: needs to be read from file */
 
     ut_ad(!hash_lock);
-    buf_read_page(page_id, page_size);
+    buf_read_page(page_id, page_size, trx);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
     ut_a(++buf_dbg_counter % 5771 || buf_validate());
@@ -3434,6 +3436,7 @@ got_block:
     /* Let us wait until the read operation
     completes */
 
+    const auto start_time = trx_stats::start_io_read(trx, 0);
     for (;;) {
       enum buf_io_fix io_fix;
 
@@ -3447,6 +3450,7 @@ got_block:
         break;
       }
     }
+    trx_stats::end_io_read(trx, start_time);
   }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3608,8 +3612,9 @@ static bool buf_debug_execute_is_force_flush() {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Wait for the block to be read in.
-@param[in]      block   The block to check */
-static void buf_wait_for_read(buf_block_t *block) {
+@param[in]      block   The block to check
+@param          trx     Transaction to account the I/Os to */
+static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
   /* Note:
   This unlocked read of IO fix is safe as we have the block buf-fixed. The page
   can only transition away from the IO_READ state, and once this is done, it
@@ -3617,13 +3622,18 @@ static void buf_wait_for_read(buf_block_t *block) {
 
   The repeated reads of io_fix will not be optimized out because it's an atomic
   variable.*/
+  std::chrono::steady_clock::time_point start_time;
   while (block->page.was_io_fix_read()) {
+    if (start_time == std::chrono::steady_clock::time_point{})
+      start_time = trx_stats::start_io_read(trx, 0);
     /* Page is X-latched on block->lock until the read is completed.
     Let's just wait for S-lock on block->lock, it will be granted as soon as the
     read completes. */
     rw_lock_s_lock(&block->lock, UT_LOCATION_HERE);
     rw_lock_s_unlock(&block->lock);
   }
+  if (start_time != std::chrono::steady_clock::time_point{})
+    trx_stats::end_io_read(trx, start_time);
 }
 
 /** This class implements the rules for fetching the pages from the buffer
@@ -3639,7 +3649,8 @@ struct Buf_fetch {
       : m_page_id(page_id),
         m_page_size(page_size),
         m_is_temp_space(fsp_is_system_temporary(page_id.space())),
-        m_buf_pool(buf_pool_get(m_page_id)) {}
+        m_buf_pool(buf_pool_get(m_page_id)),
+        m_trx(innobase_get_trx_for_slow_log()) {}
 
   /** For fetching a single page.
   @return block from pool on success or nullptr on failure. */
@@ -3711,6 +3722,7 @@ struct Buf_fetch {
   buf_pool_t *m_buf_pool{};
   /** Hash table lock. */
   rw_lock_t *m_hash_lock{};
+  trx_t *const m_trx;  // For InnoDB slow query log extensions
 
   friend T;
 };
@@ -4139,13 +4151,13 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
 template <typename T>
 void Buf_fetch<T>::read_page() {
-  if (buf_read_page(m_page_id, m_page_size)) {
+  if (buf_read_page(m_page_id, m_page_size, m_trx)) {
     /* Avoid doing read-ahead for parallel scans (well, at least currently this
     flag is used only during the parallel scans). This would cause unnecessary
     IO when the process is already being parallelized on higher level of
     abstraction. */
     if (m_mode != Page_fetch::SCAN) {
-      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
+      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
     }
     m_retries = 0;
   } else if (m_retries < BUF_PAGE_READ_MAX_RETRIES) {
@@ -4434,7 +4446,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
   /* We have to wait here because the IO_READ state was set under the protection
   of the hash_lock and not the block->mutex and block->lock. */
-  buf_wait_for_read(block);
+  buf_wait_for_read(block, m_trx);
 
   /* Mark block as dirty if requested by caller. If not requested (false)
   then we avoid updating the dirty state of the block and retain the
@@ -4454,7 +4466,7 @@ buf_block_t *Buf_fetch<T>::single_page() {
       access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
 
-    buf_read_ahead_linear(m_page_id, m_page_size, ibuf_inside(m_mtr));
+    buf_read_ahead_linear(m_page_id, m_page_size, ibuf_inside(m_mtr), m_trx);
   }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -4465,6 +4477,8 @@ buf_block_t *Buf_fetch<T>::single_page() {
   ut_ad(!rw_lock_own(m_hash_lock, RW_LOCK_S));
 
   ut_a(!block->page.was_stale());
+
+  trx_stats::inc_page_get(m_trx, block->page.id.hash());
 
   return (block);
 }
@@ -4623,9 +4637,14 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+  trx_t *trx;
   if (access_time == std::chrono::steady_clock::time_point{}) {
+    trx = innobase_get_trx_for_slow_log();
     /* In the case of a first access, try to apply linear read-ahead */
-    buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr));
+    buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr),
+                          trx);
+  } else {
+    trx = nullptr;
   }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -4636,6 +4655,8 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
     auto buf_pool = buf_pool_from_block(block);
     Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
   }
+
+  trx_stats::inc_page_get(trx, block->page.id.hash());
 
   return (true);
 }
@@ -4729,6 +4750,9 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
   Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
+
+  auto *const trx = innobase_get_trx_for_slow_log();
+  trx_stats::inc_page_get(trx, block->page.id.hash());
 
   return (true);
 }

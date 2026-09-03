@@ -1438,6 +1438,8 @@ void RecLock::set_wait_state(lock_t *lock) {
 
   m_trx->lock.was_chosen_as_deadlock_victim = false;
 
+  m_trx->stats.start_lock_wait();
+
   bool stopped = que_thr_stop(m_thr);
   ut_a(stopped);
 }
@@ -3478,6 +3480,8 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
   trx->lock.wait_started =
       std::chrono::system_clock::from_time_t(time(nullptr));
   trx->lock.was_chosen_as_deadlock_victim = false;
+
+  trx->stats.start_lock_wait();
 
   auto stopped = que_thr_stop(thr);
   ut_a(stopped);

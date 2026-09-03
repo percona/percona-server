@@ -300,7 +300,7 @@ static mysql_mutex_t commit_cond_m;
 mysql_cond_t resume_encryption_cond;
 mysql_mutex_t resume_encryption_cond_m;
 os_event_t recovery_lock_taken;
-static bool innodb_inited = false;
+bool innodb_inited = false;
 
 [[maybe_unused]] static inline bool EQ_CURRENT_THD(THD *thd) {
   return thd == current_thd;
@@ -2786,6 +2786,19 @@ ulonglong innobase_next_autoinc(
   return (next_value);
 }
 
+/**
+Check whether given connection should log stats for slow query log InnoDB
+extensions.
+
+@param[in]	thd	connection handle
+@return whether stats for slow query log InnoDB extensions should be logged
+*/
+static bool innobase_slow_log_verbose(THD *thd) noexcept {
+  return thd && thd_opt_slow_log() &&
+         unlikely(thd_log_slow_verbosity(thd) & (1ULL << SLOG_V_INNODB)) &&
+         !thd_is_background_thread(thd);
+}
+
 /** Initializes some fields in an InnoDB transaction object. */
 static void innobase_trx_init(
     THD *thd,   /*!< in: user thread handle */
@@ -2799,6 +2812,8 @@ static void innobase_trx_init(
 
   trx->check_unique_secondary =
       !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
+
+  trx->stats.set(innobase_slow_log_verbose(thd));
 }
 
 /** Allocates an InnoDB transaction for a MySQL handler object for DML.
@@ -2864,6 +2879,17 @@ trx_t *innobase_get_trx(void) {
   if (UNIV_UNLIKELY(!thd)) return (nullptr);
 
   return (thd_to_trx(thd));
+}
+
+/** Get the transaction of the current connection handle if slow query log
+InnoDB extended statistics should be collected.
+@return transaction object if statistics should be collected, or NULL. */
+trx_t *innobase_get_trx_for_slow_log(void) noexcept {
+  THD *thd = current_thd;
+  if (UNIV_LIKELY(!innobase_slow_log_verbose(thd))) return (nullptr);
+  trx_t *trx = thd_to_trx(thd);
+  if (trx && UNIV_UNLIKELY(trx->stats.enabled())) return (trx);
+  return (nullptr);
 }
 
 /** InnoDB transaction object that is currently associated with THD is

@@ -228,6 +228,8 @@ static void trx_init(trx_t *trx) {
 
   trx->error_index = nullptr;
 
+  trx->stats.set(false);
+
   /* During asynchronous rollback, we should reset forced rollback flag
   only after rollback is complete to avoid race with the thread owning
   the transaction. */
@@ -2337,6 +2339,8 @@ void trx_commit_or_rollback_prepare(trx_t *trx) /*!< in/out: transaction */
         ut_a(trx->lock.wait_thr != nullptr);
         trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
         trx->lock.wait_thr = nullptr;
+
+        trx->stats.stop_lock_wait(*trx);
 
         trx->lock.que_state = TRX_QUE_RUNNING;
       }

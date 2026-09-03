@@ -1594,6 +1594,8 @@ SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout = SHOW_OPTION_DISABLED;
+SHOW_COMP_OPTION have_backup_safe_binlog_info;
+SHOW_COMP_OPTION have_snapshot_cloning;
 
 char *opt_libcoredumper_path = NULL;
 /* Thread specific variables */
@@ -1649,6 +1651,7 @@ mysql_cond_t COND_socket_listener_active;
 mysql_mutex_t LOCK_start_signal_handler;
 mysql_cond_t COND_start_signal_handler;
 #endif
+mysql_rwlock_t LOCK_consistent_snapshot;
 
 /*
   The below lock protects access to global server variable
@@ -2992,6 +2995,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_global_user_client_stats);
   mysql_mutex_destroy(&LOCK_global_table_stats);
   mysql_mutex_destroy(&LOCK_global_index_stats);
+  mysql_rwlock_destroy(&LOCK_consistent_snapshot);
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_partial_revokes);
   mysql_mutex_destroy(&LOCK_authentication_policy);
@@ -12507,6 +12511,8 @@ static int mysql_init_variables() {
   shared_memory_base_name = default_shared_memory_base_name;
 #endif
 
+  have_backup_safe_binlog_info = SHOW_OPTION_YES;
+  have_snapshot_cloning = SHOW_OPTION_YES;
   return 0;
 }
 
@@ -14290,7 +14296,7 @@ PSI_rwlock_key key_rwlock_channel_lock;
 PSI_rwlock_key key_rwlock_receiver_tsid_lock;
 PSI_rwlock_key key_rwlock_rpl_filter_lock;
 PSI_rwlock_key key_rwlock_channel_to_filter_lock;
-
+PSI_rwlock_key key_rwlock_LOCK_consistent_snapshot;
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
@@ -14324,6 +14330,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
     "This lock protects named pipe security attributes, preventing their "
     "simultaneous application and modification."},
 #endif // _WIN32
+  { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

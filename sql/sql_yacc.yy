@@ -9541,6 +9541,13 @@ start_transaction_option:
           {
             $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
           }
+        | WITH CONSISTENT_SYM SNAPSHOT_SYM FROM SESSION_SYM expr
+          {
+            ITEMIZE($6, &$6);
+
+            $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+            Lex->donor_transaction_id= $6;
+          }
         | READ_SYM ONLY_SYM
           {
             $$= MYSQL_START_TRANS_OPT_READ_ONLY;

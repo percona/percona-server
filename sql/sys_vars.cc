@@ -5966,6 +5966,14 @@ static Sys_var_have Sys_have_profiling(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
 
+static Sys_var_have Sys_have_backup_safe_binlog_info(
+    "have_backup_safe_binlog_info", "have_backup_safe_binlog_info",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(have_backup_safe_binlog_info),
+    NO_CMD_LINE);
+
+static Sys_var_have Sys_have_snapshot_cloning(
+    "have_snapshot_cloning", "have_snapshot_cloning",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(have_snapshot_cloning), NO_CMD_LINE);
 static Sys_var_have Sys_have_query_cache(
     "have_query_cache",
     "have_query_cache. "

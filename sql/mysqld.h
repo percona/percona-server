@@ -496,6 +496,7 @@ extern PSI_rwlock_key key_rwlock_receiver_tsid_lock;
 extern PSI_rwlock_key key_rwlock_rpl_filter_lock;
 extern PSI_rwlock_key key_rwlock_channel_to_filter_lock;
 extern PSI_rwlock_key key_rwlock_resource_group_mgr_map_lock;
+extern PSI_rwlock_key key_rwlock_LOCK_consistent_snapshot;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;
@@ -761,6 +762,7 @@ extern mysql_rwlock_t LOCK_sys_init_connect;
 extern mysql_rwlock_t LOCK_sys_init_replica;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_rwlock_t LOCK_server_shutting_down;
+extern mysql_rwlock_t LOCK_consistent_snapshot;
 
 extern ulong opt_ssl_fips_mode;
 

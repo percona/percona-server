@@ -604,6 +604,14 @@ extern ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 extern ulint srv_lock_table_size;
 
+extern ulong srv_cleaner_lsn_age_factor;
+/*!< page cleaner LSN age factor
+formula option */
+
+extern ulong srv_empty_free_list_algorithm;
+/*!< Empty free list for a query thread
+handling algorithm option */
+
 extern bool srv_random_read_ahead;
 extern ulong srv_read_ahead_threshold;
 extern ulong srv_n_read_io_threads;
@@ -1324,5 +1332,13 @@ struct srv_slot_t {
   que_thr_t *thr;
 };
 #endif /* !UNIV_HOTBACKUP */
+
+#ifndef NDEBUG
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+extern bool srv_debug_monitor_printed;
+#else
+#define srv_debug_monitor_printed false
+#endif
 
 #endif

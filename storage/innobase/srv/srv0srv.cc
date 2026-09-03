@@ -453,6 +453,12 @@ ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 ulint srv_lock_table_size = ULINT_MAX;
 
+/** Page cleaner LSN age factor formula option */
+ulong srv_cleaner_lsn_age_factor = SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
+
+/** Empty free list for a query thread handling algorithm option  */
+ulong srv_empty_free_list_algorithm = SRV_EMPTY_FREE_LIST_BACKOFF;
+
 const ulong srv_idle_flush_pct_default = 100;
 ulong srv_idle_flush_pct = srv_idle_flush_pct_default;
 
@@ -1596,6 +1602,10 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   mutex_exit(&srv_innodb_monitor_mutex);
   fflush(file);
 
+#ifndef NDEBUG
+  srv_debug_monitor_printed = true;
+#endif
+
   return (ret);
 }
 
@@ -1844,6 +1854,12 @@ void srv_export_innodb_status(void) {
 
   mutex_exit(&srv_innodb_monitor_mutex);
 }
+
+#ifndef NDEBUG
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+bool srv_debug_monitor_printed = false;
+#endif
 
 /** A thread which prints the info output by various InnoDB monitors. */
 void srv_monitor_thread() {

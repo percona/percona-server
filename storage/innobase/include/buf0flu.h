@@ -432,6 +432,12 @@ class Buf_flush_list_added_lsns {
 extern Buf_flush_list_added_lsns_aligned_ptr buf_flush_list_added;
 #endif /* !UNIV_HOTBACKUP */
 
+/** If LRU list of a buf_pool is less than this size then LRU eviction
+should not happen. This is because when we do LRU flushing we also put
+the blocks on free list. If LRU list is very small then we can end up
+in thrashing. */
+static constexpr auto BUF_LRU_MIN_LEN = 256;
+
 #include "buf0flu.ic"
 
 #endif

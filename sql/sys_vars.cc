@@ -5354,13 +5354,20 @@ static char *server_version_ptr;
 static Sys_var_version Sys_version(
     "version", "Server version",
     READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_ptr), NO_CMD_LINE,
-    IN_SYSTEM_CHARSET, DEFAULT(server_version));
+    IN_SYSTEM_CHARSET, DEFAULT(MYSQL_SERVER_VERSION));
+
+static char *server_version_suffix_ptr;
+static Sys_var_charptr Sys_version_suffix("version_suffix", "version_suffix",
+                                          GLOBAL_VAR(server_version_suffix_ptr),
+                                          CMD_LINE(REQUIRED_ARG),
+                                          IN_SYSTEM_CHARSET,
+                                          DEFAULT(server_version_suffix));
 
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
     "version_comment", "version_comment",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
-    IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT_SERVER));
+    GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE, IN_SYSTEM_CHARSET,
+    DEFAULT(MYSQL_COMPILATION_COMMENT_SERVER));
 
 static char *server_version_compile_machine_ptr;
 static Sys_var_charptr Sys_version_compile_machine(

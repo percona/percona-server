@@ -1088,11 +1088,22 @@ void srv_export_innodb_status(void);
  reading this value as it is only used in heuristics.
  @return activity count. */
 ulint srv_get_activity_count(void);
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-bool srv_check_activity(ulint old_activity_count); /*!< old activity count */
-/** Increment the server activity counter. */
-void srv_inc_activity_count(void);
+/** Check if there has been any activity. Considers background change
+buffer merge as regular server activity unless a non-default
+old_ibuf_merge_activity_count value is passed, in which case the merge
+will be treated as keeping server idle.
+@return false if no change in activity counter. */
+bool srv_check_activity(
+    ulint old_activity_count, /*!< old activity count */
+    /*!< old change buffer merge
+    activity count, or
+    ULINT_UNDEFINED */
+    ulint old_ibuf_merge_activity_count = ULINT_UNDEFINED) noexcept;
+
+/** Increment the server activity count.
+@param[in]	ibuf_merge_activity	whether this activity bump is caused by
+the background change buffer merge */
+void srv_inc_activity_count(bool ibuf_merge_activity = false) noexcept;
 
 /** Enqueues a task to server task queue and releases a worker thread, if there
 is a suspended one. */

@@ -292,6 +292,7 @@ extern ulonglong server_memory;
 extern char glob_hostname[HOSTNAME_LENGTH + 1];
 extern char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
 extern char *opt_init_file;
+extern char *my_proxy_protocol_networks;
 extern const char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH + 1];
 extern const char *server_uuid_ptr;

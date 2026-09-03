@@ -3188,6 +3188,9 @@ int handler::ha_rnd_init(bool scan) {
   DBUG_TRACE;
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
   assert(inited == NONE || (inited == RND && scan));
+  if (scan && is_using_prohibited_gap_locks(table, false)) {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
   inited = (result = rnd_init(scan)) ? NONE : RND;
   end_range = nullptr;
   return result;
@@ -3520,6 +3523,12 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   assert(inited == INDEX);
   assert(!pushed_idx_cond || buf == table->record[0]);
 
+  if (is_using_prohibited_gap_locks(
+          table,
+          is_using_full_unique_key(active_index, keypart_map, find_flag))) {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
+
   // Set status for the need to update generated fields
   m_update_generated_read_fields = table->has_gcol();
 
@@ -3553,6 +3562,10 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
   assert(inited == INDEX);
   assert(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(table, false)) {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields = table->has_gcol();
@@ -3590,6 +3603,11 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   assert(inited == NONE);
   assert(end_range == nullptr);
   assert(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(
+          table, is_using_full_unique_key(index, keypart_map, find_flag))) {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields = table->has_gcol();
@@ -3648,10 +3666,11 @@ int handler::ha_index_next(uchar *buf) {
     result = HA_ERR_KEY_NOT_FOUND;
 
   table->set_row_status_from_handler(result);
-
   if (likely(!result)) {
     update_index_stats(active_index);
   }
+
+  DEBUG_SYNC(ha_thd(), "handler_ha_index_next_end");
 
   return result;
 }
@@ -3660,6 +3679,16 @@ bool handler::is_using_full_key(key_part_map keypart_map,
                                 uint actual_key_parts) noexcept {
   return (keypart_map == HA_WHOLE_KEY) ||
          (keypart_map == ((key_part_map(1) << actual_key_parts) - 1));
+}
+
+bool handler::is_using_full_unique_key(uint index, key_part_map keypart_map,
+                                       enum ha_rkey_function find_flag) const
+    noexcept {
+  return (
+      is_using_full_key(keypart_map, table->key_info[index].actual_key_parts) &&
+      find_flag == HA_READ_KEY_EXACT &&
+      (index == table->s->primary_key ||
+       (table->key_info[index].flags & HA_NOSAME)));
 }
 
 /**
@@ -3701,11 +3730,10 @@ int handler::ha_index_prev(uchar *buf) {
     result = HA_ERR_KEY_NOT_FOUND;
 
   table->set_row_status_from_handler(result);
+
   if (likely(!result)) {
     update_index_stats(active_index);
   }
-
-  DEBUG_SYNC(ha_thd(), "handler_ha_index_next_end");
 
   return result;
 }
@@ -3727,6 +3755,10 @@ int handler::ha_index_first(uchar *buf) {
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
   assert(inited == INDEX);
   assert(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(table, false)) {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields = table->has_gcol();
@@ -3770,6 +3802,10 @@ int handler::ha_index_last(uchar *buf) {
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
   assert(inited == INDEX);
   assert(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(table, false)) {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields = table->has_gcol();
@@ -8709,6 +8745,36 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
       assert(num <= MAX_FIELDS);
     }
   }
+}
+
+bool handler::is_using_prohibited_gap_locks(TABLE *table,
+                                            bool using_full_primary_key) const
+    noexcept {
+  const THD *thd = table->in_use;
+  const thr_lock_type lock_type = table->reginfo.lock_type;
+
+  if (!using_full_primary_key && has_transactions() && !has_gap_locks() &&
+      thd_tx_isolation(thd) >= ISO_REPEATABLE_READ && !thd->rli_slave &&
+      (thd->lex->table_count >= 2 || thd->in_multi_stmt_transaction_mode()) &&
+      (lock_type >= TL_WRITE_ALLOW_WRITE ||
+       lock_type == TL_READ_WITH_SHARED_LOCKS ||
+       lock_type == TL_READ_NO_INSERT ||
+       (lock_type != TL_IGNORE && thd->lex->sql_command != SQLCOM_SELECT)) &&
+      thd->lex->sql_command != SQLCOM_ALTER_TABLE &&
+      thd->lex->sql_command != SQLCOM_CREATE_INDEX &&
+      thd->lex->sql_command != SQLCOM_CHECK &&
+      thd->lex->sql_command != SQLCOM_OPTIMIZE) {
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "Using Gap Lock without full unique key in multi-table "
+                    "or multi-statement transactions is not "
+                    "allowed. You need to either rewrite queries to use "
+                    "all unique key columns in WHERE equal conditions, or "
+                    "rewrite to single-table, single-statement "
+                    "transaction.  Query: %s",
+                    MYF(0), thd->query().str);
+    return true;
+  }
+  return false;
 }
 
 /*

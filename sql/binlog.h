@@ -889,6 +889,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int purge_logs(const char *to_log, bool included, bool need_lock_index,
                  bool need_update_threads, ulonglong *decrease_log_space,
                  bool auto_purge);
+  int purge_logs_maximum_number(ulong max_nr_files);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);

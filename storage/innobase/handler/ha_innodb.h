@@ -167,6 +167,8 @@ class ha_innobase : public handler {
 
   int index_last(uchar *buf) override;
 
+  bool has_gap_locks() const noexcept override { return true; }
+
   int read_range_first(const key_range *start_key, const key_range *end_key,
                        bool eq_range_arg, bool sorted) override;
 

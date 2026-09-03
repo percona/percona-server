@@ -472,6 +472,15 @@ class Query_arena {
     if ((ptr = mem_root->Alloc(size))) memset(ptr, 0, size);
     return ptr;
   }
+  inline void *mem_aligned_calloc(size_t size, size_t alignment) {
+    size_t unaligned_size = size + alignment;
+    void *ptr = mem_root->Alloc(unaligned_size);
+    if (!ptr) return nullptr;
+    ptr = reinterpret_cast<void *>(
+        MY_ALIGN(reinterpret_cast<std::uintptr_t>(ptr), alignment));
+    memset(ptr, 0, size);
+    return ptr;
+  }
   template <typename T>
   T *alloc_typed() {
     void *m = alloc(sizeof(T));

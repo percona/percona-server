@@ -840,6 +840,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
+  thd->lex->clear_values_map();
+  DEBUG_SYNC(thd, "after_mysql_insert");
 
   return false;
 }

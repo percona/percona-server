@@ -4408,6 +4408,10 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     return ret;
   }
 
+  DEBUG_SYNC(
+      thd,
+      "gtid_mode_update_gtid_mode_lock_wrlock_taken_will_take_global_sid_lock");
+
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   global_tsid_lock->wrlock();

@@ -1411,7 +1411,7 @@ void get_sp_access_map(
     */
 
     if (!strcmp(acl_user_user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
+        grant_proc->host.compare_hostname(acl_user_host, host)) {
       Access_bitmask proc_access = grant_proc->privs;
       if (proc_access != 0) {
         String key;
@@ -1446,7 +1446,7 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
       would be wrong from a security point of view.
     */
     if (!strcmp(acl_user_user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
+        grant_table->host.compare_hostname(acl_user_host, acl_user_host)) {
       Access_bitmask table_access = grant_table->privs;
       if ((table_access | grant_table->cols) != 0) {
         String q_name;
@@ -1532,7 +1532,7 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
     */
 
     if (!strcmp(acl_user_user, acl_db_user) &&
-        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host)) {
+        acl_db->host.compare_hostname(acl_user_host, acl_user_host)) {
       const Access_bitmask want_access = acl_db->access;
       if (want_access) {
         if (has_wildcard_characters({acl_db->db, strlen(acl_db->db)})) {

@@ -3934,6 +3934,7 @@ static inline bool check_restrictions_for_com_connect_command(THD *thd) {
             .first)) {
     if (!Connection_handler_manager::get_instance()
              ->valid_connection_count()) {  // too many connections
+      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       return true;
     }

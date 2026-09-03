@@ -52,6 +52,7 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_default.h"
 #include "my_hostname.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -3876,6 +3877,8 @@ class Fill_process_list : public Do_THD_Impl {
 static int fill_schema_processlist(THD *thd, Table_ref *tables, Item *) {
   DBUG_TRACE;
 
+  DEBUG_SYNC(thd, "before_fill_schema_processlist");
+
   Fill_process_list fill_process_list(thd, tables);
   if (!thd->killed) {
     Global_THD_manager::get_instance()->do_for_all_thd_copy(&fill_process_list);
@@ -5233,10 +5236,10 @@ static int get_schema_tmp_table_columns_record(THD *thd, Table_ref *tables,
 
     // COLUMN_KEY
     pos = pointer_cast<const uchar *>(
-        field->is_flag_set(PRI_KEY_FLAG)        ? "PRI"
-        : field->is_flag_set(UNIQUE_KEY_FLAG)   ? "UNI"
-        : field->is_flag_set(MULTIPLE_KEY_FLAG) ? "MUL"
-                                                : "");
+        field->is_flag_set(PRI_KEY_FLAG)          ? "PRI"
+        : field->is_flag_set(UNIQUE_KEY_FLAG)     ? "UNI"
+        : (field->is_flag_set(MULTIPLE_KEY_FLAG)) ? "MUL"
+                                                  : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 

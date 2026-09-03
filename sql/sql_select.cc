@@ -2126,6 +2126,7 @@ void JOIN::cleanup_item_list(const mem_root_deque<Item *> &items) const {
 bool Query_block::optimize(THD *thd, bool finalize_access_paths) {
   DBUG_TRACE;
 
+  assert(master_query_expression()->cleaned == Query_expression::UC_DIRTY);
   assert(join == nullptr);
   JOIN *const join_local = new (thd->mem_root) JOIN(thd, this);
   if (!join_local) return true; /* purecov: inspected */

@@ -1383,7 +1383,8 @@ bool do_command(THD *thd) {
     number of seconds has passed.
   */
   net = thd->get_protocol_classic()->get_net();
-  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  if (!thd->skip_wait_timeout)
+    my_net_set_read_timeout(net, thd->get_wait_timeout());
   net_new_transaction(net);
 
   /*
@@ -1771,6 +1772,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   DBUG_TRACE;
   DBUG_PRINT("info", ("command: %d", command));
+
+  DBUG_EXECUTE_IF("crash_dispatch_command_before", {
+    DBUG_PRINT("crash_dispatch_command_before", ("now"));
+    DBUG_ABORT();
+  });
 
   Sql_cmd_clone *clone_cmd = nullptr;
 
@@ -2507,6 +2513,13 @@ done:
   log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    DEBUG_SYNC(thd, "dispatch_create_table_command_before_thd_root_free");
+  }
+
+  if (thd->killed == THD::KILL_QUERY) {
+    thd->killed = THD::NOT_KILLED;
+  }
 
   thd->reset_query();
   thd->set_command(COM_SLEEP);
@@ -6470,7 +6483,11 @@ Table_ref *Query_block::add_table_to_list(
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(
-              lex->query_tables->db, lex->query_tables->table_name))) {
+              lex->query_tables->db, lex->query_tables->table_name))
+&& !(dd::get_dictionary()->is_system_view_name(
+              lex->query_tables->db, lex->query_tables->table_name)
+ && DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
+        ) {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
                ER_THD_NONCONST(thd, dictionary->table_type_error_code(
                                         ptr->db, ptr->table_name)),

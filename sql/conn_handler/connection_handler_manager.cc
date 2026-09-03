@@ -265,6 +265,7 @@ void Connection_handler_manager::process_new_connection(
   if (connection_events_loop_aborted() ||
       !check_and_incr_conn_count(channel_info->is_admin_connection(), false)) {
     channel_info->send_error_and_close_channel(ER_CON_COUNT_ERROR, 0, true);
+    sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
     delete channel_info;
     return;
   }

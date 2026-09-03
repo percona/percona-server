@@ -4897,8 +4897,6 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   DBUG_PRINT("info", ("generated filename: %s", log_file_name));
 
-  DEBUG_SYNC(current_thd, "after_log_file_name_initialized");
-
   if (m_binlog_index_monitor.open_purge_index_file(true) ||
       m_binlog_index_monitor.register_create_index_entry(log_file_name) ||
       m_binlog_index_monitor.sync_purge_index_file() ||

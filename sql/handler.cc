@@ -5323,11 +5323,13 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
     The exception is if we're about to roll back changes (commit= false).
     In this case, we might be rolling back after a failed lock upgrade,
     so we could be holding the same lock level as for inplace_alter_table().
+     TABLE::mdl_ticket is 0 for temporary tables.
   */
-  assert(ha_thd()->mdl_context.owns_equal_or_stronger_lock(
-             MDL_key::TABLE, table->s->db.str, table->s->table_name.str,
-             MDL_EXCLUSIVE) ||
-         !commit);
+  assert((table->s->tmp_table != NO_TMP_TABLE && !table->mdl_ticket) ||
+         (ha_thd()->mdl_context.owns_equal_or_stronger_lock(
+              MDL_key::TABLE, table->s->db.str, table->s->table_name.str,
+              MDL_EXCLUSIVE) ||
+          !commit));
 
   return commit_inplace_alter_table(altered_table, ha_alter_info, commit,
                                     old_table_def, new_table_def);
@@ -8501,7 +8503,9 @@ int handler::ha_write_row(uchar *buf) {
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type == F_WRLCK);
 
   DBUG_TRACE;
-  DBUG_EXECUTE_IF("inject_error_ha_write_row", return HA_ERR_INTERNAL_ERROR;);
+  DEBUG_SYNC(ha_thd(), "start_ha_write_row");
+  DBUG_EXECUTE_IF("inject_error_ha_write_row",
+                  return HA_ERR_INTERNAL_ERROR;);
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
                   return HA_ERR_SE_OUT_OF_MEMORY;);
   mark_trx_read_write();

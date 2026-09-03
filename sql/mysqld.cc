@@ -4139,6 +4139,10 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
       case SIGHUP:
         if (!connection_events_loop_aborted()) {
           int not_used;
+          DBUG_EXECUTE_IF("simulate_sighup_print_status", {
+            printf("\nStatus information:\n\n");
+            fflush(stdout);
+          });
           handle_reload_request(
               nullptr,
               (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT),
@@ -7599,7 +7603,7 @@ static int generate_server_uuid() {
 
   delete thd;
 
-  strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
+  strncpy(server_uuid, uuid.c_ptr(), sizeof(server_uuid));
   DBUG_EXECUTE_IF("server_uuid_deterministic",
                   memcpy(server_uuid, "00000000-1111-0000-1111-000000000000",
                          UUID_LENGTH););

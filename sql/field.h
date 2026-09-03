@@ -1735,6 +1735,7 @@ class Field {
 
   void set_column_format(column_format_type column_format_arg) {
     assert(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
+    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 

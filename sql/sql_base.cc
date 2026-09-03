@@ -5977,7 +5977,19 @@ static bool set_non_locking_read_for_IS_view(THD *thd, Table_ref *tl) {
     always a DD table. If this is not true, then we might
     need to invoke dd::Dictionary::is_dd_tablename() to make sure.
    */
-  if (tbl->db_stat && tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
+
+  /* Addition to the above upstream comment:
+     Compression_dictionary table is dd::System_tables::Types::SYSTEM, so
+     pushing HA_EXTRA_NO_READ_LOCKING down will cause the assert in ha_innodb.cc
+     line c.a. 19297 (no_read_locking == true, is_dd_table == false).
+     This is the logic in ha_innobase::external_lock introduced in 8.0.22.
+     Below causes HA_EXTRA_NO_READ_LOCKING not to be pushed for SYSTEM tables
+     and we have locking as before.
+  */
+  bool is_dd_table = dd::get_dictionary()->is_dd_table_name(
+      tl->get_db_name(), tl->get_table_name());
+  if (is_dd_table && tbl->db_stat &&
+      tbl->file->ha_extra(HA_EXTRA_NO_READ_LOCKING)) {
     // Handler->ha_extra() for innodb does not fail ever as of now.
     // In case it is made to fail sometime later, we need to think
     // about the kind of error to be report to user.

@@ -5072,7 +5072,8 @@ class handler {
         m_lock_type(F_UNLCK),
         ha_share(nullptr),
         m_update_generated_read_fields(false),
-        m_unique(nullptr) {
+        m_unique(nullptr),
+        cloned(false) {
     DBUG_PRINT("info", ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                         F_UNLCK, F_RDLCK, F_WRLCK));
     memset(index_rows_read, 0, sizeof(index_rows_read));
@@ -7650,6 +7651,13 @@ class handler {
   void unlock_shared_ha_data();
 
   friend class DsMrr_impl;
+
+ private:
+  /**
+    If true, the current handler is a clone. In that case certain invariants
+    such as table->in_use == current_thd are relaxed to support cloning a
+    handler belonging to a different thread. */
+  bool cloned;
 };
 
 /* Temporary Table handle for opening uncached table */

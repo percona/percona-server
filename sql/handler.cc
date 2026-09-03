@@ -2915,8 +2915,10 @@ bool HA_CREATE_INFO::set_db_type(THD *thd) {
 handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
   DBUG_TRACE;
 
-  handler *new_handler = get_new_handler(
-      table->s, (table->s->m_part_info != nullptr), mem_root, ht);
+  handler *new_handler =
+      table ? get_new_handler(table->s, (table->s->m_part_info != nullptr),
+                              mem_root, ht)
+            : nullptr;
 
   if (!new_handler) return nullptr;
   if (new_handler->set_ha_share_ref(ha_share)) goto err;
@@ -2929,6 +2931,9 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
   if (!(new_handler->ref =
             (uchar *)mem_root->Alloc(ALIGN_SIZE(ref_length) * 2)))
     goto err;
+
+  new_handler->cloned = true;
+
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cacheable for clone.
@@ -2950,6 +2955,7 @@ void handler::ha_statistic_increment(
 }
 
 THD *handler::ha_thd() const {
+  if (unlikely(cloned)) return current_thd;
   assert(table == nullptr || table->in_use == nullptr ||
          table->in_use == current_thd);
   return table != nullptr && table->in_use != nullptr ? table->in_use
@@ -3048,6 +3054,10 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
                            ? &table->s->mem_root
                            : &table->mem_root;
   assert(alloc_root_inited(mem_root));
+
+  if (cloned) {
+    DEBUG_SYNC(ha_thd(), "start_handler_ha_open_cloned");
+  }
 
   if ((error = open(name, mode, test_if_locked, table_def))) {
     if ((error == EACCES || error == EROFS) && mode == O_RDWR &&

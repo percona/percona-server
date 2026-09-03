@@ -2722,6 +2722,8 @@ struct st_sp_chistics {
 };
 
 extern const LEX_STRING null_lex_str;
+extern const LEX_CSTRING null_lex_cstr;
+extern const LEX_CSTRING empty_lex_cstr;
 
 struct st_trg_chistics {
   enum enum_trigger_action_time_type action_time;
@@ -3058,6 +3060,18 @@ class Query_tables_list {
     Maps elements of enum_binlog_stmt_unsafe to error codes.
   */
   static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
+
+  /**
+    Determine if this statement is marked as unsafe with
+    specific type
+
+    @retval false if the statement is not marked as unsafe.
+    @retval true if it is.
+  */
+  inline bool is_stmt_unsafe(
+      enum_binlog_stmt_unsafe unsafe_type) const noexcept {
+    return ((binlog_stmt_flags & (1U << unsafe_type)) != 0);
+  }
 
   /**
     Determine if this statement is marked as unsafe.

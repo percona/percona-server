@@ -22024,6 +22024,90 @@ static void innodb_enable_monitor_at_startup(
   }
 }
 
+#if defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || defined(UNIV_PERF_DEBUG))
+
+/** Update the innodb_sched_priority_purge variable and set the thread
+priorities accordingly.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_sched_priority_purge_update(THD *thd, SYS_VAR *var,
+                                               void *var_ptr,
+                                               const void *save) {
+  if (srv_read_only_mode) return;
+
+  const ulint priority = *static_cast<const ulint *>(save);
+
+  for (ulint i = 0; i < srv_n_purge_threads; i++) {
+    const ulint actual_priority =
+        os_thread_set_priority(srv_purge_tids[i], priority);
+    if (UNIV_UNLIKELY(actual_priority != priority)) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          "Failed to set the purge thread priority to %lu, "
+                          "the current priority is %lu, aborting priority "
+                          "update",
+                          priority, actual_priority);
+      return;
+    }
+  }
+
+  srv_sched_priority_purge = priority;
+}
+
+extern std::atomic<ulint> io_tid_i;
+
+/** Update the innodb_sched_priority_io variable and set the thread priorities
+accordingly.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_sched_priority_io_update(THD *thd, SYS_VAR *var,
+                                            void *var_ptr, const void *save) {
+  const ulint priority = *static_cast<const ulint *>(save);
+
+  for (ulint i = 0; i < io_tid_i.load(); i++) {
+    const ulint actual_priority =
+        os_thread_set_priority(srv_io_tids[i], priority);
+    if (UNIV_UNLIKELY(actual_priority != priority)) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                          "Failed to set the I/O thread priority to %lu, the "
+                          "current priority is %lu, aborting priority update",
+                          priority, actual_priority);
+      return;
+    }
+  }
+  srv_sched_priority_io = priority;
+}
+
+/** Update the innodb_sched_priority_master variable and set the thread
+priorities accordingly.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_sched_priority_master_update(THD *thd, SYS_VAR *var,
+                                                void *var_ptr,
+                                                const void *save) {
+  if (srv_read_only_mode) return;
+
+  const ulint priority = *static_cast<const lint *>(save);
+  const ulint actual_priority =
+      os_thread_set_priority(srv_master_tid, priority);
+  if (UNIV_UNLIKELY(actual_priority != priority)) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Failed to set the master thread priority to %lu, the "
+                        "current priority is %lu",
+                        priority, actual_priority);
+  } else {
+    srv_sched_priority_master = priority;
+  }
+}
+
+#endif /* defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || \
+          defined(UNIV_PERF_DEBUG)) */
+
 /** Callback function for accessing the InnoDB variables from MySQL:
  SHOW VARIABLES. */
 static int show_innodb_vars(THD *, SHOW_VAR *var, char *) {
@@ -22828,6 +22912,37 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
                           "Number of rw_locks protecting buffer pool "
                           "page_hash. Rounded up to the next power of 2",
                           nullptr, nullptr, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
+
+#ifdef UNIV_LINUX
+
+static MYSQL_SYSVAR_ULONG(sched_priority_purge, srv_sched_priority_purge,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Nice value for the purge thread scheduling", NULL,
+                          innodb_sched_priority_purge_update, 19, 0, 39, 0);
+
+static MYSQL_SYSVAR_ULONG(sched_priority_io, srv_sched_priority_io,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Nice value for the I/O handler thread scheduling",
+                          NULL, innodb_sched_priority_io_update, 19, 0, 39, 0);
+
+static MYSQL_SYSVAR_ULONG(sched_priority_master, srv_sched_priority_master,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Nice value for the master thread scheduling", NULL,
+                          innodb_sched_priority_master_update, 19, 0, 39, 0);
+
+static MYSQL_SYSVAR_BOOL(
+    priority_purge, srv_purge_thread_priority, PLUGIN_VAR_OPCMDARG,
+    "Make purge coordinator and worker threads acquire shared resources with "
+    "priority",
+    NULL, NULL, false);
+
+static MYSQL_SYSVAR_BOOL(
+    priority_master, srv_master_thread_priority, PLUGIN_VAR_OPCMDARG,
+    "Make buffer pool cleaner thread acquire shared resources with priority",
+    NULL, NULL, false);
+
+#endif /* UNIV_LINUX */
+
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(
@@ -23983,6 +24098,13 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),
+#ifdef UNIV_LINUX
+    MYSQL_SYSVAR(sched_priority_purge),
+    MYSQL_SYSVAR(sched_priority_io),
+    MYSQL_SYSVAR(sched_priority_master),
+    MYSQL_SYSVAR(priority_purge),
+    MYSQL_SYSVAR(priority_master),
+#endif /* UNIV_LINUX */
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
     MYSQL_SYSVAR(validate_tablespace_paths),
     MYSQL_SYSVAR(use_fdatasync),

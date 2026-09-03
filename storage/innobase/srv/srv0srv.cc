@@ -77,7 +77,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread-create.h"
 #include "pars0pars.h"
 #include "que0que.h"
+#include "row0log.h"
 #include "row0mysql.h"
+#include "sql/current_thd.h"
 #include "sql/sql_class.h"
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
@@ -1753,6 +1755,9 @@ void srv_export_innodb_status(void) {
         (ulint)(max_trx_no - low_limit_no + 1);
   }
 #endif /* UNIV_DEBUG */
+
+  thd_get_fragmentation_stats(current_thd,
+                              &export_vars.innodb_fragmentation_stats);
 
   mutex_exit(&srv_innodb_monitor_mutex);
 }

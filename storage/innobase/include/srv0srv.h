@@ -60,6 +60,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0file.h"
 #include "os0thread.h"
 #include "que0types.h"
+#include "sql/system_variables.h"
 #include "srv0conc.h"
 #include "trx0types.h"
 #include "ut0counter.h"
@@ -1205,6 +1206,8 @@ struct export_var_t {
                                       index lookups when freeing
                                       file pages */
 #endif                                /* UNIV_DEBUG */
+  fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
+                                           statistics */
 };
 
 #ifndef UNIV_HOTBACKUP

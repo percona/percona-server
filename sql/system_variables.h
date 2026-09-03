@@ -202,6 +202,22 @@ inline constexpr sql_mode_t MODE_ALLOWED_MASK =
   sql_mode_names[] in sys_vars.cc
 */
 
+/** Page fragmentation statistics */
+struct fragmentation_stats_t {
+  ulonglong scan_pages_contiguous;          /*!< number of contiguous InnoDB
+                                              page reads inside a query */
+  ulonglong scan_pages_disjointed;          /*!< number of disjointed InnoDB
+                                              page reads inside a query */
+  ulonglong scan_pages_total_seek_distance; /*!< total seek distance between
+                                              InnoDB pages */
+  ulonglong scan_data_size;                 /*!< size of data in all InnoDB
+                                              pages read inside a query
+                                              (in bytes) */
+  ulonglong scan_deleted_recs_size;         /*!< size of deleded records in
+                                              all InnoDB pages read inside a
+                                              query (in bytes) */
+};
+
 struct System_variables {
   /*
     How dynamically allocated system variables are handled:
@@ -637,6 +653,9 @@ struct System_status_var {
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
+  /** fragmentation statistics */
+  fragmentation_stats_t fragmentation_stats;
 };
 
 /*

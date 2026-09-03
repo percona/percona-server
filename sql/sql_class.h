@@ -56,6 +56,7 @@
 #include "dur_prop.h"  // durability_properties
 #include "lex_string.h"
 #include "map_helpers.h"
+#include "mutex_lock.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_command.h"
@@ -165,6 +166,11 @@ class sp_cache;
 struct Binlog_user_var_event;
 struct Log_info;
 
+extern bool opt_log_slow_admin_statements;
+extern ulong opt_log_slow_sp_statements;
+
+extern PSI_mutex_key key_LOCK_bloom_filter;
+
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
 
@@ -183,7 +189,14 @@ extern "C" void thd_enter_stage(void *opaque_thd,
                                 PSI_stage_info *old_stage,
                                 const char *src_function, const char *src_file,
                                 int src_line);
-
+enum enum_slow_query_log_use_global_control {
+  SLOG_UG_LOG_SLOW_FILTER,
+  SLOG_UG_LOG_SLOW_RATE_LIMIT,
+  SLOG_UG_LOG_SLOW_VERBOSITY,
+  SLOG_UG_LONG_QUERY_TIME,
+  SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+  SLOG_UG_ALL
+};
 enum enum_log_slow_verbosity {
   SLOG_V_MICROTIME,
   SLOG_V_QUERY_PLAN,
@@ -194,6 +207,23 @@ enum enum_log_slow_verbosity {
   SLOG_V_STANDARD,
   SLOG_V_FULL
 };
+enum enum_slow_query_log_rate_type { SLOG_RT_SESSION, SLOG_RT_QUERY };
+#define QPLAN_NONE 0
+#define QPLAN_FULL_SCAN (1 << 0)
+#define QPLAN_FULL_JOIN (1 << 1)
+#define QPLAN_TMP_TABLE (1 << 2)
+#define QPLAN_TMP_DISK (1 << 3)
+#define QPLAN_FILESORT (1 << 4)
+#define QPLAN_FILESORT_DISK (1 << 5)
+enum class enum_log_slow_filter {
+  SLOG_F_FULL_SCAN,
+  SLOG_F_FULL_JOIN,
+  SLOG_F_TMP_TABLE,
+  SLOG_F_TMP_DISK,
+  SLOG_F_FILESORT,
+  SLOG_F_FILESORT_DISK
+};
+#define SLOG_SLOW_RATE_LIMIT_MAX 1000
 
 extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
                                                const bool waiting);
@@ -768,6 +798,24 @@ class Sub_statement_state {
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong tmp_tables_used;
+  ulong tmp_tables_disk_used;
+  ulonglong tmp_tables_size;
+
+  bool innodb_was_used;
+  ulong innodb_io_reads;
+  ulonglong innodb_io_read;
+  ulong innodb_io_reads_wait_timer;
+  ulong innodb_lock_que_wait_timer;
+  ulong innodb_innodb_que_wait_timer;
+  ulong innodb_page_access;
+
+  ulong query_plan_flags;
+  ulong query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields check_for_truncated_fields;
 };
@@ -894,6 +942,67 @@ class Global_read_lock {
 };
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
+
+struct QUERY_START_TIME_INFO {
+  struct timeval start_time;
+  ulonglong start_utime;
+};
+
+/**
+   A single-hash-function bloom filter for approximate accessed page
+   counter.
+*/
+class Bloom_filter final {
+ private:
+  /** Bloom filter size, and a prime number for the calculation below */
+  static const constexpr auto SIZE = 8191;
+
+  typedef std::bitset<SIZE> Bit_set;
+
+  Bit_set *bit_set;
+  // Protects the bit set from concurrent assignment
+  mysql_mutex_t LOCK_bit_set;
+
+  // Non-copyable
+  Bloom_filter(const Bloom_filter &);
+  Bloom_filter &operator=(const Bloom_filter &);
+
+ public:
+  Bloom_filter() : bit_set(nullptr) {
+    mysql_mutex_init(key_LOCK_bloom_filter, &LOCK_bit_set, MY_MUTEX_INIT_FAST);
+  }
+
+  ~Bloom_filter() {
+    clear();
+    mysql_mutex_destroy(&LOCK_bit_set);
+  }
+
+  void clear() noexcept {
+    MUTEX_LOCK(lock, &LOCK_bit_set);
+    delete bit_set;
+    bit_set = NULL;
+  }
+
+  /**
+     Check whether key is maybe a member of a set
+
+     @param[in] key key whose presence to check
+     @return if true, the key might be a member of the set. If false, the key
+     is definitely not a member of the set.
+  */
+  bool test_and_set(ulong key) {
+    MUTEX_LOCK(lock, &LOCK_bit_set);
+    if (bit_set == nullptr) {
+      bit_set = new Bit_set();
+    }
+    // Duplicating ut_hash_ulint calculation
+    const ulong pos = (key ^ 1653893711) % SIZE;
+    assert(pos < SIZE);
+    if (bit_set->test(pos)) return false;
+    bit_set->set(pos);
+    return true;
+  }
+};
 
 /**
   This class keeps the context of transactional DDL statements. Currently only
@@ -1182,9 +1291,11 @@ class THD : public MDL_context_owner,
   */
   collation_unordered_map<std::string, unique_ptr_with_deleter<user_var_entry>>
       user_vars{system_charset_info, key_memory_user_var_entry};
-  struct rand_struct rand;              // used for authentication
-  struct System_variables variables;    // Changeable local variables
-  struct System_status_var status_var;  // Per thread statistic vars
+  struct rand_struct rand;                      // used for authentication
+  struct System_variables variables;            // Changeable local variables
+  struct System_status_var status_var;          // Per thread statistic vars
+  struct rand_struct slog_rand;                 // used for random slow log
+                                                // filtering
   struct System_status_var
       *copy_status_var_ptr;  // A copy of the statistic vars asof the start of
                              // the query
@@ -1687,6 +1798,88 @@ class THD : public MDL_context_owner,
   */
   thr_lock_type insert_lock_default;
 
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong bytes_sent_old;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong tmp_tables_used;
+  ulong tmp_tables_disk_used;
+  ulonglong tmp_tables_size;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==true)
+  */
+  ulonglong innodb_trx_id;
+  ulong innodb_io_reads;
+  ulonglong innodb_io_read;
+  ulong innodb_io_reads_wait_timer;
+  ulong innodb_lock_que_wait_timer;
+  ulong innodb_innodb_que_wait_timer;
+
+ private:
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool innodb_was_used;
+  Bloom_filter approx_distinct_pages;
+
+ public:
+  ulong innodb_page_access;
+
+  void mark_innodb_used(ulonglong trx_id) noexcept {
+    assert(innodb_slow_log_enabled());
+    if (trx_id && !is_attachable_transaction_active()) innodb_trx_id = trx_id;
+    innodb_was_used = true;
+  }
+
+  void access_distinct_page(ulong page_id) {
+    if (approx_distinct_pages.test_and_set(page_id)) innodb_page_access++;
+  }
+
+  bool innodb_slow_log_enabled() const noexcept {
+    return variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB);
+  }
+
+  bool innodb_slow_log_data_logged() const noexcept { return innodb_was_used; }
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  inline void set_slow_log_for_admin_command() noexcept {
+    enable_slow_log = opt_log_slow_admin_statements &&
+                      (sp_runtime_ctx ? opt_log_slow_sp_statements : true);
+  }
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended() noexcept;
+
+ private:
+  void reset_sub_statement_state_slow_extended(
+      Sub_statement_state *backup) noexcept;
+  void restore_sub_statement_state_slow_extended(
+      const Sub_statement_state &backup) noexcept;
+  /*** The methods above used in slow_extended.patch ***/
+ public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
 
@@ -3217,6 +3410,15 @@ class THD : public MDL_context_owner,
     user_time = *t;
     set_time();
   }
+  void get_time(QUERY_START_TIME_INFO *time_info) const noexcept {
+    time_info->start_time = start_time;
+    time_info->start_utime = start_utime;
+  }
+  void set_time(const QUERY_START_TIME_INFO &time_info) noexcept {
+    start_time = time_info.start_time;
+    start_utime = time_info.start_utime;
+  }
+
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
@@ -3224,6 +3426,8 @@ class THD : public MDL_context_owner,
   bool interpret_utf8_as_utf8mb4() const {
     return (variables.sql_mode & MODE_INTERPRET_UTF8_AS_UTF8MB4);
   }
+
+  static inline ulonglong current_utime() noexcept { return my_micro_time(); }
 
   /**
    Evaluate the current time, and if it exceeds the long-query-time
@@ -5023,6 +5227,10 @@ inline bool THD::is_system_user() {
 */
 inline void THD::set_system_user(bool system_user_flag) {
   m_is_system_user.store(system_user_flag, std::memory_order_seq_cst);
+}
+
+inline ulonglong get_query_time(THD *thd) {
+  return my_micro_time() - thd->start_utime;
 }
 
 /**

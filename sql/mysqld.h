@@ -163,6 +163,7 @@ extern bool opt_bin_log;
 extern bool opt_log_replica_updates;
 extern bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
+extern ulonglong slow_query_log_always_write_time;
 extern ulonglong log_output_options;
 extern bool opt_log_queries_not_using_indexes;
 extern ulong opt_log_throttle_queries_not_using_indexes;
@@ -218,10 +219,12 @@ extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
-extern bool opt_log_slow_admin_statements, opt_log_slow_replica_statements;
+extern bool opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool trust_function_creators;
 extern bool check_proxy_users, sha256_password_proxy_users;
+extern ulonglong opt_slow_query_log_use_global_control;
+extern ulong opt_slow_query_log_rate_type;
 #ifdef _WIN32
 extern const char *shared_memory_base_name;
 #endif

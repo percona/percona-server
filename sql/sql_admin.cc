@@ -1953,7 +1953,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     return true;
   });
 
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
 
   if (get_histogram_command() != Histogram_command::NONE) {
     res = handle_histogram_command(thd, first_table);
@@ -2038,7 +2038,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
 
   if (check_optimize_table_access(thd)) goto error; /* purecov: inspected */
 
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res = (specialflag & SPECIAL_NO_NEW_FUNC)
             ? mysql_recreate_table(thd, first_table, true)
             : mysql_admin_table(thd, first_table, &thd->lex->check_opt,
@@ -2066,7 +2066,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
                          UINT_MAX, false))
     goto error; /* purecov: inspected */
-  thd->enable_slow_log = opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res = mysql_admin_table(
       thd, first_table, &thd->lex->check_opt, "repair", TL_WRITE, true,
       thd->lex->check_opt.sql_flags & TT_USEFRM, HA_OPEN_FOR_REPAIR,

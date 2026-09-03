@@ -2738,6 +2738,27 @@ static Sys_var_double Sys_long_query_time(
     VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(update_cached_long_query_time));
 
+#ifndef NDEBUG
+static bool update_cached_query_exec_time(sys_var *self [[maybe_unused]],
+                                          THD *thd, enum_var_type type) {
+  if (type == OPT_SESSION)
+    thd->variables.query_exec_time =
+        double2ulonglong(thd->variables.query_exec_time_double * 1e6);
+  else
+    global_system_variables.query_exec_time =
+        double2ulonglong(global_system_variables.query_exec_time_double * 1e6);
+  return false;
+}
+
+static Sys_var_double Sys_query_exec_time(
+    "query_exec_time",
+    "Pretend queries take this many seconds. When 0 (the default) use the "
+    "actual execution time. Used only for debugging.",
+    SESSION_VAR(query_exec_time_double), NO_CMD_LINE,
+    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(update_cached_query_exec_time));
+#endif
+
 static bool fix_low_prio_updates(sys_var *, THD *thd, enum_var_type type) {
   if (type == OPT_SESSION) {
     thd->update_lock_default =
@@ -5945,6 +5966,207 @@ static Sys_var_have Sys_have_symlink(
 static Sys_var_have Sys_have_statement_timeout(
     "have_statement_timeout", "have_statement_timeout",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
+
+static const char *log_slow_filter_name[] = {
+    "full_scan", "full_join",        "tmp_table", "tmp_table_on_disk",
+    "filesort",  "filesort_on_disk", nullptr};
+
+static Sys_var_set Sys_log_slow_filter(
+    "log_slow_filter",
+    "Log only the queries that followed certain execution plan. "
+    "Multiple flags allowed in a comma-separated string. "
+    "[full_scan, full_join, tmp_table, tmp_table_on_disk, "
+    "filesort, filesort_on_disk]",
+    SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG), log_slow_filter_name,
+    DEFAULT(0));
+
+static Sys_var_ulong sys_log_slow_rate_limit(
+    "log_slow_rate_limit",
+    "Rate limit statement writes to slow log to only those from every "
+    "(1/log_slow_rate_limit) session.",
+    SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, SLOG_SLOW_RATE_LIMIT_MAX), DEFAULT(1), BLOCK_SIZE(1));
+
+static double opt_slow_query_log_always_write_time;
+
+static bool update_slow_query_log_always_write_time(
+    sys_var *self [[maybe_unused]], THD *thd [[maybe_unused]],
+    enum_var_type type [[maybe_unused]]) noexcept {
+  slow_query_log_always_write_time =
+      double2ulonglong(opt_slow_query_log_always_write_time * 1e6);
+  return false;
+}
+
+static Sys_var_double sys_slow_query_log_always_write_time(
+    "slow_query_log_always_write_time",
+    "Log queries which run longer than specified by this value regardless "
+    "of the log_slow_rate_limit valiue.",
+    GLOBAL_VAR(opt_slow_query_log_always_write_time), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(update_slow_query_log_always_write_time));
+
+static const char *log_slow_verbosity_name[] = {
+    "microtime", "query_plan", "innodb", "profiling", "profiling_use_getrusage",
+    "minimal",   "standard",   "full",   nullptr};
+
+static ulonglong update_log_slow_verbosity_replace(ulonglong value,
+                                                   ulonglong what,
+                                                   ulonglong by) noexcept {
+  if ((value & what) == what) {
+    value = value & (~what);
+    value = value | by;
+  }
+  return value;
+}
+
+static void update_log_slow_verbosity(ulonglong *value_ptr) noexcept {
+  ulonglong &value = *value_ptr;
+  static constexpr ulonglong microtime = 1ULL << SLOG_V_MICROTIME;
+  static constexpr ulonglong query_plan = 1ULL << SLOG_V_QUERY_PLAN;
+  static constexpr ulonglong innodb = 1ULL << SLOG_V_INNODB;
+  static constexpr ulonglong minimal = 1ULL << SLOG_V_MINIMAL;
+  static constexpr ulonglong standard = 1ULL << SLOG_V_STANDARD;
+  static constexpr ulonglong full = 1ULL << SLOG_V_FULL;
+  value = update_log_slow_verbosity_replace(value, minimal, microtime);
+  value = update_log_slow_verbosity_replace(value, standard,
+                                            microtime | query_plan);
+  value = update_log_slow_verbosity_replace(value, full,
+                                            microtime | query_plan | innodb);
+}
+
+static bool update_log_slow_verbosity_helper(sys_var *, THD *thd,
+                                             enum_var_type type) noexcept {
+  if (type == OPT_SESSION) {
+    update_log_slow_verbosity(&(thd->variables.log_slow_verbosity));
+  } else {
+    update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
+  }
+  return false;
+}
+
+void init_slow_query_log_use_global_control() noexcept {
+  update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
+}
+
+static Sys_var_set Sys_log_slow_verbosity(
+    "log_slow_verbosity",
+    "Choose how verbose the messages to your slow log will be. "
+    "Multiple flags allowed in a comma-separated string. [microtime, "
+    "query_plan, innodb, profiling, profiling_use_getrusage, minimal, "
+    "standard, full]",
+    SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
+    log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(update_log_slow_verbosity_helper));
+
+static const char *log_slow_sp_statements_names[] = {
+    "OFF", "ON", "OFF_NO_CALLS", "FALSE", "TRUE", "0", "1", nullptr};
+
+static bool fix_log_slow_sp_statements(sys_var *, THD *,
+                                       enum_var_type) noexcept {
+  if (opt_log_slow_sp_statements > 2) {
+    opt_log_slow_sp_statements = (opt_log_slow_sp_statements - 3) % 2;
+  }
+  return false;
+}
+
+void init_log_slow_sp_statements() noexcept {
+  fix_log_slow_sp_statements(nullptr, nullptr, OPT_GLOBAL);
+}
+
+static Sys_var_enum Sys_log_slow_sp_statements(
+    "log_slow_sp_statements",
+    "Choice between logging slow CALL statements, logging individual slow "
+    "statements inside stored procedures or skipping the logging of stored "
+    "procedures into the slow log entirely. Values are OFF, ON and "
+    "OFF_NO_CALLS respectively.",
+    GLOBAL_VAR(opt_log_slow_sp_statements), CMD_LINE(OPT_ARG),
+    log_slow_sp_statements_names, DEFAULT(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(fix_log_slow_sp_statements));
+
+static const char *slow_query_log_use_global_control_name[] = {
+    "log_slow_filter",
+    "log_slow_rate_limit",
+    "log_slow_verbosity",
+    "long_query_time",
+    "min_examined_row_limit",
+    "all",
+    nullptr};
+
+static bool update_slow_query_log_use_global_control(sys_var *, THD *,
+                                                     enum_var_type) noexcept {
+  if (opt_slow_query_log_use_global_control & (1ULL << SLOG_UG_ALL)) {
+    opt_slow_query_log_use_global_control =
+        (1ULL << SLOG_UG_LOG_SLOW_FILTER) |
+        (1ULL << SLOG_UG_LOG_SLOW_RATE_LIMIT) |
+        (1ULL << SLOG_UG_LOG_SLOW_VERBOSITY) |
+        (1ULL << SLOG_UG_LONG_QUERY_TIME) |
+        (1ULL << SLOG_UG_MIN_EXAMINED_ROW_LIMIT);
+  }
+  return false;
+}
+
+void init_log_slow_verbosity() noexcept {
+  update_slow_query_log_use_global_control(nullptr, nullptr, OPT_GLOBAL);
+}
+
+/**
+  Specialized class that handles "none" value of
+  slow_query_log_use_global_control_set variable.
+  When "none" only value is detected, it is rewriten to empty
+  causing set to be cleared.
+*/
+class Sys_var_set_none : public Sys_var_set {
+ public:
+  Sys_var_set_none(
+      const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
+      size_t size, CMD_LINE getopt, const char *values[], ulonglong def_val,
+      PolyLock *lock = 0,
+      enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
+      on_check_function on_check_func = 0,
+      on_update_function on_update_func = 0, const char *substitute = 0)
+      : Sys_var_set(name_arg, comment, flag_args, off, size, getopt, values,
+                    def_val, lock, binlog_status_arg, on_check_func,
+                    on_update_func, substitute) {}
+
+  bool do_check(THD *thd, set_var *var) override {
+    if (var->value->result_type() == STRING_RESULT) {
+      char buff[STRING_BUFFER_USUAL_SIZE];
+      String str(buff, sizeof(buff), system_charset_info);
+
+      String *res = var->value->val_str(&str);
+      if (res && (res->length() > 0) &&
+          (0 == my_strcasecmp(system_charset_info, res->ptr(), "none"))) {
+        var->value = new Item_string("", 0, system_charset_info);
+      }
+    }
+    return Sys_var_set::do_check(thd, var);
+  }
+};
+
+static Sys_var_set_none Sys_slow_query_log_use_global_control(
+    "slow_query_log_use_global_control",
+    "Choose flags, wich always use the global variables. Multiple flags "
+    "allowed in a comma-separated string. [none, log_slow_filter, "
+    "log_slow_rate_limit, log_slow_verbosity, long_query_time, "
+    "min_examined_row_limit, all]",
+    GLOBAL_VAR(opt_slow_query_log_use_global_control), CMD_LINE(REQUIRED_ARG),
+    slow_query_log_use_global_control_name, DEFAULT(0), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(0),
+    ON_UPDATE(update_slow_query_log_use_global_control));
+
+static const char *slow_query_log_rate_name[] = {"session", "query", 0};
+
+static Sys_var_enum Sys_slow_query_log_rate_type(
+    "log_slow_rate_type",
+    "Choose the log_slow_rate_limit behavior: session or query. "
+    "When you choose 'session' - every %log_slow_rate_limit connection "
+    "will be processed to slow query log. "
+    "When you choose 'query' - every %log_slow_rate_limit query "
+    "will be processed to slow query log. "
+    "[session, query]",
+    GLOBAL_VAR(opt_slow_query_log_rate_type), CMD_LINE(REQUIRED_ARG),
+    slow_query_log_rate_name, DEFAULT(SLOG_RT_SESSION));
 
 static bool fix_general_log_state(sys_var *, THD *thd, enum_var_type) {
   const bool new_state = opt_general_log;

@@ -126,6 +126,10 @@ using std::max;
 using std::min;
 using std::unique_ptr;
 
+ulong opt_log_slow_sp_statements = 0;
+
+PSI_mutex_key key_LOCK_bloom_filter;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -994,6 +998,7 @@ void THD::push_internal_handler(Internal_error_handler *handler) {
 bool THD::handle_condition(uint sql_errno, const char *sqlstate,
                            Sql_condition::enum_severity_level *level,
                            const char *msg) {
+  last_errno = sql_errno;
   if (!m_internal_handler) return false;
 
   for (Internal_error_handler *error_handler = m_internal_handler;
@@ -1169,6 +1174,10 @@ void THD::init(void) {
     randominit(&rand,
                tmp + static_cast<ulong>(reinterpret_cast<uintptr_t>(&rand)),
                tmp + (ulong)::atomic_global_query_id);
+    randominit(&slog_rand, tmp + reinterpret_cast<ulong>(&slog_rand),
+               tmp + static_cast<ulong>(::atomic_global_query_id));
+    DBUG_EXECUTE_IF("seed_slow_log_random",
+                    randominit(&slog_rand, 0x11111111, 0x77777777););
   }
 
   server_status = SERVER_STATUS_AUTOCOMMIT;
@@ -1211,6 +1220,8 @@ void THD::init(void) {
   owned_tsid.clear();
   m_se_gtid_flags.reset();
   owned_gtid.dbug_print(nullptr, "set owned_gtid (clear) in THD::init");
+
+  clear_slow_extended();
 
   /*
     This will clear the writeset session history and re-set delegate state to
@@ -1595,9 +1606,26 @@ extern "C" void thd_report_innodb_stat(THD *thd, unsigned long long trx_id,
   assert(thd);
   assert(!thd_is_background_thread(thd));
   (void)thd;
-  (void)trx_id;
-  (void)type;
-  (void)value;
+  thd->mark_innodb_used(trx_id);
+  switch (type) {
+    case MYSQL_TRX_STAT_IO_READ_BYTES:
+      assert(value > 0);
+      thd->innodb_io_read += value;
+      thd->innodb_io_reads++;
+      break;
+    case MYSQL_TRX_STAT_IO_READ_WAIT_USECS:
+      thd->innodb_io_reads_wait_timer += value;
+      break;
+    case MYSQL_TRX_STAT_LOCK_WAIT_USECS:
+      thd->innodb_lock_que_wait_timer += value;
+      break;
+    case MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS:
+      thd->innodb_innodb_que_wait_timer += value;
+      break;
+    case MYSQL_TRX_STAT_ACCESS_PAGE_ID:
+      thd->access_distinct_page(value);
+      break;
+  }
 }
 
 extern "C" unsigned long thd_log_slow_verbosity(const THD *thd) {
@@ -2434,6 +2462,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
       first_successful_insert_id_in_prev_stmt;
   backup->first_successful_insert_id_in_cur_stmt =
       first_successful_insert_id_in_cur_stmt;
+  reset_sub_statement_state_slow_extended(backup);
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !is_current_stmt_binlog_format_row()) {
@@ -2458,6 +2487,66 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   if (is_current_stmt_binlog_row_enabled_with_write_set_extraction()) {
     get_transaction()->get_transaction_write_set_ctx()->reset_savepoint_list();
   }
+}
+
+void THD::clear_slow_extended() noexcept {
+  DBUG_ENTER("THD::clear_slow_extended");
+  m_sent_row_count = 0;
+  m_examined_row_count = 0;
+  bytes_sent_old = status_var.bytes_sent;
+  tmp_tables_used = 0;
+  tmp_tables_disk_used = 0;
+  tmp_tables_size = 0;
+  innodb_was_used = false;
+  innodb_trx_id = 0;
+  innodb_io_reads = 0;
+  innodb_io_read = 0;
+  innodb_io_reads_wait_timer = 0;
+  innodb_lock_que_wait_timer = 0;
+  innodb_innodb_que_wait_timer = 0;
+  approx_distinct_pages.clear();
+  innodb_page_access = 0;
+  query_plan_flags = QPLAN_NONE;
+  query_plan_fsort_passes = 0;
+  last_errno = 0;
+  DBUG_VOID_RETURN;
+}
+
+void THD::reset_sub_statement_state_slow_extended(
+    Sub_statement_state *backup) noexcept {
+  DBUG_ENTER("THD::reset_sub_statement_state_slow_extended");
+  backup->tmp_tables_used = tmp_tables_used;
+  backup->tmp_tables_disk_used = tmp_tables_disk_used;
+  backup->tmp_tables_size = tmp_tables_size;
+  backup->innodb_was_used = innodb_was_used;
+  backup->innodb_io_reads = innodb_io_reads;
+  backup->innodb_io_read = innodb_io_read;
+  backup->innodb_io_reads_wait_timer = innodb_io_reads_wait_timer;
+  backup->innodb_lock_que_wait_timer = innodb_lock_que_wait_timer;
+  backup->innodb_innodb_que_wait_timer = innodb_innodb_que_wait_timer;
+  backup->innodb_page_access = innodb_page_access;
+  backup->query_plan_flags = query_plan_flags;
+  backup->query_plan_fsort_passes = query_plan_fsort_passes;
+  clear_slow_extended();
+  DBUG_VOID_RETURN;
+}
+
+void THD::restore_sub_statement_state_slow_extended(
+    const Sub_statement_state &backup) noexcept {
+  DBUG_ENTER("THD::restore_sub_statement_state_slow_extended");
+  tmp_tables_used += backup.tmp_tables_used;
+  tmp_tables_disk_used += backup.tmp_tables_disk_used;
+  tmp_tables_size += backup.tmp_tables_size;
+  innodb_was_used = (innodb_was_used || backup.innodb_was_used);
+  innodb_io_reads += backup.innodb_io_reads;
+  innodb_io_read += backup.innodb_io_read;
+  innodb_io_reads_wait_timer += backup.innodb_io_reads_wait_timer;
+  innodb_lock_que_wait_timer += backup.innodb_lock_que_wait_timer;
+  innodb_innodb_que_wait_timer += backup.innodb_innodb_que_wait_timer;
+  innodb_page_access += backup.innodb_page_access;
+  query_plan_flags |= backup.query_plan_flags;
+  query_plan_fsort_passes += backup.query_plan_fsort_passes;
+  DBUG_VOID_RETURN;
 }
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup) {
@@ -2529,6 +2618,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
         ->get_transaction_write_set_ctx()
         ->restore_savepoint_list();
   }
+
+  restore_sub_statement_state_slow_extended(*backup);
 }
 
 void THD::set_sent_row_count(ha_rows count) {
@@ -2549,6 +2640,7 @@ void THD::inc_examined_row_count(ha_rows count) {
 void THD::inc_status_created_tmp_disk_tables() {
   assert(!status_var_aggregated);
   status_var.created_tmp_disk_tables++;
+  query_plan_flags |= QPLAN_TMP_DISK;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
@@ -2557,6 +2649,7 @@ void THD::inc_status_created_tmp_disk_tables() {
 void THD::inc_status_created_tmp_tables() {
   assert(!status_var_aggregated);
   status_var.created_tmp_tables++;
+  query_plan_flags |= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
@@ -2573,6 +2666,7 @@ void THD::inc_status_select_full_join() {
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
+  query_plan_flags |= QPLAN_FULL_JOIN;
 }
 
 void THD::inc_status_select_full_range_join() {
@@ -2605,6 +2699,7 @@ void THD::inc_status_select_scan() {
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
+  query_plan_flags |= QPLAN_FULL_SCAN;
 }
 
 void THD::inc_status_sort_merge_passes() {
@@ -3420,7 +3515,7 @@ void THD::inc_lock_usec(ulonglong lock_usec) {
 }
 
 void THD::update_slow_query_status() {
-  if (my_micro_time() > start_utime + variables.long_query_time)
+  if (get_query_time(this) > variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
 }
 

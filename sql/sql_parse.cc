@@ -144,6 +144,8 @@
 #include "sql/sp.h"        // sp_create_routine
 #include "sql/sp_cache.h"  // sp_cache_enforce_limit
 #include "sql/sp_head.h"   // sp_head
+#include "sql/sp_instr.h"
+#include "sql/sp_rcontext.h"
 #include "sql/sql_admin.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_audit.h"   // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
@@ -1781,6 +1783,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log = true;
+  // Both this and the call THD::reset_for_next_command are required, even if
+  // clear_slow_extended ends up being called twice in common execution path
+  // between successive commands, because some COM_* skip one or another, i.e.
+  // COM_QUIT needs this one.
+  thd->clear_slow_extended();
   thd->lex->sql_command = SQLCOM_END; /* to avoid confusing VIEW detectors */
   /*
     KILL QUERY may come after cleanup in mysql_execute_command(). Next query
@@ -5246,7 +5253,8 @@ void THD::reset_for_next_command() {
   thd->get_stmt_da()->reset_statement_cond_count();
 
   thd->rand_used = false;
-  thd->m_sent_row_count = thd->m_examined_row_count = 0;
+
+  thd->clear_slow_extended();
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags = 0;

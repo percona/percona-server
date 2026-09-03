@@ -1390,6 +1390,11 @@ class THD : public MDL_context_owner,
   mysql_mutex_t LOCK_thd_query;
 
   /**
+    Protects temporary_tables.
+  */
+  mysql_mutex_t LOCK_temporary_tables;
+
+  /**
     Protects THD::variables while being updated. This should be taken inside
     of LOCK_thd_data and outside of LOCK_global_system_variables.
   */

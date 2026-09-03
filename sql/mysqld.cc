@@ -14159,6 +14159,7 @@ PSI_mutex_key key_LOCK_query_plan;
 PSI_mutex_key key_LOCK_thd_query;
 PSI_mutex_key key_LOCK_cost_const;
 PSI_mutex_key key_LOCK_current_cond;
+PSI_mutex_key key_LOCK_temporary_tables;
 PSI_mutex_key key_LOCK_global_user_client_stats;
 PSI_mutex_key key_LOCK_global_table_stats;
 PSI_mutex_key key_LOCK_global_index_stats;

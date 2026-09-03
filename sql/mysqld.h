@@ -468,6 +468,7 @@ extern PSI_mutex_key key_LOCK_query_plan;
 extern PSI_mutex_key key_LOCK_thd_query;
 extern PSI_mutex_key key_LOCK_cost_const;
 extern PSI_mutex_key key_LOCK_current_cond;
+extern PSI_mutex_key key_LOCK_temporary_tables;
 extern PSI_mutex_key key_LOCK_global_user_client_stats;
 extern PSI_mutex_key key_LOCK_global_table_stats;
 extern PSI_mutex_key key_LOCK_global_index_stats;

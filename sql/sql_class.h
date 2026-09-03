@@ -169,6 +169,7 @@ struct Log_info;
 extern bool opt_log_slow_admin_statements;
 extern ulong opt_log_slow_sp_statements;
 
+extern ulong kill_idle_transaction_timeout;
 extern PSI_mutex_key key_LOCK_bloom_filter;
 
 typedef struct user_conn USER_CONN;
@@ -1882,6 +1883,17 @@ class THD : public MDL_context_owner,
  public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
+  /* Do not set socket timeouts for wait_timeout (used with threadpool) */
+  bool skip_wait_timeout{false};
+
+  inline ulong get_wait_timeout(void) const noexcept {
+    if (in_active_multi_stmt_transaction() &&
+        kill_idle_transaction_timeout > 0 &&
+        kill_idle_transaction_timeout < variables.net_wait_timeout)
+      return kill_idle_transaction_timeout;
+    return variables.net_wait_timeout;
+  }
 
   /**
     Used by fill_status() to avoid acquiring LOCK_status mutex twice

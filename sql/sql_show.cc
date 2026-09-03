@@ -3357,7 +3357,8 @@ static void view_store_create_info(const THD *thd, Table_ref *table,
 
 /****************************************************************************
   Return info about all processes
-  returns for each thread: thread id, user, host, db, command, info
+  returns for each thread: thread id, user, host, db, command, info,
+  rows_sent, rows_examined
 ****************************************************************************/
 class thread_info {
  public:
@@ -3376,6 +3377,7 @@ class thread_info {
   uint command;
   const char *user, *host, *db, *proc_info, *state_info;
   CSET_STRING query_string;
+  ulonglong rows_sent, rows_examined;
 };
 
 // For sorting by thread_id.
@@ -3513,6 +3515,9 @@ class List_process_list : public Do_THD_Impl {
     /* STATE */
     thd_info->state_info = thread_state_info(m_client_thd, inspect_thd);
 
+    thd_info->rows_sent = inspect_thd->get_sent_row_count();
+    thd_info->rows_examined = inspect_thd->get_examined_row_count();
+
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
     /* INFO */
@@ -3601,6 +3606,12 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
   field->set_nullable(true);
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
   field->set_nullable(true);
+  field_list.push_back(field = new Item_return_int("Rows_sent",
+                                                   MY_INT64_NUM_DECIMAL_DIGITS,
+                                                   MYSQL_TYPE_LONGLONG));
+  field_list.push_back(field = new Item_return_int("Rows_examined",
+                                                   MY_INT64_NUM_DECIMAL_DIGITS,
+                                                   MYSQL_TYPE_LONGLONG));
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;
@@ -3629,12 +3640,17 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose,
       protocol->store(Command_names::str_session(thd_info->command).c_str(),
                       system_charset_info);
     if (thd_info->start_time_in_secs)
-      protocol->store_long((longlong)(now - thd_info->start_time_in_secs));
+      protocol->store_long(
+          (thd_info->start_time_in_secs > now)
+              ? 0
+              : static_cast<longlong>(now - thd_info->start_time_in_secs));
     else
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);
     protocol->store(thd_info->query_string.str(),
                     thd_info->query_string.charset());
+    protocol->store(thd_info->rows_sent);
+    protocol->store(thd_info->rows_examined);
     if (protocol->end_row()) break; /* purecov: inspected */
   }
   /*
@@ -3683,6 +3699,7 @@ class Fill_process_list : public Do_THD_Impl {
 
     TABLE *table;
     const char *val = nullptr;
+    ulonglong now_utime;
 
     {
       MUTEX_LOCK(grd_secctx, &inspect_thd->LOCK_thd_security_ctx);
@@ -3699,6 +3716,7 @@ class Fill_process_list : public Do_THD_Impl {
           m_client_thd->security_context()->check_access(PROCESS_ACL)
               ? NullS
               : client_priv_user;
+      now_utime = my_micro_time();
 
       /*
         Since we only access a cached value of connection_alive, which is
@@ -3786,6 +3804,17 @@ class Fill_process_list : public Do_THD_Impl {
       table->field[6]->store(val, strlen(val), system_charset_info);
       table->field[6]->set_notnull();
     }
+
+    /* TIME_MS */
+    ulonglong tmp_start_utime = inspect_thd->start_utime;
+    table->field[8]->store(
+        ((tmp_start_utime < now_utime ? now_utime - tmp_start_utime : 0) /
+         1000));
+
+    /* ROWS_SENT */
+    table->field[9]->store((ulonglong)inspect_thd->get_sent_row_count());
+    /* ROWS_EXAMINED */
+    table->field[10]->store((ulonglong)inspect_thd->get_examined_row_count());
 
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
@@ -6059,6 +6088,12 @@ ST_FIELD_INFO processlist_fields_info[] = {
     {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time", 0},
     {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", 0},
     {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info", 0},
+    {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 0,
+     "Time_ms", 0},
+    {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+     MY_I_S_UNSIGNED, "Rows_sent", 0},
+    {"ROWS_EXAMINED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+     MY_I_S_UNSIGNED, "Rows_examined", 0},
     {nullptr, 0, MYSQL_TYPE_STRING, 0, 0, nullptr, 0}};
 
 ST_FIELD_INFO plugin_fields_info[] = {

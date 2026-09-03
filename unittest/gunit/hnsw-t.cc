@@ -679,6 +679,86 @@ TEST_F(HnswTest, LoadNodeIdempotent) {
   EXPECT_EQ(counts_after_first, fixture.store.load_counts);
 }
 
+TEST_F(HnswTest, AdjacentPruneShortListZeroFillsTail) {
+  // Reverse-link prune on a full adjacent list can see fewer than Mmax usable
+  // candidates when some neighbors are NODE_LOST / fail to lazy-load. The
+  // write-back must pack the selected prefix and nullptr-fill the tail.
+  constexpr size_t kDimsLocal = 2;
+  constexpr size_t kMLocal = 2;  // layer-0 Mmax = 4
+  constexpr size_t kEfConstructionLocal = 16;
+  constexpr size_t kNumPoints = 80;
+  constexpr uint64_t kSeed = 424242;
+
+  RoundTripFixture fixture =
+      make_random_round_trip_fixture(kDimsLocal, kNumPoints, kSeed);
+  LoadTestHnsw built(kDimsLocal, euclidean, kMLocal, kEfConstructionLocal);
+  populate_round_trip_index(built, &fixture);
+
+  const uint64_t hub_id = find_full_layer0_hub(fixture.store, kMLocal);
+  ASSERT_NE(0U, hub_id)
+      << "expected at least one node with a full layer-0 list";
+
+  const StoredNode &hub_built = fixture.store.nodes.at(hub_id);
+  const size_t l0_begin = stored_layer0_begin(hub_built.layer, kMLocal);
+  const size_t l0_end = stored_layer0_end(hub_built.layer, kMLocal);
+  ASSERT_EQ(l0_end - l0_begin, 2 * kMLocal);
+
+  // Fail lazy-load for two of hub's layer-0 neighbors so prune candidates
+  // drop below Mmax (Mmax - 2 + new_node).
+  fixture.store.fail_load_ids.insert(hub_built.neighbor_ids[l0_begin]);
+  fixture.store.fail_load_ids.insert(hub_built.neighbor_ids[l0_begin + 1]);
+  ASSERT_NE(hub_built.neighbor_ids[l0_begin],
+            hub_built.neighbor_ids[l0_begin + 1]);
+
+  const std::vector<float> hub_vec = hub_built.vec;
+
+  fixture.store.load_counts.clear();
+  LoadTestHnsw cold(kDimsLocal, euclidean, kMLocal, kEfConstructionLocal);
+  cold.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+
+  // Touch the graph so hub becomes COMPLETE with DUMMY/LOST neighbor stubs.
+  (void)cold.k_nn_search(as_bytes(hub_vec), /*k=*/4, /*ef_search=*/16,
+                         &fixture.store);
+  ASSERT_GE(fixture.store.load_counts.count(hub_id), 1U);
+
+  const uint64_t new_id = kNumPoints + 10;
+  const uint64_t new_pk = 900000;
+  cold.insert(new_id, new_pk, as_bytes(hub_vec), &fixture.store);
+
+  const StoredNode &hub_after = fixture.store.nodes.at(hub_id);
+  ASSERT_EQ(hub_after.neighbor_ids.size(), hub_built.neighbor_ids.size());
+
+  size_t nonzero = 0;
+  bool seen_null = false;
+  for (size_t i = l0_begin; i < l0_end; ++i) {
+    const uint64_t id = hub_after.neighbor_ids[i];
+    if (id == 0) {
+      seen_null = true;
+      continue;
+    }
+    EXPECT_FALSE(seen_null) << "nullptr hole in layer-0 list at slot " << i;
+    ++nonzero;
+  }
+
+  // Skipped at least two lost neighbors → selected < Mmax → trailing zeros.
+  EXPECT_LT(nonzero, 2 * kMLocal);
+  EXPECT_GT(nonzero, 0U);
+  EXPECT_TRUE(seen_null);
+
+  // New insert should still be searchable by exact vector.
+  const auto hits = cold.k_nn_search(as_bytes(hub_vec), /*k=*/5,
+                                     /*ef_search=*/32, &fixture.store);
+  bool found_new = false;
+  for (const auto &hit : hits) {
+    if (hit.id == new_id) {
+      found_new = true;
+      EXPECT_EQ(new_pk, hit.base_pk);
+      break;
+    }
+  }
+  EXPECT_TRUE(found_new);
+}
+
 #ifndef NDEBUG
 TEST_F(HnswTest, GraphInvariants) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);

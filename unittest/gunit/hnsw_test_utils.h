@@ -33,6 +33,7 @@
 #include <mutex>
 #include <random>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -138,6 +139,11 @@ struct RecordingPersistor {
     /// Number of load_node_cb invocations per graph id (lazy-load tests).
     std::unordered_map<uint64_t, size_t> load_counts;
     /**
+      Graph ids for which load_node_cb should fail (marks NODE_LOST).
+      Used by adjacent-prune / lost-neighbor tests.
+    */
+    std::unordered_set<uint64_t> fail_load_ids;
+    /**
       Optional lock for concurrent insert/search against a shared Context.
       When non-null, all RecordingPersistor callbacks lock it. Serial tests
       leave this nullptr.
@@ -185,6 +191,10 @@ struct RecordingPersistor {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
     const uint64_t id = hnsw.load_node_id(handle);
+    ++ctx->load_counts[id];
+    if (ctx->fail_load_ids.count(id) != 0) {
+      return false;
+    }
     const StoredNode &row = ctx->nodes.at(id);
     // Copy out under the lock so load_* can run without holding it across
     // HNSW internal locks (load_node_neighbors takes m_global_lock).
@@ -192,7 +202,6 @@ struct RecordingPersistor {
     const uint64_t base_pk = row.base_pk;
     const std::vector<float> vec = row.vec;
     const std::vector<uint64_t> neighbor_ids = row.neighbor_ids;
-    ++ctx->load_counts[id];
     if (lock.owns_lock()) {
       lock.unlock();
     }
@@ -237,6 +246,43 @@ inline void populate_round_trip_index(Hnsw &index, RoundTripFixture *fixture) {
     index.insert(fixture->graph_ids[i], fixture->base_pks[i],
                  as_bytes(fixture->points[i]), &fixture->store);
   }
+}
+
+/** Flat NeighborIdRange offset of layer 0 for a node with top layer @p layer.
+ */
+inline size_t stored_layer0_begin(uint8_t layer, size_t M) {
+  return static_cast<size_t>(layer) * M;
+}
+
+inline size_t stored_layer0_end(uint8_t layer, size_t M) {
+  return stored_layer0_begin(layer, M) + 2 * M;
+}
+
+/**
+  First graph id whose persisted layer-0 neighbor slots are all non-zero
+  (full list of width 2*M). Returns 0 if none.
+*/
+inline uint64_t find_full_layer0_hub(const RecordingPersistor::Context &store,
+                                     size_t M) {
+  for (const auto &kv : store.nodes) {
+    const StoredNode &row = kv.second;
+    const size_t begin = stored_layer0_begin(row.layer, M);
+    const size_t end = stored_layer0_end(row.layer, M);
+    if (row.neighbor_ids.size() < end) {
+      continue;
+    }
+    bool full = true;
+    for (size_t i = begin; i < end; ++i) {
+      if (row.neighbor_ids[i] == 0) {
+        full = false;
+        break;
+      }
+    }
+    if (full) {
+      return kv.first;
+    }
+  }
+  return 0;
 }
 
 /**

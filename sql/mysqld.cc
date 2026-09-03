@@ -1557,6 +1557,8 @@ char *opt_mysql_tmpdir;
 
 char *opt_authentication_policy;
 
+bool encrypt_tmp_files;
+
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
 

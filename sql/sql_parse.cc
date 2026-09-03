@@ -5605,14 +5605,15 @@ bool Alter_info::add_field(
     if (key == nullptr || key_list.push_back(key)) return true;
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG)) {
+    enum keytype key_type = KEYTYPE_UNIQUE;
     List<Key_part_spec> key_parts;
     auto key_part_spec =
         new (thd->mem_root) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == nullptr || key_parts.push_back(key_part_spec))
       return true;
     Key_spec *key = new (thd->mem_root)
-        Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
-                 &default_key_create_info, false, true, key_parts);
+        Key_spec(thd->mem_root, key_type, NULL_CSTR, &default_key_create_info,
+                 false, true, key_parts);
     if (key == nullptr || key_list.push_back(key)) return true;
   }
 

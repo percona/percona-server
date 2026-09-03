@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *******************************************************/
 
 #include "os0file.h"
+#include "btr0types.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "log0write.h"
@@ -1969,7 +1970,9 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
   Encryption encryption(type.encryption_algorithm());
   file::Block *block{};
 
-  ut_ad(type.is_write() && type.is_encrypted() && type.is_log());
+  ut_ad(type.is_write());
+  ut_ad(type.is_encrypted());
+  ut_ad(type.is_log());
   ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 
   if (n <= BUFFER_BLOCK_SIZE - UNIV_SECTOR_SIZE) {

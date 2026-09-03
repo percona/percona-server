@@ -59,6 +59,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <locale>
 #include <string>
 #endif /* !_WIN32 */
+#include "page0types.h"
 
 #include <functional>
 #include <stack>
@@ -207,9 +208,9 @@ enum os_file_create_t {
 
   OS_FILE_ON_ERROR_NO_EXIT = 128, /*!< do not exit on unknown errors */
   OS_FILE_ON_ERROR_SILENT = 256   /*!< don't print diagnostic messages to
-                                  the log unless it is a fatal error,
-                                  this flag is only used if
-                                  ON_ERROR_NO_EXIT is set */
+                            the log unless it is a fatal error,
+                            this flag is only used if
+                            ON_ERROR_NO_EXIT is set */
 };
 
 static const ulint OS_FILE_READ_ONLY = 333;
@@ -1462,7 +1463,7 @@ Requests a synchronous read operation of page 0 of IBD file.
 not directly this function!
 Requests a synchronous read operation of page 0 of IBD file
 @param[in]      type            IO request context
-@param[in]  file_name file name
+@param[in]      file_name       file name
 @param[in]      file            Open file handle
 @param[out]     buf             buffer where to read
 @param[in]      n               number of bytes to read

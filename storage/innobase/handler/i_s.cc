@@ -42,6 +42,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <string_view>
 #include <unordered_map>
 
+#include "sql/debug_sync.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"
+
 #include "auth_acls.h"
 #include "btr0btr.h"
 #include "btr0pcur.h"
@@ -69,6 +75,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "scope_guard.h"
 #include "sql/sql_class.h" /* For THD */
 #include "srv0mon.h"
+#include "srv0srv.h"
 #include "srv0start.h"
 #include "srv0tmp.h"
 #include "trx0i_s.h"

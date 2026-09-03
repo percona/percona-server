@@ -5657,7 +5657,7 @@ static int get_part_iter_for_interval_cols_via_map(
     uchar *min_value, uchar *max_value, uint min_len, uint max_len, uint flags,
     PARTITION_ITERATOR *part_iter) {
   uint32 nparts;
-  get_col_endpoint_func get_col_endpoint;
+  get_col_endpoint_func get_col_endpoint = nullptr;
   DBUG_TRACE;
 
   if (part_info->part_type == partition_type::RANGE) {

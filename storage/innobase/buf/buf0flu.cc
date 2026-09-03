@@ -3432,7 +3432,6 @@ ulint buf_pool_get_dirty_pages_count(
     buf_pool_t *buf_pool,     /*!< in: buffer pool */
     space_id_t id,            /*!< in: space id to check */
     Flush_observer *observer) /*!< in: flush observer to check */
-
 {
   ulint count = 0;
 

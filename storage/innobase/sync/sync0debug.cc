@@ -1689,8 +1689,7 @@ void sync_check_init(size_t max_threads) {
   sync_array_init(max_threads);
 }
 
-/** Frees the resources in InnoDB's own synchronization data structures. Use
-os_sync_free() after calling this. */
+/** Frees the resources in InnoDB's own synchronization data structures. */
 void sync_check_close() {
   ut_d(LatchDebug::shutdown());
 

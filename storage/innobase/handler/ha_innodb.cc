@@ -184,6 +184,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
+#include "sql/auth/auth_common.h"
 #include "sql/item.h"
 #include "sql_base.h"
 #include "srv0tmp.h"
@@ -4909,7 +4910,6 @@ static int innodb_init_params() {
   inside InnoDB: this is the 'sync wait array' size, as well as the
   maximum number of threads that can wait in the 'srv_conc array' for
   their time to enter InnoDB. */
-
   srv_max_n_threads = 100 * 1024;
 
   /* This is the first time univ_page_size is used.
@@ -5410,7 +5410,6 @@ static int innodb_init(void *p) {
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
   innobase_hton->data = &innodb_api_cb;
-
   innobase_hton->ddse_dict_init = innobase_ddse_dict_init;
 
   innobase_hton->dict_register_dd_table_id = innobase_dict_register_dd_table_id;
@@ -23479,6 +23478,7 @@ static MYSQL_SYSVAR_BOOL(ddl_log_crash_reset_debug,
                          innodb_ddl_log_crash_reset_debug, PLUGIN_VAR_OPCMDARG,
                          "Reset all crash injection counters to 1", nullptr,
                          ddl_log_crash_reset, false);
+
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_STR(directories, srv_innodb_directories,
@@ -23858,13 +23858,16 @@ void innobase_init_vc_templ(dict_table_t *table) {
 
   THD *thd = current_thd;
 
+  {
 #ifdef UNIV_DEBUG
-  bool ret =
+    bool ret =
 #endif /* UNIV_DEBUG */
-      handler::my_prepare_gcolumn_template(
-          thd, schema_name.c_str(), table_name.c_str(),
-          &innobase_build_v_templ_callback, static_cast<void *>(table));
-  ut_ad(!ret);
+
+        handler::my_prepare_gcolumn_template(
+            thd, schema_name.c_str(), table_name.c_str(),
+            &innobase_build_v_templ_callback, static_cast<void *>(table));
+    ut_ad(!ret);
+  }
 
   dict_sys_mutex_exit();
 }
@@ -23985,7 +23988,8 @@ dfield_t *innobase_compute_stored_gcol(const dtuple_t *row,
       /* Copy the column data from dtuple to mysql_rec */
       row_sel_field_store_in_mysql_format(
           mysql_rec + templ.mysql_col_offset, &templ, table->first_index(),
-          templ.clust_rec_field_no, (const byte *)data, len, ULINT_UNDEFINED);
+          templ.clust_rec_field_no, (const byte *)data, len,
+          ULINT_UNDEFINED);
 
       if (templ.mysql_null_bit_mask) {
         /* It is a nullable column with a non-NULL value */

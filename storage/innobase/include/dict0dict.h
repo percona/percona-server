@@ -184,7 +184,7 @@ static inline ulint dict_max_v_field_len_store_undo(dict_table_t *table,
 @param[in]      index   index to be searched for column
 @return position of column in the given index. */
 [[nodiscard]] static inline ulint dict_col_get_index_pos(
-    const dict_col_t *col, const dict_index_t *index) MY_ATTRIBUTE((nonnull));
+    const dict_col_t *col, const dict_index_t *index);
 
 /** If the given column name is reserved for InnoDB system columns, return
  true.

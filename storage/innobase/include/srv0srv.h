@@ -140,7 +140,6 @@ struct srv_stats_t {
 
   /** Number of rows inserted */
   ulint_ctr_64_t n_rows_inserted;
-
   /** Number of system rows read. */
   ulint_ctr_64_t n_system_rows_read;
 

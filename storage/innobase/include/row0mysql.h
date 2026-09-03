@@ -97,6 +97,7 @@ struct row_prebuilt_t;
 void row_mysql_prebuilt_free_blob_heap(
     row_prebuilt_t *prebuilt); /*!< in: prebuilt struct of a
                                ha_innobase:: table handle */
+
 /** Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
  format.
  @return pointer to the data, we skip the 1 or 2 bytes at the start

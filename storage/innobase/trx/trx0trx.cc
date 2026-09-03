@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 
 #include "btr0sea.h"
+#include "btr0types.h"
 #include "clone0clone.h"
 #include "current_thd.h"
 #include "dict0dd.h"

@@ -1577,10 +1577,11 @@ struct dict_index_t {
   @param[in]    n               column number
   @param[in]    inc_prefix      true=consider column prefixes too
   @param[in]    is_virtual      true==virtual column
+  @param[out]   prefix_col_pos  column number if prefix
   @return position in internal representation of the index;
   ULINT_UNDEFINED if not contained */
-  ulint get_col_pos(ulint n, bool inc_prefix = false,
-                    bool is_virtual = false) const;
+  ulint get_col_pos(ulint n, bool inc_prefix = false, bool is_virtual = false,
+                    ulint *prefix_col_pos = nullptr) const;
 
   /** Get the default value of nth field and its length if exists.
   If not exists, both the return value is nullptr and length is 0.

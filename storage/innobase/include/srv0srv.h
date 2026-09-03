@@ -827,6 +827,11 @@ extern bool srv_print_lock_wait_timeout_info;
 
 extern bool srv_cmp_per_index_enabled;
 
+/** Number of times secondary index lookup triggered cluster lookup */
+extern std::atomic<ulint> srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern std::atomic<ulint> srv_sec_rec_cluster_reads_avoided;
+
 extern bool srv_redo_log;
 
 /** Status variables to be passed to MySQL */
@@ -1294,6 +1299,12 @@ struct export_var_t {
   ulint innodb_page0_read; /*!< srv_stats.page0_read */
   trx_id_t innodb_purge_trx_id;
   undo_no_t innodb_purge_undo_no;
+
+  ulint innodb_sec_rec_cluster_reads; /*!< srv_sec_rec_cluster_reads */
+  ulint
+      innodb_sec_rec_cluster_reads_avoided; /*!<
+                                               srv_sec_rec_cluster_reads_avoided
+                                             */
 
   ulint innodb_buffered_aio_submitted;
 

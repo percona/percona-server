@@ -2302,7 +2302,7 @@ void innobase_rec_to_mysql(struct TABLE *table, const rec_t *rec,
 
     field->reset();
 
-    ipos = index->get_col_pos(i, true, false);
+    ipos = index->get_col_pos(i, true, false, nullptr);
 
     if (ipos == ULINT_UNDEFINED || rec_offs_nth_extern(index, offsets, ipos)) {
     null_field:
@@ -2352,7 +2352,7 @@ void innobase_fields_to_mysql(struct TABLE *table, const dict_index_t *index,
       col_n = i - num_v;
     }
 
-    ipos = index->get_col_pos(col_n, true, innobase_is_v_fld(field));
+    ipos = index->get_col_pos(col_n, true, innobase_is_v_fld(field), nullptr);
 
     if (ipos == ULINT_UNDEFINED || dfield_is_ext(&fields[ipos]) ||
         dfield_is_null(&fields[ipos])) {

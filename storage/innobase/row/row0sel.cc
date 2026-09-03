@@ -2647,7 +2647,8 @@ void row_sel_field_store_in_mysql_format_func(
       ut_ad(templ->is_virtual || clust_templ_for_sec ||
             len * templ->mbmaxlen >= mysql_col_len ||
             index->has_row_versions() ||
-            (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
+            (field_no == templ->icp_rec_field_no && field->prefix_len > 0) ||
+            templ->rec_field_is_prefix);
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
       /* Pad with spaces. This undoes the stripping
@@ -3020,7 +3021,8 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     /* We should never deliver column prefixes to MySQL,
     except for evaluating innobase_index_cond() or
     row_search_end_range_check(). */
-    ut_ad(rec_index->get_field(field_no)->prefix_len == 0);
+    ut_ad(rec_index->get_field(field_no)->prefix_len == 0 ||
+          templ->rec_field_is_prefix);
 
     if (clust_templ_for_sec) {
       std::vector<const dict_col_t *>::iterator it;
@@ -3151,6 +3153,8 @@ non-clustered index. Does the necessary locking.
   rec_t *old_vers;
   dberr_t err;
   trx_t *trx;
+
+  srv_sec_rec_cluster_reads.fetch_add(1, std::memory_order_relaxed);
 
   *out_rec = nullptr;
   trx = thr_get_trx(thr);
@@ -3861,6 +3865,25 @@ static ICP_RESULT row_search_idx_cond_check(
   ut_error;
 }
 
+/** Return the record field length in characters.
+@param[in]	col		table column of the field
+@param[in]	field_no	field number
+@param[in]	rec		physical record
+@param[in]	offsets		field offsets in the physical record
+
+@return field length in characters */
+static size_t rec_field_len_in_chars(const dict_col_t &col,
+                                     const ulint field_no, const rec_t *rec,
+                                     const ulint *offsets) {
+  const ulint cset = dtype_get_charset_coll(col.prtype);
+  const CHARSET_INFO *cs = all_charsets[cset];
+  ulint rec_field_len;
+  // nullptr for index as it can't be clustered index
+  const char *rec_field = reinterpret_cast<const char *>(
+      rec_get_nth_field(nullptr, rec, offsets, field_no, &rec_field_len));
+  return (cs->cset->numchars(cs, rec_field, rec_field + rec_field_len));
+}
+
 /** Check the pushed-down end-range condition to avoid extra traversal
 if records are not with in view and also to avoid prefetching too
 many records into the record buffer.
@@ -4419,6 +4442,61 @@ static inline rec_t *row_search_debug_copy_rec_order_prefix(
 }
 #endif /* UNIV_DEBUG */
 
+/* Avoid the clustered index lookup if all of the following are true:
+1) all columns are in the secondary index
+2) all values for columns that are prefix-only indexes are shorter than the
+prefix size This optimization can avoid many IOs for certain schemas.  */
+static bool use_secondary_index(const row_prebuilt_t *prebuilt,
+                                const ulint *offsets, const dict_index_t *index,
+                                const rec_t *rec) {
+  for (auto i = 0; i < prebuilt->n_template; ++i) {
+    const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
+    const auto secondary_index_field_no = templ->rec_prefix_field_no;
+
+    // Condition (1): is the field in the index (prefix or not)?
+    if (secondary_index_field_no == ULINT_UNDEFINED) {
+      return false;
+    }
+
+    // Condition (2): if this is a prefix, is this row's value size shorter than
+    // the prefix?
+    if (templ->rec_field_is_prefix) {
+      // Must be a character type
+      ut_ad(templ->mbminlen > 0);
+      ut_ad(templ->mbmaxlen >= templ->mbminlen);
+
+      const dict_field_t *field = index->get_field(secondary_index_field_no);
+      ut_a(field->prefix_len > 0);
+
+      // nullptr for index as it can't be clustered index
+      const auto record_size =
+          rec_offs_nth_size(nullptr, offsets, secondary_index_field_no);
+      const auto prefix_len_chars = field->prefix_len / templ->mbmaxlen;
+
+      if (record_size < prefix_len_chars) {
+        // Record in bytes shorter than the index prefix length in characters
+        continue;
+      }
+
+      if (record_size >= field->prefix_len) {
+        /* The shortest representable string by the byte length of the record is
+        longer than the maximum possible index prefix. */
+        return false;
+      }
+
+      /* The record could or could not fit into the index prefix,
+       * calculate length to find out */
+      const auto record_size_chars = rec_field_len_in_chars(
+          *field->col, secondary_index_field_no, rec, offsets);
+      if (record_size_chars >= prefix_len_chars) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
 so it employs technique that can help re-construct the rows that
@@ -4488,6 +4566,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   bool table_lock_waited = false;
   byte *next_buf = nullptr;
   bool spatial_search = false;
+  bool use_clustered_index = false;
 
   rec_offs_init(offsets_);
 
@@ -5473,9 +5552,36 @@ rec_loop:
   }
 
   /* Get the clustered index record if needed, if we did not do the
-  search using the clustered index. */
+        search using the clustered index... */
 
-  if (index != clust_index && prebuilt->need_to_access_clustered) {
+  use_clustered_index =
+      (index != clust_index && prebuilt->need_to_access_clustered);
+
+  if (use_clustered_index && prebuilt->n_template <= index->n_fields) {
+    /* ...but, perhaps avoid the clustered index lookup if
+    all of the following are true:
+    1) all columns are in the secondary index
+    2) all values for columns that are prefix-only indexes are shorter than the
+    prefix size This optimization can avoid many IOs for certain schemas.
+    */
+    bool row_contains_all_values =
+        use_secondary_index(prebuilt, offsets, index, rec);
+
+    /* If (1) and (2) were true for all columns above, use
+    rec_prefix_field_no instead of rec_field_no, and skip the clustered lookup
+    below. */
+    if (row_contains_all_values) {
+      for (unsigned int i = 0; i < prebuilt->n_template; i++) {
+        mysql_row_templ_t *templ = prebuilt->mysql_template + i;
+        templ->rec_field_no = templ->rec_prefix_field_no;
+        ut_a(templ->rec_field_no != ULINT_UNDEFINED);
+      }
+      use_clustered_index = false;
+      srv_sec_rec_cluster_reads_avoided.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+
+  if (use_clustered_index) {
   requires_clust_rec:
     ut_ad(index != clust_index);
     /* We use a 'goto' to the preceding label if a consistent

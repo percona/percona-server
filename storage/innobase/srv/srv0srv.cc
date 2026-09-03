@@ -685,6 +685,12 @@ static ulint srv_log_writes_and_flush = 0;
 
 #endif /* !UNIV_HOTBACKUP */
 
+/** Number of times secondary index lookup triggered cluster lookup */
+std::atomic<ulint> srv_sec_rec_cluster_reads(0);
+
+/** Number of times prefix optimization avoided triggering cluster lookup */
+std::atomic<ulint> srv_sec_rec_cluster_reads_avoided(0);
+
 /* Interval in seconds at which various tasks are performed by the
 master thread when server is active. In order to balance the workload,
 we should try to keep intervals such that they are not multiple of
@@ -1851,6 +1857,11 @@ void srv_export_innodb_status(void) {
         (ulint)(max_trx_no - low_limit_no + 1);
   }
 #endif /* UNIV_DEBUG */
+
+  export_vars.innodb_sec_rec_cluster_reads =
+      srv_sec_rec_cluster_reads.load(std::memory_order_relaxed);
+  export_vars.innodb_sec_rec_cluster_reads_avoided =
+      srv_sec_rec_cluster_reads_avoided.load(std::memory_order_relaxed);
 
   export_vars.innodb_buffered_aio_submitted = srv_stats.n_aio_submitted;
 

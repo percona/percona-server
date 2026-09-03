@@ -1487,6 +1487,12 @@ static ulint buf_free_from_unzip_LRU_list_batch(buf_pool_t *buf_pool,
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
+  if (count) {
+    MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_EVICT_TOTAL_PAGE,
+                                 MONITOR_LRU_BATCH_EVICT_COUNT,
+                                 MONITOR_LRU_BATCH_EVICT_PAGES, count);
+  }
+
   if (scanned) {
     MONITOR_INC_VALUE_CUMULATIVE(MONITOR_LRU_BATCH_SCANNED,
                                  MONITOR_LRU_BATCH_SCANNED_NUM_CALL,

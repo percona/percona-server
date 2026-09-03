@@ -158,8 +158,12 @@ struct srv_stats_t {
 
   /** Number of sampled pages skipped */
   ulint_ctr_64_t n_sampled_pages_skipped;
+
+  ulint_ctr_1_t n_lock_max_wait_time;
+
   /** Number of buffered aio requests submitted */
   ulint_ctr_64_t n_aio_submitted;
+
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -1130,6 +1134,9 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 
 /** Status variables to be passed to MySQL */
 struct export_var_t {
+  ulint innodb_adaptive_hash_hash_searches;
+  ulint innodb_adaptive_hash_non_hash_searches;
+  ulint innodb_background_log_sync;
   ulint innodb_data_pending_reads;  /*!< Pending reads */
   ulint innodb_data_pending_writes; /*!< Pending writes */
   ulint innodb_data_pending_fsyncs; /*!< Pending fsyncs */
@@ -1155,12 +1162,16 @@ struct export_var_t {
   ulint innodb_buffer_pool_pages_misc;  /*!< Miscellaneous pages */
   ulint innodb_buffer_pool_pages_free;  /*!< Free pages */
 #ifdef UNIV_DEBUG
-  ulint innodb_buffer_pool_pages_latched;  /*!< Latched pages */
-#endif                                     /* UNIV_DEBUG */
-  ulint innodb_buffer_pool_read_requests;  /*!< buf_pool->stat.n_page_gets */
-  ulint innodb_buffer_pool_reads;          /*!< srv_buf_pool_reads */
-  ulint innodb_buffer_pool_wait_free;      /*!< srv_buf_pool_wait_free */
-  ulint innodb_buffer_pool_pages_flushed;  /*!< srv_buf_pool_flushed */
+  ulint innodb_buffer_pool_pages_latched; /*!< Latched pages */
+#endif                                    /* UNIV_DEBUG */
+  ulint innodb_buffer_pool_pages_made_not_young;
+  ulint innodb_buffer_pool_pages_made_young;
+  ulint innodb_buffer_pool_pages_old;
+  ulint innodb_buffer_pool_read_requests;     /*!< buf_pool->stat.n_page_gets */
+  ulint innodb_buffer_pool_reads;             /*!< srv_buf_pool_reads */
+  ulint innodb_buffer_pool_wait_free;         /*!< srv_buf_pool_wait_free */
+  ulint innodb_buffer_pool_pages_flushed;     /*!< srv_buf_pool_flushed */
+  ulint innodb_buffer_pool_pages_LRU_flushed; /*!< buf_lru_flush_page_count */
   ulint innodb_buffer_pool_write_requests; /*!< srv_buf_pool_write_requests */
   ulint innodb_buffer_pool_read_ahead_rnd; /*!< srv_read_ahead_rnd */
   ulint innodb_buffer_pool_read_ahead;     /*!< srv_read_ahead */
@@ -1227,6 +1238,20 @@ struct export_var_t {
                                       index lookups when freeing
                                       file pages */
 #endif                                /* UNIV_DEBUG */
+  // Percona-added status variables
+  ulint innodb_checkpoint_age;
+  ulint innodb_ibuf_free_list;
+  ulint innodb_ibuf_segment_size;
+  lsn_t innodb_lsn_current;
+  lsn_t innodb_lsn_flushed;
+  lsn_t innodb_lsn_last_checkpoint;
+  ulint innodb_master_thread_active_loops; /*!< srv_main_active_loops */
+  ulint innodb_master_thread_idle_loops;   /*!< srv_main_idle_loops */
+  trx_id_t innodb_max_trx_id;
+  trx_id_t innodb_oldest_view_low_limit_trx_id;
+  ulint innodb_page0_read; /*!< srv_stats.page0_read */
+  trx_id_t innodb_purge_trx_id;
+  undo_no_t innodb_purge_undo_no;
 
   ulint innodb_buffered_aio_submitted;
 

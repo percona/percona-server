@@ -347,6 +347,18 @@ MVCC::~MVCC() {
   ut_a(UT_LIST_GET_LEN(m_views) == 0);
 }
 
+/** Insert the view in the proper order into the view list.
+@param	view	view to add */
+void MVCC::view_add(const ReadView *view) {
+  ut_ad(trx_sys_mutex_own());
+
+  UT_LIST_ADD_FIRST(m_views, const_cast<ReadView *>(view));
+
+  ut_ad(!view->is_closed());
+
+  ut_ad(validate());
+}
+
 /**
 Copy the transaction ids from the source vector */
 
@@ -626,14 +638,34 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
   if (view != nullptr) {
     view->prepare(trx->id);
 
-    UT_LIST_ADD_FIRST(m_views, view);
-
-    ut_ad(!view->is_closed());
-
-    ut_ad(validate());
+    view_add(view);
   }
 
   trx_sys_mutex_exit();
+}
+
+/**
+Get the oldest (active) view in the system for statistical purposes.
+
+@note This method should be used for statistical purposes only, purge needs
+to use more strict condition (see clone_oldest_view()) when selecting the
+oldest view.
+
+@return oldest view if found or NULL */
+
+const ReadView *MVCC::get_oldest_view_stats() const {
+  const ReadView *view;
+
+  ut_ad(trx_sys_mutex_own());
+
+  for (view = UT_LIST_GET_LAST(m_views); view != nullptr;
+       view = UT_LIST_GET_PREV(m_view_list, view)) {
+    if (!view->is_closed()) {
+      break;
+    }
+  }
+
+  return (view);
 }
 
 /**

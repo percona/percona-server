@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <algorithm>
 #include "dict0mem.h"
 
+#include "mem0mem.h"
 #include "trx0types.h"
 
 // Friend declaration
@@ -228,6 +229,15 @@ class ReadView {
     return (m_low_limit_no <= rhs->m_low_limit_no);
   }
 #endif /* UNIV_DEBUG */
+
+  void print(FILE *file) const noexcept {
+    fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
+            low_limit_no());
+    print_limits(file);
+    fprintf(file, "Read view individually stored trx ids:\n");
+    for (ulint i = 0; i < m_ids.size(); i++)
+      fprintf(file, "Read view trx id " TRX_ID_FMT "\n", m_ids.data()[i]);
+  }
  private:
   /**
   Copy the transaction ids from the source vector */

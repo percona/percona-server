@@ -587,6 +587,7 @@ void buf_get_total_stat(
     tot_stat->n_pages_made_young += buf_stat->n_pages_made_young;
 
     tot_stat->n_pages_not_made_young += buf_stat->n_pages_not_made_young;
+    tot_stat->buf_lru_flush_page_count += buf_stat->buf_lru_flush_page_count;
   }
 }
 
@@ -6690,6 +6691,7 @@ static void buf_stats_aggregate_pool_info(
   }
 
   total_info->pool_size += pool_info->pool_size;
+  total_info->pool_size_bytes += pool_info->pool_size_bytes;
   total_info->lru_len += pool_info->lru_len;
   total_info->old_lru_len += pool_info->old_lru_len;
   total_info->free_list_len += pool_info->free_list_len;
@@ -6743,6 +6745,8 @@ void buf_stats_get_pool_info(
   pool_info->pool_unique_id = pool_id;
 
   pool_info->pool_size = buf_pool->curr_size;
+
+  pool_info->pool_size_bytes = buf_pool->curr_pool_size;
 
   pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
@@ -6856,6 +6860,8 @@ static void buf_print_io_instance(
   fprintf(file,
           "Buffer pool size   " ULINTPF
           "\n"
+          "Buffer pool size, bytes " ULINTPF
+          "\n"
           "Free buffers       " ULINTPF
           "\n"
           "Database pages     " ULINTPF
@@ -6867,9 +6873,10 @@ static void buf_print_io_instance(
           "Pending reads      " ULINTPF
           "\n"
           "Pending writes: LRU %zu, flush list %zu, single page %zu\n",
-          pool_info->pool_size, pool_info->free_list_len, pool_info->lru_len,
-          pool_info->old_lru_len, pool_info->flush_list_len,
-          pool_info->n_pend_reads, pool_info->n_pending_flush[BUF_FLUSH_LRU],
+          pool_info->pool_size, pool_info->pool_size_bytes,
+          pool_info->free_list_len, pool_info->lru_len, pool_info->old_lru_len,
+          pool_info->flush_list_len, pool_info->n_pend_reads,
+          pool_info->n_pending_flush[BUF_FLUSH_LRU],
           pool_info->n_pending_flush[BUF_FLUSH_LIST],
           pool_info->n_pending_flush[BUF_FLUSH_SINGLE_PAGE]);
 

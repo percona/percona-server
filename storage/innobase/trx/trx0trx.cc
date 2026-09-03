@@ -159,6 +159,8 @@ static void trx_init(trx_t *trx) {
 
   trx->id = 0;
 
+  trx->preallocated_id = 0;
+
   trx->no = TRX_ID_MAX;
 
   trx->persists_gtid = false;
@@ -1247,6 +1249,27 @@ void trx_assign_rseg_durable(trx_t *trx) {
   trx->rsegs.m_redo.rseg = srv_read_only_mode ? nullptr : get_next_redo_rseg();
 }
 
+/** Assign an id for this RW transaction and insert it into trx_sys->rw_trx_ids
+@param trx	transaction to assign an id for */
+static void trx_assign_id_for_rw(trx_t *trx) {
+  ut_ad(trx_sys_mutex_own());
+
+  trx->id =
+      trx->preallocated_id ? trx->preallocated_id : trx_sys_allocate_trx_id();
+
+  if (trx->preallocated_id) {
+    // preallocated_id might not be received in ascending order,
+    // so we need to maintain ordering in rw_trx_ids and update
+    // min_active_trx_id
+    auto upper_bound_it = std::upper_bound(trx_sys->rw_trx_ids.begin(),
+                                           trx_sys->rw_trx_ids.end(), trx->id);
+    trx_sys->rw_trx_ids.insert(upper_bound_it, trx->id);
+  } else {
+    // The id is known to be greatest
+    trx_sys->rw_trx_ids.push_back(trx->id);
+  }
+}
+
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
 @param[in,out]  trx     transaction that involves write to temp-table. */
 void trx_assign_rseg_temp(trx_t *trx) {
@@ -1259,9 +1282,7 @@ void trx_assign_rseg_temp(trx_t *trx) {
   if (trx->id == 0) {
     trx_sys_mutex_enter();
 
-    trx->id = trx_sys_allocate_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
+    trx_assign_id_for_rw(trx);
 
     trx_sys_mutex_exit();
 
@@ -1377,9 +1398,7 @@ static void trx_start_low(
 
     trx_sys_mutex_enter();
 
-    trx->id = trx_sys_allocate_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
+    trx_assign_id_for_rw(trx);
 
     ut_ad(trx->rsegs.m_redo.rseg != nullptr || srv_read_only_mode ||
           srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
@@ -1408,10 +1427,7 @@ static void trx_start_low(
         ut_ad(!srv_read_only_mode);
 
         trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
-
-        trx->id = trx_sys_allocate_trx_id();
-
-        trx_sys->rw_trx_ids.push_back(trx->id);
+        trx_assign_id_for_rw(trx);
 
         trx_sys_mutex_exit();
 
@@ -2303,6 +2319,42 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
   } else if (!MVCC::is_view_active(trx->read_view)) {
     trx_sys->mvcc->view_open(trx->read_view, trx);
   }
+
+  return (trx->read_view);
+}
+
+/** Clones the read view from another transaction. All consistent reads within
+the receiver transaction will get the same read view as the donor transaction
+@param[in]	trx		receiver transaction
+@param[in]	from_trx	donor transaction
+@return read view clone */
+ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
+  ut_ad(locksys::owns_exclusive_global_latch());
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(trx_mutex_own(from_trx));
+
+  if (UNIV_UNLIKELY(srv_read_only_mode)) {
+    ut_ad(trx->read_view == nullptr);
+    trx_sys_mutex_exit();
+    trx_mutex_exit(from_trx);
+    return (nullptr);
+  }
+
+  if (from_trx->state != TRX_STATE_ACTIVE || from_trx->read_view == nullptr) {
+    trx_sys_mutex_exit();
+    trx_mutex_exit(from_trx);
+    return (nullptr);
+  }
+
+  const bool needs_adding = (trx->read_view == nullptr);
+
+  from_trx->read_view->clone(trx->read_view, from_trx);
+
+  trx_mutex_exit(from_trx);
+
+  if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
+
+  trx_sys_mutex_exit();
 
   return (trx->read_view);
 }
@@ -3423,13 +3475,10 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
 
   trx_sys_mutex_enter();
 
-  ut_ad(trx->id == 0);
-  trx->id = trx_sys_allocate_trx_id();
+  trx_assign_id_for_rw(trx);
 
-  trx_sys->rw_trx_ids.push_back(trx->id);
-
-  /* So that we can see our own changes. */
-  if (MVCC::is_view_active(trx->read_view)) {
+  /* So that we can see our own changes unless our view is a clone */
+  if (MVCC::is_view_active(trx->read_view) && !trx->read_view->is_cloned()) {
     MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
   }
   trx_add_to_rw_trx_list(trx);

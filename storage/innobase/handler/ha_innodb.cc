@@ -1733,6 +1733,11 @@ static void innodb_pre_dd_shutdown(handlerton *) {
   }
 }
 
+/** Stores the current binlog coordinates in the trx system header.
+@param[in]	hton	InnoDB handlerton
+@param[in]	thd	MySQL thrad handle */
+static int innobase_store_binlog_info(handlerton *hton, THD *thd) noexcept;
+
 /** Creates an InnoDB transaction struct for the thd if it does not yet have
  one. Starts a new InnoDB transaction if a transaction is not yet started. And
  assigns a new snapshot for a consistent read if the transaction does not yet
@@ -1743,6 +1748,20 @@ static int innobase_start_trx_and_assign_read_view(
     THD *thd);        /* in: MySQL thread handle of the
                       user for whom the transaction should
                       be committed */
+
+/** Creates an InnoDB transaction struct for the thd if it does not
+yet have one.  Starts a new InnoDB transaction if a transaction is not
+yet started. And clones snapshot for a consistent read from another
+session, if it has one.
+@param[in]	hton		InnoDB handlerton
+@param[in]	thd		MySQL thread handle of the user for whom the
+                                transaction should be committed
+@param[in]	from_thd	MySQL thread handle of the user session from
+which the consistent read should be cloned
+@return 0 */
+static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
+                                                  THD *from_thd);
+
 /** Flush InnoDB redo logs to the file system.
 @param[in]      hton                    InnoDB handlerton
 @param[in]      binlog_group_flush      true if we got invoked by binlog
@@ -5490,6 +5509,10 @@ static int innodb_init(void *p) {
 
   innobase_hton->start_consistent_snapshot =
       innobase_start_trx_and_assign_read_view;
+  innobase_hton->clone_consistent_snapshot =
+      innobase_start_trx_and_clone_read_view;
+
+  innobase_hton->store_binlog_info = innobase_store_binlog_info;
 
   innobase_hton->flush_logs = innobase_flush_logs;
   innobase_hton->show_status = innobase_show_status;
@@ -5501,7 +5524,8 @@ static int innodb_init(void *p) {
                          HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
                          HTON_SUPPORTS_TABLE_ENCRYPTION |
                          HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
-                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK;
+                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK |
+                         HTON_SUPPORTS_ONLINE_BACKUPS;
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
 
@@ -5989,6 +6013,24 @@ void innobase_commit_low(trx_t *trx) /*!< in: transaction handle */
   trx->will_lock = 0;
 }
 
+/** Stores the current binlog coordinates in the trx system header
+@param[in] hton	InnoDB handlerton
+@param[in] thd	MySQL thread handle */
+static int innobase_store_binlog_info(handlerton *hton, THD *thd) noexcept {
+  DBUG_ENTER("innobase_store_binlog_info");
+
+  const char *file_name;
+  unsigned long long pos;
+  thd_binlog_pos(thd, &file_name, &pos);
+
+  trx_sys_write_binlog_position("", std::numeric_limits<uint64_t>::max(),
+                                file_name, pos);
+
+  innobase_flush_logs(hton, false);
+
+  DBUG_RETURN(0);
+}
+
 /** Creates an InnoDB transaction struct for the thd if it does not yet have
  one. Starts a new InnoDB transaction if a transaction is not yet started. And
  assigns a new snapshot for a consistent read if the transaction does not yet
@@ -6036,6 +6078,68 @@ static int innobase_start_trx_and_assign_read_view(
   innobase_register_trx(hton, current_thd, trx);
 
   return 0;
+}
+
+/** Creates an InnoDB transaction struct for the thd if it does not
+yet have one.  Starts a new InnoDB transaction if a transaction is not
+yet started. And clones snapshot for a consistent read from another
+session, if it has one.
+@param[in]	hton		InnoDB handlerton
+@param[in]	thd		MySQL thread handle of the user for whom the
+transaction should be committed
+@param[in]	from_thd	MySQL thread handle of the user session from
+which the consistent read should be cloned
+@return 0 */
+static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
+                                                  THD *from_thd) {
+  DBUG_ENTER("innobase_start_trx_and_clone_read_view");
+  assert(hton == innodb_hton_ptr);
+
+  /* Get transaction handle from the donor session */
+  trx_t *const from_trx = thd_to_trx(from_thd);
+  if (!from_trx) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
+                        "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was "
+                        "ignored because the specified session does not have "
+                        "an open transaction inside InnoDB.");
+
+    DBUG_RETURN(0);
+  }
+
+  /* Create a new trx struct for thd, if it does not yet have one */
+  trx_t *const trx = check_trx_exists(thd);
+
+  innobase_srv_conc_force_exit_innodb(trx);
+
+  /* If the transaction is not started yet, start it */
+  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+
+  /* Clone the read view from the donor transaction.  Do this only if
+  transaction is using REPEATABLE READ isolation level. */
+  trx->isolation_level =
+      innobase_trx_map_isolation_level(thd_get_trx_isolation(thd));
+
+  if (trx->isolation_level != TRX_ISO_REPEATABLE_READ) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
+                        "InnoDB: WITH CONSISTENT SNAPSHOT was ignored because "
+                        "this phrase can only be used with REPEATABLE READ "
+                        "isolation level.");
+  } else {
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
+    trx_sys_mutex_enter();
+    trx_mutex_enter(from_trx);
+    if (!trx_clone_read_view(trx, from_trx)) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
+                          "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was "
+                          "ignored because the target transaction has not "
+                          "been assigned a read view.");
+    }
+  }
+
+  /* Set the MySQL flag to mark that there is an active transaction */
+  innobase_register_trx(hton, current_thd, trx);
+
+  DBUG_RETURN(0);
 }
 
 /** Commits a transaction in an InnoDB database or marks an SQL statement

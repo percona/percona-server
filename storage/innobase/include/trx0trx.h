@@ -221,6 +221,15 @@ static inline ReadView *trx_get_read_view(trx_t *trx);
 /** @return the transaction's read view or NULL if one not assigned. */
 static inline const ReadView *trx_get_read_view(const trx_t *trx);
 
+/** Clones the read view from another transaction. All the consistent reads
+within the receiver transaction will get the same read view as the donor
+transaction.
+@param[in]	trx	receiver transaction
+@param[in]	from_trx	donor transaction
+@return read view clone */
+[[nodiscard]]
+ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx);
+
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
 /** Creates a commit command node struct.
@@ -856,6 +865,12 @@ struct trx_t {
               it can */
 
   trx_id_t id; /*!< transaction id */
+
+  trx_id_t preallocated_id; /*!< preallocated transaction id for a
+                            RO transaction whose read view was
+                            cloned. If this transaction is promoted
+                            to RW, it will become the transaction
+                            id. */
 
   trx_id_t no; /*!< transaction serialization number:
                max trx id shortly before the

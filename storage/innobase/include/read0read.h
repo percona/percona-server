@@ -113,6 +113,8 @@ class MVCC {
   Validates a read view list. */
   bool validate() const;
 
+  friend class ReadView;
+
   /**
   Find a free view from the active list, if none found then allocate
   a new view. This function will also attempt to move delete marked

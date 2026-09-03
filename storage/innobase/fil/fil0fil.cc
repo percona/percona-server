@@ -5558,7 +5558,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
                                      const char *path, uint32_t flags,
                                      page_no_t size, fil_type_t type) {
   ut_ad(!fsp_is_system_tablespace(space_id));
-  ut_ad(!fsp_is_global_temporary(space_id));
   ut_a(fsp_flags_is_valid(flags));
   ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
 
@@ -8910,12 +8909,6 @@ dberr_t fil_set_autoextend_size(space_id_t space_id, uint64_t autoextend_size) {
 @return DB_SUCCESS or error code */
 dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv) {
-  ut_ad(space_id != TRX_SYS_SPACE);
-
-  if (fsp_is_system_or_temp_tablespace(space_id)) {
-    return DB_IO_NO_ENCRYPT_TABLESPACE;
-  }
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();

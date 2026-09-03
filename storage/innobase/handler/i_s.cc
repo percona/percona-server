@@ -6962,6 +6962,17 @@ static int i_s_dict_fill_innodb_tablespaces(
     space_type = "Single";
   }
 
+  /* Temporary tablespace encryption flags are not updated in DD. It is not
+  necessary because bootstrap doesn't check temporary tablespace from DD.
+  Temporary tablespace has to be ready before DD validation can take place */
+  if (fsp_is_global_temporary(space_id)) {
+    fil_space_t *space = fil_space_acquire_silent(space_id);
+    if (space != nullptr) {
+      is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+      fil_space_release(space);
+    }
+  }
+
   fields = table_to_fill->field;
 
   OK(fields[INNODB_TABLESPACES_SPACE]->store(space_id, true));

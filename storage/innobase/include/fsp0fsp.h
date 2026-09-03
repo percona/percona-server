@@ -37,6 +37,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include "fsp0space.h"
+#include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "mtr0mtr.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"

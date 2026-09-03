@@ -1448,6 +1448,18 @@ static SHOW_VAR innodb_status_variables[] = {
     {"scan_deleted_recs_size",
      (char *)&export_vars.innodb_fragmentation_stats.scan_deleted_recs_size,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"encryption_n_merge_blocks_encrypted",
+     (char *)&export_vars.innodb_n_merge_blocks_encrypted, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"encryption_n_merge_blocks_decrypted",
+     (char *)&export_vars.innodb_n_merge_blocks_decrypted, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"encryption_n_rowlog_blocks_encrypted",
+     (char *)&export_vars.innodb_n_rowlog_blocks_encrypted, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"encryption_n_rowlog_blocks_decrypted",
+     (char *)&export_vars.innodb_n_rowlog_blocks_decrypted, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 /** Handling the shared INNOBASE_SHARE structure that is needed to provide table
@@ -4321,7 +4333,7 @@ static void innobase_post_recover() {
     } else {
       /* Enable encryption for UNDO tablespaces */
       mutex_enter(&undo::ddl_mutex);
-      if (srv_enable_undo_encryption()) {
+      if (srv_enable_undo_encryption(nullptr)) {
         srv_undo_log_encrypt = false;
         ut_d(ut_error);
       }
@@ -5957,7 +5969,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     dd_space.add_file(&dd_file);
     tablespaces->push_back(&dd_space);
 
-    static Plugin_tablespace innodb(dict_sys_t::s_sys_space_name, "",
+    const char *options = srv_sys_space.is_encrypted() ? "encryption=y" : "";
+
+    static Plugin_tablespace innodb(dict_sys_t::s_sys_space_name, options,
                                     se_private_data_innodb_system, "",
                                     innobase_hton_name);
     Tablespace::files_t::const_iterator end = srv_sys_space.m_files.end();
@@ -11961,7 +11975,7 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     const dd::Table *dd_table, const dd::Table *old_part_table) {
   dict_table_t *table;
   ulint n_cols;
-  dberr_t err;
+  dberr_t err = DB_SUCCESS;
   ulint col_type;
   ulint col_len;
   ulint i;
@@ -12339,6 +12353,12 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
     fts_add_doc_id_column(table, heap);
   }
 
+  if (err != DB_SUCCESS) {
+    dict_mem_table_free(table);
+    mem_heap_free(heap);
+    goto error_ret;
+  }
+
   if (table->is_temporary()) {
     if (m_create_info->compress.length > 0) {
       push_warning_printf(m_thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
@@ -12410,31 +12430,6 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
                m_form->s->row_type == ROW_TYPE_COMPRESSED ||
                m_create_info->key_block_size > 0) {
       algorithm = nullptr;
-    }
-
-    if (err == DB_SUCCESS) {
-      const char *encrypt = m_create_info->encrypt_type.str;
-      if (!Encryption::is_none(encrypt) &&
-          (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
-        /* Set the encryption flag. */
-        byte *master_key = nullptr;
-        uint32_t master_key_id;
-
-        /* Check if keyring is ready. */
-        Encryption::get_master_key(&master_key_id, &master_key);
-
-        if (master_key == nullptr) {
-          my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-          err = DB_UNSUPPORTED;
-          dict_mem_table_free(table);
-        } else {
-          my_free(master_key);
-          /* This flag will be used for setting
-          encryption flag for file-per-table
-          tablespace. */
-          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
-        }
-      }
     }
 
     if (err == DB_SUCCESS) {
@@ -13064,17 +13059,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
   }
 
   if (m_use_shared_space && !is_general_space) {
-    /* System tablespace is being used for table */
-    if (m_create_info->encrypt_type.str != nullptr &&
-        !Encryption::is_none(m_create_info->encrypt_type.str)) {
-      /* Encryption is not allowed for system tablespace. */
-      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                      "InnoDB : ENCRYPTION=Y is not accepted"
-                      " for system tablespace.",
-                      MYF(0));
-      return false;
-    }
-
     if (m_create_info->m_implicit_tablespace_autoextend_size_change &&
         m_create_info->m_implicit_tablespace_autoextend_size > 0) {
       /* AUTOEXTEND_SIZE is not allowed for system tablespace. */
@@ -13138,12 +13122,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
   }
 
   bool is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
-
-  /* Tables in shared tablespace should not have encryption options */
-  if (is_shared_tablespace(m_create_info->tablespace)) {
-    m_create_info->encrypt_type.str = nullptr;
-    m_create_info->encrypt_type.length = 0;
-  }
 
   /* If TABLESPACE=innodb_file_per_table this function is not called
   since tablespace_is_shared_space() will return false.  Any other
@@ -22024,7 +22002,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   mutex_enter(&undo::ddl_mutex);
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption();
+  bool ret = srv_enable_undo_encryption(thd);
 
   if (!ret) {
     /* At this point, all UNDO tablespaces have been encrypted. */

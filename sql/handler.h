@@ -915,6 +915,8 @@ class st_alter_tablespace {
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
   const char *encryption = nullptr;
+  bool encrypt;
+  LEX_STRING encrypt_type;
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||

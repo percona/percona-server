@@ -838,7 +838,7 @@ static dberr_t srv_undo_tablespaces_construct() {
   }
 
   if (srv_undo_log_encrypt) {
-    ut_d(bool ret =) srv_enable_undo_encryption();
+    ut_d(bool ret =) srv_enable_undo_encryption(nullptr);
     ut_ad(!ret);
   }
 

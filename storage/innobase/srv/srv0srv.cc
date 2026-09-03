@@ -1824,6 +1824,18 @@ void srv_export_innodb_status(void) {
   }
   undo::spaces->s_unlock();
 
+  export_vars.innodb_n_merge_blocks_encrypted =
+      srv_stats.n_merge_blocks_encrypted;
+
+  export_vars.innodb_n_merge_blocks_decrypted =
+      srv_stats.n_merge_blocks_decrypted;
+
+  export_vars.innodb_n_rowlog_blocks_encrypted =
+      srv_stats.n_rowlog_blocks_encrypted;
+
+  export_vars.innodb_n_rowlog_blocks_decrypted =
+      srv_stats.n_rowlog_blocks_decrypted;
+
 #ifdef UNIV_DEBUG
   rw_lock_s_lock(&purge_sys->latch, UT_LOCATION_HERE);
   trx_id_t done_trx_no = purge_sys->done.trx_no;
@@ -2576,6 +2588,59 @@ static bool srv_master_do_shutdown_tasks(
   return (n_bytes_merged != 0);
 }
 
+void undo_rotate_default_master_key() {
+  fil_space_t *space;
+
+  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
+    return;
+  }
+
+  /* If the undo log space is using default key, rotate
+  it. We need the server_uuid initialized, otherwise,
+  the keyname will not contains server uuid. */
+  if (Encryption::get_master_key_id() != 0 || srv_read_only_mode ||
+      strlen(server_uuid) == 0) {
+    return;
+  }
+
+  DBUG_EXECUTE_IF("skip_rotating_default_master_key", return;);
+
+  undo::spaces->s_lock();
+  for (auto undo_space : undo::spaces->m_spaces) {
+    ut_ad(fsp_is_undo_tablespace(undo_space->id()));
+
+    space = fil_space_get(undo_space->id());
+
+    if (space == nullptr ||
+        space->m_encryption_metadata.m_type != Encryption::AES) {
+      continue;
+    }
+
+    byte encrypt_info[Encryption::INFO_SIZE];
+    mtr_t mtr;
+
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+    /* Make sure that there is enough reusable
+    space in the redo log files. */
+    log_free_check();
+
+    mtr_start(&mtr);
+
+    mtr_x_lock_space(space, &mtr);
+
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
+
+    if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
+      ib::error(ER_IB_MSG_1056, undo_space->space_name());
+    } else {
+      ib::info(ER_IB_MSG_1057, undo_space->space_name());
+    }
+    mtr_commit(&mtr);
+  }
+  undo::spaces->s_unlock();
+}
+
 /* Enable REDO tablespace encryption */
 bool srv_enable_redo_encryption() {
   log_t &log = *log_sys;
@@ -2611,7 +2676,7 @@ bool srv_enable_redo_encryption() {
 }
 
 /* Set encryption for UNDO tablespace with given space id. */
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr) {
   ut_ad(fsp_is_undo_tablespace(space_id));
   fil_space_t *space = fil_space_get(space_id);
 
@@ -2630,6 +2695,9 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
   if (!Encryption::fill_encryption_info(encryption_metadata, true,
                                         encrypt_info)) {
     ib::error(ER_IB_MSG_1052, space->name);
+    if (thd != nullptr) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1052, space->name);
+    }
     return true;
   }
 
@@ -2639,6 +2707,9 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
   if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info, true,
                                    false, mtr)) {
     ib::error(ER_IB_MSG_1053, space->name);
+    if (thd != nullptr) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1053, space->name);
+    }
     return true;
   }
 
@@ -2648,6 +2719,10 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
                            encryption_metadata.m_key, encryption_metadata.m_iv);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1054, space->name, int{err}, ut_strerr(err));
+    if (thd != nullptr) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IB_MSG_1054, space->name, int{err},
+                  ut_strerr(err));
+    }
     return true;
   }
 
@@ -2655,7 +2730,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr) {
 }
 
 /* Enable UNDO tablespace encryption */
-bool srv_enable_undo_encryption() {
+bool srv_enable_undo_encryption(THD *thd) {
   /* Make sure undo::ddl_mutex is owned. */
   ut_ad(mutex_own(&undo::ddl_mutex));
   bool ret_val = false;
@@ -2672,7 +2747,7 @@ bool srv_enable_undo_encryption() {
     ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
     /* While enabling encryption, make sure not to overwrite the tablespace key.
-    Otherwise, pages encrypted with the old tablespace key can't be read. */
+       Otherwise, pages encrypted with the old tablespace key can't be read. */
     if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
       continue;
     }
@@ -2690,10 +2765,11 @@ bool srv_enable_undo_encryption() {
     log_free_check();
 
     mtr_t mtr;
+
     mtr_start(&mtr);
     mtr_x_lock_space(space, &mtr);
 
-    if (set_undo_tablespace_encryption(undo_space->id(), &mtr)) {
+    if (set_undo_tablespace_encryption(thd, undo_space->id(), &mtr)) {
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
       ret_val = true;
@@ -2774,6 +2850,9 @@ static void srv_master_main_loop(srv_slot_t *slot) {
     } else {
       srv_master_do_idle_tasks();
     }
+
+    /* Enable undo log encryption if it is set */
+    undo_rotate_default_master_key();
 
     /* Purge any deleted tablespace pages. */
     fil_purge();

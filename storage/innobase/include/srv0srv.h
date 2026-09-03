@@ -164,6 +164,17 @@ struct srv_stats_t {
   /** Number of buffered aio requests submitted */
   ulint_ctr_64_t n_aio_submitted;
 
+  /* Number of merge blocks encrypted */
+  ulint_ctr_64_t n_merge_blocks_encrypted;
+
+  /* Number of merge blocks decrypted */
+  ulint_ctr_64_t n_merge_blocks_decrypted;
+
+  /* Number of row log blocks encrypted */
+  ulint_ctr_64_t n_rowlog_blocks_encrypted;
+
+  /* Number of row log blocks decrypted */
+  ulint_ctr_64_t n_rowlog_blocks_decrypted;
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -1104,14 +1115,15 @@ void srv_purge_coordinator_thread();
 void srv_worker_thread();
 
 /** Set encryption for UNDO tablespace with given space id.
+@param[in] thd          Thread handle
 @param[in] space_id     Undo tablespace id
 @param[in] mtr          Mini-transaction
 @return false for success, true otherwise */
-bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr);
+bool set_undo_tablespace_encryption(THD *thd, space_id_t space_id, mtr_t *mtr);
 
 /** Enable UNDO tablespaces encryption.
 @return false for success, true otherwise. */
-bool srv_enable_undo_encryption();
+bool srv_enable_undo_encryption(THD *thd);
 
 /** Enable REDO log encryption.
 @return false for success, true otherwise. */
@@ -1299,6 +1311,14 @@ struct export_var_t {
   ulint innodb_page0_read; /*!< srv_stats.page0_read */
   trx_id_t innodb_purge_trx_id;
   undo_no_t innodb_purge_undo_no;
+  uint64_t
+      innodb_n_merge_blocks_encrypted; /*!< Number of merge blocks encrypted */
+  uint64_t
+      innodb_n_merge_blocks_decrypted; /*!< Number of merge blocks decrypted */
+  uint64_t innodb_n_rowlog_blocks_encrypted; /*!< Number of row log blocks
+                                                   encrypted */
+  uint64_t innodb_n_rowlog_blocks_decrypted; /*!< Number of row log blocks
+                                                   decrypted */
 
   ulint innodb_sec_rec_cluster_reads; /*!< srv_sec_rec_cluster_reads */
   ulint

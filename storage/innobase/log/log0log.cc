@@ -2,6 +2,7 @@
 
 Copyright (c) 1995, 2026, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described

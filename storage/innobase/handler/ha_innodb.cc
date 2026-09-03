@@ -23740,7 +23740,8 @@ mysql_declare_plugin(innobase){
     &innobase_storage_engine,
     innobase_hton_name,
     PLUGIN_AUTHOR_ORACLE,
-    "Supports transactions, row-level locking, and foreign keys",
+    "Percona-XtraDB, Supports transactions, row-level locking, and foreign "
+    "keys",
     PLUGIN_LICENSE_GPL,
     innodb_init,   /* Plugin Init */
     nullptr,       /* Plugin Check uninstall */

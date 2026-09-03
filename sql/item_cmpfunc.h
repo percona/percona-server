@@ -2622,6 +2622,7 @@ class Item_cond : public Item_bool_func {
 
   Type type() const override { return COND_ITEM; }
   List<Item> *argument_list() { return &list; }
+  const List<Item> *argument_list() const { return &list; }
   bool eq(const Item *item) const override;
   table_map used_tables() const override { return used_tables_cache; }
   void update_used_tables() override;

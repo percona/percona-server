@@ -504,6 +504,23 @@ bool JOIN::optimize(bool finalize_access_paths) {
     }
   }
 
+  if (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+      thd->lex->sql_command == SQLCOM_REPLACE_SELECT) {
+    /*
+      Statement-based replication of INSERT ... SELECT ... LIMIT and
+      REPLACE ... SELECT is safe as order of row is defined with either
+      ORDER BY or other condition. However it is too late for it have
+      an impact to our decision to switch to row- based. We can only
+      suppress warning here.
+    */
+    if (query_block->select_limit && query_block->select_limit->fixed &&
+        query_block->select_limit->val_int() &&
+        !is_order_deterministic(&query_block->m_table_nest, where_cond,
+                                order.order)) {
+      thd->order_deterministic = false;
+    }
+  }
+
   if (query_block->partitioned_table_count && prune_table_partitions()) {
     error = 1;
     DBUG_PRINT("error", ("Error from prune_partitions"));

@@ -47,6 +47,37 @@ vec_t::~vec_t() {
   hnsw = nullptr;
 }
 
+/** Commit the aux sub-transaction and immediately start a fresh one, so that
+no row lock taken by a callback outlives that callback.
+
+This is what keeps concurrent INSERTs from aborting each other. One
+transaction spanning the whole graph insert holds an X lock on every row it
+touches until `insert()` returns, and the rows nearest the entry point are
+rewired by almost every insert — so inserts queue on them and are rolled back
+by the deadlock detector or the lock wait timeout. Six connections inserting
+120 rows each committed 286 of 720 before this; afterwards, 720 of 720 with no
+lock waits at all.
+
+Deadlock becomes impossible rather than merely rarer. Each mini-transaction
+takes one row lock, having waited for it holding nothing, and then commits, so
+no transaction ever waits while holding — which is the precondition for a
+cycle.
+
+The graph is unaffected: `lock_node` already serialises every callback
+(hnsw.h), and that is what actually protects a node's row. The
+transaction contributes undo and redo, not exclusion.
+
+What is given up is per-insert atomicity: a callback failing midway leaves the
+earlier callbacks committed, so the aux keeps a node whose base row may never
+commit. That is the orphan section 13 already accepts and filters at read
+time — and it is the better direction to diverge in, because the in-memory
+rewire cannot be undone either. Rolling the whole insert back left memory
+holding a node the aux had discarded. */
+static void vec_ctx_step_commit(Vec_ctx *ctx) {
+  trx_commit_for_mysql(ctx->trx);
+  trx_start_internal(ctx->trx, UT_LOCATION_HERE);
+}
+
 dberr_t vec_persist_insert(Vec_ctx *ctx, uint64_t id, uint64_t base_pk,
                            const char *q, uint8_t layer,
                            const std::vector<byte> &neighbors) {
@@ -62,7 +93,9 @@ dberr_t vec_persist_insert(Vec_ctx *ctx, uint64_t id, uint64_t base_pk,
   row.neighbors = neighbors.data();
   row.neighbors_len = neighbors.size();
 
-  return vec_aux_insert(ctx->trx, ctx->aux, row);
+  const dberr_t err = vec_aux_insert(ctx->trx, ctx->aux, row);
+  if (err == DB_SUCCESS) vec_ctx_step_commit(ctx);
+  return err;
 }
 
 dberr_t vec_persist_update_neighbors(Vec_ctx *ctx, uint64_t id,
@@ -77,7 +110,8 @@ dberr_t vec_persist_update_neighbors(Vec_ctx *ctx, uint64_t id,
   concurrent inserts see each other's nodes in memory the moment they are
   linked, but each writes its own rows on its own sub-transaction. So this
   insert can be asked to rewire a neighbour whose row belongs to an insert
-  that rolled back — or, one that has not committed yet.
+  that rolled back — or, in the window before its callback commits, one that
+  has not committed yet.
 
   Skipping costs one edge on disk, which is the divergence section 13
   already accepts: a cost in recall, never in correctness, and repaired by
@@ -85,11 +119,35 @@ dberr_t vec_persist_update_neighbors(Vec_ctx *ctx, uint64_t id,
   would let one statement abort another's, at random, purely because they
   landed near each other in the graph. */
   if (err == DB_RECORD_NOT_FOUND) return DB_SUCCESS;
+  if (err == DB_SUCCESS) vec_ctx_step_commit(ctx);
   return err;
 }
 
 dberr_t vec_persist_entry_point(Vec_ctx *ctx, uint64_t id) {
   ut_a(ctx->aux != nullptr);
+
+  /* This callback commits on its own, after the node's row already has
+  (vec_ctx_step_commit), so a crash between the two leaves record 0 naming
+  the *previous* entry point while a higher node exists. HNSW::validate()
+  reports that as inconsistent — "entry point must sit on the highest
+  layer" — so a debug build can flag it. It is not a bug, for three
+  reasons.
+
+  The lag is bounded at one layer. random_layer() caps a draw at
+  current_max_layer + 1 (hnsw.h), so a node can never be created more
+  than one layer above the entry point of the moment, which is exactly what
+  record 0 still names.
+
+  It only ever involves an orphan. Every write here happens during the
+  statement, below the LSN of the user's commit, so any base row that
+  actually committed has its entry-point update durable too. A lagging
+  record 0 therefore belongs to a node whose row never became visible, and
+  checks 1 and 2 refuse to return it regardless.
+
+  And it self-heals through the ordinary growth path, not a repair path:
+  because the cap is max_layer + 1, the hierarchy always climbs one layer
+  at a time, so the next insert drawing above the current entry point takes
+  the spot and rewrites record 0. */
 
   /* The entry point lives in aux record 0. Record 0 can never collide
   with a node: the class reserves graph node id 0 as its empty-slot
@@ -104,6 +162,10 @@ dberr_t vec_persist_entry_point(Vec_ctx *ctx, uint64_t id) {
   const uint64_t entry = id;
 
   dberr_t err = vec_aux_update_row(ctx->trx, ctx->aux, 0, nullptr, 0, &entry);
+  if (err == DB_SUCCESS) {
+    vec_ctx_step_commit(ctx);
+    return err;
+  }
   if (err != DB_RECORD_NOT_FOUND) return err;
 
   vec_aux_row_t row;
@@ -114,7 +176,9 @@ dberr_t vec_persist_entry_point(Vec_ctx *ctx, uint64_t id) {
   row.level = 0;
   row.neighbors = nullptr;
   row.neighbors_len = 0;
-  return vec_aux_insert(ctx->trx, ctx->aux, row);
+  err = vec_aux_insert(ctx->trx, ctx->aux, row);
+  if (err == DB_SUCCESS) vec_ctx_step_commit(ctx);
+  return err;
 }
 
 vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
@@ -299,8 +363,35 @@ static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
   /* The sub-transaction. Aux writes must not roll back with the
   statement: the graph is an in-memory cache whose only durable form is
   the aux, and a node surviving in memory while its rows rolled back
-  would leave the two permanently disagreeing. */
+  would leave the two permanently disagreeing.
+
+  One trx_t, reused rather than one per callback: each callback commits it
+  and starts it again (vec_ctx_step_commit), so the object is allocated once
+  per insert while the locks live only as long as the callback that took
+  them. */
   trx_t *aux_trx = trx_allocate_for_background();
+
+  /* Never fsync the redo log for the aux sub-transaction.
+
+  Its records sit in the log buffer below the user statement's LSN, and the
+  user's commit calls log_write_up_to() for its own higher LSN, which makes
+  everything below durable, ours included. The invariant "aux superset of
+  committed base rows" therefore holds by LSN ordering, and a flush here
+  buys nothing. If the user's transaction never commits, the aux rows are an
+  orphan at worst, which section 13 accepts.
+
+  This is what makes committing per callback affordable. Measured on an idle
+  128-core box, RelWithDebInfo, 40000 single-threaded inserts: 8.5s for one
+  commit per insert, 17.7s for one per callback, and 8.55s for one per
+  callback with this flag — the entire cost of the extra commits was the
+  fsync.
+
+  trx_commit_low honours it by setting must_flush_log_later instead of
+  calling trx_flush_log_if_needed (trx0trx.cc). Only
+  trx_commit_complete_for_mysql consumes that, and it is reached solely from
+  the user-transaction handler path (ha_innodb.cc), never by a
+  background trx, so the deferred flush is simply never performed. */
+  aux_trx->flush_log_later = true;
 
   trx_start_internal(aux_trx, UT_LOCATION_HERE);
 
@@ -342,7 +433,10 @@ static dberr_t vec_add_node(vec_t *vec, dict_table_t *table, uint64_t label,
     that trx_rollback_for_mysql asserts membership of. This is the call
     fts_sql_rollback makes, for that same reason (fts0sql.cc).
 
-    Only reachable when a persistor callback fails. */
+    This now rolls back only the callback that failed: everything before it
+    was committed by vec_ctx_step_commit. The earlier rows stand, which is
+    the orphan section 13 accepts, and is the direction that keeps the aux
+    tracking memory rather than diverging from it. */
     trx_rollback_to_savepoint(aux_trx, nullptr);
   }
   trx_free_for_background(aux_trx);

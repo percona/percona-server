@@ -1855,7 +1855,7 @@ bool thd_trx_is_auto_commit(THD *thd) /*!< in: thread handle, can be NULL */
          thd_is_query_block(thd);
 }
 
-extern "C" time_t thd_start_time(const THD *thd);
+extern "C" long long thd_start_time(const THD *thd);
 
 std::chrono::system_clock::time_point thd_start_time(THD *) {
   // FIXME: This function should be added to the server code.

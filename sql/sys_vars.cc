@@ -2217,6 +2217,13 @@ static Sys_var_enum Sys_event_scheduler(
     NOT_IN_BINLOG, ON_CHECK(event_scheduler_check),
     ON_UPDATE(event_scheduler_update));
 
+static Sys_var_bool Sys_expand_fast_index_creation(
+    "expand_fast_index_creation",
+    "Enable/disable improvements to the InnoDB fast index creation "
+    "functionality. Has no effect when fast index creation is disabled with "
+    "the fast-index-creation option",
+    SESSION_VAR(expand_fast_index_creation), CMD_LINE(OPT_ARG), DEFAULT(false));
+
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     "binlog_expire_logs_seconds",
     "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"

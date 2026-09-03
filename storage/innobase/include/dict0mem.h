@@ -2467,6 +2467,8 @@ detect this and will eventually quit sooner. */
   proceeding SELECT as part of UPDATE. */
   uint64_t sess_trx_id;
 
+  bool is_corrupt;
+
 #ifdef UNIV_DEBUG
   /** Magic number. */
   ulint magic_n;

@@ -1194,7 +1194,8 @@ class buf_page_t {
         m_version(other.m_version),
         access_time(other.access_time),
         m_dblwr_id(other.m_dblwr_id),
-        old(other.old)
+        old(other.old),
+        is_corrupt(other.is_corrupt)
 #ifdef UNIV_DEBUG
         ,
         file_page_was_freed(other.file_page_was_freed),
@@ -1704,6 +1705,7 @@ class buf_page_t {
   /** true if the block is in the old blocks in buf_pool->LRU_old */
   bool old;
 
+  bool is_corrupt;
 #ifdef UNIV_DEBUG
   /** This is set to true when fsp frees a page in buffer pool;
   protected by buf_pool->zip_mutex or buf_block_t::mutex. */

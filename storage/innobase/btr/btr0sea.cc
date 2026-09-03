@@ -652,6 +652,8 @@ void btr_search_info_update_slow(btr_cur_t *cursor) {
 
   const auto block = btr_cur_get_block(cursor);
 
+  SRV_CORRUPT_TABLE_CHECK(block, return;);
+
   /* NOTE that the following two function calls do NOT protect
   info or block->ahi with any semaphore, to save CPU time!
   We cannot assume the fields are consistent when we return from

@@ -692,8 +692,27 @@ extern bool srv_stats_include_delete_marked;
 extern ulong srv_checksum_algorithm;
 
 extern double srv_max_buf_pool_modified_pct;
+
 extern ulong srv_max_purge_lag;
 extern ulong srv_max_purge_lag_delay;
+
+extern ulint srv_pass_corrupt_table;
+
+/* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is false,
+execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
+otherwise. The break statement in 'code' will obviously not work as
+expected. */
+
+#define SRV_CORRUPT_TABLE_CHECK(cond, code) \
+  do {                                      \
+    if (UNIV_UNLIKELY(!(cond))) {           \
+      if (srv_pass_corrupt_table) {         \
+        code                                \
+      } else {                              \
+        ut_error;                           \
+      }                                     \
+    }                                       \
+  } while (0)
 
 std::chrono::milliseconds get_srv_replication_delay();
 /*-------------------------------------------*/

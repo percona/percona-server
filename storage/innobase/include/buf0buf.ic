@@ -614,7 +614,7 @@ static inline buf_block_t *buf_page_get_block(buf_page_t *bpage) {
 static inline buf_frame_t *buf_block_get_frame(
     const buf_block_t *block) /*!< in: pointer to the control block */
 {
-  ut_ad(block);
+  SRV_CORRUPT_TABLE_CHECK(block, return (0););
 
   switch (buf_block_get_state(block)) {
     case BUF_BLOCK_POOL_WATCH:

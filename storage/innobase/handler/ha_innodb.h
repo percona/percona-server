@@ -73,6 +73,7 @@ struct INNOBASE_SHARE {
   /*!< hash table chain node */
   innodb_idx_translate_t idx_trans_tbl; /*!< index translation table between
                                         MySQL and InnoDB */
+  dict_table_t *ib_table;
 };
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */

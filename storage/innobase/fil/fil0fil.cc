@@ -3249,6 +3249,8 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
 
   rw_lock_create(fil_space_latch_key, &space->latch, LATCH_ID_FIL_SPACE);
 
+  space->is_corrupt = false;
+
 #ifndef UNIV_HOTBACKUP
   if (space->purpose == FIL_TYPE_TEMPORARY) {
     ut_d(space->latch.set_temp_fsp());
@@ -7678,6 +7680,24 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                                    req_type.is_read());
   }
 
+#ifndef UNIV_HOTBACKUP
+  if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
+    /* should ignore i/o for the crashed space */
+    if (srv_pass_corrupt_table == 1 || req_type.is_write()) {
+      complete_io(file, type);
+      if (aio_mode == AIO_mode::NORMAL) {
+        ut_a(space->purpose == FIL_TYPE_TABLESPACE);
+        buf_page_io_complete(static_cast<buf_page_t *>(message), false);
+      }
+    }
+
+    if (srv_pass_corrupt_table == 1 && req_type.is_read())
+      return (DB_TABLESPACE_DELETED);
+    else if (req_type.is_write())
+      return (DB_SUCCESS);
+  }
+#endif
+
   if (!prepare_file_for_io(file)) {
 #ifndef UNIV_HOTBACKUP
     if (space->is_deleted()) {
@@ -11729,6 +11749,21 @@ void fil_space_t::bump_version() {
 
   ++m_version;
 }
+
+/** Mark space as corrupt
+    @param space_id	space id */
+void fil_space_set_corrupt(space_id_t space_id) {
+  auto *const shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  auto *const space = shard->get_space_by_id(space_id);
+
+  if (space) space->is_corrupt = true;
+
+  shard->mutex_release();
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 dberr_t fil_prepare_file_for_io(space_id_t space_id, page_no_t &page_no,

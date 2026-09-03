@@ -1655,6 +1655,10 @@ static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index);
 @return the data directory */
 [[nodiscard]] std::string dict_table_get_datadir(const dict_table_t *table);
 
+/** Set is_corrupt flag by space_id */
+void dict_table_set_corrupt_by_space(space_id_t space_id,
+                                     bool need_mutex) noexcept;
+
 /** Set the compression type for the tablespace of a table
 @param[in]  table         The table that should be compressed
 @param[in]  algorithm     Text representation of the algorithm

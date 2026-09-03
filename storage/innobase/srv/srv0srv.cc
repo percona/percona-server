@@ -575,6 +575,8 @@ std::chrono::milliseconds get_srv_replication_delay() {
   return std::chrono::milliseconds{srv_replication_delay};
 }
 
+ulint srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
+
 /*-------------------------------------------*/
 ulong srv_n_spin_wait_rounds = 30;
 ulong srv_spin_wait_delay = 6;

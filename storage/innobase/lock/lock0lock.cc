@@ -4694,9 +4694,9 @@ static bool lock_trx_print_locks(
       lock_table_print(file, lock);
     }
 
-    if (iter.next() >= 10) {
+    if (iter.next() >= srv_show_locks_held) {
       fprintf(file,
-              "10 LOCKS PRINTED FOR THIS TRX:"
+              "TOO MANY LOCKS PRINTED FOR THIS TRX:"
               " SUPPRESSING FURTHER PRINTS\n");
 
       break;
@@ -4729,7 +4729,7 @@ void lock_print_info_all_transactions(FILE *file) {
 
   /* Control whether a block should be fetched from the buffer pool. */
   bool load_block = true;
-  bool monitor = srv_print_innodb_lock_monitor;
+  bool monitor = srv_print_innodb_lock_monitor && (srv_show_locks_held != 0);
 
   while ((trx = trx_iter.current()) != nullptr) {
     check_trx_state(trx);

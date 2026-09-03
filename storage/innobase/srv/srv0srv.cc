@@ -395,6 +395,8 @@ page_size_t univ_page_size(0, 0, false);
 the checkpoints. */
 bool srv_adaptive_flushing = true;
 
+ulint srv_show_locks_held = 10;
+
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 bool srv_flush_sync = true;
 
@@ -570,6 +572,9 @@ bool srv_print_all_deadlocks = false;
 
 /** Print all DDL logs to mysqld stderr */
 bool srv_print_ddl_logs = false;
+
+/** Print lock wait timeout info to mysqld stderr */
+bool srv_print_lock_wait_timeout_info = false;
 
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
 bool srv_cmp_per_index_enabled = false;

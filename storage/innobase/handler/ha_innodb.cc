@@ -22829,6 +22829,12 @@ static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
                          "Force InnoDB to load metadata of corrupted table.",
                          nullptr, nullptr, false);
 
+static MYSQL_SYSVAR_ULONG(show_locks_held, srv_show_locks_held,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Number of locks held to print for each InnoDB "
+                          "transaction in SHOW INNODB STATUS.",
+                          NULL, NULL, 10, 0, 1000, 0);
+
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOPERSIST,
@@ -23876,6 +23882,12 @@ static MYSQL_SYSVAR_BOOL(
     "Print all deadlocks to MySQL error log (off by default)", nullptr, nullptr,
     false);
 
+static MYSQL_SYSVAR_BOOL(
+    print_lock_wait_timeout_info, srv_print_lock_wait_timeout_info,
+    PLUGIN_VAR_OPCMDARG,
+    "Print lock wait timeout info to MySQL error log (off by default)", nullptr,
+    nullptr, false);
+
 static MYSQL_SYSVAR_ULONG(
     compression_failure_threshold_pct, zip_failure_threshold_pct,
     PLUGIN_VAR_OPCMDARG,
@@ -24182,6 +24194,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(thread_sleep_delay),
     MYSQL_SYSVAR(tmpdir),
     MYSQL_SYSVAR(autoinc_lock_mode),
+    MYSQL_SYSVAR(show_locks_held),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(use_native_aio),
 #ifdef HAVE_LIBNUMA
@@ -24236,6 +24249,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(cleaner_lsn_age_factor),
     MYSQL_SYSVAR(empty_free_list_algorithm),
     MYSQL_SYSVAR(print_all_deadlocks),
+    MYSQL_SYSVAR(print_lock_wait_timeout_info),
     MYSQL_SYSVAR(cmp_per_index_enabled),
     MYSQL_SYSVAR(max_undo_log_size),
     MYSQL_SYSVAR(purge_rseg_truncate_frequency),

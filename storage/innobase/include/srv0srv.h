@@ -602,6 +602,9 @@ extern long long srv_buf_pool_curr_size;
 /** Dump this % of each buffer pool during BP dump */
 extern ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
+
+extern ulint srv_show_locks_held;
+
 extern ulint srv_lock_table_size;
 
 extern ulong srv_cleaner_lsn_age_factor;
@@ -818,6 +821,9 @@ extern bool srv_print_all_deadlocks;
 
 /** Print all DDL logs to mysqld stderr */
 extern bool srv_print_ddl_logs;
+
+/* Print lock wait timeout info to mysqld stderr */
+extern bool srv_print_lock_wait_timeout_info;
 
 extern bool srv_cmp_per_index_enabled;
 

@@ -1327,6 +1327,10 @@ static SHOW_VAR innodb_status_variables[] = {
     {"ahi_drop_lookups", (char *)&export_vars.innodb_ahi_drop_lookups,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #endif /* UNIV_DEBUG */
+    {"buffered_aio_submitted",
+     (char *)&export_vars.innodb_buffered_aio_submitted, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+
     {"scan_pages_contiguous",
      (char *)&export_vars.innodb_fragmentation_stats.scan_pages_contiguous,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},

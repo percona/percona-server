@@ -1969,6 +1969,9 @@ class SyncFileIO {
   const size_t m_orig_bytes;
 };
 
+/** Submit buffered AIO requests on the given segment to the kernel. */
+void os_aio_dispatch_read_array_submit();
+
 #include "os0file.ic"
 #endif /* UNIV_NONINL */
 

@@ -2867,6 +2867,50 @@ err:
 }
 
 /**
+  Acquire a global backup lock.
+
+  @param thd     Thread context.
+
+  @return false on success, true in case of error.
+*/
+
+static bool lock_tables_for_backup(THD *thd) {
+  DBUG_ENTER("lock_tables_for_backup");
+
+  if (check_global_access(thd, RELOAD_ACL)) DBUG_RETURN(true);
+
+  if (delay_key_write_options == DELAY_KEY_WRITE_ALL) {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "delay_key_write=ALL");
+    DBUG_RETURN(true);
+  }
+  /*
+    Do nothing if the current connection already owns the LOCK TABLES FOR
+    BACKUP lock or the global read lock (as it's a more restrictive lock).
+  */
+  if (thd->backup_tables_lock.is_acquired() ||
+      thd->global_read_lock.is_acquired())
+    DBUG_RETURN(false);
+
+  /*
+    Do not allow backup locks under regular LOCK TABLES, FLUSH TABLES ... FOR
+    EXPORT, or FLUSH TABLES <table_list> WITH READ LOCK.
+  */
+  if (thd->variables.option_bits & OPTION_TABLE_LOCK) {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  bool res = thd->backup_tables_lock.acquire(thd);
+
+  if (ha_store_binlog_info(thd)) {
+    thd->backup_tables_lock.release(thd);
+    res = true;
+  }
+
+  DBUG_RETURN(res);
+}
+
+/**
   This is a wrapper for MYSQL_BIN_LOG::gtid_end_transaction. For normal
   statements, the function gtid_end_transaction is called in the commit
   handler. However, if the statement is filtered out or not written to
@@ -3938,6 +3982,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         false, mysqldump will not work.
       */
       if (thd->variables.option_bits & OPTION_TABLE_LOCK) {
+        assert(!thd->backup_tables_lock.is_acquired());
         /*
           Can we commit safely? If not, return to avoid releasing
           transactional metadata locks.
@@ -3948,16 +3993,31 @@ int mysql_execute_command(THD *thd, bool first_level) {
         thd->mdl_context.release_transactional_locks();
         thd->variables.option_bits &= ~(OPTION_TABLE_LOCK);
       }
+
+      if (thd->backup_tables_lock.is_acquired()) {
+        assert(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
+        assert(!thd->global_read_lock.is_acquired());
+
+        thd->backup_tables_lock.release(thd);
+      }
+
       if (thd->global_read_lock.is_acquired())
         thd->global_read_lock.unlock_global_read_lock(thd);
       if (res) goto error;
       my_ok(thd);
       break;
+
     case SQLCOM_LOCK_TABLES:
       /*
-        Can we commit safely? If not, return to avoid releasing
-        transactional metadata locks.
-      */
+      Do not allow LOCK TABLES under an active LOCK TABLES FOR BACKUP in the
+      same connection.
+    */
+      if (thd->backup_tables_lock.abort_if_acquired()) goto error;
+
+      /*
+          Can we commit safely? If not, return to avoid releasing
+          transactional metadata locks.
+        */
       if (trans_check_state(thd)) return -1;
       /* We must end the transaction first, regardless of anything */
       res = trans_commit_implicit(thd);
@@ -3994,6 +4054,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_IMPORT:
       res = lex->m_sql_cmd->execute(thd);
       break;
+
+    case SQLCOM_LOCK_TABLES_FOR_BACKUP:
+      if (!lock_tables_for_backup(thd)) my_ok(thd);
+
+      break;
+
     case SQLCOM_CREATE_DB: {
       const char *alias;
       if (!(alias = thd->strmake(lex->name.str, lex->name.length)) ||
@@ -4276,6 +4342,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (is_reload_request_denied(thd, lex->type)) goto error;
 
       if (first_table && lex->type & REFRESH_READ_LOCK) {
+        /*
+           Do not allow FLUSH TABLES <table_list> WITH READ LOCK under an active
+           LOCK TABLES FOR BACKUP lock.
+         */
+        if (thd->backup_tables_lock.abort_if_acquired()) goto error;
+
         /* Check table-level privileges. */
         if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                                false, UINT_MAX, false))
@@ -4284,6 +4356,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_ok(thd);
         break;
       } else if (first_table && lex->type & REFRESH_FOR_EXPORT) {
+        /*
+           Do not allow FLUSH TABLES ... FOR EXPORT under an active LOCK TABLES
+           FOR BACKUP lock.
+         */
+        if (thd->backup_tables_lock.abort_if_acquired()) goto error;
+
         /* Check table-level privileges. */
         if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                                false, UINT_MAX, false))

@@ -2101,12 +2101,34 @@ export bool fix_delay_key_write(sys_var *, THD *, enum_var_type) {
   }
   return false;
 }
+
+/**
+   Make sure we don't have an active TABLE FOR BACKUP lock when setting
+   delay_key_writes=ALL dynamically.
+*/
+static bool check_delay_key_write(sys_var *self [[maybe_unused]],
+                                  THD *thd, set_var *var) {
+  assert(delay_key_write_options != DELAY_KEY_WRITE_ALL ||
+         !thd->backup_tables_lock.is_acquired());
+
+  if (var->save_result.ulonglong_value == DELAY_KEY_WRITE_ALL) {
+    const ulong timeout = thd->variables.lock_wait_timeout;
+
+    if (thd->backup_tables_lock.abort_if_acquired() ||
+        thd->backup_tables_lock.acquire_protection(thd, MDL_STATEMENT, timeout))
+      return true;
+  }
+
+  return false;
+}
+
 static const char *delay_key_write_names[] = {"OFF", "ON", "ALL", NullS};
 static Sys_var_enum Sys_delay_key_write(
     "delay_key_write", "Type of DELAY_KEY_WRITE",
     GLOBAL_VAR(delay_key_write_options), CMD_LINE(OPT_ARG),
     delay_key_write_names, DEFAULT(DELAY_KEY_WRITE_ON), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(fix_delay_key_write));
+    NOT_IN_BINLOG, ON_CHECK(check_delay_key_write),
+    ON_UPDATE(fix_delay_key_write));
 
 static Sys_var_ulong Sys_delayed_insert_limit(
     "delayed_insert_limit",
@@ -5966,6 +5988,10 @@ static Sys_var_have Sys_have_profiling(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
     DEPRECATED_VAR(""));
 
+static Sys_var_have Sys_have_backup_locks(
+    "have_backup_locks", "have_backup_locks",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(have_backup_locks), NO_CMD_LINE);
+
 static Sys_var_have Sys_have_backup_safe_binlog_info(
     "have_backup_safe_binlog_info", "have_backup_safe_binlog_info",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_backup_safe_binlog_info),
@@ -5974,6 +6000,7 @@ static Sys_var_have Sys_have_backup_safe_binlog_info(
 static Sys_var_have Sys_have_snapshot_cloning(
     "have_snapshot_cloning", "have_snapshot_cloning",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_snapshot_cloning), NO_CMD_LINE);
+
 static Sys_var_have Sys_have_query_cache(
     "have_query_cache",
     "have_query_cache. "

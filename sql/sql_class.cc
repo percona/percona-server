@@ -1373,6 +1373,9 @@ void THD::cleanup(void) {
   */
   mdl_context.release_transactional_locks();
 
+  /* Release table backup lock, if acquired */
+  if (backup_tables_lock.is_acquired()) backup_tables_lock.release(this);
+
   /* Release the global read lock, if acquired. */
   if (global_read_lock.is_acquired())
     global_read_lock.unlock_global_read_lock(this);
@@ -2893,6 +2896,10 @@ void THD::leave_locked_tables_mode() {
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
+
+    /* Make sure table backup lock are not released when leaving LTM */
+    assert(!backup_tables_lock.is_acquired());
+
     /*
       Also ensure that we don't release metadata locks for open HANDLERs
       and user-level locks.

@@ -942,6 +942,44 @@ class Global_read_lock {
   MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
+/**
+  An instance of a global backup lock in a connection.
+*/
+
+class Global_backup_lock final {
+ public:
+  Global_backup_lock(MDL_key::enum_mdl_namespace mdl_namespace) noexcept
+      : m_namespace(mdl_namespace), m_lock(nullptr) {}
+
+  bool acquire(THD *thd);
+  void release(THD *thd) noexcept;
+
+  bool acquire_protection(THD *thd, enum_mdl_duration duration,
+                          ulong lock_wait_timeout);
+  void init_protection_request(MDL_request *mdl_request,
+                               enum_mdl_duration duration) const;
+
+  /**
+    Throw the ER_CANT_EXECUTE_WITH_BACKUP_LOCK error and return 'true', if the
+    current connection has already acquired the lock. Otherwise return
+    'false'.
+  */
+  bool abort_if_acquired() const noexcept {
+    if (is_acquired()) {
+      my_error(ER_CANT_EXECUTE_WITH_BACKUP_LOCK, MYF(0));
+      return true;
+    }
+
+    return false;
+  }
+
+  bool is_acquired() const noexcept { return m_lock != nullptr; }
+
+ private:
+  const MDL_key::enum_mdl_namespace m_namespace;
+  MDL_ticket *m_lock;
+};
+
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 struct QUERY_START_TIME_INFO {
@@ -2401,6 +2439,8 @@ class THD : public MDL_context_owner,
   void set_transaction(Transaction_ctx *transaction_ctx);
 
   Global_read_lock global_read_lock;
+
+  Global_backup_lock backup_tables_lock{MDL_key::BACKUP_TABLES};
 
   Vio *active_vio = {nullptr};
 

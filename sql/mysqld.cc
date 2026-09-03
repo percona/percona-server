@@ -1594,6 +1594,7 @@ SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout = SHOW_OPTION_DISABLED;
+SHOW_COMP_OPTION have_backup_locks;
 SHOW_COMP_OPTION have_backup_safe_binlog_info;
 SHOW_COMP_OPTION have_snapshot_cloning;
 
@@ -4448,6 +4449,10 @@ SHOW_VAR com_status_vars[] = {
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"lock_tables",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_LOCK_TABLES]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"lock_tables_for_backup",
+     (char *)offsetof(System_status_var,
+                      com_stat[(uint)SQLCOM_LOCK_TABLES_FOR_BACKUP]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"optimize",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_OPTIMIZE]),
@@ -12511,8 +12516,10 @@ static int mysql_init_variables() {
   shared_memory_base_name = default_shared_memory_base_name;
 #endif
 
+  have_backup_locks = SHOW_OPTION_YES;
   have_backup_safe_binlog_info = SHOW_OPTION_YES;
   have_snapshot_cloning = SHOW_OPTION_YES;
+
   return 0;
 }
 

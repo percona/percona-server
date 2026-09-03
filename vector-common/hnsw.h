@@ -144,6 +144,22 @@ class HNSW {
   using PersistorContext = typename Persistor::Context;
 
   /**
+    One hit from k_nn_search() / nn_search_next().
+
+    @c id is the unique graph node id; @c base_pk is the base-table row pk
+    (duplicates allowed across nodes).
+  */
+  struct SearchHit {
+    uint64_t id;
+    uint64_t base_pk;
+
+    bool operator==(const SearchHit &other) const {
+      return id == other.id && base_pk == other.base_pk;
+    }
+    bool operator!=(const SearchHit &other) const { return !(*this == other); }
+  };
+
+  /**
     Lifecycle of an in-memory graph node.
 
     Transitions (only via Node setters / load_node()):
@@ -443,11 +459,12 @@ class HNSW {
                       to at least k).
     @param persistor_ctx  Persistor call context for lazy load during search.
 
-    @return Up to k base_pk values for q's nearest neighbors ordered by
-            increasing distance.
+    @return Up to k SearchHit values (graph id + base_pk) for q's nearest
+            neighbors ordered by increasing distance.
   */
-  std::vector<uint64_t> k_nn_search(const char *q, size_t k, size_t ef_search,
-                                    PersistorContext *persistor_ctx = nullptr) {
+  std::vector<SearchHit> k_nn_search(
+      const char *q, size_t k, size_t ef_search,
+      PersistorContext *persistor_ctx = nullptr) {
     assert(k > 0);
 
     Node *const entry_point = m_entry_point.load();
@@ -481,9 +498,10 @@ class HNSW {
       nearest.pop();
     }
     // Use trick to return closest k elements in correct order.
-    std::vector<uint64_t> result(nearest.size());
+    std::vector<SearchHit> result(nearest.size());
     for (size_t i = nearest.size(); i > 0; --i) {
-      result[i - 1] = nearest.top().node->base_pk();
+      Node *node = nearest.top().node;
+      result[i - 1] = {node->id(), node->base_pk()};
       nearest.pop();
     }
     return result;
@@ -699,9 +717,11 @@ class HNSW {
   }
 
   /**
-    Return the next neighbor from a streaming search, or {false, 0} when done.
+    Return the next neighbor from a streaming search, or
+    {false, {0, 0}} when done.
 
-    Yields base_pk values in non-decreasing distance order.
+    Yields SearchHit values (graph id + base_pk) in non-decreasing distance
+    order.
 
     Mutates the in-memory representation of the index: uses the
     PersistorContext * stored by nn_search_start() and may call
@@ -717,19 +737,19 @@ class HNSW {
 
     @param ctx  Context previously passed to nn_search_start().
   */
-  std::pair<bool, uint64_t> nn_search_next(NNSearchContext *ctx) {
+  std::pair<bool, SearchHit> nn_search_next(NNSearchContext *ctx) {
     while (true) {
       if (ctx->m_current_batch_pos >= ctx->m_results_batch.size()) {
         if (ctx->m_current_batch_pos < ctx->m_batch_size) {
           // The last batch was too short. This means that we have reached the
           // end of the graph. There should be no leftover discarded nodes.
           assert(ctx->m_discarded.empty());
-          return {false, 0};
+          return {false, {0, 0}};
         } else {
           // If there are no discarded nodes left, we have reached the end of
           // the graph and there will be no more results.
           if (ctx->m_discarded.empty()) {
-            return {false, 0};
+            return {false, {0, 0}};
           }
 
           SearchLayerResult nearest;
@@ -801,7 +821,7 @@ class HNSW {
       if (result.distance < ctx->m_seen_distance) continue;
 
       ctx->m_seen_distance = result.distance;
-      return {true, result.node->base_pk()};
+      return {true, {result.node->id(), result.node->base_pk()}};
     }
   }
 

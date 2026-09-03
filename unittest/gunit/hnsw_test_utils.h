@@ -392,22 +392,34 @@ inline std::vector<std::vector<float>> make_clustered_points(
 
 /**
   Run a streaming search to completion (or @p max_results rows) and return the
-  base_pk values in the order the stream yielded them.
+  SearchHit values in the order the stream yielded them.
 */
 template <typename Hnsw>
-inline std::vector<uint64_t> drain_stream(
+inline std::vector<typename Hnsw::SearchHit> drain_stream(
     Hnsw &index, const char *query, size_t batch_size, size_t ef_search,
     size_t max_results = 1000,
     typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
   typename Hnsw::NNSearchContext ctx;
   index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
-  std::vector<uint64_t> out;
+  std::vector<typename Hnsw::SearchHit> out;
   for (size_t i = 0; i < max_results; ++i) {
-    const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
+    const std::pair<bool, typename Hnsw::SearchHit> step =
+        index.nn_search_next(&ctx);
     if (!step.first) {
       break;
     }
     out.push_back(step.second);
+  }
+  return out;
+}
+
+/** Extract base_pk values from a SearchHit list (for recall helpers). */
+template <typename HitRange>
+inline std::vector<uint64_t> base_pks_of(const HitRange &hits) {
+  std::vector<uint64_t> out;
+  out.reserve(hits.size());
+  for (const auto &hit : hits) {
+    out.push_back(hit.base_pk);
   }
   return out;
 }

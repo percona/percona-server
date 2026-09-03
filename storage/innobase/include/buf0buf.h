@@ -571,7 +571,7 @@ static inline lsn_t buf_page_get_newest_modification(
 
 /** Increment the modify clock.
 The caller must
-(1) own the buf_pool->mutex and block bufferfix count has to be zero,
+(1) own the buffer block mutex and block bufferfix count has to be zero,
 (2) own X or SX latch on the block->lock, or
 (3) operate on a thread-private temporary table
 @param[in,out]  block   buffer block */
@@ -1380,6 +1380,9 @@ class buf_page_t {
 
   /** Set page to clean state. */
   void set_clean() noexcept { set_oldest_lsn(0); }
+
+  /** Set page to clean state (used in buf_page_init_low()). */
+  void set_clean_low() noexcept { oldest_modification = 0; }
 
   /** @name General fields
   None of these bit-fields must be modified without holding

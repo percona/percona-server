@@ -1628,6 +1628,7 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
   buf_block_t *new_block;
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(!btr_search_enabled);
 
   /* Try allocating from the buf_pool->free list if it is not empty. This
   method is executed during withdrawing phase of BufferPool resize only. It is
@@ -3387,11 +3388,11 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
         goto lookup;
       }
 
+      buf_block_buf_fix_inc((buf_block_t *)bpage, UT_LOCATION_HERE);
+
       block_mutex = &((buf_block_t *)bpage)->mutex;
 
       mutex_enter(block_mutex);
-
-      buf_block_buf_fix_inc((buf_block_t *)bpage, UT_LOCATION_HERE);
 
       goto got_block;
   }
@@ -4321,15 +4322,8 @@ buf_block_t *Buf_fetch<T>::single_page() {
 
     if (is_optimistic()) {
       const auto bpage = &block->page;
-      auto block_mutex = buf_page_get_mutex(bpage);
 
-      mutex_enter(block_mutex);
-
-      const auto state = buf_page_get_io_fix(bpage);
-
-      mutex_exit(block_mutex);
-
-      if (state == BUF_IO_READ) {
+      if (bpage->was_io_fix_read()) {
         /* The page is being read to buffer pool, but we cannot wait around for
         the read to complete. */
 
@@ -4534,7 +4528,8 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   buf_page_mutex_enter(block);
 
-  if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+  if (UNIV_UNLIKELY(block->modify_clock != modify_clock ||
+                    (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE))) {
     buf_page_mutex_exit(block);
 
     return (false);
@@ -4542,15 +4537,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   buf_block_buf_fix_inc(block, ut::Location{file, line});
 
-  const auto access_time = buf_page_is_accessed(&block->page);
-
-  buf_page_set_accessed(&block->page);
-
   buf_page_mutex_exit(block);
-
-  if (fetch_mode != Page_fetch::SCAN) {
-    buf_page_make_young_if_needed(&block->page);
-  }
 
   ut_ad(!ibuf_inside(mtr) ||
         ibuf_page(block->page.id, block->page.size, UT_LOCATION_HERE, nullptr));
@@ -4576,12 +4563,13 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
       success = true;
   }
 
-  if (!success) {
+  if (UNIV_UNLIKELY(!success)) {
     buf_block_buf_fix_dec(block);
+
     return (false);
   }
 
-  if (modify_clock != block->modify_clock) {
+  if (UNIV_UNLIKELY(modify_clock != block->modify_clock)) {
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
     if (rw_latch == RW_S_LATCH) {
@@ -4595,6 +4583,20 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
     return (false);
   }
 
+  buf_page_mutex_enter(block);
+
+  const auto access_time = buf_page_is_accessed(&block->page);
+
+  buf_page_set_accessed(&block->page);
+
+  ut_ad(!block->page.file_page_was_freed);
+
+  buf_page_mutex_exit(block);
+
+  if (fetch_mode != Page_fetch::SCAN) {
+    buf_page_make_young_if_needed(&block->page);
+  }
+
   mtr_memo_push(mtr, block, fix_type);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -4603,10 +4605,6 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_a(block->page.buf_fix_count > 0);
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-  ut_d(buf_page_mutex_enter(block));
-  ut_ad(!block->page.file_page_was_freed);
-  ut_d(buf_page_mutex_exit(block));
 
   if (access_time == std::chrono::steady_clock::time_point{}) {
     /* In the case of a first access, try to apply linear read-ahead */
@@ -4797,15 +4795,15 @@ const buf_block_t *buf_page_try_get(const page_id_t &page_id,
 static void buf_page_init_low(buf_page_t *bpage) noexcept {
   ut_ad(bpage->id.space() != UINT32_UNDEFINED);
   ut_ad(bpage->id.page_no() != UINT32_UNDEFINED);
-  ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->reinit_io_fix();
+  ut_a(bpage->buf_fix_count == 0);
   bpage->buf_fix_count.store(0);
   bpage->freed_page_clock = 0;
   bpage->access_time = {};
   bpage->set_newest_lsn(0);
-  bpage->set_clean();
+  bpage->set_clean_low();
 
   HASH_INVALIDATE(bpage, hash);
 
@@ -4824,7 +4822,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
   ut_ad(buf_pool == buf_pool_get(page_id));
 
-  ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
+  ut_ad(!mutex_own(buf_page_get_mutex(&block->page)));
   ut_a(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
 
   ut_ad(rw_lock_own(buf_page_hash_lock_get(buf_pool, page_id), RW_LOCK_X));
@@ -4976,9 +4974,9 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
 
     ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-    buf_page_mutex_enter(block);
-
     buf_page_init(buf_pool, page_id, page_size, block);
+
+    buf_page_mutex_enter(block);
 
     /* Note: We are using the hash_lock for protection. This is
     safe because no other thread can lookup the block from the
@@ -5163,11 +5161,11 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   block = free_block;
 
-  buf_page_mutex_enter(block);
-
   buf_page_init(buf_pool, page_id, page_size, block);
 
   buf_block_buf_fix_inc(block, UT_LOCATION_HERE);
+
+  buf_page_mutex_enter(block);
 
   buf_page_set_accessed(&block->page);
 

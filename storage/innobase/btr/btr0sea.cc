@@ -986,10 +986,6 @@ bool btr_search_guess_on_hash(const dtuple_t *tuple, ulint mode,
   info->n_hash_succ++;
   btr_search_n_succ++;
 #endif
-  if (!has_search_latch && buf_page_peek_if_too_old(&block->page)) {
-    buf_page_make_young(&block->page);
-  }
-
   /* Increment the page get statistics though we did not really
   fix the page: for user info only */
 

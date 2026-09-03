@@ -197,6 +197,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 #include "ut0test.h"
 #include "ut0ut.h"
+#include "xtradb_i_s.h"
 #else
 #include <typelib.h>
 #include "buf0types.h"

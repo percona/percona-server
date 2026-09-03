@@ -1207,6 +1207,7 @@ void THD::init(void) {
     variables.option_bits |= OPTION_BIN_LOG;
   else
     variables.option_bits &= ~OPTION_BIN_LOG;
+  reset_stats();
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -1926,6 +1927,86 @@ void THD::restore_globals() {
   THR_MALLOC = nullptr;
 }
 
+// Resets stats in a THD.
+void THD::reset_stats(void) noexcept {
+  current_connect_time = time(nullptr);
+  last_global_update_time = current_connect_time;
+  reset_diff_stats();
+}
+
+// Resets the 'diff' stats, which are used to update global stats.
+void THD::reset_diff_stats(void) noexcept {
+  diff_total_busy_time = 0;
+  diff_total_cpu_time = 0;
+  diff_total_bytes_received = 0;
+  diff_total_bytes_sent = 0;
+  diff_total_binlog_bytes_written = 0;
+  diff_total_sent_rows = 0;
+  diff_total_updated_rows = 0;
+  diff_total_read_rows = 0;
+  diff_select_commands = 0;
+  diff_update_commands = 0;
+  diff_other_commands = 0;
+  diff_commit_trans = 0;
+  diff_rollback_trans = 0;
+  diff_denied_connections = 0;
+  diff_lost_connections = 0;
+  diff_access_denied_errors = 0;
+  diff_empty_queries = 0;
+}
+
+// Updates 'diff' stats of a THD.
+void THD::update_stats(bool ran_command) noexcept {
+  diff_total_busy_time += busy_time;
+  diff_total_cpu_time += cpu_time;
+  diff_total_bytes_received += bytes_received;
+  diff_total_bytes_sent += bytes_sent;
+  diff_total_binlog_bytes_written += binlog_bytes_written;
+  diff_total_sent_rows += sent_row_count_2;
+  diff_total_updated_rows += updated_row_count;
+  // diff_total_read_rows is updated in handler.cc.
+
+  if (ran_command) {
+    // The replication thread has the COM_CONNECT command.
+    assert(get_command() != COM_SLEEP);
+    if ((get_command() == COM_QUERY || get_command() == COM_CONNECT) &&
+        (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END)) {
+      // A SQL query.
+      if (lex->sql_command == SQLCOM_SELECT) {
+        diff_select_commands++;
+        if (!sent_row_count_2) diff_empty_queries++;
+      } else if ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) !=
+                 0) {
+        // 'SHOW ' commands become SQLCOM_SELECT.
+        diff_other_commands++;
+        // 'SHOW ' commands shouldn't inflate total sent row count.
+        diff_total_sent_rows -= sent_row_count_2;
+      } else if (is_update_query(lex->sql_command)) {
+        diff_update_commands++;
+      } else {
+        diff_other_commands++;
+      }
+    }
+  }
+  // diff_commit_trans is updated in handler.cc.
+  // diff_rollback_trans is updated in handler.cc.
+  // diff_denied_connections is updated in sql_connect.cc.
+  // diff_lost_connections is updated in sql_parse.cc.
+  // diff_access_denied_errors is updated in sql_parse.cc.
+
+  /* reset counters to zero to avoid double-counting since values
+     are already store in diff_total_*.
+  */
+
+  busy_time = 0;
+  cpu_time = 0;
+  bytes_received = 0;
+  bytes_sent = 0;
+  binlog_bytes_written = 0;
+  updated_row_count = 0;
+  sent_row_count_2 = 0;
+}
+
 /*
   Cleanup after query.
 
@@ -2147,6 +2228,14 @@ void THD::shutdown_active_vio() {
     active_vio = nullptr;
     m_SSL = nullptr;
   }
+}
+
+const char *get_client_host(const THD &client) noexcept {
+  return client.security_context()->host_or_ip().length
+             ? client.security_context()->host_or_ip().str
+             : client.security_context()->host().length
+                   ? client.security_context()->host().str
+                   : "";
 }
 
 void THD::shutdown_clone_vio() {

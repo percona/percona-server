@@ -155,6 +155,7 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
+#include "sql/sql_connect.h"  //update_global_user_stats
 #include "sql/sql_data_change.h"
 #include "sql/sql_db.h"  // load_db_opt_by_name
 #include "sql/sql_digest_stream.h"
@@ -4730,6 +4731,32 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                       ER_THD(thd, ER_REPLICA_FATAL_ERROR), message.c_ptr());
           thd->is_slave_error = true;
           goto end;
+        }
+
+        if (sqlcom_can_generate_row_events(thd->lex->sql_command) &&
+            thd->get_row_count_func() > 0) {
+          for (Table_ref *tbl = thd->lex->query_tables; tbl;
+               tbl = tbl->next_global) {
+            if (!tbl->is_placeholder() && tbl->table->file) {
+              if (!tbl->table->file->rpl_can_handle_stm_event()) {
+                String message;
+                message.append(
+                    "Masters binlog format is not ROW and storage "
+                    "engine can not handle non-ROW events at this "
+                    "time. Table: '");
+                message.append(tbl->get_db_name());
+                message.append(".");
+                message.append(tbl->get_table_name());
+                message.append("' Query: '");
+                message.append(thd->query().str);
+                message.append("'");
+                rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                            ER_THD(thd, ER_REPLICA_FATAL_ERROR), message.c_ptr());
+                thd->is_slave_error = true;
+                goto end;
+              }
+            }
+          }
         }
 
         /*
@@ -10081,12 +10108,19 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
 
       error = (this->*do_apply_row_ptr)(rli);
 
+      if (!error) thd->updated_row_count++;
+
       if (handle_idempotent_and_ignored_errors(rli, &error)) break;
 
       /* this advances m_curr_row */
       do_post_row_operations(rli, error);
 
     } while (!error && (m_curr_row != m_rows_end));
+
+    if (unlikely(opt_userstat)) {
+      thd->update_stats(false);
+      update_global_user_stats(thd, true, time(nullptr));
+    }
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
     m_psi_progress.end_work();

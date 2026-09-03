@@ -3807,6 +3807,17 @@ static Sys_var_bool Sys_readonly(
     GLOBAL_VAR(read_only), CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
 
+static Sys_var_bool Sys_userstat(
+    "userstat",
+    "Control USER_STATISTICS, CLIENT_STATISTICS, THREAD_STATISTICS, "
+    "INDEX_STATISTICS and TABLE_STATISTICS running",
+    GLOBAL_VAR(opt_userstat), CMD_LINE(OPT_ARG), DEFAULT(false));
+
+static Sys_var_bool Sys_thread_statistics(
+    "thread_statistics",
+    "Control TABLE_STATISTICS running, when userstat is enabled",
+    GLOBAL_VAR(opt_thread_statistics), CMD_LINE(OPT_ARG), DEFAULT(false));
+
 /**
 Setting super_read_only to ON triggers read_only to also be set to ON.
 */

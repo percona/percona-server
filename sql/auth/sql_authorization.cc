@@ -2214,6 +2214,7 @@ bool check_access(THD *thd, Access_bitmask want_access, const char *db,
             return false;
           case ACL_INTERNAL_ACCESS_DENIED:
             if (!no_errors) {
+              thd->diff_access_denied_errors++;
               my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
                        sctx->priv_host().str, db);
             }
@@ -2323,10 +2324,12 @@ bool check_access(THD *thd, Access_bitmask want_access, const char *db,
     Internal-priv)
   */
   DBUG_PRINT("error", ("Access denied"));
-  if (!no_errors)
+  if (!no_errors) {
+    thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str,
              (db ? db : (thd->db().str ? thd->db().str : "unknown")));
+  }
   return true;
 }
 
@@ -7692,6 +7695,7 @@ bool check_valid_definer(THD *thd, LEX_USER *definer) {
                      sctx->priv_host().str))) {
     if (!(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("SET_ANY_DEFINER")).first)) {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or SET_ANY_DEFINER");
       return true;
@@ -7704,6 +7708,7 @@ bool check_valid_definer(THD *thd, LEX_USER *definer) {
     if (!(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("ALLOW_NONEXISTENT_DEFINER"))
               .first)) {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or ALLOW_NONEXISTENT_DEFINER");
       return true;

@@ -1329,6 +1329,8 @@ MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 bool trust_function_creators = false;
 bool check_proxy_users = false, sha256_password_proxy_users = false;
+bool opt_userstat = false;
+bool opt_thread_statistics = false;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -1418,6 +1420,7 @@ bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
 
+ulonglong denied_connections = 0;
 ulonglong global_conn_mem_limit = 0;
 ulonglong global_conn_memory_status_limit = 0;
 ulonglong global_conn_mem_counter = 0;
@@ -1601,6 +1604,8 @@ mysql_mutex_t LOCK_status, LOCK_uuid_generator, LOCK_crypt,
     LOCK_global_system_variables, LOCK_user_conn, LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
 
+mysql_mutex_t LOCK_global_user_client_stats, LOCK_global_table_stats,
+    LOCK_global_index_stats;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -2856,6 +2861,11 @@ static void clean_up(bool print_message) {
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
+  free_global_user_stats();
+  free_global_client_stats();
+  free_global_thread_stats();
+  free_global_table_stats();
+  free_global_index_stats();
   delete binlog_filter;
   rpl_channel_filters.clean_up();
   end_ssl();
@@ -2979,6 +2989,9 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_keyring_operations);
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
+  mysql_mutex_destroy(&LOCK_global_user_client_stats);
+  mysql_mutex_destroy(&LOCK_global_table_stats);
+  mysql_mutex_destroy(&LOCK_global_index_stats);
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_partial_revokes);
   mysql_mutex_destroy(&LOCK_authentication_policy);
@@ -7211,6 +7224,14 @@ static int init_thread_environment() {
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table, &COND_compress_gtid_table);
   mysql_cond_init(key_COND_rpl_opt_tracker, &COND_rpl_opt_tracker);
+
+  mysql_mutex_init(key_LOCK_global_user_client_stats,
+                   &LOCK_global_user_client_stats, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_table_stats, &LOCK_global_table_stats,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_index_stats, &LOCK_global_index_stats,
+                   MY_MUTEX_INIT_FAST);
+
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count, &LOCK_handler_count,
@@ -8159,6 +8180,9 @@ static int init_server_components() {
   randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
   setup_fpu();
 
+  init_global_table_stats();
+  init_global_index_stats();
+
   setup_error_log();       // opens the log if needed
   setup_diagnostic_log();  // opens the log if needed
 
@@ -8959,6 +8983,10 @@ static int init_server_components() {
   ft_init_stopwords();
 
   init_max_user_conn();
+
+  init_global_user_stats();
+  init_global_client_stats();
+  init_global_thread_stats();
 
 #if defined(MYSQL_ICU_DATADIR)
   init_icu_data_directory();
@@ -14131,6 +14159,9 @@ PSI_mutex_key key_LOCK_query_plan;
 PSI_mutex_key key_LOCK_thd_query;
 PSI_mutex_key key_LOCK_cost_const;
 PSI_mutex_key key_LOCK_current_cond;
+PSI_mutex_key key_LOCK_global_user_client_stats;
+PSI_mutex_key key_LOCK_global_table_stats;
+PSI_mutex_key key_LOCK_global_index_stats;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
@@ -14179,6 +14210,12 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if defined(_WIN32)
   { &key_LOCK_handler_count, "LOCK_handler_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_global_user_client_stats,
+    "LOCK_global_user_client_stats", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_global_table_stats,
+    "LOCK_global_table_stats", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_global_index_stats,
+    "LOCK_global_index_stats", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #endif
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},

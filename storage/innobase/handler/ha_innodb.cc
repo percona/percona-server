@@ -124,6 +124,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #include "fts0plugin.h"
 #include "fts0priv.h"
+#include "fts0tokenize.h"  // true_word_char
 #include "fts0types.h"
 #include "ha_innodb.h"
 #include "ha_innopart.h"
@@ -1176,6 +1177,10 @@ static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           Parallel_reader::MAX_THREADS, /* Maximum. */
                           0);
 
+static MYSQL_THDVAR_BOOL(ft_ignore_stopwords, PLUGIN_VAR_OPCMDARG,
+                         "Instruct FTS to ignore stopwords.", nullptr, nullptr,
+                         false);
+
 static MYSQL_THDVAR_ULONG(ddl_buffer_size, PLUGIN_VAR_RQCMDARG,
                           "Maximum size of memory to use (in bytes) for DDL.",
                           nullptr, nullptr, 1048576, /* Default. */
@@ -2123,6 +2128,13 @@ std::chrono::seconds thd_lock_wait_timeout(THD *thd) {
   /* According to <mysql/plugin.h>, passing thd == NULL
   returns the global value of the session variable. */
   return std::chrono::seconds{THDVAR(thd, lock_wait_timeout)};
+}
+
+/** Is FT ignore stopwords variable set.
+@param thd Thread object
+@return true if ft_ignore_stopwords is set, false otherwise. */
+bool thd_has_ft_ignore_stopwords(THD *thd) noexcept {
+  return (THDVAR(thd, ft_ignore_stopwords));
 }
 
 void thd_set_lock_wait_time(THD *thd,
@@ -8244,7 +8256,9 @@ int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
                                 const fts_string_t *s2) {
   ulint newlen;
 
-  my_casedn_str(cs, (char *)s2->f_str);
+  if (!my_binary_compare(cs)) {
+    my_casedn_str(cs, (char *)s2->f_str);
+  }
 
   newlen = strlen((const char *)s2->f_str);
 
@@ -8332,19 +8346,17 @@ extern size_t innobase_fts_casedn_str(CHARSET_INFO *cs, char *src,
   }
 }
 
-inline bool true_word_char(int c, uint8_t ch) {
-  return ((c & (MY_CHAR_U | MY_CHAR_L | MY_CHAR_NMR)) != 0) || ch == '_';
-}
-
 /** Get the next token from the given string and store it in *token.
  It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
  @return length of string processed */
 ulint innobase_mysql_fts_get_token(
-    CHARSET_INFO *cs,    /*!< in: Character set */
-    const byte *start,   /*!< in: start of text */
-    const byte *end,     /*!< in: one character past end of
-                         text */
-    fts_string_t *token) /*!< out: token's text */
+    CHARSET_INFO *cs,      /*!< in: Character set */
+    const byte *start,     /*!< in: start of text */
+    const byte *end,       /*!< in: one character past end of
+                           text */
+    bool extra_word_chars, /*!< in: whether consider all	non-whitespace
+                           characters to be word characters */
+    fts_string_t *token)   /*!< out: token's text */
 {
   int mbl;
   const uchar *doc = start;
@@ -8363,7 +8375,7 @@ ulint innobase_mysql_fts_get_token(
 
     mbl = cs->cset->ctype(cs, &ctype, doc, (const uchar *)end);
 
-    if (true_word_char(ctype, *doc)) {
+    if (true_word_char(ctype, extra_word_chars, *doc)) {
       break;
     }
 
@@ -8378,7 +8390,7 @@ ulint innobase_mysql_fts_get_token(
     int ctype;
 
     mbl = cs->cset->ctype(cs, &ctype, (uchar *)doc, (uchar *)end);
-    if (!true_word_char(ctype, *doc)) {
+    if (!true_word_char(ctype, extra_word_chars, *doc)) {
       break;
     }
 
@@ -24284,6 +24296,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(parallel_read_threads),
     MYSQL_SYSVAR(segment_reserve_factor),
     MYSQL_SYSVAR(corrupt_table_action),
+    MYSQL_SYSVAR(ft_ignore_stopwords),
     nullptr};
 
 mysql_declare_plugin(innobase){

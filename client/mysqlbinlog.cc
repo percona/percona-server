@@ -1513,6 +1513,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         if (head->error == -1) goto err;
         break;
       }
+        // fallthrough
 
       case mysql::binlog::event::INTVAR_EVENT:
       case mysql::binlog::event::RAND_EVENT:

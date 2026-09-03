@@ -84,7 +84,7 @@
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/check_stack.h"
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"
+#include "sql/dd/dd.h"  // dd::get_dictionary()
 #include "sql/dd/dd_schema.h"
 #include "sql/dd/dd_table.h"       // dd::table_exists
 #include "sql/dd/dd_tablespace.h"  // dd::fill_table_and_parts_tablespace_name

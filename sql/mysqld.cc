@@ -11765,7 +11765,6 @@ int show_deprecated_use_fk_on_non_standard_key_last_timestamp(THD *,
 /*
   Variables shown by SHOW STATUS in alphabetical order
 */
-
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -14237,8 +14236,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_server_shutting_down, "server_shutting_down", 0, 0, "This lock protects server shutting down flag."},
 #ifdef _WIN32
   { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_SINGLETON, 0,
-     "This lock protects named pipe security attributes, preventing their "
-     "simultaneous application and modification."},
+    "This lock protects named pipe security attributes, preventing their "
+    "simultaneous application and modification."},
 #endif // _WIN32
 };
 /* clang-format on */

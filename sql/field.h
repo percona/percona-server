@@ -3689,7 +3689,7 @@ class Field_blob : public Field_longstr {
     return charset() == &my_charset_bin ? false : true;
   }
   uint32 max_display_length() const final;
-  uint32 char_length() const override;
+  uint32 char_length() const noexcept override;
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(const Create_field *new_field) const override;
   bool is_text_key_type() const final { return binary() ? false : true; }
@@ -3831,7 +3831,7 @@ class Field_vector : public Field_blob {
     return new (mem_root) Field_vector(*this);
   }
   uint32 max_data_length() const override { return field_length; }
-  uint32 char_length() const override { return field_length; }
+  uint32 char_length() const noexcept override { return field_length; }
   enum_field_types type() const final { return MYSQL_TYPE_VECTOR; }
   enum_field_types real_type() const final { return MYSQL_TYPE_VECTOR; }
   void make_send_field(Send_field *field) const override;
@@ -4110,7 +4110,7 @@ class Field_typed_array final : public Field_json {
                     uchar auto_flags_arg, const char *field_name_arg,
                     TABLE_SHARE *share, uint blob_pack_length,
                     const CHARSET_INFO *cs);
-  uint32 char_length() const override {
+  uint32 char_length() const noexcept override {
     return field_length / charset()->mbmaxlen;
   }
   void init(TABLE *table_arg) override;

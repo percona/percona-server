@@ -878,6 +878,7 @@ IF(MY_COMPILER_IS_GNU)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
       geometry_rtree.cc
+      join_optimizer/access_path.cc
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
   ENDIF()

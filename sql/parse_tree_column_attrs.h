@@ -222,7 +222,7 @@ class PT_unique_key_column_attr : public PT_column_attr_base {
   explicit PT_unique_key_column_attr(const POS &pos)
       : PT_column_attr_base(pos) {}
 
-  void apply_type_flags(ulong *type_flags) const override {
+  void apply_type_flags(ulong *type_flags) const noexcept override {
     *type_flags |= UNIQUE_FLAG;
   }
 

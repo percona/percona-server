@@ -2542,6 +2542,13 @@ static int binlog_prepare(handlerton *, THD *thd, bool all) {
 
 static int binlog_set_prepared_in_tc(handlerton *, THD *) { return 0; }
 
+/**
+   Logging XA commit/rollback of a prepared transaction in the case
+   it was disconnected and resumed (recovered), or executed by a slave applier.
+
+   @param thd         THD handle
+   @return error code, 0 success
+*/
 int MYSQL_BIN_LOG::write_xa_to_cache(THD *thd) {
   assert(thd->lex->sql_command == SQLCOM_XA_COMMIT ||
          thd->lex->sql_command == SQLCOM_XA_ROLLBACK);

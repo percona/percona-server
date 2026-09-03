@@ -7604,9 +7604,9 @@ column_attribute:
             $$= NEW_PTN PT_unique_key_column_attr(@$);
           }
         | COMMENT_SYM TEXT_STRING_sys
-          {
+        {
             $$= NEW_PTN PT_comment_column_attr(@$, to_lex_cstring($2));
-          }
+        }
         | COLLATE_SYM collation_name
           {
             $$= NEW_PTN PT_collate_column_attr(@$, $2);
@@ -7969,7 +7969,7 @@ keys_or_index:
         ;
 
 opt_unique:
-          %empty { $$= KEYTYPE_MULTIPLE; }
+          %empty       { $$= KEYTYPE_MULTIPLE; }
         | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
 

@@ -2715,7 +2715,7 @@ static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
     DEPRECATED_VAR(""));
 
 static bool update_cached_long_query_time(sys_var *, THD *thd,
-                                          enum_var_type type) {
+                                          enum_var_type type) noexcept {
   if (type == OPT_SESSION)
     thd->variables.long_query_time =
         double2ulonglong(thd->variables.long_query_time_double * 1e6);

@@ -93,7 +93,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_tmp_table.h"   // tmp tables
+#include "sql/sql_tmp_table.h"  // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thd_raii.h"
 #include "sql/visible_fields.h"

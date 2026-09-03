@@ -623,6 +623,13 @@ static char *add_identifier(THD *thd, char *to_p, const char *end_p,
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
 
+  Examples:
+
+    t1#P#p1                 table t1 partition p1
+    t1#P#p1#SP#sp1          table t1 partition p1 subpartition sp1
+    t1#P#p1#SP#sp1#TMP#     table t1 partition p1 subpartition sp1 temporary
+    t1#P#p1#SP#sp1#REN#     table t1 partition p1 subpartition sp1 renamed
+
    @param      thd          Thread handle
    @param      from         Path name in my_charset_filename
                             Null terminated in my_charset_filename, normalized
@@ -19434,6 +19441,7 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd) {
 bool mysql_trans_commit_alter_copy_data(THD *thd) {
   bool error = false;
   DBUG_TRACE;
+
   /*
     Ensure that ha_commit_trans() which is implicitly called by
     ha_enable_transaction() doesn't update GTID and slave info states.

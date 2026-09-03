@@ -4779,7 +4779,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   uchar *pkt;
   int pkt_len;
   int cipher_length = 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1] = "";
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   EVP_PKEY *private_key = nullptr;
   EVP_PKEY *public_key = nullptr;

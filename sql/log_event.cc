@@ -1,5 +1,7 @@
 /*
    Copyright (c) 2000, 2026, Oracle and/or its affiliates.
+   Copyright (c) 2018, Percona and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1326,6 +1328,7 @@ bool Log_event::is_valid() {
 
 void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
                              bool is_more [[maybe_unused]]) const {
+  [[maybe_unused]] int write_res;
   char llbuff[22];
   my_off_t hexdump_from = print_event_info->hexdump_from;
   DBUG_TRACE;
@@ -1377,7 +1380,8 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
           ptr[5], ptr[6], ptr[7], ptr[8], ptr[9], ptr[10], ptr[11], ptr[12],
           ptr[13], ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
       assert(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar *)emit_buf, bytes_written);
+      write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
+      assert(write_res == 0);
       ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
       hexdump_from += LOG_EVENT_MINIMAL_HEADER_LEN;
     }
@@ -1402,7 +1406,8 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
                      (unsigned long)(hexdump_from + (i & 0xfffffff0)),
                      hex_string, char_string);
         assert(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-        my_b_write(file, (uchar *)emit_buf, bytes_written);
+        write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
+        assert(write_res == 0);
         hex_string[0] = 0;
         char_string[0] = 0;
         c = char_string;
@@ -1421,13 +1426,15 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
                    (unsigned long)(hexdump_from + (i & 0xfffffff0)), hex_string,
                    char_string);
       assert(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar *)emit_buf, bytes_written);
+      write_res = my_b_write(file, (uchar *)emit_buf, bytes_written);
+      assert(write_res == 0);
     }
     /*
       need a # to prefix the rest of printouts for example those of
       Rows_log_event::print_helper().
     */
-    my_b_write(file, reinterpret_cast<const uchar *>("# "), 2);
+    write_res = my_b_write(file, reinterpret_cast<const uchar *>("# "), 2);
+    assert(write_res == 0);
   }
 }
 
@@ -1502,12 +1509,14 @@ static const uchar *get_quote_table() {
   @retval true Failure
 */
 static bool my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length) {
+  [[maybe_unused]] int write_res;
   const uchar *s;
   static const uchar *quote_table = get_quote_table();
   my_b_printf(file, "'");
   for (s = ptr; length > 0; s++, length--) {
     const uchar *len_and_str = quote_table + *s * 5;
-    my_b_write(file, len_and_str + 1, len_and_str[0]);
+    write_res = my_b_write(file, len_and_str + 1, len_and_str[0]);
+    assert(write_res == 0);
   }
   if (my_b_printf(file, "'") == (size_t)-1) return true;
   return false;
@@ -1527,7 +1536,9 @@ static void my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits) {
   my_b_printf(file, "b'");
   for (bitnum = skip_bits; bitnum < nbits8; bitnum++) {
     const int is_set = (ptr[(bitnum) / 8] >> (7 - bitnum % 8)) & 0x01;
-    my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
+    [[maybe_unused]]
+    int write_res = my_b_write(file, (const uchar *)(is_set ? "1" : "0"), 1);
+    assert(write_res == 0);
   }
   my_b_printf(file, "'");
 }
@@ -1602,7 +1613,7 @@ static bool json_wrapper_to_string(IO_CACHE *out, String *buf,
     case enum_json_type::J_UINT:
     case enum_json_type::J_DOUBLE:
     case enum_json_type::J_BOOLEAN:
-      my_b_write(out, (uchar *)buf->ptr(), buf->length());
+      if (my_b_write(out, (uchar *)buf->ptr(), buf->length())) return true;
       break;
     case enum_json_type::J_STRING:
     case enum_json_type::J_DATE:
@@ -4032,7 +4043,9 @@ void Query_log_event::print_query_header(
   end = my_stpcpy(end, print_event_info->delimiter);
   *end++ = '\n';
   assert(end < buff + sizeof(buff));
-  my_b_write(file, (uchar *)buff, (uint)(end - buff));
+  [[maybe_unused]]
+  int write_res = my_b_write(file, (uchar *)buff, (uint)(end - buff));
+  assert(write_res == 0);
   if (!print_event_info->require_row_format &&
       (!print_event_info->thread_id_printed ||
        ((common_header->flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
@@ -4204,7 +4217,9 @@ void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   DBUG_EXECUTE_IF("simulate_file_write_error",
                   { head->write_pos = head->write_end - 500; });
   print_query_header(head, print_event_info);
-  my_b_write(head, pointer_cast<const uchar *>(query), q_len);
+  [[maybe_unused]]
+  int write_res = my_b_write(head, pointer_cast<const uchar *>(query), q_len);
+  assert(write_res == 0);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* !MYSQL_SERVER */
@@ -5465,9 +5480,12 @@ void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
   print_header(head, print_event_info, false);
   my_b_printf(head, "\tRotate to ");
-  if (new_log_ident)
-    my_b_write(head, pointer_cast<const uchar *>(new_log_ident),
-               (uint)ident_len);
+  if (new_log_ident) {
+    [[maybe_unused]]
+    int write_res = my_b_write(head, pointer_cast<const uchar *>(new_log_ident),
+                               (uint)ident_len);
+    assert(write_res == 0);
+  }
   my_b_printf(head, "  pos: %s\n", llstr(pos, buf));
 }
 #endif /* !MYSQL_SERVER */
@@ -5645,6 +5663,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
                         rli->get_group_master_log_name(),
                         (ulong)rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
+
     if (rli->is_parallel_exec()) {
       bool real_event = server_id && !is_artificial_event();
       rli->reset_notified_checkpoint(
@@ -6603,7 +6622,9 @@ void User_var_log_event::print(FILE *,
   quoted_len =
       my_strmov_quoted_identifier((char *)quoted_id, (const char *)name_id);
   quoted_id[quoted_len] = '\0';
-  my_b_write(head, (uchar *)quoted_id, quoted_len);
+  [[maybe_unused]]
+  int write_res = my_b_write(head, (uchar *)quoted_id, quoted_len);
+  assert(write_res == 0);
 
   if (is_null) {
     my_b_printf(head, ":=NULL%s\n", print_event_info->delimiter);
@@ -7323,6 +7344,7 @@ void Execute_load_query_log_event::print(
 void Execute_load_query_log_event::print(FILE *,
                                          PRINT_EVENT_INFO *print_event_info,
                                          const char *local_fname) const {
+  [[maybe_unused]] int write_res;
   IO_CACHE *const head = &print_event_info->head_cache;
 
   print_query_header(head, print_event_info);
@@ -7336,7 +7358,9 @@ void Execute_load_query_log_event::print(FILE *,
   });
 
   if (local_fname) {
-    my_b_write(head, pointer_cast<const uchar *>(query), fn_pos_start);
+    write_res =
+        my_b_write(head, pointer_cast<const uchar *>(query), fn_pos_start);
+    assert(write_res == 0);
     my_b_printf(head, " LOCAL INFILE ");
     pretty_print_str(head, local_fname, strlen(local_fname));
 
@@ -7345,9 +7369,11 @@ void Execute_load_query_log_event::print(FILE *,
     my_b_printf(head, " INTO");
     my_b_write(head, pointer_cast<const uchar *>(query) + fn_pos_end,
                q_len - fn_pos_end);
+    assert(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   } else {
-    my_b_write(head, pointer_cast<const uchar *>(query), q_len);
+    write_res = my_b_write(head, pointer_cast<const uchar *>(query), q_len);
+    assert(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
 

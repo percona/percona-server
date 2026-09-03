@@ -2303,6 +2303,7 @@ struct TABLE {
 #ifndef NDEBUG
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
 #endif
+
   /**
     Update covering keys depending on max read key length.
 

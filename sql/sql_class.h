@@ -83,6 +83,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/service_thread_scheduler.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysql_com_server.h"  // NET_SERVER
@@ -1321,6 +1322,10 @@ class THD : public MDL_context_owner,
 
   /** Additional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
+  /** Thread scheduler callbacks for this connection per-thread and one-thread
+  scheduler callbacks are no-ops, so nullptr works for them, threadpool
+  scheduler will change this for its THDs */
+  THD_event_functions *scheduler{nullptr};
   /**
     Hash for user variables.
     User variables are per session,
@@ -3348,6 +3353,7 @@ class THD : public MDL_context_owner,
   inline void set_active_vio(Vio *vio) {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
+    vio_set_thread_id(vio, pthread_self());
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -4416,7 +4422,7 @@ class THD : public MDL_context_owner,
     return copy_db_to(const_cast<char const **>(p_db), p_db_length);
   }
 
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
 
   /**
     Get resource group context.

@@ -8585,6 +8585,29 @@ int handler::ha_delete_row(const uchar *buf) {
   return 0;
 }
 
+/**
+  @brief Offload an update to the storage engine. See handler::fast_update()
+  for details.
+*/
+int handler::ha_fast_update(THD *thd, mem_root_deque<Item *> &update_fields,
+                            mem_root_deque<Item *> &update_values,
+                            Item *conds) {
+  int error = fast_update(thd, update_fields, update_values, conds);
+  if (error == 0) mark_trx_read_write();
+  return error;
+}
+
+/**
+  @brief Offload an upsert to the storage engine. See handler::upsert()
+  for details.
+*/
+int handler::ha_upsert(THD *thd, mem_root_deque<Item *> &update_fields,
+                       mem_root_deque<Item *> &update_values) {
+  int error = upsert(thd, update_fields, update_values);
+  if (error == 0) mark_trx_read_write();
+  return error;
+}
+
 /** @brief
   use_hidden_primary_key() is called in case of an update/delete when
   (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined

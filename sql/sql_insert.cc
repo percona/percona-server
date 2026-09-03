@@ -680,8 +680,11 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
           continue;
         }
       }
-
-      if (write_record(thd, insert_table, &info, &update)) {
+      int error = insert_table->file->ha_upsert(thd, update_field_list,
+                                                update_value_list);
+      if (error == ENOTSUP)
+        error = write_record(thd, insert_table, &info, &update);
+      if (error) {
         has_error = true;
         break;
       }

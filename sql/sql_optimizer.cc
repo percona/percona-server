@@ -2033,13 +2033,14 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys) {
   if (usable_clustered_pk != MAX_KEY) {
     /*
      If the primary key is clustered and found shorter key covers all table
-     fields then primary key scan normally would be faster because amount of
-     data to scan is the same but PK is clustered.
+     fields and is not clustering then primary key scan normally would be
+     faster because amount of data to scan is the same but PK is clustered.
      It's safe to compare key parts with table fields since duplicate key
      parts aren't allowed.
      */
     if (best == MAX_KEY ||
-        table->key_info[best].user_defined_key_parts >= table->s->fields)
+        ((table->key_info[best].user_defined_key_parts >= table->s->fields) &&
+         !(table->file->index_flags(best, 0, 0) & HA_CLUSTERED_INDEX)))
       best = usable_clustered_pk;
   }
   return best;
@@ -3028,6 +3029,21 @@ void JOIN::adjust_access_methods() {
               find_shortest_key(tab->table(), &tab->table()->covering_keys));
         tab->set_type(JT_INDEX_SCAN);  // Read with index_first / index_next
         // From table scan to index scan, thus filter effect needs no recalc.
+      } else if (!tab->table()->no_keyread && !tl->uses_materialization()) {
+        assert(tab->table()->covering_keys.is_clear_all());
+        if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN) {
+          Key_map clustering_keys;
+          for (uint i2 = 0; i2 < tab->table()->s->keys; i2++) {
+            if (tab->keys().is_set(i2) &&
+                tab->table()->file->index_flags(i2, 0, 0) & HA_CLUSTERED_INDEX)
+              clustering_keys.set_bit(i2);
+          }
+          uint index = find_shortest_key(tab->table(), &clustering_keys);
+          if (index != MAX_KEY) {
+            tab->set_type(JT_INDEX_SCAN);
+            tab->set_index(index);
+          }
+        }
       }
     } else if (tab->type() == JT_REF) {
       if (can_switch_from_ref_to_range(thd, tab, ORDER_NOT_RELEVANT, false)) {

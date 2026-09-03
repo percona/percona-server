@@ -1314,7 +1314,7 @@ int Partition_base::del_ren_table(const char *from, const char *to,
       error = file->ha_delete_table(from_name.c_str(), table_def_from);
       if (error) save_error = error;
     } else {
-      // Currently neither TokuDB nor RocksDB process dd::Table* arguments,
+      // Currently RocksDB does not process dd::Table* arguments,
       // so it's ok to pass nullptr as the last two arguments of the function.
       // But if some of the SE's implements DD-specific functionality,
       // it's necessary to modify the following code to pass
@@ -1332,7 +1332,7 @@ int Partition_base::del_ren_table(const char *from, const char *to,
 rename_error:
   to_name = to_names.begin();
   for (const std::string &from_name : from_names) {
-    // Currently neither TokuDB nor RocksDB process dd::Table* arguments,
+    // Currently RocksDB does not process dd::Table* arguments,
     // so it's ok to pass nullptr as the last two arguments of the function.
     // But if some of the SE's implements DD-specific functionality,
     // it's necessary to modify the following code to pass
@@ -4787,25 +4787,6 @@ int Partition_base::check_for_upgrade(HA_CHECK_OPT *check_opt) {
   }
 
   DBUG_RETURN(error);
-}
-
-/*
-  We don't know which partition table will be updated before executing
-  Write_rows_log_event, so update all partitions.
-*/
-void Partition_base::rpl_before_write_rows() {
-  for (uint i = 0; i < m_tot_parts; i++) {
-    m_file[i]->rpl_before_write_rows();
-  }
-}
-
-/*
-  Clear flag of all partitions after executing Write_rows_log_event.
-*/
-void Partition_base::rpl_after_write_rows() {
-  for (uint i = 0; i < m_tot_parts; i++) {
-    m_file[i]->rpl_after_write_rows();
-  }
 }
 
 /*

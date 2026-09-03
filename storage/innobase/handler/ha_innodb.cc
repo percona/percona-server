@@ -5600,7 +5600,7 @@ static int innodb_init(void *p) {
                          HTON_SUPPORTS_TABLE_ENCRYPTION |
                          HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
                          HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK |
-                         HTON_SUPPORTS_ONLINE_BACKUPS;
+                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
 

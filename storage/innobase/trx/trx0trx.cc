@@ -185,6 +185,9 @@ static void trx_init(trx_t *trx) {
 
   trx->ddl_operation = false;
 
+  trx->idle_start = 0;
+  trx->last_stmt_start = 0;
+
   trx->error_state = DB_SUCCESS;
 
   trx->error_key_num = ULINT_UNDEFINED;

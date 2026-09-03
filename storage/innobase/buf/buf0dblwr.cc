@@ -1591,11 +1591,6 @@ void Double_write::check_block(const buf_block_t *block) noexcept {
 
       /* TODO: validate also non-index pages */
       return;
-
-    case FIL_PAGE_TYPE_ALLOCATED:
-      /* Empty pages should never be flushed. Unless we are creating the
-      legacy doublewrite buffer.  */
-      break;
   }
 
   croak(block);
@@ -1970,6 +1965,12 @@ bool Double_write::create_v1(page_no_t &page_no1,
 
 dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   os_offset_t size = os_file_get_size(file.m_pfs);
+
+  if (srv_read_only_mode) {
+    ib::info() << "Skipping doublewrite buffer processing due to "
+                  "InnoDB running in read only mode";
+    return (DB_SUCCESS);
+  }
 
   if (size == 0) {
     /* Double write buffer is empty. */

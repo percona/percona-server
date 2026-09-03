@@ -717,6 +717,9 @@ class Fil_shard {
 
     auto it = m_spaces.find(space_id);
 
+    /* The system tablespace must always be found */
+    ut_ad(it != m_spaces.end() || space_id != 0 || srv_is_being_started);
+
     if (it == m_spaces.end()) {
       return nullptr;
     }
@@ -3214,6 +3217,7 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
       }
     }
 
+    ut_ad(space->id != space_id);
     ib::info(ER_IB_MSG_281)
         << "Trying to add tablespace '" << name << "'"
         << " with id " << space_id << " to the tablespace"

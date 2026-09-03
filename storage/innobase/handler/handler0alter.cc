@@ -5114,6 +5114,8 @@ template <typename Table>
     }
   }
 
+  DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
+
 error_handling:
 
   if (build_fts_common || fts_index) {
@@ -7091,6 +7093,8 @@ inline void commit_cache_rebuild(ha_innobase_inplace_ctx *ctx) {
   error = dict_table_rename_in_cache(ctx->old_table, ctx->tmp_name, false);
   ut_a(error == DB_SUCCESS);
 
+  DEBUG_SYNC_C("commit_cache_rebuild_middle");
+
   error = dict_table_rename_in_cache(ctx->new_table, old_name, false);
   ut_a(error == DB_SUCCESS);
 }
@@ -7941,6 +7945,21 @@ rollback_trx:
   }
 
   DBUG_EXECUTE_IF("ib_ddl_crash_before_update_stats", DBUG_SUICIDE(););
+
+  /* Rebuild index translation table now for temporary tables if we are
+  restoring secondary keys, as ha_innobase::open will not be called for
+  the next access.  */
+  if (DICT_TF2_FLAG_IS_SET(ctx0->new_table, DICT_TF2_TEMPORARY) &&
+      ctx0->num_to_add_index) {
+    ut_ad(!ctx0->num_to_drop_index);
+    ut_ad(!ctx0->num_to_rename);
+    ut_ad(!ctx0->num_to_drop_fk);
+    if (!innobase_build_index_translation(altered_table, ctx0->new_table,
+                                          m_share)) {
+      MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+      return true;
+    }
+  }
 
   /* TODO: The following code could be executed
   while allowing concurrent access to the table

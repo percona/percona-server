@@ -1087,6 +1087,8 @@ struct trx_t {
   /*!< if MySQL binlog is used, this
   field contains the end offset of the
   binlog entry */
+  time_t idle_start;
+  uint64_t last_stmt_start;
   /*------------------------------*/
   uint32_t n_mysql_tables_in_use; /*!< number of Innobase tables
                               used in the processing of the current

@@ -4430,7 +4430,8 @@ buf_block_t *Buf_fetch<T>::single_page() {
   }
 #endif /* UNIV_DEBUG */
 
-  ut_ad(is_possibly_freed() || !block->page.file_page_was_freed);
+  ut_ad(is_possibly_freed() || m_mode == Page_fetch::PEEK_IF_IN_POOL ||
+        !block->page.file_page_was_freed);
 
   /* Check if this is the first access to the page */
   const auto access_time = buf_page_is_accessed(&block->page);

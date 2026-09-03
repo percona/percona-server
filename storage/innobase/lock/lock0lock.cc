@@ -5067,6 +5067,7 @@ dberr_t lock_rec_insert_check_and_lock(
   ut_ad(block->frame == page_align(rec));
   ut_ad(!dict_index_is_online_ddl(index) || index->is_clustered() ||
         (flags & BTR_CREATE_FLAG));
+  ut_ad((flags & BTR_NO_LOCKING_FLAG) || thr);
 
   if (flags & BTR_NO_LOCKING_FLAG) {
     return (DB_SUCCESS);

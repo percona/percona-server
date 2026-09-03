@@ -583,9 +583,13 @@ exist in the space or if the offset exceeds free limit */
   ut_ad(size == fspace->size_in_header);
 #ifdef UNIV_DEBUG
   /* Exclude Encryption flag as it might have been changed In Memory flags but
-  not on disk. */
-  ut_ad(!((flags ^ fspace->flags) & ~(FSP_FLAGS_MASK_ENCRYPTION)));
-#endif /* UNIV_DEBUG */
+  not on disk, and for non-temporary tables, exclude data directory since
+  it may differ for exported/imported tablespaces. */
+  const auto fsp_flags_exclude =
+      FSP_FLAGS_MASK_ENCRYPTION |
+      (fspace->purpose != FIL_TYPE_TEMPORARY ? FSP_FLAGS_MASK_DATA_DIR : 0);
+  ut_ad((flags & ~fsp_flags_exclude) == (fspace->flags & ~fsp_flags_exclude));
+#endif
 
   if ((offset >= size) || (offset >= limit)) {
     return (nullptr);
@@ -4911,8 +4915,6 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
   /* Let the startup thread proceed now */
   mysql_mutex_lock(&resume_encryption_cond_m);
-  shared_mdl_is_taken = true;
-  mysql_mutex_unlock(&resume_encryption_cond_m);
   mysql_cond_signal(&resume_encryption_cond);
   mysql_mutex_unlock(&resume_encryption_cond_m);
 

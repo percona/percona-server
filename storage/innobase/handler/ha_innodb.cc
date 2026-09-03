@@ -888,8 +888,8 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(recv_writer_thread, "ib_recv_write", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err_mon",
-                   PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(srv_error_monitor_thread, "ib_srv_err", PSI_FLAG_SINGLETON,
+                   0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_lock_timeout_thread, "ib_srv_lock_to",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(srv_master_thread, "ib_src_main", PSI_FLAG_SINGLETON, 0,
@@ -2189,6 +2189,8 @@ const char *thd_innodb_tmpdir(THD *thd) {
 @return reference to private handler */
 
 [[nodiscard]] innodb_session_t *&thd_to_innodb_session(THD *thd) {
+  assert(innodb_hton_ptr->slot != HA_SLOT_UNDEF);
+
   innodb_session_t *&innodb_session =
       *(innodb_session_t **)thd_ha_data(thd, innodb_hton_ptr);
 
@@ -3183,7 +3185,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
           HA_ATTACHABLE_TRX_COMPATIBLE | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN |
           HA_DESCENDING_INDEX | HA_MULTI_VALUED_KEY_SUPPORT |
           HA_BLOB_PARTIAL_UPDATE | HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN |
-          HA_SUPPORTS_DEFAULT_EXPRESSION),
+          HA_SUPPORTS_DEFAULT_EXPRESSION | HA_ONLINE_ANALYZE),
       m_start_of_scan(),
       m_stored_select_lock_type(LOCK_NONE_UNSET),
       m_mysql_has_locked() {}
@@ -6287,6 +6289,7 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
   bool read_only = trx->read_only || trx->id == 0;
 
   if (will_commit) {
+    DBUG_EXECUTE_IF("crash_innodb_before_commit", DBUG_SUICIDE(););
     /* We were instructed to commit the whole transaction, or
     this is an SQL statement end and autocommit is on */
 
@@ -7451,7 +7454,7 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
  index creation/drop and DMLs that requires index lookup. All table
  handle will be closed before the index creation/drop.
  @return true if index translation table built successfully */
-static bool innobase_build_index_translation(
+bool innobase_build_index_translation(
     const TABLE *table,     /*!< in: table in MySQL data
                             dictionary */
     dict_table_t *ib_table, /*!< in: table in InnoDB data
@@ -17829,6 +17832,13 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
 
       if (dict_stats_is_persistent_enabled(ib_table)) {
         if (is_analyze) {
+          /* If this table is already queued for background analyze, remove it
+          from the queue as we are about to do the same */
+          if (!srv_read_only_mode) {
+            dict_mutex_enter_for_mysql();
+            dict_stats_recalc_pool_del(ib_table);
+            dict_mutex_exit_for_mysql();
+          }
           opt = DICT_STATS_RECALC_PERSISTENT;
         } else {
           /* This is e.g. 'SHOW INDEXES', fetch
@@ -20678,6 +20688,8 @@ static int innobase_xa_prepare(handlerton *hton, /*!< in: InnoDB handlerton */
 
       return (convert_error_code_to_mysql(DB_FORCED_ABORT, 0, thd));
     }
+
+    DBUG_EXECUTE_IF("crash_innodb_after_prepare", DBUG_SUICIDE(););
 
   } else {
     /* We just mark the SQL statement ended and do not do a

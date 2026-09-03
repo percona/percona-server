@@ -158,10 +158,6 @@ static uint64_t srv_start_state = SRV_START_STATE_NONE;
 
 std::atomic<enum srv_shutdown_t> srv_shutdown_state{SRV_SHUTDOWN_NONE};
 
-/** true if shared MDL is taken by background thread for all tablespaces, for
- *  which (un)encryption is to be rolled forward*/
-bool shared_mdl_is_taken = false;
-
 /** Name of srv_monitor_file */
 static char *srv_monitor_file_name;
 
@@ -1644,6 +1640,8 @@ dberr_t srv_start(bool create_new_db) {
 
   arch_init();
 
+  bool srv_monitor_thread_created = false;
+
   if (create_new_db) {
     ut_a(buf_are_flush_lists_empty_validate());
 
@@ -1728,6 +1726,16 @@ dberr_t srv_start(bool create_new_db) {
     and there must be no page in the buf_flush list. */
     buf_pool_invalidate();
 
+    /* Start monitor thread early enough so that e.g. crash recovery failing to
+    find free pages in the buffer pool is diagnosed. */
+    if (!srv_read_only_mode) {
+      /* Create the thread which prints InnoDB monitor info */
+      srv_threads.m_monitor =
+          os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
+      srv_threads.m_monitor.start();
+      srv_monitor_thread_created = true;
+    }
+
     /* Open all data files in the system tablespace:
     we keep them open until database shutdown. */
     fil_open_system_tablespace_files();
@@ -1807,6 +1815,11 @@ dberr_t srv_start(bool create_new_db) {
     /* We have successfully recovered from the redo log. The
     data dictionary should now be readable. */
 
+    DBUG_EXECUTE_IF(
+        "ib_recovery_print_mysql_binlog_offset",
+        if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO &&
+            recv_needed_recovery) { trx_sys_print_mysql_binlog_offset(); });
+
     if (recv_sys->found_corrupt_log) {
       ib::warn(ER_IB_MSG_RECOVERY_CORRUPT);
     }
@@ -1839,6 +1852,7 @@ dberr_t srv_start(bool create_new_db) {
     /* We could possibly execute it much later if not the current dict_persist
     functionality implementation, which requires it to work properly. */
     err = dict_boot();
+    DBUG_EXECUTE_IF("ib_dic_boot_error", err = DB_ERROR;);
 
     if (err != DB_SUCCESS) {
       return (srv_init_abort(err));
@@ -2012,11 +2026,17 @@ dberr_t srv_start(bool create_new_db) {
     srv_threads.m_error_monitor.start();
 
     /* Create the thread which prints InnoDB monitor info */
-    srv_threads.m_monitor =
-        os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
+    if (!srv_monitor_thread_created) {
+      srv_threads.m_monitor =
+          os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
-    srv_threads.m_monitor.start();
+      srv_threads.m_monitor.start();
+      srv_monitor_thread_created = true;
+    }
   }
+
+  /* wake main loop of page cleaner up */
+  os_event_set(buf_flush_event);
 
   srv_sys_tablespaces_open = true;
 
@@ -2037,9 +2057,6 @@ dberr_t srv_start(bool create_new_db) {
   srv_is_being_started = false;
 
   ut_a(trx_purge_state() == PURGE_STATE_INIT);
-
-  /* wake main loop of page cleaner up */
-  os_event_set(buf_flush_event);
 
   sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
   ut_a(sum_of_new_sizes != FIL_NULL);
@@ -2299,8 +2316,7 @@ void srv_start_threads_after_ddl_recovery() {
     srv_threads.m_ts_alter_encrypt.start();
     /* Wait till shared MDL is taken by background thread for all tablespaces,
     for which (un)encryption is to be rolled forward. */
-    while (!shared_mdl_is_taken)
-      mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
+    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
     mysql_mutex_unlock(&resume_encryption_cond_m);
   }
 

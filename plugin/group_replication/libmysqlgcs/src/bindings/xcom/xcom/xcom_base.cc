@@ -1753,6 +1753,15 @@ static void push_msg_3p(site_def const *site, pax_machine *p, pax_msg *msg,
         STRLIT(pax_op_to_str(msg->op)));
 }
 
+/* A reserved synode is only ours while we still hold the node index it was
+   reserved under. A view change that renumbers us hands that slot to another
+   node, which may reserve it as well. */
+bool_t reservation_is_stale(synode_no msgno) {
+  site_def const *site = find_site_def(msgno);
+  node_no me = site ? get_nodeno(site) : VOID_NODE_NO;
+  return me != VOID_NODE_NO && me != msgno.node;
+}
+
 /* Brand client message with unique ID */
 static void brand_client_msg(pax_msg *msg, synode_no msgno) {
   assert(!synode_eq(msgno, null_synode));
@@ -2512,6 +2521,13 @@ static int proposer_task(task_arg arg) {
 
     brand_client_msg(ep->client_msg->p, ep->msgno);
 
+    /* Only a locally allocated synode carries our own node index; a remote or
+       global allocation carries the allocating leader's, by design. */
+    if (ep->synode_allocation == synode_allocation_type::local &&
+        reservation_is_stale(ep->msgno)) {
+      GOTO(retry_new);
+    }
+
     for (;;) { /* Loop until the client message has been learned */
       /* Get a Paxos instance to send the client message */
 
@@ -2520,6 +2536,13 @@ static int proposer_task(task_arg arg) {
         G_MESSAGE("Could not get a pax_machine for msgno %lu. Retrying",
                   (unsigned long)ep->msgno.msgno);
         goto retry_new;
+      }
+
+      /* Checked again after wait_for_cache: that call can suspend, and a view
+         change during the wait leaves the reservation stale. */
+      if (ep->synode_allocation == synode_allocation_type::local &&
+          reservation_is_stale(ep->msgno)) {
+        GOTO(retry_new);
       }
 
       assert(ep->p);

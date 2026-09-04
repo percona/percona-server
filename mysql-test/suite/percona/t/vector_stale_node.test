@@ -1,0 +1,109 @@
+--echo #
+--echo # PS-11300: MVCC check (1) — a graph node whose label no longer
+--echo # matches the visible row version is not a result.
+--echo #
+--echo # An UPDATE of an indexed vector stamps a fresh percona_vec_aux_id on
+--echo # the row and adds a new node for it. The old node is left in the
+--echo # graph, still naming the same base_pk (there is no tombstone in this
+--echo # design), so base_pk alone cannot tell the live node from the dead
+--echo # one. The read path compares the node id the search returned with
+--echo # the label read out of the visible clustered record and drops the
+--echo # candidate when they differ.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[10,0]')),
+                      (3, STRING_TO_VECTOR('[20,0]')),
+                      (4, STRING_TO_VECTOR('[30,0]'));
+
+--echo # Before the update, row 1 is the nearest to [0,0].
+SELECT id, VECTOR_TO_STRING(v) FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # Move row 1 far away. Its old node stays at [0,0] in the graph.
+UPDATE t1 SET v = STRING_TO_VECTOR('[100,0]') WHERE id = 1;
+
+--echo # The graph still holds a node at [0,0] naming base_pk 1, but it
+--echo # must not become a result: nearest to [0,0] is now row 2, not row 1
+--echo # carrying its new [100,0] value.
+SELECT id, VECTOR_TO_STRING(v) FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # The live node still works: row 1 is nearest to its new position.
+SELECT id, VECTOR_TO_STRING(v) FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[100,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # Every row surfaces exactly once even though the graph holds more
+--echo # nodes than there are rows. Without the check each stale node would
+--echo # fetch its base row again and the same id would repeat, once per
+--echo # update it has ever had; skipping is also not counted against the
+--echo # LIMIT, so the resume loop still delivers all four.
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+
+--echo #
+--echo # Repeated updates leave a trail of stale nodes; none of them is a
+--echo # result, and the row is found only at its current position.
+--echo #
+UPDATE t1 SET v = STRING_TO_VECTOR('[1,0]') WHERE id = 4;
+UPDATE t1 SET v = STRING_TO_VECTOR('[2,0]') WHERE id = 4;
+UPDATE t1 SET v = STRING_TO_VECTOR('[3,0]') WHERE id = 4;
+
+SELECT id, VECTOR_TO_STRING(v) FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+
+--echo #
+--echo # The check is per read view, not per node: a reader whose snapshot
+--echo # predates the update sees the OLD version, whose label matches the
+--echo # OLD node. For that reader the roles are reversed — the old node is
+--echo # the live one and the new node is what must be dropped.
+--echo #
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[10,0]')),
+                      (3, STRING_TO_VECTOR('[50,0]'));
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connect (con2, localhost, root,,);
+UPDATE t2 SET v = STRING_TO_VECTOR('[50.1,0]') WHERE id = 1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo # The snapshot reader still finds row 1 at its old position...
+SELECT id, VECTOR_TO_STRING(v) FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # ...and does NOT find it at the new one, even though the new node
+--echo # is in the shared graph and is the nearest thing there.
+SELECT id, VECTOR_TO_STRING(v) FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[50.1,0]'), 'EUCLIDEAN') LIMIT 1;
+
+COMMIT;
+
+--echo # After the snapshot ends, the new version is the visible one.
+SELECT id, VECTOR_TO_STRING(v) FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[50.1,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo #
+--echo # The graph is rebuilt from the aux on restart, stale nodes and all,
+--echo # so the check has to hold there too.
+--echo #
+--source include/restart_mysqld.inc
+
+SELECT id, VECTOR_TO_STRING(v) FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+
+DROP TABLE t1;
+DROP TABLE t2;

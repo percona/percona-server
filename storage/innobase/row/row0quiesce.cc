@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0quiesce.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+#include "vec0aux.h"
 
 #include "my_dbug.h"
 
@@ -1088,6 +1089,14 @@ dberr_t row_quiesce_set_state(
                 " created on a hidden column, the"
                 " auxiliary tables haven't been dropped as yet."
                 " FTS auxiliary tables will not be flushed.");
+  } else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    /* Vector aux tables are independent dict_table_t/.ibd siblings of
+    the base table — FLUSH FOR EXPORT only quiesces the base, so any
+    HNSW persistence in the aux .ibd is not export-consistent. Mirror
+    the FTS warning above. */
+    ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN, ER_NOT_SUPPORTED_YET,
+                "FLUSH TABLES on tables that have a vector index."
+                " Vector auxiliary tables will not be flushed.");
   }
 
   if (srv_thread_is_active(srv_threads.m_trx_recovery_rollback)) {

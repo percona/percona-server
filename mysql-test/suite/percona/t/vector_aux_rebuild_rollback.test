@@ -1,0 +1,57 @@
+--echo #
+--echo # PS-11299: rebuild-rollback path must drop the vector aux table
+--echo # that lives on the (about-to-be-thrown-away) ctx->new_table.
+--echo # Mirrors innobase_drop_fts_index_table for FTS in the same block
+--echo # at handler0alter.cc error_handled.
+--echo #
+--echo # Triggered by forcing ALTER ADD INDEX to take the REBUILD
+--echo # path — the base table has been INSTANT-altered, so adding the
+--echo # first vector index forces rebuild via add_vec_aux_col. Then the
+--echo # debug knob fails prepare, exercising:
+--echo #   error_handling   per-index vec aux drop (added in task #18)
+--echo #   error_handled    rebuild block: vec_aux_drop_all_tables on
+--echo #                    ctx->new_table (added in this task)
+--echo # The second drop is a no-op for indexes the first drop handled.
+--echo #
+
+--source include/have_debug.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+CREATE TABLE tvr (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+
+--echo # The FIRST ADD materializes the hidden column and so falls back
+--echo # to COPY, which never enters the INPLACE prepare path. With the
+--echo # knob ARMED it must therefore succeed — a standing guard that
+--echo # COPY is what runs.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tvr ADD KEY (v) TYPE hnsw WITH (M = 6);
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+
+--echo # Drop it. The hidden column is retained, so a later ADD is
+--echo # eligible for INPLACE again.
+ALTER TABLE tvr DROP KEY v;
+
+--echo # Add a column in the same ALTER so it must take the INPLACE
+--echo # *rebuild* path, which is the path whose rollback this covers.
+--echo # (INSTANT ADD COLUMN, which this test used to use for the same
+--echo # purpose, is refused once the hidden column exists.)
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+--error ER_GET_ERRNO,ER_OUT_OF_RESOURCES,ER_TOO_MANY_CONCURRENT_TRXS,1
+ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),
+                ALGORITHM=INPLACE;
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+
+--echo # No vec aux .ibd left behind after rebuild rollback.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # Retry must succeed — both the original-table dict_sys slots
+--echo # and any aux name slots are free.
+ALTER TABLE tvr ADD COLUMN c1 INT, ADD KEY (v) TYPE hnsw WITH (M = 6),
+                ALGORITHM=INPLACE;
+SHOW CREATE TABLE tvr;
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE tvr;
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

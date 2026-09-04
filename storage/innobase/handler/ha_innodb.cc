@@ -188,7 +188,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
 #include "sql/auth/auth_common.h"
-#include "sql/dd_table_share.h"  // dd_is_vector_index
+#include "sql/dd_table_share.h"  // is_vector_index
 #include "sql/item.h"
 #include "sql_base.h"
 #include "srv0tmp.h"
@@ -213,6 +213,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"
 
+#include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "vec0vec.h"
 
 #include "os0enc.h"
@@ -1199,6 +1201,12 @@ static MYSQL_THDVAR_STR(tmpdir,
 
 /* Default value is updated later in innodb_init_params due to the dependency on
 --container_aware startup option */
+static MYSQL_THDVAR_ULONG(
+    hnsw_ef_search, PLUGIN_VAR_RQCMDARG,
+    "Minimum candidate-list width for HNSW vector index searches (kNN"
+    " recall/latency knob; the effective width is max(ef, LIMIT))",
+    nullptr, nullptr, 40, 1, 100000, 0);
+
 static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           "Number of threads to do parallel read.", nullptr,
                           nullptr, 4,                   /* Default. */
@@ -7091,6 +7099,17 @@ const char *ha_innobase::table_type() const { return (innobase_hton_name); }
  @return flags of supported operations */
 
 ulong ha_innobase::index_flags(uint key, uint, bool) const {
+  /* A vector index advertises nothing, as FULLTEXT does: it is a stub at
+  the B-tree level, with the data in the aux table and the in-memory
+  graph, and its root page may be FIL_NULL. Claiming the default
+  capabilities lets the optimizer choose it for an ordinary scan, and
+  HA_KEYREAD_ONLY in particular makes it look like the narrowest covering
+  index on the table — which is how find_shortest_key picked it for
+  SELECT COUNT(*) and returned 0 from a tree that is not there.
+
+  Reads go exclusively through the JT_VECTOR kNN path
+  (vec_init / vec_read_first / vec_read_next), because "the k nearest to
+  q" cannot be expressed through the index_* family. */
   if (table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT ||
       table_share->key_info[key].algorithm == HA_KEY_ALG_VECTOR) {
     return (0);
@@ -8042,11 +8061,21 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     }
   }
 
+  /* Each InnoDB-owned hidden auxiliary column (FTS_DOC_ID, percona_vec_aux_id)
+  contributes one extra column on the InnoDB side; subtract before
+  comparing against table->s->fields. */
+  const ulint innodb_hidden_extra =
+      (ib_table != nullptr &&
+               DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
+           ? 1
+           : 0) +
+      (ib_table != nullptr &&
+               DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_HAS_VEC_AUX_COL)
+           ? 1
+           : 0);
   if (ib_table != nullptr &&
-      ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
-        table->s->fields != dict_table_get_n_tot_u_cols(ib_table)) ||
-       (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
-        (table->s->fields != dict_table_get_n_tot_u_cols(ib_table) - 1)))) {
+      table->s->fields !=
+          dict_table_get_n_tot_u_cols(ib_table) - innodb_hidden_extra) {
     ib::warn(ER_IB_MSG_556)
         << "Table " << norm_name << " contains " << ib_table->get_n_user_cols()
         << " user"
@@ -8377,12 +8406,44 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   fts_aux_table_t aux_table;
 
   if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
-    ut_ad(m_prebuilt->table->is_fts_aux());
+    ut_ad(m_prebuilt->table->is_aux());
   }
 #endif /* UNIV_DEBUG */
 
-  if (m_prebuilt->table->is_fts_aux()) {
+  if (m_prebuilt->table->is_aux()) {
     dict_table_close(m_prebuilt->table, false, false);
+  }
+
+  /* Give every vector index on this table its runtime, if it has none
+  yet. Here rather than deeper down because this is where the index
+  PARAMETERS are reachable: M, ef_construction and the metric come from
+  the DD through KEY, and the row-level code that will need the graph
+  (row0mysql) has only dict objects. The runtime itself is per index and
+  lives on dict_index_t, so it outlives this handler and is shared by
+  every session that opens the table.
+
+  A failure here is not fatal to the open: without a runtime the index
+  simply has no graph, and the DML path reports the problem when it
+  tries to use one. Refusing the open would take the whole table
+  offline for a vector index that may not even be queried. */
+  for (dict_index_t *index = m_prebuilt->table->first_index();
+       index != nullptr; index = index->next()) {
+    if (!index->is_vector() || index->vec != nullptr) continue;
+
+    /* Match by name, which is how InnoDB pairs a KEY with a
+    dict_index_t everywhere else — dict_table_get_index_on_name() is the
+    same lookup. Index names are unique within a table, so this is exact. */
+    const KEY *key = nullptr;
+    for (uint i = 0; i < table->s->keys; i++) {
+      if ((table->key_info[i].flags & HA_VECTOR) != 0 &&
+          innobase_strcasecmp(table->key_info[i].name, index->name) == 0) {
+        key = &table->key_info[i];
+        break;
+      }
+    }
+    if (key == nullptr) continue;
+
+    (void)vec_runtime_open(index, key, table, thd);
   }
 
   return 0;
@@ -8424,6 +8485,9 @@ uint ha_innobase::max_supported_key_part_length(
 
 int ha_innobase::close() {
   DBUG_TRACE;
+
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
 
   if (m_prebuilt->m_temp_read_shared) {
     temp_prebuilt_vec *vec = m_prebuilt->table->temp_prebuilt;
@@ -10123,6 +10187,7 @@ static dberr_t calc_row_difference(
   dict_index_t *clust_index;
   uint i;
   bool changes_fts_column = false;
+  bool changes_vec_column = false;
   bool changes_fts_doc_col = false;
   trx_t *trx = thd_to_trx(thd);
   doc_id_t doc_id = FTS_NULL_DOC_ID;
@@ -10447,6 +10512,17 @@ static dberr_t calc_row_difference(
           changes_fts_doc_col = row_upd_changes_doc_id(innodb_table, ufield);
         }
       }
+
+      /* Same question for a vector index: did this UPDATE move the
+      indexed vector? A node is immutable — HNSW cannot move a point
+      once its neighbours link to it — so a changed vector becomes a
+      NEW node under a fresh label, and the row has to be re-pointed at
+      it. That re-point rides this same update vector, below. */
+      if (!changes_vec_column && !is_virtual &&
+          DICT_TF2_FLAG_IS_SET(prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
+        changes_vec_column =
+            vec_upd_changes_indexed_vector(prebuilt->table, ufield);
+      }
     } else if (is_virtual) {
       dfield_t *vfield = dtuple_get_nth_v_field(uvect->old_vrow, num_v);
       col->copy_type(dfield_get_type(vfield));
@@ -10526,6 +10602,23 @@ static dberr_t calc_row_difference(
     fts_next_doc_id to UINT64_UNDEFINED, which means do not
     update the Doc ID column */
     trx->fts_next_doc_id = UINT64_UNDEFINED;
+  }
+
+  /* Piggyback the label change onto the user's UPDATE, exactly as FTS
+  does with its Doc ID above, and for the same reason: the row and the
+  new node have to become visible together. Adding the node afterwards
+  and leaving the row pointing at the old one would make a search answer
+  from the superseded vector.
+
+  Capacity is not a concern — the vector is created with
+  get_n_cols() + n_v_cols entries, which already counts this hidden
+  column. */
+  trx->vec_next_label = 0;
+  if (changes_vec_column) {
+    trx->vec_next_label = vec_assign_next_aux_id(prebuilt->table);
+    ufield = uvect->fields + n_changed;
+    vec_update_aux_id(prebuilt->table, ufield, &trx->vec_next_label);
+    ++n_changed;
   }
 
   uvect->n_fields = n_changed;
@@ -10876,6 +10969,15 @@ int ha_innobase::index_init(uint keynr, /*!< in: key (index) number */
 
 int ha_innobase::index_end(void) {
   DBUG_TRACE;
+
+  /* Where a vector scan ends. VectorSearchIterator's destructor calls
+  ha_index_or_rnd_end(), and vec_init() went through rnd_init(), so this
+  is the one hook both the normal end and an early exit reach — including
+  the LIMIT being satisfied, where vec_read_next is simply never called
+  again. The scan holds the aux table open and its MDL ticket, so leaking
+  it would keep a concurrent ALTER waiting. */
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
 
   if (m_prebuilt->index->last_sel_cur) {
     m_prebuilt->index->last_sel_cur->release();
@@ -11335,7 +11437,11 @@ int ha_innobase::change_active_index(
 
   /* Initialization of search_tuple is not needed for FT index
   since FT search returns rank only. In addition engine should
-  be able to retrieve FTS_DOC_ID column value if necessary. */
+  be able to retrieve FTS_DOC_ID column value if necessary.
+  Note: for vector indexes we take the "else" branch below — the
+  setup work is wasted (subsequent fetch is blocked at line 11058)
+  but harmless. Not worth an extra branch here; keeping FTS-only
+  gate for minimal churn. See PS-11299 audit N2. */
   if ((m_prebuilt->index->type & DICT_FTS)) {
     if (table->fts_doc_id_field &&
         bitmap_is_set(table->read_set,
@@ -12073,6 +12179,135 @@ next_record:
   return (HA_ERR_END_OF_FILE);
 }
 
+int ha_innobase::vec_init() {
+  DBUG_TRACE;
+
+  /* The kNN candidates are fetched from the base table by PRIMARY KEY
+  (row_ref is the PK image); rnd_init sets up the clustered-index
+  positioning the per-candidate row_search_for_mysql below relies on. */
+  return rnd_init(false);
+}
+
+/** Build the clustered-index search tuple for a candidate's base_pk.
+The primary key of a vector-indexed table is a single BIGINT UNSIGNED
+(the design's "Limitations"), so its storage form is the 8 bytes
+mach_write_to_8 produces. */
+static void innobase_vec_build_pk_tuple(dtuple_t *tuple,
+                                        const dict_index_t *clust_index,
+                                        const byte *pk_image) {
+  ut_a(dict_index_get_n_unique(clust_index) == 1);
+
+  dtuple_set_n_fields(tuple, 1);
+  dict_index_copy_types(tuple, clust_index, 1);
+
+  dfield_t *dfield = dtuple_get_nth_field(tuple, 0);
+  dfield_set_data(dfield, pk_image, 8);
+  dtuple_set_n_fields_cmp(tuple, 1);
+}
+
+int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
+  DBUG_TRACE;
+
+  dict_index_t *vindex = vec_index_of(m_prebuilt->table);
+  if (vindex == nullptr || vindex->vec == nullptr) {
+    return HA_ERR_END_OF_FILE;
+  }
+
+  String buff_vec;
+  String *vec = item->val_str(&buff_vec);
+  if (vec == nullptr || vec->ptr() == nullptr) {
+    /* NULL query vector: no rows are "near" it. */
+    return HA_ERR_END_OF_FILE;
+  }
+
+  const uint32 vec_dims =
+      get_dimensions(vec->length(), Field_vector::precision);
+  if (vec_dims == UINT32_MAX || vec_dims != vec_index_dims(vindex)) {
+    return HA_ERR_END_OF_FILE;
+  }
+
+  m_vec_query.assign(vec->ptr(), vec->length());
+
+  /* A re-executed statement can reach here with a scan still open. */
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
+
+  /* LIMIT sizes the batch, not the scan: a filter above the iterator may
+  consume any number of candidates, and the scan simply continues. */
+  const dberr_t err =
+      vec_knn_open(vindex, reinterpret_cast<const float *>(m_vec_query.data()),
+                   std::max<size_t>(limit, 1),
+                   THDVAR(m_user_thd, hnsw_ef_search), m_user_thd,
+                   &m_vec_search);
+  if (err != DB_SUCCESS) {
+    return convert_error_code_to_mysql(err, m_prebuilt->table->flags,
+                                       m_user_thd);
+  }
+
+  return vec_read_next(buf);
+}
+
+int ha_innobase::vec_read_next(uchar *buf) {
+  DBUG_TRACE;
+
+  dict_table_t *table = m_prebuilt->table;
+  if (m_vec_search == nullptr) return HA_ERR_END_OF_FILE;
+
+  for (;;) {
+    vec_hit_t hit;
+    if (!vec_knn_next(m_vec_search, &hit)) {
+      /* Either the graph is exhausted or a lazy node load failed; only
+      the second is an error, and it is reported separately because
+      vec_knn_next answers just "is there another candidate". */
+      const dberr_t serr = vec_knn_error(m_vec_search);
+      if (serr != DB_SUCCESS) {
+        return convert_error_code_to_mysql(serr, table->flags, m_user_thd);
+      }
+      return HA_ERR_END_OF_FILE;
+    }
+
+    byte pk_image[8];
+    mach_write_to_8(pk_image, hit.base_pk);
+
+    dict_index_t *clust_index = table->first_index();
+    m_prebuilt->index = clust_index;
+    dtuple_t *tuple = m_prebuilt->search_tuple;
+    innobase_vec_build_pk_tuple(tuple, clust_index, pk_image);
+
+    auto ret = innobase_srv_conc_enter_innodb(m_prebuilt);
+    if (ret == DB_SUCCESS) {
+      ret = row_search_for_mysql(buf, PAGE_CUR_GE, m_prebuilt, ROW_SEL_EXACT,
+                                 0);
+      innobase_srv_conc_exit_innodb(m_prebuilt);
+    }
+
+    if (ret == DB_SUCCESS) {
+      /* MVCC check (1). The row exists and is visible, but the version
+      this reader sees need not be the one the graph node describes: an
+      UPDATE of the vector stamps a fresh label and leaves the old node
+      behind, so the node is stale for anyone whose view has the new
+      version. row_search_for_mysql has just read the label out of the
+      visible record; the node id is what the graph returned for it.
+      Equal means the node still describes this version. */
+      if (m_prebuilt->vec_aux_id != hit.id) {
+        continue;
+      }
+      return 0;
+    }
+
+    /* MVCC check (2). Not found, or not visible under this reader's read
+    view: an uncommitted point from another transaction, a row deleted
+    after the graph saw it, or an orphan from a rolled-back insert. Skip
+    to the next candidate — returning EOF here would truncate results
+    under concurrency. */
+    if (ret == DB_RECORD_NOT_FOUND || ret == DB_END_OF_INDEX) {
+      continue;
+    }
+
+    return convert_error_code_to_mysql(ret, table->flags, m_user_thd);
+  }
+}
+
 /*************************************************************************
  */
 
@@ -12253,6 +12488,7 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   uint32_t c_c = 0;
   uint32_t t_c = 0;
   uint32_t c_r_v = 0;
+  bool has_vec_aux_col_in_dd = false;
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -12286,6 +12522,22 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
         m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
         "Invalid table name. `%s` has the form of an FTS auxiliary table name",
         m_table_name);
+    return HA_ERR_WRONG_TABLE_NAME;
+  }
+
+  /* Same reservation for vector auxiliary table names. Internal vec aux
+  creation bypasses ha_innobase::create entirely (goes through
+  vec_aux_create_one_table → row_create_table_for_mysql), so this gate
+  only ever fires on user-supplied names.
+
+  Like the FTS gate above, this matches the full computed shape rather
+  than the prefix: "percona_vec_hnsw_<tid>_<iid>" is refused, plain
+  "percona_vec_data" is not. */
+  if (vec_aux_is_aux_table_name(m_table_name)) {
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
+                        "Invalid table name. `%s` has the form of a vector "
+                        "auxiliary table name",
+                        m_table_name);
     return HA_ERR_WRONG_TABLE_NAME;
   }
 
@@ -12330,6 +12582,13 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   /* Adjust the number of columns for the FTS hidden field */
   actual_n_cols = n_cols;
   if (m_flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID) && !has_doc_id_col) {
+    actual_n_cols += 1;
+  }
+  /* +1 reservation for percona_vec_aux_id when the dd::Table carries it. */
+  has_vec_aux_col_in_dd =
+      dd_table != nullptr &&
+      dd_find_column(&dd_table->table(), VEC_AUX_ID_COL_NAME) != nullptr;
+  if (has_vec_aux_col_in_dd) {
     actual_n_cols += 1;
   }
 
@@ -12617,6 +12876,15 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   /* Add the FTS doc_id hidden column. */
   if (m_flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID) && !has_doc_id_col) {
     fts_add_doc_id_column(table, heap);
+  }
+
+  /* Materialize the hidden percona_vec_aux_id column on dict_table_t, in
+  the same simple shape as fts_add_doc_id_column above: no phy_pos
+  plumbing. That holds because the table cannot reach row_versions > 0
+  — INSTANT ADD/DROP COLUMN is refused for tables owning this column,
+  in check_if_supported_inplace_alter. */
+  if (has_vec_aux_col_in_dd) {
+    vec_add_aux_id_column(table, heap);
   }
 
   if (!keyring_encryption_option_none) {
@@ -14321,6 +14589,14 @@ void create_table_info_t::detach() {
     fts_detach_aux_tables(m_table, true);
   }
 
+  /* Mirror the FTS detach above for vector aux tables — they are
+  created pinned (can_be_evicted=false) by row_create_table_for_mysql
+  and would otherwise stay in dict_sys forever on repeated
+  CREATE-with-vector / DROP cycles. See PS-11299. */
+  if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    vec_aux_detach_tables(m_table, true);
+  }
+
   dict_sys_mutex_exit();
 }
 
@@ -14796,6 +15072,16 @@ int create_table_info_t::create_table(const dd::Table *dd_table,
     }
   }
 
+  /* Create one auxiliary table per vector index. Must run after the index
+  creation loop so DICT_VECTOR is set on every vector
+  index attached to m_table. See PS-11299. */
+  if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    dberr_t verr = vec_aux_create_all_tables(m_trx, m_table);
+    if (verr != DB_SUCCESS) {
+      return convert_error_code_to_mysql(verr, m_flags, nullptr);
+    }
+  }
+
   initialize_autoinc();
 
   /* Cache all the FTS indexes on this table in the FTS specific
@@ -15004,6 +15290,13 @@ int create_table_info_t::create_table_update_global_dd(Table *dd_table) {
     ut_d(bool ret =) fts_create_common_dd_tables(m_table);
     ut_ad(ret);
     fts_create_index_dd_tables(m_table);
+  }
+
+  /* Register the per-vector-index aux tables in the DD too, mirroring
+  fts_create_index_dd_tables above — same flag-style gate. */
+  if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL) &&
+      !vec_aux_create_dd_tables(m_table)) {
+    return HA_ERR_GENERIC;
   }
 
   ut_ad(dd_table_match(m_table, dd_table));
@@ -15712,6 +16005,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   THD *thd = ha_thd();
   dd::Index *primary = nullptr;
   bool has_fulltext = false;
+  bool has_vector = false;
   const dd::Index *fts_doc_id_index = nullptr;
 
   for (dd::Index *i : *dd_table->indexes()) {
@@ -15728,6 +16022,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     }
 
     if (is_vector_index(*i)) {
+      has_vector = true;
       continue;
     }
 
@@ -15842,6 +16137,80 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     if (fts_doc_id_index == nullptr) {
       dd_set_hidden_unique_index(dd_table->add_index(), FTS_DOC_ID_INDEX_NAME,
                                  fts_doc_id);
+    }
+  }
+
+  /* The column name is reserved on EVERY table, whether or not it has a
+  vector index today. The reservation cannot be deferred the way an aux
+  TABLE name can: an aux table name is computed from ids, so a collision
+  is detectable exactly at the moment we mint one, but the hidden column
+  has a fixed name. Allowing a user column called percona_vec_aux_id on a
+  table without a vector index only moves the failure to the ALTER that
+  later adds one, where it surfaces as a confusing mid-DDL error on a
+  table the user never associated with vectors.
+
+  DEVIATION FROM FTS: FTS adopts a conforming user-declared FTS_DOC_ID,
+  validating its type and nullability and reusing it. We reject instead.
+  The column carries no user-visible value — it is pure bookkeeping —
+  and the adopt path is the origin of a whole class of
+  doc-id-mismanagement bugs we would rather not inherit. */
+  {
+    const dd::Column *user_col = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
+    if (user_col != nullptr && !user_col->is_se_hidden()) {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), VEC_AUX_ID_COL_NAME);
+      push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_COLUMN_NAME,
+                   " InnoDB: Column name " VEC_AUX_ID_COL_NAME
+                   " is reserved for vector index bookkeeping.");
+      return ER_WRONG_COLUMN_NAME;
+    }
+  }
+
+  if (has_vector) {
+    /* Auto-add hidden percona_vec_aux_id BIGINT UNSIGNED NOT NULL when the
+    table owns any vector index.
+
+    Ownership of the column follows FTS_DOC_ID: once InnoDB has added it,
+    it is ours and it is sticky. DROP INDEX removes the vector index and
+    its aux table but leaves the column in place, and a later ADD VECTOR
+    INDEX reuses the existing HT_HIDDEN_SE column rather than adding a
+    second one — that is the `existing != nullptr` branch below, which
+    must never recreate and never error. Retention across rebuild-ALTERs
+    is done at InnoDB commit time by the carry-forward block in
+    dd_commit_inplace_alter_table (handler0alter.cc), which keeps
+    DICT_TF2_HAS_VEC_AUX_COL truthful.
+
+    DEVIATION FROM FTS, in two places and two only:
+
+    (1) FTS anchors FTS_DOC_ID with a companion hidden UNIQUE B-tree
+    (FTS_DOC_ID_INDEX) added by dd_set_hidden_unique_index right after
+    the column. We add no anchor: the base<->aux link is
+    base.percona_vec_aux_id -> aux.id through each table's own primary
+    key, so two point lookups and no intermediate B-tree. The
+    carry-forward above is what replaces the anchor's role in surviving
+    ALTER.
+
+    (2) FTS ADOPTS a conforming user-declared FTS_DOC_ID, validating its
+    type and nullability and reusing it. We reject a user-declared
+    column of this name outright, on every table, vector index or not
+    (see the reservation gate above). The column carries no user-visible
+    value — it is pure bookkeeping — and the adopt path is the origin of
+    a class of doc-id-mismanagement bugs not worth inheriting. Rejecting
+    on tables that have no vector index costs a name nobody wants and
+    removes the case where a pre-existing user column would collide with
+    the hidden one at ALTER ... ADD KEY ... TYPE hnsw time. */
+    const dd::Column *existing = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
+    if (existing != nullptr) {
+      /* Present and SE-hidden (the gate above rejected any other kind) —
+      carried forward from an earlier CREATE or ALTER. Reuse it: never
+      recreate, never error. */
+    } else {
+      dd::Column *col = dd_table->add_column();
+      col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
+      col->set_name(VEC_AUX_ID_COL_NAME);
+      col->set_type(dd::enum_column_types::LONGLONG);
+      col->set_nullable(false);
+      col->set_unsigned(true);
+      col->set_collation_id(1);
     }
   }
 
@@ -16089,6 +16458,22 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
                     MYF(0), discard ? "discard" : "import",
                     dict_table->name.m_name);
 
+    return HA_ERR_NOT_ALLOWED_COMMAND;
+  }
+
+  /* DEVIATION FROM FTS: FTS supports DISCARD/IMPORT — fts_drop_orphaned
+  _tables + the FTS aux rebuild inside innobase_import_tablespace roll
+  the aux .ibd files with the parent. Vec has no serialize/restore
+  path for HNSW graph state across .ibd swap yet, so we hard-block
+  DISCARD/IMPORT on any vec-flagged table. Phase 2 (PS-11300) will
+  lift the block once HNSW aux can round-trip through IMPORT. */
+  if (DICT_TF2_FLAG_IS_SET(dict_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    my_printf_error(ER_NOT_ALLOWED_COMMAND,
+                    "InnoDB: Cannot %s table `%s` because it has a vector"
+                    " index. DISCARD/IMPORT TABLESPACE is not yet supported"
+                    " for tables with vector indexes.",
+                    MYF(0), discard ? "discard" : "import",
+                    dict_table->name.m_name);
     return HA_ERR_NOT_ALLOWED_COMMAND;
   }
 
@@ -17666,6 +18051,20 @@ ha_rows ha_innobase::records_in_range(
     goto func_exit;
   }
 
+  /* DEVIATION FROM FTS: no FTS guard exists here because the SQL layer
+  never issues range scans on FULLTEXT keys, so FTS indexes are
+  unreachable by construction. Vector keys ARE currently considered by
+  the optimizer (it lacks an HA_VECTOR exclusion in its cost paths —
+  known phase-1 issue, see the SELECT COUNT(*) FORCE INDEX workarounds
+  in percona.vector_audit_gaps). Without this guard a range estimate
+  would walk the vec index's nonexistent B-tree (page == FIL_NULL).
+  Return "no estimate" instead. PS-11300 tracks teaching the optimizer
+  to skip vector indexes for regular scans. */
+  if (index->is_vector()) {
+    n_rows = HA_POS_ERROR;
+    goto func_exit;
+  }
+
   heap = mem_heap_create(
       2 * (key->actual_key_parts * sizeof(dfield_t) + sizeof(dtuple_t)),
       UT_LOCATION_HERE);
@@ -18703,7 +19102,7 @@ static bool innobase_get_index_column_cardinality(
     }
   }
 
-  if (ib_table->is_fts_aux()) {
+  if (ib_table->is_aux()) {
     /* Server should not ask for Stats for Internal Tables */
     dd_table_close(ib_table, thd, &mdl, false);
     ut_d(ut_error);
@@ -19269,8 +19668,8 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     if (index == m_prebuilt->table->first_index()) {
       n_rows_in_table = n_rows;
-    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table) &&
-               (!index->is_multi_value()) &&
+    } else if (!(index->type & DICT_FTS) && !index->is_vector() &&
+               (n_rows != n_rows_in_table) && (!index->is_multi_value()) &&
                (!dict_index_is_spatial(index) || (n_rows < n_rows_in_table) ||
                 (n_dups < n_rows - n_rows_in_table))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
@@ -19406,6 +19805,14 @@ exists for readability only. ha_innobase::reset() doesn't give any
 clue about the method. */
 
 int ha_innobase::end_stmt() {
+  /* An open vector scan cannot outlive the statement. index_end() is the
+  ordinary end, reached through the iterator's destructor, but that runs
+  ha_index_or_rnd_end() — a no-op once ha_reset() has cleared `inited`,
+  which happens first. The scan pins the aux table, so leaking it here
+  makes the next DROP of that table fail its reference-count assertion. */
+  vec_knn_close(m_vec_search);
+  m_vec_search = nullptr;
+
   if (m_prebuilt->blob_heap) {
     row_mysql_prebuilt_free_blob_heap(m_prebuilt);
   }
@@ -23345,6 +23752,14 @@ static MYSQL_SYSVAR_BOOL(
     nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_ULONGLONG(
+    hnsw_max_memory, srv_hnsw_max_memory, PLUGIN_VAR_RQCMDARG,
+    "Upper bound, in bytes, on memory held by HNSW vector index graphs"
+    " across all tables and indexes. An INSERT or UPDATE that would build"
+    " a graph node while the bound is already reached is refused with"
+    " ER_OUT_OF_RESOURCES. 0 means no limit.",
+    nullptr, nullptr, 1ULL << 30, 0, ~0ULL, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(
     stats_transient_sample_pages, srv_stats_transient_sample_pages,
     PLUGIN_VAR_RQCMDARG,
     "The number of leaf index pages to sample when calculating transient"
@@ -24606,6 +25021,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(fill_factor),
     MYSQL_SYSVAR(ft_cache_size),
     MYSQL_SYSVAR(ft_total_cache_size),
+    MYSQL_SYSVAR(hnsw_ef_search),
     MYSQL_SYSVAR(ft_result_cache_limit),
     MYSQL_SYSVAR(ft_enable_stopword),
     MYSQL_SYSVAR(ft_max_token_size),
@@ -24667,6 +25083,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(ft_user_stopword_table),
     MYSQL_SYSVAR(disable_sort_file_cache),
     MYSQL_SYSVAR(stats_on_metadata),
+    MYSQL_SYSVAR(hnsw_max_memory),
     MYSQL_SYSVAR(stats_transient_sample_pages),
     MYSQL_SYSVAR(stats_persistent),
     MYSQL_SYSVAR(stats_persistent_sample_pages),

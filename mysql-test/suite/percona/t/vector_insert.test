@@ -1,0 +1,81 @@
+--echo #
+--echo # PS-11299 phase 1: INSERT into a vec-indexed table must succeed.
+--echo #
+--echo # Before this commit, INSERT crashed:
+--echo #   - rec_get_converted_size_comp_prefix_low at rem0rec.cc:406
+--echo #     (percona_vec_aux_id NOT NULL field had SQL_NULL value —
+--echo #      the column was never stamped)
+--echo #   - btr_cur_search_to_nth_level at dict0dict.cc:3664
+--echo #     (row_ins tried to insert into vector index B-tree which
+--echo #      has page=FIL_NULL by design)
+--echo #
+--echo # The fix:
+--echo #   1. Auto-stamp percona_vec_aux_id from a per-table atomic counter in
+--echo #      row_mysql_convert_row_to_innobase (mirrors fts_create_doc_id).
+--echo #   2. Skip vector indexes in row_ins entry loop (mirrors the
+--echo #      DICT_FTS skip there).
+--echo #
+--echo # Phase-1 boundary: the aux table stays EMPTY — HNSW row
+--echo # creation (vec/level/neighbors) is PS-11300. The counter does
+--echo # not yet persist across restart (TODO PS-11300); duplicates
+--echo # after restart are benign because the aux has no rows.
+--echo #
+--echo # KNOWN ISSUES (not addressed in this commit, tracked separately):
+--echo #   - SELECT COUNT(*) without FORCE INDEX picks the vector
+--echo #     index and returns 0 (planner thinks vec index has no rows
+--echo #     and is the cheapest cover). Use FORCE INDEX (PRIMARY).
+--echo #   - SELECT after ALGORITHM=INSTANT ADD COLUMN on a populated
+--echo #     vec-indexed table asserts at row0sel.ic:199
+--echo #     (mysql_col_len == len). Avoid INSTANT in tests below.
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  k INT,
+  v VECTOR(8) NOT NULL,
+  KEY (v) TYPE hnsw WITH (M = 6)
+);
+
+--echo # === Multiple INSERTs round-trip ===
+INSERT INTO t1 VALUES
+  (1, 10, STRING_TO_VECTOR('[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]')),
+  (2, 20, STRING_TO_VECTOR('[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]')),
+  (3, 30, STRING_TO_VECTOR('[3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]')),
+  (4, 40, STRING_TO_VECTOR('[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]'));
+
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+SELECT COUNT(*) AS row_count FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # === ALTER ADD COLUMN COPY (rebuild) preserves data ===
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=COPY;
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text, c2 FROM t1 ORDER BY id;
+SELECT COUNT(*) AS row_count_after_copy FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # === OPTIMIZE TABLE preserves data ===
+OPTIMIZE TABLE t1;
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+SELECT COUNT(*) AS row_count_after_optimize FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # === INSERT after OPTIMIZE works ===
+INSERT INTO t1 (id, k, v) VALUES
+  (5, 50, STRING_TO_VECTOR('[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]'));
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+SELECT COUNT(*) AS row_count_after_more FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # === RESTART preserves data; subsequent INSERT works ===
+--echo # Note: counter resets on restart — phase-1 behaviour. Duplicates
+--echo # in percona_vec_aux_id are harmless because the aux is empty.
+--source include/restart_mysqld.inc
+
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+INSERT INTO t1 (id, k, v) VALUES
+  (6, 60, STRING_TO_VECTOR('[6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]'));
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+SELECT COUNT(*) AS row_count_after_restart FROM t1 FORCE INDEX (PRIMARY);
+
+DROP TABLE t1;
+
+--echo # === Aux .ibd cleaned up on DROP ===
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

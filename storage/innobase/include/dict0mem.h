@@ -264,7 +264,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /** @{ */
 /** Total number of bits in table->flags2. */
-constexpr uint32_t DICT_TF2_BITS = 11;
+constexpr uint32_t DICT_TF2_BITS = 12;
 constexpr uint32_t DICT_TF2_UNUSED_BIT_MASK = ~0U << DICT_TF2_BITS;
 constexpr uint32_t DICT_TF2_BIT_MASK = ~DICT_TF2_UNUSED_BIT_MASK;
 
@@ -288,6 +288,19 @@ constexpr uint32_t DICT_TF2_USE_FILE_PER_TABLE = 16;
 /** Set when we discard/detach the tablespace */
 constexpr uint32_t DICT_TF2_DISCARDED = 32;
 
+/** The table has an auto-added hidden percona_vec_aux_id column (BIGINT UNSIGNED
+NOT NULL) because at least one vector (HNSW) index lives on it. The
+column persists across ALTER drop-of-last-vector-index; mirrors
+DICT_TF2_FTS_HAS_DOC_ID semantically.
+
+DEVIATION FROM FTS: there are no DICT_TF2_VEC / DICT_TF2_ADD_VEC_AUX_COL
+parallels to DICT_TF2_FTS / DICT_TF2_FTS_ADD_DOC_ID. FTS needs the trio
+to coordinate its common-vs-index aux split and the user-declared-
+FTS_DOC_ID variant; vec has neither. This single sticky bit plus
+per-index is_vector() scans serve every gate (CREATE, DROP, ALTER,
+INSTANT block, BULK block, stamp). */
+constexpr uint32_t DICT_TF2_HAS_VEC_AUX_COL = 64;
+
 /** Intrinsic table bit
 Intrinsic table is table created internally by MySQL modules viz. Optimizer,
 FTS, etc.... Intrinsic table has all the properties of the normal table except
@@ -302,6 +315,11 @@ constexpr uint32_t DICT_TF2_AUX = 512;
 
 /** Table is opened by resurrected trx during crash recovery. */
 constexpr uint32_t DICT_TF2_RESURRECT_PREPARED = 1024;
+
+/** Vector auxiliary hidden table bit. Parallels DICT_TF2_AUX (FTS),
+but vector aux tables must remain distinguishable so handlers that
+truly need "FTS only" semantics aren't fooled by a vec aux's flag. */
+constexpr uint32_t DICT_TF2_VEC_AUX = 2048;
 /** @} */
 
 /** Tables could be chained together with Foreign key constraint. When
@@ -1078,6 +1096,8 @@ constexpr uint32_t MAX_KEY_LENGTH_BITS = 12;
 
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or false in dict_mem_index_create(). */
+struct Vec_runtime;
+
 struct dict_index_t {
   /** id of the index */
   space_index_t id;
@@ -1246,6 +1266,17 @@ struct dict_index_t {
 
   /** tracking all R-Tree search cursors */
   rtr_info_track_t *rtr_track;
+
+  /** In-memory state for an open vector index: the HNSW graph, its arena,
+  the persistor, and the parameters read back from the DD. nullptr until
+  something first opens the index, and nullptr for every non-vector index.
+
+  Raw pointer on purpose. This struct is never constructed or destructed —
+  the memory is zeroed and dict_mem_fill_index_struct() stands in for a
+  constructor — so the zeroing gives us a null start for free, and
+  dict_mem_index_free() releases it by hand, as it already does for
+  fields_array. */
+  Vec_runtime *vec;
 
   /** id of the transaction that created this index, or 0 if the index existed
   when InnoDB was started up */
@@ -2410,6 +2441,59 @@ detect this and will eventually quit sooner. */
   be no conflict to access it, so no protection is needed. */
   ulint autoinc_field_no;
 
+  /* DEVIATION FROM FTS (applies to vec_aux_autoinc_next_id and vec_aux_col
+  below): FTS hangs per-table runtime state off `dict_table_t::fts`,
+  a pointer to fts_t (fts0fts.h:364). fts_t carries 8 fields:
+
+      bg_threads_mutex, bg_threads, fts_status, add_wq   — async "Add"
+        thread infrastructure
+      cache (fts_cache_t*)                               — token cache
+                                                           batched to
+                                                           aux tables
+      doc_col                                            — hidden col
+                                                           ordinal
+      indexes (ib_vector_t*)                             — cached list
+                                                           of FTS indexes
+      fts_heap                                           — heap for
+                                                           fts_t itself
+
+  Of those 8, vec (phase 1) needs exactly ONE — the col-ordinal — plus
+  one field FTS doesn't have (a persistence counter for the auto-
+  assigned id). Concretely:
+
+    - No background thread → no bg_threads_mutex/bg_threads/fts_status/
+      add_wq.
+    - No cache: HNSW graph state is a phase-2 concern (PS-11300).
+      Aux tables are empty in phase 1.
+    - PS-11264 caps at one vector index per table → an ib_vector_t of
+      indexes would hold at most one element; iterating table->indexes
+      with is_vector() filter is cheaper.
+    - No fts_heap: inline scalar fields need no separate allocation.
+
+  So a companion `vec_t *vec` sub-struct would allocate a heap, add a
+  pointer chase to every INSERT-time stamp, and carry two scalars.
+  YAGNI. Phase 2 is the natural point to introduce vec_t — when we
+  actually add HNSW graph state, background maintenance, or lift the
+  one-vec-index-per-table cap. Until then, direct fields are the
+  honest representation. */
+
+  /** Counter for the hidden percona_vec_aux_id column (auto-assigned on
+  INSERT). Valid IDs start at 1. Set by vec_assign_next_aux_id via fetch_add.
+  Phase 1 (PS-11299): not persisted across restart — duplicates are
+  benign because the aux table is empty. PS-11300 will switch to the
+  autoinc-style dynamic-metadata persistence path. */
+  std::atomic<uint64_t> vec_aux_autoinc_next_id;
+
+  /** Watermark of vec_aux_autoinc_next_id already redo-logged for
+  dynamic-metadata persistence — the autoinc_persisted analog, but
+  lock-free: advanced only by CAS-max in dict_table_vec_next_id_log, so
+  it never regresses. Assignments at or below it need no new redo. */
+  std::atomic<uint64_t> vec_aux_autoinc_persisted;
+
+  /** Ordinal position of percona_vec_aux_id in cols[]. ULINT_UNDEFINED when the
+  table has no hidden percona_vec_aux_id column. Set by vec_add_aux_id_column. */
+  ulint vec_aux_col;
+
   /** The transaction that currently holds the the AUTOINC lock on this table.
   Protected by lock_sys table shard latch. To "peek" the current value one
   can read it without any latch, understanding that in general it may change.
@@ -2731,10 +2815,25 @@ detect this and will eventually quit sooner. */
     return (flags2 & DICT_TF2_TEMPORARY);
   }
 
-  /** Determine if this is a FTS AUX table. */
+  /** Determine if this is an InnoDB-owned auxiliary table (FTS or
+  vector). Returns true if either DICT_TF2_AUX (FTS) or
+  DICT_TF2_VEC_AUX (vector) is set. Use the specific predicates
+  @ref is_fts_aux / @ref is_vec_aux when behavior must differ. */
+  bool is_aux() const {
+    ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+    return (flags2 & (DICT_TF2_AUX | DICT_TF2_VEC_AUX));
+  }
+
+  /** Determine if this is specifically an FTS auxiliary table. */
   bool is_fts_aux() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
     return (flags2 & DICT_TF2_AUX);
+  }
+
+  /** Determine if this is specifically a vector auxiliary table. */
+  bool is_vec_aux() const {
+    ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+    return (flags2 & DICT_TF2_VEC_AUX);
   }
 
   /** Determine whether the table is intrinsic.
@@ -2810,9 +2909,20 @@ enum persistent_type_t {
   PM_TABLESPACE_SIZE = 4,
   PM_TABLESPACE_MAX_TRX_ID = 5, */
 
+  /** Persistent metadata type for the hidden vec_idx_id counter of
+  vector-indexed tables (PS-11300). Deliberately far from the dense
+  upstream range: upstream owns this namespace and allocates small
+  values (3..5 are already earmarked above), so a distant byte can
+  never be misparsed as a future upstream type on a crossed-over
+  datadir — only rejected. Only tables carrying vector remnants (which
+  are upstream-incompatible anyway, via the hidden SE column) ever
+  write this entry, and any cleanup rebuild sheds it with the old
+  table_id. */
+  PM_TABLE_VEC_IDX_ID = 200,
+
   /** The biggest type, which should be 1 bigger than the last
   true type */
-  PM_BIGGEST_TYPE = 3
+  PM_BIGGEST_TYPE = 201
 };
 
 typedef std::vector<index_id_t, ut::allocator<index_id_t>> corrupted_ids_t;
@@ -2824,7 +2934,11 @@ class PersistentTableMetadata {
   @param[in]    id      table id
   @param[in]    version table dynamic metadata version */
   PersistentTableMetadata(table_id_t id, uint64_t version)
-      : m_id(id), m_version(version), m_corrupted_ids(), m_autoinc(0) {}
+      : m_id(id),
+        m_version(version),
+        m_corrupted_ids(),
+        m_autoinc(0),
+        m_vec_next_id(0) {}
 
   /** Get the corrupted indexes' IDs
   @return the vector of indexes' IDs */
@@ -2867,6 +2981,23 @@ class PersistentTableMetadata {
   @return the autoinc counter */
   uint64_t get_autoinc() const { return (m_autoinc); }
 
+  /** Set the hidden vec_idx_id counter of the table if it's bigger
+  (the exact analog of set_autoinc_if_bigger; PS-11300)
+  @param[in]    value   vec_idx_id counter */
+  void set_vec_next_id_if_bigger(uint64_t value) {
+    if (value > m_vec_next_id) {
+      m_vec_next_id = value;
+    }
+  }
+
+  /** Set the hidden vec_idx_id counter of the table
+  @param[in]    value   vec_idx_id counter */
+  void set_vec_next_id(uint64_t value) { m_vec_next_id = value; }
+
+  /** Get the hidden vec_idx_id counter of the table
+  @return the vec_idx_id counter */
+  uint64_t get_vec_next_id() const { return (m_vec_next_id); }
+
  private:
   /** Table ID which this metadata belongs to */
   table_id_t m_id;
@@ -2879,6 +3010,10 @@ class PersistentTableMetadata {
 
   /** Autoinc counter of the table */
   uint64_t m_autoinc;
+
+  /** Hidden vec_idx_id counter of vector-indexed tables (PS-11300);
+  0 when the table never consumed one */
+  uint64_t m_vec_next_id;
 
   /* TODO: We will add update_time, etc. here and APIs accordingly */
 };
@@ -3008,6 +3143,41 @@ class AutoIncPersister : public Persister {
                                   otherwise false
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
+  ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
+             bool *corrupt) const override;
+
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const override;
+};
+
+/** Persister for the hidden vec_idx_id counter of vector-indexed
+tables (PS-11300) — the structural twin of AutoIncPersister: the
+counter is a hidden per-table autoinc stamped into the vec_idx_id
+column, and it must survive restart AND crash so labels are never
+reissued (an id consumed by a NULL-vector row or a rolled-back insert
+exists nowhere the aux-table maximum can see). */
+class VecIdxIdPersister : public Persister {
+ public:
+  /** Write the vec_idx_id counter of a table.
+  @param[in]    metadata        persistent metadata
+  @param[out]   buffer          write buffer
+  @param[in]    size            size of write buffer
+  @return the length of bytes written */
+  ulint write(const PersistentTableMetadata &metadata, byte *buffer,
+              ulint size) const override;
+
+  /** @return 1 type byte + max 11 bytes of much-compressed u64 */
+  inline ulint get_write_size(const PersistentTableMetadata &metadata
+                              [[maybe_unused]]) const override {
+    return (12);
+  }
+
+  /** Read the vec_idx_id counter from buffer into metadata.
+  @param[out]   metadata        metadata where we store the read data
+  @param[in]    buffer          buffer to read
+  @param[in]    size            size of buffer
+  @param[out]   corrupt         true if buffer content is corrupted
+  @return bytes consumed, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const override;
 

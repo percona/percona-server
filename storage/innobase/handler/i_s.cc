@@ -6125,8 +6125,8 @@ static int i_s_innodb_indexes_fill_table(THD *thd, Table_ref *tables, Item *) {
     if (index_rec != nullptr) {
       dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
 
-      /* Close parent table if it's a fts aux table. */
-      if (index_rec->table->is_fts_aux() && parent) {
+      /* Close parent table if it's an aux table (FTS or vector). */
+      if (index_rec->table->is_aux() && parent) {
         dd_table_close(parent, thd, &mdl_on_parent, true);
       }
     }

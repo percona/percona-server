@@ -1,0 +1,58 @@
+--echo #
+--echo # PS-11299: vector aux tables must NOT be reported as FTS aux tables
+--echo # by the InnoDB dict_table_t::is_fts_aux() predicate. They share the
+--echo # generic is_aux() bucket but the two flags (DICT_TF2_AUX for FTS,
+--echo # DICT_TF2_VEC_AUX for vector) are distinct.
+--echo #
+--echo # Direct C-level access is not available from SQL; this test confirms
+--echo # the indirect behavior:
+--echo #   1. a vector aux table is hidden from INFORMATION_SCHEMA.TABLES
+--echo #      (relies on is_aux() returning true);
+--echo #   2. INFORMATION_SCHEMA.INNODB_TABLES does NOT classify the vec aux
+--echo #      with FTS-specific tags;
+--echo #   3. the table survives a server restart (DICT_TF2_VEC_AUX must be
+--echo #      reconstructed at DD-reload time from the on-disk name pattern).
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+CREATE TABLE tva (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  KEY (v) TYPE hnsw WITH (M = 6)
+);
+
+--echo # The aux .ibd exists on disk.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # INFORMATION_SCHEMA.TABLES must not surface the percona_vec_*_* aux to users.
+--echo # Same hiding rule the FTS aux gets — proves is_aux() covers vec.
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec\_%' ESCAPE '\\';
+
+--echo # INFORMATION_SCHEMA.INNODB_TABLES does surface aux tables (this is
+--echo # internal/debugging info_schema). Pull the row so we can assert the
+--echo # vec aux is present *as a row* and round-trips its identity after
+--echo # the restart below.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+/percona_vec_hnsw_<TID>_<IID>/
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
+ WHERE NAME LIKE 'test/percona_vec\_%' ESCAPE '\\';
+
+--echo # Restart server. On reload, dd_open_table_one detects the percona_vec_hnsw_<id>_<id>
+--echo # name pattern and re-sets DICT_TF2_VEC_AUX + parent_id. Without that
+--echo # reconstruction the aux would lose its "aux" identity entirely.
+--source include/restart_mysqld.inc
+
+--echo # Aux row must still appear in INNODB_TABLES with the same identity.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+/percona_vec_hnsw_<TID>_<IID>/
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
+ WHERE NAME LIKE 'test/percona_vec\_%' ESCAPE '\\';
+
+--echo # And still hidden from the user-facing view.
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec\_%' ESCAPE '\\';
+
+DROP TABLE tva;
+--echo # All aux .ibd gone.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

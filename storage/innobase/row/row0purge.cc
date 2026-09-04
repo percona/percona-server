@@ -672,7 +672,7 @@ static inline void row_purge_remove_multi_sec_if_poss(purge_node_t *node,
       break;
     }
 
-    if (node->index->type != DICT_FTS) {
+    if (node->index->type != DICT_FTS && !node->index->is_vector()) {
       if (node->index->is_multi_value()) {
         row_purge_remove_multi_sec_if_poss(node, heap, false);
       } else {
@@ -929,7 +929,7 @@ try_again:
       dict_sys_mutex_exit();
 
       if (node->table != nullptr) {
-        if (node->table->is_fts_aux()) {
+        if (node->table->is_aux()) {
           table_id_t parent_id = node->table->parent_id;
 
           dd_table_close(node->table, thd, &node->mdl, false);
@@ -974,7 +974,7 @@ try_again:
         node->table = nullptr;
 
       } else {
-        bool is_aux = node->table->is_fts_aux();
+        bool is_aux = node->table->is_aux();
 
         dd_table_close(node->table, thd, &node->mdl, false);
         if (is_aux && node->parent) {
@@ -1006,7 +1006,7 @@ try_again:
       dd_table_close(node->table, thd, &node->mdl, false);
       node->table = nullptr;
     } else {
-      bool is_aux = node->table->is_fts_aux();
+      bool is_aux = node->table->is_aux();
       dd_table_close(node->table, thd, &node->mdl, false);
       if (is_aux && node->parent) {
         dd_table_close(node->parent, thd, &node->parent_mdl, false);
@@ -1034,7 +1034,7 @@ try_again:
       }
       node->table = nullptr;
     } else {
-      bool is_aux = node->table->is_fts_aux();
+      bool is_aux = node->table->is_aux();
       dd_table_close(node->table, thd, &node->mdl, false);
       if (is_aux && node->parent) {
         dd_table_close(node->parent, thd, &node->parent_mdl, false);
@@ -1127,7 +1127,7 @@ try_again:
       dd_table_close(node->table, thd, &node->mdl, false);
       node->table = nullptr;
     } else {
-      bool is_aux = node->table->is_fts_aux();
+      bool is_aux = node->table->is_aux();
       dd_table_close(node->table, thd, &node->mdl, false);
       if (is_aux && node->parent) {
         dd_table_close(node->parent, thd, &node->parent_mdl, false);
@@ -1275,7 +1275,7 @@ bool purge_node_t::validate_pcur() {
     return (true);
   }
 
-  if (index->type == DICT_FTS) {
+  if (index->type == DICT_FTS || index->is_vector()) {
     return (true);
   }
 

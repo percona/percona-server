@@ -1,0 +1,82 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: concurrent INSERTs into one vector index.
+--echo #
+--echo # These now run concurrently: the HNSW class synchronises itself,
+--echo # so vec_t::graph_lock is taken shared and the inserts mutate the
+--echo # graph in parallel.
+--echo #
+--echo # The test asserts the RESULT, not the serialisation, which is why
+--echo # it kept its meaning when the latch came out. Every committed row
+--echo # must have exactly one node, every node must name a real row, and
+--echo # the label counter must have issued each label once.
+--echo #
+--echo # Twelve rows over four connections is already enough to deadlock:
+--echo # every insert rewires the nodes nearest the entry point, so the
+--echo # same few aux rows are contended no matter how small the graph is.
+--echo # The aborts are therefore tolerated and the surviving rows checked
+--echo # against the graph. vector_insert_contention drives the same
+--echo # invariant under heavy load.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+--connect (c1,localhost,root,,test)
+--connect (c2,localhost,root,,test)
+--connect (c3,localhost,root,,test)
+--connect (c4,localhost,root,,test)
+
+--connection c1
+--send INSERT INTO t1 VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(5,STRING_TO_VECTOR('[0.9,0.1,0,0]')),(9,STRING_TO_VECTOR('[0.8,0,0.2,0]'))
+--connection c2
+--send INSERT INTO t1 VALUES (2,STRING_TO_VECTOR('[0,1,0,0]')),(6,STRING_TO_VECTOR('[0.1,0.9,0,0]')),(10,STRING_TO_VECTOR('[0,0.8,0.2,0]'))
+--connection c3
+--send INSERT INTO t1 VALUES (3,STRING_TO_VECTOR('[0,0,1,0]')),(7,STRING_TO_VECTOR('[0,0.1,0.9,0]')),(11,STRING_TO_VECTOR('[0.2,0,0.8,0]'))
+--connection c4
+--send INSERT INTO t1 VALUES (4,STRING_TO_VECTOR('[0,0,0,1]')),(8,STRING_TO_VECTOR('[0,0,0.1,0.9]')),(12,STRING_TO_VECTOR('[0,0.2,0,0.8]'))
+
+--connection c1
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c2
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c3
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+--connection c4
+--error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
+--reap
+
+--connection default
+--echo # Invariants that must hold whatever order the four INSERTs
+--echo # interleaved in, and whichever of them aborted: one node per
+--echo # committed row, and no two nodes naming the same row.
+--echo #
+--echo # Neither the row count nor the per-node detail is recorded. How
+--echo # many rows survive depends on who aborted, and the id to base_pk
+--echo # mapping depends on the interleaving; recording either would make
+--echo # the test flake. labels_contiguous_from_1 is left out for the same
+--echo # reason — an aborted insert has already consumed its label.
+--let $rows = `SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY)`
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+--let $ok = `SELECT @@session.innodb_interpreter_output LIKE 'nodes=$rows distinct_ids=$rows distinct_base_pks=$rows dup_ids=0 dup_base_pks=0%'`
+
+if (!$ok) {
+  --let $got = `SELECT @@session.innodb_interpreter_output`
+  --echo Committed rows: $rows
+  --echo Graph:          $got
+  --die graph and table disagree after concurrent INSERT
+}
+
+--echo # Graph and table agree.
+
+--disconnect c1
+--disconnect c2
+--disconnect c3
+--disconnect c4
+--connection default
+DROP TABLE t1;

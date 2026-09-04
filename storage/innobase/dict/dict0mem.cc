@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
+#include "vec0index.h"
 #ifndef UNIV_HOTBACKUP
 #include "fts0priv.h"
 #include "mach0data.h"
@@ -776,6 +777,10 @@ void dict_mem_index_free(dict_index_t *index) /*!< in: index */
   ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
   index->destroy_fields_array();
+
+  /* Same reason destroy_fields_array() is here: dict_index_t has no
+  destructor, so anything it owns is released by hand. */
+  vec_index_runtime_free(index);
 
 #ifndef UNIV_HOTBACKUP
   dict_index_zip_pad_mutex_destroy(index);

@@ -1,0 +1,150 @@
+#
+# PS-11299: Vector index persistence — phase 1.
+# CREATE TABLE creates one aux .ibd per vector index and auto-adds the
+# hidden percona_vec_aux_id column. SHOW CREATE must not expose percona_vec_aux_id.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR(8) NOT NULL,
+KEY (v1) TYPE hnsw
+);
+# SHOW CREATE TABLE must NOT mention percona_vec_aux_id (HT_HIDDEN_SE).
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v1` (`v1`) TYPE `hnsw`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Aux tables are HT_HIDDEN_SE — invisible to user-facing catalog
+# views (SHOW TABLES, I_S.TABLES) but registered in DD and so
+# visible to InnoDB's internal I_S.INNODB_TABLES. Same as FTS aux.
+SHOW TABLES;
+Tables_in_test
+t1
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec_%';
+TABLE_NAME
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME LIKE 'test/percona_vec_%';
+NAME
+test/percona_vec_hnsw_<TID>_<IID>
+# Exactly one aux .ibd per vector index must exist on disk.
+# Names are vec_<hex_table_id>_<hex_index_id>.ibd — mask the ids so the
+# result file is stable across runs.
+percona_vec_hnsw_<TID>_<IID>.ibd
+# User cannot declare a column named percona_vec_aux_id when the table has a
+# vector index — the name is reserved.
+CREATE TABLE t2 (
+id BIGINT UNSIGNED PRIMARY KEY,
+percona_vec_aux_id BIGINT UNSIGNED,
+v1 VECTOR(8) NOT NULL,
+KEY (v1) TYPE hnsw
+);
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+# ... and it is rejected on a table with no vector index too - the
+# name is reserved unconditionally, so a table cannot be set up now
+# in a way that would break ALTER ... ADD KEY ... TYPE hnsw later.
+CREATE TABLE t3 (
+id BIGINT UNSIGNED PRIMARY KEY,
+percona_vec_aux_id BIGINT UNSIGNED
+);
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+#
+# RENAME TABLE — aux name is "<db>/vec_<table_id>_<index_id>" so a
+# same-schema rename is a no-op on disk. Cross-schema rename
+# moves each aux .ibd to the new schema directory and reparents
+# its dd::Table — full FTS parity via dd_rename_fts_table.
+#
+#
+# TRUNCATE TABLE — InnoDB implements truncate as drop+create, so the
+# aux table gets removed and recreated. New table_id/index_id means
+# the aux .ibd name changes, but the count stays at one per vector
+# index.
+#
+# Capture the aux name before truncate.
+vec_<BEFORE>.ibd
+TRUNCATE TABLE t1;
+# Still exactly one aux .ibd in test/ (likely with a different id).
+vec_<AFTER>.ibd
+#
+# OPTIMIZE TABLE — for InnoDB this maps to ALTER TABLE FORCE
+# (full rebuild). Aux table should be re-minted with the new
+# parent table_id; count stays at one per vector index. Same
+# shape as TRUNCATE.
+#
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+# Still exactly one aux .ibd in test/ post-OPTIMIZE.
+vec_<POST_OPTIMIZE>.ibd
+# Same-schema rename: aux file unchanged.
+RENAME TABLE t1 TO t1_renamed;
+percona_vec_hnsw_<TID>_<IID>.ibd
+# Cross-schema rename: aux follows the parent to the new schema dir.
+CREATE DATABASE vec_other;
+RENAME TABLE t1_renamed TO vec_other.t1;
+# No more percona_vec_*.ibd in test/.
+# ... they now live under vec_other/.
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE vec_other.t1;
+DROP DATABASE vec_other;
+#
+# ALTER TABLE — ADD INDEX creates a fresh aux .ibd; DROP INDEX
+# removes it. Use a base table created WITHOUT a vector index so we
+# exercise the ADD path on an existing table.
+#
+CREATE TABLE t_alter (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR(8) NOT NULL
+);
+# No percona_vec_*.ibd yet.
+CREATE INDEX v1 ON t_alter (v1) TYPE hnsw;
+# Aux .ibd now exists.
+percona_vec_hnsw_<TID>_<IID>.ibd
+ALTER TABLE t_alter DROP INDEX v1;
+# Aux .ibd gone after DROP INDEX.
+DROP TABLE t_alter;
+#
+# ALTER round-trip — drop the only vector index, then add another.
+# The hidden percona_vec_aux_id column is carried forward into the new
+# dd::Table by dd_commit_inplace_alter_table (mirroring FTS_DOC_ID);
+# if the SQL layer subsequently prunes it because no index points at
+# it, the next ALTER ADD INDEX recreates it transparently —
+# the round-trip succeeds either way.
+#
+CREATE TABLE t_rt (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR(8) NOT NULL,
+KEY (v1) TYPE hnsw
+);
+# percona_vec_aux_id reservation while a vector index exists.
+ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+ALTER TABLE t_rt DROP INDEX v1;
+# Aux .ibd gone after DROP INDEX.
+# Re-add a vector index. Must succeed with no duplicate-column error,
+# aux is recreated, percona_vec_aux_id is re-established by InnoDB.
+CREATE INDEX v2 ON t_rt (v1) TYPE hnsw;
+percona_vec_hnsw_<TID>_<IID>.ibd
+# And percona_vec_aux_id is again reserved (the new vector index is back).
+ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+DROP TABLE t_rt;
+#
+# DISCARD / IMPORT TABLESPACE on a table with a vector index is
+# rejected in phase 1 — per-aux tablespace import is not yet
+# designed. The block lives at the very entry of
+# ha_innobase::discard_or_import_tablespace.
+#
+CREATE TABLE t_disc (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR(8) NOT NULL,
+KEY (v1) TYPE hnsw
+);
+ALTER TABLE t_disc DISCARD TABLESPACE;
+ERROR 42000: InnoDB: Cannot discard table `test/t_disc` because it has a vector index. DISCARD/IMPORT TABLESPACE is not yet supported for tables with vector indexes.
+DROP TABLE t_disc;
+# After DROP TABLE the aux .ibd files must be gone too — no orphans.

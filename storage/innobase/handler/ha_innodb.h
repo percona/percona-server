@@ -41,6 +41,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0pread-adapter.h"
 #include "row0pread-histogram.h"
 #include "trx0trx.h"
+#include "vec0aux.h"
+
+/** One open streaming kNN scan; defined in vec0hnsw.cc. Held here by
+pointer only, so this header does not pull in the graph. */
+struct vec_search_t;
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
@@ -194,6 +199,22 @@ class ha_innobase : public handler {
 
   int ft_read(uchar *buf) override;
 
+  int vec_init() override;
+  int vec_read_first(Item *item, uchar *buf, ha_rows limit) override;
+  int vec_read_next(uchar *buf) override;
+
+ private:
+  /** JT_VECTOR read-path state: one open streaming scan of the graph.
+
+  The scan is the whole of it. It carries the traversal's visited set and
+  unexplored frontier, so continuing costs nothing extra and a candidate
+  can never repeat — there is no batch to buffer, no read position, and no
+  set of already-returned labels to exclude. Opened by vec_read_first and
+  released by index_end, which is where the iterator's destructor lands. */
+  vec_search_t *m_vec_search = nullptr;
+  std::string m_vec_query;
+
+ public:
   void position(const uchar *record) override;
 
   int info(uint) override;

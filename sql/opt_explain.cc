@@ -115,9 +115,10 @@ static bool mysql_explain_query_expression(THD *explain_thd,
                                            const THD *query_thd,
                                            Query_expression *unit);
 
-const char *join_type_str[] = {
-    "UNKNOWN", "system", "const",    "eq_ref",      "ref",        "ALL",
-    "range",   "index",  "fulltext", "ref_or_null", "index_merge"};
+const char *join_type_str[] = {"UNKNOWN",     "system",      "const",
+                               "eq_ref",      "ref",         "ALL",
+                               "range",       "index",       "fulltext",
+                               "ref_or_null", "index_merge", "vector_knn"};
 
 static const enum_query_type cond_print_flags =
     enum_query_type(QT_ORDINARY | QT_SHOW_SELECT_NUMBER);
@@ -1520,7 +1521,7 @@ bool Explain_join::explain_key_and_len() {
   if (tab->ref().key_parts)
     return explain_key_and_len_index(tab->ref().key, tab->ref().key_length,
                                      tab->ref().key_parts);
-  else if (type == JT_INDEX_SCAN || type == JT_FT)
+  else if (type == JT_INDEX_SCAN || type == JT_FT || type == JT_VECTOR)
     return explain_key_and_len_index(tab->index());
   else if (type == JT_RANGE || type == JT_INDEX_MERGE ||
            ((type == JT_REF || type == JT_REF_OR_NULL) && range_scan_path))

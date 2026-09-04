@@ -239,6 +239,54 @@ struct Tester {
   [[nodiscard]] Ret_t find_tablespace_file_name(
       std::vector<std::string> &tokens) noexcept;
 
+  /** Insert one row into a vector-index aux table via the parser-free
+  vec0dml layer (PS-11300 test surface).
+  Usage: vec_aux_insert_row db/table id level f1,f2,.. nb_spec
+  nb_spec is per-level neighbor labels: "1:2|3" = level0 {1,2},
+  level1 {3}; "-" = none. row_ref is written as the 8-byte image of id.
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  [[nodiscard]] Ret_t vec_aux_insert_row(
+      std::vector<std::string> &tokens) noexcept;
+
+  /** Update the neighbors BLOB of one aux row via vec0dml.
+  Usage: vec_aux_update_row db/table id nb_spec
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  [[nodiscard]] Ret_t vec_aux_update_row(
+      std::vector<std::string> &tokens) noexcept;
+
+  /** Dump all visible rows of a table's vector aux table, sorted by id.
+  Usage: vec_aux_dump db/table
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  [[nodiscard]] Ret_t vec_aux_dump(std::vector<std::string> &tokens) noexcept;
+
+  /** Order-independent consistency check on a vector aux table. Reports
+  only invariants that hold whatever order concurrent inserts ran in, so
+  it stays usable once concurrent graph mutation is allowed.
+  Usage: vec_aux_verify db/table */
+  [[nodiscard]] Ret_t vec_aux_verify(std::vector<std::string> &tokens) noexcept;
+
+  /** Run a k-NN search against the graph, loading it from the aux first.
+  Proves the graph was persisted, reloaded and answers correctly — the
+  only way to query it until the server read path exists.
+  Usage: vec_knn db/table k ef v0,v1,v2,... */
+  [[nodiscard]] Ret_t vec_knn(std::vector<std::string> &tokens) noexcept;
+
+  /** Assign the next vector label for a table and print it.
+  Usage: vec_next_id db/table
+  @param[in]  tokens  the command
+  @return the status */
+  [[nodiscard]] Ret_t vec_next_id(std::vector<std::string> &tokens) noexcept;
+
+  /** Print a vector index runtime's parameters.
+  Usage: vec_runtime_info db/table
+  @param[in]  tokens  the command
+  @return the status */
+  [[nodiscard]] Ret_t vec_runtime_info(
+      std::vector<std::string> &tokens) noexcept;
+
   /** A macro to declare a dispatch function or a command function.  They all
   have the same signature.
   @param[in]   func_  the function that is being declared. */

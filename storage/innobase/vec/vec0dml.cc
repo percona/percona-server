@@ -305,9 +305,13 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
     upd_field_t *uf = upd_get_nth_field(update, n_fields++);
     const dict_col_t *col = aux->get_col(VEC_AUX_COL_NEIGHBORS);
     upd_field_set_field_no(uf, dict_col_get_clust_pos(col, clust), clust);
+    /* Length 0 still needs a non-null data pointer, same as
+    vec_aux_set_field: dfield_set_data (and, downstream,
+    rec_set_nth_field_low's memcpy) must never see a null source. */
+    static const byte empty_neighbors = 0;
     void *copy = neighbors_len != 0
                      ? mem_heap_dup(heap, neighbors, neighbors_len)
-                     : nullptr;
+                     : const_cast<byte *>(&empty_neighbors);
     dfield_set_data(&uf->new_val, copy, neighbors_len);
     col->copy_type(dfield_get_type(&uf->new_val));
   }

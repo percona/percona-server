@@ -1,0 +1,49 @@
+#
+# PS-11300: repeat-empty update of a vector aux row's neighbors
+# field. vec_aux_update_row() (vec0dml.cc) builds the neighbors
+# update field via a non-null placeholder when the new neighbor
+# list is empty, mirroring vec_aux_set_field's insert-path guard.
+# Updating an already-empty neighbors field to empty again keeps
+# the on-disk field size unchanged (0 -> 0), so InnoDB takes the
+# in-place update path (row_upd_rec_in_place -> rec_set_nth_field
+# -> rec_set_nth_field_low); this must succeed cleanly.
+#
+# (Without the placeholder, that path fed a null data pointer
+# into rec_set_nth_field_low's memcpy -- undefined behaviour
+# regardless of length -- which a debug assertion in that
+# function now turns into an immediate crash if this regresses.)
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+# Insert a graph row with an empty neighbor list.
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 1 0 1.0,0.0,0.0,0.0 -';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: inserted id=1
+# Update the same row's neighbors to empty again: old and new
+# on-disk length are both 0 -> in-place update path. Must
+# succeed, not crash.
+SET SESSION innodb_interpreter = 'vec_aux_update_row test/t1 1 -';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: updated id=1
+# Row is unchanged: still present, still an empty neighbor list.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=1 max_id=1
+id=1 level=0 base_pk=1 nb=
+
+# Repeat once more -- repeated no-op updates must stay stable.
+SET SESSION innodb_interpreter = 'vec_aux_update_row test/t1 1 -';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: updated id=1
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=1 max_id=1
+id=1 level=0 base_pk=1 nb=
+
+DROP TABLE t1;

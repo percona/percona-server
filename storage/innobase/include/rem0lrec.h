@@ -264,6 +264,11 @@ static inline void rec_set_nth_field_low(rec_t *rec, const ulint *offsets,
     ut_ad(len2 == len);
   }
 
+  /* memcpy's source argument must never be null, even for a 0-length
+  copy: passing a null src is undefined behaviour regardless of len,
+  and callers that build an empty (non-SQL-null) field must supply a
+  non-null placeholder pointer instead. */
+  ut_ad(data != nullptr);
   ut_memcpy(data2, data, len);
 }
 

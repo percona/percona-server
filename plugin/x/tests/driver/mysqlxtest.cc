@@ -23,6 +23,7 @@
  */
 
 #include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <stdexcept>
 
@@ -202,6 +203,26 @@ static void daemonize() {
 #endif
 }
 
+#ifndef _WIN32
+extern char **environ;
+#endif
+
+static void import_env_into(std::map<std::string, std::string> *out_variables) {
+  char **env = IF_WIN(_environ, environ);
+
+  for (char **variable_name = env; *variable_name != nullptr; ++variable_name) {
+    std::string name = *variable_name;
+
+    std::size_t pos = name.find('=');
+    if (pos != std::string::npos) {
+      std::string key = name.substr(0, pos);
+      std::string value = name.substr(pos + 1);
+
+      out_variables->emplace("$" + key, value);
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   MY_INIT(argv[0]);
   DBUG_TRACE;
@@ -213,6 +234,10 @@ int main(int argc, char **argv) {
   if (options.exit_code != 0) return options.exit_code;
 
   if (options.m_daemon) daemonize();
+
+  if (options.m_import_env) {
+    import_env_into(&options.m_variables);
+  }
 
   std::cout << std::unitbuf;
   std::ifstream fs;

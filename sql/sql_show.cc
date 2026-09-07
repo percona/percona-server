@@ -2792,7 +2792,7 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     else if (key_info->flags & HA_SPATIAL)
       packet->append(STRING_WITH_LEN("SPATIAL KEY "));
     else if (key_info->flags & HA_VECTOR)
-      packet->append(STRING_WITH_LEN("KEY "));
+      packet->append(STRING_WITH_LEN("VECTOR KEY "));
     else
       packet->append(STRING_WITH_LEN("KEY "));
 
@@ -3254,6 +3254,34 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
         assert(!(key_info->flags & HA_SPATIAL));
         packet->append(STRING_WITH_LEN(" USING RTREE"));
       }
+    } else if ((key_info->flags & HA_VECTOR) != 0) {
+      assert(key_info->vector_index_type.length > 0);
+      packet->append(STRING_WITH_LEN(" USING "));
+      append_identifier(thd, packet, key_info->vector_index_type.str,
+                        key_info->vector_index_type.length);
+
+      if (!key_info->vector_index_params.empty()) {
+        packet->append(STRING_WITH_LEN(" ("));
+        auto append_param = [&](const auto &param) {
+          const auto &[k, v] = param;
+          append_identifier(thd, packet, k.str, k.length);
+          packet->append('=');
+          int err;
+          const char *endptr;
+          my_strtoll10(v.str, &endptr, &err);
+          if (err <= 0 && endptr == v.str + v.length)
+            packet->append(v.str, v.length);
+          else
+            append_identifier(thd, packet, v.str, v.length);
+        };
+        auto it = key_info->vector_index_params.begin();
+        append_param(*it);
+        for (++it; it != key_info->vector_index_params.end(); ++it) {
+          packet->append(", ");
+          append_param(*it);
+        }
+        packet->append(')');
+      }
     }
 
     if ((key_info->flags & HA_USES_BLOCK_SIZE) &&
@@ -3288,36 +3316,6 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
                        key_info->secondary_engine_attribute.length);
       packet->append(STRING_WITH_LEN(" */"));
     }
-  }
-
-  if ((key_info->flags & HA_VECTOR) != 0) {
-    assert(key_info->vector_index_type.length > 0);
-    packet->append(STRING_WITH_LEN(" TYPE "));
-    append_identifier(thd, packet, key_info->vector_index_type.str,
-                      key_info->vector_index_type.length);
-  }
-
-  if (!key_info->vector_index_params.empty()) {
-    packet->append(STRING_WITH_LEN(" WITH ("));
-    auto append_param = [&](const auto &param) {
-      const auto &[k, v] = param;
-      append_identifier(thd, packet, k.str, k.length);
-      packet->append('=');
-      int err;
-      const char *endptr;
-      my_strtoll10(v.str, &endptr, &err);
-      if (err <= 0 && endptr == v.str + v.length)
-        packet->append(v.str, v.length);
-      else
-        append_identifier(thd, packet, v.str, v.length);
-    };
-    auto it = key_info->vector_index_params.begin();
-    append_param(*it);
-    for (++it; it != key_info->vector_index_params.end(); ++it) {
-      packet->append(", ");
-      append_param(*it);
-    }
-    packet->append(')');
   }
 }
 

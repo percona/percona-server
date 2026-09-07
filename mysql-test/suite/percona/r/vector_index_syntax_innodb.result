@@ -1,7 +1,7 @@
 CREATE TABLE t1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
-KEY( v1 ) TYPE hnsw
+VECTOR KEY( v1 ) TYPE hnsw
 );
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -9,7 +9,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `v1` (`v1`) TYPE `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression

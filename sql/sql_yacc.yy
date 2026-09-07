@@ -1456,7 +1456,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> BERNOULLI_SYM              1213  /* SQL-2016-N */
 %token<lexer.keyword> TABLESAMPLE_SYM            1214  /* SQL-2016-R */
 
-%token<lexer.keyword> VECTOR_SYM      1215     /* MYSQL */
+%token                VECTOR_SYM      1215     /* MYSQL */
 %token<lexer.keyword> PARAMETERS_SYM  1216     /* MYSQL */
 %token<lexer.keyword> HEADER_SYM      1217     /* MYSQL */
 
@@ -2147,6 +2147,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <index_options> opt_index_options index_options  opt_fulltext_index_options
           fulltext_index_options opt_spatial_index_options spatial_index_options
+          opt_vector_index_options vector_index_options
 
 %type <vector_index_param> vector_index_param
 
@@ -2157,7 +2158,9 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %type <index_option> index_option common_index_option fulltext_index_option
           spatial_index_option
+          vector_index_option
           index_type_clause
+          vector_index_type_clause
           opt_index_type_clause
 
 %type <alter_table_algorithm> alter_algorithm_option_value
@@ -3619,6 +3622,15 @@ create_index_stmt:
                                              nullptr, $6, $8, $10,
                                              $11.algo.get_or_default(),
                                              $11.lock.get_or_default());
+          }
+        | CREATE VECTOR_SYM INDEX_SYM ident ON_SYM table_ident
+          '(' key_list_with_expression ')' vector_index_type_clause opt_vector_index_options
+          opt_index_lock_and_algorithm
+          {
+            $$= NEW_PTN PT_create_index_stmt(@$, YYMEM_ROOT, KEYTYPE_VECTOR, $4,
+                                             $10, $6, $8, $11,
+                                             $12.algo.get_or_default(),
+                                             $12.lock.get_or_default());
           }
         ;
 /*
@@ -7115,6 +7127,11 @@ table_constraint_def:
           {
             $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_SPATIAL, $3, nullptr, $5, $7);
           }
+        | VECTOR_SYM key_or_index opt_ident '(' key_list_with_expression ')' vector_index_type_clause
+          opt_vector_index_options
+          {
+            $$= NEW_PTN PT_inline_index_definition(@$, KEYTYPE_VECTOR, $3, $7, $5, $8);
+          }
         | opt_constraint_name constraint_key_type opt_index_name_and_type
           '(' key_list_with_expression ')' opt_index_options
           {
@@ -8136,6 +8153,30 @@ common_index_option:
           }
         ;
 
+opt_vector_index_options:
+          %empty { $$.init(YYMEM_ROOT); }
+        | vector_index_options
+        ;
+
+vector_index_options:
+          vector_index_option
+          {
+            $$.init(YYMEM_ROOT);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | vector_index_options vector_index_option
+          {
+            if ($1.push_back($2))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+vector_index_option:
+          common_index_option
+        ;
+
 /*
   The syntax for defining an index is:
 
@@ -8164,15 +8205,13 @@ opt_index_type_clause:
         | index_type_clause
         ;
 
-index_type_clause:
-          USING index_type    { $$= NEW_PTN PT_index_type(@$, $2); }
-        | USING IDENT_sys opt_vector_index_param_clause
+vector_index_type_clause:
+          USING IDENT_sys opt_vector_index_param_clause
           {
              // At the moment, we assume that all indexes other than BTREE,
              // RTREE and HASH are vector indexes.
              $$= NEW_PTN PT_vector_index_type(@$, to_lex_cstring($2), $3);
           }
-        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type(@$, $2); }
         | TYPE_SYM IDENT_sys opt_vector_index_param_clause
           {
              // For now we assume that all indexes other than BTREE, RTREE
@@ -8181,15 +8220,20 @@ index_type_clause:
           }
         ;
 
+index_type_clause:
+          USING index_type    { $$= NEW_PTN PT_index_type(@$, $2); }
+        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type(@$, $2); }
+        ;
+
 opt_vector_index_param_clause:
           %empty { $$.init(YYMEM_ROOT); }
         | vector_index_param_clause
         ;
 
 vector_index_param_clause:
-          WITH '(' vector_index_param_list ')'
+          '(' vector_index_param_list ')'
           {
-            $$= $3;
+            $$= $2;
           }
         ;
 
@@ -16593,7 +16637,6 @@ ident_keywords_unambiguous:
         | XML_SYM
         | YEAR_SYM
         | ZONE_SYM
-        | VECTOR_SYM
         ;
 
 /*

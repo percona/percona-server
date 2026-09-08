@@ -200,10 +200,20 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
   DD and parsed by the open-time overload added for exactly this. */
   storage::innobase::vec::VectorIndexParam vip;
   if (storage::innobase::vec::parse_options(*key, vip)) {
+    ib::error(ER_IB_MSG_456)
+        << "Failed to open vector runtime for index " << index->name
+        << " on table " << index->table->name << ": could not parse the"
+        << " index's WITH(...) options; vector search on it will not"
+        << " work until the table is reopened.";
     return nullptr;
   }
   const auto *hnsw_param = std::get_if<storage::innobase::vec::HnswParam>(&vip);
   if (hnsw_param == nullptr) {
+    ib::error(ER_IB_MSG_456)
+        << "Failed to open vector runtime for index " << index->name
+        << " on table " << index->table->name << ": WITH(...) options do"
+        << " not describe an HNSW index; vector search on it will not"
+        << " work until the table is reopened.";
     return nullptr;
   }
 
@@ -218,16 +228,35 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
   field. */
   ut_a(key->user_defined_key_parts == 1);
   const Field *f = form->field[key->key_part[0].field->field_index()];
-  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) return nullptr;
+  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
+    ib::error(ER_IB_MSG_456)
+        << "Failed to open vector runtime for index " << index->name
+        << " on table " << index->table->name << ": the indexed column is"
+        << " not a VECTOR column; vector search on it will not work"
+        << " until the table is reopened.";
+    return nullptr;
+  }
   const Field_vector *field = down_cast<const Field_vector *>(f);
 
   const uint32_t dims = field->get_max_dimensions();
   if (dims == 0 || dims == UINT32_MAX) {
+    ib::error(ER_IB_MSG_456)
+        << "Failed to open vector runtime for index " << index->name
+        << " on table " << index->table->name << ": invalid vector"
+        << " dimension " << dims << "; vector search on it will not work"
+        << " until the table is reopened.";
     return nullptr;
   }
 
   auto *vec = ut::new_withkey<vec_t>(UT_NEW_THIS_FILE_PSI_KEY);
-  if (vec == nullptr) return nullptr;
+  if (vec == nullptr) {
+    ib::error(ER_IB_MSG_456)
+        << "Failed to open vector runtime for index " << index->name
+        << " on table " << index->table->name << ": out of memory;"
+        << " vector search on it will not work until the table is"
+        << " reopened.";
+    return nullptr;
+  }
 
   vec->index_id = index->id;
   vec->table = index->table;

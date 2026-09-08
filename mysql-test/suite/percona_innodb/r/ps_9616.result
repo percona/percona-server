@@ -1,0 +1,233 @@
+# utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 2 steps
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar (10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+ALGORITHM=INPLACE;
+ALTER TABLE test_table COLLATE=utf8mb4_0900_ai_ci, ALGORITHM=INPLACE;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 1 step
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INPLACE;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# with indexed columns
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+INDEX(`field1`),
+INDEX(`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar (10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+ALTER TABLE test_table COLLATE=utf8mb4_0900_ai_ci, ALGORITHM=INPLACE;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  KEY `field1` (`field1`),
+  KEY `field2` (`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 1 step
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+INDEX(`field1`),
+INDEX(`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  KEY `field1` (`field1`),
+  KEY `field2` (`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+DROP TABLE test_table;
+# ADD INDEX + AUTO_INCREMENT= in 1 step
+CREATE TABLE test_table (a INT, b INT) ENGINE=InnoDB;
+ALTER TABLE test_table ADD INDEX idx_b(b), AUTO_INCREMENT=7, ALGORITHM=INPLACE;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  KEY `idx_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# DROP INDEX + COLLATE= in 1 step
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+INDEX(`field1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+DROP INDEX field1,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INPLACE;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+#
+# Same operations with ALGORITHM=INSTANT (pure metadata changes)
+#
+# utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 2 steps, INSTANT
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar (10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+ALGORITHM=INSTANT;
+ALTER TABLE test_table COLLATE=utf8mb4_0900_ai_ci, ALGORITHM=INSTANT;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 1 step, INSTANT
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INSTANT;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# indexed columns collation change with INSTANT must still be rejected
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+`field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+INDEX(`field1`),
+INDEX(`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Need to rebuild the table to change column type. Try ALGORITHM=COPY/INPLACE.
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  KEY `field1` (`field1`),
+  KEY `field2` (`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+DROP TABLE test_table;
+# ADD INDEX + AUTO_INCREMENT= with INSTANT must be rejected (index work required)
+CREATE TABLE test_table (a INT, b INT) ENGINE=InnoDB;
+ALTER TABLE test_table ADD INDEX idx_b(b), AUTO_INCREMENT=7, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# DROP INDEX + COLLATE= with INSTANT must be rejected (index work required)
+CREATE TABLE `test_table`
+(
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+INDEX(`field1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+ALTER TABLE test_table
+DROP INDEX field1,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  KEY `field1` (`field1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+DROP TABLE test_table;
+# standalone AUTO_INCREMENT= with INSTANT (non-rebuild CREATE OPTION)
+CREATE TABLE test_table (a INT AUTO_INCREMENT PRIMARY KEY, b INT) ENGINE=InnoDB;
+ALTER TABLE test_table AUTO_INCREMENT=100, ALGORITHM=INSTANT;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE test_table;
+# partitioned table: non-indexed column COLLATE change with INSTANT
+CREATE TABLE `test_table`
+(
+`id` int NOT NULL,
+`field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+PARTITION BY HASH(`id`) PARTITIONS 4;
+ALTER TABLE test_table
+MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+COLLATE=utf8mb4_0900_ai_ci,
+ALGORITHM=INSTANT;
+SHOW CREATE TABLE test_table;
+Table	Create Table
+test_table	CREATE TABLE `test_table` (
+  `id` int NOT NULL,
+  `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+DROP TABLE test_table;

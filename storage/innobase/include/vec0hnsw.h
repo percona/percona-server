@@ -70,6 +70,20 @@ struct Vec_ctx {
   report: each one short-circuits when it is already set, and the caller
   inspects it once insert() returns. */
   dberr_t err{DB_SUCCESS};
+  /** Whether a callback may commit trx and start it again.
+
+  True for DML, where trx is a background sub-transaction and committing
+  per callback is what stops concurrent inserts deadlocking on each
+  other's neighbour rows.
+
+  False for an index build, where trx is the ALTER's own transaction.
+  Committing there would commit the DDL itself a node at a time: it ends
+  the transaction the dictionary changes are being made in, clears
+  trx->dict_operation, drops the locks the ALTER holds, and marks a user
+  transaction internal so its GTID is no longer persisted. Nothing is
+  gained either, because an index under construction is invisible, so
+  there is no second writer to deadlock against. */
+  bool commit_steps{true};
 };
 
 /* The persistor's shims forward here. Ordinary functions, so their

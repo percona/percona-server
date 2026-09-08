@@ -77,8 +77,13 @@ commit. That is the orphan the design's "Rollback, and why orphans are
 acceptable" accepts and filters at read
 time — and it is the better direction to diverge in, because the in-memory
 rewire cannot be undone either. Rolling the whole insert back left memory
-holding a node the aux had discarded. */
+holding a node the aux had discarded.
+
+An index build opts out via ctx->commit_steps: there trx is the ALTER's own
+transaction, not a sub-transaction, and committing it per callback would
+commit the DDL a node at a time. */
 static void vec_ctx_step_commit(Vec_ctx *ctx) {
+  if (!ctx->commit_steps) return;
   trx_commit_for_mysql(ctx->trx);
   trx_start_internal(ctx->trx, UT_LOCATION_HERE);
 }
@@ -703,6 +708,10 @@ dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
   ctx.m = m;
   ctx.vec_bytes = dims * sizeof(float);
   ctx.err = DB_SUCCESS;
+  /* trx here is the ALTER's own transaction, so the callbacks must not
+  commit it. The whole build lands in one transaction and rolls back with
+  the ALTER. */
+  ctx.commit_steps = false;
 
   /* A private graph, discarded below. It is not installed on the index:
   a half-built graph must never be reachable, and if the ALTER fails

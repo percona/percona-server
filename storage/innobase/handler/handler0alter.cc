@@ -6705,7 +6705,10 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     write_row builds the graph row by row.
 
     The aux rows are written on the ALTER's own transaction, so a failure
-    below rolls them back with everything else. */
+    below rolls them back with everything else. vec_build_index clears
+    Vec_ctx::commit_steps to keep it that way: the persistor callbacks
+    commit per step for DML, which here would commit the DDL itself one
+    node at a time. */
     if (err == DB_SUCCESS) {
       for (ulint i = 0; i < ctx->num_to_add_index && err == DB_SUCCESS; i++) {
         dict_index_t *vec_index = ctx->add_index[i];

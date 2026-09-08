@@ -25,7 +25,7 @@ call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 call mtr.add_suppression("Client requested source to start replication from position > file size");
 include/rpl/wait_for_applier_error.inc [errno=1781]
-include/rpl/wait_for_receiver_error.inc [errno=13114]
+include/rpl/stop_replica.inc
 RESET BINARY LOGS AND GTIDS;
 RESET REPLICA;
 include/rpl/start_replica.inc

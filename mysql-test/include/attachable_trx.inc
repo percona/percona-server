@@ -3,7 +3,7 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-SET @debug_saved = @@global.debug;
+SET @debug_saved = @@debug;
 
 --let $DEFAULT_SE = `SELECT @@default_storage_engine`
 
@@ -45,9 +45,9 @@ SELECT * FROM t1;
 --echo
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 START TRANSACTION;
-SET @@global.debug = '+d,use_attachable_trx';
+SET @@debug = '+d,use_attachable_trx';
 SELECT * FROM t1;
-SET @@global.debug = '-d,use_attachable_trx';
+SET @@debug = '-d,use_attachable_trx';
 --disconnect con1
 
 --echo
@@ -92,9 +92,9 @@ SELECT * FROM t1;
 
 --echo
 --echo # SELECT in the inner transaction sees the changes.
-SET @@global.debug = '+d,use_attachable_trx';
+SET @@debug = '+d,use_attachable_trx';
 SELECT * FROM t1;
-SET @@global.debug = '-d,use_attachable_trx';
+SET @@debug = '-d,use_attachable_trx';
 
 --echo
 --echo # COMMIT the outer transaction.
@@ -129,9 +129,9 @@ SELECT * FROM t1;
 
 --echo
 --echo # Do anything in the inner transaction.
-SET @@global.debug = '+d,use_attachable_trx';
+SET @@debug = '+d,use_attachable_trx';
 SELECT * FROM t1;
-SET @@global.debug = '-d,use_attachable_trx';
+SET @@debug = '-d,use_attachable_trx';
 
 --echo
 --echo # Just make sure the changes are still there.
@@ -158,7 +158,7 @@ COMMIT;
 DROP TABLE t1;
 
 --echo
-SET @@global.debug = @debug_saved;
+SET @@debug = @debug_saved;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

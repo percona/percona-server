@@ -889,9 +889,15 @@ static void assert_nonvirtual_cascade_fields_are_populated(
           dict_table_get_nth_col_pos(foreign->referenced_table, parent_col_no);
       const auto parent_field_update =
           upd_get_field_by_field_no(parent->update, parent_field_pos, false);
-      if (!parent_field_update ||
-          dfield_datas_are_binary_equal(&parent_field_update->old_val,
-                                        &parent_field_update->new_val)) {
+      /* An upd_field_t is created only for columns whose value actually
+      changed, so the mere presence of one already means this parent field
+      was updated. Do not inspect old_val here: calc_row_difference() marks
+      the whole upd_field_t as invalid (UNIV_MEM_INVALID) and then fills in
+      only new_val, and old_val is populated much later, and only by
+      row_upd_index_replace_new_col_vals_index_pos(). Reading it at this
+      point yields an uninitialised value that decides whether the checks
+      below run at all. */
+      if (!parent_field_update) {
         continue;
       }
       ut_a(child_field_update);

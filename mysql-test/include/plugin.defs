@@ -245,3 +245,11 @@ component_masking_functions         plugin_output_directory  no  MASKING_FUNCTIO
 component_percona_udf               plugin_output_directory  no  PERCONA_UDF_COMPONENT
 component_js_lang                   plugin_output_directory  no  JS_LANG_COMPONENT
 auth_openid_connect                 plugin_output_directory  no  AUTH_OIDC             auth_openid_connect
+
+# Thread Pool Plugin
+thread_pool                      plugin_output_directory  no ONLY_THREADPOOL_PLUGIN   thread_pool
+thread_pool                      plugin_output_directory  no THREADPOOL_PLUGIN        thread_pool,TP_THREAD_STATE,TP_THREAD_GROUP_STATE,TP_THREAD_GROUP_STATS
+thread_pool                      plugin_output_directory  no TP_THREAD_GROUP_STATE_PLUGIN TP_THREAD_GROUP_STATE
+thread_pool                      plugin_output_directory  no TP_THREAD_STATE_PLUGIN       TP_THREAD_STATE
+thread_pool                      plugin_output_directory  no TP_THREAD_TWO_PLUGIN         TP_THREAD_GROUP_STATS,TP_THREAD_STATE
+

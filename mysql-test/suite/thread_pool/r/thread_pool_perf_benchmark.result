@@ -1,0 +1,33 @@
+DROP DATABASE IF EXISTS perf_bench;
+CREATE DATABASE perf_bench;
+USE perf_bench;
+CREATE TABLE t (
+id  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+val VARCHAR(64) NOT NULL DEFAULT 'x'
+) ENGINE = InnoDB;
+
+########################################################################
+# Phase 1: Thread Pool ENABLED
+########################################################################
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'THREAD_POOL';
+SELECT @@global.thread_pool_size AS tp_size;
+# Workload 1: SELECT 1  (connection-overhead only)
+# Workload 2: Indexed lookup
+# Workload 3: Auto-generated mixed read/write
+# Phase 1 results written to: MYSQLTEST_VARDIR/log/tp_perf_with_tp.log
+
+########################################################################
+# Phase 2: Thread Pool DISABLED
+########################################################################
+# restart
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'THREAD_POOL';
+# Workload 1: SELECT 1
+# Workload 2: Indexed lookup
+# Workload 3: Auto-generated mixed read/write
+# Phase 2 results written to: MYSQLTEST_VARDIR/log/tp_perf_no_tp.log
+
+########################################################################
+# Summary: compare MYSQLTEST_VARDIR/log/tp_perf_with_tp.log
+#          vs      MYSQLTEST_VARDIR/log/tp_perf_no_tp.log
+########################################################################
+DROP DATABASE IF EXISTS perf_bench;

@@ -1,0 +1,189 @@
+# Thread pool performance benchmark
+#
+# Measures mysqlslap query throughput at multiple concurrency levels (1 to 128)
+# first with the thread pool plugin active, then after restarting the server
+# without it.  Raw mysqlslap output is written to MYSQLTEST_VARDIR/log/ so
+# results can be compared offline.  The expected result file only contains the
+# section echo markers; all timing output is suppressed inside the test so that
+# fluctuating numbers do not cause false failures.
+#
+# Run with:
+#   ./mtr --suite=thread_pool thread_pool_perf_benchmark
+#
+# After the run, compare:
+#   $MYSQLTEST_VARDIR/log/tp_perf_with_tp.log
+#   $MYSQLTEST_VARDIR/log/tp_perf_no_tp.log
+#
+# PS-11352 regression tracking: 10x performance drop when TP is enabled.
+
+--source include/big_test.inc
+--source include/have_thread_pool.inc
+--source include/not_valgrind.inc
+
+# Number of mysqlslap iterations per concurrency level.
+let $iter = 5;
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Schema / data setup
+# ──────────────────────────────────────────────────────────────────────────────
+--disable_warnings
+DROP DATABASE IF EXISTS perf_bench;
+--enable_warnings
+CREATE DATABASE perf_bench;
+USE perf_bench;
+
+CREATE TABLE t (
+  id  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  val VARCHAR(64) NOT NULL DEFAULT 'x'
+) ENGINE = InnoDB;
+
+# 1 000 rows for the indexed-lookup workload.
+let $r = 1000;
+--disable_query_log
+while ($r)
+{
+  INSERT INTO t (val) VALUES ('bench_row');
+  dec $r;
+}
+--enable_query_log
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Macro-style helper: run mysqlslap for one concurrency level and append
+# to the current log file.  Caller must set $conc and $logfile before use.
+#
+#   $MYSQL_SLAP already contains connection credentials via --defaults-file.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 1 – WITH thread pool
+# ──────────────────────────────────────────────────────────────────────────────
+--echo
+--echo ########################################################################
+--echo # Phase 1: Thread Pool ENABLED
+--echo ########################################################################
+
+--disable_result_log
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'THREAD_POOL';
+SELECT @@global.thread_pool_size AS tp_size;
+--enable_result_log
+
+let $log1 = $MYSQLTEST_VARDIR/log/tp_perf_with_tp.log;
+
+--exec echo "=== Thread Pool ENABLED ===" > $log1
+--exec echo "" >> $log1
+
+--echo # Workload 1: SELECT 1  (connection-overhead only)
+--exec echo "--- SELECT 1 ---" >> $log1
+
+--disable_result_log
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=1   --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=4   --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=16  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=32  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=64  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=128 --iterations=$iter 2>&1 >> $log1
+--enable_result_log
+
+--echo # Workload 2: Indexed lookup
+--exec echo "" >> $log1
+--exec echo "--- Indexed lookup (SELECT id FROM t WHERE id=1) ---" >> $log1
+
+--disable_result_log
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=1   --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=4   --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=16  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=32  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=64  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=128 --iterations=$iter 2>&1 >> $log1
+--enable_result_log
+
+--echo # Workload 3: Auto-generated mixed read/write
+--exec echo "" >> $log1
+--exec echo "--- Auto-generated mixed read/write ---" >> $log1
+
+--disable_result_log
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=1   --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=4   --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=16  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=32  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=64  --iterations=$iter 2>&1 >> $log1
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=128 --iterations=$iter 2>&1 >> $log1
+--enable_result_log
+
+--echo # Phase 1 results written to: MYSQLTEST_VARDIR/log/tp_perf_with_tp.log
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 2 – WITHOUT thread pool (restart with no plugin)
+# ──────────────────────────────────────────────────────────────────────────────
+--echo
+--echo ########################################################################
+--echo # Phase 2: Thread Pool DISABLED
+--echo ########################################################################
+
+# Restart without any thread-pool related options.
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
+
+# Verify thread pool is gone.
+--disable_result_log
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = 'THREAD_POOL';
+--enable_result_log
+
+let $log2 = $MYSQLTEST_VARDIR/log/tp_perf_no_tp.log;
+
+--exec echo "=== Thread Pool DISABLED ===" > $log2
+--exec echo "" >> $log2
+
+--echo # Workload 1: SELECT 1
+--exec echo "--- SELECT 1 ---" >> $log2
+
+--disable_result_log
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=1   --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=4   --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=16  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=32  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=64  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT 1" --concurrency=128 --iterations=$iter 2>&1 >> $log2
+--enable_result_log
+
+--echo # Workload 2: Indexed lookup
+--exec echo "" >> $log2
+--exec echo "--- Indexed lookup ---" >> $log2
+
+--disable_result_log
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=1   --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=4   --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=16  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=32  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=64  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --create-schema=perf_bench --query="SELECT id FROM t WHERE id=1" --concurrency=128 --iterations=$iter 2>&1 >> $log2
+--enable_result_log
+
+--echo # Workload 3: Auto-generated mixed read/write
+--exec echo "" >> $log2
+--exec echo "--- Auto-generated mixed read/write ---" >> $log2
+
+--disable_result_log
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=1   --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=4   --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=16  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=32  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=64  --iterations=$iter 2>&1 >> $log2
+--exec $MYSQL_SLAP --auto-generate-sql --auto-generate-sql-load-type=mixed --number-int-cols=2 --number-char-cols=2 --concurrency=128 --iterations=$iter 2>&1 >> $log2
+--enable_result_log
+
+--echo # Phase 2 results written to: MYSQLTEST_VARDIR/log/tp_perf_no_tp.log
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Summary
+# ──────────────────────────────────────────────────────────────────────────────
+--echo
+--echo ########################################################################
+--echo # Summary: compare MYSQLTEST_VARDIR/log/tp_perf_with_tp.log
+--echo #          vs      MYSQLTEST_VARDIR/log/tp_perf_no_tp.log
+--echo ########################################################################
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cleanup
+# ──────────────────────────────────────────────────────────────────────────────
+DROP DATABASE IF EXISTS perf_bench;

@@ -28,6 +28,7 @@ CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy;
 SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
 LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
 TRUNCATE TABLE id_table;
+include/assert.inc [filesort() temporary file descriptor must be found]
 include/assert_grep.inc [filesort() temporary file must not contain unencrypted key]
 SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
 SET debug = "-d,enforce_legacy_temp_files";
@@ -65,6 +66,7 @@ CREATE TABLE t2 AS SELECT sql_big_result * FROM t1 ORDER BY dummy;
 SET DEBUG_SYNC = 'now WAIT_FOR after_find_all_keys_reached';
 LOAD DATA LOCAL INFILE '<fd_no_include_file>' INTO TABLE id_table;
 TRUNCATE TABLE id_table;
+include/assert.inc [filesort() temporary file descriptor must be found]
 include/assert_grep.inc [filesort() temporary file must contain unencrypted key]
 SET DEBUG_SYNC = 'now SIGNAL after_find_all_keys_signaled';
 SET debug = "-d,enforce_legacy_temp_files";

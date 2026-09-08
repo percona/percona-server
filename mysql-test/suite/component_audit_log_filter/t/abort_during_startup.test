@@ -1,0 +1,63 @@
+####################################################################
+# PS-11273: the component must not crash when the server aborts.
+#
+# When the server terminates early - here by way of an invalid
+# --authentication-policy - it never calls the component's deinit
+# function, so whatever the component left behind at namespace scope is
+# torn down during static destruction instead. Destroying AuditLogFilter
+# that late destroys its AuditUdf member, and
+# AuditUdf::deinit() -> SysVars::get_comp_registry_srv() then touches a
+# static that may already be gone. The server died a second time on top
+# of the configuration error:
+#
+#   mysqld got signal 6
+#    #11 audit_log_filter::SysVars::get_comp_registry_srv()
+#    #12 audit_log_filter::AuditUdf::deinit()
+#    #13 audit_log_filter::AuditUdf::~AuditUdf()
+#    #15 std::unique_ptr<audit_log_filter::AuditUdf>::~unique_ptr()
+#
+# The abort is an assert(), hence the debug build requirement below; a
+# release build takes the same path but reads the destroyed object
+# instead of stopping.
+#
+# So the test starts the server with a configuration it has to reject,
+# and checks that the only thing wrong with that startup is the
+# configuration error itself.
+####################################################################
+
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+
+--echo ### Shutdown
+--source include/shutdown_mysqld.inc
+
+--echo ### Start with invalid option
+--let $restart_parameters=--authentication-policy=mysql_native_password --mysql_native_password=OFF
+--source include/start_mysqld_expecting_crash.inc
+
+--echo ### Waiting for the error message to occur
+--let $grep_pattern=authentication-policy is set to an invalid value
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/wait_for_pattern_in_file.inc
+
+--echo ### Start again
+--let $restart_parameters=restart:
+--source include/start_mysqld.inc
+
+--echo ### Check that the server only refused to start, and did not crash
+# Checked after the restart because assert_grep.inc needs a server to run on.
+# The aborted process is long gone by then, so its error log is complete;
+# without the fix this finds the signal 6 raised while the component was
+# being torn down at exit.
+--let $assert_text=Server rejected the configuration without crashing
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select=mysqld got signal
+--let $assert_count=0
+--source include/assert_grep.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

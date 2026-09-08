@@ -541,8 +541,13 @@ bool mock_xcom_client_get_synode_app_data(connection_descriptor *, uint32_t,
   return true;
 }
 
-int mock_xcom_client_close_connection(connection_descriptor *con) {
-  ::free(con);
+int mock_xcom_client_close_connection(connection_descriptor *con
+                                      [[maybe_unused]]) {
+  /*
+    Mimic Gcs_xcom_proxy_impl::xcom_client_close_connection(), which releases
+    the socket and the SSL object but does not own the descriptor itself: the
+    caller frees it with free_connection().
+  */
   return 1;
 }
 

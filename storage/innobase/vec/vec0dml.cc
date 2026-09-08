@@ -45,6 +45,7 @@ DEVIATION FROM FTS rationale (no fts_parse_sql / pars_mutex). */
 #include "row0mysql.h"
 #include "row0upd.h"
 #include "row0vers.h"
+#include "scope_guard.h"
 #include "trx0roll.h"
 #include "vec0aux.h"
 
@@ -136,6 +137,18 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
                     row.neighbors_len, heap);
 
   que_thr_t *thr = pars_complete_graph_for_exec(node, trx, heap, nullptr);
+
+  /* que_graph_free() is the standard, complete teardown for a graph
+  built this way: it recurses per node type (freeing, for
+  QUE_NODE_INSERT, node->entry_sys_heap -- an allocation of its own,
+  independent of heap above, made by ins_node_create in row0ins.cc)
+  and then frees the graph's own heap, which que_fork_create pointed
+  at our heap. A parser-free path like this one never runs that
+  recursion on its own, so without this guard node->entry_sys_heap
+  leaks on every call. */
+  auto graph_guard =
+      create_scope_guard([thr]() { que_graph_free(thr->graph); });
+
   /* Activate the fork, as every other MySQL-interface caller does
   (row0mysql.cc does it for ins_graph, sel_graph and upd_graph).
   pars_complete_graph_for_exec leaves the fork QUE_FORK_COMMAND_WAIT, and
@@ -175,7 +188,6 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
     thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
     if (!was_lock_wait) {
-      mem_heap_free(heap);
       return err;
     }
     ut_ad(node->state == INS_NODE_INSERT_ENTRIES ||
@@ -183,7 +195,6 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
   }
 
   que_thr_stop_for_mysql_no_error(thr, trx);
-  mem_heap_free(heap);
   return DB_SUCCESS;
 }
 
@@ -214,6 +225,20 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
   dfield_set_data(dtuple_get_nth_field(ref, 0), id_buf, sizeof(id_buf));
 
   que_thr_t *thr = pars_complete_graph_for_exec(node, trx, heap, nullptr);
+
+  /* que_graph_free() is the standard, complete teardown for a graph
+  built this way: it recurses per node type (freeing, for
+  QUE_NODE_UPDATE, node->pcur -- including the record buffer
+  store_position() below populates -- node->update->per_stmt_heap and
+  node->heap, all allocations of their own, independent of heap above,
+  made by row_create_update_node_for_mysql/upd_node_create in
+  row0mysql.cc/row0upd.cc) and then frees the graph's own heap, which
+  que_fork_create pointed at our heap. A parser-free path like this
+  one never runs that recursion on its own, so without this guard all
+  three leak on every call. */
+  auto graph_guard =
+      create_scope_guard([thr]() { que_graph_free(thr->graph); });
+
   /* Activate the fork, as every other MySQL-interface caller does
   (row0mysql.cc does it for ins_graph, sel_graph and upd_graph).
   pars_complete_graph_for_exec leaves the fork QUE_FORK_COMMAND_WAIT, and
@@ -249,7 +274,6 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
       if (offset_heap != nullptr) {
         mem_heap_free(offset_heap);
       }
-      mem_heap_free(heap);
       return DB_RECORD_NOT_FOUND;
     }
 
@@ -288,7 +312,6 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
       if (offset_heap != nullptr) {
         mem_heap_free(offset_heap);
       }
-      mem_heap_free(heap);
       return lerr;
     }
   }
@@ -355,13 +378,11 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
     thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
     if (!was_lock_wait) {
-      mem_heap_free(heap);
       return err;
     }
   }
 
   que_thr_stop_for_mysql_no_error(thr, trx);
-  mem_heap_free(heap);
   return DB_SUCCESS;
 }
 

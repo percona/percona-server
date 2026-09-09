@@ -4859,8 +4859,20 @@ template <typename Table>
     column that vec_add_aux_id_column will materialize a few lines below
     (after current_row_version = 0). Mirrors the n_cols++ above for
     FTS_DOC_ID. DICT_TF2_HAS_VEC_AUX_COL is set by vec_add_aux_id_column
-    itself, so no flags2 OR-in here. */
-    if (add_vec_aux_col) {
+    itself, so no flags2 OR-in here.
+
+    add_vec_aux_col covers the ALTER that introduces the column. A table
+    that already has it needs the slot on every rebuild, whatever caused
+    the rebuild: the commit path carries percona_vec_aux_id forward into
+    the new dd::Table unconditionally, so the dict_table_t has to agree
+    or the DD and the .ibd disagree on the column count. Deciding it here
+    rather than at the add_vec_aux_col assignment keeps it independent of
+    which predicate forced new_clustered - ADD FULLTEXT, for one, rebuilds
+    through add_fts_doc_id without setting innobase_need_rebuild(). */
+    const bool need_vec_aux_col =
+        add_vec_aux_col ||
+        DICT_TF2_FLAG_IS_SET(user_table, DICT_TF2_HAS_VEC_AUX_COL);
+    if (need_vec_aux_col) {
       n_cols++;
     }
 
@@ -5030,12 +5042,12 @@ template <typename Table>
       ctx->new_table->fts->doc_col = fts_doc_id_col;
     }
 
-    /* When ADD VECTOR INDEX is rebuilding the table to introduce the
-    hidden percona_vec_aux_id column, materialize it on the fresh dict_table_t
-    so dict layer sees the same column set as the new dd::Table. The
-    new table has no row versions, so phy_pos is auto-assigned by the
+    /* Materialize the hidden percona_vec_aux_id column on the fresh
+    dict_table_t so the dict layer sees the same column set as the new
+    dd::Table, and so dict_table_t::vec_aux_col points at it. The new
+    table has no row versions, so phy_pos is auto-assigned by the
     clust-index builder; mirrors fts_add_doc_id_column above. */
-    if (add_vec_aux_col) {
+    if (need_vec_aux_col) {
       vec_add_aux_id_column(ctx->new_table, ctx->heap);
     }
 

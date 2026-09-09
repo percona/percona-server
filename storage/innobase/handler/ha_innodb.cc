@@ -17894,6 +17894,28 @@ int ha_innobase::rename_table(const char *from, const char *to,
     return HA_ERR_UNSUPPORTED;
   }
 
+  /* A vector aux name is reserved on RENAME as well as on CREATE.
+  Without this, a user table can be renamed into the computed shape,
+  and dict0dd.cc rebuilds DICT_TF2_VEC_AUX from the name on the next DD
+  reload, so the table comes back stamped as an aux table.
+
+  The gate belongs here rather than in row_rename_table_for_mysql: our
+  own cross-schema rename moves aux tables to new aux names through that
+  function, and it does not come through the handler. */
+  {
+    char norm_to[FN_REFLEN];
+    if (!create_table_info_t::normalize_table_name(norm_to, to)) {
+      /* purecov: begin inspected */
+      ut_d(ut_error);
+      ut_o(return HA_ERR_TOO_LONG_PATH);
+      /* purecov: end */
+    }
+    if (vec_aux_is_aux_table_name(norm_to)) {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), to);
+      return HA_ERR_WRONG_TABLE_NAME;
+    }
+  }
+
   innobase_register_trx(ht, thd, trx);
 
   return innobase_basic_ddl::rename_impl<dd::Table>(

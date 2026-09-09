@@ -1,0 +1,35 @@
+--echo #
+--echo # PS-11299: ADD FULLTEXT on a table that already has a vector index.
+--echo #
+--echo # Both hidden columns then exist, laid out FTS_DOC_ID first and
+--echo # percona_vec_aux_id second. The rebuild's column map has to advance its
+--echo # slot cursor for the FTS_DOC_ID the new table gains, or it maps
+--echo # percona_vec_aux_id onto it and every row's label is written into the
+--echo # doc id column instead.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 body TEXT,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, 'alpha beta', STRING_TO_VECTOR('[0,0]')),
+                      (2, 'gamma delta', STRING_TO_VECTOR('[1,0]')),
+                      (3, 'epsilon zeta', STRING_TO_VECTOR('[2,0]'));
+
+--echo # Adding FULLTEXT rebuilds the table, so the column map runs.
+ALTER TABLE t1 ADD FULLTEXT KEY ft (body);
+SHOW CREATE TABLE t1;
+
+--echo # The vector index must still answer, which it cannot if the labels
+--echo # were written into FTS_DOC_ID.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # And FULLTEXT must work on the same table.
+SELECT id FROM t1 WHERE MATCH(body) AGAINST ('gamma' IN NATURAL LANGUAGE MODE);
+
+--echo # Both survive a reload.
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 WHERE MATCH(body) AGAINST ('alpha' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE t1;

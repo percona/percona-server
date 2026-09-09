@@ -1,0 +1,14 @@
+--echo #
+--echo # Review 64e15e3e: vec_aux_parse_table_name does not require end-of-string.
+--echo # fts_read_object_id is sscanf(UINT64PFx), so "2xyz" and "2_extra" parse
+--echo # as object ids. Trailing junk after a type token + id pair is not an
+--echo # aux table. CREATE must succeed — same rule that leaves fts_data legal.
+--echo #
+
+--echo # Hex digits then junk — not a complete aux name.
+CREATE TABLE `percona_vec_hnsw_1_2xyz` (id INT PRIMARY KEY);
+DROP TABLE `percona_vec_hnsw_1_2xyz`;
+
+--echo # Extra underscore field after the id pair — still a user table.
+CREATE TABLE `percona_vec_hnsw_1_2_extra` (id INT PRIMARY KEY);
+DROP TABLE `percona_vec_hnsw_1_2_extra`;

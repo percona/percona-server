@@ -4363,6 +4363,26 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
         goto funct_exit;
       }
     }
+
+    /* Same for the vector aux tables. They are hidden, so the server
+    took no MDL on them when it locked the parent, and a concurrent
+    reader can still be scanning one. See PS-11299. */
+    if (table != nullptr &&
+        DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+      dict_sys_mutex_exit();
+      err = vec_aux_lock_all_tables(thd, table);
+      /* Signalled with the aux MDL held and no dict latch, so a test can
+      look the lock up in performance_schema.metadata_locks. */
+      if (err == DB_SUCCESS) {
+        DEBUG_SYNC(thd, "vec_aux_mdl_acquired");
+      }
+      dict_sys_mutex_enter();
+
+      if (err != DB_SUCCESS) {
+        dd_table_close(table, nullptr, nullptr, true);
+        goto funct_exit;
+      }
+    }
   } else {
     table->acquire();
     ut_ad(table->is_intrinsic());

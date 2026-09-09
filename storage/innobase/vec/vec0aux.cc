@@ -31,6 +31,7 @@ naming. No population — that lands in PS-11300. */
 
 #include "vec0aux.h"
 
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 
@@ -143,6 +144,20 @@ bool vec_index_type_by_token(const char *token, size_t len,
   return false;
 }
 
+/* One "<tid>" or "<iid>" field of a computed aux name.
+
+fts_read_object_id is sscanf based: it stops at the first character it
+cannot read and reports nothing about how much it consumed, so "2xyz" and
+"2_extra" both parse as 2. Check each field here instead, so a user table
+that merely begins like an aux name stays a user table. */
+static bool vec_aux_field_is_object_id(const char *begin, const char *end) {
+  if (begin >= end) return false;
+  for (const char *p = begin; p < end; ++p) {
+    if (isxdigit(static_cast<unsigned char>(*p)) == 0) return false;
+  }
+  return true;
+}
+
 /* Match the FULL computed shape "<db>/percona_vec_<type>_<tid>_<iid>":
 the prefix, a type token that resolves in the token table, and two
 parseable object ids. Anything else is an ordinary user table that
@@ -159,10 +174,10 @@ bool vec_aux_parse_table_name(const char *name, table_id_t *parent_id_out,
   if (name == nullptr) return false;
   const char *slash = strchr(name, '/');
   const char *after_db = slash != nullptr ? slash + 1 : name;
-  if (strncmp(after_db, VEC_AUX_PREFIX, strlen(VEC_AUX_PREFIX)) != 0) {
-    return false;
-  }
-  const char *token = after_db + strlen(VEC_AUX_PREFIX);
+  const size_t prefix_len = strlen(VEC_AUX_PREFIX);
+  if (strlen(after_db) < prefix_len) return false;
+  if (memcmp(after_db, VEC_AUX_PREFIX, prefix_len) != 0) return false;
+  const char *token = after_db + prefix_len;
 
   const char *token_end = strchr(token, '_');
   if (token_end == nullptr || token_end == token) return false;
@@ -172,11 +187,17 @@ bool vec_aux_parse_table_name(const char *name, table_id_t *parent_id_out,
     return false;
   }
 
+  /* Exactly two id fields, the second ending the string. Without that
+  last requirement "percona_vec_hnsw_1_2xyz" and
+  "percona_vec_hnsw_1_2_extra" are both read as aux tables. */
   const char *tail = token_end + 1;
-  table_id_t pid = 0;
-  if (!fts_read_object_id(&pid, tail)) return false;
   const char *sep = strchr(tail, '_');
   if (sep == nullptr) return false;
+  if (!vec_aux_field_is_object_id(tail, sep)) return false;
+  if (!vec_aux_field_is_object_id(sep + 1, tail + strlen(tail))) return false;
+
+  table_id_t pid = 0;
+  if (!fts_read_object_id(&pid, tail)) return false;
   space_index_t iid = 0;
   if (!fts_read_object_id(&iid, sep + 1)) return false;
 
@@ -551,6 +572,31 @@ bool vec_aux_create_dd_tables(dict_table_t *parent) {
   return true;
 }
 
+dberr_t vec_aux_lock_all_tables(THD *thd, const dict_table_t *parent) {
+  ut_a(parent != nullptr);
+
+  for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
+       idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
+    if (!idx->is_vector()) continue;
+
+    char aux_name[MAX_FULL_NAME_LEN];
+    vec_aux_get_table_name(parent, idx->id, Vec_index_type::HNSW, aux_name,
+                           sizeof(aux_name));
+
+    std::string db_n;
+    std::string table_n;
+    dict_name::get_table(aux_name, db_n, table_n);
+
+    MDL_ticket *exclusive_mdl = nullptr;
+    if (dd::acquire_exclusive_table_mdl(thd, db_n.c_str(), table_n.c_str(),
+                                        false, &exclusive_mdl)) {
+      return DB_ERROR;
+    }
+  }
+
+  return DB_SUCCESS;
+}
+
 dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
                                space_index_t index_id) {
   ut_a(trx != nullptr);
@@ -717,19 +763,22 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
     DD-registered with the same shape. dict_sys mutex must be released
     around the DD client call. */
     if (!replay) {
+      /* The rename above just succeeded, so the aux must be cached under
+      its new name. ut_a, not ut_ad plus a skip: releasing the build in
+      that state would leave the DD naming a file that no longer exists,
+      which is worse than stopping here. fts_rename_one_aux_table
+      dereferences without checking at all. */
       dict_table_t *aux = dict_table_check_if_in_cache_low(new_aux_name);
-      ut_ad(aux != nullptr);
-      if (aux != nullptr) {
-        aux->acquire();
-        dict_sys_mutex_exit();
-        const bool ok = dd_rename_fts_table(aux, old_aux_name);
-        dict_sys_mutex_enter();
-        aux->release();
-        if (!ok) {
-          ib::warn(ER_IB_MSG_466)
-              << "Failed to rename DD entry for vector aux " << old_aux_name;
-          return DB_ERROR;
-        }
+      ut_a(aux != nullptr);
+      aux->acquire();
+      dict_sys_mutex_exit();
+      const bool ok = dd_rename_fts_table(aux, old_aux_name);
+      dict_sys_mutex_enter();
+      aux->release();
+      if (!ok) {
+        ib::warn(ER_IB_MSG_466)
+            << "Failed to rename DD entry for vector aux " << old_aux_name;
+        return DB_ERROR;
       }
     }
   }

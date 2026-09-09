@@ -249,8 +249,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
   }
 
-  assert(!thd || thd->locked_tables_mode ||
-         !thd->mdl_context.has_locks() ||
+  assert(!thd || thd->locked_tables_mode || !thd->mdl_context.has_locks() ||
          !thd->handler_tables_hash.empty() ||
          thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
          thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||

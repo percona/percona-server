@@ -4578,7 +4578,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   ret = 0;
 end:
   if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
-  /* Ready to handle queries */
+    /* Ready to handle queries */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
   LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();

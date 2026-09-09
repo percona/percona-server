@@ -17,7 +17,7 @@
 #include "rpl_event_ctx.h"
 #include <algorithm>
 #include <cstring>
-#include "mf_wcomp.h"    // wild_one, wild_many
+#include "mf_wcomp.h"  // wild_one, wild_many
 #include "mysql/strings/m_ctype.h"
 #include "sql/mysqld.h"  // system_charset_info
 #include "sql/mysqld_cs.h"

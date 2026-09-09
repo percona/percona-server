@@ -150,7 +150,7 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
     return worst_seeks;
   }
   if (table->covering_keys.is_set(keyno) ||
-             (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
+      (table->file->index_flags(keyno, 0, 0) & HA_CLUSTERED_INDEX)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);

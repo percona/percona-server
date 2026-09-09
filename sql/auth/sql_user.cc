@@ -2125,11 +2125,12 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
       return true;
     }
 
-  /* trying to change the password of the utility user? */
-  if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), nullptr)) {
-    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    return true;
-  }
+    /* trying to change the password of the utility user? */
+    if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(),
+                            nullptr)) {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      return true;
+    }
 
     assert(acl_user->plugin.length != 0);
     is_role = acl_user->is_role;
@@ -2510,10 +2511,10 @@ static int handle_grant_data(THD *thd, Table_ref *tables, bool drop,
   if (acl_utility_user.user) {
     if (user_from && acl_is_utility_user(user_from->user.str,
                                          user_from->host.str, nullptr)) {
-	    return -1;
+      return -1;
     } else if (user_to && acl_is_utility_user(user_to->user.str,
                                               user_to->host.str, nullptr)) {
-	    return -1;
+      return -1;
     }
   }
 
@@ -2858,12 +2859,12 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       return true;
     }
     while ((tmp_user_name = user_list++)) {
-    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
-                            nullptr)) {
-      log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
-      result = true;
-      continue;
-    }
+      if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                              nullptr)) {
+        log_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+        result = true;
+        continue;
+      }
       bool history_check_done = false;
       I_multi_factor_auth *mfa = nullptr;
       /*

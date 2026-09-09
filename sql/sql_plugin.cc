@@ -72,7 +72,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/auth/auth_plugin_shutdown.h"
-#include "sql/auto_thd.h"          // Auto_THD
+#include "sql/auto_thd.h"  // Auto_THD
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker

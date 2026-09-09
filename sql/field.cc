@@ -74,7 +74,7 @@
 #include "sql/mysqld_cs.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/spatial.h"                // Geometry
+#include "sql/spatial.h"  // Geometry
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception

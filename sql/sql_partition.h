@@ -127,11 +127,9 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf, KEY *key_info,
    @retval true  - On failure.
    @retval false - On success.
 */
-[[nodiscard]]
-bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
-                              const char *normalized_path,
-                              const char *partition_info_str,
-                              uint partition_info_len, char *first_name);
+[[nodiscard]] bool get_first_partition_name(
+    THD *thd, Partition_handler *part_handler, const char *normalized_path,
+    const char *partition_info_str, uint partition_info_len, char *first_name);
 
 bool mysql_unpack_partition(THD *thd, char *part_buf, uint part_info_len,
                             TABLE *table, bool is_create_table_ind,

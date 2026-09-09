@@ -26,11 +26,11 @@
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"
+#include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_plist.h"
 #include "sql/threadpool.h"
-#include "sql/protocol_classic.h"
 #include "violite.h"
 #ifdef __linux__
 #include <sys/epoll.h>

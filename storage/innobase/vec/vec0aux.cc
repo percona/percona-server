@@ -354,6 +354,31 @@ bool vec_aux_create_dd_tables(dict_table_t *parent) {
   return true;
 }
 
+dberr_t vec_aux_lock_all_tables(THD *thd, const dict_table_t *parent) {
+  ut_a(parent != nullptr);
+
+  for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
+       idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
+    if (!idx->is_vector()) continue;
+
+    char aux_name[MAX_FULL_NAME_LEN];
+    vec_aux_get_table_name(parent, idx->id, Vec_index_type::HNSW, aux_name,
+                           sizeof(aux_name));
+
+    std::string db_n;
+    std::string table_n;
+    dict_name::get_table(aux_name, db_n, table_n);
+
+    MDL_ticket *exclusive_mdl = nullptr;
+    if (dd::acquire_exclusive_table_mdl(thd, db_n.c_str(), table_n.c_str(),
+                                        false, &exclusive_mdl)) {
+      return DB_ERROR;
+    }
+  }
+
+  return DB_SUCCESS;
+}
+
 dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
                                space_index_t index_id) {
   ut_a(trx != nullptr);

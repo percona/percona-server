@@ -40,6 +40,8 @@ pars_sql/que_eval_sql, which serializes on the global pars_mutex. */
 #include "trx0trx.h"
 #include "univ.i"
 
+class THD;
+
 /** Lowercase on-disk / DD prefix shared by all vector aux tables. */
 extern const char *VEC_AUX_PREFIX;
 
@@ -137,6 +139,17 @@ The in-memory dict_table_t entries must have been created by
 @ref vec_aux_create_all_tables / @ref vec_aux_create_one_table first.
 Mirrors fts_create_index_dd_tables. Returns true on success. */
 bool vec_aux_create_dd_tables(dict_table_t *parent);
+
+/** Take an exclusive MDL on every vector aux table belonging to
+`parent`, so nothing can be reading one while we drop it. The aux
+tables are hidden, so no MDL was taken for them when the server locked
+the parent. Mirrors fts_lock_all_aux_tables, and like it must be called
+without dict_sys mutex held (the DD/MDL layer may wait).
+@param[in]  thd     thread taking the locks
+@param[in]  parent  parent that owns the vector indexes
+@return DB_SUCCESS, or DB_ERROR if a lock could not be taken */
+[[nodiscard]] dberr_t vec_aux_lock_all_tables(THD *thd,
+                                              const dict_table_t *parent);
 
 /** Drop the aux table for a single vector index. */
 dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,

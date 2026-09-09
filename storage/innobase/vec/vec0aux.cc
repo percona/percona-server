@@ -123,14 +123,6 @@ void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
   ut_a(static_cast<size_t>(written) < name_out_len);
 }
 
-
-
-
-
-
-
-
-
 bool vec_index_type_by_token(const char *token, size_t len,
                              Vec_index_type *type_out) {
   static constexpr Vec_index_type known[] = {Vec_index_type::HNSW};
@@ -639,7 +631,7 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
   /* row_drop_table_for_mysql only tears down dict_sys + the .ibd. The
   matching dd::Table + dd::Tablespace entries created by
   dd_create_vec_aux_table linger until we explicitly drop them; reuse
-  dd_drop_fts_table for that, which is generic across aux-table kinds.
+  dd_drop_aux_table for that, which is generic across aux-table kinds.
   dict_sys mutex must be released around the DD client call.
 
   DEVIATION FROM FTS: fts_drop_table drops the DD entry inline only
@@ -655,7 +647,7 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
   if (dict_locked) {
     dict_sys_mutex_exit();
   }
-  (void)dd_drop_fts_table(aux_name, file_per_table);
+  (void)dd_drop_aux_table(aux_name, file_per_table);
   if (dict_locked) {
     dict_sys_mutex_enter();
   }

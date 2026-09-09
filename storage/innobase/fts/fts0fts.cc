@@ -1257,7 +1257,7 @@ bool fts_drop_dd_tables(const aux_name_vec_t *aux_vec, bool file_per_table) {
   for (ulint i = 0; i < aux_vec->aux_name.size(); i++) {
     bool retval;
 
-    retval = dd_drop_fts_table(aux_vec->aux_name[i], file_per_table);
+    retval = dd_drop_aux_table(aux_vec->aux_name[i], file_per_table);
 
     if (!retval) {
       ret = false;
@@ -1326,7 +1326,7 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
     if (aux_vec == nullptr) {
       dict_sys_mutex_exit();
 
-      if (!dd_drop_fts_table(table_name2, file_per_table)) {
+      if (!dd_drop_aux_table(table_name2, file_per_table)) {
         error = DB_FAIL;
       }
 

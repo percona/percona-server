@@ -288,8 +288,8 @@ constexpr uint32_t DICT_TF2_USE_FILE_PER_TABLE = 16;
 /** Set when we discard/detach the tablespace */
 constexpr uint32_t DICT_TF2_DISCARDED = 32;
 
-/** The table has an auto-added hidden percona_vec_aux_id column (BIGINT UNSIGNED
-NOT NULL) because at least one vector (HNSW) index lives on it. The
+/** The table has an auto-added hidden percona_vec_aux_id column (BIGINT
+UNSIGNED NOT NULL) because at least one vector (HNSW) index lives on it. The
 column persists across ALTER drop-of-last-vector-index; mirrors
 DICT_TF2_FTS_HAS_DOC_ID semantically.
 
@@ -2490,8 +2490,9 @@ detect this and will eventually quit sooner. */
   it never regresses. Assignments at or below it need no new redo. */
   std::atomic<uint64_t> vec_aux_autoinc_persisted;
 
-  /** Ordinal position of percona_vec_aux_id in cols[]. ULINT_UNDEFINED when the
-  table has no hidden percona_vec_aux_id column. Set by vec_add_aux_id_column. */
+  /** Ordinal position of percona_vec_aux_id in cols[]. ULINT_UNDEFINED
+  when the table has no hidden percona_vec_aux_id column. Set by
+  vec_add_aux_id_column. */
   ulint vec_aux_col;
 
   /** The transaction that currently holds the the AUTOINC lock on this table.
@@ -2815,14 +2816,10 @@ detect this and will eventually quit sooner. */
     return (flags2 & DICT_TF2_TEMPORARY);
   }
 
-  /** Determine if this is an InnoDB-owned auxiliary table (FTS or
-  vector). Returns true if either DICT_TF2_AUX (FTS) or
-  DICT_TF2_VEC_AUX (vector) is set. Use the specific predicates
-  @ref is_fts_aux / @ref is_vec_aux when behavior must differ. */
-  bool is_aux() const {
-    ut_ad(magic_n == DICT_TABLE_MAGIC_N);
-    return (flags2 & (DICT_TF2_AUX | DICT_TF2_VEC_AUX));
-  }
+  /** Determine if this is an InnoDB-owned auxiliary table, FTS or
+  vector. Use the specific predicates @ref is_fts_aux / @ref is_vec_aux
+  when behavior must differ. */
+  bool is_aux() const { return is_fts_aux() || is_vec_aux(); }
 
   /** Determine if this is specifically an FTS auxiliary table. */
   bool is_fts_aux() const {

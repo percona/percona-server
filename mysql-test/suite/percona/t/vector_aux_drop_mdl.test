@@ -1,5 +1,4 @@
 --source include/have_debug_sync.inc
---source include/have_innodb.inc
 
 --echo #
 --echo # PS-11299: DROP TABLE must hold an exclusive MDL on the vector aux

@@ -1411,11 +1411,11 @@ Mirrors dd_create_fts_index_table; the schema is the fixed 5-column
 bool dd_create_vec_aux_table(const dict_table_t *parent_table,
                              dict_table_t *table);
 
-/** Drop dd table & tablespace for fts aux table
+/** Drop dd table & tablespace for an auxiliary table — FTS or vector
 @param[in]      name            table name
 @param[in]      file_per_table  flag whether use file per table
 @return true on success, false on failure. */
-bool dd_drop_fts_table(const char *name, bool file_per_table);
+bool dd_drop_aux_table(const char *name, bool file_per_table);
 
 /** Rename dd table & tablespace files for fts aux table
 @param[in]      table           dict table

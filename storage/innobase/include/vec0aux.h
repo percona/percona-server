@@ -115,10 +115,15 @@ void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
 
 /** True if `name` is a complete vector aux table name (ANY type):
 VEC_AUX_PREFIX, a type token the registry knows, and exactly two hex id
-fields, the second ending the string. Used to hide aux tables from
-INFORMATION_SCHEMA / SHOW TABLES and to reserve those names at CREATE
-and RENAME - so "percona_vec_hnsw_1_2" is reserved while a user table
-merely called "percona_vec_data" is not. */
+fields, the second ending the string - so "percona_vec_hnsw_1_2" is one
+of ours while a user table merely called "percona_vec_data" is not.
+
+Two uses. It reserves the name at CREATE (ha_innobase::create) and at
+RENAME (ha_innobase::rename_table), and it recognises an aux table by
+its name at DD load (dd_open_table_one), where DICT_TF2_VEC_AUX and the
+parent id are reconstructed from it. It is NOT what hides the aux from
+SHOW TABLES and INFORMATION_SCHEMA.TABLES: that is the stored
+HT_HIDDEN_SE attribute the aux gets from dd_set_fts_table_options. */
 [[nodiscard]] bool vec_aux_is_aux_table_name(const char *name);
 
 /** Parse a "<db>/percona_vec_<type>_<parent_id>_<index_id>" name into its

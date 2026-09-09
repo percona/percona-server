@@ -3556,8 +3556,14 @@ void get_field_types(const dd::Table *dd_tab, const dict_table_t *m_table,
   register nullable fields as part of Primary Key. Hence we register
   them as non-nullabe in DD but treat as nullable in InnoDB.
   This way the compatibility with 5.7 FTS AUX tables is also
-  maintained. */
-  if (dd_tab && m_table->is_aux()) {
+  maintained.
+
+  DEVIATION FROM FTS: vector aux tables stay out of this. Their columns
+  are genuinely NOT NULL and dd_create_vec_aux_table never writes the
+  "nullable" property this block reads, so is_aux() here would only
+  widen a 5.7 FTS compatibility path to a table class it was not written
+  for. */
+  if (dd_tab && m_table->is_fts_aux()) {
     const dd::Table &dd_table = dd_tab->table();
     const dd::Column *dd_col = dd_find_column(&dd_table, field->field_name);
     const dd::Properties &p = dd_col->se_private_data();

@@ -1364,7 +1364,9 @@ fi
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.24*
 #coredumper
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
+%ifnarch aarch64
 %attr(755, root, root) /usr/lib/libcoredumper.a
+%endif
 
 %files -n percona-server-client-plugins
 %defattr(-, root, root, -)

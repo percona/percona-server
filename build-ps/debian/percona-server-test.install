@@ -40,6 +40,8 @@ usr/lib/mysql/plugin/component_test_status_var_service_reg_only.so
 usr/lib/mysql/plugin/component_test_status_var_service_str.so
 usr/lib/mysql/plugin/component_test_status_var_service_unreg_only.so
 usr/lib/mysql/plugin/component_test_system_variable_source.so
+usr/lib/mysql/plugin/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/component_test_telemetry_secret_provider.so
 usr/lib/mysql/plugin/component_test_execute_prepared_statement.so
 usr/lib/mysql/plugin/component_test_execute_regular_statement.so
 usr/lib/mysql/plugin/component_test_mysql_signal_handler.so
@@ -134,6 +136,8 @@ usr/lib/mysql/plugin/debug/component_test_status_var_service_reg_only.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_str.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
 usr/lib/mysql/plugin/debug/component_test_system_variable_source.so
+usr/lib/mysql/plugin/debug/component_test_telemetry_resource_provider.so
+usr/lib/mysql/plugin/debug/component_test_telemetry_secret_provider.so
 usr/lib/mysql/plugin/debug/component_test_execute_prepared_statement.so
 usr/lib/mysql/plugin/debug/component_test_execute_regular_statement.so
 usr/lib/mysql/plugin/debug/component_test_mysql_signal_handler.so

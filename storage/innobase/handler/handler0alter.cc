@@ -3446,22 +3446,27 @@ to column numbers in altered_table */
   const bool new_has_vec_aux_col =
       DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_HAS_VEC_AUX_COL);
 
-  const ulint old_extra =
+  size_t new_hidden_slot = altered_table->s->fields - new_table->n_v_cols;
+#ifdef UNIV_DEBUG
+  const size_t old_extra =
       (old_has_doc_id ? 1u : 0u) + (old_has_vec_aux_col ? 1u : 0u);
   assert(i + DATA_N_SYS_COLS + old_extra == old_table->n_cols);
-
-  ulint new_hidden_slot = altered_table->s->fields - new_table->n_v_cols;
-#ifdef UNIV_DEBUG
-  const ulint new_extra =
+  const size_t new_extra =
       (new_has_doc_id ? 1u : 0u) + (new_has_vec_aux_col ? 1u : 0u);
   assert(altered_table->s->fields + DATA_N_SYS_COLS + new_extra ==
          static_cast<ulint>(new_table->n_cols + new_table->n_v_cols));
 #endif
 
+  /* The slots advance with the NEW table's hidden columns, which is not
+  the same thing as the old table's. When the new table gains an
+  FTS_DOC_ID the old one did not have, nothing maps onto that slot, but
+  it is still occupied and percona_vec_aux_id still comes after it. */
   if (old_has_doc_id) {
     assert(!strcmp(old_table->get_col_name(i), FTS_DOC_ID_COL_NAME));
     col_map[i] = new_has_doc_id ? new_hidden_slot++ : ULINT_UNDEFINED;
     i++;
+  } else if (new_has_doc_id) {
+    new_hidden_slot++;
   }
 
   if (old_has_vec_aux_col) {

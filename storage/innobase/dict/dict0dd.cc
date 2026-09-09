@@ -80,7 +80,7 @@ Data dictionary interface */
 #include "sql_table.h"
 #include "univ.i"  // Using OS_PATH_SEPARATOR
 #include "vec0aux.h"
-#endif             /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
                                              size_t *out_len) {
@@ -6392,12 +6392,12 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   return true;
 }
 
-/** Get dd tablespace id for fts table
-@param[in]      parent_table    parent table of fts table
-@param[in]      table           fts table
+/** Get dd tablespace id for an auxiliary table — FTS or vector
+@param[in]      parent_table    parent table of the aux table
+@param[in]      table           aux table
 @param[in,out]  dd_space_id     dd table space id
 @return true on success, false on failure. */
-static bool dd_get_or_assign_fts_tablespace_id(const dict_table_t *parent_table,
+static bool dd_get_or_assign_aux_tablespace_id(const dict_table_t *parent_table,
                                                const dict_table_t *table,
                                                dd::Object_id &dd_space_id) {
   THD *thd = current_thd;
@@ -6633,7 +6633,7 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
-  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_aux_tablespace_id(parent_table, table, dd_space_id)) {
     return false;
   }
 
@@ -6755,7 +6755,7 @@ bool dd_create_vec_aux_table(const dict_table_t *parent_table,
 
   /* Tablespace. Same machinery FTS uses for its per-aux tablespace. */
   dd::Object_id dd_space_id;
-  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_aux_tablespace_id(parent_table, table, dd_space_id)) {
     return false;
   }
   table->dd_space_id = dd_space_id;
@@ -6892,7 +6892,7 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
 
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
-  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_aux_tablespace_id(parent_table, table, dd_space_id)) {
     ut_d(ut_error);
     ut_o(return false);
   }
@@ -6917,11 +6917,11 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
   return true;
 }
 
-/** Drop dd table & tablespace for fts aux table
+/** Drop dd table & tablespace for an auxiliary table — FTS or vector
 @param[in]      name            table name
 @param[in]      file_per_table  flag whether use file per table
 @return true on success, false on failure. */
-bool dd_drop_fts_table(const char *name, bool file_per_table) {
+bool dd_drop_aux_table(const char *name, bool file_per_table) {
   std::string db_name;
   std::string table_name;
 

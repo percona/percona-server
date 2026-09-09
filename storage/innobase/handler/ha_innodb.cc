@@ -5780,13 +5780,13 @@ static int innodb_init(void *p) {
   innobase_hton->lock_hton_log = innobase_lock_hton_log;
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
-  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
-                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
-                         HTON_SUPPORTS_TABLE_ENCRYPTION |
-                         HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
-                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK |
-                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
+  innobase_hton->flags =
+      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
+      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
+      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD |
+      HTON_SUPPORTS_SQL_FK | HTON_SUPPORTS_ONLINE_BACKUPS |
+      HTON_SUPPORTS_COMPRESSED_COLUMNS;
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
 
@@ -8064,15 +8064,12 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   /* Each InnoDB-owned hidden auxiliary column (FTS_DOC_ID, percona_vec_aux_id)
   contributes one extra column on the InnoDB side; subtract before
   comparing against table->s->fields. */
-  const ulint innodb_hidden_extra =
-      (ib_table != nullptr &&
-               DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
-           ? 1
-           : 0) +
-      (ib_table != nullptr &&
-               DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_HAS_VEC_AUX_COL)
-           ? 1
-           : 0);
+  size_t innodb_hidden_extra = 0;
+  if (ib_table != nullptr) {
+    innodb_hidden_extra =
+        DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) +
+        DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_HAS_VEC_AUX_COL);
+  }
   if (ib_table != nullptr &&
       table->s->fields !=
           dict_table_get_n_tot_u_cols(ib_table) - innodb_hidden_extra) {
@@ -8426,8 +8423,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   simply has no graph, and the DML path reports the problem when it
   tries to use one. Refusing the open would take the whole table
   offline for a vector index that may not even be queried. */
-  for (dict_index_t *index = m_prebuilt->table->first_index();
-       index != nullptr; index = index->next()) {
+  for (dict_index_t *index = m_prebuilt->table->first_index(); index != nullptr;
+       index = index->next()) {
     if (!index->is_vector() || index->vec != nullptr) continue;
 
     /* Match by name, which is how InnoDB pairs a KEY with a
@@ -12234,11 +12231,10 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
 
   /* LIMIT sizes the batch, not the scan: a filter above the iterator may
   consume any number of candidates, and the scan simply continues. */
-  const dberr_t err =
-      vec_knn_open(vindex, reinterpret_cast<const float *>(m_vec_query.data()),
-                   std::max<size_t>(limit, 1),
-                   THDVAR(m_user_thd, hnsw_ef_search), m_user_thd,
-                   &m_vec_search);
+  const dberr_t err = vec_knn_open(
+      vindex, reinterpret_cast<const float *>(m_vec_query.data()),
+      std::max<size_t>(limit, 1), THDVAR(m_user_thd, hnsw_ef_search),
+      m_user_thd, &m_vec_search);
   if (err != DB_SUCCESS) {
     return convert_error_code_to_mysql(err, m_prebuilt->table->flags,
                                        m_user_thd);
@@ -12276,8 +12272,8 @@ int ha_innobase::vec_read_next(uchar *buf) {
 
     auto ret = innobase_srv_conc_enter_innodb(m_prebuilt);
     if (ret == DB_SUCCESS) {
-      ret = row_search_for_mysql(buf, PAGE_CUR_GE, m_prebuilt, ROW_SEL_EXACT,
-                                 0);
+      ret =
+          row_search_for_mysql(buf, PAGE_CUR_GE, m_prebuilt, ROW_SEL_EXACT, 0);
       innobase_srv_conc_exit_innodb(m_prebuilt);
     }
 

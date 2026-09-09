@@ -751,7 +751,7 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
     }
 
     /* Update the DD entry (dd::Table parent schema_id + dd::Tablespace
-    file_name) - reuses dd_rename_fts_table since aux tables are
+    file_name) - reuses dd_rename_aux_table since aux tables are
     DD-registered with the same shape. dict_sys mutex must be released
     around the DD client call. */
     if (!replay) {
@@ -764,7 +764,7 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
       ut_a(aux != nullptr);
       aux->acquire();
       dict_sys_mutex_exit();
-      const bool ok = dd_rename_fts_table(aux, old_aux_name);
+      const bool ok = dd_rename_aux_table(aux, old_aux_name);
       dict_sys_mutex_enter();
       aux->release();
       if (!ok) {

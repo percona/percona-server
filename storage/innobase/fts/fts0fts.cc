@@ -1382,7 +1382,7 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
     table->acquire();
     dict_sys_mutex_exit();
 
-    if (!replay && !dd_rename_fts_table(table, fts_table_old_name)) {
+    if (!replay && !dd_rename_aux_table(table, fts_table_old_name)) {
       ut_d(ut_error);
     }
 

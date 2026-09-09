@@ -155,6 +155,7 @@ component_reference_cache      plugin_output_directory  no  REFERENCE_CACHE_COMP
 
 # keyring file component
 component_keyring_file          plugin_output_directory  yes  KEYRING_FILE_COMPONENT component_keyring_file
+component_percona_keyring_encrypted_file          plugin_output_directory  yes  PERCONA_KEYRING_ENCRYPTED_FILE_COMPONENT component_percona_keyring_encrypted_file
 component_keyring_kmip          plugin_output_directory  yes  KEYRING_KMIP_COMPONENT component_keyring_kmip
 component_keyring_kms           plugin_output_directory  yes  KEYRING_KMS_COMPONENT  component_keyring_kms
 

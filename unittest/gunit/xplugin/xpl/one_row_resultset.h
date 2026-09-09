@@ -46,7 +46,7 @@ class One_row_resultset : public xpl::Collect_resultset {
     Init(const bool v)  // NOLINT(runtime/explicit)
         : field(static_cast<longlong>(v)) {}
     Init(const char *v)  // NOLINT(runtime/explicit)
-        : field(v, strlen(v)) {}
+        : field(v, v ? strlen(v) : 0) {}
 
     const Field_value field;
   };

@@ -244,6 +244,10 @@ override_dh_install:
 		install -D -m 0755 debian/tmp/usr/bin/mysqld_pre_systemd debian/percona-server-server/usr/bin/mysqld_pre_systemd; \
 	fi
 	cp js/LICENSE* debian/percona-server-js/usr/share/doc/percona-server-js/
+ifeq ($(ARCH),arm64)
+	# libcoredumper.a is not shipped in arm64 packages
+	rm -f debian/percona-server-common/usr/lib/libcoredumper.a
+endif
 
 override_dh_installinit:
 	@echo "RULES.$@"

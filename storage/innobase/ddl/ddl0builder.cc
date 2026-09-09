@@ -925,12 +925,12 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
     /* Process the hidden percona_vec_aux_id column, mirroring FTS's
     Gen_sequence-vs-Fetch_sequence split (see the sequence choice at
     ~line 722): GENERATE a fresh id only when this ALTER is
-    introducing the column (source table lacks it — the source field
+    introducing the column (source table lacks it - the source field
     would be SQL_NULL but the new column is NOT NULL); when the
     source table already has percona_vec_aux_id, fall through to the normal
-    copy branch so the existing values survive the rebuild — exactly
+    copy branch so the existing values survive the rebuild - exactly
     like FTS_DOC_ID does via Fetch_sequence. Preserving the ids is
-    what keeps base→aux linkage carry-over possible (PS-11300+).
+    what keeps base-to-aux linkage carry-over possible (PS-11300+).
     Note: a rebuild with a SURVIVING vector index is refused in
     check_if_supported_inplace_alter, so the copy case here only
     arises for tables that retain percona_vec_aux_id without a vector
@@ -947,7 +947,7 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
           mem_heap_alloc(key_buf->m_heap, sizeof(*buf)));
       mach_write_to_8(reinterpret_cast<byte *>(buf), id);
       dfield_set_data(field, buf, sizeof(*buf));
-      /* Copy the full type — mbminmaxlen too, or dict_col_t::assert_equal
+      /* Copy the full type - mbminmaxlen too, or dict_col_t::assert_equal
       trips (dict0mem.h:789) further down the rebuild pipeline. */
       col->copy_type(dfield_get_type(field));
     } else if (likely(fts.m_doc_id == nullptr ||

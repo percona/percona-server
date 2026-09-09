@@ -27,7 +27,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file vec/vec0aux.cc
 Auxiliary tables for vector (HNSW) indexes. Phase 1: creation, drop, rename,
-naming. No population — that lands in PS-11300. */
+naming. No population - that lands in PS-11300. */
 
 #include "vec0aux.h"
 
@@ -56,8 +56,8 @@ const char *VEC_AUX_PREFIX = "percona_vec_";
 
 namespace {
 
-/** Extract the flags2 bits an aux table should inherit from its parent —
-file_per_table, encryption, temporary — plus DICT_TF2_VEC_AUX. Same set the
+/** Extract the flags2 bits an aux table should inherit from its parent -
+file_per_table, encryption, temporary - plus DICT_TF2_VEC_AUX. Same set the
 FTS aux path preserves (see fts_get_table_flags2_for_aux_tables in fts0fts.cc;
 that helper is file-static so we re-derive it here), except that the aux
 marker is ours and not DICT_TF2_AUX.
@@ -74,7 +74,7 @@ inline uint32_t aux_flags2_from_parent(const dict_table_t *parent) {
          (parent->flags2 & DICT_TF2_TEMPORARY) | DICT_TF2_VEC_AUX;
 }
 
-/** Build the database-prefix portion of a parent name "db/tbl" — returns
+/** Build the database-prefix portion of a parent name "db/tbl" - returns
 the byte length of "db/" (including the slash) or 0 if `parent_name` has no
 slash. */
 size_t db_prefix_len(const char *parent_name) {
@@ -104,7 +104,7 @@ void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
   const size_t db_len = db_prefix_len(parent_name);
 
   const char *token = vec_index_token(type);
-  /* '_' is the field separator — a token containing it would make the
+  /* '_' is the field separator - a token containing it would make the
   name unparseable (contract in vec0aux.h). */
   ut_ad(strchr(token, '_') == nullptr);
 
@@ -219,7 +219,7 @@ void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
       sizeof(uint64_t), false);
   DICT_TF2_FLAG_SET(table, DICT_TF2_HAS_VEC_AUX_COL);
   /* Remember the ordinal position so the INSERT path can locate the
-  dfield slot in O(1) — same trick FTS uses with table->fts->doc_col. */
+  dfield slot in O(1) - same trick FTS uses with table->fts->doc_col. */
   table->vec_aux_col = table->n_def - 1;
 }
 
@@ -238,7 +238,7 @@ void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap) {
   /* Mirrors fts_create_doc_id: allocate the value on `heap` so it
   outlives this call, then point the dfield at it. Big-endian (mach
   format) so a clustered-index range scan on this column would order
-  numerically — matches how FTS_DOC_ID is laid out. */
+  numerically - matches how FTS_DOC_ID is laid out. */
   uint64_t *buf = static_cast<uint64_t *>(mem_heap_alloc(heap, sizeof(*buf)));
   mach_write_to_8(reinterpret_cast<byte *>(buf), id);
 
@@ -319,7 +319,7 @@ void vec_update_aux_id(dict_table_t *table, upd_field_t *ufield,
   col->copy_type(dfield_get_type(&ufield->new_val));
 
   /* Storage byte order, written back over the trx member the label was
-  minted into — which then IS the field's buffer. Same trick as
+  minted into - which then IS the field's buffer. Same trick as
   fts_update_doc_id: no allocation, and the buffer lives exactly as long
   as the statement that needs it. The hook reads it back with
   mach_read_from_8 for the same reason FTS calls fts_read_doc_id. */
@@ -354,7 +354,7 @@ bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
   /* Where the primary key comes from, and why not from node->row.
 
   row_upd_store_row() is what fills node->row, and row_upd_clust_step()
-  skips it entirely under UPD_NODE_NO_ORD_CHANGE — which is exactly the
+  skips it entirely under UPD_NODE_NO_ORD_CHANGE - which is exactly the
   case here, because a vector column is in no B-tree ordering. So
   node->row is nullptr on every UPDATE we care about.
 
@@ -406,7 +406,7 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table) {
 
   /* Persist the advance as dynamic metadata, autoinc-style: the redo
   record makes the id durable the moment it is consumed, so a label can
-  never be reissued — not across restart, not across crash, and whether
+  never be reissued - not across restart, not across crash, and whether
   or not the id ever reaches the aux table. Rolled-back inserts consume
   ids that the aux maximum cannot see, which is why the aux cannot be
   the source of truth for this.
@@ -466,7 +466,7 @@ dict_table_t *create_in_mem_vec_aux_table(const char *aux_name,
       (DATA_MTYPE_MAX << 16) | DATA_BINARY_TYPE | DATA_NOT_NULL,
       VEC_AUX_VEC_COL_LEN, true);
 
-  /* base_pk BIGINT UNSIGNED NOT NULL — the base row this node describes.
+  /* base_pk BIGINT UNSIGNED NOT NULL - the base row this node describes.
   Stored here rather than reached through a secondary index on the base
   table: a secondary index carries no per-record trx_id, so its MVCC leans
   on PAGE_MAX_TRX_ID with a clustered fallback. Keeping the primary key in
@@ -475,7 +475,7 @@ dict_table_t *create_in_mem_vec_aux_table(const char *aux_name,
                          DATA_NOT_NULL | DATA_UNSIGNED, VEC_AUX_BASE_PK_COL_LEN,
                          true);
 
-  /* level TINYINT NOT NULL — stored as 1-byte INT */
+  /* level TINYINT NOT NULL - stored as 1-byte INT */
   dict_mem_table_add_col(t, heap, "level", DATA_INT, DATA_NOT_NULL,
                          VEC_AUX_LEVEL_COL_LEN, true);
 
@@ -544,7 +544,7 @@ bool vec_aux_create_dd_tables(dict_table_t *parent) {
   each iteration on `index->fill_dd` so a re-entrant CREATE-time call
   registers exactly the pending aux tables. Vec has no `fill_dd` per-
   index gate because PS-11264 currently allows at most one vector
-  index per table (see dd::create_dd_table validation) — so the loop
+  index per table (see dd::create_dd_table validation) - so the loop
   either finds zero vec indexes or exactly one, and idempotency isn't
   a concern. If phase 2 lifts the one-vec-index cap AND supports
   partial DD materialization, mirror fts's fill_dd gate here. */
@@ -608,7 +608,7 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
   hold dict_sys (parent row_drop_table_for_mysql, ALTER commit
   drop-index loop, error_handling), so pass dict_locked=true and
   let dd_table_open_on_name handle the release-around-MDL-acquire
-  dance internally — same convention FTS uses. */
+  dance internally - same convention FTS uses. */
   THD *thd = current_thd;
   MDL_ticket *aux_mdl = nullptr;
   if (thd != nullptr) {
@@ -638,7 +638,7 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
   when called with aux_vec == nullptr; on the DROP TABLE path it
   instead pushes the aux name into aux_vec and the caller
   (row_drop_table_for_mysql's funct_exit) drops the DD entries AFTER
-  the parent drop trx commits. Vec has no aux_vec mode — the DD drop
+  the parent drop trx commits. Vec has no aux_vec mode - the DD drop
   always happens here, potentially under an open parent-drop trx.
   Acceptable in phase 1 (empty aux, one aux per index, no partial-
   batch window); the aux_vec deferral is the upgrade path if
@@ -652,7 +652,7 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
     dict_sys_mutex_enter();
   }
 
-  /* Treat NOT_FOUND from the in-memory drop as success — covers tables
+  /* Treat NOT_FOUND from the in-memory drop as success - covers tables
   created before this code landed. */
   return err == DB_TABLE_NOT_FOUND ? DB_SUCCESS : err;
 }
@@ -745,13 +745,13 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
                                              nullptr, trx, replay);
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_466)
-          << "Failed to rename vector aux table " << old_aux_name << " -> "
+          << "Failed to rename vector aux table " << old_aux_name << " to "
           << new_aux_name << " err=" << static_cast<int>(err);
       return err;
     }
 
     /* Update the DD entry (dd::Table parent schema_id + dd::Tablespace
-    file_name) — reuses dd_rename_fts_table since aux tables are
+    file_name) - reuses dd_rename_fts_table since aux tables are
     DD-registered with the same shape. dict_sys mutex must be released
     around the DD client call. */
     if (!replay) {

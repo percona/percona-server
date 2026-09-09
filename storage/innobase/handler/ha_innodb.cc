@@ -7104,7 +7104,7 @@ ulong ha_innobase::index_flags(uint key, uint, bool) const {
   graph, and its root page may be FIL_NULL. Claiming the default
   capabilities lets the optimizer choose it for an ordinary scan, and
   HA_KEYREAD_ONLY in particular makes it look like the narrowest covering
-  index on the table — which is how find_shortest_key picked it for
+  index on the table - which is how find_shortest_key picked it for
   SELECT COUNT(*) and returned 0 from a tree that is not there.
 
   Reads go exclusively through the JT_VECTOR kNN path
@@ -8428,7 +8428,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     if (!index->is_vector() || index->vec != nullptr) continue;
 
     /* Match by name, which is how InnoDB pairs a KEY with a
-    dict_index_t everywhere else — dict_table_get_index_on_name() is the
+    dict_index_t everywhere else - dict_table_get_index_on_name() is the
     same lookup. Index names are unique within a table, so this is exact. */
     const KEY *key = nullptr;
     for (uint i = 0; i < table->s->keys; i++) {
@@ -10511,8 +10511,8 @@ static dberr_t calc_row_difference(
       }
 
       /* Same question for a vector index: did this UPDATE move the
-      indexed vector? A node is immutable — HNSW cannot move a point
-      once its neighbours link to it — so a changed vector becomes a
+      indexed vector? A node is immutable - HNSW cannot move a point
+      once its neighbours link to it - so a changed vector becomes a
       NEW node under a fresh label, and the row has to be re-pointed at
       it. That re-point rides this same update vector, below. */
       if (!changes_vec_column && !is_virtual &&
@@ -10607,7 +10607,7 @@ static dberr_t calc_row_difference(
   and leaving the row pointing at the old one would make a search answer
   from the superseded vector.
 
-  Capacity is not a concern — the vector is created with
+  Capacity is not a concern - the vector is created with
   get_n_cols() + n_v_cols entries, which already counts this hidden
   column. */
   trx->vec_next_label = 0;
@@ -10969,7 +10969,7 @@ int ha_innobase::index_end(void) {
 
   /* Where a vector scan ends. VectorSearchIterator's destructor calls
   ha_index_or_rnd_end(), and vec_init() went through rnd_init(), so this
-  is the one hook both the normal end and an early exit reach — including
+  is the one hook both the normal end and an early exit reach - including
   the LIMIT being satisfied, where vec_read_next is simply never called
   again. The scan holds the aux table open and its MDL ticket, so leaking
   it would keep a concurrent ALTER waiting. */
@@ -11435,7 +11435,7 @@ int ha_innobase::change_active_index(
   /* Initialization of search_tuple is not needed for FT index
   since FT search returns rank only. In addition engine should
   be able to retrieve FTS_DOC_ID column value if necessary.
-  Note: for vector indexes we take the "else" branch below — the
+  Note: for vector indexes we take the "else" branch below - the
   setup work is wasted (subsequent fetch is blocked at line 11058)
   but harmless. Not worth an extra branch here; keeping FTS-only
   gate for minimal churn. See PS-11299 audit N2. */
@@ -12294,7 +12294,7 @@ int ha_innobase::vec_read_next(uchar *buf) {
     /* MVCC check (2). Not found, or not visible under this reader's read
     view: an uncommitted point from another transaction, a row deleted
     after the graph saw it, or an orphan from a rolled-back insert. Skip
-    to the next candidate — returning EOF here would truncate results
+    to the next candidate - returning EOF here would truncate results
     under concurrency. */
     if (ret == DB_RECORD_NOT_FOUND || ret == DB_END_OF_INDEX) {
       continue;
@@ -12523,7 +12523,7 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
 
   /* Same reservation for vector auxiliary table names. Internal vec aux
   creation bypasses ha_innobase::create entirely (goes through
-  vec_aux_create_one_table → row_create_table_for_mysql), so this gate
+  vec_aux_create_one_table calls row_create_table_for_mysql), so this gate
   only ever fires on user-supplied names.
 
   Like the FTS gate above, this matches the full computed shape rather
@@ -12877,7 +12877,7 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   /* Materialize the hidden percona_vec_aux_id column on dict_table_t, in
   the same simple shape as fts_add_doc_id_column above: no phy_pos
   plumbing. That holds because the table cannot reach row_versions > 0
-  — INSTANT ADD/DROP COLUMN is refused for tables owning this column,
+  - INSTANT ADD/DROP COLUMN is refused for tables owning this column,
   in check_if_supported_inplace_alter. */
   if (has_vec_aux_col_in_dd) {
     vec_add_aux_id_column(table, heap);
@@ -14585,10 +14585,11 @@ void create_table_info_t::detach() {
     fts_detach_aux_tables(m_table, true);
   }
 
-  /* Mirror the FTS detach above for vector aux tables — they are
+  /* Mirror the FTS detach above for vector aux tables - they are
   created pinned (can_be_evicted=false) by row_create_table_for_mysql
   and would otherwise stay in dict_sys forever on repeated
-  CREATE-with-vector / DROP cycles. See PS-11299. */
+  CREATE-with-vector / DROP cycles. vec_aux_detach_tables is the
+  fts_detach_aux_tables analog; see vec0aux.h. */
   if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL)) {
     vec_aux_detach_tables(m_table, true);
   }
@@ -15289,7 +15290,7 @@ int create_table_info_t::create_table_update_global_dd(Table *dd_table) {
   }
 
   /* Register the per-vector-index aux tables in the DD too, mirroring
-  fts_create_index_dd_tables above — same flag-style gate. */
+  fts_create_index_dd_tables above - same flag-style gate. */
   if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL) &&
       !vec_aux_create_dd_tables(m_table)) {
     return HA_ERR_GENERIC;
@@ -16147,7 +16148,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
 
   DEVIATION FROM FTS: FTS adopts a conforming user-declared FTS_DOC_ID,
   validating its type and nullability and reusing it. We reject instead.
-  The column carries no user-visible value — it is pure bookkeeping —
+  The column carries no user-visible value - it is pure bookkeeping -
   and the adopt path is the origin of a whole class of
   doc-id-mismanagement bugs we would rather not inherit. */
   {
@@ -16169,7 +16170,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     it is ours and it is sticky. DROP INDEX removes the vector index and
     its aux table but leaves the column in place, and a later ADD VECTOR
     INDEX reuses the existing HT_HIDDEN_SE column rather than adding a
-    second one — that is the `existing != nullptr` branch below, which
+    second one - that is the `existing != nullptr` branch below, which
     must never recreate and never error. Retention across rebuild-ALTERs
     is done at InnoDB commit time by the carry-forward block in
     dd_commit_inplace_alter_table (handler0alter.cc), which keeps
@@ -16179,8 +16180,8 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
 
     (1) FTS anchors FTS_DOC_ID with a companion hidden UNIQUE B-tree
     (FTS_DOC_ID_INDEX) added by dd_set_hidden_unique_index right after
-    the column. We add no anchor: the base<->aux link is
-    base.percona_vec_aux_id -> aux.id through each table's own primary
+    the column. We add no anchor: the base-to-aux link is
+    base.percona_vec_aux_id to aux.id through each table's own primary
     key, so two point lookups and no intermediate B-tree. The
     carry-forward above is what replaces the anchor's role in surviving
     ALTER.
@@ -16189,14 +16190,14 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     type and nullability and reusing it. We reject a user-declared
     column of this name outright, on every table, vector index or not
     (see the reservation gate above). The column carries no user-visible
-    value — it is pure bookkeeping — and the adopt path is the origin of
+    value - it is pure bookkeeping - and the adopt path is the origin of
     a class of doc-id-mismanagement bugs not worth inheriting. Rejecting
     on tables that have no vector index costs a name nobody wants and
     removes the case where a pre-existing user column would collide with
     the hidden one at ALTER ... ADD KEY ... TYPE hnsw time. */
     const dd::Column *existing = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
     if (existing != nullptr) {
-      /* Present and SE-hidden (the gate above rejected any other kind) —
+      /* Present and SE-hidden (the gate above rejected any other kind) -
       carried forward from an earlier CREATE or ALTER. Reuse it: never
       recreate, never error. */
     } else {
@@ -16457,7 +16458,7 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
     return HA_ERR_NOT_ALLOWED_COMMAND;
   }
 
-  /* DEVIATION FROM FTS: FTS supports DISCARD/IMPORT — fts_drop_orphaned
+  /* DEVIATION FROM FTS: FTS supports DISCARD/IMPORT - fts_drop_orphaned
   _tables + the FTS aux rebuild inside innobase_import_tablespace roll
   the aux .ibd files with the parent. Vec has no serialize/restore
   path for HNSW graph state across .ibd swap yet, so we hard-block
@@ -18072,7 +18073,7 @@ ha_rows ha_innobase::records_in_range(
   /* DEVIATION FROM FTS: no FTS guard exists here because the SQL layer
   never issues range scans on FULLTEXT keys, so FTS indexes are
   unreachable by construction. Vector keys ARE currently considered by
-  the optimizer (it lacks an HA_VECTOR exclusion in its cost paths —
+  the optimizer (it lacks an HA_VECTOR exclusion in its cost paths -
   known phase-1 issue, see the SELECT COUNT(*) FORCE INDEX workarounds
   in percona.vector_audit_gaps). Without this guard a range estimate
   would walk the vec index's nonexistent B-tree (page == FIL_NULL).
@@ -19825,7 +19826,7 @@ clue about the method. */
 int ha_innobase::end_stmt() {
   /* An open vector scan cannot outlive the statement. index_end() is the
   ordinary end, reached through the iterator's destructor, but that runs
-  ha_index_or_rnd_end() — a no-op once ha_reset() has cleared `inited`,
+  ha_index_or_rnd_end() - a no-op once ha_reset() has cleared `inited`,
   which happens first. The scan pins the aux table, so leaking it here
   makes the next DROP of that table fail its reference-count assertion. */
   vec_knn_close(m_vec_search);

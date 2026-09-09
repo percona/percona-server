@@ -4283,7 +4283,7 @@ bool Item_func_vector_distance::do_itemize(Parse_context *pc, Item **res) {
   /* Register with the query block so the optimizer can consider the
   vector index for the canonical kNN shape (ORDER BY ... LIMIT). WHERE
   placement is registered too, but only the ORDER BY shape activates
-  the index — an approximate index inside a filter would silently drop
+  the index - an approximate index inside a filter would silently drop
   qualifying rows (PS-11300-search-design.md par 1.2). */
   const auto select = pc->select;
   if (select->parsing_place == CTX_WHERE ||

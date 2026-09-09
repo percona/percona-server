@@ -27,7 +27,7 @@ is open, hanging off dict_index_t::vec.
 
 struct dict_index_t;
 
-/** In-memory state belonging to one open vector index — the graph, the
+/** In-memory state belonging to one open vector index - the graph, the
 arena its nodes live in, the persistor, and the parameters read back from
 the DD.
 
@@ -49,8 +49,8 @@ struct Vec_runtime {
 /** Release the runtime attached to an index, if any, and clear the
 pointer. Called from dict_mem_index_free().
 
-dict_index_t is never constructed or destructed — the memory is zeroed by
-mem_heap_zalloc and dict_mem_fill_index_struct() acts as the constructor —
+dict_index_t is never constructed or destructed - the memory is zeroed by
+mem_heap_zalloc and dict_mem_fill_index_struct() acts as the constructor -
 so dict_index_t::vec is a raw pointer that starts null for free and has to
 be released by hand here, the way destroy_fields_array() already is.
 @param[in,out]  index  index whose runtime is to be freed */

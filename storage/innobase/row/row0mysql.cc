@@ -2923,13 +2923,13 @@ run_again:
 
   /* A vector-column UPDATE adds the new node. calc_row_difference has
   already minted the label and put it into the update vector, so the row
-  written above already names the new node — this only has to create it.
+  written above already names the new node - this only has to create it.
 
   DELETE deliberately does nothing here: the node has to stay for read
   views still entitled to the row, and the read path filters it by
   resolving base_pk under the reader's own view. */
   {
-    /* Storage byte order — vec_update_aux_id wrote it back over this
+    /* Storage byte order - vec_update_aux_id wrote it back over this
     member so it could double as the update field's buffer. */
     const uint64_t label =
         mach_read_from_8(reinterpret_cast<const byte *>(&trx->vec_next_label));
@@ -4635,7 +4635,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   }
 
   /* Drop the per-vector-index auxiliary tables. Symmetric with the FTS
-  ancillary drop above — same flag-style gate. See PS-11299. */
+  ancillary drop above - same flag-style gate. See PS-11299. */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     ut_ad(!is_temp);
     err = vec_aux_drop_all_tables(trx, table);
@@ -4799,7 +4799,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   }
 
   /* Vector aux tables are named
-  "<db>/percona_vec_<type>_<table_id>_<index_id>" — keyed
+  "<db>/percona_vec_<type>_<table_id>_<index_id>" - keyed
   by ids, so SAME-schema RENAME is a no-op. CROSS-schema RENAME needs
   each aux's dd::Table reparented to the new schema and its
   dd::Tablespace file path updated; vec_aux_rename_tables does both
@@ -5165,7 +5165,7 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
   } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
              index->is_vector()) {
     /* Full Text and Vector indexes are implemented by auxiliary tables,
-    not the B-tree — page == FIL_NULL. We also skip secondary indexes
+    not the B-tree - page == FIL_NULL. We also skip secondary indexes
     that are being created online. */
     return (DB_SUCCESS);
   }

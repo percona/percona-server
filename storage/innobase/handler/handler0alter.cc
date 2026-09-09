@@ -781,9 +781,9 @@ static bool ok_to_rename_column(const Alter_inplace_info *ha_alter_info,
       return false;
     }
 
-    /* Prohibit renaming the hidden percona_vec_aux_id column out of existence on
-    a table that has at least one vector index. Mirrors the FTS_DOC_ID
-    guard above. */
+    /* Prohibit renaming the hidden percona_vec_aux_id column out of existence
+    on a table that has at least one vector index. Mirrors the FTS_DOC_ID guard
+    above. */
     if (!my_strcasecmp(system_charset_info, (*fp)->field_name,
                        VEC_AUX_ID_COL_NAME) &&
         vec_aux_table_has_vector_index(dict_table)) {
@@ -893,11 +893,11 @@ static inline Instant_Type innobase_support_instant(
   FTS is protected by ER_INNODB_FT_LIMIT (see below); vector reaches
   here because we deliberately allowed ADD VECTOR INDEX + subsequent
   ALTER. For phase 1 we take the same defensive stance as FTS.
-  ALLOWED: rename, virtual-column only, and rebuild-shape ALTERs —
+  ALLOWED: rename, virtual-column only, and rebuild-shape ALTERs -
   the rebuild path reshuffles cols and avoids the mismatch entirely.
 
   TODO PS-11300: fix build_template to skip HT_HIDDEN_SE cols when
-  computing the InnoDB→MySQL column map, then remove this block. */
+  computing the InnoDB-to-MySQL column map, then remove this block. */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     const auto flags = alter_inplace_flags;
     const auto column_add_drop_mask =
@@ -1054,7 +1054,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   }
 
   /* ADD VECTOR INDEX runs INPLACE only when the hidden
-  percona_vec_aux_id column already exists — retained after a DROP INDEX
+  percona_vec_aux_id column already exists - retained after a DROP INDEX
   (see the retention note in prepare_inplace_alter_table_dict) or present
   after an IMPORT.
 
@@ -1066,7 +1066,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   The FIRST ever ADD is different and must fall back to COPY: the hidden
   column has to materialize in the clustered record, and adding a column
   means rewriting every row. The native rebuild would stamp the column on
-  each copied row and stop there — no HNSW build pass — leaving an index
+  each copied row and stop there - no HNSW build pass - leaving an index
   that silently returns nothing for every pre-existing row. COPY routes
   each row through write_row instead, which builds the graph organically.
 
@@ -1438,18 +1438,18 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     /* Mirror the FTS refusal above for vector indexes: if the table
     already contains a vector index, refuse to rebuild natively.
     A native rebuild re-inserts every row into a new table_id /
-    index_id — the vector aux table would be re-minted empty and the
+    index_id - the vector aux table would be re-minted empty and the
     HNSW graph contents lost. ALGORITHM=COPY rebuilds the aux
     organically because every row goes through the normal INSERT
-    stamping path. The FIRST ADD VECTOR INDEX does not reach this gate —
-    the old table has no vector index yet — which is why it is refused
+    stamping path. The FIRST ADD VECTOR INDEX does not reach this gate -
+    the old table has no vector index yet - which is why it is refused
     earlier, on the added keys. An earlier revision of this comment
     argued the first ADD was safe here because it matched FTS's
     first-ADD-FULLTEXT rebuild; the shape matches but the outcome does
     not, because FTS has a build pass during the rebuild and we do
     not, so that rebuild produced an empty graph over existing rows.
 
-    This refusal is full FTS parity — no deviation today. If a later
+    This refusal is full FTS parity - no deviation today. If a later
     phase implements aux carry-over (copy percona_vec_aux_id, re-parent the
     aux to the new table_id/index_id atomically) or an HNSW
     rebuild-during-copy, native/online rebuild could be re-enabled;
@@ -1495,7 +1495,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
 
       1. The rollback path (ddl::mark_secondary_indexes) drops an
          uncommitted vec index and its aux table from the cache
-         immediately — safe only when no concurrent thread can hold a
+         immediately - safe only when no concurrent thread can hold a
          prebuilt ins_node entry_list referencing the index, which
          SHARED lock guarantees. Same reasoning FTS documents at
          ddl0ddl.cc mark_secondary_indexes.
@@ -1504,13 +1504,13 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
          taken after the index build, outside ddl::Builder. Under
          LOCK=NONE a concurrent INSERT would land in the row log and be
          applied to the new index by row_log_apply, which knows nothing
-         about the graph — the row would exist in the table and not in
+         about the graph - the row would exist in the table and not in
          the index.
 
       Reason 2 is the same trade FTS states directly above: "we could do
       without a lock ... but in that case we would have to apply the
       modification log to the full-text indexes." Upstream never built
-      that, so ADD FULLTEXT requires LOCK=SHARED too — the branch above
+      that, so ADD FULLTEXT requires LOCK=SHARED too - the branch above
       sets online = false unconditionally for HA_FULLTEXT. We are at
       parity, and deliberately so: supporting LOCK=NONE here would be a
       deviation BEYOND FTS, and would have to be justified as one rather
@@ -2057,7 +2057,7 @@ static bool innobase_init_foreign(
     /* Exclude both FTS and vector indexes: neither has a B-tree
     (page == FIL_NULL) that FK enforcement can walk. Sibling
     dict_foreign_find_index at dict0dict.cc:3409 already filters
-    vec — keep both helpers symmetric. */
+    vec - keep both helpers symmetric. */
     if (!(index->type & DICT_FTS) && !dict_index_is_vector(index) &&
         dict_foreign_qualify_index(table, col_names, columns, n_cols, index,
                                    nullptr, true, 0)) {
@@ -4540,7 +4540,7 @@ static void dd_commit_inplace_alter_table(
     /* Carry percona_vec_aux_id forward across rebuild-ALTERs, symmetric with
     FTS_DOC_ID above. Only difference: no dd_set_hidden_unique_index
     call because vec has no anchor B-tree (FTS has FTS_DOC_ID_INDEX;
-    vec's base<->aux linkage is base.percona_vec_aux_id -> aux.id via each
+    vec links base to aux by base.percona_vec_aux_id = aux.id via each
     table's own PK). Retention keeps DICT_TF2_HAS_VEC_AUX_COL truthful
     and mirrors FTS's DICT_TF2_FTS_HAS_DOC_ID stickiness. */
     if (old_info.m_vec_aux_col &&
@@ -4771,8 +4771,8 @@ template <typename Table>
   }
 
   /* The primary index would be rebuilt if a FTS Doc ID
-  column (or percona_vec_aux_id) is to be added, and the primary index definition
-  is just copied from old table and stored in indexdefs[0] */
+  column (or percona_vec_aux_id) is to be added, and the primary index
+  definition is just copied from old table and stored in indexdefs[0] */
   assert(!add_fts_doc_id || new_clustered);
   assert(!add_vec_aux_col || new_clustered);
   assert(new_clustered == (innobase_need_rebuild(ha_alter_info) ||
@@ -5203,14 +5203,14 @@ template <typename Table>
     }
 
     /* Remember the added vector index for the aux-table creation and
-    DD-registration blocks below — mirror of the fts_index capture
+    DD-registration blocks below - mirror of the fts_index capture
     above. At most one vector index per table (PS-11264).
 
     No ONLINE-status handling is needed here: indexes are created in
     ONLINE_INDEX_COMPLETE (the default), ADD VECTOR INDEX is always
     offline (HA_VECTOR gate in check_if_supported_inplace_alter, same
     as FTS), and the modification-log loop below exempts vector
-    indexes — so a vector index never enters ONLINE_INDEX_CREATION. */
+    indexes - so a vector index never enters ONLINE_INDEX_CREATION. */
     if (ctx->add_index[a]->is_vector()) {
       assert(!vec_index);
       vec_index = ctx->add_index[a];
@@ -5232,7 +5232,7 @@ template <typename Table>
       by a modification log. */
     } else if (ctx->add_index[a]->is_vector()) {
       /* Vector indexes have no online build path in phase 1, so they
-      need no modification log either — same exemption shape as FTS
+      need no modification log either - same exemption shape as FTS
       above. The aux .ibd is the persistence for HNSW (PS-11300). */
     } else {
       DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
@@ -5357,17 +5357,17 @@ template <typename Table>
   }
 
   /* Create the per-vector-index auxiliary table. Mirrors the
-  fts_create_index_tables call in the fts_index block above — same
+  fts_create_index_tables call in the fts_index block above - same
   placement (after the add-index loop), same dict_sys mutex dance,
   same transactional shape: both create the aux inside ctx->trx via
   the row_create_table_for_mysql C API, uncommitted, so an ALTER
   failure rolls the aux back through the normal DDL machinery.
   (The "This function will commit the transaction" comment on the FTS
-  call above is stale — fts_create_index_tables_low no longer commits;
+  call above is stale - fts_create_index_tables_low no longer commits;
   that dates from the pre-8.0 internal-SQL-parser implementation.)
 
   DEVIATION FROM FTS: no common-table creation and no stopword
-  loading follow the aux create — vec has no CONFIG/DELETED/stopword
+  loading follow the aux create - vec has no CONFIG/DELETED/stopword
   machinery (see the DEVIATION note on VEC_AUX_TABLE_NUM_COLS in
   vec0aux.h), and exactly one aux per index instead of six. */
   if (vec_index != nullptr) {
@@ -5398,19 +5398,19 @@ template <typename Table>
     fts_freeze_aux_tables(ctx->new_table);
   }
 
-  /* No vec parallel of fts_freeze_aux_tables needed — and the vec aux
+  /* No vec parallel of fts_freeze_aux_tables needed - and the vec aux
   eviction LIFECYCLE is identical to FTS's, not a deviation:
 
     born pinned (row_create_table_for_mysql, same path FTS aux use at
-    fts0fts.cc fts_create_one_index_table) → detached back to
+    fts0fts.cc fts_create_one_index_table), then detached back to
     evictable at error_handling below (vec_aux_detach_tables, mirror
-    of fts_detach_aux_tables) → evictable / LRU-managed thereafter.
+    of fts_detach_aux_tables), so evictable / LRU-managed thereafter.
 
   The freeze above is a NO-OP for aux tables created by the current
   ALTER (they are still pinned from birth; freeze only flips tables
   that are currently evictable). It does real work only for FTS's
-  PRE-EXISTING aux — the common tables of a table that already had
-  fulltext state, evictable since the previous DDL's detach — which
+  PRE-EXISTING aux - the common tables of a table that already had
+  fulltext state, evictable since the previous DDL's detach - which
   FTS's own prepare code reopens in-mem around the dictionary-unlock
   window at dd_prepare_inplace_alter_table below. Vec never touches a
   pre-existing aux in that window (the drop paths open by name via
@@ -5445,7 +5445,7 @@ template <typename Table>
     the DD only when a NEW vector index was added in this ALTER.
     Because ADD VECTOR INDEX always forces rebuild (add_vec_aux_col),
     vec_index being set implies ctx->new_table is a freshly-built
-    rebuild target — safe to iterate its vec indexes. */
+    rebuild target - safe to iterate its vec indexes. */
     if (vec_index) {
       if (!vec_aux_create_dd_tables(ctx->new_table)) {
         error = DB_ERROR;
@@ -5472,7 +5472,7 @@ error_handling:
     vec_aux_detach_tables(ctx->new_table, dict_locked);
   }
 
-  /* Note: no vec aux drop here, and none needed — mirroring FTS.
+  /* Note: no vec aux drop here, and none needed - mirroring FTS.
   On the norebuild error path, error_handled: below reaches
   ddl::drop_indexes, whose per-uncommitted-index loop drops the vec
   aux table exactly where it drops FTS aux (fts_drop_index /
@@ -5520,7 +5520,7 @@ error_handled:
         innobase_drop_fts_index_table(ctx->new_table, ctx->trx);
       }
 
-      /* Mirror the FTS aux drop above for vector aux — same shape,
+      /* Mirror the FTS aux drop above for vector aux - same shape,
       same flag-based gate. */
       if (DICT_TF2_FLAG_IS_SET(ctx->new_table, DICT_TF2_HAS_VEC_AUX_COL)) {
         (void)vec_aux_drop_all_tables(ctx->trx, ctx->new_table);
@@ -6451,13 +6451,13 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   Two cases require it:
   (a) A new vec index is being added on a table that does not yet own
-      percona_vec_aux_id — add_vec_aux_col both materializes the column AND
+      percona_vec_aux_id - add_vec_aux_col both materializes the column AND
       forces rebuild (via `rebuild = ... || add_vec_aux_col ...` at
       line 3111). Mirrors add_fts_doc_id.
   (b) The table already owns percona_vec_aux_id (Option A retention) AND the
       SQL layer independently requires a rebuild (ALTER TABLE FORCE,
       ROW_FORMAT change, DROP PRIMARY KEY, ...). Without materializing
-      here, `add_vec_aux_col=false` → n_cols is not bumped and
+      here, `add_vec_aux_col=false`, so n_cols is not bumped and
       vec_add_aux_id_column is not called (see the branch at
       line 4930), so the fresh dict_table_t has NO percona_vec_aux_id column.
       innobase_build_col_map then maps the old percona_vec_aux_id slot to
@@ -6466,7 +6466,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       lists percona_vec_aux_id. Result: DD says N columns, .ibd has N-1, first
       SELECT after commit trips on the mismatch. FTS avoids this by
       blocking INPLACE-rebuild on FTS-indexed tables at line 1380
-      (ER_INNODB_FT_LIMIT) — vec instead materializes correctly so
+      (ER_INNODB_FT_LIMIT) - vec instead materializes correctly so
       INPLACE-rebuild can stay supported for other ALTER cases. */
   if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
     for (uint k = 0; k < ha_alter_info->index_add_count; k++) {
@@ -6702,8 +6702,8 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
     /* Populate any vector index this ALTER added.
 
-    The index build above is a no-op for a vector index — there is no
-    merge-sortable key to build — so the graph is built here instead,
+    The index build above is a no-op for a vector index - there is no
+    merge-sortable key to build - so the graph is built here instead,
     from one clustered scan (vec_build_index). This only runs on the
     INPLACE path; ADD on a table without the hidden column was refused in
     check_if_supported_inplace_alter and came through COPY, where
@@ -6735,8 +6735,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
           err = DB_ERROR;
           break;
         }
-        const auto *hp =
-            std::get_if<storage::innobase::vec::HnswParam>(&vip);
+        const auto *hp = std::get_if<storage::innobase::vec::HnswParam>(&vip);
         if (hp == nullptr) {
           err = DB_ERROR;
           break;
@@ -7755,7 +7754,7 @@ after a successful commit_try_norebuild() call.
       invoked with nonatomic=false so it does not try to re-acquire.
 
       DEVIATION FROM FTS: fts_drop_index above only collects DD-side
-      names into ctx->fts_drop_aux_vec — the dd::Table drops are
+      names into ctx->fts_drop_aux_vec - the dd::Table drops are
       deferred until after the DDL trx commits (fts_drop_dd_tables,
       further down in commit_inplace_alter_table) so a rollback of the
       commit phase never sees half-dropped DD state. Vec drops the DD
@@ -7763,7 +7762,7 @@ after a successful commit_try_norebuild() call.
       dict_sys around the DD client call). Acceptable in phase 1: the
       aux is empty, commit_cache_norebuild runs past the point where
       the norebuild ALTER can fail, and a single aux means no partial-
-      batch window. Revisit with PS-11300's crash-atomicity work —
+      batch window. Revisit with PS-11300's crash-atomicity work -
       adopting the aux_vec deferral pattern is the fix if needed. */
       if (index->is_vector()) {
         (void)vec_aux_drop_one_table(trx, index->table, index->id);
@@ -7880,7 +7879,7 @@ static void alter_stats_norebuild(Alter_inplace_info *ha_alter_info,
     dict_index_t *index = ctx->add_index[i];
     assert(index->table == ctx->new_table);
 
-    /* Skip FTS and vector indexes — neither has a B-tree for
+    /* Skip FTS and vector indexes - neither has a B-tree for
     dict_stats_update_for_index to analyze. Currently ADD VECTOR
     INDEX forces rebuild (via add_percona_vec_aux_id), so this loop
     doesn't see a vec index in the norebuild path today; the
@@ -11677,11 +11676,11 @@ bool ha_innobase::bulk_load_check(THD *) const {
     return false;
   }
 
-  /* Vector index — mirror the FTS block above. The hidden percona_vec_aux_id
+  /* Vector index - mirror the FTS block above. The hidden percona_vec_aux_id
   column requires per-row stamping via vec_stamp_aux_id, and BULK bypasses
   the row-insert path. Retention (Option A) keeps the flag sticky, so
   once-vec-indexed tables remain blocked even after all vec indexes are
-  dropped — same lifecycle as DICT_TF2_FTS_HAS_DOC_ID above. */
+  dropped - same lifecycle as DICT_TF2_FTS_HAS_DOC_ID above. */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Vector Index",
              "LOAD DATA ALGORITHM = BULK");

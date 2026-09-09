@@ -2266,7 +2266,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     return true;
   }
 
-  /* JT_VECTOR produces rows in ascending distance order — exactly the
+  /* JT_VECTOR produces rows in ascending distance order - exactly the
   single ORDER BY expression optimize_vector_query activated it for.
   The sort is redundant (PS-11300). */
   if (tab->type() == JT_VECTOR) {
@@ -11077,7 +11077,7 @@ bool JOIN::optimize_vector_query() {
   a single-table block whose single ascending ORDER BY expression is a
   distance call over the indexed column with a constant query vector,
   under a finite LIMIT. Any other placement of a distance call (WHERE,
-  projection, no LIMIT) stays on the exact path — an approximate index
+  projection, no LIMIT) stays on the exact path - an approximate index
   inside a filter silently drops qualifying rows. */
   if (primary_tables != 1 || const_tables != 0) return false;
   if (m_select_limit == HA_POS_ERROR) return false;
@@ -11092,7 +11092,7 @@ bool JOIN::optimize_vector_query() {
   }
   auto *dist_fn = down_cast<Item_func_vector_distance *>(order_item);
 
-  /* The index's construction metric is (squared) euclidean — the only
+  /* The index's construction metric is (squared) euclidean - the only
   one CREATE accepts today; other query metrics order differently and
   fall back to the exact path. */
   if (!dist_fn->l2_index_servable()) return false;

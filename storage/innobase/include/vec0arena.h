@@ -31,7 +31,7 @@ Arena allocator for HNSW graph nodes.
 
 Satisfies the class's ArenaAllocator contract: a default constructor, and
 `void *allocate(size_t)`. There is deliberately no free for an individual
-block — the graph never destroys a node, so the arena only has to outlive
+block - the graph never destroys a node, so the arena only has to outlive
 the graph and release everything at once. HNSW holds one of these by value
 and is neither copyable nor movable, so destroying the graph destroys the
 arena, which is exactly the lifetime the contract asks for.
@@ -44,7 +44,7 @@ a big VECTOR(n) without oversizing every chunk to suit the worst case.
 `allocate()` returns nullptr when the underlying allocation fails; the
 class asserts on that today (hnsw.h has two "revisit once we add memory
 limits" TODOs). Byte accounting for innodb_hnsw_max_memory belongs here
-later — this is the single point every graph byte passes through — but
+later - this is the single point every graph byte passes through - but
 the refusal itself has to happen before insert() starts mutating, not
 inside allocate(), because there is no per-block free to unwind with. */
 /** Bytes held by every Vec_arena in the server, chunk headers included.

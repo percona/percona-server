@@ -8799,21 +8799,21 @@ bool mysql_prepare_create_table(
 
     Cascaded DML runs inside the engine, through the row0ins FK cascade
     nodes, and never reaches the handler hooks that maintain the vector
-    index. ON DELETE CASCADE happens to be harmless — a DELETE writes
+    index. ON DELETE CASCADE happens to be harmless - a DELETE writes
     nothing to the aux table by design, so a cascaded one lands in the
     same state as an ordinary one. ON UPDATE CASCADE is not: when the
     cascaded column is part of the child's primary key, the aux row's
     base_pk still points at the old key and the row silently drops out
-    of kNN results. It cannot return a WRONG row — the label check
-    rejects any row that took over the old key — but it does go missing.
+    of kNN results. It cannot return a WRONG row - the label check
+    rejects any row that took over the old key - but it does go missing.
 
     Refusing both is broader than the defect. Narrowing it to
     ON UPDATE CASCADE where the foreign key overlaps the primary key
     would be accurate, and is worth doing once cascades are supported
     properly. Supporting them means what FTS does at row0ins.cc:1251:
     a per-foreign-key predicate, a hook in the ON UPDATE CASCADE branch,
-    and — the part that makes it engine work rather than a handler tweak
-    — deferring the aux write onto a queue drained at commit, because
+    and - the part that makes it engine work rather than a handler tweak
+    - deferring the aux write onto a queue drained at commit, because
     the cascade has no access to the sub-transaction our aux writes
     ride. */
     bool any_cascading_fk = false;

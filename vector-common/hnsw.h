@@ -85,7 +85,7 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
         (0 = empty slot; size (layer + 2) * M). Stubs created for
         referenced neighbors stay unloaded until touched.
         Returning true without completing the load_* sequence leaves a
-        corrupt COMPLETE node — do not do that.
+        corrupt COMPLETE node - do not do that.
         A callback that must never run is fine when every node is always
         resident (unit tests with NullPersistor).
 
@@ -1319,7 +1319,7 @@ class HNSW {
     const double u =
         std::max(std::uniform_real_distribution<double>(0.0, 1.0)(m_rng),
                  std::numeric_limits<double>::min());
-    // Throttle layer growth and avoid UB caused by double -> uint8_t overflow.
+    // Throttle layer growth and avoid UB caused by double to uint8_t overflow.
     const uint8_t layer_cap = std::min<int>(
         current_max_layer + 1, std::numeric_limits<uint8_t>::max());
     return static_cast<uint8_t>(
@@ -1668,7 +1668,7 @@ class HNSW {
       //
       // Note it is important to do only one atomic load of the state here,
       // otherwise we might get spurious failures due to concurrent LINKING
-      // -> COMPLETE transitions.
+      // transitions into COMPLETE.
 #ifndef NDEBUG
       NodeState entry_state = entry.node->state();
       assert(entry_state == NODE_COMPLETE || entry_state == NODE_LINKING);

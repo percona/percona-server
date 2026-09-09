@@ -6970,11 +6970,11 @@ bool dd_drop_aux_table(const char *name, bool file_per_table) {
   return true;
 }
 
-/** Rename dd table & tablespace files for fts aux table
+/** Rename dd table & tablespace files for an auxiliary table - FTS or vector
 @param[in]      table           dict table
 @param[in]      old_name        old innodb table name
 @return true on success, false on failure. */
-bool dd_rename_fts_table(const dict_table_t *table, const char *old_name) {
+bool dd_rename_aux_table(const dict_table_t *table, const char *old_name) {
   std::string new_db;
   std::string new_table;
   dict_name::get_table(table->name.m_name, new_db, new_table);

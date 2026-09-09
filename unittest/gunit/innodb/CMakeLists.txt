@@ -64,6 +64,7 @@ SET(TESTS
   ut0rbt
   ut0rnd
   vec0arena
+  vec0aux
   vec0vec
 )
 

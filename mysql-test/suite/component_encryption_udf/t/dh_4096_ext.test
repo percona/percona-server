@@ -2,7 +2,11 @@
 --source include/have_encryption_udf_component.inc
 --let $openssl_binary_version = 1\\.0\\.2|1\\.1\\.\\d+|3\\.\\d+\\.\\d+
 --source include/have_openssl_binary_version.inc
-
+let $have_arm64 = `SELECT convert(@@version_compile_machine USING latin1) IN ("arm64", "aarch64")`;
+if ($have_arm64)
+{
+   skip Test requires: 'not ARM64';
+}
 --let $key_length = 4096
 --let $use_openssl_binary = 1
 

@@ -3304,10 +3304,9 @@ dberr_t row_create_table_for_mysql(dict_table_t *&table,
     case TRX_DICT_OP_INDEX:
       /* If the transaction was previously flagged as
       TRX_DICT_OP_INDEX, we should be creating auxiliary tables for
-      full-text or vector indexes. Vec aux names start with
-      "<db>/vec_" — see VEC_AUX_PREFIX / vec_aux_get_table_name. */
+      full-text or vector indexes. */
       ut_ad(strstr(table->name.m_name, "/fts_") != nullptr ||
-            strstr(table->name.m_name, "/vec_") != nullptr);
+            vec_aux_is_aux_table_name(table->name.m_name));
   }
 
   /* Assign table id and build table space. */
@@ -4569,10 +4568,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     case TRX_DICT_OP_INDEX:
       /* If the transaction was previously flagged as
       TRX_DICT_OP_INDEX, we should be dropping auxiliary tables for
-      full-text or vector indexes, or temp tables. Vec aux names
-      start with "<db>/vec_". */
+      full-text or vector indexes, or temp tables. */
       ut_ad(strstr(table->name.m_name, "/fts_") != nullptr ||
-            strstr(table->name.m_name, "/vec_") != nullptr ||
+            vec_aux_is_aux_table_name(table->name.m_name) ||
             strstr(table->name.m_name, TEMP_FILE_PREFIX_INNODB) != nullptr);
   }
 
@@ -4800,7 +4798,8 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     err = fts_rename_aux_tables(table, new_name, trx, replay);
   }
 
-  /* Vector aux tables are named "<db>/vec_<table_id>_<index_id>" — keyed
+  /* Vector aux tables are named
+  "<db>/percona_vec_<type>_<table_id>_<index_id>" — keyed
   by ids, so SAME-schema RENAME is a no-op. CROSS-schema RENAME needs
   each aux's dd::Table reparented to the new schema and its
   dd::Tablespace file path updated; vec_aux_rename_tables does both

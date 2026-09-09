@@ -63,6 +63,7 @@ SET(TESTS
   ut0object_cache
   ut0rbt
   ut0rnd
+  vec0aux
   vec0vec
 )
 

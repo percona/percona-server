@@ -208,7 +208,7 @@ class ha_innobase : public handler {
 
   The scan is the whole of it. It carries the traversal's visited set and
   unexplored frontier, so continuing costs nothing extra and a candidate
-  can never repeat — there is no batch to buffer, no read position, and no
+  can never repeat - there is no batch to buffer, no read position, and no
   set of already-returned labels to exclude. Opened by vec_read_first and
   released by index_end, which is where the iterator's destructor lands. */
   vec_search_t *m_vec_search = nullptr;

@@ -45,7 +45,7 @@ using VectorIndexParam = std::variant<std::monostate, HnswParam>;
 
 /** Validate the SHAPE of a vector index as the user wrote it: single
 non-prefixed column, SE-specific algorithm, a TYPE token we know. Only
-meaningful at DDL time, which is why it takes a Key_spec — by the time a
+meaningful at DDL time, which is why it takes a Key_spec - by the time a
 table is opened the definition has already been through here and come
 back from the DD. Reports through my_error().
 @return true on error */
@@ -64,7 +64,7 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
 bool parse_options(const Key_spec &index_def, VectorIndexParam &vip);
 
 /** Open-time overload: the definition came back from the DD, so there is
-nothing left to validate — parse only. */
+nothing left to validate - parse only. */
 bool parse_options(const KEY &key, VectorIndexParam &vip);
 
 }  // namespace storage::innobase::vec

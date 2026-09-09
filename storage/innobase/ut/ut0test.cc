@@ -807,7 +807,7 @@ Ret_t Tester::vec_aux_dump(std::vector<std::string> &tokens) noexcept {
 /* Order-independent consistency check on a vector aux table.
 
 vec_aux_dump prints per-node detail, which makes it useless for a
-concurrency test: the id -> base_pk mapping depends on how the inserts
+concurrency test: the id to base_pk mapping depends on how the inserts
 interleaved, so the recorded result would flake. This reports only
 invariants that must hold whatever the interleaving, so it stays valid
 once concurrent graph mutation is allowed. */

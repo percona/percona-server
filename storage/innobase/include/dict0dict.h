@@ -237,7 +237,7 @@ update some existing smaller one to bigger.
 bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
 
 /** Write redo logs for the hidden vec_idx_id counter of a
-vector-indexed table when it advances past the persisted watermark —
+vector-indexed table when it advances past the persisted watermark -
 the dict_table_autoinc_log analog (PS-11300).
 @param[in,out]  table   table whose counter advanced
 @param[in]      value   counter value AFTER the assignment
@@ -252,7 +252,7 @@ bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
 Call this only AFTER the mini-transaction carrying the covering redo
 record has committed. Advancing earlier lets a racing assigner skip its
 own redo on the strength of a value that is not yet durable, which is
-how labels get reissued after a crash — see the ordering argument in
+how labels get reissued after a crash - see the ordering argument in
 dict_table_vec_next_id_log.
 @param[in,out]  table  the table
 @param[in]      value  the id that has now been logged */

@@ -42,8 +42,8 @@ constexpr size_t vec_arena_align(size_t n) {
 
 /** Bytes held by every Vec_arena in the server, chunk headers included.
 
-The budget innodb_hnsw_max_memory promises is server-wide — across all
-tables and all indexes — and every graph byte passes through
+The budget innodb_hnsw_max_memory promises is server-wide - across all
+tables and all indexes - and every graph byte passes through
 Vec_arena::allocate(), so one counter here covers exactly that scope. */
 static std::atomic<uint64_t> vec_arena_bytes{0};
 

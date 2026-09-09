@@ -1091,7 +1091,7 @@ dberr_t row_quiesce_set_state(
                 " FTS auxiliary tables will not be flushed.");
   } else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     /* Vector aux tables are independent dict_table_t/.ibd siblings of
-    the base table — FLUSH FOR EXPORT only quiesces the base, so any
+    the base table - FLUSH FOR EXPORT only quiesces the base, so any
     HNSW persistence in the aux .ibd is not export-consistent. Mirror
     the FTS warning above. */
     ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN, ER_NOT_SUPPORTED_YET,

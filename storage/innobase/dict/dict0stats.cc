@@ -537,7 +537,7 @@ static void dict_stats_copy(dict_table_t *dst, /*!< in/out: destination table */
       src_idx = src_idx->next();
     }
     if (dict_stats_should_ignore_index(dst_idx)) {
-      /* Skip FTS and vector — neither has a B-tree for the assert in
+      /* Skip FTS and vector - neither has a B-tree for the assert in
       dict_stats_empty_index to tolerate. */
       if (!(dst_idx->type & DICT_FTS) && !dst_idx->is_vector()) {
         dict_stats_empty_index(dst_idx);
@@ -2357,7 +2357,7 @@ static dberr_t dict_stats_update_persistent(dict_table_t *table) {
   for (index = index->next(); index != nullptr; index = index->next()) {
     ut_ad(!dict_index_is_ibuf(index));
 
-    /* FTS, spatial and vector indexes are excluded from stats — none
+    /* FTS, spatial and vector indexes are excluded from stats - none
     of them has a B-tree that dict_stats_update_persistent can walk,
     and dict_stats_empty_index's asserts require the exclusion. */
     if (index->type & DICT_FTS || dict_index_is_spatial(index) ||

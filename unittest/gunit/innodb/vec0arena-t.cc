@@ -77,7 +77,7 @@ TEST(Vec0ArenaTest, SmallBlocksShareChunks) {
   EXPECT_LE(arena.bytes_allocated(), 2u * 64 * 1024 + 4096);
 }
 
-/* A VECTOR(n) large enough to exceed a whole chunk still has to work —
+/* A VECTOR(n) large enough to exceed a whole chunk still has to work -
 the arena gives such a request a chunk of its own rather than failing or
 rounding every chunk up to the worst case. */
 TEST(Vec0ArenaTest, OversizedRequestGetsItsOwnChunk) {
@@ -139,7 +139,7 @@ TEST(Vec0ArenaTest, SatisfiesHnswArenaContract) {
 /* Vec_persistor's four callbacks are member templates whose signatures
 the class checks by name resolution at instantiation. Nothing enforces
 them until something instantiates HNSW<Vec_arena, Vec_persistor>, and a
-mismatch there is a compile error rather than a runtime surprise — so
+mismatch there is a compile error rather than a runtime surprise - so
 this instantiation IS the test. It is why the persistor needs no
 registration step: the using-declaration is the registration.
 

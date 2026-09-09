@@ -85,7 +85,7 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   m_need_observer = m_old_table != m_new_table;
 
   for (size_t i = 0; i < n_indexes; ++i) {
-    /* Vector indexes have no merge-sort build path — their per-index
+    /* Vector indexes have no merge-sort build path - their per-index
     aux table holds the (eventual) HNSW graph and is populated by the
     INSERT path in PS-11300, not by the DDL builder. Skipping here
     keeps the merge-sort Compare_key (which asserts n_unique > 0) from

@@ -3631,7 +3631,7 @@ static inline void row_ins_get_row_from_query_block(
   while (node->index != nullptr) {
     /* FTS and vector indexes have no B-tree at the InnoDB layer (FTS
     has its own aux machinery; vector indexes write to the per-index
-    aux table — PS-11300 will wire that. For PS-11299 phase 1 the aux
+    aux table - PS-11300 will wire that. For PS-11299 phase 1 the aux
     stays empty, so we simply skip the index, same as FTS). Without
     this skip, btr_cur_search_to_nth_level asserts on
     index->page == FIL_NULL at dict0dict.cc:3664. */

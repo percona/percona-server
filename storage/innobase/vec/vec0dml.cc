@@ -76,7 +76,7 @@ static void vec_aux_set_field(dtuple_t *tuple, ulint col_no, const void *data,
   dfield_t *df = dtuple_get_nth_field(tuple, col_no);
 
   /* Every column of the aux table is NOT NULL, so there is no SQL NULL
-  case to handle here — and mapping a zero-length value onto NULL would
+  case to handle here - and mapping a zero-length value onto NULL would
   be wrong rather than merely unused: a node with no neighbours yet has
   an EMPTY neighbour blob, not a missing one, and handing SQL_NULL to a
   NOT NULL column trips rec_get_converted_size_comp_prefix_low. Length 0
@@ -97,7 +97,7 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
   ut_a(aux != nullptr);
   /* Record 0 is index metadata, not a node: it names the graph's entry
   point and legitimately carries no vector and no neighbours. Every real
-  node has both — id 0 is reserved as the empty-slot sentinel, so a node
+  node has both - id 0 is reserved as the empty-slot sentinel, so a node
   can never occupy record 0. */
   ut_a(row.vec != nullptr || (row.id == 0 && row.dims == 0));
   ut_a(row.neighbors != nullptr || row.neighbors_len == 0);
@@ -114,7 +114,7 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
   /* Mirror of row_get_prebuilt_insert_row + row_insert_for_mysql's run
   loop (row0mysql.cc), minus the prebuilt: build an INS_DIRECT node on a
   private heap, complete a query graph for it (pars_complete_graph_for_
-  exec builds the fork/thr only — no SQL parser involved), fill the row,
+  exec builds the fork/thr only - no SQL parser involved), fill the row,
   and drive row_ins_step with the standard error handling. */
   ins_node_t *node = ins_node_create(INS_DIRECT, aux, heap);
 
@@ -153,7 +153,7 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
   (row0mysql.cc does it for ins_graph, sel_graph and upd_graph).
   pars_complete_graph_for_exec leaves the fork QUE_FORK_COMMAND_WAIT, and
   that is the first thing que_thr_stop() tests (que0que.cc), so it
-  reports "stop this thread" — which RecLock::prepare treats as impossible
+  reports "stop this thread" - which RecLock::prepare treats as impossible
   and answers with ut_error (lock0lock.cc).
 
   A lock that is granted immediately never enqueues and never reaches that
@@ -208,13 +208,13 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
   mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   dict_index_t *clust = aux->first_index();
 
-  /* Standard update machinery — the same upd_node + row_upd_step every
+  /* Standard update machinery - the same upd_node + row_upd_step every
   SQL UPDATE runs on. In a regular UPDATE the preceding row_search_mvcc
   read positions the cursor and takes the locks; we know the PK and
   skip the search, so we position and lock ourselves below.
   (Self-positioned-upd_node implementation reference: the FK-cascade
   code, row0ins.cc; its run loop touches thr->prebuilt, which we
-  don't have — hence a private loop.) */
+  don't have - hence a private loop.) */
   upd_node_t *node = row_create_update_node_for_mysql(aux, heap);
 
   /* Search tuple for the target row's PK. */
@@ -243,7 +243,7 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
   (row0mysql.cc does it for ins_graph, sel_graph and upd_graph).
   pars_complete_graph_for_exec leaves the fork QUE_FORK_COMMAND_WAIT, and
   that is the first thing que_thr_stop() tests (que0que.cc), so it
-  reports "stop this thread" — which RecLock::prepare treats as impossible
+  reports "stop this thread" - which RecLock::prepare treats as impossible
   and answers with ut_error (lock0lock.cc).
 
   A lock that is granted immediately never enqueues and never reaches that
@@ -423,8 +423,8 @@ static bool vec_aux_copy_field(const dict_index_t *clust, const rec_t *rec,
   return true;
 }
 
-dberr_t vec_base_collect_rows(dict_table_t *base,
-                              const dict_index_t *vec_index, uint32_t dims,
+dberr_t vec_base_collect_rows(dict_table_t *base, const dict_index_t *vec_index,
+                              uint32_t dims,
                               std::vector<vec_base_row_t> *rows) {
   ut_a(base != nullptr);
   ut_a(vec_index != nullptr);
@@ -436,7 +436,7 @@ dberr_t vec_base_collect_rows(dict_table_t *base,
 
   dict_index_t *clust = base->first_index();
 
-  /* The column comes from the index, never from a scan for a BLOB —
+  /* The column comes from the index, never from a scan for a BLOB -
   VECTOR, BLOB, TEXT and JSON all collapse to DATA_BLOB. See
   vec_indexed_col_no(). */
   ut_a(vec_index->n_fields == 1);

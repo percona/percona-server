@@ -81,8 +81,8 @@ const char *alg_to_string(ha_key_alg alg) {
 
 namespace storage::innobase::vec {
 
-/* The shared implementation. Takes the two fields that actually matter —
-the TYPE token and the WITH(...) list — so the same parse serves DDL,
+/* The shared implementation. Takes the two fields that actually matter -
+the TYPE token and the WITH(...) list - so the same parse serves DDL,
 where they arrive on a Key_spec, and table open, where they arrive on a
 KEY. */
 bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,

@@ -228,19 +228,12 @@ bool Instant_ddl_impl<Table>::commit_instant_ddl() {
       /* Mirror the FTS_DOC_ID re-add above for the hidden percona_vec_aux_id
       column: INSTANT_VIRTUAL_ONLY may have dropped it from new_dd_tab
       because virtual-column-only ALTERs rebuild the dd::Table from
-      altered_table->s which has no SE-hidden cols. Re-attach so the
-      DD on commit still describes percona_vec_aux_id, otherwise next reload
+      altered_table->s, which has no SE-hidden cols. Re-attach so the DD on
+      commit still describes percona_vec_aux_id, otherwise the next reload
       crashes in vec_add_aux_id_column / dd_open_table_one.
 
-      DEVIATION FROM FTS: no dd_set_hidden_unique_index call. FTS has
-      a companion hidden UNIQUE B-tree (FTS_DOC_ID_INDEX) that both
-      anchors FTS_DOC_ID against ALTER-time pruning and provides an
-      external lookup path. Vec has no anchor index by design — the
-      column's persistence across ALTER is instead handled by the
-      commit-time carry-forward in dd_commit_inplace_alter_table_impl
-      (handler0alter.cc). Linkage from base to aux goes base.percona_vec_aux_id
-      → aux.id via each side's own PK: two PK lookups, no intermediate
-      B-tree. See PS-11299 phase 1 design. */
+      No dd_set_hidden_unique_index call: vector search, unlike FTS, does not
+      need a unique index on the hidden field. See PS-11299 phase 1 design. */
       if (dd_find_column(&m_old_dd_tab->table(), VEC_AUX_ID_COL_NAME) &&
           !dd_find_column(&m_new_dd_tab->table(), VEC_AUX_ID_COL_NAME)) {
         dd_add_hidden_column(&m_new_dd_tab->table(), VEC_AUX_ID_COL_NAME,

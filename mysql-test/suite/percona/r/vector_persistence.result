@@ -24,7 +24,7 @@ SHOW TABLES;
 Tables_in_test
 t1
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec_%';
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'percona\_vec\_%' ESCAPE '\\';
 TABLE_NAME
 SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE 'test/percona_vec_%';
@@ -64,10 +64,10 @@ ERROR 42000: Incorrect column name 'percona_vec_aux_id'
 # index.
 #
 # Capture the aux name before truncate.
-vec_<BEFORE>.ibd
+percona_vec_hnsw_<BEFORE>.ibd
 TRUNCATE TABLE t1;
 # Still exactly one aux .ibd in test/ (likely with a different id).
-vec_<AFTER>.ibd
+percona_vec_hnsw_<AFTER>.ibd
 #
 # OPTIMIZE TABLE — for InnoDB this maps to ALTER TABLE FORCE
 # (full rebuild). Aux table should be re-minted with the new
@@ -79,7 +79,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t1	optimize	status	OK
 # Still exactly one aux .ibd in test/ post-OPTIMIZE.
-vec_<POST_OPTIMIZE>.ibd
+percona_vec_hnsw_<POST_OPTIMIZE>.ibd
 # Same-schema rename: aux file unchanged.
 RENAME TABLE t1 TO t1_renamed;
 percona_vec_hnsw_<TID>_<IID>.ibd

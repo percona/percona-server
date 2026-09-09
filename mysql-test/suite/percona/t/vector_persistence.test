@@ -18,7 +18,7 @@ SHOW CREATE TABLE t1;
 --echo # visible to InnoDB's internal I_S.INNODB_TABLES. Same as FTS aux.
 SHOW TABLES;
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
-  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec_%';
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'percona\_vec\_%' ESCAPE '\\';
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+/percona_vec_hnsw_<TID>_<IID>/
 SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
   WHERE NAME LIKE 'test/percona_vec_%';
@@ -64,13 +64,13 @@ CREATE TABLE t3 (
 --echo #
 
 --echo # Capture the aux name before truncate.
---replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/vec_<BEFORE>.ibd/
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<BEFORE>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
 TRUNCATE TABLE t1;
 
 --echo # Still exactly one aux .ibd in test/ (likely with a different id).
---replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/vec_<AFTER>.ibd/
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<AFTER>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
 --echo #
@@ -81,7 +81,7 @@ TRUNCATE TABLE t1;
 --echo #
 OPTIMIZE TABLE t1;
 --echo # Still exactly one aux .ibd in test/ post-OPTIMIZE.
---replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/vec_<POST_OPTIMIZE>.ibd/
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<POST_OPTIMIZE>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
 --echo # Same-schema rename: aux file unchanged.

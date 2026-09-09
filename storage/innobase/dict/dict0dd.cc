@@ -4017,7 +4017,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   /* Same check for vector aux tables: the on-disk name is the source of
   truth because DD se_private_data does not currently round-trip flags2's
   AUX bit. Reconstruct DICT_TF2_VEC_AUX and the parent_id from the
-  "<db>/vec_<parent_id>_<index_id>" name pattern. */
+  "<db>/percona_vec_<type>_<parent_id>_<index_id>" name pattern. */
   if (vec_aux_is_aux_table_name(norm_name)) {
     DICT_TF2_FLAG_SET(m_table, DICT_TF2_VEC_AUX);
     table_id_t parent_id = 0;

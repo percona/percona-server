@@ -29,7 +29,7 @@ CREATE TABLE tva (
 --echo # INFORMATION_SCHEMA.TABLES must not surface the percona_vec_*_* aux to users.
 --echo # Same hiding rule the FTS aux gets — proves is_aux() covers vec.
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
- WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec\_%' ESCAPE '\\';
+ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'percona\_vec\_%' ESCAPE '\\';
 
 --echo # INFORMATION_SCHEMA.INNODB_TABLES does surface aux tables (this is
 --echo # internal/debugging info_schema). Pull the row so we can assert the
@@ -51,7 +51,7 @@ SELECT NAME FROM INFORMATION_SCHEMA.INNODB_TABLES
 
 --echo # And still hidden from the user-facing view.
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
- WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'vec\_%' ESCAPE '\\';
+ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME LIKE 'percona\_vec\_%' ESCAPE '\\';
 
 DROP TABLE tva;
 --echo # All aux .ibd gone.

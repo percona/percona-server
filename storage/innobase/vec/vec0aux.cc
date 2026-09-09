@@ -710,9 +710,9 @@ void vec_aux_detach_tables(const dict_table_t *parent, bool dict_locked) {
 namespace {
 
 /** Build the post-rename aux name. Given the OLD aux name
-"old_db/vec_<tid>_<iid>" and the parent's NEW name "new_db/<tbl>", write
-"new_db/vec_<tid>_<iid>" into `out`. Mirrors what fts_rename_one_aux_table
-does inline. */
+"old_db/percona_vec_<type>_<tid>_<iid>" and the parent's NEW name
+"new_db/<tbl>", write "new_db/percona_vec_<type>_<tid>_<iid>" into `out`.
+Mirrors what fts_rename_one_aux_table does inline. */
 void rebuild_aux_name_with_new_db(const char *old_aux_name,
                                   const char *new_parent_name, char *out,
                                   size_t out_len) {

@@ -28,7 +28,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file include/vec0aux.h
 Auxiliary tables for vector (HNSW) indexes.
 
-One aux table per vector index, named "<db>/vec_<table_id>_<index_id>".
+One aux table per vector index, named
+"<db>/percona_vec_<type>_<table_id>_<index_id>".
 All DDL goes through the InnoDB C API (dict_mem_*, row_create_*_for_mysql,
 row_drop_table_for_mysql, row_rename_table_for_mysql) — never through
 pars_sql/que_eval_sql, which serializes on the global pars_mutex. */
@@ -89,11 +90,11 @@ told apart from one that is. */
                                            Vec_index_type *type_out);
 
 /** Build the on-disk aux table name for one vector index:
-"<db>/vec_<type>_<parent_table_id>_<index_id>", e.g.
-"test/vec_hnsw_4a_5b" (SPANN R4: the registry's type token makes the
-datadir self-describing and gives every TYPE its own namespace —
-spann's three tables become vec_spann_<t>_<i>[/_meta/_dead] without
-ambiguity).
+"<db>/percona_vec_<type>_<parent_table_id>_<index_id>", e.g.
+"test/percona_vec_hnsw_4a_5b" (SPANN R4: the registry's type token makes
+the datadir self-describing and gives every TYPE its own namespace —
+spann's three tables become percona_vec_spann_<t>_<i>[/_meta/_dead]
+without ambiguity).
 
 @param[in]      parent          parent table that owns the vector index
 @param[in]      index_id        id of the vector index (from dict_index_t)
@@ -105,14 +106,17 @@ void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
                             Vec_index_type type, char *name_out,
                             size_t name_out_len);
 
-/** True if `name` starts with the reserved "vec_" prefix (ALL types).
-Used to hide aux tables from INFORMATION_SCHEMA / SHOW TABLES and to
-reserve the namespace at CREATE. */
+/** True if `name` is a complete vector aux table name (ANY type):
+VEC_AUX_PREFIX, a type token the registry knows, and exactly two hex id
+fields, the second ending the string. Used to hide aux tables from
+INFORMATION_SCHEMA / SHOW TABLES and to reserve those names at CREATE
+and RENAME — so "percona_vec_hnsw_1_2" is reserved while a user table
+merely called "percona_vec_data" is not. */
 bool vec_aux_is_aux_table_name(const char *name);
 
-/** Parse a "<db>/vec_<type>_<parent_id>_<index_id>" name into its
+/** Parse a "<db>/percona_vec_<type>_<parent_id>_<index_id>" name into its
 components. The type token must resolve in the registry
-(vec_index_by_name) — a vec_-prefixed name that does not parse is a
+(vec_index_by_name) — a percona_vec_-prefixed name that does not parse is a
 reserved-but-invalid name, never an aux table. Used at DD reload time
 (dd_open_table_one) to reconstruct dict_table_t::parent_id and
 DICT_TF2_VEC_AUX from the on-disk name. Any output pointer may be

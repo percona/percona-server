@@ -320,7 +320,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR ( 1234 ) NOT NULL,
-  VECTOR KEY ( v1 ) TYPE hnsw COMMENT 'abc' WITH ( M = 6 )
+  VECTOR KEY ( v1 ) TYPE hnsw COMMENT 'abc' ( M = 6 )
 );
 
 

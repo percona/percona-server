@@ -256,7 +256,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
   auto *vec = ut::new_withkey<vec_t>(
       UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table, dims,
       static_cast<uint32_t>(hnsw_param->M),
-      static_cast<uint32_t>(hnsw_param->ef_construction));
+      static_cast<uint32_t>(hnsw_param->ef_construction), hnsw_param->dist);
   if (vec == nullptr) {
     ib::error(ER_IB_MSG_456)
         << "Failed to open vector runtime for index " << index->name
@@ -341,9 +341,9 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
     return DB_OUT_OF_MEMORY;
   }
 
-  vec->hnsw = ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, vec->dims,
-                                        &vector_distance_euclidean_squared,
-                                        vec->m, vec->ef_construction);
+  vec->hnsw =
+      ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, vec->dims, vec->dist,
+                                vec->m, vec->ef_construction);
   if (vec->hnsw == nullptr) return DB_OUT_OF_MEMORY;
 
   mem_heap_t *heap = mem_heap_create(256, UT_LOCATION_HERE);
@@ -704,10 +704,12 @@ void vec_knn_close(vec_search_t *s) {
 
 dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
                         dict_index_t *vec_index, uint32_t dims, uint32_t m,
-                        uint32_t ef_construction, THD *thd) {
+                        uint32_t ef_construction, vec_dist_func_t *dist,
+                        THD *thd) {
   ut_a(trx != nullptr);
   ut_a(vec_index != nullptr && vec_index->is_vector());
   ut_a(dims != 0 && m != 0);
+  ut_a(dist != nullptr);
 
   /* Same pre-flight as the DML path (design: "Memory limits"): refuse before
   building anything rather than throwing partway through. */
@@ -740,9 +742,8 @@ dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
   /* A private graph, discarded below. It is not installed on the index:
   a half-built graph must never be reachable, and if the ALTER fails
   there is nothing to unwind. */
-  auto *graph = ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims,
-                                          &vector_distance_euclidean_squared, m,
-                                          ef_construction);
+  auto *graph = ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims, dist,
+                                          m, ef_construction);
   if (graph == nullptr) {
     vec_aux_close_for_dml(aux, thd, &mdl);
     return DB_OUT_OF_MEMORY;

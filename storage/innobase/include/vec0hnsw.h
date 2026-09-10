@@ -281,12 +281,13 @@ struct vec_t : public Vec_runtime {
   against every reader. Making them const means such a patch does not
   compile. */
   vec_t(space_index_t index_id_, dict_table_t *table_, uint32_t dims_,
-        uint32_t m_, uint32_t ef_construction_)
+        uint32_t m_, uint32_t ef_construction_, vec_dist_func_t *dist_)
       : index_id(index_id_),
         table(table_),
         dims(dims_),
         m(m_),
-        ef_construction(ef_construction_) {}
+        ef_construction(ef_construction_),
+        dist(dist_) {}
 
   ~vec_t() override;
 
@@ -321,6 +322,10 @@ struct vec_t : public Vec_runtime {
   const uint32_t dims;
   const uint32_t m;
   const uint32_t ef_construction;
+  /** The distance kernel this index's metric selects, resolved once by
+  parse_options. The graph is built with it rather than with a kernel
+  chosen here, so WITH (metric = ...) is what decides. */
+  vec_dist_func_t *const dist;
   /** True once the graph has been built from the aux table. Atomic, with
   release/acquire ordering: it publishes the `hnsw` pointer to every thread
   that sees it true, which is what lets the hot paths run unlocked. */
@@ -498,9 +503,22 @@ dict_index_t *vec_index_of(dict_table_t *table);
 /** Dimensions the index was built with; 0 if it has no runtime yet. */
 uint32_t vec_index_dims(const dict_index_t *index);
 
-dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
-                        dict_index_t *vec_index, uint32_t dims, uint32_t m,
-                        uint32_t ef_construction, THD *thd);
+/** Build the graph and the aux rows for a vector index from one
+clustered scan, on the ALTER's own transaction.
+@param[in]  trx             the ALTER's transaction
+@param[in]  table           base table being altered
+@param[in]  vec_index       the vector index to populate
+@param[in]  dims            vector dimensions
+@param[in]  m               HNSW M
+@param[in]  ef_construction HNSW ef_construction
+@param[in]  dist            distance kernel the index's metric selects,
+                            from HnswParam::dist
+@param[in]  thd             connection, for the aux MDL
+@return DB_SUCCESS or an error */
+[[nodiscard]] dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
+                                      dict_index_t *vec_index, uint32_t dims,
+                                      uint32_t m, uint32_t ef_construction,
+                                      vec_dist_func_t *dist, THD *thd);
 
 dberr_t vec_update_row(trx_t *trx, dict_table_t *table, uint64_t label,
                        const char *q, ulint q_len, uint64_t base_pk, THD *thd);

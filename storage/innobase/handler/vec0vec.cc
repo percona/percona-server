@@ -27,6 +27,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vec0vec.h"
 
+#include "vector-common/vector_distance.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -85,6 +87,29 @@ namespace storage::innobase::vec {
 the TYPE token and the WITH(...) list - so the same parse serves DDL,
 where they arrive on a Key_spec, and table open, where they arrive on a
 KEY. */
+namespace {
+/** Every metric the syntax accepts, and the kernel it selects. One list:
+adding a metric is one row here, and nothing downstream chooses a kernel
+for itself. */
+struct Vec_metric {
+  const char *name;
+  vec_metric_func_t dist;
+};
+constexpr Vec_metric vec_metrics[] = {
+    {"euclidean", &vector_distance_euclidean_squared}};
+
+/** The kernel a metric name selects, or nullptr if the name is not one
+of ours. Squared euclidean is deliberate for "euclidean": the graph only
+ever compares distances, and skipping the square root costs nothing in
+ordering. */
+vec_metric_func_t vec_metric_func(std::string_view name) {
+  for (const Vec_metric &m : vec_metrics) {
+    if (name == m.name) return m.dist;
+  }
+  return nullptr;
+}
+}  // namespace
+
 bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
                    VectorIndexParam &vip) {
   if (type.str == nullptr) {
@@ -98,6 +123,7 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
   }
 
   auto &hnsw_param = vip.emplace<HnswParam>();
+  hnsw_param.dist = vec_metric_func(hnsw_param.metric);
   if (params == nullptr) return false;
 
   for (const auto &[key, value] : *params) {
@@ -114,9 +140,10 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
       }
     } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
       bool is_valid = false;
-      for (const char *metric : {"euclidean"}) {
-        if (my_strcasecmp(system_charset_info, value.str, metric) == 0) {
-          hnsw_param.metric = metric;
+      for (const Vec_metric &m : vec_metrics) {
+        if (my_strcasecmp(system_charset_info, value.str, m.name) == 0) {
+          hnsw_param.metric = m.name;
+          hnsw_param.dist = m.dist;
           is_valid = true;
           break;
         }

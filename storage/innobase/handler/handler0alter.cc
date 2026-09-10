@@ -6767,7 +6767,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
         err = vec_build_index(m_prebuilt->trx, ctx->new_table, vec_index, dims,
                               static_cast<uint32_t>(hp->M),
                               static_cast<uint32_t>(hp->ef_construction),
-                              m_user_thd);
+                              hp->dist, m_user_thd);
         if (err != DB_SUCCESS) {
           m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;
         }

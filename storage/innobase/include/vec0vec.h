@@ -34,11 +34,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace storage::innobase::vec {
 
+/** A distance kernel: the signature vector-common's kernels have and the
+one HNSW's vec_dist_func_t names. Spelled out here so this header does
+not have to pull in the graph template. */
+using vec_metric_func_t = double (*)(const char *a, const char *b,
+                                     uint32_t dims);
+
 struct HnswParam {
   int M{25};
   int max_elements{10000};
   int ef_construction{200};
   std::string_view metric{"euclidean"};
+  /** The kernel `metric` selects, resolved by the parser so that the
+  name and the function cannot drift apart: whoever builds a graph uses
+  this rather than picking a kernel of its own. Never null once
+  parse_options has returned false. */
+  vec_metric_func_t dist{nullptr};
 };
 
 using VectorIndexParam = std::variant<std::monostate, HnswParam>;

@@ -34,6 +34,7 @@ vector index keeps in memory.
 
 #include "db0err.h"
 #include "dict0mem.h"
+#include "srv0srv.h"
 #include "trx0trx.h"
 #include "univ.i"
 #include "ut0rnd.h"
@@ -191,6 +192,25 @@ struct Vec_persistor {
   bool load_node_cb(Context *ctx, Hnsw &hnsw,
                     typename Hnsw::LoadNodeHandle handle) {
     if (ctx->err != DB_SUCCESS) return false;
+
+    /* NOT the place for the innodb_hnsw_max_memory check, however much
+    it looks like it: this is where a cold graph grows, but a false
+    return here is indistinguishable from "this node is gone". load_node
+    (hnsw.h) calls set_lost() on it, NODE_LOST is never retried, and
+    every later search skips that node - so refusing one fault for a
+    transient reason leaves the graph permanently short of nodes and
+    answering queries with fewer rows and no error at all. Measured:
+    with the check here, a search after a refused load returned one row
+    where three were correct.
+
+    So the budget is checked at the entry to a load or an insert instead
+    (vec_runtime_load, vec_add_node), which bounds when a graph may
+    start growing but lets one statement overshoot by whatever it
+    faults. Metering each fault needs a load_node_cb that can say
+    "failed, try again later" as opposed to "lost" - the same API gap
+    Pawel Olchawa raised on vec0hnsw.h, where the callback is to be
+    reworked to report errors properly. This check belongs there. */
+
     const dberr_t err = vec_persist_load_node(ctx, hnsw, handle);
     if (err != DB_SUCCESS) {
       ctx->err = err;

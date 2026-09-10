@@ -106,6 +106,7 @@ class Sql_cmd_select : public Sql_cmd_dml {
 #define KEY_OPTIMIZE_EXISTS 1
 #define KEY_OPTIMIZE_REF_OR_NULL 2
 #define FT_KEYPART (MAX_REF_PARTS + 10)
+#define VECTOR_KEYPART (MAX_REF_PARTS + 11)
 
 /**
   A Key_use represents an equality predicate of the form (table.column = val),

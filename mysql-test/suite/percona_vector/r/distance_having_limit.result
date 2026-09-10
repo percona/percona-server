@@ -1,0 +1,164 @@
+#
+# ORDER BY DISTANCE() ... LIMIT combined with HAVING.
+#
+# HAVING normally disables the LIMIT for everything that runs before it
+# (filesort, temporary tables, DISTINCT). Only the choice of a vector
+# index as ordering index may see the real LIMIT. When the vector index
+# is not used, results and plans must be the same as for an ORDER BY on
+# an equally ordered plain column.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, u INT NOT NULL,
+v VECTOR(3) NOT NULL, VECTOR KEY (v) USING hnsw);
+CREATE TABLE t1_novec (id BIGINT UNSIGNED PRIMARY KEY, u INT NOT NULL,
+v VECTOR(3) NOT NULL);
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, w INT NOT NULL);
+INSERT INTO t1 VALUES
+(1, 0, TO_VECTOR('[1,0,0]')), (2, 0, TO_VECTOR('[2,0,0]')),
+(3, 0, TO_VECTOR('[3,0,0]')), (4, 0, TO_VECTOR('[4,0,0]')),
+(5, 5, TO_VECTOR('[5,0,0]')), (6, 6, TO_VECTOR('[6,0,0]')),
+(7, 7, TO_VECTOR('[7,0,0]')), (8, 8, TO_VECTOR('[8,0,0]')),
+(9, 9, TO_VECTOR('[9,0,0]')), (10, 10, TO_VECTOR('[10,0,0]'));
+INSERT INTO t1_novec SELECT * FROM t1;
+INSERT INTO t2 VALUES (6, 60), (7, 70), (8, 80), (9, 90), (10, 100);
+ANALYZE TABLE t1, t1_novec, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t1_novec	analyze	status	OK
+test.t2	analyze	status	OK
+#
+# 1. Vector index used: HAVING filters during the index scan, which
+#    continues until LIMIT rows qualify.
+#
+EXPLAIN FORMAT=TREE
+SELECT id, u FROM t1 HAVING u > 2
+ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Filter: (t1.u > 2)  (cost=X rows=X)
+        -> Vector index search on t1 using v (v = to_vector('[0,0,0]'))  (cost=X rows=X)
+
+# Expect ids 5, 6
+SELECT id, u FROM t1 HAVING u > 2
+ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	u
+5	5
+6	6
+# Expect ids 3, 4
+SELECT id, DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') AS d
+FROM t1 HAVING d > 2.5 ORDER BY d LIMIT 2;
+id	d
+3	3
+4	4
+#
+# 2. No vector index used in a join: the LIMIT must not become the
+#    filesort limit on the first table. Expect ids 6, 7 in each case.
+#
+# a) No vector index on the table
+SELECT t1_novec.id, t2.w FROM t1_novec LEFT JOIN t2 ON t2.id = t1_novec.id
+HAVING t2.w IS NOT NULL
+ORDER BY DISTANCE(t1_novec.v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	w
+6	60
+7	70
+# b) Vector index disabled for ORDER BY
+SELECT t1.id, t2.w FROM t1 IGNORE INDEX FOR ORDER BY (v)
+LEFT JOIN t2 ON t2.id = t1.id
+HAVING t2.w IS NOT NULL
+ORDER BY DISTANCE(t1.v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	w
+6	60
+7	70
+# c) Metric not supported by the vector index
+SELECT t1.id, t2.w FROM t1 LEFT JOIN t2 ON t2.id = t1.id
+HAVING t2.w IS NOT NULL
+ORDER BY DISTANCE(t1.v, TO_VECTOR('[0,0,0]'), 'MANHATTAN') LIMIT 2;
+id	w
+6	60
+7	70
+#
+# 3. DISTANCE() becomes constant and ORDER BY is removed: the LIMIT
+#    must not cap the temporary table that HAVING reads from.
+#    Expect w = 80, 90 in each case.
+#
+# a) DISTANCE() over a const table column
+SELECT SQL_BUFFER_RESULT t2.w FROM t1, t2 WHERE t1.id = 1
+HAVING t2.w > 70
+ORDER BY DISTANCE(t1.v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+w
+80
+90
+# b) DISTANCE() of two constants
+SELECT SQL_BUFFER_RESULT w FROM t2 HAVING w > 70
+ORDER BY DISTANCE(TO_VECTOR('[1,1,1]'), TO_VECTOR('[0,0,0]'), 'EUCLIDEAN')
+LIMIT 2;
+w
+80
+90
+#
+# 4. DISTINCT + HAVING without a vector index: same plan as for a plain
+#    column, i.e. a full sort with no "limit input" after deduplication.
+#
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT u, DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') AS d
+FROM t1_novec HAVING u > 2 ORDER BY d LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)
+    -> Sort: d, t1_novec.u
+        -> Filter: (t1_novec.u > 2)
+            -> Table scan on <temporary>  (cost=X rows=X)
+                -> Temporary table with deduplication  (cost=X rows=X)
+                    -> Table scan on t1_novec  (cost=X rows=X)
+
+#
+# 5. SQL_CALC_FOUND_ROWS needs every row, so the vector index is not
+#    chosen. When forced, the index scan has no limit and must return
+#    all rows, not just the search candidates. Use more rows than the
+#    search would return as candidates.
+#
+INSERT INTO t1 (id, u, v)
+WITH RECURSIVE seq(n) AS (SELECT 11 UNION ALL SELECT n + 1 FROM seq
+WHERE n < 500)
+SELECT n, n, TO_VECTOR(CONCAT('[', n, ',0,0]')) FROM seq;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS id FROM t1
+ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[0,0,0]'),'EUCLIDEAN')  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+EXPLAIN FORMAT=TREE
+SELECT SQL_CALC_FOUND_ROWS id FROM t1 FORCE INDEX (v)
+ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 5;
+EXPLAIN
+-> Limit: 5 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[0,0,0]'),'EUCLIDEAN')  (cost=X rows=X)
+        -> Vector index search on t1 using v (v = to_vector('[0,0,0]'))  (cost=X rows=X)
+
+# Expect ids 1-5 and 500 found rows
+SELECT SQL_CALC_FOUND_ROWS id FROM t1 FORCE INDEX (v)
+ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 5;
+id
+1
+2
+3
+4
+5
+SELECT FOUND_ROWS();
+FOUND_ROWS()
+500
+#
+# 6. The cost of a vector index search must be a real estimate, not the
+#    placeholder cost used to keep the index out of other decisions.
+#
+EXPLAIN FORMAT=JSON INTO @plan
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN')
+LIMIT 3;
+SELECT JSON_EXTRACT(@plan, '$.query_plan.inputs[0].operation') AS operation,
+JSON_EXTRACT(@plan, '$.query_plan.estimated_total_cost') < 1e6 AS cost_is_sane;
+operation	cost_is_sane
+"Vector index search on t1 using v (v = to_vector('[0,0,0]'))"	0
+DROP TABLE t1, t1_novec, t2;

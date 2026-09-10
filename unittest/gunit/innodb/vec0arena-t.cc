@@ -71,16 +71,37 @@ TEST(Vec0ArenaTest, BlocksDoNotOverlap) {
 
 /* Many small blocks must not become many allocations: that is the whole
 point of chunking. 500 * 137 bytes is well under two 64K chunks. */
-TEST(Vec0ArenaTest, SmallBlocksShareChunks) {
+TEST(Vec0ArenaTest, SmallBlocksShareSlabs) {
   Vec_arena arena;
   for (int i = 0; i < 500; i++) ASSERT_NE(nullptr, arena.allocate(137));
-  EXPECT_LE(arena.bytes_allocated(), 2u * 64 * 1024 + 4096);
+  /* 500 * 137 = 68 500 bytes of payload: two slabs, not 500 heap blocks.
+  Without slabs the heap's own 8000-byte blocks would need a dozen. */
+  EXPECT_LE(arena.bytes_allocated(), 2u * 64 * 1024 + 8192);
 }
 
-/* A VECTOR(n) large enough to exceed a whole chunk still has to work -
-the arena gives such a request a chunk of its own rather than failing or
-rounding every chunk up to the worst case. */
-TEST(Vec0ArenaTest, OversizedRequestGetsItsOwnChunk) {
+/* The regression Pawel Olchawa found: an oversized request is carved to
+size, so it must not become the slab that later small requests are
+measured against. If it does, every small allocation after an oversized
+one buys a fresh slab, and a graph of maximum-dimension vectors costs
+about twice what it should. Sizes here mimic a VECTOR(16383) node and its
+neighbour list. */
+TEST(Vec0ArenaTest, OversizedSlabDoesNotStrandTheCurrentOne) {
+  Vec_arena arena;
+  const size_t big = 66 * 1024;
+  const size_t small = 256;
+  for (int i = 0; i < 8; i++) {
+    ASSERT_NE(nullptr, arena.allocate(big));
+    ASSERT_NE(nullptr, arena.allocate(small));
+  }
+  /* Eight oversized slabs, and ONE shared slab for all eight neighbour
+  lists. Promoting the oversized slab each time would add eight more. */
+  EXPECT_LT(arena.bytes_allocated(), 8u * big + 2u * 64 * 1024);
+}
+
+/* A VECTOR(n) large enough to exceed a whole slab still has to work -
+the arena gives such a request a slab of its own rather than failing or
+rounding every slab up to the worst case. */
+TEST(Vec0ArenaTest, OversizedRequestGetsItsOwnSlab) {
   Vec_arena arena;
   const size_t big = 300 * 1024;
   char *p = static_cast<char *>(arena.allocate(big));
@@ -94,8 +115,9 @@ TEST(Vec0ArenaTest, OversizedRequestGetsItsOwnChunk) {
   EXPECT_EQ(static_cast<char>(0xab), p[big - 1]);
 }
 
-/* Destroying the arena frees every chunk; run under ASAN this is the
-test that would catch a leaked or double-freed chunk. */
+/* Destroying the arena frees the heap and returns every byte to the
+server-wide counter; run under ASAN this is the test that would catch a
+leaked or double-freed slab. */
 TEST(Vec0ArenaTest, DestructorReleasesEverything) {
   for (int round = 0; round < 3; round++) {
     Vec_arena arena;

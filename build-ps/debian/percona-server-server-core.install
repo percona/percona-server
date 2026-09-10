@@ -126,7 +126,9 @@ usr/lib/mysql/plugin/debug/auth_pam.so
 usr/lib/mysql/plugin/auth_pam_compat.so
 usr/lib/mysql/plugin/debug/auth_pam_compat.so
 usr/lib/mysql/plugin/debug/component_keyring_vault.so
+usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/component_keyring_vault.so
+usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/component_test_component_deinit.so
 usr/lib/mysql/plugin/component_binlog_utils_udf.so
@@ -140,9 +142,7 @@ usr/lib/mysql/plugin/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/component_keyring_kmip.so
 usr/lib/mysql/plugin/debug/component_keyring_kmip.so
 usr/lib/mysql/plugin/auth_openid_connect.so
-usr/lib/mysql/plugin/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/debug/auth_openid_connect.so
-usr/lib/mysql/plugin/debug/authentication_openid_connect_client.so
 usr/lib/mysql/plugin/component_encryption_udf.so
 usr/lib/mysql/plugin/debug/component_encryption_udf.so
 usr/lib/mysql/plugin/component_uuid_vx_udf.so

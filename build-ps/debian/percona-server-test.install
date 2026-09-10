@@ -20,7 +20,6 @@ usr/lib/mysql/plugin/component_pfs_example_component_population.so
 usr/lib/mysql/plugin/component_test_pfs_notification.so
 usr/lib/mysql/plugin/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/component_test_udf_registration.so
-usr/lib/mysql/plugin/component_test_mysql_current_thread_reader.so
 usr/lib/mysql/plugin/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/component_udf_reg_int_func.so
@@ -116,7 +115,6 @@ usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_test_pfs_notification.so
 usr/lib/mysql/plugin/debug/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/debug/component_test_udf_registration.so
-usr/lib/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 usr/lib/mysql/plugin/debug/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_int_func.so

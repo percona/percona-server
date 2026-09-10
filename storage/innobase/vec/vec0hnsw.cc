@@ -317,6 +317,18 @@ has ever been inserted. */
 static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   ut_a(vec->hnsw == nullptr);
 
+  /* innodb_hnsw_max_memory, at the entry to the load. Same charge check
+  as vec_add_node: is the budget already spent, not would this fit. What
+  this call allocates directly is the graph object and the entry-point
+  node; the rest of the graph arrives node by node through
+  Vec_persistor::load_node_cb, which checks again per node. Both are
+  needed - this one so a cold index cannot start loading into a budget
+  that is already gone, that one so the load cannot run past it. */
+  if (srv_hnsw_max_memory != 0 &&
+      vec_arena_global_bytes() >= srv_hnsw_max_memory) {
+    return DB_OUT_OF_MEMORY;
+  }
+
   vec->hnsw = ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, vec->dims,
                                         &vector_distance_euclidean_squared,
                                         vec->m, vec->ef_construction);

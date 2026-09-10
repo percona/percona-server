@@ -4861,17 +4861,23 @@ template <typename Table>
     FTS_DOC_ID. DICT_TF2_HAS_VEC_AUX_COL is set by vec_add_aux_id_column
     itself, so no flags2 OR-in here.
 
-    add_vec_aux_col covers the ALTER that introduces the column. A table
-    that already has it needs the slot on every rebuild, whatever caused
-    the rebuild: the commit path carries percona_vec_aux_id forward into
-    the new dd::Table unconditionally, so the dict_table_t has to agree
-    or the DD and the .ibd disagree on the column count. Deciding it here
-    rather than at the add_vec_aux_col assignment keeps it independent of
-    which predicate forced new_clustered - ADD FULLTEXT, for one, rebuilds
-    through add_fts_doc_id without setting innobase_need_rebuild(). */
+    The dict follows the DD: materialise the column exactly when the new
+    definition has it. Asking the OLD table's sticky
+    DICT_TF2_HAS_VEC_AUX_COL instead is what corrupted tables - the
+    carry-forward in dd_commit_inplace_alter_table only runs on the
+    no-rebuild branch, so a rebuild that kept the column here wrote rows
+    with a column the committed dd::Table did not describe, and the next
+    page-splitting INSERT asserted in btr_page_split_and_insert.
+
+    That gives the right answer in every case. ADD FULLTEXT on a
+    vector-indexed table rebuilds through add_fts_doc_id without setting
+    innobase_need_rebuild(), and the new definition still carries the
+    column because the vector index is still there. DROP INDEX keeps it,
+    through the commit path. A rebuild once no vector index remains drops
+    it from both sides at once, which is what FTS does with FTS_DOC_ID. */
     const bool need_vec_aux_col =
         add_vec_aux_col ||
-        DICT_TF2_FLAG_IS_SET(user_table, DICT_TF2_HAS_VEC_AUX_COL);
+        dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME) != nullptr;
     if (need_vec_aux_col) {
       n_cols++;
     }
@@ -6458,28 +6464,26 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
                               ha_alter_info->create_info->auto_increment_value,
                               autoinc_col_max_value);
 
-  /* Decide whether the fresh dict_table_t built in the rebuild path
-  needs a materialized percona_vec_aux_id column slot.
+  /* A vector index is being added to a table that does not own
+  percona_vec_aux_id yet, so the column has to be created. This both
+  materialises it and forces a rebuild, through
+  `rebuild = ... || add_vec_aux_col ...` in innobase_create_key_defs.
+  Mirrors add_fts_doc_id.
 
-  Two cases require it:
-  (a) A new vec index is being added on a table that does not yet own
-      percona_vec_aux_id - add_vec_aux_col both materializes the column AND
-      forces rebuild (via `rebuild = ... || add_vec_aux_col ...` at
-      line 3111). Mirrors add_fts_doc_id.
-  (b) The table already owns percona_vec_aux_id (Option A retention) AND the
-      SQL layer independently requires a rebuild (ALTER TABLE FORCE,
-      ROW_FORMAT change, DROP PRIMARY KEY, ...). Without materializing
-      here, `add_vec_aux_col=false`, so n_cols is not bumped and
-      vec_add_aux_id_column is not called (see the branch at
-      line 4930), so the fresh dict_table_t has NO percona_vec_aux_id column.
-      innobase_build_col_map then maps the old percona_vec_aux_id slot to
-      ULINT_UNDEFINED and the row-copy drops the column's bytes,
-      while the new dd::Table (post get_extra_columns_and_keys) still
-      lists percona_vec_aux_id. Result: DD says N columns, .ibd has N-1, first
-      SELECT after commit trips on the mismatch. FTS avoids this by
-      blocking INPLACE-rebuild on FTS-indexed tables at line 1380
-      (ER_INNODB_FT_LIMIT) - vec instead materializes correctly so
-      INPLACE-rebuild can stay supported for other ALTER cases. */
+  Nothing here decides about a table that ALREADY owns the column. It
+  used to: "old table has the flag and the SQL layer wants a rebuild" set
+  this too, on the theory that the column is retained across every ALTER.
+  That is not what happens. The column reaches the rebuilt table's
+  dd::Table only when the new definition needs it - when a vector index
+  survives the ALTER - and the commit path carries it forward only on the
+  no-rebuild branch. So on a rebuild with no vector index left, this flag
+  put the column in the dict_table_t while the committed dd::Table had
+  none, every row was written with a column the dictionary did not
+  describe, and the next page-splitting INSERT asserted in
+  btr_page_split_and_insert. FTS_DOC_ID behaves the same way: a rebuild
+  after the last FULLTEXT index is dropped loses it, consistently on both
+  sides. prepare_inplace_alter_table_dict now reads the new dd::Table and
+  follows it. */
   if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
     for (uint k = 0; k < ha_alter_info->index_add_count; k++) {
       const KEY *new_key =
@@ -6489,8 +6493,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
         break;
       }
     }
-  } else if (innobase_need_rebuild(ha_alter_info)) {
-    add_vec_aux_col = true;
   }
 
   return prepare_inplace_alter_table_dict(

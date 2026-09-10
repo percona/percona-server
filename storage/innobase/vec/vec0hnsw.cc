@@ -197,8 +197,8 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
   ut_a(index->is_vector());
   ut_a(key != nullptr);
 
-  if (index->vec != nullptr) {
-    return static_cast<vec_t *>(index->vec);
+  if (vec_t *existing = vec_runtime_get(index); existing != nullptr) {
+    return existing;
   }
 
   /* The values the user wrote in WITH(...), round-tripped through the
@@ -253,7 +253,10 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
     return nullptr;
   }
 
-  auto *vec = ut::new_withkey<vec_t>(UT_NEW_THIS_FILE_PSI_KEY);
+  auto *vec = ut::new_withkey<vec_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table, dims,
+      static_cast<uint32_t>(hnsw_param->M),
+      static_cast<uint32_t>(hnsw_param->ef_construction));
   if (vec == nullptr) {
     ib::error(ER_IB_MSG_456)
         << "Failed to open vector runtime for index " << index->name
@@ -263,15 +266,24 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
     return nullptr;
   }
 
-  vec->index_id = index->id;
-  vec->table = index->table;
-  vec->dims = dims;
-  vec->m = static_cast<uint32_t>(hnsw_param->M);
-  vec->ef_construction = static_cast<uint32_t>(hnsw_param->ef_construction);
-  vec->loaded = false;
+  /* Publish, or lose the race and use the winner. Two sessions opening
+  the same table both find dict_index_t::vec null - ha_innobase::open
+  takes no latch that would order them - so both build a runtime and one
+  of them must give way. Before this was a compare-exchange the loser's
+  object was simply overwritten and leaked, and had any caller used the
+  returned pointer there would have been two graphs on one index: two
+  arenas both charging innodb_hnsw_max_memory, inserts landing in one
+  graph and searches reading the other.
 
-  (void)thd;
-  index->vec = vec;
+  The loser's object is safe to destroy: nothing has been loaded into it
+  yet, so ~vec_t deletes a null graph and no arena bytes are involved. */
+  std::atomic_ref<Vec_runtime *> slot(index->vec);
+  Vec_runtime *expected = nullptr;
+  if (!slot.compare_exchange_strong(expected, vec, std::memory_order_release,
+                                    std::memory_order_acquire)) {
+    ut::delete_(vec);
+    return static_cast<vec_t *>(expected);
+  }
   return vec;
 }
 
@@ -528,8 +540,9 @@ dict_index_t *vec_index_of(dict_table_t *table) {
 }
 
 uint32_t vec_index_dims(const dict_index_t *index) {
-  if (index == nullptr || index->vec == nullptr) return 0;
-  return static_cast<const vec_t *>(index->vec)->dims;
+  if (index == nullptr) return 0;
+  const vec_t *vec = vec_runtime_get(index);
+  return vec == nullptr ? 0 : vec->dims;
 }
 
 dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
@@ -539,8 +552,8 @@ dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
   ut_a(q != nullptr && out != nullptr);
   out->clear();
 
-  if (index->vec == nullptr) return DB_TABLE_NOT_FOUND;
-  auto *vec = static_cast<vec_t *>(index->vec);
+  auto *vec = vec_runtime_get(index);
+  if (vec == nullptr) return DB_TABLE_NOT_FOUND;
 
   MDL_ticket *mdl = nullptr;
   dict_table_t *aux =
@@ -612,8 +625,8 @@ dberr_t vec_knn_open(dict_index_t *index, const float *q, size_t batch_size,
   ut_a(batch_size > 0);
   *out = nullptr;
 
-  if (index->vec == nullptr) return DB_TABLE_NOT_FOUND;
-  auto *vec = static_cast<vec_t *>(index->vec);
+  auto *vec = vec_runtime_get(index);
+  if (vec == nullptr) return DB_TABLE_NOT_FOUND;
 
   MDL_ticket *mdl = nullptr;
   dict_table_t *aux =
@@ -763,8 +776,9 @@ dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
 
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
-    if (!index->is_vector() || index->vec == nullptr) continue;
-    auto *vec = static_cast<vec_t *>(index->vec);
+    if (!index->is_vector()) continue;
+    vec_t *vec = vec_runtime_get(index);
+    if (vec == nullptr) continue;
     if (q_len != vec->dims * sizeof(float)) return DB_CORRUPTION;
     const dberr_t err = vec_add_node(vec, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
@@ -776,9 +790,10 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
                        const dtuple_t *row, THD *thd) {
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
-    if (!index->is_vector() || index->vec == nullptr) continue;
+    if (!index->is_vector()) continue;
 
-    auto *vec = static_cast<vec_t *>(index->vec);
+    vec_t *vec = vec_runtime_get(index);
+    if (vec == nullptr) continue;
 
     ulint vec_len = 0;
     const char *q = vec_row_vector_bytes(index, row, &vec_len);

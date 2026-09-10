@@ -274,6 +274,20 @@ using Vec_hnsw = HNSW<Vec_arena, Vec_persistor, Vec_random_engine>;
 
 /** In-memory state of one open vector index. */
 struct vec_t : public Vec_runtime {
+  /** Everything the runtime knows about its index is settled here, before
+  the object is published into dict_index_t::vec, and const afterwards.
+  That is not tidiness: publication is the only synchronisation these
+  fields get, so a later assignment to any of them would be a data race
+  against every reader. Making them const means such a patch does not
+  compile. */
+  vec_t(space_index_t index_id_, dict_table_t *table_, uint32_t dims_,
+        uint32_t m_, uint32_t ef_construction_)
+      : index_id(index_id_),
+        table(table_),
+        dims(dims_),
+        m(m_),
+        ef_construction(ef_construction_) {}
+
   ~vec_t() override;
 
   /** The graph. Owns its arena and its persistor by value. */
@@ -301,12 +315,12 @@ struct vec_t : public Vec_runtime {
   next statement retries. */
   std::mutex load_mutex;
   /** The index this runtime belongs to. */
-  space_index_t index_id{0};
+  const space_index_t index_id;
   /** Base table, for opening the aux and reading the label counter. */
-  dict_table_t *table{nullptr};
-  uint32_t dims{0};
-  uint32_t m{0};
-  uint32_t ef_construction{0};
+  dict_table_t *const table;
+  const uint32_t dims;
+  const uint32_t m;
+  const uint32_t ef_construction;
   /** True once the graph has been built from the aux table. Atomic, with
   release/acquire ordering: it publishes the `hnsw` pointer to every thread
   that sees it true, which is what lets the hot paths run unlocked. */
@@ -323,6 +337,25 @@ and the row-level code that needs the graph has only dict objects.
 @param[in]      form   the open TABLE, for the vector column's dimension
 @param[in]      thd    session, for error reporting
 @return the runtime, or nullptr if the parameters could not be read */
+/** The runtime attached to `index`, or nullptr if it has none yet.
+
+dict_index_t::vec is written by whichever session opens the table first
+and read by every session after it, with no latch between them, so the
+access is atomic: a release store publishes the object and an acquire
+load here guarantees that a reader seeing the pointer also sees the
+fields written before it. std::atomic_ref rather than making the member
+std::atomic because dict_index_t is never constructed - it is zeroed and
+dict_mem_fill_index_struct() stands in for a constructor - so a member
+with a real constructor would not have one called.
+@param[in]  index  vector index
+@return the runtime, or nullptr */
+[[nodiscard]] inline vec_t *vec_runtime_get(const dict_index_t *index) {
+  /* const_cast: atomic_ref needs a non-const lvalue, and the read itself
+  does not modify the index. */
+  std::atomic_ref<Vec_runtime *> slot(const_cast<dict_index_t *>(index)->vec);
+  return static_cast<vec_t *>(slot.load(std::memory_order_acquire));
+}
+
 vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
                         THD *thd);
 

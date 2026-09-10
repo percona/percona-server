@@ -608,13 +608,13 @@ Ret_t Tester::vec_runtime_info(std::vector<std::string> &tokens) noexcept {
     set_output(sout);
     return RET_FAIL;
   }
-  if (vindex->vec == nullptr) {
+  if (vec_runtime_get(vindex) == nullptr) {
     XLOG("no runtime");
     set_output(sout);
     return RET_PASS;
   }
 
-  const auto *vec = static_cast<const vec_t *>(vindex->vec);
+  const auto *vec = vec_runtime_get(vindex);
   XLOG("dims=" << vec->dims << " M=" << vec->m << " ef_construction="
                << vec->ef_construction << " loaded=" << (vec->loaded ? 1 : 0));
   set_output(sout);
@@ -649,7 +649,7 @@ Ret_t Tester::vec_knn(std::vector<std::string> &tokens) noexcept {
       break;
     }
   }
-  if (vindex == nullptr || vindex->vec == nullptr) {
+  if (vindex == nullptr || vec_runtime_get(vindex) == nullptr) {
     XLOG("FAIL: no vector index runtime (open the table first)");
     set_output(sout);
     return RET_FAIL;
@@ -658,7 +658,7 @@ Ret_t Tester::vec_knn(std::vector<std::string> &tokens) noexcept {
   /* dims comes from the runtime: vec_test_open_aux deliberately reports
   0, because the dict column is BLOB-typed and its length is blob
   metadata rather than the vector width. */
-  const uint32_t idx_dims = static_cast<const vec_t *>(vindex->vec)->dims;
+  const uint32_t idx_dims = vec_runtime_get(vindex)->dims;
 
   const size_t k = static_cast<size_t>(std::stoul(tokens[2]));
   const size_t ef = static_cast<size_t>(std::stoul(tokens[3]));

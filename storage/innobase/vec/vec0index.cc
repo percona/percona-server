@@ -22,6 +22,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Per-index vector runtime.
 */
 
+#include <atomic>
+
 #include "vec0index.h"
 
 #include "dict0mem.h"
@@ -33,6 +35,11 @@ void vec_index_runtime_free(dict_index_t *index) {
 
   /* Deleting through the base pointer; the virtual destructor is what
   makes that correct for a subtype allocated by an implementation. */
-  ut::delete_(index->vec);
-  index->vec = nullptr;
+  Vec_runtime *runtime = index->vec;
+  /* Release store for symmetry with vec_runtime_get()'s acquire load. No
+  reader can be racing here: the index is out of the dictionary cache
+  with ref_count 0 before dict_mem_index_free() is reached. */
+  std::atomic_ref<Vec_runtime *>(index->vec)
+      .store(nullptr, std::memory_order_release);
+  ut::delete_(runtime);
 }

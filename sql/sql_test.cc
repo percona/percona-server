@@ -173,15 +173,20 @@ void print_keyuse_array(THD *thd, Opt_trace_context *trace,
                        keyuse.optimize, keyuse.used_tables,
                        (ulong)keyuse.ref_table_rows, keyuse.keypart_map));
 
+    const char *field_str;
+    if (keyuse.keypart == FT_KEYPART)
+      field_str = "<fulltext>";
+    else if (keyuse.keypart == VECTOR_KEYPART)
+      field_str = "<vector>";
+    else
+      field_str = get_field_name_or_expression(
+          thd, keyuse.table_ref->table->key_info[keyuse.key]
+                   .key_part[keyuse.keypart]
+                   .field);
+
     Opt_trace_object(trace)
         .add_utf8_table(keyuse.table_ref)
-        .add_utf8("field",
-                  (keyuse.keypart == FT_KEYPART)
-                      ? "<fulltext>"
-                      : get_field_name_or_expression(
-                            thd, keyuse.table_ref->table->key_info[keyuse.key]
-                                     .key_part[keyuse.keypart]
-                                     .field))
+        .add_utf8("field", field_str)
         .add("equals", keyuse.val)
         .add("null_rejecting", keyuse.null_rejecting);
   }

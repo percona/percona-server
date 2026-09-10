@@ -217,7 +217,7 @@ ERROR HY000: Incorrect arguments to distance
 # Run explain to confirm that ORDER BY ... LIMIT n uses vector search on vk.
 EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	vector_ann	NULL	vk	1	NULL	4	100.00	NULL
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	X	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,2,3]'),'EUCLIDEAN') limit 2
 DROP TABLE t1;

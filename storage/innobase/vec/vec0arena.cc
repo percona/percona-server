@@ -30,17 +30,20 @@ Arena allocator for HNSW graph nodes.
 
 #include <new>
 
+#include "mem0mem.h"
 #include "ut0new.h"
 
 namespace {
-/** Round up to an alignment that suits any scalar the graph stores. */
+/** Round up to an alignment that suits any scalar the graph stores. The
+heap only promises UNIV_MEM_ALIGNMENT (8), so slabs are aligned here. */
 constexpr size_t vec_arena_align(size_t n) {
   constexpr size_t A = alignof(std::max_align_t);
   return (n + A - 1) & ~(A - 1);
 }
 }  // namespace
 
-/** Bytes held by every Vec_arena in the server, chunk headers included.
+/** Bytes held by every Vec_arena in the server, heap block headers
+included.
 
 The budget innodb_hnsw_max_memory promises is server-wide - across all
 tables and all indexes - and every graph byte passes through
@@ -52,45 +55,73 @@ uint64_t vec_arena_global_bytes() {
 }
 
 Vec_arena::~Vec_arena() {
-  Chunk *chunk = m_head;
-  while (chunk != nullptr) {
-    Chunk *next = chunk->m_next;
-    ut::free(chunk);
-    chunk = next;
-  }
-  m_head = nullptr;
+  if (m_heap == nullptr) return;
+
   vec_arena_bytes.fetch_sub(m_bytes_allocated, std::memory_order_relaxed);
   m_bytes_allocated = 0;
+  m_cur = nullptr;
+  m_cur_size = 0;
+  m_cur_used = 0;
+
+  /* One call releases every slab: the heap owns them, which is the point
+  of taking the memory from a heap rather than keeping a chunk list. */
+  mem_heap_free(m_heap);
+  m_heap = nullptr;
+}
+
+void Vec_arena::recount() {
+  const size_t now = mem_heap_get_size(m_heap);
+  if (now == m_bytes_allocated) return;
+
+  /* The heap only grows while an arena is alive - nothing here frees a
+  block - so the delta is always positive. */
+  vec_arena_bytes.fetch_add(now - m_bytes_allocated, std::memory_order_relaxed);
+  m_bytes_allocated = now;
 }
 
 void *Vec_arena::allocate(size_t size) {
   if (size == 0) return nullptr;
 
   const size_t want = vec_arena_align(size);
-  const size_t header = vec_arena_align(sizeof(Chunk));
 
-  if (m_head != nullptr && m_head->m_size - m_head->m_used >= want) {
-    void *p = reinterpret_cast<char *>(m_head) + header + m_head->m_used;
-    m_head->m_used += want;
+  if (m_cur != nullptr && m_cur_size - m_cur_used >= want) {
+    void *p = m_cur + m_cur_used;
+    m_cur_used += want;
     return p;
   }
 
-  /* A request larger than a fresh chunk gets a chunk sized to it. The
-  current chunk keeps whatever it has left rather than being abandoned:
-  it stays at the head only if it still has more room than the new one
-  would, which for an oversized request it will not. */
-  const size_t usable = want > CHUNK_SIZE ? want : CHUNK_SIZE;
+  if (m_heap == nullptr) {
+    /* Deliberately not sized to SLAB_SIZE: the first block would then be
+    a slab we never sub-allocate from, since every slab below comes from
+    its own mem_heap_alloc. Let the heap pick its default. */
+    m_heap = mem_heap_create(0, UT_LOCATION_HERE);
+    if (m_heap == nullptr) return nullptr;
+    recount();
+  }
 
-  void *raw = ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, header + usable);
+  /* A slab larger than the heap's own block cap, so mem_heap_add_block
+  hands us a block of exactly this size rather than its 8000-byte
+  standard one. Over-allocate by the alignment we promise, because the
+  heap only guarantees UNIV_MEM_ALIGNMENT. */
+  const size_t slab = (want > SLAB_SIZE ? want : SLAB_SIZE);
+  constexpr size_t A = alignof(std::max_align_t);
+  char *raw = static_cast<char *>(mem_heap_alloc(m_heap, slab + A - 1));
   if (raw == nullptr) return nullptr;
+  recount();
 
-  Chunk *chunk = static_cast<Chunk *>(raw);
-  chunk->m_next = m_head;
-  chunk->m_size = usable;
-  chunk->m_used = want;
-  m_head = chunk;
-  m_bytes_allocated += header + usable;
-  vec_arena_bytes.fetch_add(header + usable, std::memory_order_relaxed);
+  char *base = reinterpret_cast<char *>(
+      vec_arena_align(reinterpret_cast<uintptr_t>(raw)));
 
-  return reinterpret_cast<char *>(chunk) + header;
+  /* Keep as the current slab whichever has more room left. An oversized
+  request consumes its slab exactly, so it never displaces a slab that
+  can still serve the small allocations that follow it - which is what
+  otherwise costs one extra slab per node. */
+  const size_t new_free = slab - want;
+  if (m_cur == nullptr || new_free > m_cur_size - m_cur_used) {
+    m_cur = base;
+    m_cur_size = slab;
+    m_cur_used = want;
+  }
+
+  return base;
 }

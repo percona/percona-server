@@ -36,6 +36,15 @@ namespace vector_constants {
 // maximum dimensions in a vector column
 constexpr unsigned int max_dimensions = 16383;
 
+/**
+  Cost and row estimate assigned to vector index access in the cost-based
+  optimizer. Chosen so that it always loses against any other access method,
+  since a vector index is only ever activated for ORDER BY ... LIMIT. Large but
+  finite, because std::numeric_limits<double>::max() overflows when the
+  optimizer adds costs together.
+*/
+constexpr double prohibitive_cost = 1e100;
+
 enum class Metric {
   kEuclidean,
   kEuclideanSquared,

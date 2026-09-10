@@ -1,0 +1,366 @@
+DELIMITER //;
+
+CREATE PROCEDURE populate_vector_table(dims INT, num_rows INT)
+BEGIN
+  INSERT INTO t1 (id, v)
+  WITH RECURSIVE
+    seq(n)  AS (SELECT 0 UNION ALL SELECT n + 1 FROM seq  WHERE n < num_rows),
+    dims(d) AS (SELECT 1 UNION ALL SELECT d + 1 FROM dims WHERE d < dims)
+  SELECT s.n,
+         string_to_vector(CONCAT('[',
+           (SELECT GROUP_CONCAT(RAND(s.n * dims + d)) FROM dims), ']'))
+  FROM seq s;
+  ANALYZE TABLE t1;
+END;
+//
+
+DELIMITER ;//
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(3) NOT NULL, VECTOR KEY(v) USING hnsw);
+SHOW CREATE TABLE t1;
+
+--echo # Too short row
+CALL mtr.add_suppression("We detected index corruption in an InnoDB type table.");
+--error ER_NOT_KEYFILE
+INSERT INTO t1 VALUES (1, TO_VECTOR("[1, 2]"));
+
+CALL populate_vector_table(3, 100);
+
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+
+--echo # Check that changes to index are persisted.
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+
+DROP TABLE t1;
+
+--echo # Test that filtering works correctly with vector search.
+--echo # I.e. that ORDER BY distance LIMIT n returns enough rows
+--echo # even if some rows returned by vector index are filtered
+--echo # out by WHERE clause.
+
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(2) NOT NULL, flag BOOL, VECTOR KEY(v) USING hnsw);
+INSERT INTO t2 VALUES (1, TO_VECTOR("[0, 0]"), 0);
+INSERT INTO t2 VALUES (2, TO_VECTOR("[1, 0]"), 1);
+INSERT INTO t2 VALUES (3, TO_VECTOR("[0, 2]"), 1);
+INSERT INTO t2 VALUES (4, TO_VECTOR("[3, 0]"), 0);
+INSERT INTO t2 VALUES (5, TO_VECTOR("[0, 4]"), 0);
+INSERT INTO t2 VALUES (6, TO_VECTOR("[5, 0]"), 1);
+INSERT INTO t2 VALUES (7, TO_VECTOR("[0, 6]"), 1);
+INSERT INTO t2 VALUES (8, TO_VECTOR("[7, 0]"), 0);
+INSERT INTO t2 VALUES (9, TO_VECTOR("[0, 8]"), 0);
+INSERT INTO t2 VALUES (10, TO_VECTOR("[9, 0]"), 1);
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id
+FROM t2
+ORDER BY
+  DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC,
+  DISTANCE(v, TO_VECTOR("[10, 10]"), "EUCLIDEAN");
+
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id
+FROM t2
+ORDER BY
+  DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC,
+  DISTANCE(v, TO_VECTOR("[10, 10]"), "EUCLIDEAN");
+
+SELECT id
+FROM t2
+ORDER BY
+  DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC,
+  DISTANCE(v, TO_VECTOR("[10, 10]"), "EUCLIDEAN");
+
+--echo # Case when vector search runs out of entries to return.
+SELECT id FROM t2 WHERE flag= 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 6;
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE SELECT id FROM t2 WHERE flag= 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 6;
+
+DROP TABLE t2;
+
+--echo #
+--echo # Test that a distance function in where clause gets executed using HNSW index.
+--echo #
+
+CREATE FUNCTION vector_to_pretty_string(v VECTOR) RETURNS TEXT DETERMINISTIC
+    RETURN regexp_replace(vector_to_string(v), '\\.0{5}e\\+00', '');
+
+CREATE TABLE t2 (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    v VECTOR (3) NOT NULL,
+    VECTOR KEY (v) USING hnsw
+);
+
+INSERT INTO t2 VALUES ( 1, to_vector('[0, 0, 0]') );
+INSERT INTO t2 VALUES ( 2, to_vector('[1, 1, 1]') );
+INSERT INTO t2 VALUES ( 3, to_vector('[1, 1, 2]') );
+INSERT INTO t2 VALUES ( 4, to_vector('[1, 2, 1]') );
+INSERT INTO t2 VALUES ( 5, to_vector('[1, 2, 2]') );
+INSERT INTO t2 VALUES ( 6, to_vector('[2, 1, 1]') );
+INSERT INTO t2 VALUES ( 7, to_vector('[2, 1, 2]') );
+INSERT INTO t2 VALUES ( 8, to_vector('[2, 2, 1]') );
+INSERT INTO t2 VALUES ( 9, to_vector('[2, 2, 2]') );
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(v) v, distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') FROM t2;
+SELECT id, vector_to_pretty_string(v) v, distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') FROM t2;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2;
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+
+
+--echo # Joins
+
+CREATE TABLE t3 (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    v VECTOR (3) NOT NULL,
+    VECTOR KEY (v) USING hnsw
+);
+
+INSERT INTO t3 VALUES ( 1, to_vector('[0, 0, 0]') );
+INSERT INTO t3 VALUES ( 2, to_vector('[1, 1, 1]') );
+INSERT INTO t3 VALUES ( 3, to_vector('[1, 1, 2]') );
+INSERT INTO t3 VALUES ( 4, to_vector('[1, 2, 1]') );
+INSERT INTO t3 VALUES ( 5, to_vector('[1, 2, 2]') );
+INSERT INTO t3 VALUES ( 6, to_vector('[2, 1, 1]') );
+INSERT INTO t3 VALUES ( 7, to_vector('[2, 1, 2]') );
+INSERT INTO t3 VALUES ( 8, to_vector('[2, 2, 1]') );
+INSERT INTO t3 VALUES ( 9, to_vector('[2, 2, 2]') );
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(t2.v) v
+FROM t2 join t3 using (id)
+WHERE distance( t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+
+SELECT id, vector_to_pretty_string(t2.v) v
+FROM t2 join t3 using (id)
+WHERE distance( t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, t2.v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE 2.5 >= distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' );
+
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE 2.5 >= distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' );
+
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(3) NOT NULL, VECTOR KEY(v) USING hnsw);
+
+INSERT INTO t1 VALUES (1, TO_VECTOR("[0, 0, 0]"));
+INSERT INTO t1 VALUES (2, TO_VECTOR("[1, 1, 1]"));
+INSERT INTO t1 VALUES (3, TO_VECTOR("[0, 0, 0.1]"));
+
+ANALYZE TABLE t1;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id FROM t1 ORDER BY distance(to_vector('[0, 0, 0]'), v ,'EUCLIDEAN') LIMIT 2;
+SELECT id FROM t1 ORDER BY distance(to_vector('[0, 0, 0]'), v ,'EUCLIDEAN') LIMIT 2;
+
+SELECT *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t1) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT /*+ NO_INDEX(t1) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT /*+ NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t1) NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT /*+ NO_INDEX(t1) NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--echo #
+--echo # Hints
+--echo #
+
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+
+--echo #
+--echo # Error messages.
+--echo #
+
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE x ( v VECTOR(42) NOT NULL, VECTOR KEY(v) USING hnsw);
+
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE x ( id INT PRIMARY KEY, v VECTOR(42) NOT NULL, VECTOR KEY(v) USING hnsw );
+
+CREATE TABLE t4 ( v VECTOR(42) );
+--error ER_PARSE_ERROR
+CREATE VECTOR INDEX i ON t4(v);
+DROP TABLE t4;
+
+CREATE TABLE t4 ( id BIGINT UNSIGNED PRIMARY KEY, v1 VECTOR(1000) NOT NULL, v2 VECTOR(2000) );
+ALTER TABLE t4 ADD VECTOR INDEX v1i ( v1 ) USING hnsw;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t4 ADD VECTOR INDEX v2i ( v2 ) USING hnsw;
+--error ER_NOT_SUPPORTED_YET
+CREATE VECTOR INDEX i ON t4(v) USING hnsw;
+
+SHOW CREATE TABLE t4;
+DROP INDEX v1i ON t4;
+SHOW CREATE TABLE t4;
+
+
+DROP FUNCTION vector_to_pretty_string;
+DROP TABLE t1, t2, t3, t4;
+
+CREATE TABLE `t1` (
+  id bigint unsigned NOT NULL AUTO_INCREMENT,
+  v1 vector(3) NOT NULL,
+  PRIMARY KEY (id),
+  VECTOR KEY v1 (v1) USING hnsw
+);
+
+insert into t1 values (1, to_vector('[0.5, 0.5, 0.5]')), (2, to_vector('[0.1, 0.2, 0.3]')), (3, to_vector('[0.4, 0.2, 0.4]')), (4, to_vector('[0.1, 0.0, 0.1]'));
+
+explain format=traditional
+select id, vector_to_string( v1 ), distance( v1, to_vector('[0, 0, 0]'), 'euclidean') from t1 order by distance(v1, to_vector('[0, 0, 0]'), "euclidean");
+
+drop table t1;
+
+--echo #
+--echo # Determine which optimizer path sets up the vector access for each
+--echo # predicate shape. make_join_query_block()'s LOW_LIMIT recheck emits a
+--echo # "rechecking_index_usage" trace object with "recheck_reason":
+--echo # "low_limit"; test_if_skip_sort_order() emits
+--echo # "reconsidering_access_paths_for_index_ordering" instead.
+--echo #
+
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  c INT,
+  v VECTOR(2) NOT NULL,
+  KEY c_idx (c),
+  VECTOR KEY (v) USING hnsw
+);
+
+INSERT INTO t1 VALUES
+  (1,  10, TO_VECTOR("[0, 0]")),
+  (2,  20, TO_VECTOR("[1, 0]")),
+  (3,  30, TO_VECTOR("[0, 2]")),
+  (4,  40, TO_VECTOR("[3, 0]")),
+  (5,  50, TO_VECTOR("[0, 4]")),
+  (6,  60, TO_VECTOR("[5, 0]")),
+  (7,  70, TO_VECTOR("[0, 6]")),
+  (8,  80, TO_VECTOR("[7, 0]")),
+  (9,  90, TO_VECTOR("[0, 8]")),
+  (10, 100, TO_VECTOR("[9, 0]"));
+ANALYZE TABLE t1;
+
+SET SESSION optimizer_trace = "enabled=on";
+
+--echo # Non-selective predicate -> full scan, c_idx stays in const_keys.
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id FROM t1 WHERE c > 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id FROM t1 WHERE c > 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+SELECT id FROM t1 WHERE c > 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+
+SELECT JSON_EXTRACT(trace, '$**.rechecking_index_usage') AS low_limit_recheck,
+       JSON_CONTAINS_PATH(trace, 'one',
+         '$**.reconsidering_access_paths_for_index_ordering') AS skip_sort_path
+FROM information_schema.optimizer_trace;
+
+--echo # Selective predicate -> range scan chosen on c_idx (QS_RANGE).
+--replace_regex /actual time=[0-9.e+-]+ /actual time=X..Y /
+EXPLAIN ANALYZE
+SELECT id FROM t1 WHERE c >= 30 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 2;
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id FROM t1 WHERE c >= 30 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 2;
+SELECT id FROM t1 WHERE c >= 30 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 2;
+
+SELECT JSON_EXTRACT(trace, '$**.rechecking_index_usage') AS low_limit_recheck,
+       JSON_CONTAINS_PATH(trace, 'one',
+         '$**.reconsidering_access_paths_for_index_ordering') AS skip_sort_path
+FROM information_schema.optimizer_trace;
+
+SET SESSION optimizer_trace = "enabled=off";
+
+DROP TABLE t1;
+DROP PROCEDURE populate_vector_table;

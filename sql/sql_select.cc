@@ -2548,6 +2548,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
   const uint key = org_keyuse->key;
   const bool ftkey = (org_keyuse->keypart == FT_KEYPART);
+  const bool veckey = (org_keyuse->keypart == VECTOR_KEYPART);
   THD *const thd = join->thd;
   uint keyparts, length;
   TABLE *const table = j->table();
@@ -2563,7 +2564,10 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     length = 0;
     keyparts = 1;
     ifm->get_master()->score_from_index_scan = true;
-  } else /* not ftkey */
+  } else if (veckey) {
+    length = 0;
+    keyparts = 1;
+  } else /* neither ftkey nor veckey */
     calc_length_and_keyparts(org_keyuse, j, key, used_tables, chosen_keyuses,
                              &length, &keyparts, nullptr, nullptr);
   if (thd->is_error()) {
@@ -2588,6 +2592,17 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
     j->set_type(JT_FT);
     j->set_ft_func(down_cast<Item_func_match *>(keyuse->val));
+    memset(j->ref().key_copy, 0, sizeof(j->ref().key_copy[0]) * keyparts);
+
+    return false;
+  }
+  if (veckey) {
+    j->ref().items[0] = org_keyuse->val;
+    j->ref().cond_guards[0] = nullptr;
+
+    j->set_type(JT_VECTOR);
+    j->set_index(key);
+    j->set_vec(org_keyuse->val);
     memset(j->ref().key_copy, 0, sizeof(j->ref().key_copy[0]) * keyparts);
 
     return false;
@@ -5269,6 +5284,42 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     int direction = 0;
     uint used_key_parts;
     bool skip_quick;
+
+    // A vector index satisfies ORDER BY distance(); test_if_order_by_key()
+    // can't see this, so recognise it via the VECTOR_KEYPART Key_use instead.
+    const Key_use *vector_key = nullptr;
+    if (tab != nullptr && (table->key_info[nr].flags & HA_VECTOR)) {
+      for (const Key_use *ku = tab->keyuse();
+           ku != nullptr && ku->table_ref == tab->table_ref; ++ku) {
+        if (ku->key == nr && ku->keypart == VECTOR_KEYPART) {
+          vector_key = ku;
+          break;
+        }
+      }
+    }
+
+    if (vector_key != nullptr) {
+      // A vector index answers ORDER BY distance() directly. Prefer it only
+      // when the LIMIT is smaller than the table; otherwise a full scan and
+      // sort is cheaper.
+      if (select_limit < table_records) {
+        const constexpr double default_vector_size = 2096;
+        const constexpr double page_size = 4096;
+        const double vector_scan_time =
+            select_limit *
+            table->file->page_read_cost(nr, default_vector_size / page_size);
+
+        best_key = nr;
+        best_key_parts = 1;
+        if (saved_best_key_parts) *saved_best_key_parts = 1;
+        best_key_direction = 1;
+        best_records = static_cast<ha_rows>(select_limit);
+        best_read_time = vector_scan_time;
+        best_select_limit = select_limit;
+        is_best_covering = false;
+      }
+      continue;
+    }
 
     if (usable_keys.is_set(nr) &&
         (direction = test_if_order_by_key(order, table, nr, &used_key_parts,

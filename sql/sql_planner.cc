@@ -227,7 +227,7 @@ Key_use *Optimize_table_order::find_best_ref(
   double best_ref_cost = DBL_MAX;
 
   // Index type, note that code below relies on this element definition order
-  enum idx_type { CLUSTERED_PK, UNIQUE, NOT_UNIQUE, FULLTEXT };
+  enum idx_type { CLUSTERED_PK, UNIQUE, NOT_UNIQUE, FULLTEXT, VECTOR, };
   enum idx_type best_found_keytype = NOT_UNIQUE;
 
   TABLE *const table = tab->table();
@@ -275,8 +275,13 @@ Key_use *Optimize_table_order::find_best_ref(
     DBUG_PRINT("info", ("Considering ref access on key %s", keyinfo->name));
     Opt_trace_object trace_access_idx(trace);
 
-    enum idx_type cur_keytype =
-        (keyuse->keypart == FT_KEYPART) ? FULLTEXT : NOT_UNIQUE;
+    enum idx_type cur_keytype;
+    if (keyuse->keypart == FT_KEYPART)
+      cur_keytype = FULLTEXT;
+    else if (keyuse->keypart == VECTOR_KEYPART)
+      cur_keytype = VECTOR;
+    else
+      cur_keytype = NOT_UNIQUE;
 
     // Calculate how many key segments of the current key we can use
     Key_use *const start_key = keyuse;
@@ -336,7 +341,7 @@ Key_use *Optimize_table_order::find_best_ref(
           const_part |= keyuse->keypart_map;
         }
         found_part |= keyuse->keypart_map;
-        if (keypart != FT_KEYPART) {
+        if (keypart != FT_KEYPART && keypart != VECTOR_KEYPART) {
           const bool keyinfo_maybe_null =
               keyinfo->key_part[keypart].field->is_nullable() ||
               tab->table()->is_nullable();
@@ -375,7 +380,7 @@ Key_use *Optimize_table_order::find_best_ref(
     }
 
     // fulltext indexes require special treatment
-    if (cur_keytype != FULLTEXT) {
+    if (cur_keytype != FULLTEXT && cur_keytype != VECTOR) {
       *found_condition |= (0 != found_part);
 
       const bool all_key_parts_covered =
@@ -668,7 +673,7 @@ Key_use *Optimize_table_order::find_best_ref(
         trace_access_idx.add("usable", false).add("chosen", false);
         continue;
       }
-    } else {
+    } else if (cur_keytype == FULLTEXT) {
       // This is a full-text index
 
       trace_access_idx.add_alnum("access_type", "fulltext")
@@ -684,6 +689,30 @@ Key_use *Optimize_table_order::find_best_ref(
       cur_read_cost = prev_record_reads(join, idx, table_deps) *
                       table->cost_model()->page_read_cost(1.0);
       cur_fanout = 1.0;
+    } else if (cur_keytype == VECTOR) {
+      // This is a vector index
+
+      trace_access_idx.add_alnum("access_type", "vector")
+          .add_utf8("index", keyinfo->name);
+
+      if (best_found_keytype < NOT_UNIQUE) {
+        trace_access_idx.add("chosen", false)
+            .add_alnum("cause", "heuristic_eqref_already_found");
+        // Ignore test_all_ref_keys, semijoin loosescan never uses vector
+        continue;
+      }
+
+      double num_rows = (keyuse - 1)->ref_table_rows;
+      cur_read_cost = prev_record_reads(join, idx, table_deps) *
+                      table->cost_model()->page_read_cost(1.0 * num_rows);
+
+      // // A vector row occupies roughly this fraction of a page.
+      // const constexpr double default_vector_size = 2096;
+      // const constexpr double page_size = 4096;
+      // cur_read_cost =
+      //     prev_record_reads(join, idx, table_deps) * limit *
+      //     table->file->page_read_cost(key, default_vector_size / page_size);
+      cur_fanout = num_rows == 0 ? ~(ha_rows)0 : num_rows;
     }
 
     start_key->bound_keyparts = found_part;
@@ -1344,7 +1373,8 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
   if (keyuse) {
     const KEY *key = table->key_info + keyuse->key;
 
-    if (keyuse[0].keypart == FT_KEYPART) {
+    if (keyuse[0].keypart == FT_KEYPART ||
+        keyuse[0].keypart == VECTOR_KEYPART) {
       /*
         Fulltext indexes are special because keyuse->keypart does not
         contain the keypart number but a constant (FT_KEYPART)
@@ -1682,7 +1712,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
         if ((keyuse->sj_pred_no == UINT_MAX) ||
             (excluded_tables & keyuse->used_tables) ||
             !(remaining_tables & keyuse->used_tables) ||
-            (keypart == FT_KEYPART) ||
+            (keypart == FT_KEYPART) || (keypart == VECTOR_KEYPART) ||
             (table->key_info[key].key_part[keypart].key_part_flag &
              HA_PART_KEY_SEG))
           continue;

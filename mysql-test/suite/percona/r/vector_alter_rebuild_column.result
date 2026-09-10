@@ -1,0 +1,105 @@
+SET SESSION debug = '+d,skip_dd_table_access_check';
+#
+# PS-11299: a rebuild must leave the data dictionary and the
+# tablespace agreeing about the hidden percona_vec_aux_id column.
+#
+# The column is added to the rebuilt table by the SQL layer only when
+# the new definition needs it - that is, when a vector index survives
+# the ALTER. InnoDB used to decide separately, from the OLD table's
+# sticky DICT_TF2_HAS_VEC_AUX_COL, and the commit path only carries the
+# column into the new dd::Table on the no-rebuild branch. So DROP INDEX
+# followed by a rebuild wrote every row with a column the committed
+# dictionary did not describe.
+#
+# The damage was not subtle: the next INSERT that split a page asserted
+# in btr_page_split_and_insert (page_validate), with no restart needed,
+# and CHECK TABLE reported the B-tree corrupt afterwards.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+pad CHAR(200) NOT NULL,
+v VECTOR(4) NOT NULL,
+KEY vk (v) TYPE hnsw WITH (M = 4));
+# Enough rows for several pages, so a later INSERT has to split one.
+# With the index present, the DD carries the hidden column.
+SELECT c.name AS dd_hidden_col FROM mysql.columns c
+JOIN mysql.tables t ON c.table_id = t.id
+WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
+dd_hidden_col
+percona_vec_aux_id
+# DROP INDEX keeps it: nothing rebuilt, and the commit path carries it.
+ALTER TABLE t1 DROP KEY vk;
+SELECT c.name AS dd_hidden_col FROM mysql.columns c
+JOIN mysql.tables t ON c.table_id = t.id
+WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
+dd_hidden_col
+percona_vec_aux_id
+# Now the rebuild. No vector index remains, so the new definition has
+# no hidden column - and the dictionary must reach the same conclusion.
+ALTER TABLE t1 FORCE, ALGORITHM=INPLACE;
+SELECT c.name AS dd_hidden_col FROM mysql.columns c
+JOIN mysql.tables t ON c.table_id = t.id
+WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
+dd_hidden_col
+# The INSERT that used to assert.
+INSERT INTO t1 VALUES (1001, REPEAT('y', 200), STRING_TO_VECTOR('[1,0,0,0]'));
+UPDATE t1 SET pad = REPEAT('z', 200) WHERE id = 150;
+DELETE FROM t1 WHERE id = 151;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+300
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# And the same after a reload, which is where the mismatch showed up
+# as a corrupt B-tree.
+# restart
+SET SESSION debug = '+d,skip_dd_table_access_check';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+300
+SELECT SUM(id) FROM t1;
+SUM(id)
+46000
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# OPTIMIZE takes the same path (recreate + analyze).
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+pad CHAR(200) NOT NULL,
+v VECTOR(4) NOT NULL,
+KEY vk (v) TYPE hnsw WITH (M = 4));
+ALTER TABLE t2 DROP KEY vk;
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t2	optimize	status	OK
+INSERT INTO t2 VALUES (1001, REPEAT('y', 200), STRING_TO_VECTOR('[7,7,7,7]'));
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+# restart
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+301
+# A vector index that survives a rebuild keeps its column, its labels
+# and its answers: re-adding one after all of the above still works.
+ALTER TABLE t2 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4);
+SET SESSION debug = '+d,skip_dd_table_access_check';
+SELECT c.name AS dd_hidden_col FROM mysql.columns c
+JOIN mysql.tables t ON c.table_id = t.id
+WHERE t.name = 't2' AND c.name = 'percona_vec_aux_id';
+dd_hidden_col
+percona_vec_aux_id
+# A vector no other row carries, so the nearest is unambiguous - the
+# rows that survived the rebuild are searchable through the new index.
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,7,7,7]'), 'EUCLIDEAN') LIMIT 1;
+id
+1001
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=301 distinct_ids=301 distinct_base_pks=301 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+DROP TABLE t1, t2;

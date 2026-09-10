@@ -153,6 +153,22 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   return DB_SUCCESS;
 }
 
+/** Flatten a neighbour range into the on-disk blob: one big-endian id per
+slot, 0 for an empty slot, no header. Shared by the two writers - the
+persistor, which writes a node as it is inserted, and the build, which
+writes it once at the end from a walk - so the layout has one definition.
+@param[in]   nbrs  neighbour ids, in slot order
+@param[out]  out   the blob, cleared first */
+template <typename NeighborIds>
+inline void vec_flatten_neighbors(NeighborIds nbrs, std::vector<byte> &out) {
+  out.clear();
+  for (uint64_t id : nbrs) {
+    byte buf[8];
+    mach_write_to_8(buf, id);
+    out.insert(out.end(), buf, buf + 8);
+  }
+}
+
 /** Sink for the graph's persistence callbacks.
 
 Stateless by contract - every member of the "state" a callback needs is
@@ -220,15 +236,34 @@ struct Vec_persistor {
   }
 
  private:
-  /** Flatten a neighbour range into the on-disk blob: one big-endian id
-  per slot, 0 for an empty slot, no header. */
+};
+
+/** A Persistor that writes nothing.
+
+An index build inserts every row into a graph that no reader can see yet,
+and persisting during that build is wasted work: each insert rewires its
+neighbours, so a node's row would be rewritten every time a later insert
+touches it - O(N x M x log N) row updates to arrive at a state that is
+only correct once the last row is in. Building against this persistor and
+then walking the finished graph (HNSW::for_each_node) writes each node
+once, with its final neighbour list.
+
+Context is an empty tag: there is no error to carry, because none of
+these can fail. load_node_cb asserts because a build never faults a node
+in - every node it has, it inserted. */
+struct Vec_null_persistor {
+  struct Context {};
+
   template <typename NeighborIds>
-  static void vec_flatten_neighbors(NeighborIds nbrs, std::vector<byte> &out) {
-    for (uint64_t id : nbrs) {
-      byte buf[8];
-      mach_write_to_8(buf, id);
-      out.insert(out.end(), buf, buf + 8);
-    }
+  void insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                 NeighborIds) {}
+  template <typename NeighborIds>
+  void update_neighbors_cb(Context *, uint64_t, NeighborIds) {}
+  void update_entry_point_cb(Context *, uint64_t) {}
+  template <typename Hnsw>
+  bool load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
+    ut_error;
+    return false;
   }
 };
 
@@ -271,6 +306,11 @@ class Vec_random_engine {
 };
 
 using Vec_hnsw = HNSW<Vec_arena, Vec_persistor, Vec_random_engine>;
+
+/** The same graph, built without persisting anything: what an index build
+uses before writing the aux in one pass. Same arena and same RNG, so it
+behaves identically - only the persistor differs. */
+using Vec_build_hnsw = HNSW<Vec_arena, Vec_null_persistor, Vec_random_engine>;
 
 /** In-memory state of one open vector index. */
 struct vec_t : public Vec_runtime {

@@ -1228,7 +1228,8 @@ fi
 #%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 #%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
@@ -1377,9 +1378,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_openid_connect.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_openid_connect.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.15.0

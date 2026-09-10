@@ -18101,6 +18101,7 @@ ha_rows ha_innobase::records_in_range(
   Return "no estimate" instead. PS-11300 tracks teaching the optimizer
   to skip vector indexes for regular scans. */
   if (index->is_vector()) {
+    ut_ad(0);
     n_rows = HA_POS_ERROR;
     goto func_exit;
   }

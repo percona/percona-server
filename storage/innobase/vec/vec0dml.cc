@@ -423,16 +423,12 @@ static bool vec_aux_copy_field(const dict_index_t *clust, const rec_t *rec,
   return true;
 }
 
-dberr_t vec_base_collect_rows(dict_table_t *base, const dict_index_t *vec_index,
-                              uint32_t dims,
-                              std::vector<vec_base_row_t> *rows) {
+dberr_t vec_base_scan_rows(dict_table_t *base, const dict_index_t *vec_index,
+                           uint32_t dims, const Vec_base_row_cb &cb) {
   ut_a(base != nullptr);
   ut_a(vec_index != nullptr);
-  ut_a(rows != nullptr);
   ut_a(dims != 0);
   ut_a(base->vec_aux_col != ULINT_UNDEFINED);
-
-  rows->clear();
 
   dict_index_t *clust = base->first_index();
 
@@ -444,25 +440,77 @@ dberr_t vec_base_collect_rows(dict_table_t *base, const dict_index_t *vec_index,
   const ulint pos_vec = dict_col_get_clust_pos(vec_col, clust);
   const ulint pos_id =
       dict_col_get_clust_pos(base->get_col(base->vec_aux_col), clust);
+  const size_t vec_bytes = dims * sizeof(float);
+
+  /* Why not Parallel_reader, which is how the rest of InnoDB reads a
+  clustered index in bulk: its callbacks all run with the scan's
+  mini-transaction latching. The per-row callback is called with the page
+  S-latched, and the page-end hook fires inside traverse_recs() with the
+  range's mtr still open. Our per-row work writes aux rows through the row
+  API, and row_ins_clust_index_entry() asserts
+  check_my_thread_mtrs_are_not_latching() - correctly, because taking aux
+  latches under a base-table leaf latch is a latching order this code has
+  no business inventing. Parallel_reader suits callbacks that read or copy,
+  and the DDL builder, which bulk-loads pages rather than inserting rows.
+
+  So the scan stays a cursor scan, and streams: read a bounded batch with
+  the latch held, drop the mtr, insert that batch with no latches, then
+  restore the cursor and carry on. Memory is one batch, not the table. */
+  constexpr size_t BATCH_ROWS = 128;
+  constexpr size_t BATCH_BYTES = 1 << 20;
+
+  struct Row {
+    uint64_t id;
+    uint64_t base_pk;
+    std::vector<byte> vec;
+  };
+  std::vector<Row> batch;
+  batch.reserve(BATCH_ROWS);
+  size_t batch_bytes = 0;
 
   mem_heap_t *offset_heap = nullptr;
   mem_heap_t *row_heap = mem_heap_create(2048, UT_LOCATION_HERE);
   dberr_t err = DB_SUCCESS;
+
+  const auto flush = [&]() -> dberr_t {
+    for (const Row &r : batch) {
+      const dberr_t cb_err = cb(r.id, r.base_pk, r.vec.data(), r.vec.size());
+      if (cb_err != DB_SUCCESS) {
+        batch.clear();
+        batch_bytes = 0;
+        return cb_err;
+      }
+    }
+    batch.clear();
+    batch_bytes = 0;
+    return DB_SUCCESS;
+  };
 
   mtr_t mtr;
   mtr_start(&mtr);
   btr_pcur_t pcur;
   pcur.open_at_side(true /* left */, clust, BTR_SEARCH_LEAF, true, 0, &mtr);
 
-  ulint n_scanned = 0;
+  for (;;) {
+    bool more = true;
 
-  while (pcur.move_to_next_user_rec(&mtr) == DB_SUCCESS) {
-    const rec_t *rec = pcur.get_rec();
+    while (batch.size() < BATCH_ROWS && batch_bytes < BATCH_BYTES) {
+      if (pcur.move_to_next_user_rec(&mtr) != DB_SUCCESS) {
+        more = false;
+        break;
+      }
 
-    ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
-                                     UT_LOCATION_HERE, &offset_heap);
+      const rec_t *rec = pcur.get_rec();
+      ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
+                                       UT_LOCATION_HERE, &offset_heap);
 
-    if (!rec_get_deleted_flag(rec, dict_table_is_comp(base))) {
+      /* Delete-marked records are committed deletes pending purge, not
+      rows. Uncommitted changes cannot be present: the ALTER holds at
+      least a shared lock and waited out prior writers at MDL upgrade,
+      which is what lets this read records directly rather than through a
+      read view. */
+      if (rec_get_deleted_flag(rec, dict_table_is_comp(base))) continue;
+
       const byte *vec_data = nullptr;
       ulint vec_len = 0;
       if (!vec_aux_copy_field(clust, rec, offsets, pos_vec, row_heap, &vec_data,
@@ -470,44 +518,47 @@ dberr_t vec_base_collect_rows(dict_table_t *base, const dict_index_t *vec_index,
         err = DB_CORRUPTION;
         break;
       }
+
       /* An indexed vector column is NOT NULL (sql_table.cc), so a null
-      here means the record does not match the index we are building. */
-      if (vec_data != nullptr) {
-        if (vec_len != dims * sizeof(float)) {
-          err = DB_CORRUPTION;
-          break;
-        }
+      here means the record does not match the index being built. */
+      if (vec_data == nullptr) continue;
 
-        ulint id_len = 0;
-        const byte *id_ptr =
-            rec_get_nth_field(clust, rec, offsets, pos_id, &id_len);
-        ut_a(id_len == 8);
-
-        ulint pk_len = 0;
-        const byte *pk_ptr = rec_get_nth_field(clust, rec, offsets, 0, &pk_len);
-        ut_a(pk_len == 8);
-
-        const float *f = reinterpret_cast<const float *>(vec_data);
-        rows->push_back({mach_read_from_8(id_ptr),
-                         std::vector<float>(f, f + dims),
-                         mach_read_from_8(pk_ptr)});
-
-        mem_heap_empty(row_heap);
+      if (vec_len != vec_bytes) {
+        err = DB_CORRUPTION;
+        break;
       }
+
+      ulint id_len = 0;
+      const byte *id_ptr =
+          rec_get_nth_field(clust, rec, offsets, pos_id, &id_len);
+      ut_a(id_len == 8);
+
+      ulint pk_len = 0;
+      const byte *pk_ptr = rec_get_nth_field(clust, rec, offsets, 0, &pk_len);
+      ut_a(pk_len == 8);
+
+      batch.push_back({mach_read_from_8(id_ptr), mach_read_from_8(pk_ptr),
+                       std::vector<byte>(vec_data, vec_data + vec_len)});
+      batch_bytes += vec_len;
+
+      mem_heap_empty(row_heap);
     }
 
-    /* Batch the mtr so one long scan does not pin pages for its whole
-    duration; store and restore the cursor across the boundary. */
-    if (++n_scanned % 512 == 0) {
-      pcur.store_position(&mtr);
-      mtr_commit(&mtr);
-      mtr_start(&mtr);
-      pcur.restore_position(BTR_SEARCH_LEAF, &mtr, UT_LOCATION_HERE);
-    }
+    /* Pause the scan across the inserts: the cursor's position is
+    remembered by key, so nothing holds a latch while the graph and the
+    aux are written. */
+    if (more && err == DB_SUCCESS) pcur.store_position(&mtr);
+    mtr_commit(&mtr);
+
+    if (err == DB_SUCCESS && !batch.empty()) err = flush();
+
+    if (!more || err != DB_SUCCESS) break;
+
+    mtr_start(&mtr);
+    pcur.restore_position(BTR_SEARCH_LEAF, &mtr, UT_LOCATION_HERE);
   }
 
   pcur.close();
-  mtr_commit(&mtr);
 
   if (offset_heap != nullptr) mem_heap_free(offset_heap);
   mem_heap_free(row_heap);

@@ -93,6 +93,9 @@ while ($i <= 20)
 }
 --enable_query_log
 
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+
 --echo # Both graphs are dropped by the restart.
 --source include/restart_mysqld.inc
 --echo # The restart reset the global and dropped the session variable.

@@ -1,0 +1,558 @@
+CREATE PROCEDURE populate_vector_table(table_name VARCHAR(64), dims INT, num_rows INT)
+BEGIN
+SET @sql = CONCAT('INSERT INTO ', table_name, ' (id, v)
+  WITH RECURSIVE
+    seq(n)  AS (SELECT 0 UNION ALL SELECT n + 1 FROM seq  WHERE n < ', num_rows, '),
+    dims(d) AS (SELECT 1 UNION ALL SELECT d + 1 FROM dims WHERE d < ', dims, ')
+  SELECT s.n,
+         string_to_vector(CONCAT(''['',
+           (SELECT GROUP_CONCAT(RAND(s.n * ', dims, ' + d)) FROM dims), '']''))
+  FROM seq s');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+SET @sql = CONCAT('ANALYZE TABLE ', table_name);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+END;
+//
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(3) NOT NULL, VECTOR KEY(v) USING hnsw);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v` (`v`) USING `hnsw`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Too short row
+CALL mtr.add_suppression("We detected index corruption in an InnoDB type table.");
+INSERT INTO t1 VALUES (1, TO_VECTOR("[1, 2]"));
+ERROR HY000: Incorrect key file for table 't1'; try to repair it
+CALL populate_vector_table('t1', 3, 100);
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (cost=10.4 rows=10) (actual time=X..Y rows=10 loops=1)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=10.4 rows=101) (actual time=X..Y rows=10 loops=1)
+
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+id
+1
+5
+9
+13
+17
+21
+25
+29
+33
+37
+# Check that changes to index are persisted.
+# restart
+EXPLAIN ANALYZE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)  (cost=11.1 rows=10) (actual time=X..Y rows=10 loops=1)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=11.1 rows=101) (actual time=X..Y rows=10 loops=1)
+
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0, 0]"), "EUCLIDEAN") LIMIT 10;
+id
+1
+5
+9
+13
+17
+21
+25
+29
+33
+37
+DROP TABLE t1;
+# Test that filtering works correctly with vector search.
+# I.e. that ORDER BY distance LIMIT n returns enough rows
+# even if some rows returned by vector index are filtered
+# out by WHERE clause.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(2) NOT NULL, flag BOOL, VECTOR KEY(v) USING hnsw);
+INSERT INTO t2 VALUES (1, TO_VECTOR("[0, 0]"), 0);
+INSERT INTO t2 VALUES (2, TO_VECTOR("[1, 0]"), 1);
+INSERT INTO t2 VALUES (3, TO_VECTOR("[0, 2]"), 1);
+INSERT INTO t2 VALUES (4, TO_VECTOR("[3, 0]"), 0);
+INSERT INTO t2 VALUES (5, TO_VECTOR("[0, 4]"), 0);
+INSERT INTO t2 VALUES (6, TO_VECTOR("[5, 0]"), 1);
+INSERT INTO t2 VALUES (7, TO_VECTOR("[0, 6]"), 1);
+INSERT INTO t2 VALUES (8, TO_VECTOR("[7, 0]"), 0);
+INSERT INTO t2 VALUES (9, TO_VECTOR("[0, 8]"), 0);
+INSERT INTO t2 VALUES (10, TO_VECTOR("[9, 0]"), 1);
+EXPLAIN ANALYZE
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (cost=1.25 rows=1) (actual time=X..Y rows=3 loops=1)
+    -> Filter: (t2.flag = 1)  (cost=1.25 rows=1) (actual time=X..Y rows=3 loops=1)
+        -> Vector index search on t2 using v (v = to_vector('[0, 0]'))  (cost=1.25 rows=1) (actual time=X..Y rows=6 loops=1)
+
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	vector_knn	v	v	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` where (`test`.`t2`.`flag` = 1) order by distance(`test`.`t2`.`v`,to_vector('[0, 0]'),'EUCLIDEAN') limit 3
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+id
+2
+3
+6
+EXPLAIN ANALYZE
+SELECT id FROM t2 WHERE flag=1 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC;
+EXPLAIN
+-> Sort: distance(t2.v,to_vector('[0, 0]'),'EUCLIDEAN') DESC  (cost=1.25 rows=10) (actual time=X..Y rows=5 loops=1)
+    -> Filter: (t2.flag = 1)  (cost=1.25 rows=10) (actual time=X..Y rows=5 loops=1)
+        -> Table scan on t2  (cost=1.25 rows=10) (actual time=X..Y rows=10 loops=1)
+
+EXPLAIN ANALYZE
+SELECT id
+FROM t2
+ORDER BY
+DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC,
+DISTANCE(v, TO_VECTOR("[10, 10]"), "EUCLIDEAN");
+EXPLAIN
+-> Sort: distance(t2.v,to_vector('[0, 0]'),'EUCLIDEAN') DESC, distance(t2.v,to_vector('[10, 10]'),'EUCLIDEAN')  (cost=1.25 rows=10) (actual time=X..Y rows=10 loops=1)
+    -> Table scan on t2  (cost=1.25 rows=10) (actual time=X..Y rows=10 loops=1)
+
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id
+FROM t2
+ORDER BY
+DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC,
+DISTANCE(v, TO_VECTOR("[10, 10]"), "EUCLIDEAN");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	v	NULL	NULL	NULL	10	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by distance(`test`.`t2`.`v`,to_vector('[0, 0]'),'EUCLIDEAN') desc,distance(`test`.`t2`.`v`,to_vector('[10, 10]'),'EUCLIDEAN')
+SELECT id
+FROM t2
+ORDER BY
+DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") DESC,
+DISTANCE(v, TO_VECTOR("[10, 10]"), "EUCLIDEAN");
+id
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+# Case when vector search runs out of entries to return.
+SELECT id FROM t2 WHERE flag= 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 6;
+id
+1
+4
+5
+8
+9
+EXPLAIN ANALYZE SELECT id FROM t2 WHERE flag= 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 6;
+EXPLAIN
+-> Limit: 6 row(s)  (cost=1.25 rows=1) (actual time=X..Y rows=5 loops=1)
+    -> Filter: (t2.flag = 0)  (cost=1.25 rows=1) (actual time=X..Y rows=5 loops=1)
+        -> Vector index search on t2 using v (v = to_vector('[0, 0]'))  (cost=1.25 rows=1) (actual time=X..Y rows=10 loops=1)
+
+DROP TABLE t2;
+#
+# Test that a distance function in where clause gets executed using HNSW index.
+#
+CREATE FUNCTION vector_to_pretty_string(v VECTOR) RETURNS TEXT DETERMINISTIC
+RETURN regexp_replace(vector_to_string(v), '\\.0{5}e\\+00', '');
+CREATE TABLE t2 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR (3) NOT NULL,
+VECTOR KEY (v) USING hnsw
+);
+INSERT INTO t2 VALUES ( 1, to_vector('[0, 0, 0]') );
+INSERT INTO t2 VALUES ( 2, to_vector('[1, 1, 1]') );
+INSERT INTO t2 VALUES ( 3, to_vector('[1, 1, 2]') );
+INSERT INTO t2 VALUES ( 4, to_vector('[1, 2, 1]') );
+INSERT INTO t2 VALUES ( 5, to_vector('[1, 2, 2]') );
+INSERT INTO t2 VALUES ( 6, to_vector('[2, 1, 1]') );
+INSERT INTO t2 VALUES ( 7, to_vector('[2, 1, 2]') );
+INSERT INTO t2 VALUES ( 8, to_vector('[2, 2, 1]') );
+INSERT INTO t2 VALUES ( 9, to_vector('[2, 2, 2]') );
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	Error	Table 'test.t3' doesn't exist
+test.t3	analyze	status	Operation failed
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(v) v, distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') FROM t2;
+EXPLAIN
+-> Table scan on t2  (cost=1.15 rows=9) (actual time=X..Y rows=9 loops=1)
+
+SELECT id, vector_to_pretty_string(v) v, distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') FROM t2;
+id	v	distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN')
+1	[0,0,0]	0
+2	[1,1,1]	1.7320508075688772
+3	[1,1,2]	2.449489742783178
+4	[1,2,1]	2.449489742783178
+5	[1,2,2]	3
+6	[2,1,1]	2.449489742783178
+7	[2,1,2]	3
+8	[2,2,1]	3
+9	[2,2,2]	3.4641016151377544
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2;
+EXPLAIN
+-> Filter: (distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2)  (cost=1.15 rows=9) (actual time=X..Y rows=2 loops=1)
+    -> Table scan on t2  (cost=1.15 rows=9) (actual time=X..Y rows=9 loops=1)
+
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2;
+id	v
+1	[0,0,0]
+2	[1,1,1]
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+EXPLAIN
+-> Filter: (distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=1.15 rows=9) (actual time=X..Y rows=5 loops=1)
+    -> Table scan on t2  (cost=1.15 rows=9) (actual time=X..Y rows=9 loops=1)
+
+SELECT id, vector_to_pretty_string(v) v FROM t2 WHERE distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+id	v
+1	[0,0,0]
+2	[1,1,1]
+3	[1,1,2]
+4	[1,2,1]
+6	[2,1,1]
+# Joins
+CREATE TABLE t3 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR (3) NOT NULL,
+VECTOR KEY (v) USING hnsw
+);
+INSERT INTO t3 VALUES ( 1, to_vector('[0, 0, 0]') );
+INSERT INTO t3 VALUES ( 2, to_vector('[1, 1, 1]') );
+INSERT INTO t3 VALUES ( 3, to_vector('[1, 1, 2]') );
+INSERT INTO t3 VALUES ( 4, to_vector('[1, 2, 1]') );
+INSERT INTO t3 VALUES ( 5, to_vector('[1, 2, 2]') );
+INSERT INTO t3 VALUES ( 6, to_vector('[2, 1, 1]') );
+INSERT INTO t3 VALUES ( 7, to_vector('[2, 1, 2]') );
+INSERT INTO t3 VALUES ( 8, to_vector('[2, 2, 1]') );
+INSERT INTO t3 VALUES ( 9, to_vector('[2, 2, 2]') );
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(t2.v) v
+FROM t2 join t3 using (id)
+WHERE distance( t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+EXPLAIN
+-> Nested loop inner join  (cost=4.3 rows=9) (actual time=X..Y rows=5 loops=1)
+    -> Filter: (distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=1.15 rows=9) (actual time=X..Y rows=5 loops=1)
+        -> Table scan on t2  (cost=1.15 rows=9) (actual time=X..Y rows=9 loops=1)
+    -> Single-row covering index lookup on t3 using PRIMARY (id = t2.id)  (cost=0.261 rows=1) (actual time=X..Y rows=1 loops=5)
+
+SELECT id, vector_to_pretty_string(t2.v) v
+FROM t2 join t3 using (id)
+WHERE distance( t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+id	v
+1	[0,0,0]
+2	[1,1,1]
+3	[1,1,2]
+4	[1,2,1]
+6	[2,1,1]
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+EXPLAIN
+-> Nested loop inner join  (cost=1.61 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Filter: ((distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5) and (t2.id < 3))  (cost=0.91 rows=2) (actual time=X..Y rows=2 loops=1)
+        -> Index range scan on t2 using PRIMARY over (id < 3)  (cost=0.91 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Single-row covering index lookup on t3 using PRIMARY (id = t2.id)  (cost=0.3 rows=1) (actual time=X..Y rows=1 loops=2)
+
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' ) <= 2.5;
+id	v
+1	[0,0,0]
+2	[1,1,1]
+EXPLAIN ANALYZE
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, t2.v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE 2.5 >= distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' );
+EXPLAIN
+-> Nested loop inner join  (cost=1.61 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Filter: ((2.5 >= distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN')) and (t2.id < 3))  (cost=0.91 rows=2) (actual time=X..Y rows=2 loops=1)
+        -> Index range scan on t2 using PRIMARY over (id < 3)  (cost=0.91 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Single-row covering index lookup on t3 using PRIMARY (id = t2.id)  (cost=0.3 rows=1) (actual time=X..Y rows=1 loops=2)
+
+SELECT id, vector_to_pretty_string(t2i.v) v
+FROM ( SELECT id, v FROM t2 WHERE id < 3 ) t2i join t3 using (id)
+WHERE 2.5 >= distance( t2i.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN' );
+id	v
+1	[0,0,0]
+2	[1,1,1]
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(3) NOT NULL, VECTOR KEY(v) USING hnsw);
+INSERT INTO t1 VALUES (1, TO_VECTOR("[0, 0, 0]"));
+INSERT INTO t1 VALUES (2, TO_VECTOR("[1, 1, 1]"));
+INSERT INTO t1 VALUES (3, TO_VECTOR("[0, 0, 0.1]"));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE
+SELECT id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=0.55 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=0.55 rows=3) (actual time=X..Y rows=2 loops=1)
+
+SELECT id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+id
+1
+3
+EXPLAIN ANALYZE
+SELECT id FROM t1 ORDER BY distance(to_vector('[0, 0, 0]'), v ,'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=0.55 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=0.55 rows=3) (actual time=X..Y rows=2 loops=1)
+
+SELECT id FROM t1 ORDER BY distance(to_vector('[0, 0, 0]'), v ,'EUCLIDEAN') LIMIT 2;
+id
+1
+3
+SELECT *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+id	v	v
+1	0x000000000000000000000000	0x000000000000000000000000
+2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
+3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
+SELECT *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+id	v	v
+1	0x000000000000000000000000	0x000000000000000000000000
+2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
+3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t1) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+EXPLAIN
+-> Nested loop inner join  (cost=1.6 rows=3) (actual time=X..Y rows=3 loops=1)
+    -> Filter: (distance(t1.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+        -> Table scan on t1  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+    -> Filter: (distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=0.283 rows=1) (actual time=X..Y rows=1 loops=3)
+        -> Single-row index lookup on t2 using PRIMARY (id = t1.id)  (cost=0.283 rows=1) (actual time=X..Y rows=1 loops=3)
+
+SELECT /*+ NO_INDEX(t1) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+id	v	v
+1	0x000000000000000000000000	0x000000000000000000000000
+2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
+3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+EXPLAIN
+-> Inner hash join (t2.id = t1.id)  (cost=1.12 rows=0.333) (actual time=X..Y rows=3 loops=1)
+    -> Filter: (distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=0.122 rows=1) (actual time=X..Y rows=5 loops=1)
+        -> Table scan on t2  (cost=0.122 rows=9) (actual time=X..Y rows=9 loops=1)
+    -> Hash
+        -> Filter: (distance(t1.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+            -> Table scan on t1  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+
+SELECT /*+ NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+id	v	v
+1	0x000000000000000000000000	0x000000000000000000000000
+2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
+3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t1) NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+EXPLAIN
+-> Inner hash join (t2.id = t1.id)  (cost=1.12 rows=0.333) (actual time=X..Y rows=3 loops=1)
+    -> Filter: (distance(t2.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=0.122 rows=1) (actual time=X..Y rows=5 loops=1)
+        -> Table scan on t2  (cost=0.122 rows=9) (actual time=X..Y rows=9 loops=1)
+    -> Hash
+        -> Filter: (distance(t1.v,<cache>(to_vector('[0, 0, 0]')),'EUCLIDEAN') <= 2.5)  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+            -> Table scan on t1  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+
+SELECT /*+ NO_INDEX(t1) NO_INDEX(t2) */ *
+FROM t1 JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+id	v	v
+1	0x000000000000000000000000	0x000000000000000000000000
+2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
+3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
+#
+# Hints
+#
+EXPLAIN ANALYZE
+SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=0.55 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Sort: distance(t1.v,to_vector('[0, 0, 0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=0.55 rows=3) (actual time=X..Y rows=2 loops=1)
+        -> Table scan on t1  (cost=0.55 rows=3) (actual time=X..Y rows=3 loops=1)
+
+SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+id
+1
+3
+#
+# Error messages.
+#
+CREATE TABLE x ( v VECTOR(42) NOT NULL, VECTOR KEY(v) USING hnsw);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE x ( id INT PRIMARY KEY, v VECTOR(42) NOT NULL, VECTOR KEY(v) USING hnsw );
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE t4 ( v VECTOR(42) );
+CREATE VECTOR INDEX i ON t4(v);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+DROP TABLE t4;
+CREATE TABLE t4 ( id BIGINT UNSIGNED PRIMARY KEY, v1 VECTOR(1000) NOT NULL, v2 VECTOR(2000) );
+ALTER TABLE t4 ADD VECTOR INDEX v1i ( v1 ) USING hnsw;
+ALTER TABLE t4 ADD VECTOR INDEX v2i ( v2 ) USING hnsw;
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
+CREATE VECTOR INDEX i ON t4(v) USING hnsw;
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1000) NOT NULL,
+  `v2` vector(2000) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1i` (`v1`) USING `hnsw`
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP INDEX v1i ON t4;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1000) NOT NULL,
+  `v2` vector(2000) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION optimizer_trace = "enabled=on";
+EXPLAIN ANALYZE SELECT id, v FROM t2 WHERE v = to_vector('[0,0,0]');
+EXPLAIN
+-> Filter: (t2.v = <cache>(to_vector('[0,0,0]')))  (cost=0.35 rows=1) (actual time=X..Y rows=0 loops=1)
+    -> Index lookup on t2 using v (v = to_vector('[0,0,0]'))  (cost=0.35 rows=1) (actual time=X..Y rows=0 loops=1)
+
+SELECT JSON_EXTRACT(trace, '$**.potential_range_indexes') AS potential_range_indexes
+FROM information_schema.optimizer_trace;
+potential_range_indexes
+[[{"cause": "not_applicable", "index": "PRIMARY", "usable": false}, {"cause": "vector", "index": "v", "usable": false}]]
+SET SESSION optimizer_trace = "enabled=off";
+DROP FUNCTION vector_to_pretty_string;
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE `t1` (
+id bigint unsigned NOT NULL AUTO_INCREMENT,
+v1 vector(3) NOT NULL,
+PRIMARY KEY (id),
+VECTOR KEY v1 (v1) USING hnsw
+);
+insert into t1 values (1, to_vector('[0.5, 0.5, 0.5]')), (2, to_vector('[0.1, 0.2, 0.3]')), (3, to_vector('[0.4, 0.2, 0.4]')), (4, to_vector('[0.1, 0.0, 0.1]'));
+explain format=traditional
+select id, vector_to_string( v1 ), distance( v1, to_vector('[0, 0, 0]'), 'euclidean') from t1 order by distance(v1, to_vector('[0, 0, 0]'), "euclidean");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	v1	NULL	NULL	NULL	5	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,from_vector(`test`.`t1`.`v1`) AS `vector_to_string( v1 )`,distance(`test`.`t1`.`v1`,to_vector('[0, 0, 0]'),'euclidean') AS `distance( v1, to_vector('[0, 0, 0]'), 'euclidean')` from `test`.`t1` order by distance(`test`.`t1`.`v1`,to_vector('[0, 0, 0]'),'euclidean')
+drop table t1;
+#
+# Determine which optimizer path sets up the vector access for each
+# predicate shape. make_join_query_block()'s LOW_LIMIT recheck emits a
+# "rechecking_index_usage" trace object with "recheck_reason":
+# "low_limit"; test_if_skip_sort_order() emits
+# "reconsidering_access_paths_for_index_ordering" instead.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+c INT,
+v VECTOR(2) NOT NULL,
+KEY c_idx (c),
+VECTOR KEY (v) USING hnsw
+);
+INSERT INTO t1 VALUES
+(1,  10, TO_VECTOR("[0, 0]")),
+(2,  20, TO_VECTOR("[1, 0]")),
+(3,  30, TO_VECTOR("[0, 2]")),
+(4,  40, TO_VECTOR("[3, 0]")),
+(5,  50, TO_VECTOR("[0, 4]")),
+(6,  60, TO_VECTOR("[5, 0]")),
+(7,  70, TO_VECTOR("[0, 6]")),
+(8,  80, TO_VECTOR("[7, 0]")),
+(9,  90, TO_VECTOR("[0, 8]")),
+(10, 100, TO_VECTOR("[9, 0]"));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET SESSION optimizer_trace = "enabled=on";
+# Non-selective predicate -> full scan, c_idx stays in const_keys.
+EXPLAIN ANALYZE
+SELECT id FROM t1 WHERE c > 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)  (cost=1.25 rows=3) (actual time=X..Y rows=3 loops=1)
+    -> Filter: (t1.c > 0)  (cost=1.25 rows=10) (actual time=X..Y rows=3 loops=1)
+        -> Vector index search on t1 using v (v = to_vector('[0, 0]'))  (cost=1.25 rows=10) (actual time=X..Y rows=3 loops=1)
+
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id FROM t1 WHERE c > 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_knn	c_idx,v	v	0	const	10	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`c` > 0) order by distance(`test`.`t1`.`v`,to_vector('[0, 0]'),'EUCLIDEAN') limit 3
+SELECT id FROM t1 WHERE c > 0 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 3;
+id
+1
+2
+3
+SELECT JSON_EXTRACT(trace, '$**.rechecking_index_usage') AS low_limit_recheck,
+JSON_CONTAINS_PATH(trace, 'one',
+'$**.reconsidering_access_paths_for_index_ordering') AS skip_sort_path
+FROM information_schema.optimizer_trace;
+low_limit_recheck	skip_sort_path
+[{"limit": 3, "row_estimate": 10, "recheck_reason": "low_limit"}]	1
+# Selective predicate -> range scan chosen on c_idx (QS_RANGE).
+EXPLAIN ANALYZE
+SELECT id FROM t1 WHERE c >= 30 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=3.3 rows=2) (actual time=X..Y rows=2 loops=1)
+    -> Filter: (t1.c >= 30)  (cost=3.3 rows=8) (actual time=X..Y rows=2 loops=1)
+        -> Vector index search on t1 using v (v = to_vector('[0, 0]'))  (cost=3.3 rows=10) (actual time=X..Y rows=4 loops=1)
+
+EXPLAIN FORMAT=TRADITIONAL
+SELECT id FROM t1 WHERE c >= 30 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_knn	c_idx,v	v	0	const	10	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`c` >= 30) order by distance(`test`.`t1`.`v`,to_vector('[0, 0]'),'EUCLIDEAN') limit 2
+SELECT id FROM t1 WHERE c >= 30 ORDER BY DISTANCE(v, TO_VECTOR("[0, 0]"), "EUCLIDEAN") LIMIT 2;
+id
+3
+4
+SELECT JSON_EXTRACT(trace, '$**.rechecking_index_usage') AS low_limit_recheck,
+JSON_CONTAINS_PATH(trace, 'one',
+'$**.reconsidering_access_paths_for_index_ordering') AS skip_sort_path
+FROM information_schema.optimizer_trace;
+low_limit_recheck	skip_sort_path
+NULL	1
+SET SESSION optimizer_trace = "enabled=off";
+DROP TABLE t1;
+DROP PROCEDURE populate_vector_table;

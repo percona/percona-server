@@ -718,55 +718,97 @@ dberr_t vec_build_index(trx_t *trx, dict_table_t *table,
     return DB_OUT_OF_MEMORY;
   }
 
-  std::vector<vec_base_row_t> rows;
-  dberr_t err = vec_base_collect_rows(table, vec_index, dims, &rows);
-  if (err != DB_SUCCESS) return err;
-  if (rows.empty()) return DB_SUCCESS;
+  /* The graph is built with a persistor that writes nothing, and the aux
+  is written afterwards from a walk of the finished graph. Persisting as
+  we insert would rewrite a node's row every time a later insert rewires
+  it; this writes each row once, with its final neighbour list.
 
-  MDL_ticket *mdl = nullptr;
-  dict_table_t *aux = vec_aux_open_for_dml(table, vec_index->id, thd, &mdl);
-  if (aux == nullptr) return DB_TABLE_NOT_FOUND;
+  It also means nothing is durable until the walk, so a build that fails
+  - out of memory, a corrupt row, the statement killed - has nothing to
+  undo. And with no callbacks there is nothing for a sub-transaction to
+  isolate: the aux rows below ride the ALTER's own transaction and commit
+  or roll back with it. */
+  auto *graph = ut::new_withkey<Vec_build_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims,
+                                                dist, m, ef_construction);
+  if (graph == nullptr) return DB_OUT_OF_MEMORY;
 
-  Vec_ctx ctx;
-  ctx.trx = trx;
-  ctx.aux = aux;
-  ctx.thd = thd;
-  ctx.m = m;
-  ctx.vec_bytes = dims * sizeof(float);
-  ctx.err = DB_SUCCESS;
-  /* trx here is the ALTER's own transaction, so the callbacks must not
-  commit it. The whole build lands in one transaction and rolls back with
-  the ALTER. */
-  ctx.commit_steps = false;
+  Vec_null_persistor::Context null_ctx;
 
-  /* A private graph, discarded below. It is not installed on the index:
-  a half-built graph must never be reachable, and if the ALTER fails
-  there is nothing to unwind. */
-  auto *graph = ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims, dist,
-                                          m, ef_construction);
-  if (graph == nullptr) {
-    vec_aux_close_for_dml(aux, thd, &mdl);
-    return DB_OUT_OF_MEMORY;
-  }
+  /* One clustered scan, streamed: each row goes into the graph as it is
+  read, so the build costs the graph rather than the graph plus a copy of
+  the table. Returning anything but DB_SUCCESS stops the scan. */
+  dberr_t err = vec_base_scan_rows(
+      table, vec_index, dims,
+      [&](uint64_t id, uint64_t base_pk, const byte *q,
+          ulint /* q_len */) -> dberr_t {
+        /* Label 0 is the empty-slot sentinel and can never be a node. A
+        row carrying it means the stamping path missed it. */
+        ut_a(id != 0);
 
-  for (const vec_base_row_t &row : rows) {
-    /* Label 0 is the empty-slot sentinel and can never be a node. A row
-    carrying it means the stamping path missed it. */
-    ut_a(row.id != 0);
-    graph->insert(row.id, row.base_pk,
-                  reinterpret_cast<const char *>(row.vec.data()), &ctx);
-    if (ctx.err != DB_SUCCESS) break;
+        graph->insert(id, base_pk, reinterpret_cast<const char *>(q),
+                      &null_ctx);
 
-    if (srv_hnsw_max_memory != 0 &&
-        vec_arena_global_bytes() >= srv_hnsw_max_memory) {
-      ctx.err = DB_OUT_OF_MEMORY;
-      break;
+        /* innodb_hnsw_max_memory. The whole graph is in memory before any
+        of it is durable, so this is the only thing bounding a build. */
+        if (srv_hnsw_max_memory != 0 &&
+            vec_arena_global_bytes() >= srv_hnsw_max_memory) {
+          return DB_OUT_OF_MEMORY;
+        }
+        return DB_SUCCESS;
+      });
+
+  if (err == DB_SUCCESS && graph->size() > 0) {
+    MDL_ticket *mdl = nullptr;
+    dict_table_t *aux = vec_aux_open_for_dml(table, vec_index->id, thd, &mdl);
+
+    if (aux == nullptr) {
+      err = DB_TABLE_NOT_FOUND;
+    } else {
+      /* Write the graph out: one row per node, each with the neighbours
+      it ended up with, then record 0 naming the entry point. All on the
+      ALTER's transaction, so a failure here rolls the aux back with the
+      rest of the statement. */
+      std::vector<byte> neighbors;
+
+      graph->for_each_node([&](uint64_t id, uint64_t base_pk, const char *vec,
+                               uint8_t layer,
+                               Vec_build_hnsw::NeighborIdRange nbrs) {
+        if (err != DB_SUCCESS) return;
+
+        vec_flatten_neighbors(nbrs, neighbors);
+
+        vec_aux_row_t row;
+        row.id = id;
+        row.vec = reinterpret_cast<const float *>(vec);
+        row.dims = dims;
+        row.base_pk = base_pk;
+        row.level = layer;
+        row.neighbors = neighbors.data();
+        row.neighbors_len = neighbors.size();
+
+        err = vec_aux_insert(trx, aux, row);
+      });
+
+      if (err == DB_SUCCESS) {
+        /* Record 0 is not a node: id 0 is the empty-slot sentinel, so the
+        row is free to hold the entry point in base_pk. */
+        vec_aux_row_t meta;
+        meta.id = 0;
+        meta.vec = nullptr;
+        meta.dims = 0;
+        meta.base_pk = graph->entry_point_id();
+        meta.level = 0;
+        meta.neighbors = nullptr;
+        meta.neighbors_len = 0;
+
+        err = vec_aux_insert(trx, aux, meta);
+      }
+
+      vec_aux_close_for_dml(aux, thd, &mdl);
     }
   }
 
-  err = ctx.err;
   ut::delete_(graph);
-  vec_aux_close_for_dml(aux, thd, &mdl);
   return err;
 }
 

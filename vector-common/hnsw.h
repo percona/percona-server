@@ -1246,6 +1246,53 @@ class HNSW {
     Node **m_end;
   };
 
+  /**
+    Visit every complete node exactly once, handing the visitor everything a
+    persisted node consists of:
+
+        visit(uint64_t id, uint64_t base_pk, const char *vec, uint8_t layer,
+              NeighborIdRange neighbors)
+
+    The arguments are the same shapes insert_cb() receives, so a persistor
+    can be driven from here as well as from insert().
+
+    This exists so a graph can be built without persisting anything - with a
+    Persistor whose callbacks do nothing - and written out once at the end,
+    each node with its final neighbor list. Persisting during the build
+    instead rewrites a node's row every time a later insert rewires it.
+
+    Nodes that are not NODE_COMPLETE are skipped: a lazily loaded stub has
+    no vector or neighbors to write, and a lost one has nothing to say.
+
+    Not thread-safe against insert(), like init_from_entry_point() and
+    validate(): the graph must be quiescent, which it is at the end of a
+    build.
+
+    @param visit  called once per complete node
+  */
+  template <typename Visitor>
+  void for_each_node(Visitor &&visit) const {
+    for (const auto &entry : m_nodes) {
+      const Node *node = entry.second;
+      if (node->state() != NODE_COMPLETE) continue;
+      visit(node->id(), node->base_pk(), node->vec(), node->layer(),
+            neighbor_ids(node));
+    }
+  }
+
+  /**
+    The entry point's id, or 0 if the graph has none - which is either an
+    empty graph or one whose entry point was never published. 0 is never a
+    node id (it is the empty-neighbor sentinel), so it doubles as "none".
+  */
+  uint64_t entry_point_id() const {
+    const Node *ep = m_entry_point.load();
+    return ep == nullptr ? 0 : ep->id();
+  }
+
+  /** Number of nodes the graph holds, complete or not. */
+  size_t size() const { return m_nodes.size(); }
+
  private:
   NeighborIdRange neighbor_ids(const Node *node) const {
     return NeighborIdRange{node->all_neighbors_begin(*this),

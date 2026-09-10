@@ -18,7 +18,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
+#include <map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -34,6 +36,74 @@ class HnswTest : public ::testing::Test {
   static constexpr size_t kM = 4;
   static constexpr size_t kEfConstruction = 16;
 };
+
+/* The walk a build uses to persist a finished graph: every complete node
+exactly once, with the same shapes insert_cb() is handed. Building with a
+persistor that does nothing and writing at the end is what keeps a node's
+row from being rewritten every time a later insert rewires it. */
+TEST_F(HnswTest, ForEachNodeVisitsEveryNodeOnce) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+
+  constexpr size_t kRows = 40;
+  std::map<uint64_t, uint64_t> expected;  // id -> base_pk
+  for (size_t i = 0; i < kRows; i++) {
+    const uint64_t id = i + 1;
+    const uint64_t base_pk = 1000 + i;
+    const auto v = make_vec({static_cast<float>(i), static_cast<float>(i % 7)});
+    index.insert(id, base_pk, as_bytes(v));
+    expected[id] = base_pk;
+  }
+
+  EXPECT_EQ(kRows, index.size());
+
+  std::map<uint64_t, uint64_t> seen;
+  std::vector<uint64_t> neighbour_ids;
+  size_t visits = 0;
+
+  index.for_each_node([&](uint64_t id, uint64_t base_pk, const char *vec,
+                          uint8_t layer, TestHnsw::NeighborIdRange nbrs) {
+    ++visits;
+    EXPECT_EQ(0U, seen.count(id)) << "node " << id << " visited twice";
+    seen[id] = base_pk;
+
+    /* The vector is the one that was inserted. */
+    ASSERT_NE(nullptr, vec);
+    float first = 0.0f;
+    memcpy(&first, vec, sizeof(first));
+    EXPECT_FLOAT_EQ(static_cast<float>(id - 1), first);
+
+    /* A layer's worth of neighbour slots, some empty. */
+    EXPECT_EQ((static_cast<size_t>(layer) + 2) * kM, nbrs.size());
+    for (uint64_t nid : nbrs) {
+      if (nid != 0) neighbour_ids.push_back(nid);
+    }
+  });
+
+  EXPECT_EQ(kRows, visits);
+  EXPECT_EQ(expected, seen) << "walk did not report the graph that was built";
+
+  /* Every neighbour named is a node that exists - the aux rows written
+  from this walk would otherwise point at nothing. */
+  for (uint64_t nid : neighbour_ids) {
+    EXPECT_EQ(1U, expected.count(nid))
+        << "neighbour " << nid << " is not a node";
+  }
+
+  /* And the entry point is one of them, so record 0 can name it. */
+  const uint64_t ep = index.entry_point_id();
+  EXPECT_NE(0U, ep);
+  EXPECT_EQ(1U, expected.count(ep));
+}
+
+TEST_F(HnswTest, ForEachNodeOnEmptyGraph) {
+  TestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  size_t visits = 0;
+  index.for_each_node([&](uint64_t, uint64_t, const char *, uint8_t,
+                          TestHnsw::NeighborIdRange) { ++visits; });
+  EXPECT_EQ(0U, visits);
+  EXPECT_EQ(0U, index.size());
+  EXPECT_EQ(0U, index.entry_point_id());
+}
 
 TEST_F(HnswTest, SearchEmptyIndex) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);

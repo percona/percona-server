@@ -34,7 +34,9 @@ DEVIATION FROM FTS rationale (no fts_parse_sql / pars_mutex). */
 #include <algorithm>
 #include <limits>
 
+#include "btr0load.h"
 #include "btr0pcur.h"
+#include "buf0flu.h"
 #include "dict0dict.h"
 #include "lob0lob.h"
 #include "mach0data.h"
@@ -47,6 +49,7 @@ DEVIATION FROM FTS rationale (no fts_parse_sql / pars_mutex). */
 #include "row0vers.h"
 #include "scope_guard.h"
 #include "trx0roll.h"
+#include "trx0undo.h"
 #include "vec0aux.h"
 
 /* Aux table user-column ordinals, fixed by create_in_mem_vec_aux_table
@@ -56,6 +59,12 @@ constexpr ulint VEC_AUX_COL_VEC = 1;
 constexpr ulint VEC_AUX_COL_BASE_PK = 2;
 constexpr ulint VEC_AUX_COL_LEVEL = 3;
 constexpr ulint VEC_AUX_COL_NEIGHBORS = 4;
+
+/** Set one aux field, mapping a zero-length value to an empty value rather
+than SQL NULL - every aux column is NOT NULL. Defined below; both writers
+use it. */
+static void vec_aux_set_dfield(dfield_t *df, const void *data, ulint len,
+                               mem_heap_t *heap);
 
 /* Neighbour slots serialize as a flat big-endian array of ids, one per
 slot, with 0 for an empty slot. No header: the class reserves graph node
@@ -69,12 +78,150 @@ ulint vec_aux_neighbors_blob_len(uint8_t level, uint32_t m) {
   return (static_cast<ulint>(level) + 2) * m * 8;
 }
 
+
+/** Bottom-up build of a vector aux table.
+
+vec_aux_insert drives the row API: undo per row, redo per row, and an
+insert into the middle of a tree that is being built left to right anyway.
+An index build does not need any of that. The aux table is created by this
+ALTER and dropped if it rolls back, so there is nothing for row undo to
+undo, and Btree_load writes its pages with MTR_LOG_NO_REDO.
+
+The price of no redo is that nothing else will get those pages to disk:
+they reach it only because the Flush_observer below flushes them before
+the statement commits. The DDL's own observer covers the table being
+altered, not this one - Flush_observer is per tablespace - so the aux gets
+its own.
+
+Rows must arrive in ascending id order. Btree_load appends; it does not
+sort. HNSW::for_each_node_sorted is what supplies that. */
+struct Vec_aux_bulk {
+  Vec_aux_bulk(trx_t *trx, dict_table_t *aux_, Flush_observer *observer_)
+      : aux(aux_),
+        clust(aux_->first_index()),
+        observer(observer_),
+        load(ut::new_withkey<Btree_load>(UT_NEW_THIS_FILE_PSI_KEY, clust,
+                                         trx->id, observer_)),
+        heap(mem_heap_create(1024, UT_LOCATION_HERE)) {
+    /* Every row carries the same system columns: this transaction, and a
+    roll pointer flagged as an insert with no undo behind it - the same
+    pair ddl::bulk uses. */
+    trx_write_trx_id(trx_id_buf, trx->id);
+    trx_write_roll_ptr(roll_ptr_buf, trx_undo_build_roll_ptr(true, 0, 0, 0));
+  }
+
+  ~Vec_aux_bulk() {
+    if (heap != nullptr) mem_heap_free(heap);
+    if (load != nullptr) ut::delete_(load);
+    /* The observer belongs to the DDL context, which flushes it once every
+    builder is done - the same arrangement ddl::FTS uses for its own aux
+    tables. Flushing or freeing it here would be flushing half a statement's
+    pages, and ~Flush_observer would assert on the rest. */
+  }
+
+  Vec_aux_bulk(const Vec_aux_bulk &) = delete;
+  Vec_aux_bulk &operator=(const Vec_aux_bulk &) = delete;
+
+  dict_table_t *aux{};
+  dict_index_t *clust{};
+  Flush_observer *observer{};
+  Btree_load *load{};
+  mem_heap_t *heap{};
+  byte trx_id_buf[DATA_TRX_ID_LEN]{};
+  byte roll_ptr_buf[DATA_ROLL_PTR_LEN]{};
+  uint64_t n_rows{};
+};
+
+Vec_aux_bulk *vec_aux_bulk_start(trx_t *trx, dict_table_t *aux,
+                                 Flush_observer *observer) {
+  ut_a(trx != nullptr && aux != nullptr);
+  /* Btree_load requires one, and the caller's is the statement's. */
+  if (observer == nullptr) return nullptr;
+  auto *b = ut::new_withkey<Vec_aux_bulk>(UT_NEW_THIS_FILE_PSI_KEY, trx, aux,
+                                          observer);
+  if (b != nullptr && (b->observer == nullptr || b->load == nullptr)) {
+    ut::delete_(b);
+    return nullptr;
+  }
+  return b;
+}
+
+dberr_t vec_aux_bulk_insert(Vec_aux_bulk *b, const vec_aux_row_t &row) {
+  ut_a(b != nullptr);
+  ut_a(row.vec != nullptr || (row.id == 0 && row.dims == 0));
+  ut_a(row.neighbors != nullptr || row.neighbors_len == 0);
+
+  if (row.level < 0 || row.level > 127) return DB_CORRUPTION;
+
+  /* An index entry, not a row: clustered field order, system columns
+  included. rec_convert_dtuple_to_rec expects exactly that. */
+  dict_index_t *clust = b->clust;
+  const ulint n_fields = dict_index_get_n_fields(clust);
+
+  dtuple_t *entry = dtuple_create(b->heap, n_fields);
+  dict_index_copy_types(entry, clust, n_fields);
+  dtuple_set_n_fields_cmp(entry, dict_index_get_n_unique(clust));
+
+  const auto set = [&](ulint col, const void *data, ulint len) {
+    vec_aux_set_dfield(
+        dtuple_get_nth_field(
+            entry, dict_col_get_clust_pos(b->aux->get_col(col), clust)),
+        data, len, b->heap);
+  };
+
+  byte id_buf[8];
+  mach_write_to_8(id_buf, row.id);
+  set(VEC_AUX_COL_ID, id_buf, sizeof(id_buf));
+  set(VEC_AUX_COL_VEC, row.vec, row.dims * sizeof(float));
+
+  byte base_pk_buf[8];
+  mach_write_to_8(base_pk_buf, row.base_pk);
+  set(VEC_AUX_COL_BASE_PK, base_pk_buf, sizeof(base_pk_buf));
+
+  const byte level_buf = static_cast<byte>(row.level);
+  set(VEC_AUX_COL_LEVEL, &level_buf, 1);
+  set(VEC_AUX_COL_NEIGHBORS, row.neighbors, row.neighbors_len);
+
+  dfield_set_data(
+      dtuple_get_nth_field(entry, clust->get_sys_col_pos(DATA_TRX_ID)),
+      b->trx_id_buf, DATA_TRX_ID_LEN);
+  dfield_set_data(
+      dtuple_get_nth_field(entry, clust->get_sys_col_pos(DATA_ROLL_PTR)),
+      b->roll_ptr_buf, DATA_ROLL_PTR_LEN);
+
+  /* Level 0: leaf. Btree_load owns everything above it - allocating pages,
+  carrying separators up, committing them - which is all build() does with
+  the rows a merge cursor hands it. */
+  const dberr_t err = b->load->insert(entry, 0);
+
+  mem_heap_empty(b->heap);
+
+  /* Same cadence build() uses, so a killed ALTER stops here rather than
+  finishing the tree first. */
+  if (err == DB_SUCCESS && !(++b->n_rows % 4096) &&
+      b->observer->check_interrupted()) {
+    return DB_INTERRUPTED;
+  }
+  return err;
+}
+
+dberr_t vec_aux_bulk_finish(Vec_aux_bulk *b, dberr_t err) {
+  ut_a(b != nullptr);
+
+  err = b->load->finish(err);
+
+  /* On failure the statement's observer is told, so the pages it owns are
+  discarded rather than written when the DDL flushes it. */
+  if (err != DB_SUCCESS) b->observer->interrupted();
+
+  ut::delete_(b);
+  return err;
+}
+
 /** Fill one user dfield of the aux row tuple with a heap-duplicated
 value (the run loop may retry after lock waits; values must be stable). */
-static void vec_aux_set_field(dtuple_t *tuple, ulint col_no, const void *data,
-                              ulint len, mem_heap_t *heap) {
-  dfield_t *df = dtuple_get_nth_field(tuple, col_no);
-
+static void vec_aux_set_dfield(dfield_t *df, const void *data, ulint len,
+                               mem_heap_t *heap) {
   /* Every column of the aux table is NOT NULL, so there is no SQL NULL
   case to handle here - and mapping a zero-length value onto NULL would
   be wrong rather than merely unused: a node with no neighbours yet has
@@ -89,6 +236,11 @@ static void vec_aux_set_field(dtuple_t *tuple, ulint col_no, const void *data,
   ut_a(data != nullptr);
   void *copy = mem_heap_dup(heap, data, len);
   dfield_set_data(df, copy, len);
+}
+
+static void vec_aux_set_field(dtuple_t *tuple, ulint col_no, const void *data,
+                              ulint len, mem_heap_t *heap) {
+  vec_aux_set_dfield(dtuple_get_nth_field(tuple, col_no), data, len, heap);
 }
 
 dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,

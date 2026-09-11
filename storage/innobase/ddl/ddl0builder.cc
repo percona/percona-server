@@ -732,12 +732,15 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
   };
 
   if (is_vector_index()) {
-    /* Debug builds only: how many threads the scan was given. This is a
-    function of innodb_parallel_read_threads, the free thread pool and the
-    tree's shape - not of timing - so a test can assert on it. How many of
-    them actually feed the graph cannot be asserted: ranges come off one
-    shared queue in Parallel_reader::worker, so a fast thread may drain it
-    before the others wake. */
+    /* TODO(PS-11300): scaffolding. vector_index_build_parallel.test greps
+    this to prove the build really got a parallel scan, because nothing
+    else reports it. Replace with a status variable or a counter in
+    Parallel_reader when there is one, and drop this.
+
+    It is the thread count the scan was GIVEN, which follows from
+    innodb_parallel_read_threads, the free thread pool and the tree's
+    shape. How many of them actually take a range is a race on the
+    reader's shared queue and is deliberately not reported. */
     ut_d(ib::info() << "vec build scan threads: " << n_threads);
 
     /* M and ef_construction live only in the index definition the ALTER
@@ -1718,8 +1721,6 @@ dberr_t Builder::add_row(Cursor &cursor, Row &row, size_t thread_id,
     table is written once, from a walk of the finished graph, in
     VEC_BUILD. */
     if (!cursor.eof()) {
-      ut_d(m_vec_threads.fetch_or(1ULL << (thread_id & 63),
-                                  std::memory_order_relaxed));
       err = vec_build_add_row(m_vec, m_ctx.m_new_table, row.m_ptr);
       if (err != DB_SUCCESS) {
         err = handle_error(err);
@@ -2070,21 +2071,13 @@ dberr_t Builder::vec_build() noexcept {
   ut_a(is_vector_index());
   ut_a(m_vec != nullptr);
 
-  /* Debug builds only, and informational: how many threads happened to
-  take a range. Not assertable - see the note in init(). */
-#ifdef UNIV_DEBUG
-  {
-    const uint64_t mask = m_vec_threads.load(std::memory_order_relaxed);
-    size_t n = 0;
-    for (size_t i = 0; i < 64; ++i) n += (mask >> i) & 1;
-    ib::info() << "vec build fed by " << n << " scan threads";
-  }
-#endif /* UNIV_DEBUG */
-
   /* The aux rows ride the ALTER's own transaction, so a failure here
   rolls them back with the rest of the statement. */
+  /* The statement's observer, borrowed: ddl::Context flushes it once every
+  builder is done, exactly as ddl::FTS does for its aux tables. */
   auto err = vec_build_write_aux(m_vec, m_ctx.m_trx, m_ctx.m_new_table,
-                                 m_ctx.m_trx->mysql_thd);
+                                 m_ctx.m_trx->mysql_thd,
+                                 m_ctx.flush_observer());
 
   vec_build_free(m_vec);
   m_vec = nullptr;

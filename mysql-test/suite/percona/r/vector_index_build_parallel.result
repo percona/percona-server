@@ -36,8 +36,8 @@ SET SESSION innodb_parallel_read_threads = DEFAULT;
 # This asserts the thread count the scan was CONFIGURED with, which
 # depends only on the setting, the free thread pool and the tree. How
 # many of those threads actually take a range is a race on the
-# reader's shared queue and varies run to run, so it is logged but
-# never asserted.
+# reader's shared queue and varies run to run, so it is not reported
+# at all.
 include/assert_grep.inc [the graph build scan was given more than one thread]
 # Every probe is an exact row vector, so the nearest is that row and
 # nothing ties with it.

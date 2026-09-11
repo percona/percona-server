@@ -489,13 +489,6 @@ struct Builder {
   is_vector_index(). */
   Vec_build *m_vec{};
 
-#ifdef UNIV_DEBUG
-  /** One bit per scan thread that fed the graph, so a test can assert the
-  build really did run on more than one. Reported by the
-  vec_build_log_threads DBUG keyword. */
-  std::atomic<uint64_t> m_vec_threads{};
-#endif /* UNIV_DEBUG */
-
   row_prebuilt_t *m_prebuilt;
 };
 

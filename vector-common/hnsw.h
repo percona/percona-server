@@ -1280,6 +1280,31 @@ class HNSW {
     }
   }
 
+  /// Same as for_each_node, but in ascending id order.
+  ///
+  /// m_nodes is a hash map, so for_each_node hands nodes out in whatever
+  /// order it happens to hold them. A caller writing them to a store keyed
+  /// by id wants them sorted: that turns scattered inserts into appends.
+  /// Only the ids are sorted, which is a few bytes a node next to the graph
+  /// itself.
+  template <typename Visitor>
+  void for_each_node_sorted(Visitor &&visit) const {
+    std::vector<uint64_t> ids;
+    ids.reserve(m_nodes.size());
+
+    for (const auto &entry : m_nodes) {
+      if (entry.second->state() == NODE_COMPLETE) ids.push_back(entry.first);
+    }
+
+    std::sort(ids.begin(), ids.end());
+
+    for (const uint64_t id : ids) {
+      const Node *node = m_nodes.find(id)->second;
+      visit(node->id(), node->base_pk(), node->vec(), node->layer(),
+            neighbor_ids(node));
+    }
+  }
+
   /**
     The entry point's id, or 0 if the graph has none - which is either an
     empty graph or one whose entry point was never published. 0 is never a

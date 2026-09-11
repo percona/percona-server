@@ -825,15 +825,34 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
   dict_table_t *aux = vec_aux_open_for_dml(table, b->index->id, thd, &mdl);
   if (aux == nullptr) return DB_TABLE_NOT_FOUND;
 
-  /* One row per node, each with the neighbours it ended up with, then
-  record 0 naming the entry point. All on the ALTER's transaction, so a
-  failure here rolls the aux back with the rest of the statement. */
-  dberr_t err = DB_SUCCESS;
+  /* Record 0 first, then one row per node in ascending id order. The aux
+  table is keyed by id, so the whole sequence is an append and the tree is
+  built left to right instead of being inserted into at random. All on the
+  ALTER's transaction, so a failure here rolls the aux back with the rest
+  of the statement.
+
+  Record 0 is not a node: id 0 is the empty-slot sentinel, so the row is
+  free to hold the entry point in base_pk. */
+  vec_aux_row_t meta;
+  meta.id = 0;
+  meta.vec = nullptr;
+  meta.dims = 0;
+  meta.base_pk = b->graph->entry_point_id();
+  meta.level = 0;
+  meta.neighbors = nullptr;
+  meta.neighbors_len = 0;
+
+  dberr_t err = vec_aux_insert(trx, aux, meta);
   std::vector<byte> neighbors;
 
-  b->graph->for_each_node([&](uint64_t id, uint64_t base_pk, const char *vec,
-                              uint8_t layer,
-                              Vec_build_hnsw::NeighborIdRange nbrs) {
+  if (err != DB_SUCCESS) {
+    vec_aux_close_for_dml(aux, thd, &mdl);
+    return err;
+  }
+
+  b->graph->for_each_node_sorted([&](uint64_t id, uint64_t base_pk,
+                                     const char *vec, uint8_t layer,
+                                     Vec_build_hnsw::NeighborIdRange nbrs) {
     if (err != DB_SUCCESS) return;
 
     vec_flatten_neighbors(nbrs, neighbors);
@@ -849,21 +868,6 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
 
     err = vec_aux_insert(trx, aux, row);
   });
-
-  if (err == DB_SUCCESS) {
-    /* Record 0 is not a node: id 0 is the empty-slot sentinel, so the row
-    is free to hold the entry point in base_pk. */
-    vec_aux_row_t meta;
-    meta.id = 0;
-    meta.vec = nullptr;
-    meta.dims = 0;
-    meta.base_pk = b->graph->entry_point_id();
-    meta.level = 0;
-    meta.neighbors = nullptr;
-    meta.neighbors_len = 0;
-
-    err = vec_aux_insert(trx, aux, meta);
-  }
 
   vec_aux_close_for_dml(aux, thd, &mdl);
   return err;

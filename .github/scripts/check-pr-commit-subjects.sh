@@ -2,7 +2,9 @@
 #
 # Check that a pull request to a percona-server version branch follows the
 # commit-subject convention: the title and every commit subject name a ticket
-# key and carry the base branch tag, for example "PS-11435 [8.4] Add ...".
+# key and carry the base branch tag, for example "PS-11435 [8.4] Add ...". A
+# ticket's later commits are numbered, "PS-11435 (2) [8.4] Add ... (part 2)",
+# and the number sits between the key and the tag, so it passes unchanged.
 # The tag is what survives the upward null-merges (8.0 -> 8.4 -> 9.7 -> trunk)
 # and what release tooling greps for, so a squash merged under a rewritten
 # subject loses the change for both.
@@ -179,6 +181,7 @@ main() {
     echo
     echo "Expected subject form: ${expected}"
     echo "Reword the commits (git rebase -i, reword) and force-push the PR branch."
+    echo "A ticket's second commit is numbered: <KEY>-<n> (2) ${tag} <what changed>."
     return 1
   fi
   note "PR title and every commit subject carry a ticket key and the ${tag} tag"

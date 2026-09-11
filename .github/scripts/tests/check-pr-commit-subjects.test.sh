@@ -226,6 +226,21 @@ CASE_BASE=9.7 CASE_TITLE='Ps 10999 9.7 OIDC authentication' CASE_TOTAL=1
 CASE_COMMITS="$(commit abc123abc123 1 'PS-10999 [9.7]: OIDC Authentication')"
 run_case 'a branch-name title like "Ps 10999" has no key' 1 'PR title lacks a ticket key'
 
+# ------------------------------------------------------------ numbered commits
+section 'numbered commits of one ticket'
+
+CASE_BASE=9.7 CASE_TITLE='PS-11435 (2) [9.7] Add auth_openid_connect suite to default MTR runs (part 2)' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 'PS-11435 (2) [9.7] Add auth_openid_connect suite to default MTR runs (part 2)')"
+run_case 'the (NN) number between key and tag passes' 0 'carry a ticket key'
+
+CASE_BASE=8.4 CASE_TITLE='PS-1 (1) [8.4] First of a series' CASE_TOTAL=2
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 (1) [8.4] First of a series'; commit def456def456 1 'PS-1 (2) [8.4] Second of a series')"
+run_case 'an explicitly numbered series passes' 0 'carry a ticket key'
+
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] Fix' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 Fix without a tag')"
+run_case 'the failure hint shows the numbered form' 1 '(2) \[8.4\]'
+
 # ---------------------------------------------------------------- happy paths
 section 'conforming pull requests'
 

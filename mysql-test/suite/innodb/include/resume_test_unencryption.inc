@@ -46,6 +46,11 @@ let $wait_condition = SELECT ENCRYPTION = 'N'
 SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
   WHERE DATA LIKE '%Resuming DECRYPTION for tablespace encrypt_ts%';
 
+let $wait_condition = SELECT COUNT(*) = 1
+  FROM performance_schema.error_log
+  WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
+--source include/wait_condition.inc
+
 SELECT COUNT(*) AS 'Expect 1' FROM performance_schema.error_log
   WHERE DATA LIKE '%Finished DECRYPTION for tablespace encrypt_ts%';
 

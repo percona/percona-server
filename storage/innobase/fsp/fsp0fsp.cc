@@ -4974,6 +4974,10 @@ static bool load_encryption_from_header(fil_space_t *space) {
     /* Page 0 indicated encryption but the info could not be decoded. */
     return true;
   } else {
+    /* Page 0 says the space is encrypted, so keep the in-memory flags in sync
+    with it while loading the key. */
+    fsp_flags_set_encryption(space->flags);
+
     dberr_t err [[maybe_unused]] = fil_set_encryption(
         space->id, Encryption::AES, encryption_key, encryption_iv);
     ut_ad(err == DB_SUCCESS);

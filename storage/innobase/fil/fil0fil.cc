@@ -8280,7 +8280,13 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
 
   Encryption::set_or_generate(algorithm, key, iv, space->m_encryption_metadata);
 
-  fsp_flags_set_encryption(space->flags);
+  /* Only the key material is set here. Setting FSP_FLAGS_MASK_ENCRYPTION in
+  `space->flags` is left to the caller, because the in-memory flags must not
+  start to differ from the flags stored on page 0 of the file: the first I/O
+  issued for a space runs `fil_space_t::validate_first_page()`, which compares
+  the two and raises a fatal error on a mismatch. `encrypt_begin_persist()` in
+  particular has to persist the new flags on page 0 first and only then update
+  the in-memory ones in `encrypt_begin_memory()`. */
 
   shard->mutex_release();
 
@@ -8329,6 +8335,8 @@ dberr_t fil_temp_update_encryption(fil_space_t *space) {
                 << " to be encrypted.";
     return (DB_ERROR);
   }
+
+  fsp_flags_set_encryption(space->flags);
 
   const dberr_t err =
       fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);

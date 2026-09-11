@@ -85,22 +85,17 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   m_need_observer = m_old_table != m_new_table;
 
   for (size_t i = 0; i < n_indexes; ++i) {
-    /* Vector indexes have no merge-sort build path - their per-index
-    aux table holds the (eventual) HNSW graph and is populated by the
-    INSERT path in PS-11300, not by the DDL builder. Skipping here
-    keeps the merge-sort Compare_key (which asserts n_unique > 0) from
-    being invoked on a vector index with 0 key fields. Same shape as
-    FTS, except FTS has its own setup_fts_build path; vector's
-    equivalent will land in PS-11300. */
-    if (indexes[i]->is_vector()) {
-      continue;
-    }
-
     m_indexes.push_back(indexes[i]);
 
     if (m_indexes.size() == 1) {
       ut_a(!m_skip_pk_sort || m_indexes.back()->is_clustered());
-      m_n_uniq = dict_index_get_n_unique(m_indexes.back());
+      /* A vector index has no key fields, and never reaches the sort:
+      Builder::set_next_state sends it from ADD straight to VEC_BUILD. It
+      must not set m_n_uniq either, which feeds Compare_key through
+      setup_pk_sort and asserts n_unique > 0. */
+      if (!m_indexes.back()->is_vector()) {
+        m_n_uniq = dict_index_get_n_unique(m_indexes.back());
+      }
     }
 
     if (!dict_index_is_spatial(m_indexes.back())) {

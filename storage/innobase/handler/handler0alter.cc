@@ -6732,67 +6732,10 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     DBUG_EXECUTE_IF("create_index_fail", err = DB_DUPLICATE_KEY;
                     m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
 
-    /* Populate any vector index this ALTER added.
-
-    The index build above is a no-op for a vector index - there is no
-    merge-sortable key to build - so the graph is built here instead,
-    from one clustered scan (vec_build_index). This only runs on the
-    INPLACE path; ADD on a table without the hidden column was refused in
-    check_if_supported_inplace_alter and came through COPY, where
-    write_row builds the graph row by row.
-
-    The aux rows are written on the ALTER's own transaction, so a failure
-    below rolls them back with everything else. vec_build_index clears
-    Vec_ctx::commit_steps to keep it that way: the persistor callbacks
-    commit per step for DML, which here would commit the DDL itself one
-    node at a time. */
-    if (err == DB_SUCCESS) {
-      for (ulint i = 0; i < ctx->num_to_add_index && err == DB_SUCCESS; i++) {
-        dict_index_t *vec_index = ctx->add_index[i];
-        if (!vec_index->is_vector()) continue;
-
-        const KEY *vkey = nullptr;
-        for (uint k = 0; k < altered_table->s->keys; k++) {
-          if ((altered_table->key_info[k].flags & HA_VECTOR) != 0 &&
-              innobase_strcasecmp(altered_table->key_info[k].name,
-                                  vec_index->name) == 0) {
-            vkey = &altered_table->key_info[k];
-            break;
-          }
-        }
-        if (vkey == nullptr) continue;
-
-        storage::innobase::vec::VectorIndexParam vip;
-        if (storage::innobase::vec::parse_options(*vkey, vip)) {
-          err = DB_ERROR;
-          break;
-        }
-        const auto *hp = std::get_if<storage::innobase::vec::HnswParam>(&vip);
-        if (hp == nullptr) {
-          err = DB_ERROR;
-          break;
-        }
-
-        /* Same resolution as vec_runtime_open: the key part describes a
-        1-byte prefix, but its field_index() is correct. */
-        const Field *f =
-            altered_table->field[vkey->key_part[0].field->field_index()];
-        if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
-          err = DB_ERROR;
-          break;
-        }
-        const uint32_t dims =
-            down_cast<const Field_vector *>(f)->get_max_dimensions();
-
-        err = vec_build_index(m_prebuilt->trx, ctx->new_table, vec_index, dims,
-                              static_cast<uint32_t>(hp->M),
-                              static_cast<uint32_t>(hp->ef_construction),
-                              hp->dist, m_user_thd);
-        if (err != DB_SUCCESS) {
-          m_prebuilt->trx->error_key_num = ULINT_UNDEFINED;
-        }
-      }
-    }
+    /* A vector index is populated by ddl::Builder like any other index
+    the ALTER adds: the scan feeds HNSW::insert, and the builder's
+    VEC_BUILD phase walks the finished graph into the aux table on this
+    transaction. Nothing to do here. */
 
     /* After an error, remove all those index definitions
     from the dictionary which were defined. */

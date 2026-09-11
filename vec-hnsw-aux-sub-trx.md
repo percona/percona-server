@@ -159,11 +159,11 @@ SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN'
 |---|---|
 | `CREATE TABLE … KEY (v) TYPE hnsw` | adds the hidden label column, creates the aux table, registers it in the DD |
 | `ALTER TABLE … ADD KEY (v) TYPE hnsw` | COPY only; builds the graph from a clustered scan (§11) |
-| `DROP INDEX` | drops that index's aux table; the hidden column is **retained** |
-| `DROP TABLE` | drops the aux table with the parent |
+| `DROP INDEX` | drops that index's aux table; the hidden column is **retained**, until something rebuilds the table |
+| `DROP TABLE` | drops the aux table with the parent, under an exclusive MDL taken on each aux first |
 | `TRUNCATE TABLE` | drop and recreate — the aux comes back empty and the label counter restarts |
-| `RENAME TABLE` | same schema: nothing to do. Cross-schema: the aux moves with the parent |
-| `OPTIMIZE` / rebuilding `ALTER` | the base table is rebuilt and the graph rebuilt with it; labels are carried forward, not reissued |
+| `RENAME TABLE` | same schema: nothing to do. Cross-schema: the aux moves with the parent. Renaming *onto* an aux name is refused |
+| `OPTIMIZE` / rebuilding `ALTER` | refused in place while a vector index exists, so it runs as `COPY` and the graph is rebuilt row by row, reusing each row's label. With no vector index left it rebuilds in place and the hidden column goes with the old definition |
 
 ### What is refused, and why
 
@@ -174,6 +174,7 @@ Each of these is refused because the alternative is an index that is silently wr
 | `IMPORT` / `DISCARD TABLESPACE` | the imported rows have no aux rows describing them; the index would silently omit every one |
 | `ALTER … ALGORITHM=INSTANT` (ADD/DROP COLUMN) | an instant change does not rewrite rows, so the hidden label column cannot be maintained |
 | `ALGORITHM=INPLACE` for the *first* `ADD KEY` | adding the hidden column is a table rebuild by definition |
+| `ALGORITHM=INPLACE` for a rebuild while a vector index exists | the graph cannot be carried across a native rebuild, so the ALTER runs as `COPY` and the graph is rebuilt row by row. FTS refuses the same shape for its own reason — *"InnoDB presently supports one FULLTEXT index creation at a time"* — so this is parity, not extra strictness |
 | `LOCK=NONE` on `ADD KEY` | concurrent DML during the build has nowhere to record itself (§11) |
 | Changing a vector index's `TYPE` in place | the stored aux rows belong to the old implementation; drop and re-add instead |
 | `ON UPDATE CASCADE` / `ON DELETE CASCADE` into a vector-indexed table | a cascade bypasses the row path that maintains the aux (§22) |
@@ -183,7 +184,12 @@ Each of these is refused because the alternative is an index that is silently wr
 
 Nothing about the aux table's name is reserved from users: a table that merely begins with
 `percona_vec_` is not mistaken for one, because the name is recognised by parsing its whole
-shape — the prefix, a known index-type token, then two object ids.
+shape — the prefix, a known index-type token, then exactly two object ids, the second ending
+the string. `percona_vec_data` is an ordinary table anyone may create; `percona_vec_hnsw_1_2`
+is ours, and both `CREATE TABLE` and `RENAME TABLE … TO` refuse it with
+`ER_WRONG_TABLE_NAME`. Refusing it on rename matters as much as on create: the aux is addressed
+by name, so a user table parked on one of those names is a table InnoDB would later try to drop
+as an aux.
 
 ## 4. What appears on disk
 
@@ -208,6 +214,30 @@ undo like any other, which is precisely what makes it usable for visibility deci
 carries **no unique index** — nothing looks a row up by label, only ever the reverse — and it is
 retained when the vector index is dropped, so re-adding an index does not have to rebuild the
 table.
+
+Retention is not unconditional, and it took a corrupted table to establish what it actually is.
+**The column exists exactly when the current table definition needs it.** An `ALTER` that does
+not rebuild leaves it alone — `DROP INDEX` keeps it, because nothing rewrites the rows and the
+commit path carries it into the new `dd::Table`. An `ALTER` that *rebuilds* re-derives the column
+set from the new definition, so the column survives a rebuild only while a vector index still
+needs it, and disappears once none does.
+
+`FTS_DOC_ID` behaves identically, which is worth stating as a measurement rather than an
+assumption: drop the last `FULLTEXT` index, rebuild, and the column is gone from both the data
+dictionary and the dictionary cache, with `CHECK TABLE` clean. An earlier draft of this document
+claimed the opposite — "retained across all ALTERs" — and the code was written to match the
+claim, with `prepare_inplace_alter_table_dict` materialising the column whenever the *old* table
+carried the sticky flag. Since the commit path only carries it forward on the no-rebuild branch,
+`DROP INDEX` followed by `OPTIMIZE` then wrote every row with a column the committed definition
+did not describe: the next `INSERT` that split a page asserted in `btr_page_split_and_insert`,
+and `CHECK TABLE` reported the B-tree corrupt. Both places now read the new `dd::Table` and
+follow it.
+
+Both hidden columns can be present at once, and their order is fixed: `FTS_DOC_ID` then
+`percona_vec_aux_id`, after the user columns and before the system columns. A rebuild's column
+map walks the old table's hidden columns and maps each onto its slot in the *new* table, which
+is not the same set — a vector table gaining a `FULLTEXT` index has a slot in the new table that
+nothing in the old one maps onto.
 
 ---
 
@@ -893,7 +923,24 @@ ALTER TABLE t ADD KEY vk2 (v) TYPE hnsw WITH (M = 4),
 
 Once the column exists there is nothing to rebuild, so `vec_build_index` does the work directly:
 one clustered scan of the base table, feeding each row into a private graph, **reusing the label
-already stamped on that row** rather than issuing a new one. That is what makes the operation
+already stamped on that row** rather than issuing a new one.
+
+The scan streams, and the graph is built **without persisting anything**. Both matter:
+
+- The scan hands each row over as it reads it, in bounded batches, instead of collecting the
+  table into a `std::vector` first. At the maximum 16383 dimensions that copy was 64 KB per row
+  on top of the graph being built from it.
+- The build uses a persistor whose callbacks do nothing, and the aux is written afterwards by
+  walking the finished graph (`HNSW::for_each_node`): one row per node, each carrying the
+  neighbours it *ended up with*, then record 0 naming the entry point. Persisting during the
+  build instead rewrites a node's row every time a later insert rewires it — O(N·M·log N) row
+  updates to reach a state that is only correct once the last row is in.
+
+Three things follow from writing at the end. Nothing is durable until the walk, so a build that
+fails has nothing to undo. With no callbacks there is nothing for a sub-transaction to isolate,
+so the aux rows ride the ALTER's own transaction and commit or roll back with it. And the scan
+performs no row writes at all, which is what keeps it clear of the rule that a clustered-index
+scan may not write rows while its mini-transaction holds latches. That is what makes the operation
 repeatable — dropping and re-adding an index does not renumber anything, and rows keep the
 identity the rest of the design depends on.
 
@@ -1262,6 +1309,18 @@ vector-indexed tables need no special protection from it.
 The one constraint is teardown order. The class states that it *"does not destroy Nodes and must
 not outlive the allocator"*, so the graph must be destroyed before the arena its nodes live in.
 
+### Locking the aux before dropping it
+
+Hidden tables get no metadata lock for free. When the server locks `t` for `DROP TABLE` it has
+never heard of `percona_vec_hnsw_<tid>_<iid>`, so nothing stands between the drop and a session
+that still has the aux open — a scan faulting nodes in (§11), or a reader of
+`INFORMATION_SCHEMA.INNODB_TABLES` holding a reference to the `dict_table_t`.
+
+So the drop takes the lock itself: one exclusive table MDL per vector aux table, taken in
+`row_drop_table_for_mysql` just after the parent is opened and before anything is torn down,
+with the `dict_sys` mutex released across the call because the MDL layer can wait. This is
+`fts_lock_all_aux_tables` under another name, called from the same place for the same reason.
+
 ---
 
 ## 23. Concurrency
@@ -1353,9 +1412,9 @@ statement. A resource ceiling is not a corrupt engine.
 
 ## 25. The commits
 
-What is on this branch, in order, and what each one is for. This document is the last commit on the branch, so every hash below is accurate as written;
-only this commit's own cannot appear. They still **change whenever the branch is rebased** — the
-subjects are the stable identifier.
+What is on this branch, in order, and what each one is for. This document is the last commit on
+the branch, so every hash below is accurate as written; only this commit's own cannot appear.
+They still **change whenever the branch is rebased** — the subjects are the stable identifier.
 
 | commit | what it achieves |
 |---|---|
@@ -1375,7 +1434,28 @@ subjects are the stable identifier.
 | `85899e38df8` | `innodb_hnsw_max_memory`: a server-wide byte budget, refused at the entry to an insert and at each step of a build rather than inside the arena. |
 | `18b4efd99ae` | Regression test for `SELECT COUNT(*)` returning 0 when the optimizer picked the vector index. The fix itself is upstream's; this keeps it from coming back. |
 | `ec0e164a9d5` | `ORDER BY DISTANCE(...) LIMIT k` served from the graph — optimizer recognition, the `vec_init` / `vec_read_first` / `vec_read_next` handler family, a streaming scan of the graph, and `innodb_hnsw_ef_search`. Both MVCC checks of §12: ② is the primary-key read under the session's own view, ① compares the node id against the label `row_sel_store_mysql_rec` lifts off the visible record into `prebuilt->vec_aux_id`, the way it already lifts `fts_doc_id`. |
-| *(this commit)* | This design document. Last on the branch so the table above can name every commit accurately; only its own hash cannot appear. |
+| `46178fe63e5` | This design document, in its first form. |
+| `eb5d7888f0b` | `rec_set_nth_field_low` asserts its memcpy source is non-null, with the repro that found it. |
+| `1905dd1daf5` | Fixes three leaks — `entry_sys_heap`, the update node's `pcur`, and `node->heap` — by freeing the aux DML graphs through `que_graph_free`. |
+| `d912461d532` | `vec_runtime_open()` logs why it failed instead of failing silently. |
+| `c27bae23397` | The INPLACE index build stays on one transaction: `Vec_ctx::commit_steps` is false for `vec_build_index`, so the per-callback commit that makes DML deadlock-free does not commit the DDL a node at a time. |
+| `81ae2331a3c` | Merge of the five review fixes below, each authored on `64e15e3e0e9` — the commit whose code it corrects — so the reviewed history stays readable: aux names must parse whole (`percona_vec_hnsw_1_2xyz` was accepted); `RENAME TABLE` reserves aux names; the 5.7 FTS nullability path goes back to `is_fts_aux()`; the rebuild column map maps both hidden columns onto the *new* table's layout; `DROP TABLE` takes an MDL on each aux. |
+| `51ca2c9dd5d` | Two assertions and two MTR tests searched for `vec_` where the name is `percona_vec_`; the assertions could never hold and the tests could never fail. |
+| `c689fb33e50` | Naming and style: the aux helpers shared with FTS lose their `fts` names, `Vec_index_type::HNSW` is 1 so zero is not a valid type, `[[nodiscard]]` on everything that reports through its return value. |
+| `cb6d435dc88` | Comment fixes: the aux column order, no em-dashes or arrows in the code, and several comments that had aged out of being true. |
+| `973ecdb97e3` | `percona_vec_aux_id` is materialised on every rebuild rather than only when the SQL layer asked for one — `ALTER TABLE … ADD FULLTEXT` on a vector table asserted, because it rebuilds through `add_fts_doc_id`, which `innobase_need_rebuild()` does not report. |
+| `1c0de9087e6` | Recorded results for the tests the fixes above added. |
+| `e9bd020ff30` | The third DD helper shared with FTS, `dd_rename_fts_table`, becomes `dd_rename_aux_table`. |
+| `e6c013b0cd3` | The graph's memory comes from a `mem_heap_t` instead of a chunk list the arena kept itself. The arena still takes 64 KB slabs and sub-allocates inside them, because a dynamic heap caps its own blocks at 8000 bytes; the slab it carves from is whichever has the most room left, which is what stops an exactly-consumed oversized slab from costing a whole slab per node. |
+| `807ecb408b0` | `innodb_hnsw_max_memory` is checked before a cold graph starts loading, not only before an insert. Not per faulted node: `load_node()` marks a refused load `NODE_LOST` and never retries it, so metering there silently amputates the graph. One statement can still overshoot by the graph it faults. |
+| `3deea290c6d` | The per-index runtime is published with a compare-exchange, so two sessions opening the same table cannot leave two graphs on one index; the loser frees its own object and adopts the winner's. The loser frees its own object and adopts the winner's. Readers take an acquire load, and the descriptive fields are const after publication so a later assignment does not compile. Untested by design: the interleaving cannot be scheduled from MTR, and the damage it prevents is invisible there. |
+| `52173009503` | `WITH (metric = ...)` now decides the distance kernel instead of being parsed and ignored: one table in vec0vec.cc lists each metric with the function it selects, the parser resolves it, and both graph constructions take it from there. |
+| `429b430f10a` | The graph gains a way to be read once it is complete: `for_each_node()` hands a visitor the same shapes `insert_cb` receives, plus `entry_point_id()` and `size()`. Nothing calls it yet; it is what lets a build persist at the end instead of as it goes. |
+| `2664930737a` | The build's scan streams in bounded batches instead of materialising the table. Not `Parallel_reader`: every hook it offers runs with the scan's mini-transaction latching, and writing rows from there trips `row_ins_clust_index_entry`'s no-latching assertion. |
+| `353b777f8a9` | The build uses a persistor that writes nothing and writes the aux afterwards from a walk of the finished graph — each row once, with its final neighbour list, on the ALTER's own transaction. |
+| `f56c3aeaed3` | A rebuild no longer writes a column the committed dictionary does not describe. Both places that decided it — `need_vec_aux_col` and the `add_vec_aux_col` rule for "old table has the flag and the SQL layer wants a rebuild" — now follow the new `dd::Table`. With the regression test that used to assert in `btr_page_split_and_insert`. |
+| `fbe4797dc5d` | Merge of one commit authored on `baccd1f249b`: `dict_table_add_to_cache` checks that `DICT_TF2_HAS_VEC_AUX_COL` and `vec_aux_col` agree, so a construction path that materialises the hidden column without setting its ordinal fails where it is built rather than at the first vector operation. |
+| *(this commit)* | This design document, updated for the review fixes: how an aux name is recognised and where it is reserved, why retention of the hidden column constrains every rebuild, and the MDL the drop path takes. Last on the branch, so the table above can name every commit accurately; only its own hash cannot appear. |
 ---
 
 # Part VI — Open items

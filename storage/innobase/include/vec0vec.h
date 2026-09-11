@@ -27,9 +27,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #pragma once
 
-#include <string_view>
 #include <variant>
 #include "key_spec.h"
+#include "vector-common/vector_constants.h"
 
 namespace storage::innobase::vec {
 
@@ -39,7 +39,7 @@ struct HnswParam {
   int M{25};
   int max_elements{10000};
   int ef_construction{200};
-  std::string_view metric{"euclidean"};
+  vector_constants::Metric metric{vector_constants::Metric::kEuclidean};
 };
 
 using VectorIndexParam = std::variant<std::monostate, HnswParam>;

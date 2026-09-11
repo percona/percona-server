@@ -125,19 +125,14 @@ bool parse_options(const Key_spec &index_def, VectorIndexParam &vip) {
           return true;
         }
       } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
-        bool is_valid = false;
-        for (const char *metric : {"euclidean"}) {
-          if (my_strcasecmp(system_charset_info, value.str, metric) == 0) {
-            hnsw_param.metric = metric;
-            is_valid = true;
-            break;
-          }
-        }
-        if (!is_valid) {
+        std::string_view name(value.str, value.length);
+        const auto *m = vector_constants::metric_from_name(name);
+        if (m == nullptr) {
           my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
                    value.str);
           return true;
         }
+        hnsw_param.metric = *m;
       } else {
         my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
         return true;

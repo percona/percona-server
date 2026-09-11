@@ -48,8 +48,8 @@ SET SESSION innodb_parallel_read_threads = DEFAULT;
 --echo # This asserts the thread count the scan was CONFIGURED with, which
 --echo # depends only on the setting, the free thread pool and the tree. How
 --echo # many of those threads actually take a range is a race on the
---echo # reader's shared queue and varies run to run, so it is logged but
---echo # never asserted.
+--echo # reader's shared queue and varies run to run, so it is not reported
+--echo # at all.
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_select = vec build scan threads: [2-9][0-9]*
 --let $assert_count = 1

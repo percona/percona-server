@@ -815,7 +815,7 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
 }
 
 dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
-                            THD *thd) {
+                            THD *thd, Flush_observer *observer) {
   ut_a(b != nullptr && b->graph != nullptr);
   ut_a(trx != nullptr);
 
@@ -842,13 +842,15 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
   meta.neighbors = nullptr;
   meta.neighbors_len = 0;
 
-  dberr_t err = vec_aux_insert(trx, aux, meta);
-  std::vector<byte> neighbors;
+  Vec_aux_bulk *bulk = vec_aux_bulk_start(trx, aux, observer);
 
-  if (err != DB_SUCCESS) {
+  if (bulk == nullptr) {
     vec_aux_close_for_dml(aux, thd, &mdl);
-    return err;
+    return DB_OUT_OF_MEMORY;
   }
+
+  dberr_t err = vec_aux_bulk_insert(bulk, meta);
+  std::vector<byte> neighbors;
 
   b->graph->for_each_node_sorted([&](uint64_t id, uint64_t base_pk,
                                      const char *vec, uint8_t layer,
@@ -866,8 +868,10 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
     row.neighbors = neighbors.data();
     row.neighbors_len = neighbors.size();
 
-    err = vec_aux_insert(trx, aux, row);
+    err = vec_aux_bulk_insert(bulk, row);
   });
+
+  err = vec_aux_bulk_finish(bulk, err);
 
   vec_aux_close_for_dml(aux, thd, &mdl);
   return err;

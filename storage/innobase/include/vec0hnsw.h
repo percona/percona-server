@@ -47,6 +47,7 @@ vector index keeps in memory.
 #include "vector-common/hnsw.h"
 
 class THD;
+class Flush_observer;
 
 /** Everything a callback needs that is NOT a property of the index.
 
@@ -580,7 +581,8 @@ of the statement.
 @param[in]      thd    connection, for the aux MDL
 @return DB_SUCCESS or an error */
 [[nodiscard]] dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx,
-                                          dict_table_t *table, THD *thd);
+                                          dict_table_t *table, THD *thd,
+                                          Flush_observer *observer);
 
 /** Release the build state and the graph it holds. Safe on nullptr. */
 void vec_build_free(Vec_build *b);

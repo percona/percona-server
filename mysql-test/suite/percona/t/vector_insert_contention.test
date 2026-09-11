@@ -1,5 +1,16 @@
 --source include/have_debug.inc
 
+# TODO before GA: consider dropping this test, or moving it to a stress
+# suite. It is a contention test, and it was written around the idea that a
+# concurrent statement may legitimately fail - which is why every insert
+# tolerated ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT. A test whose
+# statements are allowed to fail is a performance test, and those do not
+# belong in a correctness suite: they pass on a quiet machine and blame the
+# code on a busy one. The allowances are gone and it now demands success,
+# but what it really asserts - the aux invariants under concurrency - is
+# better served by a shorter deterministic test plus a stress run outside
+# the suite.
+
 --echo #
 --echo # PS-11300: many concurrent INSERTs into one vector index.
 --echo #
@@ -62,25 +73,23 @@ DELIMITER ;|
 --connection c6
 --send CALL ins(120, 6)
 
-# Which connections lose the race varies run to run, so the errors are
-# tolerated rather than recorded.
+# Every one of these must succeed. Nothing here may deadlock or time out:
+# a persistor callback commits its sub-transaction before returning
+# (vec_ctx_step_commit), so a row lock never outlives the callback that
+# took it and no session waits while holding one. Tolerating the errors
+# here would mean this test could not tell a working design from a
+# regression back to one transaction per statement.
 --connection c1
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c2
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c3
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c4
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c5
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c6
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 
 --connection default

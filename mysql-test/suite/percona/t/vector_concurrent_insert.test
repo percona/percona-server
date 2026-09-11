@@ -1,5 +1,16 @@
 --source include/have_debug.inc
 
+# TODO before GA: consider dropping this test, or moving it to a stress
+# suite. It is a contention test, and it was written around the idea that a
+# concurrent statement may legitimately fail - which is why every insert
+# tolerated ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT. A test whose
+# statements are allowed to fail is a performance test, and those do not
+# belong in a correctness suite: they pass on a quiet machine and blame the
+# code on a busy one. The allowances are gone and it now demands success,
+# but what it really asserts - the aux invariants under concurrency - is
+# better served by a shorter deterministic test plus a stress run outside
+# the suite.
+
 --echo #
 --echo # PS-11300: concurrent INSERTs into one vector index.
 --echo #
@@ -39,16 +50,12 @@ CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 --send INSERT INTO t1 VALUES (4,STRING_TO_VECTOR('[0,0,0,1]')),(8,STRING_TO_VECTOR('[0,0,0.1,0.9]')),(12,STRING_TO_VECTOR('[0,0.2,0,0.8]'))
 
 --connection c1
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c2
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c3
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 --connection c4
---error 0,ER_LOCK_DEADLOCK,ER_LOCK_WAIT_TIMEOUT
 --reap
 
 --connection default

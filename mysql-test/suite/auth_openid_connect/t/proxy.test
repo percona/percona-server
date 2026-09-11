@@ -18,6 +18,8 @@ if (`SELECT IF(LOAD_FILE('$MYSQLTEST_VARDIR/tmp/idp_flag') IS NULL, 1, 0)`)
 --let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user
 --let $MYSQL_MARKETING_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=marketing
 --let $MYSQL_ACCOUNTING_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=accounting
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE  --kid rsa-key-1
+
 
 let $OBTAIN_ID_TOKEN_1 = curl --fail -sS -X POST "$IDP_URL/token"
   -H "Content-Type: application/x-www-form-urlencoded"
@@ -65,9 +67,9 @@ CREATE USER '/marketing' IDENTIFIED WITH 'mysql_no_login';
 
 ###################### TESTS #######################
 --echo
---echo ## First group proxying
-## The user is authenticated using anonymous account,
-## the proxied account is selected automatically based on the first group name
+--echo ## Any group proxying
+## The user is authenticated using anonymous account, no group info in AS clause
+## the proxied account is selected automatically based on the first group name in the group claim
 
 CREATE USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\"}';
 GRANT PROXY ON '/accounting' TO ''@'';
@@ -95,6 +97,104 @@ exec $OBTAIN_ID_TOKEN_3 > $TOKEN_FILE;
 --error 1
 --exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
 
+--echo
+--echo ## Single group proxying
+## The user is authenticated using anonymous account,
+## any group from the token must fit group specified in AS clause,
+## the proxied account name equals to the group name
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : \"/accounting\"}';
+
+exec $OBTAIN_ID_TOKEN_1 > $TOKEN_FILE;
+
+--echo
+--echo IDP kk_proxy_user user is not member of /accounting group:
+--echo expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_2 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser user is member of /accounting group:
+--echo expecting USER is mysql_oidc_user, CURRENT_USER is /accounting
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_3 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser-no-groups user is not member of any group:
+--echo expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+--echo
+--echo ## Single group proxying with group name - proxied account mapping
+## The user is authenticated using anonymous account,
+## any group from the token must fit the only group specified in AS clause,
+## the proxied account name is defined by group - proxied account mapping specified in AS clause
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : [\"/accounting\",\"acc\"]}';
+CREATE USER 'acc' IDENTIFIED WITH 'mysql_no_login';
+GRANT PROXY ON 'acc' TO ''@'';
+
+exec $OBTAIN_ID_TOKEN_2 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser user is member of /accounting group, but the group in IDENTIFIED AS is incorrectly defined
+--echo expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+--echo
+--echo ## Multiple group proxying with group name - proxied account mapping
+## The user is authenticated using anonymous account,
+## any group from the token must fit any group specified in AS clause,
+## the group is selected following the order in AS clause,
+## the proxied account name is defined by group - proxied account mapping specified in AS clause
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : [[\"/accounting\",\"acc\"], [\"/marketing\",\"mar\"]]}';
+CREATE USER 'mar' IDENTIFIED WITH 'mysql_no_login';
+GRANT PROXY ON 'mar' TO ''@'';
+
+exec $OBTAIN_ID_TOKEN_1 > $TOKEN_FILE;
+
+--echo
+--echo IDP kk_proxy_user user is member of /marketing group:
+--echo expecting USER is mysql_oidc_user, CURRENT_USER is mar
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_2 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser user is member of /accounting group:
+--echo expecting USER is mysql_oidc_user, CURRENT_USER is acc
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+exec $OBTAIN_ID_TOKEN_3 > $TOKEN_FILE;
+
+--echo
+--echo IDP kkuser-no-groups user is not member of any group:
+--echo expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"oidc-idp\", \"group"\ : [[\"/accounting\",\"acc\"], [\"/marketing\",\"mar\"]]}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"/engineering\",\"/marketing\",\"/accounting\",\"/sales\"]"
+
+--echo
+--echo IDP user is member of many groups:
+--echo expecting the first from AS clause (/accounting) is selected, CURRENT_USER is acc
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+## reverse the order of groups to ensure the first one is always selected
+ALTER USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"oidc-idp\", \"group"\ : [[\"/marketing\",\"mar\"],[\"/accounting\",\"acc\"]]}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"/engineering\",\"/marketing\",\"/accounting\",\"/sales\"]"
+
+--echo
+--echo IDP user is member of many groups:
+--echo expecting the first from AS clause (/marketing) is selected, CURRENT_USER is mar
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(),  current_user()"
+
+DROP USER acc;
+DROP USER mar;
 DROP USER ''@'';
 
 --echo

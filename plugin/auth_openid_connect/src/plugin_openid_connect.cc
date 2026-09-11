@@ -131,9 +131,10 @@ static int auth_oidc_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
  */
 class User_auth_data {
  private:
-  std::string idp;        ///< Name of the identity provider.
-  std::string ext_user;   ///< External username (subject) in the IDP.
-  std::string ext_group;  ///< External group in the IDP.
+  std::string idp;       ///< Name of the identity provider.
+  std::string ext_user;  ///< External username (subject) in the IDP.
+  std::vector<std::pair<std::string, std::string>>
+      groups_to_proxied;  ///< External group in the IDP.
   std::string error;      ///< Error message if initialization fails.
 
  public:
@@ -142,7 +143,10 @@ class User_auth_data {
   /** @return The external user name. */
   const std::string &get_ext_user() const { return ext_user; }
   /** @return The external group name. */
-  const std::string &get_ext_group() const { return ext_group; }
+  const std::vector<std::pair<std::string, std::string>> &get_group_to_proxied()
+      const {
+    return groups_to_proxied;
+  }
   /** @return The error message. */
   const char *get_error() const { return error.c_str(); }
 
@@ -178,19 +182,60 @@ class User_auth_data {
       return true;
     }
     idp = idp_it->second.get<std::string>();
-    if (const auto it = obj.find("user"); it != obj.end()) {
-      if (!it->second.is<std::string>()) {
+    if (const auto user = obj.find("user"); user != obj.end()) {
+      if (!user->second.is<std::string>()) {
         error = "invalid user in IDENTIFIED AS";
         return true;
       }
-      ext_user = it->second.get<std::string>();
+      ext_user = user->second.get<std::string>();
     }
-    if (const auto it = obj.find("group"); it != obj.end()) {
-      if (!it->second.is<std::string>()) {
-        error = "invalid group in IDENTIFIED AS";
+    // optimization: "group" matters only if "user" is not specified
+    else if (init_group(obj)) {
+      error =
+          "group in IDENTIFIED AS has invalid value, it must be <group_name> "
+          "or [[<group_name>, <proxied_account>], ...] ";
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  bool add_group_pair(const picojson::array &group_account) {
+    if (group_account.size() != 2 || !group_account[0].is<std::string>() ||
+        !group_account[1].is<std::string>())
+      return true;
+
+    groups_to_proxied.push_back({group_account[0].get<std::string>(),
+                                 group_account[1].get<std::string>()});
+    return false;
+  }
+
+  bool init_group(const picojson::object &obj) {
+    const auto groups = obj.find("group");
+
+    // group is not specified, that is OK
+    if (groups == obj.end()) return false;
+
+    // case "group":<group_name>
+    if (groups->second.is<std::string>()) {
+      const auto name = groups->second.get<std::string>();
+      groups_to_proxied.push_back({name, name});
+      return false;
+    }
+
+    // groups it must be a string or an array
+    if (!groups->second.is<picojson::array>()) return true;
+
+    const auto &group_array{groups->second.get<picojson::array>()};
+
+    // empty array is not OK
+    if (group_array.empty()) return true;
+
+    // case "group":[[<group_name>, <proxied_account>], ...]
+    for (const auto &group : group_array) {
+      if (!group.is<picojson::array>() ||
+          add_group_pair(group.get<picojson::array>()))
         return true;
-      }
-      ext_group = it->second.get<std::string>();
     }
     return false;
   }
@@ -238,7 +283,7 @@ static int auth_oidc_authenticate(MYSQL_PLUGIN_VIO *vio,
     std::string roles;
     auto authenticated_as = Idp_configs::verify_token(
         token, auth_data.get_idp(), auth_data.get_ext_user(),
-        auth_data.get_ext_group(), roles);
+        auth_data.get_group_to_proxied(), roles);
 
     if (!authenticated_as.empty()) {
       if (size_t buf_size{std::size(info->authenticated_as)};

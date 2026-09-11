@@ -206,15 +206,6 @@ bool vec_aux_is_aux_table_name(const char *name) {
   return vec_aux_parse_table_name(name, nullptr, nullptr, nullptr);
 }
 
-size_t vec_aux_count_indexes(const dict_table_t *table) {
-  if (table == nullptr) return 0;
-  size_t n = 0;
-  for (const dict_index_t *idx = UT_LIST_GET_FIRST(table->indexes);
-       idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
-    if (idx->is_vector()) n++;
-  }
-  return n;
-}
 
 bool vec_aux_table_has_vector_index(const dict_table_t *table) {
   if (table == nullptr) return false;
@@ -550,31 +541,26 @@ dberr_t vec_aux_create_all_tables(trx_t *trx, const dict_table_t *parent) {
   return DB_SUCCESS;
 }
 
-bool vec_aux_create_dd_tables(dict_table_t *parent) {
+bool vec_aux_create_dd_table(dict_table_t *parent, const dict_index_t *index) {
   ut_a(parent != nullptr);
+  ut_a(index != nullptr && index->is_vector());
 
-  /* DEVIATION FROM FTS: fts_create_index_dd_tables (fts0fts.cc) gates
-  each iteration on `index->fill_dd` so a re-entrant CREATE-time call
-  registers exactly the pending aux tables. Vec has no `fill_dd` per-
-  index gate because PS-11264 currently allows at most one vector
-  index per table (see dd::create_dd_table validation) - so the loop
-  either finds zero vec indexes or exactly one, and idempotency isn't
-  a concern. If phase 2 lifts the one-vec-index cap AND supports
-  partial DD materialization, mirror fts's fill_dd gate here. */
-  for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
-       idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
-    if (!idx->is_vector()) continue;
+  /* One named index, not every vector index the table happens to hold.
+  That distinction matters in an ALTER that drops a vector index and adds
+  another in the same statement: until it commits, the parent carries
+  both, and the dropped one's aux is on its way out - registering it
+  would open an aux that is being dropped. FTS reaches the same place
+  with a per-index `fill_dd` gate; naming the index is the same idea with
+  less state. */
+  char aux_name[MAX_FULL_NAME_LEN];
+  vec_aux_get_table_name(parent, index->id, Vec_index_type::HNSW, aux_name,
+                         sizeof(aux_name));
 
-    char aux_name[MAX_FULL_NAME_LEN];
-    vec_aux_get_table_name(parent, idx->id, Vec_index_type::HNSW, aux_name,
-                           sizeof(aux_name));
-    dict_table_t *aux = dd_table_open_on_name_in_mem(aux_name, false);
-    ut_a(aux != nullptr);
-    const bool ok = dd_create_vec_aux_table(parent, aux);
-    dd_table_close(aux, nullptr, nullptr, false);
-    if (!ok) return false;
-  }
-  return true;
+  dict_table_t *aux = dd_table_open_on_name_in_mem(aux_name, false);
+  ut_a(aux != nullptr);
+  const bool ok = dd_create_vec_aux_table(parent, aux);
+  dd_table_close(aux, nullptr, nullptr, false);
+  return ok;
 }
 
 dberr_t vec_aux_lock_all_tables(THD *thd, const dict_table_t *parent) {

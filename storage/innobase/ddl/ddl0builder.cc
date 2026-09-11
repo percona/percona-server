@@ -45,6 +45,7 @@ Created 2020-11-01 by Sunny Bains. */
 #include "row0vers.h"
 #include "ut0stage.h"
 #include "vec0aux.h"
+#include "vec0hnsw.h"
 
 namespace ddl {
 
@@ -627,6 +628,11 @@ Builder::~Builder() noexcept {
     ut::delete_(m_btr_load);
     m_btr_load = nullptr;
   }
+
+  /* Normally released by vec_build(); still set if the build errored out
+  before reaching VEC_BUILD. */
+  vec_build_free(m_vec);
+  m_vec = nullptr;
 }
 
 dberr_t Builder::check_state_of_online_build_log() noexcept {
@@ -658,11 +664,19 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
   auto buffer_size = m_ctx.scan_buffer_size(n_threads);
   auto create_thread_ctx = [&](size_t id, dict_index_t *index) -> dberr_t {
-    auto key_buffer = ut::new_withkey<Key_sort_buffer>(
-        ut::make_psi_memory_key(mem_key_ddl), index, buffer_size.first);
+    /* A vector index is never sorted or merged - ADD goes straight to
+    VEC_BUILD - so it needs neither a key buffer nor the file buffers
+    below. Key_sort_buffer would be built over an index with no key
+    fields in any case. */
+    Key_sort_buffer *key_buffer = nullptr;
 
-    if (key_buffer == nullptr) {
-      return DB_OUT_OF_MEMORY;
+    if (!is_vector_index()) {
+      key_buffer = ut::new_withkey<Key_sort_buffer>(
+          ut::make_psi_memory_key(mem_key_ddl), index, buffer_size.first);
+
+      if (key_buffer == nullptr) {
+        return DB_OUT_OF_MEMORY;
+      }
     }
 
     auto thread_ctx = ut::new_withkey<Thread_ctx>(
@@ -674,6 +688,10 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     }
 
     m_thread_ctxs.push_back(thread_ctx);
+
+    if (is_vector_index()) {
+      return DB_SUCCESS;
+    }
 
     thread_ctx->m_aligned_buffer =
         ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
@@ -712,6 +730,26 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
     return DB_SUCCESS;
   };
+
+  if (is_vector_index()) {
+    /* Debug builds only: how many threads the scan was given. This is a
+    function of innodb_parallel_read_threads, the free thread pool and the
+    tree's shape - not of timing - so a test can assert on it. How many of
+    them actually feed the graph cannot be asserted: ranges come off one
+    shared queue in Parallel_reader::worker, so a fast thread may drain it
+    before the others wake. */
+    ut_d(ib::info() << "vec build scan threads: " << n_threads);
+
+    /* M and ef_construction live only in the index definition the ALTER
+    is producing, so the build resolves them from m_ctx.m_table. */
+    m_vec = vec_build_start(m_index, m_ctx.m_table);
+
+    if (m_vec == nullptr) {
+      set_error(DB_OUT_OF_MEMORY);
+      set_next_state();
+      return get_error();
+    }
+  }
 
   if (is_fts_index()) {
     auto &fts = m_ctx.m_fts;
@@ -1673,6 +1711,20 @@ dberr_t Builder::add_row(Cursor &cursor, Row &row, size_t thread_id,
     if (!cursor.eof()) {
       err = batch_add_row(row, thread_id);
     }
+  } else if (is_vector_index()) {
+    /* The row goes into the in-memory graph and nowhere else: the build
+    persistor writes nothing, so this takes no latches and calls no row
+    API, which is what lets it run inside the scan's callback. The aux
+    table is written once, from a walk of the finished graph, in
+    VEC_BUILD. */
+    if (!cursor.eof()) {
+      ut_d(m_vec_threads.fetch_or(1ULL << (thread_id & 63),
+                                  std::memory_order_relaxed));
+      err = vec_build_add_row(m_vec, m_ctx.m_new_table, row.m_ptr);
+      if (err != DB_SUCCESS) {
+        err = handle_error(err);
+      }
+    }
   } else {
     err = bulk_add_row(cursor, row, thread_id, std::move(latch_release));
     if (unlikely(err != DB_OVERFLOW && err != DB_SUCCESS &&
@@ -2014,6 +2066,39 @@ void Builder::write_redo(const dict_index_t *index) noexcept {
   mtr.commit();
 }
 
+dberr_t Builder::vec_build() noexcept {
+  ut_a(is_vector_index());
+  ut_a(m_vec != nullptr);
+
+  /* Debug builds only, and informational: how many threads happened to
+  take a range. Not assertable - see the note in init(). */
+#ifdef UNIV_DEBUG
+  {
+    const uint64_t mask = m_vec_threads.load(std::memory_order_relaxed);
+    size_t n = 0;
+    for (size_t i = 0; i < 64; ++i) n += (mask >> i) & 1;
+    ib::info() << "vec build fed by " << n << " scan threads";
+  }
+#endif /* UNIV_DEBUG */
+
+  /* The aux rows ride the ALTER's own transaction, so a failure here
+  rolls them back with the rest of the statement. */
+  auto err = vec_build_write_aux(m_vec, m_ctx.m_trx, m_ctx.m_new_table,
+                                 m_ctx.m_trx->mysql_thd);
+
+  vec_build_free(m_vec);
+  m_vec = nullptr;
+
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    set_next_state();
+    return get_error();
+  }
+
+  set_state(State::FINISH);
+  return DB_SUCCESS;
+}
+
 dberr_t Builder::fts_sort_and_build() noexcept {
   ut_a(is_fts_index());
 
@@ -2191,7 +2276,9 @@ void Builder::set_next_state() noexcept {
       break;
 
     case State::ADD:
-      if (is_fts_index()) {
+      if (is_vector_index()) {
+        set_state(State::VEC_BUILD);
+      } else if (is_fts_index()) {
         set_state(State::FTS_SORT_AND_BUILD);
       } else if (!is_skip_file_sort()) {
         set_state(State::SETUP_SORT);
@@ -2214,6 +2301,10 @@ void Builder::set_next_state() noexcept {
       break;
 
     case State::FTS_SORT_AND_BUILD:
+      set_state(State::FINISH);
+      break;
+
+    case State::VEC_BUILD:
       set_state(State::FINISH);
       break;
 
@@ -2248,6 +2339,11 @@ dberr_t Loader::Task::operator()() noexcept {
     case Builder::State::FTS_SORT_AND_BUILD:
       ut_a(m_builder->is_fts_index());
       err = m_builder->fts_sort_and_build();
+      break;
+
+    case Builder::State::VEC_BUILD:
+      ut_a(m_builder->is_vector_index());
+      err = m_builder->vec_build();
       break;
 
     case Builder::State::FINISH:

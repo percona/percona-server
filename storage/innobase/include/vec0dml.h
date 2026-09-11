@@ -118,46 +118,6 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
 
 /** One node read back from the aux table. Pointers are into a caller
 supplied heap and live as long as it does. */
-/** One base-table row, as the index build needs it. */
-/** Called for each visible row of the base table by
-@ref vec_base_scan_rows. `vec` points into a scratch heap that is reset
-after the call returns, so a caller that needs to keep the bytes must copy
-them - HNSW::insert() does (hnsw.h set_vec).
-@param[in]  id        the row's stamped percona_vec_aux_id, reused as the
-                      graph label so a rebuild preserves labels
-@param[in]  base_pk   the row's primary key
-@param[in]  vec       the vector, materialised (an off-page BLOB is
-                      fetched, not a 20-byte reference)
-@param[in]  vec_len   its length in bytes
-@return DB_SUCCESS to continue the scan, anything else to stop it */
-using Vec_base_row_cb = std::function<dberr_t(uint64_t id, uint64_t base_pk,
-                                              const byte *vec, ulint vec_len)>;
-
-/** Feed every committed row the index build should insert to `cb`.
-
-One clustered scan of the base table, driven by Parallel_reader so the
-scan's mini-transactions, page latching and range handling are InnoDB's
-rather than hand-rolled here. Rows are streamed: nothing accumulates, so
-a build costs the graph plus one row's scratch, not the table.
-
-Delete-marked records are skipped by the reader's visibility check: they
-are committed deletes pending purge, not rows. Uncommitted changes cannot
-be present - the ALTER holds at least a shared lock and waited out prior
-writers at MDL upgrade - which is why the scan reads the latest version
-directly rather than through a read view.
-
-@param[in]   base       base table
-@param[in]   vec_index  the vector index being built; its field 0 names
-                        the column to read
-@param[in]   dims       expected dimensions, for validation
-@param[in]   cb         called once per row
-@return DB_SUCCESS, DB_CORRUPTION if a vector is the wrong width, or
-whatever `cb` returned to stop the scan */
-[[nodiscard]] dberr_t vec_base_scan_rows(dict_table_t *base,
-                                         const dict_index_t *vec_index,
-                                         uint32_t dims,
-                                         const Vec_base_row_cb &cb);
-
 struct vec_aux_read_t {
   const byte *vec{nullptr};
   ulint vec_len{0};

@@ -206,6 +206,16 @@ bool vec_aux_is_aux_table_name(const char *name) {
   return vec_aux_parse_table_name(name, nullptr, nullptr, nullptr);
 }
 
+size_t vec_aux_count_indexes(const dict_table_t *table) {
+  if (table == nullptr) return 0;
+  size_t n = 0;
+  for (const dict_index_t *idx = UT_LIST_GET_FIRST(table->indexes);
+       idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
+    if (idx->is_vector()) n++;
+  }
+  return n;
+}
+
 bool vec_aux_table_has_vector_index(const dict_table_t *table) {
   if (table == nullptr) return false;
   for (const dict_index_t *idx = UT_LIST_GET_FIRST(table->indexes);

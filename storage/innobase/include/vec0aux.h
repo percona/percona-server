@@ -197,6 +197,13 @@ void vec_aux_detach_tables(const dict_table_t *parent, bool dict_locked);
 /** True iff `table` has at least one vector index attached. */
 [[nodiscard]] bool vec_aux_table_has_vector_index(const dict_table_t *table);
 
+/** How many vector indexes `table` has. PS-11264 caps this at one; code
+that relies on the cap can assert on it, so that lifting the cap fails
+loudly rather than silently doing the wrong thing once.
+@param[in]  table  any table, may be nullptr
+@return the count, 0 if the table has none */
+[[nodiscard]] size_t vec_aux_count_indexes(const dict_table_t *table);
+
 /** Rename every vector aux table belonging to `parent` after the parent
 itself has been renamed to `new_parent_name`. Mirrors fts_rename_aux_tables.
 Only the db-prefix portion of the aux name changes - the suffix is

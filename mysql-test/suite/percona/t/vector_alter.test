@@ -213,3 +213,12 @@ DROP TABLE tg1, tg2;
 
 --echo # After all DROP TABLEs, no aux .ibd left over.
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo #
+--echo # LOAD DATA ALGORITHM=BULK is refused for a table with the hidden
+--echo # column, mirroring the FULLTEXT refusal beside it: BULK builds index
+--echo # entries directly and never reaches the row-insert path that stamps
+--echo # percona_vec_aux_id. There is no test for it here because BULK is not
+--echo # in the community build; if it is ever published, this is where the
+--echo # refusal belongs.
+--echo #

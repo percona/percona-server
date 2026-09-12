@@ -11209,7 +11209,13 @@ ER_CANT_DROP_CF
 #
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR
+  eng "InnoDB does not support adding a vector index to a table that has no vector index yet in-place; the hidden label column has to be added to every row"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_REBUILD
   eng "InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK
+  eng "InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph"
 
 
 ################################################################################

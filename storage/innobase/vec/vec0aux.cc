@@ -98,9 +98,9 @@ const char *vec_index_token(Vec_index_type type) {
 void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
                             Vec_index_type type, char *name_out,
                             size_t name_out_len) {
-  ut_a(parent != nullptr);
-  ut_a(name_out != nullptr);
-  ut_a(name_out_len >= MAX_FULL_NAME_LEN);
+  ut_ad(parent != nullptr);
+  ut_ad(name_out != nullptr);
+  ut_ad(name_out_len >= MAX_FULL_NAME_LEN);
 
   const char *parent_name = parent->name.m_name;
   const size_t db_len = db_prefix_len(parent_name);
@@ -399,6 +399,7 @@ bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
   if (heap != nullptr) mem_heap_free(heap);
   return ok;
 }
+
 
 uint64_t vec_assign_next_aux_id(dict_table_t *table) {
   ut_a(table != nullptr);

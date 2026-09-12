@@ -229,10 +229,10 @@ void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
   table->vec_aux_col = table->n_def - 1;
 }
 
-void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap) {
+void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, byte *buf) {
   ut_a(table != nullptr);
   ut_a(row != nullptr);
-  ut_a(heap != nullptr);
+  ut_a(buf != nullptr);
   if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     return;
   }
@@ -241,15 +241,17 @@ void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap) {
 
   const uint64_t id = vec_assign_next_aux_id(table);
 
-  /* Mirrors fts_create_doc_id: allocate the value on `heap` so it
-  outlives this call, then point the dfield at it. Big-endian (mach
-  format) so a clustered-index range scan on this column would order
-  numerically - matches how FTS_DOC_ID is laid out. */
-  uint64_t *buf = static_cast<uint64_t *>(mem_heap_alloc(heap, sizeof(*buf)));
-  mach_write_to_8(reinterpret_cast<byte *>(buf), id);
+  /* `buf` is the caller's, reserved once per handle and rewritten for
+  every row - not allocated here. fts_create_doc_id does allocate per
+  row, on a heap that lives as long as the table handle; MariaDB fixed
+  that shape in MDEV-13446 and this follows it.
+
+  Big-endian (mach format) so a clustered-index range scan on this column
+  would order numerically - matches how FTS_DOC_ID is laid out. */
+  mach_write_to_8(buf, id);
 
   dfield_t *dfield = dtuple_get_nth_field(row, table->vec_aux_col);
-  dfield_set_data(dfield, buf, sizeof(*buf));
+  dfield_set_data(dfield, buf, VEC_AUX_ID_LEN);
 }
 
 uint64_t vec_get_aux_id_from_row(const dict_table_t *table,

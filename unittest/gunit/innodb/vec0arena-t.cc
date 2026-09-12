@@ -79,7 +79,7 @@ TEST(Vec0ArenaTest, SmallBlocksShareSlabs) {
   EXPECT_LE(arena.bytes_allocated(), 2u * 64 * 1024 + 8192);
 }
 
-/* The regression Pawel Olchawa found: an oversized request is carved to
+/* Raised in review: an oversized request is carved to
 size, so it must not become the slab that later small requests are
 measured against. If it does, every small allocation after an oversized
 one buys a fresh slab, and a graph of maximum-dimension vectors costs

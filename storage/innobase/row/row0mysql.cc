@@ -1120,7 +1120,8 @@ static void row_mysql_convert_row_to_innobase(
   The SQL layer leaves the dfield set to SQL_NULL because the column
   is HT_HIDDEN_SE; without this stamp, rec_get_converted_size_*
   asserts on NOT-NULL + SQL_NULL. */
-  vec_stamp_aux_id(prebuilt->table, row, prebuilt->heap);
+  vec_stamp_aux_id(prebuilt->table, row,
+                   prebuilt->ins_upd_rec_buff + prebuilt->mysql_row_len);
 }
 
 /** Handles user errors and lock waits detected by the database engine.
@@ -1543,8 +1544,20 @@ static dtuple_t *row_get_prebuilt_insert_row(
   prebuilt->ins_node = node;
 
   if (prebuilt->ins_upd_rec_buff == nullptr) {
-    prebuilt->ins_upd_rec_buff = static_cast<byte *>(
-        mem_heap_alloc(prebuilt->heap, prebuilt->mysql_row_len));
+    /* An 8-byte tail for the hidden percona_vec_aux_id, written afresh
+    for every row by vec_stamp_aux_id. It is reserved once here rather
+    than allocated per row on prebuilt->heap, which is freed only when
+    the handle is closed - 8 bytes a row for the life of a connection.
+
+    FTS_DOC_ID has the same problem and is left alone: fts_create_doc_id
+    still allocates per row upstream. If that is ever fixed the same way,
+    the two tails must not both claim this offset. */
+    prebuilt->ins_upd_rec_buff = static_cast<byte *>(mem_heap_alloc(
+        prebuilt->heap,
+        prebuilt->mysql_row_len +
+            (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)
+                 ? VEC_AUX_ID_LEN
+                 : 0)));
   }
 
   if (table->n_m_v_cols > 0 && prebuilt->mv_data == nullptr) {

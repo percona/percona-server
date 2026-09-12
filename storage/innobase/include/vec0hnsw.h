@@ -225,8 +225,8 @@ struct Vec_persistor {
     start growing but lets one statement overshoot by whatever it
     faults. Metering each fault needs a load_node_cb that can say
     "failed, try again later" as opposed to "lost" - the same API gap
-    Pawel Olchawa raised on vec0hnsw.h, where the callback is to be
-    reworked to report errors properly. This check belongs there. */
+    raised in review of this header, where the callback is to be reworked
+    to report errors properly. This check belongs there. */
 
     const dberr_t err = vec_persist_load_node(ctx, hnsw, handle);
     if (err != DB_SUCCESS) {

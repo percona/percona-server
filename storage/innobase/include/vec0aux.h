@@ -51,6 +51,9 @@ extern const char *VEC_AUX_PREFIX;
 index. Type: BIGINT UNSIGNED NOT NULL; no secondary index. */
 #define VEC_AUX_ID_COL_NAME "percona_vec_aux_id"
 
+/** Width of percona_vec_aux_id on disk and in the insert buffer. */
+constexpr ulint VEC_AUX_ID_LEN = 8;
+
 /** Number of user columns in a vector aux table.
 
 DEVIATION FROM FTS: FTS uses multiple aux table shapes selected by
@@ -322,6 +325,6 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table);
 the per-table counter. No-op for tables without the hidden column.
 Allocations come from `heap` so they outlive this call. Called from
 the INSERT path (mirrors fts_create_doc_id). */
-void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap);
+void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, byte *buf);
 
 #endif /* vec0aux_h */

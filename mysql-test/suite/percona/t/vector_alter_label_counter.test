@@ -1,0 +1,56 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: the label counter has to survive an ALTER.
+--echo #
+--echo # It lived only in the buffered dynamic metadata, and an ALTER can
+--echo # throw that away without rebuilding anything: dd_set_autoinc bumps
+--echo # DD_TABLE_VERSION on purpose, to "ignore any previously buffered
+--echo # persistent dynamic metadata", and it does so for any ALTER of a
+--echo # table that has an AUTO_INCREMENT column.
+--echo #
+--echo # The table would then count from zero over an aux that still holds
+--echo # those labels, and the next INSERT would reissue one - which
+--echo # HNSW::insert refuses, taking the server with it. Autoinc survives
+--echo # by keeping its counter in the table definition; so does this one,
+--echo # under DD_TABLE_VEC_NEXT_ID.
+--echo #
+--echo # Only count and max_id are asserted. A node's level is drawn at
+--echo # random, so the graph's shape differs between runs.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 serial BIGINT UNSIGNED AUTO_INCREMENT UNIQUE,
+                 pad INT,
+                 v VECTOR(4) NOT NULL);
+INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
+                                   (2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+                                   (3,30,STRING_TO_VECTOR('[3,0,0,0]'));
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 8);
+
+--echo # Labels 1..3 exist.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=[0-9]+ level=[0-9]+ base_pk=[0-9]+ nb=[0-9,]*/NODE/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # A plain ADD INDEX - no rebuild - but the table has an AUTO_INCREMENT
+--echo # column, so the metadata version is bumped and the buffered counter
+--echo # is discarded with it.
+ALTER TABLE t1 ADD INDEX pad_idx (pad);
+
+--echo # The next label must be 4. With the counter only in the buffer it
+--echo # came back 1, and this INSERT killed the server.
+INSERT INTO t1 (id, pad, v) VALUES (4,40,STRING_TO_VECTOR('[4,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=[0-9]+ level=[0-9]+ base_pk=[0-9]+ nb=[0-9,]*/NODE/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # And still right after a restart.
+--source include/restart_mysqld.inc
+INSERT INTO t1 (id, pad, v) VALUES (5,50,STRING_TO_VECTOR('[5,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=[0-9]+ level=[0-9]+ base_pk=[0-9]+ nb=[0-9,]*/NODE/
+SELECT @@session.innodb_interpreter_output;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+DROP TABLE t1;

@@ -1,0 +1,59 @@
+--echo #
+--echo # PS-11299: ALTER ADD INDEX on a table with existing data.
+--echo #
+--echo # The ADD forces a rebuild (percona_vec_aux_id must materialise on a
+--echo # fresh dict_table_t with current_row_version = 0; see PS-11299
+--echo # rebuild-forcing rule). The rebuild's row copy must:
+--echo #   - populate percona_vec_aux_id on each copied row via the per-table
+--echo #     counter (commit 1's helper);
+--echo #   - leave the vector index aux .ibd empty (HNSW build is
+--echo #     PS-11300, no row-level work here).
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--echo # === Build a populated table WITHOUT a vector index ===
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  k INT,
+  v VECTOR(8) NOT NULL
+);
+
+INSERT INTO t1 VALUES
+  (1, 10, STRING_TO_VECTOR('[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]')),
+  (2, 20, STRING_TO_VECTOR('[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]')),
+  (3, 30, STRING_TO_VECTOR('[3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]')),
+  (4, 40, STRING_TO_VECTOR('[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]')),
+  (5, 50, STRING_TO_VECTOR('[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]'));
+
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # === ADD INDEX — forces rebuild + stamps percona_vec_aux_id per row ===
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE t1;
+
+--echo # === Every row's vector data preserved byte-for-byte ===
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # === Aux .ibd created, holds 0 user rows (HNSW = PS-11300) ===
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # === Further INSERTs after the rebuild continue to work ===
+INSERT INTO t1 VALUES
+  (6, 60, STRING_TO_VECTOR('[6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]'));
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+
+--echo # === DROP INDEX leaves the rows intact ===
+ALTER TABLE t1 DROP KEY v;
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+
+--echo # === Re-add vector index on the still-populated table works ===
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE t1;
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+
+DROP TABLE t1;
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

@@ -1,0 +1,48 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: opening a table gives every vector index on it a runtime,
+--echo # carrying the parameters the user wrote in WITH(...).
+--echo #
+--echo # Worth testing directly: until the open-time parse landed, those
+--echo # values were read at DDL time and discarded, so SHOW CREATE would
+--echo # echo them back correctly while the engine had never seen them.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(8) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 6));
+--echo # Touch the table so the handler opens it: the runtime is created
+--echo # in ha_innobase::open, which CREATE TABLE alone does not reach.
+SELECT COUNT(*) FROM t1;
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Defaults when WITH(...) is absent: M=25, ef_construction=200.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw);
+SELECT COUNT(*) FROM t2;
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t2';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # metric alone; M keeps its default. ef_construction is NOT
+--echo # settable — the WITH(...) parser accepts only M and metric — so it
+--echo # is always the built-in 200, and asking for it is an error.
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE bad (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                  KEY (v) TYPE hnsw WITH (ef_construction = 99));
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(16) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (metric = euclidean));
+SELECT COUNT(*) FROM t3;
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t3';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # The runtime survives a restart's re-open, rebuilt from the DD.
+--source include/restart_mysqld.inc
+SELECT COUNT(*) FROM t1;
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1, t2, t3;

@@ -1,0 +1,80 @@
+#
+# PS-11300: INSERT builds the HNSW graph and writes the aux table.
+#
+# The first commit where an ordinary INSERT produces aux rows. What
+# the dump proves is not just "rows appeared" but their shape: the
+# label is the base row's hidden id, base_pk points back at the base
+# row, and record 0 holds the entry point rather than a node.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+# One row: one node, plus record 0 naming it as the entry point.
+# In record 0 the base_pk column carries the entry point's NODE id,
+# not a base row key — record 0 is index metadata, and no node can
+# ever occupy it because id 0 is the graph's empty-slot sentinel.
+INSERT INTO t1 VALUES (10, STRING_TO_VECTOR('[1,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=2 max_id=1
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=10 nb=#
+
+# More rows. Every base row gets exactly one node; base_pk is the
+# base row's own primary key, so a search can resolve back to it.
+INSERT INTO t1 VALUES (20, STRING_TO_VECTOR('[0,1,0,0]'));
+INSERT INTO t1 VALUES (30, STRING_TO_VECTOR('[0,0,1,0]'));
+INSERT INTO t1 VALUES (40, STRING_TO_VECTOR('[0,0,0,1]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=5 max_id=4
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=10 nb=#
+id=2 level=# base_pk=20 nb=#
+id=3 level=# base_pk=30 nb=#
+id=4 level=# base_pk=40 nb=#
+
+# FORCE INDEX (PRIMARY) is not decoration. Without it the optimizer
+# picks the vector index for a covering count, and that index has no
+# B-tree (page = FIL_NULL) and no rows, so COUNT(*) silently returns
+# 0 on a table that has rows. See the note in the commit message.
+SELECT COUNT(*) AS base_rows FROM t1 FORCE INDEX (PRIMARY);
+base_rows
+4
+# After a restart the graph is rebuilt from the aux: only the entry
+# point is read up front, the rest fault in on demand. An insert
+# after the restart must therefore link into the EXISTING graph, not
+# start a second one — so the aux gains exactly one node, and the
+# labels continue from where they left off rather than repeating.
+# restart
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+COUNT(*)
+4
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=5 max_id=4
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=10 nb=#
+id=2 level=# base_pk=20 nb=#
+id=3 level=# base_pk=30 nb=#
+id=4 level=# base_pk=40 nb=#
+
+INSERT INTO t1 VALUES (50, STRING_TO_VECTOR('[1,1,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=6 max_id=5
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=10 nb=#
+id=2 level=# base_pk=20 nb=#
+id=3 level=# base_pk=30 nb=#
+id=4 level=# base_pk=40 nb=#
+id=5 level=# base_pk=50 nb=#
+
+SELECT COUNT(*) AS rows_after_restart FROM t1 FORCE INDEX (PRIMARY);
+rows_after_restart
+5
+DROP TABLE t1;

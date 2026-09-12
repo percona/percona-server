@@ -1,0 +1,118 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300 S3: SQL kNN — ORDER BY DISTANCE(...) LIMIT k is served by
+--echo # the HNSW vector index (JT_VECTOR access, sort elided, rows in
+--echo # ascending distance). Everything else stays on the exact path.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+
+INSERT INTO t1 VALUES (100, 0, STRING_TO_VECTOR('[0,0]')),
+                      (101, 1, STRING_TO_VECTOR('[1,0]')),
+                      (102, 0, STRING_TO_VECTOR('[0,2]')),
+                      (103, 1, STRING_TO_VECTOR('[3,0]')),
+                      (104, 0, STRING_TO_VECTOR('[0,4]')),
+                      (105, 1, STRING_TO_VECTOR('[5,0]'));
+
+--echo # The canonical shape uses the index: access type vector_knn, key vk,
+--echo # and no filesort in the plan.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # EUCLIDEAN_SQUARED orders identically — also served.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN_SQUARED') LIMIT 3;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN_SQUARED') LIMIT 3;
+
+--echo # Constant may be the first argument too.
+SELECT id FROM t1 ORDER BY DISTANCE(STRING_TO_VECTOR('[5,0]'), v, 'EUCLIDEAN') LIMIT 2;
+
+--echo # The exact path (IGNORE INDEX: scan + filesort) returns the same
+--echo # rows in the same order. An indexed vector column is NOT NULL, so
+--echo # there is no NULL-ordering difference between the two paths to
+--echo # document — earlier revisions of this test carried one, on a base
+--echo # where a nullable vector column could be indexed.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # Shapes that must NOT use the index (approximate results are only
+--echo # acceptable under the explicit ORDER BY ... LIMIT contract):
+--echo #
+
+--echo # No LIMIT.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN');
+
+--echo # DESC (farthest-first is not what the graph returns).
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') DESC LIMIT 3;
+
+--echo # Metric not servable by the L2 graph.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'MANHATTAN') LIMIT 3;
+
+--echo # Distance only in WHERE: exact scan, exact results.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') <= 2;
+SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') <= 2 ORDER BY id;
+
+--echo # Both arguments non-constant.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, v, 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # WHERE + ORDER BY LIMIT: the filter consumes near candidates and the
+--echo # handler's resume loop keeps widening the search — all 3 k=1 rows
+--echo # arrive even though they interleave with k=0 rows in distance order.
+--echo #
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 WHERE k = 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t1 WHERE k = 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # A LIMIT larger than the graph returns every row, once each: the
+--echo # resume loop widens until the graph is exhausted, then stops.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+
+--echo #
+--echo # Visibility: an uncommitted point from another transaction is in the
+--echo # shared graph but must not surface — its base row is invisible and
+--echo # the read path skips it (candidates, not results).
+--echo #
+connect (con2, localhost, root,,);
+BEGIN;
+INSERT INTO t1 VALUES (200, 0, STRING_TO_VECTOR('[0.1,0]'));
+
+connection default;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+connection con2;
+COMMIT;
+connection default;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+disconnect con2;
+
+--echo # DELETE drops the point from results immediately.
+DELETE FROM t1 WHERE id = 200;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # The phase-1 COUNT(*) bug is fixed: the stub vector index is never
+--echo # picked for scans.
+SELECT COUNT(*) FROM t1;
+
+--echo # ef_search is a session knob.
+SET SESSION innodb_hnsw_ef_search = 200;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+SET SESSION innodb_hnsw_ef_search = default;
+
+--echo # Search works on the reloaded graph after a restart.
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,4]'), 'EUCLIDEAN') LIMIT 3;
+
+DROP TABLE t1;

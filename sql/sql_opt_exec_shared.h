@@ -227,7 +227,12 @@ enum join_type {
     the results into one. The merge can be used to
     produce unions and intersections
   */
-  JT_INDEX_MERGE
+  JT_INDEX_MERGE,
+  /**
+    Approximate kNN over an HNSW vector index: rows are produced in
+    ascending distance order from a constant query vector (PS-11300).
+  */
+  JT_VECTOR
 };
 
 /// Holds members common to JOIN_TAB and QEP_TAB.
@@ -253,6 +258,8 @@ class QEP_shared {
         prefix_tables_map(0),
         added_tables_map(0),
         m_ft_func(nullptr),
+        m_vec(nullptr),
+        m_vec_limit(0),
         m_skip_records_in_range(false) {}
 
   /*
@@ -309,6 +316,10 @@ class QEP_shared {
   table_map added_tables() const { return added_tables_map; }
   Item_func_match *ft_func() const { return m_ft_func; }
   void set_ft_func(Item_func_match *f) { m_ft_func = f; }
+  Item *vec() const { return m_vec; }
+  void set_vec(Item *v) { m_vec = v; }
+  ha_rows vec_limit() const { return m_vec_limit; }
+  void set_vec_limit(ha_rows limit) { m_vec_limit = limit; }
 
   // More elaborate functions:
 
@@ -465,6 +476,11 @@ class QEP_shared {
   /** FT function */
   Item_func_match *m_ft_func;
 
+  /** JT_VECTOR: the constant query-vector expression */
+  Item *m_vec;
+  /** JT_VECTOR: kNN batch size (the query's LIMIT) */
+  ha_rows m_vec_limit;
+
   /**
     Set if index dive can be skipped for this query.
     See comments for check_skip_records_in_range_qualification.
@@ -538,6 +554,10 @@ class QEP_shared_owner {
   table_map added_tables() const { return m_qs->added_tables(); }
   Item_func_match *ft_func() const { return m_qs->ft_func(); }
   void set_ft_func(Item_func_match *f) { return m_qs->set_ft_func(f); }
+  Item *vec() const { return m_qs->vec(); }
+  void set_vec(Item *v) { return m_qs->set_vec(v); }
+  ha_rows vec_limit() const { return m_qs->vec_limit(); }
+  void set_vec_limit(ha_rows limit) { m_qs->set_vec_limit(limit); }
   void set_prefix_tables(table_map prefix_tables, table_map prev_tables) {
     return m_qs->set_prefix_tables(prefix_tables, prev_tables);
   }

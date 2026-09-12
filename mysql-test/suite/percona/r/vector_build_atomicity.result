@@ -1,0 +1,77 @@
+#
+# PS-11300: an INPLACE index build is one transaction.
+#
+# vec_build_index runs on the ALTER's own transaction, not on a
+# sub-transaction, so the persistor callbacks must not commit it.
+# If they do, the DDL commits itself a node at a time: the
+# dictionary changes made so far land, trx->dict_operation is
+# cleared, the ALTER's locks are dropped mid-statement, and a
+# failure can no longer roll the build back.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+(2, STRING_TO_VECTOR('[1,0]')),
+(3, STRING_TO_VECTOR('[2,0]')),
+(4, STRING_TO_VECTOR('[3,0]')),
+(5, STRING_TO_VECTOR('[4,0]'));
+# Drop the key; the hidden column stays, so the next ADD can go INPLACE.
+ALTER TABLE t1 DROP KEY vk;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Fail the build partway through, using the documented memory bound
+# rather than a debug hook: the pre-flight check passes because no
+# graph is resident, the first node is inserted and persisted, and
+# then the per-row budget check refuses the rest.
+SET @sv = @@GLOBAL.innodb_hnsw_max_memory;
+SET GLOBAL innodb_hnsw_max_memory = 1;
+ALTER TABLE t1 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET GLOBAL innodb_hnsw_max_memory = @sv;
+# The failed ALTER must have left nothing behind: no index in the
+# table definition, no orphaned aux tablespace, and the rows still
+# readable. The aux count is the assertion that bites — a build that
+# commits itself piecemeal leaves an aux table rollback cannot remove.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COUNT(*) AS leftover_aux_tables FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME LIKE 'test/percona_vec_%';
+leftover_aux_tables
+0
+SELECT id FROM t1 ORDER BY id;
+id
+1
+2
+3
+4
+5
+# And a second, successful build must work on the same table —
+# which it cannot if the first one committed part of itself.
+ALTER TABLE t1 ADD KEY vk3 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `vk3` (`v`) TYPE `hnsw` WITH (`M`=4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
+id
+1
+2
+3
+4
+5
+DROP TABLE t1;

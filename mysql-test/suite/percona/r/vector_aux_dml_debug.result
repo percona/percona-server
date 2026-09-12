@@ -1,0 +1,79 @@
+#
+# PS-11300: parser-free DML on vector aux tables (vec0dml module).
+# Exercised through the innodb_interpreter debug interface — this
+# tests the storage layer in isolation, before the INSERT path is
+# wired (next commits). Covers: insert, neighbor update, MVCC load
+# (dump), durability across restart, and off-page BLOB columns.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+# Insert three graph rows directly into the aux table.
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 1 0 1.0,0.0,0.0,0.0 -';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: inserted id=1
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 2 1 0.0,1.0,0.0,0.0 1|1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: inserted id=2
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 3 0 0.0,0.0,1.0,0.0 1:2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: inserted id=3
+# Dump: three rows, max_id=3, neighbor lists round-tripped.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=3 max_id=3
+id=1 level=0 base_pk=1 nb=
+id=2 level=1 base_pk=2 nb=1,1
+id=3 level=0 base_pk=3 nb=1,2
+
+# Duplicate id must fail (aux PK enforced by the insert path).
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 1 0 9.0,9.0,9.0,9.0 -';
+ERROR 42000: Variable 'innodb_interpreter' can't be set to the value of 'vec_aux_insert_row test/t1 1 0 9.0,9.0,9.0,9.0 -'
+# Update neighbors of id=1 (the update-callback persistence shape).
+SET SESSION innodb_interpreter = 'vec_aux_update_row test/t1 1 2:3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: updated id=1
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=3 max_id=3
+id=1 level=0 base_pk=1 nb=2,3
+id=2 level=1 base_pk=2 nb=1,1
+id=3 level=0 base_pk=3 nb=1,2
+
+# Updating a nonexistent id fails cleanly.
+SET SESSION innodb_interpreter = 'vec_aux_update_row test/t1 42 1:2';
+ERROR 42000: Variable 'innodb_interpreter' can't be set to the value of 'vec_aux_update_row test/t1 42 1:2'
+# Durability: restart, rows and neighbor updates must survive.
+# restart
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=3 max_id=3
+id=1 level=0 base_pk=1 nb=2,3
+id=2 level=1 base_pk=2 nb=1,1
+id=3 level=0 base_pk=3 nb=1,2
+
+DROP TABLE t1;
+#
+# Off-page BLOB case: VECTOR(2048) = 8KB vector value forces
+# external storage; the load path must fetch it back whole.
+#
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2048) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+PASS: inserted id=7
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=1 max_id=7
+id=7 level=0 base_pk=7 nb=
+
+DROP TABLE t2;

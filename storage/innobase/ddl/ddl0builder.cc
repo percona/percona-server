@@ -39,10 +39,13 @@ Created 2020-11-01 by Sunny Bains. */
 #include "ddl0impl-merge.h"
 #include "ddl0impl-rtree.h"
 #include "lob0lob.h"
+#include "mach0data.h"
 #include "os0thread-create.h"
 #include "row0ext.h"
 #include "row0vers.h"
 #include "ut0stage.h"
+#include "vec0aux.h"
+#include "vec0hnsw.h"
 
 namespace ddl {
 
@@ -625,6 +628,11 @@ Builder::~Builder() noexcept {
     ut::delete_(m_btr_load);
     m_btr_load = nullptr;
   }
+
+  /* Normally released by vec_build(); still set if the build errored out
+  before reaching VEC_BUILD. */
+  vec_build_free(m_vec);
+  m_vec = nullptr;
 }
 
 dberr_t Builder::check_state_of_online_build_log() noexcept {
@@ -656,11 +664,19 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
   auto buffer_size = m_ctx.scan_buffer_size(n_threads);
   auto create_thread_ctx = [&](size_t id, dict_index_t *index) -> dberr_t {
-    auto key_buffer = ut::new_withkey<Key_sort_buffer>(
-        ut::make_psi_memory_key(mem_key_ddl), index, buffer_size.first);
+    /* A vector index is never sorted or merged - ADD goes straight to
+    VEC_BUILD - so it needs neither a key buffer nor the file buffers
+    below. Key_sort_buffer would be built over an index with no key
+    fields in any case. */
+    Key_sort_buffer *key_buffer = nullptr;
 
-    if (key_buffer == nullptr) {
-      return DB_OUT_OF_MEMORY;
+    if (!is_vector_index()) {
+      key_buffer = ut::new_withkey<Key_sort_buffer>(
+          ut::make_psi_memory_key(mem_key_ddl), index, buffer_size.first);
+
+      if (key_buffer == nullptr) {
+        return DB_OUT_OF_MEMORY;
+      }
     }
 
     auto thread_ctx = ut::new_withkey<Thread_ctx>(
@@ -672,6 +688,10 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
     }
 
     m_thread_ctxs.push_back(thread_ctx);
+
+    if (is_vector_index()) {
+      return DB_SUCCESS;
+    }
 
     thread_ctx->m_aligned_buffer =
         ut::make_unique_aligned<byte[]>(ut::make_psi_memory_key(mem_key_ddl),
@@ -710,6 +730,29 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
     return DB_SUCCESS;
   };
+
+  if (is_vector_index()) {
+    /* TODO(PS-11300): scaffolding. vector_index_build_parallel.test greps
+    this to prove the build really got a parallel scan, because nothing
+    else reports it. Replace with a status variable or a counter in
+    Parallel_reader when there is one, and drop this.
+
+    It is the thread count the scan was GIVEN, which follows from
+    innodb_parallel_read_threads, the free thread pool and the tree's
+    shape. How many of them actually take a range is a race on the
+    reader's shared queue and is deliberately not reported. */
+    ut_d(ib::info() << "vec build scan threads: " << n_threads);
+
+    /* M and ef_construction live only in the index definition the ALTER
+    is producing, so the build resolves them from m_ctx.m_table. */
+    m_vec = vec_build_start(m_index, m_ctx.m_table);
+
+    if (m_vec == nullptr) {
+      set_error(DB_OUT_OF_MEMORY);
+      set_next_state();
+      return get_error();
+    }
+  }
 
   if (is_fts_index()) {
     auto &fts = m_ctx.m_fts;
@@ -920,7 +963,18 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
     const auto col = ifield->col;
     const auto col_no = dict_col_get_no(col);
 
-    /* Process the Doc ID column. */
+    /* A rebuild that INTRODUCES percona_vec_aux_id would have to mint a
+    label for every copied row. No such rebuild reaches the builder:
+    check_if_supported_inplace_alter returns HA_ALTER_INPLACE_NOT_SUPPORTED
+    when the column does not exist yet, so the first ADD VECTOR INDEX goes
+    through COPY, and every rebuild the builder does see already has the
+    column and copies it like any other. Asserting that here would be
+    asserting on a condition no caller can produce; the branch that used
+    to mint is gone instead.
+
+    The copy case below carries existing ids through untouched, which is
+    what keeps base-to-aux linkage intact across a rebuild - exactly like
+    FTS_DOC_ID via Fetch_sequence. */
     if (likely(fts.m_doc_id == nullptr || !fts.m_doc_id->is_generated() ||
                col_no != m_index->table->fts->doc_col || col->is_virtual())) {
       dfield_t *src_field;
@@ -1642,6 +1696,18 @@ dberr_t Builder::add_row(Cursor &cursor, Row &row, size_t thread_id,
     if (!cursor.eof()) {
       err = batch_add_row(row, thread_id);
     }
+  } else if (is_vector_index()) {
+    /* The row goes into the in-memory graph and nowhere else: the build
+    persistor writes nothing, so this takes no latches and calls no row
+    API, which is what lets it run inside the scan's callback. The aux
+    table is written once, from a walk of the finished graph, in
+    VEC_BUILD. */
+    if (!cursor.eof()) {
+      err = vec_build_add_row(m_vec, m_ctx.m_new_table, row.m_ptr);
+      if (err != DB_SUCCESS) {
+        err = handle_error(err);
+      }
+    }
   } else {
     err = bulk_add_row(cursor, row, thread_id, std::move(latch_release));
     if (unlikely(err != DB_OVERFLOW && err != DB_SUCCESS &&
@@ -1983,6 +2049,31 @@ void Builder::write_redo(const dict_index_t *index) noexcept {
   mtr.commit();
 }
 
+dberr_t Builder::vec_build() noexcept {
+  ut_a(is_vector_index());
+  ut_a(m_vec != nullptr);
+
+  /* The aux rows ride the ALTER's own transaction, so a failure here
+  rolls them back with the rest of the statement. */
+  /* The statement's observer, borrowed: ddl::Context flushes it once every
+  builder is done, exactly as ddl::FTS does for its aux tables. */
+  auto err = vec_build_write_aux(m_vec, m_ctx.m_trx, m_ctx.m_new_table,
+                                 m_ctx.m_trx->mysql_thd,
+                                 m_ctx.flush_observer());
+
+  vec_build_free(m_vec);
+  m_vec = nullptr;
+
+  if (err != DB_SUCCESS) {
+    set_error(err);
+    set_next_state();
+    return get_error();
+  }
+
+  set_state(State::FINISH);
+  return DB_SUCCESS;
+}
+
 dberr_t Builder::fts_sort_and_build() noexcept {
   ut_a(is_fts_index());
 
@@ -2160,7 +2251,9 @@ void Builder::set_next_state() noexcept {
       break;
 
     case State::ADD:
-      if (is_fts_index()) {
+      if (is_vector_index()) {
+        set_state(State::VEC_BUILD);
+      } else if (is_fts_index()) {
         set_state(State::FTS_SORT_AND_BUILD);
       } else if (!is_skip_file_sort()) {
         set_state(State::SETUP_SORT);
@@ -2183,6 +2276,10 @@ void Builder::set_next_state() noexcept {
       break;
 
     case State::FTS_SORT_AND_BUILD:
+      set_state(State::FINISH);
+      break;
+
+    case State::VEC_BUILD:
       set_state(State::FINISH);
       break;
 
@@ -2217,6 +2314,11 @@ dberr_t Loader::Task::operator()() noexcept {
     case Builder::State::FTS_SORT_AND_BUILD:
       ut_a(m_builder->is_fts_index());
       err = m_builder->fts_sort_and_build();
+      break;
+
+    case Builder::State::VEC_BUILD:
+      ut_a(m_builder->is_vector_index());
+      err = m_builder->vec_build();
       break;
 
     case Builder::State::FINISH:

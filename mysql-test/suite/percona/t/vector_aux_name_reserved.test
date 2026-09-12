@@ -1,0 +1,41 @@
+--echo #
+--echo # PS-11299: the fully-formed name "percona_vec_<type>_<tid>_<iid>"
+--echo # is reserved for InnoDB-managed vector auxiliary tables. CREATE
+--echo # TABLE with such a name is refused at the ha_innobase::create
+--echo # gate, mirroring the reservation FTS enforces for its own
+--echo # computed names.
+--echo #
+--echo # The check matches the COMPLETE shape, not the prefix. Reserving
+--echo # every "percona_vec_*" name would restrict the user namespace
+--echo # permanently and would reject such tables on upgrade, to guard
+--echo # against a collision the exact check catches anyway. FTS draws
+--echo # the line in the same place, which is why "fts_data" is legal.
+--echo #
+
+--echo # Fully-formed aux names — rejected.
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE `percona_vec_hnsw_0000000000000042_0000000000000099` (id INT PRIMARY KEY);
+
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE `percona_vec_hnsw_1_2` (id INT PRIMARY KEY);
+
+--echo # Our prefix, but no resolvable type token — an ordinary table.
+CREATE TABLE percona_vec_1_2 (id INT PRIMARY KEY);
+DROP TABLE percona_vec_1_2;
+
+CREATE TABLE percona_vec_data (id INT PRIMARY KEY);
+DROP TABLE percona_vec_data;
+
+--echo # A known type token but no id pair — still an ordinary table.
+CREATE TABLE percona_vec_hnsw_notanid (id INT PRIMARY KEY);
+DROP TABLE percona_vec_hnsw_notanid;
+
+--echo # Names that were rejected before this became an exact check.
+CREATE TABLE vec_1_2 (id INT PRIMARY KEY);
+DROP TABLE vec_1_2;
+
+CREATE TABLE vec_hnsw_1_2 (id INT PRIMARY KEY);
+DROP TABLE vec_hnsw_1_2;
+
+CREATE TABLE vector_thing (id INT PRIMARY KEY);
+DROP TABLE vector_thing;

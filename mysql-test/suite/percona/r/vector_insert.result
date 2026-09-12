@@ -1,0 +1,115 @@
+#
+# PS-11299 phase 1: INSERT into a vec-indexed table must succeed.
+#
+# Before this commit, INSERT crashed:
+#   - rec_get_converted_size_comp_prefix_low at rem0rec.cc:406
+#     (percona_vec_aux_id NOT NULL field had SQL_NULL value —
+#      the column was never stamped)
+#   - btr_cur_search_to_nth_level at dict0dict.cc:3664
+#     (row_ins tried to insert into vector index B-tree which
+#      has page=FIL_NULL by design)
+#
+# The fix:
+#   1. Auto-stamp percona_vec_aux_id from a per-table atomic counter in
+#      row_mysql_convert_row_to_innobase (mirrors fts_create_doc_id).
+#   2. Skip vector indexes in row_ins entry loop (mirrors the
+#      DICT_FTS skip there).
+#
+# Phase-1 boundary: the aux table stays EMPTY — HNSW row
+# creation (vec/level/neighbors) is PS-11300. The counter does
+# not yet persist across restart (TODO PS-11300); duplicates
+# after restart are benign because the aux has no rows.
+#
+# KNOWN ISSUES (not addressed in this commit, tracked separately):
+#   - SELECT COUNT(*) without FORCE INDEX picks the vector
+#     index and returns 0 (planner thinks vec index has no rows
+#     and is the cheapest cover). Use FORCE INDEX (PRIMARY).
+#   - SELECT after ALGORITHM=INSTANT ADD COLUMN on a populated
+#     vec-indexed table asserts at row0sel.ic:199
+#     (mysql_col_len == len). Avoid INSTANT in tests below.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+k INT,
+v VECTOR(8) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 6)
+);
+# === Multiple INSERTs round-trip ===
+INSERT INTO t1 VALUES
+(1, 10, STRING_TO_VECTOR('[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]')),
+(2, 20, STRING_TO_VECTOR('[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]')),
+(3, 30, STRING_TO_VECTOR('[3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]')),
+(4, 40, STRING_TO_VECTOR('[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]'));
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+id	k	v_text
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
+SELECT COUNT(*) AS row_count FROM t1 FORCE INDEX (PRIMARY);
+row_count
+4
+# === ALTER ADD COLUMN COPY (rebuild) preserves data ===
+ALTER TABLE t1 ADD COLUMN c2 INT, ALGORITHM=COPY;
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text, c2 FROM t1 ORDER BY id;
+id	k	v_text	c2
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]	NULL
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]	NULL
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]	NULL
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]	NULL
+SELECT COUNT(*) AS row_count_after_copy FROM t1 FORCE INDEX (PRIMARY);
+row_count_after_copy
+4
+# === OPTIMIZE TABLE preserves data ===
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+id	k	v_text
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
+SELECT COUNT(*) AS row_count_after_optimize FROM t1 FORCE INDEX (PRIMARY);
+row_count_after_optimize
+4
+# === INSERT after OPTIMIZE works ===
+INSERT INTO t1 (id, k, v) VALUES
+(5, 50, STRING_TO_VECTOR('[5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]'));
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+id	k	v_text
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
+5	50	[5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00]
+SELECT COUNT(*) AS row_count_after_more FROM t1 FORCE INDEX (PRIMARY);
+row_count_after_more
+5
+# === RESTART preserves data; subsequent INSERT works ===
+# Note: counter resets on restart — phase-1 behaviour. Duplicates
+# in percona_vec_aux_id are harmless because the aux is empty.
+# restart
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+id	k	v_text
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
+5	50	[5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00]
+INSERT INTO t1 (id, k, v) VALUES
+(6, 60, STRING_TO_VECTOR('[6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]'));
+SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
+id	k	v_text
+1	10	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+2	20	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+3	30	[3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00,3.00000e+00]
+4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
+5	50	[5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00]
+6	60	[6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00]
+SELECT COUNT(*) AS row_count_after_restart FROM t1 FORCE INDEX (PRIMARY);
+row_count_after_restart
+6
+DROP TABLE t1;
+# === Aux .ibd cleaned up on DROP ===

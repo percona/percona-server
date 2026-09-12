@@ -87,9 +87,15 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   for (size_t i = 0; i < n_indexes; ++i) {
     m_indexes.push_back(indexes[i]);
 
-    if (i == 0) {
+    if (m_indexes.size() == 1) {
       ut_a(!m_skip_pk_sort || m_indexes.back()->is_clustered());
-      m_n_uniq = dict_index_get_n_unique(m_indexes.back());
+      /* A vector index has no key fields, and never reaches the sort:
+      Builder::set_next_state sends it from ADD straight to VEC_BUILD. It
+      must not set m_n_uniq either, which feeds Compare_key through
+      setup_pk_sort and asserts n_unique > 0. */
+      if (!m_indexes.back()->is_vector()) {
+        m_n_uniq = dict_index_get_n_unique(m_indexes.back());
+      }
     }
 
     if (!dict_index_is_spatial(m_indexes.back())) {
@@ -514,6 +520,16 @@ dberr_t Context::read_init(Cursor *cursor) noexcept {
 }
 
 dberr_t Context::build() noexcept {
+  /* If every requested index was filtered out (e.g. ALTER ADD only
+  vector indexes), there is nothing to merge-sort. The Loader's
+  Parallel_cursor asserts on an empty builder set, so short-circuit
+  here. The dict_index_t entries were already added to dict_sys
+  during prepare; the build phase has no per-row work for vector
+  indexes in phase 1. */
+  if (m_indexes.empty()) {
+    return cleanup(DB_SUCCESS);
+  }
+
   Loader loader{*this};
 
   const auto err = cleanup(loader.build_all());

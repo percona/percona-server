@@ -1,0 +1,87 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: UPDATE of an indexed vector column.
+--echo #
+--echo # A graph node is immutable — HNSW cannot move a point once its
+--echo # neighbours link to it — so a changed vector becomes a NEW node
+--echo # under a fresh label, and the base row is re-pointed at it. The
+--echo # re-point rides the user's own update vector, the way FTS carries
+--echo # its Doc ID, so the row and the new node become visible together.
+--echo #
+--echo # The superseded node is deliberately left alone. It is still the
+--echo # right answer for read views that predate the UPDATE, and removing
+--echo # it would break their isolation rather than tidy up.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+INSERT INTO t1 VALUES (7, 100, STRING_TO_VECTOR('[1,0,0,0]'));
+INSERT INTO t1 VALUES (8, 200, STRING_TO_VECTOR('[0,1,0,0]'));
+--echo # Two nodes, labels 1 and 2, base_pk 7 and 8.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Change row 7's vector. Expect a THIRD node: the new vector under a
+--echo # fresh label, still base_pk=7. Node 1 keeps the OLD vector and its
+--echo # own base_pk=7 — two nodes now name the same row on purpose.
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,1,0]') WHERE id = 7;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+SELECT id, k FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+
+--echo # Updating a NON-vector column must not touch the graph at all: no
+--echo # new node, no new label.
+UPDATE t1 SET k = 101 WHERE id = 7;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # A rolled-back vector UPDATE still burns its label and still leaves
+--echo # its node behind: the aux writes ride a sub-transaction and do not
+--echo # roll back. The node becomes an orphan — it names row 7, but row 7
+--echo # names a different node — and the read path filters it.
+BEGIN;
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 8;
+ROLLBACK;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+
+--echo # DELETE writes nothing to the aux, by design.
+DELETE FROM t1 WHERE id = 8;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo #
+--echo # KNOWN WRONG RESULT, and why it is not a failing testcase here.
+--echo #
+--echo # After the UPDATE above, nodes 1 and 3 BOTH carry base_pk=7 —
+--echo # node 1 holding the superseded vector [1,0,0,0], node 3 the
+--echo # current [0,0,1,0]. Check ② (is base_pk visible to my read view?)
+--echo # says yes to both, because row 7 is live. Only check ①
+--echo # (row.percona_vec_aux_id == node_id) separates them, and that needs
+--echo # a node id that k_nn_search does not return today. Until it does, a
+--echo # kNN query that walks into node 1 will rank row 7 by its OLD
+--echo # vector.
+--echo #
+--echo # This cannot be written as a failing SELECT yet: the branch has no
+--echo # kNN read path to issue one against (P4). What the dump above
+--echo # records IS the defect — two live nodes naming one row — and the
+--echo # day check ① lands, the read path must return exactly one of them.
+--echo #
+
+--echo # A vector column with no vector index on it is unaffected.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+UPDATE t2 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 1;
+SELECT id, VECTOR_TO_STRING(v) FROM t2;
+
+DROP TABLE t1, t2;

@@ -1,0 +1,47 @@
+#
+# PS-11299: prepare_inplace_alter_table_dict error path must drop
+# any per-vector-index aux table that was already created. Without
+# the cleanup, the aux dict_table_t leaks (pinned non-LRU in
+# dict_sys) and a subsequent ALTER trying to add the index with
+# the same id would collide on the aux name.
+#
+# Triggered with debug knob vec_prepare_fail_after_aux_create — the
+# aux is created, then prepare returns DB_OUT_OF_MEMORY, and the
+# error_handling path must call vec_aux_drop_one_table for each
+# is_vector() entry in ctx->add_index.
+#
+CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+# The FIRST ADD does not use the INPLACE prepare path at all —
+# the hidden column has to materialize, so it falls back to COPY.
+# With the knob ARMED it must therefore SUCCEED: that is a
+# standing guard that the INPLACE path was not entered.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+percona_vec_hnsw_<TID>_<IID>.ibd
+# Drop it again. The hidden column is retained, so the NEXT ADD
+# runs INPLACE and does reach the prepare path — which is where
+# the injected failure belongs.
+ALTER TABLE tva DROP KEY v;
+# Inject failure so the prepare path bails out *after* the aux was
+# created. The DDL must error and the aux must not be left behind.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6), ALGORITHM=INPLACE;
+Got one of the listed errors
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+# No vec_<TID>_<IID>.ibd files left behind. (If the cleanup is
+# missing, the dict_table_t entry leaks and an aux .ibd may also
+# remain on disk.)
+# Retrying the same DDL without the injection must succeed —
+# proving the dict_sys slot is free and re-creation works.
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE tva;
+Table	Create Table
+tva	CREATE TABLE `tva` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE tva;

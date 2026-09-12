@@ -1,0 +1,115 @@
+#
+# PS-11300: UPDATE of an indexed vector column.
+#
+# A graph node is immutable — HNSW cannot move a point once its
+# neighbours link to it — so a changed vector becomes a NEW node
+# under a fresh label, and the base row is re-pointed at it. The
+# re-point rides the user's own update vector, the way FTS carries
+# its Doc ID, so the row and the new node become visible together.
+#
+# The superseded node is deliberately left alone. It is still the
+# right answer for read views that predate the UPDATE, and removing
+# it would break their isolation rather than tidy up.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+k INT,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (7, 100, STRING_TO_VECTOR('[1,0,0,0]'));
+INSERT INTO t1 VALUES (8, 200, STRING_TO_VECTOR('[0,1,0,0]'));
+# Two nodes, labels 1 and 2, base_pk 7 and 8.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=3 max_id=2
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=7 nb=#
+id=2 level=# base_pk=8 nb=#
+
+# Change row 7's vector. Expect a THIRD node: the new vector under a
+# fresh label, still base_pk=7. Node 1 keeps the OLD vector and its
+# own base_pk=7 — two nodes now name the same row on purpose.
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,1,0]') WHERE id = 7;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=4 max_id=3
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=7 nb=#
+id=2 level=# base_pk=8 nb=#
+id=3 level=# base_pk=7 nb=#
+
+SELECT id, k FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+id	k
+7	100
+8	200
+# Updating a NON-vector column must not touch the graph at all: no
+# new node, no new label.
+UPDATE t1 SET k = 101 WHERE id = 7;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=4 max_id=3
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=7 nb=#
+id=2 level=# base_pk=8 nb=#
+id=3 level=# base_pk=7 nb=#
+
+# A rolled-back vector UPDATE still burns its label and still leaves
+# its node behind: the aux writes ride a sub-transaction and do not
+# roll back. The node becomes an orphan — it names row 7, but row 7
+# names a different node — and the read path filters it.
+BEGIN;
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 8;
+ROLLBACK;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=5 max_id=4
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=7 nb=#
+id=2 level=# base_pk=8 nb=#
+id=3 level=# base_pk=7 nb=#
+id=4 level=# base_pk=8 nb=#
+
+SELECT id, VECTOR_TO_STRING(v) FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+id	VECTOR_TO_STRING(v)
+7	[0.00000e+00,0.00000e+00,1.00000e+00,0.00000e+00]
+8	[0.00000e+00,1.00000e+00,0.00000e+00,0.00000e+00]
+# DELETE writes nothing to the aux, by design.
+DELETE FROM t1 WHERE id = 8;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=5 max_id=4
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=7 nb=#
+id=2 level=# base_pk=8 nb=#
+id=3 level=# base_pk=7 nb=#
+id=4 level=# base_pk=8 nb=#
+
+#
+# KNOWN WRONG RESULT, and why it is not a failing testcase here.
+#
+# After the UPDATE above, nodes 1 and 3 BOTH carry base_pk=7 —
+# node 1 holding the superseded vector [1,0,0,0], node 3 the
+# current [0,0,1,0]. Check ② (is base_pk visible to my read view?)
+# says yes to both, because row 7 is live. Only check ①
+# (row.percona_vec_aux_id == node_id) separates them, and that needs
+# a node id that k_nn_search does not return today. Until it does, a
+# kNN query that walks into node 1 will rank row 7 by its OLD
+# vector.
+#
+# This cannot be written as a failing SELECT yet: the branch has no
+# kNN read path to issue one against (P4). What the dump above
+# records IS the defect — two live nodes naming one row — and the
+# day check ① lands, the read path must return exactly one of them.
+#
+# A vector column with no vector index on it is unaffected.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+UPDATE t2 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 1;
+SELECT id, VECTOR_TO_STRING(v) FROM t2;
+id	VECTOR_TO_STRING(v)
+1	[0.00000e+00,0.00000e+00,0.00000e+00,1.00000e+00]
+DROP TABLE t1, t2;

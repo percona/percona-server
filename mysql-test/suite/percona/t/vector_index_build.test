@@ -1,0 +1,125 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11299/PS-11300: ADD VECTOR INDEX populates the graph.
+--echo #
+--echo # The FIRST ADD must materialize the hidden percona_vec_aux_id
+--echo # column, which means rewriting every row, so it falls back to
+--echo # ALGORITHM=COPY and write_row builds the graph row by row.
+--echo #
+--echo # Every ADD after that runs INPLACE: the column was retained on
+--echo # DROP INDEX, so vec_build_index populates the graph and the aux
+--echo # from one clustered scan, reusing each row's stamped label and
+--echo # without rewriting a single base row.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (2, STRING_TO_VECTOR('[0,1,0,0]')),
+                     (3, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo # First ADD, explicit INPLACE: refused, not silently empty.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+
+--echo # First ADD, default algorithm: falls back to COPY and builds a
+--echo # node per row. This is the case that used to give nodes=0.
+ALTER TABLE t1 ADD KEY k1 (v) TYPE hnsw WITH (M = 4);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # DROP the index. The hidden column is retained (FTS_DOC_ID
+--echo # parity), which is what makes the next ADD eligible for INPLACE.
+ALTER TABLE t1 DROP KEY k1;
+
+--echo # Record the table id, to prove the re-ADD does not rebuild.
+--let $tid_before = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME='test/t1'`
+
+--echo # Re-ADD with explicit INPLACE: now allowed, and populated by the
+--echo # clustered-scan build.
+ALTER TABLE t1 ADD KEY k2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--let $tid_after = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME='test/t1'`
+--echo # TABLE_ID unchanged across the re-ADD — no table rebuild:
+if ($tid_before != $tid_after) {
+  --echo ERROR: table was rebuilt ($tid_before -> $tid_after)
+}
+if ($tid_before == $tid_after) {
+  --echo table_id_unchanged=1
+}
+
+--echo # The rebuilt index still answers for every row after a restart,
+--echo # which is the real proof the aux was written and not just memory.
+--source include/restart_mysqld.inc
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # A DELETEd row is not collected by the build, so DROP/ADD
+--echo # compacts tombstones — the first working "OPTIMIZE" for a vector
+--echo # index.
+DELETE FROM t1 WHERE id = 2;
+ALTER TABLE t1 DROP KEY k2;
+ALTER TABLE t1 ADD KEY k3 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;
+
+--echo #
+--echo # The graph is not just present, it ANSWERS. Until the server read
+--echo # path exists (Part II section 29) this is the only way to query
+--echo # it: vec_knn runs k_nn_search against the runtime, loading it
+--echo # from the aux first.
+--echo #
+CREATE TABLE tk (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO tk VALUES (10, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (20, STRING_TO_VECTOR('[0,1,0,0]')),
+                     (30, STRING_TO_VECTOR('[0,0,1,0]')),
+                     (40, STRING_TO_VECTOR('[0,0,0,1]'));
+ALTER TABLE tk ADD KEY kv (v) TYPE hnsw WITH (M = 4);
+--echo # Touch the table so the handler opens it and creates the runtime
+--echo # (vec_runtime_open runs in ha_innobase::open).
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+
+--echo # Nearest to [1,0,0,0] is row 10, then the rest.
+SET SESSION innodb_interpreter = 'vec_knn test/tk 1 16 1,0,0,0';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_knn test/tk 4 16 1,0,0,0';
+# Rows 20/30/40 are all at distance 2 from [1,0,0,0] — the basis vectors
+# are equidistant, so their order is a tie broken by traversal, which the
+# layer draws decide. The k=1 query above asserts the nearest row
+# deterministically; here only the hit count is meaningful.
+--replace_regex /base_pks=[0-9,]*/base_pks=<tie order varies>/
+SELECT @@session.innodb_interpreter_output;
+--echo # Nearest to [0,0,1,0] is row 30.
+SET SESSION innodb_interpreter = 'vec_knn test/tk 1 16 0,0,1,0';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Same answers after a restart, which means they came from the aux
+--echo # and not from a graph that happened to still be in memory.
+--source include/restart_mysqld.inc
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+SET SESSION innodb_interpreter = 'vec_knn test/tk 1 16 0,0,1,0';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_knn test/tk 1 16 0,0,0,1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # And after an INPLACE rebuild of the index, the answers must be
+--echo # the same — the build produced an equivalent graph, not just a
+--echo # populated table.
+ALTER TABLE tk DROP KEY kv;
+ALTER TABLE tk ADD KEY kv2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+SET SESSION innodb_interpreter = 'vec_knn test/tk 1 16 1,0,0,0';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_knn test/tk 4 16 0,0,0,1';
+# Rows 20/30/40 are all at distance 2 from [1,0,0,0] — the basis vectors
+# are equidistant, so their order is a tie broken by traversal, which the
+# layer draws decide. The k=1 query above asserts the nearest row
+# deterministically; here only the hit count is meaningful.
+--replace_regex /base_pks=[0-9,]*/base_pks=<tie order varies>/
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE tk;

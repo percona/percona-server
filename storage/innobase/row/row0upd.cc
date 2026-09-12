@@ -3219,7 +3219,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
       break;
     }
 
-    if (node->index->type != DICT_FTS) {
+    if (node->index->type != DICT_FTS && !node->index->is_vector()) {
       err = row_upd_sec_step(node, thr);
 
       if (err != DB_SUCCESS) {

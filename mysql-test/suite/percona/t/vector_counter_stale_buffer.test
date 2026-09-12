@@ -1,0 +1,74 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # REPRO (PS-11300): the percona_vec_aux_id counter can regress across a
+--echo # crash, so a label that was already handed out is handed out again.
+--echo #
+--echo # vec_assign_next_aux_id() logs the record for its id and commits the
+--echo # mtr, then raises vec_aux_autoinc_persisted. Between those two steps
+--echo # the table is METADATA_DIRTY while the in-memory watermark still holds
+--echo # the OLD value. A checkpoint landing there writes that old value into
+--echo # DDTableBuffer, clears the dirty flag, and sets the checkpoint beyond
+--echo # the record it just failed to account for - so the new value is in
+--echo # neither durable place.
+--echo #
+--echo # The log traffic below happens INSIDE the window, before the
+--echo # checkpoint, on purpose: it puts the record well below the checkpoint
+--echo # LSN rather than in the same log block. That is what makes the record
+--echo # unreachable to recovery, and it is also why re-dirtying the table
+--echo # when the watermark finally moves does not rescue it - by then the
+--echo # record is already below the checkpoint.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+CREATE TABLE noise (id INT PRIMARY KEY AUTO_INCREMENT,
+                    pad CHAR(255)) ENGINE=InnoDB;
+
+--echo # Hand out 1, 2, 3 and checkpoint, so the buffer holds 3.
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output AS third_id;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+
+connect (con1, localhost, root,,);
+SET DEBUG_SYNC = 'vec_id_record_committed SIGNAL logged WAIT_FOR go';
+--send SET SESSION innodb_interpreter = 'vec_next_id test/t1'
+
+connection default;
+SET DEBUG_SYNC = 'now WAIT_FOR logged';
+
+--echo # id 4's record is committed to the log; the watermark still reads 3.
+--echo # Push the LSN past that record, then checkpoint: the snapshot writes
+--echo # the stale 3 and the checkpoint moves beyond the record.
+--disable_query_log
+let $i = 200;
+while ($i)
+{
+  INSERT INTO noise (pad) VALUES (REPEAT('x', 255));
+  dec $i;
+}
+--enable_query_log
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET DEBUG_SYNC = 'now SIGNAL go';
+
+connection con1;
+--reap
+SELECT @@session.innodb_interpreter_output AS fourth_id;
+
+connection default;
+disconnect con1;
+SET DEBUG_SYNC = 'RESET';
+
+--echo # Crash straight away - no checkpoint after the watermark moved.
+--source include/kill_and_restart_mysqld.inc
+
+--echo # 4 was handed out before the crash, so this must be 5.
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output AS after_crash_id;
+
+DROP TABLE t1, noise;

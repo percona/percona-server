@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysqld.h"  // system_charset_info
 #include "que0types.h"
 #include "row0sel.h"
+#include "vec0aux.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #if defined UNIV_HOTBACKUP && defined UNIV_DEBUG
@@ -868,6 +869,73 @@ bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
   return (log && dict_persist->check_persist_immediately());
 }
 
+bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
+                                mtr_t *mtr) {
+  /* Raise the watermark FIRST, before the dirty handshake below. That
+  order is the whole interlock with the checkpoint, and it is upstream's:
+  dict_table_autoinc_log raises, then marks dirty, then logs.
+
+  Whatever the thread then reads from dirty_status, the record it is about
+  to write is accounted for:
+
+    reads METADATA_DIRTY     the read beat the checkpoint's store of
+                             METADATA_BUFFERED, so the raise - earlier in
+                             program order - beat the checkpoint's read of
+                             the watermark, and the buffer already has it.
+
+    reads METADATA_BUFFERED  dict_table_mark_dirty blocks on
+                             dict_persist->mutex until the checkpoint has
+                             taken its LSN, so this record lands above the
+                             cap and recovery scans it.
+
+  There is no third case. Raising after the record instead - which this
+  code did until it was measured - leaves both branches meaningless: a
+  checkpoint in between writes the OLD value to DDTableBuffer, clears the
+  dirty flag, and moves the checkpoint past a record nothing will read
+  again. vector_counter_stale_buffer.test is that window.
+
+  DEVIATION FROM dict_table_autoinc_log: no per-table mutex. The autoinc
+  watermark is a plain integer whose read-compare-store max needs
+  autoinc_persisted_mutex; ours is a std::atomic and a CAS-max gives the
+  same never-regress guarantee. The interlock above needs only that the
+  raise precede the dirty read in program order, which it does.
+
+  And no skip test. Upstream logs only when the value exceeds the
+  watermark (WL#6204: "We only write logs when counter is 0 or is bigger
+  than table::autoinc_persisted"), which saves redo but lets a racing
+  assigner with a smaller value write nothing at all, trusting a record
+  that may never be written - see PS-autoinc-persist-crash-window.md. We
+  always log. The mtr the caller hands us is committed either way, so the
+  cost is one record in an mtr that was being committed anyway. */
+  dict_table_vec_next_id_persisted_advance(table, value);
+
+  if (table->dirty_status.load() != METADATA_DIRTY) {
+    dict_table_mark_dirty(table);
+  }
+  ut_ad(table->in_dirty_dict_tables_list);
+
+  PersistentTableMetadata metadata(table->id, table->version);
+  metadata.set_vec_next_id(value);
+
+  Persister *persister = dict_persist->persisters->get(PM_TABLE_VEC_IDX_ID);
+  persister->write_log(table->id, metadata, mtr);
+  /* No need to flush due to performance reason */
+
+  return (dict_persist->check_persist_immediately());
+}
+
+void dict_table_vec_next_id_persisted_advance(dict_table_t *table,
+                                              uint64_t value) {
+  /* CAS-max so the watermark never regresses under racing assigners.
+  Called only after the covering record's mini-transaction has
+  committed - see the ordering argument in
+  dict_table_vec_next_id_log. */
+  uint64_t prev = table->vec_aux_autoinc_persisted.load();
+  while (prev < value &&
+         !table->vec_aux_autoinc_persisted.compare_exchange_weak(prev, value)) {
+  }
+}
+
 /** Get all the FTS indexes on a table.
 @param[in]      table   table
 @param[out]     indexes all FTS indexes on this table
@@ -1179,6 +1247,21 @@ void dict_table_set_big_rows(dict_table_t *table) {
 void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
   ut_ad(dict_lru_validate());
   ut_ad(dict_sys_mutex_own());
+
+  /* DICT_TF2_HAS_VEC_AUX_COL and vec_aux_col are two halves of one fact:
+  the table has the hidden percona_vec_aux_id column, and it sits at that
+  ordinal. vec_add_aux_id_column sets both, and every path that builds a
+  dict_table_t with the column is supposed to call it - dd_fill_dict_table
+  when a table is opened, prepare_inplace_alter_table_dict when one is
+  rebuilt. Check the pair here, where a table enters the cache, because
+  neither half is checkable at first use: an unset ordinal asserts deep
+  in the vector code, and a table whose dd::Table carries the column
+  while its dict_table_t does not describes one more column than the
+  tablespace holds. In a release build both are silent. */
+  ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) ==
+       (table->vec_aux_col != ULINT_UNDEFINED));
+  ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) ||
+        !strcmp(table->get_col_name(table->vec_aux_col), VEC_AUX_ID_COL_NAME));
 
   table->cached = true;
 
@@ -3944,6 +4027,7 @@ void dict_persist_init() {
       ut::new_withkey<Persisters>(UT_NEW_THIS_FILE_PSI_KEY);
   dict_persist->persisters->add(PM_INDEX_CORRUPTED);
   dict_persist->persisters->add(PM_TABLE_AUTO_INC);
+  dict_persist->persisters->add(PM_TABLE_VEC_IDX_ID);
 
 #ifndef UNIV_HOTBACKUP
   dict_persist_update_log_margin();
@@ -3984,6 +4068,13 @@ static void dict_init_dynamic_metadata(dict_table_t *table,
 
   if (table->autoinc_persisted != 0) {
     metadata->set_autoinc(table->autoinc_persisted);
+  }
+
+  /* The hidden vec_idx_id counter of vector-indexed tables (PS-11300).
+  Nonzero only when the table ever consumed one, so ordinary tables
+  never carry the entry. */
+  if (table->vec_aux_autoinc_persisted.load() != 0) {
+    metadata->set_vec_next_id(table->vec_aux_autoinc_persisted.load());
   }
 
   /* Will initialize other metadata here */
@@ -4056,6 +4147,16 @@ static bool dict_table_apply_dynamic_metadata(
   if (autoinc > table->autoinc_persisted) {
     table->autoinc = autoinc;
     table->autoinc_persisted = autoinc;
+
+    get_dirty = true;
+  }
+
+  /* The hidden vec_idx_id counter (PS-11300) - same discipline as
+  autoinc above: only ever moves forward. */
+  const uint64_t vec_next_id = metadata->get_vec_next_id();
+  if (vec_next_id > table->vec_aux_autoinc_persisted.load()) {
+    table->vec_aux_autoinc_next_id.store(vec_next_id);
+    table->vec_aux_autoinc_persisted.store(vec_next_id);
 
     get_dirty = true;
   }
@@ -5748,6 +5849,65 @@ void AutoIncPersister::aggregate(
   }
 }
 
+ulint VecIdxIdPersister::write(const PersistentTableMetadata &metadata,
+                               byte *buffer, ulint size) const {
+  ulint length = 0;
+  const uint64_t value = metadata.get_vec_next_id();
+
+  /* Zero means "never used" - write nothing, exactly like a table
+  without an autoinc column writes no PM_TABLE_AUTO_INC payload worth
+  keeping. Skipping the entry entirely keeps ordinary tables' metadata
+  rows free of the Percona type byte. */
+  if (value == 0) {
+    return (0);
+  }
+
+  mach_write_to_1(buffer, static_cast<byte>(PM_TABLE_VEC_IDX_ID));
+  ++length;
+  ++buffer;
+
+  ulint len = mach_u64_write_much_compressed(buffer, value);
+  length += len;
+  buffer += len;
+
+  ut_ad(length <= size);
+  return (length);
+}
+
+ulint VecIdxIdPersister::read(PersistentTableMetadata &metadata,
+                              const byte *buffer, ulint size,
+                              bool *corrupt) const {
+  *corrupt = false;
+
+  const byte *start = buffer;
+  const auto value = mach_parse_u64_much_compressed(&start, buffer + size);
+
+  if (start == nullptr) {
+    /* Just incomplete data, not corrupted */
+    return (0);
+  }
+
+  metadata.set_vec_next_id(value);
+
+  const ulint consumed = start - buffer;
+  ut_ad(consumed <= size);
+  return (consumed);
+}
+
+void VecIdxIdPersister::aggregate(
+    PersistentTableMetadata &metadata,
+    const PersistentTableMetadata &new_entry) const {
+  /* DEVIATION FROM AutoIncPersister: the vec counter is monotonic for
+  the whole lifetime of a table_id - legitimate resets ride table_id
+  reassignment (TRUNCATE, IMPORT, rebuilds), never a version bump on
+  the same table. A newer-version redo entry written by ANOTHER
+  persister (e.g. autoinc after an INSTANT DDL) carries vec == 0;
+  taking it version-authoritatively would wipe the counter on crash
+  recovery. Always keep the maximum, and leave the shared version
+  field to the persisters whose semantics depend on it. */
+  metadata.set_vec_next_id_if_bigger(new_entry.get_vec_next_id());
+}
+
 /** Destructor */
 Persisters::~Persisters() {
   persisters_t::iterator iter;
@@ -5791,6 +5951,9 @@ Persister *Persisters::add(persistent_type_t type) {
     case PM_TABLE_AUTO_INC:
       persister = ut::new_withkey<AutoIncPersister>(UT_NEW_THIS_FILE_PSI_KEY);
       break;
+    case PM_TABLE_VEC_IDX_ID:
+      persister = ut::new_withkey<VecIdxIdPersister>(UT_NEW_THIS_FILE_PSI_KEY);
+      break;
     default:
       ut_d(ut_error);
       ut_o(break);
@@ -5820,14 +5983,16 @@ void Persisters::remove(persistent_type_t type) {
 size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
   size_t size = 0;
   byte *pos = buffer;
-  persistent_type_t type;
 
-  for (type = static_cast<persistent_type_t>(PM_SMALLEST_TYPE + 1);
-       type < PM_BIGGEST_TYPE;
-       type = static_cast<persistent_type_t>(type + 1)) {
+  /* Iterate the REGISTERED persisters rather than the numeric type
+  range: the type space is sparse since Percona's PM_TABLE_VEC_IDX_ID
+  sits at 200, far from upstream's dense low values. The map is
+  ordered by type, so the serialization order (1, 2, 200) stays
+  deterministic. */
+  for (const auto &entry : m_persisters) {
     ut_ad(size <= REC_MAX_DATA_SIZE);
 
-    Persister *persister = get(type);
+    Persister *persister = entry.second;
     ulint consumed = persister->write(metadata, pos, REC_MAX_DATA_SIZE - size);
 
     pos += consumed;

@@ -1,0 +1,44 @@
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # PS-11299: DROP TABLE must hold an exclusive MDL on the vector aux
+--echo # tables while it drops them.
+--echo #
+--echo # The aux tables are hidden, so the server took no metadata lock on
+--echo # them when it locked the parent. Without an explicit lock, the aux
+--echo # table is dropped from under any session still reading it. FTS solves
+--echo # this with fts_lock_all_aux_tables; this is the same thing for vector.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[1,1]'));
+
+--connect (con1, localhost, root,,)
+SET DEBUG_SYNC = 'vec_aux_mdl_acquired SIGNAL aux_locked WAIT_FOR go';
+--send DROP TABLE t1
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR aux_locked';
+
+--echo # The aux table is holding an EXCLUSIVE, GRANTED table MDL.
+SELECT object_type, lock_type, lock_status
+FROM performance_schema.metadata_locks
+WHERE object_name LIKE 'percona_vec_hnsw%'
+ORDER BY object_name;
+
+SET DEBUG_SYNC = 'now SIGNAL go';
+
+--connection con1
+--reap
+SET DEBUG_SYNC = 'RESET';
+--disconnect con1
+
+--connection default
+--echo # And the lock is gone once the drop is done.
+SELECT COUNT(*) AS leftover_aux_locks
+FROM performance_schema.metadata_locks
+WHERE object_name LIKE 'percona_vec_hnsw%';
+SET DEBUG_SYNC = 'RESET';

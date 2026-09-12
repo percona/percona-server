@@ -1,0 +1,95 @@
+--echo #
+--echo # PS-11300: a vector scan must not outlive its statement.
+--echo #
+--echo # A streaming kNN scan pins the aux table for its whole life —
+--echo # nn_search_next faults nodes in through load_node_cb, which reads
+--echo # the aux — so the scan holds a dictionary reference and an MDL
+--echo # ticket. Releasing that in index_end() alone is not enough: by the
+--echo # time the iterator is destroyed, ha_reset() has already cleared
+--echo # `inited`, so ha_index_or_rnd_end() does nothing and the reference
+--echo # leaks. The next DROP of that table then fails
+--echo # `table->get_ref_count() == 0` and kills the server.
+--echo #
+--echo # Every statement below is a SELECT that opens a scan, followed by
+--echo # something that needs the aux table released.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, 0, STRING_TO_VECTOR('[0,0]')),
+                      (2, 1, STRING_TO_VECTOR('[1,0]')),
+                      (3, 0, STRING_TO_VECTOR('[2,0]')),
+                      (4, 1, STRING_TO_VECTOR('[3,0]'));
+
+--echo # 1. Scan abandoned early: LIMIT is satisfied from the first batch,
+--echo #    so vec_read_next is never called again.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, 0, STRING_TO_VECTOR('[0,0]')),
+                      (2, 1, STRING_TO_VECTOR('[1,0]')),
+                      (3, 0, STRING_TO_VECTOR('[2,0]')),
+                      (4, 1, STRING_TO_VECTOR('[3,0]'));
+
+--echo # 2. Scan run to exhaustion: LIMIT exceeds the graph, so the scan
+--echo #    ends by emptying its frontier rather than by being abandoned.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+DROP TABLE t1;
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, 0, STRING_TO_VECTOR('[0,0]')),
+                      (2, 1, STRING_TO_VECTOR('[1,0]')),
+                      (3, 0, STRING_TO_VECTOR('[2,0]')),
+                      (4, 1, STRING_TO_VECTOR('[3,0]'));
+
+--echo # 3. A filter above the iterator consumes candidates, so the scan
+--echo #    refills at least once before the statement ends.
+SELECT id FROM t1 WHERE k = 1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+
+--echo # 4. DROP INDEX drops the aux table on its own, without the parent.
+ALTER TABLE t1 DROP KEY vk;
+SELECT id FROM t1 ORDER BY id;
+
+--echo # 5. Re-add, scan, then rebuild the table under it.
+ALTER TABLE t1 ADD KEY vk (v) TYPE hnsw WITH (M = 4);
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+ALTER TABLE t1 FORCE;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+
+--echo # 6. TRUNCATE drops and recreates the aux.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+TRUNCATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+
+INSERT INTO t1 VALUES (1, 0, STRING_TO_VECTOR('[0,0]')),
+                      (2, 1, STRING_TO_VECTOR('[1,0]'));
+
+--echo # 7. Back-to-back scans in one session: the second must not leak the
+--echo #    first, and a scan left open by a statement that errors must not
+--echo #    survive it either.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 1;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1, 0, STRING_TO_VECTOR('[9,9]'));
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # 8. A scan inside a transaction that rolls back.
+BEGIN;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+ROLLBACK;
+
+--echo # 9. And the scan must not keep the table pinned across a restart.
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t1;

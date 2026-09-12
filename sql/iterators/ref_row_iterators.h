@@ -73,6 +73,30 @@ class RefIterator final : public TableRowIterator {
   Like RefIterator, but after it's returned all its rows, will also search for
   rows that match NULL, i.e., WHERE column=\<ref\> OR column IS NULL.
  */
+/**
+  Approximate kNN over a vector index: DoRead() returns base rows in
+  ascending distance from a constant query vector, via the handler's
+  vec_read_first/vec_read_next (PS-11300).
+*/
+class VectorSearchIterator final : public TableRowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful
+  // Read().
+  VectorSearchIterator(THD *thd, TABLE *table, Index_lookup *ref, Item *item,
+                       ha_rows limit, ha_rows *examined_rows);
+  ~VectorSearchIterator() override;
+
+ private:
+  bool DoInit() override;
+  int DoRead() override;
+
+  Index_lookup *const m_ref;
+  ha_rows *const m_examined_rows;
+  bool m_first;
+  Item *const m_item;
+  const ha_rows m_limit;
+};
+
 class RefOrNullIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().

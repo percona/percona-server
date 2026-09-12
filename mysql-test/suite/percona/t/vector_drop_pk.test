@@ -1,0 +1,78 @@
+--echo #
+--echo # PS-11299: PRIMARY KEY lifecycle on a vector-indexed table.
+--echo #
+--echo # PS-11264's current restriction: a vector index requires an
+--echo # explicit BIGINT UNSIGNED PRIMARY KEY (there is no
+--echo # GEN_CLUST_INDEX fallback like FTS has — vector's aux row_ref
+--echo # is keyed by the user PK). This test exercises the PK-change
+--echo # paths to confirm we never end up with a vector index whose
+--echo # anchor PK has gone away.
+--echo #
+--echo # Behavior summary:
+--echo #   DROP PK alone                       — rejected (ER 7034)
+--echo #   DROP PK + ADD wrong-type PK         — rejected (ER 7034)
+--echo #   DROP PK + ADD BIGINT UNSIGNED PK    — accepted, vec preserved
+--echo #   FTS DROP PK (control)               — accepted (GEN_CLUST fallback)
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--echo #
+--echo # === A. DROP PRIMARY KEY alone on a vector-indexed table ===
+--echo #
+CREATE TABLE a1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 6));
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE a1 DROP PRIMARY KEY;
+--echo # Table unchanged — PK and KEY both still there.
+SHOW CREATE TABLE a1;
+DROP TABLE a1;
+
+--echo #
+--echo # === B. DROP PK + ADD non-BIGINT-UNSIGNED PK (same ALTER) ===
+--echo # The new PK is INT, not BIGINT UNSIGNED — rejected.
+--echo #
+CREATE TABLE b1 (id BIGINT UNSIGNED PRIMARY KEY, id2 INT NOT NULL,
+                 v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE b1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
+SHOW CREATE TABLE b1;
+DROP TABLE b1;
+
+--echo #
+--echo # === C. DROP PK + ADD BIGINT UNSIGNED PK on a different column ===
+--echo # End state still satisfies the vec PK rule — accepted.
+--echo #
+CREATE TABLE c1 (id BIGINT UNSIGNED PRIMARY KEY, id2 BIGINT UNSIGNED NOT NULL,
+                 v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+ALTER TABLE c1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
+SHOW CREATE TABLE c1;
+
+--echo # One vector aux file present (re-minted with the new table_id).
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE c1;
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo #
+--echo # === D. DROP PK in a separate ALTER (not same-statement re-add) ===
+--echo # Same rejection as A — the intermediate state has no PK.
+--echo #
+CREATE TABLE d1 (id BIGINT UNSIGNED PRIMARY KEY, id2 BIGINT UNSIGNED NOT NULL,
+                 v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE d1 DROP PRIMARY KEY;
+SHOW CREATE TABLE d1;
+DROP TABLE d1;
+
+--echo #
+--echo # === E. FTS control — DROP PK on a fulltext-indexed table works ===
+--echo # FTS falls back to GEN_CLUST_INDEX, so it does not need a user PK.
+--echo # This is the symmetry break with vector indexes — by design.
+--echo #
+CREATE TABLE e1 (id BIGINT UNSIGNED PRIMARY KEY, c VARCHAR(100),
+                 FULLTEXT KEY (c));
+ALTER TABLE e1 DROP PRIMARY KEY;
+SHOW CREATE TABLE e1;
+DROP TABLE e1;

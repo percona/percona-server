@@ -871,41 +871,43 @@ bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
 
 bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
                                 mtr_t *mtr) {
-  /* DEVIATION FROM dict_table_autoinc_log: no per-table mutex. The
-  autoinc watermark is a plain integer, so its read-compare-store max
-  needs autoinc_persisted_mutex; ours is a std::atomic and a CAS-max
-  gives the same never-regress guarantee lock-free. The rest of the
-  protocol tolerates racing assigners: dict_table_mark_dirty re-checks
-  dirty_status under dict_persist->mutex and is idempotent, and when a
-  smaller value loses the CAS and skips its redo record, the winner's
-  larger value covers it - recovery keeps the maximum
-  (VecIdxIdPersister::aggregate). */
-  /* Read the watermark but do NOT advance it here. Advancing before the
-  covering redo record is even in a mini-transaction opens a window: a
-  racing assigner with a smaller value sees the raised watermark, decides
-  it is already covered, and writes no redo - trusting a value that is
-  not durable and not even buffered yet. If the server dies before the
-  first thread commits, recovery restores a counter lower than ids that
-  were already handed out, and labels get reissued. Reissue is the one
-  thing this mechanism exists to prevent.
+  /* Raise the watermark FIRST, before the dirty handshake below. That
+  order is the whole interlock with the checkpoint, and it is upstream's:
+  dict_table_autoinc_log raises, then marks dirty, then logs.
 
-  So the caller advances the watermark only AFTER committing the mtr
-  (dict_table_vec_next_id_persisted_advance). Then "watermark >= my
-  value" implies a covering record is already ordered in the log at a
-  lower LSN, and sequential log flush makes under-recovery impossible.
-  Racers may both log; recovery keeps the maximum, which is harmless.
+  Whatever the thread then reads from dirty_status, the record it is about
+  to write is accounted for:
 
-  DEVIATION FROM dict_table_autoinc_log, twice over. That function has
-  the same window and still carries it: its record rides the row's own
-  mtr for crash-atomicity with the row, so "commit first" is not free
-  there. Ours uses a dedicated mtr, so the reorder is local. It also
-  needs no per-table mutex: the autoinc watermark is a plain integer
-  whose read-compare-store max needs autoinc_persisted_mutex, while ours
-  is a std::atomic and a CAS-max gives the same never-regress guarantee
-  lock-free. See PS-autoinc-persist-crash-window.md. */
-  if (table->vec_aux_autoinc_persisted.load() >= value) {
-    return false;
-  }
+    reads METADATA_DIRTY     the read beat the checkpoint's store of
+                             METADATA_BUFFERED, so the raise - earlier in
+                             program order - beat the checkpoint's read of
+                             the watermark, and the buffer already has it.
+
+    reads METADATA_BUFFERED  dict_table_mark_dirty blocks on
+                             dict_persist->mutex until the checkpoint has
+                             taken its LSN, so this record lands above the
+                             cap and recovery scans it.
+
+  There is no third case. Raising after the record instead - which this
+  code did until it was measured - leaves both branches meaningless: a
+  checkpoint in between writes the OLD value to DDTableBuffer, clears the
+  dirty flag, and moves the checkpoint past a record nothing will read
+  again. vector_counter_stale_buffer.test is that window.
+
+  DEVIATION FROM dict_table_autoinc_log: no per-table mutex. The autoinc
+  watermark is a plain integer whose read-compare-store max needs
+  autoinc_persisted_mutex; ours is a std::atomic and a CAS-max gives the
+  same never-regress guarantee. The interlock above needs only that the
+  raise precede the dirty read in program order, which it does.
+
+  And no skip test. Upstream logs only when the value exceeds the
+  watermark (WL#6204: "We only write logs when counter is 0 or is bigger
+  than table::autoinc_persisted"), which saves redo but lets a racing
+  assigner with a smaller value write nothing at all, trusting a record
+  that may never be written - see PS-autoinc-persist-crash-window.md. We
+  always log. The mtr the caller hands us is committed either way, so the
+  cost is one record in an mtr that was being committed anyway. */
+  dict_table_vec_next_id_persisted_advance(table, value);
 
   if (table->dirty_status.load() != METADATA_DIRTY) {
     dict_table_mark_dirty(table);

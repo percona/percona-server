@@ -31,6 +31,8 @@ naming. No population - that lands in PS-11300. */
 
 #include "vec0aux.h"
 
+#include <debug_sync.h>
+
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -416,17 +418,21 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table) {
   the source of truth for this.
 
   The stamp runs outside any active mini-transaction, so it gets a
-  dedicated one, and the watermark check inside the log call keeps redo
-  traffic to one record per new maximum. */
+  dedicated one. Upstream avoids that by logging into the row's own mtr
+  (WL#6204: "we should not introduce a new mtr ... mtr_commit would be
+  time consuming"), which we could do from row_ins_clust_index_entry_low -
+  at the price of covering the paths that never reach it, the DDL builder
+  among them. Logging where the id is minted covers every one of them. */
   mtr_t mtr;
   mtr.start();
   const bool persist = dict_table_vec_next_id_log(table, id, &mtr);
   mtr.commit();
 
-  /* Only now, with the record committed to the log, may the watermark
-  move: a later assigner that sees it raised can safely conclude a
-  covering record is already ordered at a lower LSN. */
-  dict_table_vec_next_id_persisted_advance(table, id);
+  /* The record for `id` is committed to the log and the watermark was
+  raised before it was written, so a checkpoint landing here sees a
+  watermark that already covers the record. Parking a test here is how
+  vector_counter_stale_buffer.test pins that. */
+  DEBUG_SYNC_C("vec_id_record_committed");
 
   if (persist) {
     dict_table_persist_to_dd_table_buffer(table);

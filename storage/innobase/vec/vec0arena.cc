@@ -117,6 +117,11 @@ void *Vec_arena::allocate(size_t size) {
   can still serve the small allocations that follow it - which is what
   otherwise costs one extra slab per node. */
   const size_t new_free = slab - want;
+  /* An oversized request consumes its slab exactly, so new_free is 0 and
+  it can never displace a slab with room left - which is the property the
+  most-room-wins rule exists to protect. */
+  ut_ad(want <= SLAB_SIZE || new_free == 0);
+
   if (m_cur == nullptr || new_free > m_cur_size - m_cur_used) {
     m_cur = base;
     m_cur_size = slab;

@@ -321,6 +321,7 @@ dfield by the INSERT path. See the implementation comment for the phase-1
 persistence caveat. */
 uint64_t vec_assign_next_aux_id(dict_table_t *table);
 
+
 /** Stamp the hidden percona_vec_aux_id dfield in `row` with the next id from
 the per-table counter. No-op for tables without the hidden column.
 Allocations come from `heap` so they outlive this call. Called from

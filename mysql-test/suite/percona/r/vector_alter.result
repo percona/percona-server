@@ -246,7 +246,7 @@ percona_vec_hnsw_<TID>_<IID>.ibd
 CREATE TABLE tg2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 INSERT INTO tg2 VALUES (1, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
 ALTER TABLE tg2 ADD KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding a vector index to a table that has no vector index yet in-place; the hidden label column has to be added to every row. Try ALGORITHM=COPY.
 # Server-picked algorithm succeeds via COPY, and populates.
 ALTER TABLE tg2 ADD KEY vk (v) TYPE hnsw;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/tg2';
@@ -258,3 +258,11 @@ id	VECTOR_TO_STRING(v)
 1	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
 DROP TABLE tg1, tg2;
 # After all DROP TABLEs, no aux .ibd left over.
+#
+# LOAD DATA ALGORITHM=BULK is refused for a table with the hidden
+# column, mirroring the FULLTEXT refusal beside it: BULK builds index
+# entries directly and never reaches the row-insert path that stamps
+# percona_vec_aux_id. There is no test for it here because BULK is not
+# in the community build; if it is ever published, this is where the
+# refusal belongs.
+#

@@ -16,7 +16,7 @@ INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
 (3, STRING_TO_VECTOR('[0,0,1,0]'));
 # First ADD, explicit INPLACE: refused, not silently empty.
 ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding a vector index to a table that has no vector index yet in-place; the hidden label column has to be added to every row. Try ALGORITHM=COPY.
 # First ADD, default algorithm: falls back to COPY and builds a
 # node per row. This is the case that used to give nodes=0.
 ALTER TABLE t1 ADD KEY k1 (v) TYPE hnsw WITH (M = 4);

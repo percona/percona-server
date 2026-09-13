@@ -1737,6 +1737,13 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       break;
     }
 
+    /* A vector index cannot be here. This log only exists for an ONLINE
+    operation, and a table with a vector index is never rebuilt online:
+    check_if_supported_inplace_alter clears `online` for it. Assert that
+    in debug, and still skip in release rather than hand a graph index to
+    code that would treat it as a B-tree. */
+    ut_ad(!index->is_vector());
+
     if ((index->type & DICT_FTS) || index->is_vector()) {
       continue;
     }
@@ -1936,6 +1943,13 @@ flag_ok:
   }
 
   while ((index = index->next()) != nullptr) {
+    /* A vector index cannot be here. This log only exists for an ONLINE
+    operation, and a table with a vector index is never rebuilt online:
+    check_if_supported_inplace_alter clears `online` for it. Assert that
+    in debug, and still skip in release rather than hand a graph index to
+    code that would treat it as a B-tree. */
+    ut_ad(!index->is_vector());
+
     if ((index->type & DICT_FTS) || index->is_vector()) {
       continue;
     }
@@ -2458,6 +2472,13 @@ flag_ok:
     if (error != DB_SUCCESS) {
       break;
     }
+
+    /* A vector index cannot be here. This log only exists for an ONLINE
+    operation, and a table with a vector index is never rebuilt online:
+    check_if_supported_inplace_alter clears `online` for it. Assert that
+    in debug, and still skip in release rather than hand a graph index to
+    code that would treat it as a B-tree. */
+    ut_ad(!index->is_vector());
 
     if ((index->type & DICT_FTS) || index->is_vector()) {
       continue;

@@ -1415,27 +1415,21 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
 
   m_prebuilt->trx->will_lock++;
 
-  /* Refuse to rebuild a vector-indexed table natively, before the chain
-  below rather than inside it. The equivalent check used to sit in the
-  `else if`, which is skipped whenever `online` is already false - so an
-  ALTER that cleared it earlier, adding an AUTO_INCREMENT column for
-  instance, rebuilt such a table unrefused. Marcin Babij found that.
+  /* A table with a vector index used to be refused a native rebuild here,
+  on the grounds that the rebuild mints a new table_id and index_id and
+  the aux the graph lives in is named after them - so the graph would be
+  lost. That stopped being true when the build moved into ddl::Builder:
+  a rebuild recreates every index on the new table, the vector index among
+  them, so the graph is rebuilt from the copied rows with their labels
+  intact and base_pk following the new primary key.
 
-  The reason for refusing is in the branch below: a native rebuild mints
-  a new table_id and index_id, and the aux the graph lives in is named
-  after them. ALGORITHM=COPY rebuilds it organically instead, because
-  every row goes through the normal INSERT stamping path.
+  What remains is that such a rebuild is not ONLINE - the branch below
+  still clears `online` for it, because the row log cannot maintain a
+  graph while DML runs against it. LOCK=SHARED it is.
 
-  FTS's own handling is left exactly where it was. Deleting the empty
-  `if (!online)` would make the whole chain run in cases it never has,
-  and what that changes for FULLTEXT is not ours to decide here. */
-  if ((((ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX) ||
-        innobase_need_rebuild(ha_alter_info))) &&
-      vec_aux_table_has_vector_index(m_prebuilt->table)) {
-    ha_alter_info->unsupported_reason = innobase_get_err_msg(
-        ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_REBUILD);
-    return HA_ALTER_INPLACE_NOT_SUPPORTED;
-  }
+  vector_alter_rebuild.test covers the shapes: FORCE, OPTIMIZE,
+  ENGINE=InnoDB, ROW_FORMAT, a primary key swap, ADD and DROP COLUMN, and
+  the AUTO_INCREMENT ones that need the label counter to survive. */
 
   if (!online) {
     /* We already determined that only a non-locking

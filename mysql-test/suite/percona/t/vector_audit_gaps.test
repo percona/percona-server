@@ -82,10 +82,10 @@ CREATE TABLE t_rebuild (id BIGINT UNSIGNED PRIMARY KEY,
 INSERT INTO t_rebuild VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 10);
 INSERT INTO t_rebuild VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'), 20);
 INSERT INTO t_rebuild VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'), 30);
---echo # Explicit INPLACE rebuild: refused with the vector reason.
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--echo # Explicit INPLACE rebuild: supported now - the rebuild recreates
+--echo # the vector index from the copied rows.
 ALTER TABLE t_rebuild FORCE, ALGORITHM=INPLACE;
---echo # Server-picked algorithm falls back to COPY and succeeds.
+--echo # Server-picked algorithm succeeds too.
 ALTER TABLE t_rebuild FORCE;
 --echo # SELECT must return all 3 rows correctly (no col-count mismatch).
 SELECT id, c, VECTOR_TO_STRING(v) FROM t_rebuild

@@ -31,14 +31,11 @@ ta1	CREATE TABLE `ta1` (
   PRIMARY KEY (`id`),
   KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-# A.2 ADD COLUMN ... ALGORITHM=INPLACE — refused: any rebuild-class
-# INPLACE on a vec-indexed table is rejected (mirrors FTS's
-# ER_INNODB_FT_LIMIT policy — aux contents can't survive a native
-# rebuild). COPY is the supported route.
+# A.2 ADD COLUMN ... ALGORITHM=INPLACE works. It rebuilds, and the
+# rebuild recreates the vector index along with everything else, so
+# the graph comes back from the copied rows. Not ONLINE - LOCK=SHARED
+# - because the row log cannot maintain a graph.
 ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
-# Fallback: server-picked algorithm (COPY) succeeds.
-ALTER TABLE ta1 ADD COLUMN c2 INT;
 SHOW CREATE TABLE ta1;
 Table	Create Table
 ta1	CREATE TABLE `ta1` (
@@ -219,10 +216,10 @@ v VECTOR(8) NOT NULL,
 KEY (v) TYPE hnsw WITH (M = 6)
 );
 INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
-# G.1 Explicit ALGORITHM=INPLACE rebuild: refused with the vector
-# reason (parallel to FTS's refusal on FTS-indexed tables).
+# G.1 Explicit ALGORITHM=INPLACE rebuild: supported. The vector
+# index is rebuilt with the table - see vector_alter_rebuild.test
+# for the full set of rebuild shapes.
 ALTER TABLE tg1 FORCE, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
 # G.2 Server-picked algorithm: silently falls back to COPY.
 ALTER TABLE tg1 FORCE;
 # G.3 OPTIMIZE TABLE: same fallback, data survives, one aux .ibd.

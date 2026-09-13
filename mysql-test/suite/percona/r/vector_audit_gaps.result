@@ -81,10 +81,10 @@ KEY (v) TYPE hnsw WITH (M = 6));
 INSERT INTO t_rebuild VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 10);
 INSERT INTO t_rebuild VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'), 20);
 INSERT INTO t_rebuild VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'), 30);
-# Explicit INPLACE rebuild: refused with the vector reason.
+# Explicit INPLACE rebuild: supported now - the rebuild recreates
+# the vector index from the copied rows.
 ALTER TABLE t_rebuild FORCE, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a vector index in-place; the vector index contents cannot be carried across a native rebuild. Try ALGORITHM=COPY.
-# Server-picked algorithm falls back to COPY and succeeds.
+# Server-picked algorithm succeeds too.
 ALTER TABLE t_rebuild FORCE;
 # SELECT must return all 3 rows correctly (no col-count mismatch).
 SELECT id, c, VECTOR_TO_STRING(v) FROM t_rebuild

@@ -1258,8 +1258,8 @@ void dict_table_add_to_cache(dict_table_t *table, bool can_be_evicted) {
   in the vector code, and a table whose dd::Table carries the column
   while its dict_table_t does not describes one more column than the
   tablespace holds. In a release build both are silent. */
-  ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) ==
-       (table->vec_aux_col != ULINT_UNDEFINED));
+  ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) ==
+        (table->vec_aux_col != ULINT_UNDEFINED));
   ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) ||
         !strcmp(table->get_col_name(table->vec_aux_col), VEC_AUX_ID_COL_NAME));
 

@@ -112,17 +112,17 @@ void vec_aux_get_table_name(const dict_table_t *parent, space_index_t index_id,
 
   char table_id_str[FTS_AUX_MIN_TABLE_ID_LENGTH];
   int n = fts_write_object_id(parent->id, table_id_str);
-  ut_a(n > 0);
+  ut_ad(n > 0);
 
   char index_id_str[FTS_AUX_MIN_TABLE_ID_LENGTH];
   n = fts_write_object_id(index_id, index_id_str);
-  ut_a(n > 0);
+  ut_ad(n > 0);
 
   const int written = snprintf(
       name_out, name_out_len, "%.*s%s%s_%s_%s", static_cast<int>(db_len),
       parent_name, VEC_AUX_PREFIX, token, table_id_str, index_id_str);
-  ut_a(written > 0);
-  ut_a(static_cast<size_t>(written) < name_out_len);
+  ut_ad(written > 0);
+  ut_ad(static_cast<size_t>(written) < name_out_len);
 }
 
 bool vec_index_type_by_token(const char *token, size_t len,
@@ -230,14 +230,14 @@ void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
 }
 
 void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, byte *buf) {
-  ut_a(table != nullptr);
-  ut_a(row != nullptr);
-  ut_a(buf != nullptr);
+  ut_ad(table != nullptr);
+  ut_ad(row != nullptr);
+  ut_ad(buf != nullptr);
   if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     return;
   }
-  ut_a(table->vec_aux_col != ULINT_UNDEFINED);
-  ut_a(table->vec_aux_col < dtuple_get_n_fields(row));
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
 
   const uint64_t id = vec_assign_next_aux_id(table);
 
@@ -256,18 +256,18 @@ void vec_stamp_aux_id(dict_table_t *table, dtuple_t *row, byte *buf) {
 
 uint64_t vec_get_aux_id_from_row(const dict_table_t *table,
                                  const dtuple_t *row) {
-  ut_a(table->vec_aux_col != ULINT_UNDEFINED);
-  ut_a(table->vec_aux_col < dtuple_get_n_fields(row));
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
 
   const dfield_t *df = dtuple_get_nth_field(row, table->vec_aux_col);
-  ut_a(!dfield_is_null(df));
-  ut_a(dfield_get_len(df) == 8);
+  ut_ad(!dfield_is_null(df));
+  ut_ad(dfield_get_len(df) == 8);
   return mach_read_from_8(static_cast<const byte *>(dfield_get_data(df)));
 }
 
 uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
                                  const dict_index_t *index) {
-  ut_a(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
 
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -278,11 +278,11 @@ uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
                             UT_LOCATION_HERE, &heap);
 
   const ulint pos = index->get_col_pos(table->vec_aux_col);
-  ut_a(pos != ULINT_UNDEFINED);
+  ut_ad(pos != ULINT_UNDEFINED);
 
   ulint len;
   const byte *data = rec_get_nth_field(nullptr, rec, offsets, pos, &len);
-  ut_a(len == 8);
+  ut_ad(len == 8);
   const uint64_t label = mach_read_from_8(data);
 
   if (heap != nullptr) {
@@ -295,7 +295,7 @@ ulint vec_indexed_col_no(const dict_table_t *table) {
   for (const dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (!index->is_vector()) continue;
-    ut_a(index->n_fields == 1);
+    ut_ad(index->n_fields == 1);
     return dict_col_get_no(index->get_field(0)->col);
   }
   return ULINT_UNDEFINED;
@@ -316,8 +316,8 @@ bool vec_upd_changes_indexed_vector(const dict_table_t *table,
 
 void vec_update_aux_id(dict_table_t *table, upd_field_t *ufield,
                        uint64_t *next_label) {
-  ut_a(table->vec_aux_col != ULINT_UNDEFINED);
-  ut_a(*next_label != 0);
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(*next_label != 0);
 
   dict_index_t *clust = table->first_index();
   dict_col_t *col = table->get_col(table->vec_aux_col);
@@ -402,8 +402,8 @@ bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
 
 
 uint64_t vec_assign_next_aux_id(dict_table_t *table) {
-  ut_a(table != nullptr);
-  ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
+  ut_ad(table != nullptr);
+  ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
   /* fetch_add returns the OLD value, so +1 makes the first assignment
   1 and never 0. That is not cosmetic: the class reserves graph node id
   0 as the empty-neighbour sentinel, which is what lets aux record 0
@@ -411,7 +411,7 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table) {
   const uint64_t id =
       table->vec_aux_autoinc_next_id.fetch_add(1, std::memory_order_acq_rel) +
       1;
-  ut_a(id != 0);
+  ut_ad(id != 0);
 
   /* Persist the advance as dynamic metadata, autoinc-style: the redo
   record makes the id durable the moment it is consumed, so a label can
@@ -461,7 +461,6 @@ dict_table_t *create_in_mem_vec_aux_table(const char *aux_name,
                             0, parent->flags, aux_flags2_from_parent(parent));
 
   if (DICT_TF_HAS_SHARED_SPACE(parent->flags)) {
-    ut_ad(parent->space == fil_space_get_id_by_name(parent->tablespace()));
     t->tablespace = mem_heap_strdup(t->heap, parent->tablespace);
   }
   if (DICT_TF_HAS_DATA_DIR(parent->flags)) {
@@ -505,8 +504,8 @@ dict_table_t *create_in_mem_vec_aux_table(const char *aux_name,
 
 dberr_t vec_aux_create_one_table(trx_t *trx, const dict_table_t *parent,
                                  space_index_t index_id) {
-  ut_a(trx != nullptr);
-  ut_a(parent != nullptr);
+  ut_ad(trx != nullptr);
+  ut_ad(parent != nullptr);
 
   char aux_name[MAX_FULL_NAME_LEN];
   vec_aux_get_table_name(parent, index_id, Vec_index_type::HNSW, aux_name,
@@ -538,8 +537,8 @@ dberr_t vec_aux_create_one_table(trx_t *trx, const dict_table_t *parent,
 }
 
 dberr_t vec_aux_create_all_tables(trx_t *trx, const dict_table_t *parent) {
-  ut_a(trx != nullptr);
-  ut_a(parent != nullptr);
+  ut_ad(trx != nullptr);
+  ut_ad(parent != nullptr);
 
   for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
        idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
@@ -551,8 +550,8 @@ dberr_t vec_aux_create_all_tables(trx_t *trx, const dict_table_t *parent) {
 }
 
 bool vec_aux_create_dd_table(dict_table_t *parent, const dict_index_t *index) {
-  ut_a(parent != nullptr);
-  ut_a(index != nullptr && index->is_vector());
+  ut_ad(parent != nullptr);
+  ut_ad(index != nullptr && index->is_vector());
 
   /* One named index, not every vector index the table happens to hold.
   That distinction matters in an ALTER that drops a vector index and adds
@@ -566,14 +565,14 @@ bool vec_aux_create_dd_table(dict_table_t *parent, const dict_index_t *index) {
                          sizeof(aux_name));
 
   dict_table_t *aux = dd_table_open_on_name_in_mem(aux_name, false);
-  ut_a(aux != nullptr);
+  ut_ad(aux != nullptr);
   const bool ok = dd_create_vec_aux_table(parent, aux);
   dd_table_close(aux, nullptr, nullptr, false);
   return ok;
 }
 
 dberr_t vec_aux_lock_all_tables(THD *thd, const dict_table_t *parent) {
-  ut_a(parent != nullptr);
+  ut_ad(parent != nullptr);
 
   for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
        idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
@@ -599,8 +598,8 @@ dberr_t vec_aux_lock_all_tables(THD *thd, const dict_table_t *parent) {
 
 dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
                                space_index_t index_id) {
-  ut_a(trx != nullptr);
-  ut_a(parent != nullptr);
+  ut_ad(trx != nullptr);
+  ut_ad(parent != nullptr);
 
   char aux_name[MAX_FULL_NAME_LEN];
   vec_aux_get_table_name(parent, index_id, Vec_index_type::HNSW, aux_name,
@@ -666,8 +665,8 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
 }
 
 dberr_t vec_aux_drop_all_tables(trx_t *trx, dict_table_t *parent) {
-  ut_a(trx != nullptr);
-  ut_a(parent != nullptr);
+  ut_ad(trx != nullptr);
+  ut_ad(parent != nullptr);
 
   for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
        idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
@@ -679,7 +678,7 @@ dberr_t vec_aux_drop_all_tables(trx_t *trx, dict_table_t *parent) {
 }
 
 void vec_aux_detach_tables(const dict_table_t *parent, bool dict_locked) {
-  ut_a(parent != nullptr);
+  ut_ad(parent != nullptr);
 
   if (!dict_locked) {
     dict_sys_mutex_enter();
@@ -712,30 +711,36 @@ namespace {
 /** Build the post-rename aux name. Given the OLD aux name
 "old_db/percona_vec_<type>_<tid>_<iid>" and the parent's NEW name
 "new_db/<tbl>", write "new_db/percona_vec_<type>_<tid>_<iid>" into `out`.
-Mirrors what fts_rename_one_aux_table does inline. */
-void rebuild_aux_name_with_new_db(const char *old_aux_name,
-                                  const char *new_parent_name, char *out,
-                                  size_t out_len) {
+Mirrors what fts_rename_one_aux_table does inline. Returns false if the
+result would not fit, or if the old name has no database part - neither
+can happen for a name this module built, but both would be a memcpy
+past the end of `out`. */
+[[nodiscard]] bool rebuild_aux_name_with_new_db(const char *old_aux_name,
+                                                const char *new_parent_name,
+                                                char *out, size_t out_len) {
   const ulint new_db_len = dict_get_db_name_len(new_parent_name);
   const ulint old_db_len = dict_get_db_name_len(old_aux_name);
   /* +1 for the slash; +1 for NUL */
   const size_t needed = strlen(old_aux_name) + new_db_len - old_db_len + 1;
-  ut_a(needed <= out_len);
+  const char *old_slash = strchr(old_aux_name, '/');
+
+  ut_ad(needed <= out_len);
+  ut_ad(old_slash != nullptr);
+  if (needed > out_len || old_slash == nullptr) return false;
 
   memcpy(out, new_parent_name, new_db_len);
-  const char *old_slash = strchr(old_aux_name, '/');
-  ut_a(old_slash != nullptr);
   const size_t suffix_len = strlen(old_slash); /* includes leading '/' */
   memcpy(out + new_db_len, old_slash, suffix_len + 1 /* NUL */);
+  return true;
 }
 
 }  // namespace
 
 dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
                               const char *new_parent_name, bool replay) {
-  ut_a(trx != nullptr);
-  ut_a(parent != nullptr);
-  ut_a(new_parent_name != nullptr);
+  ut_ad(trx != nullptr);
+  ut_ad(parent != nullptr);
+  ut_ad(new_parent_name != nullptr);
 
   for (const dict_index_t *idx = UT_LIST_GET_FIRST(parent->indexes);
        idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
@@ -746,8 +751,13 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
                            sizeof(old_aux_name));
 
     char new_aux_name[MAX_FULL_NAME_LEN];
-    rebuild_aux_name_with_new_db(old_aux_name, new_parent_name, new_aux_name,
-                                 sizeof(new_aux_name));
+    if (!rebuild_aux_name_with_new_db(old_aux_name, new_parent_name,
+                                      new_aux_name, sizeof(new_aux_name))) {
+      ib::warn(ER_IB_MSG_466)
+          << "Cannot build the new name for vector aux table " << old_aux_name
+          << " under " << new_parent_name;
+      return DB_ERROR;
+    }
 
     dberr_t err = row_rename_table_for_mysql(old_aux_name, new_aux_name,
                                              nullptr, trx, replay);
@@ -769,7 +779,7 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
       which is worse than stopping here. fts_rename_one_aux_table
       dereferences without checking at all. */
       dict_table_t *aux = dict_table_check_if_in_cache_low(new_aux_name);
-      ut_a(aux != nullptr);
+      ut_ad(aux != nullptr);
       aux->acquire();
       dict_sys_mutex_exit();
       const bool ok = dd_rename_aux_table(aux, old_aux_name);

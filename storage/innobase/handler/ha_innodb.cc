@@ -12192,7 +12192,7 @@ mach_write_to_8 produces. */
 static void innobase_vec_build_pk_tuple(dtuple_t *tuple,
                                         const dict_index_t *clust_index,
                                         const byte *pk_image) {
-  ut_a(dict_index_get_n_unique(clust_index) == 1);
+  ut_ad(dict_index_get_n_unique(clust_index) == 1);
 
   dtuple_set_n_fields(tuple, 1);
   dict_index_copy_types(tuple, clust_index, 1);

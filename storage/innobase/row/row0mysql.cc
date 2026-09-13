@@ -2951,14 +2951,21 @@ run_again:
     if (!node->is_delete && label != 0) {
       /* Both of these were established by calc_row_difference before it
       minted the label, so a miss here means the row now names a node
-      that will never exist. Assert rather than skip, matching
-      vec_insert_row. */
+      that will never exist. Fail the statement rather than leave the
+      graph behind the table. */
       ulint q_len = 0;
       const char *q = vec_upd_new_vector(table, node->update, &q_len);
-      ut_a(q != nullptr);
 
       uint64_t base_pk = 0;
-      ut_a(vec_upd_row_pk(table, node, &base_pk));
+      const bool have_pk = vec_upd_row_pk(table, node, &base_pk);
+
+      ut_ad(q != nullptr);
+      ut_ad(have_pk);
+
+      if (q == nullptr || !have_pk) {
+        err = DB_ERROR;
+        goto error;
+      }
 
       err =
           vec_update_row(trx, table, label, q, q_len, base_pk, trx->mysql_thd);

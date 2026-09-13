@@ -134,7 +134,7 @@ struct Vec_aux_bulk {
 
 Vec_aux_bulk *vec_aux_bulk_start(trx_t *trx, dict_table_t *aux,
                                  Flush_observer *observer) {
-  ut_a(trx != nullptr && aux != nullptr);
+  ut_ad(trx != nullptr && aux != nullptr);
   /* Btree_load requires one, and the caller's is the statement's. */
   if (observer == nullptr) return nullptr;
   auto *b = ut::new_withkey<Vec_aux_bulk>(UT_NEW_THIS_FILE_PSI_KEY, trx, aux,
@@ -147,9 +147,9 @@ Vec_aux_bulk *vec_aux_bulk_start(trx_t *trx, dict_table_t *aux,
 }
 
 dberr_t vec_aux_bulk_insert(Vec_aux_bulk *b, const vec_aux_row_t &row) {
-  ut_a(b != nullptr);
-  ut_a(row.vec != nullptr || (row.id == 0 && row.dims == 0));
-  ut_a(row.neighbors != nullptr || row.neighbors_len == 0);
+  ut_ad(b != nullptr);
+  ut_ad(row.vec != nullptr || (row.id == 0 && row.dims == 0));
+  ut_ad(row.neighbors != nullptr || row.neighbors_len == 0);
 
   if (row.level < 0 || row.level > 127) return DB_CORRUPTION;
 
@@ -206,7 +206,7 @@ dberr_t vec_aux_bulk_insert(Vec_aux_bulk *b, const vec_aux_row_t &row) {
 }
 
 dberr_t vec_aux_bulk_finish(Vec_aux_bulk *b, dberr_t err) {
-  ut_a(b != nullptr);
+  ut_ad(b != nullptr);
 
   err = b->load->finish(err);
 
@@ -233,7 +233,7 @@ static void vec_aux_set_dfield(dfield_t *df, const void *data, ulint len,
     dfield_set_data(df, &empty, 0);
     return;
   }
-  ut_a(data != nullptr);
+  ut_ad(data != nullptr);
   void *copy = mem_heap_dup(heap, data, len);
   dfield_set_data(df, copy, len);
 }
@@ -245,14 +245,14 @@ static void vec_aux_set_field(dtuple_t *tuple, ulint col_no, const void *data,
 
 dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
                        const vec_aux_row_t &row) {
-  ut_a(trx != nullptr);
-  ut_a(aux != nullptr);
+  ut_ad(trx != nullptr);
+  ut_ad(aux != nullptr);
   /* Record 0 is index metadata, not a node: it names the graph's entry
   point and legitimately carries no vector and no neighbours. Every real
   node has both - id 0 is reserved as the empty-slot sentinel, so a node
   can never occupy record 0. */
-  ut_a(row.vec != nullptr || (row.id == 0 && row.dims == 0));
-  ut_a(row.neighbors != nullptr || row.neighbors_len == 0);
+  ut_ad(row.vec != nullptr || (row.id == 0 && row.dims == 0));
+  ut_ad(row.neighbors != nullptr || row.neighbors_len == 0);
 
   /* The aux column is TINYINT; the HNSW level is geometrically
   distributed and cannot plausibly reach 127, but never store a
@@ -353,9 +353,9 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
 dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
                            const byte *neighbors, ulint neighbors_len,
                            const uint64_t *new_base_pk) {
-  ut_a(trx != nullptr);
-  ut_a(aux != nullptr);
-  ut_a(neighbors != nullptr || neighbors_len == 0);
+  ut_ad(trx != nullptr);
+  ut_ad(aux != nullptr);
+  ut_ad(neighbors != nullptr || neighbors_len == 0);
 
   mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   dict_index_t *clust = aux->first_index();
@@ -573,8 +573,8 @@ static bool vec_aux_copy_field(const dict_index_t *clust, const rec_t *rec,
 
 dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
                           vec_aux_read_t *out) {
-  ut_a(aux != nullptr);
-  ut_a(out != nullptr);
+  ut_ad(aux != nullptr);
+  ut_ad(out != nullptr);
 
   dict_index_t *clust = aux->first_index();
 

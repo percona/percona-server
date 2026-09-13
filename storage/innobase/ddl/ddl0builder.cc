@@ -2050,8 +2050,8 @@ void Builder::write_redo(const dict_index_t *index) noexcept {
 }
 
 dberr_t Builder::vec_build() noexcept {
-  ut_a(is_vector_index());
-  ut_a(m_vec != nullptr);
+  ut_ad(is_vector_index());
+  ut_ad(m_vec != nullptr);
 
   /* The aux rows ride the ALTER's own transaction, so a failure here
   rolls them back with the rest of the statement. */
@@ -2317,7 +2317,7 @@ dberr_t Loader::Task::operator()() noexcept {
       break;
 
     case Builder::State::VEC_BUILD:
-      ut_a(m_builder->is_vector_index());
+      ut_ad(m_builder->is_vector_index());
       err = m_builder->vec_build();
       break;
 

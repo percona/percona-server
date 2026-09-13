@@ -113,7 +113,12 @@ template <typename Hnsw>
 dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
                               typename Hnsw::LoadNodeHandle handle) {
   const uint64_t id = hnsw.load_node_id(handle);
-  ut_a(id != 0); /* record 0 is metadata, never a node */
+
+  /* Record 0 is the metadata record, never a node. The id comes off a
+  neighbour list read from the aux table, so a 0 here means the aux is
+  corrupt - report it rather than fault in the metadata as a node. */
+  ut_ad(id != 0);
+  if (id == 0) return DB_CORRUPTION;
 
   mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   vec_aux_read_t node;

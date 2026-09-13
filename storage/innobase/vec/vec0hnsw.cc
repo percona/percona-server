@@ -91,8 +91,8 @@ static void vec_ctx_step_commit(Vec_ctx *ctx) {
 dberr_t vec_persist_insert(Vec_ctx *ctx, uint64_t id, uint64_t base_pk,
                            const char *q, uint8_t layer,
                            const std::vector<byte> &neighbors) {
-  ut_a(ctx->aux != nullptr);
-  ut_a(id != 0); /* 0 is the empty-slot sentinel; record 0 is metadata */
+  ut_ad(ctx->aux != nullptr);
+  ut_ad(id != 0); /* 0 is the empty-slot sentinel; record 0 is metadata */
 
   vec_aux_row_t row;
   row.id = id;
@@ -110,7 +110,7 @@ dberr_t vec_persist_insert(Vec_ctx *ctx, uint64_t id, uint64_t base_pk,
 
 dberr_t vec_persist_update_neighbors(Vec_ctx *ctx, uint64_t id,
                                      const std::vector<byte> &neighbors) {
-  ut_a(ctx->aux != nullptr);
+  ut_ad(ctx->aux != nullptr);
   const dberr_t err = vec_aux_update_row(ctx->trx, ctx->aux, id,
                                          neighbors.data(), neighbors.size());
 
@@ -134,7 +134,7 @@ dberr_t vec_persist_update_neighbors(Vec_ctx *ctx, uint64_t id,
 }
 
 dberr_t vec_persist_entry_point(Vec_ctx *ctx, uint64_t id) {
-  ut_a(ctx->aux != nullptr);
+  ut_ad(ctx->aux != nullptr);
 
   /* This callback commits on its own, after the node's row already has
   (vec_ctx_step_commit), so a crash between the two leaves record 0 naming
@@ -193,9 +193,9 @@ dberr_t vec_persist_entry_point(Vec_ctx *ctx, uint64_t id) {
 
 vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
                         THD *thd) {
-  ut_a(index != nullptr);
-  ut_a(index->is_vector());
-  ut_a(key != nullptr);
+  ut_ad(index != nullptr);
+  ut_ad(index->is_vector());
+  ut_ad(key != nullptr);
 
   if (vec_t *existing = vec_runtime_get(index); existing != nullptr) {
     return existing;
@@ -231,7 +231,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
   correct, though, and indexing form->field with it is exactly the dance
   create_index() does (ha_innodb.cc) to see past a forged prefix
   field. */
-  ut_a(key->user_defined_key_parts == 1);
+  ut_ad(key->user_defined_key_parts == 1);
   const Field *f = form->field[key->key_part[0].field->field_index()];
   if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
     ib::error(ER_IB_MSG_456)
@@ -327,7 +327,7 @@ An aux with no record 0 is an EMPTY index, not a broken one: record 0 is
 written when the first node is inserted, so its absence means no node
 has ever been inserted. */
 static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
-  ut_a(vec->hnsw == nullptr);
+  ut_ad(vec->hnsw == nullptr);
 
   /* innodb_hnsw_max_memory, at the entry to the load. Same charge check
   as vec_add_node: is the budget already spent, not would this fit. What
@@ -402,9 +402,9 @@ static const char *vec_row_vector_bytes(const dict_index_t *index,
 
   Ignore the field's prefix_len - get_index_prefix_len() reports 1 for a
   vector key part, which describes nothing about the column. */
-  ut_a(index->n_fields == 1);
+  ut_ad(index->n_fields == 1);
   const ulint col_no = dict_col_get_no(index->get_field(0)->col);
-  ut_a(col_no < dtuple_get_n_fields(row));
+  ut_ad(col_no < dtuple_get_n_fields(row));
 
   const dfield_t *df = dtuple_get_nth_field(row, col_no);
   if (dfield_is_null(df)) return nullptr;
@@ -548,8 +548,8 @@ uint32_t vec_index_dims(const dict_index_t *index) {
 dberr_t vec_knn_search(dict_index_t *index, const float *q, size_t k,
                        size_t ef_search, std::vector<vec_hit_t> *out, THD *thd,
                        const std::unordered_set<uint64_t> *exclude) {
-  ut_a(index != nullptr && index->is_vector());
-  ut_a(q != nullptr && out != nullptr);
+  ut_ad(index != nullptr && index->is_vector());
+  ut_ad(q != nullptr && out != nullptr);
   out->clear();
 
   auto *vec = vec_runtime_get(index);
@@ -620,9 +620,9 @@ struct vec_search_t {
 
 dberr_t vec_knn_open(dict_index_t *index, const float *q, size_t batch_size,
                      size_t ef_search, THD *thd, vec_search_t **out) {
-  ut_a(index != nullptr && index->is_vector());
-  ut_a(q != nullptr && out != nullptr);
-  ut_a(batch_size > 0);
+  ut_ad(index != nullptr && index->is_vector());
+  ut_ad(q != nullptr && out != nullptr);
+  ut_ad(batch_size > 0);
   *out = nullptr;
 
   auto *vec = vec_runtime_get(index);
@@ -677,7 +677,7 @@ dberr_t vec_knn_open(dict_index_t *index, const float *q, size_t batch_size,
 }
 
 bool vec_knn_next(vec_search_t *s, vec_hit_t *hit) {
-  ut_a(s != nullptr && hit != nullptr);
+  ut_ad(s != nullptr && hit != nullptr);
   if (s->ctx.err != DB_SUCCESS) return false;
 
   const auto next = s->vec->hnsw->nn_search_next(&s->nn);
@@ -728,7 +728,7 @@ struct Vec_build {
 };
 
 Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table) {
-  ut_a(index != nullptr && index->is_vector());
+  ut_ad(index != nullptr && index->is_vector());
   if (altered_table == nullptr) return nullptr;
 
   /* Same pre-flight as the DML path (design: "Memory limits"): refuse
@@ -781,7 +781,7 @@ Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table) {
 
 dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
                           const dtuple_t *row) {
-  ut_a(b != nullptr && b->graph != nullptr);
+  ut_ad(b != nullptr && b->graph != nullptr);
 
   ulint vec_len = 0;
   const char *q = vec_row_vector_bytes(b->index, row, &vec_len);
@@ -791,13 +791,13 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
   /* Label 0 is the empty-slot sentinel and can never be a node. A row
   carrying it means the stamping path missed it. */
   const uint64_t id = vec_get_aux_id_from_row(table, row);
-  ut_a(id != 0);
+  ut_ad(id != 0);
 
   const dfield_t *pk_df = nullptr;
   const dict_index_t *clust = table->first_index();
-  ut_a(dict_index_get_n_unique(clust) == 1);
+  ut_ad(dict_index_get_n_unique(clust) == 1);
   pk_df = dtuple_get_nth_field(row, clust->get_col_no(0));
-  ut_a(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
+  ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
   const uint64_t base_pk =
       mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
 
@@ -816,8 +816,8 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
 
 dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
                             THD *thd, Flush_observer *observer) {
-  ut_a(b != nullptr && b->graph != nullptr);
-  ut_a(trx != nullptr);
+  ut_ad(b != nullptr && b->graph != nullptr);
+  ut_ad(trx != nullptr);
 
   if (b->graph->size() == 0) return DB_SUCCESS;
 
@@ -884,7 +884,7 @@ void vec_build_free(Vec_build *b) {
 dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
                        uint64_t label, const char *q, ulint q_len,
                        uint64_t base_pk, THD *thd) {
-  ut_a(label != 0);
+  ut_ad(label != 0);
 
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
@@ -913,7 +913,7 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     if (vec_len != vec->dims * sizeof(float)) return DB_CORRUPTION;
 
     const uint64_t label = vec_get_aux_id_from_row(table, row);
-    ut_a(label != 0);
+    ut_ad(label != 0);
 
     /* base_pk is the base row's PRIMARY KEY, not the label. A search
     returns base_pk so the caller can fetch the row; the label
@@ -921,10 +921,10 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     row's hidden column. The design allows a single-column BIGINT
     UNSIGNED primary key, so it is the first clustered field. */
     const dict_index_t *clust = table->first_index();
-    ut_a(dict_index_get_n_unique(clust) == 1);
+    ut_ad(dict_index_get_n_unique(clust) == 1);
     const ulint pk_col = clust->get_col_no(0);
     const dfield_t *pk_df = dtuple_get_nth_field(row, pk_col);
-    ut_a(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
+    ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
     const uint64_t base_pk =
         mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
 

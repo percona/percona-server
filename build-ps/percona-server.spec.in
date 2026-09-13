@@ -40,11 +40,12 @@
 
 %global release %{percona_server_version}.%{rpm_release}%{?dist}
 
+# rhel8 or above
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %global add_fido_plugins 1
 %else
 %global add_fido_plugins 0
-%endif # rhel8 or above
+%endif
 
 # By default, a build will be done using the system SSL library
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
@@ -1365,7 +1366,10 @@ fi
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.24*
 #coredumper
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
-%ifnarch aarch64
+%ifarch aarch64
+# libcoredumper.a is built but not shipped on aarch64
+%exclude /usr/lib/libcoredumper.a
+%else
 %attr(755, root, root) /usr/lib/libcoredumper.a
 %endif
 

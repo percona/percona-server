@@ -75,6 +75,7 @@ void Vec_arena::recount() {
 
   /* The heap only grows while an arena is alive - nothing here frees a
   block - so the delta is always positive. */
+  ut_a(now > m_bytes_allocated);
   vec_arena_bytes.fetch_add(now - m_bytes_allocated, std::memory_order_relaxed);
   m_bytes_allocated = now;
 }

@@ -71,11 +71,16 @@ Vec_arena::~Vec_arena() {
 
 void Vec_arena::recount() {
   const size_t now = mem_heap_get_size(m_heap);
-  if (now == m_bytes_allocated) return;
 
   /* The heap only grows while an arena is alive - nothing here frees a
-  block - so the delta is always positive. */
-  ut_a(now > m_bytes_allocated);
+  block - so the delta is always positive. If it ever were not, leave
+  the global counter alone rather than wrap an unsigned subtraction
+  into it. */
+  if (now <= m_bytes_allocated) {
+    ut_ad(now == m_bytes_allocated);
+    return;
+  }
+
   vec_arena_bytes.fetch_add(now - m_bytes_allocated, std::memory_order_relaxed);
   m_bytes_allocated = now;
 }

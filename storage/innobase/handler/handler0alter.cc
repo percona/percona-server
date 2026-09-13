@@ -1451,32 +1451,16 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
       return HA_ALTER_INPLACE_NOT_SUPPORTED;
     }
 
-    /* Mirror the FTS refusal above for vector indexes: if the table
-    already contains a vector index, refuse to rebuild natively.
-    A native rebuild re-inserts every row into a new table_id /
-    index_id - the vector aux table would be re-minted empty and the
-    HNSW graph contents lost. ALGORITHM=COPY rebuilds the aux
-    organically because every row goes through the normal INSERT
-    stamping path. The FIRST ADD VECTOR INDEX does not reach this gate -
-    the old table has no vector index yet - which is why it is refused
-    earlier, on the added keys. An earlier revision of this comment
-    argued the first ADD was safe here because it matched FTS's
-    first-ADD-FULLTEXT rebuild; the shape matches but the outcome does
-    not, because FTS has a build pass during the rebuild and we do
-    not, so that rebuild produced an empty graph over existing rows.
-
-    This refusal is full FTS parity - no deviation today. If a later
-    phase implements aux carry-over (copy percona_vec_aux_id, re-parent the
-    aux to the new table_id/index_id atomically) or an HNSW
-    rebuild-during-copy, native/online rebuild could be re-enabled;
-    THAT would be a deliberate improvement beyond FTS (which never got
-    it) and must be justified as a deviation then. PS-11300+. */
+    /* A vector index does not refuse the rebuild - it only loses ONLINE,
+    which the `online = false` above already took care of. The reason
+    string below is what the server reports when the caller asked for
+    ALGORITHM=INPLACE, LOCK=NONE. */
     if (innobase_spatial_exist(altered_table)) {
       ha_alter_info->unsupported_reason =
           innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
     } else if (innobase_vector_exist(altered_table)) {
-      ha_alter_info->unsupported_reason =
-          innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR);
+      ha_alter_info->unsupported_reason = innobase_get_err_msg(
+          ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK);
     } else {
       ha_alter_info->unsupported_reason =
           innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);

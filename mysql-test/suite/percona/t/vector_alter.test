@@ -6,6 +6,11 @@
 --echo # Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
 --echo # Section F: DROP vector index then INSTANT ADD COLUMN.
 --echo #
+--echo # ALGORITHM=BULK_LOAD is not covered here - it is not in the
+--echo # community server, so there is nothing to run it against. If it
+--echo # ever ships, this file is the place to assert it is refused on a
+--echo # table with a vector index.
+--echo #
 
 --let $MYSQLD_DATADIR = `SELECT @@datadir`
 

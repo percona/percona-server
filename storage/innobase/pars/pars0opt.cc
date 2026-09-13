@@ -302,9 +302,10 @@ static ulint opt_calc_index_goodness(
 
   /* At least for now we don't support using FTS indexes, vector
   indexes, or virtual indexes for queries done through InnoDB's
-  own SQL parser. pars_sql today runs only over SYS_* tables so
-  vec is unreachable; keeping the filter symmetric for
-  defense-in-depth. */
+  own SQL parser. None of the tables the parser is pointed at - the
+  data dictionary, the FTS aux tables, the persistent statistics
+  tables - carries a vector index, so the vector arm is unreachable
+  today; it is here to keep the filter symmetric. */
   if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
       dict_index_is_vector(index) || dict_index_has_virtual(index)) {
     return (0);

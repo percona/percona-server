@@ -6,6 +6,11 @@
 # Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
 # Section F: DROP vector index then INSTANT ADD COLUMN.
 #
+# ALGORITHM=BULK_LOAD is not covered here - it is not in the
+# community server, so there is nothing to run it against. If it
+# ever ships, this file is the place to assert it is refused on a
+# table with a vector index.
+#
 #
 # === Section A: ADD COLUMN on a table that already has a vector index
 #

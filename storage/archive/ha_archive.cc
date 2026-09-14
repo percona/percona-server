@@ -792,7 +792,7 @@ int ha_archive::write_row(uchar *buf) {
 
   if (share->crashed) return HA_ERR_CRASHED_ON_USAGE;
 
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  HA_STATISTIC_INCREMENT(ha_write_count);
   mysql_mutex_lock(&share->mutex);
 
   if (!share->archive_write_open && share->init_archive_writer()) {
@@ -1117,7 +1117,7 @@ int ha_archive::rnd_next(uchar *buf) {
   }
   scan_rows--;
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
   current_position = aztell(&archive);
   rc = get_row(&archive, buf);
 
@@ -1145,7 +1145,7 @@ void ha_archive::position(const uchar *) {
 int ha_archive::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
   DBUG_TRACE;
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
   current_position = (my_off_t)my_get_ptr(pos, ref_length);
   if (azseek(&archive, current_position, SEEK_SET) == (my_off_t)(-1L)) {
     rc = HA_ERR_CRASHED_ON_USAGE;

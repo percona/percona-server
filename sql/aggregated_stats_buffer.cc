@@ -41,6 +41,7 @@ void aggregated_stats_buffer::flush() {
   table_open_cache_overflows = 0ULL;
   created_tmp_disk_tables = 0ULL;
   created_tmp_tables = 0ULL;
+  count_hit_tmp_table_size = 0ULL;
   max_execution_time_exceeded = 0ULL;
   max_execution_time_set = 0ULL;
   max_execution_time_set_failed = 0ULL;
@@ -139,4 +140,9 @@ void aggregated_stats_buffer::add_from(aggregated_stats_buffer &shard) {
 uint64_t aggregated_stats_buffer::get_counter(std::size_t offset) {
   auto *counter = pointer_cast<std::atomic_uint64_t *>((char *)this + offset);
   return counter->load();
+}
+
+void aggregated_stats_buffer::inc_counter(
+    std::atomic_uint64_t aggregated_stats_buffer::*counter) {
+  (this->*counter).fetch_add(1, std::memory_order_relaxed);
 }

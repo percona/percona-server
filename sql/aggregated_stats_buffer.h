@@ -44,6 +44,7 @@ struct aggregated_stats_buffer {
   void flush();
   void add_from(aggregated_stats_buffer &shard);
   uint64_t get_counter(std::size_t offset);
+  void inc_counter(std::atomic_uint64_t aggregated_stats_buffer::*counter);
 
   std::atomic_uint64_t com_other;
   std::atomic_uint64_t com_stmt_execute;

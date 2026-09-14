@@ -67,6 +67,7 @@
 #include "mysql/components/services/bits/psi_table_bits.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
+#include "sql/aggregated_stats_buffer.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/init_mode.h"
@@ -4835,6 +4836,26 @@ class Ft_hints {
     get_partition_handler()
 */
 
+/**
+  Increment a handler statistic counter, by name.
+
+  Bumps both counters that track the statistic:
+   - the per-session System_status_var member, summed on demand across all
+     sessions for SHOW GLOBAL STATUS;
+   - the matching global_aggregated_stats shard member, read in real time by
+     the telemetry metrics of the mysql.stats.handler meter.
+
+  Both structures deliberately declare these counters under the same member
+  name, so @c f names the member in each and both pointers-to-member resolve at
+  compile time. That keeps this per-row hot path free of any dispatch, and a
+  member of the wrong type cannot be passed.
+
+  @param f  counter name, a member of both System_status_var and
+            aggregated_stats_buffer (e.g. ha_read_key_count)
+*/
+#define HA_STATISTIC_INCREMENT(f) \
+  ha_statistic_increment(&System_status_var::f, &aggregated_stats_buffer::f)
+
 class handler {
   friend class Partition_handler;
 
@@ -7130,7 +7151,9 @@ class handler {
 
  protected:
   /* Service methods for use by storage engines. */
-  void ha_statistic_increment(ulonglong System_status_var::*offset) const;
+  void ha_statistic_increment(
+      ulonglong System_status_var::*offset,
+      std::atomic_uint64_t aggregated_stats_buffer::*agg_counter) const;
   THD *ha_thd() const;
 
   /**

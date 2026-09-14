@@ -1,0 +1,52 @@
+# Com_commit applied by the replica must reach its telemetry metric.
+#
+# Xid_log_event::do_commit() (sql/log_event.cc) counts the commit of a
+# replicated transaction. It used to bump only thd->status_var.com_stat[], not
+# the matching global_aggregated_stats shard, so mysql.stats.com/commit stayed
+# at 0 on a replica no matter how many transactions it applied, while
+# SHOW STATUS LIKE 'Com_commit' kept counting. Same defect class as PS-11538.
+#
+# test_report_single_metric() drives the same measurement callback as the real
+# OTEL exporter, so no collector is needed here.
+
+--source include/have_server_telemetry_metrics.inc
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--echo # --- replica: install the metrics probe and take a baseline
+--source include/rpl/connection_replica.inc
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+# Com_commit is not exposed through performance_schema.global_status, only
+# through SHOW GLOBAL STATUS.
+--let $status_before = query_get_value(SHOW GLOBAL STATUS LIKE 'Com_commit', Value, 1)
+--let $metric_before = `SELECT test_report_single_metric('mysql.stats.com','commit')`
+
+--echo # --- source: apply some transactions
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+--source include/rpl/sync_to_replica.inc
+
+--echo # --- replica: the status variable and the metric must have moved together
+--source include/rpl/connection_replica.inc
+--let $status_after = query_get_value(SHOW GLOBAL STATUS LIKE 'Com_commit', Value, 1)
+--let $metric_after = `SELECT test_report_single_metric('mysql.stats.com','commit')`
+
+--let $assert_text = Replica applied transactions bumped Com_commit
+--let $assert_cond = $status_after > $status_before
+--source include/assert.inc
+
+--let $assert_text = mysql.stats.com/commit advanced by the same amount as Com_commit
+--let $assert_cond = $metric_after - $metric_before = $status_after - $status_before
+--source include/assert.inc
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

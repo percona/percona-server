@@ -9804,7 +9804,7 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
   DBUG_TRACE;
 
   /* Increase the write count of handler */
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  HA_STATISTIC_INCREMENT(ha_write_count);
 
   if (m_prebuilt->table->is_intrinsic()) {
     return intrinsic_table_write_row(record);
@@ -10594,7 +10594,7 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
     }
   }
 
-  ha_statistic_increment(&System_status_var::ha_update_count);
+  HA_STATISTIC_INCREMENT(ha_update_count);
 
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt))
@@ -10746,7 +10746,7 @@ int ha_innobase::delete_row(
     ++trx->will_lock;
   }
 
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  HA_STATISTIC_INCREMENT(ha_delete_count);
 
   if (UNIV_UNLIKELY(m_share && m_share->ib_table &&
                     m_share->ib_table->is_corrupt))
@@ -11033,7 +11033,7 @@ int ha_innobase::index_read(
   ut_a(m_prebuilt->trx == thd_to_trx(m_user_thd));
   ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
 
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
 
   if (UNIV_UNLIKELY(srv_pass_corrupt_table <= 1 && m_share &&
                     m_share->ib_table && m_share->ib_table->is_corrupt)) {
@@ -11467,7 +11467,7 @@ int ha_innobase::general_fetch(
 int ha_innobase::index_next(uchar *buf) /*!< in/out: buffer for next row in
                                         MySQL format */
 {
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_next_count);
 
   return (general_fetch(buf, ROW_SEL_NEXT, 0));
 }
@@ -11479,7 +11479,7 @@ int ha_innobase::index_next_same(uchar *buf, /*!< in/out: buffer for the row */
                                  const uchar *, /*!< in: key value */
                                  uint)          /*!< in: key value length */
 {
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_next_count);
 
   return (general_fetch(buf, ROW_SEL_NEXT, m_last_match_mode));
 }
@@ -11491,7 +11491,7 @@ int ha_innobase::index_next_same(uchar *buf, /*!< in/out: buffer for the row */
 int ha_innobase::index_prev(
     uchar *buf) /*!< in/out: buffer for previous row in MySQL format */
 {
-  ha_statistic_increment(&System_status_var::ha_read_prev_count);
+  HA_STATISTIC_INCREMENT(ha_read_prev_count);
 
   return (general_fetch(buf, ROW_SEL_PREV, 0));
 }
@@ -11504,7 +11504,7 @@ int ha_innobase::index_first(uchar *buf) /*!< in/out: buffer for the row */
 {
   DBUG_TRACE;
 
-  ha_statistic_increment(&System_status_var::ha_read_first_count);
+  HA_STATISTIC_INCREMENT(ha_read_first_count);
 
   int error = index_read(buf, nullptr, 0, HA_READ_AFTER_KEY);
 
@@ -11525,7 +11525,7 @@ int ha_innobase::index_last(uchar *buf) /*!< in/out: buffer for the row */
 {
   DBUG_TRACE;
 
-  ha_statistic_increment(&System_status_var::ha_read_last_count);
+  HA_STATISTIC_INCREMENT(ha_read_last_count);
 
   int error = index_read(buf, nullptr, 0, HA_READ_BEFORE_KEY);
 
@@ -11688,7 +11688,7 @@ int ha_innobase::rnd_next(uchar *buf) /*!< in/out: returns the row in this
 
   if (m_user_thd->transaction_rollback_request) return HA_ERR_GENERIC;
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
 
   if (m_start_of_scan) {
     error = index_first(buf);
@@ -11718,7 +11718,7 @@ int ha_innobase::rnd_pos(
   DBUG_TRACE;
   DBUG_DUMP("key", pos, ref_length);
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_count);
 
   ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 

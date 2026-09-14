@@ -73,8 +73,8 @@
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_zip_dict.h"
 #include "sql/system_variables.h"
-#include "sql/thd_raii.h"  // Disable_autocommit_guard, Disable_binlog_guard
-#include "sql/transaction.h"                    // trans_commit()
+#include "sql/thd_raii.h"     // Disable_autocommit_guard, Disable_binlog_guard
+#include "sql/transaction.h"  // trans_commit()
 #include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
 extern Cost_constant_cache *cost_constant_cache;  // defined in

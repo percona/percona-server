@@ -605,9 +605,9 @@ static inline void init_all_partitions_iterator(partition_info *part_info,
    @return true - On failure.
    @return false - On success.
 */
-[[nodiscard]]
-bool fill_first_partition_name(const partition_info *part_info,
-                               const char *normalized_path, char *first_name);
+[[nodiscard]] bool fill_first_partition_name(const partition_info *part_info,
+                                             const char *normalized_path,
+                                             char *first_name);
 
 bool fill_partition_tablespace_names(partition_info *part_info,
                                      Tablespace_hash_set *tablespace_set);

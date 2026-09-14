@@ -49,11 +49,11 @@
 #include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
 #include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
 #include "sql/dd/impl/tables/triggers.h"          // dd::tables::Triggers
+#include "sql/dd/impl/upgrade/server.h"           // Routine_event_context_guard
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/object_table.h"             // dd::Object_table
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/schema.h"
-#include "sql/dd/impl/upgrade/server.h" // Routine_event_context_guard
 #include "sql/sd_notify.h"  // sysd::notify
 #include "sql/sql_class.h"  // THD
 #include "sql/table.h"      // MYSQL_SCHEMA_NAME
@@ -895,7 +895,6 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
          << MYSQL_SCHEMA_NAME.str << "." << (*it);
       if (dd::execute_query(thd, ss.str().c_str()))
         return dd::end_transaction(thd, true);
-
     }
   }
 

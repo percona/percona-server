@@ -205,7 +205,7 @@ void ha_heap::update_key_stats() {
 
 int ha_heap::write_row(uchar *buf) {
   int res;
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  HA_STATISTIC_INCREMENT(ha_write_count);
   if (table->next_number_field && buf == table->record[0]) {
     if ((res = update_auto_increment())) return res;
   }
@@ -231,7 +231,7 @@ int ha_heap::write_row(uchar *buf) {
 
 int ha_heap::update_row(const uchar *old_data, uchar *new_data) {
   int res;
-  ha_statistic_increment(&System_status_var::ha_update_count);
+  HA_STATISTIC_INCREMENT(ha_update_count);
   res = heap_update(file, old_data, new_data);
   if (!res &&
       ++records_changed * HEAP_STATS_UPDATE_THRESHOLD > file->s->records) {
@@ -246,7 +246,7 @@ int ha_heap::update_row(const uchar *old_data, uchar *new_data) {
 
 int ha_heap::delete_row(const uchar *buf) {
   int res;
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  HA_STATISTIC_INCREMENT(ha_delete_count);
   res = heap_delete(file, buf);
   if (!res && table->s->tmp_table == NO_TMP_TABLE &&
       ++records_changed * HEAP_STATS_UPDATE_THRESHOLD > file->s->records) {
@@ -263,7 +263,7 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
                             key_part_map keypart_map,
                             enum ha_rkey_function find_flag) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
   int error = heap_rkey(file, buf, active_index, key, keypart_map, find_flag);
 
   return error;
@@ -272,7 +272,7 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
 int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
                                  key_part_map keypart_map) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
   int error =
       heap_rkey(file, buf, active_index, key, keypart_map, HA_READ_PREFIX_LAST);
   return error;
@@ -281,35 +281,35 @@ int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
 int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag) {
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
   int error = heap_rkey(file, buf, index, key, keypart_map, find_flag);
   return error;
 }
 
 int ha_heap::index_next(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_next_count);
   int error = heap_rnext(file, buf);
   return error;
 }
 
 int ha_heap::index_prev(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_prev_count);
+  HA_STATISTIC_INCREMENT(ha_read_prev_count);
   int error = heap_rprev(file, buf);
   return error;
 }
 
 int ha_heap::index_first(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_first_count);
+  HA_STATISTIC_INCREMENT(ha_read_first_count);
   int error = heap_rfirst(file, buf, active_index);
   return error;
 }
 
 int ha_heap::index_last(uchar *buf) {
   assert(inited == INDEX);
-  ha_statistic_increment(&System_status_var::ha_read_last_count);
+  HA_STATISTIC_INCREMENT(ha_read_last_count);
   int error = heap_rlast(file, buf, active_index);
   return error;
 }
@@ -317,7 +317,7 @@ int ha_heap::index_last(uchar *buf) {
 int ha_heap::rnd_init(bool scan) { return scan ? heap_scan_init(file) : 0; }
 
 int ha_heap::rnd_next(uchar *buf) {
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
   int error = heap_scan(file, buf);
 
   return error;
@@ -326,7 +326,7 @@ int ha_heap::rnd_next(uchar *buf) {
 int ha_heap::rnd_pos(uchar *buf, uchar *pos) {
   int error;
   HP_HEAP_POSITION heap_position;
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_count);
   memcpy(&heap_position, pos, sizeof(HP_HEAP_POSITION));
   error = heap_rrnd(file, buf, &heap_position);
   return error;

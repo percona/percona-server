@@ -1,0 +1,144 @@
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+CREATE TABLE gap_base (
+meter      VARCHAR(32),
+metric     VARCHAR(32),
+sv         VARCHAR(64),
+otel_before BIGINT,
+sv_before   BIGINT,
+PRIMARY KEY (meter, metric)
+) ENGINE=InnoDB;
+INSERT INTO gap_base (meter, metric, sv) VALUES
+('mysql.stats','count.hit_tmp_table_size','Count_hit_tmp_table_size'),
+('mysql.stats','created.tmp_disk_tables','Created_tmp_disk_tables'),
+('mysql.stats','created.tmp_tables','Created_tmp_tables'),
+('mysql.stats','max_execution_time_exceeded','Max_execution_time_exceeded'),
+('mysql.stats','select_full_join','Select_full_join'),
+('mysql.stats','select_full_range_join','Select_full_range_join'),
+('mysql.stats','select_range','Select_range'),
+('mysql.stats','select_range_check','Select_range_check'),
+('mysql.stats','select_scan','Select_scan'),
+('mysql.stats','slow_queries','Slow_queries'),
+('mysql.stats','sort_merge_passes','Sort_merge_passes'),
+('mysql.stats','sort_rows','Sort_rows'),
+('mysql.stats','sort_scan','Sort_scan'),
+('mysql.stats.handler','delete','Handler_delete'),
+('mysql.stats.handler','external_lock','Handler_external_lock'),
+('mysql.stats.handler','mrr_init','Handler_mrr_init'),
+('mysql.stats.handler','read_first','Handler_read_first'),
+('mysql.stats.handler','read_key','Handler_read_key'),
+('mysql.stats.handler','read_last','Handler_read_last'),
+('mysql.stats.handler','read_next','Handler_read_next'),
+('mysql.stats.handler','read_prev','Handler_read_prev'),
+('mysql.stats.handler','read_rnd','Handler_read_rnd'),
+('mysql.stats.handler','read_rnd_next','Handler_read_rnd_next'),
+('mysql.stats.handler','update','Handler_update'),
+('mysql.stats.handler','write','Handler_write');
+# Tables and data for the workload
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(60), KEY k_b(b)) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b INT, KEY k_a(a), KEY k_b(b)) ENGINE=InnoDB;
+CREATE TABLE noidx (a INT, b INT, c VARCHAR(60)) ENGINE=InnoDB;
+CREATE TABLE blobs (a INT, b INT, big LONGBLOB) ENGINE=InnoDB;
+SET SESSION cte_max_recursion_depth = 10000;
+INSERT INTO t1 (a,b,c)
+WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM s WHERE n < 3000)
+SELECT n, n % 500, CONCAT('x', n) FROM s;
+SET SESSION cte_max_recursion_depth = DEFAULT;
+INSERT INTO t2 SELECT a, b FROM t1;
+INSERT INTO noidx SELECT a, b, c FROM t1 LIMIT 100;
+INSERT INTO blobs SELECT a, b, REPEAT('y', 3000) FROM t1 LIMIT 200;
+ANALYZE TABLE t1, t2, noidx, blobs;
+# Baseline: both sides sampled in one statement
+UPDATE gap_base b
+JOIN performance_schema.global_status g ON g.VARIABLE_NAME = b.sv
+SET b.sv_before   = CAST(g.VARIABLE_VALUE AS SIGNED),
+b.otel_before = test_report_single_metric(b.meter, b.metric);
+# Workload exercising every metric under test
+SELECT * FROM t1 WHERE a = 7;
+SELECT b FROM t1 FORCE INDEX(k_b);
+SELECT b FROM t1 FORCE INDEX(k_b) ORDER BY b DESC LIMIT 1;
+SELECT b FROM t1 FORCE INDEX(k_b) ORDER BY b DESC LIMIT 200;
+SELECT * FROM noidx;
+UPDATE t1 SET c = 'u' WHERE a = 9;
+DELETE FROM t1 WHERE a = 3000;
+INSERT INTO t1 VALUES (4000, 1, 'w');
+SELECT COUNT(*) FROM noidx x, noidx y WHERE x.b = y.b;
+SELECT COUNT(*) FROM t1 WHERE a BETWEEN 10 AND 900;
+SET SESSION optimizer_switch = 'block_nested_loop=off';
+SELECT COUNT(*) FROM noidx x STRAIGHT_JOIN t2 y FORCE INDEX(k_a)
+WHERE y.a BETWEEN 5 AND 50 AND y.b > x.b;
+SET SESSION optimizer_switch = DEFAULT;
+SELECT COUNT(*) FROM noidx x STRAIGHT_JOIN t2 y WHERE y.a > x.a OR y.b > x.b;
+SELECT * FROM noidx ORDER BY c;
+SET SESSION sort_buffer_size = 32768;
+SELECT a FROM t1 ORDER BY c;
+SET SESSION sort_buffer_size = DEFAULT;
+SELECT * FROM blobs ORDER BY b;
+SET SESSION optimizer_switch = 'mrr=on,mrr_cost_based=off,batched_key_access=on';
+SELECT SUM(y.b) FROM noidx x STRAIGHT_JOIN t2 y FORCE INDEX(k_a) ON y.a = x.a;
+SET SESSION optimizer_switch = DEFAULT;
+SELECT COUNT(*) FROM (SELECT b, COUNT(*) FROM t1 GROUP BY b) d;
+SET SESSION internal_tmp_mem_storage_engine = MEMORY;
+SET SESSION tmp_table_size = 1024;
+SET SESSION max_heap_table_size = 16384;
+SELECT COUNT(*) FROM (SELECT c, COUNT(*) FROM t1 GROUP BY c) d;
+SET SESSION internal_tmp_mem_storage_engine = DEFAULT;
+SET SESSION tmp_table_size = DEFAULT;
+SET SESSION max_heap_table_size = DEFAULT;
+SET SESSION long_query_time = 0;
+SELECT COUNT(*) FROM t1;
+SET SESSION long_query_time = DEFAULT;
+SET SESSION max_execution_time = 1;
+SELECT COUNT(*) FROM t1 x, t1 y, t1 z WHERE x.c > y.c AND y.c > z.c;
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
+SET SESSION max_execution_time = DEFAULT;
+#
+# Every metric must have moved, and must have moved together with its
+# status variable. A 0 in either column is the reported bug.
+#
+SELECT b.metric,
+test_report_single_metric(b.meter, b.metric) - b.otel_before > 0
+AS otel_moved,
+CAST(g.VARIABLE_VALUE AS SIGNED) - b.sv_before > 0 AS status_moved
+FROM gap_base b
+JOIN performance_schema.global_status g ON g.VARIABLE_NAME = b.sv
+ORDER BY b.meter, b.metric;
+metric	otel_moved	status_moved
+count.hit_tmp_table_size	1	1
+created.tmp_disk_tables	1	1
+created.tmp_tables	1	1
+max_execution_time_exceeded	1	1
+select_full_join	1	1
+select_full_range_join	1	1
+select_range	1	1
+select_range_check	1	1
+select_scan	1	1
+slow_queries	1	1
+sort_merge_passes	1	1
+sort_rows	1	1
+sort_scan	1	1
+delete	1	1
+external_lock	1	1
+mrr_init	1	1
+read_first	1	1
+read_key	1	1
+read_last	1	1
+read_next	1	1
+read_prev	1	1
+read_rnd	1	1
+read_rnd_next	1	1
+update	1	1
+write	1	1
+#
+# mysql.stats.sort_range is the 26th metric of the reported set. It is
+# excluded from the workload above because no caller of
+# THD::inc_status_sort_range() is left in the server, so Sort_range and
+# the metric are both permanently 0 and no workload can move either.
+# The metric must still agree with the status variable.
+#
+SELECT test_report_single_metric('mysql.stats','sort_range') AS otel_sort_range,
+CAST(VARIABLE_VALUE AS SIGNED) AS status_sort_range
+FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Sort_range';
+otel_sort_range	status_sort_range
+0	0
+DROP TABLE gap_base, t1, t2, noidx, blobs;
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';

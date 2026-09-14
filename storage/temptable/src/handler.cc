@@ -307,7 +307,7 @@ int Handler::rnd_next(uchar *mysql_row) {
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  handler::HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
 
   const Storage &rows = m_opened_table->rows();
 
@@ -362,7 +362,7 @@ int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  handler::HA_STATISTIC_INCREMENT(ha_read_rnd_count);
 
   Storage::Element *row;
   memcpy(&row, position, sizeof(row));
@@ -420,7 +420,7 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_read_key_count);
+  handler::HA_STATISTIC_INCREMENT(ha_read_key_count);
 
   assert(handler::active_index < m_opened_table->number_of_indexes());
 
@@ -529,7 +529,7 @@ int Handler::index_next(uchar *mysql_row) {
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_read_next_count);
+  handler::HA_STATISTIC_INCREMENT(ha_read_next_count);
 
   const Result ret = index_next_conditional(mysql_row, NextCondition::NO);
 
@@ -541,7 +541,7 @@ int Handler::index_next_same(uchar *mysql_row, const uchar *, uint) {
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_read_next_count);
+  handler::HA_STATISTIC_INCREMENT(ha_read_next_count);
 
   const Result ret =
       index_next_conditional(mysql_row, NextCondition::ONLY_IF_SAME);
@@ -639,7 +639,7 @@ int Handler::index_prev(uchar *mysql_row) {
 
   assert(m_index_cursor.is_positioned());
 
-  handler::ha_statistic_increment(&System_status_var::ha_read_prev_count);
+  handler::HA_STATISTIC_INCREMENT(ha_read_prev_count);
 
   Result ret;
 
@@ -705,7 +705,7 @@ int Handler::write_row(uchar *mysql_row) {
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_write_count);
+  handler::HA_STATISTIC_INCREMENT(ha_write_count);
 
   const Result ret = m_opened_table->insert(mysql_row);
 
@@ -719,7 +719,7 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
 
   opened_table_validate();
 
-  handler::ha_statistic_increment(&System_status_var::ha_update_count);
+  handler::HA_STATISTIC_INCREMENT(ha_update_count);
 
   Storage::Element *target_row;
 
@@ -746,7 +746,7 @@ int Handler::delete_row(const uchar *mysql_row) {
 
   assert(m_rnd_iterator_is_positioned);
 
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  HA_STATISTIC_INCREMENT(ha_delete_count);
 
   const Storage::Iterator victim_position = m_rnd_iterator;
 

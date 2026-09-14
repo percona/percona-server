@@ -2180,7 +2180,7 @@ int ha_innopart::rnd_next_in_part(uint part_id, uchar *buf) {
     }
     m_start_of_scan = false;
   } else {
-    ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+    HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
     error = ha_innobase::general_fetch(buf, ROW_SEL_NEXT, 0);
   }
 
@@ -2202,7 +2202,7 @@ int ha_innopart::rnd_pos(uchar *buf, uchar *pos) {
   static_assert(PARTITION_BYTES_IN_POS == 2);
   DBUG_DUMP("pos", pos, ref_length);
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_count);
 
   ut_ad(m_prebuilt->trx == thd_to_trx(ha_thd()));
 

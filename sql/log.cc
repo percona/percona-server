@@ -2029,7 +2029,10 @@ bool log_slow_applicable(THD *thd, int sp_sql_command) {
       (thd->get_examined_row_count() >= thd->variables.min_examined_row_limit);
 
   // The docs say slow queries must be counted even when the log is off.
-  if (log_this_query) thd->status_var.long_query_count++;
+  if (log_this_query) {
+    thd->status_var.long_query_count++;
+    global_aggregated_stats.get_shard(thd->thread_id()).long_query_count++;
+  }
 
   /*
     Do not log administrative statements unless the appropriate option is

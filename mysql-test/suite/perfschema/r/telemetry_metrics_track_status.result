@@ -1,0 +1,44 @@
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+# A workload touching temp tables, sorts, ranges and index/table scans
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY(b)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,10),(2,20),(3,30),(4,40),(5,50);
+SELECT * FROM t1 WHERE a BETWEEN 2 AND 4 ORDER BY b;
+SELECT COUNT(*) FROM (SELECT b FROM t1 GROUP BY b) d;
+SELECT * FROM t1 WHERE b > 15 ORDER BY b DESC;
+UPDATE t1 SET b = b + 1 WHERE a = 1;
+DELETE FROM t1 WHERE a = 5;
+COMMIT;
+#
+# Metrics whose OTEL value disagrees with the status variable named in
+# their own description, i.e. one side moved and the other did not.
+# Expected: the empty set.
+#
+SELECT m.METER, m.NAME,
+test_report_single_metric(m.METER, m.NAME) > 0 AS otel_nonzero,
+g.VARIABLE_VALUE > 0                        AS status_nonzero
+FROM performance_schema.setup_metrics m
+JOIN performance_schema.global_status g
+ON g.VARIABLE_NAME =
+TRIM(TRAILING ')' FROM SUBSTRING_INDEX(m.DESCRIPTION, '(', -1))
+WHERE m.METER IN ('mysql.stats', 'mysql.stats.handler')
+AND (test_report_single_metric(m.METER, m.NAME) > 0)
+<> (g.VARIABLE_VALUE > 0)
+ORDER BY m.METER, m.NAME;
+METER	NAME	otel_nonzero	status_nonzero
+#
+# Coverage: how many metrics the mapping above actually checked. If this
+# drops sharply, the description convention changed and the test is
+# silently checking less than it looks.
+#
+SELECT m.METER, COUNT(*) AS metrics_checked
+FROM performance_schema.setup_metrics m
+JOIN performance_schema.global_status g
+ON g.VARIABLE_NAME =
+TRIM(TRAILING ')' FROM SUBSTRING_INDEX(m.DESCRIPTION, '(', -1))
+WHERE m.METER IN ('mysql.stats', 'mysql.stats.handler')
+GROUP BY m.METER ORDER BY m.METER;
+METER	metrics_checked
+mysql.stats	60
+mysql.stats.handler	18
+DROP TABLE t1;
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';

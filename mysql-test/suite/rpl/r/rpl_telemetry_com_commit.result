@@ -1,0 +1,24 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# --- replica: install the metrics probe and take a baseline
+[connection slave]
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+# --- source: apply some transactions
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+include/rpl/sync_to_replica.inc
+# --- replica: the status variable and the metric must have moved together
+[connection slave]
+include/assert.inc [Replica applied transactions bumped Com_commit]
+include/assert.inc [mysql.stats.com/commit advanced by the same amount as Com_commit]
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

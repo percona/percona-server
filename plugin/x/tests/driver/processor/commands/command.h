@@ -228,7 +228,11 @@ class Command {
                                    const std::string &args);
   Result cmd_env(std::istream &input, Execution_context *context,
                  const std::string &args);
+  // Mysqltest basic compatibility methods
+  Result cmd_eval(std::istream &input, Execution_context *context,
+                  const std::string &args);
 
+  // Generic methods
   Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
                        const std::vector<std::string> &auth_methods);

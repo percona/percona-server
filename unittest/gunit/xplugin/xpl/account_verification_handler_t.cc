@@ -96,7 +96,8 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         nullptr};
 
   EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
@@ -105,7 +106,7 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
       .WillRepeatedly(ReturnRef(mock_connection));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _, _, _))
+              verify_authentication_string(_, _, _, _, _))
       .WillOnce(Return(true));
 
   EXPECT_EQ(
@@ -137,13 +138,14 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         nullptr};
 
   EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _, _, _))
+              verify_authentication_string(_, _, _, _, _))
       .WillOnce(Return(false));
 
   EXPECT_EQ(
@@ -164,7 +166,8 @@ TEST_F(User_verification_test,
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         nullptr};
   data.set_server_status(SERVER_STATUS_IN_TRANS);
 
   EXPECT_CALL(mock_sql_session, execute(_, _, _))
@@ -178,7 +181,7 @@ TEST_F(User_verification_test,
       .WillRepeatedly(ReturnRef(mock_connection));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _, _, _))
+              verify_authentication_string(_, _, _, _, _))
       .WillOnce(Return(true));
 
   EXPECT_EQ(
@@ -211,7 +214,8 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         nullptr};
 
   EXPECT_CALL(mock_client, client_hostname_or_address())
       .WillRepeatedly(Return(""));
@@ -221,7 +225,7 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
 
   if (param.plugin_name == AUTH_PLUGIN_NAME)
     EXPECT_CALL(*mock_account_verification,
-                verify_authentication_string(_, _, _, _))
+                verify_authentication_string(_, _, _, _, _))
         .WillOnce(Return(true));
 
   EXPECT_EQ(
@@ -264,7 +268,7 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
     EXPECT_CALL(mock_connection, get_type()).WillOnce(Return(param.type));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _, _, _))
+              verify_authentication_string(_, _, _, _, _))
       .WillOnce(Return(true));
 
   One_row_resultset data{param.requires_secure,
@@ -277,7 +281,8 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         nullptr};
 
   EXPECT_CALL(mock_sql_session, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));

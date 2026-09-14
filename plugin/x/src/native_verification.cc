@@ -36,7 +36,8 @@ namespace xpl {
 
 bool Native_verification::verify_authentication_string(
     const std::string &user, const std::string &host,
-    const std::string &client_string, const std::string &db_string) const {
+    const std::string &client_string, const std::string &db_string,
+    const bool can_update_cache [[maybe_unused]]) const {
   if (client_string.empty()) return db_string.empty();
 
   if (db_string.empty()) return false;

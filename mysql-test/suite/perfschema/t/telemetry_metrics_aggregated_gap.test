@@ -1,0 +1,176 @@
+# Server telemetry metrics backed by aggregated_stats_buffer must track the
+# status variables they document themselves as mirroring.
+#
+# Regression test for the defect where nothing ever wrote those buffer fields,
+# so 26 metrics of the mysql.stats and mysql.stats.handler meters exported 0
+# forever while SHOW GLOBAL STATUS kept counting. The writers that were missing
+# the update are handler::ha_statistic_increment() and DsMrr_impl::dsmrr_init()
+# (sql/handler.cc), the THD::inc_status_*() family (sql/sql_class.cc), and
+# Slow_queries in sql/log.cc.
+#
+# The workload below is built so that every metric under test actually moves:
+# comparing a metric that stays at 0 against a status variable that also stays
+# at 0 would pass just as well with the fix reverted. Both sides are therefore
+# sampled before and after the workload and each delta must be positive.
+#
+# test_report_single_metric() drives the same measurement callback as the real
+# OTEL exporter, so no collector is needed here.
+
+--source include/have_server_telemetry_metrics.inc
+
+INSTALL COMPONENT 'file://component_test_server_telemetry_metrics';
+
+CREATE TABLE gap_base (
+  meter      VARCHAR(32),
+  metric     VARCHAR(32),
+  sv         VARCHAR(64),
+  otel_before BIGINT,
+  sv_before   BIGINT,
+  PRIMARY KEY (meter, metric)
+) ENGINE=InnoDB;
+
+INSERT INTO gap_base (meter, metric, sv) VALUES
+ ('mysql.stats','count.hit_tmp_table_size','Count_hit_tmp_table_size'),
+ ('mysql.stats','created.tmp_disk_tables','Created_tmp_disk_tables'),
+ ('mysql.stats','created.tmp_tables','Created_tmp_tables'),
+ ('mysql.stats','max_execution_time_exceeded','Max_execution_time_exceeded'),
+ ('mysql.stats','select_full_join','Select_full_join'),
+ ('mysql.stats','select_full_range_join','Select_full_range_join'),
+ ('mysql.stats','select_range','Select_range'),
+ ('mysql.stats','select_range_check','Select_range_check'),
+ ('mysql.stats','select_scan','Select_scan'),
+ ('mysql.stats','slow_queries','Slow_queries'),
+ ('mysql.stats','sort_merge_passes','Sort_merge_passes'),
+ ('mysql.stats','sort_rows','Sort_rows'),
+ ('mysql.stats','sort_scan','Sort_scan'),
+ ('mysql.stats.handler','delete','Handler_delete'),
+ ('mysql.stats.handler','external_lock','Handler_external_lock'),
+ ('mysql.stats.handler','mrr_init','Handler_mrr_init'),
+ ('mysql.stats.handler','read_first','Handler_read_first'),
+ ('mysql.stats.handler','read_key','Handler_read_key'),
+ ('mysql.stats.handler','read_last','Handler_read_last'),
+ ('mysql.stats.handler','read_next','Handler_read_next'),
+ ('mysql.stats.handler','read_prev','Handler_read_prev'),
+ ('mysql.stats.handler','read_rnd','Handler_read_rnd'),
+ ('mysql.stats.handler','read_rnd_next','Handler_read_rnd_next'),
+ ('mysql.stats.handler','update','Handler_update'),
+ ('mysql.stats.handler','write','Handler_write');
+
+--echo # Tables and data for the workload
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c VARCHAR(60), KEY k_b(b)) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b INT, KEY k_a(a), KEY k_b(b)) ENGINE=InnoDB;
+CREATE TABLE noidx (a INT, b INT, c VARCHAR(60)) ENGINE=InnoDB;
+CREATE TABLE blobs (a INT, b INT, big LONGBLOB) ENGINE=InnoDB;
+
+SET SESSION cte_max_recursion_depth = 10000;
+INSERT INTO t1 (a,b,c)
+  WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM s WHERE n < 3000)
+  SELECT n, n % 500, CONCAT('x', n) FROM s;
+SET SESSION cte_max_recursion_depth = DEFAULT;
+INSERT INTO t2 SELECT a, b FROM t1;
+INSERT INTO noidx SELECT a, b, c FROM t1 LIMIT 100;
+INSERT INTO blobs SELECT a, b, REPEAT('y', 3000) FROM t1 LIMIT 200;
+--disable_result_log
+ANALYZE TABLE t1, t2, noidx, blobs;
+--enable_result_log
+
+--echo # Baseline: both sides sampled in one statement
+UPDATE gap_base b
+  JOIN performance_schema.global_status g ON g.VARIABLE_NAME = b.sv
+  SET b.sv_before   = CAST(g.VARIABLE_VALUE AS SIGNED),
+      b.otel_before = test_report_single_metric(b.meter, b.metric);
+
+--echo # Workload exercising every metric under test
+--disable_result_log
+# handler.read_key
+SELECT * FROM t1 WHERE a = 7;
+# handler.read_first, handler.read_next
+SELECT b FROM t1 FORCE INDEX(k_b);
+# handler.read_last
+SELECT b FROM t1 FORCE INDEX(k_b) ORDER BY b DESC LIMIT 1;
+# handler.read_prev
+SELECT b FROM t1 FORCE INDEX(k_b) ORDER BY b DESC LIMIT 200;
+# handler.read_rnd_next
+SELECT * FROM noidx;
+# handler.update, handler.delete, handler.write, handler.external_lock
+UPDATE t1 SET c = 'u' WHERE a = 9;
+DELETE FROM t1 WHERE a = 3000;
+INSERT INTO t1 VALUES (4000, 1, 'w');
+
+# select_full_join, select_scan
+SELECT COUNT(*) FROM noidx x, noidx y WHERE x.b = y.b;
+# select_range
+SELECT COUNT(*) FROM t1 WHERE a BETWEEN 10 AND 900;
+# select_full_range_join: range access on a table that is not the first one,
+# so the nested loop must not be replaced by a hash join
+SET SESSION optimizer_switch = 'block_nested_loop=off';
+SELECT COUNT(*) FROM noidx x STRAIGHT_JOIN t2 y FORCE INDEX(k_a)
+  WHERE y.a BETWEEN 5 AND 50 AND y.b > x.b;
+SET SESSION optimizer_switch = DEFAULT;
+# select_range_check ("Range checked for each record")
+SELECT COUNT(*) FROM noidx x STRAIGHT_JOIN t2 y WHERE y.a > x.a OR y.b > x.b;
+
+# sort_scan, sort_rows
+SELECT * FROM noidx ORDER BY c;
+# sort_merge_passes
+SET SESSION sort_buffer_size = 32768;
+SELECT a FROM t1 ORDER BY c;
+SET SESSION sort_buffer_size = DEFAULT;
+# handler.read_rnd: the row is too wide for addon fields, so filesort sorts
+# row IDs and re-reads each row by position
+SELECT * FROM blobs ORDER BY b;
+
+# handler.mrr_init: only Batched Key Access asks for an associated MRR scan,
+# which is what DsMrr_impl::dsmrr_init() counts
+SET SESSION optimizer_switch = 'mrr=on,mrr_cost_based=off,batched_key_access=on';
+SELECT SUM(y.b) FROM noidx x STRAIGHT_JOIN t2 y FORCE INDEX(k_a) ON y.a = x.a;
+SET SESSION optimizer_switch = DEFAULT;
+
+# created.tmp_tables
+SELECT COUNT(*) FROM (SELECT b, COUNT(*) FROM t1 GROUP BY b) d;
+# created.tmp_disk_tables, count.hit_tmp_table_size
+SET SESSION internal_tmp_mem_storage_engine = MEMORY;
+SET SESSION tmp_table_size = 1024;
+SET SESSION max_heap_table_size = 16384;
+SELECT COUNT(*) FROM (SELECT c, COUNT(*) FROM t1 GROUP BY c) d;
+SET SESSION internal_tmp_mem_storage_engine = DEFAULT;
+SET SESSION tmp_table_size = DEFAULT;
+SET SESSION max_heap_table_size = DEFAULT;
+
+# slow_queries
+SET SESSION long_query_time = 0;
+SELECT COUNT(*) FROM t1;
+SET SESSION long_query_time = DEFAULT;
+--enable_result_log
+
+# max_execution_time_exceeded
+SET SESSION max_execution_time = 1;
+--error ER_QUERY_TIMEOUT
+SELECT COUNT(*) FROM t1 x, t1 y, t1 z WHERE x.c > y.c AND y.c > z.c;
+SET SESSION max_execution_time = DEFAULT;
+
+--echo #
+--echo # Every metric must have moved, and must have moved together with its
+--echo # status variable. A 0 in either column is the reported bug.
+--echo #
+SELECT b.metric,
+       test_report_single_metric(b.meter, b.metric) - b.otel_before > 0
+         AS otel_moved,
+       CAST(g.VARIABLE_VALUE AS SIGNED) - b.sv_before > 0 AS status_moved
+  FROM gap_base b
+  JOIN performance_schema.global_status g ON g.VARIABLE_NAME = b.sv
+ ORDER BY b.meter, b.metric;
+
+--echo #
+--echo # mysql.stats.sort_range is the 26th metric of the reported set. It is
+--echo # excluded from the workload above because no caller of
+--echo # THD::inc_status_sort_range() is left in the server, so Sort_range and
+--echo # the metric are both permanently 0 and no workload can move either.
+--echo # The metric must still agree with the status variable.
+--echo #
+SELECT test_report_single_metric('mysql.stats','sort_range') AS otel_sort_range,
+       CAST(VARIABLE_VALUE AS SIGNED) AS status_sort_range
+  FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Sort_range';
+
+DROP TABLE gap_base, t1, t2, noidx, blobs;
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_metrics';

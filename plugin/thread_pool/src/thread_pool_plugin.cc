@@ -156,6 +156,12 @@ static int thread_pool_plugin_init(void *plugin [[maybe_unused]]) {
   auto log_grd = create_scope_guard(
       []() { deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs); });
 
+#if 0
+  /*
+    Previous behaviour (PS-11352): the plugin was allowed to initialize as long
+    as the built-in Percona thread pool was not selected, and only a dual
+    configuration was refused.  Kept here for reference.
+  */
   if (Connection_handler_manager::thread_handling ==
       Connection_handler_manager::SCHEDULER_THREAD_POOL) {
     LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -163,6 +169,27 @@ static int thread_pool_plugin_init(void *plugin [[maybe_unused]]) {
            "used with thread_pool plugin");
     return TP_INIT_FAILURE;
   }
+#else
+  /*
+    The upstream (Oracle) thread_pool plugin is disabled in Percona Server.
+
+    Percona Server ships its own thread pool, built into the server and
+    selected with --thread-handling=pool-of-threads.  The two implementations
+    cannot run at the same time, and the built-in one is the supported one, so
+    refuse to initialize unconditionally: the plugin can then never be started
+    with --plugin-load, --plugin-load-add or --early-plugin-load.  (INSTALL
+    PLUGIN was never possible: this is a daemon plugin declared
+    PLUGIN_OPT_NO_INSTALL.)
+
+    Everything below this point is retained, but unreachable, so that the
+    plugin can be revived by removing this block should that ever be wanted;
+    the pre-existing dual-configuration guard is kept above under #if 0.
+  */
+  LogErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+         "The thread_pool plugin is disabled in Percona Server; use the "
+         "built-in thread pool instead (--thread-handling=pool-of-threads)");
+  return TP_INIT_FAILURE;
+#endif
 
   // Initialize container_aware to fetch available system resources
   const auto use_cgroup = get_system_variable_value(reg_srv, "container_aware");

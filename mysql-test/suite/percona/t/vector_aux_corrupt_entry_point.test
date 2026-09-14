@@ -1,0 +1,33 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A vector aux table's record 0 stores the graph's entry-point id.
+--echo # Graph node id 0 is a reserved empty-slot sentinel that no real
+--echo # node is ever assigned, so a record 0 naming entry point 0 is
+--echo # corrupt (bit-flip, torn page, crafted data). vec_runtime_load()
+--echo # must reject it with an error rather than hand it to the graph,
+--echo # which asserts on id 0 deeper in the load path.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+--echo # Open the table so its vector runtime exists, before any real
+--echo # insert would create the aux table's own record 0.
+SELECT COUNT(*) FROM t1;
+
+--echo # Forge a corrupt record 0: entry point id 0, the reserved sentinel.
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 0 0 0.0,0.0,0.0,0.0 -';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # A search forces the lazy graph load, which must now fail cleanly
+--echo # instead of asserting.
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION innodb_interpreter = 'vec_knn test/t1 1 10 0.0,0.0,0.0,0.0';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # The server is still alive and the table remains usable otherwise.
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;

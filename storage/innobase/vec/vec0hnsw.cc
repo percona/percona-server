@@ -364,6 +364,17 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
     return err;
   }
 
+  /* Graph node id 0 is the class's reserved empty-slot sentinel; no real
+  node is ever assigned it (vec_persist_entry_point). A record 0 naming it
+  as the entry point is therefore corrupt, not merely empty - and passing
+  it on would hit ut_a(id != 0) in vec_persist_load_node instead of
+  failing gracefully. */
+  if (entry_point == 0) {
+    ut::delete_(vec->hnsw);
+    vec->hnsw = nullptr;
+    return DB_CORRUPTION;
+  }
+
   Vec_ctx ctx;
   ctx.aux = aux;
   ctx.thd = thd;

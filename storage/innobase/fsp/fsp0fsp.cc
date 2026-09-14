@@ -3627,11 +3627,13 @@ bool fseg_page_is_free(fseg_header_t *seg_header, /*!< in: segment header */
 
   const page_size_t page_size(space->flags);
 
-  seg_inode = fseg_inode_get(seg_header, space_id, page_size, &mtr);
+  if (seg_header != nullptr) {
+    seg_inode = fseg_inode_get(seg_header, space_id, page_size, &mtr);
 
-  ut_a(seg_inode);
-  ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
-  ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+    ut_a(seg_inode);
+    ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+    ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
+  }
 
   descr = xdes_get_descriptor(space_id, page, page_size, &mtr);
   ut_a(descr);

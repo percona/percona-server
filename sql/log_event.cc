@@ -6145,7 +6145,11 @@ bool Xid_log_event::do_commit(THD *thd_arg) {
   /*
     Increment the global status commit count variable
   */
-  if (!error) thd_arg->status_var.com_stat[SQLCOM_COMMIT]++;
+  if (!error) {
+    thd_arg->status_var.com_stat[SQLCOM_COMMIT]++;
+    global_aggregated_stats.get_shard(thd_arg->thread_id())
+        .com_stat[SQLCOM_COMMIT]++;
+  }
 
   return error;
 }

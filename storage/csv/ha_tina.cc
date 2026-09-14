@@ -945,7 +945,7 @@ int ha_tina::write_row(uchar *buf) {
 
   if (share->crashed) return HA_ERR_CRASHED_ON_USAGE;
 
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  HA_STATISTIC_INCREMENT(ha_write_count);
 
   size = encode_quote(buf);
 
@@ -1001,7 +1001,7 @@ int ha_tina::update_row(const uchar *, uchar *new_data) {
   int rc = -1;
   DBUG_TRACE;
 
-  ha_statistic_increment(&System_status_var::ha_update_count);
+  HA_STATISTIC_INCREMENT(ha_update_count);
 
   size = encode_quote(new_data);
 
@@ -1042,7 +1042,7 @@ err:
 */
 int ha_tina::delete_row(const uchar *) {
   DBUG_TRACE;
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  HA_STATISTIC_INCREMENT(ha_delete_count);
 
   if (chain_append()) return -1;
 
@@ -1150,7 +1150,7 @@ int ha_tina::rnd_next(uchar *buf) {
     goto end;
   }
 
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
 
   current_position = next_position;
 
@@ -1190,7 +1190,7 @@ void ha_tina::position(const uchar *) {
 int ha_tina::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
   DBUG_TRACE;
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_count);
   current_position = my_get_ptr(pos, ref_length);
   rc = find_current_row(buf);
   return rc;

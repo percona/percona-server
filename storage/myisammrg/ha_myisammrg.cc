@@ -982,7 +982,7 @@ int ha_myisammrg::close(void) {
 int ha_myisammrg::write_row(uchar *buf) {
   DBUG_TRACE;
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_write_count);
+  HA_STATISTIC_INCREMENT(ha_write_count);
 
   if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
     return HA_ERR_TABLE_READONLY;
@@ -997,13 +997,13 @@ int ha_myisammrg::write_row(uchar *buf) {
 
 int ha_myisammrg::update_row(const uchar *old_data, uchar *new_data) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_update_count);
+  HA_STATISTIC_INCREMENT(ha_update_count);
   return myrg_update(file, old_data, new_data);
 }
 
 int ha_myisammrg::delete_row(const uchar *buf) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_delete_count);
+  HA_STATISTIC_INCREMENT(ha_delete_count);
   return myrg_delete(file, buf);
 }
 
@@ -1011,7 +1011,7 @@ int ha_myisammrg::index_read_map(uchar *buf, const uchar *key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
   int error = myrg_rkey(file, buf, active_index, key, keypart_map, find_flag);
   return error;
 }
@@ -1020,7 +1020,7 @@ int ha_myisammrg::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                      key_part_map keypart_map,
                                      enum ha_rkey_function find_flag) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
   int error = myrg_rkey(file, buf, index, key, keypart_map, find_flag);
   return error;
 }
@@ -1028,7 +1028,7 @@ int ha_myisammrg::index_read_idx_map(uchar *buf, uint index, const uchar *key,
 int ha_myisammrg::index_read_last_map(uchar *buf, const uchar *key,
                                       key_part_map keypart_map) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  HA_STATISTIC_INCREMENT(ha_read_key_count);
   int error =
       myrg_rkey(file, buf, active_index, key, keypart_map, HA_READ_PREFIX_LAST);
   return error;
@@ -1036,28 +1036,28 @@ int ha_myisammrg::index_read_last_map(uchar *buf, const uchar *key,
 
 int ha_myisammrg::index_next(uchar *buf) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_next_count);
   int error = myrg_rnext(file, buf, active_index);
   return error;
 }
 
 int ha_myisammrg::index_prev(uchar *buf) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_prev_count);
+  HA_STATISTIC_INCREMENT(ha_read_prev_count);
   int error = myrg_rprev(file, buf, active_index);
   return error;
 }
 
 int ha_myisammrg::index_first(uchar *buf) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_first_count);
+  HA_STATISTIC_INCREMENT(ha_read_first_count);
   int error = myrg_rfirst(file, buf, active_index);
   return error;
 }
 
 int ha_myisammrg::index_last(uchar *buf) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_last_count);
+  HA_STATISTIC_INCREMENT(ha_read_last_count);
   int error = myrg_rlast(file, buf, active_index);
   return error;
 }
@@ -1066,7 +1066,7 @@ int ha_myisammrg::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
                                   uint length [[maybe_unused]]) {
   int error;
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_next_count);
   do {
     error = myrg_rnext_same(file, buf);
   } while (error == HA_ERR_RECORD_DELETED);
@@ -1080,14 +1080,14 @@ int ha_myisammrg::rnd_init(bool) {
 
 int ha_myisammrg::rnd_next(uchar *buf) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_next_count);
   int error = myrg_rrnd(file, buf, HA_OFFSET_ERROR);
   return error;
 }
 
 int ha_myisammrg::rnd_pos(uchar *buf, uchar *pos) {
   assert(this->file->children_attached);
-  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
+  HA_STATISTIC_INCREMENT(ha_read_rnd_count);
   int error = myrg_rrnd(file, buf, my_get_ptr(pos, ref_length));
   return error;
 }

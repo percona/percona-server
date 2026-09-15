@@ -117,3 +117,23 @@ SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output
 hits=4 base_pks=<tie order varies>
 DROP TABLE tk;
+#
+# M is bounded to [2, 200] (vec0vec.cc). An oversized M must be
+# rejected at parse time, on a populated table, for both CREATE and
+# ALTER - never reach vec_build and size a per-node neighbor buffer
+# off it.
+#
+CREATE TABLE tm (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO tm VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+ALTER TABLE tm ADD KEY km (v) TYPE hnsw WITH (M = 201);
+ERROR HY000: Illegal index construction parameter value: 201.
+# Same for CREATE INDEX on the populated table.
+CREATE INDEX kmi ON tm(v) TYPE hnsw WITH (M = 201);
+ERROR HY000: Illegal index construction parameter value: 201.
+# M at the bound still builds normally on a populated table.
+ALTER TABLE tm ADD KEY km (v) TYPE hnsw WITH (M = 200);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/tm';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1 distinct_ids=1 distinct_base_pks=1 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+DROP TABLE tm;

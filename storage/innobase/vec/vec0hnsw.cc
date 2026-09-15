@@ -368,11 +368,16 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   node is ever assigned it (vec_persist_entry_point). A record 0 naming it
   as the entry point is therefore corrupt, not merely empty - and passing
   it on would hit ut_a(id != 0) in vec_persist_load_node instead of
-  failing gracefully. */
+  failing gracefully.
+
+  DB_INDEX_CORRUPT, not DB_CORRUPTION: convert_error_code_to_mysql maps
+  DB_CORRUPTION to HA_ERR_CRASHED, which reports the *base table* as
+  crashed. Only this vector index's runtime is bad; the base table and
+  its other indexes are fine, so this must stay index-scoped. */
   if (entry_point == 0) {
     ut::delete_(vec->hnsw);
     vec->hnsw = nullptr;
-    return DB_CORRUPTION;
+    return DB_INDEX_CORRUPT;
   }
 
   Vec_ctx ctx;

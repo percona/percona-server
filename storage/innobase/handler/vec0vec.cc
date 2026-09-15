@@ -131,7 +131,7 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
       const auto *last = value.str + value.length;
       int val;
       auto result = std::from_chars(value.str, last, val);
-      if (result.ptr == last && result.ec == errc()) {
+      if (result.ptr == last && result.ec == errc() && val >= 2) {
         hnsw_param.M = val;
       } else {
         my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),

@@ -8425,7 +8425,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   offline for a vector index that may not even be queried. */
   for (dict_index_t *index = m_prebuilt->table->first_index(); index != nullptr;
        index = index->next()) {
-    if (!index->is_vector() || index->vec != nullptr) continue;
+    if (!index->is_vector() || vec_runtime_get(index) != nullptr) continue;
 
     /* Match by name, which is how InnoDB pairs a KEY with a
     dict_index_t everywhere else - dict_table_get_index_on_name() is the
@@ -12206,7 +12206,7 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
   DBUG_TRACE;
 
   dict_index_t *vindex = vec_index_of(m_prebuilt->table);
-  if (vindex == nullptr || vindex->vec == nullptr) {
+  if (vindex == nullptr || vec_runtime_get(vindex) == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 

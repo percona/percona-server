@@ -456,13 +456,40 @@ aux:         row 10 untouched; row 20 inserted; ~M neighbour rows updated
 
 Both nodes now carry `base_pk = 7`. §12 explains how a query tells them apart.
 
-**Changing only the primary key** does not touch the graph at all — the vector has not moved.
-It does need the row's *current* node to be re-pointed, which is one more `vec_aux_update_row`
-on the sub-transaction: the same self-positioned `upd_node` + `row_upd_step` path §21 describes,
-addressing the aux row by label and writing only `base_pk`. No SQL is parsed and no cursor is
-searched for; we already know the key.
+**Changing only the primary key** is handled the same way as a vector change, not by editing
+`base_pk` in place. Every node naming this row bakes its `base_pk` into an aux row that a
+stale-snapshot reader may still walk to; once the key moves, the clustered record at the OLD
+key is this UPDATE's own delete-mark and the record at the NEW key is this UPDATE's own insert,
+both invisible to a read view that predates the statement. Rewriting the existing node's
+`base_pk` to the new key would make that reader's lookup land on the fresh insert — invisible,
+`DB_RECORD_NOT_FOUND` — and lose the row outright, worse than doing nothing. So a PK change mints
+a fresh label exactly as a vector change does, and the new node carries the *unchanged* vector
+together with the *new* key:
 
-Older nodes for the same row keep the stale `base_pk`; §12 shows why that is harmless.
+```sql
+UPDATE t SET id = 70 WHERE id = 7;
+```
+
+```
+base row 7→70: percona_vec_aux_id  10 → 21
+graph:         node 10 stays (vector [1,0,0,0], base_pk = 7)
+               node 21 added (vector [1,0,0,0], base_pk = 70)
+aux:           row 10 untouched; row 21 inserted (same neighbour build as any insert)
+```
+
+A statement that changes both the vector and the key mints one label for the combined
+change, not two: the new node carries the new vector and the new key together.
+
+Mechanically this rides on what InnoDB already does. A change to a clustered ordering field
+is not an in-place update — `row_upd_clust_rec_by_insert` delete-marks the old record and
+inserts a new one — so the node is built right there, after that insert lands, from the same
+new row the insert was built from, by the ordinary `vec_insert_row` the INSERT path uses. The
+graph has no separate notion of a primary key update: it sees an insert, because that is what
+happened underneath.
+
+Older nodes for the same row keep the stale `base_pk`; §12 shows why that is harmless. The
+cost is the same one a vector-only UPDATE already pays — one more orphaned node per change,
+reclaimed the way §18 describes — now also paid by a PK-only UPDATE.
 
 ---
 

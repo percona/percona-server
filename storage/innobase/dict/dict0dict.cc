@@ -4428,15 +4428,27 @@ back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
 do not hold latches (log.free_check_limit_lsn). */
 static void dict_persist_update_log_margin() {
-  /* Below variables basically considers only the AUTO_INCREMENT counter
-  and a small margin for corrupted indexes. */
+  /* Below variables basically considers only the AUTO_INCREMENT counter,
+  the hidden vec_idx_id counter (PS-11300), and a small margin for
+  corrupted indexes. */
+
+  /* Worst case bytes for one PM_TABLE_VEC_IDX_ID entry, matching
+  VecIdxIdPersister::get_write_size(): 1 type byte + max 11 bytes of
+  much-compressed u64. A table can be dirty for its AUTO_INCREMENT
+  counter and its vec_idx_id counter at the same time, and
+  Persisters::write() then serializes both entries into the same
+  dynamic metadata record, so this must be added on top of the
+  AUTO_INCREMENT-only estimate below rather than assumed to overlap. */
+  static constexpr uint32_t log_margin_per_table_vec_idx_id = 12;
 
   /* Every table will generate less than 80 bytes without
-  considering page split */
-  static constexpr uint32_t log_margin_per_table_no_split = 80;
+  considering page split, plus the vec_idx_id entry above. */
+  static constexpr uint32_t log_margin_per_table_no_split =
+      80 + log_margin_per_table_vec_idx_id;
 
   /* Every table metadata log may roughly consume such many bytes. */
-  static constexpr uint32_t record_size_per_table = 50;
+  static constexpr uint32_t record_size_per_table =
+      50 + log_margin_per_table_vec_idx_id;
 
   /* How many tables may generate one page split */
   static const uint32_t tables_per_split =

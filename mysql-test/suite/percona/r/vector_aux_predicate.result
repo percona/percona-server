@@ -16,7 +16,7 @@
 CREATE TABLE tva (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6)
+VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 # The aux .ibd exists on disk.
 percona_vec_hnsw_<TID>_<IID>.ibd

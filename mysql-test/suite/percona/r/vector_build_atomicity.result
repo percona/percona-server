@@ -10,7 +10,7 @@
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(2) NOT NULL,
-KEY vk (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
 (2, STRING_TO_VECTOR('[1,0]')),
 (3, STRING_TO_VECTOR('[2,0]')),
@@ -31,7 +31,7 @@ t1	CREATE TABLE `t1` (
 # then the per-row budget check refuses the rest.
 SET @sv = @@GLOBAL.innodb_hnsw_max_memory;
 SET GLOBAL innodb_hnsw_max_memory = 1;
-ALTER TABLE t1 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+ALTER TABLE t1 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 SET GLOBAL innodb_hnsw_max_memory = @sv;
 # The failed ALTER must have left nothing behind: no index in the
@@ -58,14 +58,14 @@ id
 5
 # And a second, successful build must work on the same table —
 # which it cannot if the first one committed part of itself.
-ALTER TABLE t1 ADD KEY vk3 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+ALTER TABLE t1 ADD VECTOR KEY vk3 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(2) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `vk3` (`v`) TYPE `hnsw` WITH (`M`=4)
+  VECTOR KEY `vk3` (`v`) USING `hnsw` (`M`=4)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 id

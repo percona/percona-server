@@ -16,7 +16,7 @@ CREATE TABLE child (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 pid BIGINT UNSIGNED,
-KEY (v) TYPE hnsw,
+VECTOR KEY (v) TYPE hnsw,
 FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE CASCADE
 );
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
@@ -25,7 +25,7 @@ CREATE TABLE child (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 pid BIGINT UNSIGNED,
-KEY (v) TYPE hnsw,
+VECTOR KEY (v) TYPE hnsw,
 FOREIGN KEY (pid) REFERENCES parent(id) ON UPDATE CASCADE
 );
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
@@ -34,7 +34,7 @@ CREATE TABLE child (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 pid BIGINT UNSIGNED,
-KEY (v) TYPE hnsw
+VECTOR KEY (v) TYPE hnsw
 );
 ALTER TABLE child ADD FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE CASCADE;
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
@@ -47,7 +47,7 @@ v VECTOR(8) NOT NULL,
 pid BIGINT UNSIGNED,
 FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE CASCADE
 );
-ALTER TABLE child ADD KEY (v) TYPE hnsw;
+ALTER TABLE child ADD VECTOR KEY (v) TYPE hnsw;
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
 DROP TABLE child;
 # RESTRICT / NO ACTION / SET NULL stay allowed: they either refuse the
@@ -56,7 +56,7 @@ CREATE TABLE child (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 pid BIGINT UNSIGNED,
-KEY (v) TYPE hnsw,
+VECTOR KEY (v) TYPE hnsw,
 FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE SET NULL
 );
 INSERT INTO parent VALUES (1);

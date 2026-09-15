@@ -11,7 +11,7 @@
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(2) NOT NULL,
-                 KEY vk (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
                       (2, STRING_TO_VECTOR('[1,0]')),
                       (3, STRING_TO_VECTOR('[2,0]')),
@@ -29,7 +29,7 @@ SHOW CREATE TABLE t1;
 SET @sv = @@GLOBAL.innodb_hnsw_max_memory;
 SET GLOBAL innodb_hnsw_max_memory = 1;
 --error ER_OUT_OF_RESOURCES
-ALTER TABLE t1 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+ALTER TABLE t1 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
 SET GLOBAL innodb_hnsw_max_memory = @sv;
 
 --echo # The failed ALTER must have left nothing behind: no index in the
@@ -43,7 +43,7 @@ SELECT id FROM t1 ORDER BY id;
 
 --echo # And a second, successful build must work on the same table —
 --echo # which it cannot if the first one committed part of itself.
-ALTER TABLE t1 ADD KEY vk3 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+ALTER TABLE t1 ADD VECTOR KEY vk3 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE t1;
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 

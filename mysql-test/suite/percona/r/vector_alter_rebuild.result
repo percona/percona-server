@@ -265,7 +265,7 @@ WHERE name LIKE '%percona_vec_hnsw%';
 aux_after_drop_index
 0
 # And adding one back creates exactly one again.
-ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
 SELECT COUNT(*) AS aux_after_readd FROM information_schema.innodb_tables
 WHERE name LIKE '%percona_vec_hnsw%';
 aux_after_readd

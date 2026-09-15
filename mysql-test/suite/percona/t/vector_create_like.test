@@ -9,7 +9,7 @@
 
 CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
                   v VECTOR(8) NOT NULL,
-                  KEY (v) TYPE hnsw WITH (M = 6));
+                  VECTOR KEY (v) TYPE hnsw (M = 6));
 
 --echo # Source has its vec aux.
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<SRC>.ibd/

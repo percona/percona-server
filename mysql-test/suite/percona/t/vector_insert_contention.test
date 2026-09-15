@@ -38,7 +38,7 @@ SET GLOBAL innodb_lock_wait_timeout = 3;
 
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
                 v VECTOR(4) NOT NULL,
-                KEY (v) TYPE hnsw WITH (M = 4));
+                VECTOR KEY (v) TYPE hnsw (M = 4));
 
 DELIMITER |;
 CREATE PROCEDURE ins(n INT, seedv INT)

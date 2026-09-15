@@ -16,7 +16,7 @@
 --echo #
 CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
                   v VECTOR(8) NOT NULL,
-                  KEY (v) TYPE hnsw WITH (M = 6));
+                  VECTOR KEY (v) TYPE hnsw (M = 6));
 --echo # Two distinct aux .ibd (one per parent table).
 CREATE TABLE dst LIKE src;
 SHOW CREATE TABLE dst;
@@ -34,10 +34,10 @@ CREATE DATABASE veclab;
 USE veclab;
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(8) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 6));
+                 VECTOR KEY (v) TYPE hnsw (M = 6));
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(8) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY (v) TYPE hnsw (M = 4));
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/veclab percona_vec_*.ibd
 USE test;
@@ -49,7 +49,7 @@ DROP DATABASE veclab;
 --echo #
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(8) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 6));
+                 VECTOR KEY (v) TYPE hnsw (M = 6));
 CREATE DATABASE vec_target;
 RENAME TABLE test.t3 TO vec_target.t3;
 --echo # aux follows the parent into vec_target/.
@@ -69,5 +69,5 @@ DROP DATABASE vec_target;
 --error ER_NOT_SUPPORTED_YET
 CREATE TABLE t_part (id BIGINT UNSIGNED PRIMARY KEY,
                      v VECTOR(8) NOT NULL,
-                     KEY (v) TYPE hnsw WITH (M = 6))
+                     VECTOR KEY (v) TYPE hnsw (M = 6))
   PARTITION BY HASH(id) PARTITIONS 4;

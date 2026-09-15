@@ -24,7 +24,7 @@
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(2) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY (v) TYPE hnsw (M = 4));
 CREATE TABLE noise (id INT PRIMARY KEY AUTO_INCREMENT,
                     pad CHAR(255)) ENGINE=InnoDB;
 

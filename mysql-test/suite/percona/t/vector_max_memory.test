@@ -16,7 +16,7 @@ SET @saved = @@global.innodb_hnsw_max_memory;
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(4) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY (v) TYPE hnsw (M = 4));
 
 --echo # Under the default bound, inserts work.
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
@@ -74,10 +74,10 @@ DROP TABLE t1;
 
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(4) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY (v) TYPE hnsw (M = 4));
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(4) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY (v) TYPE hnsw (M = 4));
 --disable_query_log
 let $i = 1;
 while ($i <= 20)
@@ -92,12 +92,17 @@ while ($i <= 20)
 --source include/restart_mysqld.inc
 SET @saved = @@global.innodb_hnsw_max_memory;
 
+analyze table t2;
+analyze table t3;
+
 --echo # Warm t2 back up under the default bound. Its graph now holds more
 --echo # than the bound we are about to set.
+
 SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
 
 --echo # With the budget spent, t3's graph is not allowed to start loading.
 SET GLOBAL innodb_hnsw_max_memory = 4096;
+explain SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
 --error ER_OUT_OF_RESOURCES
 SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
 

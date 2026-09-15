@@ -20,11 +20,11 @@ INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
 
 --echo # First ADD, explicit INPLACE: refused, not silently empty.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
 
 --echo # First ADD, default algorithm: falls back to COPY and builds a
 --echo # node per row. This is the case that used to give nodes=0.
-ALTER TABLE t1 ADD KEY k1 (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE t1 ADD VECTOR KEY k1 (v) TYPE hnsw (M = 4);
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 
@@ -37,7 +37,7 @@ ALTER TABLE t1 DROP KEY k1;
 
 --echo # Re-ADD with explicit INPLACE: now allowed, and populated by the
 --echo # clustered-scan build.
-ALTER TABLE t1 ADD KEY k2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 
@@ -61,7 +61,7 @@ SELECT @@session.innodb_interpreter_output;
 --echo # index.
 DELETE FROM t1 WHERE id = 2;
 ALTER TABLE t1 DROP KEY k2;
-ALTER TABLE t1 ADD KEY k3 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 
@@ -78,7 +78,7 @@ INSERT INTO tk VALUES (10, STRING_TO_VECTOR('[1,0,0,0]')),
                      (20, STRING_TO_VECTOR('[0,1,0,0]')),
                      (30, STRING_TO_VECTOR('[0,0,1,0]')),
                      (40, STRING_TO_VECTOR('[0,0,0,1]'));
-ALTER TABLE tk ADD KEY kv (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE tk ADD VECTOR KEY kv (v) TYPE hnsw (M = 4);
 --echo # Touch the table so the handler opens it and creates the runtime
 --echo # (vec_runtime_open runs in ha_innobase::open).
 SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
@@ -110,7 +110,7 @@ SELECT @@session.innodb_interpreter_output;
 --echo # the same — the build produced an equivalent graph, not just a
 --echo # populated table.
 ALTER TABLE tk DROP KEY kv;
-ALTER TABLE tk ADD KEY kv2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+ALTER TABLE tk ADD VECTOR KEY kv2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
 SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
 SET SESSION innodb_interpreter = 'vec_knn test/tk 1 16 1,0,0,0';
 SELECT @@session.innodb_interpreter_output;

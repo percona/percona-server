@@ -18,7 +18,7 @@
 # === C1: CHECK TABLE on populated vec-indexed table ===
 CREATE TABLE t_check (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 INSERT INTO t_check VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 INSERT INTO t_check VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
 INSERT INTO t_check VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'));
@@ -30,7 +30,7 @@ DROP TABLE t_check;
 CREATE TABLESPACE ts_vec ADD DATAFILE 'ts_vec.ibd';
 CREATE TABLE t_gen (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6))
+VECTOR KEY (v) TYPE hnsw (M = 6))
 TABLESPACE = ts_vec;
 INSERT INTO t_gen VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 # DROP must NOT invoke write_free_tree_log on the vec index —
@@ -43,7 +43,7 @@ CREATE TABLE t_child (id BIGINT UNSIGNED PRIMARY KEY,
 parent_id BIGINT UNSIGNED,
 v VECTOR(8) NOT NULL,
 KEY k (parent_id),
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 # The FK column has a plain BTREE (KEY k). Vec index is on a
 # different column, so this test is a smoke check — the vec
 # index must not be considered.
@@ -56,7 +56,7 @@ DROP TABLE t_child, t_parent;
 # === I3: HANDLER READ on vec index returns 0 rows, no crash ===
 CREATE TABLE t_hand (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY vidx (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY vidx (v) TYPE hnsw (M = 6));
 INSERT INTO t_hand VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 INSERT INTO t_hand VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
 HANDLER t_hand OPEN;
@@ -77,7 +77,7 @@ DROP TABLE t_hand;
 CREATE TABLE t_rebuild (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 c INT,
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 INSERT INTO t_rebuild VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 10);
 INSERT INTO t_rebuild VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'), 20);
 INSERT INTO t_rebuild VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'), 30);

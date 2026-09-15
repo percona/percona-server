@@ -13,7 +13,7 @@
 #
 CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 # Two distinct aux .ibd (one per parent table).
 CREATE TABLE dst LIKE src;
 SHOW CREATE TABLE dst;
@@ -22,7 +22,7 @@ dst	CREATE TABLE `dst` (
   `id` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 percona_vec_hnsw_<TID>_<IID>.ibd
 percona_vec_hnsw_<TID>_<IID>.ibd
@@ -35,10 +35,10 @@ CREATE DATABASE veclab;
 USE veclab;
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY (v) TYPE hnsw (M = 4));
 percona_vec_hnsw_<TID>_<IID>.ibd
 percona_vec_hnsw_<TID>_<IID>.ibd
 USE test;
@@ -49,7 +49,7 @@ DROP DATABASE veclab;
 #
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 CREATE DATABASE vec_target;
 RENAME TABLE test.t3 TO vec_target.t3;
 # aux follows the parent into vec_target/.
@@ -65,6 +65,6 @@ DROP DATABASE vec_target;
 #
 CREATE TABLE t_part (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6))
+VECTOR KEY (v) TYPE hnsw (M = 6))
 PARTITION BY HASH(id) PARTITIONS 4;
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'

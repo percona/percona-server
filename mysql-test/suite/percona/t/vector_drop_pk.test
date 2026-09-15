@@ -21,7 +21,7 @@
 --echo # === A. DROP PRIMARY KEY alone on a vector-indexed table ===
 --echo #
 CREATE TABLE a1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL,
-                 KEY (v) TYPE hnsw WITH (M = 6));
+                 VECTOR KEY (v) TYPE hnsw (M = 6));
 --error ER_NOT_SUPPORTED_YET
 ALTER TABLE a1 DROP PRIMARY KEY;
 --echo # Table unchanged — PK and KEY both still there.
@@ -33,7 +33,7 @@ DROP TABLE a1;
 --echo # The new PK is INT, not BIGINT UNSIGNED — rejected.
 --echo #
 CREATE TABLE b1 (id BIGINT UNSIGNED PRIMARY KEY, id2 INT NOT NULL,
-                 v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+                 v VECTOR(8) NOT NULL, VECTOR KEY (v) TYPE hnsw (M = 6));
 --error ER_NOT_SUPPORTED_YET
 ALTER TABLE b1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
 SHOW CREATE TABLE b1;
@@ -44,7 +44,7 @@ DROP TABLE b1;
 --echo # End state still satisfies the vec PK rule — accepted.
 --echo #
 CREATE TABLE c1 (id BIGINT UNSIGNED PRIMARY KEY, id2 BIGINT UNSIGNED NOT NULL,
-                 v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+                 v VECTOR(8) NOT NULL, VECTOR KEY (v) TYPE hnsw (M = 6));
 ALTER TABLE c1 DROP PRIMARY KEY, ADD PRIMARY KEY (id2);
 SHOW CREATE TABLE c1;
 
@@ -60,7 +60,7 @@ DROP TABLE c1;
 --echo # Same rejection as A — the intermediate state has no PK.
 --echo #
 CREATE TABLE d1 (id BIGINT UNSIGNED PRIMARY KEY, id2 BIGINT UNSIGNED NOT NULL,
-                 v VECTOR(8) NOT NULL, KEY (v) TYPE hnsw WITH (M = 6));
+                 v VECTOR(8) NOT NULL, VECTOR KEY (v) TYPE hnsw (M = 6));
 --error ER_NOT_SUPPORTED_YET
 ALTER TABLE d1 DROP PRIMARY KEY;
 SHOW CREATE TABLE d1;

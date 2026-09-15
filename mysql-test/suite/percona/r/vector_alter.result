@@ -17,7 +17,7 @@
 CREATE TABLE ta1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6)
+VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 # A.1 ADD COLUMN ... ALGORITHM=INSTANT — blocked on vec-indexed tables
 # (parallel to FTS's ER_INNODB_FT_LIMIT). Enabling this needs a fix
@@ -34,7 +34,7 @@ ta1	CREATE TABLE `ta1` (
   `v` vector(8) NOT NULL,
   `c1` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # A.2 ADD COLUMN ... ALGORITHM=INPLACE works. It rebuilds, and the
 # rebuild recreates the vector index along with everything else, so
@@ -49,7 +49,7 @@ ta1	CREATE TABLE `ta1` (
   `c1` int DEFAULT NULL,
   `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # A.3 ADD COLUMN ... ALGORITHM=COPY (full rebuild — aux .ibd gets a new id)
 ALTER TABLE ta1 ADD COLUMN c3 INT, ALGORITHM=COPY;
@@ -62,7 +62,7 @@ ta1	CREATE TABLE `ta1` (
   `c2` int DEFAULT NULL,
   `c3` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 percona_vec_hnsw_<TID>_<IID>.ibd
 # A.4 Default ADD COLUMN (server picks algorithm)
@@ -77,7 +77,7 @@ ta1	CREATE TABLE `ta1` (
   `c3` int DEFAULT NULL,
   `c4` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE ta1;
 #
@@ -87,7 +87,7 @@ CREATE TABLE tb1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 c1 INT, c2 INT, c3 INT,
-KEY (v) TYPE hnsw WITH (M = 6)
+VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 # B.1 DROP COLUMN ... ALGORITHM=INSTANT — blocked (see A.1 note)
 ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
@@ -103,7 +103,7 @@ tb1	CREATE TABLE `tb1` (
   `v` vector(8) NOT NULL,
   `c3` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE tb1;
 #
@@ -113,7 +113,7 @@ CREATE TABLE tc1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 c INT,
-KEY (v) TYPE hnsw WITH (M = 6)
+VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 # C.1 ADD a non-vector secondary index
 ALTER TABLE tc1 ADD INDEX ix_c (c);
@@ -145,7 +145,7 @@ v VECTOR(8) NOT NULL
 ALTER TABLE td1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
 ALTER TABLE td1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
 # D.2 Adding the first vector index now succeeds — rebuild forced.
-CREATE INDEX vix ON td1 (v) TYPE hnsw WITH (M = 6);
+CREATE VECTOR INDEX vix ON td1 (v) TYPE hnsw (M = 6);
 SHOW CREATE TABLE td1;
 Table	Create Table
 td1	CREATE TABLE `td1` (
@@ -154,7 +154,7 @@ td1	CREATE TABLE `td1` (
   `c1` int DEFAULT NULL,
   `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `vix` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `vix` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 percona_vec_hnsw_<TID>_<IID>.ibd
 DROP TABLE td1;
@@ -167,7 +167,7 @@ v VECTOR(8) NOT NULL,
 c1 INT, c2 INT
 );
 ALTER TABLE te1 DROP COLUMN c1, ALGORITHM=INSTANT;
-CREATE INDEX vix ON te1 (v) TYPE hnsw WITH (M = 6);
+CREATE VECTOR INDEX vix ON te1 (v) TYPE hnsw (M = 6);
 SHOW CREATE TABLE te1;
 Table	Create Table
 te1	CREATE TABLE `te1` (
@@ -175,7 +175,7 @@ te1	CREATE TABLE `te1` (
   `v` vector(8) NOT NULL,
   `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `vix` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `vix` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE te1;
 #
@@ -192,7 +192,7 @@ DROP TABLE te1;
 CREATE TABLE tf1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6)
+VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 ALTER TABLE tf1 DROP KEY v;
 ALTER TABLE tf1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
@@ -218,7 +218,7 @@ DROP TABLE tf1;
 CREATE TABLE tg1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6)
+VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 # G.1 Explicit ALGORITHM=INPLACE rebuild: supported. The vector
@@ -247,10 +247,10 @@ percona_vec_hnsw_<TID>_<IID>.ibd
 # vector_index_build.test for the full contract.
 CREATE TABLE tg2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 INSERT INTO tg2 VALUES (1, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
-ALTER TABLE tg2 ADD KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
+ALTER TABLE tg2 ADD VECTOR KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding a vector index to a table that has no vector index yet in-place; the hidden label column has to be added to every row. Try ALGORITHM=COPY.
 # Server-picked algorithm succeeds via COPY, and populates.
-ALTER TABLE tg2 ADD KEY vk (v) TYPE hnsw;
+ALTER TABLE tg2 ADD VECTOR KEY vk (v) TYPE hnsw;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/tg2';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output

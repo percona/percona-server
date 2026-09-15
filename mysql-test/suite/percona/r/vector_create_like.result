@@ -6,7 +6,7 @@
 #   - be functionally independent of the source
 CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 6));
+VECTOR KEY (v) TYPE hnsw (M = 6));
 # Source has its vec aux.
 percona_vec_hnsw_<SRC>.ibd
 CREATE TABLE copy_t LIKE src;
@@ -16,7 +16,7 @@ copy_t	CREATE TABLE `copy_t` (
   `id` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # The copy has its own aux .ibd — distinct (TID/IID) from source's.
 percona_vec_hnsw_<TID>_<IID>.ibd
@@ -29,7 +29,7 @@ copy_t	CREATE TABLE `copy_t` (
   `id` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Only the copy's aux remains.
 percona_vec_hnsw_<COPY>.ibd

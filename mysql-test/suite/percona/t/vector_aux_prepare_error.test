@@ -22,7 +22,7 @@ CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 --echo # With the knob ARMED it must therefore SUCCEED: that is a
 --echo # standing guard that the INPLACE path was not entered.
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
-ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
@@ -36,7 +36,7 @@ ALTER TABLE tva DROP KEY v;
 --echo # created. The DDL must error and the aux must not be left behind.
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 --error ER_GET_ERRNO,ER_OUT_OF_RESOURCES,ER_TOO_MANY_CONCURRENT_TRXS,1
-ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6), ALGORITHM=INPLACE;
+ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6), ALGORITHM=INPLACE;
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 
 --echo # No vec_<TID>_<IID>.ibd files left behind. (If the cleanup is
@@ -46,7 +46,7 @@ SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
 
 --echo # Retrying the same DDL without the injection must succeed —
 --echo # proving the dict_sys slot is free and re-creation works.
-ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 SHOW CREATE TABLE tva;
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

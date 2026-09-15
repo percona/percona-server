@@ -6,7 +6,7 @@
 CREATE TABLE t1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR(8) NOT NULL,
-KEY (v1) TYPE hnsw
+VECTOR KEY (v1) TYPE hnsw
 );
 # SHOW CREATE TABLE must NOT mention percona_vec_aux_id (HT_HIDDEN_SE).
 SHOW CREATE TABLE t1;
@@ -15,7 +15,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `v1` (`v1`) TYPE `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw`
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Aux tables are HT_HIDDEN_SE — invisible to user-facing catalog
 # views (SHOW TABLES, I_S.TABLES) but registered in DD and so
@@ -40,7 +40,7 @@ CREATE TABLE t2 (
 id BIGINT UNSIGNED PRIMARY KEY,
 percona_vec_aux_id BIGINT UNSIGNED,
 v1 VECTOR(8) NOT NULL,
-KEY (v1) TYPE hnsw
+VECTOR KEY (v1) TYPE hnsw
 );
 ERROR 42000: Incorrect column name 'percona_vec_aux_id'
 # ... and it is rejected on a table with no vector index too - the
@@ -101,7 +101,7 @@ id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR(8) NOT NULL
 );
 # No percona_vec_*.ibd yet.
-CREATE INDEX v1 ON t_alter (v1) TYPE hnsw;
+CREATE VECTOR INDEX v1 ON t_alter (v1) TYPE hnsw;
 # Aux .ibd now exists.
 percona_vec_hnsw_<TID>_<IID>.ibd
 ALTER TABLE t_alter DROP INDEX v1;
@@ -118,7 +118,7 @@ DROP TABLE t_alter;
 CREATE TABLE t_rt (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR(8) NOT NULL,
-KEY (v1) TYPE hnsw
+VECTOR KEY (v1) TYPE hnsw
 );
 # percona_vec_aux_id reservation while a vector index exists.
 ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
@@ -127,7 +127,7 @@ ALTER TABLE t_rt DROP INDEX v1;
 # Aux .ibd gone after DROP INDEX.
 # Re-add a vector index. Must succeed with no duplicate-column error,
 # aux is recreated, percona_vec_aux_id is re-established by InnoDB.
-CREATE INDEX v2 ON t_rt (v1) TYPE hnsw;
+CREATE VECTOR INDEX v2 ON t_rt (v1) TYPE hnsw;
 percona_vec_hnsw_<TID>_<IID>.ibd
 # And percona_vec_aux_id is again reserved (the new vector index is back).
 ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
@@ -142,7 +142,7 @@ DROP TABLE t_rt;
 CREATE TABLE t_disc (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR(8) NOT NULL,
-KEY (v1) TYPE hnsw
+VECTOR KEY (v1) TYPE hnsw
 );
 ALTER TABLE t_disc DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t_disc` because it has a vector index. DISCARD/IMPORT TABLESPACE is not yet supported for tables with vector indexes.

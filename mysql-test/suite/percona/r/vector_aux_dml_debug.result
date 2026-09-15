@@ -7,7 +7,7 @@
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(4) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY (v) TYPE hnsw (M = 4));
 # Insert three graph rows directly into the aux table.
 SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 1 0 1.0,0.0,0.0,0.0 -';
 SELECT @@session.innodb_interpreter_output;
@@ -66,7 +66,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(2048) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY (v) TYPE hnsw (M = 4));
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output
 PASS: inserted id=7

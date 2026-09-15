@@ -21,7 +21,7 @@ SET SESSION debug = '+d,skip_dd_table_access_check';
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
                  pad CHAR(200) NOT NULL,
                  v VECTOR(4) NOT NULL,
-                 KEY vk (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
 --echo # Enough rows for several pages, so a later INSERT has to split one.
 --disable_query_log
 let $i = 1;
@@ -70,7 +70,7 @@ CHECK TABLE t1;
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
                  pad CHAR(200) NOT NULL,
                  v VECTOR(4) NOT NULL,
-                 KEY vk (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
 --disable_query_log
 let $i = 1;
 while ($i <= 300)
@@ -90,7 +90,7 @@ SELECT COUNT(*) FROM t2;
 
 --echo # A vector index that survives a rebuild keeps its column, its labels
 --echo # and its answers: re-adding one after all of the above still works.
-ALTER TABLE t2 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE t2 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 SET SESSION debug = '+d,skip_dd_table_access_check';
 SELECT c.name AS dd_hidden_col FROM mysql.columns c
   JOIN mysql.tables t ON c.table_id = t.id

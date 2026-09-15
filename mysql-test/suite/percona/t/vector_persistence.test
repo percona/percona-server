@@ -7,7 +7,7 @@
 CREATE TABLE t1 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR(8) NOT NULL,
-  KEY (v1) TYPE hnsw
+  VECTOR KEY (v1) TYPE hnsw
 );
 
 --echo # SHOW CREATE TABLE must NOT mention percona_vec_aux_id (HT_HIDDEN_SE).
@@ -37,7 +37,7 @@ CREATE TABLE t2 (
   id BIGINT UNSIGNED PRIMARY KEY,
   percona_vec_aux_id BIGINT UNSIGNED,
   v1 VECTOR(8) NOT NULL,
-  KEY (v1) TYPE hnsw
+  VECTOR KEY (v1) TYPE hnsw
 );
 
 --echo # ... and it is rejected on a table with no vector index too - the
@@ -114,7 +114,7 @@ CREATE TABLE t_alter (
 --echo # No percona_vec_*.ibd yet.
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
-CREATE INDEX v1 ON t_alter (v1) TYPE hnsw;
+CREATE VECTOR INDEX v1 ON t_alter (v1) TYPE hnsw;
 --echo # Aux .ibd now exists.
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
@@ -137,7 +137,7 @@ DROP TABLE t_alter;
 CREATE TABLE t_rt (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR(8) NOT NULL,
-  KEY (v1) TYPE hnsw
+  VECTOR KEY (v1) TYPE hnsw
 );
 
 --echo # percona_vec_aux_id reservation while a vector index exists.
@@ -150,7 +150,7 @@ ALTER TABLE t_rt DROP INDEX v1;
 
 --echo # Re-add a vector index. Must succeed with no duplicate-column error,
 --echo # aux is recreated, percona_vec_aux_id is re-established by InnoDB.
-CREATE INDEX v2 ON t_rt (v1) TYPE hnsw;
+CREATE VECTOR INDEX v2 ON t_rt (v1) TYPE hnsw;
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
@@ -170,7 +170,7 @@ DROP TABLE t_rt;
 CREATE TABLE t_disc (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR(8) NOT NULL,
-  KEY (v1) TYPE hnsw
+  VECTOR KEY (v1) TYPE hnsw
 );
 --error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE t_disc DISCARD TABLESPACE;

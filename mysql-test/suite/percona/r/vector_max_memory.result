@@ -84,10 +84,10 @@ VECTOR KEY (v) TYPE hnsw (M = 4));
 # Both graphs are dropped by the restart.
 # restart
 SET @saved = @@global.innodb_hnsw_max_memory;
-analyze table t2;
+ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
-analyze table t3;
+ANALYZE TABLE t3;
 Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	OK
 # Warm t2 back up under the default bound. Its graph now holds more
@@ -101,7 +101,7 @@ id
 SET GLOBAL innodb_hnsw_max_memory = 4096;
 explain SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	vector_knn	NULL	v	1	NULL	20	100.00	NULL
+1	SIMPLE	t3	NULL	vector_knn	v	v	0	const	20	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`id` AS `id` from `test`.`t3` order by distance(`test`.`t3`.`v`,to_vector('[1,0,0,0]'),'EUCLIDEAN') limit 3
 SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;

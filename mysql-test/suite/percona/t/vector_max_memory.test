@@ -92,8 +92,8 @@ while ($i <= 20)
 --source include/restart_mysqld.inc
 SET @saved = @@global.innodb_hnsw_max_memory;
 
-analyze table t2;
-analyze table t3;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
 
 --echo # Warm t2 back up under the default bound. Its graph now holds more
 --echo # than the bound we are about to set.

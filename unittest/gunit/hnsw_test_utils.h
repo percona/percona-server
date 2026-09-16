@@ -78,9 +78,10 @@ struct NullPersistor {
     return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
   }
   template <typename Hnsw>
-  bool load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
+  typename Hnsw::Result load_node_cb(Context *, Hnsw &,
+                                     typename Hnsw::LoadNodeHandle) {
     assert(false);
-    return false;
+    return Hnsw::HNSW_ERROR_CB;
   }
 };
 
@@ -146,10 +147,16 @@ struct RecordingPersistor {
     /// Number of load_node_cb invocations per graph id (lazy-load tests).
     std::unordered_map<uint64_t, size_t> load_counts;
     /**
-      Graph ids for which load_node_cb should fail (marks NODE_LOST).
+      Graph ids for which load_node_cb should return HNSW_NOT_FOUND
+      (simulates crash / incomplete persist; marks NODE_LOST).
       Used by adjacent-prune / lost-neighbor tests.
     */
     std::unordered_set<uint64_t> fail_load_ids;
+    /**
+      Graph ids for which load_node_cb should return HNSW_ERROR_CB (e.g. I/O).
+      Stub stays NODE_DUMMY so a later load can retry after clearing the id.
+    */
+    std::unordered_set<uint64_t> fail_load_error_ids;
     /**
       One-shot failure injection for insert_cb / update_entry_point_cb /
       update_neighbors_cb (callback-failure unit tests). Cleared when the
@@ -214,16 +221,19 @@ struct RecordingPersistor {
   }
 
   template <typename Hnsw>
-  bool load_node_cb(Context *ctx, Hnsw &hnsw,
-                    typename Hnsw::LoadNodeHandle handle) {
+  typename Hnsw::Result load_node_cb(Context *ctx, Hnsw &hnsw,
+                                     typename Hnsw::LoadNodeHandle handle) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
     const uint64_t id = hnsw.load_node_id(handle);
     ++ctx->load_counts[id];
+    if (ctx->fail_load_error_ids.count(id) != 0) {
+      return Hnsw::HNSW_ERROR_CB;
+    }
     if (ctx->fail_load_ids.count(id) != 0) {
-      return false;
+      return Hnsw::HNSW_NOT_FOUND;
     }
     const StoredNode &row = ctx->nodes.at(id);
     // Copy out under the lock so load_* can run without holding it across
@@ -239,7 +249,7 @@ struct RecordingPersistor {
     hnsw.load_set_vec(handle, as_bytes(vec));
     hnsw.load_set_base_pk(handle, base_pk);
     hnsw.load_node_neighbors(handle, neighbor_ids);
-    return true;
+    return Hnsw::HNSW_SUCCESS;
   }
 };
 
@@ -481,15 +491,20 @@ inline std::vector<typename Hnsw::SearchHit> drain_stream(
     size_t max_results = 1000,
     typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
   typename Hnsw::NNSearchContext ctx;
-  index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
+  if (index.nn_search_start(&ctx, query, batch_size, ef_search,
+                            persistor_ctx) != Hnsw::HNSW_SUCCESS) {
+    return {};
+  }
   std::vector<typename Hnsw::SearchHit> out;
   for (size_t i = 0; i < max_results; ++i) {
-    const std::pair<bool, typename Hnsw::SearchHit> step =
-        index.nn_search_next(&ctx);
-    if (!step.first) {
+    const auto [rc, hit] = index.nn_search_next(&ctx);
+    if (rc == Hnsw::HNSW_NOT_FOUND) {
       break;
     }
-    out.push_back(step.second);
+    if (rc != Hnsw::HNSW_SUCCESS) {
+      return {};
+    }
+    out.push_back(hit);
   }
   return out;
 }

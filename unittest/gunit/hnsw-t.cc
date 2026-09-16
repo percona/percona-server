@@ -38,7 +38,8 @@ class HnswTest : public ::testing::Test {
 TEST_F(HnswTest, SearchEmptyIndex) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
   const auto query = make_vec({0.0f, 0.0f});
-  const auto result = index.k_nn_search(as_bytes(query), 3, 16);
+  const auto [rc, result] = index.k_nn_search(as_bytes(query), 3, 16);
+  EXPECT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   EXPECT_TRUE(result.empty());
 }
 
@@ -47,7 +48,8 @@ TEST_F(HnswTest, InsertSingleAndSearchExact) {
   const auto v0 = make_vec({1.0f, 2.0f});
   index.insert(42, 1001, as_bytes(v0));
 
-  const auto result = index.k_nn_search(as_bytes(v0), 1, 8);
+  const auto [rc, result] = index.k_nn_search(as_bytes(v0), 1, 8);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, result.size());
   EXPECT_EQ(42U, result[0].id);
   EXPECT_EQ(1001U, result[0].base_pk);
@@ -66,7 +68,8 @@ TEST_F(HnswTest, InsertMultipleSearchNearest) {
   index.insert(103, 2003, as_bytes(v3));
 
   const auto query = make_vec({9.5f, 9.5f});
-  const auto result = index.k_nn_search(as_bytes(query), 1, 16);
+  const auto [rc, result] = index.k_nn_search(as_bytes(query), 1, 16);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, result.size());
   EXPECT_EQ(103U, result[0].id);
   EXPECT_EQ(2003U, result[0].base_pk);
@@ -87,7 +90,8 @@ TEST_F(HnswTest, SearchReturnsKResults) {
   index.insert(14, 3014, as_bytes(v4));
 
   const auto query = make_vec({0.1f, 0.0f});
-  const auto result = index.k_nn_search(as_bytes(query), 3, 16);
+  const auto [rc, result] = index.k_nn_search(as_bytes(query), 3, 16);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(3U, result.size());
 
   const auto base_pks = base_pks_of(result);
@@ -107,7 +111,8 @@ TEST_F(HnswTest, SearchKLargerThanIndexSize) {
   index.insert(2, 4002, as_bytes(v1));
 
   const auto query = make_vec({0.0f, 0.0f});
-  const auto result = index.k_nn_search(as_bytes(query), 10, 16);
+  const auto [rc, result] = index.k_nn_search(as_bytes(query), 10, 16);
+  EXPECT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   EXPECT_EQ(2U, result.size());
 }
 
@@ -122,7 +127,8 @@ TEST_F(HnswTest, SearchResultsOrderedByDistance) {
   index.insert(22, 5022, as_bytes(v2));
 
   const auto query = make_vec({0.0f, 0.0f});
-  const auto result = index.k_nn_search(as_bytes(query), 3, 16);
+  const auto [rc, result] = index.k_nn_search(as_bytes(query), 3, 16);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(3U, result.size());
   EXPECT_EQ(5020U, result[0].base_pk);
   EXPECT_EQ(5022U, result[1].base_pk);
@@ -142,7 +148,8 @@ TEST_F(HnswTest, ExactMatchIsFirstResult) {
   }
 
   for (size_t i = 0; i < points.size(); ++i) {
-    const auto result = index.k_nn_search(as_bytes(points[i]), 1, 32);
+    const auto [rc, result] = index.k_nn_search(as_bytes(points[i]), 1, 32);
+    ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS) << "i=" << i;
     ASSERT_EQ(1U, result.size()) << "i=" << i;
     EXPECT_EQ(1000 + i, result[0].id) << "i=" << i;
     EXPECT_EQ(5000 + i, result[0].base_pk) << "i=" << i;
@@ -188,7 +195,8 @@ TEST_F(HnswTest, BruteForceRecall) {
       exact_ids.insert(exact[i].second);
     }
 
-    const auto approx = index.k_nn_search(as_bytes(query), kK, kEfSearch);
+    const auto [rc, approx] = index.k_nn_search(as_bytes(query), kK, kEfSearch);
+    ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS) << "q=" << q;
     ASSERT_EQ(kK, approx.size()) << "q=" << q;
 
     size_t hits = 0;
@@ -209,8 +217,9 @@ TEST_F(HnswTest, SearchEfZeroStillReturnsK) {
   index.insert(2, 101, as_bytes(make_vec({1.0f, 0.0f})));
 
   const auto query = make_vec({0.0f, 0.0f});
-  const auto result =
+  const auto [rc, result] =
       index.k_nn_search(as_bytes(query), /*k=*/1, /*ef_search=*/0);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, result.size());
   EXPECT_EQ(1U, result[0].id);
   EXPECT_EQ(100U, result[0].base_pk);
@@ -222,8 +231,9 @@ TEST_F(HnswTest, DuplicateBasePkAllowed) {
   index.insert(1, /*base_pk=*/42, as_bytes(make_vec({0.0f, 0.0f})));
   index.insert(2, /*base_pk=*/42, as_bytes(make_vec({10.0f, 0.0f})));
 
-  const auto result =
+  const auto [rc, result] =
       index.k_nn_search(as_bytes(make_vec({0.0f, 0.0f})), 2, 16);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(2U, result.size());
   EXPECT_EQ(1U, result[0].id);
   EXPECT_EQ(42U, result[0].base_pk);
@@ -235,9 +245,10 @@ TEST_F(HnswTest, StreamEmptyIndex) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
   TestHnsw::NNSearchContext ctx;
   const auto query = make_vec({0.0f, 0.0f});
-  index.nn_search_start(&ctx, as_bytes(query), /*batch_size=*/8,
-                        /*ef_search=*/16);
-  EXPECT_FALSE(index.nn_search_next(&ctx).first);
+  EXPECT_EQ(index.nn_search_start(&ctx, as_bytes(query), /*batch_size=*/8,
+                                  /*ef_search=*/16),
+            TestHnsw::HNSW_SUCCESS);
+  EXPECT_EQ(index.nn_search_next(&ctx).first, TestHnsw::HNSW_NOT_FOUND);
 }
 
 TEST_F(HnswTest, StreamMatchesKnnFirstBatch) {
@@ -250,7 +261,8 @@ TEST_F(HnswTest, StreamMatchesKnnFirstBatch) {
 
   const auto query = make_vec({0.1f, 0.0f});
   constexpr size_t kEf = 3;
-  const auto knn = index.k_nn_search(as_bytes(query), kEf, kEf);
+  const auto [rc, knn] = index.k_nn_search(as_bytes(query), kEf, kEf);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
   const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/kEf,
                                      /*ef_search=*/kEf);
 
@@ -453,11 +465,12 @@ TEST_F(HnswTest, StreamExhaustThenNextStaysDone) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
   index.insert(1, 100, as_bytes(make_vec({0.0f, 0.0f})));
   TestHnsw::NNSearchContext ctx;
-  index.nn_search_start(&ctx, as_bytes(make_vec({0.0f, 0.0f})),
-                        /*batch_size=*/8, /*ef_search=*/16);
-  ASSERT_TRUE(index.nn_search_next(&ctx).first);
-  EXPECT_FALSE(index.nn_search_next(&ctx).first);
-  EXPECT_FALSE(index.nn_search_next(&ctx).first);
+  ASSERT_EQ(index.nn_search_start(&ctx, as_bytes(make_vec({0.0f, 0.0f})),
+                                  /*batch_size=*/8, /*ef_search=*/16),
+            TestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(index.nn_search_next(&ctx).first, TestHnsw::HNSW_SUCCESS);
+  EXPECT_EQ(index.nn_search_next(&ctx).first, TestHnsw::HNSW_NOT_FOUND);
+  EXPECT_EQ(index.nn_search_next(&ctx).first, TestHnsw::HNSW_NOT_FOUND);
 }
 
 TEST_F(HnswTest, StreamRestartContext) {
@@ -467,17 +480,21 @@ TEST_F(HnswTest, StreamRestartContext) {
 
   TestHnsw::NNSearchContext ctx;
   const auto q = make_vec({0.0f, 0.0f});
-  index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8, /*ef_search=*/16);
+  ASSERT_EQ(index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8,
+                                  /*ef_search=*/16),
+            TestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(100U, index.nn_search_next(&ctx).second.base_pk);
 
   // Re-start on same context must work after reset.
   ctx.reset();
 
-  index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8, /*ef_search=*/16);
-  const std::pair<bool, TestHnsw::SearchHit> step = index.nn_search_next(&ctx);
-  ASSERT_TRUE(step.first);
-  EXPECT_EQ(1U, step.second.id);
-  EXPECT_EQ(100U, step.second.base_pk);
+  ASSERT_EQ(index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8,
+                                  /*ef_search=*/16),
+            TestHnsw::HNSW_SUCCESS);
+  const auto [rc, hit] = index.nn_search_next(&ctx);
+  ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
+  EXPECT_EQ(1U, hit.id);
+  EXPECT_EQ(100U, hit.base_pk);
 }
 
 TEST_F(HnswTest, StreamBruteForceRecall) {
@@ -555,13 +572,17 @@ void assert_round_trip_knn(RoundTripFixture *fixture, size_t dims, size_t M,
 #endif
 
   LoadTestHnsw reloaded(dims, euclidean, M, ef_construction);
-  reloaded.init_from_entry_point(fixture->store.entry_point, &fixture->store);
+  ASSERT_EQ(reloaded.init_from_entry_point(fixture->store.entry_point,
+                                           &fixture->store),
+            LoadTestHnsw::HNSW_SUCCESS);
 
-  const auto from_built = built.k_nn_search(as_bytes(fixture->query), k,
-                                            ef_search, &fixture->store);
-  const auto from_reloaded = reloaded.k_nn_search(as_bytes(fixture->query), k,
-                                                  ef_search, &fixture->store);
+  const auto [rc_built, from_built] = built.k_nn_search(
+      as_bytes(fixture->query), k, ef_search, &fixture->store);
+  const auto [rc_reloaded, from_reloaded] = reloaded.k_nn_search(
+      as_bytes(fixture->query), k, ef_search, &fixture->store);
 
+  ASSERT_EQ(rc_built, LoadTestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(rc_reloaded, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(from_built.size(), from_reloaded.size());
   EXPECT_EQ(from_built, from_reloaded);
 }
@@ -574,7 +595,9 @@ void assert_round_trip_stream(RoundTripFixture *fixture, size_t dims, size_t M,
   ASSERT_GT(fixture->store.entry_point, 0U);
 
   LoadTestHnsw reloaded(dims, euclidean, M, ef_construction);
-  reloaded.init_from_entry_point(fixture->store.entry_point, &fixture->store);
+  ASSERT_EQ(reloaded.init_from_entry_point(fixture->store.entry_point,
+                                           &fixture->store),
+            LoadTestHnsw::HNSW_SUCCESS);
 
   const auto stream_built = drain_stream(built, as_bytes(fixture->query),
                                          batch_size, ef_search, max_results);
@@ -627,7 +650,9 @@ TEST_F(HnswTest, InitFromEntryPointLoadsEP) {
   ASSERT_GT(fixture.store.entry_point, 0U);
 
   LoadTestHnsw reloaded(kDims, euclidean, kM, kEfConstruction);
-  reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
 
   EXPECT_EQ(1U, fixture.store.load_counts.size());
   EXPECT_EQ(1U, fixture.store.load_counts.at(fixture.store.entry_point));
@@ -649,11 +674,14 @@ TEST_F(HnswTest, SearchLoadsNeighborsOnDemand) {
   ASSERT_GT(fixture.store.entry_point, 0U);
 
   LoadTestHnsw reloaded(kDims, euclidean, kM, kEfConstruction);
-  reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, fixture.store.load_counts.size());
 
-  const auto hits =
+  const auto [rc, hits] =
       reloaded.k_nn_search(as_bytes(fixture.query), 10, 50, &fixture.store);
+  ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_GE(hits.size(), 1U);
   EXPECT_GT(fixture.store.load_counts.size(), 1U);
   EXPECT_LT(fixture.store.load_counts.size(), fixture.graph_ids.size());
@@ -669,7 +697,9 @@ TEST_F(HnswTest, LoadNodeIdempotent) {
   ASSERT_GT(fixture.store.entry_point, 0U);
 
   LoadTestHnsw reloaded(kDims, euclidean, kM, kEfConstruction);
-  reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      reloaded.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
 
   const auto query = as_bytes(fixture.query);
   (void)reloaded.k_nn_search(query, 10, 50, &fixture.store);
@@ -714,7 +744,9 @@ TEST_F(HnswTest, AdjacentPruneShortListZeroFillsTail) {
 
   fixture.store.load_counts.clear();
   LoadTestHnsw cold(kDimsLocal, euclidean, kMLocal, kEfConstructionLocal);
-  cold.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
 
   // Touch the graph so hub becomes COMPLETE with DUMMY/LOST neighbor stubs.
   (void)cold.k_nn_search(as_bytes(hub_vec), /*k=*/4, /*ef_search=*/16,
@@ -746,8 +778,10 @@ TEST_F(HnswTest, AdjacentPruneShortListZeroFillsTail) {
   EXPECT_TRUE(seen_null);
 
   // New insert should still be searchable by exact vector.
-  const auto hits = cold.k_nn_search(as_bytes(hub_vec), /*k=*/5,
-                                     /*ef_search=*/32, &fixture.store);
+  const auto [rc_hits, hits] =
+      cold.k_nn_search(as_bytes(hub_vec), /*k=*/5,
+                       /*ef_search=*/32, &fixture.store);
+  ASSERT_EQ(rc_hits, LoadTestHnsw::HNSW_SUCCESS);
   bool found_new = false;
   for (const auto &hit : hits) {
     if (hit.id == new_id) {
@@ -776,8 +810,12 @@ TEST_F(HnswTest, FirstNodeInsertCbFailure) {
             LoadTestHnsw::HNSW_ERROR_CB);
   EXPECT_TRUE(store.nodes.empty());
   EXPECT_EQ(0U, store.entry_point);
-  EXPECT_TRUE(index.k_nn_search(as_bytes(v1), /*k=*/1, /*ef_search=*/8, &store)
-                  .empty());
+  {
+    const auto [rc, hits] =
+        index.k_nn_search(as_bytes(v1), /*k=*/1, /*ef_search=*/8, &store);
+    EXPECT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
+    EXPECT_TRUE(hits.empty());
+  }
 
 #ifndef NDEBUG
   // Only NODE_LOST remains in-memory; no COMPLETE entry point.
@@ -793,8 +831,9 @@ TEST_F(HnswTest, FirstNodeInsertCbFailure) {
   EXPECT_EQ(0U, store.nodes.count(1));
   EXPECT_EQ(2U, store.entry_point);
 
-  const auto hits =
+  const auto [rc, hits] =
       index.k_nn_search(as_bytes(v2), /*k=*/1, /*ef_search=*/8, &store);
+  ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, hits.size());
   EXPECT_EQ(2U, hits[0].id);
   EXPECT_EQ(200U, hits[0].base_pk);
@@ -818,8 +857,12 @@ TEST_F(HnswTest, FirstNodeUpdateEntryPointCbFailure) {
   ASSERT_EQ(1U, store.nodes.count(1));
   EXPECT_EQ(100U, store.nodes.at(1).base_pk);
   EXPECT_EQ(0U, store.entry_point);
-  EXPECT_TRUE(index.k_nn_search(as_bytes(v1), /*k=*/1, /*ef_search=*/8, &store)
-                  .empty());
+  {
+    const auto [rc, hits] =
+        index.k_nn_search(as_bytes(v1), /*k=*/1, /*ef_search=*/8, &store);
+    EXPECT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
+    EXPECT_TRUE(hits.empty());
+  }
 
 #ifndef NDEBUG
   EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
@@ -835,8 +878,9 @@ TEST_F(HnswTest, FirstNodeUpdateEntryPointCbFailure) {
   EXPECT_EQ(1U, store.nodes.count(2));
   EXPECT_EQ(2U, store.entry_point);
 
-  const auto hits =
+  const auto [rc, hits] =
       index.k_nn_search(as_bytes(v2), /*k=*/2, /*ef_search=*/8, &store);
+  ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_FALSE(hits.empty());
   EXPECT_EQ(2U, hits[0].id);
   EXPECT_EQ(200U, hits[0].base_pk);
@@ -877,8 +921,9 @@ TEST_F(HnswTest, MidGraphInsertCbFailure) {
   EXPECT_EQ(0U, store.nodes.count(kFailId));
   EXPECT_EQ(ep_before, store.entry_point);
 
-  const auto hits =
+  const auto [rc, hits] =
       index.k_nn_search(as_bytes(v_fail), /*k=*/3, /*ef_search=*/16, &store);
+  ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_FALSE(hits.empty());
   for (const auto &hit : hits) {
     EXPECT_NE(kFailId, hit.id);
@@ -926,8 +971,9 @@ TEST_F(HnswTest, MidGraphUpdateNeighborsCbFailure) {
   EXPECT_EQ(neighbors_before_3, store.nodes.at(3).neighbor_ids);
 
   // In-memory node is COMPLETE and searchable despite the persist error.
-  const auto hits =
+  const auto [rc, hits] =
       index.k_nn_search(as_bytes(v_new), /*k=*/3, /*ef_search=*/16, &store);
+  ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
   bool found_new = false;
   for (const auto &hit : hits) {
     if (hit.id == kNewId) {
@@ -977,8 +1023,9 @@ TEST_F(HnswTest, EntryPointRaiseUpdateEntryPointCbFailure) {
   EXPECT_EQ(ep_before, store.entry_point);
   EXPECT_NE(failed_id, store.entry_point);
 
-  const auto hits = index.k_nn_search(as_bytes(failed_vec), /*k=*/3,
-                                      /*ef_search=*/16, &store);
+  const auto [rc, hits] = index.k_nn_search(as_bytes(failed_vec), /*k=*/3,
+                                            /*ef_search=*/16, &store);
+  ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS);
   bool found = false;
   for (const auto &hit : hits) {
     if (hit.id == failed_id) {
@@ -994,6 +1041,189 @@ TEST_F(HnswTest, EntryPointRaiseUpdateEntryPointCbFailure) {
   EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
   EXPECT_FALSE(index.validate());
 #endif
+}
+
+TEST_F(HnswTest, InitFromEntryPointLoadErrorCb) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  fixture.store.fail_load_error_ids.insert(fixture.store.entry_point);
+  LoadTestHnsw cold(kDims, euclidean, kM, kEfConstruction);
+  EXPECT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_ERROR_CB);
+  EXPECT_EQ(1U, fixture.store.load_counts.at(fixture.store.entry_point));
+}
+
+TEST_F(HnswTest, SearchLoadErrorCbPropagatesAndRetries) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  const StoredNode &ep_row = fixture.store.nodes.at(fixture.store.entry_point);
+  uint64_t bad_id = 0;
+  for (uint64_t id : ep_row.neighbor_ids) {
+    if (id != 0 && id != fixture.store.entry_point) {
+      bad_id = id;
+      break;
+    }
+  }
+  ASSERT_NE(0U, bad_id) << "entry point must have at least one neighbor";
+
+  fixture.store.load_counts.clear();
+  LoadTestHnsw cold(kDims, euclidean, kM, kEfConstruction);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
+
+  fixture.store.fail_load_error_ids.insert(bad_id);
+  const auto [rc_fail, hits_fail] = cold.k_nn_search(
+      as_bytes(fixture.query), /*k=*/3, /*ef_search=*/16, &fixture.store);
+  EXPECT_EQ(rc_fail, LoadTestHnsw::HNSW_ERROR_CB);
+  EXPECT_TRUE(hits_fail.empty());
+  ASSERT_GE(fixture.store.load_counts.count(bad_id), 1U);
+  const size_t loads_after_fail = fixture.store.load_counts.at(bad_id);
+
+  // ERROR_CB leaves the stub NODE_DUMMY: clearing the injection lets retry
+  // complete the load and search successfully.
+  fixture.store.fail_load_error_ids.clear();
+  const auto [rc_ok, hits_ok] = cold.k_nn_search(
+      as_bytes(fixture.query), /*k=*/3, /*ef_search=*/16, &fixture.store);
+  EXPECT_EQ(rc_ok, LoadTestHnsw::HNSW_SUCCESS);
+  EXPECT_FALSE(hits_ok.empty());
+  EXPECT_GT(fixture.store.load_counts.at(bad_id), loads_after_fail);
+
+#ifndef NDEBUG
+  EXPECT_TRUE(cold.validate());
+#endif
+}
+
+TEST_F(HnswTest, InsertLoadErrorCbPropagates) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  const StoredNode &ep_row = fixture.store.nodes.at(fixture.store.entry_point);
+  uint64_t bad_id = 0;
+  for (uint64_t id : ep_row.neighbor_ids) {
+    if (id != 0 && id != fixture.store.entry_point) {
+      bad_id = id;
+      break;
+    }
+  }
+  ASSERT_NE(0U, bad_id);
+
+  LoadTestHnsw cold(kDims, euclidean, kM, kEfConstruction);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
+
+  fixture.store.fail_load_error_ids.insert(bad_id);
+  constexpr uint64_t kFailId = 999;
+  EXPECT_EQ(cold.insert(kFailId, 9999, as_bytes(fixture.query), &fixture.store),
+            LoadTestHnsw::HNSW_ERROR_CB);
+  EXPECT_EQ(0U, fixture.store.nodes.count(kFailId));
+
+  // Id was consumed in-memory (LOST); a later insert with a fresh id succeeds
+  // once the load injection is cleared (neighbor stub stayed DUMMY).
+  fixture.store.fail_load_error_ids.clear();
+  constexpr uint64_t kOkId = 1000;
+  EXPECT_EQ(cold.insert(kOkId, 10000, as_bytes(fixture.query), &fixture.store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  EXPECT_EQ(1U, fixture.store.nodes.count(kOkId));
+  EXPECT_EQ(0U, fixture.store.nodes.count(kFailId));
+
+#ifndef NDEBUG
+  EXPECT_TRUE(cold.validate());
+#endif
+}
+
+TEST_F(HnswTest, StreamLoadErrorCbPropagates) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  const StoredNode &ep_row = fixture.store.nodes.at(fixture.store.entry_point);
+  uint64_t bad_id = 0;
+  for (uint64_t id : ep_row.neighbor_ids) {
+    if (id != 0 && id != fixture.store.entry_point) {
+      bad_id = id;
+      break;
+    }
+  }
+  ASSERT_NE(0U, bad_id);
+
+  LoadTestHnsw cold(kDims, euclidean, kM, kEfConstruction);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      LoadTestHnsw::HNSW_SUCCESS);
+
+  fixture.store.fail_load_error_ids.insert(bad_id);
+  LoadTestHnsw::NNSearchContext ctx;
+  EXPECT_EQ(
+      cold.nn_search_start(&ctx, as_bytes(fixture.query), /*batch_size=*/2,
+                           /*ef_search=*/8, &fixture.store),
+      LoadTestHnsw::HNSW_ERROR_CB);
+}
+
+TEST_F(HnswTest, StreamNextLoadErrorCbPropagates) {
+  // Build a 1-D chain so layer-0 links stay local and start(ef=1) leaves
+  // further-along neighbors as NODE_DUMMY stubs for a later refill.
+  constexpr size_t kNumPoints = 40;
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  for (size_t i = 0; i < kNumPoints; ++i) {
+    const auto v = make_vec({static_cast<float>(i) * 10.0f, 0.0f});
+    ASSERT_EQ(built.insert(i + 1, /*base_pk=*/i, as_bytes(v), &store),
+              LoadTestHnsw::HNSW_SUCCESS);
+  }
+  ASSERT_GT(store.entry_point, 0U);
+
+  LoadTestHnsw cold(kDims, euclidean, kM, kEfConstruction);
+  ASSERT_EQ(cold.init_from_entry_point(store.entry_point, &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+
+  const auto query = make_vec({0.0f, 0.0f});
+  LoadTestHnsw::NNSearchContext ctx;
+  ASSERT_EQ(cold.nn_search_start(&ctx, as_bytes(query), /*batch_size=*/1,
+                                 /*ef_search=*/1, &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+
+  // Persistently fail lazy-load for stubs adjacent to the already-loaded set
+  // but not yet load-attempted (unexpanded discarded frontier).
+  for (const auto &kv : store.load_counts) {
+    const StoredNode &row = store.nodes.at(kv.first);
+    for (uint64_t nid : row.neighbor_ids) {
+      if (nid != 0 && store.load_counts.count(nid) == 0) {
+        store.fail_load_error_ids.insert(nid);
+      }
+    }
+  }
+  ASSERT_FALSE(store.fail_load_error_ids.empty())
+      << "start left no unloaded neighbor stubs for nn_search_next to hit";
+
+  bool saw_error = false;
+  for (size_t i = 0; i < kNumPoints + 10; ++i) {
+    const auto [rc, hit] = cold.nn_search_next(&ctx);
+    if (rc == LoadTestHnsw::HNSW_ERROR_CB) {
+      saw_error = true;
+      EXPECT_EQ(0U, hit.id);
+      EXPECT_EQ(0U, hit.base_pk);
+      break;
+    }
+    if (rc == LoadTestHnsw::HNSW_NOT_FOUND) {
+      break;
+    }
+    ASSERT_EQ(rc, LoadTestHnsw::HNSW_SUCCESS) << "i=" << i;
+  }
+  EXPECT_TRUE(saw_error)
+      << "stream ended without nn_search_next observing HNSW_ERROR_CB";
 }
 
 #ifndef NDEBUG

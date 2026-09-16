@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "my_pointer_arithmetic.h"
+#include "scope_guard.h"
 
 typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
 
@@ -59,7 +60,8 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     Must provide void *allocate(size_t size); there is no per-block free.
     Returned memory must stay valid for this object's lifetime; destroying
     the allocator frees the arena. HNSW does not destroy Nodes and must not
-    outlive the allocator. allocate() may return nullptr (asserted).
+    outlive the allocator. allocate() may return nullptr; HNSW treats that
+    as HNSW_OOM_GRAPH (no exception from arena paths).
     Not assumed thread-safe; HNSW serializes allocate() calls.
 
   @tparam Persistor
@@ -71,21 +73,39 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     rely on data written to Persistor members during a prior call.
     Must provide:
       - nested type Context (call-scoped state, e.g. transaction / THD);
-      - insert_cb(Context *, id, base_pk, q, layer, NeighborIdRange);
-      - update_neighbors_cb(Context *, id, NeighborIdRange);
-      - update_entry_point_cb(Context *, id);
-      - load_node_cb(Context *, HNSW &, LoadNodeHandle) -> bool: fill a
+      - insert_cb(Context *, id, base_pk, q, layer, NeighborIdRange) -> Result:
+        persist a newly inserted node. Return HNSW_SUCCESS on success, or
+        another Result (typically HNSW_ERROR_CB) on failure.
+      - update_neighbors_cb(Context *, id, NeighborIdRange) -> Result:
+        persist an updated neighbor list. Return HNSW_SUCCESS on success, or
+        another Result (typically HNSW_ERROR_CB) on failure.
+      - update_entry_point_cb(Context *, id) -> Result:
+        persist a new entry-point id. Return HNSW_SUCCESS on success, or
+        another Result (typically HNSW_ERROR_CB) on failure.
+      - load_node_cb(Context *, HNSW &, LoadNodeHandle) -> Result: fill a
         NODE_DUMMY node from storage. @p handle is opaque; use only the
         HNSW load_* helpers on it. On success must call, in order:
         load_set_layer(), load_set_vec(), load_set_base_pk(), then
-        load_node_neighbors() (allocates neighbor storage and wires slots),
-        then return true. HNSW then marks the node NODE_COMPLETE.
-        On failure return false without relying on a partial fill; HNSW
-        marks the node NODE_LOST. Neighbor ids use NeighborIdRange layout
-        (0 = empty slot; size (layer + 2) * M). Stubs created for
-        referenced neighbors stay unloaded until touched.
-        Returning true without completing the load_* sequence leaves a
-        corrupt COMPLETE node — do not do that.
+        load_node_neighbors() (allocates neighbor storage and wires slots).
+        load_node_neighbors() returns Result; propagate that value unchanged
+        (including HNSW_OOM_GRAPH). Never upgrade a non-success Result to
+        HNSW_SUCCESS. Only return HNSW_SUCCESS after all load_* helpers
+        succeeded; HNSW then marks the node NODE_COMPLETE.
+        Return HNSW_NOT_FOUND only when the node id is referenced by the graph
+        but was never properly persisted (crash / incomplete insert path).
+        A routine "missing row" in a healthy store should not be possible.
+        HNSW marks the stub as NODE_LOST and search/insert skip it.
+        Return HNSW_ERROR_CB on other callback failures (e.g. I/O);
+        HNSW leaves the stub NODE_DUMMY and propagates the error.
+        HNSW_OOM_GRAPH from load_node_neighbors likewise leaves the stub
+        NODE_DUMMY so load_node_cb may be retried; a successful retry
+        re-allocates neighbor storage and leaks the prior arena block
+        (see load_node_neighbors()).
+        Do not rely on a partial fill on either failure.
+        Neighbor ids use NeighborIdRange layout (0 = empty slot; size
+        (layer + 2) * M). Stubs created for referenced neighbors stay unloaded
+        until touched. Returning HNSW_SUCCESS without completing the load_*
+        sequence leaves a corrupt COMPLETE node — do not do that.
         A callback that must never run is fine when every node is always
         resident (unit tests with NullPersistor).
 
@@ -110,8 +130,8 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     user's transaction.
 
     Cold start / recovery uses init_from_entry_point(), which loads the
-    entry-point node via load_node_cb and requires success (asserted); the
-    entry point is then NODE_COMPLETE.
+    entry-point node via load_node_cb and returns Result (HNSW_SUCCESS leaves
+    the entry point NODE_COMPLETE; on failure the instance is not usable).
 
     Index metadata is not persisted by HNSW itself. The class users must
     store it alongside the graph (at minimum: vector dimensions, M, distance
@@ -130,12 +150,11 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     std::default_random_engine is not thread-safe.
 
   @todo (not in order of priority)
-        1) Better error handling (e.g. errors from persistor callbacks, OOMs).
-        2) Support for deletes (might be unnecessary).
-        3) Support for transactions (might be unnecessary).
-        4) Support for arbitrary PKs.
-        5) Memory limits/expulsion strategy.
-        6) Performance optimizations (visited set?).
+        1) Support for deletes (might be unnecessary).
+        2) Support for transactions (might be unnecessary).
+        3) Support for arbitrary PKs.
+        4) Memory limits/expulsion strategy.
+        5) Performance optimizations (visited set?).
 */
 template <typename ArenaAllocator, typename Persistor,
           typename RandomEngine = std::default_random_engine>
@@ -160,12 +179,41 @@ class HNSW {
   };
 
   /**
+    Result codes for HNSW operations that can fail or miss.
+
+    HNSW_SUCCESS      Operation completed successfully (for nn_search_next():
+                      a SearchHit was yielded).
+    HNSW_NOT_FOUND    From load_node_cb: graph references a node that was not
+                      properly persisted (crash / incomplete insert); not
+                      expected on a healthy store; marks the stub NODE_LOST.
+                      From nn_search_next(): end of the streaming search (no
+                      more hits).
+    HNSW_ERROR_CB     A Persistor callback reported failure.
+    HNSW_OOM_GRAPH    Arena or in-memory graph map allocation failed
+                      (Node::create, alloc_neighbors, m_nodes.emplace, or
+                      load_node_neighbors stub creation). Distinct from
+                      HNSW_OOM_CONTEXT so callers can treat durable graph
+                      growth failures differently from transient scratch OOM.
+    HNSW_OOM_CONTEXT  Per-operation scratch allocation failed (STL heaps /
+                      vectors / visited sets used by insert/search, or
+                      NNSearchContext query copy / scratch buffer).
+  */
+  enum Result {
+    HNSW_SUCCESS,
+    HNSW_NOT_FOUND,
+    HNSW_ERROR_CB,
+    HNSW_OOM_GRAPH,
+    HNSW_OOM_CONTEXT
+  };
+
+  /**
     Lifecycle of an in-memory graph node.
 
     Transitions (only via Node setters / load_node()):
       Newly inserted node case:
         NODE_NEW  --set_linking()--> NODE_LINKING --set_complete()-->
           NODE_COMPLETE
+        NODE_LINKING --set_lost()--> NODE_LOST   (failed insert_cb)
       Loaded node case:
         NODE_DUMMY  --set_complete()--> NODE_COMPLETE   (successful lazy load)
         NODE_DUMMY  --set_lost()-----> NODE_LOST        (failed lazy load)
@@ -181,19 +229,27 @@ class HNSW {
                     constructed and must not be relied on (slots may still be
                     empty or only partially wired). The node may already appear
                     in other nodes' neighbor lists; search skips LINKING until
-                    NODE_COMPLETE.
+                    NODE_COMPLETE. On insert_cb failure, mid-insert callback /
+                    load failure (e.g. due to HNSW_OOM_GRAPH), or per-op OOM
+                    (HNSW_OOM_CONTEXT) after the node was published into
+                    m_nodes, becomes NODE_LOST.
       NODE_COMPLETE Fully published: neighbor lists are complete and safe for
                     search and for Persistor neighbor snapshots. Entry point is
                     always COMPLETE.
       NODE_DUMMY    Lazy-load stub: id known, layer/vec/neighbors not valid yet.
                     Created via Node::create(..., NODE_DUMMY) for neighbor ids
                     seen before the node is loaded (see load_node_neighbors()).
-      NODE_LOST     Lazy load failed; accessors must not be used. May remain
-                    as a neighbor-slot pointer; search skips it.
-                    The main scenario where NODE_LOST nodes can occur is when
-                    insertion crash before calling insert_cb, but after some
-                    concurrent insertion already persisted neighbor lists of
-                    a node to which the lost node was added as a neighbor.
+      NODE_LOST     Node is unusable; accessors must not be used. May remain as
+                    a neighbor-slot pointer; search skips it.
+                    Causes: (1) load_node_cb returned HNSW_NOT_FOUND — the id
+                    is still referenced (e.g. in a persisted neighbor list)
+                    but the node itself was never properly persisted, typically
+                    after a crash mid-insert before insert_cb committed while a
+                    concurrent insert already wrote reverse edges; (2) failed
+                    insert_cb while NODE_LINKING; (3) insert aborted after
+                    emplace (search/prune load error, HNSW_OOM_CONTEXT, or
+                    similar) — Scope_guard marks the node LOST so reverse
+                    edges are skipped by search.
 
     Search expands only NODE_COMPLETE neighbors (loads DUMMY, skips LINKING
     and LOST). NODE_NEW must not be observed on search/insert graph edges
@@ -261,9 +317,21 @@ class HNSW {
     @param q        Vector to insert.
     @param persistor_ctx  Persistor call context (e.g. transaction); passed
                           through to Persistor callbacks. Defaults to nullptr.
+
+    @return HNSW_SUCCESS on success; HNSW_ERROR_CB if a Persistor callback
+            fails (insert_cb / update_neighbors_cb / update_entry_point_cb, or
+            load_node_cb during neighbor search / reverse-link prune; missing
+            nodes via HNSW_NOT_FOUND are skipped and do not fail insert);
+            HNSW_OOM_GRAPH if arena / graph-map allocation fails; or
+            HNSW_OOM_CONTEXT if per-insert scratch allocation fails.
+            Even failed insert() call consumes @p id and it must not be reused
+            for a later insert() — including early HNSW_OOM_GRAPH before the
+            node is entered into the map (where a reuse might appear to work).
+            After emplace it may remain in the map, possibly as NODE_LOST.
+            Exact effects on the HNSW graph depend on the failure scenario.
   */
-  void insert(uint64_t id, uint64_t base_pk, const char *q,
-              PersistorContext *persistor_ctx = nullptr) {
+  Result insert(uint64_t id, uint64_t base_pk, const char *q,
+                PersistorContext *persistor_ctx = nullptr) {
     assert(id != 0);
     Node *entry_point = m_entry_point.load();
     uint8_t max_layer = entry_point == nullptr ? 0 : entry_point->layer();
@@ -275,12 +343,19 @@ class HNSW {
       std::scoped_lock lock(m_global_lock);
 
       new_node = Node::create(m_allocator, *this, id, NODE_NEW);
+      if (new_node == nullptr) return HNSW_OOM_GRAPH;
 
-      auto inserted [[maybe_unused]] = m_nodes.emplace(id, new_node);
-      assert(inserted.second);
-
+      // Allocate storage for neighbors before inserting the node into the map
+      // to avoid need to mark it as lost if the allocation fails.
       new_node->set_layer(target_layer);
-      new_node->alloc_neighbors(m_allocator, *this);
+      if (!new_node->alloc_neighbors(m_allocator, *this)) return HNSW_OOM_GRAPH;
+
+      try {
+        auto inserted [[maybe_unused]] = m_nodes.emplace(id, new_node);
+        assert(inserted.second);
+      } catch (const std::bad_alloc &) {
+        return HNSW_OOM_GRAPH;
+      }
     }
 
     new_node->set_base_pk(base_pk);
@@ -291,136 +366,211 @@ class HNSW {
       std::scoped_lock lock(m_entry_point_lock);
       entry_point = m_entry_point.load();
       if (entry_point == nullptr) {
-        m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
-                              neighbor_ids(new_node));
+        if (m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
+                                  neighbor_ids(new_node)) != HNSW_SUCCESS ||
+            m_persistor.update_entry_point_cb(persistor_ctx, id) !=
+                HNSW_SUCCESS) {
+          // For consistency with non-entry-point case, mark the node as lost.
+          // The real state is not that important here, as the node is
+          // unreachable from the graph in any case.
+          // Note that failure to persist the entry-point change after success
+          // of insert_cb creates the unreachable node. This situation is not
+          // that different from the case when insert_cb fails.
+          new_node->set_lost();
+          return HNSW_ERROR_CB;
+        }
         new_node->set_complete();
-        m_persistor.update_entry_point_cb(persistor_ctx, id);
         m_entry_point.store(new_node);
-        return;
+        return HNSW_SUCCESS;
       } else {
         max_layer = entry_point->layer();
       }
     }
 
-    // TODO: Think about possible optimizations of this.
-    std::vector<Node *> scratch_buffer(get_Mmax(0));
-
-    // HNSW entry point is always complete.
-    assert(entry_point->state() == NODE_COMPLETE);
-
-    NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
-    for (int l = max_layer; l > target_layer; --l) {
-      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx,
-                                        scratch_buffer.data());
-    }
-
-    // search_layer_ef_1() post condition: the nearest entry node is complete.
-    assert(nearest_entry.node->state() == NODE_COMPLETE);
-
-    SearchLayerResult nearest{nearest_entry};
     std::set<Node *> updated_neighbors;
 
-    for (int l = std::min(max_layer, target_layer); l >= 0; --l) {
-      const size_t Mmax = get_Mmax(l);
-      nearest = search_layer(q, std::move(nearest), m_ef_construction, l,
-                             persistor_ctx, scratch_buffer.data());
-      // Paper and reference implementation both use M when selecting neighbors
-      // for layer 0 for newly inserted node, but it seems to be a typo.
-      // Both MariaDB and pgVector use 2 * M for layer 0, so we do too.
-      //
-      // Note that thanks to the fact that nodes in the process of being
-      // linked (NODE_LINKING state) are never choosen as neighbors for
-      // concurrent insertions we can safely iterate over and modify
-      // the new node's neighbors without any additional locking.
-      Node **new_node_neighbors = new_node->neighbors_begin(*this, l);
-      const size_t n [[maybe_unused]] =
-          select_neighbors(q, nearest, Mmax, new_node_neighbors);
-      assert(n <= Mmax);
+    try {
+      // Mark the node as lost if we fail to complete insert into the
+      // in-memory graph.
+      auto lost_node_guard =
+          create_scope_guard([new_node]() { new_node->set_lost(); });
 
-      for (Node *const *it = new_node_neighbors;
-           it != new_node->neighbors_end(*this, l) && *it != nullptr; ++it) {
-        Node *neighbor = *it;
-        // search_layer() + select_neighbors() post condition:
-        // all neighbors of the newly inserted node are complete.
-        assert(neighbor->state() == NODE_COMPLETE);
+      // TODO: Think about possible optimizations of this.
+      std::vector<Node *> scratch_buffer(get_Mmax(0));
 
-        // Back-linking neighbors requires locking though.
-        lock_node(neighbor);
-        Node **it2 = neighbor->neighbors_begin(*this, l);
-        while (it2 != neighbor->neighbors_end(*this, l) && *it2 != nullptr) {
-          ++it2;
-        }
-        if (it2 != neighbor->neighbors_end(*this, l)) {
-          *it2 = new_node;
-        } else {
-          // Copy existing neighbors to scratch buffer to avoid
-          // holding the lock while performing expensive calculations
-          // and potential loads of not yet loaded nodes.
+      // HNSW entry point is always complete.
+      assert(entry_point->state() == NODE_COMPLETE);
+
+      NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
+      for (int l = max_layer; l > target_layer; --l) {
+        Result rc = search_layer_ef_1(q, &nearest_entry, l, persistor_ctx,
+                                      scratch_buffer.data());
+        if (rc != HNSW_SUCCESS) {
+          // We tried to load some neighbors during the search but failed
+          // due to callback or other error (HNSW_NOT_FOUND is OK though).
+          // Propagate the error to the caller and let it decide what to do.
           //
-          // Note that after we unlock node and before we do the re-lock +
-          // write-back below, another insert may append to or rewrite this
-          // same neighbor list. Blindly installing our pruned selection can
-          // then drop that concurrent update. Worst case is a slightly worse
-          // local graph (lost edge / suboptimal neighbors), which we accept.
-          std::copy(neighbor->neighbors_begin(*this, l),
-                    neighbor->neighbors_end(*this, l), scratch_buffer.data());
-          unlock_node(neighbor);
-
-          std::vector<NodeDist> candidate_neighbors;
-          candidate_neighbors.reserve(Mmax + 1);
-          for (size_t i = 0; i < Mmax; ++i) {
-            Node *nb = scratch_buffer[i];
-            assert(nb != nullptr);
-            NodeState nb_state = nb->state();
-
-            // Nodes in the NODE_NEW state are not yet part of the graph.
-            assert(nb_state != NODE_NEW);
-
-            // Skip nodes which are lost.
-            //
-            // NB: Note that unlike in search case we don't skip nodes in the
-            //     process of being linked here. The rationale is:
-            // 1) They have vector set so should be fine for select_neighbors()
-            //    algorithm.
-            // 2) We will have at least one such node, the newly inserted node
-            //    itself, in the candidate list anyway.
-            // 3) They represent work done by concurrent insertions, which we
-            //    probably don't want to throw away.
-            if (nb_state == NODE_LOST) continue;
-
-            // Load the neighbor if it is not loaded yet, skip if it is lost.
-            if (nb_state == NODE_DUMMY && !load_node(persistor_ctx, nb))
-              continue;
-
-            candidate_neighbors.push_back({nb, dist(neighbor->vec(), nb)});
-          }
-          candidate_neighbors.push_back(
-              {new_node, dist(neighbor->vec(), new_node)});
-
-          const size_t selected =
-              select_neighbors(neighbor->vec(), candidate_neighbors, Mmax,
-                               scratch_buffer.data());
-
-          assert(selected == std::min(Mmax, candidate_neighbors.size()));
-
-          // If some candidates were skipped as LOST / failed lazy load,
-          // select_neighbors may return fewer than Mmax; clear the tail so
-          // write-back does not leave stale pointers past the packed prefix.
-          for (size_t i = selected; i < Mmax; ++i) {
-            scratch_buffer[i] = nullptr;
-          }
-
-          lock_node(neighbor);
-          std::copy(scratch_buffer.data(), scratch_buffer.data() + Mmax,
-                    neighbor->neighbors_begin(*this, l));
+          // The node will be marked as lost by the scope guard. The real
+          // state is not that important here, as the node is not reachable
+          // from the graph at this stage in any case.
+          return rc;
         }
-        unlock_node(neighbor);
-        updated_neighbors.insert(neighbor);
       }
+
+      // search_layer_ef_1() post condition: the nearest entry node is complete.
+      assert(nearest_entry.node->state() == NODE_COMPLETE);
+
+      SearchLayerResult nearest{nearest_entry};
+
+      for (int l = std::min(max_layer, target_layer); l >= 0; --l) {
+        const size_t Mmax = get_Mmax(l);
+        Result rc = search_layer(q, &nearest, m_ef_construction, l,
+                                 persistor_ctx, scratch_buffer.data());
+        if (rc != HNSW_SUCCESS) {
+          // We tried to load some neighbors during the search but failed
+          // due to callback or other error (HNSW_NOT_FOUND is OK though).
+          // Propagate the error to the caller and let it decide what to do.
+          //
+          // We can't link the new node to other nodes properly. The new node
+          // is marked as lost by the scope guard. This prevents it from being
+          // used by search and ensures that references to it are eventually
+          // removed from the graph.
+          return rc;
+        }
+
+        // Paper and reference implementation both use M when selecting
+        // neighbors for layer 0 for newly inserted node, but it seems to be a
+        // typo. Both MariaDB and pgVector use 2 * M for layer 0, so we do too.
+        //
+        // Note that thanks to the fact that nodes in the process of being
+        // linked (NODE_LINKING state) are never choosen as neighbors for
+        // concurrent insertions we can safely iterate over and modify
+        // the new node's neighbors without any additional locking.
+        Node **new_node_neighbors = new_node->neighbors_begin(*this, l);
+        const size_t n [[maybe_unused]] =
+            select_neighbors(q, nearest, Mmax, new_node_neighbors);
+        assert(n <= Mmax);
+
+        for (Node *const *it = new_node_neighbors;
+             it != new_node->neighbors_end(*this, l) && *it != nullptr; ++it) {
+          Node *neighbor = *it;
+          // search_layer() + select_neighbors() post condition:
+          // all neighbors of the newly inserted node are complete.
+          assert(neighbor->state() == NODE_COMPLETE);
+
+          // Back-linking neighbors requires locking though.
+          lock_node(neighbor);
+          Node **it2 = neighbor->neighbors_begin(*this, l);
+          while (it2 != neighbor->neighbors_end(*this, l) && *it2 != nullptr) {
+            ++it2;
+          }
+          if (it2 != neighbor->neighbors_end(*this, l)) {
+            *it2 = new_node;
+          } else {
+            // Copy existing neighbors to scratch buffer to avoid
+            // holding the lock while performing expensive calculations
+            // and potential loads of not yet loaded nodes.
+            //
+            // Note that after we unlock node and before we do the re-lock +
+            // write-back below, another insert may append to or rewrite this
+            // same neighbor list. Blindly installing our pruned selection can
+            // then drop that concurrent update. Worst case is a slightly worse
+            // local graph (lost edge / suboptimal neighbors), which we accept.
+            std::copy(neighbor->neighbors_begin(*this, l),
+                      neighbor->neighbors_end(*this, l), scratch_buffer.data());
+            unlock_node(neighbor);
+
+            std::vector<NodeDist> candidate_neighbors;
+            candidate_neighbors.reserve(Mmax + 1);
+            for (size_t i = 0; i < Mmax; ++i) {
+              Node *nb = scratch_buffer[i];
+              assert(nb != nullptr);
+              NodeState nb_state = nb->state();
+
+              // Nodes in the NODE_NEW state are not yet part of the graph.
+              assert(nb_state != NODE_NEW);
+
+              // Skip nodes which are lost.
+              //
+              // NB: Note that unlike in search case we don't skip nodes in the
+              //     process of being linked here. The rationale is:
+              // 1) They have vector set so should be fine for
+              //    select_neighbors() algorithm.
+              // 2) We will have at least one such node, the newly inserted
+              //    node itself, in the candidate list anyway.
+              // 3) They represent work done by concurrent insertions, which
+              //    we probably don't want to throw away.
+              if (nb_state == NODE_LOST) continue;
+
+              // Load the neighbor if it is not loaded yet; skip if missing.
+              if (nb_state == NODE_DUMMY) {
+                const Result load_rc = load_node(persistor_ctx, nb);
+                if (load_rc == HNSW_NOT_FOUND) {
+                  assert(nb->state() == NODE_LOST);
+                  continue;
+                }
+                if (load_rc != HNSW_SUCCESS) {
+                  // We have got callback or some other error while loading
+                  // the neighbor. Propagate the error to the caller and let
+                  // it decide what to do.
+                  //
+                  // This means that we can't back-link new node properly.
+                  // The new node is marked as lost by the scope guard.
+                  // This prevents it from being used by search and ensures that
+                  // references to it are eventually removed from the graph.
+                  return load_rc;
+                }
+                assert(nb->state() == NODE_COMPLETE);
+              }
+
+              candidate_neighbors.push_back({nb, dist(neighbor->vec(), nb)});
+            }
+            candidate_neighbors.push_back(
+                {new_node, dist(neighbor->vec(), new_node)});
+
+            const size_t selected =
+                select_neighbors(neighbor->vec(), candidate_neighbors, Mmax,
+                                 scratch_buffer.data());
+
+            assert(selected == std::min(Mmax, candidate_neighbors.size()));
+
+            // If some candidates were skipped as LOST / failed lazy load,
+            // select_neighbors may return fewer than Mmax; clear the tail so
+            // write-back does not leave stale pointers past the packed prefix.
+            for (size_t i = selected; i < Mmax; ++i) {
+              scratch_buffer[i] = nullptr;
+            }
+
+            lock_node(neighbor);
+            std::copy(scratch_buffer.data(), scratch_buffer.data() + Mmax,
+                      neighbor->neighbors_begin(*this, l));
+          }
+          unlock_node(neighbor);
+          updated_neighbors.insert(neighbor);
+        }
+      }
+
+      // We have managed to insert the node into the in-memory graph without
+      // errors from callbacks or OOMs. We can dismiss the scope guard.
+      lost_node_guard.release();
+    } catch (const std::bad_alloc &) {
+      // OOMs related to the graph allocations are always reported by returning
+      // HNSW_OOM_GRAPH and not exceptions. So std::bad_alloc here means OOM
+      // while allocating the memory for one of auxiliary, per-operation
+      // structures.
+      return HNSW_OOM_CONTEXT;
     }
 
-    m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
-                          neighbor_ids(new_node));
+    if (m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
+                              neighbor_ids(new_node)) != HNSW_SUCCESS) {
+      // In unlikely case of callback error, mark the node as lost,
+      // so it is ignored by search and references to it are eventually
+      // removed from the graph.
+      // Note this is what would happen anyway after graph reload from
+      // the persisted state.
+      new_node->set_lost();
+      return HNSW_ERROR_CB;
+    }
 
     // Mark the node as complete. Doing this after calling persistor insert
     // callback ensures that nodes marked as such are always known to persistor.
@@ -435,9 +585,18 @@ class HNSW {
       // TODO: Think about possible optimizations of this/not holding
       //       the lock during the callback.
       lock_node(neighbor);
-      m_persistor.update_neighbors_cb(persistor_ctx, neighbor->id(),
-                                      neighbor_ids(neighbor));
+      bool updated = m_persistor.update_neighbors_cb(
+                         persistor_ctx, neighbor->id(),
+                         neighbor_ids(neighbor)) == HNSW_SUCCESS;
       unlock_node(neighbor);
+
+      if (!updated) {
+        // In unlikely case of callback error, return error to the caller.
+        // Unlike for the insert callback failure, we don't change the state
+        // of the new node or its neighbor, as in the worst case we simply
+        // get an outdated / slightly worse graph.
+        return HNSW_ERROR_CB;
+      }
     }
 
     if (target_layer > max_layer) {
@@ -446,10 +605,18 @@ class HNSW {
       // Another node that just has been inserted concurrently might
       // already have taken the spot.
       if (target_layer > m_entry_point.load()->layer()) {
-        m_persistor.update_entry_point_cb(persistor_ctx, id);
+        if (m_persistor.update_entry_point_cb(persistor_ctx, id) !=
+            HNSW_SUCCESS) {
+          // Don't publish the new node as the entry point, if we failed
+          // to persist the change. The node stays in the graph and is
+          // reachable through lower layers.
+          return HNSW_ERROR_CB;
+        }
         m_entry_point.store(new_node);
       }
     }
+
+    return HNSW_SUCCESS;
   }
 
   /**
@@ -467,10 +634,13 @@ class HNSW {
                       to at least k).
     @param persistor_ctx  Persistor call context for lazy load during search.
 
-    @return Up to k SearchHit values (graph id + base_pk) for q's nearest
-            neighbors ordered by increasing distance.
+    @return {.first = HNSW_SUCCESS, .second = up to k SearchHit values (graph
+            id + base_pk) ordered by increasing distance} on success (empty
+            index yields an empty vector). On failure, .first is the Result
+            from load_node_cb / search (typically HNSW_ERROR_CB,
+            HNSW_OOM_GRAPH, or HNSW_OOM_CONTEXT) and .second is empty.
   */
-  std::vector<SearchHit> k_nn_search(
+  std::pair<Result, std::vector<SearchHit>> k_nn_search(
       const char *q, size_t k, size_t ef_search,
       PersistorContext *persistor_ctx = nullptr) {
     assert(k > 0);
@@ -478,41 +648,58 @@ class HNSW {
     Node *const entry_point = m_entry_point.load();
 
     if (entry_point == nullptr) {
-      return {};
+      return {HNSW_SUCCESS, {}};
     }
 
     // Entry point is always complete.
     assert(entry_point->state() == NODE_COMPLETE);
 
-    std::vector<Node *> scratch_buffer(get_Mmax(0));
+    try {
+      std::vector<Node *> scratch_buffer(get_Mmax(0));
 
-    const uint8_t max_layer = entry_point->layer();
-    NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
-    for (int l = max_layer; l > 0; --l) {
-      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx,
-                                        scratch_buffer.data());
-    }
-    // search_layer_ef_1() post condition: the nearest entry node is complete.
-    assert(nearest_entry.node->state() == NODE_COMPLETE);
+      const uint8_t max_layer = entry_point->layer();
+      NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
+      for (int l = max_layer; l > 0; --l) {
+        const Result rc = search_layer_ef_1(q, &nearest_entry, l, persistor_ctx,
+                                            scratch_buffer.data());
+        if (rc != HNSW_SUCCESS) {
+          // We got callback or some other error while searching the layer,
+          // propagate it to the caller and let it decide what to do.
+          return {rc, {}};
+        }
+      }
+      // search_layer_ef_1() post condition: the nearest entry node is complete.
+      assert(nearest_entry.node->state() == NODE_COMPLETE);
 
-    // Asking for more rows than the configured search width silently
-    // widens the search.
-    SearchLayerResult nearest = search_layer(
-        q, SearchLayerResult{nearest_entry}, std::max(ef_search, k), 0,
-        persistor_ctx, scratch_buffer.data());
-    // 'nearest' is a max-heap, so we need to throw away
-    // the extra elements to get the closest k elements.
-    while (nearest.size() > k) {
-      nearest.pop();
+      // Asking for more rows than the configured search width silently
+      // widens the search.
+      SearchLayerResult nearest{nearest_entry};
+      const Result rc = search_layer(q, &nearest, std::max(ef_search, k), 0,
+                                     persistor_ctx, scratch_buffer.data());
+      if (rc != HNSW_SUCCESS) {
+        // We got callback or some other error while searching the layer,
+        // propagate it to the caller and let it decide what to do.
+        return {rc, {}};
+      }
+      // 'nearest' is a max-heap, so we need to throw away
+      // the extra elements to get the closest k elements.
+      while (nearest.size() > k) {
+        nearest.pop();
+      }
+      // Use trick to return closest k elements in correct order.
+      std::vector<SearchHit> result(nearest.size());
+      for (size_t i = nearest.size(); i > 0; --i) {
+        Node *node = nearest.top().node;
+        result[i - 1] = {node->id(), node->base_pk()};
+        nearest.pop();
+      }
+      return {HNSW_SUCCESS, std::move(result)};
+    } catch (const std::bad_alloc &) {
+      // OOMs related to the graph allocations are always reported by returning
+      // HNSW_OOM_GRAPH and not exceptions. So std::bad_alloc here means OOM
+      // while allocating the memory for one of per-search structures.
+      return {HNSW_OOM_CONTEXT, {}};
     }
-    // Use trick to return closest k elements in correct order.
-    std::vector<SearchHit> result(nearest.size());
-    for (size_t i = nearest.size(); i > 0; --i) {
-      Node *node = nearest.top().node;
-      result[i - 1] = {node->id(), node->base_pk()};
-      nearest.pop();
-    }
-    return result;
   }
 
  private:
@@ -543,9 +730,11 @@ class HNSW {
     Mutable state for a batched streaming nearest-neighbor search.
 
     Owned by the caller. Pass the same instance to nn_search_start() and
-    repeated nn_search_next() calls. Call reset() before starting another
-    search on the same context (asserted in debug builds). Destruction
-    also releases resources.
+    repeated nn_search_next() calls. Call reset() before every subsequent
+    nn_search_start() on the same context (including after a failed start,
+    after nn_search_next() returned HNSW_ERROR_CB / HNSW_OOM_GRAPH /
+    HNSW_OOM_CONTEXT / other failure, or after a normal end-of-stream
+    HNSW_NOT_FOUND). Destruction also releases resources.
 
     Not thread-safe: a single NNSearchContext must not be shared across
     threads. Concurrent streaming searches need a distinct context each.
@@ -566,7 +755,13 @@ class HNSW {
 
     /**
       Release the query copy and clear search state.
-      Required before a subsequent nn_search_start() on this context.
+
+      Required before every subsequent nn_search_start() on this context
+      (debug builds assert a clean context in init). That includes retrying
+      after a failed nn_search_start() or after nn_search_next() returned
+      HNSW_ERROR_CB / HNSW_OOM_GRAPH / HNSW_OOM_CONTEXT / other failure —
+      do not call next() again in those cases; the context is unspecified
+      until reset().
     */
     void reset() {
       free(const_cast<char *>(m_query_vec));
@@ -585,23 +780,30 @@ class HNSW {
     }
 
    private:
-    void init(const HNSW &hnsw, const char *q, size_t batch_size,
+    bool init(const HNSW &hnsw, const char *q, size_t batch_size,
               size_t ef_search, PersistorContext *persistor_ctx) {
+      assert(m_query_vec == nullptr);
       char *query_vec = (char *)malloc(hnsw.m_dimensions * sizeof(float));
       // TODO: revisit once we add memory limits.
-      if (query_vec == nullptr) throw std::bad_alloc();
+      if (query_vec == nullptr) return false;
       memcpy(query_vec, q, hnsw.m_dimensions * sizeof(float));
-      assert(m_query_vec == nullptr);
+      try {
+        m_scratch_buffer.resize(hnsw.get_Mmax(0));
+      } catch (const std::bad_alloc &) {
+        // Leave the context clean so a failed init needs no reset().
+        free(query_vec);
+        return false;
+      }
       m_query_vec = query_vec;
       m_batch_size = batch_size;
       m_ef_search = ef_search;
       m_persistor_ctx = persistor_ctx;
-      m_scratch_buffer.resize(hnsw.get_Mmax(0));
       assert(m_visited.empty());
       assert(m_discarded.empty());
       assert(m_results_batch.empty());
       assert(m_current_batch_pos == 0);
       assert(m_seen_distance == -std::numeric_limits<double>::infinity());
+      return true;
     }
 
     // Search parameters
@@ -657,77 +859,104 @@ class HNSW {
                           duration of this search (including nn_search_next()
                           batch refills).
 
+    @return HNSW_SUCCESS when the first batch is ready (empty index yields
+            success with no results for nn_search_next()). On failure, the
+            Result from load_node_cb / search (typically HNSW_ERROR_CB,
+            HNSW_OOM_GRAPH, or HNSW_OOM_CONTEXT). Do not call nn_search_next()
+            after a non-success return; the context is left unspecified —
+            call reset() before nn_search_start() again on the same context
+            (debug builds assert a clean context in init).
+
     @note This API is not intended to scan the entire or large part of the
           index as it is approximate and likely to omit some nodes.
           Optimizer should avoid using this API for queries which are likely
           to do so.
   */
-  void nn_search_start(NNSearchContext *ctx, const char *q, size_t batch_size,
-                       size_t ef_search,
-                       PersistorContext *persistor_ctx = nullptr) {
+  Result nn_search_start(NNSearchContext *ctx, const char *q, size_t batch_size,
+                         size_t ef_search,
+                         PersistorContext *persistor_ctx = nullptr) {
     assert(batch_size > 0);
     size_t ef = std::max(batch_size, ef_search);
-    ctx->init(*this, q, batch_size, ef, persistor_ctx);
+
+    if (!ctx->init(*this, q, batch_size, ef, persistor_ctx))
+      return HNSW_OOM_CONTEXT;
 
     Node *const entry_point = m_entry_point.load();
 
     if (entry_point == nullptr) {
-      return;
+      return HNSW_SUCCESS;
     }
     // Entry point is always complete.
     assert(entry_point->state() == NODE_COMPLETE);
     const uint8_t max_layer = entry_point->layer();
-    NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
-    for (int l = max_layer; l > 0; --l) {
-      nearest_entry = search_layer_ef_1(q, nearest_entry, l, persistor_ctx,
-                                        ctx->m_scratch_buffer.data());
+
+    try {
+      NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
+      for (int l = max_layer; l > 0; --l) {
+        const Result rc = search_layer_ef_1(q, &nearest_entry, l, persistor_ctx,
+                                            ctx->m_scratch_buffer.data());
+        if (rc != HNSW_SUCCESS) {
+          // We got callback or some other error while searching the layer,
+          // propagate it to the caller and let it decide what to do.
+          return rc;
+        }
+      }
+      // search_layer_ef_1() post condition: the nearest entry node is complete.
+      assert(nearest_entry.node->state() == NODE_COMPLETE);
+
+      SearchLayerResult nearest{nearest_entry};
+      NodeDistMinQueue candidates;
+      candidates.push(nearest_entry);
+
+      assert(ctx->m_visited.empty());
+      ctx->m_visited.insert(nearest_entry.node);
+
+      assert(ctx->m_discarded.empty());
+
+      const Result rc = search_layer_core(
+          q, &nearest, &candidates, &ctx->m_visited, &ctx->m_discarded, ef, 0,
+          persistor_ctx, ctx->m_scratch_buffer.data());
+      if (rc != HNSW_SUCCESS) {
+        // Propagate callback and other errors to the caller.
+        return rc;
+      }
+
+      // We can safely ignore nodes left in candidates heap. There can
+      // be only nodes in it which were part of the tentative result
+      // set in the past but were removed from it at some point.
+      // They will be present in the discarded heap as well.
+
+      // Intuitively, using the whole nearest/result set should negatively
+      // impact recall. Quick tests were not conclusive. TODO: Thoroughly
+      // investigate this.
+      while (nearest.size() > batch_size) {
+        // search_layer_core() post condition:
+        // all nodes in the nearest set are complete.
+        assert(nearest.top().node->state() == NODE_COMPLETE);
+        ctx->m_discarded.push(nearest.top());
+        nearest.pop();
+      }
+
+      ctx->m_results_batch.resize(nearest.size());
+      for (size_t i = nearest.size(); i > 0; --i) {
+        // search_layer_core() post condition:
+        // all nodes in the nearest set are complete.
+        assert(nearest.top().node->state() == NODE_COMPLETE);
+        ctx->m_results_batch[i - 1] = nearest.top();
+        nearest.pop();
+      }
+      assert(ctx->m_current_batch_pos == 0);
+      return HNSW_SUCCESS;
+    } catch (const std::bad_alloc &) {
+      // OOMs related to the graph allocations are always reported by returning
+      // HNSW_OOM_GRAPH and not exceptions. So std::bad_alloc here means OOM
+      // while allocating the memory for one of per-search structures.
+      return HNSW_OOM_CONTEXT;
     }
-    // search_layer_ef_1() post condition: the nearest entry node is complete.
-    assert(nearest_entry.node->state() == NODE_COMPLETE);
-
-    SearchLayerResult nearest{nearest_entry};
-    NodeDistMinQueue candidates;
-    candidates.push(nearest_entry);
-
-    assert(ctx->m_visited.empty());
-    ctx->m_visited.insert(nearest_entry.node);
-
-    assert(ctx->m_discarded.empty());
-
-    search_layer_core(q, &nearest, &candidates, &ctx->m_visited,
-                      &ctx->m_discarded, ef, 0, persistor_ctx,
-                      ctx->m_scratch_buffer.data());
-
-    // We can safely ignore nodes left in candidates heap. There can
-    // be only nodes in it which were part of the tentative result
-    // set in the past but were removed from it at some point.
-    // They will be present in the discarded heap as well.
-
-    // Intuitively, using the whole nearest/result set should negatively impact
-    // recall. Quick tests were not conclusive. TODO: Thoroughly investigate
-    // this.
-    while (nearest.size() > batch_size) {
-      // search_layer_core() post condition:
-      // all nodes in the nearest set are complete.
-      assert(nearest.top().node->state() == NODE_COMPLETE);
-      ctx->m_discarded.push(nearest.top());
-      nearest.pop();
-    }
-
-    ctx->m_results_batch.resize(nearest.size());
-    for (size_t i = nearest.size(); i > 0; --i) {
-      // search_layer_core() post condition:
-      // all nodes in the nearest set are complete.
-      assert(nearest.top().node->state() == NODE_COMPLETE);
-      ctx->m_results_batch[i - 1] = nearest.top();
-      nearest.pop();
-    }
-    assert(ctx->m_current_batch_pos == 0);
   }
 
   /**
-    Return the next neighbor from a streaming search, or
-    {false, {0, 0}} when done.
+    Return the next neighbor from a streaming search.
 
     Yields SearchHit values (graph id + base_pk) in non-decreasing distance
     order.
@@ -744,80 +973,102 @@ class HNSW {
           intended for scanning the entire index or large part of it.
           Optimizer should avoid using this API for such cases.
 
-    @param ctx  Context previously passed to nn_search_start().
+    @param ctx  Context previously passed to a successful nn_search_start().
+
+    @return {.first = HNSW_SUCCESS, .second = hit} for the next neighbor;
+            {.first = HNSW_NOT_FOUND, .second = {0, 0}} when the stream is
+            exhausted; on load/search failure during a batch refill, .first
+            is the failure Result (typically HNSW_ERROR_CB, HNSW_OOM_GRAPH,
+            or HNSW_OOM_CONTEXT) and .second is {0, 0}. After any failure
+            other than end-of-stream HNSW_NOT_FOUND, do not call
+            nn_search_next() again; the context is unspecified — call
+            reset() before nn_search_start() on the same context.
   */
-  std::pair<bool, SearchHit> nn_search_next(NNSearchContext *ctx) {
+  std::pair<Result, SearchHit> nn_search_next(NNSearchContext *ctx) {
     while (true) {
       if (ctx->m_current_batch_pos >= ctx->m_results_batch.size()) {
         if (ctx->m_current_batch_pos < ctx->m_batch_size) {
           // The last batch was too short. This means that we have reached the
           // end of the graph. There should be no leftover discarded nodes.
           assert(ctx->m_discarded.empty());
-          return {false, {0, 0}};
+          return {HNSW_NOT_FOUND, {0, 0}};
         } else {
           // If there are no discarded nodes left, we have reached the end of
           // the graph and there will be no more results.
           if (ctx->m_discarded.empty()) {
-            return {false, {0, 0}};
+            return {HNSW_NOT_FOUND, {0, 0}};
           }
 
-          SearchLayerResult nearest;
-          NodeDistMinQueue candidates;
+          try {
+            SearchLayerResult nearest;
+            NodeDistMinQueue candidates;
 
-          while (nearest.size() < ctx->m_ef_search &&
-                 !ctx->m_discarded.empty()) {
-            nearest.push(ctx->m_discarded.top());
-            // Some of the nodes from the discarded heap (those which were
-            // removed from the tentative result set) might had their
-            // neighbors considered already in the past. This is OK.
-            // The visited set will filter such nodes' neighbors out.
-            // OTOH, nodes from discarded heap which were added there
-            // without entering the result set (or nodes which were
-            // removed from the result set before their neighbors were
-            // considered), do not have their neighbors inspected yet.
-            // Hence we need to add them to the candidates heap.
-            candidates.push(ctx->m_discarded.top());
-            assert(ctx->m_visited.count(ctx->m_discarded.top().node) > 0);
-            // Earlier search_layer_core() post condition:
-            // all nodes in the discarded heap are complete.
-            // Upcoming search_layer_core() pre condition:
-            // all nodes in the candidates heap must be complete.
-            assert(ctx->m_discarded.top().node->state() == NODE_COMPLETE);
-            ctx->m_discarded.pop();
+            while (nearest.size() < ctx->m_ef_search &&
+                   !ctx->m_discarded.empty()) {
+              nearest.push(ctx->m_discarded.top());
+              // Some of the nodes from the discarded heap (those which were
+              // removed from the tentative result set) might had their
+              // neighbors considered already in the past. This is OK.
+              // The visited set will filter such nodes' neighbors out.
+              // OTOH, nodes from discarded heap which were added there
+              // without entering the result set (or nodes which were
+              // removed from the result set before their neighbors were
+              // considered), do not have their neighbors inspected yet.
+              // Hence we need to add them to the candidates heap.
+              candidates.push(ctx->m_discarded.top());
+              assert(ctx->m_visited.count(ctx->m_discarded.top().node) > 0);
+              // Earlier search_layer_core() post condition:
+              // all nodes in the discarded heap are complete.
+              // Upcoming search_layer_core() pre condition:
+              // all nodes in the candidates heap must be complete.
+              assert(ctx->m_discarded.top().node->state() == NODE_COMPLETE);
+              ctx->m_discarded.pop();
+            }
+
+            const Result rc = search_layer_core(
+                ctx->m_query_vec, &nearest, &candidates, &ctx->m_visited,
+                &ctx->m_discarded, ctx->m_ef_search, 0, ctx->m_persistor_ctx,
+                ctx->m_scratch_buffer.data());
+            if (rc != HNSW_SUCCESS) {
+              // We got callback or some other error while searching.
+              // Propagate it to the caller and let it decide what to do.
+              return {rc, {0, 0}};
+            }
+
+            // Similarly to nn_search_start(), we can safely ignore nodes left
+            // in candidates heap. They will be present in the discarded heap.
+
+            // Again, the idea is that using the whole nearest/result set here
+            // should negatively impact recall. Quick tests were not conclusive.
+            // TODO: Thoroughly investigate this.
+            while (nearest.size() > ctx->m_batch_size) {
+              // search_layer_core() post condition:
+              // all nodes in the nearest set are complete.
+              assert(nearest.top().node->state() == NODE_COMPLETE);
+              ctx->m_discarded.push(nearest.top());
+              nearest.pop();
+            }
+
+            // Since search_layer_core() got some candidates, there must be at
+            // least one result.
+            assert(nearest.size() > 0);
+
+            ctx->m_results_batch.resize(nearest.size());
+            for (size_t i = nearest.size(); i > 0; --i) {
+              // search_layer_core() post condition:
+              // all nodes in the nearest set are complete.
+              assert(nearest.top().node->state() == NODE_COMPLETE);
+              ctx->m_results_batch[i - 1] = nearest.top();
+              nearest.pop();
+            }
+            ctx->m_current_batch_pos = 0;
+          } catch (const std::bad_alloc &) {
+            // OOMs related to the graph allocations are always reported by
+            // returning HNSW_OOM_GRAPH and not exceptions. So std::bad_alloc
+            // here means OOM while allocating the memory for one of per-search
+            // structures.
+            return {HNSW_OOM_CONTEXT, {0, 0}};
           }
-
-          search_layer_core(ctx->m_query_vec, &nearest, &candidates,
-                            &ctx->m_visited, &ctx->m_discarded,
-                            ctx->m_ef_search, 0, ctx->m_persistor_ctx,
-                            ctx->m_scratch_buffer.data());
-
-          // Similarly to nn_search_start(), we can safely ignore nodes left
-          // in candidates heap. They will be present in the discarded heap.
-
-          // Again, the idea is that using the whole nearest/result set here
-          // should negatively impact recall. Quick tests were not conclusive.
-          // TODO: Thoroughly investigate this.
-          while (nearest.size() > ctx->m_batch_size) {
-            // search_layer_core() post condition:
-            // all nodes in the nearest set are complete.
-            assert(nearest.top().node->state() == NODE_COMPLETE);
-            ctx->m_discarded.push(nearest.top());
-            nearest.pop();
-          }
-
-          // Since search_layer_core() got some candidates, there must be at
-          // least one result.
-          assert(nearest.size() > 0);
-
-          ctx->m_results_batch.resize(nearest.size());
-          for (size_t i = nearest.size(); i > 0; --i) {
-            // search_layer_core() post condition:
-            // all nodes in the nearest set are complete.
-            assert(nearest.top().node->state() == NODE_COMPLETE);
-            ctx->m_results_batch[i - 1] = nearest.top();
-            nearest.pop();
-          }
-          ctx->m_current_batch_pos = 0;
         }
       }
       const NodeDist &result = ctx->m_results_batch[ctx->m_current_batch_pos];
@@ -830,7 +1081,7 @@ class HNSW {
       if (result.distance < ctx->m_seen_distance) continue;
 
       ctx->m_seen_distance = result.distance;
-      return {true, {result.node->id(), result.node->base_pk()}};
+      return {HNSW_SUCCESS, {result.node->id(), result.node->base_pk()}};
     }
   }
 
@@ -846,17 +1097,37 @@ class HNSW {
           with any insert or search operations.
 
     @param id             Graph node id of the persisted entry point.
-    @param persistor_ctx  Context passed to load_node_cb..
+    @param persistor_ctx  Context passed to load_node_cb.
+
+    @return HNSW_SUCCESS if the entry point was loaded and published.
+            On failure (HNSW_NOT_FOUND / HNSW_ERROR_CB / HNSW_OOM_GRAPH)
+            the instance is no longer usable and must be destroyed.
   */
-  void init_from_entry_point(uint64_t id, PersistorContext *persistor_ctx) {
+  Result init_from_entry_point(uint64_t id, PersistorContext *persistor_ctx) {
     assert(m_entry_point.load() == nullptr);
-    assert(m_nodes.size() == 0);
+    assert(m_nodes.empty());
+
     Node *node = Node::create(m_allocator, *this, id, NODE_DUMMY);
-    m_nodes.insert({id, node});
-    bool loaded [[maybe_unused]] = load_node(persistor_ctx, node);
-    assert(loaded);
+    if (node == nullptr) return HNSW_OOM_GRAPH;
+
+    try {
+      m_nodes.emplace(id, node);
+    } catch (const std::bad_alloc &) {
+      return HNSW_OOM_GRAPH;
+    }
+
+    const Result load_rc = load_node(persistor_ctx, node);
+    if (load_rc != HNSW_SUCCESS) {
+      // EP not published. Node remains in m_nodes as LOST (NOT_FOUND) or
+      // DUMMY (ERROR_CB). Instance is not usable; caller should destroy it.
+      // It is up to the caller to decide if it wants to retry with a new
+      // instance (e.g. if callback error is transient).
+      return load_rc;
+    }
+
     m_entry_point.store(node);
-    assert(m_entry_point.load()->state() == NODE_COMPLETE);
+    assert(node->state() == NODE_COMPLETE);
+    return HNSW_SUCCESS;
   }
 
   /**
@@ -901,9 +1172,18 @@ class HNSW {
 
     Called from Persistor::load_node_cb after load_set_layer().
     @p ids must cover exactly all neighbor slots (size (layer+2)*M).
+
+    @return HNSW_SUCCESS on success, or HNSW_OOM_GRAPH if arena / map
+            allocation fails. On OOM the node remains NODE_DUMMY. Neighbor
+            storage already allocated is abandoned: a later load_node_cb
+            retry always re-allocates a fresh array (stubs already in
+            m_nodes are reused via find). We prefer that arena leak over
+            reusing the prior block because a retry is not guaranteed to
+            call load_set_layer() with the same layer as the first attempt,
+            so the required neighbor-array size may differ.
   */
   template <typename Range>
-  void load_node_neighbors(LoadNodeHandle handle, Range ids) {
+  Result load_node_neighbors(LoadNodeHandle handle, Range ids) {
     Node *node = static_cast<Node *>(handle);
     assert(node != nullptr);
     assert(node->state() == NODE_DUMMY);
@@ -911,7 +1191,8 @@ class HNSW {
     // Protect all allocations and nodes map ops in this function.
     std::scoped_lock lock(m_global_lock);
 
-    node->alloc_neighbors(m_allocator, *this);
+    if (!node->alloc_neighbors(m_allocator, *this)) return HNSW_OOM_GRAPH;
+
     Node **neighbor_out = node->all_neighbors_begin(*this);
     Node **const neighbor_end [[maybe_unused]] = node->all_neighbors_end(*this);
     for (uint64_t id : ids) {
@@ -926,12 +1207,18 @@ class HNSW {
         neighbor_node = it->second;
       } else {
         neighbor_node = Node::create(m_allocator, *this, id, NODE_DUMMY);
-        auto inserted [[maybe_unused]] = m_nodes.emplace(id, neighbor_node);
-        assert(inserted.second);
+        if (neighbor_node == nullptr) return HNSW_OOM_GRAPH;
+        try {
+          auto inserted [[maybe_unused]] = m_nodes.emplace(id, neighbor_node);
+          assert(inserted.second);
+        } catch (const std::bad_alloc &) {
+          return HNSW_OOM_GRAPH;
+        }
       }
       *neighbor_out++ = neighbor_node;
     }
     assert(neighbor_out == neighbor_end);
+    return HNSW_SUCCESS;
   }
 
 #ifndef NDEBUG
@@ -942,25 +1229,29 @@ class HNSW {
     and NODE_LINKING must not be present. NODE_DUMMY and NODE_LOST stubs are
     allowed in m_nodes and as neighbor pointers of COMPLETE nodes; their
     layer / neighbor storage is not inspected. Neighbor-list invariants are
-    checked only for NODE_COMPLETE nodes. Entry point must be COMPLETE and
-    on the highest COMPLETE layer.
+    checked only for NODE_COMPLETE nodes.
+
+    @param possibly_failed_cbs  If false (default), require a COMPLETE entry
+           point on the highest COMPLETE layer whenever m_nodes is non-empty
+           (successful-insert / healthy-graph invariants). If true, also accept
+           end states after Persistor callback failures: no COMPLETE nodes and
+           null EP (e.g. failed first-node insert), or EP below the highest
+           COMPLETE layer (failed update_entry_point_cb when raising EP).
 
     @note This API is not thread-safe. It is intended for
           use in unit tests and debug builds only.
   */
-  bool validate() const {
+  bool validate(bool possibly_failed_cbs = false) const {
     // Empty index <=> no entry point.
     if (m_nodes.empty()) {
       return m_entry_point.load() == nullptr;
     }
-    // Non-empty index must have a COMPLETE entry point.
-    Node *const entry_point = m_entry_point.load();
-    if (entry_point == nullptr || entry_point->state() != NODE_COMPLETE) {
-      return false;
-    }
 
-    uint8_t max_layer = 0;
+    Node *const entry_point = m_entry_point.load();
+    bool has_complete = false;
     bool found_ep = false;
+    uint8_t max_layer = 0;
+
     for (const auto &kv : m_nodes) {
       const Node *node = kv.second;
       // Map key must match node id; pointer must be non-null.
@@ -972,22 +1263,42 @@ class HNSW {
       if (state == NODE_NEW || state == NODE_LINKING) {
         return false;
       }
-      // Lazy-load stubs: id is known, but layer/neighbors are not valid.
-      // They may remain in m_nodes and as edges from COMPLETE nodes.
+      // Lazy-load stubs / failed inserts: id is known, but layer/neighbors
+      // are not valid. They may remain in m_nodes and as edges from COMPLETE
+      // nodes (including after insert_cb -> NODE_LOST).
       if (state == NODE_DUMMY || state == NODE_LOST) {
         continue;
       }
       if (state != NODE_COMPLETE) {
         return false;
       }
+      has_complete = true;
       max_layer = std::max(max_layer, node->layer());
       if (node == entry_point) {
         found_ep = true;
       }
     }
-    // Entry point must be in the map and sit on the highest COMPLETE layer.
-    if (!found_ep || entry_point->layer() != max_layer) {
-      return false;
+
+    if (possibly_failed_cbs) {
+      // No published nodes (e.g. only LOST after failed first insert): no EP.
+      if (!has_complete) {
+        return entry_point == nullptr;
+      }
+      // Published graph must have a COMPLETE entry point in the map. Do not
+      // require EP to own the max COMPLETE layer: update_entry_point_cb
+      // failure leaves a higher-layer COMPLETE node reachable only via lower
+      // layers.
+      if (entry_point == nullptr || entry_point->state() != NODE_COMPLETE ||
+          !found_ep) {
+        return false;
+      }
+    } else {
+      // Healthy graph: non-empty map implies COMPLETE EP on the max layer.
+      if (!has_complete || entry_point == nullptr ||
+          entry_point->state() != NODE_COMPLETE || !found_ep ||
+          entry_point->layer() != max_layer) {
+        return false;
+      }
     }
 
     for (const auto &kv : m_nodes) {
@@ -1086,7 +1397,7 @@ class HNSW {
       const size_t vec_size = hnsw.m_dimensions * sizeof(float);
       void *raw_mem =
           allocator.allocate(ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(vec_size));
-      if (raw_mem == nullptr) throw std::bad_alloc();
+      if (raw_mem == nullptr) return nullptr;
       Node *node = new (raw_mem) Node(id, state);
       return node;
     }
@@ -1118,7 +1429,11 @@ class HNSW {
     }
 
     void set_lost() {
-      assert(m_state.load() == NODE_DUMMY);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      // NODE_DUMMY: failed lazy load. NODE_LINKING: failed insert_cb.
+      assert(s == NODE_DUMMY || s == NODE_LINKING);
+#endif
       m_state.store(NODE_LOST);
     }
 
@@ -1164,7 +1479,7 @@ class HNSW {
       m_base_pk = base_pk;
     }
 
-    void alloc_neighbors(ArenaAllocator &allocator, const HNSW &hnsw) {
+    bool alloc_neighbors(ArenaAllocator &allocator, const HNSW &hnsw) {
 #ifndef NDEBUG
       const NodeState s = m_state.load();
       assert(s == NODE_NEW || s == NODE_DUMMY);
@@ -1172,8 +1487,9 @@ class HNSW {
       const size_t neighbors_size =
           (static_cast<size_t>(m_layer) + 2) * hnsw.m_M * sizeof(Node *);
       m_neighbors = static_cast<Node **>(allocator.allocate(neighbors_size));
-      if (m_neighbors == nullptr) throw std::bad_alloc();
+      if (m_neighbors == nullptr) return false;
       memset(m_neighbors, 0, neighbors_size);
+      return true;
     }
 
     Node **all_neighbors_begin(const HNSW &) const { return m_neighbors; }
@@ -1434,9 +1750,11 @@ class HNSW {
     Kept separate from search_layer() to avoid the overhead of a visited set
     and candidate priority queues when ef = 1.
 
-    @param q            Query vector.
-    @param entry_point  Entry element on this layer (node and distance to q).
-    @param layer        Layer index to search.
+    @param q       Query vector.
+    @param result  In/out: on entry, the starting element on this layer (node
+                   and distance to q); on return, the nearest neighbor found
+                   on this layer with its distance. Must not be nullptr.
+    @param layer   Layer index to search.
     @param persistor_ctx  Persistor call context for lazy load during search.
     @param scratch_buffer  Caller-owned buffer of at least get_Mmax(layer)
                            Node* slots (callers typically allocate get_Mmax(0)
@@ -1445,20 +1763,21 @@ class HNSW {
                            holding the node stripe lock. Not reentrant: must
                            not be shared across concurrent calls.
 
-    @note Pre condition: @p entry_point node is complete.
-          Post condition: the returned nearest neighbor node is complete.
+    @note Pre condition: @p result node is complete.
+          Post condition: @p result node is complete.
 
-    @return Nearest neighbor of q found on the given layer, with distance.
+    @return HNSW_SUCCESS on success, or a Result from load_node() /
+            load_node_cb (HNSW_NOT_FOUND is skipped per neighbor; other
+            failures are returned to the caller).
   */
-  NodeDist search_layer_ef_1(const char *q, const NodeDist &entry_point,
-                             uint8_t layer, PersistorContext *persistor_ctx,
-                             Node **scratch_buffer) {
-    Node *best_node = entry_point.node;
-    double best_dist = entry_point.distance;
+  Result search_layer_ef_1(const char *q, NodeDist *result, uint8_t layer,
+                           PersistorContext *persistor_ctx,
+                           Node **scratch_buffer) {
+    assert(result != nullptr);
     const size_t Mmax = get_Mmax(layer);
 
     for (;;) {
-      Node *cur_node = best_node;
+      Node *cur_node = result->node;
 
       // The node we are currently inspecting must be complete.
       assert(cur_node->state() == NODE_COMPLETE);
@@ -1486,21 +1805,27 @@ class HNSW {
         if (neighbor_state == NODE_LINKING || neighbor_state == NODE_LOST)
           continue;
 
-        // Load the neighbor if it is not loaded yet, skip if it is lost.
-        if (neighbor_state == NODE_DUMMY && !load_node(persistor_ctx, neighbor))
-          continue;
+        // Load the neighbor if it is not loaded yet; skip if lost.
+        if (neighbor_state == NODE_DUMMY) {
+          const Result load_rc = load_node(persistor_ctx, neighbor);
+          if (load_rc == HNSW_NOT_FOUND) {
+            assert(neighbor->state() == NODE_LOST);
+            continue;
+          }
+          if (load_rc != HNSW_SUCCESS) return load_rc;
+        }
 
         assert(neighbor->state() == NODE_COMPLETE);
 
         const double neighbor_dist = dist(q, neighbor);
-        if (neighbor_dist < best_dist) {
-          best_node = neighbor;
-          best_dist = neighbor_dist;
+        if (neighbor_dist < result->distance) {
+          result->node = neighbor;
+          result->distance = neighbor_dist;
         }
       }
 
-      if (best_node == cur_node) {
-        return {best_node, best_dist};
+      if (result->node == cur_node) {
+        return HNSW_SUCCESS;
       }
     }
   }
@@ -1513,36 +1838,37 @@ class HNSW {
     and on layer 0 during K-NN-SEARCH (with ef = ef_search).
 
     @param q   Query vector.
-    @param entry_points  Entry points on this layer.
+    @param result  In/out: on entry, the entry points on this layer; on return,
+                   up to ef nearest neighbors of q (max-heap of node/distance
+                   pairs; not sorted by distance when iterated). Must not be
+                   nullptr or empty on entry.
     @param ef  Size of the dynamic candidate / result list.
     @param layer  Layer index to search.
     @param persistor_ctx  Persistor call context for lazy load during search.
     @param scratch_buffer  Caller-owned neighbor scratch; see
                            search_layer_ef_1().
 
-    @note Pre condition: @p entry_points nodes are complete.
-          Post condition: all nodes in the result set are complete.
+    @note Pre condition: @p result nodes are complete.
+          Post condition: all nodes in @p result are complete.
 
-    @return Up to ef nearest neighbors of q on the given layer (as a
-            max-heap of node/distance pairs; not sorted by distance when
-            iterated).
+    @return HNSW_SUCCESS on success, or a Result from load_node() /
+            load_node_cb (HNSW_NOT_FOUND is skipped per neighbor; other
+            failures are returned to the caller).
   */
-  SearchLayerResult search_layer(const char *q, SearchLayerResult entry_points,
-                                 size_t ef, uint8_t layer,
-                                 PersistorContext *persistor_ctx,
-                                 Node **scratch_buffer) {
-    assert(!entry_points.empty());
+  Result search_layer(const char *q, SearchLayerResult *result, size_t ef,
+                      uint8_t layer, PersistorContext *persistor_ctx,
+                      Node **scratch_buffer) {
+    assert(result != nullptr && !result->empty());
     std::unordered_set<Node *> visited;  // v in the paper
     // Guesstimate the number of unique nodes to visit in the layer.
     visited.reserve(ef * get_Mmax(layer));
     // C in the paper. Min-heap of nodes which neighbors we are going to
     // consider for inclusion in the result set.
     NodeDistMinQueue candidates;
-    // W in the paper. Max-heap of nodes which are already in the tentative
-    // result set (i.e. tentatively the closest ef nodes).
-    SearchLayerResult result = std::move(entry_points);
+    // W in the paper is @p result: max-heap of nodes which are already in
+    // the tentative result set (i.e. tentatively the closest ef nodes).
 
-    for (const NodeDist &entry : result) {
+    for (const NodeDist &entry : *result) {
       const bool res [[maybe_unused]] = visited.insert(entry.node).second;
       assert(res == true);
       // Entry point nodes must be complete.
@@ -1550,10 +1876,8 @@ class HNSW {
       candidates.push(entry);
     }
 
-    search_layer_core(q, &result, &candidates, &visited, nullptr, ef, layer,
-                      persistor_ctx, scratch_buffer);
-
-    return result;
+    return search_layer_core(q, result, &candidates, &visited, nullptr, ef,
+                             layer, persistor_ctx, scratch_buffer);
   }
 
   /**
@@ -1575,16 +1899,20 @@ class HNSW {
     @param scratch_buffer  Caller-owned neighbor scratch; see
                            search_layer_ef_1().
 
-    @note Pre condition: @p entry_points nodes are complete.
+    @note Pre condition: @p result nodes are complete.
           Post condition: all nodes in the result set are complete.
           Post condition: all nodes in the discarded heap are complete.
+
+    @return HNSW_SUCCESS on success, or a Result from load_node() /
+            load_node_cb (HNSW_NOT_FOUND is skipped per neighbor; other
+            failures are returned to the caller).
   */
-  void search_layer_core(const char *q, SearchLayerResult *result,
-                         NodeDistMinQueue *candidates,
-                         std::unordered_set<Node *> *visited,
-                         NodeDistMinQueue *discarded, size_t ef, uint8_t layer,
-                         PersistorContext *persistor_ctx,
-                         Node **scratch_buffer) {
+  Result search_layer_core(const char *q, SearchLayerResult *result,
+                           NodeDistMinQueue *candidates,
+                           std::unordered_set<Node *> *visited,
+                           NodeDistMinQueue *discarded, size_t ef,
+                           uint8_t layer, PersistorContext *persistor_ctx,
+                           Node **scratch_buffer) {
     assert(result != nullptr && !result->empty());
     assert(candidates != nullptr && !candidates->empty());
     // Early exit should not be possible as we populate C == W initially.
@@ -1640,8 +1968,17 @@ class HNSW {
         //    insertions.
         if (e_state == NODE_LINKING || e_state == NODE_LOST) continue;
 
-        // Load the neighbor if it is not loaded yet, skip if it is lost.
-        if (e_state == NODE_DUMMY && !load_node(persistor_ctx, e)) continue;
+        // Load the neighbor if it is not loaded yet; skip if missing.
+        if (e_state == NODE_DUMMY) {
+          const Result load_rc = load_node(persistor_ctx, e);
+          if (load_rc == HNSW_NOT_FOUND) {
+            assert(e->state() == NODE_LOST);
+            continue;
+          }
+          if (load_rc != HNSW_SUCCESS) return load_rc;
+        }
+
+        assert(e->state() == NODE_COMPLETE);
 
         if (!visited->insert(e).second) {
           continue;
@@ -1664,6 +2001,7 @@ class HNSW {
         }
       }
     }
+    return HNSW_SUCCESS;
   }
 
   /**
@@ -1739,7 +2077,7 @@ class HNSW {
     return r_size;
   }
 
-  bool load_node(PersistorContext *persistor_ctx, Node *node) {
+  Result load_node(PersistorContext *persistor_ctx, Node *node) {
     // Lock the node to avoid concurrent loads of the same node.
     lock_load_node(node);
     // We need to re-check the state under the lock.
@@ -1749,29 +2087,35 @@ class HNSW {
         //
         // Load callback must call, in order: load_set_layer(), load_set_vec(),
         // load_set_base_pk(), load_node_neighbors().
-        bool loaded = m_persistor.load_node_cb(
+        const Result loaded = m_persistor.load_node_cb(
             persistor_ctx, *this, static_cast<LoadNodeHandle>(node));
-        if (loaded) {
+        if (loaded == HNSW_SUCCESS) {
           node->set_complete();
-        } else {
+        } else if (loaded == HNSW_NOT_FOUND) {
           node->set_lost();
         }
+        // On HNSW_ERROR_CB / HNSW_OOM_GRAPH leave the stub as NODE_DUMMY for
+        // a possible retry.
         unlock_load_node(node);
         return loaded;
       }
       case NODE_COMPLETE:
         unlock_load_node(node);
-        return true;
+        return HNSW_SUCCESS;
       case NODE_LOST:
         unlock_load_node(node);
-        return false;
+        return HNSW_NOT_FOUND;
       case NODE_NEW:
       case NODE_LINKING:
       default:
-        // NODE_NEW/LINKING are insert-owned, not loadable stubs.
+        // NODE_NEW/LINKING are insert-owned, not loadable stubs, and must not
+        // appear on this path. Debug builds assert. In a production build,
+        // if this impossible case is somehow hit, returning HNSW_NOT_FOUND is
+        // the safest choice: callers treat it like a skip (same as LOST) and
+        // do not attempt to use the node or escalate to a hard CB error.
         assert(false);
         unlock_load_node(node);
-        return false;
+        return HNSW_NOT_FOUND;
     }
   }
 };

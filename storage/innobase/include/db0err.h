@@ -229,6 +229,10 @@ enum dberr_t {
   /** Column update or read failed because the types mismatch */
   DB_DATA_MISMATCH = 2000,
   /* Too many nested sub expression in full-text search string */
-  DB_FTS_TOO_MANY_NESTED_EXP
+  DB_FTS_TOO_MANY_NESTED_EXP,
+  /** A vector index's ANN search hit an aux row that should exist -
+  named by a neighbour list in the graph - but does not: the persisted
+  graph and the aux table have gone out of sync. */
+  DB_ANN_NODE_NOT_FOUND
 };
 #endif

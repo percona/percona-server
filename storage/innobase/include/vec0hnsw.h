@@ -125,7 +125,12 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   dberr_t err = vec_aux_read_node(ctx->aux, id, heap, &node);
   if (err != DB_SUCCESS) {
     mem_heap_free(heap);
-    return err;
+    /* Unlike vec_runtime_load's lookup of record 0, a miss here is never
+    benign: this id came off a neighbour list, so the graph says this
+    node must exist. DB_RECORD_NOT_FOUND would otherwise surface at the
+    client as HA_ERR_NO_ACTIVE_RECORD - indistinguishable from an
+    ordinary missing row. Report it as what it is. */
+    return err == DB_RECORD_NOT_FOUND ? DB_ANN_NODE_NOT_FOUND : err;
   }
 
   if (node.vec_len != ctx->vec_bytes) {

@@ -49,6 +49,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -306,8 +307,9 @@ struct RecallStats {
 static RecallStats measure_knn_recall(BenchFixture &f, size_t ef_search) {
   RecallStats stats;
   for (size_t q = 0; q < f.num_queries(); ++q) {
-    const auto found =
+    const auto [rc, found] =
         f.index().k_nn_search(as_bytes(f.query(q)), f.k(), ef_search);
+    assert(rc == BorrowedHnsw::HNSW_SUCCESS);
     const double recall = f.recall_of(found, q);
     stats.average += recall;
     stats.worst = std::min(stats.worst, recall);
@@ -489,9 +491,10 @@ static void BM_HnswKnnSearch(size_t num_iterations) {
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
     // Rotate the query: repeating one query would measure a fully warmed path.
-    const auto found = f.index().k_nn_search(
+    const auto [rc, found] = f.index().k_nn_search(
         as_bytes(f.query(i % f.num_queries())), f.k(), kEfSearch);
     bench_sink = bench_sink + (found.empty() ? 0 : found[0].id);
+    (void)rc;
   }
   StopBenchmarkTiming();
 }

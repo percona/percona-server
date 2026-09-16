@@ -6637,7 +6637,9 @@ sub report_failure_and_restart ($) {
         $tinfo->{logfile} = mtr_fromfile($logfile);
         # If no newlines in the test log:
         # (it will contain the CURRENT_TEST written by mtr, so is not empty)
-        if ($tinfo->{logfile} !~ /\n/) {
+        if ($tinfo->{logfile} !~ /\n/ &&
+          (!defined $tinfo->{result_file} ||
+           !-e mtr_match_extension($tinfo->{result_file}, "result") . ".reject")) {
           # Show how far it got before suddenly failing
           $tinfo->{comment} .= "mysqltest failed but provided no output\n";
           my $log_file_name =

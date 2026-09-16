@@ -81,8 +81,9 @@ double self_match_hit_rate(
   assert(points.size() == base_pks.size());
   size_t hits = 0;
   for (size_t i = 0; i < points.size(); ++i) {
-    const auto result =
+    const auto [rc, result] =
         index.k_nn_search(as_bytes(points[i]), k, ef_search, persistor_ctx);
+    assert(rc == Hnsw::HNSW_SUCCESS);
     for (const auto &hit : result) {
       if (hit.base_pk == base_pks[i]) {
         ++hits;
@@ -195,8 +196,9 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesStableGraph) {
   }
 
   const auto query = make_pseudo_random_points(/*count=*/1, kDims, &state)[0];
-  const auto baseline =
+  const auto [rc_baseline, baseline] =
       index.k_nn_search(as_bytes(query), /*k=*/10, /*ef_search=*/50);
+  ASSERT_EQ(rc_baseline, ConcurrentTestHnsw::HNSW_SUCCESS);
   ASSERT_FALSE(baseline.empty());
 
   ThreadBarrier barrier(kNumThreads);
@@ -206,8 +208,10 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesStableGraph) {
   for (size_t t = 0; t < kNumThreads; ++t) {
     threads.emplace_back([&, t] {
       barrier.arrive_and_wait();
-      results[t] =
+      const auto [rc, hits] =
           index.k_nn_search(as_bytes(query), /*k=*/10, /*ef_search=*/50);
+      EXPECT_EQ(rc, ConcurrentTestHnsw::HNSW_SUCCESS);
+      results[t] = hits;
     });
   }
   for (std::thread &th : threads) {
@@ -266,8 +270,9 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndKnnSearch) {
       uint64_t local = static_cast<uint64_t>(t) + 1;
       for (size_t i = 0; i < kSearchesPerThread; ++i) {
         const auto q = make_pseudo_random_points(/*count=*/1, kDims, &local)[0];
-        const auto result =
+        const auto [rc, result] =
             index.k_nn_search(as_bytes(q), /*k=*/5, /*ef_search=*/32);
+        EXPECT_EQ(rc, ConcurrentTestHnsw::HNSW_SUCCESS);
         // May be empty only if somehow EP missing; seeded index forbids that.
         EXPECT_FALSE(result.empty());
         if (inserts_done.load(std::memory_order_relaxed)) {
@@ -335,16 +340,17 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndStreaming) {
       ConcurrentTestHnsw::NNSearchContext ctx;
       uint64_t local = static_cast<uint64_t>(t) + 99;
       const auto q = make_pseudo_random_points(/*count=*/1, kDims, &local)[0];
-      index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8,
-                            /*ef_search=*/32);
+      EXPECT_EQ(index.nn_search_start(&ctx, as_bytes(q), /*batch_size=*/8,
+                                      /*ef_search=*/32),
+                ConcurrentTestHnsw::HNSW_SUCCESS);
       std::unordered_set<uint64_t> seen;
       for (size_t i = 0; i < 40; ++i) {
-        const std::pair<bool, ConcurrentTestHnsw::SearchHit> step =
-            index.nn_search_next(&ctx);
-        if (!step.first) {
+        const auto [rc, hit] = index.nn_search_next(&ctx);
+        if (rc == ConcurrentTestHnsw::HNSW_NOT_FOUND) {
           break;
         }
-        EXPECT_TRUE(seen.insert(step.second.id).second)
+        EXPECT_EQ(rc, ConcurrentTestHnsw::HNSW_SUCCESS);
+        EXPECT_TRUE(seen.insert(hit.id).second)
             << "duplicate node id in stream thread " << t;
       }
     });
@@ -423,8 +429,9 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesColdGraph) {
   populate_round_trip_index(built, &fixture);
   ASSERT_GT(fixture.store.entry_point, 0U);
 
-  const auto baseline = built.k_nn_search(as_bytes(fixture.query), /*k=*/10,
-                                          /*ef_search=*/50, &fixture.store);
+  const auto [rc_baseline, baseline] = built.k_nn_search(
+      as_bytes(fixture.query), /*k=*/10, /*ef_search=*/50, &fixture.store);
+  ASSERT_EQ(rc_baseline, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_FALSE(baseline.empty());
 
   std::mutex store_mu;
@@ -432,7 +439,9 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesColdGraph) {
   fixture.store.load_counts.clear();
 
   ConcurrentLoadHnsw cold(kDims, euclidean, kM, kEfConstruction);
-  cold.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      ConcurrentLoadHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, fixture.store.load_counts.size());
   ASSERT_EQ(1U, fixture.store.load_counts.at(fixture.store.entry_point));
 
@@ -443,8 +452,10 @@ TEST_F(HnswConcurrencyTest, ConcurrentSearchesColdGraph) {
   for (size_t t = 0; t < kNumThreads; ++t) {
     threads.emplace_back([&, t] {
       barrier.arrive_and_wait();
-      results[t] = cold.k_nn_search(as_bytes(fixture.query), /*k=*/10,
-                                    /*ef_search=*/50, &fixture.store);
+      const auto [rc, hits] = cold.k_nn_search(
+          as_bytes(fixture.query), /*k=*/10, /*ef_search=*/50, &fixture.store);
+      EXPECT_EQ(rc, ConcurrentLoadHnsw::HNSW_SUCCESS);
+      results[t] = hits;
     });
   }
   for (std::thread &th : threads) {
@@ -495,7 +506,9 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndSearchWhileLazyLoading) {
   fixture.store.load_counts.clear();
 
   ConcurrentLoadHnsw cold(kDims, euclidean, kM, kEfConstruction);
-  cold.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      ConcurrentLoadHnsw::HNSW_SUCCESS);
 
   const size_t n_threads = kInsertThreads + kSearchThreads;
   ThreadBarrier barrier(n_threads);
@@ -520,22 +533,25 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndSearchWhileLazyLoading) {
       uint64_t local = static_cast<uint64_t>(t) + 9;
       for (size_t i = 0; i < 40; ++i) {
         const auto q = make_pseudo_random_points(/*count=*/1, kDims, &local)[0];
-        const auto result = cold.k_nn_search(as_bytes(q), /*k=*/5,
-                                             /*ef_search=*/32, &fixture.store);
+        const auto [rc, result] =
+            cold.k_nn_search(as_bytes(q), /*k=*/5,
+                             /*ef_search=*/32, &fixture.store);
+        EXPECT_EQ(rc, ConcurrentLoadHnsw::HNSW_SUCCESS);
         EXPECT_FALSE(result.empty());
       }
       ConcurrentLoadHnsw::NNSearchContext ctx;
       const auto sq = make_pseudo_random_points(/*count=*/1, kDims, &local)[0];
-      cold.nn_search_start(&ctx, as_bytes(sq), /*batch_size=*/8,
-                           /*ef_search=*/32, &fixture.store);
+      EXPECT_EQ(cold.nn_search_start(&ctx, as_bytes(sq), /*batch_size=*/8,
+                                     /*ef_search=*/32, &fixture.store),
+                ConcurrentLoadHnsw::HNSW_SUCCESS);
       std::unordered_set<uint64_t> seen;
       for (size_t i = 0; i < 30; ++i) {
-        const std::pair<bool, ConcurrentLoadHnsw::SearchHit> step =
-            cold.nn_search_next(&ctx);
-        if (!step.first) {
+        const auto [rc, hit] = cold.nn_search_next(&ctx);
+        if (rc == ConcurrentLoadHnsw::HNSW_NOT_FOUND) {
           break;
         }
-        EXPECT_TRUE(seen.insert(step.second.id).second)
+        EXPECT_EQ(rc, ConcurrentLoadHnsw::HNSW_SUCCESS);
+        EXPECT_TRUE(seen.insert(hit.id).second)
             << "duplicate node id in stream thread " << t;
       }
     });
@@ -567,7 +583,9 @@ TEST_F(HnswConcurrencyTest, LoadNodeSingleFlight) {
   fixture.store.load_counts.clear();
 
   ConcurrentLoadHnsw cold(kDims, euclidean, kM, kEfConstruction);
-  cold.init_from_entry_point(fixture.store.entry_point, &fixture.store);
+  ASSERT_EQ(
+      cold.init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      ConcurrentLoadHnsw::HNSW_SUCCESS);
   ASSERT_EQ(1U, fixture.store.load_counts.at(fixture.store.entry_point));
 
   ThreadBarrier barrier(kWorkers);

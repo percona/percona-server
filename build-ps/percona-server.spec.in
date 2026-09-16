@@ -756,6 +756,9 @@ rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
 rm -rf %{buildroot}/usr/lib/libkmipclient.a
 rm -rf %{buildroot}/usr/lib/libkmipcore.a
+
+find %{buildroot}%{_datadir}/mysql-test -maxdepth 1 -name 'core*' -exec rm -f {} + 2>/dev/null || :
+
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -781,6 +784,11 @@ rm -rf %{buildroot}/usr/lib/libkmipcore.a
     --suite-timeout=720 --testcase-timeout=30 \
     --clean-vardir
   rm -r $(readlink var) var
+  # Remove any core dump a crashed mysqld may have left directly under
+  # mysql-test/ (outside var/), so it never gets swept into the package.
+  rm -f core*
+  popd
+  popd
 %endif
 
 %pretrans -n percona-server-server

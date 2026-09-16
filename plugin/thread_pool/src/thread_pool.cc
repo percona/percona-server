@@ -1380,6 +1380,14 @@ static inline ulonglong tp_thread_create_ctrl_interval() {
   return 100;
 }
 
+static inline bool tp_should_skip_wakeup(tp_group_t *my_tp_group) {
+  if (count_waiting_queries(my_tp_group) > 0) return false;
+  if (my_tp_group->waiting_thread != nullptr) return false;
+  if (my_tp_group->threads_for_consumer > 0) return false;
+  if (my_tp_group->threads_for_reserve > 0) return false;
+  return true;
+}
+
 /**
   Wake one of the worker threads that is waiting to process clients commands.
   Or create a new thread to help process client commands.
@@ -1401,14 +1409,6 @@ static inline ulonglong tp_thread_create_ctrl_interval() {
     of more than the latest thread used. However to keep track of this one
     thread gives a significant boost of 5-10% in performance in experiments.
 */
-static inline bool tp_should_skip_wakeup(tp_group_t *my_tp_group) {
-  if (count_waiting_queries(my_tp_group) > 0) return false;
-  if (my_tp_group->waiting_thread != nullptr) return false;
-  if (my_tp_group->threads_for_consumer > 0) return false;
-  if (my_tp_group->threads_for_reserve > 0) return false;
-  return true;
-}
-
 static void tp_wake_thread(tp_group_t *my_tp_group, wake_level level) {
   DBUG_TRACE;
   DBUG_PRINT("tp_enter", ("wake thread in Thread group id %d, level %d",

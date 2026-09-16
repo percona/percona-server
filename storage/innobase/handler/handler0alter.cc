@@ -7750,7 +7750,22 @@ after a successful commit_try_norebuild() call.
       batch window. Revisit with PS-11300's crash-atomicity work -
       adopting the aux_vec deferral pattern is the fix if needed. */
       if (index->is_vector()) {
-        (void)vec_aux_drop_one_table(trx, index->table, index->id);
+        dberr_t vec_err = vec_aux_drop_one_table(trx, index->table, index->id);
+        if (vec_err != DB_SUCCESS) {
+          /* vec_aux_drop_one_table already logged the failure via
+          ib::warn. Also surface it to the client: this runs past the
+          point where the ALTER itself can be failed (see the comment
+          above), so a client-visible warning is the only way the
+          orphaned aux table doesn't go unnoticed outside the server
+          error log. Deliberately does not affect commit_cache_norebuild's
+          `found` return, which is a distinct FK-replacement signal that
+          the caller asserts on. */
+          push_warning_printf(
+              current_thd, Sql_condition::SL_WARNING, ER_ALTER_INFO,
+              "InnoDB: Failed to drop the auxiliary table for vector"
+              " index '%s' (error %d); it may require manual cleanup.",
+              index->name(), static_cast<int>(vec_err));
+        }
       }
 
       /* It is a single table tablespace and the .ibd file is

@@ -628,7 +628,13 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
     }
   }
 
-  dberr_t err = row_drop_table_for_mysql(aux_name, trx, false, nullptr);
+  dberr_t err;
+  bool skip_physical_drop = false;
+  DBUG_EXECUTE_IF("vec_aux_drop_force_error", skip_physical_drop = true;
+                  err = DB_ERROR;);
+  if (!skip_physical_drop) {
+    err = row_drop_table_for_mysql(aux_name, trx, false, nullptr);
+  }
   if (err != DB_SUCCESS && err != DB_TABLE_NOT_FOUND) {
     ib::warn(ER_IB_MSG_466) << "Failed to drop vector aux table " << aux_name
                             << " err=" << static_cast<int>(err);
@@ -654,9 +660,22 @@ dberr_t vec_aux_drop_one_table(trx_t *trx, const dict_table_t *parent,
   if (dict_locked) {
     dict_sys_mutex_exit();
   }
-  (void)dd_drop_aux_table(aux_name, file_per_table);
+  bool dd_dropped = dd_drop_aux_table(aux_name, file_per_table);
+  DBUG_EXECUTE_IF("vec_aux_dd_drop_force_error", dd_dropped = false;);
   if (dict_locked) {
     dict_sys_mutex_enter();
+  }
+
+  if (!dd_dropped) {
+    /* The physical dict_sys + .ibd are already gone (or never existed)
+    at this point; only the dd::Table/dd::Tablespace rows failed to
+    drop. Report it the same way as a physical-drop failure - leaving
+    it silent here would mean the DD keeps referencing a tablespace
+    that no longer has a backing file. */
+    ib::warn(ER_IB_MSG_466) << "Failed to drop the DD entry for vector"
+                               " aux table "
+                            << aux_name;
+    return DB_ERROR;
   }
 
   /* Treat NOT_FOUND from the in-memory drop as success - covers tables

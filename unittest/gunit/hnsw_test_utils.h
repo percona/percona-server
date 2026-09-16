@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <mutex>
 #include <random>
@@ -66,15 +67,22 @@ struct NullPersistor {
   struct Context {};
 
   template <typename NeighborIds>
-  void insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
-                 NeighborIds) {}
+  int insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                NeighborIds) {
+    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  }
   template <typename NeighborIds>
-  void update_neighbors_cb(Context *, uint64_t, NeighborIds) {}
-  void update_entry_point_cb(Context *, uint64_t) {}
+  int update_neighbors_cb(Context *, uint64_t, NeighborIds) {
+    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  }
+  int update_entry_point_cb(Context *, uint64_t) {
+    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  }
   template <typename Hnsw>
-  bool load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
+  typename Hnsw::Result load_node_cb(Context *, Hnsw &,
+                                     typename Hnsw::LoadNodeHandle) {
     assert(false);
-    return false;
+    return Hnsw::HNSW_ERROR_CB;
   }
 };
 
@@ -140,10 +148,24 @@ struct RecordingPersistor {
     /// Number of load_node_cb invocations per graph id (lazy-load tests).
     std::unordered_map<uint64_t, size_t> load_counts;
     /**
-      Graph ids for which load_node_cb should fail (marks NODE_LOST).
+      Graph ids for which load_node_cb should return HNSW_NOT_FOUND
+      (simulates crash / incomplete persist; marks NODE_LOST).
       Used by adjacent-prune / lost-neighbor tests.
     */
     std::unordered_set<uint64_t> fail_load_ids;
+    /**
+      Graph ids for which load_node_cb should return HNSW_ERROR_CB (e.g. I/O).
+      Stub stays NODE_DUMMY so a later load can retry after clearing the id.
+    */
+    std::unordered_set<uint64_t> fail_load_error_ids;
+    /**
+      One-shot failure injection for insert_cb / update_entry_point_cb /
+      update_neighbors_cb (callback-failure unit tests). Cleared when the
+      failing call returns.
+    */
+    bool fail_next_insert_cb = false;
+    bool fail_next_update_entry_point_cb = false;
+    bool fail_next_update_neighbors_cb = false;
     /**
       Optional lock for concurrent insert/search against a shared Context.
       When non-null, all RecordingPersistor callbacks lock it. Serial tests
@@ -153,11 +175,15 @@ struct RecordingPersistor {
   };
 
   template <typename NeighborIds>
-  void insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
-                 uint8_t layer, NeighborIds neighbors) {
+  int insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
+                uint8_t layer, NeighborIds neighbors) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_insert_cb) {
+      ctx->fail_next_insert_cb = false;
+      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
     }
     StoredNode &row = ctx->nodes[id];
     row.base_pk = base_pk;
@@ -165,36 +191,50 @@ struct RecordingPersistor {
     row.vec.assign(reinterpret_cast<const float *>(q),
                    reinterpret_cast<const float *>(q) + ctx->dims);
     row.neighbor_ids.assign(neighbors.begin(), neighbors.end());
+    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
   }
 
   template <typename NeighborIds>
-  void update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
+  int update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_update_neighbors_cb) {
+      ctx->fail_next_update_neighbors_cb = false;
+      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
     }
     ctx->nodes.at(id).neighbor_ids.assign(neighbors.begin(), neighbors.end());
+    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
   }
 
-  void update_entry_point_cb(Context *ctx, uint64_t id) {
+  int update_entry_point_cb(Context *ctx, uint64_t id) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
+    if (ctx->fail_next_update_entry_point_cb) {
+      ctx->fail_next_update_entry_point_cb = false;
+      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
+    }
     ctx->entry_point = id;
+    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
   }
 
   template <typename Hnsw>
-  bool load_node_cb(Context *ctx, Hnsw &hnsw,
-                    typename Hnsw::LoadNodeHandle handle) {
+  typename Hnsw::Result load_node_cb(Context *ctx, Hnsw &hnsw,
+                                     typename Hnsw::LoadNodeHandle handle) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
     const uint64_t id = hnsw.load_node_id(handle);
     ++ctx->load_counts[id];
+    if (ctx->fail_load_error_ids.count(id) != 0) {
+      return Hnsw::HNSW_ERROR_CB;
+    }
     if (ctx->fail_load_ids.count(id) != 0) {
-      return false;
+      return Hnsw::HNSW_NOT_FOUND;
     }
     const StoredNode &row = ctx->nodes.at(id);
     // Copy out under the lock so load_* can run without holding it across
@@ -209,8 +249,8 @@ struct RecordingPersistor {
     hnsw.load_set_layer(handle, layer);
     hnsw.load_set_vec(handle, as_bytes(vec));
     hnsw.load_set_base_pk(handle, base_pk);
-    hnsw.load_node_neighbors(handle, neighbor_ids);
-    return true;
+    // Propagate load_node_neighbors Result unchanged (e.g. HNSW_OOM_GRAPH).
+    return hnsw.load_node_neighbors(handle, neighbor_ids);
   }
 };
 
@@ -298,6 +338,9 @@ inline uint64_t find_full_layer0_hub(const RecordingPersistor::Context &store,
   the unused tail of the last (exponentially grown) block; bytes_requested is
   what the index actually asked for. Reporting both separates the index's own
   footprint from the allocator's slack.
+
+  alloc_successes_remaining limits successful allocate() calls for OOM tests:
+  SIZE_MAX means unlimited; 0 means the next allocate() returns nullptr.
 */
 struct ArenaStats {
   explicit ArenaStats(size_t block_size)
@@ -306,6 +349,7 @@ struct ArenaStats {
   MEM_ROOT mem_root;
   size_t bytes_requested = 0;
   size_t requests_number = 0;
+  size_t alloc_successes_remaining = std::numeric_limits<size_t>::max();
 };
 
 /**
@@ -331,9 +375,17 @@ class BorrowedArenaAllocator {
   }
 
   void *allocate(size_t size) {
+    if (m_arena->alloc_successes_remaining == 0) {
+      return nullptr;
+    }
     m_arena->bytes_requested += size;
     ++m_arena->requests_number;
-    return m_arena->mem_root.Alloc(size);
+    void *const p = m_arena->mem_root.Alloc(size);
+    if (p != nullptr && m_arena->alloc_successes_remaining !=
+                            std::numeric_limits<size_t>::max()) {
+      --m_arena->alloc_successes_remaining;
+    }
+    return p;
   }
 
  private:
@@ -341,6 +393,7 @@ class BorrowedArenaAllocator {
 };
 
 using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor>;
+using BorrowedLoadHnsw = HNSW<BorrowedArenaAllocator, RecordingPersistor>;
 
 /** Scoped arm of g_pending_arena; construct the index inside its scope. */
 class ArenaHandover {
@@ -452,15 +505,20 @@ inline std::vector<typename Hnsw::SearchHit> drain_stream(
     size_t max_results = 1000,
     typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
   typename Hnsw::NNSearchContext ctx;
-  index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
+  if (index.nn_search_start(&ctx, query, batch_size, ef_search,
+                            persistor_ctx) != Hnsw::HNSW_SUCCESS) {
+    return {};
+  }
   std::vector<typename Hnsw::SearchHit> out;
   for (size_t i = 0; i < max_results; ++i) {
-    const std::pair<bool, typename Hnsw::SearchHit> step =
-        index.nn_search_next(&ctx);
-    if (!step.first) {
+    const auto [rc, hit] = index.nn_search_next(&ctx);
+    if (rc == Hnsw::HNSW_NOT_FOUND) {
       break;
     }
-    out.push_back(step.second);
+    if (rc != Hnsw::HNSW_SUCCESS) {
+      return {};
+    }
+    out.push_back(hit);
   }
   return out;
 }

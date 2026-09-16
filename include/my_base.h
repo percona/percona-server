@@ -1088,8 +1088,10 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
 /** Destination schema does not exist */
 #define HA_ERR_DEST_SCHEMA_NOT_EXIST 210
+/** Vector ANN search failed */
+#define HA_ERR_ANN_FAILED 211
 /** Copy of last error number */
-#define HA_ERR_LAST 210
+#define HA_ERR_LAST 211
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

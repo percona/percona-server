@@ -2411,6 +2411,9 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
     case DB_CORRUPTION:
       return (HA_ERR_CRASHED);
 
+    case DB_ANN_NODE_NOT_FOUND:
+      return (HA_ERR_ANN_FAILED);
+
     case DB_OUT_OF_FILE_SPACE:
       return (HA_ERR_RECORD_FILE_FULL);
 

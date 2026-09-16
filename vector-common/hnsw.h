@@ -71,9 +71,15 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
     rely on data written to Persistor members during a prior call.
     Must provide:
       - nested type Context (call-scoped state, e.g. transaction / THD);
-      - insert_cb(Context *, id, base_pk, q, layer, NeighborIdRange);
-      - update_neighbors_cb(Context *, id, NeighborIdRange);
-      - update_entry_point_cb(Context *, id);
+      - insert_cb(Context *, id, base_pk, q, layer, NeighborIdRange) -> Result:
+        persist a newly inserted node. Return HNSW_SUCCESS on success, or
+        another Result (typically HNSW_ERROR_CB) on failure.
+      - update_neighbors_cb(Context *, id, NeighborIdRange) -> Result:
+        persist an updated neighbor list. Return HNSW_SUCCESS on success, or
+        another Result (typically HNSW_ERROR_CB) on failure.
+      - update_entry_point_cb(Context *, id) -> Result:
+        persist a new entry-point id. Return HNSW_SUCCESS on success, or
+        another Result (typically HNSW_ERROR_CB) on failure.
       - load_node_cb(Context *, HNSW &, LoadNodeHandle) -> bool: fill a
         NODE_DUMMY node from storage. @p handle is opaque; use only the
         HNSW load_* helpers on it. On success must call, in order:
@@ -160,12 +166,22 @@ class HNSW {
   };
 
   /**
+    Result codes for HNSW operations that can fail or miss.
+
+    HNSW_SUCCESS    Operation completed successfully.
+    HNSW_NOT_FOUND  Requested graph node / entry was not found.
+    HNSW_ERROR_CB   A Persistor callback reported failure.
+  */
+  enum Result { HNSW_SUCCESS, HNSW_NOT_FOUND, HNSW_ERROR_CB };
+
+  /**
     Lifecycle of an in-memory graph node.
 
     Transitions (only via Node setters / load_node()):
       Newly inserted node case:
         NODE_NEW  --set_linking()--> NODE_LINKING --set_complete()-->
           NODE_COMPLETE
+        NODE_LINKING --set_lost()--> NODE_LOST   (failed insert_cb)
       Loaded node case:
         NODE_DUMMY  --set_complete()--> NODE_COMPLETE   (successful lazy load)
         NODE_DUMMY  --set_lost()-----> NODE_LOST        (failed lazy load)
@@ -181,19 +197,19 @@ class HNSW {
                     constructed and must not be relied on (slots may still be
                     empty or only partially wired). The node may already appear
                     in other nodes' neighbor lists; search skips LINKING until
-                    NODE_COMPLETE.
+                    NODE_COMPLETE. On insert_cb failure, becomes NODE_LOST.
       NODE_COMPLETE Fully published: neighbor lists are complete and safe for
                     search and for Persistor neighbor snapshots. Entry point is
                     always COMPLETE.
       NODE_DUMMY    Lazy-load stub: id known, layer/vec/neighbors not valid yet.
                     Created via Node::create(..., NODE_DUMMY) for neighbor ids
                     seen before the node is loaded (see load_node_neighbors()).
-      NODE_LOST     Lazy load failed; accessors must not be used. May remain
-                    as a neighbor-slot pointer; search skips it.
-                    The main scenario where NODE_LOST nodes can occur is when
-                    insertion crash before calling insert_cb, but after some
-                    concurrent insertion already persisted neighbor lists of
-                    a node to which the lost node was added as a neighbor.
+      NODE_LOST     Lazy load unable to find the node or failed insert_cb;
+                    accessors must not be used. May remain as a neighbor-slot
+                    pointer; search skips it.
+                    Typical scenario is an insertion crash before insert_cb,
+                    after a concurrent insertion already persisted neighbor
+                    lists that reference the lost node.
 
     Search expands only NODE_COMPLETE neighbors (loads DUMMY, skips LINKING
     and LOST). NODE_NEW must not be observed on search/insert graph edges
@@ -261,9 +277,14 @@ class HNSW {
     @param q        Vector to insert.
     @param persistor_ctx  Persistor call context (e.g. transaction); passed
                           through to Persistor callbacks. Defaults to nullptr.
+
+    @return HNSW_SUCCESS on success, or HNSW_ERROR_CB if a Persistor callback
+            fails. In both cases @p id is consumed and must not be reused for
+            a later insert() (it remains in the in-memory node map). Exact
+            effects on the HNSW graph depend on the callback failure scenario.
   */
-  void insert(uint64_t id, uint64_t base_pk, const char *q,
-              PersistorContext *persistor_ctx = nullptr) {
+  Result insert(uint64_t id, uint64_t base_pk, const char *q,
+                PersistorContext *persistor_ctx = nullptr) {
     assert(id != 0);
     Node *entry_point = m_entry_point.load();
     uint8_t max_layer = entry_point == nullptr ? 0 : entry_point->layer();
@@ -291,12 +312,22 @@ class HNSW {
       std::scoped_lock lock(m_entry_point_lock);
       entry_point = m_entry_point.load();
       if (entry_point == nullptr) {
-        m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
-                              neighbor_ids(new_node));
+        if (m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
+                                  neighbor_ids(new_node)) != HNSW_SUCCESS ||
+            m_persistor.update_entry_point_cb(persistor_ctx, id) !=
+                HNSW_SUCCESS) {
+          // For consistency with non-entry-point case, mark the node as lost.
+          // The real state is not that important here, as the node is
+          // unreachable from the graph in any case.
+          // Note that failure to persist the entry-point change after success
+          // of insert_cb creates the unreachable node. This situation is not
+          // that different from the case when insert_cb fails.
+          new_node->set_lost();
+          return HNSW_ERROR_CB;
+        }
         new_node->set_complete();
-        m_persistor.update_entry_point_cb(persistor_ctx, id);
         m_entry_point.store(new_node);
-        return;
+        return HNSW_SUCCESS;
       } else {
         max_layer = entry_point->layer();
       }
@@ -419,8 +450,16 @@ class HNSW {
       }
     }
 
-    m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
-                          neighbor_ids(new_node));
+    if (m_persistor.insert_cb(persistor_ctx, id, base_pk, q, target_layer,
+                              neighbor_ids(new_node)) != HNSW_SUCCESS) {
+      // In unlikely case of callback error, mark the node as lost,
+      // so it is ignored by search and references to it are eventually
+      // removed from the graph.
+      // Note this is what would happen anyway after graph reload from
+      // the persisted state.
+      new_node->set_lost();
+      return HNSW_ERROR_CB;
+    }
 
     // Mark the node as complete. Doing this after calling persistor insert
     // callback ensures that nodes marked as such are always known to persistor.
@@ -435,9 +474,18 @@ class HNSW {
       // TODO: Think about possible optimizations of this/not holding
       //       the lock during the callback.
       lock_node(neighbor);
-      m_persistor.update_neighbors_cb(persistor_ctx, neighbor->id(),
-                                      neighbor_ids(neighbor));
+      bool updated = m_persistor.update_neighbors_cb(
+                         persistor_ctx, neighbor->id(),
+                         neighbor_ids(neighbor)) == HNSW_SUCCESS;
       unlock_node(neighbor);
+
+      if (!updated) {
+        // In unlikely case of callback error, return error to the caller.
+        // Unlike for the insert callback failure, we don't change the state
+        // of the new node or its neighbor, as in the worst case we simply
+        // get an outdated / slightly worse graph.
+        return HNSW_ERROR_CB;
+      }
     }
 
     if (target_layer > max_layer) {
@@ -446,10 +494,18 @@ class HNSW {
       // Another node that just has been inserted concurrently might
       // already have taken the spot.
       if (target_layer > m_entry_point.load()->layer()) {
-        m_persistor.update_entry_point_cb(persistor_ctx, id);
+        if (m_persistor.update_entry_point_cb(persistor_ctx, id) !=
+            HNSW_SUCCESS) {
+          // Don't publish the new node as the entry point, if we failed
+          // to persist the change. The node stays in the graph and is
+          // reachable through lower layers.
+          return HNSW_ERROR_CB;
+        }
         m_entry_point.store(new_node);
       }
     }
+
+    return HNSW_SUCCESS;
   }
 
   /**
@@ -942,25 +998,29 @@ class HNSW {
     and NODE_LINKING must not be present. NODE_DUMMY and NODE_LOST stubs are
     allowed in m_nodes and as neighbor pointers of COMPLETE nodes; their
     layer / neighbor storage is not inspected. Neighbor-list invariants are
-    checked only for NODE_COMPLETE nodes. Entry point must be COMPLETE and
-    on the highest COMPLETE layer.
+    checked only for NODE_COMPLETE nodes.
+
+    @param possibly_failed_cbs  If false (default), require a COMPLETE entry
+           point on the highest COMPLETE layer whenever m_nodes is non-empty
+           (successful-insert / healthy-graph invariants). If true, also accept
+           end states after Persistor callback failures: no COMPLETE nodes and
+           null EP (e.g. failed first-node insert), or EP below the highest
+           COMPLETE layer (failed update_entry_point_cb when raising EP).
 
     @note This API is not thread-safe. It is intended for
           use in unit tests and debug builds only.
   */
-  bool validate() const {
+  bool validate(bool possibly_failed_cbs = false) const {
     // Empty index <=> no entry point.
     if (m_nodes.empty()) {
       return m_entry_point.load() == nullptr;
     }
-    // Non-empty index must have a COMPLETE entry point.
-    Node *const entry_point = m_entry_point.load();
-    if (entry_point == nullptr || entry_point->state() != NODE_COMPLETE) {
-      return false;
-    }
 
-    uint8_t max_layer = 0;
+    Node *const entry_point = m_entry_point.load();
+    bool has_complete = false;
     bool found_ep = false;
+    uint8_t max_layer = 0;
+
     for (const auto &kv : m_nodes) {
       const Node *node = kv.second;
       // Map key must match node id; pointer must be non-null.
@@ -972,22 +1032,42 @@ class HNSW {
       if (state == NODE_NEW || state == NODE_LINKING) {
         return false;
       }
-      // Lazy-load stubs: id is known, but layer/neighbors are not valid.
-      // They may remain in m_nodes and as edges from COMPLETE nodes.
+      // Lazy-load stubs / failed inserts: id is known, but layer/neighbors
+      // are not valid. They may remain in m_nodes and as edges from COMPLETE
+      // nodes (including after insert_cb -> NODE_LOST).
       if (state == NODE_DUMMY || state == NODE_LOST) {
         continue;
       }
       if (state != NODE_COMPLETE) {
         return false;
       }
+      has_complete = true;
       max_layer = std::max(max_layer, node->layer());
       if (node == entry_point) {
         found_ep = true;
       }
     }
-    // Entry point must be in the map and sit on the highest COMPLETE layer.
-    if (!found_ep || entry_point->layer() != max_layer) {
-      return false;
+
+    if (possibly_failed_cbs) {
+      // No published nodes (e.g. only LOST after failed first insert): no EP.
+      if (!has_complete) {
+        return entry_point == nullptr;
+      }
+      // Published graph must have a COMPLETE entry point in the map. Do not
+      // require EP to own the max COMPLETE layer: update_entry_point_cb
+      // failure leaves a higher-layer COMPLETE node reachable only via lower
+      // layers.
+      if (entry_point == nullptr || entry_point->state() != NODE_COMPLETE ||
+          !found_ep) {
+        return false;
+      }
+    } else {
+      // Healthy graph: non-empty map implies COMPLETE EP on the max layer.
+      if (!has_complete || entry_point == nullptr ||
+          entry_point->state() != NODE_COMPLETE || !found_ep ||
+          entry_point->layer() != max_layer) {
+        return false;
+      }
     }
 
     for (const auto &kv : m_nodes) {
@@ -1118,7 +1198,11 @@ class HNSW {
     }
 
     void set_lost() {
-      assert(m_state.load() == NODE_DUMMY);
+#ifndef NDEBUG
+      const NodeState s = m_state.load();
+      // NODE_DUMMY: failed lazy load. NODE_LINKING: failed insert_cb.
+      assert(s == NODE_DUMMY || s == NODE_LINKING);
+#endif
       m_state.store(NODE_LOST);
     }
 

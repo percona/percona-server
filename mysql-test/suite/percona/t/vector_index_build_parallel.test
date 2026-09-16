@@ -1,0 +1,66 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: ADD VECTOR INDEX builds the graph through ddl::Builder, so
+--echo # the clustered scan is the parallel one every other index build uses
+--echo # and each scan thread inserts into the graph concurrently.
+--echo #
+--echo # Insertion order therefore varies between runs, and so does the graph.
+--echo # Nothing here asserts a shape: the probes below are ties-free by
+--echo # construction, and equidistant neighbours are deliberately not
+--echo # compared - v is [id,0,0,0], so id-1 and id+1 are the same distance
+--echo # from id and may come back either way round.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+
+--echo # The first ADD has no hidden column yet, so it is refused INPLACE and
+--echo # runs through COPY, rebuilding the table. Do it while the table is
+--echo # empty, so the wide tree built below survives to the scan. DROP KEY
+--echo # keeps percona_vec_aux_id.
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t1 DROP KEY v;
+
+--echo # Split on nearly every insert, so the clustered index has enough leaf
+--echo # pages for the parallel scan to have subtrees to hand out. Turned off
+--echo # again before the ADD: it applies to the aux table's own primary key
+--echo # too, whose tree would then exceed the B-tree level limit.
+SET @@global.innodb_limit_optimistic_insert_debug = 2;
+--disable_query_log
+SET SESSION cte_max_recursion_depth = 5000;
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < 1000)
+SELECT n, STRING_TO_VECTOR(CONCAT('[', n, ',0,0,0]')) FROM seq;
+--enable_query_log
+SET @@global.innodb_limit_optimistic_insert_debug = 0;
+
+SELECT COUNT(*) AS base_rows FROM t1;
+
+SET SESSION innodb_parallel_read_threads = 8;
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 8);
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+
+--echo # The scan must have been given more than one thread - that is the
+--echo # point of routing the build through ddl::Builder, and a single
+--echo # threaded scan would still produce a correct graph, so nothing else
+--echo # here would notice the parallelism going away.
+--echo #
+--echo # This asserts the thread count the scan was CONFIGURED with, which
+--echo # depends only on the setting, the free thread pool and the tree. How
+--echo # many of those threads actually take a range is a race on the
+--echo # reader's shared queue and varies run to run, so it is not reported
+--echo # at all.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = vec build scan threads: [2-9][0-9]*
+--let $assert_count = 1
+--let $assert_text = the graph build scan was given more than one thread
+--source include/assert_grep.inc
+
+--echo # Every probe is an exact row vector, so the nearest is that row and
+--echo # nothing ties with it.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[500,0,0,0]'), 'euclidean') LIMIT 1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[900,0,0,0]'), 'euclidean') LIMIT 1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,0,0,0]'), 'euclidean') LIMIT 1;
+
+DROP TABLE t1;

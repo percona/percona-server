@@ -19,17 +19,21 @@
 /**
   @file
 
-  Helpers shared by the HNSW unit tests (hnsw-t.cc) and the HNSW benchmark
-  (hnsw_bench-t.cc). Everything here is inline rather than static: hnsw-t.cc is
-  compiled into merge_small_tests-t, and a static helper that one including
-  translation unit happens not to use is a -Wunused-function error under
-  maintainer mode.
+  Helpers shared by the HNSW unit tests (hnsw-t.cc, hnsw_concurrency-t.cc)
+  and the HNSW benchmark (hnsw_bench-t.cc). Everything here is inline rather
+  than static: those *-t.cc files are compiled into merge_small_tests-t, and
+  a static helper that one including translation unit happens not to use is a
+  -Wunused-function error under maintainer mode.
 */
 
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <mutex>
+#include <random>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -52,7 +56,234 @@ class ArenaAllocator {
   MEM_ROOT m_mem_root;
 };
 
-using TestHnsw = HNSW<ArenaAllocator>;
+/**
+  No-op Persistor for unit tests and benchmarks.
+
+  Stateless: no members. Context is an empty tag type; callers may pass nullptr.
+*/
+struct NullPersistor {
+  struct Context {};
+
+  template <typename NeighborIds>
+  void insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                 NeighborIds) {}
+  template <typename NeighborIds>
+  void update_neighbors_cb(Context *, uint64_t, NeighborIds) {}
+  void update_entry_point_cb(Context *, uint64_t) {}
+  template <typename Hnsw>
+  bool load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
+    assert(false);
+    return false;
+  }
+};
+
+using TestHnsw = HNSW<ArenaAllocator, NullPersistor>;
+
+/**
+  Thread-safe UniformRandomBitGenerator for concurrent insert() tests.
+
+  HNSW does not synchronize RandomEngine access; concurrent inserts require
+  an engine that is safe to call from multiple threads. Constructible from
+  uint32_t like std::default_random_engine / std::mt19937.
+*/
+class MutexRandomEngine {
+ public:
+  using result_type = std::mt19937::result_type;
+
+  explicit MutexRandomEngine(result_type seed = 42) : m_engine(seed) {}
+
+  static constexpr result_type min() { return std::mt19937::min(); }
+  static constexpr result_type max() { return std::mt19937::max(); }
+
+  result_type operator()() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_engine();
+  }
+
+ private:
+  std::mutex m_mutex;
+  std::mt19937 m_engine;
+};
+
+using ConcurrentTestHnsw =
+    HNSW<ArenaAllocator, NullPersistor, MutexRandomEngine>;
+
+inline const char *as_bytes(const std::vector<float> &v) {
+  return reinterpret_cast<const char *>(v.data());
+}
+
+inline std::vector<float> make_vec(std::initializer_list<float> values) {
+  return std::vector<float>(values);
+}
+
+/** Snapshot of one graph node as persisted by RecordingPersistor. */
+struct StoredNode {
+  uint64_t base_pk = 0;
+  uint8_t layer = 0;
+  std::vector<float> vec;
+  /// Latest neighbor slot ids ((layer + 2) * M); 0 = empty slot.
+  std::vector<uint64_t> neighbor_ids;
+};
+
+/**
+  In-memory Persistor for round-trip / lazy-load tests.
+
+  Stateless: all data lives in Context. Captures insert and neighbor updates
+  into Context::nodes; replays via load_node_cb using HNSW load_* helpers.
+*/
+struct RecordingPersistor {
+  struct Context {
+    size_t dims = 0;
+    std::unordered_map<uint64_t, StoredNode> nodes;
+    uint64_t entry_point = 0;
+    /// Number of load_node_cb invocations per graph id (lazy-load tests).
+    std::unordered_map<uint64_t, size_t> load_counts;
+    /**
+      Graph ids for which load_node_cb should fail (marks NODE_LOST).
+      Used by adjacent-prune / lost-neighbor tests.
+    */
+    std::unordered_set<uint64_t> fail_load_ids;
+    /**
+      Optional lock for concurrent insert/search against a shared Context.
+      When non-null, all RecordingPersistor callbacks lock it. Serial tests
+      leave this nullptr.
+    */
+    std::mutex *guard = nullptr;
+  };
+
+  template <typename NeighborIds>
+  void insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
+                 uint8_t layer, NeighborIds neighbors) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    StoredNode &row = ctx->nodes[id];
+    row.base_pk = base_pk;
+    row.layer = layer;
+    row.vec.assign(reinterpret_cast<const float *>(q),
+                   reinterpret_cast<const float *>(q) + ctx->dims);
+    row.neighbor_ids.assign(neighbors.begin(), neighbors.end());
+  }
+
+  template <typename NeighborIds>
+  void update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    ctx->nodes.at(id).neighbor_ids.assign(neighbors.begin(), neighbors.end());
+  }
+
+  void update_entry_point_cb(Context *ctx, uint64_t id) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    ctx->entry_point = id;
+  }
+
+  template <typename Hnsw>
+  bool load_node_cb(Context *ctx, Hnsw &hnsw,
+                    typename Hnsw::LoadNodeHandle handle) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    const uint64_t id = hnsw.load_node_id(handle);
+    ++ctx->load_counts[id];
+    if (ctx->fail_load_ids.count(id) != 0) {
+      return false;
+    }
+    const StoredNode &row = ctx->nodes.at(id);
+    // Copy out under the lock so load_* can run without holding it across
+    // HNSW internal locks (load_node_neighbors takes m_global_lock).
+    const uint8_t layer = row.layer;
+    const uint64_t base_pk = row.base_pk;
+    const std::vector<float> vec = row.vec;
+    const std::vector<uint64_t> neighbor_ids = row.neighbor_ids;
+    if (lock.owns_lock()) {
+      lock.unlock();
+    }
+    hnsw.load_set_layer(handle, layer);
+    hnsw.load_set_vec(handle, as_bytes(vec));
+    hnsw.load_set_base_pk(handle, base_pk);
+    hnsw.load_node_neighbors(handle, neighbor_ids);
+    return true;
+  }
+};
+
+using LoadTestHnsw = HNSW<ArenaAllocator, RecordingPersistor>;
+
+using ConcurrentLoadHnsw =
+    HNSW<ArenaAllocator, RecordingPersistor, MutexRandomEngine>;
+
+/** Graph data used by round-trip persistence tests. */
+struct RoundTripFixture {
+  RecordingPersistor::Context store;
+  std::vector<std::vector<float>> points;
+  std::vector<uint64_t> graph_ids;
+  std::vector<uint64_t> base_pks;
+  std::vector<float> query;
+};
+
+/** Fixed 4-node corner graph (regression-friendly). */
+inline RoundTripFixture make_fixed_round_trip_fixture(size_t dims) {
+  assert(dims == 2);
+  RoundTripFixture fixture;
+  fixture.store.dims = dims;
+  fixture.points = {make_vec({0.0f, 0.0f}), make_vec({10.0f, 0.0f}),
+                    make_vec({0.0f, 10.0f}), make_vec({10.0f, 10.0f})};
+  fixture.graph_ids = {101, 102, 103, 104};
+  fixture.base_pks = {2001, 2002, 2003, 2004};
+  fixture.query = make_vec({9.5f, 9.5f});
+  return fixture;
+}
+
+template <typename Hnsw>
+inline void populate_round_trip_index(Hnsw &index, RoundTripFixture *fixture) {
+  for (size_t i = 0; i < fixture->points.size(); ++i) {
+    index.insert(fixture->graph_ids[i], fixture->base_pks[i],
+                 as_bytes(fixture->points[i]), &fixture->store);
+  }
+}
+
+/** Flat NeighborIdRange offset of layer 0 for a node with top layer @p layer.
+ */
+inline size_t stored_layer0_begin(uint8_t layer, size_t M) {
+  return static_cast<size_t>(layer) * M;
+}
+
+inline size_t stored_layer0_end(uint8_t layer, size_t M) {
+  return stored_layer0_begin(layer, M) + 2 * M;
+}
+
+/**
+  First graph id whose persisted layer-0 neighbor slots are all non-zero
+  (full list of width 2*M). Returns 0 if none.
+*/
+inline uint64_t find_full_layer0_hub(const RecordingPersistor::Context &store,
+                                     size_t M) {
+  for (const auto &kv : store.nodes) {
+    const StoredNode &row = kv.second;
+    const size_t begin = stored_layer0_begin(row.layer, M);
+    const size_t end = stored_layer0_end(row.layer, M);
+    if (row.neighbor_ids.size() < end) {
+      continue;
+    }
+    bool full = true;
+    for (size_t i = begin; i < end; ++i) {
+      if (row.neighbor_ids[i] == 0) {
+        full = false;
+        break;
+      }
+    }
+    if (full) {
+      return kv.first;
+    }
+  }
+  return 0;
+}
 
 /**
   Caller-owned arena plus request counters, for measuring an index's memory.
@@ -103,7 +334,7 @@ class BorrowedArenaAllocator {
   ArenaStats *m_arena;
 };
 
-using BorrowedHnsw = HNSW<BorrowedArenaAllocator>;
+using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor>;
 
 /** Scoped arm of g_pending_arena; construct the index inside its scope. */
 class ArenaHandover {
@@ -124,14 +355,6 @@ inline double euclidean(const char *a_raw, const char *b_raw, uint32_t dims) {
     sum += d * d;
   }
   return std::sqrt(sum);
-}
-
-inline std::vector<float> make_vec(std::initializer_list<float> values) {
-  return std::vector<float>(values);
-}
-
-inline const char *as_bytes(const std::vector<float> &v) {
-  return reinterpret_cast<const char *>(v.data());
 }
 
 /**
@@ -155,6 +378,27 @@ inline std::vector<std::vector<float>> make_pseudo_random_points(
     }
   }
   return points;
+}
+
+/**
+  Pseudo-random graph: @p count nodes, deterministic given @p seed.
+  Graph ids are 1..count; base_pk equals graph id - 1.
+*/
+inline RoundTripFixture make_random_round_trip_fixture(size_t dims,
+                                                       size_t count,
+                                                       uint64_t seed) {
+  RoundTripFixture fixture;
+  fixture.store.dims = dims;
+  uint64_t state = seed;
+  fixture.points = make_pseudo_random_points(count, dims, &state);
+  fixture.graph_ids.resize(count);
+  fixture.base_pks.resize(count);
+  for (size_t i = 0; i < count; ++i) {
+    fixture.graph_ids[i] = i + 1;
+    fixture.base_pks[i] = i;
+  }
+  fixture.query = make_pseudo_random_points(/*count=*/1, dims, &state)[0];
+  return fixture;
 }
 
 /**
@@ -194,21 +438,34 @@ inline std::vector<std::vector<float>> make_clustered_points(
 
 /**
   Run a streaming search to completion (or @p max_results rows) and return the
-  base_pk values in the order the stream yielded them.
+  SearchHit values in the order the stream yielded them.
 */
 template <typename Hnsw>
-inline std::vector<uint64_t> drain_stream(const Hnsw &index, const char *query,
-                                          size_t batch_size, size_t ef_search,
-                                          size_t max_results = 1000) {
+inline std::vector<typename Hnsw::SearchHit> drain_stream(
+    Hnsw &index, const char *query, size_t batch_size, size_t ef_search,
+    size_t max_results = 1000,
+    typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
   typename Hnsw::NNSearchContext ctx;
-  index.nn_search_start(&ctx, query, batch_size, ef_search);
-  std::vector<uint64_t> out;
+  index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
+  std::vector<typename Hnsw::SearchHit> out;
   for (size_t i = 0; i < max_results; ++i) {
-    const std::pair<bool, uint64_t> step = index.nn_search_next(&ctx);
+    const std::pair<bool, typename Hnsw::SearchHit> step =
+        index.nn_search_next(&ctx);
     if (!step.first) {
       break;
     }
     out.push_back(step.second);
+  }
+  return out;
+}
+
+/** Extract base_pk values from a SearchHit list (for recall helpers). */
+template <typename HitRange>
+inline std::vector<uint64_t> base_pks_of(const HitRange &hits) {
+  std::vector<uint64_t> out;
+  out.reserve(hits.size());
+  for (const auto &hit : hits) {
+    out.push_back(hit.base_pk);
   }
   return out;
 }

@@ -1,0 +1,74 @@
+#
+# PS-11300: the label counter has to survive an ALTER.
+#
+# It lived only in the buffered dynamic metadata, and an ALTER can
+# throw that away without rebuilding anything: dd_set_autoinc bumps
+# DD_TABLE_VERSION on purpose, to "ignore any previously buffered
+# persistent dynamic metadata", and it does so for any ALTER of a
+# table that has an AUTO_INCREMENT column.
+#
+# The table would then count from zero over an aux that still holds
+# those labels, and the next INSERT would reissue one - which
+# HNSW::insert refuses, taking the server with it. Autoinc survives
+# by keeping its counter in the table definition; so does this one,
+# under DD_TABLE_VEC_NEXT_ID.
+#
+# Only count and max_id are asserted. A node's level is drawn at
+# random, so the graph's shape differs between runs.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+serial BIGINT UNSIGNED AUTO_INCREMENT UNIQUE,
+pad INT,
+v VECTOR(4) NOT NULL);
+INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
+(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+(3,30,STRING_TO_VECTOR('[3,0,0,0]'));
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 8);
+# Labels 1..3 exist.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=4 max_id=3
+NODE
+NODE
+NODE
+NODE
+
+# A plain ADD INDEX - no rebuild - but the table has an AUTO_INCREMENT
+# column, so the metadata version is bumped and the buffered counter
+# is discarded with it.
+ALTER TABLE t1 ADD INDEX pad_idx (pad);
+# The next label must be 4. With the counter only in the buffer it
+# came back 1, and this INSERT killed the server.
+INSERT INTO t1 (id, pad, v) VALUES (4,40,STRING_TO_VECTOR('[4,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=5 max_id=4
+NODE
+NODE
+NODE
+NODE
+NODE
+
+# And still right after a restart.
+# restart
+INSERT INTO t1 (id, pad, v) VALUES (5,50,STRING_TO_VECTOR('[5,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=6 max_id=5
+NODE
+NODE
+NODE
+NODE
+NODE
+NODE
+
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5,0,0,0]'), 'euclidean') LIMIT 1;
+id
+5
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

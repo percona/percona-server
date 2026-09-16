@@ -1,0 +1,57 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: INSERT builds the HNSW graph and writes the aux table.
+--echo #
+--echo # The first commit where an ordinary INSERT produces aux rows. What
+--echo # the dump proves is not just "rows appeared" but their shape: the
+--echo # label is the base row's hidden id, base_pk points back at the base
+--echo # row, and record 0 holds the entry point rather than a node.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+--echo # One row: one node, plus record 0 naming it as the entry point.
+--echo # In record 0 the base_pk column carries the entry point's NODE id,
+--echo # not a base row key — record 0 is index metadata, and no node can
+--echo # ever occupy it because id 0 is the graph's empty-slot sentinel.
+INSERT INTO t1 VALUES (10, STRING_TO_VECTOR('[1,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # More rows. Every base row gets exactly one node; base_pk is the
+--echo # base row's own primary key, so a search can resolve back to it.
+INSERT INTO t1 VALUES (20, STRING_TO_VECTOR('[0,1,0,0]'));
+INSERT INTO t1 VALUES (30, STRING_TO_VECTOR('[0,0,1,0]'));
+INSERT INTO t1 VALUES (40, STRING_TO_VECTOR('[0,0,0,1]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+--echo # FORCE INDEX (PRIMARY) is not decoration. Without it the optimizer
+--echo # picks the vector index for a covering count, and that index has no
+--echo # B-tree (page = FIL_NULL) and no rows, so COUNT(*) silently returns
+--echo # 0 on a table that has rows. See the note in the commit message.
+SELECT COUNT(*) AS base_rows FROM t1 FORCE INDEX (PRIMARY);
+
+--echo # After a restart the graph is rebuilt from the aux: only the entry
+--echo # point is read up front, the rest fault in on demand. An insert
+--echo # after the restart must therefore link into the EXISTING graph, not
+--echo # start a second one — so the aux gains exactly one node, and the
+--echo # labels continue from where they left off rather than repeating.
+--source include/restart_mysqld.inc
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+INSERT INTO t1 VALUES (50, STRING_TO_VECTOR('[1,1,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+SELECT COUNT(*) AS rows_after_restart FROM t1 FORCE INDEX (PRIMARY);
+
+DROP TABLE t1;

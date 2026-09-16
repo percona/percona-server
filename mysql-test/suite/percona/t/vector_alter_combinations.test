@@ -1,0 +1,170 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: ALTER combinations around ADD VECTOR INDEX.
+--echo #
+--echo # The build runs inside ddl::Builder now, so a vector index shares the
+--echo # scan, the phase driver and the dictionary with whatever else the same
+--echo # ALTER is doing. These are the combinations that exercise that sharing.
+--echo #
+--echo # Reaching the INPLACE path takes care: the FIRST ADD VECTOR INDEX has no
+--echo # hidden column yet, so it is refused INPLACE and runs through COPY. Each
+--echo # case below therefore adds an index and drops it first, which leaves
+--echo # percona_vec_aux_id behind, before the ADD under test.
+--echo #
+
+--echo #
+--echo # ---- mixed secondary ----
+--echo #
+--echo # ADD a plain secondary index and a vector index in ONE ALTER.
+--echo # Two builders, one scan, different phases each.
+CREATE TABLE t_mixed_secondary (id BIGINT UNSIGNED PRIMARY KEY, x INT, v VECTOR(4) NOT NULL);
+ALTER TABLE t_mixed_secondary ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_mixed_secondary DROP KEY v;
+INSERT INTO t_mixed_secondary VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+                      (3,30,STRING_TO_VECTOR('[3,0,0,0]')),(4,40,STRING_TO_VECTOR('[4,0,0,0]'));
+ALTER TABLE t_mixed_secondary ADD INDEX x_idx (x), ADD KEY (v) TYPE hnsw WITH (M = 8);
+SHOW CREATE TABLE t_mixed_secondary;
+SELECT id FROM t_mixed_secondary ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+SELECT COUNT(*) FROM t_mixed_secondary WHERE x > 15;
+CHECK TABLE t_mixed_secondary;
+DROP TABLE t_mixed_secondary;
+
+--echo #
+--echo # ---- vector first ----
+--echo #
+--echo # Vector index listed FIRST: m_n_uniq is taken from the first index and
+--echo # skipped for a vector index, so this is the ordering that could leave it 0.
+CREATE TABLE t_vector_first (id BIGINT UNSIGNED PRIMARY KEY, x INT, v VECTOR(4) NOT NULL);
+ALTER TABLE t_vector_first ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_vector_first DROP KEY v;
+INSERT INTO t_vector_first VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+                      (3,30,STRING_TO_VECTOR('[3,0,0,0]'));
+ALTER TABLE t_vector_first ADD KEY (v) TYPE hnsw WITH (M = 8), ADD INDEX x_idx (x);
+SELECT id FROM t_vector_first ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_vector_first;
+DROP TABLE t_vector_first;
+
+--echo #
+--echo # ---- with fulltext ----
+--echo #
+--echo # FULLTEXT and vector in one ALTER: two special index kinds, each with
+--echo # its own build phase (FTS_SORT_AND_BUILD vs VEC_BUILD).
+CREATE TABLE t_with_fulltext (id BIGINT UNSIGNED PRIMARY KEY, txt TEXT, v VECTOR(4) NOT NULL);
+ALTER TABLE t_with_fulltext ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_with_fulltext DROP KEY v;
+INSERT INTO t_with_fulltext VALUES (1,'alpha beta',STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2,'gamma delta',STRING_TO_VECTOR('[2,0,0,0]'));
+ALTER TABLE t_with_fulltext ADD FULLTEXT ft_idx (txt), ADD KEY (v) TYPE hnsw WITH (M = 8);
+SELECT id FROM t_with_fulltext ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+SELECT id FROM t_with_fulltext WHERE MATCH(txt) AGAINST ('alpha');
+CHECK TABLE t_with_fulltext;
+DROP TABLE t_with_fulltext;
+
+--echo #
+--echo # ---- with spatial ----
+--echo #
+--echo # SPATIAL forces Parallel_cursor into single-threaded mode for the whole
+--echo # scan, so the vector build here loses its parallelism.
+CREATE TABLE t_with_spatial (id BIGINT UNSIGNED PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, v VECTOR(4) NOT NULL);
+ALTER TABLE t_with_spatial ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_with_spatial DROP KEY v;
+INSERT INTO t_with_spatial VALUES (1,ST_GeomFromText('POINT(1 1)'),STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2,ST_GeomFromText('POINT(2 2)'),STRING_TO_VECTOR('[2,0,0,0]'));
+SET SESSION innodb_parallel_read_threads = 8;
+ALTER TABLE t_with_spatial ADD SPATIAL INDEX g_idx (g), ADD KEY (v) TYPE hnsw WITH (M = 8);
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+SELECT id FROM t_with_spatial ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_with_spatial;
+DROP TABLE t_with_spatial;
+
+--echo #
+--echo # ---- empty table ----
+--echo #
+--echo # Empty table: the graph has no nodes, so the bulk load never starts and
+--echo # not even record 0 is written.
+CREATE TABLE t_empty_table (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t_empty_table ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_empty_table DROP KEY v;
+ALTER TABLE t_empty_table ADD KEY (v) TYPE hnsw WITH (M = 8);
+SELECT COUNT(*) FROM t_empty_table;
+--echo # And it must still work once rows arrive.
+INSERT INTO t_empty_table VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
+SELECT id FROM t_empty_table ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_empty_table;
+DROP TABLE t_empty_table;
+
+--echo #
+--echo # ---- drop add ----
+--echo #
+--echo # DROP the vector index and ADD one back in the SAME ALTER: the old aux
+--echo # is dropped and a new one built in one statement.
+CREATE TABLE t_drop_add (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t_drop_add VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]')),
+                      (3,STRING_TO_VECTOR('[3,0,0,0]'));
+ALTER TABLE t_drop_add ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_drop_add DROP KEY v, ADD KEY v2 (v) TYPE hnsw WITH (M = 16);
+SHOW CREATE TABLE t_drop_add;
+SELECT id FROM t_drop_add ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_drop_add;
+DROP TABLE t_drop_add;
+
+--echo #
+--echo # ---- two vector ----
+--echo #
+--echo # Two vector indexes in one ALTER. PS-11264 caps a table at one, and
+--echo # ddl0builder asserts on that cap, so this must be refused cleanly.
+CREATE TABLE t_two_vector (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, w VECTOR(4) NOT NULL);
+INSERT INTO t_two_vector VALUES (1,STRING_TO_VECTOR('[1,0,0,0]'),STRING_TO_VECTOR('[9,0,0,0]'));
+--error ER_NOT_SUPPORTED_YET,ER_TOO_MANY_KEYS,ER_WRONG_USAGE,ER_CANT_CREATE_TABLE
+ALTER TABLE t_two_vector ADD KEY (v) TYPE hnsw WITH (M = 8), ADD KEY (w) TYPE hnsw WITH (M = 8);
+SHOW CREATE TABLE t_two_vector;
+CHECK TABLE t_two_vector;
+DROP TABLE t_two_vector;
+
+--echo #
+--echo # ---- add column ----
+--echo #
+--echo # ADD COLUMN together with the vector index: the hidden column's ordinal
+--echo # has to survive a user column arriving in the same statement.
+CREATE TABLE t_add_column (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t_add_column ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_add_column DROP KEY v;
+INSERT INTO t_add_column VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
+ALTER TABLE t_add_column ADD COLUMN c INT DEFAULT 7, ADD KEY (v) TYPE hnsw WITH (M = 8);
+SELECT id, c FROM t_add_column ORDER BY id;
+SELECT id FROM t_add_column ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_add_column;
+DROP TABLE t_add_column;
+
+--echo #
+--echo # ---- rebuild after ----
+--echo #
+--echo # Build the vector index, then force a rebuild of the table underneath it.
+CREATE TABLE t_rebuild_after (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t_rebuild_after ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_rebuild_after DROP KEY v;
+INSERT INTO t_rebuild_after VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
+ALTER TABLE t_rebuild_after ADD KEY (v) TYPE hnsw WITH (M = 8);
+--echo # A rebuild with a surviving vector index - refused, or rebuilt correctly.
+ALTER TABLE t_rebuild_after FORCE;
+SHOW CREATE TABLE t_rebuild_after;
+SELECT id FROM t_rebuild_after ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_rebuild_after;
+DROP TABLE t_rebuild_after;
+
+--echo #
+--echo # ---- algorithm lock ----
+--echo #
+--echo # Explicit ALGORITHM and LOCK on the INPLACE path. LOCK=NONE must be
+--echo # refused; SHARED and INPLACE must work.
+CREATE TABLE t_algorithm_lock (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t_algorithm_lock ADD KEY (v) TYPE hnsw WITH (M = 8);
+ALTER TABLE t_algorithm_lock DROP KEY v;
+INSERT INTO t_algorithm_lock VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t_algorithm_lock ADD KEY (v) TYPE hnsw WITH (M = 8), ALGORITHM=INPLACE, LOCK=NONE;
+ALTER TABLE t_algorithm_lock ADD KEY (v) TYPE hnsw WITH (M = 8), ALGORITHM=INPLACE, LOCK=SHARED;
+SELECT id FROM t_algorithm_lock ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t_algorithm_lock;
+DROP TABLE t_algorithm_lock;

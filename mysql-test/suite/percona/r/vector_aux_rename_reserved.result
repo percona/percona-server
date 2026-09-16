@@ -1,0 +1,31 @@
+#
+# dict0dd.cc rebuilds DICT_TF2_VEC_AUX from the table name alone, so a
+# user table renamed into the computed aux shape comes back stamped as
+# an aux table after a DD reload: ha_innobase::open extra-closes it and
+# handler close trips ut_ad(!prebuilt->table->is_aux()) / the refcount.
+#
+# CREATE has always refused the shape. RENAME must refuse it the same
+# way, which is what this test asserts.
+#
+CREATE TABLE t_ren_aux (id INT PRIMARY KEY);
+INSERT INTO t_ren_aux VALUES (1);
+# The full computed shape is reserved.
+RENAME TABLE t_ren_aux TO percona_vec_hnsw_1_2;
+ERROR 42000: Incorrect table name './test/percona_vec_hnsw_1_2'
+# ALTER ... RENAME reaches the same handler entry point.
+ALTER TABLE t_ren_aux RENAME TO percona_vec_hnsw_1_2;
+ERROR 42000: Incorrect table name './test/percona_vec_hnsw_1_2'
+# Names that merely start like one stay available, matching CREATE:
+# trailing junk, an extra field, and no id pair at all.
+RENAME TABLE t_ren_aux TO percona_vec_hnsw_1_2xyz;
+RENAME TABLE percona_vec_hnsw_1_2xyz TO percona_vec_hnsw_1_2_extra;
+RENAME TABLE percona_vec_hnsw_1_2_extra TO percona_vec_data;
+SELECT * FROM percona_vec_data;
+id
+1
+# Survives a DD reload as an ordinary user table.
+# restart
+SELECT * FROM percona_vec_data;
+id
+1
+DROP TABLE percona_vec_data;

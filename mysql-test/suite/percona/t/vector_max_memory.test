@@ -1,0 +1,114 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: innodb_hnsw_max_memory bounds graph memory server-wide.
+--echo #
+--echo # The check is at the entry to an insert, not inside the arena.
+--echo # Vec_arena::allocate() is where every graph byte passes, but
+--echo # refusing there returns nullptr, which hnsw.h turns into a throw
+--echo # partway through a rewire with no per-block free to unwind with.
+--echo # Refusing before insert() starts touching the graph fails the
+--echo # statement cleanly instead.
+--echo #
+
+SELECT @@global.innodb_hnsw_max_memory > 0 AS has_default;
+SET @saved = @@global.innodb_hnsw_max_memory;
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+--echo # Under the default bound, inserts work.
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Drop the bound to 1 byte: already spent, so the next insert is
+--echo # refused rather than half-applied.
+SET GLOBAL innodb_hnsw_max_memory = 1;
+--error ER_OUT_OF_RESOURCES
+INSERT INTO t1 VALUES (2, STRING_TO_VECTOR('[0,1,0,0]'));
+
+--echo # The refused row is not in the table and left no node behind.
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # The refusal still burned a label — it was minted during row
+--echo # conversion, before the graph was reached — so ids resume at 3 and
+--echo # labels_contiguous_from_1 goes to 0 below. That is the
+--echo # never-reissue rule working, not a leak: a burned label costs
+--echo # nothing, while a reissued one would let two rows claim one node.
+--echo #
+--echo # The variable is dynamic: raising it unblocks the workload with
+--echo # no restart.
+SET GLOBAL innodb_hnsw_max_memory = @saved;
+INSERT INTO t1 VALUES (2, STRING_TO_VECTOR('[0,1,0,0]'));
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # 0 means no limit.
+SET GLOBAL innodb_hnsw_max_memory = 0;
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+SET GLOBAL innodb_hnsw_max_memory = @saved;
+DROP TABLE t1;
+
+--echo #
+--echo # The bound also covers the load path, which is where a graph grows
+--echo # with no INSERT running: a cold index is faulted in by the first
+--echo # SELECT that touches it. Before the check in vec_runtime_load() the
+--echo # variable only guarded writes, so a query could start materialising
+--echo # a graph however spent the budget already was.
+--echo #
+--echo # The check is at the entry to the load, not per faulted node. A
+--echo # refusal per node would be indistinguishable from "this node is
+--echo # gone": load_node() marks a node that fails to load NODE_LOST,
+--echo # nothing retries it, and every later search would silently return
+--echo # fewer rows. So one statement may still overshoot by the graph it
+--echo # faults; what it cannot do is start when the budget is gone.
+--echo #
+
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+--disable_query_log
+let $i = 1;
+while ($i <= 20)
+{
+  eval INSERT INTO t2 VALUES ($i, STRING_TO_VECTOR(CONCAT('[', $i, ',0,0,0]')));
+  eval INSERT INTO t3 VALUES ($i, STRING_TO_VECTOR(CONCAT('[', $i, ',0,0,0]')));
+  inc $i;
+}
+--enable_query_log
+
+--echo # Both graphs are dropped by the restart.
+--source include/restart_mysqld.inc
+SET @saved = @@global.innodb_hnsw_max_memory;
+
+--echo # Warm t2 back up under the default bound. Its graph now holds more
+--echo # than the bound we are about to set.
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # With the budget spent, t3's graph is not allowed to start loading.
+SET GLOBAL innodb_hnsw_max_memory = 4096;
+--error ER_OUT_OF_RESOURCES
+SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # t2, already loaded, keeps answering correctly - the refusal is
+--echo # about starting a load, and does not damage a graph that is up.
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # Raising the bound lets t3 load, and it returns the right rows -
+--echo # so the refusal left nothing broken behind either.
+SET GLOBAL innodb_hnsw_max_memory = @saved;
+SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+SET GLOBAL innodb_hnsw_max_memory = @saved;
+DROP TABLE t2, t3;

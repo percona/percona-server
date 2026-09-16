@@ -1,0 +1,70 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: parser-free DML on vector aux tables (vec0dml module).
+--echo # Exercised through the innodb_interpreter debug interface — this
+--echo # tests the storage layer in isolation, before the INSERT path is
+--echo # wired (next commits). Covers: insert, neighbor update, MVCC load
+--echo # (dump), durability across restart, and off-page BLOB columns.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+--echo # Insert three graph rows directly into the aux table.
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 1 0 1.0,0.0,0.0,0.0 -';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 2 1 0.0,1.0,0.0,0.0 1|1';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 3 0 0.0,0.0,1.0,0.0 1:2';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Dump: three rows, max_id=3, neighbor lists round-tripped.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Duplicate id must fail (aux PK enforced by the insert path).
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 1 0 9.0,9.0,9.0,9.0 -';
+
+--echo # Update neighbors of id=1 (the update-callback persistence shape).
+SET SESSION innodb_interpreter = 'vec_aux_update_row test/t1 1 2:3';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Updating a nonexistent id fails cleanly.
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION innodb_interpreter = 'vec_aux_update_row test/t1 42 1:2';
+
+--echo # Durability: restart, rows and neighbor updates must survive.
+--source include/restart_mysqld.inc
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Off-page BLOB case: VECTOR(2048) = 8KB vector value forces
+--echo # external storage; the load path must fetch it back whole.
+--echo #
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2048) NOT NULL,
+                 KEY (v) TYPE hnsw WITH (M = 4));
+
+--disable_query_log
+--let $csv = 1.5
+--let $i = 2
+while ($i <= 2048) {
+  --let $csv = $csv,1.5
+  --inc $i
+}
+--eval SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t2 7 0 $csv -'
+--enable_query_log
+SELECT @@session.innodb_interpreter_output;
+
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t2';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t2;

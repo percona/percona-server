@@ -1,0 +1,50 @@
+--echo #
+--echo # PS-11300: an INPLACE index build is one transaction.
+--echo #
+--echo # vec_build_index runs on the ALTER's own transaction, not on a
+--echo # sub-transaction, so the persistor callbacks must not commit it.
+--echo # If they do, the DDL commits itself a node at a time: the
+--echo # dictionary changes made so far land, trx->dict_operation is
+--echo # cleared, the ALTER's locks are dropped mid-statement, and a
+--echo # failure can no longer roll the build back.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 KEY vk (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[1,0]')),
+                      (3, STRING_TO_VECTOR('[2,0]')),
+                      (4, STRING_TO_VECTOR('[3,0]')),
+                      (5, STRING_TO_VECTOR('[4,0]'));
+
+--echo # Drop the key; the hidden column stays, so the next ADD can go INPLACE.
+ALTER TABLE t1 DROP KEY vk;
+SHOW CREATE TABLE t1;
+
+--echo # Fail the build partway through, using the documented memory bound
+--echo # rather than a debug hook: the pre-flight check passes because no
+--echo # graph is resident, the first node is inserted and persisted, and
+--echo # then the per-row budget check refuses the rest.
+SET @sv = @@GLOBAL.innodb_hnsw_max_memory;
+SET GLOBAL innodb_hnsw_max_memory = 1;
+--error ER_OUT_OF_RESOURCES
+ALTER TABLE t1 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+SET GLOBAL innodb_hnsw_max_memory = @sv;
+
+--echo # The failed ALTER must have left nothing behind: no index in the
+--echo # table definition, no orphaned aux tablespace, and the rows still
+--echo # readable. The aux count is the assertion that bites — a build that
+--echo # commits itself piecemeal leaves an aux table rollback cannot remove.
+SHOW CREATE TABLE t1;
+SELECT COUNT(*) AS leftover_aux_tables FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE NAME LIKE 'test/percona_vec_%';
+SELECT id FROM t1 ORDER BY id;
+
+--echo # And a second, successful build must work on the same table —
+--echo # which it cannot if the first one committed part of itself.
+ALTER TABLE t1 ADD KEY vk3 (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
+
+DROP TABLE t1;

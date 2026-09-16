@@ -1,0 +1,74 @@
+#
+# PS-11300: a vector index advertises no scan capabilities.
+#
+# It has no B-tree — DICT_VECTOR is in the "no real tree" family
+# beside DICT_FTS, and its root page may be FIL_NULL. While
+# index_flags() claimed the default capabilities, the optimizer
+# treated it as an ordinary index: HA_KEYREAD_ONLY made it look
+# like the narrowest covering index on the table, so COUNT(*)
+# chose it, scanned a tree that is not there, and returned 0 with
+# no error and no warning.
+#
+# index_flags() now returns 0 for a vector index, exactly as it
+# already did for FULLTEXT. Reading one needs an API that can
+# express "the k nearest to q", which the index_* family cannot.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+k INT,
+v VECTOR(4) NOT NULL,
+KEY (v) TYPE hnsw WITH (M = 4));
+INSERT INTO t1 VALUES (1, 10, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, 20, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, 30, STRING_TO_VECTOR('[0,0,1,0]'));
+# COUNT(*) must be 3, and must not plan over the vector index.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	8	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
+# Same answer with the primary key forced — i.e. the unforced plan
+# is now correct on its own, not merely correct when steered.
+SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
+COUNT(*)
+3
+# The vector index is not offered for ordinary reads at all.
+SELECT COUNT(*) FROM t1 WHERE k > 0;
+COUNT(*)
+3
+SELECT id FROM t1 ORDER BY id;
+id
+1
+2
+3
+# Forcing it is accepted but has no effect: an index that
+# advertises no capabilities cannot be used for a scan, so the
+# optimizer plans around it and the answer is still right. The
+# hint is ignored, not honoured-and-wrong, which is the outcome
+# that matters here.
+SELECT COUNT(*) FROM t1 FORCE INDEX (v);
+COUNT(*)
+3
+# A non-vector index on the same table still works normally.
+ALTER TABLE t1 ADD KEY kk (k);
+SELECT COUNT(*) FROM t1 FORCE INDEX (kk);
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1 FORCE INDEX (kk);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	kk	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`kk`)
+# And the graph itself is unaffected: still populated, still
+# answering.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SET SESSION innodb_interpreter = 'vec_knn test/t1 1 16 0,0,1,0';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+hits=1 base_pks=3
+DROP TABLE t1;

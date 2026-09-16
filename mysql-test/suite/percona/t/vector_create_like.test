@@ -1,0 +1,34 @@
+--echo #
+--echo # PS-11299: CREATE TABLE LIKE on a vec-indexed table.
+--echo # The copy must:
+--echo #   - preserve the KEY definition including TYPE and WITH
+--echo #   - own its own vec aux .ibd (distinct from source's)
+--echo #   - be functionally independent of the source
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+CREATE TABLE src (id BIGINT UNSIGNED PRIMARY KEY,
+                  v VECTOR(8) NOT NULL,
+                  KEY (v) TYPE hnsw WITH (M = 6));
+
+--echo # Source has its vec aux.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<SRC>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+CREATE TABLE copy_t LIKE src;
+SHOW CREATE TABLE copy_t;
+
+--echo # The copy has its own aux .ibd — distinct (TID/IID) from source's.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # Drop the SOURCE first, the COPY must remain functional.
+DROP TABLE src;
+SHOW CREATE TABLE copy_t;
+
+--echo # Only the copy's aux remains.
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<COPY>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE copy_t;
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

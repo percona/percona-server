@@ -1,0 +1,70 @@
+#
+# PS-11300: a vector-indexed child table may not carry a CASCADE
+# referential action.
+#
+# Cascaded DML runs inside the engine through the row0ins FK cascade
+# nodes and never reaches the handler hooks that maintain the vector
+# index. ON DELETE CASCADE is in fact harmless here — DELETE writes
+# nothing to the aux table by design — but ON UPDATE CASCADE on a
+# column that is part of the child PK leaves the aux row pointing at
+# the old key, and the row drops out of kNN results. Both are refused
+# for now; see the comment in mysql_prepare_create_table.
+#
+CREATE TABLE parent (id BIGINT UNSIGNED PRIMARY KEY);
+# CREATE with ON DELETE CASCADE — refused.
+CREATE TABLE child (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+pid BIGINT UNSIGNED,
+KEY (v) TYPE hnsw,
+FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE CASCADE
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
+# CREATE with ON UPDATE CASCADE — refused.
+CREATE TABLE child (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+pid BIGINT UNSIGNED,
+KEY (v) TYPE hnsw,
+FOREIGN KEY (pid) REFERENCES parent(id) ON UPDATE CASCADE
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
+# Adding a CASCADE FK to an existing vector-indexed table — refused.
+CREATE TABLE child (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+pid BIGINT UNSIGNED,
+KEY (v) TYPE hnsw
+);
+ALTER TABLE child ADD FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE CASCADE;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
+DROP TABLE child;
+# Adding a vector index to a table that already has a CASCADE FK —
+# refused through the same site, via existing_fks.
+CREATE TABLE child (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+pid BIGINT UNSIGNED,
+FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE CASCADE
+);
+ALTER TABLE child ADD KEY (v) TYPE hnsw;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables with a CASCADE foreign key'
+DROP TABLE child;
+# RESTRICT / NO ACTION / SET NULL stay allowed: they either refuse the
+# parent DML or null a non-PK column, so no vector maintenance is owed.
+CREATE TABLE child (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+pid BIGINT UNSIGNED,
+KEY (v) TYPE hnsw,
+FOREIGN KEY (pid) REFERENCES parent(id) ON DELETE SET NULL
+);
+INSERT INTO parent VALUES (1);
+INSERT INTO child VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 1);
+DELETE FROM parent WHERE id = 1;
+# Child row survives with pid NULL; nothing about the vector changed.
+SELECT id, pid, VECTOR_TO_STRING(v) FROM child;
+id	pid	VECTOR_TO_STRING(v)
+1	NULL	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+DROP TABLE child;
+DROP TABLE parent;

@@ -29,21 +29,53 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <string_view>
 #include <variant>
+#include "key.h"
 #include "key_spec.h"
 
 namespace storage::innobase::vec {
 
-bool validate_options(const Key_spec &index_def);
+/** A distance kernel: the signature vector-common's kernels have and the
+one HNSW's vec_dist_func_t names. Spelled out here so this header does
+not have to pull in the graph template. */
+using vec_metric_func_t = double (*)(const char *a, const char *b,
+                                     uint32_t dims);
 
 struct HnswParam {
   int M{25};
   int max_elements{10000};
   int ef_construction{200};
   std::string_view metric{"euclidean"};
+  /** The kernel `metric` selects, resolved by the parser so that the
+  name and the function cannot drift apart: whoever builds a graph uses
+  this rather than picking a kernel of its own. Never null once
+  parse_options has returned false. */
+  vec_metric_func_t dist{nullptr};
 };
 
 using VectorIndexParam = std::variant<std::monostate, HnswParam>;
 
+/** Validate the SHAPE of a vector index as the user wrote it: single
+non-prefixed column, SE-specific algorithm, a TYPE token we know. Only
+meaningful at DDL time, which is why it takes a Key_spec - by the time a
+table is opened the definition has already been through here and come
+back from the DD. Reports through my_error().
+@return true on error */
+bool validate_options(const Key_spec &index_def);
+
+/** Turn a TYPE token plus its WITH(...) list into typed parameters.
+Pure parsing: no shape checks, so it serves both DDL and table open.
+@param[in]   type    the TYPE token, e.g. "hnsw"
+@param[in]   params  the WITH(...) pairs, may be nullptr for none
+@param[out]  vip     the parameters, on success
+@return true on error */
+bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
+                   VectorIndexParam &vip);
+
+/** DDL-time overload: validates the shape, then parses. */
 bool parse_options(const Key_spec &index_def, VectorIndexParam &vip);
+
+/** Open-time overload: the definition came back from the DD, so there is
+nothing left to validate - parse only. */
+bool parse_options(const KEY &key, VectorIndexParam &vip);
 
 }  // namespace storage::innobase::vec

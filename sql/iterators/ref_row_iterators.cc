@@ -686,6 +686,55 @@ int FullTextSearchIterator::DoRead() {
   return 0;
 }
 
+VectorSearchIterator::VectorSearchIterator(THD *thd, TABLE *table,
+                                           Index_lookup *ref, Item *item,
+                                           ha_rows limit,
+                                           ha_rows *examined_rows)
+    : TableRowIterator(thd, table),
+      m_ref(ref),
+      m_examined_rows(examined_rows),
+      m_first(true),
+      m_item(item),
+      m_limit(limit) {}
+
+VectorSearchIterator::~VectorSearchIterator() {
+  table()->file->ha_index_or_rnd_end();
+}
+
+bool VectorSearchIterator::DoInit() {
+  if (!table()->file->inited) {
+    int error = table()->file->vec_init();
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+  }
+
+  m_first = true;
+
+  return false;
+}
+
+int VectorSearchIterator::DoRead() {
+  if (m_first) {
+    int error =
+        table()->file->vec_read_first(m_item, table()->record[0], m_limit);
+    if (error) {
+      return HandleError(error);
+    }
+    m_first = false;
+  } else {
+    int error = table()->file->vec_read_next(table()->record[0]);
+    if (error) {
+      return HandleError(error);
+    }
+  }
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
+  return 0;
+}
+
 /**
   Reading of key with key reference and one part that may be NULL.
 */

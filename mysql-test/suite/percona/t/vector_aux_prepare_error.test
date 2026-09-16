@@ -1,0 +1,55 @@
+--echo #
+--echo # PS-11299: prepare_inplace_alter_table_dict error path must drop
+--echo # any per-vector-index aux table that was already created. Without
+--echo # the cleanup, the aux dict_table_t leaks (pinned non-LRU in
+--echo # dict_sys) and a subsequent ALTER trying to add the index with
+--echo # the same id would collide on the aux name.
+--echo #
+--echo # Triggered with debug knob vec_prepare_fail_after_aux_create — the
+--echo # aux is created, then prepare returns DB_OUT_OF_MEMORY, and the
+--echo # error_handling path must call vec_aux_drop_one_table for each
+--echo # is_vector() entry in ctx->add_index.
+--echo #
+
+--source include/have_debug.inc
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+
+--echo # The FIRST ADD does not use the INPLACE prepare path at all —
+--echo # the hidden column has to materialize, so it falls back to COPY.
+--echo # With the knob ARMED it must therefore SUCCEED: that is a
+--echo # standing guard that the INPLACE path was not entered.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # Drop it again. The hidden column is retained, so the NEXT ADD
+--echo # runs INPLACE and does reach the prepare path — which is where
+--echo # the injected failure belongs.
+ALTER TABLE tva DROP KEY v;
+
+--echo # Inject failure so the prepare path bails out *after* the aux was
+--echo # created. The DDL must error and the aux must not be left behind.
+SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+--error ER_GET_ERRNO,ER_OUT_OF_RESOURCES,ER_TOO_MANY_CONCURRENT_TRXS,1
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6), ALGORITHM=INPLACE;
+SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+
+--echo # No vec_<TID>_<IID>.ibd files left behind. (If the cleanup is
+--echo # missing, the dict_table_t entry leaks and an aux .ibd may also
+--echo # remain on disk.)
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # Retrying the same DDL without the injection must succeed —
+--echo # proving the dict_sys slot is free and re-creation works.
+ALTER TABLE tva ADD KEY (v) TYPE hnsw WITH (M = 6);
+SHOW CREATE TABLE tva;
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE tva;
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

@@ -1,0 +1,40 @@
+#
+# PS-11300: vec_build_start() must not report a config/DD-round-trip
+# defect (this index's own KEY not found in the altered table) as
+# DB_OUT_OF_MEMORY. Builder::init() used to fold every vec_build_start
+# failure into "set_error(DB_OUT_OF_MEMORY)", so a bug that has
+# nothing to do with memory was reported to the user as one, sending
+# anyone debugging it chasing free memory instead of the real cause.
+#
+# vec_build_start_key_not_found forces the "no matching vector KEY in
+# the altered table" branch deterministically, standing in for
+# whatever DD round-trip defect would otherwise have to be engineered
+# by hand to reach it.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# The first ADD has no hidden column yet, so it is refused INPLACE and
+# runs through COPY. DROP KEY keeps percona_vec_aux_id, so the SECOND
+# ADD below runs INPLACE and reaches vec_build_start via Builder::init.
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE t1 DROP KEY v;
+# Force the "KEY not found" branch. Before the fix this was reported
+# as DB_OUT_OF_MEMORY (ER_OUT_OF_RESOURCES, "Out of memory..."); after
+# it, a generic storage-engine error, with the real reason logged.
+SET @@SESSION.debug = '+d,vec_build_start_key_not_found';
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+Got one of the listed errors
+SET @@SESSION.debug = '-d,vec_build_start_key_not_found';
+include/assert_grep.inc [vec_build_start logs the real reason instead of silently reporting out-of-memory]
+# The failed attempt rolled back cleanly: retrying without the
+# injection succeeds, and the aux from the failed try was not left
+# behind to collide with it.
+ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v` (`v`) TYPE `hnsw` WITH (`M`=4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

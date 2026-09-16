@@ -562,11 +562,18 @@ struct Vec_build;
 /** Start building `index`. The HNSW parameters come from the index's own
 definition in `altered_table`, which is the only place they exist during
 an ALTER - nothing in the dictionary carries M or ef_construction.
-@param[in]  index          the vector index being built
-@param[in]  altered_table  the MySQL table definition the ALTER produces
+@param[in]   index          the vector index being built
+@param[in]   altered_table  the MySQL table definition the ALTER produces
+@param[out]  err            DB_SUCCESS on success; on failure, DB_OUT_OF_MEMORY
+                            only for an actual allocation/memory-budget
+                            failure, DB_ERROR for anything else (the index's
+                            own KEY could not be found or parsed) - the two
+                            are not interchangeable to the caller, which
+                            reports err to the user
 @return the build state, or nullptr if it could not be created */
 [[nodiscard]] Vec_build *vec_build_start(dict_index_t *index,
-                                         const TABLE *altered_table);
+                                         const TABLE *altered_table,
+                                         dberr_t *err);
 
 /** Add one base row to the graph. Called from the DDL scan's per-row
 callback, concurrently from every scan thread: HNSW::insert serialises

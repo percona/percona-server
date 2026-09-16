@@ -745,10 +745,16 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
     /* M and ef_construction live only in the index definition the ALTER
     is producing, so the build resolves them from m_ctx.m_table. */
-    m_vec = vec_build_start(m_index, m_ctx.m_table);
+    dberr_t vec_err = DB_SUCCESS;
+    m_vec = vec_build_start(m_index, m_ctx.m_table, &vec_err);
 
     if (m_vec == nullptr) {
-      set_error(DB_OUT_OF_MEMORY);
+      /* vec_build_start distinguishes an actual memory shortage
+      (DB_OUT_OF_MEMORY) from its own KEY not being where it should be
+      (DB_ERROR, logged) - report whichever it found rather than always
+      claiming the index ran out of memory. */
+      ut_ad(vec_err != DB_SUCCESS);
+      set_error(vec_err);
       set_next_state();
       return get_error();
     }
@@ -2057,9 +2063,9 @@ dberr_t Builder::vec_build() noexcept {
   rolls them back with the rest of the statement. */
   /* The statement's observer, borrowed: ddl::Context flushes it once every
   builder is done, exactly as ddl::FTS does for its aux tables. */
-  auto err = vec_build_write_aux(m_vec, m_ctx.m_trx, m_ctx.m_new_table,
-                                 m_ctx.m_trx->mysql_thd,
-                                 m_ctx.flush_observer());
+  auto err =
+      vec_build_write_aux(m_vec, m_ctx.m_trx, m_ctx.m_new_table,
+                          m_ctx.m_trx->mysql_thd, m_ctx.flush_observer());
 
   vec_build_free(m_vec);
   m_vec = nullptr;

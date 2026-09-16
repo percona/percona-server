@@ -743,14 +743,33 @@ struct Vec_build {
   dict_index_t *index{nullptr};
 };
 
-Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table) {
+Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table,
+                           dberr_t *err) {
   ut_ad(index != nullptr && index->is_vector());
-  if (altered_table == nullptr) return nullptr;
+
+  /* Anything below this point that is not the memory check is this index's
+  own KEY not being where it should be - a defect in the caller or in the
+  DD round-trip, never a resource shortage. Reporting it as
+  DB_OUT_OF_MEMORY would send whoever reads the error chasing free memory
+  that was never the problem, so every such branch reports DB_ERROR
+  instead and logs which check failed. */
+  const auto fail_config = [&](const char *why) -> Vec_build * {
+    *err = DB_ERROR;
+    ib::error(ER_IB_MSG_456)
+        << "Failed to start the vector index build for index " << index->name
+        << " on table " << index->table->name << ": " << why
+        << "; the build cannot proceed.";
+    return nullptr;
+  };
+
+  if (altered_table == nullptr) return fail_config("no altered table");
 
   /* Same pre-flight as the DML path (design: "Memory limits"): refuse
-  before building anything rather than throwing partway through. */
+  before building anything rather than throwing partway through. This is
+  the one branch that is an actual resource shortage. */
   if (srv_hnsw_max_memory != 0 &&
       vec_arena_global_bytes() >= srv_hnsw_max_memory) {
+    *err = DB_OUT_OF_MEMORY;
     return nullptr;
   }
 
@@ -766,32 +785,52 @@ Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table) {
       break;
     }
   }
-  if (vkey == nullptr) return nullptr;
+
+  /* Test-only: let an MTR test force the "KEY not found" branch below
+  without needing a genuinely corrupt DD round-trip. */
+  DBUG_EXECUTE_IF("vec_build_start_key_not_found", vkey = nullptr;);
+
+  if (vkey == nullptr) {
+    return fail_config("no matching vector KEY in the altered table");
+  }
 
   storage::innobase::vec::VectorIndexParam vip;
-  if (storage::innobase::vec::parse_options(*vkey, vip)) return nullptr;
+  if (storage::innobase::vec::parse_options(*vkey, vip)) {
+    return fail_config("could not parse the index's WITH(...) options");
+  }
 
   const auto *hp = std::get_if<storage::innobase::vec::HnswParam>(&vip);
-  if (hp == nullptr) return nullptr;
+  if (hp == nullptr) {
+    return fail_config("WITH(...) options do not describe an HNSW index");
+  }
 
   /* Same resolution as vec_runtime_open: the key part describes a 1-byte
   prefix, but its field_index() is correct. */
   const Field *f = altered_table->field[vkey->key_part[0].field->field_index()];
-  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) return nullptr;
+  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
+    return fail_config("the indexed column is not a VECTOR column");
+  }
 
   const uint32_t dims =
       down_cast<const Field_vector *>(f)->get_max_dimensions();
-  if (dims == 0 || hp->M == 0) return nullptr;
+  if (dims == 0 || hp->M == 0) {
+    return fail_config("invalid vector dimensions or M");
+  }
 
   auto *b = ut::new_withkey<Vec_build>(
       UT_NEW_THIS_FILE_PSI_KEY, dims, static_cast<uint32_t>(hp->M),
       static_cast<uint32_t>(hp->ef_construction), hp->dist, index);
 
-  if (b == nullptr) return nullptr;
-  if (b->graph == nullptr) {
-    ut::delete_(b);
+  if (b == nullptr) {
+    *err = DB_OUT_OF_MEMORY;
     return nullptr;
   }
+  if (b->graph == nullptr) {
+    ut::delete_(b);
+    *err = DB_OUT_OF_MEMORY;
+    return nullptr;
+  }
+  *err = DB_SUCCESS;
   return b;
 }
 

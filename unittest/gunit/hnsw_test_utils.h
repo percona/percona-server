@@ -66,11 +66,17 @@ struct NullPersistor {
   struct Context {};
 
   template <typename NeighborIds>
-  void insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
-                 NeighborIds) {}
+  int insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                NeighborIds) {
+    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  }
   template <typename NeighborIds>
-  void update_neighbors_cb(Context *, uint64_t, NeighborIds) {}
-  void update_entry_point_cb(Context *, uint64_t) {}
+  int update_neighbors_cb(Context *, uint64_t, NeighborIds) {
+    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  }
+  int update_entry_point_cb(Context *, uint64_t) {
+    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  }
   template <typename Hnsw>
   bool load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
     assert(false);
@@ -145,6 +151,14 @@ struct RecordingPersistor {
     */
     std::unordered_set<uint64_t> fail_load_ids;
     /**
+      One-shot failure injection for insert_cb / update_entry_point_cb /
+      update_neighbors_cb (callback-failure unit tests). Cleared when the
+      failing call returns.
+    */
+    bool fail_next_insert_cb = false;
+    bool fail_next_update_entry_point_cb = false;
+    bool fail_next_update_neighbors_cb = false;
+    /**
       Optional lock for concurrent insert/search against a shared Context.
       When non-null, all RecordingPersistor callbacks lock it. Serial tests
       leave this nullptr.
@@ -153,11 +167,15 @@ struct RecordingPersistor {
   };
 
   template <typename NeighborIds>
-  void insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
-                 uint8_t layer, NeighborIds neighbors) {
+  int insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
+                uint8_t layer, NeighborIds neighbors) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_insert_cb) {
+      ctx->fail_next_insert_cb = false;
+      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
     }
     StoredNode &row = ctx->nodes[id];
     row.base_pk = base_pk;
@@ -165,23 +183,34 @@ struct RecordingPersistor {
     row.vec.assign(reinterpret_cast<const float *>(q),
                    reinterpret_cast<const float *>(q) + ctx->dims);
     row.neighbor_ids.assign(neighbors.begin(), neighbors.end());
+    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
   }
 
   template <typename NeighborIds>
-  void update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
+  int update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_update_neighbors_cb) {
+      ctx->fail_next_update_neighbors_cb = false;
+      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
     }
     ctx->nodes.at(id).neighbor_ids.assign(neighbors.begin(), neighbors.end());
+    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
   }
 
-  void update_entry_point_cb(Context *ctx, uint64_t id) {
+  int update_entry_point_cb(Context *ctx, uint64_t id) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
+    if (ctx->fail_next_update_entry_point_cb) {
+      ctx->fail_next_update_entry_point_cb = false;
+      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
+    }
     ctx->entry_point = id;
+    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
   }
 
   template <typename Hnsw>

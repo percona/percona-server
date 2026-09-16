@@ -764,6 +764,238 @@ TEST_F(HnswTest, AdjacentPruneShortListZeroFillsTail) {
 #endif
 }
 
+TEST_F(HnswTest, FirstNodeInsertCbFailure) {
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+  store.fail_next_insert_cb = true;
+
+  LoadTestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  const auto v1 = make_vec({1.0f, 2.0f});
+
+  EXPECT_EQ(index.insert(1, 100, as_bytes(v1), &store),
+            LoadTestHnsw::HNSW_ERROR_CB);
+  EXPECT_TRUE(store.nodes.empty());
+  EXPECT_EQ(0U, store.entry_point);
+  EXPECT_TRUE(index.k_nn_search(as_bytes(v1), /*k=*/1, /*ef_search=*/8, &store)
+                  .empty());
+
+#ifndef NDEBUG
+  // Only NODE_LOST remains in-memory; no COMPLETE entry point.
+  EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
+  EXPECT_FALSE(index.validate());
+#endif
+
+  // A later insert still sees a null EP and becomes the first published node.
+  const auto v2 = make_vec({3.0f, 4.0f});
+  EXPECT_EQ(index.insert(2, 200, as_bytes(v2), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  EXPECT_EQ(1U, store.nodes.count(2));
+  EXPECT_EQ(0U, store.nodes.count(1));
+  EXPECT_EQ(2U, store.entry_point);
+
+  const auto hits =
+      index.k_nn_search(as_bytes(v2), /*k=*/1, /*ef_search=*/8, &store);
+  ASSERT_EQ(1U, hits.size());
+  EXPECT_EQ(2U, hits[0].id);
+  EXPECT_EQ(200U, hits[0].base_pk);
+
+#ifndef NDEBUG
+  EXPECT_TRUE(index.validate());
+#endif
+}
+
+TEST_F(HnswTest, FirstNodeUpdateEntryPointCbFailure) {
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+  store.fail_next_update_entry_point_cb = true;
+
+  LoadTestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  const auto v1 = make_vec({1.0f, 2.0f});
+
+  EXPECT_EQ(index.insert(1, 100, as_bytes(v1), &store),
+            LoadTestHnsw::HNSW_ERROR_CB);
+  // insert_cb already persisted the row; EP update did not.
+  ASSERT_EQ(1U, store.nodes.count(1));
+  EXPECT_EQ(100U, store.nodes.at(1).base_pk);
+  EXPECT_EQ(0U, store.entry_point);
+  EXPECT_TRUE(index.k_nn_search(as_bytes(v1), /*k=*/1, /*ef_search=*/8, &store)
+                  .empty());
+
+#ifndef NDEBUG
+  EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
+  EXPECT_FALSE(index.validate());
+#endif
+
+  // Second insert publishes a new EP. Id 1 stays as an orphaned persisted row
+  // and an in-memory NODE_LOST stub; search must not return it.
+  const auto v2 = make_vec({3.0f, 4.0f});
+  EXPECT_EQ(index.insert(2, 200, as_bytes(v2), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  EXPECT_EQ(1U, store.nodes.count(1));
+  EXPECT_EQ(1U, store.nodes.count(2));
+  EXPECT_EQ(2U, store.entry_point);
+
+  const auto hits =
+      index.k_nn_search(as_bytes(v2), /*k=*/2, /*ef_search=*/8, &store);
+  ASSERT_FALSE(hits.empty());
+  EXPECT_EQ(2U, hits[0].id);
+  EXPECT_EQ(200U, hits[0].base_pk);
+  for (const auto &hit : hits) {
+    EXPECT_NE(1U, hit.id);
+  }
+
+#ifndef NDEBUG
+  // LOST id 1 may remain in m_nodes; EP is COMPLETE on the max COMPLETE layer.
+  EXPECT_TRUE(index.validate());
+#endif
+}
+
+TEST_F(HnswTest, MidGraphInsertCbFailure) {
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+
+  LoadTestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  const auto v0 = make_vec({0.0f, 0.0f});
+  const auto v1 = make_vec({1.0f, 0.0f});
+  const auto v2 = make_vec({0.0f, 1.0f});
+  ASSERT_EQ(index.insert(1, 100, as_bytes(v0), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(index.insert(2, 200, as_bytes(v1), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(index.insert(3, 300, as_bytes(v2), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  const uint64_t ep_before = store.entry_point;
+  ASSERT_NE(0U, ep_before);
+
+  // Fail insert_cb after reverse-linking: node becomes NODE_LOST, not
+  // persisted.
+  store.fail_next_insert_cb = true;
+  const auto v_fail = make_vec({0.5f, 0.5f});
+  constexpr uint64_t kFailId = 4;
+  EXPECT_EQ(index.insert(kFailId, 400, as_bytes(v_fail), &store),
+            LoadTestHnsw::HNSW_ERROR_CB);
+  EXPECT_EQ(0U, store.nodes.count(kFailId));
+  EXPECT_EQ(ep_before, store.entry_point);
+
+  const auto hits =
+      index.k_nn_search(as_bytes(v_fail), /*k=*/3, /*ef_search=*/16, &store);
+  ASSERT_FALSE(hits.empty());
+  for (const auto &hit : hits) {
+    EXPECT_NE(kFailId, hit.id);
+  }
+
+#ifndef NDEBUG
+  // Healthy EP/max-layer invariants still hold; LOST may sit on reverse edges.
+  EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
+  EXPECT_TRUE(index.validate());
+#endif
+}
+
+TEST_F(HnswTest, MidGraphUpdateNeighborsCbFailure) {
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+
+  LoadTestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  const auto v0 = make_vec({0.0f, 0.0f});
+  const auto v1 = make_vec({1.0f, 0.0f});
+  const auto v2 = make_vec({0.0f, 1.0f});
+  ASSERT_EQ(index.insert(1, 100, as_bytes(v0), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(index.insert(2, 200, as_bytes(v1), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(index.insert(3, 300, as_bytes(v2), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  const uint64_t ep_before = store.entry_point;
+  const auto neighbors_before_1 = store.nodes.at(1).neighbor_ids;
+  const auto neighbors_before_2 = store.nodes.at(2).neighbor_ids;
+  const auto neighbors_before_3 = store.nodes.at(3).neighbor_ids;
+
+  // insert_cb succeeds (node COMPLETE); first update_neighbors_cb fails.
+  store.fail_next_update_neighbors_cb = true;
+  const auto v_new = make_vec({0.5f, 0.5f});
+  constexpr uint64_t kNewId = 4;
+  EXPECT_EQ(index.insert(kNewId, 400, as_bytes(v_new), &store),
+            LoadTestHnsw::HNSW_ERROR_CB);
+  ASSERT_EQ(1U, store.nodes.count(kNewId));
+  EXPECT_EQ(400U, store.nodes.at(kNewId).base_pk);
+  EXPECT_EQ(ep_before, store.entry_point);
+  // First failing update_neighbors_cb does not write; earlier neighbors
+  // unchanged.
+  EXPECT_EQ(neighbors_before_1, store.nodes.at(1).neighbor_ids);
+  EXPECT_EQ(neighbors_before_2, store.nodes.at(2).neighbor_ids);
+  EXPECT_EQ(neighbors_before_3, store.nodes.at(3).neighbor_ids);
+
+  // In-memory node is COMPLETE and searchable despite the persist error.
+  const auto hits =
+      index.k_nn_search(as_bytes(v_new), /*k=*/3, /*ef_search=*/16, &store);
+  bool found_new = false;
+  for (const auto &hit : hits) {
+    if (hit.id == kNewId) {
+      found_new = true;
+      EXPECT_EQ(400U, hit.base_pk);
+      break;
+    }
+  }
+  EXPECT_TRUE(found_new);
+
+#ifndef NDEBUG
+  EXPECT_TRUE(index.validate());
+#endif
+}
+
+TEST_F(HnswTest, EntryPointRaiseUpdateEntryPointCbFailure) {
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+
+  LoadTestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  const auto v0 = make_vec({0.0f, 0.0f});
+  ASSERT_EQ(index.insert(1, 100, as_bytes(v0), &store),
+            LoadTestHnsw::HNSW_SUCCESS);
+  const uint64_t ep_before = store.entry_point;
+  ASSERT_EQ(1U, ep_before);
+
+  // Arm after the first node: only EP-raising inserts call
+  // update_entry_point_cb.
+  store.fail_next_update_entry_point_cb = true;
+
+  uint64_t failed_id = 0;
+  std::vector<float> failed_vec;
+  for (uint64_t id = 2; id <= 64; ++id) {
+    auto v = make_vec({static_cast<float>(id), 0.0f});
+    const auto rc = index.insert(id, 1000 + id, as_bytes(v), &store);
+    if (rc == LoadTestHnsw::HNSW_ERROR_CB) {
+      failed_id = id;
+      failed_vec = std::move(v);
+      break;
+    }
+    ASSERT_EQ(LoadTestHnsw::HNSW_SUCCESS, rc) << "id=" << id;
+  }
+  ASSERT_NE(0U, failed_id) << "expected an EP-raising insert within 63 tries";
+
+  // Node was persisted and linked; in-memory EP was not published.
+  ASSERT_EQ(1U, store.nodes.count(failed_id));
+  EXPECT_EQ(ep_before, store.entry_point);
+  EXPECT_NE(failed_id, store.entry_point);
+
+  const auto hits = index.k_nn_search(as_bytes(failed_vec), /*k=*/3,
+                                      /*ef_search=*/16, &store);
+  bool found = false;
+  for (const auto &hit : hits) {
+    if (hit.id == failed_id) {
+      found = true;
+      EXPECT_EQ(1000 + failed_id, hit.base_pk);
+      break;
+    }
+  }
+  EXPECT_TRUE(found);
+
+#ifndef NDEBUG
+  // COMPLETE node above published EP is allowed only with possibly_failed_cbs.
+  EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
+  EXPECT_FALSE(index.validate());
+#endif
+}
+
 #ifndef NDEBUG
 TEST_F(HnswTest, GraphInvariants) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);

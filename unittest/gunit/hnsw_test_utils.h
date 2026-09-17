@@ -67,33 +67,31 @@ struct NullPersistor {
   struct Context {};
 
   template <typename NeighborIds>
-  int insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
-                NeighborIds) {
-    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  HnswResult insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                       NeighborIds) {
+    return HNSW_SUCCESS;
   }
   template <typename NeighborIds>
-  int update_neighbors_cb(Context *, uint64_t, NeighborIds) {
-    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
+  HnswResult update_neighbors_cb(Context *, uint64_t, NeighborIds) {
+    return HNSW_SUCCESS;
   }
-  int update_entry_point_cb(Context *, uint64_t) {
-    return HNSW<ArenaAllocator, NullPersistor>::HNSW_SUCCESS;
-  }
+  HnswResult update_entry_point_cb(Context *, uint64_t) { return HNSW_SUCCESS; }
   template <typename Hnsw>
-  typename Hnsw::Result load_node_cb(Context *, Hnsw &,
-                                     typename Hnsw::LoadNodeHandle) {
+  HnswResult load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
     assert(false);
-    return Hnsw::HNSW_ERROR_CB;
+    return HNSW_ERROR_CB;
   }
 };
 
-using TestHnsw = HNSW<ArenaAllocator, NullPersistor>;
+/** Pin mt19937 so layer assignment matches across libstdc++/libc++. */
+using TestHnsw = HNSW<ArenaAllocator, NullPersistor, std::mt19937>;
 
 /**
   Thread-safe UniformRandomBitGenerator for concurrent insert() tests.
 
   HNSW does not synchronize RandomEngine access; concurrent inserts require
   an engine that is safe to call from multiple threads. Constructible from
-  uint32_t like std::default_random_engine / std::mt19937.
+  uint32_t like std::mt19937.
 */
 class MutexRandomEngine {
  public:
@@ -175,15 +173,15 @@ struct RecordingPersistor {
   };
 
   template <typename NeighborIds>
-  int insert_cb(Context *ctx, uint64_t id, uint64_t base_pk, const char *q,
-                uint8_t layer, NeighborIds neighbors) {
+  HnswResult insert_cb(Context *ctx, uint64_t id, uint64_t base_pk,
+                       const char *q, uint8_t layer, NeighborIds neighbors) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
     if (ctx->fail_next_insert_cb) {
       ctx->fail_next_insert_cb = false;
-      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
+      return HNSW_ERROR_CB;
     }
     StoredNode &row = ctx->nodes[id];
     row.base_pk = base_pk;
@@ -191,39 +189,40 @@ struct RecordingPersistor {
     row.vec.assign(reinterpret_cast<const float *>(q),
                    reinterpret_cast<const float *>(q) + ctx->dims);
     row.neighbor_ids.assign(neighbors.begin(), neighbors.end());
-    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
+    return HNSW_SUCCESS;
   }
 
   template <typename NeighborIds>
-  int update_neighbors_cb(Context *ctx, uint64_t id, NeighborIds neighbors) {
+  HnswResult update_neighbors_cb(Context *ctx, uint64_t id,
+                                 NeighborIds neighbors) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
     if (ctx->fail_next_update_neighbors_cb) {
       ctx->fail_next_update_neighbors_cb = false;
-      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
+      return HNSW_ERROR_CB;
     }
     ctx->nodes.at(id).neighbor_ids.assign(neighbors.begin(), neighbors.end());
-    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
+    return HNSW_SUCCESS;
   }
 
-  int update_entry_point_cb(Context *ctx, uint64_t id) {
+  HnswResult update_entry_point_cb(Context *ctx, uint64_t id) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
     }
     if (ctx->fail_next_update_entry_point_cb) {
       ctx->fail_next_update_entry_point_cb = false;
-      return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_ERROR_CB;
+      return HNSW_ERROR_CB;
     }
     ctx->entry_point = id;
-    return HNSW<ArenaAllocator, RecordingPersistor>::HNSW_SUCCESS;
+    return HNSW_SUCCESS;
   }
 
   template <typename Hnsw>
-  typename Hnsw::Result load_node_cb(Context *ctx, Hnsw &hnsw,
-                                     typename Hnsw::LoadNodeHandle handle) {
+  HnswResult load_node_cb(Context *ctx, Hnsw &hnsw,
+                          typename Hnsw::LoadNodeHandle handle) {
     std::unique_lock<std::mutex> lock;
     if (ctx->guard != nullptr) {
       lock = std::unique_lock<std::mutex>(*ctx->guard);
@@ -231,10 +230,10 @@ struct RecordingPersistor {
     const uint64_t id = hnsw.load_node_id(handle);
     ++ctx->load_counts[id];
     if (ctx->fail_load_error_ids.count(id) != 0) {
-      return Hnsw::HNSW_ERROR_CB;
+      return HNSW_ERROR_CB;
     }
     if (ctx->fail_load_ids.count(id) != 0) {
-      return Hnsw::HNSW_NOT_FOUND;
+      return HNSW_NOT_FOUND;
     }
     const StoredNode &row = ctx->nodes.at(id);
     // Copy out under the lock so load_* can run without holding it across
@@ -249,12 +248,12 @@ struct RecordingPersistor {
     hnsw.load_set_layer(handle, layer);
     hnsw.load_set_vec(handle, as_bytes(vec));
     hnsw.load_set_base_pk(handle, base_pk);
-    // Propagate load_node_neighbors Result unchanged (e.g. HNSW_OOM_GRAPH).
+    // Propagate load_node_neighbors HnswResult unchanged (e.g. HNSW_OOM_GRAPH).
     return hnsw.load_node_neighbors(handle, neighbor_ids);
   }
 };
 
-using LoadTestHnsw = HNSW<ArenaAllocator, RecordingPersistor>;
+using LoadTestHnsw = HNSW<ArenaAllocator, RecordingPersistor, std::mt19937>;
 
 using ConcurrentLoadHnsw =
     HNSW<ArenaAllocator, RecordingPersistor, MutexRandomEngine>;
@@ -392,8 +391,9 @@ class BorrowedArenaAllocator {
   ArenaStats *m_arena;
 };
 
-using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor>;
-using BorrowedLoadHnsw = HNSW<BorrowedArenaAllocator, RecordingPersistor>;
+using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor, std::mt19937>;
+using BorrowedLoadHnsw =
+    HNSW<BorrowedArenaAllocator, RecordingPersistor, std::mt19937>;
 
 /** Scoped arm of g_pending_arena; construct the index inside its scope. */
 class ArenaHandover {
@@ -496,31 +496,36 @@ inline std::vector<std::vector<float>> make_clustered_points(
 }
 
 /**
-  Run a streaming search to completion (or @p max_results rows) and return the
-  SearchHit values in the order the stream yielded them.
+  Run a streaming search to completion (or @p max_results rows).
+
+  @return {.first = HNSW_SUCCESS, .second = hits in stream order} on normal
+          completion (including an empty index). On nn_search_start() /
+          nn_search_next() failure, .first is that HnswResult and .second is
+          empty.
 */
 template <typename Hnsw>
-inline std::vector<typename Hnsw::SearchHit> drain_stream(
-    Hnsw &index, const char *query, size_t batch_size, size_t ef_search,
-    size_t max_results = 1000,
-    typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
+inline std::pair<HnswResult, std::vector<typename Hnsw::SearchHit>>
+drain_stream(Hnsw &index, const char *query, size_t batch_size,
+             size_t ef_search, size_t max_results = 1000,
+             typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
   typename Hnsw::NNSearchContext ctx;
-  if (index.nn_search_start(&ctx, query, batch_size, ef_search,
-                            persistor_ctx) != Hnsw::HNSW_SUCCESS) {
-    return {};
+  const HnswResult start_rc =
+      index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
+  if (start_rc != HNSW_SUCCESS) {
+    return {start_rc, {}};
   }
   std::vector<typename Hnsw::SearchHit> out;
   for (size_t i = 0; i < max_results; ++i) {
     const auto [rc, hit] = index.nn_search_next(&ctx);
-    if (rc == Hnsw::HNSW_NOT_FOUND) {
+    if (rc == HNSW_NOT_FOUND) {
       break;
     }
-    if (rc != Hnsw::HNSW_SUCCESS) {
-      return {};
+    if (rc != HNSW_SUCCESS) {
+      return {rc, {}};
     }
     out.push_back(hit);
   }
-  return out;
+  return {HNSW_SUCCESS, std::move(out)};
 }
 
 /** Extract base_pk values from a SearchHit list (for recall helpers). */

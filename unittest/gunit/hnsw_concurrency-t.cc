@@ -365,9 +365,10 @@ TEST_F(HnswConcurrencyTest, ConcurrentInsertAndStreaming) {
 #endif
 
   const auto q = make_vec({0.0f, 0.0f});
-  const auto drained =
+  const auto [drain_rc, drained] =
       drain_stream(index, as_bytes(q), /*batch_size=*/16, /*ef_search=*/64,
                    /*max_results=*/total_new + 1);
+  ASSERT_EQ(drain_rc, ConcurrentTestHnsw::HNSW_SUCCESS);
   EXPECT_FALSE(drained.empty());
   EXPECT_GE(self_match_hit_rate(index, points, base_pks, /*k=*/5,
                                 /*ef_search=*/64),

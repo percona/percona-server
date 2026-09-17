@@ -319,7 +319,7 @@ static tp_thread_t tp_stall_check_thread = {
     0,
     {}};
 
-static bool stall_check_initialized = false;
+static bool stall_check_initialized [[maybe_unused]] = false;
 enum class Stall_checker_state {
   NOT_STARTED,
   RUNNING,

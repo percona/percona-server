@@ -85,7 +85,7 @@ progress */
 static uint buf_flush_lsn_scan_factor = 3;
 
 /** Target oldest LSN for the requested flush_sync */
-static lsn_t buf_flush_sync_lsn = 0;
+static lsn_t buf_flush_sync_lsn [[maybe_unused]] = 0;
 
 #ifdef UNIV_DEBUG
 /** Get the lsn up to which data pages are to be synchronously flushed.

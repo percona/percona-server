@@ -321,10 +321,11 @@ static RecallStats measure_knn_recall(BenchFixture &f, size_t ef_search) {
 static RecallStats measure_stream_recall(BenchFixture &f, size_t ef_search) {
   RecallStats stats;
   for (size_t q = 0; q < f.num_queries(); ++q) {
-    const auto found =
+    const auto [rc, found] =
         drain_stream(f.index(), as_bytes(f.query(q)),
                      std::min(kStreamBatchSize, f.k()), ef_search,
                      /*max_results=*/f.k());
+    assert(rc == BorrowedHnsw::HNSW_SUCCESS);
     const double recall = f.recall_of(found, q);
     stats.average += recall;
     stats.worst = std::min(stats.worst, recall);
@@ -398,9 +399,10 @@ TEST(HnswBenchmark, StreamFullDrainQuality) {
   for (size_t q = 0; q < num_drains; ++q) {
     // max_results has to exceed the graph size, or the drain is truncated and
     // the completeness ratio below would be meaningless.
-    const auto streamed = drain_stream(f.index(), as_bytes(f.query(q)),
-                                       kStreamBatchSize, kDrainEfSearch,
-                                       /*max_results=*/f.num_points() + 1);
+    const auto [rc, streamed] =
+        drain_stream(f.index(), as_bytes(f.query(q)), kStreamBatchSize,
+                     kDrainEfSearch, /*max_results=*/f.num_points() + 1);
+    ASSERT_EQ(rc, BorrowedHnsw::HNSW_SUCCESS) << "q=" << q;
 
     std::unordered_set<uint64_t> distinct;
     for (const auto &hit : streamed) {
@@ -514,9 +516,10 @@ static void BM_HnswStreamSearch(size_t num_iterations) {
     // Same k as BM_HnswKnnSearch so the two are directly comparable, and
     // bounded because the harness calibrates with 100 unconditional
     // iterations -- a full drain here would cost minutes before it noticed.
-    const auto found = drain_stream(
+    const auto [rc, found] = drain_stream(
         f.index(), as_bytes(f.query(i % f.num_queries())),
         std::min(kStreamBatchSize, f.k()), kEfSearch, /*max_results=*/f.k());
+    assert(rc == BorrowedHnsw::HNSW_SUCCESS);
     bench_sink = bench_sink + (found.empty() ? 0 : found[0].id);
   }
   StopBenchmarkTiming();

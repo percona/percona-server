@@ -264,8 +264,10 @@ TEST_F(HnswTest, StreamMatchesKnnFirstBatch) {
   constexpr size_t kEf = 3;
   const auto [rc, knn] = index.k_nn_search(as_bytes(query), kEf, kEf);
   ASSERT_EQ(rc, TestHnsw::HNSW_SUCCESS);
-  const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/kEf,
-                                     /*ef_search=*/kEf);
+  const auto [stream_rc, streamed] =
+      drain_stream(index, as_bytes(query), /*batch_size=*/kEf,
+                   /*ef_search=*/kEf);
+  ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS);
 
   ASSERT_GE(streamed.size(), knn.size());
   for (size_t i = 0; i < knn.size(); ++i) {
@@ -281,8 +283,10 @@ TEST_F(HnswTest, StreamMultipleBatchesNoDuplicates) {
   }
   const auto query = make_vec({0.0f, 0.0f});
   // Small batch/ef forces continuation refills across batches.
-  const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/3,
-                                     /*ef_search=*/8);
+  const auto [stream_rc, streamed] =
+      drain_stream(index, as_bytes(query), /*batch_size=*/3,
+                   /*ef_search=*/8);
+  ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS);
 
   EXPECT_GE(streamed.size(), 3U);
   std::unordered_set<uint64_t> seen;
@@ -302,8 +306,10 @@ TEST_F(HnswTest, StreamDistancesNonDecreasingAcrossBatches) {
 
   const auto query = make_vec({0.0f, 0.0f});
   // batch_size < ef_search forces refills while still returning many hits.
-  const auto streamed = drain_stream(index, as_bytes(query), /*batch_size=*/3,
-                                     /*ef_search=*/10, /*max_results=*/30);
+  const auto [stream_rc, streamed] =
+      drain_stream(index, as_bytes(query), /*batch_size=*/3,
+                   /*ef_search=*/10, /*max_results=*/30);
+  ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS);
 
   ASSERT_GT(streamed.size(), 3U);  // more than one batch worth
 
@@ -329,9 +335,10 @@ TEST_F(HnswTest, StreamDrainsEntireGraph) {
 
   const auto query = make_vec({0.0f, 0.0f});
   // Small batches, wide search; max_results above graph size so we can finish.
-  const auto streamed =
+  const auto [stream_rc, streamed] =
       drain_stream(index, as_bytes(query), /*batch_size=*/4,
                    /*ef_search=*/32, /*max_results=*/kNumPoints + 10);
+  ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS);
 
   ASSERT_EQ(kNumPoints, streamed.size());
 
@@ -358,9 +365,10 @@ TEST_F(HnswTest, StreamDrainsEntireGraphWithEfSmallerThanGraph) {
   }
 
   const auto query = make_vec({0.0f, 0.0f});
-  const auto streamed =
+  const auto [stream_rc, streamed] =
       drain_stream(index, as_bytes(query), /*batch_size=*/4,
                    /*ef_search=*/8, /*max_results=*/kNumPoints + 10);
+  ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS);
 
   const std::unordered_set<uint64_t> seen = [&] {
     std::unordered_set<uint64_t> s;
@@ -394,9 +402,10 @@ TEST_F(HnswTest, StreamNoDuplicatesInMultiDimensionalGraph) {
   const auto queries =
       make_pseudo_random_points(kNumQueries, kStreamDims, &state);
   for (size_t q = 0; q < kNumQueries; ++q) {
-    const auto streamed =
+    const auto [stream_rc, streamed] =
         drain_stream(index, as_bytes(queries[q]), kBatchSize, kEfSearch,
                      /*max_results=*/kNumPoints * 2);
+    ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS) << "q=" << q;
     const std::unordered_set<uint64_t> seen = [&] {
       std::unordered_set<uint64_t> s;
       for (const auto &hit : streamed) {
@@ -452,8 +461,9 @@ TEST_F(HnswTest, StreamYieldsEachNodeAtMostOnce) {
   }
 
   const auto query = make_vec({0.0f, 0.0f});
-  const auto streamed = drain_stream(index, as_bytes(query), kBatchSize,
-                                     kEfSearch, /*max_results=*/30);
+  const auto [stream_rc, streamed] = drain_stream(
+      index, as_bytes(query), kBatchSize, kEfSearch, /*max_results=*/30);
+  ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS);
   std::unordered_set<uint64_t> seen;
   for (const auto &hit : streamed) {
     EXPECT_TRUE(seen.insert(hit.id).second);
@@ -541,9 +551,10 @@ TEST_F(HnswTest, StreamBruteForceRecall) {
       exact_ids.insert(exact[i].second);
     }
 
-    const auto streamed =
+    const auto [stream_rc, streamed] =
         drain_stream(index, as_bytes(query), kBatchSize, kEfSearch,
                      /*max_results=*/kK);
+    ASSERT_EQ(stream_rc, TestHnsw::HNSW_SUCCESS) << "q=" << q;
     ASSERT_EQ(kK, streamed.size()) << "q=" << q;
 
     size_t hits = 0;
@@ -561,15 +572,12 @@ TEST_F(HnswTest, StreamBruteForceRecall) {
 namespace {
 
 void assert_round_trip_knn(RoundTripFixture *fixture, size_t dims, size_t M,
-                           size_t ef_construction, size_t k, size_t ef_search,
-                           bool validate_built [[maybe_unused]]) {
+                           size_t ef_construction, size_t k, size_t ef_search) {
   LoadTestHnsw built(dims, euclidean, M, ef_construction);
   populate_round_trip_index(built, fixture);
   ASSERT_GT(fixture->store.entry_point, 0U);
 #ifndef NDEBUG
-  if (validate_built) {
-    EXPECT_TRUE(built.validate());
-  }
+  EXPECT_TRUE(built.validate());
 #endif
 
   LoadTestHnsw reloaded(dims, euclidean, M, ef_construction);
@@ -586,6 +594,9 @@ void assert_round_trip_knn(RoundTripFixture *fixture, size_t dims, size_t M,
   ASSERT_EQ(rc_reloaded, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(from_built.size(), from_reloaded.size());
   EXPECT_EQ(from_built, from_reloaded);
+#ifndef NDEBUG
+  EXPECT_TRUE(reloaded.validate());
+#endif
 }
 
 void assert_round_trip_stream(RoundTripFixture *fixture, size_t dims, size_t M,
@@ -600,14 +611,19 @@ void assert_round_trip_stream(RoundTripFixture *fixture, size_t dims, size_t M,
                                            &fixture->store),
             LoadTestHnsw::HNSW_SUCCESS);
 
-  const auto stream_built = drain_stream(built, as_bytes(fixture->query),
-                                         batch_size, ef_search, max_results);
-  const auto stream_reloaded =
+  const auto [rc_built, stream_built] = drain_stream(
+      built, as_bytes(fixture->query), batch_size, ef_search, max_results);
+  const auto [rc_reloaded, stream_reloaded] =
       drain_stream(reloaded, as_bytes(fixture->query), batch_size, ef_search,
                    max_results, &fixture->store);
 
+  ASSERT_EQ(rc_built, LoadTestHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(rc_reloaded, LoadTestHnsw::HNSW_SUCCESS);
   ASSERT_EQ(stream_built.size(), stream_reloaded.size());
   EXPECT_EQ(stream_built, stream_reloaded);
+#ifndef NDEBUG
+  EXPECT_TRUE(reloaded.validate());
+#endif
 }
 
 }  // namespace
@@ -615,7 +631,7 @@ void assert_round_trip_stream(RoundTripFixture *fixture, size_t dims, size_t M,
 TEST_F(HnswTest, RoundTripSmallGraph) {
   RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
   assert_round_trip_knn(&fixture, kDims, kM, kEfConstruction,
-                        /*k=*/3, /*ef_search=*/16, /*validate_built=*/true);
+                        /*k=*/3, /*ef_search=*/16);
 }
 
 TEST_F(HnswTest, RoundTripRandomGraph) {
@@ -624,7 +640,7 @@ TEST_F(HnswTest, RoundTripRandomGraph) {
   RoundTripFixture fixture =
       make_random_round_trip_fixture(kDims, kNumPoints, kSeed);
   assert_round_trip_knn(&fixture, kDims, kM, kEfConstruction,
-                        /*k=*/10, /*ef_search=*/50, /*validate_built=*/false);
+                        /*k=*/10, /*ef_search=*/50);
 }
 
 TEST_F(HnswTest, RoundTripStreamSearch) {
@@ -754,12 +770,14 @@ TEST_F(HnswTest, AdjacentPruneShortListZeroFillsTail) {
                          &fixture.store);
   ASSERT_GE(fixture.store.load_counts.count(hub_id), 1U);
 
+  const size_t hub_neighbor_count = hub_built.neighbor_ids.size();
+
   const uint64_t new_id = kNumPoints + 10;
   const uint64_t new_pk = 900000;
   cold.insert(new_id, new_pk, as_bytes(hub_vec), &fixture.store);
 
   const StoredNode &hub_after = fixture.store.nodes.at(hub_id);
-  ASSERT_EQ(hub_after.neighbor_ids.size(), hub_built.neighbor_ids.size());
+  ASSERT_EQ(hub_after.neighbor_ids.size(), hub_neighbor_count);
 
   size_t nonzero = 0;
   bool seen_null = false;

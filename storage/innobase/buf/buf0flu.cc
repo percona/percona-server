@@ -80,15 +80,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 
-/** Number of pages flushed through non flush_list flushes. */
-static ulint buf_lru_flush_page_count = 0;
-
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
 static uint buf_flush_lsn_scan_factor = 3;
 
 /** Target oldest LSN for the requested flush_sync */
-static lsn_t buf_flush_sync_lsn = 0;
+static lsn_t buf_flush_sync_lsn [[maybe_unused]] = 0;
 
 #ifdef UNIV_DEBUG
 /** Get the lsn up to which data pages are to be synchronously flushed.
@@ -1811,11 +1808,6 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
   }
 
   buf_pool->lru_hp.set(nullptr);
-
-  /* We keep track of all flushes happening as part of LRU
-  flush. When estimating the desired rate at which flush_list
-  should be flushed, we factor in this value. */
-  buf_lru_flush_page_count += count;
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 

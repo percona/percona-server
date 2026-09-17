@@ -4752,12 +4752,7 @@ bool init_rsa_keys(void) {
           g_caching_sha2_rsa_keys->read_rsa_keys());
 }
 
-static MYSQL_PLUGIN plugin_info_ptr;
-
-static int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref) {
-  plugin_info_ptr = plugin_ref;
-  return 0;
-}
+static int init_sha256_password_handler(MYSQL_PLUGIN) { return 0; }
 
 /**
 

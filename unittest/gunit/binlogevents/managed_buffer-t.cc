@@ -52,7 +52,7 @@ using Difference_t =
 
 // Helper macros to make assertions output the debug info we need, and
 // make the program stop with assertion.
-static int n_assertions = 0;
+[[maybe_unused]] static int n_assertions = 0;
 static bool _shall_stop_after_assertion = false;
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define ASSERTION_TAIL                                                   \

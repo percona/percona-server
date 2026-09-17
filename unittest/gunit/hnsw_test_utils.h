@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <mutex>
 #include <random>
@@ -248,8 +249,8 @@ struct RecordingPersistor {
     hnsw.load_set_layer(handle, layer);
     hnsw.load_set_vec(handle, as_bytes(vec));
     hnsw.load_set_base_pk(handle, base_pk);
-    hnsw.load_node_neighbors(handle, neighbor_ids);
-    return Hnsw::HNSW_SUCCESS;
+    // Propagate load_node_neighbors Result unchanged (e.g. HNSW_OOM_GRAPH).
+    return hnsw.load_node_neighbors(handle, neighbor_ids);
   }
 };
 
@@ -337,6 +338,9 @@ inline uint64_t find_full_layer0_hub(const RecordingPersistor::Context &store,
   the unused tail of the last (exponentially grown) block; bytes_requested is
   what the index actually asked for. Reporting both separates the index's own
   footprint from the allocator's slack.
+
+  alloc_successes_remaining limits successful allocate() calls for OOM tests:
+  SIZE_MAX means unlimited; 0 means the next allocate() returns nullptr.
 */
 struct ArenaStats {
   explicit ArenaStats(size_t block_size)
@@ -345,6 +349,7 @@ struct ArenaStats {
   MEM_ROOT mem_root;
   size_t bytes_requested = 0;
   size_t requests_number = 0;
+  size_t alloc_successes_remaining = std::numeric_limits<size_t>::max();
 };
 
 /**
@@ -370,9 +375,17 @@ class BorrowedArenaAllocator {
   }
 
   void *allocate(size_t size) {
+    if (m_arena->alloc_successes_remaining == 0) {
+      return nullptr;
+    }
     m_arena->bytes_requested += size;
     ++m_arena->requests_number;
-    return m_arena->mem_root.Alloc(size);
+    void *const p = m_arena->mem_root.Alloc(size);
+    if (p != nullptr && m_arena->alloc_successes_remaining !=
+                            std::numeric_limits<size_t>::max()) {
+      --m_arena->alloc_successes_remaining;
+    }
+    return p;
   }
 
  private:
@@ -380,6 +393,7 @@ class BorrowedArenaAllocator {
 };
 
 using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor>;
+using BorrowedLoadHnsw = HNSW<BorrowedArenaAllocator, RecordingPersistor>;
 
 /** Scoped arm of g_pending_arena; construct the index inside its scope. */
 class ArenaHandover {

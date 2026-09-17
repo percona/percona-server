@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -1224,6 +1225,118 @@ TEST_F(HnswTest, StreamNextLoadErrorCbPropagates) {
   }
   EXPECT_TRUE(saw_error)
       << "stream ended without nn_search_next observing HNSW_ERROR_CB";
+}
+
+TEST_F(HnswTest, InsertOomGraphOnCreate) {
+  // Node::create fails → HNSW_OOM_GRAPH. Callers must not reuse the id.
+  ArenaStats arena(/*block_size=*/4096);
+  arena.alloc_successes_remaining = 0;
+  std::optional<BorrowedHnsw> index;
+  {
+    ArenaHandover hand(&arena);
+    index.emplace(kDims, euclidean, kM, kEfConstruction);
+  }
+  const auto v = make_vec({1.0f, 2.0f});
+  EXPECT_EQ(index->insert(1, 100, as_bytes(v)), BorrowedHnsw::HNSW_OOM_GRAPH);
+
+  arena.alloc_successes_remaining = std::numeric_limits<size_t>::max();
+  EXPECT_EQ(index->insert(2, 200, as_bytes(v)), BorrowedHnsw::HNSW_SUCCESS);
+  const auto [rc, hits] = index->k_nn_search(as_bytes(v), /*k=*/1, /*ef=*/8);
+  ASSERT_EQ(rc, BorrowedHnsw::HNSW_SUCCESS);
+  ASSERT_EQ(1U, hits.size());
+  EXPECT_EQ(2U, hits[0].id);
+}
+
+TEST_F(HnswTest, InsertOomGraphOnNeighborAlloc) {
+  // Node::create succeeds; alloc_neighbors fails → HNSW_OOM_GRAPH.
+  // Callers must not reuse the failed id.
+  ArenaStats arena(/*block_size=*/4096);
+  arena.alloc_successes_remaining = 1;
+  std::optional<BorrowedHnsw> index;
+  {
+    ArenaHandover hand(&arena);
+    index.emplace(kDims, euclidean, kM, kEfConstruction);
+  }
+  const auto v = make_vec({1.0f, 2.0f});
+  EXPECT_EQ(index->insert(42, 100, as_bytes(v)), BorrowedHnsw::HNSW_OOM_GRAPH);
+
+  arena.alloc_successes_remaining = std::numeric_limits<size_t>::max();
+  EXPECT_EQ(index->insert(43, 101, as_bytes(v)), BorrowedHnsw::HNSW_SUCCESS);
+}
+
+TEST_F(HnswTest, InitFromEntryPointOomOnCreate) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  ArenaStats arena(/*block_size=*/4096);
+  arena.alloc_successes_remaining = 0;
+  std::optional<BorrowedLoadHnsw> cold;
+  {
+    ArenaHandover hand(&arena);
+    cold.emplace(kDims, euclidean, kM, kEfConstruction);
+  }
+  EXPECT_EQ(
+      cold->init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      BorrowedLoadHnsw::HNSW_OOM_GRAPH);
+  // Any init_from_entry_point failure → discard the instance (do not retry).
+}
+
+TEST_F(HnswTest, InitFromEntryPointOomOnNeighborAlloc) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  // Allow Node::create; fail alloc_neighbors inside load_node_neighbors.
+  ArenaStats arena(/*block_size=*/4096);
+  arena.alloc_successes_remaining = 1;
+  std::optional<BorrowedLoadHnsw> cold;
+  {
+    ArenaHandover hand(&arena);
+    cold.emplace(kDims, euclidean, kM, kEfConstruction);
+  }
+  EXPECT_EQ(
+      cold->init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      BorrowedLoadHnsw::HNSW_OOM_GRAPH);
+}
+
+TEST_F(HnswTest, SearchLazyLoadOomGraphPropagatesAndRetries) {
+  RoundTripFixture fixture = make_fixed_round_trip_fixture(kDims);
+  LoadTestHnsw built(kDims, euclidean, kM, kEfConstruction);
+  populate_round_trip_index(built, &fixture);
+  ASSERT_GT(fixture.store.entry_point, 0U);
+
+  ArenaStats arena(/*block_size=*/4096);
+  // Enough room to load the entry point fully; starve later stub creates.
+  arena.alloc_successes_remaining = 8;
+  std::optional<BorrowedLoadHnsw> cold;
+  {
+    ArenaHandover hand(&arena);
+    cold.emplace(kDims, euclidean, kM, kEfConstruction);
+  }
+  ASSERT_EQ(
+      cold->init_from_entry_point(fixture.store.entry_point, &fixture.store),
+      BorrowedLoadHnsw::HNSW_SUCCESS);
+
+  // Drive remaining budget to zero if init did not exhaust it.
+  arena.alloc_successes_remaining = 0;
+
+  const auto [rc_fail, hits_fail] = cold->k_nn_search(
+      as_bytes(fixture.query), /*k=*/3, /*ef_search=*/16, &fixture.store);
+  EXPECT_EQ(rc_fail, BorrowedLoadHnsw::HNSW_OOM_GRAPH);
+  EXPECT_TRUE(hits_fail.empty());
+
+  arena.alloc_successes_remaining = std::numeric_limits<size_t>::max();
+  const auto [rc_ok, hits_ok] = cold->k_nn_search(
+      as_bytes(fixture.query), /*k=*/3, /*ef_search=*/16, &fixture.store);
+  EXPECT_EQ(rc_ok, BorrowedLoadHnsw::HNSW_SUCCESS);
+  EXPECT_FALSE(hits_ok.empty());
+
+#ifndef NDEBUG
+  EXPECT_TRUE(cold->validate());
+#endif
 }
 
 #ifndef NDEBUG

@@ -11,7 +11,7 @@
 #   }
 #
 # Omit templateParameters (or pass false) for the five default configs; pass
-# true for all 36. It also appears as a checkbox in the Run pipeline dialog.
+# true for all 38. It also appears as a checkbox in the Run pipeline dialog.
 parameters:
 - name: fullCI
   displayName: 'Build all configs, not just the default five'
@@ -82,7 +82,7 @@ jobs:
   # Two tiers of coverage:
   #
   #   default   the five configs listed first -- built on every pull request.
-  #   extended  the remaining 31, each guarded so they are built only when the
+  #   extended  the remaining 33, each guarded so they are built only when the
   #             fullCI parameter is set (how GitHub Actions asks for a full run)
   #             or on the nightly schedule.
   #
@@ -91,7 +91,7 @@ jobs:
   #
   # The gate keys on the parameter rather than on Build.Reason because a run
   # created through the REST API reports Build.Reason=Manual -- so testing
-  # "not a pull request" would make every GitHub-Actions-queued run build all 36.
+  # "not a pull request" would make every GitHub-Actions-queued run build all 38.
   # Schedule is kept so the nightly still covers everything.
   #
   # It cannot key on the branch, which is what an earlier attempt did. Measured
@@ -103,18 +103,18 @@ jobs:
   # per-leg condition lets every leg through.
   strategy:
     matrix:
-      clang-22 RelWithDebInfo [Ubuntu 24.04 Noble]:
+      clang-23 RelWithDebInfo [Ubuntu 24.04 Noble]:
         imageName: 'ubuntu-24.04'
         UBUNTU_CODE_NAME: noble
         Compiler: clang
-        CompilerVer: 22
+        CompilerVer: 23
         BuildType: RelWithDebInfo
 
-      clang-22 Debug [Ubuntu 24.04 Noble]:
+      clang-23 Debug [Ubuntu 24.04 Noble]:
         imageName: 'ubuntu-24.04'
         UBUNTU_CODE_NAME: noble
         Compiler: clang
-        CompilerVer: 22
+        CompilerVer: 23
         BuildType: Debug
 
       gcc-16 RelWithDebInfo [Ubuntu 24.04 Noble]:
@@ -154,13 +154,29 @@ jobs:
 
       # clang-14 and newer compilers
       ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
-        clang-22 RelWithDebInfo INVERTED [Ubuntu 24.04 Noble]:
+        clang-23 RelWithDebInfo INVERTED [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
+          Compiler: clang
+          CompilerVer: 23
+          BuildType: RelWithDebInfo
+          BUILD_PARAMS_TYPE: inverted
+
+      ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
+        clang-22 RelWithDebInfo [Ubuntu 24.04 Noble]:
           imageName: 'ubuntu-24.04'
           UBUNTU_CODE_NAME: noble
           Compiler: clang
           CompilerVer: 22
           BuildType: RelWithDebInfo
-          BUILD_PARAMS_TYPE: inverted
+
+      ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
+        clang-22 Debug [Ubuntu 24.04 Noble]:
+          imageName: 'ubuntu-24.04'
+          UBUNTU_CODE_NAME: noble
+          Compiler: clang
+          CompilerVer: 22
+          BuildType: Debug
 
       ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
         clang-21 RelWithDebInfo [Ubuntu 24.04 Noble]:

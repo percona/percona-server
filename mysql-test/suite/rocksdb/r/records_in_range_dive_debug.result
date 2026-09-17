@@ -1,0 +1,52 @@
+CREATE TABLE t2 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+c INT NOT NULL,
+KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 777;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 777)
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	201	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# Cap semantics, memtable path: same as the SST path (see
+# records_in_range_dive.test) - the dive reads at most threshold
+# keys, so a range with more keys than the threshold estimates as
+# the threshold (a lower bound).
+SET SESSION rocksdb_records_in_range_dive_threshold = 50;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	50	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	100	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# 0 disables the dive, memtable path: with the raw estimate pinned
+# to 0, this reproduces the PS-10110 bug exactly as originally
+# reported - the estimate collapses to 1 row regardless of how
+# many keys are actually in range.
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+explain select * from t2 where c = 777;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 777)
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t2;

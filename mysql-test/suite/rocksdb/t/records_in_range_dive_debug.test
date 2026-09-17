@@ -1,0 +1,83 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+# PS-10110: the memtable-path counterpart of records_in_range_dive.test's
+# deterministic single-block scenario.
+#
+# GetApproximateMemTableStats() samples the memtable's skip list, whose
+# level structure is randomized per server instance, so its raw estimate
+# is not reproducible run to run; the SST-side GetApproximateSizes()-based
+# estimate can also shift between calls for the same query. Pin the
+# combined pre-dive estimate to 0 via the
+# myrocks_zero_records_in_range_estimate debug point so the dive always
+# engages here deterministically, exactly as it does for the SST path
+# (where GetApproximateSizes() is reliably 0 for a single-block CF). The
+# dive itself still scans the real, committed memtable data, so the
+# counts below are genuine, not simulated - only the decision to take
+# the dive is pinned.
+#
+# The DBUG point above only pins records_in_range_internal()'s own
+# pre-dive estimate. ha_rocksdb::records_in_range()'s caller separately
+# clamps the final result to stats.records * 0.99 when the dive's exact
+# count would exceed it, and stats.records itself comes from the same
+# randomized GetApproximateMemTableStats() sampling (via info()), so a
+# too-small background group here can make that outer clamp truncate the
+# c = 50 dive's exact 201 down to whatever stats.records sampled that
+# run - a real flaky failure this test hit during development. Keep the
+# background group large enough (2000 rows here vs. 201) that
+# stats.records safely exceeds every dive result below regardless of
+# sampling noise.
+
+CREATE TABLE t2 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 2000) {
+  eval INSERT INTO t2(c) VALUES ($i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t2(c) VALUES (50);
+  inc $i;
+}
+# A second, much narrower group (3 keys) in the same single-block CF:
+# contrasts with c = 50 (201 keys) below to show the dive is accurate
+# for both a small and a large true count.
+let $i = 1;
+while ($i <= 3) {
+  INSERT INTO t2(c) VALUES (777);
+  inc $i;
+}
+--enable_query_log
+
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 777;
+explain select * from t2 where c = 50;
+
+--echo # Cap semantics, memtable path: same as the SST path (see
+--echo # records_in_range_dive.test) - the dive reads at most threshold
+--echo # keys, so a range with more keys than the threshold estimates as
+--echo # the threshold (a lower bound).
+SET SESSION rocksdb_records_in_range_dive_threshold = 50;
+explain select * from t2 where c = 50;
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
+explain select * from t2 where c = 50;
+
+--echo # 0 disables the dive, memtable path: with the raw estimate pinned
+--echo # to 0, this reproduces the PS-10110 bug exactly as originally
+--echo # reported - the estimate collapses to 1 row regardless of how
+--echo # many keys are actually in range.
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select * from t2 where c = 50;
+explain select * from t2 where c = 777;
+
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t2;

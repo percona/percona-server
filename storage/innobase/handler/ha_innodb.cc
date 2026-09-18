@@ -10497,7 +10497,7 @@ static dberr_t calc_row_difference(
       trx->fts_next_doc_id = 0;
     }
 
-    fts_update_doc_id(innodb_table, ufield, &trx->fts_next_doc_id);
+    fts_update_doc_id(innodb_table, ufield, &trx->fts_next_doc_id, trx);
 
     ++n_changed;
   } else {

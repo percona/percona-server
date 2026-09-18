@@ -1111,7 +1111,7 @@ static void row_mysql_convert_row_to_innobase(
   if (prebuilt->table->fts) {
     ut_a(prebuilt->table->fts->doc_col != ULINT_UNDEFINED);
 
-    fts_create_doc_id(prebuilt->table, row, prebuilt->heap);
+    fts_create_doc_id(prebuilt->table, row, prebuilt->heap, prebuilt->trx);
   }
 }
 

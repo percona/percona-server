@@ -879,6 +879,33 @@ static inline Instant_Type innobase_support_instant(
     return (Instant_Type::INSTANT_IMPOSSIBLE);
   }
 
+  /* Block INSTANT ADD / DROP COLUMN on tables that own the hidden
+  percona_vec_aux_id column. Rationale: an INSTANT-added trailing user column
+  ends up at a higher InnoDB col-ordinal than percona_vec_aux_id, but MySQL's
+  n_fields loop in ha_innobase::build_template maps user fields to
+  InnoDB positions contiguously via `i - num_v`. That mapping doesn't
+  know how to skip HT_HIDDEN_SE cols, so a subsequent SELECT reads
+  percona_vec_aux_id's 8 bytes where the INSTANT-added INT column's 4 bytes
+  belong, tripping row0sel.ic:199 (mysql_col_len == len).
+
+  FTS is protected by ER_INNODB_FT_LIMIT (see below); vector reaches
+  here because we deliberately allowed ADD VECTOR INDEX + subsequent
+  ALTER. For phase 1 we take the same defensive stance as FTS.
+  ALLOWED: rename, virtual-column only, and rebuild-shape ALTERs -
+  the rebuild path reshuffles cols and avoids the mismatch entirely.
+
+  TODO fix build_template to skip HT_HIDDEN_SE cols when
+  computing the InnoDB-to-MySQL column map, then remove this block. */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    const auto flags = alter_inplace_flags;
+    const auto column_add_drop_mask =
+        Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+        Alter_inplace_info::DROP_STORED_COLUMN;
+    if (flags & column_add_drop_mask) {
+      return (Instant_Type::INSTANT_IMPOSSIBLE);
+    }
+  }
+
   enum class INSTANT_OPERATION {
     COLUMN_RENAME_ONLY,           /*!< Only column RENAME */
     VIRTUAL_ADD_DROP_ONLY,        /*!< Only virtual column ADD AND DROP */
@@ -4607,6 +4634,10 @@ template <typename Table>
 static void dd_commit_inplace_no_change(const Alter_inplace_info *ha_alter_info,
                                         const Table *old_dd_tab,
                                         Table *new_dd_tab, bool ignore_fts) {
+  /* Before the FTS helper, which compares the two definitions' column
+  counts: a table owning percona_vec_aux_id must have it back by then. */
+  dd_add_vec_aux_id_column(new_dd_tab->table(), old_dd_tab->table());
+
   if (!ignore_fts) {
     dd_add_fts_doc_id_index(new_dd_tab->table(), old_dd_tab->table());
   }

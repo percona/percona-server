@@ -1,0 +1,23 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start Group Replication.
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Enable GCS_DEBUG_ALL tracing.
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_ALL";
+
+# 3. Remove GCS_DEBUG_TRACE.
+
+# 4. Wait for stat auto-detection -- GCS_DEBUG_TRACE must reappear
+
+# 5. Group Replication is ONLINE.
+include/assert.inc [Member is ONLINE after stale-fd detection and reopen]
+
+# 6. cleanup
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+include/stop_group_replication.inc
+include/group_replication_end.inc

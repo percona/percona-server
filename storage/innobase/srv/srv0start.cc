@@ -1615,7 +1615,7 @@ dberr_t srv_start(bool create_new_db) {
   ib::info(ER_IB_MSG_1130, size, unit, srv_buf_pool_instances, chunk_size,
            chunk_unit);
 
-  err = buf_pool_init(srv_buf_pool_size, static_cast<bool>(srv_numa_interleave),
+  err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_populate,
                       srv_buf_pool_instances);
 
   if (err != DB_SUCCESS) {
@@ -1625,6 +1625,18 @@ dberr_t srv_start(bool create_new_db) {
   }
 
   ib::info(ER_IB_MSG_1132);
+
+  if (srv_numa_interleave && os_use_large_pages && !srv_buf_pool_populate) {
+    ib::warn() << "innodb_numa_interleave is enabled together with large "
+                  "pages, but innodb_buffer_pool_populate is OFF. Large pages "
+                  "are not subject to NUMA rebalancing and the interleave "
+                  "policy is only a hint: if a node is temporarily out of "
+                  "free memory when a page is first touched, the page can "
+                  "land on the wrong node and stay there permanently. To "
+                  "avoid this, drop the page cache before starting MySQL and "
+                  "enable innodb_buffer_pool_populate when both "
+                  "innodb_numa_interleave and large_pages are ON.";
+  }
 
 #ifdef UNIV_DEBUG
   /* We have observed deadlocks with a 5MB buffer pool but
@@ -2687,7 +2699,9 @@ static void srv_shutdown_page_cleaners() {
   here to let it complete the flushing of the buffer pools
   before proceeding further. */
 
-  for (uint32_t count = 0; buf_flush_page_cleaner_is_active(); ++count) {
+  for (uint32_t count = 0; buf_flush_page_cleaner_is_active() ||
+                           buf_flush_active_lru_managers() > 0;
+       ++count) {
     if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1251);
       count = 0;
@@ -2696,6 +2710,8 @@ static void srv_shutdown_page_cleaners() {
     std::this_thread::sleep_for(
         std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
+
+  ut_ad(buf_flush_active_lru_managers() == 0);
 
   ut_ad(buf_pool_pending_io_reads_count() == 0);
   ut_ad(buf_pool_pending_io_writes_count() == 0);

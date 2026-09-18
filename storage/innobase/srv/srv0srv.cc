@@ -225,6 +225,14 @@ bool srv_use_native_aio = false;
 
 bool srv_numa_interleave = false;
 
+/** See srv0srv.h. Default off: latches are created eagerly. */
+bool srv_buf_pool_lazy_latch_init = false;
+
+/** Whether buffer pool allocations (huge and regular pages) are pre-populated
+(MAP_POPULATE and the explicit prefault step) at allocation time. Exposed as the
+innodb_buffer_pool_populate system variable. */
+bool srv_buf_pool_populate = true;
+
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong srv_debug_compress;
@@ -452,6 +460,8 @@ bool srv_validate_tablespace_paths = true;
 bool srv_use_fdatasync = false;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong srv_LRU_scan_depth = 1024;
+/** Whether per-pool LRU manager threads are enabled (after recovery). */
+bool srv_lru_threads_enabled = false;
 /** Whether or not to flush neighbors of a block */
 ulong srv_flush_neighbors = 1;
 /** Previously requested size. Accesses protected by memory barriers. */
@@ -1201,6 +1211,12 @@ static void srv_init(void) {
       UT_NEW_THIS_FILE_PSI_KEY,
       ut::Count{srv_threads.m_page_cleaner_workers_n});
 
+  /* One LRU manager thread per buf_pool instance. */
+  srv_threads.m_lru_managers_n = srv_buf_pool_instances;
+
+  srv_threads.m_lru_managers = ut::new_arr_withkey<IB_thread>(
+      UT_NEW_THIS_FILE_PSI_KEY, ut::Count{srv_threads.m_lru_managers_n});
+
   srv_sys = static_cast<srv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, srv_sys_sz));
 
@@ -1307,6 +1323,18 @@ void srv_free(void) {
     }
     ut::delete_arr(srv_threads.m_page_cleaner_workers);
     srv_threads.m_page_cleaner_workers = nullptr;
+  }
+
+  if (srv_threads.m_lru_managers != nullptr) {
+    for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
+      srv_threads.m_lru_managers[i] = {};
+    }
+    /* Allocated with ut::new_arr_withkey<IB_thread>(), so it must be released
+    with ut::delete_arr() (which runs the element destructors and uses the
+    matching array allocator), not ut::free(). This mirrors the
+    m_page_cleaner_workers / m_purge_workers teardown above. */
+    ut::delete_arr(srv_threads.m_lru_managers);
+    srv_threads.m_lru_managers = nullptr;
   }
 
   if (srv_threads.m_purge_workers != nullptr) {

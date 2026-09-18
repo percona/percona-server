@@ -1,0 +1,27 @@
+#
+# Basic test for innodb_lru_threads (read-only)
+#
+SELECT @@GLOBAL.innodb_lru_threads;
+@@GLOBAL.innodb_lru_threads
+0
+SET GLOBAL innodb_lru_threads = OFF;
+ERROR HY000: Variable 'innodb_lru_threads' is a read only variable
+SET GLOBAL innodb_lru_threads = ON;
+ERROR HY000: Variable 'innodb_lru_threads' is a read only variable
+SELECT @@GLOBAL.innodb_lru_threads;
+@@GLOBAL.innodb_lru_threads
+0
+#
+# Startup with innodb_lru_threads=ON
+#
+# restart:--innodb-lru-threads=ON
+SELECT @@GLOBAL.innodb_lru_threads;
+@@GLOBAL.innodb_lru_threads
+1
+#
+# Startup with innodb_lru_threads=OFF
+#
+# restart
+SELECT @@GLOBAL.innodb_lru_threads;
+@@GLOBAL.innodb_lru_threads
+0

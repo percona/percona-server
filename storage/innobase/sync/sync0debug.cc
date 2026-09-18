@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "sync0debug.h"
+#include "univ.i"
 
 #include <stddef.h>
 #include <algorithm>
@@ -684,7 +685,12 @@ const latch_t *LatchDebug::find(const Latches *latches,
 @param[in]      level           The level to lookup
 @return latch if found or NULL */
 const latch_t *LatchDebug::find(latch_level_t level) UNIV_NOTHROW {
-  return (find(thread_latches(), level));
+  /* A thread which has not acquired any latch yet has no latch list
+  allocated (thread_latches() without the create flag returns nullptr)
+  and thus holds nothing at any level. */
+  const Latches *latches = thread_latches();
+
+  return (latches != nullptr ? find(latches, level) : nullptr);
 }
 
 /**
@@ -1269,7 +1275,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(FTS_PLL_TOKENIZE, SYNC_FTS_TOKENIZE,
                   fts_pll_tokenize_mutex_key);
 
-  LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_BUF_PAGE_HASH, hash_table_mutex_key);
+  /* Do not use SYNC_BUF_PAGE_HASH for HASH_TABLE_MUTEX.
+  @see buf_buddy_no_page_hash_latch_validate(). */
+  LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_ANY_LATCH, hash_table_mutex_key);
 
   LATCH_ADD_MUTEX(IBUF_BITMAP, SYNC_IBUF_BITMAP_MUTEX, ibuf_bitmap_mutex_key);
 
@@ -1765,6 +1773,31 @@ bool Sync_point::enabled(const std::string &target) noexcept {
 #endif /* !UNIV_NO_ERR_MSGS */
 }
 
+void Sync_point::clone_from(const THD *thd) noexcept {
+#ifndef UNIV_NO_ERR_MSGS
+  if (thd == nullptr || current_thd == nullptr || thd == current_thd) {
+    return;
+  }
+
+  Targets targets;
+  {
+    const std::lock_guard<std::mutex> lock(s_mutex);
+    const auto src = std::find_if(
+        std::begin(s_sync_points), std::end(s_sync_points),
+        [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
+
+    if (src == s_sync_points.end()) {
+      return;
+    }
+    targets = src->m_targets;
+  }
+
+  for (const auto &target : targets) {
+    add(current_thd, target);
+  }
+#endif /* !UNIV_NO_ERR_MSGS */
+}
+
 void Sync_point::erase(const THD *thd, const std::string &target) noexcept {
   const std::lock_guard<std::mutex> lock(s_mutex);
 
@@ -1784,5 +1817,14 @@ void Sync_point::erase(const THD *thd, const std::string &target) noexcept {
       }
     }
   }
+}
+
+void Sync_point::erase(const THD *thd) noexcept {
+#ifndef UNIV_NO_ERR_MSGS
+  const std::lock_guard<std::mutex> lock(s_mutex);
+  std::erase_if(s_sync_points, [thd](const auto &sync_point) {
+    return thd == sync_point.m_thd;
+  });
+#endif /* !UNIV_NO_ERR_MSGS */
 }
 #endif /* UNIV_DEBUG */

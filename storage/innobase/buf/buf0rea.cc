@@ -88,10 +88,17 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
     sync = true;
   }
 
-  /* The following call will also check if the tablespace does not exist
-  or is being dropped; if we succeed in initing the page in the buffer
-  pool for read, then DISCARD cannot proceed until the read has
-  completed */
+  /* buf_page_init_for_read() makes the page hash-visible, io-fixed for
+  read and linked into the LRU list before we dispatch the read IO below.
+  This does not stop a concurrent tablespace drop or truncation:
+  tablespace deletion does not scan the buffer pool (BUF_REMOVE_NONE); it
+  bumps the space version and relies on the pages becoming stale. If the
+  tablespace is dropped before the IO is dispatched, fil_io() refuses the
+  read (DB_TABLESPACE_DELETED, see Fil_shard::do_io()) and the page is
+  removed by buf_read_page_handle_error() below. If a read completes
+  against a space which was dropped meanwhile, the page is detected as
+  stale (buf_page_t::was_stale()) and freed lazily by
+  buf_page_free_stale(), which waits out the read io-fix. */
   bpage = buf_page_init_for_read(mode, page_id, page_size, unzip);
 
   ut_a(bpage == nullptr || bpage->get_space()->id == page_id.space());

@@ -1,0 +1,28 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# Step 1: Start Group Replication — GCS_DEBUG_TRACE must be created.
+include/start_and_bootstrap_group_replication.inc
+
+# Step 2: Enable GCS_DEBUG_BASIC tracing
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_BASIC";
+include/assert.inc [Debug option is GCS_DEBUG_BASIC]
+
+# Step 3: verify ISO 8601 UTC timestamps(microsecond) in GCS_DEBUG_TRACE
+include/wait_for_pattern_in_file.inc [\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\] \[MYSQL_GCS_DEBUG\] \[GCS\]]
+
+# Step 4: disable then re-enable tracing; timestamps must persist
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_ALL";
+include/assert_grep.inc [Timestamps persist after tracing re-enable]
+
+# Step 5: Verify Group Replication is still ONLINE.
+include/assert.inc [Member is ONLINE after timestamp test]
+
+# Step 6: Cleanup.
+SET GLOBAL group_replication_communication_debug_options = "GCS_DEBUG_NONE";
+include/stop_group_replication.inc
+include/group_replication_end.inc

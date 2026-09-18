@@ -51,6 +51,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"    // ACL_internal_schema_access
 #include "sql/auth/auth_internal.h"  // auth_plugin_is_built_in
+#include "sql/auth/auth_plugin_shutdown.h"
 #include "sql/auth/auth_utility.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_authentication.h"  // g_cached_authentication_plugins
@@ -1965,12 +1966,17 @@ bool set_user_salt(ACL_USER *acl_user) {
                                   MYSQL_AUTHENTICATION_PLUGIN);
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
+    Auth_plugin_operation_guard op_guard;
 
-    for (int i = 0; i < NUM_CREDENTIALS && !result; ++i) {
-      result = auth->set_salt(acl_user->credentials[i].m_auth_string.str,
-                              acl_user->credentials[i].m_auth_string.length,
-                              acl_user->credentials[i].m_salt,
-                              &acl_user->credentials[i].m_salt_len);
+    if (!op_guard) {
+      result = true;
+    } else {
+      for (int i = 0; i < NUM_CREDENTIALS && !result; ++i) {
+        result = auth->set_salt(acl_user->credentials[i].m_auth_string.str,
+                                acl_user->credentials[i].m_auth_string.length,
+                                acl_user->credentials[i].m_salt,
+                                &acl_user->credentials[i].m_salt_len);
+      }
     }
     plugin_unlock(nullptr, plugin);
   }

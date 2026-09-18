@@ -1,0 +1,40 @@
+###################### INIT #######################
+--source include/big_test.inc
+--source include/have_percona_telemetry.inc
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $TELEMETRY_DIR = $MYSQLTEST_VARDIR/tmp/telemetry
+--let $GRACE_INTERVAL = 20
+--let $SLEEP_TIME = 21
+
+--mkdir $TELEMETRY_DIR
+
+###################### TESTS #######################
+# restart the server with custom telemetry file path
+--let $restart_parameters = "restart:--percona_telemetry.grace_interval=$GRACE_INTERVAL --percona_telemetry.telemetry_root_dir=$TELEMETRY_DIR"
+--let $do_not_echo_parameters = 1
+--source include/restart_mysqld.inc
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC';
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE --kid rsa-key-1
+--replace_result $CONFIG_FILE FILE://<PATH>
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+--exec $MYSQL --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user -e "SELECT user(),  current_user()"
+
+--sleep $SLEEP_TIME
+
+--exec grep -rh '"auth_openid_connect"' $TELEMETRY_DIR
+--exec grep -A 1 -rh '"name": "auth_openid_connect_' $TELEMETRY_DIR
+
+###################### CLEANUP #######################
+DROP USER 'mysql_oidc_user'@'%';
+UNINSTALL PLUGIN auth_openid_connect;
+--remove_file $TOKEN_FILE
+--force-rmdir $TELEMETRY_DIR

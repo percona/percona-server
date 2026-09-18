@@ -351,6 +351,32 @@ enum_gcs_error Gcs_xcom_interface::initialize(
   m_wait_for_ssl_init_cond.init(
       key_GCS_COND_Gcs_xcom_interface_m_wait_for_ssl_init_cond);
 
+#ifndef XCOM_STANDALONE
+  {
+    /*
+     Either we can modify the constructors of Gcs_file_sink and pass the
+     parameters initialize_logging or we need to init set_max_debug_file_size
+     first before the log file is created.
+     Otherwise first log file will always be GCS_DEBUG_TRACE (without
+     timestamp) since set_max_debug_file_size has not been called yet, which
+     is not a big issue, but we can initialize
+     communication_debug_max_file_size first.
+    */
+    const std::string *debug_max_file_size =
+        interface_params.get_parameter("communication_debug_max_file_size");
+    if (debug_max_file_size != nullptr && !debug_max_file_size->empty()) {
+      try {
+        // This should not fail since debug_max_file_size is originally long
+        ulong max_file_size = std::stoul(*debug_max_file_size);
+        Gcs_file_sink::set_max_debug_file_size(max_file_size);
+      } catch (const std::exception &) {
+        MYSQL_GCS_LOG_ERROR(
+            "Failed to initialize GCS_DEBUG_TRACE log rotation. Could not read "
+            "parameter communication_debug_max_file_size.");
+      }
+    }
+  }
+#endif
   /*
     Initialize logging sub-systems.
   */

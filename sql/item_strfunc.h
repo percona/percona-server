@@ -1269,7 +1269,7 @@ class Item_func_uncompressed_length final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (reject_vector_args()) return true;
-    max_length = 10;
+    max_length = MY_INT32_NUM_DECIMAL_DIGITS;
     return false;
   }
   longlong val_int() override;
@@ -1308,6 +1308,26 @@ class Item_func_from_vector final : public Item_str_ascii_func {
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "from_vector"; }
   String *val_str_ascii(String *str) override;
+};
+
+class Item_func_vector_distance final : public Item_real_func {
+  enum metric_type {
+    EUCLIDEAN,
+    EUCLIDEAN_SQUARED,
+    COSINE,
+    DOT_PRODUCT,
+    MANHATTAN
+  };
+  metric_type m_metric{EUCLIDEAN};
+
+ public:
+  Item_func_vector_distance(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_real_func(pos, a, b, c) {}
+  bool do_itemize(Parse_context *pc, Item **res) override;
+  bool resolve_type(THD *thd) override;
+  const char *func_name() const override { return "distance"; }
+  enum Functype functype() const override { return VECTOR_DISTANCE_FUNC; }
+  double val_real() override;
 };
 
 class Item_func_uncompress final : public Item_str_func {

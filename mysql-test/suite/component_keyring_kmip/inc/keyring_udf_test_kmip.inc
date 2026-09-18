@@ -20,6 +20,20 @@
 
 --echo # ----------------------------------------------------------------------
 
+--disable_result_log
+--disable_query_log
+--disable_abort_on_error
+# Best-effort cleanup for strict KMIP servers that reject duplicate key names.
+SELECT keyring_key_remove('AES_g1');
+SELECT keyring_key_remove('AES_g2');
+SELECT keyring_key_remove('AES_g3');
+SELECT keyring_key_remove('AES_s1');
+SELECT keyring_key_remove('AES_s2');
+SELECT keyring_key_remove('AES_s3');
+--enable_abort_on_error
+--enable_query_log
+--enable_result_log
+
 --echo # Tests for AES key type
 --echo # keyring_key_generate tests
 SELECT keyring_key_generate('AES_g1', 'AES', 16);
@@ -109,6 +123,3 @@ DROP FUNCTION keyring_key_type_fetch;
 DROP FUNCTION keyring_key_length_fetch;
 UNINSTALL PLUGIN keyring_udf;
 --echo # ----------------------------------------------------------------------
-
-
-

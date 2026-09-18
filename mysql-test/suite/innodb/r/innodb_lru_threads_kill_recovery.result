@@ -1,0 +1,23 @@
+#
+# PS-11445: with --innodb-lru-threads=ON, the LRU manager threads
+# are created before buf_pool_invalidate() runs on every startup, so
+# they are alive throughout crash recovery (including the
+# buf_pool_invalidate_instance() pause/resume of run_lru). Restart
+# after a crash with a non-trivial amount of redo to apply exercises
+# that path; a normal restart afterward exercises the page-cleaner
+# coordinator waiting for the LRU managers to stop on shutdown.
+#
+# restart:--innodb-lru-threads=ON --innodb-buffer-pool-size=8M --innodb-buffer-pool-instances=2 --innodb-lru-scan-depth=100
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+# Kill and restart:--innodb-lru-threads=ON --innodb-buffer-pool-size=8M --innodb-buffer-pool-instances=2 --innodb-lru-scan-depth=100
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+20000
+# Clean shutdown must not hang: the page-cleaner coordinator has to
+# observe every LRU manager thread stop.
+# restart:--innodb-lru-threads=ON --innodb-buffer-pool-size=8M --innodb-buffer-pool-instances=2 --innodb-lru-scan-depth=100
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+20000
+DROP TABLE t1;
+# restart

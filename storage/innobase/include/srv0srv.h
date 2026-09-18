@@ -254,6 +254,16 @@ struct Srv_threads {
   same shared state as m_page_cleaner_coordinator. */
   IB_thread *m_page_cleaner_workers;
 
+  /** Number of LRU manager threads and size of array below. One per
+  buf_pool instance. */
+  size_t m_lru_managers_n;
+
+  /** LRU manager threads. When innodb_lru_threads is enabled, they are the
+  sole owners of buf_flush_LRU_list for free-list refill and the page
+  cleaner only flushes the flush_list; when disabled, no threads are
+  started and the page cleaner performs LRU flushing. */
+  IB_thread *m_lru_managers;
+
   /** Archiver's log archiver (used by Clone). */
   IB_thread m_log_archiver;
 
@@ -413,6 +423,16 @@ use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern bool srv_use_native_aio;
 extern bool srv_numa_interleave;
+
+/** When true, buffer pool blocks are created with lightweight initialization
+and their latches (mutex, rw-locks) are created lazily on first use. When
+false (default), latches are created eagerly while the buffer pool is built. */
+extern bool srv_buf_pool_lazy_latch_init;
+
+/** Whether buffer pool allocations (huge and regular pages) are pre-populated
+(MAP_POPULATE and the explicit prefault step) at allocation time. Backed by the
+innodb_buffer_pool_populate system variable. */
+extern bool srv_buf_pool_populate;
 
 /* The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
@@ -615,6 +635,8 @@ extern bool srv_validate_tablespace_paths;
 extern bool srv_use_fdatasync;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 extern ulong srv_LRU_scan_depth;
+/** Whether per-pool LRU manager threads are enabled (after recovery). */
+extern bool srv_lru_threads_enabled;
 /** Whether or not to flush neighbors of a block */
 extern ulong srv_flush_neighbors;
 /** Previously requested size. Accesses protected by memory barriers. */
@@ -879,6 +901,7 @@ extern mysql_pfs_key_t page_archiver_thread_key;
 extern mysql_pfs_key_t buf_pool_create_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
+extern mysql_pfs_key_t buf_lru_manager_thread_key;
 extern mysql_pfs_key_t clone_ddl_thread_key;
 extern mysql_pfs_key_t clone_gtid_thread_key;
 extern mysql_pfs_key_t ddl_thread_key;

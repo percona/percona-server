@@ -272,6 +272,10 @@ ifneq (,$(filter pkg.ps.sbom,$(DEB_BUILD_PROFILES)))
 		--exclude $(SBOM_EXCLUDE) \
 		--dest debian/percona-server-server/usr/share/percona-server/sbom
 endif
+ifeq ($(ARCH),arm64)
+	# libcoredumper.a is not shipped in arm64 packages
+	rm -f debian/percona-server-common/usr/lib/libcoredumper.a
+endif
 
 override_dh_installinit:
 	@echo "RULES.$@"

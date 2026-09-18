@@ -1,0 +1,66 @@
+### INITIALIZE TESTS
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS configuration is insecure");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'JWKS: HTTP GET from https://dummy-host");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'configuration of unaccessible-idp");
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';
+SET GLOBAL auth_openid_connect_configuration = 'JSON://';
+INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
+CREATE USER '/accounting' IDENTIFIED WITH 'mysql_no_login';
+CREATE USER '/marketing' IDENTIFIED WITH 'mysql_no_login';
+
+## First group proxying
+CREATE USER ''@'' IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\"}';
+GRANT PROXY ON '/accounting' TO ''@'';
+GRANT PROXY ON '/marketing' TO ''@'';
+
+IDP kk_proxy_user user is member of /marketing group:
+expecting USER is mysql_oidc_user, CURRENT_USER is /marketing
+user()	current_user()
+mysql_oidc_user@localhost	/marketing@%
+
+IDP kkuser user is member of /accounting group:
+expecting USER is mysql_oidc_user, CURRENT_USER is /accounting
+user()	current_user()
+mysql_oidc_user@localhost	/accounting@%
+
+IDP kkuser-no-groups user is not member of any group:
+expecting access denied
+DROP USER ''@'';
+
+## Named group proxying
+CREATE USER accounting IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : \"/accounting\" }';
+GRANT PROXY ON '/accounting' TO accounting;
+CREATE USER marketing IDENTIFIED WITH 'auth_openid_connect' AS '{\"identity_provider\" : \"my-keycloak\", \"group"\ : \"/marketing\" }';
+GRANT PROXY ON '/marketing' TO marketing;
+GRANT PROXY ON '/accounting' TO accounting;
+GRANT PROXY ON '/marketing' TO marketing;
+
+IDP kk_proxy_user user is member of /marketing group:
+expecting USER is marketing, CURRENT_USER is /marketing
+user()	current_user()
+marketing@localhost	/marketing@%
+
+IDP kkuser user is member of /accounting group:
+expecting USER is accounting, CURRENT_USER is /accounting
+user()	current_user()
+accounting@localhost	/accounting@%
+
+IDP kkuser user is not member of /marketing group:
+expecting access denied
+DROP USER accounting;
+DROP USER marketing;
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+Variable_name	Value
+auth_openid_connect_configured_group_role_maps	4
+auth_openid_connect_configured_idps	3
+auth_openid_connect_configured_idps_using_jwks	2
+auth_openid_connect_users_authenticated	4
+auth_openid_connect_users_denied	2
+auth_openid_connect_users_proxied	4
+auth_openid_connect_users_with_roles	0
+
+### CLEANUP
+DROP USER '/accounting';
+DROP USER '/marketing';
+UNINSTALL PLUGIN auth_openid_connect;
+UNINSTALL PLUGIN mysql_no_login;

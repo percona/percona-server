@@ -229,6 +229,15 @@ void set_auto_increment_handler_values();
 
 static void check_deprecated_variables() {
   MYSQL_THD thd = lv.plugin_is_auto_starting_on_install ? nullptr : current_thd;
+  if (static_cast<enum_transport_protocol>(ov.communication_stack_var) !=
+      MYSQL_PROTOCOL) {
+    push_deprecated_warn(thd, "group_replication_communication_stack=XCOM",
+                         "group_replication_communication_stack=MYSQL");
+  }
+  if (ov.ip_allowlist_var != nullptr &&
+      strcmp(ov.ip_allowlist_var, "AUTOMATIC")) {
+    push_deprecated_warn_no_replacement(thd, "group_replication_ip_allowlist");
+  }
   if (ov.view_change_uuid_var != nullptr &&
       strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
     push_deprecated_warn_no_replacement(thd,
@@ -2840,6 +2849,17 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   gcs_module_parameters.add_parameter("communication_debug_path",
                                       mysql_real_data_home);
 
+  /*
+    Maximum size, in bytes, of the GCS debug trace file before it is
+    automatically rotated. 0 disables size-based rotation. Read once here,
+    at Group Replication start -- like communication_debug_file/_path above.
+
+    @note changing this sysvar takes effect at the next Group Replication start
+  */
+  gcs_module_parameters.add_parameter(
+      "communication_debug_max_file_size",
+      std::to_string(ov.communication_debug_max_file_size_var));
+
   sv.deinit();
   return result;
 }
@@ -3627,6 +3647,8 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
   char buff[IP_ALLOWLIST_STR_BUFFER_LENGTH];
   const char *str;
   int length = sizeof(buff);
+
+  push_deprecated_warn_no_replacement(thd, "group_replication_ip_allowlist");
 
   Checkable_rwlock::Guard g(*lv.plugin_running_lock,
                             Checkable_rwlock::TRY_READ_LOCK);
@@ -5018,6 +5040,21 @@ static MYSQL_SYSVAR_STR(
     "GCS_DEBUG_NONE"                   /* default */
 );
 
+static MYSQL_SYSVAR_ULONG(
+    communication_debug_max_file_size,                     /* name */
+    ov.communication_debug_max_file_size_var,              /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "Maximum size, in bytes, of the GCS debug trace file (GCS_DEBUG_TRACE) "
+    "before it is automatically rotated. 0 disables size-based rotation. "
+    "Takes effect at the next Group Replication start.",
+    nullptr,                                   /* check func. */
+    nullptr,                                   /* update func. */
+    DEFAULT_COMMUNICATION_DEBUG_MAX_FILE_SIZE, /* default */
+    MIN_COMMUNICATION_DEBUG_MAX_FILE_SIZE,     /* min */
+    MAX_COMMUNICATION_DEBUG_MAX_FILE_SIZE,     /* max */
+    0                                          /* block */
+);
+
 static MYSQL_SYSVAR_ENUM(exit_state_action,        /* name */
                          ov.exit_state_action_var, /* var */
                          PLUGIN_VAR_OPCMDARG |
@@ -5393,6 +5430,17 @@ static MYSQL_SYSVAR_STR(
     nullptr,                /* update func*/
     "AUTOMATIC");           /* default*/
 
+static void update_communication_stack(MYSQL_THD thd, SYS_VAR *, void *var_ptr,
+                                       const void *save_ptr) {
+  const ulong val = *static_cast<const long *>(save_ptr);
+  *static_cast<ulong *>(var_ptr) = val;
+
+  if (static_cast<enum_transport_protocol>(val) == XCOM_PROTOCOL) {
+    push_deprecated_warn(thd, "group_replication_communication_stack=XCOM",
+                         "group_replication_communication_stack=MYSQL");
+  }
+}
+
 static MYSQL_SYSVAR_ENUM(
     communication_stack,                                   /* name */
     ov.communication_stack_var,                            /* var */
@@ -5401,7 +5449,7 @@ static MYSQL_SYSVAR_ENUM(
     "use : Legacy XCom or MySQL.This option only takes effect after a group "
     "replication restart. Default: XCom",
     nullptr,                                 /* check func. */
-    nullptr,                                 /* update func. */
+    update_communication_stack,              /* update func. */
     XCOM_PROTOCOL,                           /* default */
     &ov.communication_stack_values_typelib_t /* type lib */
 );
@@ -5516,6 +5564,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_applier_threshold),
     MYSQL_SYSVAR(transaction_size_limit),
     MYSQL_SYSVAR(communication_debug_options),
+    MYSQL_SYSVAR(communication_debug_max_file_size),
     MYSQL_SYSVAR(exit_state_action),
     MYSQL_SYSVAR(autorejoin_tries),
     MYSQL_SYSVAR(unreachable_majority_timeout),

@@ -62,6 +62,7 @@ INSERT INTO gr_options_that_cannot_be_change (name)
  SELECT VARIABLE_NAME FROM performance_schema.global_variables
  WHERE VARIABLE_NAME LIKE 'group_replication_%'
  AND VARIABLE_NAME != 'group_replication_bootstrap_group'
+ AND VARIABLE_NAME != 'group_replication_communication_debug_max_file_size'
  AND VARIABLE_NAME != 'group_replication_communication_stack'
  AND VARIABLE_NAME != 'group_replication_consistency'
  AND VARIABLE_NAME != 'group_replication_exit_state_action'
@@ -114,7 +115,9 @@ while ( $option_id <= $gr_options_that_can_be_change_count )
 {
   --let $option_name= `SELECT name FROM gr_options_that_can_be_change WHERE id=$option_id`
   --eval SET @value= @@GLOBAL.$option_name
+  --disable_warnings
   --eval SET @@GLOBAL.$option_name= @value
+  --enable_warnings
   --inc $option_id
 }
 

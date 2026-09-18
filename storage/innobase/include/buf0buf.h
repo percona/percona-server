@@ -1907,6 +1907,32 @@ struct buf_block_t {
   single thread. */
   bool made_dirty_with_no_latch;
 
+  /** Whether this block's latches (mutex, lock, debug_latch) have been
+  created (eagerly, or lazily if innodb_buffer_pool_lazy_latch_init is
+  enabled).
+
+  The false->true transition always happens while the block is owned
+  exclusively by a single thread (just removed from the free list, not yet in
+  the page hash or LRU). For a thread that later reuses the block after the
+  normal free_list_mutex / page-hash / LRU-mutex handoff, that handoff already
+  publishes the flag, so those owner-side reads (the first-use trigger in
+  buf_LRU_get_free_only()) and the teardown reads (under chunks_mutex /
+  free_list_mutex, no concurrent writer) can use relaxed/plain semantics.
+
+  It is std::atomic only so that the lock-free I_S.INNODB_BUFFER_PAGE scanner,
+  which walks every chunk block without owning it, can safely probe a
+  possibly-never-initialized block: the flag is published with a release store
+  at the end of buf_block_lazy_init_latches() and read there with an acquire
+  load. A true result means the embedded latch objects are fully constructed and
+  safe to lock; a false result means the block is still unused and its latches
+  must not be used.
+
+  Describes this block's own embedded latch objects, so it is intentionally
+  never copied along with page contents (e.g. by the buf_page_t copy
+  constructor or buf_relocate()): each block keeps the flag matching the state
+  of its own latches. */
+  std::atomic<bool> latches_initialized{false};
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
   /** @name Debug fields */
@@ -2051,6 +2077,10 @@ static inline uint64_t buf_pool_hash_zip_frame(void *ptr) {
 static inline uint64_t buf_pool_hash_zip(buf_block_t *b) {
   return buf_pool_hash_zip_frame(b->frame);
 }
+
+/* Lazy latch initialization for buffer block. */
+void buf_block_lazy_init_latches(buf_block_t *block);
+
 /** @} */
 
 /** A "Hazard Pointer" class used to iterate over page lists
@@ -2319,7 +2349,24 @@ struct buf_pool_t {
      for all buf_pool_t-s */
   BufListMutex chunks_mutex;
 
-  /** LRU list mutex */
+  /** LRU list mutex.
+  Latching rule: no thread may WAIT for a block's frame rw-lock
+  (block->lock) while holding this mutex. buf_page_init_for_read()
+  acquires this mutex while holding the X-latch on the frame of the page
+  being read in, so waiting for a frame latch under this mutex would
+  create a deadlock cycle with that path. Consequently, a frame latch may
+  be taken under this mutex only with the rw_lock_*_nowait() variants:
+  flushing does so and handles the failure, and buf_page_create() does so
+  on a frame taken from the free list, asserting success (its latch is
+  unlocked and the block is unreachable by other threads while the page
+  hash X-latch is still held, so the attempt cannot fail). Compressed-only
+  pages (BUF_BLOCK_ZIP_PAGE descriptors) have no frame and no frame
+  rw-lock, so the paths handling them add no edge to this rule.
+  This rule cannot be expressed via latch_level_t ordering, because
+  block->lock is registered with SYNC_LEVEL_VARYING which LatchDebug
+  ignores; instead it is enforced in debug builds (with
+  --innodb-sync-debug) by rw_lock_assert_wait_allowed() at the rw-lock
+  wait entry points in sync0rw.cc. */
   BufListMutex LRU_list_mutex;
 
   /** free and withdraw list mutex */
@@ -2376,7 +2423,17 @@ struct buf_pool_t {
 
   /** Hash table of buf_page_t or buf_block_t file pages, buf_page_in_file() ==
   true, indexed by (space_id, offset).  page_hash is protected by an array of
-  mutexes. */
+  mutexes.
+  Membership-change protocol: a descriptor for a page id may be inserted
+  only after verifying the id's absence, with the cell's X-latch held
+  continuously from that verification until the insert. Conversely, a
+  remover which will re-insert a descriptor for the same page id (the
+  keep-zip path of buf_LRU_free_page()) must keep the cell's X-latch held
+  continuously from the delete until the re-insert, so that the page id is
+  never observably absent from the hash while the page is still logically
+  in the buffer pool. Note that buf_page_init_for_read() inserts while
+  holding only the cell's X-latch (not the LRU list mutex), so the LRU
+  list mutex does NOT stabilize page hash membership. */
   hash_table_t *page_hash;
 
   /** Hash table of buf_block_t blocks whose frames are allocated to the zip
@@ -2434,6 +2491,49 @@ struct buf_pool_t {
   /** This is in the set state when there is no flush batch of the given type
   running. Protected by flush_state_mutex. */
   os_event_t no_flush[BUF_FLUSH_N_TYPES];
+
+  /** Always set at startup so the LRU manager thread does not have to wait.
+  Reset by buf_pool_invalidate_instance() so the manager pauses while the
+  buffer pool is being torn down / re-initialised; set again afterwards. */
+  os_event_t run_lru;
+
+  /** Run gate for flushes, checked by buf_flush_start() inside
+  the change_flush_state() critical section that sets init_flush[type].
+  True in normal operation; set to false by buf_pool_invalidate_instance()
+  for the duration of a teardown. Protected by flush_state_mutex. */
+  bool flushing_allowed;
+
+  /** Per-instance LRU flush accounting. Written by either this instance's
+  LRU manager or its page-cleaner slot and read (summed across instances) by
+  the page cleaner coordinator. pc_publish_lru_batch_stats() publishes the
+  buffer_LRU_batch_* counters independently, while
+  Adaptive_flush::set_average() consumes the timing fields. Protected by
+  flush_state_mutex so each consumer can atomically gather and reset its
+  fields. */
+  struct lru_flush_stat_t {
+    /** Pages written to disk by LRU batches. */
+    uint64_t n_flushed_pages;
+    /** LRU batches that wrote at least one page. */
+    uint64_t n_flush_batches;
+    /** Largest number of pages written by one LRU batch. */
+    uint64_t max_flushed_pages_per_batch;
+    /** Clean or stale pages evicted by LRU batches. */
+    uint64_t n_evicted_pages;
+    /** LRU batches that evicted at least one page. */
+    uint64_t n_evict_batches;
+    /** Largest number of pages evicted by one LRU batch. */
+    uint64_t max_evicted_pages_per_batch;
+    /** Pages examined by LRU batches. */
+    uint64_t n_scanned_pages;
+    /** LRU batches that examined at least one page. */
+    uint64_t n_scan_batches;
+    /** Largest number of pages examined by one LRU batch. */
+    uint64_t max_scanned_pages_per_batch;
+    /** Number of buf_flush_LRU_list() calls in the interval. */
+    uint64_t n_lru_passes;
+    /** LRU time accumulated in the interval, in milliseconds. */
+    uint64_t lru_flush_time_ms;
+  } lru_flush_stat;
 
   /** A sequence number used to count the number of buffer blocks removed from
   the end of the LRU list; NOTE that this counter may wrap around at 4
@@ -2620,9 +2720,10 @@ Use these instead of accessing buffer pool mutexes directly. */
     mutex_exit(&(b)->flush_list_mutex); \
   } while (0)
 /** Acquire the block->mutex. */
-#define buf_page_mutex_enter(b) \
-  do {                          \
-    mutex_enter(&(b)->mutex);   \
+#define buf_page_mutex_enter(b)      \
+  do {                               \
+    ut_ad((b)->latches_initialized); \
+    mutex_enter(&(b)->mutex);        \
   } while (0)
 
 /** Release the block->mutex. */

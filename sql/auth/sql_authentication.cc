@@ -34,6 +34,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <algorithm>
+#include <atomic>
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <string> /* std::string */
 #include <utility>
 #include <vector> /* std::vector */
@@ -72,6 +79,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"  // optimize_plugin_compare_by_pointer
+#include "sql/auth/auth_plugin_shutdown.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"  // acl_cache
 #include "sql/auth/sql_security_ctx.h"
@@ -1319,6 +1327,54 @@ int security_level(void) {
 
 external_roles_t g_external_roles;
 Cached_authentication_plugins *g_cached_authentication_plugins = nullptr;
+
+namespace {
+
+class Auth_plugin_shutdown_state {
+ public:
+  bool begin_operation() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_shutting_down) return false;
+    ++m_active_operations;
+    return true;
+  }
+
+  void end_operation() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    assert(m_active_operations > 0);
+    if (--m_active_operations == 0) m_cv.notify_all();
+  }
+
+  void start_shutdown_and_wait() {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_shutting_down = true;
+    m_cv.wait_for(lock,
+                  std::chrono::milliseconds(AUTH_PLUGIN_SHUTDOWN_TIMEOUT_MS),
+                  [&] { return m_active_operations == 0; });
+  }
+
+ private:
+  std::mutex m_mutex;
+  std::condition_variable m_cv;
+  size_t m_active_operations = 0;
+  bool m_shutting_down = false;
+};
+
+Auth_plugin_shutdown_state g_auth_plugin_shutdown_state;
+
+}  // namespace
+
+bool begin_auth_plugin_operation() {
+  return g_auth_plugin_shutdown_state.begin_operation();
+}
+
+void end_auth_plugin_operation() {
+  g_auth_plugin_shutdown_state.end_operation();
+}
+
+void start_auth_plugin_shutdown_and_wait() {
+  g_auth_plugin_shutdown_state.start_shutdown_and_wait();
+}
 
 bool disconnect_on_expired_password = true;
 
@@ -3588,7 +3644,18 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
 
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
-    res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+    Auth_plugin_operation_guard op_guard;
+    if (op_guard) {
+      DBUG_EXECUTE_IF("auth_plugin_before_callback_sync", {
+        const char act[] = "now SIGNAL auth_plugin_before_callback_entered";
+        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+        my_sleep(2000000);
+      };);
+      res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+    } else {
+      my_error(ER_SERVER_SHUTDOWN, MYF(0));
+      res = CR_ERROR;
+    }
 
     if (unlock_plugin) plugin_unlock(thd, plugin);
   } else {
@@ -3721,7 +3788,13 @@ static int do_multi_factor_auth(THD *thd, MPVIO_EXT *mpvio) {
               .auth_string_length;
       mpvio->status = MPVIO_EXT::START_MFA;
       st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
-      res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+      Auth_plugin_operation_guard op_guard;
+      if (op_guard) {
+        res = auth->authenticate_user(mpvio, &mpvio->auth_info);
+      } else {
+        my_error(ER_SERVER_SHUTDOWN, MYF(0));
+        res = CR_ERROR;
+      }
       if (res == CR_OK_AUTH_IN_SANDBOX_MODE) {
         /*
           Server allows user account to connect in case registration is
@@ -3994,6 +4067,80 @@ static void check_and_update_password_lock_state(MPVIO_EXT &mpvio, THD *thd,
       res = CR_AUTH_TEMPORARY_ACCOUNT_LOCKED_ERROR;
     } else
       acl_cache_lock.unlock();
+  }
+}
+
+static void apply_external_roles(THD *thd, const char *plugin_roles_list,
+                                 const ACL_USER *acl_user) {
+  // shall be always correct, we are passing a table
+  assert(plugin_roles_list != nullptr);
+  if (acl_user->user == nullptr) return;
+  std::vector<std::string> plugin_roles;
+  if (plugin_roles_list[0] != '\0')
+    boost::algorithm::split(plugin_roles, plugin_roles_list,
+                            boost::is_any_of(","));
+
+  // acl user is a copy, the below is safe
+  const name_and_host_t user(std::string(acl_user->user),
+                             std::string(acl_user->host.get_host()));
+
+  // Adding or removing external roles requires locking
+  Acl_cache_lock_guard acl_cache_lock_guard(thd,
+                                            Acl_cache_lock_mode::WRITE_MODE);
+  acl_cache_lock_guard.lock();
+  const auto user_roles_it = g_external_roles.find(user);
+  // we proceed only if some roles for the user either were added
+  // in the past or are being added
+  if (user_roles_it == g_external_roles.end() && plugin_roles.empty()) return;
+
+  // we need a pointer to the really cached user
+  ACL_USER *cached_acl_user =
+      find_acl_user(acl_user->host.get_host(), acl_user->user, true);
+  if (cached_acl_user == nullptr) return;
+
+  // if no roles added so far, add all roles returned by the plugin that exist
+  if (user_roles_it == g_external_roles.end()) {
+    std::vector<std::string> new_user_roles;
+    for (auto const &role : plugin_roles) {
+      ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
+      if (acl_role != nullptr && acl_role->user != nullptr) {
+        grant_role(acl_role, cached_acl_user, false);
+        new_user_roles.push_back(role);
+      }
+    }
+    // set the new user roles to the external roles container
+    if (!new_user_roles.empty())
+      g_external_roles.emplace(user, std::move(new_user_roles));
+  } else {
+    std::vector<std::string> new_user_roles;
+    // added roles
+    for (auto const &role : plugin_roles)
+      if (std::ranges::find(user_roles_it->second, role) ==
+          user_roles_it->second.end()) {
+        // role not yet granted
+        ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
+        if (acl_role != nullptr && acl_role->user != nullptr) {
+          grant_role(acl_role, cached_acl_user, false);
+          new_user_roles.push_back(role);
+        }
+      } else
+        // role already granted
+        new_user_roles.push_back(role);
+
+    // removed roles
+    for (auto const &role : user_roles_it->second)
+      if (std::ranges::find(plugin_roles, role) == plugin_roles.end()) {
+        // role to be revoken
+        ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
+        if (acl_role != nullptr && acl_role->user != nullptr)
+          revoke_role(thd, acl_role, cached_acl_user);
+      }
+
+    // no external user roles from now
+    if (new_user_roles.empty())
+      g_external_roles.erase(user_roles_it);
+    else
+      std::swap(user_roles_it->second, new_user_roles);
   }
 }
 
@@ -4309,30 +4456,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       sctx->set_master_access(acl_user->access, *(mpvio.restrictions));
       assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
-      std::vector<std::string> external_roles;
-      if (strlen(mpvio.auth_info.external_roles) > 0) {
-        boost::algorithm::split(external_roles, mpvio.auth_info.external_roles,
-                                boost::is_any_of(","));
-      }
+      apply_external_roles(thd, mpvio.auth_info.external_roles, acl_user);
 
-      if (acl_user->user != nullptr && !external_roles.empty()) {
-        // Adding external roles
-        Acl_cache_lock_guard acl_cache_lock2(thd,
-                                             Acl_cache_lock_mode::WRITE_MODE);
-        acl_cache_lock2.lock();
-        const name_and_host_t u(std::string(acl_user->user),
-                                std::string(acl_user->host.get_host()));
-        if (g_external_roles.find(u) != g_external_roles.end())
-          g_external_roles[u].clear();
-        for (const auto &role : external_roles) {
-          ACL_USER *acl_role = find_acl_user("", role.c_str(), false);
-          if (acl_role != nullptr && acl_role->user != nullptr) {
-            grant_role(acl_role, acl_user, false);
-            const name_and_host_t r(std::string(acl_role->user), "");
-            g_external_roles[u].push_back(r);
-          }
-        }
-      }
       /* Assign default role */
       {
         List_of_auth_id_refs default_roles;
@@ -4537,7 +4662,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   ret = 0;
 end:
   if (mpvio.restrictions) mpvio.restrictions->~Restrictions();
-    /* Ready to handle queries */
+  /* Ready to handle queries */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   LEX_CSTRING main_sctx_user = thd->m_main_security_ctx.user();
   LEX_CSTRING main_sctx_host_or_ip = thd->m_main_security_ctx.host_or_ip();

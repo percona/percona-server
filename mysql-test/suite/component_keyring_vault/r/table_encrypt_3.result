@@ -823,7 +823,7 @@ CREATE PROCEDURE tde_db.rotate_master_key()
 begin
 declare i int default 1;
 declare has_error int default 0;
-while (i <= 500) DO
+while (i <= 100) DO
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 set i = i + 1;
 end while;

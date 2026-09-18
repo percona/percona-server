@@ -1,0 +1,58 @@
+
+###################### INIT #######################
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+
+--echo ### INITIALIZE TESTS
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE  --kid rsa-key-1
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC';
+
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+CREATE ROLE accounting;
+CREATE ROLE sales;
+
+###################### TESTS #######################
+
+--echo
+--echo ### Connect user without dynamically added role, fails to set the role
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE accounting"
+
+--echo ### Connect user with dynamically added role
+--echo #   - acc from token maps to accounting role according to the config
+--echo #   - hr is unmapped
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"acc\", \"hr\"]"
+# success
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE accounting"
+# failure
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE hr"
+# failure
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE sales"
+
+--echo ### Connect user without dynamically added role, verify the roles were revoked
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE accounting"
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+
+###################### CLEANUP #######################
+--echo
+--echo ### CLEANUP
+DROP USER mysql_oidc_user;
+DROP USER accounting;
+DROP USER sales;
+UNINSTALL PLUGIN auth_openid_connect;
+--remove_file $TOKEN_FILE

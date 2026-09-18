@@ -29,6 +29,7 @@ INSERT INTO gr_options_that_cannot_be_change (name)
 SELECT VARIABLE_NAME FROM performance_schema.global_variables
 WHERE VARIABLE_NAME LIKE 'group_replication_%'
  AND VARIABLE_NAME != 'group_replication_bootstrap_group'
+ AND VARIABLE_NAME != 'group_replication_communication_debug_max_file_size'
  AND VARIABLE_NAME != 'group_replication_communication_stack'
  AND VARIABLE_NAME != 'group_replication_consistency'
  AND VARIABLE_NAME != 'group_replication_exit_state_action'
@@ -182,6 +183,8 @@ SET @value= @@GLOBAL.group_replication_certification_loop_chunk_size;
 SET @@GLOBAL.group_replication_certification_loop_chunk_size= @value;
 SET @value= @@GLOBAL.group_replication_certification_loop_sleep_time;
 SET @@GLOBAL.group_replication_certification_loop_sleep_time= @value;
+SET @value= @@GLOBAL.group_replication_communication_debug_max_file_size;
+SET @@GLOBAL.group_replication_communication_debug_max_file_size= @value;
 SET @value= @@GLOBAL.group_replication_communication_stack;
 SET @@GLOBAL.group_replication_communication_stack= @value;
 SET @value= @@GLOBAL.group_replication_consistency;

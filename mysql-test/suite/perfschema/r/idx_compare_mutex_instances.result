@@ -197,7 +197,6 @@ OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 UNLOCK TABLES;
-UNLOCK TABLES;
 
 ===== CLEAN UP =====
 ## Default connection

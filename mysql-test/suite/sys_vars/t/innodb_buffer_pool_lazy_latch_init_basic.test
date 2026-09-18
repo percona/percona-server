@@ -1,0 +1,18 @@
+#
+# Basic test for innodb_buffer_pool_lazy_latch_init
+#
+# It is a read-only, global-only boolean that defaults to OFF.
+#
+
+# Check the default value.
+SELECT @@global.innodb_buffer_pool_lazy_latch_init;
+
+# It is read only: it cannot be changed at runtime.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.innodb_buffer_pool_lazy_latch_init = ON;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.innodb_buffer_pool_lazy_latch_init = OFF;
+
+# It has only a global scope.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_buffer_pool_lazy_latch_init;

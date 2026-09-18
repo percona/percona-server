@@ -40,11 +40,12 @@
 
 %global release %{percona_server_version}.%{rpm_release}%{?dist}
 
+# rhel8 or above
 %if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
 %global add_fido_plugins 1
 %else
 %global add_fido_plugins 0
-%endif # rhel8 or above
+%endif
 
 # By default, a build will be done using the system SSL library
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
@@ -260,19 +261,24 @@ Requires:  percona-telemetry-agent
 %endif
 Obsoletes:     community-mysql-bench
 Obsoletes:     mysql-bench
-Obsoletes:     mariadb-connector-c-config
-Obsoletes:     mariadb-backup
-Obsoletes:     mariadb-bench
-Obsoletes:     mariadb-server
-Obsoletes:     mariadb-server-galera
-Obsoletes:     mariadb-server-utils
-Obsoletes:     mariadb-galera-server
-Obsoletes:     mariadb-gssapi-server
-Obsoletes:     mariadb-oqgraph-engine
-Provides:       MySQL-server%{?_isa} = %{version}-%{release}
-Provides:       mysql-server = %{version}-%{release}
-Provides:       mysql-server%{?_isa} = %{version}-%{release}
-Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
+Obsoletes:     mariadb-connector-c-config mariadb11.8-connector-c-config
+Obsoletes:     mariadb-backup mariadb11.8-backup
+Obsoletes:     mariadb-bench mariadb11.8-bench
+Obsoletes:     mariadb-server mariadb11.8-server
+Obsoletes:     mariadb-server-galera mariadb11.8-server-galera
+Obsoletes:     mariadb-server-utils mariadb11.8-server-utils
+Obsoletes:     mariadb-galera-server mariadb11.8-galera-server
+Obsoletes:     mariadb-gssapi-server mariadb11.8-gssapi-server
+Obsoletes:     mariadb-oqgraph-engine mariadb11.8-oqgraph-engine
+Obsoletes:     mariadb-client-utils mariadb11.8-client-utils
+Obsoletes:     mysql8.4-server < 99
+Obsoletes:     mysql8.4 < 99
+Obsoletes:     mysql8.4-common < 99
+Obsoletes:     mysql8.4-errmsg < 99
+Provides:      MySQL-server%{?_isa} = %{version}-%{release}
+Provides:      mysql-server = %{version}-%{release}
+Provides:      mysql-server%{?_isa} = %{version}-%{release}
+Conflicts:     Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56 Percona-Server-server-57
 
 Requires(post):   systemd
 Requires(preun):  systemd
@@ -750,6 +756,9 @@ rm -rf %{buildroot}/usr/lib/libkmip.a
 rm -rf %{buildroot}/usr/lib/libkmippp.a
 rm -rf %{buildroot}/usr/lib/libkmipclient.a
 rm -rf %{buildroot}/usr/lib/libkmipcore.a
+
+find %{buildroot}%{_datadir}/mysql-test -maxdepth 1 -name 'core*' -exec rm -f {} + 2>/dev/null || :
+
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
@@ -787,6 +796,11 @@ sh $MBD/build-ps/sbom/gen-sbom.sh \
     --suite-timeout=720 --testcase-timeout=30 \
     --clean-vardir
   rm -r $(readlink var) var
+  # Remove any core dump a crashed mysqld may have left directly under
+  # mysql-test/ (outside var/), so it never gets swept into the package.
+  rm -f core*
+  popd
+  popd
 %endif
 
 %pretrans -n percona-server-server
@@ -835,6 +849,13 @@ if [ -d /etc/percona-server.conf.d ]; then
         echo "!includedir /etc/percona-server.conf.d/" >> /etc/my.cnf
     fi
 fi
+
+tfn=$(/usr/bin/mktemp -p "$(/usr/bin/mktemp -d /tmp/XXXXXXXX)" call-home.XXXXXX.sh)
+cp %SOURCE999 /tmp/ 2>/dev/null ||
+bash $tfn -f "PRODUCT_FAMILY_PS" -v %{mysql_version}-%{percona_server_version}-%{rpm_release} -d "PACKAGE" &>/dev/null || :
+chgrp percona-telemetry /usr/local/percona/telemetry_uuid &>/dev/null || :
+chmod 664 /usr/local/percona/telemetry_uuid &>/dev/null || :
+rm -f $tfn
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following command to install these functions (fnv_64, fnv1a_64, murmur_hash):"
@@ -990,6 +1011,7 @@ fi
 %attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/ps-admin
+%attr(755, root, root) %{_bindir}/create_id_token
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -1230,7 +1252,8 @@ fi
 #%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 #%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
@@ -1366,7 +1389,12 @@ fi
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.24*
 #coredumper
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
+%ifarch aarch64
+# libcoredumper.a is built but not shipped on aarch64
+%exclude /usr/lib/libcoredumper.a
+%else
 %attr(755, root, root) /usr/lib/libcoredumper.a
+%endif
 
 %files -n percona-server-client-plugins
 %defattr(-, root, root, -)
@@ -1376,10 +1404,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_native_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_openid_connect.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
-%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.*
+%attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.15.0
+%{_libdir}/mysql/private/libfido2.so.1
 %endif
 # debug variants
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
@@ -1389,6 +1419,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 %if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn_client.so
 %endif
 

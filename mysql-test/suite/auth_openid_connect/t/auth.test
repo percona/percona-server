@@ -1,0 +1,210 @@
+
+###################### INIT #######################
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+
+--echo ### INITIALIZE TESTS
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $CONFIG_JSON = JSON://{\"oidc-idp\": {\"issuer-name\": \"https://idp-test.com/realms/dummy\", \"keys\": [{\"kid\": \"rsa-key-1\", \"kty\": \"RSA\", \"n\": \"ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw\", \"e\": \"AQAB\", \"use\": \"sig\", \"alg\": \"RS256\"}], \"audiences\": [\"ee2811b9-10b8\",\"https://api.example.com\"]}}
+--let $CONFIG_JSON_NO_AUD = JSON://{\"oidc-idp\": {\"issuer-name\": \"https://idp-test.com/realms/dummy\", \"keys\": [{\"kid\": \"rsa-key-1\", \"kty\": \"RSA\", \"n\": \"ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw\", \"e\": \"AQAB\", \"use\": \"sig\", \"alg\": \"RS256\"}]}}
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE
+--let $TOKEN_ARGS_NO_AUD = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --kid rsa-key-1 --out $TOKEN_FILE
+--let $TOKEN_ARGS_MANY_AUDS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --kid rsa-key-1 --aud first,ee2811b9-10b8,third --out $TOKEN_FILE
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user -e "SELECT user(),  current_user()"
+--let $MYSQL_INVALID_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=invalid_user -e "SELECT user(),  current_user()"
+
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'auth_openid_connect_configuration not set");
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC';
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+
+
+###################### TESTS #######################
+
+--echo
+--echo ### Validate system variable checks for auth_openid_connect_configuration
+
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS
+
+--echo
+--echo ## VALID CASES
+
+# valid JSON config (FR.1, FR.2)
+# note, that the above JSON config contains only one key, so omitting "kid" is allowed -we test this feature by the way
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_JSON'
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# valid FILE config (FR.1, FR.3)
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --kid rsa-key-1
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+--exec $MYSQL $MYSQL_OIDC_USER
+
+--echo
+--echo ## INVALID CASES
+
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid sysvar prefix");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid value for system variable'");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'cannot open config file:");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'extra content after correct JSON document'");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'syntax error");
+
+# invalid prefix, expect error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL auth_openid_connect_configuration = 'INVD://';
+
+# invalid (non-parsable) JSON, expect error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"invalid"[}';
+
+# invalid (incorrect path) FILE, expect error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL auth_openid_connect_configuration = 'FILE://nonexistent_path/nonexistent_file.json';
+
+# valid JSON + extra non-parsed element at the end
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_JSON , {\"oidc-idp\": {\"issuer-name\":\"name\"}}'
+
+# valid JSON, but missing the configuration inside, expect error on connection
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{}';
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+
+#####################################
+--echo
+--echo ### Client side validations (FR.5)
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+
+# mising --authentication-openid-connect-client-id-token-file parameter
+--error 1
+--exec $MYSQL --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user -e "SELECT user(),  current_user()"
+
+# missing token file
+--remove_file $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+#####################################
+--echo
+--echo ### CREATE USER with incorrect AS clause
+
+# missing user name
+# expect the user is created, but cannot authenticate (FR.4.a)
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp"}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --kid rsa-key-1
+--error 1
+--exec $MYSQL $MYSQL_INVALID_USER
+DROP USER invalid_user;
+
+# missing IDP
+# expect the user is created, but cannot authenticate (FR.4.a)
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect' AS '{"user" : "oidc-user"}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --kid rsa-key-1
+--error 1
+--exec $MYSQL $MYSQL_INVALID_USER
+DROP USER invalid_user;
+
+# missing whole clause
+# expect the user is created, but cannot authenticate (FR.4.a)
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --kid rsa-key-1
+--error 1
+--exec $MYSQL $MYSQL_INVALID_USER
+DROP USER invalid_user;
+
+
+#####################################
+--echo
+--echo ### Verifying token (FR.7, FR.8, FR.9)
+
+# invalid content of token file -failure (FR.8.b)
+--remove_file $TOKEN_FILE
+write_file $TOKEN_FILE;
+some dummy content
+EOF
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# token expired: TTL < 0 -failure (FR.8.c)
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --kid rsa-key-1 --ttl -10
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# sub doesn't match -failure (FR.8.d)
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user-invalid --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --kid rsa-key-1 --out $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# iss doesn't match -failure (FR.8.e)
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://invalid.com/realms/dummy --aud ee2811b9-10b8 --kid rsa-key-1 --out $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# missing IDP configuration -failure (FR.8.f)
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect' AS '{"user" : "oidc-user", "identity_provider" : "nonexistent-idp"}';
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --kid rsa-key-1
+--error 1
+--exec $MYSQL $MYSQL_INVALID_USER
+DROP USER invalid_user;
+
+# non-existing kid claim, multiple key in IDP -failure (FR.8.g)
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --kid nonexistent --out $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# no kid claim, multiple key in IDP -failure (FR.8.h)
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# no kid claim, single key in IDP -success (FR.8.h, FR.9)
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_JSON'
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# single key in IDP, alg not match -failure (FR.8.i)
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --alg HS256 --out $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# multiple keys in IDP, alg not match -failure (FR.8.i)
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --alg HS512 --out $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# aud doesn't match -failure (FR.8.j)
+--exec $CREATE_ID_TOKEN --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud invalid-aud --kid rsa-key-1 --out $TOKEN_FILE
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# aud is missing -failure (FR.8.j)
+--exec $CREATE_ID_TOKEN $TOKEN_ARGS_NO_AUD
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# many auds -success
+--exec $CREATE_ID_TOKEN $TOKEN_ARGS_MANY_AUDS
+--exec $MYSQL $MYSQL_OIDC_USER
+
+# aud is missing, but audiences were not configured -success
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_JSON_NO_AUD'
+--exec $CREATE_ID_TOKEN $TOKEN_ARGS_NO_AUD
+--exec $MYSQL $MYSQL_OIDC_USER
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+
+# ensure memory instrumentation works
+SELECT COUNT_ALLOC>0, SUM_NUMBER_OF_BYTES_ALLOC>0, CURRENT_NUMBER_OF_BYTES_USED>0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/auth_openid_connect/%';
+###################### CLEANUP #######################
+--echo
+--echo ### CLEANUP
+DROP USER 'mysql_oidc_user'@'%';
+UNINSTALL PLUGIN auth_openid_connect;
+--remove_file $TOKEN_FILE

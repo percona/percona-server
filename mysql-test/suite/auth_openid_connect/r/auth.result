@@ -1,0 +1,70 @@
+### INITIALIZE TESTS
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'auth_openid_connect_configuration not set");
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';;
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+
+### Validate system variable checks for auth_openid_connect_configuration
+
+## VALID CASES
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw", "e": "AQAB", "use": "sig", "alg": "RS256"}], "audiences": ["ee2811b9-10b8","https://api.example.com"]}}';
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+
+## INVALID CASES
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid sysvar prefix");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'invalid value for system variable'");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'cannot open config file:");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'extra content after correct JSON document'");
+CALL mtr.add_suppression("Plugin auth_openid_connect reported: 'syntax error");
+SET GLOBAL auth_openid_connect_configuration = 'INVD://';
+ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'INVD://'
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"invalid"[}';
+ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'JSON://{"invalid"[}'
+SET GLOBAL auth_openid_connect_configuration = 'FILE://nonexistent_path/nonexistent_file.json';
+ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'FILE://nonexistent_path/nonexistent_file.json'
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw", "e": "AQAB", "use": "sig", "alg": "RS256"}], "audiences": ["ee2811b9-10b8","https://api.example.com"]}} , {"oidc-idp": {"issuer-name":"name"}}';
+ERROR 42000: Variable 'auth_openid_connect_configuration' can't be set to the value of 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLB'
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{}';
+
+### Client side validations (FR.5)
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+
+### CREATE USER with incorrect AS clause
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp"}';
+DROP USER invalid_user;
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect' AS '{"user" : "oidc-user"}';
+DROP USER invalid_user;
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect';
+DROP USER invalid_user;
+
+### Verifying token (FR.7, FR.8, FR.9)
+CREATE USER invalid_user IDENTIFIED WITH 'auth_openid_connect' AS '{"user" : "oidc-user", "identity_provider" : "nonexistent-idp"}';
+DROP USER invalid_user;
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw", "e": "AQAB", "use": "sig", "alg": "RS256"}], "audiences": ["ee2811b9-10b8","https://api.example.com"]}}';
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+SET GLOBAL auth_openid_connect_configuration = 'JSON://{"oidc-idp": {"issuer-name": "https://idp-test.com/realms/dummy", "keys": [{"kid": "rsa-key-1", "kty": "RSA", "n": "ptR4YxjdrF2RrYiY9XYH3KcXKzlS6b2foGAeHN9dViAs5yKStKAucUf81kszq6LkzkOOPX5SbToLBRv5wwOtrBLKVkqhw4i5kS0b-7jpR9g7lER3qfDVYfe0nneaJzc-1Iz6id0oVj4ay8lGmWg5JX5Z8nBs52_7rfDIBtyAsyIQ2dF2tW4e72cypvskw_TwdbsqelY5ZezzTmKx8Ra4-o9Pu5_Vxe1Hhlkx1K_tfbGH9ZUsbFy90b0Vcw5w6EKPEkM9mZTUoj8TMeHTHaiOREK4llIJ6hokXbEG8BsKJuMuYrzx98e23JkaWaWQY27LUGK5sx-lsX_n8DO2kEASRw", "e": "AQAB", "use": "sig", "alg": "RS256"}]}}';
+user()	current_user()
+mysql_oidc_user@localhost	mysql_oidc_user@%
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect%';
+Variable_name	Value
+auth_openid_connect_configured_group_role_maps	0
+auth_openid_connect_configured_idps	1
+auth_openid_connect_configured_idps_using_jwks	0
+auth_openid_connect_users_authenticated	5
+auth_openid_connect_users_denied	16
+auth_openid_connect_users_proxied	0
+auth_openid_connect_users_with_roles	0
+SELECT COUNT_ALLOC>0, SUM_NUMBER_OF_BYTES_ALLOC>0, CURRENT_NUMBER_OF_BYTES_USED>0 FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE 'memory/auth_openid_connect/%';
+COUNT_ALLOC>0	SUM_NUMBER_OF_BYTES_ALLOC>0	CURRENT_NUMBER_OF_BYTES_USED>0
+1	1	1
+
+### CLEANUP
+DROP USER 'mysql_oidc_user'@'%';
+UNINSTALL PLUGIN auth_openid_connect;

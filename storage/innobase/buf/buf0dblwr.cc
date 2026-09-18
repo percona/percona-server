@@ -332,8 +332,10 @@ class Pages {
 
   /** Recover double write buffer pages
   @param[in]  space  Tablespace pages to recover, if set to nullptr then try
-                     and recovery all. */
-  void recover(fil_space_t *space) noexcept;
+                     and recovery all.
+  @param[in]  only_page_no  Page to recover, FIL_NULL for all pages of the
+                     tablespace. */
+  void recover(fil_space_t *space, page_no_t only_page_no) noexcept;
 
   /** Copies of a page that share the highest LSN of all its copies */
   struct Copies {
@@ -2649,9 +2651,10 @@ void dblwr::write_complete(buf_page_t *bpage, buf_flush_t flush_type) noexcept {
   Double_write::write_complete(bpage, flush_type);
 }
 
-void dblwr::recv::recover(recv::Pages *pages, fil_space_t *space) noexcept {
+void dblwr::recv::recover(recv::Pages *pages, fil_space_t *space,
+                          page_no_t page_no) noexcept {
 #ifndef UNIV_HOTBACKUP
-  pages->recover(space);
+  pages->recover(space, page_no);
 #endif /* UNIV_HOTBACKUP */
 }
 
@@ -3193,8 +3196,10 @@ void dblwr::force_flush_all() noexcept {
 
 #endif /* !UNIV_HOTBACKUP */
 
-void recv::Pages::recover(fil_space_t *space) noexcept {
+void recv::Pages::recover(fil_space_t *space, page_no_t only_page_no) noexcept {
 #ifndef UNIV_HOTBACKUP
+  ut_ad(only_page_no == FIL_NULL || space != nullptr);
+
   /* For cloned database double write pages should be ignored. However,
   given the control flow, we read the pages in anyway but don't recover
   from the pages we read in. */
@@ -3225,7 +3230,8 @@ void recv::Pages::recover(fil_space_t *space) noexcept {
         continue;
       }
 
-    } else if (space->id != space_id) {
+    } else if (space->id != space_id ||
+               (only_page_no != FIL_NULL && page_no != only_page_no)) {
       continue;
     }
 
@@ -3273,7 +3279,13 @@ void recv::Pages::recover(fil_space_t *space) noexcept {
         dblwr_recover_page(page->m_no, space, page_no, page->m_buffer.begin());
   }
 
-  reduced_recover(space);
+  /* The reduced doublewrite buffer holds no page images; a single page
+  is asked for only to be read before crash recovery, and there is
+  nothing to restore it from. */
+  if (only_page_no == FIL_NULL) {
+    reduced_recover(space);
+  }
+
   fil_flush_file_spaces();
 #endif /* !UNIV_HOTBACKUP */
 }

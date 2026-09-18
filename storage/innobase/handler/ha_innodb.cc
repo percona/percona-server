@@ -2486,6 +2486,7 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
     case DB_UNDO_RECORD_TOO_BIG:
       return (HA_ERR_UNDO_REC_TOO_BIG);
     case DB_OUT_OF_MEMORY:
+    case DB_VEC_OUT_OF_MEMORY:
       return (HA_ERR_OUT_OF_MEM);
     case DB_TABLESPACE_EXISTS:
       return (HA_ERR_TABLESPACE_EXISTS);
@@ -2512,6 +2513,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_INTERNAL_ERROR);
     case DB_FTS_TOO_MANY_NESTED_EXP:
       return (HA_ERR_FTS_TOO_MANY_NESTED_EXP);
+    case DB_ANN_NODE_NOT_FOUND:
+      return (HA_ERR_ANN_FAILED);
     case DB_IO_NO_PUNCH_HOLE:
     case DB_IO_NO_PUNCH_HOLE_FS:
     case DB_IO_NO_PUNCH_HOLE_TABLESPACE:

@@ -289,6 +289,12 @@ void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, trx_t *trx);
 @return error code or DB_SUCCESS */
 dberr_t row_lock_table(row_prebuilt_t *prebuilt);
 
+/** Sets a table lock of the given mode on the table mentioned in prebuilt.
+@param[in,out]  prebuilt        table handle
+@param[in]      mode            lock mode to acquire
+@return error code or DB_SUCCESS */
+dberr_t row_lock_table(row_prebuilt_t *prebuilt, lock_mode mode);
+
 /** Does an insert for MySQL.
 @param[in]      mysql_rec       row in the MySQL format
 @param[in,out]  prebuilt        prebuilt struct in MySQL handle

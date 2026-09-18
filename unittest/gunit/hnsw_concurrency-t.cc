@@ -619,4 +619,101 @@ TEST_F(HnswConcurrencyTest, LoadNodeSingleFlight) {
   EXPECT_EQ(counts_after_first, fixture.store.load_counts);
 }
 
+/**
+  Stress concurrent inserts while a fraction of insert_cb calls fail.
+
+  Race under test: thread A reverse-link prune may observe another insert's
+  node as NODE_LINKING and push it into select_neighbors(); meanwhile that
+  insert's insert_cb fails and the node becomes NODE_FAILED. select_neighbors()
+  must tolerate LINKING -> FAILED (same single-load pattern as LINKING ->
+  COMPLETE). Small M fills neighbor lists quickly so the prune path runs often.
+*/
+TEST_F(HnswConcurrencyTest, ConcurrentInsertCbFailuresSelectNeighbors) {
+  constexpr size_t kMSmall = 2;
+  constexpr size_t kWorkers = 8;
+  constexpr size_t kPerThread = 64;
+  constexpr size_t kSeedPoints = 16;
+  constexpr int kFailInsertPercent = 40;
+
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+  std::mutex store_mu;
+  store.guard = &store_mu;
+  store.fail_insert_cb_percent = kFailInsertPercent;
+
+  ConcurrentLoadHnsw index(kDims, euclidean, kMSmall, kEfConstruction);
+
+  const size_t total = kSeedPoints + kWorkers * kPerThread;
+  std::vector<std::vector<float>> points;
+  std::vector<uint64_t> base_pks;
+  points.reserve(total);
+  base_pks.reserve(total);
+  uint64_t rng_state = 991;
+  for (size_t i = 0; i < total; ++i) {
+    points.push_back(
+        make_pseudo_random_points(/*count=*/1, kDims, &rng_state)[0]);
+    base_pks.push_back(static_cast<uint64_t>(i));
+  }
+
+  // Seed without failures so the graph has full neighbor lists before churn.
+  store.fail_insert_cb_percent = 0;
+  for (size_t i = 0; i < kSeedPoints; ++i) {
+    ASSERT_EQ(index.insert(static_cast<uint64_t>(i) + 1, base_pks[i],
+                           as_bytes(points[i]), &store),
+              ConcurrentLoadHnsw::HNSW_SUCCESS);
+  }
+  store.fail_insert_cb_percent = kFailInsertPercent;
+
+  ThreadBarrier barrier(kWorkers);
+  std::atomic<size_t> success_count{0};
+  std::atomic<size_t> fail_count{0};
+  std::vector<std::thread> threads;
+  threads.reserve(kWorkers);
+  for (size_t t = 0; t < kWorkers; ++t) {
+    threads.emplace_back([&, t] {
+      barrier.arrive_and_wait();
+      for (size_t i = 0; i < kPerThread; ++i) {
+        const size_t idx = kSeedPoints + t * kPerThread + i;
+        const uint64_t id = static_cast<uint64_t>(idx) + 1;
+        const HnswResult rc =
+            index.insert(id, base_pks[idx], as_bytes(points[idx]), &store);
+        if (rc == ConcurrentLoadHnsw::HNSW_SUCCESS) {
+          success_count.fetch_add(1, std::memory_order_relaxed);
+        } else {
+          EXPECT_EQ(rc, ConcurrentLoadHnsw::HNSW_ERROR_CB);
+          fail_count.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
+    });
+  }
+  for (std::thread &th : threads) {
+    th.join();
+  }
+
+  EXPECT_GT(success_count.load(), 0U);
+  EXPECT_GT(fail_count.load(), 0U);
+
+#ifndef NDEBUG
+  EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
+#endif
+
+  // Successful inserts remain searchable; FAILED nodes must not appear.
+  std::vector<std::vector<float>> ok_points;
+  std::vector<uint64_t> ok_base_pks;
+  {
+    std::lock_guard<std::mutex> lock(store_mu);
+    for (size_t i = 0; i < total; ++i) {
+      const uint64_t id = static_cast<uint64_t>(i) + 1;
+      if (store.nodes.count(id) != 0) {
+        ok_points.push_back(points[i]);
+        ok_base_pks.push_back(base_pks[i]);
+      }
+    }
+  }
+  ASSERT_FALSE(ok_points.empty());
+  EXPECT_GE(self_match_hit_rate(index, ok_points, ok_base_pks, /*k=*/5,
+                                /*ef_search=*/64, &store),
+            0.85);
+}
+
 }  // namespace hnsw_unittest

@@ -249,6 +249,7 @@ struct AccessPath {
     EQ_REF,
     PUSHED_JOIN_REF,
     FULL_TEXT_SEARCH,
+    VECTOR_SEARCH,
     CONST_TABLE,
     MRR,
     FOLLOW_TAIL,
@@ -626,6 +627,14 @@ struct AccessPath {
   const auto &full_text_search() const {
     assert(type == FULL_TEXT_SEARCH);
     return u.full_text_search;
+  }
+  auto &vector_search() {
+    assert(type == VECTOR_SEARCH);
+    return u.vector_search;
+  }
+  const auto &vector_search() const {
+    assert(type == VECTOR_SEARCH);
+    return u.vector_search;
   }
   auto &const_table() {
     assert(type == CONST_TABLE);
@@ -1019,6 +1028,12 @@ struct AccessPath {
       bool use_limit;
       Item_func_match *ft_func;
     } full_text_search;
+    struct {
+      TABLE *table;
+      Index_lookup *ref;
+      Item *item;
+      ha_rows limit;
+    } vector_search;
     struct {
       TABLE *table;
       Index_lookup *ref;
@@ -1479,6 +1494,20 @@ inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
   path->full_text_search().use_order = use_order;
   path->full_text_search().use_limit = use_limit;
   path->full_text_search().ft_func = ft_func;
+  return path;
+}
+
+inline AccessPath *NewVectorSearchAccessPath(THD *thd, TABLE *table,
+                                             Index_lookup *ref, Item *item,
+                                             ha_rows limit,
+                                             bool count_examined_rows) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::VECTOR_SEARCH;
+  path->count_examined_rows = count_examined_rows;
+  path->vector_search().table = table;
+  path->vector_search().ref = ref;
+  path->vector_search().item = item;
+  path->vector_search().limit = limit;
   return path;
 }
 

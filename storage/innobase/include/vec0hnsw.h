@@ -453,8 +453,51 @@ stay alive for the whole scan - `nn_search_next` faults nodes in through
 released by vec_knn_close; the handler holds only the pointer. */
 struct vec_search_t;
 
+/** Begin a streaming kNN scan.
+
+Descends the graph and returns candidates a batch at a time. Where a
+one-shot search would descend,
+answers "the k nearest" and throws the search away, this keeps the visited
+set and the unexplored frontier in the scan, so asking for more continues
+the traversal instead of restarting it. That is what the read path needs:
+a filter above the iterator consumes candidates, so how many are required
+is not known when the scan starts.
+
+@param[in]   index       the vector index
+@param[in]   q           query vector, dims floats (copied into the scan)
+@param[in]   batch_size  candidates fetched per internal batch; must be > 0
+@param[in]   ef_search   search width, clamped to at least batch_size
+@param[in]   thd         session, for opening the aux
+@param[out]  out         the scan, on success; caller must vec_knn_close it
+@return DB_SUCCESS or a storage error */
+dberr_t vec_knn_open(dict_index_t *index, const float *q, size_t batch_size,
+                     size_t ef_search, THD *thd, vec_search_t **out);
+
+/** Take the next candidate from a scan.
+
+Candidates arrive in non-decreasing distance order and never repeat - the
+scan's own visited set guarantees it, so there is no exclusion list to
+keep. Ordering is enforced by the class, which drops a refilled candidate
+closer than one already yielded rather than emitting it out of order.
+
+@param[in,out]  s    an open scan
+@param[out]     hit  the candidate, when true is returned
+@return false when the graph is exhausted */
+bool vec_knn_next(vec_search_t *s, vec_hit_t *hit);
+
+/** The first storage error a scan hit, or DB_SUCCESS. A lazy node load
+failing during vec_knn_next reports here, since that call returns only
+"is there another candidate". */
+dberr_t vec_knn_error(const vec_search_t *s);
+
+/** End a scan and release the aux table and its MDL. Safe on nullptr. */
+void vec_knn_close(vec_search_t *s);
+
 /** The vector index on @p table, or nullptr. At most one exists. */
 dict_index_t *vec_index_of(dict_table_t *table);
+
+/** Dimensions the index was built with; 0 if it has no runtime yet. */
+uint32_t vec_index_dims(const dict_index_t *index);
 
 /** State of one vector index build, owned by the ddl::Builder that is
 building that index. Opaque so the DDL layer needs none of the graph's

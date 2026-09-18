@@ -19,7 +19,7 @@
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(2) NOT NULL,
-KEY vk (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
 (2, STRING_TO_VECTOR('[1,1]'));
 SET DEBUG = '+d,vec_aux_drop_force_error';
@@ -67,7 +67,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(2) NOT NULL,
-KEY vk (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
 (2, STRING_TO_VECTOR('[1,1]'));
 SET DEBUG = '+d,vec_aux_dd_drop_force_error';

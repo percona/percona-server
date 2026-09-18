@@ -19,7 +19,7 @@ CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 --echo # The first ADD has no hidden column yet, so it is refused INPLACE and
 --echo # runs through COPY. DROP KEY keeps percona_vec_aux_id, so the SECOND
 --echo # ADD below runs INPLACE and reaches vec_build_start via Builder::init.
-ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4);
 ALTER TABLE t1 DROP KEY v;
 
 --echo # Force the "KEY not found" branch. Before the fix this was reported
@@ -27,7 +27,7 @@ ALTER TABLE t1 DROP KEY v;
 --echo # it, a generic storage-engine error, with the real reason logged.
 SET @@SESSION.debug = '+d,vec_build_start_key_not_found';
 --error ER_GET_ERRNO,ER_INTERNAL_ERROR,1
-ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
 SET @@SESSION.debug = '-d,vec_build_start_key_not_found';
 
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -39,7 +39,7 @@ SET @@SESSION.debug = '-d,vec_build_start_key_not_found';
 --echo # The failed attempt rolled back cleanly: retrying without the
 --echo # injection succeeds, and the aux from the failed try was not left
 --echo # behind to collide with it.
-ALTER TABLE t1 ADD KEY (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4);
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;

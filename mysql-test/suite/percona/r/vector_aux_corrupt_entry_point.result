@@ -8,7 +8,7 @@
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(4) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY (v) TYPE hnsw (M = 4));
 # Open the table so its vector runtime exists, before any real
 # insert would create the aux table's own record 0.
 SELECT COUNT(*) FROM t1;
@@ -39,7 +39,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(4) NOT NULL,
-KEY (v) TYPE hnsw WITH (M = 4));
+VECTOR KEY (v) TYPE hnsw (M = 4));
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0

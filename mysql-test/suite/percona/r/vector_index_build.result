@@ -125,13 +125,13 @@ DROP TABLE tk;
 #
 CREATE TABLE tm (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 INSERT INTO tm VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
-ALTER TABLE tm ADD KEY km (v) TYPE hnsw WITH (M = 201);
+ALTER TABLE tm ADD VECTOR KEY km (v) TYPE hnsw (M = 201);
 ERROR HY000: Illegal index construction parameter value: 201.
 # Same for CREATE INDEX on the populated table.
-CREATE INDEX kmi ON tm(v) TYPE hnsw WITH (M = 201);
+CREATE VECTOR INDEX kmi ON tm(v) TYPE hnsw (M = 201);
 ERROR HY000: Illegal index construction parameter value: 201.
 # M at the bound still builds normally on a populated table.
-ALTER TABLE tm ADD KEY km (v) TYPE hnsw WITH (M = 200);
+ALTER TABLE tm ADD VECTOR KEY km (v) TYPE hnsw (M = 200);
 SET SESSION innodb_interpreter = 'vec_aux_verify test/tm';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output

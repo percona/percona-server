@@ -26,7 +26,7 @@
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
                  k INT,
                  v VECTOR(4) NOT NULL,
-                 KEY vk (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
 
 INSERT INTO t1 VALUES (7, 100, STRING_TO_VECTOR('[1,0,0,0]'));
 INSERT INTO t1 VALUES (8, 200, STRING_TO_VECTOR('[0,1,0,0]'));
@@ -98,7 +98,7 @@ SELECT id FROM t1 FORCE INDEX (vk)
 --echo #
 CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(2) NOT NULL,
-                 KEY vk (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
                       (2, STRING_TO_VECTOR('[10,0]')),
                       (3, STRING_TO_VECTOR('[50,0]'));
@@ -133,7 +133,7 @@ DROP TABLE t1, t2;
 --echo #
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
                  v VECTOR(2) NOT NULL,
-                 KEY vk (v) TYPE hnsw WITH (M = 4));
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[0,0]'));
 
 ALTER TABLE t3 DROP KEY vk;
@@ -141,7 +141,7 @@ UPDATE t3 SET id = 2 WHERE id = 1;
 SELECT id FROM t3;
 
 --echo # Rebuilding the vector index must use the updated primary key.
-ALTER TABLE t3 ADD KEY vk2 (v) TYPE hnsw WITH (M = 4);
+ALTER TABLE t3 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 SELECT id FROM t3 FORCE INDEX (vk2)
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
 

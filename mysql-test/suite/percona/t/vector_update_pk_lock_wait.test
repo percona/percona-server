@@ -20,7 +20,7 @@
 
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY,
                 v VECTOR(2) NOT NULL,
-                KEY vk (v) TYPE hnsw WITH (M = 4));
+                VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t VALUES (1, STRING_TO_VECTOR('[0,0]'));
 INSERT INTO t VALUES (2, STRING_TO_VECTOR('[10,0]'));
 

@@ -85,7 +85,7 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
         (0 = empty slot; size (layer + 2) * M). Stubs created for
         referenced neighbors stay unloaded until touched.
         Returning true without completing the load_* sequence leaves a
-        corrupt COMPLETE node — do not do that.
+        corrupt COMPLETE node - do not do that.
         A callback that must never run is fine when every node is always
         resident (unit tests with NullPersistor).
 
@@ -1246,6 +1246,78 @@ class HNSW {
     Node **m_end;
   };
 
+  /**
+    Visit every complete node exactly once, handing the visitor everything a
+    persisted node consists of:
+
+        visit(uint64_t id, uint64_t base_pk, const char *vec, uint8_t layer,
+              NeighborIdRange neighbors)
+
+    The arguments are the same shapes insert_cb() receives, so a persistor
+    can be driven from here as well as from insert().
+
+    This exists so a graph can be built without persisting anything - with a
+    Persistor whose callbacks do nothing - and written out once at the end,
+    each node with its final neighbor list. Persisting during the build
+    instead rewrites a node's row every time a later insert rewires it.
+
+    Nodes that are not NODE_COMPLETE are skipped: a lazily loaded stub has
+    no vector or neighbors to write, and a lost one has nothing to say.
+
+    Not thread-safe against insert(), like init_from_entry_point() and
+    validate(): the graph must be quiescent, which it is at the end of a
+    build.
+
+    @param visit  called once per complete node
+  */
+  template <typename Visitor>
+  void for_each_node(Visitor &&visit) const {
+    for (const auto &entry : m_nodes) {
+      const Node *node = entry.second;
+      if (node->state() != NODE_COMPLETE) continue;
+      visit(node->id(), node->base_pk(), node->vec(), node->layer(),
+            neighbor_ids(node));
+    }
+  }
+
+  /// Same as for_each_node, but in ascending id order.
+  ///
+  /// m_nodes is a hash map, so for_each_node hands nodes out in whatever
+  /// order it happens to hold them. A caller writing them to a store keyed
+  /// by id wants them sorted: that turns scattered inserts into appends.
+  /// Only the ids are sorted, which is a few bytes a node next to the graph
+  /// itself.
+  template <typename Visitor>
+  void for_each_node_sorted(Visitor &&visit) const {
+    std::vector<uint64_t> ids;
+    ids.reserve(m_nodes.size());
+
+    for (const auto &entry : m_nodes) {
+      if (entry.second->state() == NODE_COMPLETE) ids.push_back(entry.first);
+    }
+
+    std::sort(ids.begin(), ids.end());
+
+    for (const uint64_t id : ids) {
+      const Node *node = m_nodes.find(id)->second;
+      visit(node->id(), node->base_pk(), node->vec(), node->layer(),
+            neighbor_ids(node));
+    }
+  }
+
+  /**
+    The entry point's id, or 0 if the graph has none - which is either an
+    empty graph or one whose entry point was never published. 0 is never a
+    node id (it is the empty-neighbor sentinel), so it doubles as "none".
+  */
+  uint64_t entry_point_id() const {
+    const Node *ep = m_entry_point.load();
+    return ep == nullptr ? 0 : ep->id();
+  }
+
+  /** Number of nodes the graph holds, complete or not. */
+  size_t size() const { return m_nodes.size(); }
+
  private:
   NeighborIdRange neighbor_ids(const Node *node) const {
     return NeighborIdRange{node->all_neighbors_begin(*this),
@@ -1319,7 +1391,7 @@ class HNSW {
     const double u =
         std::max(std::uniform_real_distribution<double>(0.0, 1.0)(m_rng),
                  std::numeric_limits<double>::min());
-    // Throttle layer growth and avoid UB caused by double -> uint8_t overflow.
+    // Throttle layer growth and avoid UB caused by double to uint8_t overflow.
     const uint8_t layer_cap = std::min<int>(
         current_max_layer + 1, std::numeric_limits<uint8_t>::max());
     return static_cast<uint8_t>(
@@ -1668,7 +1740,7 @@ class HNSW {
       //
       // Note it is important to do only one atomic load of the state here,
       // otherwise we might get spurious failures due to concurrent LINKING
-      // -> COMPLETE transitions.
+      // transitions into COMPLETE.
 #ifndef NDEBUG
       NodeState entry_state = entry.node->state();
       assert(entry_state == NODE_COMPLETE || entry_state == NODE_LINKING);

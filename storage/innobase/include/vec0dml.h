@@ -101,6 +101,27 @@ The pages carry no redo, so vec_aux_bulk_finish must run before the
 statement commits: it is what flushes them. */
 class Flush_observer;
 
+/** Update one node's neighbour slots, and optionally its base_pk.
+
+Positioned by primary key rather than by search, so it takes the locks a
+searched UPDATE's read would have taken: IX on the table and an explicit
+X on the record.
+
+Passing new_base_pk re-points the node at a new primary key, which is
+what a base-row primary-key change needs (design: "UPDATE"). DELETE does
+not come through here at all: it writes nothing, because the node has to
+stay for read views still entitled to the row.
+@param[in,out]  trx            transaction to update on
+@param[in,out]  aux            the aux table, already open with MDL held
+@param[in]      id             the node to update
+@param[in]      neighbors      new neighbour blob
+@param[in]      neighbors_len  its length
+@param[in]      new_base_pk    new base primary key, or nullptr to leave it
+@return DB_SUCCESS, DB_RECORD_NOT_FOUND, or an error */
+dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
+                           const byte *neighbors, ulint neighbors_len,
+                           const uint64_t *new_base_pk = nullptr);
+
 /** One node read back from the aux table. Pointers are into a caller
 supplied heap and live as long as it does. */
 struct vec_aux_read_t {

@@ -165,6 +165,12 @@ struct RecordingPersistor {
     bool fail_next_update_entry_point_cb = false;
     bool fail_next_update_neighbors_cb = false;
     /**
+      When > 0, insert_cb returns HNSW_ERROR_CB for about this percent of
+      calls (id % 100 < percent). Used by concurrent insert-failure stress
+      tests. 0 disables. Set before concurrent work (or under @c guard).
+    */
+    int fail_insert_cb_percent = 0;
+    /**
       Optional lock for concurrent insert/search against a shared Context.
       When non-null, all RecordingPersistor callbacks lock it. Serial tests
       leave this nullptr.
@@ -181,6 +187,10 @@ struct RecordingPersistor {
     }
     if (ctx->fail_next_insert_cb) {
       ctx->fail_next_insert_cb = false;
+      return HNSW_ERROR_CB;
+    }
+    if (ctx->fail_insert_cb_percent > 0 &&
+        static_cast<int>(id % 100) < ctx->fail_insert_cb_percent) {
       return HNSW_ERROR_CB;
     }
     StoredNode &row = ctx->nodes[id];

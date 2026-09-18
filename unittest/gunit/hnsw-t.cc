@@ -837,7 +837,7 @@ TEST_F(HnswTest, FirstNodeInsertCbFailure) {
   }
 
 #ifndef NDEBUG
-  // Only NODE_LOST remains in-memory; no COMPLETE entry point.
+  // Only NODE_FAILED remains in-memory; no COMPLETE entry point.
   EXPECT_TRUE(index.validate(/*possibly_failed_cbs=*/true));
   EXPECT_FALSE(index.validate());
 #endif
@@ -889,7 +889,7 @@ TEST_F(HnswTest, FirstNodeUpdateEntryPointCbFailure) {
 #endif
 
   // Second insert publishes a new EP. Id 1 stays as an orphaned persisted row
-  // and an in-memory NODE_LOST stub; search must not return it.
+  // and an in-memory NODE_FAILED stub; search must not return it.
   const auto v2 = make_vec({3.0f, 4.0f});
   EXPECT_EQ(index.insert(2, 200, as_bytes(v2), &store),
             LoadTestHnsw::HNSW_SUCCESS);
@@ -908,7 +908,8 @@ TEST_F(HnswTest, FirstNodeUpdateEntryPointCbFailure) {
   }
 
 #ifndef NDEBUG
-  // LOST id 1 may remain in m_nodes; EP is COMPLETE on the max COMPLETE layer.
+  // FAILED id 1 may remain in m_nodes; EP is COMPLETE on the max COMPLETE
+  // layer.
   EXPECT_TRUE(index.validate());
 #endif
 }
@@ -930,7 +931,7 @@ TEST_F(HnswTest, MidGraphInsertCbFailure) {
   const uint64_t ep_before = store.entry_point;
   ASSERT_NE(0U, ep_before);
 
-  // Fail insert_cb after reverse-linking: node becomes NODE_LOST, not
+  // Fail insert_cb after reverse-linking: node becomes NODE_FAILED, not
   // persisted.
   store.fail_next_insert_cb = true;
   const auto v_fail = make_vec({0.5f, 0.5f});

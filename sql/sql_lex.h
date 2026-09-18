@@ -105,6 +105,7 @@ class Field;
 class Item_cond;
 class Item_func_get_system_var;
 class Item_func_match;
+class Item_func_vector_distance;
 class Item_func_set_user_var;
 class Item_rollup_group_item;
 class Item_rollup_sum_switcher;
@@ -1368,6 +1369,9 @@ class Query_block : public Query_term {
   /// @return true if query block references full-text functions
   bool has_ft_funcs() const { return ftfunc_list->elements > 0; }
 
+  /// @return true if query block references vector distance functions
+  bool has_vector_funcs() const { return vector_func_list->elements > 0; }
+
   /// @returns true if query block is a recursive member of a recursive unit
   bool is_recursive() const { return recursive_reference != nullptr; }
 
@@ -1397,6 +1401,7 @@ class Query_block : public Query_term {
   bool add_item_to_list(Item *item);
   bool add_grouping_expr(THD *thd, Item *item);
   bool add_ftfunc_to_list(Item_func_match *func);
+  bool add_vector_func_to_list(Item_func_vector_distance *func);
   Table_ref *add_table_to_list(THD *thd, Table_ident *table, const char *alias,
                                ulong table_options,
                                thr_lock_type flags = TL_UNLOCK,
@@ -1515,6 +1520,9 @@ class Query_block : public Query_term {
 
   /// Add full-text function elements from a list into this query block
   bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
+
+  /// Add vector distance function elements from a list into this query block
+  bool add_vector_func_list(List<Item_func_vector_distance> *vfuncs);
 
   void set_lock_for_table(const Lock_descriptor &descriptor, Table_ref *table);
 
@@ -1963,6 +1971,13 @@ class Query_block : public Query_term {
   */
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc{};
+
+  /**
+    A pointer to vector_func_list_alloc: DISTANCE() calls registered at
+    itemization for the kNN index pickup (PS-11300).
+  */
+  List<Item_func_vector_distance> *vector_func_list;
+  List<Item_func_vector_distance> vector_func_list_alloc{};
 
   /// The VALUES items of a table value constructor.
   mem_root_deque<mem_root_deque<Item *> *> *row_value_list{nullptr};

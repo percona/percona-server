@@ -509,7 +509,47 @@ v1 VECTOR ( 1 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw ( M = `M = 1`)
 );
 ERROR HY000: Illegal index construction parameter value: M = 1.
+<<<<<<< HEAD
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ();
+=======
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 0 )
+);
+ERROR HY000: Illegal index construction parameter value: 0.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 1 )
+);
+ERROR HY000: Illegal index construction parameter value: 1.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 2 )
+);
+DROP TABLE t;
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 200 )
+);
+DROP TABLE t;
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 201 )
+);
+ERROR HY000: Illegal index construction parameter value: 201.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 2147483647 )
+);
+ERROR HY000: Illegal index construction parameter value: 2147483647.
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ();
+>>>>>>> 5b0c61cc1ca (Reject HNSW index option M < 2 in vector index WITH(...) parsing)
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = 6.0 );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '6.0 )' at line 1
@@ -525,7 +565,31 @@ CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = abc );
 ERROR HY000: Illegal index construction parameter value: abc.
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = `M = 1` );
 ERROR HY000: Illegal index construction parameter value: M = 1.
+<<<<<<< HEAD
 CREATE VECTOR INDEX ix ON t1(v1) TYPE no_such_type;
+=======
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ( M = 0 );
+ERROR HY000: Illegal index construction parameter value: 0.
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ( M = 1 );
+ERROR HY000: Illegal index construction parameter value: 1.
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ( M = 2 );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+ALTER TABLE t1 DROP INDEX ix;
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ( M = 200 );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+ALTER TABLE t1 DROP INDEX ix;
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ( M = 201 );
+ERROR HY000: Illegal index construction parameter value: 201.
+CREATE INDEX ix ON t1(v1) TYPE Hnsw WITH ( M = 2147483647 );
+ERROR HY000: Illegal index construction parameter value: 2147483647.
+CREATE INDEX ix ON t1(v1) TYPE no_such_type;
+>>>>>>> 5b0c61cc1ca (Reject HNSW index option M < 2 in vector index WITH(...) parsing)
 ERROR HY000: The index type no_such_type is not supported for vector indexes.
 CREATE VECTOR INDEX ix ON t1(v1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1

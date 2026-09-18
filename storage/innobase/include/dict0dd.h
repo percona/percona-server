@@ -114,6 +114,10 @@ enum dd_table_keys {
   DD_TABLE_DISCARD,
   /** Columns before first instant ADD COLUMN, used only for V1 */
   DD_TABLE_INSTANT_COLS,
+  /** Next percona_vec_aux_id label. Kept here, not only in the buffered
+  dynamic metadata, because dd_set_autoinc bumps DD_TABLE_VERSION to
+  invalidate that buffer - which would take this counter with it. */
+  DD_TABLE_VEC_NEXT_ID,
   /** Sentinel */
   DD_TABLE__LAST
 };
@@ -234,7 +238,8 @@ const char *const dd_space_state_values[DD_SPACE_STATE__LAST + 1] = {
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
 const char *const dd_table_key_strings[DD_TABLE__LAST] = {
-    "autoinc", "data_directory", "version", "discard", "instant_col"};
+    "autoinc", "data_directory", "version",
+    "discard", "instant_col",   "vec_next_id"};
 
 /** InnoDB private key strings for dd::Column, @see dd_column_keys */
 const char *const dd_column_key_strings[DD_COLUMN__LAST] = {
@@ -735,6 +740,16 @@ inline uint64_t dd_get_version(const dd::Table *dd_table);
 @param[in]      src     dd::Table::se_private_data to copy from
 @param[out]     dest    dd::Table::se_private_data to copy to */
 void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest);
+
+/** Store the next percona_vec_aux_id label in a table definition.
+@param[in,out]  se_private_data  dd::Table::se_private_data
+@param[in]      next_id          the counter; 0 stores nothing */
+void dd_set_vec_next_id(dd::Properties &se_private_data, uint64_t next_id);
+
+/** Read the next percona_vec_aux_id label from a table definition.
+@param[in]  se_private_data  dd::Table::se_private_data
+@return the counter, or 0 if the definition predates it */
+uint64_t dd_get_vec_next_id(const dd::Properties &se_private_data);
 
 /** Copy the metadata of a table definition if there was an instant
 ADD COLUMN happened. This should be done when it's not an ALTER TABLE
@@ -1401,17 +1416,27 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 bool dd_create_fts_common_table(const dict_table_t *parent_table,
                                 dict_table_t *table, bool is_config);
 
-/** Drop dd table & tablespace for fts aux table
+/** Create dd table for the auxiliary table of a vector (HNSW) index.
+Mirrors dd_create_fts_index_table; the schema is the fixed 5-column
+(id, vec, base_pk, level, neighbors) layout from vec0aux.h.
+@param[in]      parent_table    parent table that owns the vector index
+@param[in,out]  table           in-memory aux table (its dd_space_id is
+                                populated as a side effect)
+@return true on success, false on failure */
+bool dd_create_vec_aux_table(const dict_table_t *parent_table,
+                             dict_table_t *table);
+
+/** Drop dd table & tablespace for an auxiliary table - FTS or vector
 @param[in]      name            table name
 @param[in]      file_per_table  flag whether use file per table
 @return true on success, false on failure. */
-bool dd_drop_fts_table(const char *name, bool file_per_table);
+bool dd_drop_aux_table(const char *name, bool file_per_table);
 
-/** Rename dd table & tablespace files for fts aux table
+/** Rename dd table & tablespace files for an auxiliary table - FTS or vector
 @param[in]      table           dict table
 @param[in]      old_name        old innodb table name
 @return true on success, false on failure. */
-bool dd_rename_fts_table(const dict_table_t *table, const char *old_name);
+bool dd_rename_aux_table(const dict_table_t *table, const char *old_name);
 
 /** Open a table from its database and table name, this is currently used by
 foreign constraint parser to get the referenced table.

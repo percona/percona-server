@@ -1,0 +1,89 @@
+#
+# PS-11300: GROUP BY combined with the canonical
+# ORDER BY DISTANCE(...) LIMIT k shape.
+#
+# JOIN::optimize_vector_query() (sql_optimizer.cc) activates
+# JT_VECTOR for any single-table block matching the canonical vector
+# ORDER BY shape without ever checking JOIN::grouped -- unlike its
+# FTS analogue, JOIN::fts_index_access(), which explicitly bails out
+# "if (grouped)". JOIN::grouped is set at JOIN construction time
+# (select->is_explicitly_grouped()), so it already reflects this
+# query's GROUP BY by the time optimize_vector_query() runs.
+#
+# JOIN::test_skip_sort() then asks
+# test_if_skip_sort_order(tab, group_list, ...) whether GROUP BY's
+# own ordering is already satisfied. That function's JT_VECTOR
+# branch unconditionally returns true, claiming the distance-ordered
+# scan also satisfies GROUP BY ordering -- even though the list it
+# was actually asked about is the GROUP BY key list, not the ORDER
+# BY distance expression.
+#
+# Before the "if (grouped) return false;" guard in
+# optimize_vector_query(), that assumption held even when the list
+# was the GROUP BY key list: in a debug build the function's own
+# assert() -- which checks that the list it was called on is itself
+# a single ascending DISTANCE(...) expression under a finite LIMIT --
+# failed immediately, since a GROUP BY key is never a distance
+# expression, and the server aborted. In a release build (assert
+# compiled out) the function returned true anyway, so
+# create_intermediate_table() (sql_executor.cc), called from
+# make_tmp_tables_info() (sql_select.cc), skipped the pre-group
+# sort, and streaming aggregation ran over rows in *distance* order
+# instead of *group-key* order: the same group key produced a
+# separate output row every time it stopped being adjacent in
+# distance order.
+#
+# optimize_vector_query() now bails out when JOIN::grouped is set --
+# the same guard fts_index_access() already has -- so this shape
+# falls back to the exact path: one row per group, correct count.
+#
+# Unlike its sibling vector_*.test files, this one does not require
+# a debug build: the guard is release-build correctness, not just a
+# debug assert, and this test's own DDL/queries use no debug-only
+# construct, so it runs (and would catch a regression) on any build.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+g INT,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+# Ascending distance from the origin: id 1 (dist 0), 2 (dist 1),
+# 3 (dist 2), 4 (dist 3). g interleaves 1,2,1,2 across that order,
+# so a buggy streaming aggregation that trusts distance order for
+# group order would flush a new (g, COUNT(*)=1) row every time g
+# flips, instead of one row per group with COUNT(*)=2.
+INSERT INTO t1 VALUES (1, 1, STRING_TO_VECTOR('[0,0]')),
+(2, 2, STRING_TO_VECTOR('[1,0]')),
+(3, 1, STRING_TO_VECTOR('[2,0]')),
+(4, 2, STRING_TO_VECTOR('[3,0]'));
+#
+# (1) No sql_mode change needed: GROUP BY the full primary key makes
+# every other column of t1 -- including v -- functionally
+# dependent, so ONLY_FULL_GROUP_BY (the default) already permits
+# referencing v in ORDER BY.
+#
+SELECT id, COUNT(*) FROM t1 GROUP BY id
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+id	COUNT(*)
+1	1
+2	1
+3	1
+4	1
+#
+# (2) The same shape with a GROUP BY that actually collapses rows,
+# to pin down the correct grouped counts (the release-build symptom
+# was fragmented per-row groups). v is not functionally dependent
+# on g, so this still needs sql_mode without ONLY_FULL_GROUP_BY.
+#
+# Each group has exactly 2 rows; the correct answer is one row per
+# group. The two groups' relative order is not functionally
+# dependent on the ORDER BY expression, so the result is sorted for
+# comparison.
+#
+SET SESSION sql_mode = '';
+SELECT g, COUNT(*) FROM t1 GROUP BY g
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+g	COUNT(*)
+1	2
+2	2
+SET SESSION sql_mode = default;
+DROP TABLE t1;

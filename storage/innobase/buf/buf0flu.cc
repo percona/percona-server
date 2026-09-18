@@ -3609,7 +3609,7 @@ static void buf_lru_manager_adapt_sleep_time(
     /* Free list < 5%: shrink the sleep. */
     lru_sleep_time -= std::chrono::milliseconds{50};
   }
-  /* Otherwise (5%–20%): no change. */
+  /* Otherwise (5%-20%): no change. */
 }
 
 /** LRU manager thread. One per buf_pool instance. Periodically calls

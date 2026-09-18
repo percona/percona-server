@@ -73,6 +73,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+#include "vec0aux.h"
 
 #include "my_dbug.h"
 
@@ -2848,6 +2849,16 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     }
   }
 
+  /* Same idea for the vector index's hidden label, and the same reason it
+  is read here rather than through the row template: the column exists
+  only inside InnoDB. Only the clustered record carries it. */
+  prebuilt->vec_aux_id = 0;
+  if (rec_index->table->vec_aux_col != ULINT_UNDEFINED &&
+      rec_index->is_clustered() && !clust_templ_for_sec) {
+    prebuilt->vec_aux_id =
+        vec_get_aux_id_from_rec(rec_index->table, rec, rec_index);
+  }
+
   return true;
 }
 
@@ -4364,11 +4375,12 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
   ut_a(!trx->has_search_latch);
 
-  /* We don't support FTS queries from the HANDLER interfaces, because
-  we implemented FTS as reversed inverted index with auxiliary tables.
-  So anything related to traditional index query would not apply to
-  it. */
-  if (prebuilt->index->type & DICT_FTS) {
+  /* We don't support FTS or Vector queries from the HANDLER interfaces:
+  both are implemented via auxiliary tables (FTS as reversed inverted
+  index; vec as an aux HNSW table). Vec's secondary tree has
+  page == FIL_NULL so proceeding into btr_pcur_open would crash. */
+  if ((prebuilt->index->type & DICT_FTS) ||
+      dict_index_is_vector(prebuilt->index)) {
     return DB_END_OF_INDEX;
   }
 

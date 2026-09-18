@@ -1,0 +1,106 @@
+#
+# PS-11300: a NULL, malformed, non-finite, or dimension-mismatched
+# query vector must not activate JT_VECTOR.
+#
+# optimize_vector_query() used to pick the kNN index for any
+# constant that was merely const_for_execution(), without looking
+# at its value. The handler's vec_read_first() then mapped every
+# one of these bad constants to HA_ERR_END_OF_FILE:
+#   - a NULL query vector silently returned 0 rows, although the
+#     exact path returns LIMIT rows (NULL propagates through
+#     val_real() and does not filter anything out);
+#   - a malformed or dimension-mismatched constant silently
+#     returned 0 rows instead of the ER_TO_VECTOR_CONVERSION /
+#     ER_WRONG_ARGUMENTS error the exact path raises;
+#   - a NaN/Inf component - correctly sized, so it passed a
+#     dimensions-only check - fed the graph's SIMD kernels, which
+#     never check for it, instead of raising the
+#     ER_DATA_OUT_OF_RANGE the exact path's check_float_overflow()
+#     raises.
+#
+# The optimizer now validates the constant before activating the
+# index, so these shapes fall back to the exact path and get
+# identical results/errors whether or not a vector index exists.
+# It also propagates any error the constant's own evaluation
+# already raised (e.g. a nested TO_VECTOR() call on malformed
+# input) instead of treating a null return as "fall back".
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (100, STRING_TO_VECTOR('[0,0]')),
+                      (101, STRING_TO_VECTOR('[1,0]')),
+                      (102, STRING_TO_VECTOR('[0,2]')),
+                      (103, STRING_TO_VECTOR('[3,0]')),
+                      (104, STRING_TO_VECTOR('[0,4]')),
+                      (105, STRING_TO_VECTOR('[5,0]'));
+# Baseline: a well-formed, correctly-sized constant is still served
+# by the index.
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_knn	NULL	vk	1	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 3
+#
+# NULL query vector: stays on the exact path. LIMIT is still
+# satisfied from the 6 rows in the table, matching the exact path
+# run with the index disabled - not the 0 rows JT_VECTOR used to
+# produce for it.
+#
+SELECT COUNT(*) FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 3) derived;
+COUNT(*)
+3
+SELECT COUNT(*) FROM (SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 3) derived;
+COUNT(*)
+3
+#
+# Malformed query vector: a binary string whose length is not a
+# multiple of the float width cannot be a vector at all. Same
+# ER_TO_VECTOR_CONVERSION error with or without the index - not the
+# silent empty result JT_VECTOR used to produce for it.
+#
+SELECT id FROM t1 ORDER BY DISTANCE(v, _binary'abc', 'EUCLIDEAN') LIMIT 3;
+ERROR HY000: Data cannot be converted to a valid vector: 'abc'
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, _binary'abc', 'EUCLIDEAN') LIMIT 3;
+ERROR HY000: Data cannot be converted to a valid vector: 'abc'
+#
+# Malformed query vector, second form: STRING_TO_VECTOR() itself
+# raises ER_TO_VECTOR_CONVERSION while decoding its argument, from
+# inside val_str() - so the optimizer's own evaluation of the
+# constant observes a pending statement error, not just a null
+# return. That error must be propagated, not swallowed as if the
+# constant were merely NULL.
+#
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('  1.,0  ,    2.0]   '), 'EUCLIDEAN') LIMIT 3;
+ERROR HY000: Data cannot be converted to a valid vector: '  1.,0  ,    2.0]   '
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('  1.,0  ,    2.0]   '), 'EUCLIDEAN') LIMIT 3;
+ERROR HY000: Data cannot be converted to a valid vector: '  1.,0  ,    2.0]   '
+#
+# Dimension-mismatched query vector: v is VECTOR(2), the constant
+# has 3 dimensions. Same ER_WRONG_ARGUMENTS error with or without
+# the index - not the silent empty result JT_VECTOR used to
+# produce for it.
+#
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 3;
+ERROR HY000: Incorrect arguments to distance
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 3;
+ERROR HY000: Incorrect arguments to distance
+#
+# Non-finite query vector component: correctly sized (2 dimensions,
+# so the dimensions-only check alone would accept it) but its first
+# component is NaN. Same ER_DATA_OUT_OF_RANGE with or without the
+# index - not the unordered results a graph search over a NaN
+# would silently produce.
+#
+SELECT id FROM t1 ORDER BY DISTANCE(v, X'0000C07F00000000', 'EUCLIDEAN') LIMIT 3;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t1`.`v`,0x0000c07f00000000,'EUCLIDEAN')'
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, X'0000C07F00000000', 'EUCLIDEAN') LIMIT 3;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t1`.`v`,0x0000c07f00000000,'EUCLIDEAN')'
+# A well-formed constant is still served after the bad ones: the
+# index is left usable, not disabled by the earlier failures.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+100
+101
+102
+DROP TABLE t1;

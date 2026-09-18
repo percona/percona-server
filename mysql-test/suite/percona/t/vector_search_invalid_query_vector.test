@@ -1,0 +1,106 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: a NULL, malformed, non-finite, or dimension-mismatched
+--echo # query vector must not activate JT_VECTOR.
+--echo #
+--echo # optimize_vector_query() used to pick the kNN index for any
+--echo # constant that was merely const_for_execution(), without looking
+--echo # at its value. The handler's vec_read_first() then mapped every
+--echo # one of these bad constants to HA_ERR_END_OF_FILE:
+--echo #   - a NULL query vector silently returned 0 rows, although the
+--echo #     exact path returns LIMIT rows (NULL propagates through
+--echo #     val_real() and does not filter anything out);
+--echo #   - a malformed or dimension-mismatched constant silently
+--echo #     returned 0 rows instead of the ER_TO_VECTOR_CONVERSION /
+--echo #     ER_WRONG_ARGUMENTS error the exact path raises;
+--echo #   - a NaN/Inf component - correctly sized, so it passed a
+--echo #     dimensions-only check - fed the graph's SIMD kernels, which
+--echo #     never check for it, instead of raising the
+--echo #     ER_DATA_OUT_OF_RANGE the exact path's check_float_overflow()
+--echo #     raises.
+--echo #
+--echo # The optimizer now validates the constant before activating the
+--echo # index, so these shapes fall back to the exact path and get
+--echo # identical results/errors whether or not a vector index exists.
+--echo # It also propagates any error the constant's own evaluation
+--echo # already raised (e.g. a nested TO_VECTOR() call on malformed
+--echo # input) instead of treating a null return as "fall back".
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (100, STRING_TO_VECTOR('[0,0]')),
+                      (101, STRING_TO_VECTOR('[1,0]')),
+                      (102, STRING_TO_VECTOR('[0,2]')),
+                      (103, STRING_TO_VECTOR('[3,0]')),
+                      (104, STRING_TO_VECTOR('[0,4]')),
+                      (105, STRING_TO_VECTOR('[5,0]'));
+
+--echo # Baseline: a well-formed, correctly-sized constant is still served
+--echo # by the index.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # NULL query vector: stays on the exact path. LIMIT is still
+--echo # satisfied from the 6 rows in the table, matching the exact path
+--echo # run with the index disabled - not the 0 rows JT_VECTOR used to
+--echo # produce for it.
+--echo #
+SELECT COUNT(*) FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 3) derived;
+SELECT COUNT(*) FROM (SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 3) derived;
+
+--echo #
+--echo # Malformed query vector: a binary string whose length is not a
+--echo # multiple of the float width cannot be a vector at all. Same
+--echo # ER_TO_VECTOR_CONVERSION error with or without the index - not the
+--echo # silent empty result JT_VECTOR used to produce for it.
+--echo #
+--error ER_TO_VECTOR_CONVERSION
+SELECT id FROM t1 ORDER BY DISTANCE(v, _binary'abc', 'EUCLIDEAN') LIMIT 3;
+--error ER_TO_VECTOR_CONVERSION
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, _binary'abc', 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # Malformed query vector, second form: STRING_TO_VECTOR() itself
+--echo # raises ER_TO_VECTOR_CONVERSION while decoding its argument, from
+--echo # inside val_str() - so the optimizer's own evaluation of the
+--echo # constant observes a pending statement error, not just a null
+--echo # return. That error must be propagated, not swallowed as if the
+--echo # constant were merely NULL.
+--echo #
+--error ER_TO_VECTOR_CONVERSION
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('  1.,0  ,    2.0]   '), 'EUCLIDEAN') LIMIT 3;
+--error ER_TO_VECTOR_CONVERSION
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('  1.,0  ,    2.0]   '), 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # Dimension-mismatched query vector: v is VECTOR(2), the constant
+--echo # has 3 dimensions. Same ER_WRONG_ARGUMENTS error with or without
+--echo # the index - not the silent empty result JT_VECTOR used to
+--echo # produce for it.
+--echo #
+--error ER_WRONG_ARGUMENTS
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 3;
+--error ER_WRONG_ARGUMENTS
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # Non-finite query vector component: correctly sized (2 dimensions,
+--echo # so the dimensions-only check alone would accept it) but its first
+--echo # component is NaN. Same ER_DATA_OUT_OF_RANGE with or without the
+--echo # index - not the unordered results a graph search over a NaN
+--echo # would silently produce.
+--echo #
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t1 ORDER BY DISTANCE(v, X'0000C07F00000000', 'EUCLIDEAN') LIMIT 3;
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, X'0000C07F00000000', 'EUCLIDEAN') LIMIT 3;
+
+--echo # A well-formed constant is still served after the bad ones: the
+--echo # index is left usable, not disabled by the earlier failures.
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+DROP TABLE t1;

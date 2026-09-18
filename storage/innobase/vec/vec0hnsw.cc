@@ -715,6 +715,199 @@ struct Vec_build {
   dict_index_t *index{nullptr};
 };
 
+Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table,
+                           dberr_t *err) {
+  ut_ad(index != nullptr && index->is_vector());
+
+  /* Anything below this point that is not the memory check is this index's
+  own KEY not being where it should be - a defect in the caller or in the
+  DD round-trip, never a resource shortage. Reporting it as
+  DB_OUT_OF_MEMORY would send whoever reads the error chasing free memory
+  that was never the problem, so every such branch reports DB_ERROR
+  instead and logs which check failed. */
+  const auto fail_config = [&](const char *why) -> Vec_build * {
+    *err = DB_ERROR;
+    ib::error(ER_IB_MSG_456)
+        << "Failed to start the vector index build for index " << index->name
+        << " on table " << index->table->name << ": " << why
+        << "; the build cannot proceed.";
+    return nullptr;
+  };
+
+  if (altered_table == nullptr) return fail_config("no altered table");
+
+  /* Same pre-flight as the DML path (design: "Memory limits"): refuse
+  before building anything rather than throwing partway through. This is
+  the one branch that is an actual resource shortage. */
+  if (srv_hnsw_max_memory != 0 &&
+      Vec_arena::global_bytes() >= srv_hnsw_max_memory) {
+    *err = DB_VEC_OUT_OF_MEMORY;
+    return nullptr;
+  }
+
+  /* M and ef_construction exist only in the index definition the ALTER is
+  producing - the dictionary carries neither - so they are read from the
+  KEY here rather than plumbed down from the handler. */
+  const KEY *vkey = nullptr;
+  for (uint k = 0; k < altered_table->s->keys; k++) {
+    if ((altered_table->key_info[k].flags & HA_VECTOR) != 0 &&
+        innobase_strcasecmp(altered_table->key_info[k].name, index->name) ==
+            0) {
+      vkey = &altered_table->key_info[k];
+      break;
+    }
+  }
+
+  /* Test-only: let an MTR test force the "KEY not found" branch below
+  without needing a genuinely corrupt DD round-trip. */
+  DBUG_EXECUTE_IF("vec_build_start_key_not_found", vkey = nullptr;);
+
+  if (vkey == nullptr) {
+    return fail_config("no matching vector KEY in the altered table");
+  }
+
+  storage::innobase::vec::VectorIndexParam vip;
+  if (storage::innobase::vec::parse_options(*vkey, vip)) {
+    return fail_config("could not parse the index's WITH(...) options");
+  }
+
+  const auto *hp = std::get_if<storage::innobase::vec::HnswParam>(&vip);
+  if (hp == nullptr) {
+    return fail_config("WITH(...) options do not describe an HNSW index");
+  }
+
+  /* Same resolution as vec_runtime_open: the key part describes a 1-byte
+  prefix, but its field_index() is correct. */
+  const Field *f = altered_table->field[vkey->key_part[0].field->field_index()];
+  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
+    return fail_config("the indexed column is not a VECTOR column");
+  }
+
+  const uint32_t dims =
+      down_cast<const Field_vector *>(f)->get_max_dimensions();
+  if (dims == 0 || hp->M == 0) {
+    return fail_config("invalid vector dimensions or M");
+  }
+
+  auto *b = ut::new_withkey<Vec_build>(
+      UT_NEW_THIS_FILE_PSI_KEY, dims, static_cast<uint32_t>(hp->M),
+      static_cast<uint32_t>(hp->ef_construction), hp->dist, index);
+
+  if (b == nullptr) {
+    *err = DB_OUT_OF_MEMORY;
+    return nullptr;
+  }
+  if (b->graph == nullptr) {
+    ut::delete_(b);
+    *err = DB_OUT_OF_MEMORY;
+    return nullptr;
+  }
+  *err = DB_SUCCESS;
+  return b;
+}
+
+dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
+                          const dtuple_t *row) {
+  ut_ad(b != nullptr && b->graph != nullptr);
+
+  ulint vec_len = 0;
+  const char *q = vec_row_vector_bytes(b->index, row, &vec_len);
+  if (q == nullptr) return DB_SUCCESS;
+  if (vec_len != b->dims * sizeof(float)) return DB_CORRUPTION;
+
+  /* Label 0 is the empty-slot sentinel and can never be a node. A row
+  carrying it means the writing path missed it. */
+  const uint64_t id = vec_get_aux_id_from_row(table, row);
+  ut_ad(id != 0);
+
+  const dfield_t *pk_df = nullptr;
+  const dict_index_t *clust = table->first_index();
+  ut_ad(dict_index_get_n_unique(clust) == 1);
+  pk_df = dtuple_get_nth_field(row, clust->get_col_no(0));
+  ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
+  const uint64_t base_pk =
+      mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
+
+  b->graph->insert(id, base_pk, q, &b->null_ctx);
+
+  /* innodb_hnsw_max_memory. The whole graph is in memory before any of it
+  is durable, so this is the only thing bounding a build. Several scan
+  threads can pass this together and overshoot by a node each, which is
+  bounded by the thread count and cheaper than serialising them. */
+  if (srv_hnsw_max_memory != 0 &&
+      Vec_arena::global_bytes() >= srv_hnsw_max_memory) {
+    return DB_VEC_OUT_OF_MEMORY;
+  }
+  return DB_SUCCESS;
+}
+
+dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
+                            THD *thd, Flush_observer *observer) {
+  ut_ad(b != nullptr && b->graph != nullptr);
+  ut_ad(trx != nullptr);
+
+  if (b->graph->size() == 0) return DB_SUCCESS;
+
+  MDL_ticket *mdl = nullptr;
+  dict_table_t *aux = vec_aux_open_for_dml(table, b->index->id, thd, &mdl);
+  if (aux == nullptr) return DB_TABLE_NOT_FOUND;
+
+  /* Record 0 first, then one row per node in ascending id order. The aux
+  table is keyed by id, so the whole sequence is an append and the tree is
+  built left to right instead of being inserted into at random. All on the
+  ALTER's transaction, so a failure here rolls the aux back with the rest
+  of the statement.
+
+  Record 0 is not a node: id 0 is the empty-slot sentinel, so the row is
+  free to hold the entry point in base_pk. */
+  vec_aux_row_t meta;
+  meta.id = 0;
+  meta.vec = nullptr;
+  meta.dims = 0;
+  meta.base_pk = b->graph->entry_point_id();
+  meta.level = 0;
+  meta.neighbors = nullptr;
+  meta.neighbors_len = 0;
+
+  Vec_aux_bulk *bulk = vec_aux_bulk_start(trx, aux, observer);
+
+  if (bulk == nullptr) {
+    vec_aux_close_for_dml(aux, thd, &mdl);
+    return DB_OUT_OF_MEMORY;
+  }
+
+  dberr_t err = vec_aux_bulk_insert(bulk, meta);
+  std::vector<byte> neighbors;
+
+  b->graph->for_each_node_sorted([&](uint64_t id, uint64_t base_pk,
+                                     const char *vec, uint8_t layer,
+                                     Vec_build_hnsw::NeighborIdRange nbrs) {
+    if (err != DB_SUCCESS) return;
+
+    vec_flatten_neighbors(nbrs, neighbors);
+
+    vec_aux_row_t row;
+    row.id = id;
+    row.vec = reinterpret_cast<const float *>(vec);
+    row.dims = b->dims;
+    row.base_pk = base_pk;
+    row.level = layer;
+    row.neighbors = neighbors.data();
+    row.neighbors_len = neighbors.size();
+
+    err = vec_aux_bulk_insert(bulk, row);
+  });
+
+  err = vec_aux_bulk_finish(bulk, err);
+
+  vec_aux_close_for_dml(aux, thd, &mdl);
+  return err;
+}
+
+void vec_build_free(Vec_build *b) {
+  if (b != nullptr) ut::delete_(b);
+}
+
 dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
                        uint64_t label, const char *q, ulint q_len,
                        uint64_t base_pk, THD *thd) {

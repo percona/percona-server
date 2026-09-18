@@ -1,0 +1,53 @@
+### INITIALIZE
+SET @saved_log_error_verbosity = @@GLOBAL.log_error_verbosity;
+SET GLOBAL log_error_verbosity = 3;
+INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';
+INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
+SET GLOBAL auth_openid_connect_configuration = 'FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json';
+CREATE USER eng IDENTIFIED WITH 'mysql_no_login';
+CREATE USER acc IDENTIFIED WITH 'mysql_no_login';
+CREATE USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : "acc"}';
+GRANT PROXY ON eng TO oidc_proxy;
+GRANT PROXY ON acc TO oidc_proxy;
+
+## "user" absent -- the group requirement is honoured
+# AS clause requires group "acc", token grants "eng" and "acc"
+# expecting CURRENT_USER is acc, NOT eng
+user()	current_user()
+oidc_proxy@localhost	acc@%
+
+## "user":"" alone is rejected
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : ""}';
+# expecting access denied
+
+## "user":"" together with a "group" is rejected
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "", "group" : "acc"}';
+# before the fix this proxied to "eng", the first group in the token,
+# ignoring the configured group "acc" and any membership check
+# expecting access denied
+
+## "user":"" together with a group mapping is rejected
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "", "group" : [["acc", "acc"]]}';
+# expecting access denied
+
+## A non-member is still denied rather than proxied to the first group
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "", "group" : "acc"}';
+# token grants only "eng", AS clause requires membership of "acc"
+# expecting access denied
+
+## Each denial above came from the empty-user check
+include/assert_grep.inc [the four denied connections were all rejected for an empty user]
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect_users%';
+Variable_name	Value
+auth_openid_connect_users_authenticated	1
+auth_openid_connect_users_denied	4
+auth_openid_connect_users_proxied	1
+auth_openid_connect_users_with_roles	0
+
+### CLEANUP
+DROP USER oidc_proxy;
+DROP USER eng;
+DROP USER acc;
+UNINSTALL PLUGIN auth_openid_connect;
+UNINSTALL PLUGIN mysql_no_login;
+SET GLOBAL log_error_verbosity = @saved_log_error_verbosity;

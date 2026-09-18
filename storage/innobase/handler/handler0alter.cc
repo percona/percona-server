@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <algorithm>
 #include <bit>
+#include <tuple>
 
 /* Include necessary SQL headers */
 #include <assert.h>
@@ -111,6 +112,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "ut0new.h"
 #include "ut0stage.h"
+#include "vec0aux.h"
+#include "vec0vec.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "ha_innopart.h"
@@ -337,17 +340,17 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
 
 /** Structure to remember table information for updating DD */
 struct alter_table_old_info_t {
-  /** Constructor */
-  alter_table_old_info_t() : m_discarded(), m_fts_doc_id(), m_rebuild() {}
-
   /** If old table is discarded one */
-  bool m_discarded;
+  bool m_discarded{};
 
   /** If old table has FTS DOC ID */
-  bool m_fts_doc_id;
+  bool m_fts_doc_id{};
+
+  /** If old table has the hidden percona_vec_aux_id column */
+  bool m_vec_aux_col{};
 
   /** If this ATLER TABLE requires rebuild */
-  bool m_rebuild;
+  bool m_rebuild{};
 
   /** Update the old table information
   @param[in]    old_table       Old InnoDB table object
@@ -355,6 +358,7 @@ struct alter_table_old_info_t {
   void update(const dict_table_t *old_table, bool rebuild) {
     m_discarded = dict_table_is_discarded(old_table);
     m_fts_doc_id = DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID);
+    m_vec_aux_col = DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_HAS_VEC_AUX_COL);
     m_rebuild = rebuild;
   }
 };
@@ -759,6 +763,18 @@ static bool ok_to_rename_column(const Alter_inplace_info *ha_alter_info,
       return false;
     }
 
+    /* Prohibit renaming the hidden percona_vec_aux_id column out of existence
+    on a table that has at least one vector index. Mirrors the FTS_DOC_ID guard
+    above. */
+    if (!my_strcasecmp(system_charset_info, (*fp)->field_name,
+                       VEC_AUX_ID_COL_NAME) &&
+        vec_aux_table_has_vector_index(dict_table)) {
+      if (report_error) {
+        my_error(ER_WRONG_COLUMN_NAME, MYF(0), name);
+      }
+      return false;
+    }
+
     /* Prohibit renaming a column to an internal column. */
     const char *s = dict_table->col_names;
     unsigned j;
@@ -951,23 +967,35 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
   return (!!(ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD));
 }
 
-/** Check if InnoDB supports a particular alter table in-place
-@param altered_table TABLE object for new version of table.
-@param ha_alter_info Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-
-@retval HA_ALTER_INPLACE_NOT_SUPPORTED Not supported
-@retval HA_ALTER_INPLACE_NO_LOCK Supported
-@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE Supported, but requires
-lock during main phase and exclusive lock during prepare phase.
-@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
-requires exclusive lock (any transactions that have accessed the table
-must commit or roll back first, and no transactions can access the table
-while prepare_inplace_alter_table() is executing)
-*/
 enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
   DBUG_TRACE;
+
+  /* ADD VECTOR INDEX falls back to COPY. The in-place path would add the
+  index and never populate it, so commit_try_norebuild would find an index
+  that never reached ONLINE_INDEX_COMPLETE. The commit that builds a vector
+  index through ddl::Builder lifts this. */
+  for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
+    const KEY *key =
+        &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
+    if (key->flags & HA_VECTOR) {
+      ha_alter_info->unsupported_reason =
+          innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR);
+      return HA_ALTER_INPLACE_NOT_SUPPORTED;
+    }
+  }
+
+  /* A native rebuild - FORCE, OPTIMIZE, a primary key swap - re-creates the
+  table under a new table_id, and the aux table the graph lives in is named
+  after that id, so the graph would be left behind. COPY rebuilds it
+  organically, because every row goes through the normal insert path. The
+  same ddl::Builder commit lifts this too. */
+  if (innobase_need_rebuild(ha_alter_info) &&
+      vec_aux_table_has_vector_index(m_prebuilt->table)) {
+    ha_alter_info->unsupported_reason =
+        innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR);
+    return HA_ALTER_INPLACE_NOT_SUPPORTED;
+  }
 
   if (srv_sys_space.created_new_raw()) {
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
@@ -1900,7 +1928,11 @@ static bool innobase_init_foreign(
   index = table->first_index();
 
   while (index != nullptr) {
-    if (!(index->type & DICT_FTS) &&
+    /* Exclude both FTS and vector indexes: neither has a B-tree
+    (page == FIL_NULL) that FK enforcement can walk. Sibling
+    dict_foreign_find_index already filters vec - keep both helpers
+    symmetric. */
+    if (!(index->type & DICT_FTS) && !dict_index_is_vector(index) &&
         dict_foreign_qualify_index(table, col_names, columns, n_cols, index,
                                    nullptr, true, 0)) {
       for (ulint i = 0; i < n_drop_index; i++) {
@@ -2297,7 +2329,8 @@ void innobase_rec_to_mysql(struct TABLE *table, const rec_t *rec,
 
   ut_ad(n_fields ==
         dict_table_get_n_tot_u_cols(index->table) -
-            DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID));
+            DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID) -
+            DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_HAS_VEC_AUX_COL));
 
   for (uint i = 0; i < n_fields; i++) {
     Field *field = table->field[i];
@@ -2341,7 +2374,8 @@ void innobase_fields_to_mysql(struct TABLE *table, const dict_index_t *index,
   ut_ad(n_fields ==
         index->table->get_n_user_cols() +
             dict_table_get_n_v_cols(index->table) -
-            DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID));
+            DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID) -
+            DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_HAS_VEC_AUX_COL));
 
   for (uint i = 0; i < n_fields; i++) {
     Field *field = table->field[i];
@@ -2383,11 +2417,13 @@ void innobase_row_to_mysql(struct TABLE *table, const dict_table_t *itab,
   uint n_fields = table->s->fields;
   ulint num_v = 0;
 
-  /* The InnoDB row may contain an extra FTS_DOC_ID column at the end. */
+  /* The InnoDB row may contain extra InnoDB-owned hidden auxiliary
+  columns at the end (FTS_DOC_ID and/or percona_vec_aux_id). */
   ut_ad(row->n_fields == itab->get_n_cols());
   ut_ad(n_fields == row->n_fields - DATA_N_SYS_COLS +
                         dict_table_get_n_v_cols(itab) -
-                        DICT_TF2_FLAG_IS_SET(itab, DICT_TF2_FTS_HAS_DOC_ID));
+                        DICT_TF2_FLAG_IS_SET(itab, DICT_TF2_FTS_HAS_DOC_ID) -
+                        DICT_TF2_FLAG_IS_SET(itab, DICT_TF2_HAS_VEC_AUX_COL));
 
   for (uint i = 0; i < n_fields; i++) {
     Field *field = table->field[i];
@@ -3428,27 +3464,50 @@ to column numbers in altered_table */
 
   i = table->s->fields - old_table->n_v_cols;
 
-  /* Add the InnoDB hidden FTS_DOC_ID column, if any. */
-  if (i + DATA_N_SYS_COLS < old_table->n_cols) {
-    /* There should be exactly one extra field,
-    the FTS_DOC_ID. */
-    assert(DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID));
-    assert(i + DATA_N_SYS_COLS + 1 == old_table->n_cols);
-    assert(!strcmp(old_table->get_col_name(i), FTS_DOC_ID_COL_NAME));
-    if (altered_table->s->fields + DATA_N_SYS_COLS - new_table->n_v_cols <
-        new_table->n_cols) {
-      assert(DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_FTS_HAS_DOC_ID));
-      assert(altered_table->s->fields + DATA_N_SYS_COLS + 1 ==
-             static_cast<ulint>(new_table->n_cols + new_table->n_v_cols));
-      col_map[i] = altered_table->s->fields - new_table->n_v_cols;
-    } else {
-      assert(!DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_FTS_HAS_DOC_ID));
-      col_map[i] = ULINT_UNDEFINED;
-    }
+  /* InnoDB-owned hidden auxiliary columns (FTS_DOC_ID, percona_vec_aux_id) sit
+  between the user columns and the system columns. They are added in the
+  same order by fill_dict_columns / create_table_def: FTS_DOC_ID first,
+  then percona_vec_aux_id. Map each one, in that order, to its slot on the new
+  table (or ULINT_UNDEFINED when the new table dropped it).
 
+  This replaces a block that assumed at most ONE hidden column and that
+  it was always FTS_DOC_ID. */
+  const bool old_has_doc_id =
+      DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID);
+  const bool old_has_vec_aux_col =
+      DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_HAS_VEC_AUX_COL);
+  const bool new_has_doc_id =
+      DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_FTS_HAS_DOC_ID);
+  const bool new_has_vec_aux_col =
+      DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_HAS_VEC_AUX_COL);
+
+  size_t new_hidden_slot = altered_table->s->fields - new_table->n_v_cols;
+#ifdef UNIV_DEBUG
+  const size_t old_extra =
+      (old_has_doc_id ? 1u : 0u) + (old_has_vec_aux_col ? 1u : 0u);
+  ut_ad(i + DATA_N_SYS_COLS + old_extra == old_table->n_cols);
+  const size_t new_extra =
+      (new_has_doc_id ? 1u : 0u) + (new_has_vec_aux_col ? 1u : 0u);
+  ut_ad(altered_table->s->fields + DATA_N_SYS_COLS + new_extra ==
+        static_cast<ulint>(new_table->n_cols + new_table->n_v_cols));
+#endif
+
+  /* The slots advance with the NEW table's hidden columns, which is not
+  the same thing as the old table's. When the new table gains an
+  FTS_DOC_ID the old one did not have, nothing maps onto that slot, but
+  it is still occupied and percona_vec_aux_id still comes after it. */
+  if (old_has_doc_id) {
+    assert(!strcmp(old_table->get_col_name(i), FTS_DOC_ID_COL_NAME));
+    col_map[i] = new_has_doc_id ? new_hidden_slot++ : ULINT_UNDEFINED;
     i++;
-  } else {
-    assert(!DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_FTS_HAS_DOC_ID));
+  } else if (new_has_doc_id) {
+    new_hidden_slot++;
+  }
+
+  if (old_has_vec_aux_col) {
+    ut_ad(!strcmp(old_table->get_col_name(i), VEC_AUX_ID_COL_NAME));
+    col_map[i] = new_has_vec_aux_col ? new_hidden_slot++ : ULINT_UNDEFINED;
+    i++;
   }
 
   for (; i < old_table->n_cols; i++) {
@@ -7426,7 +7485,12 @@ static void alter_stats_norebuild(Alter_inplace_info *ha_alter_info,
     dict_index_t *index = ctx->add_index[i];
     assert(index->table == ctx->new_table);
 
-    if (!(index->type & DICT_FTS)) {
+    /* Skip FTS and vector indexes - neither has a B-tree for
+    dict_stats_update_for_index to analyze. Currently ADD VECTOR
+    INDEX forces rebuild (via add_percona_vec_aux_id), so this loop
+    doesn't see a vec index in the norebuild path today; the
+    filter is defensive parity in case that invariant relaxes. */
+    if (!(index->type & DICT_FTS) && !index->is_vector()) {
       dict_stats_init(ctx->new_table);
       dict_stats_update_for_index(index);
     }
@@ -11214,6 +11278,17 @@ bool ha_innobase::bulk_load_check(THD *) const {
 
   if (dict_table_has_fts_index(table) || table->fts_doc_id_index != nullptr) {
     my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Full-Text Index",
+             "LOAD DATA ALGORITHM = BULK");
+    return false;
+  }
+
+  /* Vector index - mirror the FTS block above. The hidden percona_vec_aux_id
+  column requires per-row writing via vec_write_aux_id, and BULK bypasses
+  the row-insert path. Retention (Option A) keeps the flag sticky, so
+  once-vec-indexed tables remain blocked even after all vec indexes are
+  dropped - same lifecycle as DICT_TF2_FTS_HAS_DOC_ID above. */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Vector Index",
              "LOAD DATA ALGORITHM = BULK");
     return false;
   }

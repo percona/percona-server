@@ -13336,12 +13336,35 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
   zero-cost scan at the storage layer.
 
   Sets *dive_ok = false (the returned count and *capped must then be
-  ignored by the caller) if the dive was interrupted by a kill/timeout, or
-  if the iterator ended in a non-ok status (I/O error, corruption, or
+  ignored by the caller) if the dive was interrupted by a kill, or if the
+  iterator ended in a non-ok status (I/O error, corruption, or
   Status::Incomplete() from exceeding max_skippable_internal_keys, which
-  bounds how many tombstones/obsolete MVCC versions a garbage-heavy range
-  can force us to skip while looking for max_rows visible keys).
+  bounds how many tombstones/obsolete MVCC versions the dive as a whole
+  can be forced to skip).
 */
+// PS-10110: budget, across the whole dive, for internal keys (tombstones,
+// obsolete MVCC versions not yet compacted away) skipped while searching
+// for visible keys. RocksDB's own max_skippable_internal_keys resets on
+// every Next() call, so scaling it with max_rows (as an earlier version
+// of this code did) bounds only a single call, not the dive: up to
+// max_rows calls at up to max_rows-scaled skips each is O(max_rows^2) in
+// the worst case.
+//
+// The total is proportional to max_rows (tolerate this many garbage keys
+// per expected real key - the same ratio the old per-call formula used,
+// just applied to the whole dive instead of resetting every call), but
+// capped at RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS so it cannot grow past the
+// same order of magnitude already accepted for the dive's real row cap,
+// no matter how high a session sets the threshold: at the default
+// threshold (100) the total stays a tight 800; only past ~125000 does
+// the cap start reducing the effective per-key tolerance.
+static constexpr uint64_t RDB_RECORDS_IN_RANGE_DIVE_SKIPPED_KEYS_PER_ROW = 8;
+// Never let the division below floor to 0: RocksDB treats
+// max_skippable_internal_keys == 0 as "unlimited", the opposite of what
+// is intended here.
+static constexpr uint64_t RDB_RECORDS_IN_RANGE_DIVE_MIN_SKIPPED_KEYS_PER_CALL =
+    8;
+
 static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
                                         const rocksdb::Slice &start,
                                         const rocksdb::Slice &end,
@@ -13352,12 +13375,12 @@ static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
   // is required for correctness.
   read_opts.total_order_seek = true;
   read_opts.fill_cache = !THDVAR(thd, skip_fill_cache);
-  // Bound how many internal keys (tombstones, obsolete MVCC versions not
-  // yet compacted away) RocksDB will skip past while searching for the
-  // next visible key, so a garbage-heavy range cannot turn this bounded
-  // dive into an unbounded scan. Checked via the iterator's status below.
+  const uint64_t total_skip_budget = std::min<uint64_t>(
+      max_rows * RDB_RECORDS_IN_RANGE_DIVE_SKIPPED_KEYS_PER_ROW,
+      RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS);
   read_opts.max_skippable_internal_keys =
-      std::max<uint64_t>(max_rows * 8, 1000);
+      std::max<uint64_t>(total_skip_budget / max_rows,
+                         RDB_RECORDS_IN_RANGE_DIVE_MIN_SKIPPED_KEYS_PER_CALL);
   // Give RocksDB a hard stop at the range end so it does not churn through
   // tombstones beyond the range. Bounds are in CF-comparator order: for a
   // reverse CF the bytewise range end is the comparator lower bound.
@@ -13367,11 +13390,20 @@ static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
     read_opts.iterate_upper_bound = &end;
   }
 
+  *capped = false;
+  *dive_ok = true;
+  DBUG_EXECUTE_IF("myrocks_records_in_range_dive_fail", {
+    *dive_ok = false;
+    return 0;
+  });
+  if (thd->killed) {
+    *dive_ok = false;
+    return 0;
+  }
+
   const std::unique_ptr<rocksdb::Iterator> it(
       rdb->NewIterator(read_opts, kd.get_cf()));
 
-  *capped = false;
-  *dive_ok = true;
   uint64_t count = 0;
   rocksdb_smart_seek(kd.m_is_reverse_cf, it.get(), start);
   while (is_valid_iterator(it.get())) {

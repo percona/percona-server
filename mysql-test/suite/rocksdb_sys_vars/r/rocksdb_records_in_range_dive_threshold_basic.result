@@ -138,5 +138,21 @@ SET @@session.ROCKSDB_RECORDS_IN_RANGE_DIVE_THRESHOLD = @start_session_value;
 SELECT @@session.ROCKSDB_RECORDS_IN_RANGE_DIVE_THRESHOLD;
 @@session.ROCKSDB_RECORDS_IN_RANGE_DIVE_THRESHOLD
 100
+#
+# Above the hard cap (PS-10110): the generic valid_values loop above
+# only proves 1000000 itself is settable, not that it is actually
+# the maximum. One past it must clamp down to it with a truncation
+# warning, the normal behavior for an out-of-range integer sysvar.
+#
+SET SESSION rocksdb_records_in_range_dive_threshold = 1000001;
+Warnings:
+Warning	1292	Truncated incorrect rocksdb_records_in_range_dive_threshold value: '1000001'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1292	Truncated incorrect rocksdb_records_in_range_dive_threshold value: '1000001'
+SELECT @@session.rocksdb_records_in_range_dive_threshold;
+@@session.rocksdb_records_in_range_dive_threshold
+1000000
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
 DROP TABLE valid_values;
 DROP TABLE invalid_values;

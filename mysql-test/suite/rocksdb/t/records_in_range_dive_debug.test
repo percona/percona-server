@@ -33,10 +33,12 @@ CREATE TABLE t2 (
        c INT NOT NULL,
        KEY kc(c) comment 'cfname=cf_dive'
 ) ENGINE = rocksdb;
+# Background values start at 10000 so the range (10000..11999) cannot
+# collide with the c = 50 / c = 777 markers below.
 --disable_query_log
 let $i = 1;
 while ($i <= 2000) {
-  eval INSERT INTO t2(c) VALUES ($i);
+  eval INSERT INTO t2(c) VALUES (10000 + $i);
   inc $i;
 }
 let $i = 1;
@@ -81,3 +83,100 @@ explain select * from t2 where c = 777;
 SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
 SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
 DROP TABLE t2;
+
+--echo #
+--echo # Dive-failure fallback: myrocks_records_in_range_dive_fail makes
+--echo # rdb_index_dive_in_range() report failure unconditionally, the same
+--echo # way a kill or a non-ok iterator status (I/O error, corruption,
+--echo # Status::Incomplete()) would. Combined with the pre-dive estimate
+--echo # pinned to 0, this proves the caller falls back to that pre-dive
+--echo # estimate (floored to 1) instead of trusting a partial or
+--echo # simulated scan.
+--echo #
+CREATE TABLE t3 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive_fail'
+) ENGINE = rocksdb;
+# Background values start at 10000 so the range cannot collide with the
+# c = 50 marker below.
+--disable_query_log
+let $i = 1;
+while ($i <= 2000) {
+  eval INSERT INTO t3(c) VALUES (10000 + $i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t3(c) VALUES (50);
+  inc $i;
+}
+--enable_query_log
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate,myrocks_records_in_range_dive_fail';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t3 where c = 50;
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate,myrocks_records_in_range_dive_fail';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t3;
+
+--echo #
+--echo # TTL indexes bypass the dive entirely (kd.has_ttl()): a raw iterator
+--echo # has no visibility filtering, so it would count not-yet-compacted
+--echo # expired records as live. The narrow group below would dive to an
+--echo # exact 200 if the dive engaged; instead the legacy 1-row estimate
+--echo # is unchanged even at a generous threshold.
+--echo #
+CREATE TABLE t4 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       ts BIGINT UNSIGNED NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive_ttl'
+) ENGINE = rocksdb COMMENT = 'ttl_duration=100000;ttl_col=ts';
+# Background values start at 10000 so the range cannot collide with the
+# c = 50 marker below.
+--disable_query_log
+let $i = 1;
+while ($i <= 2000) {
+  eval INSERT INTO t4(c, ts) VALUES (10000 + $i, UNIX_TIMESTAMP());
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t4(c, ts) VALUES (50, UNIX_TIMESTAMP());
+  inc $i;
+}
+--enable_query_log
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t4 where c = 50;
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t4;
+
+--echo #
+--echo # Partial indexes bypass the dive too (kd.is_partial_index()): a raw
+--echo # iterator does not see unmaterialized rows and would undercount.
+--echo # ik1 only materializes groups of i with more rows than the
+--echo # threshold, so its content does not correspond 1:1 with the base
+--echo # table; the narrow group below would dive to an exact count if the
+--echo # dive engaged, but the legacy 1-row estimate is unchanged instead.
+--echo #
+CREATE TABLE t5 (
+       i INT NOT NULL,
+       j INT NOT NULL,
+       PRIMARY KEY (i, j),
+       KEY ik1 (i, j) comment 'cfname=cf_dive_partial;partial_group_keyparts=1;partial_group_threshold=1000'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 50) {
+  eval INSERT INTO t5(i, j) VALUES (42, $i);
+  inc $i;
+}
+--enable_query_log
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t5 where i = 42;
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t5;

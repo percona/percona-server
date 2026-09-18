@@ -184,6 +184,47 @@ SET SESSION rocksdb_records_in_range_dive_threshold = 0;
 explain select * from t2 where c = 50;
 explain select * from t2 where c = 777;
 
+--echo #
+--echo # rocksdb_skip_fill_cache is honored by the dive's own iterator, not
+--echo # just by the handler's normal read path. This needs its own,
+--echo # previously-untouched table/CF: t2's single block is already fully
+--echo # cached by the explains above, so re-reading it here could never
+--echo # show a fresh cache fill either way.
+--echo #
+CREATE TABLE t6 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive_cache'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 50) {
+  eval INSERT INTO t6(c) VALUES ($i);
+  inc $i;
+}
+--enable_query_log
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t6;
+
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+--let $cache_before = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_block_cache_data_bytes_insert', Value, 1)
+SET SESSION rocksdb_skip_fill_cache = 1;
+explain select * from t6 where c = 25;
+--let $cache_after_skip = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_block_cache_data_bytes_insert', Value, 1)
+if ($cache_after_skip != $cache_before) {
+  --die rocksdb_skip_fill_cache did not prevent the dive from filling the block cache
+}
+
+--echo # Same block, re-read with the default (fill_cache enabled): the
+--echo # previous read left it uncached, so this one is a genuine fill.
+SET SESSION rocksdb_skip_fill_cache = DEFAULT;
+explain select * from t6 where c = 25;
+--let $cache_after_fill = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_block_cache_data_bytes_insert', Value, 1)
+if ($cache_after_fill == $cache_before) {
+  --die the dive did not fill the block cache with rocksdb_skip_fill_cache disabled
+}
+
 SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
 DROP TABLE t1;
 DROP TABLE t2;
+DROP TABLE t6;

@@ -131,6 +131,92 @@ struct Vec_aux_bulk {
   uint64_t n_rows{};
 };
 
+Vec_aux_bulk *vec_aux_bulk_start(trx_t *trx, dict_table_t *aux,
+                                 Flush_observer *observer) {
+  ut_ad(trx != nullptr && aux != nullptr);
+  /* Btree_load requires one, and the caller's is the statement's. */
+  if (observer == nullptr) return nullptr;
+  auto *b = ut::new_withkey<Vec_aux_bulk>(UT_NEW_THIS_FILE_PSI_KEY, trx, aux,
+                                          observer);
+  if (b != nullptr && (b->observer == nullptr || b->load == nullptr)) {
+    ut::delete_(b);
+    return nullptr;
+  }
+  return b;
+}
+
+dberr_t vec_aux_bulk_insert(Vec_aux_bulk *b, const vec_aux_row_t &row) {
+  ut_ad(b != nullptr);
+  ut_ad(row.vec != nullptr || (row.id == 0 && row.dims == 0));
+  ut_ad(row.neighbors != nullptr || row.neighbors_len == 0);
+
+  if (row.level < 0 || row.level > 127) return DB_CORRUPTION;
+
+  /* An index entry, not a row: clustered field order, system columns
+  included. rec_convert_dtuple_to_rec expects exactly that. */
+  dict_index_t *clust = b->clust;
+  const ulint n_fields = dict_index_get_n_fields(clust);
+
+  dtuple_t *entry = dtuple_create(b->heap, n_fields);
+  dict_index_copy_types(entry, clust, n_fields);
+  dtuple_set_n_fields_cmp(entry, dict_index_get_n_unique(clust));
+
+  const auto set = [&](ulint col, const void *data, ulint len) {
+    vec_aux_set_dfield(
+        dtuple_get_nth_field(
+            entry, dict_col_get_clust_pos(b->aux->get_col(col), clust)),
+        data, len, b->heap);
+  };
+
+  byte id_buf[8];
+  mach_write_to_8(id_buf, row.id);
+  set(VEC_AUX_COL_ID, id_buf, sizeof(id_buf));
+  set(VEC_AUX_COL_VEC, row.vec, row.dims * sizeof(float));
+
+  byte base_pk_buf[8];
+  mach_write_to_8(base_pk_buf, row.base_pk);
+  set(VEC_AUX_COL_BASE_PK, base_pk_buf, sizeof(base_pk_buf));
+
+  const byte level_buf = static_cast<byte>(row.level);
+  set(VEC_AUX_COL_LEVEL, &level_buf, 1);
+  set(VEC_AUX_COL_NEIGHBORS, row.neighbors, row.neighbors_len);
+
+  dfield_set_data(
+      dtuple_get_nth_field(entry, clust->get_sys_col_pos(DATA_TRX_ID)),
+      b->trx_id_buf, DATA_TRX_ID_LEN);
+  dfield_set_data(
+      dtuple_get_nth_field(entry, clust->get_sys_col_pos(DATA_ROLL_PTR)),
+      b->roll_ptr_buf, DATA_ROLL_PTR_LEN);
+
+  /* Level 0: leaf. Btree_load owns everything above it - allocating pages,
+  carrying separators up, committing them - which is all build() does with
+  the rows a merge cursor hands it. */
+  const dberr_t err = b->load->insert(entry, 0);
+
+  mem_heap_empty(b->heap);
+
+  /* Same cadence build() uses, so a killed ALTER stops here rather than
+  finishing the tree first. */
+  if (err == DB_SUCCESS && !(++b->n_rows % 4096) &&
+      b->observer->check_interrupted()) {
+    return DB_INTERRUPTED;
+  }
+  return err;
+}
+
+dberr_t vec_aux_bulk_finish(Vec_aux_bulk *b, dberr_t err) {
+  ut_ad(b != nullptr);
+
+  err = b->load->finish(err);
+
+  /* On failure the statement's observer is told, so the pages it owns are
+  discarded rather than written when the DDL flushes it. */
+  if (err != DB_SUCCESS) b->observer->interrupted();
+
+  ut::delete_(b);
+  return err;
+}
+
 /** Fill one user dfield of the aux row tuple with a heap-duplicated
 value (the run loop may retry after lock waits; values must be stable). */
 static void vec_aux_set_dfield(dfield_t *df, const void *data, ulint len,

@@ -36,6 +36,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "page0zip.h"
 #include "scope_guard.h"
+#include "trx0trx.h"
+#include "vec0aux.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
@@ -72,6 +74,7 @@ Tester::Tester() noexcept {
   DISPATCH(make_ondisk_root_page_zeroes);
   DISPATCH(make_page_dirty);
   DISPATCH(open_table);
+  DISPATCH(vec_next_id);
   DISPATCH(print_dblwr_has_encrypted_pages);
   DISPATCH(print_tree);
 }
@@ -355,6 +358,112 @@ Ret_t Tester::find_ondisk_page_type(std::vector<std::string> &tokens) noexcept {
   sout << page_type;
   set_output(sout);
 
+  return RET_PASS;
+}
+
+/* --------- vector aux DML test surface ---------- */
+
+/** Locate the vector aux dict_table_t for a base table.
+@return aux table (opened, caller closes) or nullptr */
+/* MDL tickets for the pair opened by vec_test_open_aux; released by
+vec_test_close_aux. After a restart nothing is dict-cached, so the opens
+go through the DD layer, which requires real MDL. */
+struct vec_test_tables_t {
+  dict_table_t *base{nullptr};
+  dict_table_t *aux{nullptr};
+  MDL_ticket *base_mdl{nullptr};
+  MDL_ticket *aux_mdl{nullptr};
+};
+
+static bool vec_test_open_aux(const std::string &base_name,
+                              vec_test_tables_t &t, uint32_t *dims_out) {
+  t.base = dd_table_open_on_name(current_thd, &t.base_mdl, base_name.c_str(),
+                                 false, DICT_ERR_IGNORE_NONE);
+  if (t.base == nullptr) {
+    return false;
+  }
+
+  const dict_index_t *vec_index = nullptr;
+  for (const dict_index_t *idx = t.base->first_index(); idx != nullptr;
+       idx = idx->next()) {
+    if (idx->is_vector()) {
+      vec_index = idx;
+      break;
+    }
+  }
+  if (vec_index == nullptr) {
+    dd_table_close(t.base, current_thd, &t.base_mdl, false);
+    t.base = nullptr;
+    return false;
+  }
+
+  if (dims_out != nullptr) {
+    /* The dict col is BLOB-typed (Field_vector : Field_blob); its dict
+    length is blob metadata, not the vector width. The debug commands
+    derive dims from the data instead. */
+    *dims_out = 0;
+  }
+
+  char aux_name[MAX_FULL_NAME_LEN];
+  vec_aux_get_table_name(t.base, vec_index->id, Vec_index_type::HNSW, aux_name,
+                         sizeof(aux_name));
+
+  t.aux = dd_table_open_on_name(current_thd, &t.aux_mdl, aux_name, false,
+                                DICT_ERR_IGNORE_NONE);
+  if (t.aux == nullptr) {
+    dd_table_close(t.base, current_thd, &t.base_mdl, false);
+    t.base = nullptr;
+    return false;
+  }
+  return true;
+}
+
+static void vec_test_close_aux(vec_test_tables_t &t) {
+  if (t.aux != nullptr) {
+    dd_table_close(t.aux, current_thd, &t.aux_mdl, false);
+  }
+  if (t.base != nullptr) {
+    dd_table_close(t.base, current_thd, &t.base_mdl, false);
+  }
+}
+
+/* Dump the aux table by scanning its clustered index directly.
+
+Deliberately does NOT go through a load path: this probe exists to check
+what the write path actually put on disk, so reading it back through the
+same abstractions the writer used would hide exactly the mistakes it is
+meant to catch. Neighbour slots print as the flat id sequence, trailing
+zeros trimmed, since a zero is an empty slot rather than a neighbour. */
+/* Assign the next label for a table's vector index, the way the write
+path will, and print it.
+
+Exists because the counter has to be testable BEFORE any DML writes an
+aux row: what needs proving is that an id is durable the moment it is
+consumed, including ids the aux never sees (a rolled-back insert
+consumes one). Reading the aux maximum back would test something
+weaker and would pass even with the counter reset on restart. */
+Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_next_id()");
+  ut_ad(tokens[0] == "vec_next_id");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_next_id db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  const uint64_t id = vec_assign_next_aux_id(tt.base);
+  XLOG("id=" << id);
+  set_output(sout);
   return RET_PASS;
 }
 
@@ -735,15 +844,32 @@ void Tester::update_thd_variable() noexcept {
   *output2 = const_cast<char *>(m_command.c_str());
 }
 
+/* The innodb_interpreter_output variable holds a raw pointer into m_log's
+buffer, so every write to m_log has to republish it: assigning or appending
+can reallocate, which frees the buffer the variable still points at. Reading
+the variable then - SHOW VARIABLES, performance_schema.session_variables, or
+the tests' own SELECT - touches freed memory. m_thd is set at the top of
+init() and run(), and every write below happens inside one of those. */
+
 void Tester::set_output(const std::ostringstream &sout) noexcept {
   m_log = sout.str();
+  if (m_thd != nullptr) update_thd_variable();
 }
 
-void Tester::set_output(const std::string &log) noexcept { m_log = log; }
+void Tester::set_output(const std::string &log) noexcept {
+  m_log = log;
+  if (m_thd != nullptr) update_thd_variable();
+}
 
-void Tester::clear_output() noexcept { m_log = ""; }
+void Tester::clear_output() noexcept {
+  m_log = "";
+  if (m_thd != nullptr) update_thd_variable();
+}
 
-void Tester::append_output(const std::string &log) noexcept { m_log += log; }
+void Tester::append_output(const std::string &log) noexcept {
+  m_log += log;
+  if (m_thd != nullptr) update_thd_variable();
+}
 
 int interpreter_run(const char *command) noexcept {
   return (int)tl_interpreter.run(command);

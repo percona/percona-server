@@ -1737,7 +1737,12 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       break;
     }
 
-    if (index->type & DICT_FTS) {
+    /* No vector index reaches this log: a vector-indexed table never runs
+    an ONLINE alter. Skip in release rather than hand a graph index to
+    code that treats it as a B-tree. */
+    ut_ad(!index->is_vector());
+
+    if ((index->type & DICT_FTS) || index->is_vector()) {
       continue;
     }
 
@@ -1936,7 +1941,12 @@ flag_ok:
   }
 
   while ((index = index->next()) != nullptr) {
-    if (index->type & DICT_FTS) {
+    /* No vector index reaches this log: a vector-indexed table never runs
+    an ONLINE alter. Skip in release rather than hand a graph index to
+    code that treats it as a B-tree. */
+    ut_ad(!index->is_vector());
+
+    if ((index->type & DICT_FTS) || index->is_vector()) {
       continue;
     }
 
@@ -2459,7 +2469,12 @@ flag_ok:
       break;
     }
 
-    if (index->type & DICT_FTS) {
+    /* No vector index reaches this log: a vector-indexed table never runs
+    an ONLINE alter. Skip in release rather than hand a graph index to
+    code that treats it as a B-tree. */
+    ut_ad(!index->is_vector());
+
+    if ((index->type & DICT_FTS) || index->is_vector()) {
       continue;
     }
 

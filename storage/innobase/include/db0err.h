@@ -224,6 +224,11 @@ enum dberr_t {
   /** Generic error code for "Not found" type of errors */
   DB_NOT_FOUND,
 
+  /** innodb_hnsw_max_memory reached. A ceiling, not a failed
+  allocation: fails the statement instead of the server. Appended here
+  so no existing code is renumbered. */
+  DB_VEC_OUT_OF_MEMORY,
+
   /* The following are API only error codes. */
 
   /** Column update or read failed because the types mismatch */

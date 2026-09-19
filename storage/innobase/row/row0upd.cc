@@ -69,6 +69,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "row0sel.h"
 #include "trx0rec.h"
+#include "vec0aux.h"
+#include "vec0hnsw.h"
 #endif /* !UNIV_HOTBACKUP */
 #include <algorithm>
 #include "lob0lob.h"
@@ -2578,6 +2580,38 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
 
   heap = mem_heap_create(100, UT_LOCATION_HERE);
 
+  /* On a table with a vector index this is, as far as the graph is
+  concerned, a delete and an insert of the row: a node names its base row
+  by primary key, and the primary key is what is moving. So the new
+  clustered record gets a fresh label - written before the entry is built
+  from upd_row, so the record carries it - and the node is added once the
+  insert has landed.
+
+  A statement that also changed the vector column arrives with a label
+  already assigned - calc_row_difference put it in the update vector, so
+  upd_row carries it and the test below sees the two rows disagree. Don't
+  assign a second one for that case.
+
+  A re-entry after DB_LOCK_WAIT is different: row_upd_clust_step calls
+  row_upd_store_row again, which empties node->heap and rebuilds row and
+  upd_row from the record, so the first pass's label is gone and this
+  assigns another. That is fine - the first is simply consumed, the way a
+  rolled-back insert consumes one, and only the label that reaches the
+  inserted record gets a node. The first pass cannot have built one: it
+  only gets that far on DB_SUCCESS. */
+  const bool vec_new_node =
+      DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) &&
+      vec_indexed_col_no(table) != ULINT_UNDEFINED;
+
+  if (vec_new_node && vec_get_aux_id_from_row(table, node->upd_row) ==
+                          vec_get_aux_id_from_row(table, node->row)) {
+    /* The label buffer has to outlive `entry`, which points into it, and
+    upd_row, which keeps naming it - node->heap is emptied with both. */
+    vec_write_aux_id(
+        table, node->upd_row,
+        static_cast<byte *>(mem_heap_alloc(node->heap, VEC_AUX_ID_LEN)));
+  }
+
   entry = row_build_index_entry_low(node->upd_row, node->upd_ext, index, heap,
                                     ROW_BUILD_FOR_INSERT);
   ut_ad(dtuple_get_info_bits(entry) == 0);
@@ -2661,6 +2695,18 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
 
   err = row_ins_clust_index_entry(index, entry, thr, false);
   node->state = UPD_NODE_INSERT_CLUSTERED;
+
+  if (err == DB_SUCCESS && vec_new_node) {
+    /* No page latches are held here - the mtr above was committed before
+    the insert, the same window row_insert_for_mysql builds its node in.
+    A failure that leaves us here without an insert (a lock wait, a
+    duplicate key) keeps the label in upd_row for the retry. */
+    err = vec_insert_row(trx, node->table, node->upd_row, trx->mysql_thd);
+
+    /* The label is consumed: row_update_for_mysql must not build a
+    second node for the same statement. */
+    trx->vec_next_label = 0;
+  }
 
   mem_heap_free(heap);
 
@@ -3219,7 +3265,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
       break;
     }
 
-    if (node->index->type != DICT_FTS) {
+    if (node->index->type != DICT_FTS && !node->index->is_vector()) {
       err = row_upd_sec_step(node, thr);
 
       if (err != DB_SUCCESS) {

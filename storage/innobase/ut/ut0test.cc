@@ -39,6 +39,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "vec0aux.h"
 #include "vec0dml.h"
+#include "vec0hnsw.h"
+#include "vec0index.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
@@ -80,6 +82,7 @@ Tester::Tester() noexcept {
   DISPATCH(vec_aux_dump);
   DISPATCH(vec_aux_verify);
   DISPATCH(vec_next_id);
+  DISPATCH(vec_runtime_info);
   DISPATCH(print_dblwr_has_encrypted_pages);
   DISPATCH(print_tree);
 }
@@ -567,6 +570,56 @@ aux row: what needs proving is that an id is durable the moment it is
 consumed, including ids the aux never sees (a rolled-back insert
 consumes one). Reading the aux maximum back would test something
 weaker and would pass even with the counter reset on restart. */
+/* Print the runtime's parameters for a table's vector index.
+
+Proves the WITH(...) values actually reach the engine. Until now they
+were parsed at DDL time and thrown away, so a test that only checked
+SHOW CREATE would pass whether or not the runtime ever saw them. */
+Ret_t Tester::vec_runtime_info(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_runtime_info()");
+  ut_ad(tokens[0] == "vec_runtime_info");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_runtime_info db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  uint32_t dims = 0;
+  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  const dict_index_t *vindex = nullptr;
+  for (const dict_index_t *idx = tt.base->first_index(); idx != nullptr;
+       idx = idx->next()) {
+    if (idx->is_vector()) {
+      vindex = idx;
+      break;
+    }
+  }
+  if (vindex == nullptr) {
+    XLOG("FAIL: no vector index");
+    set_output(sout);
+    return RET_FAIL;
+  }
+  if (vec_runtime_get(vindex) == nullptr) {
+    XLOG("no runtime");
+    set_output(sout);
+    return RET_PASS;
+  }
+
+  const auto *vec = vec_runtime_get(vindex);
+  XLOG("dims=" << vec->dims << " M=" << vec->m << " ef_construction="
+               << vec->ef_construction << " loaded=" << (vec->loaded ? 1 : 0));
+  set_output(sout);
+  return RET_PASS;
+}
+
 Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
   TLOG("Tester::vec_next_id()");
   ut_ad(tokens[0] == "vec_next_id");

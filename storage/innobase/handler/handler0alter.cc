@@ -113,6 +113,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0stage.h"
 #include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "vec0vec.h"
 
 /* For supporting Native InnoDB Partitioning. */
@@ -7372,6 +7373,36 @@ after a successful commit_try_norebuild() call.
         ctx->fts_drop_aux_vec = new aux_name_vec_t;
         fts_drop_index(index->table, index, trx, ctx->fts_drop_aux_vec,
                        adding_fts_index);
+      }
+
+      /* Drop the per-vector-index aux table alongside the index. The
+      surrounding loop holds dict_sys mutex; row_drop_table_for_mysql is
+      invoked with nonatomic=false so it does not try to re-acquire.
+
+      The DD entry is dropped inline, inside vec_aux_drop_one_table,
+      which releases dict_sys around the DD client call. Acceptable in
+      phase 1: the aux is empty, commit_cache_norebuild runs past the
+      point where the norebuild ALTER can fail, and a single aux means
+      no partial-batch window. Revisit when the aux gains crash-atomicity
+      work. */
+      if (index->is_vector()) {
+        const dberr_t vec_err =
+            vec_aux_drop_one_table(trx, index->table, index->id);
+
+        if (vec_err != DB_SUCCESS) {
+          /* vec_aux_drop_one_table already logged this via ib::warn. Also
+          surface it to the client: this runs past the point where the ALTER
+          itself can be failed, so a client-visible warning is the only way
+          the orphaned aux table does not go unnoticed outside the server
+          error log. Deliberately does not affect commit_cache_norebuild's
+          `found` return, which is a distinct FK-replacement signal that the
+          caller asserts on. */
+          push_warning_printf(
+              current_thd, Sql_condition::SL_WARNING, ER_ALTER_INFO,
+              "InnoDB: Failed to drop the auxiliary table for vector"
+              " index '%s' (error %d); it may require manual cleanup.",
+              index->name(), static_cast<int>(vec_err));
+        }
       }
 
       /* It is a single table tablespace and the .ibd file is

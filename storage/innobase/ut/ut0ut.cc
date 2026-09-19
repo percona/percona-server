@@ -301,6 +301,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Operation interrupted");
     case DB_OUT_OF_MEMORY:
       return ("Cannot allocate memory");
+    case DB_VEC_OUT_OF_MEMORY:
+      return ("Vector index memory limit reached");
     case DB_OUT_OF_FILE_SPACE:
     case DB_OUT_OF_DISK_SPACE:
       return ("Out of disk space");

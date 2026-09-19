@@ -271,6 +271,112 @@ uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
   return label;
 }
 
+ulint vec_indexed_col_no(const dict_table_t *table) {
+  for (const dict_index_t *index = table->first_index(); index != nullptr;
+       index = index->next()) {
+    if (!index->is_vector()) continue;
+    ut_ad(index->n_fields == 1);
+    return dict_col_get_no(index->get_field(0)->col);
+  }
+  return ULINT_UNDEFINED;
+}
+
+bool vec_upd_changes_indexed_vector(const dict_table_t *table,
+                                    const upd_field_t *ufield) {
+  if (ufield->is_virtual()) return false;
+
+  const ulint vec_col = vec_indexed_col_no(table);
+  if (vec_col == ULINT_UNDEFINED) return false;
+
+  /* Convert the index-specific field number to a table column number,
+  the way row_upd_changes_fts_column does. */
+  const dict_index_t *clust = table->first_index();
+  return clust->get_col_no(ufield->field_no) == vec_col;
+}
+
+void vec_update_aux_id(dict_table_t *table, upd_field_t *ufield,
+                       uint64_t *next_label) {
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(*next_label != 0);
+
+  dict_index_t *clust = table->first_index();
+  dict_col_t *col = table->get_col(table->vec_aux_col);
+
+  ufield->exp = nullptr;
+  ufield->field_no = dict_col_get_clust_pos(col, clust);
+  col->copy_type(dfield_get_type(&ufield->new_val));
+
+  /* Storage byte order, written back over the trx member the label was assigned
+  into - which then IS the field's buffer. */
+  mach_write_to_8(reinterpret_cast<byte *>(next_label), *next_label);
+
+  ufield->new_val.data = next_label;
+  ufield->new_val.len = sizeof(*next_label);
+  ufield->new_val.ext = 0;
+}
+
+const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
+                               ulint *len) {
+  const ulint vec_col = vec_indexed_col_no(table);
+  if (vec_col == ULINT_UNDEFINED) return nullptr;
+
+  const dict_index_t *clust = table->first_index();
+
+  for (ulint i = 0; i < upd_get_n_fields(update); i++) {
+    const upd_field_t *uf = upd_get_nth_field(update, i);
+    if (uf->is_virtual()) continue;
+    if (clust->get_col_no(uf->field_no) != vec_col) continue;
+
+    if (dfield_is_null(&uf->new_val)) return nullptr;
+    *len = dfield_get_len(&uf->new_val);
+    return static_cast<const char *>(dfield_get_data(&uf->new_val));
+  }
+  return nullptr;
+}
+
+bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
+                    uint64_t *pk) {
+  /* Where the primary key comes from, and why not from node->row.
+
+  row_upd_store_row() is what fills node->row, and row_upd_clust_step()
+  skips it entirely under UPD_NODE_NO_ORD_CHANGE - which is exactly the
+  case here, because a vector column is in no B-tree ordering. So
+  node->row is nullptr on every UPDATE we care about.
+
+  The update node's cursor, though, was positioned on the clustered
+  record before the update ran, and btr_pcur_t::store_position() copies
+  the record's first dict_index_get_n_unique_in_tree() fields into
+  m_old_rec. For a clustered index that prefix IS the primary key. It is
+  a private copy, so no page latch is needed to read it, and the UPDATE
+  cannot have changed it: a PK change is a delete plus an insert, not an
+  update. */
+  const btr_pcur_t *pcur = node->pcur;
+  if (pcur == nullptr || pcur->m_old_rec == nullptr ||
+      pcur->m_rel_pos != BTR_PCUR_ON) {
+    return false;
+  }
+
+  const dict_index_t *clust = table->first_index();
+  if (dict_index_get_n_unique(clust) != 1) return false;
+  if (pcur->m_old_n_fields < 1) return false;
+
+  mem_heap_t *heap = nullptr;
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  rec_offs_init(offsets_);
+  ulint *offsets =
+      rec_get_offsets(pcur->m_old_rec, clust, offsets_, pcur->m_old_n_fields,
+                      UT_LOCATION_HERE, &heap);
+
+  ulint len = 0;
+  const byte *field =
+      rec_get_nth_field(clust, pcur->m_old_rec, offsets, 0, &len);
+  const bool ok = (field != nullptr && len == 8);
+  if (ok) *pk = mach_read_from_8(field);
+
+  if (heap != nullptr) mem_heap_free(heap);
+  return ok;
+}
+
 uint64_t vec_assign_next_aux_id(dict_table_t *table) {
   ut_ad(table != nullptr);
   ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));

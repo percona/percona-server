@@ -1087,6 +1087,10 @@ constexpr uint32_t DICT_INDEX_MAGIC_N = 76789786;
 constexpr uint32_t DICT_INDEX_MERGE_THRESHOLD_DEFAULT = 50;
 constexpr uint32_t MAX_KEY_LENGTH_BITS = 12;
 
+/** Data structure for an index.  Most fields will be
+initialized to 0, NULL or false in dict_mem_index_create(). */
+struct Vec_runtime;
+
 struct dict_index_t {
   /** id of the index */
   space_index_t id;
@@ -1255,6 +1259,17 @@ struct dict_index_t {
 
   /** tracking all R-Tree search cursors */
   rtr_info_track_t *rtr_track;
+
+  /** In-memory state for an open vector index: the HNSW graph, its arena,
+  the persistor, and the parameters read back from the DD. nullptr until
+  something first opens the index, and nullptr for every non-vector index.
+
+  Raw pointer on purpose. This struct is never constructed or destructed -
+  the memory is zeroed and dict_mem_fill_index_struct() stands in for a
+  constructor - so the zeroing gives us a null start for free, and
+  dict_mem_index_free() releases it by hand, as it already does for
+  fields_array. */
+  Vec_runtime *vec;
 
   /** id of the transaction that created this index, or 0 if the index existed
   when InnoDB was started up */

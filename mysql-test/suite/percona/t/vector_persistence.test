@@ -179,5 +179,21 @@ ALTER TABLE t_rt ADD COLUMN percona_vec_aux_id BIGINT UNSIGNED;
 
 DROP TABLE t_rt;
 
+--echo #
+--echo # DISCARD / IMPORT TABLESPACE on a table with a vector index is
+--echo # rejected in phase 1 — per-aux tablespace import is not yet
+--echo # designed. The block lives at the very entry of
+--echo # ha_innobase::discard_or_import_tablespace.
+--echo #
+
+CREATE TABLE t_disc (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR(8) NOT NULL,
+  VECTOR KEY (v1) TYPE hnsw
+);
+--error ER_NOT_ALLOWED_COMMAND
+ALTER TABLE t_disc DISCARD TABLESPACE;
+DROP TABLE t_disc;
+
 --echo # After DROP TABLE the aux .ibd files must be gone too — no orphans.
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd

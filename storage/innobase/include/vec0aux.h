@@ -47,6 +47,13 @@ class THD;
 /** Lowercase on-disk / DD prefix shared by all vector aux tables. */
 extern const char *VEC_AUX_PREFIX;
 
+/** Hidden auxiliary column added to a base table that owns >= 1 vector
+index. Type: BIGINT UNSIGNED NOT NULL; no secondary index. */
+#define VEC_AUX_ID_COL_NAME "percona_vec_aux_id"
+
+/** Width of percona_vec_aux_id on disk and in the insert buffer. */
+constexpr ulint VEC_AUX_ID_LEN = 8;
+
 /** Number of user columns in a vector aux table.
 
 Vector HNSW has different semantics: one aux row per graph vertex, all
@@ -205,5 +212,65 @@ changed (cross-schema rename); no early-out check here.
 [[nodiscard]] dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
                                             const char *new_parent_name,
                                             bool replay);
+
+/** Add the hidden percona_vec_aux_id column (BIGINT UNSIGNED NOT NULL) to the
+in-memory `dict_table_t` and set DICT_TF2_HAS_VEC_AUX_COL. Called both at
+CREATE time and during DD load when the dd::Table has a hidden
+percona_vec_aux_id.
+@param[in,out]  table   dict_table_t under construction
+@param[in,out]  heap    memory heap for column allocation */
+void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap);
+
+/** One ANN candidate: the graph node that matched, and the base row it
+names.
+
+The node id is what MVCC check (1) compares against the visible row
+version's percona_vec_aux_id. Both members are needed because a stale
+node and the node that replaced it share a base_pk - an UPDATE of the
+vector writes a fresh label on the same row - so base_pk alone cannot
+tell the live node from the dead one. */
+struct vec_hit_t {
+  uint64_t id;
+  uint64_t base_pk;
+};
+
+/** The table column the vector index covers.
+
+The table-level form of what vec_row_vector_bytes() does per index: the
+column is index->get_field(0)->col, because a DICT_VECTOR index carries
+its key part like any other index. It is not searched for - VECTOR,
+BLOB, TEXT and JSON all map to DATA_BLOB, so no type test can pick it
+out. Ignore the field's prefix_len, which is 1 for a vector key part and
+describes nothing about the column.
+
+Assumes at most one vector index per table (design: "Limitations").
+
+@param[in]  table  base table
+@return the column number, or ULINT_UNDEFINED if the table has no
+vector index */
+ulint vec_indexed_col_no(const dict_table_t *table);
+
+/** Does this update field change a column covered by a vector index?
+@param[in]  table   the base table
+@param[in]  ufield  one field of the update vector
+@return true if it does */
+[[nodiscard]] bool vec_upd_changes_indexed_vector(const dict_table_t *table,
+                                                  const upd_field_t *ufield);
+
+/** The new vector value carried by an update vector, if it changes one.
+@param[in]   table  the base table
+@param[in]   update the update vector
+@param[out]  len    its length in bytes
+@return the bytes, or nullptr if this update does not change the vector */
+const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
+                               ulint *len);
+
+/** The primary key of the row an update node is positioned on.
+@param[in]   table  the base table
+@param[in]   node   the update node
+@param[out]  pk     the key
+@return true if it could be read */
+[[nodiscard]] bool vec_upd_row_pk(const dict_table_t *table,
+                                  const upd_node_t *node, uint64_t *pk);
 
 #endif /* vec0aux_h */

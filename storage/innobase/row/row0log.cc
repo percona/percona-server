@@ -1737,6 +1737,9 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       break;
     }
 
+    /* No vector index reaches this log: an ONLINE alter never leaves one. */
+    ut_ad(!index->is_vector());
+
     if (index->type & DICT_FTS) {
       continue;
     }
@@ -1936,6 +1939,9 @@ flag_ok:
   }
 
   while ((index = index->next()) != nullptr) {
+    /* No vector index reaches this log: an ONLINE alter never leaves one. */
+    ut_ad(!index->is_vector());
+
     if (index->type & DICT_FTS) {
       continue;
     }
@@ -2458,6 +2464,9 @@ flag_ok:
     if (error != DB_SUCCESS) {
       break;
     }
+
+    /* No vector index reaches this log: an ONLINE alter never leaves one. */
+    ut_ad(!index->is_vector());
 
     if (index->type & DICT_FTS) {
       continue;

@@ -81,6 +81,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
 #include "vec0aux.h"
+#include "vec0label.h"
 #include "zlib.h"
 
 #include "current_thd.h"
@@ -1114,6 +1115,13 @@ static void row_mysql_convert_row_to_innobase(
 
     fts_create_doc_id(prebuilt->table, row, prebuilt->heap);
   }
+
+  /* Same pattern for the hidden percona_vec_aux_id column (vector indexes).
+  The SQL layer leaves the dfield set to SQL_NULL because the column
+  is HT_HIDDEN_SE; without this write, rec_get_converted_size_*
+  asserts on NOT-NULL + SQL_NULL. */
+  vec_label_write(prebuilt->table, row,
+                  prebuilt->ins_upd_rec_buff + prebuilt->mysql_row_len);
 }
 
 /** Handles user errors and lock waits detected by the database engine.
@@ -1531,8 +1539,20 @@ static dtuple_t *row_get_prebuilt_insert_row(
   prebuilt->ins_node = node;
 
   if (prebuilt->ins_upd_rec_buff == nullptr) {
-    prebuilt->ins_upd_rec_buff = static_cast<byte *>(
-        mem_heap_alloc(prebuilt->heap, prebuilt->mysql_row_len));
+    /* An 8-byte tail for the hidden percona_vec_aux_id, written afresh
+    for every row by vec_label_write. It is reserved once here rather
+    than allocated per row on prebuilt->heap, which is freed only when
+    the handle is closed - 8 bytes a row for the life of a connection.
+
+    FTS_DOC_ID has the same problem and is left alone: fts_create_doc_id
+    still allocates per row upstream. If that is ever fixed the same way,
+    the two tails must not both claim this offset. */
+    prebuilt->ins_upd_rec_buff = static_cast<byte *>(mem_heap_alloc(
+        prebuilt->heap,
+        prebuilt->mysql_row_len +
+            (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)
+                 ? VEC_AUX_ID_LEN
+                 : 0)));
   }
 
   if (table->n_m_v_cols > 0 && prebuilt->mv_data == nullptr) {
@@ -5104,10 +5124,11 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
     indexes of the old table will remain valid and the new
     table will be unaccessible to MySQL until the
     completion of the ALTER TABLE. */
-  } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
-    /* Full Text index are implemented by auxiliary tables,
-    not the B-tree. We also skip secondary indexes that are
-    being created online. */
+  } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
+             index->is_vector()) {
+    /* Full Text and Vector indexes are implemented by auxiliary tables,
+    not the B-tree - page == FIL_NULL. We also skip secondary indexes
+    that are being created online. */
     return (DB_SUCCESS);
   }
 

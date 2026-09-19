@@ -216,6 +216,15 @@ const dict_index_t *vec_index_of(const dict_table_t *table) {
   return nullptr;
 }
 
+void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
+  dict_mem_table_add_col(
+      table, heap, VEC_AUX_ID_COL_NAME, DATA_INT,
+      dtype_form_prtype(DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE, 0),
+      sizeof(uint64_t), false);
+  DICT_TF2_FLAG_SET(table, DICT_TF2_HAS_VEC_AUX_COL);
+  table->vec_aux_col = table->n_def - 1;
+}
+
 namespace {
 
 /** Allocate and fully populate the in-memory dict_table_t for one vector

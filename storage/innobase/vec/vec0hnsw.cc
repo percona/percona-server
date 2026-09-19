@@ -630,6 +630,12 @@ dict_index_t *vec_index_of(dict_table_t *table) {
   return nullptr;
 }
 
+uint32_t vec_index_dims(const dict_index_t *index) {
+  if (index == nullptr) return 0;
+  const vec_t *vec = vec_runtime_get(index);
+  return vec == nullptr ? 0 : vec->dims;
+}
+
 /* An open streaming scan. Held by the handler for the life of one
 vector scan, which is why the aux table and its MDL live here rather than
 being re-taken per batch: nn_search_next faults nodes in through

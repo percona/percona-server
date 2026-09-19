@@ -632,7 +632,20 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
   out->base_pk = mach_read_from_8(p);
 
   p = rec_get_nth_field(clust, rec, offsets, p_level, &len);
-  out->level = len == 1 ? p[0] : 0;
+  /* id 0 is the metadata row, not a graph node: corrupting its level
+  would be caught by vec_runtime_load before the graph is ever built, so
+  the hook skips it and exercises the node path instead. */
+  DBUG_EXECUTE_IF("vec_aux_corrupt_level_len", if (id != 0) len = 0;);
+  if (len != 1) {
+    /* Defaulting to level 0 here would hand the graph a node at the
+    wrong layer, and the neighbour blob is sized from the level - so a
+    length that happens to match would be accepted and a node quietly
+    misplaced. The base_pk field above already refuses a bad length;
+    this one now does too. */
+    err = DB_CORRUPTION;
+    goto done;
+  }
+  out->level = p[0];
 
   if (!vec_aux_copy_field(clust, rec, offsets, p_vec, heap, &out->vec,
                           &out->vec_len) ||

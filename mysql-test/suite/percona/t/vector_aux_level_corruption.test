@@ -1,0 +1,44 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # vec_aux_read_node must report DB_CORRUPTION when an aux row's
+--echo # level field has an unexpected length, not silently treat it as
+--echo # level 0. The other fixed-width column read the same way
+--echo # (base_pk) already does this; level did not.
+--echo #
+--echo # The corruption is injected on the entry-point node's own row, not
+--echo # the index's metadata row (aux id 0), so this also covers
+--echo # HNSW::init_from_entry_point() surfacing a load_node_cb failure as
+--echo # an error return instead of aborting a debug server.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[10,0]')),
+                      (3, STRING_TO_VECTOR('[20,0]'));
+
+--echo # Drop the in-memory graph so the next access rebuilds it from the
+--echo # aux table, through vec_aux_read_node, rather than reusing nodes
+--echo # already resident from the inserts above.
+--source include/restart_mysqld.inc
+
+SET SESSION debug = '+d,vec_aux_corrupt_level_len';
+
+--echo # The entry-point node (base_pk 1, the first row inserted) is read
+--echo # here via init_from_entry_point(); with the hook active its level
+--echo # field reads back as length 0 instead of 1. The hook skips aux row
+--echo # id 0, which is the index's own metadata row, not a graph node.
+--error ER_NOT_KEYFILE
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+SET SESSION debug = '-d,vec_aux_corrupt_level_len';
+
+--echo # Without the injected corruption the graph loads normally.
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t1;

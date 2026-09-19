@@ -239,6 +239,35 @@ struct Tester {
   [[nodiscard]] Ret_t find_tablespace_file_name(
       std::vector<std::string> &tokens) noexcept;
 
+  /** Insert one row into a vector-index aux table via the parser-free
+  vec0dml layer ( test surface).
+  Usage: vec_aux_insert_row db/table id level f1,f2,.. nb_spec
+  nb_spec is per-level neighbor labels: "1:2|3" = level0 {1,2},
+  level1 {3}; "-" = none. row_ref is written as the 8-byte image of id.
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  [[nodiscard]] Ret_t vec_aux_insert_row(
+      std::vector<std::string> &tokens) noexcept;
+
+  /** Update the neighbors BLOB of one aux row via vec0dml.
+  Usage: vec_aux_update_row db/table id nb_spec
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  [[nodiscard]] Ret_t vec_aux_update_row(
+      std::vector<std::string> &tokens) noexcept;
+
+  /** Dump all visible rows of a table's vector aux table, sorted by id.
+  Usage: vec_aux_dump db/table
+  @param[in]   tokens   the given command line
+  @return RET_PASS on success, or the error code. */
+  [[nodiscard]] Ret_t vec_aux_dump(std::vector<std::string> &tokens) noexcept;
+
+  /** Order-independent consistency check on a vector aux table. Reports
+  only invariants that hold whatever order concurrent inserts ran in, so
+  it stays usable once concurrent graph mutation is allowed.
+  Usage: vec_aux_verify db/table */
+  [[nodiscard]] Ret_t vec_aux_verify(std::vector<std::string> &tokens) noexcept;
+
   /** Assign the next vector label for a table and print it.
   Usage: vec_next_id db/table
   @param[in]  tokens  the command

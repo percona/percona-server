@@ -504,6 +504,12 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
   means the index is empty, which is a different path entirely. */
   DBUG_EXECUTE_IF(
       "vec_aux_node_missing", if (id != 0) { return DB_RECORD_NOT_FOUND; });
+  /* The same, but past the first node read: the entry point loads, and the
+  miss is found by the search that faults its neighbours in. */
+  DBUG_EXECUTE_IF("vec_aux_node_missing_after_entry", {
+    static thread_local int reads = 0;
+    if (id != 0 && reads++ > 0) return DB_RECORD_NOT_FOUND;
+  });
 
   dict_index_t *clust = aux->first_index();
 
@@ -545,7 +551,7 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
 
   p = rec_get_nth_field(clust, rec, offsets, p_base_pk, &len);
   if (len != 8) {
-    err = DB_CORRUPTION;
+    err = DB_INDEX_CORRUPT;
     goto done;
   }
   out->base_pk = mach_read_from_8(p);
@@ -561,7 +567,7 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
     length that happens to match would be accepted and a node quietly
     misplaced. The base_pk field above already refuses a bad length;
     this one now does too. */
-    err = DB_CORRUPTION;
+    err = DB_INDEX_CORRUPT;
     goto done;
   }
   out->level = p[0];
@@ -570,7 +576,7 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
                           &out->vec_len) ||
       !vec_aux_copy_field(clust, rec, offsets, p_nb, heap, &out->neighbors,
                           &out->neighbors_len)) {
-    err = DB_CORRUPTION;
+    err = DB_INDEX_CORRUPT;
   }
 
 done:

@@ -146,7 +146,9 @@ by resolving base_pk under the reader's own view.
 @param[in]      id    the label
 @param[in,out]  heap  heap the returned bytes are copied onto
 @param[out]     out   the node
-@return DB_SUCCESS, DB_RECORD_NOT_FOUND, or an error */
+@return DB_SUCCESS, DB_RECORD_NOT_FOUND, or DB_INDEX_CORRUPT for a malformed
+row: the aux belongs to one vector index, and DB_CORRUPTION would report
+the base table as crashed */
 dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
                           vec_aux_read_t *out);
 

@@ -544,6 +544,9 @@ void vec_ann_close(vec_search_t *s);
 /** The vector index on @p table, or nullptr. At most one exists. */
 dict_index_t *vec_index_of(dict_table_t *table);
 
+/** Dimensions the index was built with; 0 if it has no runtime yet. */
+uint32_t vec_index_dims(const dict_index_t *index);
+
 /** State of one vector index build, owned by the ddl::Builder that is
 building that index. Opaque so the DDL layer needs none of the graph's
 headers. */

@@ -7892,12 +7892,6 @@ void ha_innobase::innobase_initialize_autoinc() {
   dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
-/** Open an InnoDB table.
-@param[in]      name            table name
-@param[in]      open_flags      flags for opening table from SQL-layer.
-@param[in]      table_def       dd::Table object describing table to be opened
-@retval 1 if error
-@retval 0 if success */
 int ha_innobase::open(const char *name, int, uint open_flags,
                       const dd::Table *table_def) {
   dict_table_t *ib_table;
@@ -8037,11 +8031,19 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     }
   }
 
+  /* Each InnoDB-owned hidden auxiliary column (FTS_DOC_ID, percona_vec_aux_id)
+  contributes one extra column on the InnoDB side; subtract before
+  comparing against table->s->fields. */
+  size_t innodb_hidden_extra = 0;
+  if (ib_table != nullptr) {
+    innodb_hidden_extra =
+        DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) +
+        DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_HAS_VEC_AUX_COL);
+  }
+
   if (ib_table != nullptr &&
-      ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
-        table->s->fields != dict_table_get_n_tot_u_cols(ib_table)) ||
-       (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
-        (table->s->fields != dict_table_get_n_tot_u_cols(ib_table) - 1)))) {
+      table->s->fields !=
+          dict_table_get_n_tot_u_cols(ib_table) - innodb_hidden_extra) {
     ib::warn(ER_IB_MSG_556)
         << "Table " << norm_name << " contains " << ib_table->get_n_user_cols()
         << " user"
@@ -12248,6 +12250,7 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   uint32_t c_c = 0;
   uint32_t t_c = 0;
   uint32_t c_r_v = 0;
+  bool has_vec_aux_col_in_dd = false;
 
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", m_table_name));
@@ -12281,6 +12284,22 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
         m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
         "Invalid table name. `%s` has the form of an FTS auxiliary table name",
         m_table_name);
+    return HA_ERR_WRONG_TABLE_NAME;
+  }
+
+  /* Same reservation for vector auxiliary table names. Internal vec aux
+  creation bypasses ha_innobase::create entirely (goes through
+  vec_aux_create_one_table calls row_create_table_for_mysql), so this check
+  only ever fires on user-supplied names.
+
+  Like the FTS check above, this matches the full computed shape rather
+  than the prefix: "percona_vec_hnsw_<tid>_<iid>" is refused, plain
+  "percona_vec_data" is not. */
+  if (vec_aux_is_aux_table_name(m_table_name)) {
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
+                        "Invalid table name. `%s` has the form of a vector "
+                        "auxiliary table name",
+                        m_table_name);
     return HA_ERR_WRONG_TABLE_NAME;
   }
 
@@ -12325,6 +12344,13 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   /* Adjust the number of columns for the FTS hidden field */
   actual_n_cols = n_cols;
   if (m_flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID) && !has_doc_id_col) {
+    actual_n_cols += 1;
+  }
+  /* +1 reservation for percona_vec_aux_id when the dd::Table carries it. */
+  has_vec_aux_col_in_dd =
+      dd_table != nullptr &&
+      dd_find_column(&dd_table->table(), VEC_AUX_ID_COL_NAME) != nullptr;
+  if (has_vec_aux_col_in_dd) {
     actual_n_cols += 1;
   }
 
@@ -12612,6 +12638,15 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
   /* Add the FTS doc_id hidden column. */
   if (m_flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID) && !has_doc_id_col) {
     fts_add_doc_id_column(table, heap);
+  }
+
+  /* Materialize the hidden percona_vec_aux_id column on dict_table_t, in
+  the same simple shape as fts_add_doc_id_column above: no phy_pos
+  plumbing. That holds because the table cannot reach row_versions > 0
+  - INSTANT ADD/DROP COLUMN is refused for tables owning this column,
+  in check_if_supported_inplace_alter. */
+  if (has_vec_aux_col_in_dd) {
+    vec_add_aux_id_column(table, heap);
   }
 
   if (!keyring_encryption_option_none) {
@@ -15707,6 +15742,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   THD *thd = ha_thd();
   dd::Index *primary = nullptr;
   bool has_fulltext = false;
+  bool has_vector = false;
   const dd::Index *fts_doc_id_index = nullptr;
 
   for (dd::Index *i : *dd_table->indexes()) {
@@ -15723,6 +15759,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     }
 
     if (is_vector_index(*i)) {
+      has_vector = true;
       continue;
     }
 
@@ -15837,6 +15874,67 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     if (fts_doc_id_index == nullptr) {
       dd_set_hidden_unique_index(dd_table->add_index(), FTS_DOC_ID_INDEX_NAME,
                                  fts_doc_id);
+    }
+  }
+
+  /* The column name is reserved on EVERY table, whether or not it has a
+  vector index today. The reservation cannot be deferred the way an aux
+  TABLE name can: an aux table name is computed from ids, so a collision
+  is detectable exactly at the moment we assign one, but the hidden column
+  has a fixed name. Allowing a user column called percona_vec_aux_id on a
+  table without a vector index only moves the failure to the ALTER that
+  later adds one, where it surfaces as a confusing mid-DDL error on a
+  table the user never associated with vectors. */
+  {
+    const dd::Column *user_col = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
+    if (user_col != nullptr && !user_col->is_se_hidden()) {
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), VEC_AUX_ID_COL_NAME);
+      push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_COLUMN_NAME,
+                   " InnoDB: Column name " VEC_AUX_ID_COL_NAME
+                   " is reserved for vector index bookkeeping.");
+      return ER_WRONG_COLUMN_NAME;
+    }
+  }
+
+  if (has_vector) {
+    /* Auto-add hidden percona_vec_aux_id BIGINT UNSIGNED NOT NULL when the
+    table owns any vector index.
+
+    Ownership of the column follows FTS_DOC_ID: once InnoDB has added it,
+    it is ours and it is sticky. DROP INDEX removes the vector index and
+    its aux table but leaves the column in place, and a later ADD VECTOR
+    INDEX reuses the existing HT_HIDDEN_SE column rather than adding a
+    second one - that is the `existing != nullptr` branch below, which
+    must never recreate and never error. Retention across rebuild-ALTERs
+    is done at InnoDB commit time by the carry-forward block in
+    dd_commit_inplace_alter_table (handler0alter.cc), which keeps
+    DICT_TF2_HAS_VEC_AUX_COL truthful.
+
+    There is no companion hidden UNIQUE index on the column. The
+    base-to-aux link is base.percona_vec_aux_id to aux.id through each
+    table's own primary key, so two point lookups and no intermediate
+    B-tree; the carry-forward above is what keeps that link alive across
+    ALTER.
+
+    A user-declared column of this name is rejected outright, on every
+    table, vector index or not (see the reservation check above). The
+    column carries no user-visible value - it is pure bookkeeping - and
+    rejecting it even without a vector index removes the case where a
+    pre-existing user column would collide with the hidden one at
+    ALTER ... ADD VECTOR KEY ... TYPE hnsw time. */
+    const dd::Column *existing = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
+    if (existing != nullptr) {
+      /* Present and SE-hidden (the check above rejected any other kind) -
+      carried forward from an earlier CREATE or ALTER. Reuse it: never
+      recreate, never error. */
+    } else {
+      dd::Column *col = dd_table->add_column();
+      col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
+      col->set_name(VEC_AUX_ID_COL_NAME);
+      col->set_type(dd::enum_column_types::LONGLONG);
+      col->set_nullable(false);
+      col->set_unsigned(true);
+      col->set_collation_id(1);
     }
   }
 
@@ -19285,8 +19383,8 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     if (index == m_prebuilt->table->first_index()) {
       n_rows_in_table = n_rows;
-    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table) &&
-               (!index->is_multi_value()) &&
+    } else if (!(index->type & DICT_FTS) && !index->is_vector() &&
+               (n_rows != n_rows_in_table) && (!index->is_multi_value()) &&
                (!dict_index_is_spatial(index) || (n_rows < n_rows_in_table) ||
                 (n_dups < n_rows - n_rows_in_table))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,

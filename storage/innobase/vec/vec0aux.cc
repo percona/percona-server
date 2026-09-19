@@ -208,6 +208,112 @@ bool vec_aux_table_has_vector_index(const dict_table_t *table) {
   return false;
 }
 
+void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
+  dict_mem_table_add_col(
+      table, heap, VEC_AUX_ID_COL_NAME, DATA_INT,
+      dtype_form_prtype(DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE, 0),
+      sizeof(uint64_t), false);
+  DICT_TF2_FLAG_SET(table, DICT_TF2_HAS_VEC_AUX_COL);
+  table->vec_aux_col = table->n_def - 1;
+}
+
+void vec_write_aux_id(dict_table_t *table, dtuple_t *row, byte *buf) {
+  ut_ad(table != nullptr);
+  ut_ad(row != nullptr);
+  ut_ad(buf != nullptr);
+  if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    return;
+  }
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
+
+  const uint64_t id = vec_assign_next_aux_id(table);
+  mach_write_to_8(buf, id);
+
+  dfield_t *dfield = dtuple_get_nth_field(row, table->vec_aux_col);
+  dfield_set_data(dfield, buf, VEC_AUX_ID_LEN);
+}
+
+uint64_t vec_get_aux_id_from_row(const dict_table_t *table,
+                                 const dtuple_t *row) {
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
+
+  const dfield_t *df = dtuple_get_nth_field(row, table->vec_aux_col);
+  ut_ad(!dfield_is_null(df));
+  ut_ad(dfield_get_len(df) == 8);
+  return mach_read_from_8(static_cast<const byte *>(dfield_get_data(df)));
+}
+
+uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
+                                 const dict_index_t *index) {
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  ulint *offsets = offsets_;
+  mem_heap_t *heap = nullptr;
+
+  rec_offs_init(offsets_);
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
+                            UT_LOCATION_HERE, &heap);
+
+  const ulint pos = index->get_col_pos(table->vec_aux_col);
+  ut_ad(pos != ULINT_UNDEFINED);
+
+  ulint len;
+  const byte *data = rec_get_nth_field(nullptr, rec, offsets, pos, &len);
+  ut_ad(len == 8);
+  const uint64_t label = mach_read_from_8(data);
+
+  if (heap != nullptr) {
+    mem_heap_free(heap);
+  }
+  return label;
+}
+
+uint64_t vec_assign_next_aux_id(dict_table_t *table) {
+  ut_ad(table != nullptr);
+  ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
+  /* fetch_add returns the OLD value, so +1 makes the first assignment
+  1 and never 0. That is not cosmetic: the class reserves graph node id
+  0 as the empty-neighbour sentinel, which is what lets aux record 0
+  hold the entry point instead of a node. */
+  const uint64_t id =
+      table->vec_aux_autoinc_next_id.fetch_add(1, std::memory_order_acq_rel) +
+      1;
+  ut_ad(id != 0);
+
+  /* Persist the advance as dynamic metadata, autoinc-style: the redo
+  record makes the id durable the moment it is consumed, so a label can
+  never be reissued - not across restart, not across crash, and whether
+  or not the id ever reaches the aux table. Rolled-back inserts consume
+  ids that the aux maximum cannot see, which is why the aux cannot be
+  the source of truth for this.
+
+  The write runs outside any active mini-transaction, so it gets a
+  dedicated one. Upstream avoids that by logging into the row's own mtr
+  (WL#6204: "we should not introduce a new mtr ... mtr_commit would be
+  time consuming"), which we could do from row_ins_clust_index_entry_low -
+  at the price of covering the paths that never reach it, the DDL builder
+  among them. Logging where the id is assigned covers every one of them. */
+  mtr_t mtr;
+  mtr.start();
+  const bool persist = dict_table_vec_next_id_log(table, id, &mtr);
+  mtr.commit();
+
+  /* The record for `id` is committed to the log and the watermark was
+  raised before it was written, so a checkpoint landing here sees a
+  watermark that already covers the record. Parking a test here is how
+  vector_counter_stale_buffer.test pins that. */
+  DEBUG_SYNC_C("vec_id_record_committed");
+
+  if (persist) {
+    dict_table_persist_to_dd_table_buffer(table);
+  }
+
+  return id;
+}
+
 namespace {
 
 /** Allocate and fully populate the in-memory dict_table_t for one vector

@@ -1,0 +1,40 @@
+--echo #
+--echo # PS-11299: INSTANT_VIRTUAL_ONLY ALTER on a vec-indexed table
+--echo # must preserve the hidden percona_vec_aux_id column in dd::Table.
+--echo #
+--echo # Trigger: ALTER ADD COLUMN ... AS (expr) VIRTUAL on a table that
+--echo # has a vector index. The new dd::Table is rebuilt from
+--echo # altered_table->s, which carries no SE-hidden columns, so
+--echo # percona_vec_aux_id must be re-added explicitly. A reload that
+--echo # does not find it (server restart, or any dd_open_table_one path)
+--echo # hits the vec_add_aux_id_column invariant.
+--echo #
+--echo # Phase 1 refuses ALGORITHM=INSTANT on a vector-indexed table, so
+--echo # this ALTER takes the INPLACE path. The INSTANT_VIRTUAL_ONLY branch
+--echo # in Instant_ddl_impl::commit_instant_ddl re-adds the column for the
+--echo # day that refusal is lifted; it is not what this test exercises.
+--echo #
+
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  c1 INT,
+  VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+
+--echo # Add a virtual column — should take INSTANT_VIRTUAL_ONLY path.
+ALTER TABLE t1 ADD COLUMN c1_plus_one INT AS (c1 + 1) VIRTUAL;
+SHOW CREATE TABLE t1;
+
+--echo # Restart server. dd_open_table_one rebuilds dict_table_t from
+--echo # the dd::Table. percona_vec_aux_id must still be there.
+--source include/restart_mysqld.inc
+
+SHOW CREATE TABLE t1;
+
+--echo # ALTER ADD another virtual column post-restart — percona_vec_aux_id
+--echo # must still be there.
+ALTER TABLE t1 ADD COLUMN c1_plus_two INT AS (c1 + 2) VIRTUAL;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

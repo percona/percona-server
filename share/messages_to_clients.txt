@@ -11130,6 +11130,9 @@ ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
 ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
   eng "Illegal index construction parameter value: %.20s."
 
+ER_VECTOR_INDEX_WRONG_DIMENSIONS
+  eng "Column '%-.192s' has a vector without the %u dimensions its vector index needs."
+
 start-error-number 7100
 
 #

@@ -161,6 +161,13 @@ dberr_t vec_aux_insert(trx_t *trx, dict_table_t *aux,
                        const vec_aux_row_t &row) {
   ut_ad(trx != nullptr);
   ut_ad(aux != nullptr);
+
+  /* A transient write failure - the kind a lock wait or a full tablespace
+  produces. Injected because the distinction it proves (a failure the
+  graph recovers from, against one that leaves it inconsistent) has no
+  other way in from SQL. */
+  DBUG_EXECUTE_IF("vec_aux_insert_transient_fail",
+                  return DB_OUT_OF_FILE_SPACE;);
   /* Record 0 is index metadata, not a node: it names the graph's entry
   point and legitimately carries no vector and no neighbours. Every real
   node has both - id 0 is reserved as the empty-slot sentinel, so a node

@@ -1675,6 +1675,95 @@ class HNSW {
     Node **m_end;
   };
 
+  /**
+    Visit every complete node exactly once, in ascending id order, handing
+    the visitor everything a persisted node consists of:
+
+        HnswResult visit(uint64_t id, uint64_t base_pk, const char *vec,
+                         uint8_t layer, NeighborIdRange neighbors)
+
+    The arguments are the same shapes insert_cb() receives, so a persistor
+    can be driven from here as well as from insert().
+
+    This exists so a graph can be built without persisting anything - with a
+    Persistor whose callbacks do nothing - and written out once at the end,
+    each node with its final neighbor list. Persisting during the build
+    instead rewrites a node's row every time a later insert rewires it.
+
+    Ascending id order because m_nodes is a hash map and hands nodes out in
+    whatever order it happens to hold them. A caller writing them to a store
+    keyed by id wants them sorted: that turns scattered inserts into
+    appends. Only the ids are sorted, which is a few bytes a node next to
+    the graph itself.
+
+    Nodes that are not NODE_COMPLETE are skipped, and validate() says which
+    ones those can be: a NODE_DUMMY stub has no vector or neighbors to
+    write, a NODE_LOST one has no row to write them to, and a NODE_FAILED
+    insert has neither. NODE_NEW and NODE_LINKING cannot appear, because
+    they mean an insert is in flight - asserted rather than skipped, since
+    this is not thread-safe against insert() in the first place, like
+    init_from_entry_point() and validate(): the graph must be quiescent,
+    which it is at the end of a build.
+
+    A skipped node can still be named by the neighbor list of one that is
+    written, which validate() allows too. A caller that needs every node
+    accounted for - a build persisting a finished graph, where nothing
+    should be skipped at all - compares what it wrote against size().
+
+    @param visit  called once per complete node; HNSW_SUCCESS to carry on,
+                  anything else ends the walk and is what this returns. A
+                  caller writing these nodes out stops there - a graph can
+                  hold millions of them, and every later write would go
+                  into a store that has already failed
+    @return HNSW_SUCCESS, the visitor's result if one failed, or
+            HNSW_OOM_CONTEXT if the walk's own id list could not be built
+  */
+  template <typename Visitor>
+  HnswResult for_each_node_sorted(Visitor &&visit) const {
+    std::vector<uint64_t> ids;
+
+    try {
+      ids.reserve(m_nodes.size());
+
+      for (const auto &entry : m_nodes) {
+        const NodeState state = entry.second->state();
+        // A quiescent graph has no insert in flight, so these two cannot be
+        // here; reading one would race with the insert that owns it.
+        assert(state != NODE_NEW && state != NODE_LINKING);
+        if (state == NODE_COMPLETE) ids.push_back(entry.first);
+      }
+    } catch (const std::bad_alloc &) {
+      // The id list is per-operation scratch, like the search heaps: graph
+      // allocations report HNSW_OOM_GRAPH instead. The visitor is called
+      // outside this, because a callback should not throw.
+      return HNSW_OOM_CONTEXT;
+    }
+
+    std::sort(ids.begin(), ids.end());
+
+    for (const uint64_t id : ids) {
+      const Node *node = m_nodes.find(id)->second;
+      const HnswResult rc = visit(node->id(), node->base_pk(), node->vec(),
+                                  node->layer(), neighbor_ids(node));
+      if (rc != HNSW_SUCCESS) return rc;
+    }
+
+    return HNSW_SUCCESS;
+  }
+
+  /**
+    The entry point's id, or 0 if the graph has none - which is either an
+    empty graph or one whose entry point was never published. 0 is never a
+    node id (it is the empty-neighbor sentinel), so it doubles as "none".
+  */
+  uint64_t entry_point_id() const {
+    const Node *ep = m_entry_point.load();
+    return ep == nullptr ? 0 : ep->id();
+  }
+
+  /** Number of nodes the graph holds, complete or not. */
+  size_t size() const { return m_nodes.size(); }
+
  private:
   NeighborIdRange neighbor_ids(const Node *node) const {
     return NeighborIdRange{node->all_neighbors_begin(*this),
@@ -1764,7 +1853,7 @@ class HNSW {
     const double u =
         std::max(std::uniform_real_distribution<double>(0.0, 1.0)(m_rng),
                  std::numeric_limits<double>::min());
-    // Throttle layer growth and avoid UB caused by double -> uint8_t overflow.
+    // Throttle layer growth and avoid UB caused by double to uint8_t overflow.
     const uint8_t layer_cap = std::min<int>(
         current_max_layer + 1, std::numeric_limits<uint8_t>::max());
     return static_cast<uint8_t>(

@@ -39,6 +39,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "vec0aux.h"
 #include "vec0dml.h"
+#include "vec0hnsw.h"
+#include "vec0index.h"
 #include "vec0label.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
@@ -81,6 +83,7 @@ Tester::Tester() noexcept {
   DISPATCH(vec_aux_dump);
   DISPATCH(vec_aux_verify);
   DISPATCH(vec_next_id);
+  DISPATCH(vec_runtime_info);
   DISPATCH(print_dblwr_has_encrypted_pages);
   DISPATCH(print_tree);
 }
@@ -376,42 +379,29 @@ vec_test_close_aux. After a restart nothing is dict-cached, so the opens
 go through the DD layer, which requires real MDL. */
 struct vec_test_tables_t {
   dict_table_t *base{nullptr};
+  const dict_index_t *vindex{nullptr};
   dict_table_t *aux{nullptr};
   MDL_ticket *base_mdl{nullptr};
   MDL_ticket *aux_mdl{nullptr};
 };
 
 static bool vec_test_open_aux(const std::string &base_name,
-                              vec_test_tables_t &t, uint32_t *dims_out) {
+                              vec_test_tables_t &t) {
   t.base = dd_table_open_on_name(current_thd, &t.base_mdl, base_name.c_str(),
                                  false, DICT_ERR_IGNORE_NONE);
   if (t.base == nullptr) {
     return false;
   }
 
-  const dict_index_t *vec_index = nullptr;
-  for (const dict_index_t *idx = t.base->first_index(); idx != nullptr;
-       idx = idx->next()) {
-    if (idx->is_vector()) {
-      vec_index = idx;
-      break;
-    }
-  }
-  if (vec_index == nullptr) {
+  t.vindex = vec_index_of(t.base);
+  if (t.vindex == nullptr) {
     dd_table_close(t.base, current_thd, &t.base_mdl, false);
     t.base = nullptr;
     return false;
   }
 
-  if (dims_out != nullptr) {
-    /* The dict col is BLOB-typed (Field_vector : Field_blob); its dict
-    length is blob metadata, not the vector width. The debug commands
-    derive dims from the data instead. */
-    *dims_out = 0;
-  }
-
   char aux_name[MAX_FULL_NAME_LEN];
-  vec_aux_get_table_name(t.base, vec_index->id, Vec_index_type::HNSW, aux_name,
+  vec_aux_get_table_name(t.base, t.vindex->id, Vec_index_type::HNSW, aux_name,
                          sizeof(aux_name));
 
   t.aux = dd_table_open_on_name(current_thd, &t.aux_mdl, aux_name, false,
@@ -433,9 +423,10 @@ static void vec_test_close_aux(vec_test_tables_t &t) {
   }
 }
 
-/** Parse "1:2|3" into per-level neighbor label lists; "-" = empty. */
+/** Parse "1:2|3", per-level neighbor label lists, into the flat slot order
+the aux stores; "-" = empty. */
 static bool vec_test_parse_nb(const std::string &spec,
-                              std::vector<std::vector<std::size_t>> &out) {
+                              std::vector<uint64_t> &out) {
   out.clear();
   if (spec == "-") {
     return false;
@@ -444,19 +435,17 @@ static bool vec_test_parse_nb(const std::string &spec,
   while (pos <= spec.size()) {
     size_t bar = spec.find('|', pos);
     if (bar == std::string::npos) bar = spec.size();
-    std::vector<std::size_t> level;
     size_t p = pos;
     while (p < bar) {
       size_t colon = spec.find(':', p);
       if (colon == std::string::npos || colon > bar) colon = bar;
       try {
-        level.push_back(std::stoull(spec.substr(p, colon - p)));
+        out.push_back(std::stoull(spec.substr(p, colon - p)));
       } catch (...) {
         return true;
       }
       p = colon + 1;
     }
-    out.push_back(std::move(level));
     if (bar == spec.size()) break;
     pos = bar + 1;
   }
@@ -475,8 +464,7 @@ Ret_t Tester::vec_aux_insert_row(std::vector<std::string> &tokens) noexcept {
   }
 
   vec_test_tables_t tt;
-  uint32_t dims = 0;
-  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+  if (!vec_test_open_aux(tokens[1], tt)) {
     XLOG("FAIL: no vector aux for " << tokens[1]);
     set_output(sout);
     return RET_FAIL;
@@ -487,7 +475,7 @@ Ret_t Tester::vec_aux_insert_row(std::vector<std::string> &tokens) noexcept {
   uint64_t id;
   int level;
   std::vector<float> vec;
-  std::vector<std::vector<std::size_t>> neighbors;
+  std::vector<uint64_t> neighbors;
   try {
     id = std::stoull(tokens[2]);
     level = std::stoi(tokens[3]);
@@ -510,28 +498,19 @@ Ret_t Tester::vec_aux_insert_row(std::vector<std::string> &tokens) noexcept {
     set_output(sout);
     return RET_FAIL;
   }
-  dims = static_cast<uint32_t>(vec.size());
   if (vec_test_parse_nb(tokens[5], neighbors)) {
     XLOG("FAIL: bad nb_spec");
     set_output(sout);
     return RET_FAIL;
   }
 
-  /* Flatten the per-level nb_spec into the on-disk shape: one 8-byte
-  big-endian id per slot, 0 for an empty slot, no header. */
   std::vector<byte> nb_blob;
-  for (const auto &lvl : neighbors) {
-    for (std::size_t label : lvl) {
-      byte buf[8];
-      mach_write_to_8(buf, static_cast<uint64_t>(label));
-      nb_blob.insert(nb_blob.end(), buf, buf + 8);
-    }
-  }
+  vec_flatten_neighbors(neighbors, nb_blob);
 
   vec_aux_row_t row;
   row.id = id;
   row.vec = vec.data();
-  row.dims = dims;
+  row.dims = static_cast<uint32_t>(vec.size());
   row.base_pk = id;
   row.level = level;
   row.neighbors = nb_blob.data();
@@ -568,6 +547,43 @@ aux row: what needs proving is that an id is durable the moment it is
 consumed, including ids the aux never sees (a rolled-back insert
 consumes one). Reading the aux maximum back would test something
 weaker and would pass even with the counter reset on restart. */
+/* Print the runtime's parameters for a table's vector index.
+
+Proves the WITH(...) values actually reach the engine. Until now they
+were parsed at DDL time and thrown away, so a test that only checked
+SHOW CREATE would pass whether or not the runtime ever saw them. */
+Ret_t Tester::vec_runtime_info(std::vector<std::string> &tokens) noexcept {
+  TLOG("Tester::vec_runtime_info()");
+  ut_ad(tokens[0] == "vec_runtime_info");
+  std::ostringstream sout;
+  if (tokens.size() != 2) {
+    XLOG("FAIL: usage: vec_runtime_info db/table");
+    set_output(sout);
+    return RET_FAIL;
+  }
+
+  vec_test_tables_t tt;
+  if (!vec_test_open_aux(tokens[1], tt)) {
+    XLOG("FAIL: no vector aux for " << tokens[1]);
+    set_output(sout);
+    return RET_FAIL;
+  }
+  auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
+
+  const auto *vec = vec_runtime_get(tt.vindex);
+  if (vec == nullptr) {
+    XLOG("no runtime");
+    set_output(sout);
+    return RET_PASS;
+  }
+
+  XLOG("dims=" << vec->dims << " M=" << vec->m << " ef_construction="
+               << vec->ef_construction << " loaded=" << (vec->loaded ? 1 : 0)
+               << " corrupted=" << (vec->corrupted_hnsw ? 1 : 0));
+  set_output(sout);
+  return RET_PASS;
+}
+
 Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
   TLOG("Tester::vec_next_id()");
   ut_ad(tokens[0] == "vec_next_id");
@@ -579,8 +595,7 @@ Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
   }
 
   vec_test_tables_t tt;
-  uint32_t dims = 0;
-  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+  if (!vec_test_open_aux(tokens[1], tt)) {
     XLOG("FAIL: no vector aux for " << tokens[1]);
     set_output(sout);
     return RET_FAIL;
@@ -604,8 +619,7 @@ Ret_t Tester::vec_aux_dump(std::vector<std::string> &tokens) noexcept {
   }
 
   vec_test_tables_t tt;
-  uint32_t dims = 0;
-  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+  if (!vec_test_open_aux(tokens[1], tt)) {
     XLOG("FAIL: no vector aux for " << tokens[1]);
     set_output(sout);
     return RET_FAIL;
@@ -695,8 +709,7 @@ Ret_t Tester::vec_aux_verify(std::vector<std::string> &tokens) noexcept {
   }
 
   vec_test_tables_t tt;
-  uint32_t dims = 0;
-  if (!vec_test_open_aux(tokens[1], tt, &dims)) {
+  if (!vec_test_open_aux(tokens[1], tt)) {
     XLOG("FAIL: no vector aux for " << tokens[1]);
     set_output(sout);
     return RET_FAIL;
@@ -770,7 +783,7 @@ Ret_t Tester::vec_aux_update_row(std::vector<std::string> &tokens) noexcept {
   }
 
   vec_test_tables_t tt;
-  if (!vec_test_open_aux(tokens[1], tt, nullptr)) {
+  if (!vec_test_open_aux(tokens[1], tt)) {
     XLOG("FAIL: no vector aux for " << tokens[1]);
     set_output(sout);
     return RET_FAIL;
@@ -779,7 +792,7 @@ Ret_t Tester::vec_aux_update_row(std::vector<std::string> &tokens) noexcept {
   auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
 
   uint64_t id;
-  std::vector<std::vector<std::size_t>> neighbors;
+  std::vector<uint64_t> neighbors;
   try {
     id = std::stoull(tokens[2]);
   } catch (...) {
@@ -794,13 +807,7 @@ Ret_t Tester::vec_aux_update_row(std::vector<std::string> &tokens) noexcept {
   }
 
   std::vector<byte> nb_blob;
-  for (const auto &lvl : neighbors) {
-    for (std::size_t label : lvl) {
-      byte buf[8];
-      mach_write_to_8(buf, static_cast<uint64_t>(label));
-      nb_blob.insert(nb_blob.end(), buf, buf + 8);
-    }
-  }
+  vec_flatten_neighbors(neighbors, nb_blob);
 
   trx_t *trx = trx_allocate_for_background();
   trx_start_internal(trx, UT_LOCATION_HERE);

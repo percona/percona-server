@@ -8253,6 +8253,12 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag,
 void print_keydup_error(TABLE *table, KEY *key, myf errflag,
                         const char *org_table_name);
 
+/** Report ER_VECTOR_INDEX_WRONG_DIMENSIONS for a table's vector index:
+a row's vector does not have the dimensions the index needs.
+@param[in]  table     the table whose vector index refused the row
+@param[in]  errflag   flags for my_error() */
+void my_error_vector_wrong_dimensions(const TABLE *table, myf errflag);
+
 inline void print_keydup_error(TABLE *table, KEY *key, const char *msg,
                                myf errflag) {
   print_keydup_error(table, key, msg, errflag, nullptr);

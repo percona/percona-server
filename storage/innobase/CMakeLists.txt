@@ -165,6 +165,8 @@ SET(INNOBASE_SOURCES
   vec/vec0arena.cc
   vec/vec0aux.cc
   vec/vec0label.cc
+  vec/vec0hnsw.cc
+  vec/vec0index.cc
   vec/vec0dml.cc
   ibuf/ibuf0ibuf.cc
   lob/lob0bulk.cc

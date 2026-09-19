@@ -214,6 +214,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql-common/json_dom.h"
 
 #include "vec0aux.h"
+#include "vec0hnsw.h"
+#include "vec0label.h"
 #include "vec0vec.h"
 
 #include "os0enc.h"
@@ -2478,6 +2480,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_UNDO_REC_TOO_BIG);
     case DB_OUT_OF_MEMORY:
       return (HA_ERR_OUT_OF_MEM);
+    case DB_VEC_WRONG_DIMENSIONS:
+      return (HA_ERR_VECTOR_WRONG_DIMENSIONS);
     case DB_TABLESPACE_EXISTS:
       return (HA_ERR_TABLESPACE_EXISTS);
     case DB_TABLESPACE_DELETED:
@@ -5767,13 +5771,13 @@ static int innodb_init(void *p) {
   innobase_hton->lock_hton_log = innobase_lock_hton_log;
   innobase_hton->unlock_hton_log = innobase_unlock_hton_log;
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
-  innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
-                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
-                         HTON_SUPPORTS_TABLE_ENCRYPTION |
-                         HTON_SUPPORTS_GENERATED_INVISIBLE_PK |
-                         HTON_SUPPORTS_BULK_LOAD | HTON_SUPPORTS_SQL_FK |
-                         HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
+  innobase_hton->flags =
+      HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+      HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
+      HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
+      HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD |
+      HTON_SUPPORTS_SQL_FK | HTON_SUPPORTS_ONLINE_BACKUPS |
+      HTON_SUPPORTS_COMPRESSED_COLUMNS;
   // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
   //| HTON_SUPPORTS_DISTANCE_SCAN;
 
@@ -7892,6 +7896,12 @@ void ha_innobase::innobase_initialize_autoinc() {
   dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
+/** Open an InnoDB table.
+@param[in]      name            table name
+@param[in]      open_flags      flags for opening table from SQL-layer.
+@param[in]      table_def       dd::Table object describing table to be opened
+@retval 1 if error
+@retval 0 if success */
 int ha_innobase::open(const char *name, int, uint open_flags,
                       const dd::Table *table_def) {
   dict_table_t *ib_table;
@@ -8040,7 +8050,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
         DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) +
         DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_HAS_VEC_AUX_COL);
   }
-
   if (ib_table != nullptr &&
       table->s->fields !=
           dict_table_get_n_tot_u_cols(ib_table) - innodb_hidden_extra) {
@@ -8374,12 +8383,35 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   fts_aux_table_t aux_table;
 
   if (fts_is_aux_table_name(&aux_table, norm_name, strlen(norm_name))) {
-    ut_ad(m_prebuilt->table->is_fts_aux());
+    ut_ad(m_prebuilt->table->is_aux());
   }
 #endif /* UNIV_DEBUG */
 
-  if (m_prebuilt->table->is_fts_aux()) {
+  if (m_prebuilt->table->is_aux()) {
     dict_table_close(m_prebuilt->table, false, false);
+  }
+
+  /* Give every vector index on this table its runtime, if it has none
+  yet. Here rather than deeper down because this is where the index
+  PARAMETERS are reachable: M, ef_construction and the metric come from
+  the DD through KEY, and the row-level code that will need the graph
+  (row0mysql) has only dict objects. The runtime itself is per index and
+  lives on dict_index_t, so it outlives this handler and is shared by
+  every session that opens the table.
+
+  A failure here is not fatal to the open: without a runtime the index
+  simply has no graph, and the DML path reports the problem when it
+  tries to use one. Refusing the open would take the whole table
+  offline for a vector index that may not even be queried. */
+  for (dict_index_t *index = m_prebuilt->table->first_index(); index != nullptr;
+       index = index->next()) {
+    if (!index->is_vector() || vec_runtime_get(index) != nullptr) continue;
+
+    /* A failure has already reported itself on the THD and recorded its
+    reason on the index, and an index with no runtime simply has no graph
+    yet - the next open tries again. Opening the table must not fail for
+    it. */
+    vec_runtime_open(index, table, thd);
   }
 
   return 0;
@@ -10120,6 +10152,7 @@ static dberr_t calc_row_difference(
   dict_index_t *clust_index;
   uint i;
   bool changes_fts_column = false;
+  bool changes_vec_column = false;
   bool changes_fts_doc_col = false;
   trx_t *trx = thd_to_trx(thd);
   doc_id_t doc_id = FTS_NULL_DOC_ID;
@@ -10444,6 +10477,17 @@ static dberr_t calc_row_difference(
           changes_fts_doc_col = row_upd_changes_doc_id(innodb_table, ufield);
         }
       }
+
+      /* Same question for a vector index: did this UPDATE move the
+      indexed vector? A node is immutable - HNSW cannot move a point
+      once its neighbours link to it - so a changed vector becomes a
+      NEW node under a fresh label, and the row has to be re-pointed at
+      it. That re-point rides this same update vector, below. */
+      if (!changes_vec_column && !is_virtual &&
+          DICT_TF2_FLAG_IS_SET(prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
+        changes_vec_column =
+            vec_upd_changes_indexed_vector(prebuilt->table, ufield);
+      }
     } else if (is_virtual) {
       dfield_t *vfield = dtuple_get_nth_v_field(uvect->old_vrow, num_v);
       col->copy_type(dfield_get_type(vfield));
@@ -10523,6 +10567,23 @@ static dberr_t calc_row_difference(
     fts_next_doc_id to UINT64_UNDEFINED, which means do not
     update the Doc ID column */
     trx->fts_next_doc_id = UINT64_UNDEFINED;
+  }
+
+  /* Piggyback the label change onto the user's UPDATE, exactly as FTS
+  does with its Doc ID above, and for the same reason: the row and the
+  new node have to become visible together. Adding the node afterwards
+  and leaving the row pointing at the old one would make a search answer
+  from the superseded vector.
+
+  Capacity is not a concern - the vector is created with
+  get_n_cols() + n_v_cols entries, which already counts this hidden
+  column. */
+  trx->vec_next_label = 0;
+  if (changes_vec_column) {
+    trx->vec_next_label = Vec_label_counter::assign(prebuilt->table);
+    ufield = uvect->fields + n_changed;
+    vec_label_update(prebuilt->table, ufield, &trx->vec_next_label);
+    ++n_changed;
   }
 
   uvect->n_fields = n_changed;
@@ -15059,14 +15120,7 @@ int create_table_info_t::create_table_update_global_dd(Table *dd_table) {
   fts_create_index_dd_tables above - same flag-style check. The table was
   just created, so its vector index is the one to register. */
   if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL)) {
-    dict_index_t *vec_index = nullptr;
-    for (dict_index_t *i = m_table->first_index(); i != nullptr;
-         i = i->next()) {
-      if (i->is_vector()) {
-        vec_index = i;
-        break;
-      }
-    }
+    dict_index_t *vec_index = vec_index_of(m_table);
     if (vec_index != nullptr && !vec_aux_create_dd_table(m_table, vec_index)) {
       return HA_ERR_GENERIC;
     }

@@ -225,6 +225,91 @@ void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
   table->vec_aux_col = table->n_def - 1;
 }
 
+ulint vec_indexed_col_no(const dict_table_t *table) {
+  const dict_index_t *index = vec_index_of(table);
+  if (index == nullptr) return ULINT_UNDEFINED;
+  ut_ad(index->n_fields == 1);
+  return dict_col_get_no(index->get_field(0)->col);
+}
+
+bool vec_upd_changes_indexed_vector(const dict_table_t *table,
+                                    const upd_field_t *ufield) {
+  if (ufield->is_virtual()) return false;
+
+  const ulint vec_col = vec_indexed_col_no(table);
+  if (vec_col == ULINT_UNDEFINED) return false;
+
+  /* Convert the index-specific field number to a table column number,
+  the way row_upd_changes_fts_column does. */
+  const dict_index_t *clust = table->first_index();
+  return clust->get_col_no(ufield->field_no) == vec_col;
+}
+
+const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
+                               ulint *len) {
+  const ulint vec_col = vec_indexed_col_no(table);
+  if (vec_col == ULINT_UNDEFINED) return nullptr;
+
+  const dict_index_t *clust = table->first_index();
+
+  for (ulint i = 0; i < upd_get_n_fields(update); i++) {
+    const upd_field_t *uf = upd_get_nth_field(update, i);
+    if (uf->is_virtual()) continue;
+    if (clust->get_col_no(uf->field_no) != vec_col) continue;
+
+    if (dfield_is_null(&uf->new_val)) return nullptr;
+    *len = dfield_get_len(&uf->new_val);
+    /* An empty value changes the vector too; its data pointer may be
+    null, and the caller must still see it to refuse it. */
+    if (*len == 0) return "";
+    return static_cast<const char *>(dfield_get_data(&uf->new_val));
+  }
+  return nullptr;
+}
+
+bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
+                    uint64_t *pk) {
+  /* Where the primary key comes from, and why not from node->row.
+
+  row_upd_store_row() is what fills node->row, and row_upd_clust_step()
+  skips it entirely under UPD_NODE_NO_ORD_CHANGE - which is exactly the
+  case here, because a vector column is in no B-tree ordering. So
+  node->row is nullptr on every UPDATE we care about.
+
+  The update node's cursor, though, was positioned on the clustered
+  record before the update ran, and btr_pcur_t::store_position() copies
+  the record's first dict_index_get_n_unique_in_tree() fields into
+  m_old_rec. For a clustered index that prefix IS the primary key. It is
+  a private copy, so no page latch is needed to read it, and the UPDATE
+  cannot have changed it: a PK change is a delete plus an insert, not an
+  update. */
+  const btr_pcur_t *pcur = node->pcur;
+  if (pcur == nullptr || pcur->m_old_rec == nullptr ||
+      pcur->m_rel_pos != BTR_PCUR_ON) {
+    return false;
+  }
+
+  const dict_index_t *clust = table->first_index();
+  if (dict_index_get_n_unique(clust) != 1) return false;
+  if (pcur->m_old_n_fields < 1) return false;
+
+  mem_heap_t *heap = nullptr;
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  rec_offs_init(offsets_);
+  ulint *offsets =
+      rec_get_offsets(pcur->m_old_rec, clust, offsets_, pcur->m_old_n_fields,
+                      UT_LOCATION_HERE, &heap);
+
+  ulint len = 0;
+  const byte *field =
+      rec_get_nth_field(clust, pcur->m_old_rec, offsets, 0, &len);
+  const bool ok = (field != nullptr && len == 8);
+  if (ok) *pk = mach_read_from_8(field);
+
+  if (heap != nullptr) mem_heap_free(heap);
+  return ok;
+}
+
 namespace {
 
 /** Allocate and fully populate the in-memory dict_table_t for one vector

@@ -1310,6 +1310,17 @@ static unique_ptr<Json_object> SetObjectMembers(
                                     /*reverse=*/false, nullptr, obj);
       break;
     }
+    case AccessPath::VECTOR_SEARCH: {
+      const TABLE &table = *path->vector_search().table;
+      assert(table.file->pushed_idx_cond == nullptr);
+      const KEY &key = table.key_info[path->vector_search().ref->key];
+      error |=
+          SetIndexInfoInObject(&description, path, "vector_search", "Vector",
+                               table, key, "search", path->vector_search().ref,
+                               /*ranges=*/nullptr, nullptr,
+                               /*reverse=*/false, nullptr, obj);
+      break;
+    }
     case AccessPath::CONST_TABLE: {
       const TABLE &table = *path->const_table().table;
       assert(table.file->pushed_idx_cond == nullptr);

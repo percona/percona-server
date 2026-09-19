@@ -1,0 +1,52 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # PS-11299: percona_vec_aux_id is retained after DROP KEY and every
+--echo # INSERT keeps writing it, so the label counter stays live on a table
+--echo # with no vector index. ALTER has to treat such a table as one that
+--echo # owns the column, not as a plain table.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 pad INT,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
+                                   (2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+                                   (3,30,STRING_TO_VECTOR('[3,0,0,0]'));
+
+--echo # Drop the index. The hidden column stays, so labels keep being assigned.
+ALTER TABLE t1 DROP KEY vk;
+INSERT INTO t1 (id, pad, v) VALUES (4,40,STRING_TO_VECTOR('[4,0,0,0]')),
+                                   (5,50,STRING_TO_VECTOR('[5,0,0,0]'));
+
+--echo # INSTANT is refused on the strength of the hidden column alone.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
+
+--echo # A no-change ALTER rebuilds the new dd::Table from the TABLE_SHARE,
+--echo # which has no SE-hidden columns. Without re-adding percona_vec_aux_id
+--echo # the column counts no longer match the index counts and
+--echo # dd_add_fts_doc_id_index asserts.
+ALTER TABLE t1 ALTER COLUMN pad SET DEFAULT 7, ALGORITHM=INPLACE;
+
+--echo # Checkpoint so the DD, not the redo, is what recovery reads. A reload
+--echo # that cannot find the column trips the vec_add_aux_id_column invariant.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+--source include/restart_mysqld.inc
+
+SELECT id, pad FROM t1 ORDER BY id;
+
+--echo # Put the index back. Five labels were handed out, so the counter must
+--echo # resume at 6 - vec_next_id assigns the label it reports. A counter that
+--echo # regressed would reissue a label a live row already holds.
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output AS next_label;
+
+--echo # And no label is held by two rows.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output AS verify;
+
+DROP TABLE t1;

@@ -1,0 +1,50 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: vec_build_start() must not report a config/DD-round-trip
+--echo # defect (this index's own KEY not found in the altered table) as
+--echo # DB_OUT_OF_MEMORY. Builder::init() used to fold every vec_build_start
+--echo # failure into "set_error(DB_OUT_OF_MEMORY)", so a bug that has
+--echo # nothing to do with memory was reported to the user as one, sending
+--echo # anyone debugging it chasing free memory instead of the real cause.
+--echo #
+--echo # vec_build_start_key_not_found forces the "no matching vector KEY in
+--echo # the altered table" branch deterministically, standing in for
+--echo # whatever DD round-trip defect would otherwise have to be engineered
+--echo # by hand to reach it.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+
+--echo # The first ADD has no hidden column yet, so it is refused INPLACE and
+--echo # runs through COPY. DROP KEY keeps percona_vec_aux_id, so the SECOND
+--echo # ADD below runs INPLACE and reaches vec_build_start via Builder::init.
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4);
+ALTER TABLE t1 DROP KEY v;
+
+--echo # Force the "KEY not found" branch. Before the fix this was reported
+--echo # as DB_OUT_OF_MEMORY (ER_OUT_OF_RESOURCES, "Out of memory..."); after
+--echo # it, a generic storage-engine error, with the real reason logged.
+SET @@SESSION.debug = '+d,vec_build_start_key_not_found';
+--error ER_GET_ERRNO,ER_INTERNAL_ERROR,1
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+SET @@SESSION.debug = '-d,vec_build_start_key_not_found';
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Failed to start the vector index build .*no matching vector KEY in the altered table
+--let $assert_count = 1
+--let $assert_text = vec_build_start logs the real reason instead of silently reporting out-of-memory
+--source include/assert_grep.inc
+
+# The test injects this failure on purpose.
+--disable_query_log
+call mtr.add_suppression("Failed to start the vector index build");
+--enable_query_log
+
+--echo # The failed attempt rolled back cleanly: retrying without the
+--echo # injection succeeds, and the aux from the failed try was not left
+--echo # behind to collide with it.
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

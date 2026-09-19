@@ -80,6 +80,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
+#include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "zlib.h"
 
 #include "current_thd.h"
@@ -1113,6 +1115,13 @@ static void row_mysql_convert_row_to_innobase(
 
     fts_create_doc_id(prebuilt->table, row, prebuilt->heap);
   }
+
+  /* Same pattern for the hidden percona_vec_aux_id column (vector indexes).
+  The SQL layer leaves the dfield set to SQL_NULL because the column
+  is HT_HIDDEN_SE; without this write, rec_get_converted_size_*
+  asserts on NOT-NULL + SQL_NULL. */
+  vec_write_aux_id(prebuilt->table, row,
+                   prebuilt->ins_upd_rec_buff + prebuilt->mysql_row_len);
 }
 
 /** Handles user errors and lock waits detected by the database engine.
@@ -1152,6 +1161,8 @@ handle_new_error:
     case DB_CANNOT_ADD_CONSTRAINT:
     case DB_TOO_MANY_CONCURRENT_TRXS:
     case DB_OUT_OF_FILE_SPACE:
+    /* A ceiling, not a failed allocation: fail the statement. */
+    case DB_VEC_OUT_OF_MEMORY:
     case DB_READ_ONLY:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:
@@ -1213,6 +1224,22 @@ handle_new_error:
              " the startup or when you dump the tables. "
           << FORCE_RECOVERY_MSG;
       break;
+
+    case DB_INDEX_CORRUPT:
+      /* A vector index's persisted graph named a node its aux table no
+      longer has. Recoverable at the statement level - nothing here says
+      the base table or the rest of the graph is unreadable - so fail the
+      statement rather than fall through to the ib::fatal that an
+      unhandled code would reach.
+
+      Nothing that reaches this function produced DB_INDEX_CORRUPT before
+      vector indexes: row0log.cc raises it during an online ALTER, whose
+      errors go through convert_error_code_to_mysql instead. */
+      ib::error(ER_IB_MSG_973)
+          << "A vector index's persisted graph named a node its auxiliary"
+             " table does not have. DROP and re-create the vector index.";
+      break;
+
     case DB_FOREIGN_EXCEED_MAX_CASCADE:
       ib::error(ER_IB_MSG_974)
           << "Cannot delete/update rows with cascading"
@@ -1461,7 +1488,7 @@ void row_prebuilt_free(row_prebuilt_t *prebuilt, bool dict_locked) {
   }
 
   if (prebuilt->table) {
-    ut_ad(!prebuilt->table->is_fts_aux());
+    ut_ad(!prebuilt->table->is_aux());
     dd_table_close(prebuilt->table, nullptr, nullptr, dict_locked);
   }
 
@@ -1530,8 +1557,20 @@ static dtuple_t *row_get_prebuilt_insert_row(
   prebuilt->ins_node = node;
 
   if (prebuilt->ins_upd_rec_buff == nullptr) {
-    prebuilt->ins_upd_rec_buff = static_cast<byte *>(
-        mem_heap_alloc(prebuilt->heap, prebuilt->mysql_row_len));
+    /* An 8-byte tail for the hidden percona_vec_aux_id, written afresh
+    for every row by vec_write_aux_id. It is reserved once here rather
+    than allocated per row on prebuilt->heap, which is freed only when
+    the handle is closed - 8 bytes a row for the life of a connection.
+
+    FTS_DOC_ID has the same problem and is left alone: fts_create_doc_id
+    still allocates per row upstream. If that is ever fixed the same way,
+    the two tails must not both claim this offset. */
+    prebuilt->ins_upd_rec_buff = static_cast<byte *>(mem_heap_alloc(
+        prebuilt->heap,
+        prebuilt->mysql_row_len +
+            (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)
+                 ? VEC_AUX_ID_LEN
+                 : 0)));
   }
 
   if (table->n_m_v_cols > 0 && prebuilt->mv_data == nullptr) {
@@ -2082,6 +2121,18 @@ run_again:
     }
 
     return (err);
+  }
+
+  /* Add the row to every vector index's graph, and through the
+  persistor to its aux table. After the base row insert succeeded, and
+  reading the label back from the row the same way FTS reads its doc id
+  below. */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    err = vec_insert_row(trx, table, node->row, trx->mysql_thd);
+    if (err != DB_SUCCESS) {
+      trx->error_state = err;
+      goto error_exit;
+    }
   }
 
   if (dict_table_has_fts_index(table)) {
@@ -2896,6 +2947,47 @@ run_again:
     }
   }
 
+  /* A vector-column UPDATE adds the new node. calc_row_difference has
+  already assigned the label and put it into the update vector, so the row
+  written above already names the new node - this only has to create it.
+
+  DELETE deliberately does nothing here: the node has to stay for read
+  views still entitled to the row, and the read path filters it by
+  resolving base_pk under the reader's own view. */
+  {
+    /* Storage byte order - vec_update_aux_id wrote it back over this
+    member so it could double as the update field's buffer. */
+    const uint64_t label =
+        mach_read_from_8(reinterpret_cast<const byte *>(&trx->vec_next_label));
+    trx->vec_next_label = 0;
+
+    if (!node->is_delete && label != 0) {
+      /* Both of these were established by calc_row_difference before it
+      assigned the label, so a miss here means the row now names a node
+      that will never exist. Fail the statement rather than leave the
+      graph behind the table. */
+      ulint q_len = 0;
+      const char *q = vec_upd_new_vector(table, node->update, &q_len);
+
+      uint64_t base_pk = 0;
+      const bool have_pk = vec_upd_row_pk(table, node, &base_pk);
+
+      ut_ad(q != nullptr);
+      ut_ad(have_pk);
+
+      if (q == nullptr || !have_pk) {
+        err = DB_ERROR;
+        goto error;
+      }
+
+      err =
+          vec_update_row(trx, table, label, q, q_len, base_pk, trx->mysql_thd);
+      if (err != DB_SUCCESS) {
+        goto error;
+      }
+    }
+  }
+
   /* Completed cascading operations (if any) */
   if (got_s_lock) {
     row_mysql_unfreeze_data_dictionary(trx);
@@ -3244,9 +3336,10 @@ dberr_t row_create_table_for_mysql(dict_table_t *&table,
       break;
     case TRX_DICT_OP_INDEX:
       /* If the transaction was previously flagged as
-      TRX_DICT_OP_INDEX, we should be creating auxiliary
-      tables for full-text indexes. */
-      ut_ad(strstr(table->name.m_name, "/fts_") != nullptr);
+      TRX_DICT_OP_INDEX, we should be creating auxiliary tables for
+      full-text or vector indexes. */
+      ut_ad(strstr(table->name.m_name, "/fts_") != nullptr ||
+            vec_aux_is_aux_table_name(table->name.m_name));
   }
 
   /* Assign table id and build table space. */
@@ -4302,6 +4395,26 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
         goto funct_exit;
       }
     }
+
+    /* Same for the vector aux tables. They are hidden, so the server
+    took no MDL on them when it locked the parent, and a concurrent
+    reader can still be scanning one. */
+    if (table != nullptr &&
+        DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+      dict_sys_mutex_exit();
+      err = vec_aux_lock_all_tables(thd, table);
+      /* Signalled with the aux MDL held and no dict latch, so a test can
+      look the lock up in performance_schema.metadata_locks. */
+      if (err == DB_SUCCESS) {
+        DEBUG_SYNC(thd, "vec_aux_mdl_acquired");
+      }
+      dict_sys_mutex_enter();
+
+      if (err != DB_SUCCESS) {
+        dd_table_close(table, nullptr, nullptr, true);
+        goto funct_exit;
+      }
+    }
   } else {
     table->acquire();
     ut_ad(table->is_intrinsic());
@@ -4364,7 +4477,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   /* make sure background stats thread is not running on the table */
   ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
-  if (!table->is_temporary() && !table->is_fts_aux()) {
+  if (!table->is_temporary() && !table->is_aux()) {
     if (srv_thread_is_active(srv_threads.m_dict_stats)) {
       dict_stats_recalc_pool_del(table);
     }
@@ -4487,9 +4600,10 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
       break;
     case TRX_DICT_OP_INDEX:
       /* If the transaction was previously flagged as
-      TRX_DICT_OP_INDEX, we should be dropping auxiliary
-      tables for full-text indexes or temp tables. */
+      TRX_DICT_OP_INDEX, we should be dropping auxiliary tables for
+      full-text or vector indexes, or temp tables. */
       ut_ad(strstr(table->name.m_name, "/fts_") != nullptr ||
+            vec_aux_is_aux_table_name(table->name.m_name) ||
             strstr(table->name.m_name, TEMP_FILE_PREFIX_INNODB) != nullptr);
   }
 
@@ -4549,6 +4663,19 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
     err = row_drop_ancillary_fts_tables(table, &aux_vec, trx);
     if (err != DB_SUCCESS) {
+      goto funct_exit;
+    }
+  }
+
+  /* Drop the per-vector-index auxiliary tables. Symmetric with the FTS
+  ancillary drop above - same flag-style check. */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    ut_ad(!is_temp);
+    err = vec_aux_drop_all_tables(trx, table);
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_MSG_988)
+          << " Unable to remove vector aux tables for table " << table->name
+          << " : " << ut_strerr(err);
       goto funct_exit;
     }
   }
@@ -4702,6 +4829,18 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
        DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) &&
       !dict_tables_have_same_db(old_name, new_name)) {
     err = fts_rename_aux_tables(table, new_name, trx, replay);
+  }
+
+  /* Vector aux tables are named
+  "<db>/percona_vec_<type>_<table_id>_<index_id>" - keyed
+  by ids, so SAME-schema RENAME is a no-op. CROSS-schema RENAME needs
+  each aux's dd::Table reparented to the new schema and its
+  dd::Tablespace file path updated; vec_aux_rename_tables does both
+  through the same plumbing FTS aux uses. */
+  if (err == DB_SUCCESS &&
+      DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) &&
+      !dict_tables_have_same_db(old_name, new_name)) {
+    err = vec_aux_rename_tables(trx, table, new_name, replay);
   }
   if (err != DB_SUCCESS) {
     if (err == DB_DUPLICATE_KEY) {
@@ -5056,10 +5195,11 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
     indexes of the old table will remain valid and the new
     table will be unaccessible to MySQL until the
     completion of the ALTER TABLE. */
-  } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
-    /* Full Text index are implemented by auxiliary tables,
-    not the B-tree. We also skip secondary indexes that are
-    being created online. */
+  } else if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
+             index->is_vector()) {
+    /* Full Text and Vector indexes are implemented by auxiliary tables,
+    not the B-tree - page == FIL_NULL. We also skip secondary indexes
+    that are being created online. */
     return (DB_SUCCESS);
   }
 

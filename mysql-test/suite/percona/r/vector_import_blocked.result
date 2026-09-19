@@ -1,0 +1,50 @@
+#
+# PS-11299: DISCARD / IMPORT TABLESPACE on a table carrying vector
+# index metadata.
+#
+# The aux .ibd holding the graph does not travel with the base
+# tablespace, and the label counter lives in the table's data
+# dictionary entry while the labels it handed out live in the rows.
+# An imported .ibd would bring rows whose labels the target's counter
+# knows nothing about, so the next assignment would reissue one.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),
+(2,STRING_TO_VECTOR('[2,0,0,0]'));
+# Blocked while the index is there.
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR 42000: InnoDB: Cannot discard table `test/t1` because it carries vector index metadata. DISCARD/IMPORT TABLESPACE is not yet supported for such tables.
+# And still blocked after DROP KEY: percona_vec_aux_id is retained,
+# so the labels in the rows and the counter in the DD are still live.
+ALTER TABLE t1 DROP KEY vk;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR 42000: InnoDB: Cannot discard table `test/t1` because it carries vector index metadata. DISCARD/IMPORT TABLESPACE is not yet supported for such tables.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR 42000: InnoDB: Cannot import table `test/t1` because it carries vector index metadata. DISCARD/IMPORT TABLESPACE is not yet supported for such tables.
+#
+# The export side only warns, so a .cfg describing the hidden column
+# can still be produced. Importing it into a table that does not
+# carry the column is refused on the strength of the .cfg alone.
+#
+FLUSH TABLES t1 FOR EXPORT;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES on a table carrying vector index metadata. Vector auxiliary tables will not be flushed, and the resulting export cannot be imported.'
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES on a table carrying vector index metadata. Vector auxiliary tables will not be flushed, and the resulting export cannot be imported.'
+UNLOCK TABLES;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES on a table carrying vector index metadata. Vector auxiliary tables will not be flushed, and the resulting export cannot be imported.'
+DROP TABLE t1;
+# Same columns, no vector index - so no hidden column, and the
+# target-side block does not apply.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Refused by the source-side check in row_import::match_schema.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (The meta-data file describes a table carrying vector index metadata (column percona_vec_aux_id). IMPORT TABLESPACE is not supported for such tables.)
+DROP TABLE t1;
+# The staged files outlive the failed import: the table had already
+# discarded its own tablespace, so DROP TABLE does not own them.
+t1.cfg
+t1.ibd

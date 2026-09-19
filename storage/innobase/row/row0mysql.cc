@@ -1161,6 +1161,8 @@ handle_new_error:
     case DB_CANNOT_ADD_CONSTRAINT:
     case DB_TOO_MANY_CONCURRENT_TRXS:
     case DB_OUT_OF_FILE_SPACE:
+    /* A ceiling, not a failed allocation: fail the statement. */
+    case DB_VEC_OUT_OF_MEMORY:
     case DB_READ_ONLY:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:
@@ -1222,6 +1224,22 @@ handle_new_error:
              " the startup or when you dump the tables. "
           << FORCE_RECOVERY_MSG;
       break;
+
+    case DB_INDEX_CORRUPT:
+      /* A vector index's persisted graph named a node its aux table no
+      longer has. Recoverable at the statement level - nothing here says
+      the base table or the rest of the graph is unreadable - so fail the
+      statement rather than fall through to the ib::fatal that an
+      unhandled code would reach.
+
+      Nothing that reaches this function produced DB_INDEX_CORRUPT before
+      vector indexes: row0log.cc raises it during an online ALTER, whose
+      errors go through convert_error_code_to_mysql instead. */
+      ib::error(ER_IB_MSG_973)
+          << "A vector index's persisted graph named a node its auxiliary"
+             " table does not have. DROP and re-create the vector index.";
+      break;
+
     case DB_FOREIGN_EXCEED_MAX_CASCADE:
       ib::error(ER_IB_MSG_974)
           << "Cannot delete/update rows with cascading"

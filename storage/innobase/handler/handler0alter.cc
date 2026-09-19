@@ -387,6 +387,7 @@ static UNIV_COLD void my_error_innodb(
       my_error(ER_QUERY_INTERRUPTED, MYF(0));
       break;
     case DB_OUT_OF_MEMORY:
+    case DB_VEC_OUT_OF_MEMORY:
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
       break;
     case DB_OUT_OF_FILE_SPACE:

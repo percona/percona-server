@@ -55,6 +55,7 @@ json                | 3.12.0    | MIT          | yes | header-only | extra/json/
 boost            | 1.87.0       | BSL-1.0      | yes | header-only | extra/boost/boost_1_87_0                     | dir | always bundled, boost.cmake hardcodes the tree; trimmed subset; no LICENSE in tree
 rapidjson        | 1.1.0        | MIT          | yes | header-only | extra/rapidjson                              | none | -DWITH_RAPIDJSON=bundled; version is only in preprocessor defines, not as a literal
 unordered_dense  | 4.4.0        | MIT          | yes | header-only | extra/unordered_dense/unordered_dense-4.4.0  | dir | unconditional
+jwt-cpp          | 3e037df3e669633a3044618e30550ea2f212e915 | MIT | yes | header-only | extra/jwt-cpp | none | submodule; version is the pinned commit; header-only dependency of auth_openid_connect / authentication_openid_connect_client
 
 # --- shipped in the binary tarball only --------------------------------------
 curl             | 8.14.1       | curl         | tarball | static  | extra/curl/curl-8.14.1                       | dir | -DWITH_CURL=bundled in build-binary.sh; RPM and DEB use the system libcurl

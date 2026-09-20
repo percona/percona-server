@@ -769,12 +769,22 @@ build_srpm(){
     mv -fv ${TARFILE} ${WORKDIR}/rpmbuild/SOURCES
     #
     rpmbuild -bs --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .generic" rpmbuild/SPECS/percona-server.spec
+    srpm_build_status=$?
+    if [ ${srpm_build_status} -ne 0 ]; then
+        echo "ERROR: rpmbuild -bs failed (exit code ${srpm_build_status})"
+        exit ${srpm_build_status}
+    fi
     #
 
     mkdir -p ${WORKDIR}/srpm
     mkdir -p ${CURDIR}/srpm
     cp rpmbuild/SRPMS/*.src.rpm ${CURDIR}/srpm
     cp rpmbuild/SRPMS/*.src.rpm ${WORKDIR}/srpm
+
+    if [ -z "$(ls -A ${WORKDIR}/srpm/*.src.rpm 2>/dev/null)" ] || [ -z "$(ls -A ${CURDIR}/srpm/*.src.rpm 2>/dev/null)" ]; then
+        echo "ERROR: no .src.rpm file was produced (checked ${WORKDIR}/srpm and ${CURDIR}/srpm)"
+        exit 1
+    fi
     return
 }
 
@@ -911,12 +921,16 @@ build_rpm(){
         "${EXTRA_DEFINES[@]}" \
         --rebuild rpmbuild/SRPMS/${SRCRPM}
 
+    # Capture rpmbuild's exit status right away - the RHEL==6 strip
+    # workaround below runs more commands and would otherwise clobber $?,
+    # masking a failed build as success.
+    return_code=$?
+
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
         sudo mv /usr/bin/strip_back /usr/bin/strip
     fi
 
-    return_code=$?
     if [ $return_code != 0 ]; then
         exit $return_code
     fi
@@ -925,6 +939,10 @@ build_rpm(){
     cp rpmbuild/RPMS/*/*.rpm ${WORKDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${CURDIR}/rpm
 
+    if [ -z "$(ls -A ${WORKDIR}/rpm/*.rpm 2>/dev/null)" ] || [ -z "$(ls -A ${CURDIR}/rpm/*.rpm 2>/dev/null)" ]; then
+        echo "ERROR: no .rpm files were produced (checked ${WORKDIR}/rpm and ${CURDIR}/rpm)"
+        exit 1
+    fi
 }
 
 build_source_deb(){

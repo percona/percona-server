@@ -552,7 +552,8 @@ fi
   rpm2cpio $(basename %{compatsrc}) | cpio --extract --make-directories --verbose
   popd
 )
-%endif # rhel == 7
+# rhel == 7
+%endif
 
 %if 0%{?rhel} == 8 || 0%{?rhel} == 9
 # EL8/9: download prebuilt Percona Server 8.0 shared lib (.so.21)
@@ -572,8 +573,10 @@ fi
   rpm2cpio $(basename %{compatsrc}) | cpio --extract --make-directories --verbose
   popd
 )
-%endif # rhel == 8 || rhel == 9
-%endif # compatlib
+# rhel == 8 || rhel == 9
+%endif
+# compatlib
+%endif
 
 # Common cmake flags shared across debug, release, and PGO builds.
 # Conditional parts are resolved here once; the macro is then reused below.
@@ -681,7 +684,8 @@ mkdir release
   make %{?_smp_mflags} VERBOSE=1
   popd
 )
-%endif # pgo
+# pgo
+%endif
 
 %install
 %ifarch x86_64
@@ -696,8 +700,10 @@ mkdir release
       install -D -m 0755 "$lib" %{buildroot}%{_libdir}/mysql/$(basename "$lib")
     done
     %endif
-  %endif # 0%{?compatlib}
-%endif # arch x86_64
+  # 0%{?compatlib}
+  %endif
+# arch x86_64
+%endif
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
@@ -773,13 +779,13 @@ find %{buildroot}%{_datadir}/mysql-test -maxdepth 1 -name 'core*' -exec rm -f {}
 # Remove removed manpages here until they are removed from the docs repo
 
 %if 0%{?with_sbom}
-sh $MBD/build-ps/sbom/check-components.sh --root $MBD
+sh $MBD/%{src_dir}/build-ps/sbom/check-components.sh --root $MBD/%{src_dir}
 install -d -m 0755 %{buildroot}%{_datadir}/percona-server/sbom
-sh $MBD/build-ps/sbom/gen-sbom.sh \
+sh $MBD/%{src_dir}/build-ps/sbom/gen-sbom.sh \
   --pkg percona-server \
   --version %{version}-%{percona_server_version} \
-  --root $MBD \
-  --pins $MBD/build-ps/sbom/submodule-pins.txt \
+  --root $MBD/%{src_dir} \
+  --pins $MBD/%{src_dir}/build-ps/sbom/submodule-pins.txt \
   --artifact package \
   --dest %{buildroot}%{_datadir}/percona-server/sbom
 %endif

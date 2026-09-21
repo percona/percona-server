@@ -112,6 +112,18 @@ DB_INDEX_CORRUPT returned alongside it does not replace this text.
 @param[in]  id   the node the neighbour list named */
 void vec_report_missing_node(THD *thd, uint64_t id);
 
+/** The InnoDB error for a graph result that is not HNSW_SUCCESS.
+
+Declared rather than kept file-local so the mapping can be enumerated by
+a unit test: it is the one place that decides what each of the class's
+results means to InnoDB, and getting one of them wrong has already cost a
+fatal error once.
+@param[in]  rc   the graph's result
+@param[in]  ctx  the context the callbacks reported through, or nullptr
+                 where there is none
+@return the error to fail the statement with */
+dberr_t vec_hnsw_dberr(HnswResult rc, const Vec_ctx *ctx);
+
 /** Report that innodb_hnsw_max_memory is spent.
 
 Reported here rather than left to what DB_VEC_OUT_OF_MEMORY maps to,
@@ -189,7 +201,10 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   const HnswResult nrc = hnsw.load_node_neighbors(handle, ids);
 
   mem_heap_free(heap);
-  if (nrc != HNSW_SUCCESS) return DB_OUT_OF_MEMORY;
+  /* DB_VEC_OUT_OF_MEMORY, not DB_OUT_OF_MEMORY: this runs on the INSERT
+  path, where row_mysql_handle_errors does not list the latter and so
+  reaches its ib::fatal arm. */
+  if (nrc != HNSW_SUCCESS) return DB_VEC_OUT_OF_MEMORY;
   return DB_SUCCESS;
 }
 
@@ -298,7 +313,7 @@ and persisting during that build is wasted work: each insert rewires its
 neighbours, so a node's row would be rewritten every time a later insert
 touches it - O(N x M x log N) row updates to arrive at a state that is
 only correct once the last row is in. Building against this persistor and
-then walking the finished graph (HNSW::for_each_node) writes each node
+then walking the finished graph (HNSW::for_each_node_sorted) writes each node
 once, with its final neighbour list.
 
 Context is an empty tag: there is no error to carry, because none of

@@ -1,0 +1,63 @@
+#
+# A failed statement must not cost the index its graph unless the
+# graph is actually wrong.
+#
+# Both kinds of failure arrive at the same place - the aux write did
+# not happen - and they used to be treated the same: any error marked
+# the runtime corrupt, so one lock wait forced a rebuild. That was the
+# honest reading while a callback could only report "this node is
+# gone". The result codes now separate them, and only one of the two
+# means the graph and its table disagree.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]'));
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+dims=4 M=4 ef_construction=200 loaded=1 corrupted=0
+#
+# Transient: the aux write fails the way a full tablespace or a lock
+# wait makes it fail. The statement fails and nothing else does.
+#
+SET DEBUG = '+d,vec_aux_insert_transient_fail';
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+ERROR HY000: The table 't1' is full
+SET DEBUG = '-d,vec_aux_insert_transient_fail';
+# The runtime is untouched - not corrupt, still loaded.
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+dims=4 M=4 ef_construction=200 loaded=1 corrupted=0
+# So the same INSERT works now, with no rebuild in between, and the
+# index answers for the row it just took.
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+id
+3
+#
+# Permanent: a node the graph names is not in the aux. No retry fixes
+# that, and nothing revisits a node the class has marked lost, so a
+# graph left serving would answer with fewer rows and no error.
+#
+# restart
+SET DEBUG = '+d,vec_aux_node_missing';
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+ERROR HY000: Index corrupt: the vector index's graph names node <N>, which its auxiliary table does not have. DROP and re-create the index to rebuild it from the base rows.
+SET DEBUG = '-d,vec_aux_node_missing';
+# DROP and re-create is the repair the error asks for, and it works.
+ALTER TABLE t1 DROP KEY vk;
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+id
+3
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=0
+DROP TABLE t1;

@@ -750,9 +750,11 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
     if (m_vec == nullptr) {
       /* vec_build_start distinguishes an actual memory shortage
-      (DB_OUT_OF_MEMORY) from its own KEY not being where it should be
+      (DB_VEC_OUT_OF_MEMORY) from its own KEY not being where it should be
       (DB_ERROR, logged) - report whichever it found rather than always
-      claiming the index ran out of memory. */
+      claiming the index ran out of memory. Either way the ALTER fails: a
+      partially built graph is never left behind, because the builder's
+      cleanup frees it and the aux table is dropped with the statement. */
       ut_ad(vec_err != DB_SUCCESS);
       set_error(vec_err);
       set_next_state();

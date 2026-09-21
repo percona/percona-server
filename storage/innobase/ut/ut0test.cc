@@ -615,7 +615,8 @@ Ret_t Tester::vec_runtime_info(std::vector<std::string> &tokens) noexcept {
 
   const auto *vec = vec_runtime_get(vindex);
   XLOG("dims=" << vec->dims << " M=" << vec->m << " ef_construction="
-               << vec->ef_construction << " loaded=" << (vec->loaded ? 1 : 0));
+               << vec->ef_construction << " loaded=" << (vec->loaded ? 1 : 0)
+               << " corrupted=" << (vec->corrupted_hnsw ? 1 : 0));
   set_output(sout);
   return RET_PASS;
 }

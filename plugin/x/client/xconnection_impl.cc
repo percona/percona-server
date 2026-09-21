@@ -652,7 +652,10 @@ XError Connection_impl::activate_tls() {
       &m_ssl_init_error,
       details::null_when_empty(m_context->m_ssl_config.m_crl),
       details::null_when_empty(m_context->m_ssl_config.m_crl_path),
-      ssl_ctx_flags, verify_identity ? m_hostname.c_str() : nullptr);
+      ssl_ctx_flags, m_context->m_ssl_config.m_tls_force_pqc,
+      m_context->m_ssl_config.m_tls_use_pqc_sign,
+      details::null_when_empty(m_context->m_ssl_config.m_tls_kex),
+      verify_identity ? m_hostname.c_str() : nullptr);
 
   if (nullptr == m_vioSslFd) return get_ssl_init_error(m_ssl_init_error);
 

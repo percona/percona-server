@@ -138,8 +138,6 @@ ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   return written;
 }
 
-ulint data_page_t::space_left() const { return (payload() - get_data_len()); }
-
 buf_block_t *data_page_t::alloc(mtr_t *alloc_mtr, bool is_bulk) {
   ut_ad(m_block == nullptr);
   ut_ad(m_index != nullptr);

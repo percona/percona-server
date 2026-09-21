@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "mem0mem.h"
@@ -515,15 +516,13 @@ lsn_t buf_pool_get_oldest_modification_lwm(void) {
     return (0);
   }
 
-  ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
-
-  const log_t &log = *log_sys;
+  ut_a(log_is_data_lsn(lsn));
 
   const lsn_t lag = buf_flush_list_added->order_lag();
 
   ut_a(lag % OS_FILE_LOG_BLOCK_SIZE == 0);
 
-  const lsn_t checkpoint_lsn = log_get_checkpoint_lsn(log);
+  const lsn_t checkpoint_lsn = pages_persistence->get_checkpoint_lsn();
 
   ut_a(checkpoint_lsn != 0);
 
@@ -1645,7 +1644,6 @@ static void buf_pool_free() {
 
   ut::free(buf_pool_ptr);
   buf_pool_ptr = nullptr;
-  buf_flush_list_added.reset(nullptr);
 }
 
 /** Creates the buffer pool.
@@ -1662,8 +1660,6 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
   ut_ad(n_instances == srv_buf_pool_instances);
 
   NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
-
-  buf_flush_list_added = Buf_flush_list_added_lsns::create();
 
   /* Usually buf_pool_should_madvise is protected by buf_pool_t::chunk_mutex-es,
   but at this point in time there is no buf_pool_t instances yet, and no risk of
@@ -2386,11 +2382,22 @@ static void buf_pool_resize() {
                     "Disabling adaptive hash index.");
 
   /* disable AHI if needed */
-  const bool btr_search_was_enabled = btr_search_disable();
-
-  if (btr_search_was_enabled) {
+  if (btr_search_disable()) {
     ib::info(ER_IB_MSG_60) << "disabled adaptive hash index.";
   }
+
+#ifdef UNIV_DEBUG
+  {
+    bool should_wait = true;
+
+    while (should_wait) {
+      should_wait = false;
+      DBUG_EXECUTE_IF(
+          "ib_buf_pool_resize_after_disable_ahi", should_wait = true;
+          std::this_thread::sleep_for(std::chrono::milliseconds(10)););
+    }
+  }
+#endif /* UNIV_DEBUG */
 
   /* set withdraw target */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -2807,8 +2814,7 @@ withdraw_retry:
   }
 
   /* enable AHI if needed */
-  if (btr_search_was_enabled) {
-    btr_search_enable();
+  if (btr_search_enable()) {
     ib::info(ER_IB_MSG_70) << "Re-enabled adaptive hash index.";
   }
 
@@ -5549,6 +5555,10 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   memset(frame + FIL_PAGE_PREV, 0xff, 4);
   memset(frame + FIL_PAGE_NEXT, 0xff, 4);
+  /* A block taken from the free list may still contain old B-tree page header
+  fields in its frame. Mark it allocated until fsp_init_file_page_low()
+  initializes the frame, so the old contents cannot be mistaken for a tracked
+  index leaf page. */
   mach_write_to_2(frame + FIL_PAGE_TYPE, FIL_PAGE_TYPE_ALLOCATED);
 
   /* These 8 bytes are also repurposed for PageIO compression and must
@@ -5605,7 +5615,7 @@ static void buf_page_monitor(
 
     /* Account reading of leaf pages into the buffer pool(s). */
     if (is_leaf && io_type == BUF_IO_READ) {
-      buf_stat_per_index->inc(index_id_t(space_id, idx_id));
+      buf_stat_per_index->inc_if_tracked_page(frame);
     }
   }
 
@@ -6081,77 +6091,13 @@ void buf_page_t::set_io_fix(buf_io_fix io_fix) {
 #endif
 }
 
-/** Fetch the page from disk using synchronous read and verify if the page_id
-matches the page_id in the memory buffer block.
-@param[in]  bpage  the buffer block page
-@param[in]  type   i/o context object
-@param[in]  node   file where the page is available on disk.
-@return true if page id is wrong in the frame.
-@return false if page id is correct in the frame. */
-static bool sync_read_page_verify_pageid(buf_page_t *bpage, IORequest *type,
-                                         fil_node_t *node) {
-  buf_block_t *block = reinterpret_cast<buf_block_t *>(bpage);
-  const bool is_compressed = bpage->size.is_compressed();
-  const page_no_t page_no = bpage->id.page_no();
-  const space_id_t space_id = bpage->id.space();
-  buf_frame_t *frame = buf_block_get_frame(block);
-  bool is_wrong_page_id = true;
-
-  if (recv_recovery_is_on() || is_compressed || node == nullptr ||
-      type == nullptr) {
-    /* We don't attempt to read the page from disk to verify page id. */
-    return is_wrong_page_id;
-  }
-
-  /* Let us do a sync read and check once. */
-  page_no_t read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
-  space_id_t read_space_id = mach_read_from_4(frame + FIL_PAGE_SPACE_ID);
-  const ulint page_size = univ_page_size.physical();
-  const auto offset = (os_offset_t)page_no * page_size;
-
-  LogErr(WARNING_LEVEL, ER_IB_WRONG_PAGE_ID, (size_t)space_id, (size_t)page_no,
-         (size_t)read_space_id, (size_t)read_page_no, node->name);
-
-  const size_t MAX_RETRIES = 10;
-  for (size_t i = 0; i < MAX_RETRIES; ++i) {
-    auto err =
-        os_file_read(*type, node->name, node->handle, frame, offset, page_size);
-    if (err == DB_SUCCESS) {
-      read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
-      read_space_id = mach_read_from_4(frame + FIL_PAGE_SPACE_ID);
-      if (space_id == read_space_id && page_no == read_page_no) {
-        /* PASS with synchronous read. */
-        LogErr(WARNING_LEVEL, ER_IB_FIXED_PAGE_ID, (size_t)space_id,
-               (size_t)page_no, (size_t)read_space_id, (size_t)read_page_no,
-               node->name, i);
-        is_wrong_page_id = false;
-        break;
-      } else {
-        /* The synchronous read operation reports success.  But did it really
-        fetch the page from disk? Since the page_id is still wrong, retry. */
-        LogErr(WARNING_LEVEL, ER_IB_WRONG_PAGEID_AFTER_SYNC_READ,
-               (size_t)space_id, (size_t)page_no, (size_t)read_space_id,
-               (size_t)read_page_no, node->name, i);
-      }
-    } else {
-      /* Synchronous read failed for the page. */
-      LogErr(WARNING_LEVEL, ER_IB_SYNC_READ_FAILED, (size_t)space_id,
-             (size_t)page_no, node->name, (size_t)err, i);
-    }
-    /* Before retrying the synchronous read, sleep. */
-    std::this_thread::sleep_for(std::chrono::milliseconds{10});
-  }
-
-  return is_wrong_page_id;
-}
-
-bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
-                          fil_node_t *node) {
+dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict) {
   auto buf_pool = buf_pool_from_bpage(bpage);
   const bool uncompressed = (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
   ut_a(buf_page_in_file(bpage));
-  const page_no_t page_no = bpage->id.page_no();
-  const space_id_t space_id = bpage->id.space();
+  const auto &page_id = bpage->id;
+  const auto page_no = page_id.page_no();
+  const auto space_id = page_id.space();
 
   /* We do not need protect io_fix here by mutex to read it because this is the
   only function where we can change the value from BUF_IO_READ or BUF_IO_WRITE
@@ -6170,7 +6116,6 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
     byte *frame{};
     page_no_t read_page_no;
     space_id_t read_space_id;
-    bool is_wrong_page_id [[maybe_unused]] = false;
 
     if (bpage->size.is_compressed()) {
       frame = bpage->zip.data;
@@ -6193,7 +6138,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
     read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
     read_space_id = mach_read_from_4(frame + FIL_PAGE_SPACE_ID);
 
-    if (bpage->id.space() == TRX_SYS_SPACE && dblwr::v1::is_inside(page_no)) {
+    if (space_id == TRX_SYS_SPACE && dblwr::v1::is_inside(page_no)) {
       ib::error(ER_IB_MSG_78) << "Reading page " << bpage->id
                               << ", which is in the doublewrite buffer!";
 
@@ -6202,25 +6147,12 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
     } else if ((space_id != 0 && space_id != read_space_id) ||
                page_no != read_page_no) {
       /* We did not compare space_id to read_space_id if bpage->space == 0,
-      because the field on the page may contain garbage in MySQL < 4.1.1,
-      which only supported bpage->space == 0. */
-
-      /* The page id in the frame and the buffer block is different.  Let us
-      read the page again from the disk using synchronous read operation.
-
-      In HCS environment, an issue is seen whereby the linux AIO system call
-      io_getevents() reports a successful page read, but the buffer block is
-      not having the data from the disk.  To overcome this unexplained
-      behaviour, a synchronous read operation is performed to actually fetch
-      data from the disk. */
-      is_wrong_page_id = sync_read_page_verify_pageid(bpage, type, node);
-
-      if (is_wrong_page_id) {
-        ib::error(ER_IB_MSG_79) << "Space id and page number stored in "
-                                   "the page read in are "
-                                << page_id_t(read_space_id, read_page_no)
-                                << ", should be " << bpage->id;
-      }
+      because the field on the page may contain garbage in MySQL < 4.1.1, which
+      only supported bpage->space == 0. */
+      ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_79)
+          << "Space id and page number stored in the page read in are "
+          << page_id_t(read_space_id, read_page_no) << ", should be "
+          << page_id;
     }
 
     if (UNIV_LIKELY(!bpage->is_corrupt || !srv_pass_corrupt_table)) {
@@ -6235,7 +6167,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
         Compression::deserialize_header(frame, &meta);
 
         ib::error(ER_IB_MSG_80)
-            << "Page " << bpage->id << " "
+            << "Page " << page_id << " "
             << "compressed with " << Compression::to_string(meta) << " "
             << "that is not supported by this instance";
       }
@@ -6244,9 +6176,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
       to the 4 first bytes of the page end lsn field */
       bool is_corrupted;
       {
-        BlockReporter reporter =
-            BlockReporter(true, frame, bpage->size,
-                          fsp_is_checksum_disabled(bpage->id.space()));
+        BlockReporter reporter = BlockReporter(
+            true, frame, bpage->size, fsp_is_checksum_disabled(space_id));
         is_corrupted = reporter.is_corrupted();
       }
 
@@ -6255,7 +6186,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
       No problem for the cases. Just fills with zero for them.
       - The next log record to apply is initializing
       - No redo log record for the page yet (brand new page) */
-      if (recv_recovery_is_on() && (is_corrupted || is_wrong_page_id) &&
+      if (recv_recovery_is_on() && is_corrupted &&
           recv_page_is_brand_new((buf_block_t *)bpage)) {
         memset(frame, 0, bpage->size.logical());
         is_corrupted = false;
@@ -6273,10 +6204,9 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
         printing the contents. */
         if (!compressed_page) {
           ib::error(ER_IB_MSG_81)
-              << "Database page corruption on disk"
-                 " or a failed file read of page "
-              << bpage->id << ". You may have to recover from "
-              << "a backup.";
+              << "Database page corruption on disk or a failed file read of "
+                 "page "
+              << page_id << ". You may have to recover from a backup.";
 
           buf_page_print(frame, bpage->size, BUF_PAGE_PRINT_NO_CRASH);
 
@@ -6293,20 +6223,17 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
                                  << FORCE_RECOVERY_MSG;
         }
 
-        if (srv_pass_corrupt_table && bpage->id.space() != 0 &&
-            bpage->id.space() < dict_sys_t::s_log_space_id) {
-          trx_t *trx;
+        if (srv_pass_corrupt_table && space_id != TRX_SYS_SPACE &&
+            space_id < dict_sys_t::s_log_space_id) {
+          ib::warn() << "Space " << space_id << " will be treated as corrupt.";
 
-          ib::warn() << "Space " << bpage->id.space()
-                     << " will be treated as corrupt.",
-              fil_space_set_corrupt(bpage->id.space());
+          fil_space_set_corrupt(space_id);
 
-          trx = innobase_get_trx();
-          if (trx && trx->dict_operation_lock_mode == RW_X_LATCH) {
-            dict_table_set_corrupt_by_space(bpage->id.space(), false);
-          } else {
-            dict_table_set_corrupt_by_space(bpage->id.space(), true);
-          }
+          trx_t *trx = innobase_get_trx();
+          dict_table_set_corrupt_by_space(
+              space_id,
+              trx == nullptr || trx->dict_operation_lock_mode != RW_X_LATCH);
+
           bpage->is_corrupt = true;
         } else if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
           /* We do not have to mark any index as
@@ -6316,7 +6243,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
           so we will mark it later in upper layer */
 
           buf_read_page_handle_error(bpage);
-          return (false);
+          return DB_INDEX_CORRUPT;
         }
       }
     }
@@ -6330,22 +6257,12 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
       recv_recover_page(true, (buf_block_t *)bpage);
     } else if (uncompressed && !Compression::is_compressed_page(frame) &&
                fil_page_get_type(frame) == FIL_PAGE_INDEX &&
-               page_is_leaf(frame) &&
-               !fsp_is_system_temporary(bpage->id.space()) &&
-               !fsp_is_undo_tablespace(bpage->id.space()) &&
-               !bpage->was_stale()) {
-      buf_block_t *block;
-      bool update_ibuf_bitmap;
-
-      if (UNIV_UNLIKELY(bpage->is_corrupt && srv_pass_corrupt_table)) {
-        block = nullptr;
-        update_ibuf_bitmap = false;
-      } else {
-        block = reinterpret_cast<buf_block_t *>(bpage);
-        update_ibuf_bitmap = true;
-      }
-      ibuf_merge_or_delete_for_page(block, bpage->id, &bpage->size,
-                                    update_ibuf_bitmap);
+               page_is_leaf(frame) && !fsp_is_system_temporary(space_id) &&
+               !fsp_is_undo_tablespace(space_id) && !bpage->was_stale()) {
+      const bool accept_page = !bpage->is_corrupt || !srv_pass_corrupt_table;
+      ibuf_merge_or_delete_for_page(
+          accept_page ? reinterpret_cast<buf_block_t *>(bpage) : nullptr,
+          page_id, &bpage->size, accept_page);
     }
   }
 
@@ -6381,6 +6298,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
       has_LRU_mutex = true;
       mutex_enter(&buf_pool->LRU_list_mutex);
     }
+  } else {
+    ut_ad(!evict);
   }
   mutex_enter(block_mutex);
 
@@ -6389,7 +6308,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
     /* For BUF_IO_READ of compressed-only blocks, the
     buffered operations will be merged by buf_page_get_gen()
     after the block has been uncompressed. */
-    ut_a(ibuf_count_get(bpage->id) == 0);
+    ut_a(ibuf_count_get(page_id) == 0);
   }
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
@@ -6453,9 +6372,9 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict, IORequest *type,
 
   DBUG_PRINT("ib_buf", ("%s page " UINT32PF ":" UINT32PF,
                         io_type == BUF_IO_READ ? "read" : "wrote",
-                        bpage->id.space(), bpage->id.page_no()));
+                        page_id.space(), page_id.page_no()));
 
-  return (true);
+  return DB_SUCCESS;
 }
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
@@ -7452,11 +7371,6 @@ void buf_pool_free_all() {
   buf_pool_free();
 }
 
-bool is_buffer_pool_resize_in_progress() {
-  auto status = buf_pool_resize_status_code.load();
-  return (status != BUF_POOL_RESIZE_COMPLETE &&
-          status != BUF_POOL_RESIZE_FAILED);
-}
 #endif /* !UNIV_HOTBACKUP */
 
 [[nodiscard]] bool buf_page_t::is_memory(const page_t *const ptr) noexcept {

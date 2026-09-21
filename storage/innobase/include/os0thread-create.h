@@ -39,7 +39,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include "os0thread.h"
-#include "sql_thd_internal_api.h"
+#include "sql/sql_thd_internal_api.h"
+#include "ut0log.h" /* ib::warn */
 
 #include <atomic>
 #include <functional>

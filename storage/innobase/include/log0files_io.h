@@ -102,6 +102,8 @@ This includes functions to:
 /* ut::vector */
 #include "ut0new.h"
 
+#include "log0handler_interface.h"
+
 /** Atomic pointer to the log checksum calculation function. This is actually
 the only remaining "state" of the library. Hopefully can become removed. */
 extern Log_checksum_algorithm_atomic_ptr log_checksum_algorithm_ptr;
@@ -251,10 +253,12 @@ dberr_t log_checkpoint_header_read(
 @param[in]   file_handle           handle for the opened log file
 @param[in]   checkpoint_header_no  checkpoint header to read
 @param[out]  header                the checkpoint header read
+@param[out]  block                 to be filled with block containing checkpoint
 @return DB_SUCCESS or error */
-dberr_t log_checkpoint_header_read(
+[[nodiscard]] dberr_t log_checkpoint_header_read(
     Log_file_handle &file_handle, Log_checkpoint_header_no checkpoint_header_no,
-    Log_checkpoint_header &header);
+    Log_checkpoint_header &header,
+    ib::redo::Handler_interface::Metadata_value &block);
 
 /** @} */
 

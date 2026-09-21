@@ -310,9 +310,6 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
                      MYSQL_SP_ARG_TYPE_TYPED_ARRAY, false, nullptr,
                      sizeof(double), nullptr, 0);
     SERVICE_PLACEHOLDER(mysql_stmt_bind)
-        ->bind_param(statement, param_index, true, MYSQL_SP_ARG_TYPE_INVALID,
-                     false, nullptr, sizeof(double), nullptr, 0);
-    SERVICE_PLACEHOLDER(mysql_stmt_bind)
         ->bind_param(statement, param_index, true, MYSQL_SP_ARG_TYPE_BOOL,
                      false, nullptr, sizeof(double), nullptr, 0);
     SERVICE_PLACEHOLDER(mysql_stmt_bind)
@@ -346,10 +343,9 @@ static auto test_execute_prepared_statement(UDF_INIT *, UDF_ARGS *arguments,
     SERVICE_PLACEHOLDER(mysql_stmt_bind)
         ->bind_param(statement, param_index, true, MYSQL_SP_ARG_TYPE_GEOMETRY,
                      false, nullptr, sizeof(double), nullptr, 0);
-    // Invalid enum to cover the default case
     SERVICE_PLACEHOLDER(mysql_stmt_bind)
-        ->bind_param(statement, param_index, true, 2222, false, nullptr,
-                     sizeof(double), nullptr, 0);
+        ->bind_param(statement, param_index, true, MYSQL_SP_ARG_TYPE_VECTOR,
+                     false, nullptr, sizeof(double), nullptr, 0);
   }
 #endif
 

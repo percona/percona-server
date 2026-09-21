@@ -126,7 +126,7 @@ if (!$has_build_id)
 # Check Build ID and server version has been written to error log
 --let $assert_text= Checking MySQL wrote Server Version
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select= Server Version: [0-9]\.[0-9]\.[0-9]{1,2}.*
+--let $assert_select= Server Version: [0-9]+\.[0-9]+\.[0-9]+.*
 --let $assert_only_after=CURRENT_TEST: main.coredump
 --let $assert_count=2
 --source include/assert_grep.inc

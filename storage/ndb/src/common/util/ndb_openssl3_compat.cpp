@@ -95,6 +95,16 @@ int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b) {
   return EVP_PKEY_cmp(a, b);
 }
 
+int X509_self_signed(X509 *cert, int verify_signature) {
+  EVP_PKEY *pkey = X509_get0_pubkey(cert);
+  if (pkey == nullptr) return -1;
+
+  uint32_t flags = X509_get_extension_flags(cert);
+  if ((flags & EXFLAG_SS) == 0) return 0;
+
+  return verify_signature ? X509_verify(cert, pkey) : 1;
+}
+
 #endif
 
 /* Stub functions to allow NodeCertificate.cpp to compile with old OpenSSL */

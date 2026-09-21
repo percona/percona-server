@@ -32,37 +32,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #ifndef UNIV_HOTBACKUP
 
-/* std::memcpy, std::memcmp, std::memset */
-#include <cstring>
-
-/* log_get_checkpoint_lsn */
-#include "log0chkp.h"
-
 #include "log0encryption.h"
-
-/* log_files_mutex_own */
-#include "log0files_governor.h"
-
-/* log_encryption_header_{read,write} */
-#include "log0files_io.h"
-
-/* log_t::m_encryption_metadata */
-#include "log0sys.h"
-
-/* LOG_HEADER_ENCRYPTION_INFO_OFFSET */
-#include "log0types.h"
-
-/* log_writer_mutex_own */
-#include "log0write.h"
-
-/* Encryption::X */
-#include "os0enc.h"
-
-/* srv_force_recovery */
-#include "srv0srv.h"
-
-/* IB_mutex_guard */
-#include "ut0mutex.h"
+#include <cstring>     /* std::memcpy, std::memcmp, std::memset */
+#include "dict0dict.h" /* dict_sys_t::s_invalid_space_id */
+#include "fil0pages_persistence_interface.h" /* pages_persistence */
+#include "log0chkp.h"                        /* log_get_checkpoint_lsn */
+#include "log0files_governor.h"              /* log_files_mutex_own */
+#include "log0files_io.h"          /* log_encryption_header_{read,write} */
+#include "log0handler_interface.h" /* Redo Log Handler */
+#include "log0sys.h"               /* log_t::m_encryption_metadata */
+#include "log0types.h"             /* LOG_HEADER_ENCRYPTION_INFO_OFFSET */
+#include "log0write.h"             /* log_writer_mutex_own */
+#include "os0enc.h"                /* Encryption::* */
+#include "srv0srv.h"               /* srv_force_recovery */
+#include "ut0mutex.h"              /* IB_mutex_guard */
 
 /**************************************************/ /**
 
@@ -77,32 +60,44 @@ Asserts that the file has been found.
 @param[in]  log   redo log
 @return iterator to the file containing current log encryption header */
 static Log_files_dict::Const_iterator log_encryption_file(const log_t &log) {
-  auto file = log.m_files.find(log_get_checkpoint_lsn(log));
+  ut_ad(mutex_own(&log.m_files_mutex));
+  auto file = log.m_files.find(pages_persistence->get_checkpoint_lsn());
   ut_a(file != log.m_files.end());
   return file;
 }
 
-dberr_t log_encryption_read(log_t &log) {
-  return log_encryption_read(log, *log_encryption_file(log));
-}
+using Metadata_key = ib::redo::Metadata_key;
+using Metadata_value = ib::redo::Handler_interface::Metadata_value;
+using Status = ib::redo::Status;
 
-dberr_t log_encryption_read(log_t &log, const Log_file &file) {
+dberr_t log_encryption_read(log_t &log, Metadata_value &block) {
   ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
   ut_a(log_sys != nullptr);
 
   IB_mutex_guard writer_latch{&(log.writer_mutex), UT_LOCATION_HERE};
   IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
   std::memset(log.m_encryption_buf, 0x00, OS_FILE_LOG_BLOCK_SIZE);
-
-  auto file_handle = file.open(Log_file_access_mode::READ_ONLY);
+  auto file_handle =
+      log_encryption_file(log)->open(Log_file_access_mode::READ_ONLY);
   ut_a(file_handle.is_open());
 
-  byte log_block_buf[OS_FILE_LOG_BLOCK_SIZE] = {};
-
-  const dberr_t err = log_encryption_header_read(file_handle, log_block_buf);
+  const dberr_t err = log_encryption_header_read(file_handle, block.data());
   if (err != DB_SUCCESS) {
     return DB_ERROR;
   }
+
+  return DB_SUCCESS;
+}
+
+dberr_t log_read_encryption_info(log_t &log) {
+  /* Read the encryption header to get the encryption information. */
+  Metadata_value header_block{'\0'};
+  if (ib::redo::handler->get_metadata(Metadata_key::HEADER, header_block) !=
+      Status::SUCCESS) {
+    return DB_ERROR;
+  }
+
+  auto log_block_buf = header_block.data();
 
   if (Encryption::is_encrypted_with_v3(log_block_buf +
                                        LOG_HEADER_ENCRYPTION_INFO_OFFSET)) {
@@ -160,26 +155,15 @@ bool log_file_header_fill_encryption(
   return true;
 }
 
-/** Writes the encryption information into the log encryption header in
-the log file containing current checkpoint LSN (log.last_checkpoint_lsn).
-Updates: log.m_encryption_buf.
-@param[in,out]  log      redo log
-@return DB_SUCCESS or DB_ERROR */
-static dberr_t log_encryption_write_low(log_t &log) {
-  ut_ad(log_files_mutex_own(log));
-  ut_ad(log_writer_mutex_own(log));
+bool log_can_encrypt(const log_t &log) {
+  return log.m_encryption_metadata.can_encrypt();
+}
 
-  byte log_block_buf[OS_FILE_LOG_BLOCK_SIZE];
+dberr_t log_encryption_update_and_write_header(log_t &log,
+                                               const Metadata_value block) {
+  ut_a(log_can_encrypt(log));
 
-  if (log_can_encrypt(log)) {
-    if (!log_file_header_fill_encryption(log.m_encryption_metadata, true,
-                                         log_block_buf)) {
-      return DB_ERROR;
-    }
-  } else {
-    std::memset(log_block_buf, 0x00, OS_FILE_LOG_BLOCK_SIZE);
-  }
-
+  const byte *log_block_buf = block.data();
   std::memcpy(log.m_encryption_buf, log_block_buf, OS_FILE_LOG_BLOCK_SIZE);
 
   auto file_handle =
@@ -189,37 +173,27 @@ static dberr_t log_encryption_write_low(log_t &log) {
   return log_encryption_header_write(file_handle, log.m_encryption_buf);
 }
 
-bool log_can_encrypt(const log_t &log) {
-  return log.m_encryption_metadata.can_encrypt();
-}
+dberr_t log_encryption_generate_metadata() {
+  ut_a(ib::redo::handler->get_capabilities().supports_encryption);
 
-dberr_t log_encryption_on_master_key_changed(log_t &log) {
-  IB_mutex_guard writer_latch{&(log.writer_mutex), UT_LOCATION_HERE};
-  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
-
-  if (!log_can_encrypt(log)) {
-    return DB_SUCCESS;
-  }
-
-  /* Re-encrypt log's encryption metadata and write them to disk. */
-  return log_encryption_write_low(log);
-}
-
-dberr_t log_encryption_generate_metadata(log_t &log) {
-  IB_mutex_guard writer_latch{&(log.writer_mutex), UT_LOCATION_HERE};
-  IB_mutex_guard files_latch{&(log.m_files_mutex), UT_LOCATION_HERE};
-
+  /* generate new encryption info */
   Encryption_metadata encryption_metadata;
-
   Encryption::set_or_generate(Encryption::AES, nullptr, nullptr,
                               encryption_metadata);
 
-  log_files_update_encryption(log, encryption_metadata);
+  /* encrypt the log block header with master key */
+  Metadata_value header_block{0};
+  auto log_block_buf = header_block.data();
+  if (!log_file_header_fill_encryption(encryption_metadata, true,
+                                       log_block_buf)) {
+    ib::error(ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED);
+    return DB_ERROR;
+  }
 
-  const auto err = log_encryption_write_low(log);
-  if (err != DB_SUCCESS) {
-    log_files_update_encryption(log, {});
-    return err;
+  if (ib::redo::handler->store_metadata(Metadata_key::HEADER, header_block) !=
+      Status::SUCCESS) {
+    ib::error(ER_IB_MSG_LOG_FILES_ENCRYPTION_INIT_FAILED);
+    return DB_ERROR;
   }
 
   return DB_SUCCESS;

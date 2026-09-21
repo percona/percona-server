@@ -243,11 +243,23 @@ TableResult AuditLogFilter::load_filters(AuditRulesContainer &container,
                                /*skip_disabled_events=*/true)) {
       container.insert({buff_filter_name_value, std::move(rule)});
     } else {
+      /*
+        The parser records why it rejected the definition; report that instead
+        of a generic guess. Suggesting audit_log_filter.event_mode=FULL here
+        was always wrong: filters are parsed with skip_disabled_events=true on
+        this path, so an event class or subclass which is disabled in
+        event_mode=REDUCED is skipped with a warning rather than failing the
+        parse, and a failure therefore always means a malformed definition.
+      */
+      const std::string &parse_error = rule->get_parse_error();
+      const char *reason = parse_error.empty()
+                               ? "unrecognized filter definition"
+                               : parse_error.c_str();
+
       LogComponentErr(ERROR_LEVEL, ER_AUDIT_TABLE_FILTER_WRONG_FORMAT,
-                      buff_filter_name_value, buff_filter_filter_value);
+                      buff_filter_name_value, buff_filter_filter_value, reason);
       error_message = std::string("Filter '") + buff_filter_name_value +
-                      "' has wrong format, consider using "
-                      "audit_log_filter.event_mode=FULL";
+                      "' has wrong format: " + reason;
       has_parse_error = true;
     }
   }

@@ -352,6 +352,9 @@ class Parallel_reader {
   /** @return the configured max threads size. */
   [[nodiscard]] size_t max_threads() const { return m_max_threads; }
 
+  /** @return true iff this reader runs worker() on the caller's thread. */
+  [[nodiscard]] bool is_sync() const noexcept { return m_sync; }
+
   /** @return true if in error state. */
   [[nodiscard]] bool is_error_set() const {
     return m_err.load(std::memory_order_relaxed) != DB_SUCCESS;
@@ -598,7 +601,7 @@ class Parallel_reader::Scan_ctx {
   void copy_row(const rec_t *rec, Iter *iter) const;
 
   /** Create the persistent cursor that will be used to traverse the
-  partition and position on the the start row.
+  partition and position on the start row.
   @param[in]      page_cursor   Current page cursor
   @param[in]      mtr           Mini-transaction covering the read.
   @return Start iterator. */

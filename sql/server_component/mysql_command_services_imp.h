@@ -63,7 +63,7 @@ struct mysql_command_service_extn {
                              if it was allocated. */
   MYSQL_DATA *data = nullptr;
   void *command_consumer_services = nullptr;
-  SRV_CTX_H *consumer_srv_data = nullptr;
+  SRV_CTX_H consumer_srv_data = nullptr;
   MYSQL_THD mcs_thd = nullptr;
   const char *mcs_protocol = nullptr;
   const char *mcs_user_name = nullptr;
@@ -73,6 +73,14 @@ struct mysql_command_service_extn {
   const char *mcs_db = nullptr;
   uint32_t mcs_client_flag = 0;
   bool no_lock_registry = false;
+  /*
+    Remember whether set() chose default or custom services after service
+    names are resolved to pointers. Only the default factory context is a
+    Dom_ctx, and only custom capabilities or explicit client flags opt into
+    session tracking.
+  */
+  bool has_custom_consumer_factory = false;
+  bool has_custom_client_capabilities_service = false;
 };
 
 #define MYSQL_COMMAND_SERVICE_EXTN(H)                    \

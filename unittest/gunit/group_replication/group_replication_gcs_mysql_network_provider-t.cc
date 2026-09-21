@@ -23,6 +23,8 @@
 
 #include "plugin/group_replication/include/gcs_mysql_network_provider.h"
 
+#include <cstring>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -37,6 +39,22 @@ int handle_group_replication_incoming_connection(THD *thd, int fd,
 
 // To fool the compiler
 ulong get_components_stop_timeout_var() { return 0; }
+
+static bool fake_group_replication_force_pqc = false;
+static bool fake_group_replication_use_pqc_sign = false;
+static const char *fake_group_replication_tls_kex = "";
+
+bool get_group_replication_force_pqc_var() {
+  return fake_group_replication_force_pqc;
+}
+
+bool get_group_replication_use_pqc_sign_var() {
+  return fake_group_replication_use_pqc_sign;
+}
+
+const char *get_group_replication_tls_kex_var() {
+  return fake_group_replication_tls_kex;
+}
 
 namespace group_replication_gcs_mysql_networkprovidertest {
 
@@ -116,6 +134,9 @@ class MySQLNetworkProviderTest : public ::testing::Test {
   MySQLNetworkProviderTest() {}
 
   virtual void SetUp() {
+    fake_group_replication_force_pqc = false;
+    fake_group_replication_use_pqc_sign = false;
+    fake_group_replication_tls_kex = "";
     auth_interface = new mock_gcs_mysql_network_provider_auth_interface();
     native_interface = new mock_gcs_mysql_network_provider_native_interface();
   }
@@ -128,6 +149,17 @@ class MySQLNetworkProviderTest : public ::testing::Test {
   mock_gcs_mysql_network_provider_auth_interface *auth_interface;
   mock_gcs_mysql_network_provider_native_interface *native_interface;
 };
+
+MATCHER_P(IsBoolOption, expected, "") {
+  return arg != nullptr && *static_cast<const bool *>(arg) == expected;
+}
+
+MATCHER_P(IsCStringOption, expected, "") {
+  const char *value = static_cast<const char *>(arg);
+  return (value == nullptr && expected == nullptr) ||
+         (value != nullptr && expected != nullptr &&
+          std::strcmp(value, expected) == 0);
+}
 
 TEST_F(MySQLNetworkProviderTest, StartAndStopTest) {
   Gcs_mysql_network_provider net_provider(auth_interface, native_interface);
@@ -257,6 +289,10 @@ TEST_F(MySQLNetworkProviderTest, CreateConnectionToSelfWithNameSpaceTest) {
 }
 
 TEST_F(MySQLNetworkProviderTest, CreateConnectionToSelfWithSSLTest) {
+  fake_group_replication_force_pqc = true;
+  fake_group_replication_use_pqc_sign = true;
+  fake_group_replication_tls_kex = "X25519MLKEM768";
+
   EXPECT_CALL(*auth_interface, get_credentials(testing::_, testing::_))
       .Times(1)
       .WillRepeatedly(testing::Return(false));
@@ -296,6 +332,21 @@ TEST_F(MySQLNetworkProviderTest, CreateConnectionToSelfWithSSLTest) {
       .WillRepeatedly(testing::Return(false));
 
   EXPECT_CALL(*native_interface, mysql_close(testing::_));
+  EXPECT_CALL(*native_interface,
+              mysql_options(testing::_, testing::_, testing::_))
+      .Times(testing::AnyNumber())
+      .WillRepeatedly(testing::Return(0));
+  EXPECT_CALL(*native_interface, mysql_options(testing::_, MYSQL_OPT_FORCE_PQC,
+                                               IsBoolOption(true)))
+      .Times(1);
+  EXPECT_CALL(
+      *native_interface,
+      mysql_options(testing::_, MYSQL_OPT_USE_PQC_SIGN, IsBoolOption(true)))
+      .Times(1);
+  EXPECT_CALL(*native_interface,
+              mysql_options(testing::_, MYSQL_OPT_TLS_KEX,
+                            IsCStringOption("X25519MLKEM768")))
+      .Times(1);
 
   Network_configuration_parameters net_provider_security_params;
   net_provider_security_params.ssl_params = {

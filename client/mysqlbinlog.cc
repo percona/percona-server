@@ -2567,6 +2567,7 @@ static Exit_status check_master_version() {
     case '5':
     case '8':
     case '9':
+    case '2':  // 2x
       /* The server is soon going to send us its Format_description event .*/
       glob_description_event =
           Format_description_event(BINLOG_VERSION, server_version);

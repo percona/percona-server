@@ -254,6 +254,17 @@ std::unique_ptr<Network_connection> Gcs_mysql_network_provider::open_connection(
           mysql_connection, MYSQL_OPT_TLS_CIPHERSUITES,
           m_config_parameters.tls_params.tls_ciphersuites);
     }
+
+    const bool force_pqc = get_group_replication_force_pqc_var();
+    const bool use_pqc_sign = get_group_replication_use_pqc_sign_var();
+    const char *tls_kex = get_group_replication_tls_kex_var();
+    m_native_interface->mysql_options(mysql_connection, MYSQL_OPT_FORCE_PQC,
+                                      &force_pqc);
+    m_native_interface->mysql_options(mysql_connection, MYSQL_OPT_USE_PQC_SIGN,
+                                      &use_pqc_sign);
+    m_native_interface->mysql_options(
+        mysql_connection, MYSQL_OPT_TLS_KEX,
+        tls_kex && tls_kex[0] ? tls_kex : nullptr);
   }
 
   m_native_interface->mysql_options(mysql_connection, MYSQL_OPT_SSL_MODE,

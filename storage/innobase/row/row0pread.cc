@@ -35,6 +35,8 @@ Created 2018-01-27 by Sunny Bains */
 #include "btr0pcur.h"
 #include "dict0dict.h"
 #include "os0thread-create.h"
+#include "read0mvcc_interface.h"
+#include "read0read_view_interface.h"
 #include "row0mysql.h"
 #include "row0pread.h"
 #include "row0row.h"
@@ -646,7 +648,7 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
   const auto table_name = m_config.m_index->table->name;
 
   ut_ad(!m_trx || m_trx->read_view == nullptr ||
-        MVCC::is_view_active(m_trx->read_view));
+        trx_sys->mvcc->is_view_open(m_trx->read_view));
 
   if (!m_trx) {
     /* Do nothing */
@@ -661,9 +663,9 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
       } else {
         rec_trx_id = row_get_rec_trx_id(rec, m_config.m_index, offsets);
       }
-
+      trx_sys_check_id_sanity(rec_trx_id, table_name);
       if (m_trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
-          !view->changes_visible(rec_trx_id, table_name)) {
+          !view->changes_visible(rec_trx_id)) {
         rec_t *old_vers;
 
         row_vers_build_for_consistent_read(rec, mtr, m_config.m_index, &offsets,

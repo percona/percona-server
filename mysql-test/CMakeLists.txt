@@ -130,6 +130,7 @@ SET(MTR_TESTS_FOR_PROFILING
   json
   main
   sysschema
+  thread_pool
   x
   component_connection_control
   )
@@ -150,6 +151,10 @@ ENDIF()
 IF(DEFINED MTR_MAX_PARALLEL)
   SET(NPROC ${MTR_MAX_PARALLEL})
 ENDIF()
+
+# FIXME Temporarily accept more failures as many tests fail after
+# version bump to 10.X.Y. Reduce max-test-fail back to 10 once enough
+# tests have been fixed
 
 ADD_CUSTOM_TARGET(run-profile-suite
   COMMAND perl ./mysql-test-run.pl

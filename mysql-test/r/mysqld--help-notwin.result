@@ -29,6 +29,8 @@ The following options may be given as the first argument:
  System. Attempt to specify a network namespace for a
  platform that doesn't support it results in error during
  socket creation.
+ --admin-force-pqc   If set to TRUE, only accept admin TLS connections
+ negotiated with a PQC compatible key exchange group.
  --admin-port=#      Port number to use for service connection, built-in
  default (33062)
  --admin-ssl-ca=name CA file in PEM format (check OpenSSL docs) for
@@ -48,6 +50,11 @@ The following options may be given as the first argument:
  X509 key in PEM format for --admin-port
  --admin-tls-ciphersuites=name 
  TLS v1.3 ciphersuite to use for --admin-port
+ --admin-tls-kex=name 
+ TLS key exchange groups to use for --admin-port
+ --admin-use-pqc-sign 
+ If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on the admin connection channel.
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -445,6 +452,8 @@ The following options may be given as the first argument:
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
+ --force-pqc         If set to TRUE, only accept TLS connections negotiated
+ with a PQC compatible key exchange group.
  --ft-boolean-syntax=name 
  List of operators for MATCH ... AGAINST ( ... IN BOOLEAN
  MODE)
@@ -1376,6 +1385,9 @@ The following options may be given as the first argument:
  applier thread will not apply updates to tables in
  databases that start with foo and whose table names start
  with bar.
+ --replication-force-pqc 
+ If set to TRUE, require asynchronous replication TLS
+ connections to use a PQC compatible key exchange group.
  --replication-optimize-for-static-plugin-config 
  Optional flag that blocks plugin install/uninstall and
  allows skipping the acquisition of the lock to read from
@@ -1385,6 +1397,13 @@ The following options may be given as the first argument:
  --replication-sender-observe-commit-only 
  Optional flag that allows for only calling back observer
  hooks at commit.
+ --replication-tls-kex=name 
+ TLS key exchange groups to use for asynchronous
+ replication TLS connections
+ --replication-use-pqc-sign 
+ If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on asynchronous replication TLS
+ connections.
  --report-host=name  Hostname or IP that this replica will report to the
  source while initiating the replication connection. Will
  appear in the output of SHOW REPLICAS. Leave this unset
@@ -1697,6 +1716,7 @@ The following options may be given as the first argument:
  validation fails. 
  --tls-ciphersuites=name 
  TLS v1.3 ciphersuite to use
+ --tls-kex=name      TLS key exchange groups to use
  --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY or
  TempTable storage engine exceeds this size, MySQL will
  automatically convert it to an on-disk table 
@@ -1726,6 +1746,8 @@ The following options may be given as the first argument:
  start the server, but skip upgrade steps that are not
  absolutely necessary; AUTO (default) to upgrade the
  server if required; FORCE to force upgrade server.
+ --use-pqc-sign      If set to FALSE, advertise only classical TLS handshake
+ signature algorithms on the main connection channel.
  -u, --user=name     Run mysqld daemon as user.
  --userstat          Control USER_STATISTICS, CLIENT_STATISTICS,
  THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
@@ -1776,6 +1798,7 @@ Variables (--variable-name=value)
 activate-all-roles-on-login FALSE
 activate-mandatory-roles TRUE
 admin-address (No default value)
+admin-force-pqc FALSE
 admin-port 33062
 admin-ssl-ca (No default value)
 admin-ssl-capath (No default value)
@@ -1785,6 +1808,8 @@ admin-ssl-crl (No default value)
 admin-ssl-crlpath (No default value)
 admin-ssl-key (No default value)
 admin-tls-ciphersuites (No default value)
+admin-tls-kex 
+admin-use-pqc-sign FALSE
 allow-suspicious-udfs FALSE
 authentication-policy *,,
 auto-increment-increment 1
@@ -1877,6 +1902,7 @@ explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
 flush-time 0
+force-pqc FALSE
 ft-boolean-syntax + -><()~*:""&|
 ft-max-word-len 84
 ft-min-word-len 4
@@ -2122,8 +2148,11 @@ replica-sql-verify-checksum TRUE
 replica-transaction-retries 10
 replica-type-conversions 
 replicate-same-server-id FALSE
+replication-force-pqc FALSE
 replication-optimize-for-static-plugin-config FALSE
 replication-sender-observe-commit-only FALSE
+replication-tls-kex 
+replication-use-pqc-sign FALSE
 report-host (No default value)
 report-password (No default value)
 report-port 0
@@ -2208,6 +2237,7 @@ thread-stack 1048576
 thread-statistics FALSE
 tls-certificates-enforced-validation FALSE
 tls-ciphersuites (No default value)
+tls-kex 
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
@@ -2215,6 +2245,7 @@ transaction-prealloc-size 4096
 transaction-read-only FALSE
 updatable-views-with-limit YES
 upgrade AUTO
+use-pqc-sign FALSE
 userstat FALSE
 utility-user (No default value)
 utility-user-dynamic-privileges (No default value)

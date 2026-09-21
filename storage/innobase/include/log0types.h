@@ -398,7 +398,7 @@ class Log_file_handle {
   @param[in] size                number of bytes to write or read
   @param[in] can_use_encryption  e.g. whether newly blocks should be encrypted
   @return IORequest instance */
-  IORequest prepare_io_request(int req_type, os_offset_t offset,
+  IORequest prepare_io_request(IORequest::Type req_type, os_offset_t offset,
                                os_offset_t size, bool can_use_encryption);
 
 #ifdef UNIV_DEBUG

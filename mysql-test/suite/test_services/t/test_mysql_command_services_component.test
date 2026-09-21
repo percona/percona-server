@@ -65,6 +65,9 @@ INSERT INTO test.t6 VALUES(1, 'FOO');
 SELECT test_mysql_command_services_udf("INSERT INTO test.t6(c2) VALUES('BAR')");
 SELECT test_mysql_command_services_udf("SELECT c1,c2 FROM test.t6");
 
+--echo # Test : command-service rows preserve SQL NULL and binary string lengths
+SELECT test_mysql_command_services_row_semantics_udf();
+
 --echo # Test: reusing the same connection to run several queries should not crash
 SELECT test_mysql_command_services_udf("SELECT 1");
 SELECT test_mysql_command_services_udf("SELECT 1", 2);
@@ -91,6 +94,12 @@ SET @@GLOBAL.DEBUG = '-d, mysql_command_services_component_test_errno';
 
 --echo # Test : failing connect() when running in an initialized thread; cleanup (cmd_factory->close() + cmd_thread->end()) must not leak the session
 SELECT test_mysql_command_services_explicit_connect_fail_cleanup_udf();
+
+--echo # Test : MYSQL_COMMAND_CLIENT_FLAGS should switch UPDATE affected rows to found rows
+CREATE TABLE test.mcs_client_flags(c1 INT PRIMARY KEY);
+INSERT INTO test.mcs_client_flags VALUES (1);
+SELECT test_mysql_command_services_client_flags_udf() AS client_flags_switch_update_affected_rows;
+DROP TABLE test.mcs_client_flags;
 
 # Error-log must not contain: [ERROR] [MY-010470] [Server] Closed forcefully 1 session left opened by plugin server_service
 

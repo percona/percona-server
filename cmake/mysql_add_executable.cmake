@@ -246,6 +246,12 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
       ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${target})
     SET(ARG_SKIP_INSTALL TRUE)
 
+    IF(MSVC)
+      # Unit-test executables are not linked by other targets. Suppress import
+      # library generation for tests that contain exported symbols.
+      TARGET_LINK_OPTIONS(${target} PRIVATE "/NOIMPLIB")
+    ENDIF()
+
     # Set sanitizer environment, except for ASAN on WIN32_CLANG
     SET(ADD_TEST_ENV 1)
     # See router/cmake/testing.cmake

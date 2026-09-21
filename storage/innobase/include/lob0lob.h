@@ -1054,8 +1054,8 @@ class BtrContext {
     return (dict_table_extent_size(table()));
   }
 
-  /** Check if there is enough space in the redo log file.  The btr
-  mini-transaction will be restarted. */
+  /** Check if there is enough space in the redo log.
+  The btr mini-transaction will be restarted. */
   void check_redolog() {
     is_bulk() ? check_redolog_bulk() : check_redolog_normal();
   }

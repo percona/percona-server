@@ -186,10 +186,8 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]  sync            sync state
 @param[in]      unlock_cache    whether unlock cache lock when write node
 @param[in]      wait            whether wait when a sync is in progress
-@param[in]      has_dict        whether has dict operation lock
 @return DB_SUCCESS if all OK */
-static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
-                        bool has_dict);
+static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait);
 
 /** Release all resources help by the words rb tree e.g., the node ilist. */
 static void fts_words_free(ib_rbt_t *words); /*!< in: rb tree of words */
@@ -3605,7 +3603,7 @@ void fts_add_doc_from_tuple(fts_trx_table_t *ftt, doc_id_t doc_id,
       rw_lock_x_unlock(&table->fts->cache->lock);
 
       if (cache->total_size > fts_max_cache_size / 5 || fts_need_sync) {
-        fts_sync(cache->sync, true, false, false);
+        fts_sync(cache->sync, true, false);
       }
 
       mtr_start(&mtr);
@@ -3755,7 +3753,7 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
           // we size smaller than permissible min value for this sys var
           const auto old_fts_max_cache_size = fts_max_cache_size;
           fts_max_cache_size = 100;
-          fts_sync(cache->sync, true, true, false);
+          fts_sync(cache->sync, true, true);
           fts_max_cache_size = old_fts_max_cache_size;
         });
 
@@ -3764,7 +3762,7 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
                         os_event_wait(cache->sync->event););
 
         DBUG_EXECUTE_IF("fts_instrument_sync_debug",
-                        fts_sync(cache->sync, true, true, false););
+                        fts_sync(cache->sync, true, true););
 
         DEBUG_SYNC_C("fts_instrument_sync_request");
         DBUG_EXECUTE_IF("fts_instrument_sync_request",
@@ -4417,10 +4415,8 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]  sync            sync state
 @param[in]      unlock_cache    whether unlock cache lock when write node
 @param[in]      wait            whether wait when a sync is in progress
-@param[in]      has_dict        whether has dict operation lock
 @return DB_SUCCESS if all OK */
-static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
-                        bool has_dict) {
+static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait) {
   ulint i;
   dberr_t error = DB_SUCCESS;
   fts_cache_t *cache = sync->table->fts->cache;
@@ -4447,11 +4443,7 @@ static dberr_t fts_sync(fts_sync_t *sync, bool unlock_cache, bool wait,
   DEBUG_SYNC_C("fts_sync_begin");
   fts_sync_begin(sync);
 
-  /* When sync in background, we hold dict operation lock
-  to prevent DDL like DROP INDEX, etc. */
-  if (has_dict) {
-    sync->trx->dict_operation_lock_mode = RW_S_LATCH;
-  }
+  ut_ad(sync->trx->dict_operation_lock_mode == 0);
 
 begin_sync:
   if (cache->total_size > fts_max_cache_size) {
@@ -4525,17 +4517,15 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]  table           fts table
 @param[in]      unlock_cache    whether unlock cache when write node
 @param[in]      wait            whether wait for existing sync to finish
-@param[in]      has_dict        whether has dict operation lock
 @return DB_SUCCESS on success, error code on failure. */
-dberr_t fts_sync_table(dict_table_t *table, bool unlock_cache, bool wait,
-                       bool has_dict) {
+dberr_t fts_sync_table(dict_table_t *table, bool unlock_cache, bool wait) {
   dberr_t err = DB_SUCCESS;
 
   ut_ad(table->fts);
 
   if (!dict_table_is_discarded(table) && table->fts->cache &&
       !table->is_corrupted()) {
-    err = fts_sync(table->fts->cache->sync, unlock_cache, wait, has_dict);
+    err = fts_sync(table->fts->cache->sync, unlock_cache, wait);
   }
 
   return (err);
@@ -5359,54 +5349,6 @@ void fts_cache_append_deleted_doc_ids(
   mutex_exit((ib_mutex_t *)&cache->deleted_lock);
 }
 
-bool fts_wait_for_background_thread_to_start(
-    dict_table_t *table, std::chrono::microseconds max_wait) {
-  ulint count = 0;
-  bool done = false;
-
-  ut_a(max_wait == std::chrono::seconds::zero() ||
-       max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT);
-
-  for (;;) {
-    fts_t *fts = table->fts;
-
-    mutex_enter(&fts->bg_threads_mutex);
-
-    if (fts->fts_status & BG_THREAD_READY) {
-      done = true;
-    }
-
-    mutex_exit(&fts->bg_threads_mutex);
-
-    if (!done) {
-      std::this_thread::sleep_for(FTS_MAX_BACKGROUND_THREAD_WAIT);
-
-      if (max_wait > std::chrono::seconds::zero()) {
-        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT;
-
-        /* We ignore the residual value. */
-        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT) {
-          break;
-        }
-      }
-
-      ++count;
-    } else {
-      break;
-    }
-
-    if (count >= FTS_BACKGROUND_THREAD_WAIT_COUNT) {
-      ib::error(ER_IB_MSG_480) << "The background thread for the FTS"
-                                  " table "
-                               << table->name << " refuses to start";
-
-      count = 0;
-    }
-  }
-
-  return (done);
-}
-
 /** Add the FTS document id hidden column.
 @param[in,out] table Table with FTS index
 @param[in] heap Temporary memory heap, or NULL
@@ -5536,40 +5478,6 @@ void fts_free(dict_table_t *table) /*!< in/out: table with FTS indexes */
 
   table->fts = nullptr;
 }
-
-#if 0  // TODO: Enable this in WL#6608
-/*********************************************************************//**
-Signal FTS threads to initiate shutdown. */
-void
-fts_start_shutdown(
-        dict_table_t*   table,          /*!< in: table with FTS indexes */
-        fts_t*          fts)            /*!< in: fts instance that needs
-                                        to be informed about shutdown */
-{
-        mutex_enter(&fts->bg_threads_mutex);
-
-        fts->fts_status |= BG_THREAD_STOP;
-
-        mutex_exit(&fts->bg_threads_mutex);
-
-}
-
-/*********************************************************************//**
-Wait for FTS threads to shutdown. */
-void
-fts_shutdown(
-        dict_table_t*   table,          /*!< in: table with FTS indexes */
-        fts_t*          fts)            /*!< in: fts instance to shutdown */
-{
-        mutex_enter(&fts->bg_threads_mutex);
-
-        ut_a(fts->fts_status & BG_THREAD_STOP);
-
-        dict_table_wait_for_bg_threads_to_exit(table, std::chrono::milliseconds{20});
-
-        mutex_exit(&fts->bg_threads_mutex);
-}
-#endif
 
 /** Take a FTS savepoint. */
 static inline void fts_savepoint_copy(
@@ -5787,7 +5695,7 @@ void fts_savepoint_rollback(trx_t *trx,       /*!< in: transaction */
 
   savepoints = trx->fts_trx->savepoints;
 
-  /* We pop all savepoints from the the top of the stack up to
+  /* We pop all savepoints from the top of the stack up to
   and including the instance that was found. */
   i = fts_savepoint_lookup(savepoints, name);
 

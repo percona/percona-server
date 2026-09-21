@@ -31,6 +31,7 @@
 #include <openssl/err.h>     // for ERR_print_errors_fp, ERR_erro...
 #include <openssl/evp.h>
 #include <openssl/opensslv.h>  // for OPENSSL_VERSION_NUMBER
+#include <openssl/rand.h>      // for RAND_bytes
 #include <openssl/ssl.h>       // for SSL_CTX_free, SSL_CTX_set_verify
 #include <openssl/x509.h>      // for X509_STORE_load_locations
 #include <stdio.h>
@@ -96,13 +97,47 @@ static const char *ssl_error_string[] = {
     "FIPS mode invalid",
     "FIPS mode failed",
     "Failed to set ecdh information",
+    "Failed to set TLS key exchange groups",
+    "force_pqc requires TLSv1.3 with OpenSSL 3.5.0 or newer",
     "Failed to set X509 verification parameter",
-    "Invalid certificates"};
+    "Invalid certificates",
+    "Failed to set TLS signature algorithms",
+    "Failed to set TLS session id context"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
   assert(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
   return ssl_error_string[e];
 }
+
+#ifdef HAVE_TLSv13
+#define TLS_SIGALGS_COMMON_LIST                                         \
+  "ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:rsa_pss_pss_sha256:rsa_"      \
+  "pss_pss_sha384:rsa_pss_pss_sha512:rsa_pss_rsae_sha256:rsa_pss_rsae_" \
+  "sha384:rsa_pss_rsae_sha512:RSA+SHA256:RSA+SHA384:RSA+SHA512"
+#define TLS_SIGALGS_NON_FIPS_EXTRA ":ed25519:ECDSA+SHA224:RSA+SHA224"
+#define TLS_SIGALGS_PQC_EXTRA "ML-DSA-44:ML-DSA-65:ML-DSA-87:"
+
+static const char tls_sigalgs_fips[] = TLS_SIGALGS_COMMON_LIST;
+static const char tls_sigalgs_non_fips[] =
+    TLS_SIGALGS_COMMON_LIST TLS_SIGALGS_NON_FIPS_EXTRA;
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+static const char tls_sigalgs_non_fips_pqc[] =
+    TLS_SIGALGS_PQC_EXTRA TLS_SIGALGS_COMMON_LIST TLS_SIGALGS_NON_FIPS_EXTRA;
+#endif
+#undef TLS_SIGALGS_PQC_EXTRA
+#undef TLS_SIGALGS_NON_FIPS_EXTRA
+#undef TLS_SIGALGS_COMMON_LIST
+
+static const char *get_sigalgs_list(bool tls_use_pqc_sign [[maybe_unused]]) {
+  if (get_fips_mode()) return tls_sigalgs_fips;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (tls_use_pqc_sign) return tls_sigalgs_non_fips_pqc;
+#endif
+
+  return tls_sigalgs_non_fips;
+}
+#endif /* HAVE_TLSv13 */
 
 static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
                               const char *key_file,
@@ -395,20 +430,22 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const char *ca_path, const char *cipher,
     const char *ciphersuites [[maybe_unused]], bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host [[maybe_unused]]) {
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex, const char *server_host [[maybe_unused]]) {
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options =
       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
   std::string tls12_cipher_list, tls13_cipher_list;
   DBUG_TRACE;
-  DBUG_PRINT(
-      "enter",
-      ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
-       "cipher: '%s' crl_file: '%s' crl_path: '%s' ssl_ctx_flags: '%ld' ",
-       key_file ? key_file : "NULL", cert_file ? cert_file : "NULL",
-       ca_file ? ca_file : "NULL", ca_path ? ca_path : "NULL",
-       cipher ? cipher : "NULL", crl_file ? crl_file : "NULL",
-       crl_path ? crl_path : "NULL", ssl_ctx_flags));
+  DBUG_PRINT("enter",
+             ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
+              "cipher: '%s' crl_file: '%s' crl_path: '%s' ssl_ctx_flags: '%ld' "
+              "tls_force_pqc: '%d' tls_use_pqc_sign: '%d' tls_kex: '%s' ",
+              key_file ? key_file : "NULL", cert_file ? cert_file : "NULL",
+              ca_file ? ca_file : "NULL", ca_path ? ca_path : "NULL",
+              cipher ? cipher : "NULL", crl_file ? crl_file : "NULL",
+              crl_path ? crl_path : "NULL", ssl_ctx_flags, tls_force_pqc,
+              tls_use_pqc_sign, tls_kex ? tls_kex : "NULL"));
 
   if (ssl_ctx_flags < 0) {
     *error = SSL_TLS_VERSION_INVALID;
@@ -432,6 +469,11 @@ static struct st_VioSSLFd *new_VioSSLFd(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
     return nullptr;
 
+  ssl_fd->tls_force_pqc = false;
+  ssl_fd->tls_session_cache_pqc_only = false;
+  ssl_fd->tls_use_pqc_sign = false;
+  ssl_fd->tls_kex = nullptr;
+
   if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ?
 #ifdef HAVE_TLSv13
                                                     TLS_client_method()
@@ -446,6 +488,18 @@ static struct st_VioSSLFd *new_VioSSLFd(
     report_errors();
     my_free(ssl_fd);
     return nullptr;
+  }
+
+  if (tls_kex != nullptr) {
+    ssl_fd->tls_kex = my_strdup(key_memory_vio_ssl_fd, tls_kex, MYF(0));
+    if (ssl_fd->tls_kex == nullptr) {
+      *error = SSL_INITERR_MEMFAIL;
+      DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+      report_errors();
+      SSL_CTX_free(ssl_fd->ssl_context);
+      my_free(ssl_fd);
+      return nullptr;
+    }
   }
 
 #ifdef HAVE_TLSv13
@@ -473,16 +527,19 @@ static struct st_VioSSLFd *new_VioSSLFd(
 #ifdef HAVE_TLSv13
   {
     /*
-      Set suported signature algorithms for OpenSSL TLS v1.3
+      Set supported signature algorithms for OpenSSL TLS v1.3
       with preference towards more performant ones (ECDSA).
+      If tls_use_pqc_sign is enabled and OpenSSL >= 3.5 outside FIPS mode,
+      also advertise PQC-capable signature algorithms before the classical
+      fallback list. FIPS mode uses only provider-accepted classical
+      algorithms.
     */
-    char sig_algs[] =
-        "ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:ed25519:rsa_pss_pss_sha256:rsa_"
-        "pss_pss_sha384:rsa_pss_pss_sha512:rsa_pss_rsae_sha256:rsa_pss_rsae_"
-        "sha384:rsa_pss_rsae_sha512:RSA+SHA256:RSA+SHA384:RSA+SHA512:ECDSA+"
-        "SHA224:RSA+SHA224";
-
-    SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context, sig_algs);
+    const char *sig_algs = get_sigalgs_list(tls_use_pqc_sign);
+    if (0 == SSL_CTX_set1_sigalgs_list(ssl_fd->ssl_context,
+                                       const_cast<char *>(sig_algs))) {
+      *error = SSL_INITERR_SIGALGS;
+      goto error;
+    }
   }
 #endif /* HAVE_TLSv13 */
 
@@ -562,9 +619,12 @@ static struct st_VioSSLFd *new_VioSSLFd(
     goto error;
   }
 
-  /* ECDH stuff */
-  if (!is_client && set_ecdh(ssl_fd->ssl_context)) {
-    *error = SSL_INITERR_ECDHFAIL;
+  /* ECDH / TLS key exchange group setup */
+  if (set_ecdh(ssl_fd->ssl_context, tls_force_pqc, tls_kex)) {
+    *error = (tls_kex != nullptr && tls_kex[0] != '\0')
+                 ? SSL_INITERR_KEX_GROUPS
+                 : (tls_force_pqc ? SSL_INITERR_PQC_UNSUPPORTED
+                                  : SSL_INITERR_ECDHFAIL);
     goto error;
   }
 
@@ -629,6 +689,7 @@ error:
   DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
   report_errors();
   SSL_CTX_free(ssl_fd->ssl_context);
+  my_free(ssl_fd->tls_kex);
   my_free(ssl_fd);
   return nullptr;
 }
@@ -639,7 +700,8 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host) {
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex, const char *server_host) {
   struct st_VioSSLFd *ssl_fd;
   int verify = SSL_VERIFY_PEER;
 
@@ -651,9 +713,13 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,
-                              ssl_ctx_flags, server_host))) {
+                              ssl_ctx_flags, tls_force_pqc, tls_use_pqc_sign,
+                              tls_kex, server_host))) {
     return nullptr;
   }
+  ssl_fd->tls_force_pqc = tls_force_pqc;
+  ssl_fd->tls_session_cache_pqc_only = false;
+  ssl_fd->tls_use_pqc_sign = tls_use_pqc_sign;
 
   /* Init the VioSSLFd as a "connector" ie. the client side */
 
@@ -667,14 +733,26 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags) {
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex) {
   struct st_VioSSLFd *ssl_fd;
   int const verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
-                              ssl_ctx_flags, nullptr))) {
+                              ssl_ctx_flags, tls_force_pqc, tls_use_pqc_sign,
+                              tls_kex, nullptr))) {
     return nullptr;
   }
+  ssl_fd->tls_force_pqc = tls_force_pqc;
+  /*
+    new_VioSSLAcceptorFd() always creates a fresh SSL_CTX. Combined with the
+    random session id context below and OpenSSL's per-SSL_CTX ticket keys, this
+    means a force_pqc acceptor can resume only sessions created by this
+    PQC-only context.
+  */
+  ssl_fd->tls_session_cache_pqc_only = tls_force_pqc;
+  ssl_fd->tls_use_pqc_sign = tls_use_pqc_sign;
+
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */
 
   /* Set max number of cached sessions, returns the previous size */
@@ -682,17 +760,24 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
 
   SSL_CTX_set_verify(ssl_fd->ssl_context, verify, nullptr);
 
-  /*
-    Set session_id - an identifier for this server session
-    Use the ssl_fd pointer
-   */
-  SSL_CTX_set_session_id_context(ssl_fd->ssl_context,
-                                 (const unsigned char *)ssl_fd, sizeof(ssl_fd));
+  {
+    unsigned char session_id_context[SSL_MAX_SSL_SESSION_ID_LENGTH];
+    if (RAND_bytes(session_id_context, sizeof(session_id_context)) != 1 ||
+        SSL_CTX_set_session_id_context(ssl_fd->ssl_context, session_id_context,
+                                       sizeof(session_id_context)) != 1) {
+      *error = SSL_INITERR_SESSION_ID_CONTEXT;
+      SSL_CTX_free(ssl_fd->ssl_context);
+      my_free(ssl_fd->tls_kex);
+      my_free(ssl_fd);
+      return nullptr;
+    }
+  }
 
   return ssl_fd;
 }
 
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd) {
   SSL_CTX_free(fd->ssl_context);
+  my_free(fd->tls_kex);
   my_free(fd);
 }

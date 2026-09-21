@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstdlib>
 #include <string>
 
 #if defined _MSC_VER
@@ -64,7 +65,7 @@ bool Backup_page_tracker::backup_id_update() {
   // Delete the existing page tracker file
   if (m_changed_pages_file != nullptr) {
     remove(m_changed_pages_file);
-    free(m_changed_pages_file);
+    std::free(m_changed_pages_file);
     m_changed_pages_file = nullptr;
   }
 
@@ -73,7 +74,7 @@ bool Backup_page_tracker::backup_id_update() {
 
 void Backup_page_tracker::deinit() {
   if (m_changed_pages_file != nullptr) {
-    free(m_changed_pages_file);
+    std::free(m_changed_pages_file);
     m_changed_pages_file = nullptr;
   }
 }
@@ -349,7 +350,7 @@ long long Backup_page_tracker::page_track_get_changed_page_count(
 bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
                                                             UDF_ARGS *,
                                                             char *) {
-  m_changed_pages_buf = (uchar *)malloc(CHANGED_PAGES_BUFFER_SIZE);
+  m_changed_pages_buf = (uchar *)std::malloc(CHANGED_PAGES_BUFFER_SIZE);
   return false;
 }
 
@@ -359,7 +360,7 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
 */
 void Backup_page_tracker::page_track_get_changed_pages_deinit(
     UDF_INIT *initid [[maybe_unused]]) {
-  free(m_changed_pages_buf);
+  std::free(m_changed_pages_buf);
   m_changed_pages_buf = nullptr;
 }
 
@@ -413,7 +414,7 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   }
 #endif
 
-  free(m_changed_pages_file);
+  std::free(m_changed_pages_file);
   m_changed_pages_file =
       strdup((changed_pages_file_dir + OS_PATH_SEPARATOR + backupid +
               Backup_comp_constants::change_file_extension)

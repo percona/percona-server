@@ -1,0 +1,68 @@
+####################################################################
+# PS-11135: audit_log_filter_flush() must report why a filter was
+# rejected.
+#
+# A filter which fails to parse while being loaded from
+# mysql.audit_log_filter used to be reported as
+#
+#   ERROR: Filter 'X' has wrong format, consider using
+#          audit_log_filter.event_mode=FULL
+#
+# no matter what was wrong with it, and switching the event mode to
+# FULL did not help because the event mode was never the problem: the
+# load path parses filters with disabled events skipped, so a class or
+# subclass which is turned off in event_mode=REDUCED is skipped with a
+# warning instead of failing the parse. The parser already records the
+# real reason, the same one audit_log_filter_set_filter() reports, and
+# that is what both the UDF and the error log must show.
+####################################################################
+
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+
+SELECT audit_log_filter_set_filter('filter_1', '{"filter": {"class": {"name": "general"}}}');
+
+--echo #
+--echo # A condition with too few operands. The reported reason must be the
+--echo # one from the parser, not a suggestion to change the event mode.
+--echo #
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"or": [{"field": {"name": "general_command.str", "value": "Execute"}}]}}}}}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+
+--echo #
+--echo # A different defect must give a different reason.
+--echo #
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "no_such_class"}}}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+
+--echo #
+--echo # Valid JSON - the column type enforces that much - but not a filter.
+--echo #
+UPDATE mysql.audit_log_filter SET filter = '{"not_a_filter": 1}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+
+--echo #
+--echo # The same definitions are rejected with the same reason by
+--echo # audit_log_filter_set_filter(), which never had this problem.
+--echo #
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"or": [{"field": {"name": "general_command.str", "value": "Execute"}}]}}}}}');
+SELECT audit_log_filter_set_filter('filter_2', '{"filter": {"class": {"name": "no_such_class"}}}');
+
+--echo #
+--echo # A well formed filter still loads.
+--echo #
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "general"}}}' WHERE name = 'filter_1';
+SELECT audit_log_filter_flush();
+
+--echo #
+--echo # Cleanup
+--echo #
+SELECT audit_log_filter_remove_filter('filter_1');
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

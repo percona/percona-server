@@ -55,6 +55,12 @@ PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key mem_key_dict_stats_index_map_t;
 PSI_memory_key mem_key_dict_stats_n_diff_on_level;
 PSI_memory_key mem_key_fil_space_t;
+PSI_memory_key mem_key_log_online_iterator_files;
+PSI_memory_key mem_key_log_online_iterator_page;
+PSI_memory_key mem_key_log_online_modified_pages;
+PSI_memory_key mem_key_log_online_read_buf;
+PSI_memory_key mem_key_log_online_sys;
+PSI_memory_key mem_key_mtr_t;
 PSI_memory_key mem_key_lock_sys;
 PSI_memory_key mem_key_other;
 PSI_memory_key mem_key_partitioning;
@@ -65,12 +71,6 @@ PSI_memory_key mem_key_trx_sys_t_rw_trx_ids;
 PSI_memory_key mem_key_undo_spaces;
 PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
-
-PSI_memory_key mem_key_log_online_modified_pages;
-PSI_memory_key mem_key_log_online_sys;
-PSI_memory_key mem_key_log_online_read_buf;
-PSI_memory_key mem_key_log_online_iterator_files;
-PSI_memory_key mem_key_log_online_iterator_page;
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -103,6 +103,8 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_fil_space_t, "fil_space_t", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_mtr_t, "mtr_t", 0, 0,
+     "Used for temporary buffer during a very large mtr commit"},
     {&mem_key_lock_sys, "lock_sys", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_log_online_iterator_files, "log_online_iterator_files", 0, 0,
      PSI_DOCUMENT_ME},
@@ -131,8 +133,6 @@ PSI_memory_info pfs_info_auto[n_auto];
 
 #endif /* UNIV_PFS_MEMORY */
 
-/** Setup the internal objects needed for ut::new_withkey() to operate.
-This must be called before the first call to ut::new_withkey(). */
 void ut_new_boot() {
 #ifdef UNIV_PFS_MEMORY
   for (size_t i = 0; i < n_auto; i++) {

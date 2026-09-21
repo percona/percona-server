@@ -3129,5 +3129,20 @@ show create library mysqldump_test_db.lib3;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqldump.sql
 
 drop database mysqldump_test_db;
+
+--echo #
+--echo # Bug#38939358 mysqldump --replace must not add IGNORE for
+--echo # innodb_table_stats.
+--echo #
+CREATE TABLE test.bug38939358_t1(i INT PRIMARY KEY);
+INSERT INTO test.bug38939358_t1 VALUES (1);
+--exec $MYSQL test -e "ANALYZE TABLE bug38939358_t1" > /dev/null
+--exec $MYSQL_DUMP --replace --skip-comments --where="database_name='test' and table_name='bug38939358_t1'" mysql innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug38939358.dump
+--exec grep -q '^REPLACE INTO `innodb_table_stats`' $MYSQLTEST_VARDIR/tmp/bug38939358.dump
+--error 1
+--exec grep -q '^REPLACE IGNORE INTO `innodb_table_stats`' $MYSQLTEST_VARDIR/tmp/bug38939358.dump
+DROP TABLE test.bug38939358_t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug38939358.dump
+
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

@@ -77,6 +77,7 @@ Data dictionary interface */
 #include "sql/mysqld.h"  // lower_case_file_system
 #include "sql_base.h"
 #include "sql_table.h"
+#include "trx0purge.h"
 #include "univ.i"  // Using OS_PATH_SEPARATOR
 #endif             /* !UNIV_HOTBACKUP */
 
@@ -1160,8 +1161,9 @@ static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
 @param[in,out]  name    name to convert */
 static void to_lower(std::string &name) { innobase_casedn_str(name.data()); }
 
-dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
-                                                        std::string path) {
+dberr_t dd_update_table_and_partitions_after_dir_change(
+    dd::Object_id object_id, std::string path,
+    const Dirs_in_datadir &dirs_in_datadir) {
   THD *thd = current_thd;
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -1206,10 +1208,11 @@ dberr_t dd_update_table_and_partitions_after_dir_change(dd::Object_id object_id,
     ut_o(return DB_ERROR);
   }
 
-  std::string dd_table_name{dd_table->table().name()};
-  Fil_path fpath{path};
+  const auto pos = path.find_last_of(Fil_path::SEPARATOR);
+  ut_ad(pos != std::string::npos);
+  path.resize(pos);
 
-  bool set_true = !MySQL_datadir_path.is_ancestor(fpath);
+  bool set_true = !dirs_in_datadir.contains(path);
   if (!dd_table_is_partitioned(*dd_table)) {
     /* Set the DATA DIRECTORY FLAG to true for dd table if ibd file is moved to
     directory other than default data dir. Remove the flag if moved from
@@ -2043,7 +2046,7 @@ bool copy_dropped_columns(const dd::Table *old_dd_table,
     if (searchedColumn != nullptr) {
       if (!dd_column_is_dropped(searchedColumn)) {
         /* User is trying to add column with name same as existing hidden
-         * dropped column name. */
+        dropped column name. */
         ib::info(ER_IB_HIDDEN_NAME_CONFLICT, searchedColumn->name().c_str(),
                  col_name);
         my_error(ER_WRONG_COLUMN_NAME, MYF(0), searchedColumn->name().c_str());
@@ -5662,163 +5665,6 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
   return err_msg;
 }
 
-/** Process one mysql.columns record and get info to dict_col_t
-@param[in,out]  heap            Temp memory heap
-@param[in]      rec             mysql.columns record
-@param[in,out]  col             dict_col_t to fill
-@param[in,out]  table_id        Table id
-@param[in,out]  col_name        Column name
-@param[in,out]  nth_v_col       Nth v column
-@param[in]      dd_columns      dict_table_t obj of mysql.columns
-@param[in,out]  mtr             Mini-transaction
-@retval true if column is filled */
-bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
-                               dict_col_t *col, table_id_t *table_id,
-                               char **col_name, ulint *nth_v_col,
-                               const dict_table_t *dd_columns, mtr_t *mtr) {
-  ulint len;
-  const byte *field;
-  dict_col_t *t_col;
-  ulint pos;
-  ulint v_pos = 0;
-  dd::Column::enum_hidden_type hidden;
-  bool is_virtual;
-  dict_v_col_t *vcol = nullptr;
-
-  ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
-
-  ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), nullptr,
-                                   ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
-
-  const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
-
-  /* Get the hidden attribute, and skip if it's a hidden column. */
-  field = rec_get_nth_field(
-      nullptr, rec, offsets,
-      dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
-  hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
-  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
-      hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
-    mtr_commit(mtr);
-    return false;
-  }
-
-  /* Get the column name. */
-  field = rec_get_nth_field(
-      nullptr, rec, offsets,
-      dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET, &len);
-  *col_name = mem_heap_strdupl(heap, (const char *)field, len);
-
-  /* Get the position. */
-  field = rec_get_nth_field(
-      nullptr, rec, offsets,
-      dd_object_table.field_number("FIELD_ORDINAL_POSITION") + DD_FIELD_OFFSET,
-      &len);
-  pos = mach_read_from_4(field) - 1;
-
-  /* Get the is_virtual attribute. */
-  field = rec_get_nth_field(nullptr, rec, offsets, 21, &len);
-  is_virtual = mach_read_from_1(field) & 0x01;
-
-  /* Get the se_private_data field. */
-  field = rec_get_nth_field(
-      nullptr, rec, offsets,
-      dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
-      &len);
-
-  if (len == 0 || len == UNIV_SQL_NULL) {
-    mtr_commit(mtr);
-    return false;
-  }
-
-  char *p_ptr = (char *)mem_heap_strdupl(heap, (const char *)field, len);
-  dd::String_type prop((char *)p_ptr);
-  dd::Properties *p = dd::Properties::parse_properties(prop);
-
-  /* Load the table and get the col. */
-  if (!p || !p->exists(dd_index_key_strings[DD_TABLE_ID])) {
-    if (p) {
-      delete p;
-    }
-    mtr_commit(mtr);
-    return false;
-  }
-
-  if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64_t *)table_id)) {
-    THD *thd = current_thd;
-    dict_table_t *table;
-    MDL_ticket *mdl = nullptr;
-
-    /* Commit before we try to load the table. */
-    mtr_commit(mtr);
-    table = dd_table_open_on_id(*table_id, thd, &mdl, true, true);
-
-    if (!table) {
-      delete p;
-      return false;
-    }
-
-    if (is_virtual) {
-      vcol = dict_table_get_nth_v_col_mysql(table, pos);
-
-      if (vcol == nullptr) {
-        dd_table_close(table, thd, &mdl, true);
-        delete p;
-        return false;
-      }
-
-      /* Copy info. */
-      col->ind = vcol->m_col.ind;
-      col->mtype = vcol->m_col.mtype;
-      col->prtype = vcol->m_col.prtype;
-      col->len = vcol->m_col.len;
-
-      v_pos = dict_create_v_col_pos(vcol->v_pos, vcol->m_col.ind);
-    } else {
-      if (table->n_v_cols == 0) {
-        t_col = table->get_col(pos);
-      } else {
-        ulint col_nr;
-
-        col_nr = dict_table_has_column(table, *col_name, pos);
-        t_col = table->get_col(col_nr);
-        ut_ad(t_col);
-      }
-
-      /* Copy info. */
-      col->ind = t_col->ind;
-      col->mtype = t_col->mtype;
-      col->prtype = t_col->prtype;
-      col->len = t_col->len;
-    }
-
-    if (p->exists(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT_NULL]) ||
-        p->exists(dd_column_key_strings[DD_INSTANT_COLUMN_DEFAULT])) {
-      dd_parse_default_value(*p, col, heap);
-    }
-
-    dd_table_close(table, thd, &mdl, true);
-    delete p;
-  } else {
-    delete p;
-    mtr_commit(mtr);
-    return false;
-  }
-
-  /* Report the virtual column number */
-  if (col->prtype & DATA_VIRTUAL) {
-    ut_ad(vcol != nullptr);
-    ut_ad(v_pos != 0);
-    ut_ad(is_virtual);
-
-    *nth_v_col = dict_get_v_col_pos(v_pos);
-  } else {
-    *nth_v_col = ULINT_UNDEFINED;
-  }
-
-  return true;
-}
-
 /** Process one mysql.columns record for virtual columns
 @param[in]      heap            temp memory heap
 @param[in,out]  rec             mysql.columns record
@@ -6754,10 +6600,10 @@ bool dd_drop_fts_table(const char *name, bool file_per_table) {
   if (file_per_table) {
     dd::Object_id dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
     /*
-     * In databases upgraded from MySQL versions 5.6.5 to 5.6.19,
-     * FTS tables may be located in system tablespace even if parent
-     * table is file-per-table. In this case we obviously don't want to
-     * drop the tablespace.
+    In databases upgraded from MySQL versions 5.6.5 to 5.6.19,
+    FTS tables may be located in system tablespace even if parent
+    table is file-per-table. In this case we obviously don't want to
+    drop the tablespace.
      */
     if (dd_space_id != dict_sys_t::s_dd_sys_space_id) {
       bool error = dd_drop_tablespace(client, dd_space_id);
@@ -6904,6 +6750,44 @@ bool dd_tablespace_set_id_and_state(const char *space_name, space_id_t space_id,
   return dd::commit_or_rollback_tablespace_change(thd, dd_space, dd_result);
 }
 
+bool dd_tablespace_set_space_id(const char *space_name, space_id_t space_id) {
+  THD *thd = current_thd;
+  dd::Tablespace *dd_space;
+
+  dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser{dc};
+  dd::String_type tsn{space_name};
+
+  bool dd_result = dc->acquire_for_modification(tsn, &dd_space);
+  if (dd_space == nullptr) {
+    return DD_FAILURE;
+  }
+
+  dd_tablespace_set_space_id(dd_space, space_id);
+
+  return dd::commit_or_rollback_tablespace_change(thd, dd_space, dd_result);
+}
+
+bool dd_tablespace_set_space_id_and_get_state(const char *space_name,
+                                              space_id_t space_id,
+                                              dd_space_states &out_state) {
+  THD *thd = current_thd;
+  dd::Tablespace *dd_space;
+
+  dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser{dc};
+  dd::String_type tsn{space_name};
+
+  bool dd_result = dc->acquire_for_modification(tsn, &dd_space);
+  if (dd_space == nullptr) {
+    return DD_FAILURE;
+  }
+
+  out_state = dd_tablespace_get_state_enum(dd_space, space_id);
+  dd_tablespace_set_space_id(dd_space, space_id);
+  return dd::commit_or_rollback_tablespace_change(thd, dd_space, dd_result);
+}
+
 void dd_set_discarded(dd::Table &table, bool discard) {
   ut_ad(!dd_table_is_partitioned(table));
 
@@ -6992,10 +6876,11 @@ dd_space_states dd_tablespace_get_state_enum_legacy(const dd::Properties *p,
   }
   ut_ad(space_id != SPACE_UNKNOWN);
 
-  /* Undo tablespaces have the state recorded in undo::spaces. */
+  /* Undo tablespaces have the state recorded in undo_truncate::spaces. */
   if (fsp_is_undo_tablespace(space_id)) {
-    undo::spaces->s_lock();
-    undo::Tablespace *undo_space = undo::spaces->find(undo::id2num(space_id));
+    undo_truncate::spaces->s_lock(UT_LOCATION_HERE);
+    undo_truncate::Tablespace *undo_space =
+        undo_truncate::spaces->find(undo_truncate::id2num(space_id));
 
     if (undo_space->is_active()) {
       state_enum = DD_SPACE_STATE_ACTIVE;
@@ -7004,7 +6889,7 @@ dd_space_states dd_tablespace_get_state_enum_legacy(const dd::Properties *p,
     } else {
       state_enum = DD_SPACE_STATE_INACTIVE;
     }
-    undo::spaces->s_unlock();
+    undo_truncate::spaces->s_unlock();
 
     return state_enum;
   }

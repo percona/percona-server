@@ -149,7 +149,8 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_network_timeout = false, stats_tables_included = false,
             column_statistics = false,
             opt_show_create_table_skip_secondary_engine = false,
-            opt_ignore_views = false, opt_drop_masking_policies = true;
+            opt_ignore_views = false, opt_drop_masking_policies = true,
+            opt_extended_insert_multiline = false;
 static bool opt_compressed_columns = false,
             opt_compressed_columns_with_dictionaries = false,
             opt_drop_compression_dictionary = true,
@@ -834,6 +835,10 @@ static struct my_option my_long_options[] = {
     {"ignore-views", 0, "Skip dumping table views.", &opt_ignore_views,
      &opt_ignore_views, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+    {"extended-insert-multiline", 0,
+     "New line per row in extended insert mode.",
+     &opt_extended_insert_multiline, &opt_extended_insert_multiline, nullptr,
+     GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #include "client/include/authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -4194,9 +4199,10 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     if (write_data) {
       if (opt_replace_into)
         dynstr_append_checked(&insert_pat, "REPLACE ");
-      else
+      else {
         dynstr_append_checked(&insert_pat, "INSERT ");
-      dynstr_append_checked(&insert_pat, insert_option);
+        dynstr_append_checked(&insert_pat, insert_option);
+      }
       dynstr_append_checked(&insert_pat, "INTO ");
       dynstr_append_checked(&insert_pat, opt_quoted_table);
       if (complete_insert) {
@@ -4313,9 +4319,10 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     if (write_data) {
       if (opt_replace_into)
         dynstr_append_checked(&insert_pat, "REPLACE ");
-      else
+      else {
         dynstr_append_checked(&insert_pat, "INSERT ");
-      dynstr_append_checked(&insert_pat, insert_option);
+        dynstr_append_checked(&insert_pat, insert_option);
+      }
       dynstr_append_checked(&insert_pat, "INTO ");
       dynstr_append_checked(&insert_pat, result_table);
       if (complete_insert)
@@ -5210,7 +5217,11 @@ static void dump_table(char *table, char *db) {
                 : 0;
         if (extended_insert && !opt_xml) {
           if (first_column) {
-            dynstr_set_checked(&extended_row, "(");
+            if (opt_extended_insert_multiline) {
+              dynstr_set_checked(&extended_row, "\n(");
+            } else {
+              dynstr_set_checked(&extended_row, "(");
+            }
             first_column = false;
           } else
             dynstr_append_checked(&extended_row, ",");
@@ -5349,7 +5360,7 @@ static void dump_table(char *table, char *db) {
         row_length = 2 + extended_row.length;
         if (total_length + row_length < opt_net_buffer_length) {
           total_length += row_length;
-          fputc(',', md_result_file); /* Always row break */
+          fputc(',', md_result_file);
           fputs(extended_row.str, md_result_file);
         } else {
           if (row_break) fputs(";\n", md_result_file);

@@ -31,7 +31,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 11/5/1995 Heikki Tuuri
  *******************************************************/
 
-#include <mysql/service_thd_wait.h>
 #include <stddef.h>
 
 #include "buf0buf.h"
@@ -45,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0recv.h"
 #include "mtr0mtr.h"
 #include "my_dbug.h"
+#include "scope_guard.h"
 
 #include "os0file.h"
 #include "srv0srv.h"
@@ -63,9 +63,10 @@ read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
 static constexpr uint32_t BUF_READ_AHEAD_PEND_LIMIT = 2;
 
-ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
-                        const page_id_t &page_id, const page_size_t &page_size,
-                        bool unzip, trx_t *trx, bool should_buffer) {
+ulint buf_read_page_low(dberr_t *err, bool sync, IORequest::Type type,
+                        ulint mode, const page_id_t &page_id,
+                        const page_size_t &page_size, bool unzip, trx_t *trx,
+                        bool should_buffer) {
   buf_page_t *bpage;
 
   *err = DB_SUCCESS;
@@ -115,11 +116,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   ut_ad(buf_page_in_file(bpage));
   ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
-  if (sync) {
-    thd_wait_begin(nullptr, THD_WAIT_DISKIO);
-  }
-
-  void *dst;
+  byte *dst;
 
   if (page_size.is_compressed()) {
     dst = bpage->zip.data;
@@ -129,17 +126,17 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
     dst = ((buf_block_t *)bpage)->frame;
   }
 
-  IORequest request(type | IORequest::READ);
+  *err = fil_io(type | IORequest::Type::READ, sync, page_id, page_size,
+                page_size.physical(), dst, bpage, false, trx, should_buffer);
 
-  *err = fil_io(request, sync, page_id, page_size, 0, page_size.physical(), dst,
-                bpage, trx, should_buffer);
-
-  if (sync) {
-    thd_wait_end(nullptr);
-  }
-
-  if (*err != DB_SUCCESS) {
-    if (IORequest::ignore_missing(type) || *err == DB_TABLESPACE_DELETED) {
+  /* The DB_INDEX_CORRUPT is returned from fil_io's callback that is running
+  buf_page_io_complete. */
+  if (*err != DB_SUCCESS && *err != DB_INDEX_CORRUPT) {
+    /* We ignore error if it is the tablespace was deleted, and all other errors
+    if type has IGNORE_MISSING flag. */
+    if ((type & IORequest::Type::IGNORE_MISSING) ==
+            IORequest::Type::IGNORE_MISSING ||
+        *err == DB_TABLESPACE_DELETED) {
       buf_read_page_handle_error(bpage);
       return (0);
     }
@@ -147,14 +144,7 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
     SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS, bpage->is_corrupt = true;);
   }
 
-  if (sync) {
-    /* The i/o is already completed when we arrive from fil_read */
-    if (!buf_page_io_complete(bpage, false)) {
-      return (0);
-    }
-  }
-
-  return (1);
+  return *err == DB_SUCCESS;
 }
 
 ulint buf_read_ahead_random(const page_id_t &page_id,
@@ -197,9 +187,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
   if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
-    if (high > space->size) {
-      high = space->size;
-    }
+    high = std::min(high, space->m_size_in_pages);
     fil_space_release(space);
   } else {
     return (0);
@@ -259,8 +247,9 @@ read_ahead:
     const page_id_t cur_page_id(page_id.space(), i);
 
     if (!ibuf_bitmap_page(cur_page_id, page_size)) {
-      count += buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, ibuf_mode,
-                                 cur_page_id, page_size, false, trx, false);
+      count += buf_read_page_low(&err, false, IORequest::Type::DO_NOT_WAKE,
+                                 ibuf_mode, cur_page_id, page_size, false, trx,
+                                 false);
 
       if (err == DB_TABLESPACE_DELETED) {
         ib::warn(ER_IB_MSG_140) << "Random readahead trying to"
@@ -298,8 +287,9 @@ bool buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
   ulint count;
   dberr_t err;
 
-  count = buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, page_id,
-                            page_size, false, trx, false);
+  count = buf_read_page_low(&err, true, IORequest::Type::UNSET,
+                            BUF_READ_ANY_PAGE, page_id, page_size, false, trx,
+                            false);
 
   srv_stats.buf_pool_reads.add(count);
 
@@ -320,7 +310,8 @@ bool buf_read_page_background(const page_id_t &page_id,
   dberr_t err;
 
   count = buf_read_page_low(
-      &err, sync, IORequest::DO_NOT_WAKE | IORequest::IGNORE_MISSING,
+      &err, sync,
+      IORequest::Type::DO_NOT_WAKE | IORequest::Type::IGNORE_MISSING,
       BUF_READ_ANY_PAGE, page_id, page_size, false, nullptr, false);
 
   srv_stats.buf_pool_reads.add(count);
@@ -386,14 +377,14 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   /* Remember the tablespace version before we ask the tablespace size
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
-  ulint space_size;
+  page_no_t space_size;
 
   if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
-    space_size = space->size;
+    space_size = space->m_size_in_pages;
 
     fil_space_release(space);
 
-    if (high > space_size) {
+    if (space_size < high) {
       /* The area is not whole */
       return (0);
     }
@@ -563,8 +554,9 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
     const page_id_t cur_page_id(page_id.space(), i);
 
     if (!ibuf_bitmap_page(cur_page_id, page_size)) {
-      count += buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, ibuf_mode,
-                                 cur_page_id, page_size, false, trx, true);
+      count += buf_read_page_low(&err, false, IORequest::Type::DO_NOT_WAKE,
+                                 ibuf_mode, cur_page_id, page_size, false, trx,
+                                 true);
 
       if (err == DB_TABLESPACE_DELETED) {
         ib::warn(ER_IB_MSG_142) << "linear readahead trying to"
@@ -640,8 +632,8 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     dberr_t err;
 
     buf_read_page_low(&err, sync && (i + 1 == n_stored),
-                      IORequest::IGNORE_MISSING, BUF_READ_ANY_PAGE, page_id,
-                      page_size, true, nullptr, false);
+                      IORequest::Type::IGNORE_MISSING, BUF_READ_ANY_PAGE,
+                      page_id, page_size, true, nullptr, false);
 
     if (err == DB_TABLESPACE_DELETED) {
       /* We have deleted or are deleting the single-table
@@ -667,37 +659,34 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
 
 void buf_read_recv_pages(space_id_t space_id, const page_no_t *page_nos,
                          ulint n_stored) {
-  fil_space_t *space = fil_space_get(space_id);
+  const auto space_open = fil_space_open(space_id);
 
-  if (space == nullptr) {
+  if (!space_open) {
     /* The tablespace is missing: do nothing */
     return;
   }
 
-  fil_space_open_if_needed(space);
+  const auto space = *space_open;
+  const auto space_guard =
+      create_scope_guard([space]() { fil_space_release(space); });
 
   auto req_size = page_nos[n_stored - 1] + 1;
 
   /* Extend the tablespace if needed. Required only while
   recovering from cloned database. */
-  if (recv_sys->is_cloned_db && space->size < req_size) {
+  if (recv_sys->is_cloned_db && space->m_size_in_pages < req_size) {
     /* Align size to multiple of extent size */
     if (req_size > FSP_EXTENT_SIZE) {
       req_size = ut_calc_align(req_size, FSP_EXTENT_SIZE);
     }
 
-    ib::info(ER_IB_MSG_143) << "Extending tablespace : " << space->id
-                            << " space name: " << space->name
-                            << " from page number: " << space->size << " pages"
-                            << " to " << req_size << " pages"
-                            << " for page number: " << page_nos[n_stored - 1]
-                            << " during recovery.";
+    ib::info(ER_IB_EXTENDING_IN_RECOVERY, ulong{space->id}, space->name,
+             ulong{space->m_size_in_pages}, ulong{req_size},
+             ulong{page_nos[n_stored - 1]});
 
     if (!fil_space_extend(space, req_size)) {
-      ib::error(ER_IB_MSG_144)
-          << "Could not extend tablespace: " << space->id
-          << " space name: " << space->name << " to " << req_size << " pages"
-          << " during recovery.";
+      ib::error(ER_IB_EXTENDING_IN_RECOVERY_FAILED, ulong{space->id},
+                space->name, ulong{req_size});
     }
   }
 
@@ -705,8 +694,9 @@ void buf_read_recv_pages(space_id_t space_id, const page_no_t *page_nos,
 
   for (ulint i = 0; i < n_stored; i++) {
     dberr_t err;
-    buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE, BUF_READ_ANY_PAGE,
-                      {space_id, page_nos[i]}, page_size, true, nullptr, false);
+    buf_read_page_low(&err, false, IORequest::Type::DO_NOT_WAKE,
+                      BUF_READ_ANY_PAGE, {space_id, page_nos[i]}, page_size,
+                      true, nullptr, false);
   }
 
   os_aio_simulated_wake_handler_threads();

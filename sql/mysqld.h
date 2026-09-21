@@ -861,7 +861,7 @@ inline void set_mysqld_offline_mode(bool value) { offline_mode.store(value); }
 
   @return a bool indicating partial_revokes status of the server.
     @retval true  Parital revokes is ON
-    @retval flase Partial revokes is OFF
+    @retval false Partial revokes is OFF
 */
 bool mysqld_partial_revokes();
 

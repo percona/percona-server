@@ -1251,8 +1251,7 @@ rec_t *page_cur_insert_rec_low(
   ut_ad(dict_table_is_comp(index->table) == page_is_comp(page));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
-        recv_recovery_is_on() ||
-        (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)));
+        (mtr && mtr->is_inside_ibuf()));
 
   ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1623,8 +1622,7 @@ rec_t *page_cur_insert_rec_zip(
   ut_ad(page_is_comp(page));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
-        (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)) ||
-        recv_recovery_is_on());
+        (mtr && mtr->is_inside_ibuf()));
 
   ut_ad(!page_cur_is_after_last(cursor));
 #ifdef UNIV_ZIP_DEBUG
@@ -1686,7 +1684,7 @@ rec_t *page_cur_insert_rec_zip(
 
       /* The cursor should remain on the page infimum. */
       return (nullptr);
-    } else if (!page_zip->m_nonempty && !page_has_garbage(page)) {
+    } else if (!page_zip->has_modifications() && !page_has_garbage(page)) {
       /* The page has been freshly compressed, so
       reorganizing it will not help. */
     } else if (log_compressed && !reorg_before_insert) {
@@ -2339,8 +2337,7 @@ void page_cur_delete_rec(
   ut_ad(page_is_comp(page) == dict_table_is_comp(index->table));
   ut_ad(fil_page_index_page_check(page));
   ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id ||
-        (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index)) ||
-        recv_recovery_is_on());
+        (mtr && mtr->is_inside_ibuf()));
 
   /* The record must not be the supremum or infimum record. */
   ut_ad(page_rec_is_user_rec(current_rec));

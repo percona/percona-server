@@ -366,3 +366,8 @@ external_table.test
 
 # 45. These tests require a server with non LTS version
 have_mysql_version_maturity_non_lts.inc
+
+# 46. Replication applier version
+have_mta.inc
+have_csa.inc
+have_csa_requirements.inc

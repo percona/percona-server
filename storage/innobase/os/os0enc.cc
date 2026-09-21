@@ -756,7 +756,7 @@ bool Encryption::decode_encryption_info(space_id_t space_id,
         /* Note down this space and rotate key at the end of recovery */
         s_tablespaces_to_reencrypt.push_back(space_id);
       } else {
-        /* This tablespace might not be loaded yet. It's tablepace key will be
+        /* This tablespace might not be loaded yet. It's tablespace key will be
         reencrypted with new master key once it is loaded in fil_ibd_open() */
       }
     }

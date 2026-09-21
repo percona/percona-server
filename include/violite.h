@@ -274,14 +274,22 @@ enum enum_ssl_init_error {
   SSL_FIPS_MODE_INVALID,
   SSL_FIPS_MODE_FAILED,
   SSL_INITERR_ECDHFAIL,
+  SSL_INITERR_KEX_GROUPS,
+  SSL_INITERR_PQC_UNSUPPORTED,
   SSL_INITERR_X509_VERIFY_PARAM,
   SSL_INITERR_INVALID_CERTIFICATES,
+  SSL_INITERR_SIGALGS,
+  SSL_INITERR_SESSION_ID_CONTEXT,
   SSL_INITERR_LASTERR
 };
 const char *sslGetErrString(enum enum_ssl_init_error err);
 
 struct st_VioSSLFd {
   SSL_CTX *ssl_context;
+  bool tls_force_pqc{false};
+  bool tls_session_cache_pqc_only{false};
+  bool tls_use_pqc_sign{false};
+  char *tls_kex{nullptr};
 };
 
 int sslaccept(struct st_VioSSLFd *, MYSQL_VIO, long timeout,
@@ -294,7 +302,8 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host);
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex, const char *server_host);
 
 long process_tls_version(const char *tls_version);
 
@@ -302,7 +311,8 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags);
+    const long ssl_ctx_flags, bool tls_force_pqc, bool tls_use_pqc_sign,
+    const char *tls_kex);
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();

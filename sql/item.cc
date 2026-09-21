@@ -1666,6 +1666,18 @@ bool Item::get_date_from_time(Date_val *date) {
   return false;
 }
 
+bool Item::get_date_from_datetime(Date_val *date, my_time_flags_t flags) {
+  Datetime_val dt;
+  if (val_datetime(&dt, flags)) {
+    assert(null_value || current_thd->is_error());
+    return true;
+  }
+  datetime_to_date(&dt);
+  *date = Date_val(dt);
+
+  return false;
+}
+
 bool Item::get_datetime_from_time(Datetime_val *dt) {
   Time_val time;
   if (val_time(&time)) {
@@ -2478,50 +2490,7 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
   // We need to handle outer references in subqueries in presence of wf with
   // frame buffering
   bool outer_refs_wf = false;
-  /*
-    For an expressions that is not itself an aggregate function, a
-    grouping function or a window function but contain underlying
-    aggregate functions, grouping functions or window functions,
-    possibly split the expression.
-    Do not attempt to split helper functions from transformations
-    (ISNOTNULLTEST_FUNC or TRIG_COND_FUNC), or row constructs.
-  */
-  if (((has_aggregation() || has_wf() || has_grouping_func()) &&
-       !is_aggr_func && !m_is_window_function && !is_grouping) ||
-      (type() == FUNC_ITEM && (down_cast<Item_func *>(this)->functype() ==
-                                   Item_func::ISNOTNULLTEST_FUNC ||
-                               down_cast<Item_func *>(this)->functype() ==
-                                   Item_func::TRIG_COND_FUNC)) ||
-      type() == ROW_ITEM) {
-    // Do not add item to hidden list; possibly split it
-    if (split_sum_func(thd, ref_item_array, fields)) {
-      return true;
-    }
-    if (type() == SUBQUERY_ITEM) {
-      (void)subquery_split(thd, this, &outer_refs_wf);  // (3)
-    }
-  } else if (!const_for_execution() &&                       // (1)
-             (type() != REF_ITEM ||                          // (2)
-              down_cast<Item_ref *>(this)->ref_type() ==     //
-                  Item_ref::VIEW_REF) &&                     //
-             (type() != SUBQUERY_ITEM ||                     //
-              subquery_split(thd, this, &outer_refs_wf))) {  // (3)
-    /*
-      (1) Replace non-constant item with a reference so that we can easily
-      calculate it (in case of aggregate functions, grouping functions or
-      window functions) or copy it (in case of fields).
-
-      (2) Exception from (1) is Item_view_ref which we need to wrap in
-      Item_ref to allow fields from view being stored in tmp table.
-
-      (3) In order to handle queries like:
-           SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
-      If subquery_split returns false, we must evaluate the subquery after the
-      window functions. If so, we need to know whether there are any outer
-      references, since those will need to be carried forward with the windowing
-      temporary tables and references re-written to point to the windowing
-      buffers, cf. outer_refs_wf and code below.
-    */
+  const auto add_self_to_hidden_fields = [&]() {
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
 
     const bool old_hidden = hidden;  // May be overwritten below.
@@ -2573,6 +2542,59 @@ bool Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       assert(ref != nullptr);
     }
     *ref = item_ref;
+
+    return false;
+  };
+  /*
+    For an expressions that is not itself an aggregate function, a
+    grouping function or a window function but contain underlying
+    aggregate functions, grouping functions or window functions,
+    possibly split the expression.
+    Do not attempt to split helper functions from transformations
+    (ISNOTNULLTEST_FUNC or TRIG_COND_FUNC), or row constructs.
+  */
+  if (((has_aggregation() || has_wf() || has_grouping_func()) &&
+       !is_aggr_func && !m_is_window_function && !is_grouping) ||
+      (type() == FUNC_ITEM && (down_cast<Item_func *>(this)->functype() ==
+                                   Item_func::ISNOTNULLTEST_FUNC ||
+                               down_cast<Item_func *>(this)->functype() ==
+                                   Item_func::TRIG_COND_FUNC)) ||
+      type() == ROW_ITEM) {
+    // Do not add item to hidden list; possibly split it
+    if (split_sum_func(thd, ref_item_array, fields)) {
+      return true;
+    }
+    if (type() == SUBQUERY_ITEM) {
+      // For hypergraph, also add early-evaluable subqueries as hidden fields:
+      const bool split_subquery = subquery_split(thd, this, &outer_refs_wf);
+      if (thd->lex->using_hypergraph_optimizer() && split_subquery &&
+          add_self_to_hidden_fields()) {
+        return true;
+      }
+    }
+  } else if (!const_for_execution() &&                       // (1)
+             (type() != REF_ITEM ||                          // (2)
+              down_cast<Item_ref *>(this)->ref_type() ==     //
+                  Item_ref::VIEW_REF) &&                     //
+             (type() != SUBQUERY_ITEM ||                     //
+              subquery_split(thd, this, &outer_refs_wf))) {  // (3)
+    /*
+      (1) Replace non-constant item with a reference so that we can easily
+      calculate it (in case of aggregate functions, grouping functions or
+      window functions) or copy it (in case of fields).
+
+      (2) Exception from (1) is Item_view_ref which we need to wrap in
+      Item_ref to allow fields from view being stored in tmp table.
+
+      (3) In order to handle queries like:
+           SELECT FIRST_VALUE((SELECT .. FROM .. LIMIT 1)) OVER (..) FROM ...;
+      If subquery_split returns false, we must evaluate the subquery after the
+      window functions. If so, we need to know whether there are any outer
+      references, since those will need to be carried forward with the windowing
+      temporary tables and references re-written to point to the windowing
+      buffers, cf. outer_refs_wf and code below.
+    */
+    if (add_self_to_hidden_fields()) return true;
 
     /*
       A WF must both be added to hidden list (done above), and be split so its
@@ -7900,16 +7922,18 @@ my_decimal *Item_json::val_decimal(my_decimal *buf) {
   return m_value->coerce_decimal(JsonCoercionWarnHandler{item_name.ptr()}, buf);
 }
 
-bool Item_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_json::val_date(Date_val *date, my_time_flags_t flags) {
+  flags |= DatetimeConversionFlags(current_thd);
   return m_value->coerce_date(JsonCoercionWarnHandler{item_name.ptr()},
                               JsonCoercionDeprecatedDefaultHandler{}, date,
-                              DatetimeConversionFlags(current_thd));
+                              flags);
 }
 
-bool Item_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
+  flags |= DatetimeConversionFlags(current_thd);
   return m_value->coerce_datetime(JsonCoercionWarnHandler{item_name.ptr()},
                                   JsonCoercionDeprecatedDefaultHandler{}, dt,
-                                  DatetimeConversionFlags(current_thd));
+                                  flags);
 }
 
 bool Item_json::val_time(Time_val *time) {
@@ -9234,6 +9258,55 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
     first_inner_table = m_table_ref->any_outer_leaf_table();
   }
   return false;
+}
+
+/**
+  Return the set of tables this view column logically depends on.
+
+  For a view/derived-table column that has been merged, the
+  underlying expression may itself be another view reference or
+  an arbitrary expression. In most cases, the dependency set is
+  simply the `used_tables()` of the referenced expression
+
+  There are two important refinements:
+
+  - If the view column (or its underlying field) is an outer
+    reference, we report OUTER_REF_TABLE_BIT so the optimizer can
+    treat it as referring to an outer query block.
+
+  - If the referenced expression is constant for the duration of
+    execution but the view/derived table is on the inner side of an
+    outer join (indicated by `first_inner_table`), the value may
+    still depend on whether the inner table has been null-complemented
+    (via `has_null_row()`). In this case we ensure the inner table’s
+    map is included, so the expression is not treated as an
+    unconditional constant during optimization.
+*/
+table_map Item_view_ref::used_tables() const {
+  // If this view column itself is an outer reference, report it as such.
+  if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
+  Item *inner_item = ref_item();
+  table_map inner_map = inner_item->used_tables();
+  // Note that we do not use const_for_execution() function so
+  // as to avoid multiple and recursive calls to used_tables, as this could
+  // create a problem when views are created using other views.
+  if (!(inner_map & ~INNER_TABLE_BIT) && first_inner_table != nullptr) {
+    if (inner_item->type() == Item::FIELD_ITEM) {
+      const Item_field *field = down_cast<const Item_field *>(inner_item);
+      // Const table elimination has converted field to a const value.
+      // Nevertheless, we cannot handle it as a true const value in other parts
+      // of the code, and thus have to report it as if it were original,
+      // ie. an outer reference or a regular table field.
+      return field->depended_from != nullptr ? OUTER_REF_TABLE_BIT
+                                             : field->m_table_ref->map();
+    }
+    // Constant value on inner side of outer join wrapped in one or more
+    // Item_view_ref levels) depends on the inner table.
+    return first_inner_table->map();
+  }
+  // In all other cases, used tables are exactly those of the underlying
+  // expression referenced by this view column.
+  return inner_map;
 }
 
 /**
@@ -10804,28 +10877,28 @@ my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
                            decimal_value);
 }
 
-bool Item_cache_json::val_date(Date_val *date, my_time_flags_t) {
+bool Item_cache_json::val_date(Date_val *date, my_time_flags_t flags) {
   Json_wrapper wr;
 
   if (val_json(&wr)) return true;
 
   if (null_value) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_date(JsonCoercionWarnHandler{whence(cached_field)},
-                        JsonCoercionDeprecatedDefaultHandler{}, date,
-                        DatetimeConversionFlags(current_thd));
+                        JsonCoercionDeprecatedDefaultHandler{}, date, flags);
 }
 
-bool Item_cache_json::val_datetime(Datetime_val *dt, my_time_flags_t) {
+bool Item_cache_json::val_datetime(Datetime_val *dt, my_time_flags_t flags) {
   Json_wrapper wr;
 
   if (val_json(&wr)) return true;
 
   if (null_value) return true;
 
+  flags |= DatetimeConversionFlags(current_thd);
   return wr.coerce_datetime(JsonCoercionWarnHandler{whence(cached_field)},
-                            JsonCoercionDeprecatedDefaultHandler{}, dt,
-                            DatetimeConversionFlags(current_thd));
+                            JsonCoercionDeprecatedDefaultHandler{}, dt, flags);
 }
 
 bool Item_cache_json::val_time(Time_val *time) {

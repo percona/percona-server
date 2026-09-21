@@ -713,12 +713,12 @@ class CostingReceiver {
                                 const Mem_root_array<AccessPath *> &paths,
                                 bool *found_imerge);
   void ProposeAllRowIdOrderedIntersectPlans(
-      TABLE *table, int node_idx, SEL_TREE *tree, int num_filter_predicates,
+      TABLE *table, int node_idx, SEL_TREE *tree,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
       bool *found_imerge);
   void ProposeRowIdOrderedIntersect(
-      TABLE *table, int node_idx, int num_filter_predicates,
+      TABLE *table, int node_idx,
       const Mem_root_array<PossibleRORScan> &possible_ror_scans,
       const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
       double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
@@ -1612,6 +1612,15 @@ ProposeResult RefAccessBuilder::ProposePath() const {
     materialize.table_path->num_output_rows_before_filter = rows;
     materialize_path->set_num_output_rows(rows);
     materialize_path->num_output_rows_before_filter = rows;
+
+    // Add the one-time cost of building the index on the materialized
+    // temp table.
+    const double index_build_cost =
+        EstimateIndexBuildCost(materialize.subquery_rows);
+    materialize_path->set_init_cost(materialize_path->init_cost() +
+                                    index_build_cost);
+    materialize_path->set_cost(materialize_path->cost() + index_build_cost);
+    materialize_path->set_cost_before_filter(materialize_path->cost());
 
     path = *materialize_path;
   }
@@ -2844,8 +2853,8 @@ void CostingReceiver::ProposeAllIndexMergeScans(
   // Now Propose Row-ID ordered index merge intersect plans if possible.
   if (index_merge_intersect_allowed) {
     ProposeAllRowIdOrderedIntersectPlans(
-        table, node_idx, tree, m_graph->num_filter_predicates,
-        possible_ror_scans, num_output_rows_after_filter, param, found_imerge);
+        table, node_idx, tree, possible_ror_scans, num_output_rows_after_filter,
+        param, found_imerge);
   }
 
   // Propose all index merges we have collected. This proposes both
@@ -3019,7 +3028,7 @@ AbsorbedPredicates UpdateAbsorbedPredicates(
 // of other index merge scans (provides only primary key ordering).
 
 void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
-    TABLE *table, int node_idx, SEL_TREE *tree, int num_filter_predicates,
+    TABLE *table, int node_idx, SEL_TREE *tree,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     bool *found_imerge) {
@@ -3049,9 +3058,8 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
   // We have only 2 scans available, one a non-cpk scan and
   // another a cpk scan. Propose the plan and return.
   if (ror_scans.size() == 1 && cpk_scan != nullptr) {
-    ProposeRowIdOrderedIntersect(table, node_idx, num_filter_predicates,
-                                 possible_ror_scans, ror_scans, cpk_scan,
-                                 num_output_rows_after_filter, param,
+    ProposeRowIdOrderedIntersect(table, node_idx, possible_ror_scans, ror_scans,
+                                 cpk_scan, num_output_rows_after_filter, param,
                                  needed_fields, found_imerge);
     return;
   }
@@ -3077,10 +3085,9 @@ void CostingReceiver::ProposeAllRowIdOrderedIntersectPlans(
       // Find an optimal order of the scans available to start planning.
       find_intersect_order(&ror_scans_to_use, needed_fields,
                            param->temp_mem_root);
-      ProposeRowIdOrderedIntersect(table, node_idx, num_filter_predicates,
-                                   possible_ror_scans, ror_scans_to_use,
-                                   cpk_scan, num_output_rows_after_filter,
-                                   param, needed_fields, found_imerge);
+      ProposeRowIdOrderedIntersect(
+          table, node_idx, possible_ror_scans, ror_scans_to_use, cpk_scan,
+          num_output_rows_after_filter, param, needed_fields, found_imerge);
     } while (std::next_permutation(scan_combination.begin(),
                                    scan_combination.end()));
   }
@@ -3104,14 +3111,14 @@ int GetRowIdOrdering(const TABLE *table, const LogicalOrderings *orderings,
 // Helper to ProposeAllRowIdOrderedIntersectPlans. Proposes an ROR-intersect
 // plan if all the scans are utilized in the available ror scans.
 void CostingReceiver::ProposeRowIdOrderedIntersect(
-    TABLE *table, int node_idx, int num_filter_predicates,
+    TABLE *table, int node_idx,
     const Mem_root_array<PossibleRORScan> &possible_ror_scans,
     const Mem_root_array<ROR_SCAN_INFO *> &ror_scans, ROR_SCAN_INFO *cpk_scan,
     double num_output_rows_after_filter, const RANGE_OPT_PARAM *param,
     OverflowBitset needed_fields, bool *found_imerge) {
   ROR_intersect_plan plan(param, needed_fields.capacity());
   AbsorbedPredicates absorbed_predicates =
-      NoAppliedPredicates(param->return_mem_root, num_filter_predicates);
+      NoAppliedPredicates(param->return_mem_root, m_graph->predicates.size());
   uint index = 0;
   bool cpk_scan_used = false;
   for (index = 0; index < ror_scans.size() && !plan.m_is_covering; ++index) {
@@ -4464,6 +4471,8 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
         path->set_cost(path->cost() + cost.cost_if_not_materialized);
         path->set_init_cost(path->init_cost() +
                             cost.init_cost_if_not_materialized);
+        path->set_init_once_cost(path->init_once_cost() +
+                                 cost.init_cost_if_not_materialized);
       }
       if (IsBitSet(i, absorbed_predicates.applied())) {
         // We already factored in this predicate when calculating
@@ -4873,9 +4882,13 @@ void MoveDegenerateJoinConditionToFilter(THD *thd, JoinHypergraph &graph,
   new_expr->left = expr->left;
   new_expr->right = expr->right;
 
-  JoinPredicate *new_edge = new (thd->mem_root) JoinPredicate{
-      new_expr, /*selectivity=*/1.0, (*edge)->estimated_bytes_per_row,
-      (*edge)->functional_dependencies, /*functional_dependencies_idx=*/{}};
+  JoinPredicate *new_edge =
+      new (thd->mem_root) JoinPredicate{new_expr,
+                                        /*selectivity=*/1.0,
+                                        (*edge)->estimated_bytes_per_row,
+                                        (*edge)->estimated_hash_join_key_width,
+                                        (*edge)->functional_dependencies,
+                                        /*functional_dependencies_idx=*/{}};
 
   // Use the filter path and the new join edge with no condition for creating
   // the hash join.
@@ -5366,7 +5379,6 @@ void CostingReceiver::ProposeHashJoin(
   join_path.hash_join().store_rowids = false;
   join_path.hash_join().rewrite_semi_to_inner = rewrite_semi_to_inner;
   join_path.hash_join().tables_to_get_rowid_for = 0;
-  join_path.hash_join().allow_spill_to_disk = true;
   join_path.has_group_skip_scan =
       left_path->has_group_skip_scan || right_path->has_group_skip_scan;
 
@@ -5421,7 +5433,7 @@ void CostingReceiver::ProposeHashJoin(
   const AccessPath *outer = join_path.hash_join().outer;
 
   const double key_width{[&]() {
-    double width{static_cast<double>(EstimateHashJoinKeyWidth(edge->expr))};
+    double width{static_cast<double>(edge->estimated_hash_join_key_width)};
 
     // If the edge is part of a cycle in the hypergraph, there may be other
     // usable join predicates in other edges.
@@ -5446,7 +5458,8 @@ void CostingReceiver::ProposeHashJoin(
           assert(other_edge->expr->type == RelationalExpression::INNER_JOIN);
           if (other_edge != edge &&
               PassesConflictRules(left | right, other_edge->expr)) {
-            width += EstimateHashJoinKeyWidth(other_edge->expr);
+            width +=
+                static_cast<double>(other_edge->estimated_hash_join_key_width);
           }
         }
       }
@@ -5454,80 +5467,177 @@ void CostingReceiver::ProposeHashJoin(
     return width;
   }()};
 
-  const HashJoinCost join_cost{
-      m_thd,
-      HashJoinMetrics{.build_rows = right_path->num_output_rows(),
-                      .build_row_size =
-                          static_cast<double>(GetJoinRowWidth(right, *m_graph)),
-                      .key_size = key_width,
-                      .probe_rows = outer->num_output_rows(),
-                      .probe_row_size =
-                          static_cast<double>(GetJoinRowWidth(left, *m_graph)),
-                      .result_rows = num_output_rows}};
+  const HashJoinMetrics metrics{
+      .build_rows = right_path->num_output_rows(),
+      .build_row_size = static_cast<double>(GetJoinRowWidth(right, *m_graph)),
+      .key_size = key_width,
+      .probe_rows = outer->num_output_rows(),
+      .probe_row_size = static_cast<double>(GetJoinRowWidth(left, *m_graph)),
+      .result_rows = num_output_rows};
 
-  // Note: This isn't strictly correct if the non-equijoin conditions
-  // have selectivities far from 1.0; the cost should be calculated
-  // on the number of rows after the equijoin conditions, but before
-  // the non-equijoin conditions.
-  // NOTE: Keep this in sync with SimulateJoin().
-  const double cost{join_cost.cost() + right_path->cost() + outer->cost() +
-                    num_output_rows * edge->expr->join_conditions.size() *
-                        kApplyOneFilterCost};
+  // The spill-allowed plan handles both cases: when the build side fits
+  // in memory (no spill occurs, single probe pass) and when it doesn't
+  // (Grace hash join partitions both sides to disk, single probe pass
+  // per chunk). This plan is always proposed.
+  //
+  // The no-spill plan (hash table refills with multiple full probe passes)
+  // is only worth proposing when the join can benefit from early
+  // termination. Without early termination, all rows must be produced,
+  // and spill-to-disk is strictly better: it scans the probe side once,
+  // while no-spill scans it ceil(build_size / buffer) times.
+  //
+  // Early termination is possible when there is a LIMIT and nothing
+  // above the join needs to consume the full join result before
+  // producing output. ORDER BY, GROUP BY, and window functions all
+  // materialize/buffer the join output before LIMIT applies, so they
+  // defeat early termination. SQL_CALC_FOUND_ROWS likewise forces the
+  // full result to be counted regardless of LIMIT.
+  //
+  // In the early-termination case, the no-spill plan can start returning
+  // rows immediately from the first build batch, and may satisfy the
+  // LIMIT before needing to refill the hash table — avoiding the spill
+  // startup cost entirely.
+  const Query_block *query_block = m_graph->query_block();
+  const Query_expression *query_expression =
+      query_block->master_query_expression();
+  const bool has_limit = query_expression->select_limit_cnt != HA_POS_ERROR;
+  const bool needs_full_result =
+      query_block->is_ordered() || query_block->is_grouped() ||
+      query_block->has_windows() ||
+      (query_block->active_options() & OPTION_FOUND_ROWS) != 0;
+  // Restrict to inner joins: for other join types the refill path writes
+  // a probe-row-saving file to disk, which the no-spill cost model does
+  // not account for. Also restrict to simple query expressions: if this
+  // block is one branch of a UNION/INTERSECT/EXCEPT, the set operation
+  // must consume the full block result before the outer LIMIT applies,
+  // so early termination is not possible.
+  const bool may_benefit_from_no_spill =
+      has_limit && !needs_full_result && query_expression->is_simple() &&
+      (edge->expr->type == RelationalExpression::INNER_JOIN ||
+       edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN);
 
-  join_path.num_output_rows_before_filter = num_output_rows;
-  join_path.set_cost_before_filter(cost);
-  join_path.set_cost(cost);
-  join_path.set_num_output_rows(num_output_rows);
-  join_path.set_init_cost(join_cost.init_cost() + right_path->cost() +
-                          outer->init_cost());
+  // Propose a hash join plan with the given cost model and spill setting.
+  // This lambda captures the surrounding state and proposes the plan
+  // (with and without subquery materialization) to the tournament.
+  auto propose_hash_join_plan = [&](const HashJoinCost &join_cost,
+                                    bool allow_spill) {
+    join_path.hash_join().allow_spill_to_disk = allow_spill;
 
-  const double reuse_buffer_probability{
-      // right_path has external dependencies, so the buffer cannot be reused.
-      right_path->parameter_tables > 0
-          ? 0.0
-          : 1.0 - join_cost.spill_to_disk_probability()};
+    // Note: This isn't strictly correct if the non-equijoin conditions
+    // have selectivities far from 1.0; the cost should be calculated
+    // on the number of rows after the equijoin conditions, but before
+    // the non-equijoin conditions.
+    // NOTE: Keep this in sync with SimulateJoin().
+    //
+    // When spill-to-disk is not allowed, the probe input is re-Init()'d
+    // and re-scanned for each hash table refill (HashJoinIterator calls
+    // InitProbeIterator() on refill). The first pass costs outer->cost();
+    // each subsequent pass costs outer->rescan_cost().
+    const double probe_iterations = join_cost.probe_iterations();
+    const double rescan_count = probe_iterations - 1.0;
+    const double outer_passes_cost =
+        allow_spill ? outer->cost()
+                    : outer->cost() + rescan_count * outer->rescan_cost();
+    const double cost{join_cost.cost() + right_path->cost() +
+                      outer_passes_cost +
+                      num_output_rows * edge->expr->join_conditions.size() *
+                          kApplyOneFilterCost};
 
-  join_path.set_init_once_cost(
-      outer->init_once_cost() +
-      std::lerp(right_path->init_once_cost(),
-                join_cost.init_cost() + right_path->cost(),
-                reuse_buffer_probability));
+    join_path.num_output_rows_before_filter = num_output_rows;
+    join_path.set_cost_before_filter(cost);
+    join_path.set_cost(cost);
+    join_path.set_num_output_rows(num_output_rows);
+    // For the no-spill variant the iterator stops reading the build input
+    // as soon as the join buffer is full, so only ~1/probe_iterations of
+    // right_path's run cost is incurred before the first output row.
+    const double build_run_cost = right_path->cost() - right_path->init_cost();
+    const double build_init_cost =
+        allow_spill
+            ? right_path->cost()
+            : right_path->init_cost() + build_run_cost / probe_iterations;
+    join_path.set_init_cost(join_cost.init_cost() + build_init_cost +
+                            outer->init_cost());
 
-  // For each scan, hash join will read the left side once and the right side
-  // once, so we are as safe as the least safe of the two. (This isn't true
-  // if we set spill_to_disk = false, but we never do that in the hypergraph
-  // optimizer.) Note that if the right side fits entirely in RAM, we don't
-  // scan it the second time (so we could make the operation _more_ safe
-  // than the right side, and we should consider both ways of doing
-  // an inner join), but we cannot know that when planning.
-  join_path.safe_for_rowid =
-      std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
-
-  // Only trace once; the rest ought to be identical.
-  if (TraceStarted(m_thd) && !*wrote_trace) {
-    Trace(m_thd) << PrintSubgraphHeader(edge, join_path, left, right);
-    *wrote_trace = true;
-  }
-
-  for (bool materialize_subqueries : {false, true}) {
-    AccessPath new_path = join_path;
-    FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_first,
-        edge->expr->join_predicate_last, materialize_subqueries, &new_path,
-        &filter_fd_set);
-    // Hash join destroys all ordering information (even from the left side,
-    // since we may have spill-to-disk).
-    new_path.ordering_state = m_orderings->ApplyFDs(m_orderings->SetOrder(0),
-                                                    new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   new_obsolete_orderings, &new_path,
-                                   materialize_subqueries ? "mat. subq." : "");
-
-    if (!Overlaps(new_path.filter_predicates,
-                  m_graph->materializable_predicates)) {
-      break;
+    // HashJoinIterator::DoInit() reuses the in-memory hash table only for
+    // IN_MEMORY or empty SPILL_TO_DISK, not for
+    // IN_MEMORY_WITH_HASH_TABLE_REFILL. So a no-spill plan that is
+    // expected to refill (probe_iterations > 1) cannot reuse the buffer on
+    // rescan. When the build is expected to fit (probe_iterations == 1),
+    // use the same overflow-uncertainty curve as the spill plan.
+    double reuse_buffer_probability;
+    if (right_path->parameter_tables > 0) {
+      // right_path has external dependencies; buffer cannot be reused.
+      reuse_buffer_probability = 0.0;
+    } else if (!allow_spill && probe_iterations > 1.0) {
+      reuse_buffer_probability = 0.0;
+    } else {
+      reuse_buffer_probability = 1.0 - join_cost.overflow_probability();
     }
+
+    join_path.set_init_once_cost(
+        outer->init_once_cost() +
+        std::lerp(right_path->init_once_cost(),
+                  join_cost.init_cost() + build_init_cost,
+                  reuse_buffer_probability));
+
+    // For each scan, hash join will read the left side once and the right
+    // side once, so we are as safe as the least safe of the two. Note that
+    // when spill_to_disk is false, the probe side may be re-scanned via
+    // hash table refills, but this does not affect row ID safety since the
+    // probe iterator is simply re-Init()'d.
+    join_path.safe_for_rowid =
+        std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
+
+    // Only trace once; the rest ought to be identical.
+    if (TraceStarted(m_thd) && !*wrote_trace) {
+      Trace(m_thd) << PrintSubgraphHeader(edge, join_path, left, right);
+      *wrote_trace = true;
+    }
+
+    for (bool materialize_subqueries : {false, true}) {
+      AccessPath new_path = join_path;
+      FunctionalDependencySet filter_fd_set;
+      ApplyDelayedPredicatesAfterJoin(
+          left, right, left_path, right_path, edge->expr->join_predicate_first,
+          edge->expr->join_predicate_last, materialize_subqueries, &new_path,
+          &filter_fd_set);
+      // Hash join destroys all ordering information (even from the left
+      // side, since we may have spill-to-disk or hash table refills).
+      new_path.ordering_state = m_orderings->ApplyFDs(
+          m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
+      ProposeAccessPathWithOrderings(
+          left | right, new_fd_set | filter_fd_set, new_obsolete_orderings,
+          &new_path, materialize_subqueries ? "mat. subq." : "");
+
+      if (!Overlaps(new_path.filter_predicates,
+                    m_graph->materializable_predicates)) {
+        break;
+      }
+    }
+  };
+
+  // Always propose the spill-allowed plan.
+  const HashJoinCost spill_cost{m_thd, metrics, /*allow_spill_to_disk=*/true};
+  propose_hash_join_plan(spill_cost, /*allow_spill=*/true);
+
+  // Propose the no-spill plan only when early termination is possible
+  // and the build side is estimated not to fit in the join buffer
+  // (non-zero spill probability). If the build side fits, both plans
+  // model a single in-memory probe pass and are identical, so there is
+  // nothing extra to propose.
+  if (may_benefit_from_no_spill &&
+      spill_cost.spill_to_disk_probability() > 0.0) {
+    const HashJoinCost no_spill_cost{m_thd, metrics,
+                                     /*allow_spill_to_disk=*/false};
+    if (TraceStarted(m_thd)) {
+      Trace(m_thd) << " - also proposing allow_spill_to_disk=false:"
+                   << " spill_probability="
+                   << spill_cost.spill_to_disk_probability()
+                   << " probe_iterations=" << no_spill_cost.probe_iterations()
+                   << " no_spill_init_cost=" << no_spill_cost.init_cost()
+                   << " spill_init_cost=" << spill_cost.init_cost() << "\n";
+    }
+    propose_hash_join_plan(no_spill_cost, /*allow_spill=*/false);
   }
 }
 
@@ -5631,6 +5741,10 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
           } else {
             join_path->set_cost(join_path->cost() +
                                 cost.cost_if_not_materialized);
+            join_path->set_init_cost(join_path->init_cost() +
+                                     cost.init_cost_if_not_materialized);
+            join_path->set_init_once_cost(join_path->init_once_cost() +
+                                          cost.init_cost_if_not_materialized);
           }
           if (!already_applied_as_sargable) {
             filter_selectivity *= pred.selectivity;
@@ -6017,7 +6131,12 @@ void CostingReceiver::ProposeNestedLoopJoin(
       left_path->immediate_update_delete_table;
 
   const AccessPath *inner = join_path.nested_loop_join().inner;
+  // filter_cost is a bundled value: init + per-row cost. See FilterCost
+  // struct comment in cost_model.h (cost_if_not_materialized includes
+  // init_cost_if_not_materialized). We track init cost separately so it
+  // is charged once, not multiplied by the number of outer rows.
   double filter_cost = 0.0;
+  double filter_init_cost = 0.0;
 
   double right_path_already_applied_selectivity = 1.0;
   join_path.nested_loop_join().equijoin_predicates = OverflowBitset{};
@@ -6062,17 +6181,19 @@ void CostingReceiver::ProposeNestedLoopJoin(
           AlreadyAppliedAsSargable(condition, left_path, right_path);
       if (!subsumed) {
         equijoin_predicates.SetBit(join_cond_idx);
-        filter_cost += EstimateFilterCost(m_thd, rows_after_filtering,
-                                          properties.contained_subqueries)
-                           .cost_if_not_materialized;
+        const FilterCost fc = EstimateFilterCost(
+            m_thd, rows_after_filtering, properties.contained_subqueries);
+        filter_cost += fc.cost_if_not_materialized;
+        filter_init_cost += fc.init_cost_if_not_materialized;
         rows_after_filtering *= properties.selectivity;
       }
     }
     for (const CachedPropertiesForPredicate &properties :
          edge->expr->properties_for_join_conditions) {
-      filter_cost += EstimateFilterCost(m_thd, rows_after_filtering,
-                                        properties.contained_subqueries)
-                         .cost_if_not_materialized;
+      const FilterCost fc = EstimateFilterCost(m_thd, rows_after_filtering,
+                                               properties.contained_subqueries);
+      filter_cost += fc.cost_if_not_materialized;
+      filter_init_cost += fc.init_cost_if_not_materialized;
       rows_after_filtering *= properties.selectivity;
     }
     join_path.nested_loop_join().equijoin_predicates =
@@ -6123,12 +6244,20 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // high (e.g. 1e6). A cost estimate of 1e-6 * 1e6 = 1 would be very
   // misleading if 'outer' produces a few rows. (@see AccessPath::m_init_cost
   // for a general description of init_cost.)
-  join_path.set_init_cost(outer->init_cost() + inner->init_cost());
+  join_path.set_init_cost(outer->init_cost() + inner->init_cost() +
+                          filter_init_cost);
+  // The subquery init cost is paid once per query, not once per rescan of
+  // this join. Record it in init_once_cost so that rescan_cost() of this
+  // path (used when it is itself the inner side of an enclosing NLJ)
+  // excludes it.
+  join_path.set_init_once_cost(outer->init_once_cost() +
+                               inner->init_once_cost() + filter_init_cost);
 
   const double first_loop_cost = inner->cost() + filter_cost;
 
+  const double filter_cost_per_row = filter_cost - filter_init_cost;
   const double subsequent_loops_cost =
-      (inner->rescan_cost() + filter_cost) *
+      (inner->rescan_cost() + filter_cost_per_row) *
       std::max(0.0, outer->num_output_rows() - 1.0);
 
   join_path.set_cost(outer->cost() + first_loop_cost + subsequent_loops_cost);
@@ -6440,6 +6569,10 @@ string PrintAccessPath(THD *thd, AccessPath &path, const JoinHypergraph &graph,
     str += " via stats cache";
   }
   if (!join_order.empty()) str += ", join_order=" + join_order;
+  if (path.type == AccessPath::HASH_JOIN &&
+      !path.hash_join().allow_spill_to_disk) {
+    str += ", allow_spill_to_disk=false";
+  }
 
   // Print parameter tables, if any.
   if (path.parameter_tables != 0) {
@@ -7074,6 +7207,39 @@ AccessPath *GetSafePathToSort(THD *thd, const JoinHypergraph &graph, JOIN *join,
 }
 
 /**
+  Compute the effective upper bound on the number of distinct rows needed from
+  a DISTINCT deduplication step.
+
+  We only return a limit when all of the following hold:
+    - The query block has an explicit LIMIT
+    - There is no ORDER BY in this query block
+    - SQL_CALC_FOUND_ROWS is not in use
+
+  The value returned is based on select_limit_cnt, which in the optimizer
+  already accounts for OFFSET as well; thus it is effectively OFFSET + LIMIT,
+  i.e. the maximum number of distinct rows the consumer can ever see.
+
+  If OFFSET >= LIMIT, the DISTINCT output is entirely skipped and we return 0.
+*/
+static std::optional<ha_rows> EffectiveDedupLimit(
+    const JOIN &join, const Query_block &query_block) {
+  const Query_expression *query_expression = join.query_expression();
+  if (query_expression == nullptr) return std::nullopt;
+
+  if (join.calc_found_rows || query_block.order_list.elements > 0 ||
+      query_expression->select_limit_cnt == HA_POS_ERROR) {
+    return std::nullopt;
+  }
+
+  if (query_expression->offset_limit_cnt >=
+      query_expression->select_limit_cnt) {
+    return ha_rows{0};
+  }
+
+  return query_expression->select_limit_cnt;
+}
+
+/**
   Sets up an access path for materializing the results returned from a path in a
   temporary table.
 
@@ -7095,6 +7261,12 @@ AccessPath *CreateMaterializationPath(
   AccessPath *table_path =
       NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
 
+  ha_rows limit_rows = HA_POS_ERROR;
+  if (dedup_reason == MaterializePathParameters::DEDUP_FOR_DISTINCT) {
+    if (auto limit = EffectiveDedupLimit(*join, *join->query_block); limit) {
+      limit_rows = *limit;
+    }
+  }
   AccessPath *materialize_path = NewMaterializeAccessPath(
       thd,
       SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
@@ -7102,8 +7274,7 @@ AccessPath *CreateMaterializationPath(
       /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
       /*unit=*/nullptr, ref_slice,
       /*rematerialize=*/true,
-      /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false,
-      dedup_reason);
+      /*limit_rows=*/limit_rows, /*reject_multiple_rows=*/false, dedup_reason);
   SecondaryEngineNrowsParameters secondary_engine_nrows_params{
       thd, materialize_path, &graph};
   bool found_cached_nrows =
@@ -7826,6 +7997,25 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 bool ForceMaterializationBeforeSort(const Query_block &query_block,
                                     bool need_rowid) {
   const JOIN &join{*query_block.join};
+
+  // Materialize when ORDER BY has stored-program or RAND_TABLE_BIT items,
+  // so filesort evaluates them once. The outermost DML block is exempt
+  // (a STREAM path there has no table for FinalizeUpdateOrDelete()), as is
+  // secondary-engine optimization.
+  const bool is_outer_dml_block =
+      query_block.outer_query_block() == nullptr &&
+      (IsUpdateStatement(join.thd) || IsDeleteStatement(join.thd));
+  if (!is_outer_dml_block && join.thd->secondary_engine_optimization() !=
+                                 Secondary_engine_optimization::SECONDARY) {
+    for (ORDER *ord = query_block.order_list.first; ord != nullptr;
+         ord = ord->next) {
+      if (((*ord->item)->used_tables() & RAND_TABLE_BIT) != 0 ||
+          (*ord->item)->has_stored_program()) {
+        return true;
+      }
+    }
+  }
+
   // Also materialize before sorting of table value constructors. Filesort needs
   // a table, and a table value constructor has no associated TABLE object, so
   // we have to stream the rows through a temporary table before sorting them.
@@ -7990,6 +8180,10 @@ AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
   sort_path.sort().remove_duplicates = true;
   sort_path.sort().unwrap_rollup = false;
   sort_path.sort().limit = HA_POS_ERROR;
+  if (auto limit = EffectiveDedupLimit(*query_block->join, *query_block);
+      limit) {
+    sort_path.sort().limit = *limit;
+  }
   sort_path.sort().force_sort_rowids = false;
   sort_path.has_group_skip_scan = root_path->has_group_skip_scan;
   sort_path.count_examined_rows = true;
@@ -8022,6 +8216,11 @@ AccessPath ApplyDistinctParameters::MakeSortPathForDistinct(
 void ApplyDistinctParameters::ProposeDistinctPaths(
     const Bounds_checked_array<Item *> group_items, AccessPath *root_path,
     double output_rows, AccessPathArray *new_root_candidates) const {
+  if (auto limit = EffectiveDedupLimit(*query_block->join, *query_block);
+      limit) {
+    output_rows = std::min(output_rows, static_cast<double>(*limit));
+  }
+
   // If the access path contains a GROUP_INDEX_SKIP_SCAN which has
   // subsumed an aggregation, the subsumed aggregation could be either a
   // a group-by or a deduplication. If there is no group-by in the query
@@ -9104,10 +9303,14 @@ bool ApplyAggregation(
        propose_temptable_without_aggregation) &&
       (query_block->active_options() & SELECT_SMALL_RESULT);
 
+  const bool has_group_by_ordering =
+      group_by_ordering_idx != -1 &&
+      orderings.ordering(group_by_ordering_idx).size() > 0;
+
   for (AccessPath *root_path : root_candidates) {
-    bool group_needs_sort =
+    const bool group_needs_sort =
         !join->group_list.empty() && !aggregation_is_unordered &&
-        group_by_ordering_idx != -1 &&
+        has_group_by_ordering &&
         !(orderings.DoesFollowOrder(root_path->ordering_state,
                                     group_by_ordering_idx) &&
           ObeysIndexOrderHints(root_path, join, /*grouping=*/true));
@@ -9386,6 +9589,17 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
       GetNodesUnderLimit(graph, orderings, distinct_ordering_idx);
 
   if (InjectCastNodes(&graph)) return nullptr;
+
+  // Cache EstimateHashJoinKeyWidth() for each edge to avoid redundant
+  // recomputation during plan enumeration. This must happen after
+  // MakeJoinHypergraph() (which finalizes equijoin_conditions) and after
+  // InjectCastNodes() (which may wrap arguments in CAST nodes, changing
+  // max_char_length()). The cached values are read by ProposeHashJoin()
+  // via: EnumerateAllConnectedPartitions() -> FoundSubgraphPair() ->
+  // ProposeHashJoin().
+  for (JoinPredicate &edge : graph.edges) {
+    edge.estimated_hash_join_key_width = EstimateHashJoinKeyWidth(edge.expr);
+  }
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also

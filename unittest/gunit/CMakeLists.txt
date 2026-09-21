@@ -114,6 +114,7 @@ SET(TESTS
   collation_loader
   cost_estimate
   decimal
+  dh_ecdh_config
   dns_srv_data
   dphyp
   filesort_buffer
@@ -153,7 +154,7 @@ SET(TESTS
   mysys_my_symlink
   mysys_my_system
   mysys_my_time
-  mysys_my_version
+  mysys_my_clone
   mysys_my_write
   mysys_pathfuncs
   opt_recperkey
@@ -208,6 +209,7 @@ SET(SERVER_TESTS
   dd_properties
   dd_schema
   dd_sdi
+  dd_server_version_transition
   dd_string_type
   dd_table
   debug_sync
@@ -280,6 +282,9 @@ SET(SERVER_TESTS
   persisted_variables
   print_utils
   protocol_classic
+  rpl_applier_monitor
+  rpl_dependency_adapter_lwm
+  rpl_resource_monitor
   regexp_engine
   regexp_facade
   security_context
@@ -455,13 +460,18 @@ ENDIF()
 
 FOREACH(test ${SERVER_TESTS})
   SET(SRC_FILES ${test}-t.cc)
+  SET(TEST_LINK_LIBRARIES gunit_large server_unittest_library)
   IF(test MATCHES "table_cache")
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+  ENDIF()
+  IF(test STREQUAL "dd_server_version_transition")
+    SET(TEST_LINK_LIBRARIES gmock_main ${GTEST_LIBRARIES}
+      server_unittest_library)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL
-    LINK_LIBRARIES gunit_large server_unittest_library
+    LINK_LIBRARIES ${TEST_LINK_LIBRARIES}
     SKIP_INSTALL
     ADD_GCOV_TEST ${test}
   )
@@ -522,11 +532,13 @@ ADD_SUBDIRECTORY(memory)
 ADD_SUBDIRECTORY(containers)
 ADD_SUBDIRECTORY(locks)
 ADD_SUBDIRECTORY(changestreams)
+ADD_SUBDIRECTORY(libs/concurrency)
 ADD_SUBDIRECTORY(libs/gtids)
 ADD_SUBDIRECTORY(libs/iterators)
 ADD_SUBDIRECTORY(libs/math)
 ADD_SUBDIRECTORY(libs/meta)
 ADD_SUBDIRECTORY(libs/ranges)
+ADD_SUBDIRECTORY(libs/scheduler)
 ADD_SUBDIRECTORY(libs/serialization)
 ADD_SUBDIRECTORY(libs/sets)
 ADD_SUBDIRECTORY(libs/strconv)

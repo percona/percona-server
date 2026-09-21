@@ -62,7 +62,8 @@ enum mysql_command_option {
   MYSQL_COMMAND_USER_NAME,
   MYSQL_COMMAND_HOST_NAME,
   MYSQL_COMMAND_TCPIP_PORT,
-  MYSQL_NO_LOCK_REGISTRY
+  MYSQL_NO_LOCK_REGISTRY,
+  MYSQL_COMMAND_CLIENT_FLAGS
 };
 
 /**
@@ -216,6 +217,11 @@ const char *  |MYSQL_COMMAND_HOST_NAME        |The host name to use to         |
               |                               |security context.               |
 --------------+-------------------------------+--------------------------------+
 int           |MYSQL_COMMAND_TCPIP_PORT       |The port to use to connect.     |
+--------------+-------------------------------+--------------------------------+
+uint32_t      |MYSQL_COMMAND_CLIENT_FLAGS     |Client flags passed to          |
+              |                               |mysql_real_connect() and exposed|
+              |                               |by the default capabilities     |
+              |                               |consumer.                       |
 --------------+-------------------------------+--------------------------------+
 
   @note For the other mysql client options it calls the mysql_options api.

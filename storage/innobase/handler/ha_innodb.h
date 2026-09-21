@@ -41,6 +41,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0pread-adapter.h"
 #include "row0pread-histogram.h"
 #include "trx0trx.h"
+#include "ut0atomic_sysvar.h"
+
+/** A sysvar which controls how much can we round up the autoinc value when
+persisting it to DDTableBuffer. The larger the value, the less often we have to
+perform this costly write, but the larger the gap in numbers in case we crash.*/
+extern Atomic_sysvar<ulong> innodb_autoinc_preallocate;
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
@@ -1035,10 +1041,10 @@ class create_table_info_t {
                       the data directory location. */
   void log_error_invalid_location(std::string &msg, bool ignore);
 
- public:
   /** Validate DATA DIRECTORY option. */
   bool create_option_data_directory_is_valid(bool ignore = false);
 
+ public:
   /** Validate TABLESPACE option. */
   bool create_option_tablespace_is_valid();
 

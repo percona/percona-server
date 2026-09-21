@@ -37,6 +37,9 @@
 # have_debug is needed since we use the @@debug variable on master
 --source include/have_debug.inc
 
+# CSA does not support syncing with source's position
+--source include/have_mta.inc
+
 # enough to cover row based replication
 --source include/have_binlog_format_row.inc
 

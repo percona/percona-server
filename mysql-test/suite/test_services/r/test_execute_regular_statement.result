@@ -104,6 +104,13 @@ col_a	col_b	col_c	col_d
 row_2_a	row_2_b	12	1.200000
 
 SET SESSION DEBUG = '-d,attribute_get';
+###################################### Metadata tests ######################################
+CREATE TABLE my_type_table (col_enum ENUM('a', 'b'), col_set SET('x', 'y'), col_char CHAR(3), col_varchar VARCHAR(10));
+SELECT test_execute_regular_statement_field_metadata("SELECT col_enum, col_set, col_char, col_varchar FROM mle_db.my_type_table");
+test_execute_regular_statement_field_metadata("SELECT col_enum, col_set, col_char, col_varchar FROM mle_db.my_type_table")
+col_enum:MYSQL_FIELD_TYPE=254:MYSQL_SP_ARG_TYPE=33554432	col_set:MYSQL_FIELD_TYPE=254:MYSQL_SP_ARG_TYPE=67108864	col_char:MYSQL_FIELD_TYPE=254:MYSQL_SP_ARG_TYPE=4294967296	col_varchar:MYSQL_FIELD_TYPE=15:MYSQL_SP_ARG_TYPE=32768
+
+DROP TABLE my_type_table;
 SELECT test_execute_regular_statement("DROP PROCEDURE multiple_queries;");
 test_execute_regular_statement("DROP PROCEDURE multiple_queries;")
 Number of affected rows: 0

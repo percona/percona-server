@@ -32,9 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <sql/server_component/mysql_command_consumer_imp.h>
 #include <sql/server_component/mysql_command_delegates.h>
 #include <sql/server_component/mysql_command_services_imp.h>
-#include <memory>
 #include "sql/mysqld.h"  // srv_registry
-#include "sql/server_component/mysql_current_thread_reader_imp.h"
 #include "sql/server_component/security_context_imp.h"
 #include "sql/srv_session.h"
 
@@ -49,6 +47,27 @@ struct Error_handler {
     self->m_last_sql_error = err_msg;
   }
 } default_error_h;
+
+namespace {
+
+constexpr const char *k_default_text_consumer_factory_service =
+    "mysql_text_consumer_factory_v1.mysql_server";
+constexpr const char *k_default_text_consumer_client_capabilities_service =
+    "mysql_text_consumer_client_capabilities_v1.mysql_server";
+
+Dom_ctx *get_error_dom_ctx(MYSQL *mysql) {
+  if (mysql == nullptr || mysql->extension == nullptr) return nullptr;
+
+  auto *mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+  if (mcs_ext == nullptr || mcs_ext->consumer_srv_data == nullptr ||
+      mcs_ext->has_custom_consumer_factory) {
+    return nullptr;
+  }
+
+  return reinterpret_cast<Dom_ctx *>(mcs_ext->consumer_srv_data);
+}
+
+}  // namespace
 
 /**
   Calls mysql_init() api to Gets or initializes a MYSQL structure
@@ -159,7 +178,11 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::reset, (MYSQL_H mysql_h)) {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle == nullptr) return true;
     /* mysql_reset_connection returns '0' for success */
-    return mysql_reset_connection(m_handle->mysql) ? true : false;
+    if (mysql_reset_connection(m_handle->mysql)) return true;
+
+    mysql_clear_session_track_info(m_handle->mysql);
+    m_handle->mysql->server_status &= ~SERVER_SESSION_STATE_CHANGED;
+    return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return true;
@@ -293,6 +316,11 @@ bool          |MYSQL_NO_LOCK_REGISTRY         |Flag to use the _no_lock        |
               |                               |implementation of registry      |
               |                               |service.                        |
 --------------+-------------------------------+--------------------------------+
+uint32_t      |MYSQL_COMMAND_CLIENT_FLAGS     |Client flags passed to          |
+              |                               |mysql_real_connect() and exposed|
+              |                               |by the default capabilities     |
+              |                               |consumer.                       |
+--------------+-------------------------------+--------------------------------+
 
   @note For the other mysql client options it calls the mysql_options api from
   this api.
@@ -319,25 +347,42 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
         (mysql_command_consumer_refs *)mcs_ext->command_consumer_services;
     switch (option) {
       case MYSQL_TEXT_CONSUMER_FACTORY: {
-        if (static_cast<const char *>(arg) == nullptr) {
-          /* default mysql_text_consumer_factory_v1 service */
-          arg = "mysql_text_consumer_factory_v1.mysql_server";
+        const auto *service_name = static_cast<const char *>(arg);
+
+        if (service_name == nullptr) {
+          // default mysql_text_consumer_factory_v1 service
+          service_name = k_default_text_consumer_factory_service;
+          arg = service_name;
         }
-        /* Before acquiring the new supplied service,
-           release the old service, same is applicable for below all services */
+        /*
+          Acquire the replacement before releasing the current factory so a
+          failed set() leaves the existing factory/context unchanged. If the
+          acquisition succeeds, end the cached context with the current factory
+          before replacing it.
+        */
+        if (srv_registry->acquire(static_cast<const char *>(arg),
+                                  &consumer_handle)) {
+          return true;
+        }
+
+        if (mcs_ext->consumer_srv_data != nullptr &&
+            consumer_refs->factory_srv != nullptr) {
+          consumer_refs->factory_srv->end(mcs_ext->consumer_srv_data);
+          mcs_ext->consumer_srv_data = nullptr;
+        }
+
         if (consumer_refs->factory_srv) {
           srv_registry->release(reinterpret_cast<my_h_service>(
               const_cast<SERVICE_TYPE_NO_CONST(
                   mysql_text_consumer_factory_v1) *>(
                   consumer_refs->factory_srv)));
         }
-        if (srv_registry->acquire(static_cast<const char *>(arg),
-                                  &consumer_handle)) {
-          return true;
-        }
         consumer_refs->factory_srv =
             reinterpret_cast<SERVICE_TYPE(mysql_text_consumer_factory_v1) *>(
                 consumer_handle);
+        mcs_ext->has_custom_consumer_factory =
+            (strcmp(service_name, k_default_text_consumer_factory_service) !=
+             0);
         break;
       }
       case MYSQL_TEXT_CONSUMER_METADATA: {
@@ -536,10 +581,17 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
         break;
       }
       case MYSQL_TEXT_CONSUMER_CLIENT_CAPABILITIES: {
-        if (static_cast<const char *>(arg) == nullptr) {
-          /* default mysql_text_consumer_client_capabilities_v1 service */
-          arg = "mysql_text_consumer_client_capabilities_v1.mysql_server";
+        const auto *service_name = static_cast<const char *>(arg);
+        if (service_name == nullptr) {
+          // default mysql_text_consumer_client_capabilities_v1 service
+          service_name = k_default_text_consumer_client_capabilities_service;
+          arg = service_name;
         }
+        // Later code treats a custom capabilities service as an explicit
+        // opt-in
+        mcs_ext->has_custom_client_capabilities_service =
+            (strcmp(service_name,
+                    k_default_text_consumer_client_capabilities_service) != 0);
         if (consumer_refs->client_capabilities_srv)
           srv_registry->release(reinterpret_cast<my_h_service>(
               const_cast<SERVICE_TYPE_NO_CONST(
@@ -621,6 +673,21 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::set,
           mcs_ext->mcs_tcpip_port = *static_cast<const int *>(arg);
         }
         break;
+      case MYSQL_COMMAND_CLIENT_FLAGS: {
+        const auto *client_flags = static_cast<const uint32_t *>(arg);
+
+        // The default mysql_text_consumer_client_capabilities service reports
+        // MYSQL::server_capabilities through its SRV_CTX_H
+        if (client_flags == nullptr) {
+          mcs_ext->mcs_client_flag = 0;
+          m_handle->mysql->server_capabilities = 0;
+        } else {
+          mcs_ext->mcs_client_flag = *client_flags;
+
+          m_handle->mysql->server_capabilities = *client_flags;
+        }
+        break;
+      }
       case MYSQL_NO_LOCK_REGISTRY:
         mcs_ext->no_lock_registry = static_cast<const bool *>(arg);
         break;
@@ -652,9 +719,13 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::get,
                    (MYSQL_H mysql_h, int option, const void *arg)) {
   try {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
-    auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
     if (m_handle == nullptr || !arg) return true;
+    auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
     switch (option) {
+      case MYSQL_COMMAND_CLIENT_FLAGS:
+        *(const_cast<uint32_t *>(static_cast<const uint32_t *>(arg))) =
+            mcs_ext->mcs_client_flag;
+        break;
       case MYSQL_NO_LOCK_REGISTRY:
         *(const_cast<bool *>(static_cast<const bool *>(arg))) =
             mcs_ext->no_lock_registry;
@@ -1012,14 +1083,11 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_errno,
     auto *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
     if (m_handle == nullptr || err_no == nullptr) return true;
 
-    auto *mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
-    if (mcs_ext != nullptr && mcs_ext->consumer_srv_data != nullptr) {
-      auto *dom_ctx = reinterpret_cast<Dom_ctx *>(mcs_ext->consumer_srv_data);
-      *err_no = static_cast<unsigned int>(dom_ctx->m_sql_errno);
-    } else {
-      // If Dom_ctx is null or not populated (i.e. not using Command Services)
-      // fallback to mysql_errno()
+    const auto *dom_ctx = get_error_dom_ctx(m_handle->mysql);
+    if (dom_ctx == nullptr) {
       *err_no = mysql_errno(m_handle->mysql);
+    } else {
+      *err_no = static_cast<unsigned int>(dom_ctx->m_sql_errno);
     }
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
@@ -1040,14 +1108,15 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_errno,
 DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_error,
                    (MYSQL_H mysql_h, char **errmsg)) {
   try {
-    Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
-    if (m_handle == nullptr) return true;
-    auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
-    auto consumer_data = mcs_ext->consumer_srv_data;
-    if (consumer_data == nullptr) return true;
-    strcpy(*errmsg,
-           const_cast<char *>(
-               reinterpret_cast<Dom_ctx *>(consumer_data)->m_err_msg->c_str()));
+    auto *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
+    if (m_handle == nullptr || errmsg == nullptr || *errmsg == nullptr) {
+      return true;
+    }
+
+    auto *dom_ctx = get_error_dom_ctx(m_handle->mysql);
+    const char *source = (dom_ctx != nullptr) ? dom_ctx->m_err_msg->c_str()
+                                              : mysql_error(m_handle->mysql);
+    strcpy(*errmsg, source != nullptr ? source : "");
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return true;
@@ -1068,8 +1137,12 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_state,
                    (MYSQL_H mysql_h, char **sqlstate_errmsg)) {
   try {
     Mysql_handle *m_handle = reinterpret_cast<Mysql_handle *>(mysql_h);
-    if (m_handle == nullptr) return true;
-    *sqlstate_errmsg = const_cast<char *>(mysql_sqlstate(m_handle->mysql));
+    if (m_handle == nullptr || sqlstate_errmsg == nullptr) return true;
+
+    auto *dom_ctx = get_error_dom_ctx(m_handle->mysql);
+    *sqlstate_errmsg = const_cast<char *>(
+        (dom_ctx != nullptr) ? dom_ctx->m_sqlstate->c_str()
+                             : mysql_sqlstate(m_handle->mysql));
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
     return true;

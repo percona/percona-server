@@ -66,6 +66,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/scheduler/logger_stream.h"
 #include "mysql/serialization/serializer_default.h"
 #include "mysql/serialization/write_archive_binary.h"
 #include "mysql/strings/dtoa.h"
@@ -2888,6 +2889,28 @@ int Log_event::apply_gtid_event(Relay_log_info *rli) {
   return error;
 }
 
+int Log_event::apply_csa_event(Relay_log_info *rli) {
+  DBUG_TRACE;
+
+  worker = rli;
+
+  int error = do_apply_event(rli);
+  if (rli->is_processing_trx()) {
+    // needed to identify DDL's; uses the same logic as in get_slave_worker()
+    if (starts_group() &&
+        get_type_code() == mysql::binlog::event::QUERY_EVENT) {
+      rli->curr_group_seen_begin = true;
+    }
+    if (error == 0 && (ends_group() ||
+                       (get_type_code() == mysql::binlog::event::QUERY_EVENT &&
+                        !rli->curr_group_seen_begin))) {
+      rli->finished_processing();
+      rli->curr_group_seen_begin = false;
+    }
+  }
+  return error;
+}
+
 /**
    Scheduling event to execute in parallel or execute it directly.
    In MTS case the event gets associated with either Coordinator or a
@@ -3511,6 +3534,58 @@ static bool is_sql_require_primary_key_needed(const LEX *lex) {
       break;
   }
   return false;
+}
+
+/**
+  Checks whether the statement represented by the given LEX object
+  is eligible for database-specific access privileges.
+
+  @param lex  pointer to the LEX object representing the statement being
+              executed.
+  @return     true if the command is eligible for database-specific
+              access privileges; false otherwise.
+ */
+bool static is_command_eligible_for_db_specific_privilege(const LEX *lex) {
+  enum enum_sql_command cmd = lex->sql_command;
+  bool ret{false};
+
+  switch (cmd) {
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_CREATE_INDEX:
+    case SQLCOM_ALTER_TABLE:
+    case SQLCOM_TRUNCATE:
+    case SQLCOM_DROP_TABLE:
+    case SQLCOM_DROP_INDEX:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_OPTIMIZE:
+    case SQLCOM_ANALYZE:
+    case SQLCOM_RENAME_TABLE:
+    case SQLCOM_REPAIR:
+    case SQLCOM_CREATE_EVENT:
+    case SQLCOM_ALTER_EVENT:
+    case SQLCOM_DROP_EVENT:
+    case SQLCOM_CREATE_PROCEDURE:
+    case SQLCOM_DROP_PROCEDURE:
+    case SQLCOM_ALTER_PROCEDURE:
+    case SQLCOM_CREATE_TRIGGER:
+    case SQLCOM_DROP_TRIGGER:
+    case SQLCOM_ALTER_FUNCTION:
+    case SQLCOM_CREATE_FUNCTION:
+    case SQLCOM_DROP_FUNCTION:
+    case SQLCOM_CREATE_SPFUNCTION:
+    case SQLCOM_CREATE_VIEW:
+    case SQLCOM_DROP_VIEW:
+    case SQLCOM_CREATE_LIBRARY:
+    case SQLCOM_DROP_LIBRARY:
+    case SQLCOM_ALTER_LIBRARY:
+      ret = true;
+      break;
+    default:
+      ret = false;
+  }
+  return ret;
 }
 
 /**
@@ -4357,8 +4432,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   if (get_default_db_collation(thd, thd->db().str, &thd->db_charset)) {
     assert(thd->is_error() || thd->killed);
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in get_default_db_collation: %s",
-                thd->get_stmt_da()->message_text());
+                "Error in get_default_db_collation: %s, for db %s",
+                thd->get_stmt_da()->message_text(), thd->db().str);
     thd->is_slave_error = true;
     goto end;
   }
@@ -4664,6 +4739,20 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
 
       mysql_thread_set_secondary_engine(false);
+
+      {
+        auto f1 = [&]() {
+          Applier_security_context_guard sec_context{rli, thd};
+          if (!sec_context.skip_priv_checks() &&
+              !sec_context.has_access({SUPER_ACL}) &&
+              is_command_eligible_for_db_specific_privilege(thd->lex)) {
+            /* Refresh DB access cache */
+            if (mysql_change_db(thd, thd->db(), true)) return true;
+          }
+          return false;
+        };
+        thd->rpl_thd_ctx.post_filters_actions().push_back(f1);
+      }
 
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
@@ -5030,6 +5119,8 @@ end:
   thd->reset_query();
   thd->lex->sql_command = SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
+  /* Restore original DB state (no default DB) after privilege refresh */
+  mysql_change_db(thd, NULL_CSTR, true);
 
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -5406,6 +5497,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli) {
   */
   if (!thd->rli_fake && !is_artificial_event() && created &&
       thd->get_transaction()->is_active(Transaction_ctx::SESSION)) {
+    assert(!rli->is_csa_enabled());
     /* This is not an error (XA is safe), just an information */
     rli->report(INFORMATION_LEVEL, 0,
                 "Rolling back unfinished transaction (no COMMIT "
@@ -6294,9 +6386,11 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
   error = do_commit(thd);
   mysql_mutex_lock(&rli_ptr->data_lock);
   if (error) {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in Xid_log_event: Commit could not be completed, '%s'",
-                thd->get_stmt_da()->message_text());
+    if (thd->is_error()) {
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+                  "Error in Xid_log_event: Commit could not be completed, '%s'",
+                  thd->get_stmt_da()->message_text());
+    }
   } else {
     DBUG_EXECUTE_IF(
         "crash_after_commit_before_update_pos",
@@ -6324,6 +6418,8 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
      */
     if (!rli_ptr->is_transactional() && !already_logged_transaction)
       rli_ptr->flush_info(Relay_log_info::RLI_FLUSH_NO_OPTION);
+    if (rli_ptr->tables_to_lock_count != 0 || rli_ptr->rows_query_ev != nullptr)
+      rli_ptr->cleanup_context(thd, false);
   }
 err:
   // This is Bug#24588741 fix:
@@ -6799,7 +6895,9 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
         val_len = 8;
         break;
       case DECIMAL_RESULT: {
-        if (val_len < 3) {
+        if (val_len < 3 ||
+            !mysql::binlog::event::is_user_var_decimal_metadata_valid(
+                val, val_len, DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE)) {
           rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
                       ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                       "Invalid variable length at User var event");
@@ -10617,7 +10715,11 @@ void Rows_log_event::print_helper(FILE *,
 int Table_map_log_event::save_field_metadata() {
   DBUG_TRACE;
   int index = 0;
-  for (auto it = m_column_view->begin(); it != m_column_view->end(); ++it) {
+  for (auto it = m_column_view->begin();
+       it != m_column_view->end() &&
+       DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event",
+                        it.filtered_pos() != this->m_colcnt, true);
+       ++it) {
     Field *field = *it;
     DBUG_PRINT("debug", ("field_type: %d", m_coltype[it.filtered_pos()]));
     index += field->save_field_metadata(&m_field_metadata[index]);
@@ -10750,7 +10852,13 @@ Table_map_log_event::Table_map_log_event(
 
   memset(m_null_bits, 0, num_null_bytes);
   Bit_writer bit_writer{this->m_null_bits};
-  for (auto field : *m_column_view) bit_writer.set(field->is_nullable());
+  for (auto it = m_column_view->begin();
+       it != m_column_view->end() &&
+       DBUG_EVALUATE_IF("binlog_omit_last_column_from_table_map_event",
+                        it.filtered_pos() != this->m_colcnt, true);
+       ++it) {
+    bit_writer.set((*it)->is_nullable());
+  }
   /*
     Marking event to require sequential execution in MTS
     if the query might have updated FK-referenced db.
@@ -10789,6 +10897,23 @@ Table_map_log_event::Table_map_log_event(
   assert(header()->type_code == mysql::binlog::event::TABLE_MAP_EVENT);
 #ifdef MYSQL_SERVER
   m_column_view = std::make_unique<cs::util::ReplicatedColumnsView>();
+
+  if (common_header->get_is_valid()) {
+    /*
+      Reject malformed TABLE_MAP_EVENT metadata during event parsing before
+      applier processing.
+    */
+    std::vector<unsigned int> vector_dimensionality;
+    if (table_def::vector_column_count(m_coltype, m_colcnt) > 0) {
+      const Optional_metadata_fields fields(m_optional_metadata,
+                                            m_optional_metadata_len);
+      vector_dimensionality = fields.m_vector_dimensionality;
+    }
+    table_def parsed_table_def(m_coltype, m_colcnt, m_field_metadata,
+                               m_field_metadata_size, m_null_bits, m_flags,
+                               vector_dimensionality);
+    common_header->set_is_valid(parsed_table_def.is_valid());
+  }
 #endif
 }
 
@@ -13585,6 +13710,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
       causing data corruption on replication.
     */
     if (thd->server_status & SERVER_STATUS_IN_TRANS) {
+      assert(!rli->is_csa_enabled());
       /* This is not an error (XA is safe), just an information */
       rli->report(INFORMATION_LEVEL, 0, &spec,
                   "Rolling back unfinished transaction (no COMMIT "

@@ -101,7 +101,14 @@ while($encryption_mode < 2)
   # * "-o" means omit owner;
   # * "-g" means omit group;
   # * "--time-style='+'" means omit timestamp.
-  --let $awk_filter = {print \$4}
+  # The file descriptor number is the field right before '->'. It must not be
+  # addressed by a fixed column index: 'ls' emits an extra timestamp column
+  # whenever "--time-style='+'" is not honoured, and awk would then pick the
+  # month name, which 'LOAD DATA' silently converts to 0. Grepping
+  # /proc/<pid>/fd/0 (the server's stdin) yields no match at all, which passes
+  # the $encryption_mode == 0 assertion vacuously and fails the
+  # $encryption_mode == 1 one with a misleading message.
+  --let $awk_filter = {for(i=1;i<=NF;i++) if(\$i == "->") print \$(i-1)}
   --let $fd_no_include_file = $MYSQL_TMP_DIR/fd_no_include_file.inc
   --exec ls -og --time-style='+' /proc/$pid_no/fd | grep -E $tmp_dir/MY | awk '$awk_filter' > $fd_no_include_file
   --replace_result $fd_no_include_file <fd_no_include_file>
@@ -109,6 +116,12 @@ while($encryption_mode < 2)
   --remove_file $fd_no_include_file
   --let $tmp_fd_no = `SELECT id FROM id_table`
   TRUNCATE TABLE id_table;
+
+  # Making sure that a real temporary file descriptor has been found, so that
+  # a broken lookup is not silently reported as an encryption failure.
+  --let $assert_text = filesort() temporary file descriptor must be found
+  --let $assert_cond = "$tmp_fd_no" NOT IN ("", "0", "1", "2")
+  --source include/assert.inc
 
   # Asserting that 'filesort()' temp file contains / not contains one of the
   # 'value' column hashes from 't1' table. '42' was randomly chosen.

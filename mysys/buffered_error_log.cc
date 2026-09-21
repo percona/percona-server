@@ -50,11 +50,14 @@ bool Buffered_error_logger::is_enabled() {
 }
 
 void Buffered_error_logger::write_to_disk_() {
-  if (buffered_error_log_filename == nullptr ||
-      strlen(buffered_error_log_filename) == 0) {
+  // Check the buffer before the filename: close() drops the buffer to mark
+  // the logger as done, and after that the filename may already have been
+  // freed by sys_var_end().
+  if (data.get() == nullptr || data->size() == 0) {
     return;
   }
-  if (data.get() == nullptr || data->size() == 0) {
+  if (buffered_error_log_filename == nullptr ||
+      strlen(buffered_error_log_filename) == 0) {
     return;
   }
   auto fdd = fopen(buffered_error_log_filename, "a");
@@ -71,5 +74,11 @@ void Buffered_error_logger::write_to_disk_() {
 
 void Buffered_error_logger::close() {
   std::lock_guard<std::mutex> lk{data_mtx};
-  buffered_error_log_filename = nullptr;
+  // Release the buffer instead of clearing buffered_error_log_filename.
+  // The string is owned by the buffered_error_log_filename system variable
+  // and has to stay reachable until sys_var_end() frees it; clearing it here
+  // would leak whatever the last SET GLOBAL allocated. Dropping the buffer
+  // makes write_to_disk_() a no-op, so the destructor - which runs after
+  // sys_var_end() - never looks at the dangling filename either.
+  data.reset();
 }

@@ -40,6 +40,7 @@ SET DEBUG_SYNC = 'innodb_commit_inplace_alter_table_enter SIGNAL s1 WAIT_FOR s2'
 connection default;
 # DML no go through in paralle as whole operation happen during
 # commit_inplace_alter_table, under an exclusive MDL
+SELECT @@lock_wait_timeout INTO @default_lock_wait_timeout;
 SET lock_wait_timeout = 1;
 SET DEBUG_SYNC='now WAIT_FOR s1';
 --error ER_LOCK_WAIT_TIMEOUT
@@ -68,6 +69,8 @@ UPDATE IGNORE t1 SET b = repeat('y',300) WHERE b = repeat('a',254) ;
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
 DELETE FROM t1 WHERE b = repeat('y',255);
 SELECT a,LEFT(b,10),LENGTH(b) = 254 FROM t1 ORDER BY a;
+# Restore the default value
+SET lock_wait_timeout = @default_lock_wait_timeout;
 DROP TABLE t1;
 
 

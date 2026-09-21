@@ -47,6 +47,9 @@ if (! $GLOBAL_BACKUP_SUFFIX) {
 # backup global config
 --let $CONFIG_FILE_PATH = $COMPONENT_DIR/$COMPONENT_NAME.cnf
 --let $BACKUP_CONFIG_FILE_PATH = $COMPONENT_DIR/$COMPONENT_NAME.cnf.$GLOBAL_BACKUP_SUFFIX
+# Clean up any leftover backup from a failed run.
+--error 0,1
+--remove_file $BACKUP_CONFIG_FILE_PATH
 --copy_file $CONFIG_FILE_PATH $BACKUP_CONFIG_FILE_PATH
 
 # backup global manifest

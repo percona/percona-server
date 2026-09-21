@@ -6720,4 +6720,11 @@ lib3		CREATE LIBRARY `lib3`
     LANGUAGE JAVASCRIPT
 AS $$ export function f3() {  return 3 } $$
 drop database mysqldump_test_db;
+#
+# Bug#38939358 mysqldump --replace must not add IGNORE for
+# innodb_table_stats.
+#
+CREATE TABLE test.bug38939358_t1(i INT PRIMARY KEY);
+INSERT INTO test.bug38939358_t1 VALUES (1);
+DROP TABLE test.bug38939358_t1;
 include/rpl/set_gtid_mode_on.inc

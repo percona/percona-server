@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0pcur.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
 #include "lob0first.h"
 #include "lob0inf.h"
 #include "lob0lob.h"

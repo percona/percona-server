@@ -451,7 +451,7 @@ bool Server::reset() {
 #else
   auto context = std::atomic_load(&m_ssl_context);
 #endif
-  context->reset();
+  if (!context->reset()) return false;
   m_id_generator.reset(new Document_id_generator());
   m_factory.reset(new xpl::Server_factory());
 

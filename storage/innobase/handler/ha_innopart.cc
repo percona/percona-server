@@ -55,6 +55,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 
 /* Include necessary InnoDB headers */
 #include "btr0sea.h"
+#include "ddl0bulk.h"
 #include "ddl0ddl.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -73,6 +74,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_sqlcommand.h"
 #include "mysql/plugin.h"
 #include "partition_info.h"
 #include "row0import.h"
@@ -2053,7 +2055,7 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     update_thd(ha_thd());
 
     trx = m_prebuilt->trx;
-    trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+    trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
     if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED) {
       trx_assign_read_view(trx);
@@ -2444,7 +2446,8 @@ int ha_innopart::create(const char *name, TABLE *form,
   THD *thd = ha_thd();
   trx_t *trx;
 
-  if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE ||
+      thd_sql_command(thd) == SQLCOM_LOAD) {
     return (truncate_impl(name, form, table_def));
   }
 
@@ -3222,7 +3225,7 @@ int ha_innopart::records(ha_rows *num_rows) {
   if (n_threads > 1 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
       m_prebuilt->select_lock_type == LOCK_NONE &&
       trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt) {
-    trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+    trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
     trx_assign_read_view(trx);
 
     const auto first_used_partition = m_part_info->get_first_used_partition();
@@ -4206,6 +4209,44 @@ int ha_innopart::cmp_ref(const uchar *ref1, const uchar *ref2) const {
   cmp = static_cast<int>(uint2korr(ref1)) - static_cast<int>(uint2korr(ref2));
 
   return (cmp);
+}
+
+int ha_innopart::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
+  int error = ha_innobase::bulk_load_end(thd, load_ctx, is_error);
+
+  if (error != 0 || is_error) {
+    return error;
+  }
+
+  update_thd(thd);
+  trx_t *trx = m_prebuilt->trx;
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
+  TrxInInnoDB trx_in_innodb(trx);
+
+  auto saved_table = m_prebuilt->table;
+
+  const uint part_id = m_part_info->get_first_used_partition();
+
+  if (part_id == MY_BIT_NONE) {
+    m_prebuilt->table = saved_table;
+    return error;
+  }
+
+  ut_ad(m_part_info->get_next_used_partition(part_id) == MY_BIT_NONE);
+
+  if (Partition_helper::check_misplaced_rows(part_id, false) != 0) {
+    m_prebuilt->table = m_part_share->get_table_part(part_id);
+    std::stringstream ss;
+    ss << "Found misplaced row(s) in partition '"
+       << m_part_share->get_partition_name(part_id) << "' after bulk load";
+    my_error(ER_LOAD_BULK_DATA_FAILED, MYF(0), table_share->table_name.str,
+             ss.str().c_str());
+    error = HA_ERR_GENERIC;
+  }
+
+  m_prebuilt->table = saved_table;
+
+  return error;
 }
 
 void ha_innopart::clear_blob_heaps() {

@@ -4481,16 +4481,13 @@ static int i_s_innodb_buffer_page_fill(
     /* If this is an index page, fetch the index name
     and table name */
     switch (page_info->page_type) {
-      const dict_index_t *index;
-
       case I_S_PAGE_TYPE_INDEX:
       case I_S_PAGE_TYPE_RTREE:
       case I_S_PAGE_TYPE_SDI: {
-        index_id_t id(page_info->space_id, page_info->index_id);
+        const index_id_t id(page_info->space_id, page_info->index_id);
 
         dict_sys_mutex_enter();
-        index = dict_index_find(id);
-      }
+        const dict_index_t *index = dict_index_find(id);
 
         if (index) {
           table_name_end = innobase_convert_name(
@@ -4507,6 +4504,8 @@ static int i_s_innodb_buffer_page_fill(
         }
 
         dict_sys_mutex_exit();
+        break;
+      }
     }
 
     OK(fields[IDX_BUFFER_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -5108,28 +5107,32 @@ static int i_s_innodb_buf_page_lru_fill(
 
     /* If this is an index page, fetch the index name
     and table name */
-    if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
-      index_id_t id(page_info->space_id, page_info->index_id);
-      const dict_index_t *index;
+    switch (page_info->page_type) {
+      case I_S_PAGE_TYPE_INDEX:
+      case I_S_PAGE_TYPE_RTREE:
+      case I_S_PAGE_TYPE_SDI: {
+        const index_id_t id(page_info->space_id, page_info->index_id);
 
-      dict_sys_mutex_enter();
-      index = dict_index_find(id);
+        dict_sys_mutex_enter();
+        const dict_index_t *index = dict_index_find(id);
 
-      if (index) {
-        table_name_end = innobase_convert_name(table_name, sizeof(table_name),
-                                               index->table_name,
-                                               strlen(index->table_name), thd);
+        if (index) {
+          table_name_end = innobase_convert_name(
+              table_name, sizeof(table_name), index->table_name,
+              strlen(index->table_name), thd);
 
-        OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
-            table_name, static_cast<size_t>(table_name_end - table_name),
-            system_charset_info));
-        fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
+          OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
+              table_name, static_cast<size_t>(table_name_end - table_name),
+              system_charset_info));
+          fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
-        OK(field_store_index_name(fields[IDX_BUF_LRU_PAGE_INDEX_NAME],
-                                  index->name));
+          OK(field_store_index_name(fields[IDX_BUF_LRU_PAGE_INDEX_NAME],
+                                    index->name));
+        }
+
+        dict_sys_mutex_exit();
+        break;
       }
-
-      dict_sys_mutex_exit();
     }
 
     OK(fields[IDX_BUF_LRU_PAGE_NUM_RECS]->store(page_info->num_recs, true));
@@ -7003,8 +7006,9 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(field_store_string(fields[INNODB_TABLESPACES_ROW_FORMAT], row_format));
 
-  OK(fields[INNODB_TABLESPACES_PAGE_SIZE]->store(univ_page_size.physical(),
-                                                 true));
+  ut_ad(univ_page_size.physical() == page_size.logical());
+
+  OK(fields[INNODB_TABLESPACES_PAGE_SIZE]->store(page_size.logical(), true));
 
   OK(fields[INNODB_TABLESPACES_ZIP_PAGE_SIZE]->store(
       page_size.is_compressed() ? page_size.physical() : 0, true));
@@ -7025,51 +7029,38 @@ static int i_s_dict_fill_innodb_tablespaces(
     if (filepath == nullptr) {
       filepath = Fil_path::make_ibd_from_table_name(name);
     }
+
+    ut_a(filepath != nullptr);
   }
 
-  os_file_stat_t stat;
-  os_file_size_t file;
+  uint32_t block_size = 0;
+  uint64_t total_size = 0;
+  uint64_t alloc_size = 0;
+  using ib::fil::Tablespaces_nodes_interface;
 
-  memset(&file, 0xff, sizeof(file));
-  memset(&stat, 0x0, sizeof(stat));
-
+  /* The system tablespace is reported here too, but it has no single
+  "first path", so its size columns are left at zero. */
   if (filepath != nullptr) {
-    /* Get the file system (or Volume) block size. */
-    dberr_t err = os_file_get_status(filepath, &stat, false, false);
+    const auto node_info = tablespaces_nodes->get_node_info(
+        space_id, 0, {.m_path = filepath}, page_size.physical());
 
-    switch (err) {
-      case DB_FAIL:
-        ib::warn(ER_IB_MSG_603) << "File '" << filepath << "', failed to get "
-                                << "stats";
-        break;
-
-      case DB_SUCCESS:
-        file = os_file_get_size(filepath);
-        break;
-
-      case DB_NOT_FOUND:
-        break;
-
-      default:
-        ib::error(ER_IB_MSG_604)
-            << "File '" << filepath << "' " << ut_strerr(err);
-        break;
+    if (node_info) {
+      block_size = node_info->block_size;
+      alloc_size = node_info->alloc_size;
+      total_size = node_info->size * page_size.physical();
+    } else if (node_info.error() !=
+               Tablespaces_nodes_interface::Node_error::NODE_DOES_NOT_EXIST) {
+      ib::warn(ER_IB_MSG_FAILED_TO_GET_FILE_STATS, filepath);
     }
 
     ut::free(filepath);
   }
 
-  if (file.m_total_size == static_cast<os_offset_t>(~0)) {
-    stat.block_size = 0;
-    file.m_total_size = 0;
-    file.m_alloc_size = 0;
-  }
+  OK(fields[INNODB_TABLESPACES_FS_BLOCK_SIZE]->store(block_size, true));
 
-  OK(fields[INNODB_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
+  OK(fields[INNODB_TABLESPACES_FILE_SIZE]->store(total_size, true));
 
-  OK(fields[INNODB_TABLESPACES_FILE_SIZE]->store(file.m_total_size, true));
-
-  OK(fields[INNODB_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
+  OK(fields[INNODB_TABLESPACES_ALLOC_SIZE]->store(alloc_size, true));
 
   OK(field_store_string(fields[INNODB_TABLESPACES_STATE], state));
 
@@ -7497,7 +7488,7 @@ static int i_s_innodb_session_temp_tablespaces_fill_one(
   size_t size = 0;
   if (space != nullptr) {
     page_size_t page_size(space->flags);
-    size = space->size * page_size.physical();
+    size = space->m_size_in_pages * page_size.physical();
   }
   OK(fields[INNODB_SESSION_TEMP_TABLESPACES_SIZE]->store(size, true));
 

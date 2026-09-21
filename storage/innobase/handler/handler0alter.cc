@@ -73,14 +73,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0sysspace.h"
 #include "fts0plugin.h"
 #include "fts0priv.h"
 #include "ha_innodb.h"
 #include "handler0alter.h"
 #include "lex_string.h"
-#include "log0buf.h"
 #include "log0chkp.h"
+#include "log0helpers.h"
 
 #include "log0ddl.h"
 #include "mem0mem.h"
@@ -967,10 +968,6 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
   DBUG_TRACE;
 
-  if (srv_sys_space.created_new_raw()) {
-    return HA_ALTER_INPLACE_NOT_SUPPORTED;
-  }
-
   if (high_level_read_only || srv_force_recovery) {
     if (srv_force_recovery) {
       my_error(ER_INNODB_FORCED_RECOVERY, MYF(0));
@@ -1483,7 +1480,7 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   innobase_register_trx(ht, ha_thd(), trx);
 
-  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   trx_assign_read_view(trx);
 
@@ -2041,7 +2038,7 @@ added
       DBUG_EXECUTE_IF("innodb_test_no_foreign_idx", index = nullptr;);
 
       /* Check whether there exist such
-      index in the the index create clause */
+      index in the index create clause */
       if (!index &&
           !innobase_find_equiv_index(column_names, static_cast<uint>(i),
                                      ha_alter_info->key_info_buffer,
@@ -2124,7 +2121,7 @@ added
                         referenced_index = nullptr;);
 
         /* Check whether there exist such
-        index in the the index create clause */
+        index in the index create clause */
         if (!referenced_index) {
           dd_table_close(referenced_table, current_thd, &mdl, true);
           dict_sys_mutex_exit();
@@ -4456,7 +4453,7 @@ template <typename Table>
 
   user_table = ctx->new_table;
 
-  trx_start_if_not_started_xa(ctx->prebuilt->trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(ctx->prebuilt->trx, true, UT_LOCATION_HERE);
 
   if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_VIRTUAL_COLUMN) {
     if (prepare_inplace_drop_virtual(ha_alter_info, old_table)) {
@@ -7149,6 +7146,15 @@ inline void commit_cache_rebuild(ha_innobase_inplace_ctx *ctx) {
 
   error = dict_table_rename_in_cache(ctx->new_table, old_name, false);
   ut_a(error == DB_SUCCESS);
+
+  DBUG_EXECUTE_IF("crash_after_alter_renames_are_complete", {
+    ib::redo::must_persist_all(UT_LOCATION_HERE);
+    /* Remove any mentions of the changed database from redolog, so it is not
+    opened for recovery during redolog recovery and thus is missing from the fil
+    subsystem during the Log_DDL recovery. */
+    pages_persistence->request_sharp_checkpoint();
+    DBUG_SUICIDE();
+  });
 }
 
 /** Set of column numbers */
@@ -7544,7 +7550,7 @@ bool ha_innobase::commit_inplace_alter_table_impl(
   ut_ad(m_prebuilt->table == ctx0->old_table);
   ha_alter_info->group_commit_ctx = nullptr;
 
-  trx_start_if_not_started_xa(m_prebuilt->trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(m_prebuilt->trx, true, UT_LOCATION_HERE);
 
   for (inplace_alter_handler_ctx **pctx = ctx_array; *pctx; pctx++) {
     ha_innobase_inplace_ctx *ctx =
@@ -7722,14 +7728,13 @@ rollback_trx:
     /* Test what happens on crash here.
     The data dictionary transaction should be
     rolled back, restoring the old table. */
-    DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
-                    log_buffer_flush_to_disk();
-                    DBUG_SUICIDE(););
+    DBUG_INJECT_CRASH_WITH_LOG_FLUSH("innodb_alter_commit_crash_before_commit");
     ut_ad(!trx->fts_trx);
 
     DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
-                    log_make_latest_checkpoint();
-                    log_buffer_flush_to_disk(); DBUG_SUICIDE(););
+                    pages_persistence->request_sharp_checkpoint();
+                    ib::redo::must_persist_all(UT_LOCATION_HERE);
+                    DBUG_SUICIDE(););
   }
 
   /* Update the in-memory structures, close some handles, release
@@ -7899,6 +7904,23 @@ rollback_trx:
       dict_table_autoinc_lock(t);
       dict_table_autoinc_initialize(t, ctx->max_autoinc);
       t->autoinc_persisted = ctx->max_autoinc - 1;
+      /* Alter bumps version of the table in DD and mysql_inplace_alter_table()
+      will call open_table() to "re-open" the table, at which point t->version
+      will be set to match the new (bumped) version from DD.
+      The Persistent Table Metadata in DDTableBuffer has `version` column, and
+      dict_table_apply_dynamic_metadata(t,metadata) will ignore metadata coming
+      from DDTableBuffer if metadata->version doesn't match t->version.
+      Therefore, conceptually, bumping the version invalidates PTM stored for
+      this table in DDTableBuffer.
+      This is very important to set t->autoinc_buffered to 0 to reflect that, as
+      otherwise `ALTER TABLE t AUTO_INCREMENT=MAX(id)- 1M` would leave
+      autoinc_buffered ~1M too large, and thus ~1M subsequent increments would
+      not be persisted properly. That would be perhaps tolerable if the only
+      consequence was just a huge gap in numbering, but because in reality PTM
+      was invalidated, it means the only source of information about autoinc
+      value after restart would be the DD alone, which will keep the
+      MAX(id) - 1M set by ALTER, leading to duplicates after restart. */
+      t->autoinc_buffered = 0;
       dict_table_autoinc_set_col_pos(t, field->field_index());
       dict_table_autoinc_unlock(t);
     }
@@ -10112,7 +10134,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   innobase_register_trx(ht, ha_thd(), trx);
 
-  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   trx_assign_read_view(trx);
 
@@ -10803,7 +10825,7 @@ bool ha_innopart::prepare_inplace_alter_partition(
     const dd::Table *old_dd_tab, dd::Table *new_dd_tab) {
   clear_ins_upd_nodes();
 
-  trx_start_if_not_started_xa(m_prebuilt->trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(m_prebuilt->trx, true, UT_LOCATION_HERE);
 
   if (alter_parts::need_copy(ha_alter_info) &&
       prepare_for_copy_partitions(ha_alter_info)) {
@@ -11340,6 +11362,63 @@ bool ha_innobase::bulk_load_get_row_id_range(size_t &min, size_t &max) const {
   return true;
 }
 
+/** Update the AUTO_INCREMENT state after a successful bulk load.
+The bulk loader bypasses the normal write_row() path, so explicit values loaded
+into the AUTO_INCREMENT column must be reflected in both the in-memory counter
+and the persisted dynamic metadata before the transaction commits.
+@param[in,out] innodb_table InnoDB table being bulk loaded
+@param[in] mysql_table      MySQL table handle for the same table
+@param[in] thd              session executing the bulk load
+@return InnoDB error code */
+static dberr_t bulk_load_update_autoinc_state(dict_table_t *innodb_table,
+                                              const TABLE *mysql_table,
+                                              THD *thd) {
+  Field *autoinc_field = mysql_table->found_next_number_field;
+
+  if (autoinc_field == nullptr) {
+    return DB_SUCCESS;
+  }
+
+  ut_ad(dict_table_has_autoinc_col(innodb_table));
+
+  dict_index_t *index = dict_table_get_index_on_first_col(
+      innodb_table, autoinc_field->field_index());
+  if (index == nullptr) {
+    return DB_ERROR;
+  }
+
+  uint64_t max_autoinc = 0;
+  dberr_t err =
+      row_search_max_autoinc(index, autoinc_field->field_name, &max_autoinc);
+  if (err == DB_RECORD_NOT_FOUND) {
+    return DB_SUCCESS;
+  }
+  if (err != DB_SUCCESS) {
+    return err;
+  }
+
+  ulong offset = 0;
+  ulong increment = 0;
+  thd_get_autoinc(thd, &offset, &increment);
+  if (increment == 0) {
+    increment = 1;
+  }
+
+  const ulonglong next_autoinc = innobase_next_autoinc(
+      max_autoinc, 1, increment, offset, autoinc_field->get_max_int_value());
+
+  dict_table_autoinc_lock(innodb_table);
+  dict_table_autoinc_update_if_greater(innodb_table, next_autoinc);
+  dict_table_autoinc_set_col_pos(innodb_table, autoinc_field->field_index());
+  dict_table_autoinc_unlock(innodb_table);
+
+  if (!innodb_table->is_temporary()) {
+    dict_table_autoinc_persist(innodb_table, max_autoinc);
+  }
+
+  return DB_SUCCESS;
+}
+
 void *ha_innobase::bulk_load_begin(THD *thd, size_t keynr, size_t data_size,
                                    size_t memory, size_t num_threads) {
   DEBUG_SYNC_C("innodb_bulk_load_begin");
@@ -11374,10 +11453,10 @@ void *ha_innobase::bulk_load_begin(THD *thd, size_t keynr, size_t data_size,
 
   if (trx->flush_observer == nullptr) {
     innobase_register_trx(ht, ha_thd(), trx);
-    trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+    trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
     auto observer = ut::new_withkey<Flush_observer>(
-        ut::make_psi_memory_key(mem_key_ddl), table->space, trx, nullptr);
+        ut::make_psi_memory_key(mem_key_ddl), *trx, nullptr);
 
     trx_set_flush_observer(trx, observer);
   }
@@ -11542,6 +11621,15 @@ int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
     /* Sync all pages written without redo log. */
     auto table = m_prebuilt->table;
     fil_flush(table->space);
+  }
+
+  if (is_last_index() && !is_error && db_err == DB_SUCCESS) {
+    db_err = bulk_load_update_autoinc_state(m_prebuilt->table, table, thd);
+    if (db_err != DB_SUCCESS) {
+      is_error = true;
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "LOAD BULK DATA failed to update AUTO_INCREMENT state");
+    }
   }
 
   /* Update the statistics. */

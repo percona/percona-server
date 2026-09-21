@@ -18,6 +18,10 @@
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
+# Persisting each encryption-progress step can take longer under load.
+--let $wait_timeout=120
+--let $explicit_default_wait_timeout=120
+
 --disable_query_log
 call mtr.add_suppression("'Error generating data for Data ID:");
 call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");

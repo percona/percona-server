@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
+#include "fil0pages_persistence_interface.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
 #include "fts0fts.h"
@@ -61,8 +62,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
-#include "log0buf.h"
 #include "log0chkp.h"
+#include "log0helpers.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "rem0cmp.h"
@@ -1159,10 +1160,7 @@ handle_new_error:
     case DB_COMPUTE_VALUE_FAILED:
     case DB_LOCK_NOWAIT:
     case DB_BTREE_LEVEL_LIMIT_EXCEEDED:
-      DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
-        log_buffer_flush_to_disk();
-        DBUG_SUICIDE();
-      });
+      DBUG_INJECT_CRASH_WITH_LOG_FLUSH("row_mysql_crash_if_error");
       if (savept) {
         /* Roll back the latest, possibly incomplete insertion
         or update */
@@ -1649,7 +1647,7 @@ run_again:
   /* It may be that the current session has not yet started
   its transaction, or it has been committed: */
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
 
@@ -1705,7 +1703,7 @@ run_again:
   /* It may be that the current session has not yet started
   its transaction, or it has been committed: */
 
-  trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, false, UT_LOCATION_HERE);
 
   err =
       lock_table(0, prebuilt->table,
@@ -2028,7 +2026,7 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
 
   row_mysql_delay_if_needed();
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   row_get_prebuilt_insert_row(prebuilt);
   node = prebuilt->ins_node;
@@ -2809,7 +2807,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
 
   init_fts_doc_id_for_ref(table, &fk_depth);
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   if (dict_table_is_referenced_by_foreign_key(table)) {
     /*TODO: use foreign key MDL to protect foreign
@@ -3174,6 +3172,7 @@ void row_mysql_freeze_data_dictionary(trx_t *trx, ut::Location location) {
 
   rw_lock_s_lock_gen(dict_operation_lock, 0, location);
 
+  ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
   trx->dict_operation_lock_mode = RW_S_LATCH;
 }
 
@@ -3181,6 +3180,7 @@ void row_mysql_freeze_data_dictionary(trx_t *trx, ut::Location location) {
 void row_mysql_unfreeze_data_dictionary(trx_t *trx) /*!< in/out: transaction */
 {
   ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
+  ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
   rw_lock_s_unlock(dict_operation_lock);
 
@@ -3199,6 +3199,7 @@ void row_mysql_lock_data_dictionary(trx_t *trx, ut::Location location) {
   no deadlocks or lock waits can occur then in these operations */
 
   rw_lock_x_lock_gen(dict_operation_lock, 0, location);
+  ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
   trx->dict_operation_lock_mode = RW_X_LATCH;
 
   dict_sys_mutex_enter();
@@ -3208,6 +3209,7 @@ void row_mysql_lock_data_dictionary(trx_t *trx, ut::Location location) {
 void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
 {
   ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+  ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
   /* Serialize data dictionary operations with dictionary mutex:
   no deadlocks can occur then in these operations */
@@ -3620,7 +3622,7 @@ static dberr_t row_drop_table_for_mysql_in_background(
   the InnoDB data dictionary get out-of-sync if the user runs
   with innodb_flush_log_at_trx_commit = 0 */
 
-  log_buffer_flush_to_disk();
+  ib::redo::must_persist_all(UT_LOCATION_HERE);
 
   trx_commit_for_mysql(trx);
 
@@ -3736,10 +3738,10 @@ already_dropped:
  ALTER TABLE MySQL may call drop table even if the table has running queries on
  it. Also, if there are running foreign key checks on the table, we drop the
  table lazily.
+ @param[in] name Table name.
  @return true if the table was not yet in the drop list, and was added there */
-static bool row_add_table_to_background_drop_list(
-    const char *name [[maybe_unused]]) /*!< in: table name */
-{
+static bool row_add_table_to_background_drop_list(const char *name
+                                                  [[maybe_unused]]) {
   /* WL6049, remove after WL6049. */
   ut_d(ut_error);
 #ifndef UNIV_DEBUG
@@ -3798,7 +3800,7 @@ static dict_table_t *row_discard_tablespace_begin(
 
   //    trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-  trx_start_if_not_started_xa(trx, true, UT_LOCATION_HERE);
+  trx_start_if_not_started(trx, true, UT_LOCATION_HERE);
 
   /* Serialize data dictionary operations with dictionary mutex:
   this is to avoid deadlocks during data dictionary operations */
@@ -3884,10 +3886,11 @@ static dberr_t row_discard_tablespace_end(trx_t *trx, dict_table_t *table,
   }
 
   DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
-                  log_make_latest_checkpoint();
+                  pages_persistence->request_sharp_checkpoint();
                   DBUG_SUICIDE(););
 
-  DBUG_EXECUTE_IF("ib_discard_after_commit_crash", log_make_latest_checkpoint();
+  DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
+                  pages_persistence->request_sharp_checkpoint();
                   DBUG_SUICIDE(););
 
   row_mysql_unlock_data_dictionary(trx);
@@ -4205,7 +4208,8 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   /* If the tablespace is not in the cache, just delete the file. */
   if (!fil_space_exists_in_mem(space_id, nullptr, true, false)) {
     /* Force a delete of any discarded or temporary files. */
-    if (fil_delete_file(filepath)) {
+    if (tablespaces_nodes->remove(space_id, 0, {.m_path = filepath}) ==
+        ib::fil::Tablespaces_nodes_interface::Status::SUCCESS) {
       ib::info(ER_IB_MSG_989)
           << "Removed datafile=" << filepath << ", space_id=" << space_id;
 
@@ -4215,12 +4219,11 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
     }
 
   } else {
-    err = fil_delete_tablespace(space_id, BUF_REMOVE_NONE);
+    err = fil_delete_tablespace(space_id);
 
     if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
-      ib::error(ER_IB_MSG_991)
-          << "Failed to delete the datafile of tablespace ID=" << space_id
-          << ", file '" << filepath << "'!";
+      ib::error(ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE)
+          << "with space id=" << space_id << ", file '" << filepath << "'!";
     }
   }
 
@@ -5073,7 +5076,7 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
 
     if (n_threads > 1) {
       /* No INSERT INTO  ... SELECT  and non-locking selects only. */
-      trx_start_if_not_started_xa(prebuilt->trx, false, UT_LOCATION_HERE);
+      trx_start_if_not_started(prebuilt->trx, false, UT_LOCATION_HERE);
 
       trx_assign_read_view(prebuilt->trx);
 

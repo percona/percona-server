@@ -759,9 +759,8 @@ size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
     to_p =
         my_stpncpy(to_p, ER_THD_OR_DEFAULT(thd, ER_TABLE_NAME), end_p - to_p);
     *(to_p++) = ' ';
-    to_p = add_identifier(thd, to_p, end_p, table_name, table_name_len);
-  } else
-    to_p = add_identifier(thd, to_p, end_p, table_name, table_name_len);
+  }
+  to_p = add_identifier(thd, to_p, end_p, table_name, table_name_len);
   if (part_name) {
     if (explain_mode == EXPLAIN_PARTITIONS_AS_COMMENT)
       to_p = my_stpncpy(to_p, " /* ", end_p - to_p);
@@ -7861,11 +7860,11 @@ static bool check_promoted_index(const handler *file,
   const KEY *end = key_info_buffer + key_count;
   for (const KEY *k = key_info_buffer; k < end && !has_unique_key; ++k)
     if (!(k->flags & HA_NULL_PART_KEY) && (k->flags & HA_NOSAME)) {
-      has_unique_key = true;
       if (!k->is_visible) {
         my_error(ER_PK_INDEX_CANT_BE_INVISIBLE, MYF(0));
         return true;
       }
+      has_unique_key = true;
     }
   if (!has_unique_key && (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY)) {
     my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
@@ -13131,6 +13130,14 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   Prealloced_array<const Field *, 1> dropped_or_renamed_cols(PSI_INSTRUMENT_ME);
   DBUG_TRACE;
 
+  /*
+    add_altered_index_visibility() can be called for explicit ALTER INDEX
+    clauses and for implicit visibility changes detected while comparing
+    old and new keys. Upper-bound the buffer by the number of existing keys.
+  */
+  const size_t index_altered_visibility_capacity =
+      alter_info->alter_index_visibility_list.size() + table->s->keys;
+
   /* Allocate result buffers. */
   if (!(ha_alter_info->index_drop_buffer =
             (KEY **)thd->alloc(sizeof(KEY *) * table->s->keys)) ||
@@ -13139,8 +13146,9 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       !(ha_alter_info->index_rename_buffer = (KEY_PAIR *)thd->alloc(
             sizeof(KEY_PAIR) * alter_info->alter_rename_key_list.size())) ||
       !(ha_alter_info->index_altered_visibility_buffer = (KEY_PAIR *)thd->alloc(
-            sizeof(KEY_PAIR) * alter_info->alter_index_visibility_list.size())))
+            sizeof(KEY_PAIR) * index_altered_visibility_capacity))) {
     return true;
+  }
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
 
@@ -13584,6 +13592,30 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       */
       if (table_key->is_algorithm_explicit != new_key->is_algorithm_explicit)
         ha_alter_info->handler_flags |= Alter_inplace_info::CHANGE_INDEX_OPTION;
+
+      /*
+        Index visibility is not part of has_index_def_changed(). A same-name
+        DROP INDEX + ADD INDEX pair can therefore look structurally unchanged
+        even though the requested visibility differs from the old index.
+
+        Treat this as the same metadata-only in-place operation used for
+        explicit ALTER INDEX ... VISIBLE/INVISIBLE.
+      */
+      if (table_key->is_visible != new_key->is_visible) {
+        bool visibility_change_already_processed = false;
+        for (const Alter_index_visibility *alter_index_visibility :
+             alter_info->alter_index_visibility_list) {
+          if (my_strcasecmp(system_charset_info, new_key->name,
+                            alter_index_visibility->name()) == 0) {
+            visibility_change_already_processed = true;
+            break;
+          }
+        }
+        if (!visibility_change_already_processed) {
+          ha_alter_info->handler_flags |= Alter_inplace_info::RENAME_INDEX;
+          ha_alter_info->add_altered_index_visibility(table_key, new_key);
+        }
+      }
     }
   }
 

@@ -9,7 +9,7 @@
 
 -- echo # Emptying InnoDB buffer pool: begin
 
-CREATE TABLE _big (a TEXT) ENGINE=INNODB;
+CREATE TEMPORARY TABLE _big (a TEXT) ENGINE=INNODB;
 -- let $bp_size = `SELECT @@innodb_buffer_pool_size`
 -- echo # Buffer pool size: $bp_size bytes
 -- let $table_size = `SELECT ROUND($bp_size * 2.0)`

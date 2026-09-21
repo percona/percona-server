@@ -644,6 +644,30 @@ static void print_ssl_session_id(SSL_SESSION *sess, const char *action) {
 }
 #endif  // !NDEBUG
 
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+static bool ssl_group_name_uses_pqc_kex(const char *group) {
+  if (group == nullptr) return false;
+
+  return strstr(group, "MLKEM") != nullptr ||
+         strstr(group, "ML-KEM") != nullptr;
+}
+#endif
+
+static bool ssl_session_uses_pqc_kex_internal(SSL *ssl,
+                                              bool allow_resumed_session
+                                              [[maybe_unused]]) {
+  if (ssl == nullptr) return false;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+  if (SSL_session_reused(ssl)) return allow_resumed_session;
+
+  const char *group = SSL_get0_group_name(ssl);
+  return ssl_group_name_uses_pqc_kex(group);
+#else
+  return false;
+#endif
+}
+
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
                   SSL_SESSION *ssl_session, ssl_handshake_func_t func,
                   unsigned long *ssl_errno_holder, SSL **sslptr,
@@ -752,6 +776,25 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     SSL_free(ssl);
     *sslptr = nullptr;
     return (int)VIO_SOCKET_ERROR;
+  }
+
+  /*
+    OpenSSL does not expose the original key exchange group for a resumed
+    session. Server-side resumption under force_pqc is accepted only when the
+    acceptor context was created as a PQC-only resumption epoch.
+  */
+  if (ptr->tls_force_pqc) {
+    const bool allow_resumed_session =
+        func == SSL_accept && ptr->tls_session_cache_pqc_only;
+    if (!ssl_session_uses_pqc_kex_internal(ssl, allow_resumed_session)) {
+      DBUG_PRINT("error",
+                 ("TLS session rejected because it did not negotiate a "
+                  "PQC key exchange group"));
+      SSL_free(ssl);
+      *sslptr = nullptr;
+      *ssl_errno_holder = 0;
+      return (int)VIO_SOCKET_ERROR;
+    }
   }
 #ifndef NDEBUG
   print_ssl_session_id(SSL_get_session(ssl), "Connected ");

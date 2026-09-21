@@ -32,6 +32,7 @@
 */
 
 #include <fcntl.h>
+#include <openssl/opensslv.h>
 #include <sys/types.h>
 #include <cerrno>
 #include <condition_variable>
@@ -18798,7 +18799,9 @@ static void test_wl6791() {
                                    MYSQL_OPT_RECONNECT,
                                    MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                                    MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-                                   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA},
+                                   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
+                                   MYSQL_OPT_FORCE_PQC,
+                                   MYSQL_OPT_USE_PQC_SIGN},
                     const_char_opts[] =
   {
     MYSQL_READ_DEFAULT_FILE,
@@ -18818,6 +18821,7 @@ static void test_wl6791() {
     MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER,
     MYSQL_OPT_TLS_CIPHERSUITES,
+    MYSQL_OPT_TLS_KEX,
     MYSQL_OPT_TLS_SNI_SERVERNAME,
     MYSQL_OPT_SSL_CRL,
     MYSQL_OPT_SSL_CRLPATH,
@@ -22675,6 +22679,105 @@ static void test_wl13075() {
     DIE_UNLESS(is_reused);
   }
   mysql_close(&lmysql);
+
+#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+  /* MYSQL_OPT_FORCE_PQC must reject client-supplied non-PQC session data. */
+  rc = mysql_query(mysql, "SET @mct_tls_kex_saved=@@GLOBAL.tls_kex");
+  myquery(rc);
+  rc = mysql_query(mysql, "SET GLOBAL tls_kex='X25519'");
+  myquery(rc);
+  rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
+  myquery(rc);
+
+  const char tls13[] = "TLSv1.3";
+  const char classical_kex[] = "X25519";
+  void *non_pqc_session_data = nullptr;
+
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_VERSION, tls13);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_KEX, classical_kex);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  {
+    unsigned int non_pqc_session_len = 0;
+    non_pqc_session_data =
+        mysql_get_ssl_session_data(&lmysql, 0, &non_pqc_session_len);
+    DIE_UNLESS(non_pqc_session_data != nullptr);
+    DIE_UNLESS(non_pqc_session_len > 0);
+  }
+  mysql_close(&lmysql);
+
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, non_pqc_session_data);
+  myquery(rc);
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_VERSION, tls13);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_KEX, classical_kex);
+    myquery(rc);
+  }
+  if (!mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                          opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                          0)) {
+    myerror("mysql_real_connect failed");
+    mysql_close(&lmysql);
+    exit(1);
+  }
+  DIE_UNLESS(mysql_get_ssl_session_reused(&lmysql));
+  mysql_close(&lmysql);
+
+  if (!(mysql_client_init(&lmysql))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  rc = mysql_options(&lmysql, MYSQL_OPT_SSL_SESSION_DATA, non_pqc_session_data);
+  myquery(rc);
+  {
+    enum mysql_ssl_mode ssl_mode_required = SSL_MODE_REQUIRED;
+    bool force_pqc = true;
+    rc = mysql_options(&lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode_required);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_TLS_VERSION, tls13);
+    myquery(rc);
+    rc = mysql_options(&lmysql, MYSQL_OPT_FORCE_PQC, &force_pqc);
+    myquery(rc);
+  }
+  if (mysql_real_connect(&lmysql, opt_host, opt_user, opt_password,
+                         opt_db ? opt_db : "test", opt_port, opt_unix_socket,
+                         0)) {
+    mysql_close(&lmysql);
+    DIE("MYSQL_OPT_FORCE_PQC accepted non-PQC session data");
+  }
+  mysql_close(&lmysql);
+
+  rc = mysql_free_ssl_session_data(mysql, non_pqc_session_data);
+  myquery(rc);
+  rc = mysql_query(mysql, "SET GLOBAL tls_kex=@mct_tls_kex_saved");
+  myquery(rc);
+  rc = mysql_query(mysql, "ALTER INSTANCE RELOAD TLS");
+  myquery(rc);
+#endif
 
   /* FR 2.1: failing to reuse a connection still works */
   /* invalidate the session data at the server side */

@@ -3635,6 +3635,8 @@ sub environment_setup {
   $ENV{'MYSQL_SECURE_INSTALLATION'} =
     "$path_client_bindir/mysql_secure_installation";
   $ENV{'OPENSSL_EXECUTABLE'} = $exe_openssl;
+  $ENV{'MYSQLTEST_SAFE_PROCESS'} = mtr_exe_exists("$path_client_bindir/mysqltest_safe_process");
+
   $ENV{'MYSQL_TEST_JWT_GENERATOR'} = $exe_mysql_test_jwt_generator;
   $ENV{'CREATE_ID_TOKEN'} = $exe_create_id_token;
   my $exe_mysqld = find_mysqld($basedir);

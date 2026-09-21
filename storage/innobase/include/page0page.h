@@ -782,15 +782,6 @@ const rec_t *page_find_rec_with_heap_no(
 @retval infimum record if all records are delete-marked */
 const rec_t *page_find_rec_last_not_deleted(const page_t *page);
 
-/** Issue a warning when the checksum that is stored in the page is valid,
-but different than the global setting innodb_checksum_algorithm.
-@param[in]      curr_algo       current checksum algorithm
-@param[in]      page_checksum   page valid checksum
-@param[in]      page_id         page identifier */
-void page_warn_strict_checksum(srv_checksum_algorithm_t curr_algo,
-                               srv_checksum_algorithm_t page_checksum,
-                               const page_id_t &page_id);
-
 /** Check that a page_size is correct for InnoDB.
 If correct, set the associated page_size_shift which is the power of 2
 for this page size.

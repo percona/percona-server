@@ -133,9 +133,13 @@ SET(INNOBASE_SOURCES
   eval/eval0eval.cc
   eval/eval0proc.cc
   fil/fil0fil.cc
+  fil/fil0innodb_pages_persistence.cc
+  fil/fil0innodb_pages_persistence_sys_vars_handler.cc
+  fil/fil0innodb_tablespace_node_handle.cc
+  fil/fil0innodb_tablespaces_nodes.cc
+  fil/fil0tablespace_scan.cc
   fsp/fsp0fsp.cc
   fsp/fsp0file.cc
-  fsp/fsp0space.cc
   fsp/fsp0sysspace.cc
   fut/fut0lst.cc
   ha/ha0ha.cc
@@ -195,11 +199,15 @@ SET(INNOBASE_SOURCES
   log/log0files_finder.cc
   log/log0files_governor.cc
   log/log0files_io.cc
+  log/log0free_check.cc
+  log/log0handler.cc
   log/log0log.cc
   log/log0meb.cc
   log/log0pfs.cc
   log/log0pre_8_0_30.cc
   log/log0recv.cc
+  log/log0redo.cc
+  log/log0sys_var_handler.cc
   log/log0test.cc
   log/log0write.cc
   mach/mach0data.cc
@@ -251,6 +259,7 @@ SET(INNOBASE_SOURCES
   sync/sync0sync.cc
   trx/trx0i_s.cc
   trx/trx0purge.cc
+  trx/trx0undo_trunc.cc
   trx/trx0rec.cc
   trx/trx0roll.cc
   trx/trx0rseg.cc

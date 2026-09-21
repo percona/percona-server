@@ -146,6 +146,7 @@ SET(DD_SOURCES
 
   dd/impl/bootstrap/bootstrap_ctx.cc
   dd/impl/bootstrap/bootstrapper.cc
+  dd/impl/bootstrap/server_version_transition.cc
 
   dd/impl/cache/dictionary_client.cc
   dd/impl/cache/local_multi_map.cc
@@ -1048,9 +1049,57 @@ IF(WIN32)
   ENDIF()
 ENDIF()
 
+SET(RPL_CSA_SOURCES
+  changestreams/apply/jobs/fetchable_transaction.cpp
+  changestreams/apply/jobs/job.cpp
+  changestreams/apply/jobs/job_applier.cpp
+  changestreams/apply/jobs/job_binlog.cpp
+  changestreams/apply/jobs/task_exec_job.cpp
+
+  changestreams/apply/context/session.cpp
+  changestreams/apply/context/relay_context.cpp
+  changestreams/apply/context/channel.cpp
+  changestreams/apply/context/tune.cpp
+
+  changestreams/apply/service/csa_service.cpp
+  changestreams/apply/service/transaction_conflict_manager.cpp
+  changestreams/apply/service/rescue_task.cpp
+  changestreams/apply/service/session_legacy_stats.cpp
+
+  changestreams/apply/session/session_service.cpp
+  changestreams/apply/session/session_service_bounded_queue.cpp
+
+
+  changestreams/apply/psi/psi.cc
+
+  changestreams/apply/util/module.cpp
+  changestreams/apply/storage/relay_log/cached_event.cpp
+  changestreams/apply/storage/relay_log/cached_event_payload.cpp
+  changestreams/apply/storage/relay_log/data_source.cpp
+  changestreams/apply/storage/relay_log/event_reader_controller.cpp
+  changestreams/apply/storage/relay_log/event_set_fetchable_relay_log.cpp
+  changestreams/apply/storage/relay_log/event_set_fetchable_cache.cpp
+  changestreams/apply/storage/relay_log/istream_prefetched.cpp
+  changestreams/apply/storage/relay_log/log_prefetcher.cpp
+  changestreams/apply/storage/relay_log/prefetched_ifile.cpp
+  changestreams/apply/storage/relay_log/relay_log_deleter.cpp
+  changestreams/apply/storage/relay_log/relay_log_adaptive_reader.cpp
+  changestreams/apply/storage/relay_log/sync_transaction_provider.cpp
+  changestreams/apply/resource/applier_channel_monitor.cpp
+  changestreams/apply/resource/resource_map.cpp
+  changestreams/apply/resource/resource_monitor.cpp
+  changestreams/apply/resource/sliding_window_counter.cpp
+  changestreams/apply/core/managed_event.cpp
+  changestreams/apply/resource/statistics_map.cpp
+)
+
+
 SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
+  binlog/binlog_ofile.cc
+  binlog/binlog_tc_log.cc
+  binlog/thd_backup_and_restore.cc
   binlog/global.cc
   binlog/log_sanitizer.cc
   binlog/recovery.cc
@@ -1110,6 +1159,7 @@ ADD_DEPENDENCIES(rpl_source GenError)
 TARGET_LINK_LIBRARIES(rpl_source binlog sql_main)
 
 SET (RPL_REPLICA_SRCS
+  ${RPL_CSA_SOURCES}
   dynamic_ids.cc
   binlog/log_sanitizer.cc
   changestreams/apply/commit_order_queue.cc
@@ -1119,6 +1169,7 @@ SET (RPL_REPLICA_SRCS
   changestreams/apply/metrics/applier_metrics.cc
   changestreams/apply/metrics/time_based_metric.cc
   changestreams/apply/metrics/mta_worker_metrics.cc
+  changestreams/apply/csa_worker_context.cc
   changestreams/apply/replication_thread_status.cc
   rpl_applier_reader.cc
   rpl_async_conn_failover.cc
@@ -1159,7 +1210,7 @@ SET (RPL_REPLICA_SRCS
   )
 ADD_STATIC_LIBRARY(rpl_replica ${RPL_REPLICA_SRCS}
   DEPENDENCIES GenError
-  LINK_LIBRARIES binlog sql_main ${RPL_PROTOBUF_LITE_LIB}
+  LINK_LIBRARIES binlog sql_main mysql_concurrency_server mysql_scheduler_server ${RPL_PROTOBUF_LITE_LIB}
   )
 
 IF(WIN32)

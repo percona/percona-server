@@ -1217,6 +1217,18 @@ DECLARE_NDBINFO_TABLE(CERTIFICATES, 5) = {
      {"serial", Ndbinfo::String, "Certificate serial number"},
      {"expires", Ndbinfo::Number, "Certificate expiration date"}}};
 
+DECLARE_NDBINFO_TABLE(TRUSTED_CERTS, 7) = {
+    {"trusted_certs", 7, 0,
+     [](const Ndbinfo::Counts &c) { return c.data_nodes * 2; },
+     "Contents of in-memory TLS trust store"},
+    {{"node_id", Ndbinfo::Number, "node id"},
+     {"name", Ndbinfo::String, "Certificate subject common name"},
+     {"serial", Ndbinfo::String, "Certificate serial number"},
+     {"expires", Ndbinfo::Number64, "Certificate expiration date"},
+     {"flags", Ndbinfo::Number, "CA flags"},
+     {"use_count", Ndbinfo::Number, "Authorization use count"},
+     {"last_use", Ndbinfo::Number64, "Authorization last use timestamp"}}};
+
 /* Transactions_full == Transactions schema */
 DECLARE_NDBINFO_TABLE(TRANSACTIONS_FULL, 11) = {
     {"transactions_full", 11, 0,
@@ -1330,7 +1342,8 @@ static struct ndbinfo_table_list_entry {
     DBINFOTBL(THREADBLOCK_DETAILS),
     DBINFOTBL(TRANSPORTER_DETAILS),
     DBINFOTBL(TRANSACTIONS_FULL),
-    DBINFOTBL(TRANSPORTER_ACTIVITY)};
+    DBINFOTBL(TRANSPORTER_ACTIVITY),
+    DBINFOTBL(TRUSTED_CERTS)};
 
 static int no_ndbinfo_tables =
     sizeof(ndbinfo_tables) / sizeof(ndbinfo_tables[0]);

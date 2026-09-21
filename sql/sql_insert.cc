@@ -543,7 +543,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
     if (insert_table->part_info->can_prune_insert(
             thd, duplicates, update, update_field_list, insert_field_list,
-            value_count == 0, &can_prune_partitions,
+            value_count == 0, insert_many_values, &can_prune_partitions,
             &prune_needs_default_values, &used_partitions)) {
       return true; /* purecov: inspected */
     }
@@ -1523,7 +1523,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
     if (insert_table->part_info->can_prune_insert(
             thd, duplicates, update, update_field_list, insert_field_list,
-            value_count == 0, &can_prune_partitions,
+            value_count == 0, insert_many_values, &can_prune_partitions,
             &prune_needs_default_values, &used_partitions)) {
       return true; /* purecov: inspected */
     }

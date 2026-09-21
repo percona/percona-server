@@ -26,21 +26,231 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/mysql_admin_session.h>
 #include "include/mysql.h"
-#include "include/mysqld_errmsg.h"
 #include "include/sql_common.h"
 #include "my_dbug.h"
-#include "mysql/service_srv_session.h"
 #include "mysql_command_delegates.h"
-#include "sql/current_thd.h"
-#include "sql/server_component/mysql_command_consumer_imp.h"
 #include "sql/server_component/mysql_command_services_imp.h"
 #include "sql/server_component/security_context_imp.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"
 #include "sql/srv_session.h"
+#include "sql_string.h"
 
 extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
 extern SERVICE_TYPE_NO_CONST(registry) * srv_registry_no_lock;
 
 namespace cs {
+
+namespace {
+
+bool has_session_track_info(MYSQL *mysql) {
+  if (mysql == nullptr || mysql->extension == nullptr) return false;
+
+  STATE_INFO *info = &(MYSQL_EXTENSION_PTR(mysql)->state_change);
+  for (int i = SESSION_TRACK_BEGIN; i <= SESSION_TRACK_END; ++i) {
+    if (info->info_list[i].head_node != nullptr) return true;
+  }
+  return false;
+}
+
+bool can_cache_session_track_info(MYSQL *mysql) {
+  if (mysql == nullptr || mysql->extension == nullptr) return false;
+
+  return (MYSQL_COMMAND_SERVICE_EXTN(mysql) != nullptr);
+}
+
+ulong get_default_client_capabilities(MYSQL *mysql) {
+  if (mysql == nullptr) return 0;
+
+  ulong client_capabilities = mysql->server_capabilities;
+  if (mysql->extension == nullptr) return client_capabilities;
+
+  auto *mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+  if (mcs_extn != nullptr) {
+    client_capabilities |= mcs_extn->mcs_client_flag;
+  }
+  return client_capabilities;
+}
+
+void set_command_service_error(MYSQL *mysql, uint sql_errno,
+                               const char *err_msg, const char *sqlstate) {
+  if (sql_errno == 0) sql_errno = ER_COMMAND_SERVICE_BACKEND_FAILED;
+  if (sqlstate == nullptr || sqlstate[0] == '\0')
+    sqlstate = mysql_errno_to_sqlstate(sql_errno);
+
+  set_mysql_extended_error(mysql, sql_errno, sqlstate, "%s",
+                           err_msg != nullptr ? err_msg : "");
+}
+
+bool store_session_track_info(MYSQL *mysql) {
+  if (mysql == nullptr) return false;
+
+  THD *thd =
+      (mysql->thd != nullptr) ? reinterpret_cast<THD *>(mysql->thd) : nullptr;
+
+  mysql_clear_session_track_info(mysql);
+
+  if (thd == nullptr || !thd->session_tracker.enabled_any() ||
+      !thd->session_tracker.changed_any()) {
+    return false;
+  }
+
+  String encoded;
+  encoded.set_charset(thd->variables.collation_database);
+  thd->session_tracker.store(thd, encoded);
+
+  if (encoded.length() == 0) return false;
+
+  const auto *pos = reinterpret_cast<const uchar *>(encoded.ptr());
+  const auto *end = pos + encoded.length();
+
+  const size_t encoded_length_size = net_field_length_size(pos);
+  if (static_cast<size_t>(end - pos) < encoded_length_size) {
+    mysql_clear_session_track_info(mysql);
+    return false;
+  }
+
+  auto *mutable_pos = const_cast<uchar *>(pos);
+  const auto total_length =
+      static_cast<size_t>(net_field_length_ll(&mutable_pos));
+  pos = mutable_pos;
+
+  // Session_tracker::store() uses the OK-packet inner payload format
+  if (static_cast<size_t>(end - pos) < total_length ||
+      mysql_decode_session_track_payload(mysql, pos, total_length)) {
+    mysql_clear_session_track_info(mysql);
+    return false;
+  }
+
+  return has_session_track_info(mysql);
+}
+
+void discard_session_track_info(THD *thd) {
+  if (thd == nullptr || !thd->session_tracker.enabled_any() ||
+      !thd->session_tracker.changed_any()) {
+    return;
+  }
+
+  // store() serializes and clears pending tracker state. Use a temporary buffer
+  // on error so failed commands do not leak tracker data into a later
+  // successful one.
+  String discarded;
+  discarded.set_charset(thd->variables.collation_database);
+  thd->session_tracker.store(thd, discarded);
+}
+
+/*
+  Mirrors THD session-tracker state into the MYSQL handle cache at command
+  boundaries so command-service consumers can read it through MYSQL_H
+*/
+class Backend_callback_command_delegate : public Callback_command_delegate {
+ public:
+  Backend_callback_command_delegate(void *srv, SRV_CTX_H srv_ctx_h,
+                                    MYSQL *mysql)
+      : Callback_command_delegate(srv, srv_ctx_h),
+        m_mysql(mysql),
+        m_client_capabilities(resolve_client_capabilities()) {}
+
+  ulong get_client_capabilities() override { return m_client_capabilities; }
+
+  void handle_ok(unsigned int server_status, unsigned int statement_warn_count,
+                 unsigned long long affected_rows,
+                 unsigned long long last_insert_id,
+                 const char *const message) override {
+    // Snapshot before forwarding handle_ok() so consumers can read it there
+    THD *thd = (m_mysql != nullptr && m_mysql->thd != nullptr)
+                   ? reinterpret_cast<THD *>(m_mysql->thd)
+                   : nullptr;
+    const bool can_cache = can_cache_session_track_info(m_mysql);
+    const bool tracker_changed =
+        (thd != nullptr && thd->session_tracker.enabled_any() &&
+         thd->session_tracker.changed_any());
+    unsigned int callback_server_status = server_status;
+    const bool supports_session_track =
+        ((get_client_capabilities() & CLIENT_SESSION_TRACK) != 0);
+
+    if (!supports_session_track) {
+      // Match libmysql: do not retain tracker state for consumers that did not
+      // explicitly advertise CLIENT_SESSION_TRACK
+      if (tracker_changed) {
+        discard_session_track_info(thd);
+      }
+      if (can_cache) {
+        mysql_clear_session_track_info(m_mysql);
+      }
+      callback_server_status &= ~SERVER_SESSION_STATE_CHANGED;
+    } else if (tracker_changed) {
+      callback_server_status |= SERVER_SESSION_STATE_CHANGED;
+      if (can_cache) {
+        if (!store_session_track_info(m_mysql)) {
+          mysql_clear_session_track_info(m_mysql);
+        }
+      } else {
+        // If the handle cannot cache session state, still consule the pending
+        // tracker state so it does not leak into a later command executed on
+        // the same THD
+        discard_session_track_info(thd);
+      }
+    } else {
+      if (can_cache) {
+        mysql_clear_session_track_info(m_mysql);
+      }
+      callback_server_status &= ~SERVER_SESSION_STATE_CHANGED;
+    }
+    Callback_command_delegate::handle_ok(callback_server_status,
+                                         statement_warn_count, affected_rows,
+                                         last_insert_id, message);
+  }
+
+  void handle_error(uint sql_errno, const char *const err_msg,
+                    const char *const sqlstate) override {
+    THD *thd = (m_mysql != nullptr && m_mysql->thd != nullptr)
+                   ? reinterpret_cast<THD *>(m_mysql->thd)
+                   : nullptr;
+    // Failed commands must not leave pending tracker state for a later
+    // successful boundary on the same THD
+    discard_session_track_info(thd);
+
+    if (m_mysql != nullptr) {
+      mysql_clear_session_track_info(m_mysql);
+      m_mysql->server_status &= ~SERVER_SESSION_STATE_CHANGED;
+      set_command_service_error(m_mysql, sql_errno, err_msg, sqlstate);
+    }
+
+    Callback_command_delegate::handle_error(sql_errno, err_msg, sqlstate);
+  }
+
+ private:
+  ulong resolve_client_capabilities() {
+    if (m_mysql == nullptr || m_mysql->extension == nullptr) {
+      return Callback_command_delegate::get_client_capabilities() &
+             ~CLIENT_SESSION_TRACK;
+    }
+
+    auto *mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(m_mysql);
+    if (mcs_extn == nullptr ||
+        !mcs_extn->has_custom_client_capabilities_service) {
+      // Keep default command-service consumers aligned with libmysql semantics.
+      // Session-tracker data is exposed only when a non-default client
+      // capabilities service or MYSQL_COMMAND_CLIENT_FLAGS explicitly
+      // advertises CLIENT_SESSION_TRACK.
+      ulong client_capabilities = get_default_client_capabilities(m_mysql);
+      if (mcs_extn == nullptr ||
+          (mcs_extn->mcs_client_flag & CLIENT_SESSION_TRACK) == 0) {
+        client_capabilities &= ~CLIENT_SESSION_TRACK;
+      }
+      return client_capabilities;
+    }
+
+    return Callback_command_delegate::get_client_capabilities() |
+           mcs_extn->mcs_client_flag;
+  }
+
+  MYSQL *m_mysql;
+  ulong m_client_capabilities;
+};
+
+}  // namespace
 
 MYSQL_METHODS mysql_methods = {
     csi_connect,       csi_read_query_result, csi_advanced_command,
@@ -299,6 +509,16 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   void *command_consumer_srv = nullptr;
   bool ret = true;
 
+  /*
+    mysql_send_query() clears session-tracker cache before COM_QUERY reaches
+    this backend. Other command-service commands enter through simple_command(),
+    so keep cache invalidation at the backend boundary and clear the status bit
+    for every new command attempt.
+  */
+  net_clear_error(&mysql->net);
+  mysql_clear_session_track_info(mysql);
+  mysql->server_status &= ~SERVER_SESSION_STATE_CHANGED;
+
   /* mcs_extn->command_consumer_services will be set in connect api */
   if (mcs_extn->command_consumer_services) {
     command_consumer_srv = mcs_extn->command_consumer_services;
@@ -309,8 +529,8 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql_handle.mysql = mysql;
   if (mcs_extn->consumer_srv_data != nullptr) {
     ((class mysql_command_consumer_refs *)(command_consumer_srv))
-        ->factory_srv->end(
-            reinterpret_cast<SRV_CTX_H>(mcs_extn->consumer_srv_data));
+        ->factory_srv->end(mcs_extn->consumer_srv_data);
+    mcs_extn->consumer_srv_data = nullptr;
   }
   if (((class mysql_command_consumer_refs *)(command_consumer_srv))
           ->factory_srv->start(&srv_ctx_h, (MYSQL_H *)&mysql_handle)) {
@@ -318,10 +538,11 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
             "mysql_text_consumer_factory_v1");
     goto error;
   }
+  mcs_extn->consumer_srv_data = srv_ctx_h;
 
   {
-    Callback_command_delegate callback_delegate(command_consumer_srv,
-                                                srv_ctx_h);
+    Backend_callback_command_delegate callback_delegate(command_consumer_srv,
+                                                        srv_ctx_h, mysql);
     if (command_service_run_command(
             mcs_extn->session_svc, command, &data, thd->charset(),
             callback_delegate.callbacks(), callback_delegate.representation(),
@@ -333,8 +554,14 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
           ->error_srv->error(srv_ctx_h, &err_num,
                              const_cast<const char **>(ch_ptr));
       strcpy(*err_msg, *ch_ptr);
-      // Forward the errno from the srv-session to the mysql handle
-      mysql->net.last_errno = err_num;
+      /*
+        command_service_run_command() may have delivered an error through
+        Backend_callback_command_delegate::handle_error(), which already stores
+        the server diagnostic on the MYSQL handle. Preserve that diagnostic and
+        only synthesize a fallback backend error if no callback error was set.
+      */
+      if (mysql->net.last_errno == 0)
+        set_command_service_error(mysql, err_num, *err_msg, nullptr);
       goto error;
     }
   }
@@ -345,7 +572,12 @@ error:
   // triggering a failure.
   DBUG_EXECUTE_IF("mysql_command_services_component_test_errno", return true;);
 
-  if (ret) my_error(ER_COMMAND_SERVICE_BACKEND_FAILED, MYF(0), err_msg);
+  if (ret) {
+    if (mysql->net.last_errno == 0)
+      set_command_service_error(mysql, ER_COMMAND_SERVICE_BACKEND_FAILED,
+                                *err_msg, nullptr);
+    my_error(ER_COMMAND_SERVICE_BACKEND_FAILED, MYF(0), *err_msg);
+  }
   return ret ? true : false;
 }
 
@@ -359,14 +591,22 @@ MYSQL_DATA *csi_read_rows(MYSQL *mysql,
 MYSQL_RES *csi_use_result(MYSQL *mysql) { return use_result(mysql); }
 
 void csi_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count) {
-  for (unsigned int i = 0; i < field_count; i++) {
-    if (!*column) {
-      *to = 0; /* Null */
+  /*
+    The DOM consumer stores an extra end pointer after the field pointers.
+    Non-NULL lengths are derived from the distance to the next non-NULL pointer,
+    or to that end pointer for the last non-NULL field.
+  */
+  MYSQL_ROW row_end = column + field_count;
+
+  for (unsigned int field_index = 0; field_index < field_count; ++field_index) {
+    if (column[field_index] == nullptr) {
+      to[field_index] = 0;
       continue;
     }
-    *to = strlen(*column);
-    column++;
-    to++;
+
+    MYSQL_ROW next = column + field_index + 1;
+    while (next != row_end && *next == nullptr) next++;
+    to[field_index] = static_cast<ulong>(*next - column[field_index] - 1);
   }
 }
 

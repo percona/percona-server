@@ -358,10 +358,10 @@ INSERT INTO I_S_published_schema
         '1bb9338a1c83d40d6dc4dc320f395f27d13f36e56df5ae4797c0cd246f1150b6');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 0,
-        '951c2fa76ae5d55325aa10bf4cf98ee269b965b6506b43bc16259db3bed566b5');
+        '15fc193e376953d3cacf51b2f5daed9d3e0c12b0a6bddb37f60581710ce9ccbc');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 1,
-        'd7cc59e70244b25c5587aafb2da1a3d2e0a0ec8a7a072f0e66a213f94d29fdf6');
+        '738fe3913ef23105fbc1af4e93172905941b21f1add0d38854cc88d899b5d081');
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

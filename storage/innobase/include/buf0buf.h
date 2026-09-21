@@ -300,9 +300,6 @@ static inline ulint buf_pool_get_curr_size(void);
  @return size in pages */
 static inline ulint buf_pool_get_n_pages(void);
 
-/** @return true if buffer pool resize is in progress. */
-bool is_buffer_pool_resize_in_progress();
-
 #endif /* !UNIV_HOTBACKUP */
 
 /** Gets the smallest oldest_modification lsn among all of the earliest
@@ -920,16 +917,11 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
 the buffer pool.
 @param[in]      bpage   pointer to the block in question
 @param[in]      evict   whether or not to evict the page from LRU list
-@param[in]      type    i/o request type for which this completion routine is
-                        called.
-@param[in]      node    file node in which the disk copy of the page exists.
-@return true if successful */
-bool buf_page_io_complete(buf_page_t *bpage, bool evict,
-                          IORequest *type = nullptr,
-                          fil_node_t *node = nullptr);
+@return DB_SUCCESS or DB_INDEX_CORRUPT */
+[[nodiscard]] dberr_t buf_page_io_complete(buf_page_t *bpage, bool evict);
 
-/** Free a stale page. Caller must hold the LRU mutex. Upon successful page
-free the LRU mutex will be released.
+/** Free a stale page. Caller must hold the LRU mutex. Upon successful page free
+the LRU mutex will be released.
 @param[in,out]  buf_pool   Buffer pool the page belongs to.
 @param[in,out]  bpage      Page to free.
 @return true if page was freed. */
@@ -1269,7 +1261,7 @@ class buf_page_t {
   inline bool was_stale() const {
     ut_a(m_space != nullptr);
     ut_a(id.space() == m_space->id);
-    /* If the the version is OK, then the space must not be deleted.
+    /* If the version is OK, then the space must not be deleted.
     However, version is modified before the deletion flag is set, so reading
     these values need to be executed in reversed order. The atomic reads
     cannot be relaxed for it to work. */

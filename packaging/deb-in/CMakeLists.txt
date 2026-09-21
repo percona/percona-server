@@ -123,7 +123,6 @@ usr/lib/mysql/plugin/component_keyring_oci.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_hashicorp.so
-usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/component_keyring_oci.so

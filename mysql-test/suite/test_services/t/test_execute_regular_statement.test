@@ -61,6 +61,14 @@ SELECT test_execute_regular_statement("SELECT * FROM mle_db.my_table WHERE col_c
 
 SET SESSION DEBUG = '-d,attribute_get';
 
+--echo ###################################### Metadata tests ######################################
+
+CREATE TABLE my_type_table (col_enum ENUM('a', 'b'), col_set SET('x', 'y'), col_char CHAR(3), col_varchar VARCHAR(10));
+
+SELECT test_execute_regular_statement_field_metadata("SELECT col_enum, col_set, col_char, col_varchar FROM mle_db.my_type_table");
+
+DROP TABLE my_type_table;
+
 SELECT test_execute_regular_statement("DROP PROCEDURE multiple_queries;");
 SELECT test_execute_regular_statement("DROP TABLE my_table;");
 SELECT test_execute_regular_statement("DROP TABLE my_table2;");

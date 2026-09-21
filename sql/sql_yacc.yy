@@ -719,7 +719,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> CPU_SYM 353
 %token  CREATE 354                        /* SQL-2003-R */
 %token  CROSS 355                         /* SQL-2003-R */
-%token<lexer.keyword> CUBE_SYM 356        /* SQL-2003-R */
+%token  CUBE_SYM 356                      /* SQL-2003-R */
 %token  CURDATE 357                       /* MYSQL-FUNC */
 %token<lexer.keyword> CURRENT_SYM 358           /* SQL-2003-R */
 %token  CURRENT_USER 359                  /* SQL-2003-R */
@@ -1449,12 +1449,12 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 %token<lexer.keyword> PARALLEL_SYM       1208      /* MYSQL */
 %token<lexer.keyword> S3_SYM             1209      /* MYSQL */
-%token<lexer.keyword> QUALIFY_SYM        1210      /* MYSQL */
+%token  QUALIFY_SYM                      1210      /* MYSQL */
 
 %token<lexer.keyword> AUTO_SYM                   1211   /* MYSQL */
 %token<lexer.keyword> MANUAL_SYM                 1212   /* MYSQL */
 %token<lexer.keyword> BERNOULLI_SYM              1213  /* SQL-2016-N */
-%token<lexer.keyword> TABLESAMPLE_SYM            1214  /* SQL-2016-R */
+%token  TABLESAMPLE_SYM                          1214  /* SQL-2016-R */
 
 %token<lexer.keyword> VECTOR_SYM      1215     /* MYSQL */
 %token<lexer.keyword> PARAMETERS_SYM  1216     /* MYSQL */
@@ -1477,12 +1477,12 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> ALLOW_MISSING_FILES_SYM    1229     /* MYSQL */
 %token<lexer.keyword> AUTO_REFRESH_SYM           1230     /* MYSQL */
 %token<lexer.keyword> AUTO_REFRESH_SOURCE_SYM    1231     /* MYSQL */
-%token<lexer.keyword> VERIFY_KEY_CONSTRAINTS_SYM      1232     /* MYSQL */
-%token<lexer.keyword> STRICT_LOAD_SYM 1233     /* MYSQL */
-%token<lexer.keyword> EXTERNAL_FORMAT_SYM  1234     /* MySQL */
+%token<lexer.keyword> VERIFY_KEY_CONSTRAINTS_SYM 1232     /* MYSQL */
+%token<lexer.keyword> STRICT_LOAD_SYM            1233     /* MYSQL */
+%token<lexer.keyword> EXTERNAL_FORMAT_SYM        1234     /* MySQL */
 
-%token<lexer.keyword> EXTERNAL_SYM    1235     /* MYSQL */
-%token<lexer.keyword> MATERIALIZED_SYM      1236     /* MYSQL */
+%token  EXTERNAL_SYM                             1235     /* SQL-2023-R */
+%token<lexer.keyword> MATERIALIZED_SYM           1236     /* MYSQL */
 
 %token<lexer.keyword> GUIDED_SYM      1237     /* MYSQL */
 %token<lexer.keyword> SETS_SYM        1238   /* SQL-1999-N */
@@ -1492,6 +1492,10 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> POLICY_SYM        1241     /* MYSQL */
 %token GRAMMAR_SELECTOR_MASKING_EXPR 1242  /* synthetic token: starts data
                                               masking expression */
+
+%token<lexer.keyword> APPLIER_VERSION_SYM            1243     /* MYSQL */
+%token<lexer.keyword> APPLIER_WORKER_COUNT_SYM       1244     /* MYSQL */
+%token<lexer.keyword> APPLIER_EVENT_MEMORY_LIMIT_SYM 1245     /* MYSQL */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -2344,6 +2348,14 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <load_set_element> load_data_set_elem
 
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
+
+
+%type <load_data_partition_spec> load_data_partition_spec
+
+%type <load_data_partition_list>
+        opt_load_data_partition_clause
+        load_data_partition_clause
+        load_data_partition_spec_list
 
 %type <install_component_set_list> install_set_value_list opt_install_set_value_list
 %type <install_component_set_element>  install_set_value
@@ -3210,6 +3222,18 @@ source_def:
                 MYSQL_YYABORT;
             }
           }
+        | APPLIER_VERSION_SYM EQ ulong_num
+          {
+            Lex->mi.applier_version = $3;
+          }
+        | APPLIER_WORKER_COUNT_SYM EQ ulong_num
+          {
+            Lex->mi.applier_worker_count = $3;
+          }
+        | APPLIER_EVENT_MEMORY_LIMIT_SYM EQ ulong_num
+          {
+            Lex->mi.applier_event_memory_limit = $3;
+          }
         | source_file_def
         ;
 
@@ -3279,7 +3303,6 @@ assign_gtids_to_anonymous_transactions_def:
             }
           }
         ;
-
 
 source_tls_ciphersuites_def:
           TEXT_STRING_sys_nonewline
@@ -7503,9 +7526,22 @@ func_datetime_precision:
         | '(' ')'                    { $$= 0; }
         | '(' NUM ')'
            {
-             int error;
-             $$= (ulong) my_strtoll10($2.str, nullptr, &error);
-           }
+             int error = 0;
+             longlong precision = my_strtoll10($2.str, nullptr, &error);
+             // This cannot fail, because a NUM token cannot have more than 9
+             // digits.
+             assert(error == 0);
+
+             // Perform check here to prevent overflow when value is assigned to
+             // uint8 variable decimals when contructing func_datetime Items.
+             if (precision > DATETIME_MAX_DECIMALS) {
+               my_error(ER_TOO_BIG_PRECISION, MYF(0),
+                 precision, "datetime precision",
+                 DATETIME_MAX_DECIMALS);
+               MYSQL_YYABORT;
+             }
+             $$= precision;
+          }
         ;
 
 field_options:
@@ -7732,12 +7768,14 @@ storage_media:
 now:
           NOW_SYM func_datetime_precision
           {
+            assert($2 <= DATETIME_MAX_DECIMALS);
             $$= $2;
           };
 
 now_or_signed_literal:
           now
           {
+            assert($1 <= DATETIME_MAX_DECIMALS);
             $$= NEW_PTN Item_func_now_local(@$, static_cast<uint8>($1));
           }
         | signed_literal_or_null
@@ -11117,6 +11155,7 @@ function_call_nonkeyword:
           }
         | CURTIME func_datetime_precision
           {
+            assert($2 <= DATETIME_MAX_DECIMALS);
             $$= NEW_PTN Item_func_curtime_local(@$, static_cast<uint8>($2));
           }
         | DATE_ADD_INTERVAL '(' expr ',' INTERVAL_SYM expr interval ')'
@@ -11147,6 +11186,7 @@ function_call_nonkeyword:
           }
         | now
           {
+            assert($1 <= DATETIME_MAX_DECIMALS);
             $$= NEW_PTN PTI_function_call_nonkeyword_now(@$,
               static_cast<uint8>($1));
           }
@@ -11197,10 +11237,12 @@ function_call_nonkeyword:
           }
         | UTC_TIME_SYM func_datetime_precision
           {
+            assert($2 <= DATETIME_MAX_DECIMALS);
             $$= NEW_PTN Item_func_curtime_utc(@$, static_cast<uint8>($2));
           }
         | UTC_TIMESTAMP_SYM func_datetime_precision
           {
+            assert($2 <= DATETIME_MAX_DECIMALS);
             $$= NEW_PTN Item_func_now_utc(@$, static_cast<uint8>($2));
           }
         ;
@@ -15115,7 +15157,7 @@ load_stmt:
           INTO                          /* 11 */
           TABLE_SYM                     /* 12 */
           table_ident                   /* 13 */
-          opt_use_partition             /* 14 */
+          opt_load_data_partition_clause /* 14 */
           opt_load_data_charset         /* 15 */
           opt_compression_algorithm     /* 16 */
           opt_xml_rows_identified_by    /* 17 */
@@ -15357,6 +15399,68 @@ field_or_var:
 opt_load_data_set_spec:
           %empty { $$= {nullptr, nullptr, nullptr}; }
         | SET_SYM load_data_set_list { $$= $2; }
+        ;
+
+opt_load_data_partition_clause:
+          %empty { $$= nullptr; }
+        | load_data_partition_clause
+        ;
+
+load_data_partition_clause:
+          PARTITION_SYM '(' load_data_partition_spec_list ')'
+          {
+            $$= $3;
+          }
+        ;
+
+load_data_partition_spec_list:
+          load_data_partition_spec
+          {
+            auto *partitions= NEW_PTN Load_data_partition_list(
+                YYTHD, $1->files_range().has_value()
+                           ? Load_data_partition_mode::NAME_WITH_FILES
+                           : Load_data_partition_mode::NAMES_ONLY);
+            if (partitions == nullptr)
+              MYSQL_YYABORT;
+            if ($1->files_range().has_value()) {
+              if (partitions->push_back_range(
+                      YYTHD, $1->name(), $1->files_range()->first,
+                      $1->files_range()->second))
+                MYSQL_YYABORT;
+            } else if (partitions->push_back_name(YYTHD, $1->name())) {
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_load_data_partition_list(partitions);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
+          }
+        | load_data_partition_spec_list ',' load_data_partition_spec
+          {
+            $$= $1;
+            if ($3->files_range().has_value()) {
+              if ($$->partitions()->push_back_range(
+                      YYTHD, $3->name(), $3->files_range()->first,
+                      $3->files_range()->second))
+                MYSQL_YYABORT;
+            } else if ($$->partitions()->push_back_name(YYTHD, $3->name())) {
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+load_data_partition_spec:
+          ident
+          {
+            $$= NEW_PTN PT_load_data_partition_spec($1);
+          }
+        | ident FILES_SYM ulong_num
+          {
+            $$= NEW_PTN PT_load_data_partition_spec($1, $3, $3);
+          }
+        | ident FILES_SYM ulong_num TO_SYM ulong_num
+          {
+            $$= NEW_PTN PT_load_data_partition_spec($1, $3, $5);
+          }
         ;
 
 load_data_set_list:
@@ -16109,6 +16213,9 @@ ident_keywords_unambiguous:
         | ALLOW_MISSING_FILES_SYM
         | ALWAYS_SYM
         | ANY_SYM
+        | APPLIER_EVENT_MEMORY_LIMIT_SYM
+        | APPLIER_VERSION_SYM
+        | APPLIER_WORKER_COUNT_SYM
         | ARRAY_SYM
         | AT_SYM
         | ATTRIBUTE_SYM
@@ -16277,6 +16384,7 @@ ident_keywords_unambiguous:
         | LOGS_SYM
         | LOG_SYM
         | NETWORK_NAMESPACE_SYM
+        | MANUAL_SYM
         | MASTER_SYM
         | MASKING_SYM
         | MATERIALIZED_SYM
@@ -16333,6 +16441,7 @@ ident_keywords_unambiguous:
         | OWNER_SYM
         | PACK_KEYS_SYM
         | PAGE_SYM
+        | PARALLEL_SYM
         | PARSER_SYM
         | PARSE_TREE_SYM
         | PARTIAL

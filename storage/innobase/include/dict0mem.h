@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* UNIV_COMPILE_TEST_FUNCS || UNIV_HOTBACKUP */
 #include "btr0types.h"
 #include "data0type.h"
+#include "db0err.h"
 #include "dict0types.h"
 #include "mem0mem.h"
 #include "rem0types.h"
@@ -1270,6 +1271,15 @@ struct dict_index_t {
   dict_mem_index_free() releases it by hand, as it already does for
   fields_array. */
   Vec_runtime *vec;
+
+  /** Why `vec` above is not there, when it is not. vec_runtime_open()
+  records its reason here, because opening the table must not fail for a
+  vector index that cannot be built - and a statement that needs the
+  index has to fail with something better than silence.
+
+  DB_ERROR_UNSET while no open has failed: it is 0, so the zeroing gives
+  that for free too. */
+  dberr_t vec_open_err;
 
   /** id of the transaction that created this index, or 0 if the index existed
   when InnoDB was started up */

@@ -467,6 +467,16 @@ dict_mem_fill_index_struct() stands in for a constructor - so a member
 with a real constructor would not have one called.
 @param[in]  index  vector index
 @return the runtime, or nullptr */
+/** Why a vector index has no runtime, for a statement that needs one.
+
+vec_runtime_open() records its reason on the index, because
+ha_innobase::open() must not fail the table open for a vector index it
+cannot build - the table has to stay readable and droppable. A statement
+that has to maintain or read the graph fails with the reason instead.
+@param[in]  index  the vector index, whose runtime is absent
+@return the reason, never DB_SUCCESS */
+[[nodiscard]] dberr_t vec_runtime_unavailable(const dict_index_t *index);
+
 [[nodiscard]] inline vec_t *vec_runtime_get(const dict_index_t *index) {
   /* const_cast: atomic_ref needs a non-const lvalue, and the read itself
   does not modify the index. */

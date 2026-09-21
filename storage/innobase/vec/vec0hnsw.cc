@@ -273,6 +273,30 @@ dberr_t vec_persist_entry_point(Vec_ctx *ctx, uint64_t id) {
   return err;
 }
 
+/** Record why no runtime could be built, for the statements that will need
+one. Every failure below also logs, for the operator; this is what the
+client gets to see.
+@param[in,out]  index  the vector index
+@param[in]      err    the reason
+@return nullptr, so a failing path can return this directly */
+static vec_t *vec_runtime_open_failed(dict_index_t *index, dberr_t err) {
+  ut_ad(err != DB_SUCCESS);
+  std::atomic_ref<dberr_t> slot(index->vec_open_err);
+  slot.store(err, std::memory_order_release);
+  return nullptr;
+}
+
+dberr_t vec_runtime_unavailable(const dict_index_t *index) {
+  std::atomic_ref<dberr_t> slot(
+      const_cast<dict_index_t *>(index)->vec_open_err);
+  const dberr_t err = slot.load(std::memory_order_acquire);
+  /* Nothing but ha_innobase::open() builds a runtime, and it records why
+  when it cannot - so an unset reason means no open has run for this
+  index, which a statement that got this far must have done. */
+  ut_ad(err != DB_ERROR_UNSET);
+  return err == DB_ERROR_UNSET ? DB_INDEX_CORRUPT : err;
+}
+
 vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
                         THD *thd) {
   ut_ad(index != nullptr);
@@ -283,6 +307,11 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
     return existing;
   }
 
+  /* Stands in for the allocation failure below - the one reason here that
+  a retry can get past. */
+  DBUG_EXECUTE_IF("vec_runtime_open_fail",
+                  return vec_runtime_open_failed(index, DB_VEC_OUT_OF_MEMORY););
+
   /* The values the user wrote in WITH(...), round-tripped through the
   DD and parsed by the open-time overload added for exactly this. */
   storage::innobase::vec::VectorIndexParam vip;
@@ -292,7 +321,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
         << " on table " << index->table->name << ": could not parse the"
         << " index's WITH(...) options; vector search on it will not"
         << " work until the table is reopened.";
-    return nullptr;
+    return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
   const auto *hnsw_param = std::get_if<storage::innobase::vec::HnswParam>(&vip);
   if (hnsw_param == nullptr) {
@@ -301,7 +330,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
         << " on table " << index->table->name << ": WITH(...) options do"
         << " not describe an HNSW index; vector search on it will not"
         << " work until the table is reopened.";
-    return nullptr;
+    return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
 
   /* Dimension is a property of the column, not of WITH(...), so it has
@@ -321,7 +350,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
         << " on table " << index->table->name << ": the indexed column is"
         << " not a VECTOR column; vector search on it will not work"
         << " until the table is reopened.";
-    return nullptr;
+    return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
   const Field_vector *field = down_cast<const Field_vector *>(f);
 
@@ -332,7 +361,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
         << " on table " << index->table->name << ": invalid vector"
         << " dimension " << dims << "; vector search on it will not work"
         << " until the table is reopened.";
-    return nullptr;
+    return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
 
   auto *vec = ut::new_withkey<vec_t>(
@@ -345,7 +374,7 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
         << " on table " << index->table->name << ": out of memory;"
         << " vector search on it will not work until the table is"
         << " reopened.";
-    return nullptr;
+    return vec_runtime_open_failed(index, DB_VEC_OUT_OF_MEMORY);
   }
 
   /* Publish, or lose the race and use the winner. Two sessions opening
@@ -366,6 +395,10 @@ vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
     ut::delete_(vec);
     return static_cast<vec_t *>(expected);
   }
+
+  /* An earlier open may have failed and recorded why; this one did not. */
+  std::atomic_ref<dberr_t> err_slot(index->vec_open_err);
+  err_slot.store(DB_SUCCESS, std::memory_order_release);
   return vec;
 }
 
@@ -1089,7 +1122,7 @@ dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
        index = index->next()) {
     if (!index->is_vector()) continue;
     vec_t *vec = vec_runtime_get(index);
-    if (vec == nullptr) continue;
+    if (vec == nullptr) return vec_runtime_unavailable(index);
     if (q_len != vec->dims * sizeof(float)) return DB_CORRUPTION;
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
@@ -1103,8 +1136,14 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
        index = index->next()) {
     if (!index->is_vector()) continue;
 
+    /* No runtime means the open that should have built one failed, and
+    ha_innobase::open() carried on so the table stays readable and
+    droppable. This statement cannot carry on: the row would be written
+    with a hidden label that no node is ever created under, the index
+    would answer without it for good, and nothing reconciles the two
+    afterwards. */
     vec_t *vec = vec_runtime_get(index);
-    if (vec == nullptr) continue;
+    if (vec == nullptr) return vec_runtime_unavailable(index);
 
     ulint vec_len = 0;
     const char *q = vec_row_vector_bytes(index, row, &vec_len);

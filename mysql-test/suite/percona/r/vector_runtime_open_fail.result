@@ -59,12 +59,12 @@ id	k
 1	0
 2	5
 #
-# The read path still answers with an empty result rather than an
-# error. That is the next commit.
+# And the read path says so too, rather than reporting a table with
+# nothing near the query vector.
 #
 SELECT id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 3;
-id
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 SET DEBUG = '-d,vec_runtime_open_fail';
 #
 # Nothing was lost. The reason recorded was an allocation failure,

@@ -62,9 +62,10 @@ UPDATE t1 SET k = 5 WHERE id = 2;
 SELECT id, k FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
 
 --echo #
---echo # The read path still answers with an empty result rather than an
---echo # error. That is the next commit.
+--echo # And the read path says so too, rather than reporting a table with
+--echo # nothing near the query vector.
 --echo #
+--error ER_OUT_OF_RESOURCES
 SELECT id FROM t1
  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 3;
 

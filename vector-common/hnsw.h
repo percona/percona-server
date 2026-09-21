@@ -1676,11 +1676,11 @@ class HNSW {
   };
 
   /**
-    Visit every complete node exactly once, handing the visitor everything a
-    persisted node consists of:
+    Visit every complete node exactly once, in ascending id order, handing
+    the visitor everything a persisted node consists of:
 
-        visit(uint64_t id, uint64_t base_pk, const char *vec, uint8_t layer,
-              NeighborIdRange neighbors)
+        HnswResult visit(uint64_t id, uint64_t base_pk, const char *vec,
+                         uint8_t layer, NeighborIdRange neighbors)
 
     The arguments are the same shapes insert_cb() receives, so a persistor
     can be driven from here as well as from insert().
@@ -1690,48 +1690,65 @@ class HNSW {
     each node with its final neighbor list. Persisting during the build
     instead rewrites a node's row every time a later insert rewires it.
 
-    Nodes that are not NODE_COMPLETE are skipped: a lazily loaded stub has
-    no vector or neighbors to write, and a lost one has nothing to say.
+    Ascending id order because m_nodes is a hash map and hands nodes out in
+    whatever order it happens to hold them. A caller writing them to a store
+    keyed by id wants them sorted: that turns scattered inserts into
+    appends. Only the ids are sorted, which is a few bytes a node next to
+    the graph itself.
 
-    Not thread-safe against insert(), like init_from_entry_point() and
-    validate(): the graph must be quiescent, which it is at the end of a
-    build.
+    Nodes that are not NODE_COMPLETE are skipped, and validate() says which
+    ones those can be: a NODE_DUMMY stub has no vector or neighbors to
+    write, a NODE_LOST one has no row to write them to, and a NODE_FAILED
+    insert has neither. NODE_NEW and NODE_LINKING cannot appear, because
+    they mean an insert is in flight - asserted rather than skipped, since
+    this is not thread-safe against insert() in the first place, like
+    init_from_entry_point() and validate(): the graph must be quiescent,
+    which it is at the end of a build.
 
-    @param visit  called once per complete node
+    A skipped node can still be named by the neighbor list of one that is
+    written, which validate() allows too. A caller that needs every node
+    accounted for - a build persisting a finished graph, where nothing
+    should be skipped at all - compares what it wrote against size().
+
+    @param visit  called once per complete node; HNSW_SUCCESS to carry on,
+                  anything else ends the walk and is what this returns. A
+                  caller writing these nodes out stops there - a graph can
+                  hold millions of them, and every later write would go
+                  into a store that has already failed
+    @return HNSW_SUCCESS, the visitor's result if one failed, or
+            HNSW_OOM_CONTEXT if the walk's own id list could not be built
   */
   template <typename Visitor>
-  void for_each_node(Visitor &&visit) const {
-    for (const auto &entry : m_nodes) {
-      const Node *node = entry.second;
-      if (node->state() != NODE_COMPLETE) continue;
-      visit(node->id(), node->base_pk(), node->vec(), node->layer(),
-            neighbor_ids(node));
-    }
-  }
-
-  /// Same as for_each_node, but in ascending id order.
-  ///
-  /// m_nodes is a hash map, so for_each_node hands nodes out in whatever
-  /// order it happens to hold them. A caller writing them to a store keyed
-  /// by id wants them sorted: that turns scattered inserts into appends.
-  /// Only the ids are sorted, which is a few bytes a node next to the graph
-  /// itself.
-  template <typename Visitor>
-  void for_each_node_sorted(Visitor &&visit) const {
+  HnswResult for_each_node_sorted(Visitor &&visit) const {
     std::vector<uint64_t> ids;
-    ids.reserve(m_nodes.size());
 
-    for (const auto &entry : m_nodes) {
-      if (entry.second->state() == NODE_COMPLETE) ids.push_back(entry.first);
+    try {
+      ids.reserve(m_nodes.size());
+
+      for (const auto &entry : m_nodes) {
+        const NodeState state = entry.second->state();
+        // A quiescent graph has no insert in flight, so these two cannot be
+        // here; reading one would race with the insert that owns it.
+        assert(state != NODE_NEW && state != NODE_LINKING);
+        if (state == NODE_COMPLETE) ids.push_back(entry.first);
+      }
+    } catch (const std::bad_alloc &) {
+      // The id list is per-operation scratch, like the search heaps: graph
+      // allocations report HNSW_OOM_GRAPH instead. The visitor is called
+      // outside this, because a callback should not throw.
+      return HNSW_OOM_CONTEXT;
     }
 
     std::sort(ids.begin(), ids.end());
 
     for (const uint64_t id : ids) {
       const Node *node = m_nodes.find(id)->second;
-      visit(node->id(), node->base_pk(), node->vec(), node->layer(),
-            neighbor_ids(node));
+      const HnswResult rc = visit(node->id(), node->base_pk(), node->vec(),
+                                  node->layer(), neighbor_ids(node));
+      if (rc != HNSW_SUCCESS) return rc;
     }
+
+    return HNSW_SUCCESS;
   }
 
   /**

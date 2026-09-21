@@ -1015,25 +1015,60 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
 
   dberr_t err = vec_aux_bulk_insert(bulk, meta);
   std::vector<byte> neighbors;
+  size_t written = 0;
 
-  b->graph->for_each_node_sorted([&](uint64_t id, uint64_t base_pk,
-                                     const char *vec, uint8_t layer,
-                                     Vec_build_hnsw::NeighborIdRange nbrs) {
-    if (err != DB_SUCCESS) return;
+  const HnswResult wrc = b->graph->for_each_node_sorted(
+      [&](uint64_t id, uint64_t base_pk, const char *vec, uint8_t layer,
+          Vec_build_hnsw::NeighborIdRange nbrs) -> HnswResult {
+        vec_flatten_neighbors(nbrs, neighbors);
 
-    vec_flatten_neighbors(nbrs, neighbors);
+        vec_aux_row_t row;
+        row.id = id;
+        row.vec = reinterpret_cast<const float *>(vec);
+        row.dims = b->dims;
+        row.base_pk = base_pk;
+        row.level = layer;
+        row.neighbors = neighbors.data();
+        row.neighbors_len = neighbors.size();
 
-    vec_aux_row_t row;
-    row.id = id;
-    row.vec = reinterpret_cast<const float *>(vec);
-    row.dims = b->dims;
-    row.base_pk = base_pk;
-    row.level = layer;
-    row.neighbors = neighbors.data();
-    row.neighbors_len = neighbors.size();
+        err = vec_aux_bulk_insert(bulk, row);
+        /* The walk ends here, and err is the reason - the class only needs
+        to know that its visitor failed. vec_aux_bulk_finish below is what
+        rolls the load back. */
+        if (err != DB_SUCCESS) return HNSW_ERROR_CB;
 
-    err = vec_aux_bulk_insert(bulk, row);
-  });
+        ++written;
+        return HNSW_SUCCESS;
+      });
+
+  /* The walk's own failure, with no err to go with it: building the sorted
+  id list is the only thing it does that can fail on its own account. */
+  if (err == DB_SUCCESS && wrc != HNSW_SUCCESS) {
+    ut_ad(wrc == HNSW_OOM_CONTEXT);
+    err = DB_VEC_OUT_OF_MEMORY;
+  }
+
+  /* Every node the graph holds has to be written, and the walk hands over
+  only the complete ones. A finished build should have nothing else: it
+  inserts every node itself, so it holds no lazily loaded stubs, and an
+  insert that failed left a node behind only by failing - which took the
+  ALTER down before reaching here. So a count that does not match means
+  that abort was missed.
+
+  Writing the rest anyway is the one outcome to avoid: the skipped node is
+  still named by the neighbour lists that were written, which is the
+  graph-and-aux disagreement the load path refuses. Failing the ALTER
+  leaves the table as it was. */
+  if (err == DB_SUCCESS && written != b->graph->size()) {
+    ut_ad(written == b->graph->size());
+    ib::error(ER_IB_MSG_456)
+        << "Vector index " << b->index->name << " on table "
+        << b->index->table->name << " built " << b->graph->size()
+        << " graph nodes but only " << written
+        << " are complete; the index cannot be written and the statement"
+        << " will fail.";
+    err = DB_ERROR;
+  }
 
   err = vec_aux_bulk_finish(bulk, err);
 

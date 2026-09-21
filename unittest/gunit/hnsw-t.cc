@@ -39,10 +39,11 @@ class HnswTest : public ::testing::Test {
 };
 
 /* The walk a build uses to persist a finished graph: every complete node
-exactly once, with the same shapes insert_cb() is handed. Building with a
-persistor that does nothing and writing at the end is what keeps a node's
-row from being rewritten every time a later insert rewires it. */
-TEST_F(HnswTest, ForEachNodeVisitsEveryNodeOnce) {
+exactly once, in id order, with the same shapes insert_cb() is handed.
+Building with a persistor that does nothing and writing at the end is what
+keeps a node's row from being rewritten every time a later insert rewires
+it. */
+TEST_F(HnswTest, ForEachNodeSortedVisitsEveryNodeOnce) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
 
   constexpr size_t kRows = 40;
@@ -60,26 +61,40 @@ TEST_F(HnswTest, ForEachNodeVisitsEveryNodeOnce) {
   std::map<uint64_t, uint64_t> seen;
   std::vector<uint64_t> neighbour_ids;
   size_t visits = 0;
+  uint64_t previous_id = 0;
 
-  index.for_each_node([&](uint64_t id, uint64_t base_pk, const char *vec,
-                          uint8_t layer, TestHnsw::NeighborIdRange nbrs) {
-    ++visits;
-    EXPECT_EQ(0U, seen.count(id)) << "node " << id << " visited twice";
-    seen[id] = base_pk;
+  const HnswResult rc = index.for_each_node_sorted(
+      [&](uint64_t id, uint64_t base_pk, const char *vec, uint8_t layer,
+          TestHnsw::NeighborIdRange nbrs) -> HnswResult {
+        ++visits;
+        EXPECT_EQ(0U, seen.count(id)) << "node " << id << " visited twice";
+        seen[id] = base_pk;
 
-    /* The vector is the one that was inserted. */
-    ASSERT_NE(nullptr, vec);
-    float first = 0.0f;
-    memcpy(&first, vec, sizeof(first));
-    EXPECT_FLOAT_EQ(static_cast<float>(id - 1), first);
+        /* Ascending, so writing each node as it arrives is an append. */
+        EXPECT_LT(previous_id, id)
+            << "node " << id << " came after " << previous_id;
+        previous_id = id;
 
-    /* A layer's worth of neighbour slots, some empty. */
-    EXPECT_EQ((static_cast<size_t>(layer) + 2) * kM, nbrs.size());
-    for (uint64_t nid : nbrs) {
-      if (nid != 0) neighbour_ids.push_back(nid);
-    }
-  });
+        /* The vector is the one that was inserted. ADD_FAILURE rather than
+        ASSERT_NE: the latter expands to a bare `return`, which a visitor that
+        reports a result cannot use. */
+        if (vec == nullptr) {
+          ADD_FAILURE() << "node " << id << " visited with no vector";
+          return HNSW_ERROR_CB;
+        }
+        float first = 0.0f;
+        memcpy(&first, vec, sizeof(first));
+        EXPECT_FLOAT_EQ(static_cast<float>(id - 1), first);
 
+        /* A layer's worth of neighbour slots, some empty. */
+        EXPECT_EQ((static_cast<size_t>(layer) + 2) * kM, nbrs.size());
+        for (uint64_t nid : nbrs) {
+          if (nid != 0) neighbour_ids.push_back(nid);
+        }
+        return HNSW_SUCCESS;
+      });
+
+  EXPECT_EQ(HNSW_SUCCESS, rc);
   EXPECT_EQ(kRows, visits);
   EXPECT_EQ(expected, seen) << "walk did not report the graph that was built";
 
@@ -96,11 +111,16 @@ TEST_F(HnswTest, ForEachNodeVisitsEveryNodeOnce) {
   EXPECT_EQ(1U, expected.count(ep));
 }
 
-TEST_F(HnswTest, ForEachNodeOnEmptyGraph) {
+TEST_F(HnswTest, ForEachNodeSortedOnEmptyGraph) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);
   size_t visits = 0;
-  index.for_each_node([&](uint64_t, uint64_t, const char *, uint8_t,
-                          TestHnsw::NeighborIdRange) { ++visits; });
+  const HnswResult rc =
+      index.for_each_node_sorted([&](uint64_t, uint64_t, const char *, uint8_t,
+                                     TestHnsw::NeighborIdRange) -> HnswResult {
+        ++visits;
+        return HNSW_SUCCESS;
+      });
+  EXPECT_EQ(HNSW_SUCCESS, rc);
   EXPECT_EQ(0U, visits);
   EXPECT_EQ(0U, index.size());
   EXPECT_EQ(0U, index.entry_point_id());

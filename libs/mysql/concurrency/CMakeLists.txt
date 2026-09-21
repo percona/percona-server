@@ -83,3 +83,14 @@ LIBS_MYSQL_CREATE_LIBRARY(mysql_concurrency
   COMPILE_DEFINITIONS STANDALONE_LIBS_MYSQL
   DEPENDENCIES GenError
 )
+
+# GCC 16's -O2 analysis emits a false-positive -Wmaybe-uninitialized warning
+# inside the mysql::concurrency::Condition_variable_wrapper constructor when
+# inline_mysql_cond_init is inlined: it passes &m_cond to PSI's init_cond() as
+# a const void* identity token, before native_cond_init() writes it.  Same
+# pattern as the xpl::Cond and myrocks::Rdb_cond_var suppressions.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    condition_variable_wrapper.cpp
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()

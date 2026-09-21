@@ -11073,12 +11073,20 @@ bool JOIN::optimize_vector_query() {
   // Only used by the old optimizer.
   assert(!thd->lex->using_hypergraph_optimizer());
 
-  /* Only the canonical approximate-ANN shape activates the index:
-  a single-table block whose single ascending ORDER BY expression is a
+  /* Only the canonical approximate-ANN shape activates the index: a
+  single-table block whose single ascending ORDER BY expression is a
   distance call over the indexed column with a constant query vector,
-  under a finite LIMIT. Any other placement of a distance call (WHERE,
-  projection, no LIMIT) stays on the exact path - an approximate index
-  inside a filter silently drops qualifying rows. */
+  under a finite LIMIT. A distance call anywhere else on its own - in the
+  projection, in a filter - leaves the block on the exact path, as does
+  that same ORDER BY without a LIMIT.
+
+  A filter alongside a conforming ORDER BY is not a reason to refuse,
+  including one over the distance itself. The scan yields rows in
+  ascending distance and resumes until the graph is exhausted, so the
+  executor applies WHERE between rows and the LIMIT is what ends it: the
+  rows that come back are the nearest ones that pass, however many
+  candidates the filter consumed on the way. vector_search.test covers
+  both filter shapes. */
   if (primary_tables != 1 || const_tables != 0) return false;
   if (m_select_limit == HA_POS_ERROR) return false;
   if (order.order == nullptr || order.order->next != nullptr ||

@@ -76,6 +76,21 @@ EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, v, 'EUCLIDEAN') LIMIT 3;
 EXPLAIN SELECT id FROM t1 WHERE k = 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
 SELECT id FROM t1 WHERE k = 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
 
+--echo #
+--echo # The same with the filter on the distance itself. LIMIT 10 is past
+--echo # the three rows that qualify, so the scan has to exhaust the graph
+--echo # to establish there are no more.
+--echo #
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 3
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 3
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+
+--echo # And with a LIMIT the filter cannot reach past.
+SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 4
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+
 --echo # A LIMIT larger than the graph returns every row, once each: the
 --echo # resume loop widens until the graph is exhausted, then stops.
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;

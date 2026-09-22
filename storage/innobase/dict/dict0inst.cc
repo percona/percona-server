@@ -33,6 +33,7 @@ Created 2020-04-24 by Mayank Prasad */
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ha_innodb.h"
+#include "vec0aux.h"
 
 static void populate_to_be_instant_columns_low(
     const Alter_inplace_info *ha_alter_info, const TABLE *old_table,
@@ -223,6 +224,20 @@ bool Instant_ddl_impl<Table>::commit_instant_ddl() {
             dd::enum_column_types::LONGLONG);
         dd_set_hidden_unique_index(m_new_dd_tab->table().add_index(),
                                    FTS_DOC_ID_INDEX_NAME, col);
+      }
+      /* Mirror the FTS_DOC_ID re-add above for the hidden percona_vec_aux_id
+      column: INSTANT_VIRTUAL_ONLY may have dropped it from new_dd_tab
+      because virtual-column-only ALTERs rebuild the dd::Table from
+      altered_table->s, which has no SE-hidden cols. Re-attach so the DD on
+      commit still describes percona_vec_aux_id, otherwise the next reload
+      crashes in vec_add_aux_id_column / dd_open_table_one.
+
+      No dd_set_hidden_unique_index call: vector search, unlike FTS, does not
+      need a unique index on the hidden field. See phase 1 design. */
+      if (dd_find_column(&m_old_dd_tab->table(), VEC_AUX_ID_COL_NAME) &&
+          !dd_find_column(&m_new_dd_tab->table(), VEC_AUX_ID_COL_NAME)) {
+        dd_add_hidden_column(&m_new_dd_tab->table(), VEC_AUX_ID_COL_NAME,
+                             sizeof(uint64_t), dd::enum_column_types::LONGLONG);
       }
       dd_commit_inplace_no_change(true);
 
@@ -437,6 +452,10 @@ void Instant_ddl_impl<Table>::dd_commit_inplace_no_change(bool ignore_fts) {
     copy_dropped_columns(&m_old_dd_tab->table(), &m_new_dd_tab->table(),
                          UINT32_UNDEFINED);
   }
+
+  /* Before the FTS helper, which compares the two definitions' column
+  counts: a table owning percona_vec_aux_id must have it back by then. */
+  dd_add_vec_aux_id_column(m_new_dd_tab->table(), m_old_dd_tab->table());
 
   if (!ignore_fts) {
     dd_add_fts_doc_id_index(m_new_dd_tab->table(), m_old_dd_tab->table());

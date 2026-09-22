@@ -893,6 +893,10 @@ void dd_write_tablespace(dd::Tablespace *dd_space, space_id_t space_id,
 when old table has hidden fts doc id without fulltext index
 @param[in,out]  new_table       New dd table
 @param[in]      old_table       Old dd table */
+/** Re-add the hidden percona_vec_aux_id column to a new dd::Table that lost it
+@param[in,out]  new_table       New dd table
+@param[in]      old_table       Old dd table */
+void dd_add_vec_aux_id_column(dd::Table &new_table, const dd::Table &old_table);
 
 void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table);
 

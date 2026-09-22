@@ -1,0 +1,6 @@
+--source include/have_debug.inc
+
+--echo # Vector indexes on compressed tables, at an InnoDB page size of 4k.
+--echo # The body is shared with vector_compressed; only the page size the
+--echo # server was initialized with differs.
+--source ../include/vector_compressed.inc

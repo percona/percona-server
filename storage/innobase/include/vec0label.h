@@ -53,10 +53,15 @@ class Properties;
 class Vec_label_counter {
  public:
   /** Atomically assign the next percona_vec_aux_id for a row about to be
-  inserted. Valid ids start at 1. Written into the hidden percona_vec_aux_id
-  dfield by the INSERT path. See the implementation comment for the phase-1
-  persistence caveat. */
-  static uint64_t assign(dict_table_t *table);
+  written. Valid ids start at 1.
+  @param[in,out]  table    the table whose counter to advance
+  @param[in]      persist  true to make the advance durable at once, as every
+                           DML must; false only for a rebuild that labels the
+                           rows of a table it created, whose final counter
+                           commit_inplace_alter_table() writes into the new
+                           definition
+  @return the label */
+  static uint64_t assign(dict_table_t *table, bool persist);
 
   /** Write redo logs for the hidden vec_idx_id counter of a
   vector-indexed table when it advances past the persisted watermark -
@@ -84,6 +89,14 @@ class Vec_label_counter {
   @param[in]      se_private_data  its dd::Table::se_private_data */
   static void load_from_dd(dict_table_t *table,
                            const dd::Properties &se_private_data);
+
+  /** Capture the live label counter at the commit of an in-place ALTER,
+  for write_to_dd() to store in the new definition.
+  @param[in]      old_table  the table being altered
+  @param[in,out]  new_table  the table the ALTER leaves behind, or nullptr
+  @return the counter, or 0 if neither table has the hidden column */
+  static uint64_t capture_at_alter_commit(const dict_table_t *old_table,
+                                          dict_table_t *new_table);
 
  private:
   /** Raise the persisted watermark of a table's vector label counter to

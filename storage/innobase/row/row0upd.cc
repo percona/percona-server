@@ -2600,9 +2600,10 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
   rolled-back insert consumes one, and only the label that reaches the
   inserted record gets a node. The first pass cannot have built one: it
   only gets that far on DB_SUCCESS. */
+  /* The column exists exactly while the table has a vector index. */
   const bool vec_new_node =
-      DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL) &&
-      vec_indexed_col_no(table) != ULINT_UNDEFINED;
+      DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL);
+  ut_ad(!vec_new_node || vec_indexed_col_no(table) != ULINT_UNDEFINED);
 
   if (vec_new_node && vec_label_from_dtuple(table, node->upd_row) ==
                           vec_label_from_dtuple(table, node->row)) {

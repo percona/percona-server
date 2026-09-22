@@ -1,13 +1,10 @@
 --echo #
 --echo # PS-11299: ALTER ADD INDEX on a table with existing data.
 --echo #
---echo # The ADD forces a rebuild (percona_vec_aux_id must materialise on a
---echo # fresh dict_table_t with current_row_version = 0; see PS-11299
---echo # rebuild-forcing rule). The rebuild's row copy must:
---echo #   - populate percona_vec_aux_id on each copied row via the per-table
---echo #     counter (commit 1's helper);
---echo #   - leave the vector index aux .ibd empty (HNSW build is
---echo #     PS-11300, no row-level work here).
+--echo # The first ADD forces a rebuild: percona_vec_aux_id must materialise
+--echo # on a fresh dict_table_t with current_row_version = 0. The rebuild's
+--echo # row copy gives each row a label from the per-table counter, and the
+--echo # graph and its aux are built from the same scan.
 --echo #
 
 --let $MYSQLD_DATADIR = `SELECT @@datadir`
@@ -37,7 +34,7 @@ SHOW CREATE TABLE t1;
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
 SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
 
---echo # === Aux .ibd created, holds 0 user rows (HNSW = PS-11300) ===
+--echo # === Aux .ibd created ===
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
@@ -46,7 +43,7 @@ INSERT INTO t1 VALUES
   (6, 60, STRING_TO_VECTOR('[6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]'));
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
 
---echo # === DROP INDEX leaves the rows intact ===
+--echo # === DROP INDEX rebuilds without the column, rows intact ===
 ALTER TABLE t1 DROP KEY v;
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
 

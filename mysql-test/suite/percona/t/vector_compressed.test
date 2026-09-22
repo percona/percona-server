@@ -1,0 +1,7 @@
+--source include/have_debug.inc
+
+--echo # Vector indexes on compressed tables, at the default InnoDB page
+--echo # size. vector_compressed_4k and vector_compressed_64k run the same
+--echo # body at the smallest page size InnoDB has and at one with no
+--echo # compressed format at all.
+--source ../include/vector_compressed.inc

@@ -1,0 +1,43 @@
+--source include/have_debug.inc
+--echo #
+--echo # innodb_hnsw_max_memory reached during a parallel INPLACE build must be
+--echo # reported as the ceiling, as on every other path.
+--echo #
+--echo # The build inserts into the graph on the scan threads, which have no
+--echo # session. The ceiling was reported from there through current_thd, so
+--echo # on a scan thread nothing was reported and the ALTER failed with the
+--echo # generic out-of-memory text instead - "check ulimit, add swap" - for a
+--echo # limit the user set. The scan thread now returns an error of its own
+--echo # for the ceiling, and the ALTER reports it like any other.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+ALTER TABLE t1 DROP KEY vk;
+
+--echo # Enough leaf pages for the scan to be split across threads.
+SET @@global.innodb_limit_optimistic_insert_debug = 2;
+--disable_query_log
+SET SESSION cte_max_recursion_depth = 5000;
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < 1000)
+SELECT n, STRING_TO_VECTOR(CONCAT('[', n, ',0,0,0]')) FROM seq;
+--enable_query_log
+SET @@global.innodb_limit_optimistic_insert_debug = 0;
+
+--echo # A ceiling the pre-flight check passes and the first nodes cross.
+SET @old_max = @@global.innodb_hnsw_max_memory;
+SET GLOBAL innodb_hnsw_max_memory = 1;
+SET SESSION innodb_parallel_read_threads = 8;
+--error ER_CAPACITY_EXCEEDED
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SHOW WARNINGS;
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+SET GLOBAL innodb_hnsw_max_memory = @old_max;
+
+--echo # Nothing was left behind, and with room the build succeeds.
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[500,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+DROP TABLE t1;

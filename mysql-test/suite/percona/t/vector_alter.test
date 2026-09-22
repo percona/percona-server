@@ -1,0 +1,220 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11299: ALTER TABLE interactions with vector indexes.
+--echo # Section A/B: column ops on tables that already have a vector index.
+--echo # Section C: non-vector secondary index ADD/DROP alongside vector.
+--echo # Section D: ADD INDEX after INSTANT column ADD (forces rebuild).
+--echo # Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
+--echo # Section F: DROP vector index then INSTANT ADD COLUMN.
+--echo # Section G: table rebuilds with a vector index.
+--echo #
+--echo # Adding the first vector index to a table, and dropping the last
+--echo # one, add and remove the hidden label column; those are in
+--echo # vector_first_add_inplace.test and vector_drop_last_index.test.
+--echo #
+--echo # ALGORITHM=BULK_LOAD is not covered here - it is not in the
+--echo # community server, so there is nothing to run it against. If it
+--echo # ever ships, this file is the place to assert it is refused on a
+--echo # table with a vector index.
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+
+--echo #
+--echo # === Section A: ADD COLUMN on a table that already has a vector index
+--echo #
+
+CREATE TABLE ta1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+
+--echo # A.1 ADD COLUMN ... ALGORITHM=INSTANT is refused while the table has
+--echo # a vector index. That is phase-one conservatism, not a correctness
+--echo # requirement.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE ta1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+--echo # Without ALGORITHM=INSTANT the server picks INPLACE.
+ALTER TABLE ta1 ADD COLUMN c1 INT;
+SHOW CREATE TABLE ta1;
+
+--echo # A.2 ADD COLUMN ... ALGORITHM=INPLACE works. It rebuilds, and the
+--echo # rebuild recreates the vector index along with everything else, so
+--echo # the graph comes back from the copied rows. Not ONLINE - LOCK=SHARED
+--echo # - because the row log cannot maintain a graph.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=NONE;
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE ta1;
+
+--echo # A.3 ADD COLUMN ... ALGORITHM=COPY (full rebuild — aux .ibd gets a new id)
+ALTER TABLE ta1 ADD COLUMN c3 INT, ALGORITHM=COPY;
+SHOW CREATE TABLE ta1;
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # A.4 Default ADD COLUMN (server picks algorithm)
+ALTER TABLE ta1 ADD COLUMN c4 INT;
+SHOW CREATE TABLE ta1;
+
+DROP TABLE ta1;
+
+--echo #
+--echo # === Section B: DROP COLUMN on a table with a vector index
+--echo #
+
+CREATE TABLE tb1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  c1 INT, c2 INT, c3 INT,
+  VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+
+--echo # B.1 DROP COLUMN ... ALGORITHM=INSTANT is refused, as in A.1.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
+--echo # Without ALGORITHM=INSTANT the server picks INPLACE.
+ALTER TABLE tb1 DROP COLUMN c1;
+
+--echo # B.2 DROP COLUMN ... ALGORITHM=COPY
+ALTER TABLE tb1 DROP COLUMN c2, ALGORITHM=COPY;
+SHOW CREATE TABLE tb1;
+
+DROP TABLE tb1;
+
+--echo #
+--echo # === Section C: ADD/DROP non-vector secondary index alongside vector
+--echo #
+
+CREATE TABLE tc1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  c INT,
+  VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+
+--echo # C.1 ADD a non-vector secondary index
+ALTER TABLE tc1 ADD INDEX ix_c (c);
+SHOW INDEXES FROM tc1;
+
+--echo # C.2 DROP that secondary index
+ALTER TABLE tc1 DROP INDEX ix_c;
+SHOW INDEXES FROM tc1;
+
+DROP TABLE tc1;
+
+--echo #
+--echo # === Section D: ADD INDEX after INSTANT ADD COLUMN
+--echo #
+--echo # Until PS-11299's rebuild-forcing fix, this crashed in dd_write_table()
+--echo # because percona_vec_aux_id was missing from the rebuilt dict_table_t while
+--echo # the dd::Table carried it. ADD INDEX now forces a rebuild that
+--echo # materializes percona_vec_aux_id on a fresh dict_table_t (current_row_version=0),
+--echo # mirroring how ADD FULLTEXT forces a rebuild via add_fts_doc_id.
+
+CREATE TABLE td1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL
+);
+
+--echo # D.1 INSTANT ADD COLUMN bumps current_row_version on the base table.
+ALTER TABLE td1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+ALTER TABLE td1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+
+--echo # D.2 Adding the first vector index now succeeds — rebuild forced.
+CREATE VECTOR INDEX vix ON td1 (v) TYPE hnsw (M = 6);
+SHOW CREATE TABLE td1;
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+DROP TABLE td1;
+
+--echo #
+--echo # === Section E: ADD INDEX after INSTANT DROP COLUMN
+--echo #
+
+CREATE TABLE te1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  c1 INT, c2 INT
+);
+
+ALTER TABLE te1 DROP COLUMN c1, ALGORITHM=INSTANT;
+CREATE VECTOR INDEX vix ON te1 (v) TYPE hnsw (M = 6);
+SHOW CREATE TABLE te1;
+DROP TABLE te1;
+
+--echo #
+--echo # === Section F: DROP vector index then INSTANT ADD COLUMN
+--echo #
+--echo # Dropping the last vector index takes the hidden percona_vec_aux_id
+--echo # column with it, so the table is a plain one again and INSTANT ADD
+--echo # COLUMN is allowed. A row read afterwards must map every column.
+
+CREATE TABLE tf1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+INSERT INTO tf1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+ALTER TABLE tf1 DROP KEY v;
+ALTER TABLE tf1 ADD COLUMN c1 INT DEFAULT 5, ALGORITHM=INSTANT;
+SELECT id, c1 FROM tf1;
+SHOW CREATE TABLE tf1;
+DROP TABLE tf1;
+
+--echo #
+--echo # === Section G: table rebuilds with a vector index ===
+--echo # An INPLACE rebuild builds every index of the new table, the vector
+--echo # index among them, from one scan of the old rows, keeping their
+--echo # labels. It runs under LOCK=SHARED, never LOCK=NONE.
+
+CREATE TABLE tg1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(8) NOT NULL,
+  VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+
+--echo # G.1 Explicit ALGORITHM=INPLACE rebuild: supported. The vector
+--echo # index is rebuilt with the table - see vector_alter_rebuild.test
+--echo # for the full set of rebuild shapes.
+ALTER TABLE tg1 FORCE, ALGORITHM=INPLACE;
+
+--echo # G.2 The server picks INPLACE too: an INPLACE rebuild reports
+--echo # 0 rows affected, where COPY would report 1.
+--enable_info
+ALTER TABLE tg1 FORCE;
+--disable_info
+
+--echo # G.3 OPTIMIZE TABLE is the same rebuild: data survives, one aux .ibd.
+OPTIMIZE TABLE tg1;
+SELECT id, VECTOR_TO_STRING(v) FROM tg1 FORCE INDEX (PRIMARY);
+--replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo # G.4 The first ADD INDEX runs INPLACE: the rebuild adds the hidden
+--echo # label column and builds the graph from the same scan, so the index
+--echo # is populated, never silently empty.
+CREATE TABLE tg2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+INSERT INTO tg2 VALUES (1, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
+ALTER TABLE tg2 ADD VECTOR KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/tg2';
+SELECT @@session.innodb_interpreter_output;
+SELECT id, VECTOR_TO_STRING(v) FROM tg2 FORCE INDEX (PRIMARY);
+
+DROP TABLE tg1, tg2;
+
+--echo # After all DROP TABLEs, no aux .ibd left over.
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+
+--echo #
+--echo # LOAD DATA ALGORITHM=BULK is refused for a table with the hidden
+--echo # column, mirroring the FULLTEXT refusal beside it: BULK builds index
+--echo # entries directly and never reaches the row-insert path that writes
+--echo # percona_vec_aux_id. There is no test for it here because BULK is not
+--echo # in the community build; if it is ever published, this is where the
+--echo # refusal belongs.
+--echo #

@@ -1,0 +1,61 @@
+# Vector indexes on compressed tables, at an InnoDB page size of 64k.
+# The body is shared with vector_compressed; only the page size the
+# server was initialized with differs.
+#
+# PS-11299: vector indexes on compressed tables.
+#
+# Two separate questions that are easy to run together and should not
+# be. A vector index refuses a KEY_BLOCK_SIZE of its own - it has no
+# B-tree, so there are no pages of its own for the number to describe.
+# The table underneath it is a different matter: ROW_FORMAT=COMPRESSED
+# there is supported, and the auxiliary table holding the graph takes
+# the base table's format, so the graph is compressed along with it.
+#
+# This body runs at three page sizes, one wrapper test each. Above
+# 16k InnoDB has no
+# compressed format at all, so the compressed half is refused by
+# InnoDB rather than by anything of ours, and the test says so.
+#
+# The page size this run got. If it is not the one the wrapper's
+# .opt file asked for then the rest of the file is running somewhere
+# else and proves nothing about that page size.
+SELECT @@innodb_page_size;
+@@innodb_page_size
+65536
+#
+# === KEY_BLOCK_SIZE on the vector index itself: always refused ===
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4) KEY_BLOCK_SIZE=8);
+ERROR 42000: This version of MySQL doesn't yet support 'KEY_BLOCK_SIZE for vector indexes'
+# And through ALTER, which is a different code path to the same rule.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4) KEY_BLOCK_SIZE=8;
+ERROR 42000: This version of MySQL doesn't yet support 'KEY_BLOCK_SIZE for vector indexes'
+# Without it the same statement is fine, so the refusal is about
+# KEY_BLOCK_SIZE and not about the rest of the clause.
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# === Above 16k there is no compressed row format ===
+#
+# Nothing vector-specific here: InnoDB refuses the table itself, with
+# or without a vector index on it. Recorded so the boundary is
+# visible rather than assumed.
+#
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4)) ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine for 't2' doesn't have this option
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, c INT) ROW_FORMAT=COMPRESSED;
+ERROR HY000: Table storage engine for 't2' doesn't have this option
+# Nothing of ours left behind:
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format

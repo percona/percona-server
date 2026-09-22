@@ -148,8 +148,8 @@ id	VECTOR_TO_STRING(v)
 101	[0.00000e+00,0.00000e+00]
 DROP TABLE t1, t2;
 #
-# Dropping the last vector index retains the hidden aux-id column,
-# but a later PK UPDATE must not trigger vector maintenance when no
+# Dropping the last vector index removes the hidden aux-id column,
+# and a later PK UPDATE must not trigger vector maintenance when no
 # vector index exists.
 #
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,

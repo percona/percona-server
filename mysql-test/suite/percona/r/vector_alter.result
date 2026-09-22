@@ -1,0 +1,264 @@
+#
+# PS-11299: ALTER TABLE interactions with vector indexes.
+# Section A/B: column ops on tables that already have a vector index.
+# Section C: non-vector secondary index ADD/DROP alongside vector.
+# Section D: ADD INDEX after INSTANT column ADD (forces rebuild).
+# Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
+# Section F: DROP vector index then INSTANT ADD COLUMN.
+# Section G: table rebuilds with a vector index.
+#
+# Adding the first vector index to a table, and dropping the last
+# one, add and remove the hidden label column; those are in
+# vector_first_add_inplace.test and vector_drop_last_index.test.
+#
+# ALGORITHM=BULK_LOAD is not covered here - it is not in the
+# community server, so there is nothing to run it against. If it
+# ever ships, this file is the place to assert it is refused on a
+# table with a vector index.
+#
+#
+# === Section A: ADD COLUMN on a table that already has a vector index
+#
+CREATE TABLE ta1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+# A.1 ADD COLUMN ... ALGORITHM=INSTANT is refused while the table has
+# a vector index. That is phase-one conservatism, not a correctness
+# requirement.
+ALTER TABLE ta1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# Without ALGORITHM=INSTANT the server picks INPLACE.
+ALTER TABLE ta1 ADD COLUMN c1 INT;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# A.2 ADD COLUMN ... ALGORITHM=INPLACE works. It rebuilds, and the
+# rebuild recreates the vector index along with everything else, so
+# the graph comes back from the copied rows. Not ONLINE - LOCK=SHARED
+# - because the row log cannot maintain a graph.
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# A.3 ADD COLUMN ... ALGORITHM=COPY (full rebuild — aux .ibd gets a new id)
+ALTER TABLE ta1 ADD COLUMN c3 INT, ALGORITHM=COPY;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+percona_vec_hnsw_<TID>_<IID>.ibd
+# A.4 Default ADD COLUMN (server picks algorithm)
+ALTER TABLE ta1 ADD COLUMN c4 INT;
+SHOW CREATE TABLE ta1;
+Table	Create Table
+ta1	CREATE TABLE `ta1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE ta1;
+#
+# === Section B: DROP COLUMN on a table with a vector index
+#
+CREATE TABLE tb1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c1 INT, c2 INT, c3 INT,
+VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+# B.1 DROP COLUMN ... ALGORITHM=INSTANT is refused, as in A.1.
+ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# Without ALGORITHM=INSTANT the server picks INPLACE.
+ALTER TABLE tb1 DROP COLUMN c1;
+# B.2 DROP COLUMN ... ALGORITHM=COPY
+ALTER TABLE tb1 DROP COLUMN c2, ALGORITHM=COPY;
+SHOW CREATE TABLE tb1;
+Table	Create Table
+tb1	CREATE TABLE `tb1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c3` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tb1;
+#
+# === Section C: ADD/DROP non-vector secondary index alongside vector
+#
+CREATE TABLE tc1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c INT,
+VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+# C.1 ADD a non-vector secondary index
+ALTER TABLE tc1 ADD INDEX ix_c (c);
+SHOW INDEXES FROM tc1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tc1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+tc1	1	v	1	v	NULL	0	NULL	NULL		VECTOR			YES	NULL
+tc1	1	ix_c	1	c	A	0	NULL	NULL	YES	BTREE			YES	NULL
+# C.2 DROP that secondary index
+ALTER TABLE tc1 DROP INDEX ix_c;
+SHOW INDEXES FROM tc1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+tc1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+tc1	1	v	1	v	NULL	0	NULL	NULL		VECTOR			YES	NULL
+DROP TABLE tc1;
+#
+# === Section D: ADD INDEX after INSTANT ADD COLUMN
+#
+# Until PS-11299's rebuild-forcing fix, this crashed in dd_write_table()
+# because percona_vec_aux_id was missing from the rebuilt dict_table_t while
+# the dd::Table carried it. ADD INDEX now forces a rebuild that
+# materializes percona_vec_aux_id on a fresh dict_table_t (current_row_version=0),
+# mirroring how ADD FULLTEXT forces a rebuild via add_fts_doc_id.
+CREATE TABLE td1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL
+);
+# D.1 INSTANT ADD COLUMN bumps current_row_version on the base table.
+ALTER TABLE td1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+ALTER TABLE td1 ADD COLUMN c2 INT, ALGORITHM=INSTANT;
+# D.2 Adding the first vector index now succeeds — rebuild forced.
+CREATE VECTOR INDEX vix ON td1 (v) TYPE hnsw (M = 6);
+SHOW CREATE TABLE td1;
+Table	Create Table
+td1	CREATE TABLE `td1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vix` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+percona_vec_hnsw_<TID>_<IID>.ibd
+DROP TABLE td1;
+#
+# === Section E: ADD INDEX after INSTANT DROP COLUMN
+#
+CREATE TABLE te1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+c1 INT, c2 INT
+);
+ALTER TABLE te1 DROP COLUMN c1, ALGORITHM=INSTANT;
+CREATE VECTOR INDEX vix ON te1 (v) TYPE hnsw (M = 6);
+SHOW CREATE TABLE te1;
+Table	Create Table
+te1	CREATE TABLE `te1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vix` (`v`) USING `hnsw` (`M`=6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE te1;
+#
+# === Section F: DROP vector index then INSTANT ADD COLUMN
+#
+# Dropping the last vector index takes the hidden percona_vec_aux_id
+# column with it, so the table is a plain one again and INSTANT ADD
+# COLUMN is allowed. A row read afterwards must map every column.
+CREATE TABLE tf1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+INSERT INTO tf1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+ALTER TABLE tf1 DROP KEY v;
+ALTER TABLE tf1 ADD COLUMN c1 INT DEFAULT 5, ALGORITHM=INSTANT;
+SELECT id, c1 FROM tf1;
+id	c1
+1	5
+SHOW CREATE TABLE tf1;
+Table	Create Table
+tf1	CREATE TABLE `tf1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(8) NOT NULL,
+  `c1` int DEFAULT '5',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE tf1;
+#
+# === Section G: table rebuilds with a vector index ===
+# An INPLACE rebuild builds every index of the new table, the vector
+# index among them, from one scan of the old rows, keeping their
+# labels. It runs under LOCK=SHARED, never LOCK=NONE.
+CREATE TABLE tg1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+VECTOR KEY (v) TYPE hnsw (M = 6)
+);
+INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
+# G.1 Explicit ALGORITHM=INPLACE rebuild: supported. The vector
+# index is rebuilt with the table - see vector_alter_rebuild.test
+# for the full set of rebuild shapes.
+ALTER TABLE tg1 FORCE, ALGORITHM=INPLACE;
+# G.2 The server picks INPLACE too: an INPLACE rebuild reports
+# 0 rows affected, where COPY would report 1.
+ALTER TABLE tg1 FORCE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# G.3 OPTIMIZE TABLE is the same rebuild: data survives, one aux .ibd.
+OPTIMIZE TABLE tg1;
+Table	Op	Msg_type	Msg_text
+test.tg1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.tg1	optimize	status	OK
+SELECT id, VECTOR_TO_STRING(v) FROM tg1 FORCE INDEX (PRIMARY);
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00,1.00000e+00]
+percona_vec_hnsw_<TID>_<IID>.ibd
+# G.4 The first ADD INDEX runs INPLACE: the rebuild adds the hidden
+# label column and builds the graph from the same scan, so the index
+# is populated, never silently empty.
+CREATE TABLE tg2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+INSERT INTO tg2 VALUES (1, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
+ALTER TABLE tg2 ADD VECTOR KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/tg2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1 distinct_ids=1 distinct_base_pks=1 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id, VECTOR_TO_STRING(v) FROM tg2 FORCE INDEX (PRIMARY);
+id	VECTOR_TO_STRING(v)
+1	[2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00,2.00000e+00]
+DROP TABLE tg1, tg2;
+# After all DROP TABLEs, no aux .ibd left over.
+#
+# LOAD DATA ALGORITHM=BULK is refused for a table with the hidden
+# column, mirroring the FULLTEXT refusal beside it: BULK builds index
+# entries directly and never reaches the row-insert path that writes
+# percona_vec_aux_id. There is no test for it here because BULK is not
+# in the community build; if it is ever published, this is where the
+# refusal belongs.
+#

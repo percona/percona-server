@@ -1,0 +1,18 @@
+CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY k(v)) ENGINE=RocksDB;
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT v FROM t WHERE id=101;
+v
+101
+SET SESSION debug='+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold=100;
+SET SESSION rocksdb_force_index_records_in_range=0;
+include/assert.inc [A hot key must not exhaust the per-dive skip budget]
+# The range estimate is 20 despite retained versions of one key.
+include/assert.inc [The counted rows must not exhaust the per-dive skip budget]
+SET SESSION debug='-d,myrocks_zero_records_in_range_estimate';
+ROLLBACK;
+DROP TABLE t;

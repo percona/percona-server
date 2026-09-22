@@ -464,12 +464,6 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
       break;
 
     default:
-      /* For encryption tablespace, we skip the retry step,
-      since it is only because the keyring is not ready. */
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && (err != DB_CORRUPTION)) {
-        return (err);
-      }
-
       /* Re-open the file in read-write mode  Attempt to restore
       page 0 from doublewrite and read the space ID from a survey
       of the first few pages. */

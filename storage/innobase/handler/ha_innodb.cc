@@ -2984,9 +2984,12 @@ extensions.
 @return whether stats for slow query log InnoDB extensions should be logged
 */
 static bool innobase_slow_log_verbose(THD *thd) noexcept {
-  return thd && thd_opt_slow_log() &&
-         unlikely(thd_log_slow_verbosity(thd) & (1ULL << SLOG_V_INNODB)) &&
-         !thd_is_background_thread(thd);
+  /* The background thread check has to come first: internal THDs created for
+  the parallel DDL scan workers have their THD::variables poisoned (see
+  ddl::Parallel_cursor::scan()), so reading log_slow_verbosity out of them
+  trips AddressSanitizer. Such threads never log slow queries anyway. */
+  return thd && thd_opt_slow_log() && !thd_is_background_thread(thd) &&
+         unlikely(thd_log_slow_verbosity(thd) & (1ULL << SLOG_V_INNODB));
 }
 
 /** Initializes some fields in an InnoDB transaction object. */

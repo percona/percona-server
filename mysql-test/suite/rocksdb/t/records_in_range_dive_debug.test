@@ -1,0 +1,298 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+# PS-10110: records_in_range() returned 1 row for narrow ranges within a
+# single SST block or memtable range (RocksDB's size approximations are
+# block-granularity and return 0). Now refined via a bounded index dive
+# (rocksdb_records_in_range_dive_threshold): exact count below the
+# threshold, a lower-bound estimate of the threshold above it.
+#
+# No FORCE INDEX below - it makes MySQL skip records_in_range() entirely.
+#
+# Requires a debug build: memtable-path cases (t1, t2, t4, t5) pin the
+# pre-dive estimate to 0 via myrocks_zero_records_in_range_estimate, since
+# GetApproximateMemTableStats()'s raw sampling isn't reproducible run to
+# run. This only forces the dive decision; the dive itself still scans
+# real data, so counts are genuine.
+#
+# Keep large backgrounds (t1: 20000+ rows, t2: 2000) so the separate
+# stats.records * 0.99 clamp in records_in_range() never truncates an
+# *exact* dive count - a real flaky failure hit during development.
+# Floor-of-1 assertions (dive-bypassed/failed cases) aren't affected and
+# need no large background.
+
+CREATE TABLE t1 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       a INT NOT NULL,
+       b INT NOT NULL,
+       KEY ka(a),
+       KEY kb(b) comment 'cfname=rev:cf1'
+) ENGINE = rocksdb;
+
+# 20000 rows over a = b = 1..1000 (20 each), 200 rows at a = b = 5000,
+# and boundary markers at 4999/5001 (upper end) and -1/0 (lower end) so
+# endpoint off-by-ones change the counted rows instead of being masked.
+--disable_query_log
+INSERT INTO t1(a, b) VALUES (-1, -1);
+INSERT INTO t1(a, b) VALUES (0, 0);
+let $i = 1;
+while ($i <= 1000) {
+  eval INSERT INTO t1(a, b) VALUES
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i),
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i),
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i),
+      ($i,$i),($i,$i),($i,$i),($i,$i),($i,$i);
+  inc $i;
+}
+INSERT INTO t1(a, b) VALUES (4999, 4999);
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t1(a, b) VALUES (5000, 5000);
+  inc $i;
+}
+INSERT INTO t1(a, b) VALUES (5001, 5001);
+--enable_query_log
+
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+# Pin the pre-dive estimate here too: the raw memtable sample can
+# occasionally skip the dive otherwise (a real flaky failure hit during
+# development).
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+
+--echo #
+--echo # Memtable-only: the dive must count the narrow range exactly (200),
+--echo # instead of the pre-fix estimate of 1.
+--echo #
+explain select * from t1 where a = 5000;
+explain select * from t1 where a > 4999 and a < 5001;
+
+--echo # kb spot check (reverse CF); full boundary matrix is below, SST path
+--echo # only (endpoint logic is state-independent).
+explain select * from t1 where b = 5000;
+
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+
+--echo #
+--echo # SST path: flush the memtable; the dive still counts the narrow
+--echo # range exactly.
+--echo #
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t1;
+explain select * from t1 where a = 5000;
+explain select * from t1 where a > 4999 and a < 5001;
+
+--echo # kb (reverse CF) endpoint matrix: equality, one-sided lower/upper
+--echo # (exclusive/inclusive), and two-sided range. Each picks a different
+--echo # row count, so an off-by-one changes the result instead of hiding.
+explain select * from t1 where b = 5000;
+explain select * from t1 where b > 4999;
+explain select * from t1 where b >= 4999;
+explain select * from t1 where b < 0;
+explain select * from t1 where b <= 0;
+explain select * from t1 where b > 4999 and b < 5001;
+explain select * from t1 where b >= 4999 and b <= 5001;
+
+--echo #
+--echo # An empty range stays at the conventional 1 row.
+--echo #
+explain select * from t1 where a = 9999;
+
+--echo #
+--echo # Deterministic single-block CF (kc): GetApproximateSizes() is
+--echo # guaranteed 0 here - the exact bug-report scenario.
+--echo #
+CREATE TABLE t2 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 100) {
+  eval INSERT INTO t2(c) VALUES ($i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t2(c) VALUES (50);
+  inc $i;
+}
+# A second, narrower group (3 keys): contrasts with c = 50 (201 keys)
+# below to cover both a small and large true count.
+let $i = 1;
+while ($i <= 3) {
+  INSERT INTO t2(c) VALUES (777);
+  inc $i;
+}
+--enable_query_log
+
+--echo #
+--echo # SST path.
+--echo #
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t2;
+
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 777;
+explain select * from t2 where c = 50;
+
+--echo # Cap semantics, SST path: dive reads at most threshold keys, so a
+--echo # larger range estimates as the threshold (a lower bound).
+SET SESSION rocksdb_records_in_range_dive_threshold = 50;
+explain select * from t2 where c = 50;
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
+explain select * from t2 where c = 50;
+
+--echo # 0 disables the dive, SST path: the PS-10110 bug both ways - wide
+--echo # group (201) floors to 1, narrow group (3) balloons to the block's
+--echo # full count.
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select * from t2 where c = 50;
+explain select * from t2 where c = 777;
+
+--echo #
+--echo # rocksdb_skip_fill_cache is honored by the dive's own iterator too.
+--echo # Needs a fresh table/CF: t2 is already cached by now.
+--echo #
+CREATE TABLE t6 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive_cache'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 50) {
+  eval INSERT INTO t6(c) VALUES ($i);
+  inc $i;
+}
+--enable_query_log
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t6;
+
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+# Pause background work for this whole measurement window: a background
+# flush/compaction landing between the two block-cache reads would touch
+# the same global, process-wide counter and produce a spurious --die.
+SET GLOBAL rocksdb_pause_background_work = 1;
+--let $cache_before = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_block_cache_data_bytes_insert', Value, 1)
+SET SESSION rocksdb_skip_fill_cache = 1;
+explain select * from t6 where c = 25;
+--let $cache_after_skip = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_block_cache_data_bytes_insert', Value, 1)
+if ($cache_after_skip != $cache_before) {
+  --die rocksdb_skip_fill_cache did not prevent the dive from filling the block cache
+}
+
+--echo # Same block, default fill_cache: previous read left it uncached.
+SET SESSION rocksdb_skip_fill_cache = DEFAULT;
+explain select * from t6 where c = 25;
+--let $cache_after_fill = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_block_cache_data_bytes_insert', Value, 1)
+if ($cache_after_fill == $cache_before) {
+  --die the dive did not fill the block cache with rocksdb_skip_fill_cache disabled
+}
+SET GLOBAL rocksdb_pause_background_work = DEFAULT;
+
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t6;
+
+--echo #
+--echo # Same scenario, memtable path (pre-flush, pre-dive estimate pinned).
+--echo #
+CREATE TABLE t2 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+# Background values start at 10000 so the range (10000..11999) cannot
+# collide with the c = 50 / c = 777 markers below.
+--disable_query_log
+let $i = 1;
+while ($i <= 2000) {
+  eval INSERT INTO t2(c) VALUES (10000 + $i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t2(c) VALUES (50);
+  inc $i;
+}
+# A second, narrower group (3 keys), contrasting with c = 50 (201 keys).
+let $i = 1;
+while ($i <= 3) {
+  INSERT INTO t2(c) VALUES (777);
+  inc $i;
+}
+--enable_query_log
+
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 777;
+explain select * from t2 where c = 50;
+
+--echo # Dive-failure fallback: myrocks_records_in_range_dive_fail forces
+--echo # rdb_index_dive_in_range() to fail; caller must fall back to the
+--echo # pre-dive estimate (floored to 1), not trust a partial scan.
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate,myrocks_records_in_range_dive_fail';
+explain select * from t2 where c = 50;
+
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate,myrocks_records_in_range_dive_fail';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t2;
+
+--echo #
+--echo # TTL indexes bypass the dive (kd.has_ttl()): a raw iterator would
+--echo # count not-yet-compacted expired rows as live. Floor of 1 stays
+--echo # even at a generous threshold.
+--echo #
+CREATE TABLE t4 (
+       i INT PRIMARY KEY AUTO_INCREMENT,
+       c INT NOT NULL,
+       ts BIGINT UNSIGNED NOT NULL,
+       KEY kc(c) comment 'cfname=cf_dive_ttl'
+) ENGINE = rocksdb COMMENT = 'ttl_duration=100000;ttl_col=ts';
+# No large background needed: this only asserts the floor of 1 (unlike
+# t2's exact-count checks), immune to the stats.records * 0.99 clamp.
+--disable_query_log
+let $i = 1;
+while ($i <= 200) {
+  INSERT INTO t4(c, ts) VALUES (50, UNIX_TIMESTAMP());
+  inc $i;
+}
+--enable_query_log
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t4 where c = 50;
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t4;
+
+--echo #
+--echo # Partial indexes bypass the dive too (kd.is_partial_index()). FORCE
+--echo # INDEX materializes ik1's group first (lazy, read-triggered; a plain
+--echo # SELECT would use PRIMARY instead and leave it unmaterialized), so
+--echo # a removed guard would be caught: the dive would find real entries,
+--echo # not an empty group.
+--echo #
+CREATE TABLE t5 (
+       i INT NOT NULL,
+       j INT NOT NULL,
+       PRIMARY KEY (i, j),
+       KEY ik1 (i, j) comment 'cfname=cf_dive_partial;partial_group_keyparts=1;partial_group_threshold=10'
+) ENGINE = rocksdb;
+--disable_query_log
+let $i = 1;
+while ($i <= 50) {
+  eval INSERT INTO t5(i, j) VALUES (42, $i);
+  inc $i;
+}
+SELECT COUNT(*) FROM t5 FORCE INDEX (ik1) WHERE i = 42 INTO @dummy;
+--enable_query_log
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t5 where i = 42;
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t5;

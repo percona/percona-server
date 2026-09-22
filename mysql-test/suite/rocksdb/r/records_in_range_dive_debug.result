@@ -1,0 +1,260 @@
+CREATE TABLE t1 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+a INT NOT NULL,
+b INT NOT NULL,
+KEY ka(a),
+KEY kb(b) comment 'cfname=rev:cf1'
+) ENGINE = rocksdb;
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+#
+# Memtable-only: the dive must count the narrow range exactly (200),
+# instead of the pre-fix estimate of 1.
+#
+explain select * from t1 where a = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ka	ka	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 5000)
+explain select * from t1 where a > 4999 and a < 5001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	ka	ka	4	NULL	200	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` > 4999) and (`test`.`t1`.`a` < 5001))
+# kb spot check (reverse CF); full boundary matrix is below, SST path
+# only (endpoint logic is state-independent).
+explain select * from t1 where b = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	kb	kb	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 5000)
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+#
+# SST path: flush the memtable; the dive still counts the narrow
+# range exactly.
+#
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain select * from t1 where a = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ka	ka	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 5000)
+explain select * from t1 where a > 4999 and a < 5001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	ka	ka	4	NULL	200	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` > 4999) and (`test`.`t1`.`a` < 5001))
+# kb (reverse CF) endpoint matrix: equality, one-sided lower/upper
+# (exclusive/inclusive), and two-sided range. Each picks a different
+# row count, so an off-by-one changes the result instead of hiding.
+explain select * from t1 where b = 5000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	kb	kb	4	const	200	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 5000)
+explain select * from t1 where b > 4999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	kb	kb	4	NULL	201	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > 4999)
+explain select * from t1 where b >= 4999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	kb	kb	4	NULL	202	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= 4999)
+explain select * from t1 where b < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	kb	kb	4	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < 0)
+explain select * from t1 where b <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	kb	kb	4	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= 0)
+explain select * from t1 where b > 4999 and b < 5001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	kb	kb	4	NULL	200	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` > 4999) and (`test`.`t1`.`b` < 5001))
+explain select * from t1 where b >= 4999 and b <= 5001;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	kb	kb	4	NULL	202	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` >= 4999) and (`test`.`t1`.`b` <= 5001))
+#
+# An empty range stays at the conventional 1 row.
+#
+explain select * from t1 where a = 9999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	ka	ka	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = 9999)
+#
+# Deterministic single-block CF (kc): GetApproximateSizes() is
+# guaranteed 0 here - the exact bug-report scenario.
+#
+CREATE TABLE t2 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+c INT NOT NULL,
+KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+#
+# SST path.
+#
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 777;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 777)
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	201	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# Cap semantics, SST path: dive reads at most threshold keys, so a
+# larger range estimates as the threshold (a lower bound).
+SET SESSION rocksdb_records_in_range_dive_threshold = 50;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	50	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+SET SESSION rocksdb_records_in_range_dive_threshold = DEFAULT;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	100	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# 0 disables the dive, SST path: the PS-10110 bug both ways - wide
+# group (201) floors to 1, narrow group (3) balloons to the block's
+# full count.
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+explain select * from t2 where c = 777;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	299	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 777)
+#
+# rocksdb_skip_fill_cache is honored by the dive's own iterator too.
+# Needs a fresh table/CF: t2 is already cached by now.
+#
+CREATE TABLE t6 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+c INT NOT NULL,
+KEY kc(c) comment 'cfname=cf_dive_cache'
+) ENGINE = rocksdb;
+set global rocksdb_force_flush_memtable_now = true;
+analyze table t6;
+Table	Op	Msg_type	Msg_text
+test.t6	analyze	status	OK
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+SET GLOBAL rocksdb_pause_background_work = 1;
+SET SESSION rocksdb_skip_fill_cache = 1;
+explain select * from t6 where c = 25;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t6	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t6`.`i` AS `i`,`test`.`t6`.`c` AS `c` from `test`.`t6` where (`test`.`t6`.`c` = 25)
+# Same block, default fill_cache: previous read left it uncached.
+SET SESSION rocksdb_skip_fill_cache = DEFAULT;
+explain select * from t6 where c = 25;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t6	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t6`.`i` AS `i`,`test`.`t6`.`c` AS `c` from `test`.`t6` where (`test`.`t6`.`c` = 25)
+SET GLOBAL rocksdb_pause_background_work = DEFAULT;
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t6;
+#
+# Same scenario, memtable path (pre-flush, pre-dive estimate pinned).
+#
+CREATE TABLE t2 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+c INT NOT NULL,
+KEY kc(c) comment 'cfname=cf_dive'
+) ENGINE = rocksdb;
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t2 where c = 777;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 777)
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	200	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+# Dive-failure fallback: myrocks_records_in_range_dive_fail forces
+# rdb_index_dive_in_range() to fail; caller must fall back to the
+# pre-dive estimate (floored to 1), not trust a partial scan.
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate,myrocks_records_in_range_dive_fail';
+explain select * from t2 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	kc	kc	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`c` = 50)
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate,myrocks_records_in_range_dive_fail';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t2;
+#
+# TTL indexes bypass the dive (kd.has_ttl()): a raw iterator would
+# count not-yet-compacted expired rows as live. Floor of 1 stays
+# even at a generous threshold.
+#
+CREATE TABLE t4 (
+i INT PRIMARY KEY AUTO_INCREMENT,
+c INT NOT NULL,
+ts BIGINT UNSIGNED NOT NULL,
+KEY kc(c) comment 'cfname=cf_dive_ttl'
+) ENGINE = rocksdb COMMENT = 'ttl_duration=100000;ttl_col=ts';
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t4 where c = 50;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4	NULL	ref	kc	kc	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t4`.`i` AS `i`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`ts` AS `ts` from `test`.`t4` where (`test`.`t4`.`c` = 50)
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t4;
+#
+# Partial indexes bypass the dive too (kd.is_partial_index()). FORCE
+# INDEX materializes ik1's group first (lazy, read-triggered; a plain
+# SELECT would use PRIMARY instead and leave it unmaterialized), so
+# a removed guard would be caught: the dive would find real entries,
+# not an empty group.
+#
+CREATE TABLE t5 (
+i INT NOT NULL,
+j INT NOT NULL,
+PRIMARY KEY (i, j),
+KEY ik1 (i, j) comment 'cfname=cf_dive_partial;partial_group_keyparts=1;partial_group_threshold=10'
+) ENGINE = rocksdb;
+SET SESSION debug = '+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = 10000;
+explain select * from t5 where i = 42;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t5	NULL	ref	PRIMARY,ik1	ik1	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t5`.`i` AS `i`,`test`.`t5`.`j` AS `j` from `test`.`t5` where (`test`.`t5`.`i` = 42)
+SET SESSION debug = '-d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+DROP TABLE t5;

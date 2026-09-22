@@ -1,0 +1,78 @@
+DROP DATABASE IF EXISTS ps10110_joinorder;
+CREATE DATABASE ps10110_joinorder;
+USE ps10110_joinorder;
+CREATE TABLE X (
+id INT PRIMARY KEY,
+a INT NOT NULL,
+y_id INT NOT NULL,
+payload VARCHAR(1200) NOT NULL,
+KEY idx_a (a),
+KEY idx_y_id (y_id)
+) ENGINE = rocksdb;
+CREATE TABLE Y (
+id INT PRIMARY KEY,
+b INT NOT NULL,
+z_id INT NOT NULL,
+KEY idx_b (b)
+) ENGINE = rocksdb;
+CREATE TABLE Z (
+id INT PRIMARY KEY,
+a_id INT NOT NULL,
+KEY idx_a_id (a_id)
+) ENGINE = rocksdb;
+CREATE TABLE A (
+id INT PRIMARY KEY
+) ENGINE = rocksdb;
+set global rocksdb_force_flush_memtable_now = true;
+analyze table X, Y, Z, A;
+Table	Op	Msg_type	Msg_text
+ps10110_joinorder.X	analyze	status	OK
+ps10110_joinorder.Y	analyze	status	OK
+ps10110_joinorder.Z	analyze	status	OK
+ps10110_joinorder.A	analyze	status	OK
+#
+# Real cardinalities: X (25) < Y (40).
+#
+select count(*) from X where a = 70000;
+count(*)
+25
+select count(*) from Y where b = 90000;
+count(*)
+40
+#
+# Control: dive disabled, X's estimate floors to 1 (same bug as Y).
+#
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select count(*)
+from X
+join Y on X.y_id = Y.id
+join Z on Y.z_id = Z.id
+join A on Z.a_id = A.id
+where X.a = 70000 and Y.b = 90000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	X	NULL	ref	idx_a,idx_y_id	idx_a	4	const	1	100.00	NULL
+1	SIMPLE	Y	NULL	eq_ref	PRIMARY,idx_b	PRIMARY	4	ps10110_joinorder.X.y_id	1	5.00	Using where
+1	SIMPLE	Z	NULL	eq_ref	PRIMARY,idx_a_id	PRIMARY	4	ps10110_joinorder.Y.z_id	1	100.00	NULL
+1	SIMPLE	A	NULL	eq_ref	PRIMARY	PRIMARY	4	ps10110_joinorder.Z.a_id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ps10110_joinorder`.`X` join `ps10110_joinorder`.`Y` join `ps10110_joinorder`.`Z` join `ps10110_joinorder`.`A` where ((`ps10110_joinorder`.`Y`.`id` = `ps10110_joinorder`.`X`.`y_id`) and (`ps10110_joinorder`.`Z`.`id` = `ps10110_joinorder`.`Y`.`z_id`) and (`ps10110_joinorder`.`A`.`id` = `ps10110_joinorder`.`Z`.`a_id`) and (`ps10110_joinorder`.`Y`.`b` = 90000) and (`ps10110_joinorder`.`X`.`a` = 70000))
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+#
+# Dive enabled (default): X drives, with an accurate row estimate.
+#
+explain select count(*)
+from X
+join Y on X.y_id = Y.id
+join Z on Y.z_id = Z.id
+join A on Z.a_id = A.id
+where X.a = 70000 and Y.b = 90000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	X	NULL	ref	idx_a,idx_y_id	idx_a	4	const	25	100.00	NULL
+1	SIMPLE	Y	NULL	eq_ref	PRIMARY,idx_b	PRIMARY	4	ps10110_joinorder.X.y_id	1	13.33	Using where
+1	SIMPLE	Z	NULL	eq_ref	PRIMARY,idx_a_id	PRIMARY	4	ps10110_joinorder.Y.z_id	1	100.00	NULL
+1	SIMPLE	A	NULL	eq_ref	PRIMARY	PRIMARY	4	ps10110_joinorder.Z.a_id	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ps10110_joinorder`.`X` join `ps10110_joinorder`.`Y` join `ps10110_joinorder`.`Z` join `ps10110_joinorder`.`A` where ((`ps10110_joinorder`.`Y`.`id` = `ps10110_joinorder`.`X`.`y_id`) and (`ps10110_joinorder`.`Z`.`id` = `ps10110_joinorder`.`Y`.`z_id`) and (`ps10110_joinorder`.`A`.`id` = `ps10110_joinorder`.`Z`.`a_id`) and (`ps10110_joinorder`.`Y`.`b` = 90000) and (`ps10110_joinorder`.`X`.`a` = 70000))
+DROP DATABASE ps10110_joinorder;
+USE test;

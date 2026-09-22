@@ -93,3 +93,21 @@ SET DEBUG = '-d,vec_aux_dd_drop_force_error';
 SHOW CREATE TABLE t2;
 
 DROP TABLE t2;
+
+# Both injections above orphan an aux table on purpose, and the test says
+# why nothing reaches them through SQL any more. They are still not this
+# test's to leave behind: an MTR worker reuses its datadir for every test
+# it runs, so the next test inherits them - one counts aux tables and fails,
+# another restarts and finds a missing tablespace in its error log. Which
+# test that is depends on --parallel, so the failure looks random.
+#
+# Nothing here can clean them up by hand. Scenario B leaves a dd::Table whose
+# schema still exists but whose tablespace file does not, and DROP DATABASE
+# leaves that dd::Table behind while removing the schema row - after which any
+# query that enumerates InnoDB tables resolves it and asserts in
+# dd::Table_impl::load_foreign_key_parents.
+#
+# Forcing a restart hands the problem to MTR instead: it stops every server
+# when this test ends, so the next test finds none running and wipes the
+# datadir before it starts. No SQL ever touches the orphans.
+--source include/force_restart.inc

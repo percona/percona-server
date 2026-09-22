@@ -26,6 +26,13 @@ INSERT INTO t1 VALUES (1, 10, STRING_TO_VECTOR('[1,0,0,0]')),
 
 --echo # COUNT(*) must be 3, and must not plan over the vector index.
 SELECT COUNT(*) FROM t1;
+# The rows estimate InnoDB reports for an index scan comes from its
+# statistics, not from a count, so on a table this small it is free to
+# say 3 or 4 depending on when the sample was last taken - under load it
+# flips. Nothing here is a claim about the estimate: what these EXPLAINs
+# assert is which index the optimizer picked, so mask the two columns
+# that carry the guess, the way the rest of the suite does.
+--replace_column 10 # 11 #
 EXPLAIN SELECT COUNT(*) FROM t1;
 
 --echo # Same answer with the primary key forced — i.e. the unforced plan
@@ -46,6 +53,7 @@ SELECT COUNT(*) FROM t1 FORCE INDEX (v);
 --echo # A non-vector index on the same table still works normally.
 ALTER TABLE t1 ADD KEY kk (k);
 SELECT COUNT(*) FROM t1 FORCE INDEX (kk);
+--replace_column 10 # 11 #
 EXPLAIN SELECT COUNT(*) FROM t1 FORCE INDEX (kk);
 
 --echo # And the graph itself is unaffected: still populated, still

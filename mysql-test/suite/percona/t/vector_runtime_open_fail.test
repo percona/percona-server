@@ -65,9 +65,14 @@ SELECT id, k FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
 --echo # And the read path says so too, rather than reporting a table with
 --echo # nothing near the query vector.
 --echo #
+--echo # The LIMIT has to stay under the table's two rows. One that reaches
+--echo # the whole table leaves the optimizer free to answer from a scan,
+--echo # which never opens the runtime and so never reaches the failure
+--echo # this checks - the statement would just succeed.
+--echo #
 --error ER_OUT_OF_RESOURCES
 SELECT id FROM t1
- ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 3;
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
 
 SET DEBUG = '-d,vec_runtime_open_fail';
 

@@ -77,22 +77,25 @@ EXPLAIN SELECT id FROM t1 WHERE k = 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,
 SELECT id FROM t1 WHERE k = 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
 
 --echo #
---echo # The same with the filter on the distance itself. LIMIT 10 is past
+--echo # The same with the filter on the distance itself. LIMIT 5 is past
 --echo # the three rows that qualify, so the scan has to exhaust the graph
---echo # to establish there are no more.
+--echo # to establish there are no more. It also stays under the table's
+--echo # six rows, which is what keeps this shape on the index - do not
+--echo # raise it past the row count.
 --echo #
 --replace_column 10 # 11 #
 EXPLAIN SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 3
- ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 3
- ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 
 --echo # And with a LIMIT the filter cannot reach past.
 SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 4
  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
 
---echo # A LIMIT larger than the graph returns every row, once each: the
---echo # resume loop widens until the graph is exhausted, then stops.
+--echo # A LIMIT past the table's rows returns every row, once each.
+--echo # Which path answers it is the optimizer's call; what this checks is
+--echo # that nothing is duplicated or dropped either way.
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
 
 --echo #

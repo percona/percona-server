@@ -111,18 +111,20 @@ id
 103
 105
 #
-# The same with the filter on the distance itself. LIMIT 10 is past
+# The same with the filter on the distance itself. LIMIT 5 is past
 # the three rows that qualify, so the scan has to exhaust the graph
-# to establish there are no more.
+# to establish there are no more. It also stays under the table's
+# six rows, which is what keeps this shape on the index - do not
+# raise it past the row count.
 #
 EXPLAIN SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 3
-ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	vector_ann	NULL	vk	1	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (distance(`test`.`t1`.`v`,<cache>(to_vector('[0,0]')),'EUCLIDEAN') < 3) order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 10
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (distance(`test`.`t1`.`v`,<cache>(to_vector('[0,0]')),'EUCLIDEAN') < 3) order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 5
 SELECT id FROM t1 WHERE DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') < 3
-ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 id
 100
 101
@@ -133,8 +135,9 @@ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
 id
 100
 101
-# A LIMIT larger than the graph returns every row, once each: the
-# resume loop widens until the graph is exhausted, then stops.
+# A LIMIT past the table's rows returns every row, once each.
+# Which path answers it is the optimizer's call; what this checks is
+# that nothing is duplicated or dropped either way.
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 10;
 id
 100

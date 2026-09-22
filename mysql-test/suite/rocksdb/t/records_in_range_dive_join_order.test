@@ -1,0 +1,120 @@
+--source include/have_rocksdb.inc
+
+# PS-10110: replicates the 4-table join-order regression from the PR
+# description. X's condition matches fewer real rows (25) than Y's (40),
+# so X should drive - but both idx_a's and idx_b's groups collapse into a
+# single SST block, so both coarse pre-dive estimates floor to 1. The
+# dive fixes both (X=25 exact, Y capped), so X drives.
+#
+# The full flip (Y driving, X losing idx_a) needs the PR's actual data
+# scale, too large for a fast MTR test - see this PR's performance
+# comparison instead. This test checks the row-estimate floor itself via
+# a dive-disabled control block. No debug build needed: real flushed-data
+# behavior, not a DBUG-pinned memtable sample.
+
+--disable_warnings
+DROP DATABASE IF EXISTS ps10110_joinorder;
+--enable_warnings
+CREATE DATABASE ps10110_joinorder;
+USE ps10110_joinorder;
+
+CREATE TABLE X (
+       id INT PRIMARY KEY,
+       a INT NOT NULL,
+       y_id INT NOT NULL,
+       payload VARCHAR(1200) NOT NULL,
+       KEY idx_a (a),
+       KEY idx_y_id (y_id)
+) ENGINE = rocksdb;
+
+CREATE TABLE Y (
+       id INT PRIMARY KEY,
+       b INT NOT NULL,
+       z_id INT NOT NULL,
+       KEY idx_b (b)
+) ENGINE = rocksdb;
+
+CREATE TABLE Z (
+       id INT PRIMARY KEY,
+       a_id INT NOT NULL,
+       KEY idx_a_id (a_id)
+) ENGINE = rocksdb;
+
+CREATE TABLE A (
+       id INT PRIMARY KEY
+) ENGINE = rocksdb;
+
+--disable_query_log
+# X: 300 rows, background a spread 1..50 (6 rows each), a = 70000 for
+# ids 1..25. payload just matches the PR's row shape (see header).
+let $i = 1;
+while ($i <= 25) {
+  eval INSERT INTO X (id, a, y_id, payload)
+      VALUES ($i, 70000, $i, REPEAT('x', 1200));
+  inc $i;
+}
+while ($i <= 300) {
+  eval INSERT INTO X (id, a, y_id, payload)
+      VALUES ($i, 1 + ($i MOD 50), $i, '');
+  inc $i;
+}
+
+# Y: 300 rows, background b spread 1..50 (6 rows each), b = 90000 for
+# ids 1..40 (40 > 25: less selective than X, but stays single-block).
+let $i = 1;
+while ($i <= 40) {
+  eval INSERT INTO Y (id, b, z_id) VALUES ($i, 90000, $i);
+  inc $i;
+}
+while ($i <= 300) {
+  eval INSERT INTO Y (id, b, z_id) VALUES ($i, 1 + ($i MOD 50), $i);
+  inc $i;
+}
+
+# Z and A just chain the join 1:1 by id.
+let $i = 1;
+while ($i <= 300) {
+  eval INSERT INTO Z (id, a_id) VALUES ($i, $i);
+  inc $i;
+}
+let $i = 1;
+while ($i <= 300) {
+  eval INSERT INTO A (id) VALUES ($i);
+  inc $i;
+}
+--enable_query_log
+
+set global rocksdb_force_flush_memtable_now = true;
+analyze table X, Y, Z, A;
+
+--echo #
+--echo # Real cardinalities: X (25) < Y (40).
+--echo #
+select count(*) from X where a = 70000;
+select count(*) from Y where b = 90000;
+
+--echo #
+--echo # Control: dive disabled, X's estimate floors to 1 (same bug as Y).
+--echo #
+SET @save_dive = @@session.rocksdb_records_in_range_dive_threshold;
+SET SESSION rocksdb_records_in_range_dive_threshold = 0;
+explain select count(*)
+from X
+join Y on X.y_id = Y.id
+join Z on Y.z_id = Z.id
+join A on Z.a_id = A.id
+where X.a = 70000 and Y.b = 90000;
+SET SESSION rocksdb_records_in_range_dive_threshold = @save_dive;
+
+--echo #
+--echo # Dive enabled (default): X drives, with an accurate row estimate.
+--echo #
+explain select count(*)
+from X
+join Y on X.y_id = Y.id
+join Z on Y.z_id = Z.id
+join A on Z.a_id = A.id
+where X.a = 70000 and Y.b = 90000;
+
+DROP DATABASE ps10110_joinorder;
+USE test;

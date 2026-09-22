@@ -2191,6 +2191,22 @@ static MYSQL_THDVAR_UINT(force_index_records_in_range,
                          nullptr, nullptr, 0,
                          /* min */ 0, /* max */ INT_MAX, 0);
 
+// PS-10110: hard cap on rocksdb_records_in_range_dive_threshold, so this
+// hintable, session-settable variable cannot turn every records_in_range()
+// call into an effectively unbounded scan of the index.
+static constexpr uint64_t RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS = 1000000;
+
+static MYSQL_THDVAR_UINT(
+    records_in_range_dive_threshold,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
+    "If the row estimate for records_in_range() is below this value, refine "
+    "it by scanning the index range, reading at most this many keys. RocksDB "
+    "size approximations work at data block granularity and may return 0 for "
+    "narrow ranges that contain many rows. Set to 0 to disable the "
+    "refinement.",
+    nullptr, nullptr, 100,
+    /* min */ 0, /* max */ RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS, 0);
+
 static MYSQL_SYSVAR_UINT(
     debug_optimizer_n_rows, rocksdb_debug_optimizer_n_rows,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
@@ -2843,6 +2859,7 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(records_in_range),
     MYSQL_SYSVAR(force_index_records_in_range),
+    MYSQL_SYSVAR(records_in_range_dive_threshold),
     MYSQL_SYSVAR(debug_optimizer_n_rows),
     MYSQL_SYSVAR(force_compute_memtable_stats),
     MYSQL_SYSVAR(force_compute_memtable_stats_cachetime),
@@ -13304,6 +13321,117 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
   DBUG_RETURN(ret);
 }
 
+// PS-10110: total tombstone/MVCC-skip budget for the whole dive, not
+// per-call: RocksDB's max_skippable_internal_keys resets every Next(),
+// so scaling it by max_rows alone bounds one call, not the dive. Capped
+// at RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS regardless of session threshold.
+//
+// Known limitation: since the cap is fixed but max_rows is not, the
+// per-call share (total_skip_budget / max_rows below) shrinks as
+// max_rows grows past ~125000, reaching 1 at the sysvar's max. A single
+// tombstone/old version can then abort the dive (Status::Incomplete()),
+// so raising the threshold that far can make the refinement less likely
+// to complete, not more - on data under heavy delete/update churn, not
+// at the default. A real fix needs the dive to track its own cumulative
+// skip count across Next() calls (e.g. via RocksDB's PerfContext), not
+// derive a per-call average up front; left as a follow-up.
+static constexpr uint64_t RDB_RECORDS_IN_RANGE_DIVE_SKIPPED_KEYS_PER_ROW = 8;
+
+/*
+  PS-10110: Count keys in [start, end), reading at most max_rows keys
+  (0 < max_rows <= RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS). Sets *capped if
+  max_rows was reached. Key-only scan (no value unpack).
+
+  Reads the base DB directly, not the current transaction's snapshot or
+  write batch (same as the GetApproximate*() estimates this refines): a
+  transaction that just wrote into the range may still see it as empty
+  here. The count is exact over the base DB state, not over what the
+  statement itself would read.
+
+  Sets *dive_ok = false (count and *capped must be ignored) if killed, or on
+  a non-ok iterator status - in practice only Status::Incomplete() from
+  max_skippable_internal_keys, since a real I/O error/corruption instead
+  aborts the server (rdb_handle_io_error(), same as any other RocksDB
+  read here) unless rocksdb_io_error_action = IGNORE_ERROR.
+*/
+static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
+                                        const rocksdb::Slice &start,
+                                        const rocksdb::Slice &end,
+                                        uint64_t max_rows, bool *capped,
+                                        bool *dive_ok) {
+  // Relied on below: total_skip_budget / max_rows must not be 0 (RocksDB
+  // reads that as "unlimited"). The caller passes the sysvar-clamped
+  // records_in_range_dive_threshold, so this always holds today.
+  assert(max_rows > 0);
+  assert(max_rows <= RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS);
+
+  rocksdb::ReadOptions read_opts;
+  // The range may cross prefix-extractor prefixes, so a total-order seek
+  // is required for correctness.
+  read_opts.total_order_seek = true;
+  read_opts.fill_cache = !THDVAR(thd, skip_fill_cache);
+  const uint64_t total_skip_budget = std::min<uint64_t>(
+      max_rows * RDB_RECORDS_IN_RANGE_DIVE_SKIPPED_KEYS_PER_ROW,
+      RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS);
+  // Floor division keeps per-call * max_rows within total_skip_budget
+  // (ceiling could nearly double it). Never 0: max_rows <=
+  // RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS (asserted above), so
+  // total_skip_budget is always >= max_rows.
+  read_opts.max_skippable_internal_keys = total_skip_budget / max_rows;
+  // Hard stop at range end, honoring the same enable_iterate_bounds escape
+  // hatch setup_iterator_bounds() uses elsewhere: the explicit key
+  // comparison in the loop below is what actually enforces the bound, so
+  // this is an optimization, not a correctness dependency. Reverse CF
+  // swaps upper/lower bound.
+  if (THDVAR(thd, enable_iterate_bounds)) {
+    if (kd.m_is_reverse_cf) {
+      read_opts.iterate_lower_bound = &end;
+    } else {
+      read_opts.iterate_upper_bound = &end;
+    }
+  }
+
+  *capped = false;
+  *dive_ok = true;
+  DBUG_EXECUTE_IF("myrocks_records_in_range_dive_fail", {
+    *dive_ok = false;
+    return 0;
+  });
+  if (thd->killed) {
+    *dive_ok = false;
+    return 0;
+  }
+
+  const std::unique_ptr<rocksdb::Iterator> it(
+      rdb->NewIterator(read_opts, kd.get_cf()));
+
+  uint64_t count = 0;
+  rocksdb_smart_seek(kd.m_is_reverse_cf, it.get(), start);
+  while (is_valid_iterator(it.get())) {
+    if (thd->killed) {
+      *dive_ok = false;
+      break;
+    }
+    // Exclusive upper bound; bytewise compare works for both CF directions.
+    if (it->key().compare(end) >= 0) break;
+    if (++count >= max_rows) {
+      *capped = true;
+      break;
+    }
+    rocksdb_smart_next(kd.m_is_reverse_cf, it.get());
+  }
+  if (*dive_ok && !it->status().ok()) {
+    // Status::Incomplete() isn't escalated by is_valid_iterator(), so
+    // check it here too.
+    *dive_ok = false;
+  }
+  // *capped is only set right after count reaches max_rows above, so the
+  // two must agree here: callers rely on this to treat *capped as
+  // exactly equivalent to "count == max_rows", not just "count is high".
+  assert(!*capped || count == max_rows);
+  return count;
+}
+
 void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
                                            key_range *const max_key,
                                            int64 disk_size, int64 rows,
@@ -13367,6 +13495,41 @@ void ha_rocksdb::records_in_range_internal(uint inx, key_range *const min_key,
   rdb->GetApproximateMemTableStats(kd.get_cf(), r, &memTableCount, &sz);
   *row_count += memTableCount;
   *total_size += sz;
+  // Memtable sampling is randomized and not reproducible run to run; let
+  // tests pin the pre-dive estimate so the dive below engages
+  // deterministically.
+  DBUG_EXECUTE_IF("myrocks_zero_records_in_range_estimate",
+                  { *row_count = 0; });
+
+  /*
+    PS-10110: the coarse estimates above can return 0 for a narrow range
+    that actually contains many rows, floored to 1 and fed to the
+    optimizer, causing poor join orders. Refine small estimates with a
+    bounded index dive: exact count below the threshold, a lower bound of
+    the threshold above it. Skip partial indexes (raw iterator would miss
+    unmaterialized rows) and TTL indexes (raw iterator would count expired
+    rows as live). The dive refines *row_count only; *total_size is left
+    at the coarse pre-dive value (the only current caller ignores it).
+  */
+  const uint64_t dive_threshold =
+      THDVAR(ha_thd(), records_in_range_dive_threshold);
+  if (dive_threshold > 0 && *row_count < dive_threshold &&
+      rocksdb_debug_optimizer_n_rows == 0 && !kd.is_partial_index() &&
+      !kd.has_ttl()) {
+    bool capped = false;
+    bool dive_ok = false;
+    const uint64_t dive_count = rdb_index_dive_in_range(
+        ha_thd(), kd, slice1, slice2, dive_threshold, &capped, &dive_ok);
+    if (dive_ok) {
+      // capped implies dive_count == dive_threshold already (asserted
+      // inside rdb_index_dive_in_range()), so using dive_count directly
+      // also covers the capped, lower-bound case.
+      assert(!capped || dive_count == dive_threshold);
+      *row_count = dive_count;
+    }
+    // If dive_ok is false, keep the pre-dive estimate rather than trust a
+    // partial scan.
+  }
   DBUG_VOID_RETURN;
 }
 

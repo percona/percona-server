@@ -69,6 +69,7 @@
 #include "rocksdb/convenience.h"
 #include "rocksdb/env.h"
 #include "rocksdb/memory_allocator.h"
+#include "rocksdb/perf_context.h"
 #include "rocksdb/perf_level.h"
 #include "rocksdb/persistent_cache.h"
 #include "rocksdb/rate_limiter.h"
@@ -13835,20 +13836,10 @@ ha_rows ha_rocksdb::records_in_range(uint inx, key_range *const min_key,
   DBUG_RETURN(ret);
 }
 
-// PS-10110: total tombstone/MVCC-skip budget for the whole dive, not
-// per-call: RocksDB's max_skippable_internal_keys resets every Next(),
-// so scaling it by max_rows alone bounds one call, not the dive. Capped
-// at RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS regardless of session threshold.
-//
-// Known limitation: since the cap is fixed but max_rows is not, the
-// per-call share (total_skip_budget / max_rows below) shrinks as
-// max_rows grows past ~125000, reaching 1 at the sysvar's max. A single
-// tombstone/old version can then abort the dive (Status::Incomplete()),
-// so raising the threshold that far can make the refinement less likely
-// to complete, not more - on data under heavy delete/update churn, not
-// at the default. A real fix needs the dive to track its own cumulative
-// skip count across Next() calls (e.g. via RocksDB's PerfContext), not
-// derive a per-call average up front; left as a follow-up.
+// Budget shared by the whole dive, so one version-heavy key may consume more
+// than the average per-row allowance. Each iterator call is independently
+// bounded too; checking cumulative work between calls permits at most one
+// bounded call of overshoot.
 static constexpr uint64_t RDB_RECORDS_IN_RANGE_DIVE_SKIPPED_KEYS_PER_ROW = 8;
 
 /*
@@ -13873,9 +13864,6 @@ static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
                                         const rocksdb::Slice &end,
                                         uint64_t max_rows, bool *capped,
                                         bool *dive_ok) {
-  // Relied on below: total_skip_budget / max_rows must not be 0 (RocksDB
-  // reads that as "unlimited"). The caller passes the sysvar-clamped
-  // records_in_range_dive_threshold, so this always holds today.
   assert(max_rows > 0);
   assert(max_rows <= RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS);
 
@@ -13887,11 +13875,20 @@ static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
   const uint64_t total_skip_budget = std::min<uint64_t>(
       max_rows * RDB_RECORDS_IN_RANGE_DIVE_SKIPPED_KEYS_PER_ROW,
       RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS);
-  // Floor division keeps per-call * max_rows within total_skip_budget
-  // (ceiling could nearly double it). Never 0: max_rows <=
-  // RDB_RECORDS_IN_RANGE_DIVE_MAX_ROWS (asserted above), so
-  // total_skip_budget is always >= max_rows.
-  read_opts.max_skippable_internal_keys = total_skip_budget / max_rows;
+  read_opts.max_skippable_internal_keys = total_skip_budget;
+  const auto saved_perf_level = rocksdb::GetPerfLevel();
+  if (saved_perf_level < rocksdb::PerfLevel::kEnableCount) {
+    rocksdb::SetPerfLevel(rocksdb::PerfLevel::kEnableCount);
+  }
+  auto restore_perf_level =
+      create_scope_guard([&]() { rocksdb::SetPerfLevel(saved_perf_level); });
+  const auto skipped_keys = []() {
+    const auto *perf = rocksdb::get_perf_context();
+    return perf->internal_key_skipped_count +
+           perf->internal_delete_skipped_count +
+           perf->internal_recent_skipped_count;
+  };
+  const auto skipped_before = skipped_keys();
   // Hard stop at range end, honoring the same enable_iterate_bounds escape
   // hatch setup_iterator_bounds() uses elsewhere: the explicit key
   // comparison in the loop below is what actually enforces the bound, so
@@ -13922,7 +13919,7 @@ static uint64_t rdb_index_dive_in_range(THD *const thd, const Rdb_key_def &kd,
   uint64_t count = 0;
   rocksdb_smart_seek(kd.m_is_reverse_cf, it.get(), start);
   while (is_valid_iterator(it.get())) {
-    if (thd->killed) {
+    if (thd->killed || skipped_keys() - skipped_before > total_skip_budget) {
       *dive_ok = false;
       break;
     }

@@ -1,0 +1,104 @@
+#
+# A torn write of the first page of a tablespace leaves arbitrary
+# bytes in the tablespace flags.  Recovery must treat such a page as
+# corrupted and restore it from the doublewrite buffer, instead of
+# deriving a page size or the encryption attribute from the garbage
+# and refusing to start.
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+(3, repeat('/', 12)), (4, repeat('-', 12));
+#
+# 1. Flags that are not valid at all: every bit set.
+#
+# Write the dirty pages of t1, including its first page, through the
+# doublewrite buffer, then kill the server before anything else can
+# reuse the doublewrite slots.  A committed change of a data page,
+# which the page cleaner is not allowed to write, keeps redo for the
+# tablespace ahead of the checkpoint, so that recovery opens its
+# file.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('#', 12) WHERE f1 = 1;
+# Kill the server
+# Overwrite the FIL and FSP headers of page 0 with garbage: all bits
+# of the tablespace flags set, including the unused ones and the
+# encryption bit.
+# restart
+Pattern "Tablespace flags are invalid in datafile: .*t1.ibd" found
+Pattern "Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd. from the doublewrite buffer" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+#
+# 2. Flags that are valid, but corrupted: they encode another page
+#    size and the encryption attribute.  The rest of the page is left
+#    as it was, so the flags are the only damage.  The page size
+#    mismatch is reported, then the page is restored from the
+#    doublewrite buffer like any other damaged first page: the
+#    encryption attribute must not prevent that.
+#
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('*', 12) WHERE f1 = 1;
+# Kill the server
+# restart
+Pattern "Data file .*t1.ibd. uses page size \d+, but the innodb_page_size start-up parameter is 16384" found
+Pattern "Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd. from the doublewrite buffer" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	************
+2	++++++++++++
+3	////////////
+4	------------
+#
+# 3. Control: a file that really is of another page size.  Its first
+#    page is intact and names the space id it belongs to, so the
+#    directory scan files it under that id, and recovery finds no
+#    file for the tablespace the redo log needs.  The file must be
+#    rejected, not rewritten from the doublewrite buffer.
+#
+# Create t1 in a second data directory with the other page size.
+# Tablespaces created before it give it a space id the first data
+# directory has not used, so no doublewrite copy can match it.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('=', 12) WHERE f1 = 2;
+# Kill the server
+# Put the other file in place of t1.ibd and try to start.
+Pattern "Could not find any file associated with the tablespace ID: \d+" found
+Pattern "Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd" not found
+# The other file is untouched.
+# Put the real t1.ibd back and start.
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	************
+2	============
+3	////////////
+4	------------
+DROP TABLE t1;

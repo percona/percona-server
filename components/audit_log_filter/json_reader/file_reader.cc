@@ -17,8 +17,10 @@
 
 #include "components/audit_log_filter/audit_error_log.h"
 #include "components/audit_log_filter/audit_log_reader.h"
+#include "components/audit_log_filter/sys_vars.h"
 
 #include <cstring>
+#include <filesystem>
 
 namespace audit_log_filter::json_reader {
 
@@ -27,11 +29,25 @@ FileReader::~FileReader() { close_file_handle(); }
 bool FileReader::init() noexcept { return true; }
 
 bool FileReader::open(FileInfo *file_info) noexcept {
-  m_fp = fopen(file_info->name.c_str(), "r");
+  // FileInfo::name holds a bare file name, resolve it against the log
+  // directory, which may be outside the server's working directory (datadir)
+  std::string file_path;
+
+  try {
+    file_path =
+        (std::filesystem::path{SysVars::get_file_dir()} / file_info->name)
+            .string();
+  } catch (...) {
+    LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_OPEN_READ_FAILURE,
+                    file_info->name.c_str());
+    return false;
+  }
+
+  m_fp = fopen(file_path.c_str(), "r");
 
   if (m_fp == nullptr) {
     LogComponentErr(ERROR_LEVEL, ER_AUDIT_LOG_FILE_OPEN_READ_FAILURE,
-                    file_info->name.c_str());
+                    file_path.c_str());
     return false;
   }
 

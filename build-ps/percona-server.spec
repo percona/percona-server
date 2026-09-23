@@ -111,6 +111,10 @@
 
 %global src_dir               %{src_base}-%{mysql_version}-%{percona_server_version}
 
+# Python3-only mysql-test helpers can't be byte-compiled by python2 on EL7;
+# don't fail the build on byte-compile errors
+%global _python_bytecompile_errors_terminate_build 0
+
 # We build debuginfo package so this is not used
 %if 0%{?nodebuginfo}
 %global _enable_debug_package 0

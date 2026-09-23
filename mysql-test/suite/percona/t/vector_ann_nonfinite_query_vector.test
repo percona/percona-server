@@ -1,0 +1,79 @@
+--echo #
+--echo # A query vector holding NaN or infinity must get the error it gets
+--echo # without the index.
+--echo #
+--echo # VECTOR columns cannot store NaN or infinity, but a query vector given
+--echo # as bytes can hold them. DISTANCE() refuses such a vector with
+--echo # ER_DATA_OUT_OF_RANGE when it is evaluated row by row. The index path
+--echo # fed it to the graph search, where every NaN comparison is false: a
+--echo # debug build asserted in HNSW::search_layer_core and took the server
+--echo # down, and a release build searched a heap whose order no longer held.
+--echo # The optimizer now keeps such a query on the exact path, where
+--echo # DISTANCE() raises the error; the handler still refuses one that
+--echo # reaches the index.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (2, STRING_TO_VECTOR('[2,0,0,0]'));
+
+--echo # NaN is 0x7FC00000, +infinity 0x7F800000, -infinity 0xFF800000.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t
+  ORDER BY DISTANCE(v, X'0000C07F000000000000000000000000', 'EUCLIDEAN') LIMIT 1;
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t
+  ORDER BY DISTANCE(v, X'0000C07F000000000000000000000000', 'EUCLIDEAN') LIMIT 1;
+SHOW WARNINGS;
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, X'0000C07F000000000000000000000000', 'EUCLIDEAN') LIMIT 1;
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t
+  ORDER BY DISTANCE(v, X'000000000000807F0000000000000000', 'EUCLIDEAN') LIMIT 1;
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t
+  ORDER BY DISTANCE(v, X'000000000000000000000000000080FF', 'EUCLIDEAN') LIMIT 1;
+
+--echo # Through a user variable and a statement parameter.
+SET @q = X'0000C07F000000000000000000000000';
+--error ER_DATA_OUT_OF_RANGE
+SELECT id FROM t ORDER BY DISTANCE(v, @q, 'EUCLIDEAN') LIMIT 1;
+PREPARE s FROM 'SELECT id FROM t ORDER BY DISTANCE(v, ?, ''EUCLIDEAN'') LIMIT 1';
+--error ER_DATA_OUT_OF_RANGE
+EXECUTE s USING @q;
+SET @q = STRING_TO_VECTOR('[2,0,0,0]');
+EXECUTE s USING @q;
+DEALLOCATE PREPARE s;
+
+--echo # The server is still up, and the index still answers.
+SELECT id FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t;
+
+--echo # The check reads the query vector only where the optimizer may
+--echo # evaluate it: a stored function is not run by EXPLAIN
+--echo # (ultracodereview: issue7).
+CREATE TABLE calls (n INT);
+CREATE TABLE tq (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO tq VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[2,0,0,0]'));
+DELIMITER |;
+CREATE FUNCTION qv() RETURNS VARBINARY(16) DETERMINISTIC
+BEGIN
+  INSERT INTO calls VALUES (1);
+  RETURN STRING_TO_VECTOR('[2,0,0,0]');
+END|
+DELIMITER ;|
+--disable_result_log
+EXPLAIN SELECT id FROM tq ORDER BY DISTANCE(v, qv(), 'EUCLIDEAN') LIMIT 1;
+--enable_result_log
+SELECT COUNT(*) AS calls_during_explain FROM calls;
+SELECT id FROM tq ORDER BY DISTANCE(v, qv(), 'EUCLIDEAN') LIMIT 1;
+DROP FUNCTION qv;
+DROP TABLE calls, tq;

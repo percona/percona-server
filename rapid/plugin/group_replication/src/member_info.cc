@@ -183,74 +183,154 @@ Group_member_info::decode_payload(const unsigned char* buffer,
   const unsigned char *slider= buffer;
   uint16 payload_item_type= 0;
   unsigned long long payload_item_length= 0;
+  m_decode_error= false;
 
-  decode_payload_item_string(&slider,
-                             &payload_item_type,
-                             &hostname,
-                             &payload_item_length);
+  /*
+    Every payload item is checked twice: that the bounded helper accepted it,
+    and that it is the item this position of the payload is supposed to carry.
+    Without the second check a peer can reorder items and have them decode into
+    the wrong fields - a uuid taken from the hostname item, for instance - since
+    the helpers only ever look at lengths.
+  */
+  if (decode_payload_item_string(&slider,
+                                 &payload_item_type,
+                                 end,
+                                 &hostname,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_HOSTNAME)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
 
   uint16 port_aux= 0;
-  decode_payload_item_int2(&slider,
-                           &payload_item_type,
-                           &port_aux);
+  if (decode_payload_item_int2(&slider,
+                               &payload_item_type,
+                               end,
+                               &port_aux) ||
+      payload_item_type != PIT_PORT)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   port= (uint)port_aux;
 
-  decode_payload_item_string(&slider,
-                             &payload_item_type,
-                             &uuid,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider,
+                                 &payload_item_type,
+                                 end,
+                                 &uuid,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_UUID)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
 
   std::string gcs_member_id_aux;
-  decode_payload_item_string(&slider,
-                             &payload_item_type,
-                             &gcs_member_id_aux,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider,
+                                 &payload_item_type,
+                                 end,
+                                 &gcs_member_id_aux,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_GCS_ID)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   delete gcs_member_id;
   gcs_member_id= new Gcs_member_identifier(gcs_member_id_aux);
 
   unsigned char status_aux= 0;
-  decode_payload_item_char(&slider,
-                           &payload_item_type,
-                           &status_aux);
+  if (decode_payload_item_char(&slider,
+                               &payload_item_type,
+                               end,
+                               &status_aux) ||
+      payload_item_type != PIT_STATUS)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   status= (Group_member_status)status_aux;
 
   uint32 member_version_aux= 0;
-  decode_payload_item_int4(&slider,
-                           &payload_item_type,
-                           &member_version_aux);
+  if (decode_payload_item_int4(&slider,
+                               &payload_item_type,
+                               end,
+                               &member_version_aux) ||
+      payload_item_type != PIT_VERSION)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   delete member_version;
   member_version= new Member_version(member_version_aux);
 
   uint16 write_set_extraction_algorithm_aux= 0;
-  decode_payload_item_int2(&slider,
-                           &payload_item_type,
-                           &write_set_extraction_algorithm_aux);
+  if (decode_payload_item_int2(&slider,
+                               &payload_item_type,
+                               end,
+                               &write_set_extraction_algorithm_aux) ||
+      payload_item_type != PIT_WRITE_SET_EXTRACTION_ALGORITHM)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   write_set_extraction_algorithm= (uint)write_set_extraction_algorithm_aux;
 
-  decode_payload_item_string(&slider,
-                             &payload_item_type,
-                             &executed_gtid_set,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider,
+                                 &payload_item_type,
+                                 end,
+                                 &executed_gtid_set,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_EXECUTED_GTID)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
 
-  decode_payload_item_string(&slider,
-                             &payload_item_type,
-                             &retrieved_gtid_set,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider,
+                                 &payload_item_type,
+                                 end,
+                                 &retrieved_gtid_set,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_RETRIEVED_GTID)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
 
-  decode_payload_item_int8(&slider,
-                           &payload_item_type,
-                           &gtid_assignment_block_size);
+  if (decode_payload_item_int8(&slider,
+                               &payload_item_type,
+                               end,
+                               &gtid_assignment_block_size) ||
+      payload_item_type != PIT_GTID_ASSIGNMENT_BLOCK_SIZE)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
 
   unsigned char role_aux= 0;
-  decode_payload_item_char(&slider,
-                           &payload_item_type,
-                           &role_aux);
+  if (decode_payload_item_char(&slider,
+                               &payload_item_type,
+                               end,
+                               &role_aux) ||
+      payload_item_type != PIT_MEMBER_ROLE)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   role= (Group_member_role)role_aux;
 
   uint32 configuration_flags_aux= 0;
-  decode_payload_item_int4(&slider,
-                           &payload_item_type,
-                           &configuration_flags_aux);
+  if (decode_payload_item_int4(&slider,
+                               &payload_item_type,
+                               end,
+                               &configuration_flags_aux) ||
+      payload_item_type != PIT_CONFIGURATION_FLAGS)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   configuration_flags= configuration_flags_aux;
 
   /*
@@ -264,35 +344,58 @@ Group_member_info::decode_payload(const unsigned char* buffer,
     decode_payload_item_type_and_length(&slider,
                                         &payload_item_type,
                                         &payload_item_length);
+    /*
+      The header is unbounded, so the length it declares has to be checked
+      against what is left of the payload before any of it is read. A declared
+      length that does not fit is a malformed payload, not an item to skip: the
+      old code silently left the field at its default and carried on with a
+      slider that had already been advanced past the header.
+    */
+    if (slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length)
+    {
+      m_decode_error= true;
+      DBUG_VOID_RETURN;
+    }
 
     switch (payload_item_type)
     {
       case PIT_CONFLICT_DETECTION_ENABLE:
-        if (slider + payload_item_length <= end)
+        if (payload_item_length != 1)
         {
-          unsigned char conflict_detection_enable_aux= *slider;
-          slider += payload_item_length;
-          conflict_detection_enable=
-              (conflict_detection_enable_aux == '1') ? true : false;
+          m_decode_error= true;
+          DBUG_VOID_RETURN;
         }
+        conflict_detection_enable= (*slider == '1') ? true : false;
+        slider += payload_item_length;
         break;
 
       case PIT_MEMBER_WEIGHT:
-        if (slider + payload_item_length <= end)
+        if (payload_item_length != 2)
         {
-          uint16 member_weight_aux= uint2korr(slider);
-          slider += payload_item_length;
-          member_weight= (uint)member_weight_aux;
+          m_decode_error= true;
+          DBUG_VOID_RETURN;
         }
+        member_weight= static_cast<uint>(uint2korr(slider));
+        slider += payload_item_length;
         break;
 
       case PIT_LOWER_CASE_TABLE_NAME:
-        if (slider + payload_item_length <= end)
+        if (payload_item_length != 2)
         {
-          uint16 lower_case_table_names_aux= uint2korr(slider);
-          slider += payload_item_length;
-          lower_case_table_names= static_cast <uint>(lower_case_table_names_aux);
+          m_decode_error= true;
+          DBUG_VOID_RETURN;
         }
+        lower_case_table_names= static_cast<uint>(uint2korr(slider));
+        slider += payload_item_length;
+        break;
+
+      default:
+        /*
+          An item this version does not know about, from a newer member. Skipped
+          rather than rejected, which is what makes the loop forward compatible.
+        */
+        slider += payload_item_length;
         break;
     }
   }
@@ -862,7 +965,12 @@ Group_member_info_manager::decode(const uchar* to_decode, uint64 length)
   Group_member_info_manager_message *group_info_message=
     new Group_member_info_manager_message();
   group_info_message->decode(to_decode, length);
-  decoded_members= group_info_message->get_all_members();
+  /*
+    NULL rather than a partially decoded list, so that the caller has to deal
+    with a malformed payload instead of installing whatever survived it.
+  */
+  if (!group_info_message->is_decode_error())
+    decoded_members= group_info_message->get_all_members();
   delete group_info_message;
 
   return decoded_members;
@@ -1026,20 +1134,61 @@ Group_member_info_manager_message::decode_payload(const unsigned char* buffer,
   const unsigned char *slider= buffer;
   uint16 payload_item_type= 0;
   unsigned long long payload_item_length= 0;
+  m_decode_error= false;
 
   uint16 number_of_members= 0;
-  decode_payload_item_int2(&slider,
-                           &payload_item_type,
-                           &number_of_members);
+  if (decode_payload_item_int2(&slider,
+                               &payload_item_type,
+                               end,
+                               &number_of_members) ||
+      payload_item_type != PIT_MEMBERS_NUMBER)
+  {
+    m_decode_error= true;
+    clear_members();
+    DBUG_VOID_RETURN;
+  }
 
   clear_members();
+  /*
+    number_of_members is wire controlled, up to 65535, and so is every item
+    length inside the loop. Each iteration therefore has to establish that a
+    header fits before reading one, and that the length that header declares
+    fits before handing that range to the nested decode - otherwise the nested
+    Group_member_info validates itself against a forged end, and the slider
+    walks off the payload.
+  */
   for(uint16 i= 0; i < number_of_members; i++)
   {
+    if (slider > end ||
+        static_cast<size_t>(end - slider) <
+            Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE)
+    {
+      m_decode_error= true;
+      clear_members();
+      DBUG_VOID_RETURN;
+    }
+
     decode_payload_item_type_and_length(&slider,
                                         &payload_item_type,
                                         &payload_item_length);
+    if (payload_item_type != PIT_MEMBER_DATA ||
+        slider > end ||
+        static_cast<unsigned long long>(end - slider) < payload_item_length)
+    {
+      m_decode_error= true;
+      clear_members();
+      DBUG_VOID_RETURN;
+    }
+
     Group_member_info* member= new Group_member_info(slider,
                                                      payload_item_length);
+    if (member->is_decode_error())
+    {
+      delete member;
+      m_decode_error= true;
+      clear_members();
+      DBUG_VOID_RETURN;
+    }
     members->push_back(member);
     slider+= payload_item_length;
   }

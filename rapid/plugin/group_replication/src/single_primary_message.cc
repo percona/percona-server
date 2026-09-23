@@ -44,11 +44,18 @@ void Single_primary_message::decode_payload(const unsigned char* buffer,
   DBUG_ENTER("Single_primary_message::decode_payload");
   const unsigned char *slider= buffer;
   uint16 payload_item_type= 0;
+  m_decode_error= false;
 
   uint16 single_primary_message_type_aux= 0;
-  decode_payload_item_int2(&slider,
-                           &payload_item_type,
-                           &single_primary_message_type_aux);
+  if (decode_payload_item_int2(&slider,
+                               &payload_item_type,
+                               end,
+                               &single_primary_message_type_aux) ||
+      payload_item_type != PIT_SINGLE_PRIMARY_MESSAGE_TYPE)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   single_primary_message_type= (Single_primary_message_type)single_primary_message_type_aux;
 
   DBUG_VOID_RETURN;

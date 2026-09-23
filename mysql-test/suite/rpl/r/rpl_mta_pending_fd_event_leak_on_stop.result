@@ -1,0 +1,45 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Set up the replica to apply transactions in parallel.
+[connection slave]
+CALL mtr.add_suppression("Injected pending Format_description notification at MTA stop");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+SET @saved_parallel_workers= @@GLOBAL.slave_parallel_workers;
+include/stop_slave.inc
+SET @@GLOBAL.slave_parallel_workers= 4;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+
+# 2. Stop the MTA with a Format_description notification still queued.
+[connection slave]
+include/stop_slave_sql.inc
+# Adding debug point 'mta_pending_fd_event_on_stop' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (1);
+[connection slave]
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1593]
+
+# 3. The applier resumes once the failure is no longer injected.
+# Removing debug point 'mta_pending_fd_event_on_stop' from @@GLOBAL.debug
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [the transaction is applied after resuming the applier]
+
+# 4. Clean up.
+[connection slave]
+include/stop_slave.inc
+SET @@GLOBAL.slave_parallel_workers= @saved_parallel_workers;
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

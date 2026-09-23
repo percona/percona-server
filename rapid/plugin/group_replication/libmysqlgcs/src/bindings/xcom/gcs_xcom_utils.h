@@ -458,6 +458,23 @@ public:
 
 
   /**
+    Decides whether an accepted XCom connection originates from this very
+    process, i.e. it is the peer end of one of the local handler connections
+    opened by @c xcom_open_handlers.
+
+    Invoked from the XCom thread to exempt locally submitted cargo from the
+    external XCom client gate. It reads a snapshot of the handler local
+    endpoints published at open time, so it takes no lock.
+
+    @param fd the accepted (server side) socket, as passed by XCom
+    @return true if the peer is one of this process's local handler
+            connections, false otherwise
+  */
+
+  virtual bool xcom_is_local_connection(int fd)= 0;
+
+
+  /**
     This member waits for XCom to be initialized.
   */
 
@@ -649,6 +666,7 @@ public:
   bool xcom_close_handlers();
   int xcom_acquire_handler();
   void xcom_release_handler(int index);
+  bool xcom_is_local_connection(int fd);
   enum_gcs_error xcom_wait_ready();
   bool xcom_is_ready();
   void xcom_set_ready(bool value);
@@ -689,6 +707,21 @@ private:
 
   /* A list of local XCom connections. */
   Xcom_handler **m_xcom_handlers;
+
+  /*
+    Snapshot of the local endpoint (getsockname) of each handler connection this
+    process opened to its own XCom. Written once by xcom_open_handlers and read
+    without a lock from the XCom thread by xcom_is_local_connection: the entries
+    never change between open and close, so no synchronization is needed. Sized
+    to m_xcom_handlers_size and allocated alongside m_xcom_handlers.
+
+    m_local_endpoint_count is the number of valid entries. It is published last,
+    after all endpoints are filled, and reset to 0 on close, so the reader
+    either sees a fully built snapshot or an empty one. Only the address family,
+    address and port of each entry are compared, so no length is kept.
+  */
+  struct sockaddr_storage *m_local_endpoints;
+  int                      m_local_endpoint_count;
 
   // For synchronization between XCom and MySQL GCS infrastructure at startup.
   My_xp_mutex_impl m_lock_xcom_ready;

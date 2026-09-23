@@ -1,0 +1,37 @@
+## Test malformed challenge-response payloads for MYSQL41 authentication.
+## Note: unlike the 8.0 branch, 5.7's X plugin does not implement
+## caching_sha2_password / the SHA256_MEMORY fast-auth mechanism, so this
+## test only covers the MYSQL41 mechanism.
+
+--source ../include/xplugin_preamble.inc
+
+call mtr.add_suppression("Plugin mysqlx reported: .*Unsuccessful login attempt: Invalid user or password");
+
+CREATE USER xuser_native@'%' IDENTIFIED BY 'pass';
+
+--write_file $MYSQL_TMP_DIR/auth_malformed_scramble.tmp
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "MYSQL41"
+}
+
+-->recvtype Mysqlx.Session.AuthenticateContinue be-quiet
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "\0xuser_native\0%SCRAMBLE%"
+}
+
+-->recvtype Mysqlx.Error
+EOF
+
+--echo
+--echo # 1. Verify MYSQL41 with '*' prefix and invalid length.
+--exec $MYSQLXTEST -n -uroot --password='' --file=$MYSQL_TMP_DIR/auth_malformed_scramble.tmp -v%SCRAMBLE%=* 2>&1
+
+--echo
+--echo # 2. Verify MYSQL41 with expected length and no '*' prefix.
+--exec $MYSQLXTEST -n -uroot --password='' --file=$MYSQL_TMP_DIR/auth_malformed_scramble.tmp -v%SCRAMBLE%=A0000000000000000000000000000000000000000 2>&1
+
+--remove_file $MYSQL_TMP_DIR/auth_malformed_scramble.tmp
+DROP USER xuser_native@'%';
+
+UNINSTALL PLUGIN mysqlx;

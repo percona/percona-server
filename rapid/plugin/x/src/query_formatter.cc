@@ -27,7 +27,7 @@
 
 #include "xpl_log.h"
 #include "query_formatter.h"
-#include "my_sys.h" // escape_string_for_mysql
+#include "my_sys.h" // escape_quotes_for_mysql, escape_string_for_mysql
 #include "xpl_error.h"
 #include "ngs/error_code.h"
 
@@ -43,7 +43,18 @@ public:
     m_matching_chars_comment(0),
     m_matching_chars_line_comment1(0),
     m_matching_chars_line_comment2(0),
-    m_escape_chars(0)
+    m_escape_chars(0),
+    m_no_backslash_escapes(false)
+  {
+  }
+
+  explicit Sql_search_tags(bool no_backslash_escapes)
+  : m_state(Block_none),
+    m_matching_chars_comment(0),
+    m_matching_chars_line_comment1(0),
+    m_matching_chars_line_comment2(0),
+    m_escape_chars(0),
+    m_no_backslash_escapes(no_backslash_escapes)
   {
   }
 
@@ -137,7 +148,7 @@ public:
 
   bool should_be_ignored(const char character)
   {
-    const bool escape_sequence = true;
+    const bool escape_sequence = !m_no_backslash_escapes;
 
     if (should_ignore_block(character, Block_string_quoted, '\'', '\'', escape_sequence))
       return true;
@@ -174,11 +185,12 @@ private:
   uint8_t m_matching_chars_line_comment1;
   uint8_t m_matching_chars_line_comment2;
   uint8_t m_escape_chars;
+  bool m_no_backslash_escapes;
 };
 
 
-Query_formatter::Query_formatter(ngs::PFS_string &query, charset_info_st &charset)
-: m_query(query), m_charset(charset), m_last_tag_position(0)
+Query_formatter::Query_formatter(ngs::PFS_string &query, charset_info_st &charset, bool no_backslash_escapes)
+: m_query(query), m_charset(charset), m_last_tag_position(0), m_no_backslash_escapes(no_backslash_escapes)
 {
 }
 
@@ -220,7 +232,7 @@ Query_formatter &Query_formatter::operator % (const No_escape<std::string> &valu
 
 void Query_formatter::validate_next_tag()
 {
-  ngs::PFS_string::iterator i = std::find_if(m_query.begin() + m_last_tag_position, m_query.end(), Sql_search_tags());
+  ngs::PFS_string::iterator i = std::find_if(m_query.begin() + m_last_tag_position, m_query.end(), Sql_search_tags(m_no_backslash_escapes));
 
   if (m_query.end() == i)
   {
@@ -235,7 +247,9 @@ void Query_formatter::put_value_and_escape(const char *value, const std::size_t 
   const std::size_t length_maximum = 2 * length + 1 + 2;
   std::string       value_escaped(length_maximum, '\0');
 
-  std::size_t length_escaped = escape_string_for_mysql(&m_charset, &value_escaped[1], length_maximum, value, length);
+  std::size_t length_escaped = m_no_backslash_escapes
+                                    ? escape_quotes_for_mysql(&m_charset, &value_escaped[1], length_maximum, value, length, '\'')
+                                    : escape_string_for_mysql(&m_charset, &value_escaped[1], length_maximum, value, length);
   value_escaped[0] = value_escaped[1 + length_escaped] = '\'';
 
   value_escaped.resize(length_escaped + 2);

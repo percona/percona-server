@@ -62,11 +62,60 @@ Plugin_gcs_events_handler::~Plugin_gcs_events_handler()
 }
 
 void
+Plugin_gcs_events_handler::
+leave_on_malformed_message(const char* error_message) const
+{
+  log_message(MY_ERROR_LEVEL, "%s", error_message);
+  group_member_mgr->update_member_status(local_member_info->get_uuid(),
+                                         Group_member_info::MEMBER_ERROR);
+  this->leave_group_on_error();
+
+  /*
+    This line has no leave_group_on_failure, so leave_group_on_error() above
+    covers only CLEAN_GROUP_MEMBERSHIP and STOP_APPLIER. The read mode and
+    HANDLE_EXIT_STATE_ACTION are applied here instead.
+  */
+  log_message(MY_ERROR_LEVEL,
+              "The server was automatically set into read only mode after an "
+              "error was detected.");
+  enable_server_read_mode(PSESSION_INIT_THREAD);
+
+  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER)
+    abort_plugin_process("Fatal error during execution of Group Replication");
+}
+
+bool
+Plugin_gcs_events_handler::
+get_first_payload_item_or_leave(const Gcs_message& message,
+                                const char* error_message,
+                                const unsigned char** payload_item_data,
+                                uint64* payload_item_length) const
+{
+  if (!Plugin_gcs_message::get_first_payload_item_raw_data(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length(),
+          payload_item_data, payload_item_length))
+    return false;
+
+  leave_on_malformed_message(error_message);
+  return true;
+}
+
+void
 Plugin_gcs_events_handler::on_message_received(const Gcs_message& message) const
 {
   Plugin_gcs_message::enum_cargo_type message_type=
-      Plugin_gcs_message::get_cargo_type(
-          message.get_message_data().get_payload());
+      Plugin_gcs_message::CT_UNKNOWN;
+  if (Plugin_gcs_message::get_cargo_type(
+          message.get_message_data().get_payload(),
+          message.get_message_data().get_payload_length(),
+          &message_type))
+  {
+    leave_on_malformed_message("Malformed group replication message header "
+                               "received from the group. The member will now "
+                               "exit the group.");
+    return;
+  }
 
   switch (message_type)
   {
@@ -105,9 +154,12 @@ handle_transactional_message(const Gcs_message& message) const
   {
     const unsigned char* payload_data= NULL;
     uint64 payload_size= 0;
-    Plugin_gcs_message::get_first_payload_item_raw_data(
-        message.get_message_data().get_payload(),
-        &payload_data, &payload_size);
+    if (get_first_payload_item_or_leave(message,
+                                        "Malformed transaction message payload "
+                                        "received from the group. The member "
+                                        "will now exit the group.",
+                                        &payload_data, &payload_size))
+      return;
 
     this->applier_module->handle(payload_data, static_cast<ulong>(payload_size));
   }
@@ -134,9 +186,12 @@ Plugin_gcs_events_handler::handle_certifier_message(const Gcs_message& message) 
 
   const unsigned char* payload_data= NULL;
   uint64 payload_size= 0;
-  Plugin_gcs_message::get_first_payload_item_raw_data(
-      message.get_message_data().get_payload(),
-      &payload_data, &payload_size);
+  if (get_first_payload_item_or_leave(message,
+                                      "Malformed certification message payload "
+                                      "received from the group. The member will "
+                                      "now exit the group.",
+                                      &payload_data, &payload_size))
+    return;
 
   if (certifier->handle_certifier_data(payload_data,
                                        static_cast<ulong>(payload_size),
@@ -151,6 +206,14 @@ Plugin_gcs_events_handler::handle_recovery_message(const Gcs_message& message) c
 {
   Recovery_message recovery_message(message.get_message_data().get_payload(),
                                     message.get_message_data().get_payload_length());
+
+  if (recovery_message.is_decode_error())
+  {
+    leave_on_malformed_message("Malformed recovery message payload received "
+                               "from the group. The member will now exit the "
+                               "group.");
+    return;
+  }
 
   std::string member_uuid= recovery_message.get_member_uuid();
 
@@ -261,6 +324,14 @@ Plugin_gcs_events_handler::handle_single_primary_message(const Gcs_message& mess
   Single_primary_message
       single_primary_message(message.get_message_data().get_payload(),
                              message.get_message_data().get_payload_length());
+
+  if (single_primary_message.is_decode_error())
+  {
+    leave_on_malformed_message("Malformed single primary message payload "
+                               "received from the group. The member will now "
+                               "exit the group.");
+    return;
+  }
 
   if (single_primary_message.get_single_primary_message_type() ==
       Single_primary_message::SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE)
@@ -1166,6 +1237,30 @@ process_local_exchanged_data(const Exchanged_data &exchanged_data,
     //Process data provided by member.
     vector<Group_member_info*>* member_infos=
         group_member_mgr->decode(data, length);
+
+    if (member_infos == NULL)
+    {
+      /*
+        The exchanged data did not decode. Leaving the group is the same
+        response as for a duplicate server_uuid below: this member cannot build
+        a trustworthy view of the group, so it must not install one.
+      */
+      log_message(MY_ERROR_LEVEL,
+                  "Malformed group member information in exchanged data");
+
+      // Clean up temporary states.
+      std::set<Group_member_info*,Group_member_info_pointer_comparator>::iterator
+          temporary_states_it;
+      for (temporary_states_it= temporary_states->begin();
+           temporary_states_it != temporary_states->end();
+           temporary_states_it++)
+      {
+        delete (*temporary_states_it);
+      }
+      temporary_states->clear();
+
+      return 1;
+    }
 
     //This construct is here in order to deallocate memory of duplicates
     vector<Group_member_info*>::iterator member_infos_it;

@@ -1,0 +1,150 @@
+# ==== Purpose ====
+#
+# This script exercises the multi-threaded applier (MTA) error-shutdown
+# cleanup path that releases a Format_description notification which was
+# queued for a worker but never consumed.
+#
+# ==== Background ====
+#
+# When the Coordinator sees a new Format_description event it queues a
+# reference to it in the group slot of the Global Assigned Queue (GAQ),
+# via Slave_job_group::new_fd_event, taking a reference on the shared,
+# reference-counted Format_description_log_event. A worker normally
+# consumes that reference (and clears the slot) when it starts applying
+# the group. If the applier stops with an error before the worker
+# consumes the notification, the reference is left in the GAQ and must be
+# released when the GAQ is torn down. Otherwise the
+# Format_description_log_event leaks.
+#
+# ==== Requirements ====
+#
+# R1. When the MTA stops with an error while a Format_description
+#     notification is still queued and unconsumed in the GAQ,
+#     Slave_committed_queue::free_dynamic_items() releases the pending
+#     reference at GAQ teardown, so the Format_description_log_event does
+#     not leak.
+#
+# R2. The applier resumes normally once the failure is no longer injected.
+#
+# ==== Implementation ====
+#
+# The queued-but-unconsumed window is microseconds wide in a real run and
+# is only reached on a Format_description version change, so it cannot be
+# hit deterministically from SQL. The debug point
+# 'mta_pending_fd_event_on_stop' makes it deterministic: when a worker is
+# about to consume the (possibly absent) FD notification for a group, it
+# instead installs a queued reference on the shared FD event -- exactly as
+# the Coordinator would -- and then errors out before consuming it,
+# leaving the reference dangling in the GAQ.
+#
+# 1. Set up the replica to apply transactions in parallel.
+# 2. With the debug point active, run a transaction on the source. The
+#    worker errors out with ER_SLAVE_FATAL_ERROR while a queued FD
+#    reference is left in the GAQ, and the MTA stops.
+# 3. Removing the debug point, restart the applier and check that the
+#    transaction is applied.
+# 4. Clean up.
+#
+# Without the fix the pending reference is never released, so the shared
+# Format_description_log_event's usage counter never falls to zero and the
+# event leaks. In any build with assertions enabled -- including the ASAN
+# debug builds this is normally run under -- the dangling reference is caught
+# first, as an assertion in Relay_log_info::set_rli_description_event():
+#
+#   assert(!rli_description_event || is_parallel_exec());
+#
+# handle_slave_sql() forgets the relay log's format with
+# set_rli_description_event(NULL) only after slave_stop_workers() has torn
+# the worker pool down. The GAQ was destroyed there without releasing the
+# pending reference, so the counter does not reach zero and the delete is
+# skipped. Reaching that branch is legitimate only while MTS is still
+# running, and slave_parallel_workers has just been reset to 0, so
+# is_parallel_exec() is false and the invariant fails.
+#
+# The assertion is the only symptom this script can produce: it requires a
+# debug server (have_debug.inc), and under NDEBUG the DBUG_EXECUTE_IF holding
+# the injection is compiled out, so the leak never happens here in the first
+# place. A LeakSanitizer report for the same leak needs an NDEBUG+ASAN build
+# hitting the queued-but-unconsumed window for real, without this debug point.
+#
+# This script makes sure the cleanup path is exercised and that the
+# applier behaves as expected around the stop.
+#
+# ==== References ====
+#
+# Bug#39319907 Reject oversized packed row values earlier [post fix]
+# PS-11439
+#
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo
+--echo # 1. Set up the replica to apply transactions in parallel.
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Injected pending Format_description notification at MTA stop");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+
+SET @saved_parallel_workers= @@GLOBAL.slave_parallel_workers;
+
+--source include/stop_slave.inc
+--disable_warnings
+SET @@GLOBAL.slave_parallel_workers= 4;
+--enable_warnings
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 2. Stop the MTA with a Format_description notification still queued.
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_sql.inc
+--let $debug_point= mta_pending_fd_event_on_stop
+--source include/add_debug_point.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+
+--source include/rpl_connection_slave.inc
+--disable_warnings
+START SLAVE SQL_THREAD;
+--enable_warnings
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo # 3. The applier resumes once the failure is no longer injected.
+
+--let $debug_point= mta_pending_fd_event_on_stop
+--source include/remove_debug_point.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let $assert_text= the transaction is applied after resuming the applier
+--let $assert_cond= COUNT(*) = 1 FROM t1 WHERE a = 1
+--source include/assert.inc
+
+--echo
+--echo # 4. Clean up.
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--disable_warnings
+SET @@GLOBAL.slave_parallel_workers= @saved_parallel_workers;
+--enable_warnings
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

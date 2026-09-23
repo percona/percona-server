@@ -31,6 +31,7 @@
   replication slave.
 */
 
+#include "mysqld_error.h"
 #ifdef HAVE_REPLICATION
 #include "rpl_slave.h"
 
@@ -67,6 +68,7 @@
 
 #include <signal.h>
 #include <algorithm>
+#include <sstream>
 
 using std::min;
 using std::max;
@@ -8274,6 +8276,20 @@ static int queue_old_event(Master_info *mi, const char *buf,
   }
 }
 
+/// Check whether queue_event() constructs this event type directly instead of
+/// using the general deserialization path.
+///
+/// @param event_type The incoming event type.
+///
+/// @retval true if queue_event() uses direct construction for this event type.
+/// @retval false otherwise.
+static bool queue_event_uses_direct_construction(Log_event_type event_type) {
+  return event_type == binary_log::ROTATE_EVENT ||
+         event_type == binary_log::HEARTBEAT_LOG_EVENT ||
+         event_type == binary_log::GTID_LOG_EVENT ||
+         event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT;
+}
+
 /**
   Store an event received from the master connection into the relay
   log.
@@ -8387,6 +8403,22 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto err;
   }
 
+  if (queue_event_uses_direct_construction(event_type) &&
+      (event_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
+       event_len != uint4korr(buf + EVENT_LEN_OFFSET))) {
+    std::stringstream ss;
+    const uint32 header_event_len = event_len < LOG_EVENT_MINIMAL_HEADER_LEN
+                                        ? 0
+                                        : uint4korr(buf + EVENT_LEN_OFFSET);
+    ss << "Rejected malformed " << Log_event::get_type_str(event_type)
+       << " event from source: received packet length " << event_len
+       << " does not match event header length " << header_event_len
+       << ". Verify the source and binary log stream integrity.";
+    mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE, "%s",
+               ss.str().c_str());
+    goto err;
+  }
+
   mysql_mutex_lock(&mi->data_lock);
   assert(lock_count == 0);
   lock_count= 1;
@@ -8395,6 +8427,74 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     sql_print_error("The queue event failed for channel '%s' as its "
                     "configuration is invalid.", mi->get_channel());
+    goto err;
+  }
+
+  /*
+    Check that the format description event currently in use is able to
+    describe this event type.
+
+    Why this check is needed here, when read_log_event() already makes it:
+
+    post_header_len is sized from the format description event, so reading
+    post_header_len[event_type - 1] for an event type beyond
+    number_of_event_types reads past the end of that array - it is a
+    std::vector, and operator[] is not bounds checked. Several of the events
+    handled below are constructed directly from the buffer rather than through
+    Log_event::read_log_event(), so they never reach the equivalent check made
+    there. Rotate_event is the one that matters: its constructor reads
+    post_header_len[ROTATE_EVENT - 1] (libbinlogevents/src/control_events.cpp).
+    The array length is taken from the source's format description event, so it
+    is not under our control.
+
+    Why FORMAT_DESCRIPTION_EVENT must be exempt:
+
+    Until the source's own format description event arrives, the receiver holds
+    the placeholder installed by get_master_version_and_clock(), which assumes a
+    pre-5.0 source - binlog version 3, and therefore
+    number_of_event_types = FORMAT_DESCRIPTION_EVENT - 1 = 14. The event that
+    replaces that placeholder is itself a FORMAT_DESCRIPTION_EVENT, type 15, so
+    without the exemption the condition below holds for it and every stream is
+    refused at its first event, leaving no channel able to start.
+    Log_event::read_log_event() carries the same exemption, for the same reason.
+
+    Why the upstream fix this is ported from has no such exemption:
+
+    8.0 dropped support for binlog versions 1 and 3, so the switch that builds a
+    format description event from a version number has only the version 4 case
+    left and FORMAT_DESCRIPTION_EVENT - 1 appears nowhere in it. Its placeholder
+    is therefore always built with number_of_event_types = LOG_EVENT_TYPES,
+    which is larger than FORMAT_DESCRIPTION_EVENT, and the condition is never
+    true for that event. Both older versions are still supported here, so the
+    placeholder can carry 14 and the exemption is required. This is the one
+    deliberate difference from upstream in this hunk.
+
+    Why the exemption is safe:
+
+    Format_description_event's constructor rebuilds post_header_len from the
+    incoming buffer instead of indexing the array of the event it replaces, so
+    it performs none of the out of bounds read this check exists to prevent. A
+    malformed one does not slip through either: the FORMAT_DESCRIPTION_EVENT
+    case below refuses a NULL decode result before it can be installed.
+  */
+  /* make the fde have fewer event types than those that come down the pipe. */
+  DBUG_EXECUTE_IF("queue_event_unknown_event_type_by_fd_event",
+    {
+      mi->get_mi_description_event()->
+        post_header_len.resize(binary_log::START_EVENT_V3);
+      mi->get_mi_description_event()->
+        number_of_event_types= binary_log::START_EVENT_V3;
+    });
+
+  if (event_type > mi->get_mi_description_event()->number_of_event_types &&
+      event_type != binary_log::FORMAT_DESCRIPTION_EVENT)
+  {
+    mi->report(ERROR_LEVEL, ER_SLAVE_CORRUPT_EVENT,
+               "Event type '%s' is not recognized by the format description "
+               "event currently in use. Please, restart the receiver thread. "
+               "If the problem persists, inspecting the relay logs may help "
+               "diagnosing the issue.",
+               Log_event::get_type_str(event_type));
     goto err;
   }
 
@@ -8486,6 +8586,33 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     goto end;
   case binary_log::ROTATE_EVENT:
   {
+    const bool is_fake_rotate= uint4korr(&buf[0]) == 0;
+    const bool add_checksum_to_fake_rotate=
+        is_fake_rotate &&
+        checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+        mi->rli->relay_log.relay_log_checksum_alg !=
+            binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    const bool strip_checksum_from_fake_rotate=
+        is_fake_rotate &&
+        checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+        mi->rli->relay_log.relay_log_checksum_alg ==
+            binary_log::BINLOG_CHECKSUM_ALG_OFF;
+
+    if ((add_checksum_to_fake_rotate &&
+         event_len > sizeof(rot_buf) - BINLOG_CHECKSUM_LEN) ||
+        (strip_checksum_from_fake_rotate &&
+         (event_len < BINLOG_CHECKSUM_LEN ||
+          event_len - BINLOG_CHECKSUM_LEN > sizeof(rot_buf))))
+    {
+      mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 "Received oversized rotate event. Please retry the "
+                 "connection. If the problem persists, investigate the "
+                 "source of the invalid event and verify the "
+                 "master-slave connection.");
+      goto err;
+    }
+
     Rotate_log_event rev(buf, checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
                          mi->get_mi_description_event());
@@ -8510,12 +8637,10 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
               to compute checksum for its first FD event for RL
               the fake Rotate gets checksummed here.
     */
-    if (uint4korr(&buf[0]) == 0 && checksum_alg ==
-                  binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-                  mi->rli->relay_log.relay_log_checksum_alg !=
-                  binary_log::BINLOG_CHECKSUM_ALG_OFF)
+    if (add_checksum_to_fake_rotate)
     {
       ha_checksum rot_crc= checksum_crc32(0L, NULL, 0);
+      assert(event_len <= sizeof(rot_buf) - BINLOG_CHECKSUM_LEN);
       event_len += BINLOG_CHECKSUM_LEN;
       memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[EVENT_LEN_OFFSET],
@@ -8538,11 +8663,10 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
         RSC_2: If NM \and fake Rotate \and slave does not compute checksum
         the fake Rotate's checksum is stripped off before relay-logging.
       */
-      if (uint4korr(&buf[0]) == 0 && checksum_alg !=
-                    binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-                    mi->rli->relay_log.relay_log_checksum_alg ==
-                    binary_log::BINLOG_CHECKSUM_ALG_OFF)
+      if (strip_checksum_from_fake_rotate)
       {
+        assert(event_len >= BINLOG_CHECKSUM_LEN);
+        assert(event_len - BINLOG_CHECKSUM_LEN <= sizeof(rot_buf));
         event_len -= BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len);
         int4store(&rot_buf[EVENT_LEN_OFFSET],
@@ -8632,7 +8756,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       char llbuf[22];
       sprintf(errbuf, "inconsistent heartbeat event content; the event's data: "
               "log_file_name %-.512s log_pos %s",
-              hb.get_log_ident(), llstr(hb.common_header->log_pos, llbuf));
+              hb.get_log_ident() ? hb.get_log_ident() : "",
+              llstr(hb.common_header->log_pos, llbuf));
       mi->report(ERROR_LEVEL, ER_SLAVE_HEARTBEAT_FAILURE,
                  ER(ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;

@@ -1,0 +1,13 @@
+#
+# Bug#39253383 - reject table-map metadata with an oversized name
+#
+# A format description event must be established first.
+BINLOG '5Tdyag8BAAAAdwAAAHsAAAAAAAQANS43LjQ0LWVvbC0xMi1kZWJ1Zy1sb2cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlN3JqEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQAAH/45SQ=';
+# R2: a well-formed table-map event decodes.
+#     (test.t1, one INT column - the unmodified event from the binlog.)
+BINLOG '5TdyahMBAAAAKQAAANoBAAAAAN8AAAAAAAEABHRlc3QAAnQxAAEDAAE=';
+# R1: the same event with a 200-byte database name must be rejected while
+#     it is decoded, not accepted and passed on to the consumers that
+#     assume NAME_LEN.
+BINLOG 'AAAAABMBAAAA7QAAAAAAAAAAAN8AAAAAAAEAyGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkAAJ0MQABAwAB';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use

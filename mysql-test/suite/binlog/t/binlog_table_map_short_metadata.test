@@ -1,0 +1,45 @@
+# ==== Purpose ====
+#
+# Bug#39254867 - Validate table-map metadata bounds
+#
+# A TABLE_MAP_EVENT carries a per-column metadata block whose length is encoded
+# in the event, and a column type array that says how many metadata bytes each
+# column consumes. table_def walked the type array and consumed metadata for
+# each column without checking that the bytes it consumed stayed inside the
+# encoded metadata block, so an event whose metadata block is shorter than its
+# column types require read past the end of that block. The lengths are attacker
+# controlled: they come off the wire from a malicious or corrupted source, or out
+# of a crafted binlog. Unlike 8.0, 5.7 carried no assert on this either, so the
+# overread was silent on every build type.
+#
+# ==== Requirements ====
+#
+# R1. A TABLE_MAP_EVENT whose column types require more metadata than the
+#     encoded metadata block holds must be rejected while it is decoded.
+#
+# R2. The same event with a correctly sized metadata block must still decode, so
+#     that R1 is not satisfied by refusing VARCHAR table maps in general.
+#
+# Both events declare one VARCHAR column, which consumes two metadata bytes. The
+# R1 event encodes a metadata block of one byte, which is one short; the R2 event
+# encodes the correct two. Everything else is identical and self-consistent, so
+# R1 isolates the metadata bound alone.
+#
+
+--source include/have_log_bin.inc
+--source include/not_gtid_enabled.inc
+
+--echo #
+--echo # Bug#39254867 - reject table-map metadata shorter than the column types
+--echo #
+
+--echo # A format description event must be established first.
+BINLOG '5Tdyag8BAAAAdwAAAHsAAAAAAAQANS43LjQ0LWVvbC0xMi1kZWJ1Zy1sb2cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlN3JqEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQAAH/45SQ=';
+
+--echo # R2: one VARCHAR column with its full two metadata bytes decodes.
+BINLOG 'AAAAABMBAAAAKwAAAAAAAAAAAN8AAAAAAAEABHRlc3QAAnQxAAEPAhAAAQ==';
+
+--echo # R1: the same event one metadata byte short must be rejected while it is
+--echo #     decoded, rather than read past the end of the metadata block.
+--error ER_SYNTAX_ERROR
+BINLOG 'AAAAABMBAAAAKgAAAAAAAAAAAN8AAAAAAAEABHRlc3QAAnQxAAEPARAB';

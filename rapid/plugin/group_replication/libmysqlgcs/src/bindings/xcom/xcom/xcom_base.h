@@ -205,6 +205,16 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
 typedef int (*xcom_socket_accept_cb)(int fd, site_def const *xcom_config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
+/*
+ Registers a callback that decides whether an accepted connection originates
+ from this very process, i.e. from one of Group Replication's own local XCom
+ handler connections. Used to exempt locally submitted cargo from the external
+ XCom client gate in acceptor_learner_task(). The callback receives the accepted
+ (server side) socket and returns non-zero if the peer is local to this process.
+ */
+typedef int (*xcom_local_connection_cb)(int fd);
+int set_xcom_local_connection_cb(xcom_local_connection_cb x);
+
 connection_descriptor *xcom_open_client_connection(char *server,
                                                    xcom_port port);
 int xcom_close_client_connection(connection_descriptor* connection);

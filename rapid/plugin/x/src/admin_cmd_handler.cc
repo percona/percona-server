@@ -309,6 +309,7 @@ namespace
 ngs::Error_code create_collection_impl(xpl::Sql_data_context &da, const std::string &schema, const std::string &name)
 {
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
   qb.put("CREATE TABLE ");
   if (!schema.empty())
     qb.quote_identifier(schema).dot();
@@ -496,6 +497,7 @@ ngs::Error_code remove_nonvirtual_column_names(const std::string &schema_name, c
                                                String_fields_values &ret_column_names, xpl::Sql_data_context &da)
 {
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
   const unsigned FIELD_COLMN_IDX = 0;
   const unsigned EXTRA_COLMN_IDX = 5;
 
@@ -543,6 +545,7 @@ ngs::Error_code index_on_virtual_column_supported(const std::string &schema_name
 {
   const unsigned CREATE_COLMN_IDX = 1;
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
   std::vector<unsigned> fields_ids(1);
   fields_ids[0] = CREATE_COLMN_IDX;
   String_fields_values create_stmts;
@@ -584,6 +587,7 @@ bool table_column_exists(const std::string &schema_name, const std::string &tabl
                          const std::string &column_name, xpl::Sql_data_context &da, bool &r_exists)
 {
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
   xpl::Buffering_command_delegate::Resultset r_rows;
   std::vector<xpl::Command_delegate::Field_type> r_types;
   xpl::Sql_data_context::Result_info r_info;
@@ -636,6 +640,7 @@ ngs::Error_code xpl::Admin_command_handler::create_collection_index(Command_argu
   m_session.update_status<&Common_status_variables::m_stmt_create_collection_index>();
 
   Query_string_builder qb;
+  qb.set_no_backslash_escapes(m_da.is_no_backslash_escapes());
   bool required = false;
   typedef Index_field_traits _T;
   static std::map<std::string, _T> valid_types;
@@ -840,6 +845,7 @@ ngs::Error_code xpl::Admin_command_handler::drop_collection(Command_arguments &a
   m_session.update_status<&Common_status_variables::m_stmt_drop_collection>();
 
   Query_string_builder qb;
+  qb.set_no_backslash_escapes(m_da.is_no_backslash_escapes());
   std::string schema;
   std::string collection;
 
@@ -874,6 +880,7 @@ ngs::Error_code get_index_virtual_column_names(const std::string &schema_name, c
 {
   const unsigned INDEX_NAME_COLUMN_IDX = 4;
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
 
   /* get list of all index column names */
   qb.put("SHOW INDEX FROM ")
@@ -938,6 +945,7 @@ ngs::Error_code xpl::Admin_command_handler::drop_collection_index(Command_argume
   m_session.update_status<&Common_status_variables::m_stmt_drop_collection_index>();
 
   Query_string_builder qb;
+  qb.set_no_backslash_escapes(m_da.is_no_backslash_escapes());
   std::string schema;
   std::string collection;
   std::string name;
@@ -1115,6 +1123,7 @@ namespace
 ngs::Error_code is_schema_selected_and_exists(xpl::Sql_data_context &da, const std::string &schema)
 {
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
   qb.put("SHOW TABLES");
   if (!schema.empty())
     qb.put(" FROM ").quote_identifier(schema);
@@ -1193,6 +1202,7 @@ ngs::Error_code xpl::Admin_command_handler::list_objects(Command_arguments &args
     return error;
 
   Query_string_builder qb;
+  qb.set_no_backslash_escapes(m_da.is_no_backslash_escapes());
   qb.put("SELECT ")
       .put(BINARY_OPERATOR)
       .put("T.table_name AS name, "
@@ -1237,6 +1247,7 @@ namespace
 bool is_collection(xpl::Sql_data_context &da, const std::string &schema, const std::string &name)
 {
   xpl::Query_string_builder qb;
+  qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
   qb.put("SELECT COUNT(*) AS cnt,")
     .put(COUNT_DOC).put(" AS doc,").put(COUNT_ID).put(" AS id,").put(COUNT_GEN).put(" AS gen "
       "FROM information_schema.columns "

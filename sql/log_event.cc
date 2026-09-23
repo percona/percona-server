@@ -8213,7 +8213,9 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case DECIMAL_TYPE:
     {
-      if (val_len < 3)
+      if (val_len < 3 ||
+          !binary_log::is_user_var_decimal_metadata_valid(
+              val, val_len, DECIMAL_MAX_PRECISION, DECIMAL_MAX_SCALE))
       {
         rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                     ER_THD(thd, ER_SLAVE_FATAL_ERROR),
@@ -12309,7 +12311,15 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 {
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
   if (m_null_bits != NULL && m_field_metadata != NULL && m_coltype != NULL)
-    is_valid_param= true;
+  {
+    /*
+      Reject malformed TABLE_MAP_EVENT metadata during event parsing before
+      applier processing.
+    */
+    table_def parsed_table_def(m_coltype, m_colcnt, m_field_metadata,
+                               m_field_metadata_size, m_null_bits, m_flags);
+    is_valid_param= parsed_table_def.is_valid();
+  }
   assert(header()->type_code == binary_log::TABLE_MAP_EVENT);
   DBUG_VOID_RETURN;
 }
@@ -14858,7 +14868,8 @@ Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
   : binary_log::Heartbeat_event(buf, event_len, description_event),
     Log_event(header(), footer())
 {
-  if ((log_ident != NULL && header()->log_pos >= BIN_LOG_HEADER_SIZE))
+  if (log_ident != NULL && ident_len > 0 &&
+      header()->log_pos >= BIN_LOG_HEADER_SIZE)
     is_valid_param= true;
 }
 #endif

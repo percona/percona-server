@@ -27,6 +27,14 @@
 namespace binary_log
 {
 
+namespace
+{
+
+const int k_max_user_var_decimal_precision= 65;
+const int k_max_user_var_decimal_scale= 30;
+
+} // namespace
+
 /******************************************************************************
                      Query_event methods
 ******************************************************************************/
@@ -539,6 +547,19 @@ User_var_event(const char* buf, unsigned int event_len,
                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
 
     if (!valid_buffer_range<unsigned int>(val_len, buf_start, val, event_len))
+    {
+      error= true;
+      goto err;
+    }
+
+    /*
+      For decimal, val[0] is precision and val[1] is scale, and the payload
+      that follows must be long enough for that precision and scale.
+    */
+    if (type == DECIMAL_TYPE &&
+        !is_user_var_decimal_metadata_valid(val, val_len,
+                                            k_max_user_var_decimal_precision,
+                                            k_max_user_var_decimal_scale))
     {
       error= true;
       goto err;

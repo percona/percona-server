@@ -47,17 +47,35 @@ void Recovery_message::decode_payload(const unsigned char* buffer,
   const unsigned char *slider= buffer;
   uint16 payload_item_type= 0;
   unsigned long long payload_item_length= 0;
+  m_decode_error= false;
 
   uint16 recovery_message_type_aux= 0;
-  decode_payload_item_int2(&slider,
-                           &payload_item_type,
-                           &recovery_message_type_aux);
+  if (decode_payload_item_int2(&slider,
+                               &payload_item_type,
+                               end,
+                               &recovery_message_type_aux) ||
+      payload_item_type != PIT_RECOVERY_MESSAGE_TYPE)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   recovery_message_type= (Recovery_message_type)recovery_message_type_aux;
 
-  decode_payload_item_string(&slider,
-                             &payload_item_type,
-                             &member_uuid,
-                             &payload_item_length);
+  if (decode_payload_item_string(&slider,
+                                 &payload_item_type,
+                                 end,
+                                 &member_uuid,
+                                 &payload_item_length) ||
+      payload_item_type != PIT_MEMBER_UUID)
+  {
+    /*
+      Cleared rather than left holding whatever decoded, because a member uuid
+      is what handle_recovery_message() matches members on.
+    */
+    member_uuid.clear();
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -73,6 +91,45 @@ void Recovery_message::encode_payload(std::vector<unsigned char>* buffer) const
   encode_payload_item_string(buffer, PIT_MEMBER_UUID,
                              member_uuid.c_str(),
                              member_uuid.length());
+
+  /*
+    Rewrite the on-the-wire length of the member uuid payload
+    item so that it claims far more data than the message carries. That is the
+    shape of a malformed payload from a peer, and it cannot be produced through
+    any supported interface, so injecting it here is the only way an MTR test
+    can drive the decode validation on a running group. Test-only: reached only
+    with the debug point set.
+
+    Upstream added the equivalent hook for the message service message on the
+    8.0 line, see gr_invalid_message_service_tag_length. No such message class
+    exists here, so the recovery message, which every joining member broadcasts
+    when it comes online, carries the injection instead.
+  */
+  DBUG_EXECUTE_IF("group_replication_malformed_recovery_message_payload",
+                  {
+                    ulonglong invalid_payload_item_length= 1ULL << 30;
+                    int8store(buffer->data() +
+                              WIRE_FIXED_HEADER_SIZE +
+                              WIRE_PAYLOAD_ITEM_HEADER_SIZE + 2 +
+                              WIRE_PAYLOAD_ITEM_TYPE_SIZE,
+                              invalid_payload_item_length);
+                  };);
+
+  /*
+    The same injection point for the payload item type rather than its length:
+    the member uuid item is relabelled as the recovery message type item. Every
+    length on the wire stays correct, so a decoder that only validates lengths
+    accepts this and assigns the uuid value to the field it believes it is
+    reading - which is what the type checks in decode_payload() exist to stop,
+    and what no bounds check can catch. Test-only, as above.
+  */
+  DBUG_EXECUTE_IF("group_replication_malformed_recovery_message_payload_type",
+                  {
+                    int2store(buffer->data() +
+                              WIRE_FIXED_HEADER_SIZE +
+                              WIRE_PAYLOAD_ITEM_HEADER_SIZE + 2,
+                              (uint16)PIT_RECOVERY_MESSAGE_TYPE);
+                  };);
 
   DBUG_VOID_RETURN;
 }

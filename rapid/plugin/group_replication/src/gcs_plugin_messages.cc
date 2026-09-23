@@ -47,7 +47,8 @@ Plugin_gcs_message::Plugin_gcs_message(enum_cargo_type cargo_type)
   : m_version(PLUGIN_GCS_MESSAGE_VERSION),
     m_fixed_header_len(WIRE_FIXED_HEADER_SIZE),
     m_msg_len(WIRE_FIXED_HEADER_SIZE),
-    m_cargo_type(cargo_type)
+    m_cargo_type(cargo_type),
+    m_decode_error(false)
 {
 }
 
@@ -105,10 +106,16 @@ void Plugin_gcs_message::decode(const unsigned char* buffer,
   DBUG_VOID_RETURN;
 }
 
-Plugin_gcs_message::enum_cargo_type
-Plugin_gcs_message::get_cargo_type(const unsigned char* buffer)
+bool
+Plugin_gcs_message::get_cargo_type(const unsigned char* buffer,
+                                   uint64 length,
+                                   enum_cargo_type* cargo_type)
 {
-  DBUG_ENTER("Plugin_gcs_message::decode");
+  DBUG_ENTER("Plugin_gcs_message::get_cargo_type");
+
+  if (length < WIRE_FIXED_HEADER_SIZE)
+    DBUG_RETURN(true);
+
   const unsigned char *slider= buffer +
                                WIRE_VERSION_SIZE +
                                WIRE_HD_LEN_SIZE +
@@ -116,28 +123,63 @@ Plugin_gcs_message::get_cargo_type(const unsigned char* buffer)
 
   unsigned short s_cargo_type= 0;
   s_cargo_type= uint2korr(slider);
-  // enum may have 32bit storage
-  Plugin_gcs_message::enum_cargo_type cargo_type=
-    (Plugin_gcs_message::enum_cargo_type) s_cargo_type;
+  /*
+    A cargo type outside the range this version knows is not a malformed
+    message: it is what a higher version member sends in a mixed version group.
+    Report it as CT_UNKNOWN so on_message_received() ignores it through the
+    switch `default`, as it did before this validation existed, instead of
+    leaving the group during a rolling upgrade. Only a truncated fixed header,
+    checked above, is malformed.
 
-  DBUG_RETURN(cargo_type);
+    This line's CT_MAX is 8 and 8.0 defines six cargo types above it, so any of
+    them would otherwise evict a 5.7 member of a 5.7 to 8.0 upgrade - and abort
+    the server where group_replication_exit_state_action is ABORT_SERVER. The
+    group action message is not gated on the group's lowest version before it is
+    sent, so one group_replication_set_as_primary() on an 8.0 member reaches
+    every 5.7 member before any of them objects to the version.
+
+    Keeping the value inside the enumeration range also avoids the undefined
+    behaviour of converting an out of range integer to an enumeration whose
+    underlying type is not fixed.
+  */
+  if (s_cargo_type <= CT_UNKNOWN || s_cargo_type >= CT_MAX)
+  {
+    *cargo_type= CT_UNKNOWN;
+    DBUG_RETURN(false);
+  }
+
+  // enum may have 32bit storage
+  *cargo_type= (Plugin_gcs_message::enum_cargo_type) s_cargo_type;
+
+  DBUG_RETURN(false);
 }
 
-void
+bool
 Plugin_gcs_message::get_first_payload_item_raw_data(const unsigned char* buffer,
+                                                    uint64 length,
                                                     const unsigned char** payload_item_data,
                                                     uint64* payload_item_length)
 {
   DBUG_ENTER("Plugin_gcs_message::get_first_payload_item_raw_data");
+
+  if (length < WIRE_FIXED_HEADER_SIZE + WIRE_PAYLOAD_ITEM_HEADER_SIZE)
+    DBUG_RETURN(true);
+
+  const unsigned char *end= buffer + length;
   const unsigned char *slider= buffer +
                                WIRE_FIXED_HEADER_SIZE +
                                WIRE_PAYLOAD_ITEM_TYPE_SIZE;
 
-  *payload_item_length= uint8korr(slider);
+  const unsigned long long payload_item_length_aux= uint8korr(slider);
   slider += WIRE_PAYLOAD_ITEM_LEN_SIZE;
-  *payload_item_data= slider;
+  if (slider > end ||
+      static_cast<unsigned long long>(end - slider) < payload_item_length_aux)
+    DBUG_RETURN(true);
 
-  DBUG_VOID_RETURN;
+  *payload_item_data= slider;
+  *payload_item_length= payload_item_length_aux;
+
+  DBUG_RETURN(false);
 }
 
 void
@@ -193,19 +235,27 @@ Plugin_gcs_message::encode_payload_item_char(std::vector<unsigned char>* buffer,
   DBUG_VOID_RETURN;
 }
 
-void
+bool
 Plugin_gcs_message::decode_payload_item_char(const unsigned char** buffer,
                                              uint16* type,
+                                             const unsigned char* end,
                                              unsigned char* value)
 {
   DBUG_ENTER("Plugin_gcs_message::decode_payload_item_char");
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 1)
+    { m_decode_error= true; DBUG_RETURN(true); }
+
   unsigned long long length= 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 1 || *buffer > end ||
+      static_cast<size_t>(end - *buffer) < 1)
+    { m_decode_error= true; DBUG_RETURN(true); }
   *value= **buffer;
   *buffer += 1;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 void
@@ -224,19 +274,27 @@ Plugin_gcs_message::encode_payload_item_int2(std::vector<unsigned char>* buffer,
   DBUG_VOID_RETURN;
 }
 
-void
+bool
 Plugin_gcs_message::decode_payload_item_int2(const unsigned char** buffer,
                                              uint16* type,
+                                             const unsigned char* end,
                                              uint16* value)
 {
   DBUG_ENTER("Plugin_gcs_message::decode_payload_item_int2");
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 2)
+    { m_decode_error= true; DBUG_RETURN(true); }
+
   unsigned long long length= 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 2 || *buffer > end ||
+      static_cast<size_t>(end - *buffer) < 2)
+    { m_decode_error= true; DBUG_RETURN(true); }
   *value= uint2korr(*buffer);
   *buffer += 2;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 void
@@ -255,19 +313,27 @@ Plugin_gcs_message::encode_payload_item_int4(std::vector<unsigned char>* buffer,
   DBUG_VOID_RETURN;
 }
 
-void
+bool
 Plugin_gcs_message::decode_payload_item_int4(const unsigned char** buffer,
                                              uint16* type,
+                                             const unsigned char* end,
                                              uint32* value)
 {
   DBUG_ENTER("Plugin_gcs_message::decode_payload_item_int4");
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 4)
+    { m_decode_error= true; DBUG_RETURN(true); }
+
   unsigned long long length= 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 4 || *buffer > end ||
+      static_cast<size_t>(end - *buffer) < 4)
+    { m_decode_error= true; DBUG_RETURN(true); }
   *value= uint4korr(*buffer);
   *buffer += 4;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 void
@@ -286,19 +352,27 @@ Plugin_gcs_message::encode_payload_item_int8(std::vector<unsigned char>* buffer,
   DBUG_VOID_RETURN;
 }
 
-void
+bool
 Plugin_gcs_message::decode_payload_item_int8(const unsigned char** buffer,
                                              uint16* type,
+                                             const unsigned char* end,
                                              ulonglong* value)
 {
   DBUG_ENTER("Plugin_gcs_message::decode_payload_item_int8");
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 8)
+    { m_decode_error= true; DBUG_RETURN(true); }
+
   unsigned long long length= 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 8 || *buffer > end ||
+      static_cast<size_t>(end - *buffer) < 8)
+    { m_decode_error= true; DBUG_RETURN(true); }
   *value= uint8korr(*buffer);
   *buffer += 8;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 void
@@ -316,17 +390,30 @@ Plugin_gcs_message::encode_payload_item_string(std::vector<unsigned char>* buffe
   DBUG_VOID_RETURN;
 }
 
-void
+bool
 Plugin_gcs_message::decode_payload_item_string(const unsigned char** buffer,
                                                uint16* type,
+                                               const unsigned char* end,
                                                std::string* value,
                                                unsigned long long* length)
 {
   DBUG_ENTER("Plugin_gcs_message::decode_payload_item_string");
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE)
+    { m_decode_error= true; DBUG_RETURN(true); }
+
   decode_payload_item_type_and_length(buffer, type, length);
+  /*
+    length is attacker controlled: it comes straight off the wire. Without this
+    check the assign() below reads past the end of the received buffer.
+  */
+  if (*buffer > end ||
+      static_cast<unsigned long long>(end - *buffer) < *length)
+    { m_decode_error= true; DBUG_RETURN(true); }
+
   value->assign(reinterpret_cast<const char*>(*buffer), (size_t)*length);
   *buffer += *length;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }

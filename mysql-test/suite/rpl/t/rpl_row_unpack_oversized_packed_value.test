@@ -1,0 +1,289 @@
+# ==== Purpose ====
+#
+# This script verifies the packed-length bound that the row-unpack path
+# applies to each field value, from both sides:
+#
+#  - an oversized packed value, whose reported length exceeds what the
+#    destination field can hold, is rejected instead of being copied out
+#    of bounds;
+#
+#  - well-formed values whose packed length lands exactly on that bound
+#    are still accepted, for every field type the bound applies to.
+#
+# ==== Background ====
+#
+# The bound is expressed with Field::max_packed_col_length(), which is a
+# filesort helper: it answers "how large can this field get when packed
+# into the sort buffer as an addon field". Only two source types let the
+# row image itself dictate the packed length of a fixed-size destination,
+# and they are the two the bound constrains:
+#
+#   MYSQL_TYPE_VARCHAR  destination Field_varstring, which inherits
+#                       Field::max_packed_col_length() == pack_length()
+#                       == field_length + length_bytes
+#   MYSQL_TYPE_STRING   destination Field_string, whose override returns
+#                       (pack_length() > 255 ? 2 : 1) + pack_length()
+#
+# The two reduce to the same quantity -- field_length plus its 1-or-2 byte
+# length prefix. length_bytes is fixed at construction, and for a table
+# column it is HA_VARCHAR_PACKLENGTH(field_length) == (field_length < 256
+# ? 1 : 2), the same predicate as "pack_length() > 255 ? 2 : 1". A single
+# comparison against f->max_packed_col_length() therefore bounds either
+# destination, with no per-type special casing.
+#
+# For every other non-blob type calc_field_size() derives the length from
+# the source metadata alone, so a row image cannot inflate it.
+#
+# Blob-family fields (TINYTEXT..LONGBLOB and the types built on Field_blob,
+# JSON and GEOMETRY) are deliberately EXEMPTED from the destination-capacity
+# check -- the fix guards it with !(f->flags & BLOB_FLAG). Two reasons:
+#
+#  - A blob value is unpacked into a dynamically allocated buffer, so it has
+#    no fixed record slot to overflow; the only harm an oversized blob length
+#    can do is read past the event, which the remaining-payload bound
+#    (pack_ptr + len > row_end) already stops.
+#
+#  - In this tree Field_blob::max_packed_col_length() (sql/field.cc) is only a
+#    filesort stub -- it asserts(false) because blobs are never used as addon
+#    fields -- so it must not be evaluated on the unpack path at all. Applying
+#    the bound to blobs would abort a debug build and, in a release build,
+#    reject any blob larger than a dozen-odd bytes.
+#
+# ==== Requirements ====
+#
+# R1. When a Rows_log_event carries a non-blob field value whose packed
+#     length (as computed from the source Table_map metadata and the row
+#     image's own length prefix) is larger than the destination field can
+#     hold, the applier must reject the event with ER_SLAVE_CORRUPT_EVENT
+#     and must not unpack the value.
+#
+# R2. A well-formed value whose packed length is exactly equal to the
+#     destination field's maximum packed length must still replicate.
+#     This is the case a wrong comparison (>= instead of >) would reject:
+#
+#       CHAR(255) latin1      1 + 255 = 256  vs  (255 > 255 ? 2 : 1) + 255
+#       VARCHAR(255) latin1   1 + 255 = 256  vs  255 + 1
+#       VARCHAR(300) latin1   2 + 300 = 302  vs  300 + 2
+#
+# R3. Blob-family values must replicate unchanged, at every blob pack
+#     length (TINYTEXT, TEXT, MEDIUMTEXT, LONGBLOB) and for the types
+#     built on Field_blob (JSON, GEOMETRY). These are exempt from the
+#     capacity check, so this guards against the exemption being dropped
+#     (which would call the asserting stub) or the bound wrongly applied.
+#
+# ==== Implementation ====
+#
+# Part 1 covers R2 and R3 with ordinary SQL: one row is replicated
+# holding, for each of the types above, a value sized so that its packed
+# length lands exactly on the bound. INSERT, UPDATE and DELETE are all
+# exercised so the bound is applied to a write-rows after image, to an
+# update-rows before and after image, and to a delete-rows before image.
+#
+# Part 2 covers R1. That condition is not reachable with well-formed
+# binary log content: a genuine source only emits a length prefix as large
+# as the source column, and Table_map compatibility checking then either
+# rejects a wider source or builds a conversion field large enough to hold
+# it. The vulnerable combination -- a length prefix larger than the
+# destination can hold, applied straight into the destination's record
+# slot -- requires a Table_map that lies. It is reproduced with
+# hand-crafted binary log events replayed through the BINLOG statement,
+# which applies them through thd->rli_fake and so drives the same
+# unpack_row() code path used by the applier:
+#
+# 1. Create the destination table test.t1 (c1 VARCHAR(10)).
+# 2. Replay a Format_description event so the following events can be
+#    decoded.
+# 3. Replay a Table_map immediately followed by a Write_rows event. Both
+#    are captured verbatim from a genuine source whose t1.c1 is
+#    VARCHAR(255): the Write_rows row image therefore honestly carries a
+#    1-byte length prefix of 255 followed by 255 value bytes, and needs no
+#    editing. Only the Table_map is forged -- its 2-byte field metadata
+#    for c1 is patched from 255 down to 10 so that it exactly matches the
+#    destination VARCHAR(10). Because the declared size then equals the
+#    destination, compatible_with() computes order == 0, builds no
+#    conversion table, and unpack_row() targets the real 11-byte
+#    Field_varstring. calc_field_size() combines the forged metadata (a
+#    1-byte prefix) with the genuine row byte (0xFF = 255) and reports a
+#    packed length of 1 + 255 = 256. The 255 value bytes are physically
+#    present, so the remaining-payload bound (pack_ptr + 256 <= row_end)
+#    does not fire; only the destination-capacity check can reject it:
+#    256 exceeds max_packed_col_length(), which is 10 + 1 = 11.
+# 4. The BINLOG statement must fail with ER_SLAVE_CORRUPT_EVENT.
+#
+# The field metadata is a fixed-width part of the Table_map, so patching it
+# leaves the event length, end_log_pos and all later offsets unchanged -- only
+# the two metadata bytes are rewritten. The forged Table_map below is produced
+# by the companion generator rpl_row_unpack_oversized_packed_value_gen.py. The
+# events are captured with binlog_checksum = NONE, so they carry no CRC32
+# trailer and nothing else has to be recomputed.
+#
+# Without the fix, unpack_row() would proceed to Field_varstring::unpack()
+# and memcpy 255 bytes into an 11-byte record slot -- an out-of-bounds
+# write (heap-buffer-overflow under ASAN). With the fix the oversized
+# value is rejected before it is unpacked.
+#
+# The events are applied with SQL_LOG_BIN=0 so the forged, failing group
+# is not written to this server's binary log.
+#
+# ==== References ====
+#
+# Bug#39319907 Reject oversized packed row values earlier
+# PS-11439
+#
+
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo
+--echo # 1. Well-formed values at the exact packed-length bound replicate.
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t_boundary (id INT PRIMARY KEY, c_char CHAR(255), c_varchar1 VARCHAR(255), c_varchar2 VARCHAR(300), c_tinytext TINYTEXT, c_text TEXT, c_mediumtext MEDIUMTEXT, c_longblob LONGBLOB, c_json JSON, c_geom GEOMETRY) ENGINE=InnoDB CHARACTER SET latin1;
+INSERT INTO t_boundary VALUES (1, REPEAT('a', 255), REPEAT('b', 255), REPEAT('c', 300), REPEAT('d', 255), REPEAT('e', 1000), REPEAT('f', 2000), REPEAT('g', 3000), CAST(CONCAT('"', REPEAT('j', 400), '"') AS JSON), ST_GeomFromText('LINESTRING(0 0,1 1,2 2,3 3,4 4,5 5,6 6,7 7,8 8,9 9,10 10,11 11,12 12,13 13,14 14,15 15,16 16,17 17,18 18,19 19)'));
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+
+--let $assert_text= CHAR and VARCHAR values whose packed length equals the destination bound replicated
+--let $assert_cond= COUNT(*) = 1 FROM t_boundary WHERE id = 1 AND c_char = REPEAT("a", 255) AND c_varchar1 = REPEAT("b", 255) AND c_varchar2 = REPEAT("c", 300)
+--source include/assert.inc
+
+--let $assert_text= blob values replicated for every blob pack length
+--let $assert_cond= COUNT(*) = 1 FROM t_boundary WHERE id = 1 AND c_tinytext = REPEAT("d", 255) AND c_text = REPEAT("e", 1000) AND c_mediumtext = REPEAT("f", 2000) AND c_longblob = REPEAT("g", 3000)
+--source include/assert.inc
+
+--let $assert_text= the JSON value replicated
+--let $assert_cond= COUNT(*) = 1 FROM t_boundary WHERE id = 1 AND JSON_UNQUOTE(c_json) = REPEAT("j", 400)
+--source include/assert.inc
+
+--let $assert_text= the GEOMETRY value replicated
+--let $assert_cond= COUNT(*) = 1 FROM t_boundary WHERE id = 1 AND LENGTH(c_geom) > 255 AND HEX(c_geom) = HEX(ST_GeomFromText("LINESTRING(0 0,1 1,2 2,3 3,4 4,5 5,6 6,7 7,8 8,9 9,10 10,11 11,12 12,13 13,14 14,15 15,16 16,17 17,18 18,19 19)"))
+--source include/assert.inc
+
+--echo
+--echo # 2. The same bound is applied to update and delete row images.
+
+--source include/rpl_connection_master.inc
+UPDATE t_boundary SET c_varchar2 = REPEAT('C', 300), c_text = REPEAT('E', 1000) WHERE id = 1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let $assert_text= the update replicated, so the before and after images both unpacked
+--let $assert_cond= COUNT(*) = 1 FROM t_boundary WHERE id = 1 AND c_char = REPEAT("a", 255) AND c_varchar2 = REPEAT("C", 300) AND c_text = REPEAT("E", 1000)
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DELETE FROM t_boundary WHERE id = 1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let $assert_text= the delete replicated, so the before image unpacked
+--let $assert_cond= COUNT(*) = 0 FROM t_boundary
+--source include/assert.inc
+
+--echo
+--echo # 3. Create the destination table for the forged events.
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 VARCHAR(10)) CHARACTER SET latin1;
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 4. Replay the forged events locally through the BINLOG statement.
+--echo #    The oversized packed value must be rejected before it is unpacked.
+
+--source include/rpl_connection_master.inc
+SET SESSION SQL_LOG_BIN= 0;
+
+# The forged events are applied through rli_fake in this session, exactly
+# as mysqlbinlog | mysql would. SQL_LOG_BIN is turned off above so the
+# replayed events are not written to this server's binary log (and no GTID
+# is assigned to them), keeping the local replay self-contained.
+#
+# How the three base64 blobs below are produced (on a 5.7 server):
+#
+#   1. On a throwaway server, with binlog_checksum turned off so the events
+#      carry no CRC32 trailer, capture a genuine INSERT of a full-width
+#      value into a VARCHAR(255) column:
+#
+#        SET GLOBAL binlog_checksum = NONE;
+#        CREATE TABLE t1 (c1 VARCHAR(255)) CHARACTER SET latin1;
+#        INSERT INTO t1 VALUES (REPEAT('x', 255));
+#
+#      VARCHAR(255) in a single-byte charset is the widest column that
+#      still stores its length in a ONE-BYTE row-image prefix (256 and
+#      above use two bytes). The row image is therefore [0xFF][255 bytes]:
+#      a 1-byte prefix holding 255. This 1-byte prefix is mandatory -- see
+#      step 3 for why a wider source column silently defeats the test.
+#
+#   2. Extract the three events with
+#        mysqlbinlog --base64-output=decode-rows -vv <binlog>
+#      and paste the base64 of the Format_description, Table_map and
+#      Write_rows events into the placeholders below. The base64 MUST be
+#      captured from a 5.7 server -- the Format_description event encodes
+#      the server version and the per-event-type header lengths, which
+#      differ from other release series.
+#
+#   3. Run rpl_row_unpack_oversized_packed_value_gen.py, which rewrites
+#      c1's 2-byte field metadata in the Table_map blob from 255 (FF 00)
+#      down to 10 (0A 00). The metadata is a fixed-width field, so the
+#      event length and every later offset are unchanged, and with
+#      binlog_checksum off there is no CRC32 trailer to recompute. The
+#      Write_rows blob is used verbatim.
+#
+#      Applied against the VARCHAR(10) destination, calc_field_size() now
+#      combines the forged metadata (metadata <= 255 => read a 1-byte
+#      prefix) with the genuine row byte 0xFF, reporting 1 + 255 = 256. If
+#      the source had been VARCHAR(256)+, its row image would carry a
+#      2-byte prefix, the 1-byte read selected by metadata=10 would see
+#      only 0x00, calc_field_size() would report ~1, and no overflow would
+#      occur -- the test would pass without exercising the fix.
+
+# --------------------------------------------------------------------
+# Captured Format_description_log_event (step 2 above), used verbatim.
+# PLACEHOLDER: replace the token line with the captured 5.7 FD event base64.
+# --------------------------------------------------------------------
+BINLOG '
+NDeMag8BAAAAdwAAAHsAAAABAAQANS43LjQ0LWVvbC0xMi1kZWJ1Zy1sb2cAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAA0N4xqEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQA
+ANy1b14=
+'/*!*/;
+
+# Rejecting the forged event also logs the failure to this server's error
+# log, so tell MTR's error-log check to expect it.
+CALL mtr.add_suppression("Could not execute Write_rows event on table test.t1; Corrupted replication event was detected");
+
+# --------------------------------------------------------------------
+# Forged Table_map (c1 metadata patched 255 -> 10, step 3 above) followed
+# by the unmodified Write_rows event (1-byte prefix 0xFF, 255-byte value).
+# PLACEHOLDER: replace the first token line with the forged Table_map base64
+# and the second with the captured Write_rows base64 (both from a 5.7 capture).
+# --------------------------------------------------------------------
+--error ER_SLAVE_CORRUPT_EVENT
+BINLOG '
+NTeMahMBAAAAKwAAAPsBAAAAAG0AAAAAAAEABHRlc3QAAnQxAAEPAgoAAQ==
+NTeMah4BAAAAIAEAABsDAAAAAG0AAAAAAAEAAgAB//7/eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4
+eHh4
+'/*!*/;
+
+SET SESSION SQL_LOG_BIN= 1;
+
+--echo
+--echo # 5. The destination table is intact and no row was written.
+
+--let $assert_text= no row was unpacked into the destination table
+--let $assert_cond= COUNT(*) = 0 FROM t1
+--source include/assert.inc
+
+--echo
+--echo # 6. Clean up.
+
+DROP TABLE t1, t_boundary;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

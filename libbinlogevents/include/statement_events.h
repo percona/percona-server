@@ -38,6 +38,17 @@
 
 #include "control_events.h"
 
+#include <stddef.h>
+
+/*
+  Only decimal_bin_size() is needed here, and its signature involves no MySQL
+  types, so it is declared rather than pulled in with decimal.h. That keeps this
+  header free of the dependency: decimal.h is a C header with no extern "C"
+  guard of its own, and it needs the typedefs from my_global.h, which not every
+  translation unit reaching this header has already included.
+*/
+extern "C" int decimal_bin_size(int precision, int scale);
+
 namespace binary_log
 {
 
@@ -707,6 +718,40 @@ template <class T> bool valid_buffer_range(T jump,
                                            T buf_len)
 {
   return (jump <= available_buffer(buf_start, buf_current, buf_len));
+}
+
+/**
+  Validates DECIMAL user variable metadata and payload length.
+
+  @param val           Encoded user variable payload, starting with precision
+                       and scale.
+  @param val_len       Length of the encoded payload in bytes.
+  @param max_precision Maximum allowed DECIMAL precision for the caller.
+  @param max_scale     Maximum allowed DECIMAL scale for the caller.
+
+  @retval true  The metadata is well-formed for the given payload.
+  @retval false The metadata is incomplete, out of range, or inconsistent.
+*/
+inline bool is_user_var_decimal_metadata_valid(const char *val,
+                                               size_t val_len,
+                                               int max_precision,
+                                               int max_scale)
+{
+  if (val_len < 2)
+    return false;
+
+  const int precision= static_cast<unsigned char>(val[0]);
+  const int scale= static_cast<unsigned char>(val[1]);
+
+  /*
+    DECIMAL(M,D): reject precision beyond the caller limit, scale beyond the
+    caller scale limit, or scale greater than precision.
+  */
+  if (precision > max_precision || scale > max_scale || scale > precision)
+    return false;
+
+  return decimal_bin_size(precision, scale) <=
+         static_cast<int>(val_len) - 2;
 }
 
 /**

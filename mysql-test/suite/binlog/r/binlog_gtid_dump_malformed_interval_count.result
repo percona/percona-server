@@ -1,0 +1,9 @@
+#
+# R2. A well-formed COM_BINLOG_DUMP_GTID request is served.
+#
+#
+# R1. A declared interval count that overflows the payload check is refused.
+#
+# Adding debug point 'simulate_large_com_binlog_dump_gtid_encoding' to @@GLOBAL.debug
+include/assert_grep.inc [The master refused the malformed interval count]
+# Removing debug point 'simulate_large_com_binlog_dump_gtid_encoding' from @@GLOBAL.debug

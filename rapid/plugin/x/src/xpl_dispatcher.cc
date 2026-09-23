@@ -55,6 +55,7 @@ public:
       return execute(da, proto, show_warnings, compact_metadata, query.data(), query.length());
 
     m_qb.clear();
+    m_qb.set_no_backslash_escapes(da.is_no_backslash_escapes());
     m_qb.put(query);
 
     try

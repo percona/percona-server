@@ -212,27 +212,50 @@ public:
     Return the cargo type of a given message buffer, without decode
     the complete message.
 
-    @param[in] buffer the buffer to decode from.
+    A cargo type that this version does not know, which is what a higher
+    version member sends in a mixed version group, is reported as
+    CT_UNKNOWN and is not an error, so that the caller ignores the message
+    instead of treating it as malformed.
 
-    @return the cargo type of a given message buffer
+    @param[in]  buffer     the buffer to decode from.
+    @param[in]  length     the length of the buffer.
+    @param[out] cargo_type the decoded cargo type, CT_UNKNOWN if the
+                           encoded value is not known to this version.
+
+    @return the operation status
+      @retval false    OK
+      @retval true     Error, the buffer is shorter than the fixed header
    */
-  static enum_cargo_type get_cargo_type(const unsigned char* buffer);
+  static bool get_cargo_type(const unsigned char* buffer,
+                             uint64 length,
+                             enum_cargo_type* cargo_type);
 
   /**
     Return the raw data of the first payload item of a given message buffer,
     without decode the complete message.
 
-    @param[out] buffer              the buffer to decode from.
+    @param[in]  buffer              the buffer to decode from.
+    @param[in]  length              the length of the buffer.
     @param[out] payload_item_data   the data.
     @param[out] payload_item_length the length of the data.
 
-    @return the raw data of the first payload item
+    @return the operation status
+      @retval false    OK
+      @retval true     Error
   */
-  static void get_first_payload_item_raw_data(const unsigned char* buffer,
+  static bool get_first_payload_item_raw_data(const unsigned char* buffer,
+                                              uint64 length,
                                               const unsigned char** payload_item_data,
                                               uint64* payload_item_length);
 
+  /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
+
 protected:
+  bool m_decode_error;
+
   /**
     Plugin_gcs_message constructor. Only to be called by derivative classes
 
@@ -301,8 +324,9 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_char(const unsigned char** buffer,
+  bool decode_payload_item_char(const unsigned char** buffer,
                                 uint16* type,
+                                const unsigned char* end,
                                 unsigned char* value);
 
   /**
@@ -326,8 +350,9 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int2(const unsigned char** buffer,
+  bool decode_payload_item_int2(const unsigned char** buffer,
                                 uint16* type,
+                                const unsigned char* end,
                                 uint16* value);
 
   /**
@@ -351,8 +376,9 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int4(const unsigned char** buffer,
+  bool decode_payload_item_int4(const unsigned char** buffer,
                                 uint16* type,
+                                const unsigned char* end,
                                 uint32* value);
 
   /**
@@ -376,8 +402,9 @@ protected:
     @param[out] type   the type of the payload item
     @param[out] value  the value of the payload item
   */
-  void decode_payload_item_int8(const unsigned char** buffer,
+  bool decode_payload_item_int8(const unsigned char** buffer,
                                 uint16* type,
+                                const unsigned char* end,
                                 ulonglong* value);
 
   /**
@@ -404,8 +431,9 @@ protected:
     @param[out] value  the value of the payload item
     @param[out] length the length of the payload item
   */
-  void decode_payload_item_string(const unsigned char** buffer,
+  bool decode_payload_item_string(const unsigned char** buffer,
                                   uint16* type,
+                                  const unsigned char* end,
                                   std::string* value,
                                   unsigned long long* length);
 };

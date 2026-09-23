@@ -1,0 +1,43 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Plugin mysqlx reported: .*Unsuccessful login attempt: Invalid user or password");
+CREATE USER xuser_native@'%' IDENTIFIED BY 'pass';
+
+# 1. Verify MYSQL41 with '*' prefix and invalid length.
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "MYSQL41"
+}
+
+send Mysqlx.Session.AuthenticateContinue {
+  auth_data: "\000xuser_native\000*"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 1045
+  msg: "Invalid user or password"
+  sql_state: "HY000"
+}
+
+ok
+
+# 2. Verify MYSQL41 with expected length and no '*' prefix.
+send Mysqlx.Session.AuthenticateStart {
+  mech_name: "MYSQL41"
+}
+
+send Mysqlx.Session.AuthenticateContinue {
+  auth_data: "\000xuser_native\000A0000000000000000000000000000000000000000"
+}
+
+Mysqlx.Error {
+  severity: FATAL
+  code: 1045
+  msg: "Invalid user or password"
+  sql_state: "HY000"
+}
+
+ok
+DROP USER xuser_native@'%';
+UNINSTALL PLUGIN mysqlx;

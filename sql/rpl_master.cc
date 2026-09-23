@@ -24,6 +24,8 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_master.h"
 
+#include <vector>
+
 #include "hash.h"                               // HASH
 #include "m_string.h"                           // strmake
 #include "auth_common.h"                        // check_global_access
@@ -48,6 +50,42 @@ my_bool opt_sporadic_binlog_dump_fail = 0;
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 HASH slave_list;
 extern TYPELIB binlog_checksum_typelib;
+
+#ifndef NDEBUG
+static void build_debug_com_binlog_dump_gtid_encoding(
+  std::vector<uchar> *buffer, uint32 *declared_data_size)
+{
+  const uint32 kDeclaredDataSize= 32;
+  const uint64 kEncodedIntervalCount= 1ULL << 60;
+  const size_t kMaterializedIntervals= 4 * 1000 * 1000;
+  const size_t kBytesPerInterval= 2 * sizeof(uint64);
+
+  *declared_data_size= kDeclaredDataSize;
+  buffer->assign(kDeclaredDataSize +
+                 kMaterializedIntervals * kBytesPerInterval, 0);
+
+  uchar *ptr= &(*buffer)[0];
+
+  int8store(ptr, 1ULL);
+  ptr+= 8;
+
+  memset(ptr, 0x11, 16);
+  ptr+= 16;
+
+  int8store(ptr, kEncodedIntervalCount);
+  ptr+= 8;
+
+  for (size_t i= 0; i < kMaterializedIntervals; i++)
+  {
+    const ulonglong start= static_cast<ulonglong>(2 * i + 1);
+    const ulonglong end= start + 1;
+    int8store(ptr, start);
+    ptr+= 8;
+    int8store(ptr, end);
+    ptr+= 8;
+  }
+}
+#endif
 
 
 #define get_object(p, obj, msg) \
@@ -375,6 +413,9 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   size_t packet_bytes_todo= packet_length;
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
+#ifndef NDEBUG
+  std::vector<uchar> debug_gtid_encoding;
+#endif
 
   assert(!thd->status_var_aggregated);
   thd->status_var.com_other++;
@@ -390,6 +431,14 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   DBUG_PRINT("info", ("pos=%llu flags=%d server_id=%d", pos, flags, thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
+  DBUG_EXECUTE_IF("simulate_large_com_binlog_dump_gtid_encoding",
+                  {
+                    uint32 debug_declared_data_size= 0;
+                    build_debug_com_binlog_dump_gtid_encoding(
+                      &debug_gtid_encoding, &debug_declared_data_size);
+                    packet_position= &debug_gtid_encoding[0];
+                    data_size= debug_declared_data_size;
+                  });
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
     DBUG_RETURN(true);

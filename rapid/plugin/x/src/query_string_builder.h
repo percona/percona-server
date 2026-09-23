@@ -112,6 +112,9 @@ public:
 
   Query_formatter format();
 
+  void set_no_backslash_escapes(bool value) { m_no_backslash_escapes = value; }
+  bool no_backslash_escapes() const { return m_no_backslash_escapes; }
+
   Query_string_builder &put(const char *s) { return put(s, strlen(s)); }
 
   Query_string_builder &put(const std::string &s)
@@ -140,6 +143,7 @@ private:
   ngs::PFS_string m_str;
   bool m_in_quoted;
   bool m_in_identifier;
+  bool m_no_backslash_escapes;
 
   static void init_charset();
   static my_thread_once_t  m_charset_initialized;

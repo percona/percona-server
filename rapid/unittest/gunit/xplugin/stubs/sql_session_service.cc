@@ -91,6 +91,12 @@ extern "C" {
     assert(0);
     return 0;
   }
+
+  int thd_is_sql_mode_no_backslash_escapes(const MYSQL_THD)
+  {
+    assert(0);
+    return 0;
+  }
 #ifdef __cplusplus
 }
 #endif

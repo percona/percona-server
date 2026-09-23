@@ -99,6 +99,13 @@ public:
   uint64_t mysql_session_id() const;
   MYSQL_THD get_thd() const;
 
+  // Queries the session's own sql_mode for NO_BACKSLASH_ESCAPES via the
+  // thd_is_sql_mode_no_backslash_escapes() plugin service function
+  // (include/mysql/plugin.h, implemented in sql/sql_class.cc). That
+  // function runs inside the server binary itself, where THD's full
+  // layout is visible, so this plugin never touches THD's ABI directly.
+  virtual bool is_no_backslash_escapes() const;
+
   void detach();
 
   ngs::Error_code set_connection_type(const ngs::Connection_type type);

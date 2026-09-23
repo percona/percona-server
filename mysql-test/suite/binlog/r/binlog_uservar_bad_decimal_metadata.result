@@ -1,0 +1,8 @@
+#
+# Bug#39254885 - reject DECIMAL user var metadata that overruns the payload
+#
+# R2: payload matches the declared precision and scale, so it decodes.
+include/assert_grep.inc [a well-formed DECIMAL user var event is not rejected]
+# R1: declared precision 65 over a two-byte payload needs 29 bytes, so the
+#     event must be refused instead of read past its end.
+include/assert_grep.inc [the oversized DECIMAL metadata is rejected while decoding]

@@ -162,6 +162,27 @@ Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer
   encode_payload_item_int8(buffer, PIT_TRANSACTIONS_LOCAL,
                            transactions_local_aux);
 
+  /*
+    Test hook for the cargo type range check in get_cargo_type(). Rewrites the
+    cargo type in the fixed header to CT_MAX, which is what a cargo type this
+    version does not know looks like on the wire - CT_MAX here is 8, the value
+    8.0 uses for its group action message. The receiver must ignore such a
+    message, not treat it as malformed and leave the group.
+
+    The stats message carries the injection because every online member
+    broadcasts one periodically and dropping one has no consequence, so the test
+    can assert that nothing happened. Test-only: reached only with the debug
+    point set.
+  */
+  DBUG_EXECUTE_IF("group_replication_unknown_cargo_type",
+                  {
+                    int2store(buffer->data() +
+                              WIRE_VERSION_SIZE +
+                              WIRE_HD_LEN_SIZE +
+                              WIRE_MSG_LEN_SIZE,
+                              (uint16)CT_MAX);
+                  };);
+
   DBUG_VOID_RETURN;
 }
 
@@ -173,39 +194,70 @@ Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
   DBUG_ENTER("Pipeline_stats_member_message::decode_payload");
   const unsigned char *slider= buffer;
   uint16 payload_item_type= 0;
+  m_decode_error= false;
 
   uint32 transactions_waiting_certification_aux= 0;
-  decode_payload_item_int4(&slider,
-                           &payload_item_type,
-                           &transactions_waiting_certification_aux);
+  if (decode_payload_item_int4(&slider,
+                               &payload_item_type,
+                               end,
+                               &transactions_waiting_certification_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_WAITING_CERTIFICATION)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   m_transactions_waiting_certification=
       (int32)transactions_waiting_certification_aux;
 
   uint32 transactions_waiting_apply_aux= 0;
-  decode_payload_item_int4(&slider,
-                           &payload_item_type,
-                           &transactions_waiting_apply_aux);
+  if (decode_payload_item_int4(&slider,
+                               &payload_item_type,
+                               end,
+                               &transactions_waiting_apply_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_WAITING_APPLY)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   m_transactions_waiting_apply=
       (int32)transactions_waiting_apply_aux;
 
   uint64 transactions_certified_aux= 0;
-  decode_payload_item_int8(&slider,
-                           &payload_item_type,
-                           &transactions_certified_aux);
+  if (decode_payload_item_int8(&slider,
+                               &payload_item_type,
+                               end,
+                               &transactions_certified_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_CERTIFIED)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   m_transactions_certified=
       (int64)transactions_certified_aux;
 
   uint64 transactions_applied_aux= 0;
-  decode_payload_item_int8(&slider,
-                           &payload_item_type,
-                           &transactions_applied_aux);
+  if (decode_payload_item_int8(&slider,
+                               &payload_item_type,
+                               end,
+                               &transactions_applied_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_APPLIED)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   m_transactions_applied=
       (int64)transactions_applied_aux;
 
   uint64 transactions_local_aux= 0;
-  decode_payload_item_int8(&slider,
-                           &payload_item_type,
-                           &transactions_local_aux);
+  if (decode_payload_item_int8(&slider,
+                               &payload_item_type,
+                               end,
+                               &transactions_local_aux) ||
+      payload_item_type != PIT_TRANSACTIONS_LOCAL)
+  {
+    m_decode_error= true;
+    DBUG_VOID_RETURN;
+  }
   m_transactions_local=
       (int64)transactions_local_aux;
 
@@ -639,6 +691,17 @@ Flow_control_module::handle_stats_data(const uchar *data,
   DBUG_ENTER("Flow_control_module::handle_stats_data");
   int error= 0;
   Pipeline_stats_member_message message(data, len);
+
+  /*
+    Nothing else consulted is_decode_error() for this message type, so a
+    malformed payload used to reach update_member_stats() and be applied as flow
+    control input.
+  */
+  if (message.is_decode_error())
+  {
+    log_message(MY_ERROR_LEVEL, "Malformed pipeline stats message");
+    DBUG_RETURN(1);
+  }
 
   /*
     This method is called synchronously by communication layer, so

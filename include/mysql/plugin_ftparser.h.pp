@@ -84,6 +84,7 @@ int thd_in_lock_tables(const void* thd);
 int thd_tablespace_op(const void* thd);
 long long thd_test_options(const void* thd, long long test_options);
 int thd_sql_command(const void* thd);
+int thd_is_sql_mode_no_backslash_escapes(const void* thd);
 const char *set_thd_proc_info(void* thd, const char *info,
                               const char *calling_func,
                               const char *calling_file,

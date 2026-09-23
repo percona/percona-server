@@ -121,10 +121,22 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   /* Extract the length of the various parts from the buffer */
   unsigned char const *const ptr_dblen= (unsigned char const*)vpart + 0;
   m_dblen= *(unsigned char*) ptr_dblen;
+  if (m_dblen > NAME_LEN)
+  {
+    /* Invalid database name length */
+    m_coltype= NULL;
+    return;
+  }
 
   /* Length of database name + counter + terminating null */
   unsigned char const *const ptr_tbllen= ptr_dblen + m_dblen + 2;
   m_tbllen= *(unsigned char*) ptr_tbllen;
+  if (m_tbllen > NAME_LEN)
+  {
+    /* Invalid table name length */
+    m_coltype= NULL;
+    return;
+  }
 
   /* Length of table name + counter + terminating null */
   unsigned char const *const ptr_colcnt= ptr_tbllen + m_tbllen + 2;
@@ -277,6 +289,11 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   unsigned char const *const ptr_width= var_start;
   unsigned char *ptr_after_width= (unsigned char*) ptr_width;
   m_width = get_field_length(&ptr_after_width);
+  if (m_width == 0 || m_width > Rows_event::max_fields)
+  {
+    m_width= 0;
+    return;
+  }
   n_bits_len= (m_width + 7) / 8;
   /* Avoid reading out of buffer */
   if (ptr_after_width + n_bits_len > (const unsigned char *)(buf +

@@ -1,0 +1,57 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Relay log write failure: could not queue event from master");
+CALL mtr.add_suppression("Received oversized rotate event");
+SET GLOBAL binlog_checksum= CRC32;
+RESET SLAVE ALL;
+include/rpl_change_topology.inc [new topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Adding debug point 'binlog_sender_large_rotate_event' to @@GLOBAL.debug
+
+# Case 1: master NONE, slave CRC32. Add checksum into rot_buf.
+
+SET GLOBAL binlog_checksum= NONE;
+[connection slave]
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=1595 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE]
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/assert_grep.inc [Slave error log contains oversized rotate event]
+[connection master]
+SET GLOBAL binlog_checksum= CRC32;
+
+# Case 2: master CRC32, slave NONE. Strip checksum into rot_buf.
+
+[connection slave]
+RESET SLAVE ALL;
+SET GLOBAL binlog_checksum= NONE;
+include/rpl_change_topology.inc [new topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=1595 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE]
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+include/assert_grep.inc [Slave error log contains oversized rotate event after RESET SLAVE ALL]
+RESET SLAVE ALL;
+SET GLOBAL binlog_checksum= CRC32;
+[connection master]
+# Removing debug point 'binlog_sender_large_rotate_event' from @@GLOBAL.debug
+include/rpl_end.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

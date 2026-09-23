@@ -1,0 +1,109 @@
+# ==== Purpose ====
+#
+# Bug#39377010 - Validate heartbeat events before exposing parser state
+#
+# A heartbeat event must carry the current binlog filename after the
+# standard event header. The binlog_sender_header_only_heartbeat debug
+# point makes the master dump thread emit a header-only heartbeat with
+# no filename payload. Without the fix, the parser could accept that
+# event and the slave would not report a heartbeat validation failure.
+#
+# ==== Requirements ====
+#
+# R1. A header-only heartbeat must be rejected on the slave I/O thread
+#     path with a heartbeat validation error.
+#
+# R2. After removing the malformed-heartbeat debug point, heartbeats with
+#     a normal payload must still be accepted and replication must continue.
+#
+# ==== Implementation ====
+#
+# 1. Force the master dump thread to send heartbeats.
+# 2. Enable binlog_sender_header_only_heartbeat on the master.
+# 3. Start replication with a short MASTER_HEARTBEAT_PERIOD.
+# 4. Wait for the slave I/O thread to stop with a queueing error and verify
+#    the heartbeat validation message in the error log.
+# 5. Remove the malformed-heartbeat debug point, restart replication, and
+#    verify that heartbeats and normal DML still work.
+#
+# ==== References ====
+#
+# Bug#39377010 mysql/mysql-server@f2682635b5f
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Bug#39377010 - reject header-only heartbeat events
+--echo #
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_master.inc
+--let $debug_point= binlog_sender_header_only_heartbeat
+--source include/add_debug_point.inc
+
+--connection slave
+call mtr.add_suppression("Unexpected master's heartbeat data");
+call mtr.add_suppression("Relay log write failure: could not queue event from master");
+
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+--source include/start_slave_io.inc
+
+--echo # R1: header-only heartbeat must fail on the receiver path.
+--let $slave_io_errno= 1595
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+# The error log is not truncated between test runs, so restrict the match to
+# the current run -- otherwise --repeat counts the message from every earlier
+# run as well.
+--let $assert_text= Found heartbeat validation failure in the slave error log
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= inconsistent heartbeat event content
+--let $assert_only_after= CURRENT_TEST: rpl.rpl_malformed_heartbeat
+--let $assert_count= 1
+--source include/assert_grep.inc
+--let $assert_only_after=
+
+--echo # R2: normal heartbeats must work after removing the malformed hook.
+--source include/rpl_connection_master.inc
+--let $debug_point= binlog_sender_header_only_heartbeat
+--source include/remove_debug_point.inc
+
+CREATE TABLE t1 (a INT);
+
+--connection slave
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+# Wait until at least one normal heartbeat is received.
+--let $slave_wait_param_counter= 300
+--let $slave_value= query_get_value(SELECT COUNT_RECEIVED_HEARTBEATS FROM performance_schema.replication_connection_status, COUNT_RECEIVED_HEARTBEATS, 1)
+while (!$slave_value)
+{
+  --dec $slave_wait_param_counter
+  if (!$slave_wait_param_counter)
+  {
+    --query_vertical SHOW SLAVE STATUS
+    SELECT COUNT_RECEIVED_HEARTBEATS FROM performance_schema.replication_connection_status;
+    --die ERROR: failed while waiting for slave to receive a heartbeat.
+  }
+  --sleep 0.1
+  --let $slave_value= query_get_value(SELECT COUNT_RECEIVED_HEARTBEATS FROM performance_schema.replication_connection_status, COUNT_RECEIVED_HEARTBEATS, 1)
+}
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo # Clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

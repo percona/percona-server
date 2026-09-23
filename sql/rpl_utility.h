@@ -251,6 +251,14 @@ public:
   ~table_def();
 
   /**
+    Return whether the table definition metadata was decoded successfully.
+
+    @retval true if the field metadata stream is well-formed
+    @retval false if metadata decoding exceeded the encoded metadata bounds
+   */
+  bool is_valid() const { return m_is_valid; }
+
+  /**
     Return the number of fields there is type data for.
 
     @return The number of fields that there is type data for.
@@ -417,6 +425,8 @@ private:
   uchar *m_null_bits;
   uint16 m_flags;         // Table flags
   uchar *m_memory;
+  /* Whether the serialized field metadata stream decoded within bounds. */
+  bool m_is_valid;
 };
 
 

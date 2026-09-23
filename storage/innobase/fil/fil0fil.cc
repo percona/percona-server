@@ -10023,22 +10023,10 @@ Dirs_in_datadir Dirs_in_datadir::make() {
 
     const auto schema_dir = fil_real_dir_for_lookup(path);
 
-<<<<<<< HEAD
-  auto guard = create_scope_guard([&]() { ut::free(default_path); });
-
-  if (default_path == nullptr || default_path[0] == '\0') {
-    return false;
-  }
-||||||| parent of 689a739974b (EOL 2 - Security - PS-11437 Fix datadir default-location detection for symlinked directories)
-  if (default_path == nullptr || default_path[0] == '\0') {
-    return false;
-  }
-=======
     if (!schema_dir.empty()) {
       schema_dirs.m_dirs.insert(schema_dir);
     }
   });
->>>>>>> 689a739974b (EOL 2 - Security - PS-11437 Fix datadir default-location detection for symlinked directories)
 
   return schema_dirs;
 }
@@ -10046,42 +10034,7 @@ Dirs_in_datadir Dirs_in_datadir::make() {
 bool Dirs_in_datadir::contains(const std::string &discovered_dir) const {
   const auto real_dir = fil_real_dir_for_lookup(discovered_dir);
 
-<<<<<<< HEAD
-  if (df_default.open_read_only(false) != DB_SUCCESS) {
-    return false;
-  }
-
-  if (df_found.open_read_only(false) != DB_SUCCESS) {
-    df_default.close();
-    return false;
-  }
-
-  const bool same = df_default.same_as(df_found);
-
-  df_found.close();
-  df_default.close();
-
-  return same;
-||||||| parent of 689a739974b (EOL 2 - Security - PS-11437 Fix datadir default-location detection for symlinked directories)
-  if (df_default.open_read_only(false) != DB_SUCCESS) {
-    return false;
-  }
-
-  if (df_found.open_read_only(false) != DB_SUCCESS) {
-    df_default.close();
-    return false;
-  }
-
-  const bool same = df_default.same_as(df_found);
-
-  df_found.close();
-  df_default.close();
-  ut::free(default_path);
-
-  return same;
-=======
   return !real_dir.empty() && m_dirs.find(real_dir) != m_dirs.end();
->>>>>>> 689a739974b (EOL 2 - Security - PS-11437 Fix datadir default-location detection for symlinked directories)
 }
 
 /** Lookup the tablespace ID.

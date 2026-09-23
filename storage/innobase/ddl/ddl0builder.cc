@@ -1704,7 +1704,18 @@ dberr_t Builder::add_row(Cursor &cursor, Row &row, size_t thread_id,
     table is written once, from a walk of the finished graph, in
     VEC_BUILD. */
     if (!cursor.eof()) {
-      err = vec_build_add_row(m_vec, m_ctx.m_new_table, row.m_ptr);
+      uint64_t bad_pk{};
+      uint32_t bad_dims{};
+      uint32_t need{};
+      err = vec_build_add_row(m_vec, m_ctx.m_new_table, row.m_ptr, &bad_pk,
+                              &bad_dims, &need);
+      if (err == DB_VEC_WRONG_DIMENSIONS && set_error(err)) {
+        /* Only the thread whose error the DDL keeps records its row. */
+        m_ctx.m_vec_bad_index = m_index;
+        m_ctx.m_vec_bad_pk = bad_pk;
+        m_ctx.m_vec_bad_dims = bad_dims;
+        m_ctx.m_vec_bad_need = need;
+      }
       if (err != DB_SUCCESS) {
         err = handle_error(err);
       }

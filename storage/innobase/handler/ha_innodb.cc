@@ -2488,6 +2488,9 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
     case DB_OUT_OF_MEMORY:
     case DB_VEC_OUT_OF_MEMORY:
       return (HA_ERR_OUT_OF_MEM);
+    case DB_VEC_WRONG_DIMENSIONS:
+      /* Reported by the caller, with the row. */
+      return (HA_ERR_GENERIC);
     case DB_TABLESPACE_EXISTS:
       return (HA_ERR_TABLESPACE_EXISTS);
     case DB_TABLESPACE_DELETED:

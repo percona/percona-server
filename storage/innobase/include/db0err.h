@@ -238,6 +238,12 @@ enum dberr_t {
   Appended here so no existing code is renumbered. */
   DB_VEC_OUT_OF_MEMORY,
 
+  /** A row's vector has a different number of dimensions than its vector
+  index. VECTOR(n) stores a shorter value, so the index is where it is
+  found. The caller reports ER_VECTOR_INDEX_WRONG_DIMENSIONS, naming the
+  row, before returning this. */
+  DB_VEC_WRONG_DIMENSIONS,
+
   /* The following are API only error codes. */
 
   /** Column update or read failed because the types mismatch */

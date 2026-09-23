@@ -40,6 +40,7 @@ Created 2020-11-01 by Sunny Bains. */
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "row0log.h"
+#include "vec0hnsw.h"
 
 namespace ddl {
 
@@ -532,7 +533,15 @@ dberr_t Context::build() noexcept {
 
   Loader loader{*this};
 
-  const auto err = cleanup(loader.build_all());
+  auto err = loader.build_all();
+
+  if (err == DB_VEC_WRONG_DIMENSIONS) {
+    ut_ad(m_vec_bad_index != nullptr);
+    vec_report_wrong_dimensions(thd(), m_vec_bad_index, m_vec_bad_pk,
+                                m_vec_bad_dims, m_vec_bad_need);
+  }
+
+  err = cleanup(err);
 
   /* Validate the indexes  after the pages have been flushed to disk.
   Otherwise we can deadlock between flushing and is_free page check. */

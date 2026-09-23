@@ -206,6 +206,15 @@ void vec_report_memory_ceiling(THD *thd) {
            " innodb_hnsw_max_memory and retry.");
 }
 
+void vec_report_wrong_dimensions(THD *thd, const dict_index_t *index,
+                                 uint64_t base_pk, uint32_t dims,
+                                 uint32_t need) {
+  if (thd == nullptr) return;
+  my_error(ER_VECTOR_INDEX_WRONG_DIMENSIONS, MYF(0),
+           index->get_field(0)->name(), static_cast<ulonglong>(base_pk), dims,
+           need);
+}
+
 void vec_report_missing_node(THD *thd, uint64_t id) {
   if (thd == nullptr) return;
   ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
@@ -967,27 +976,37 @@ Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table,
   return b;
 }
 
+/** @return the base row's PRIMARY KEY. The design allows a single-column
+BIGINT UNSIGNED primary key, so it is the first clustered field. */
+static uint64_t vec_row_base_pk(const dict_table_t *table,
+                                const dtuple_t *row) {
+  const dict_index_t *clust = table->first_index();
+  ut_ad(dict_index_get_n_unique(clust) == 1);
+  const dfield_t *pk_df = dtuple_get_nth_field(row, clust->get_col_no(0));
+  ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
+  return mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
+}
+
 dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
-                          const dtuple_t *row) {
+                          const dtuple_t *row, uint64_t *bad_pk,
+                          uint32_t *bad_dims, uint32_t *need) {
   ut_ad(b != nullptr && b->graph != nullptr);
 
   ulint vec_len = 0;
   const char *q = vec_row_vector_bytes(b->index, row, &vec_len);
   if (q == nullptr) return DB_SUCCESS;
-  if (vec_len != b->dims * sizeof(float)) return DB_CORRUPTION;
+  const uint64_t base_pk = vec_row_base_pk(table, row);
+  if (vec_len != b->dims * sizeof(float)) {
+    *bad_pk = base_pk;
+    *bad_dims = static_cast<uint32_t>(vec_len / sizeof(float));
+    *need = b->dims;
+    return DB_VEC_WRONG_DIMENSIONS;
+  }
 
   /* Label 0 is the empty-slot sentinel and can never be a node. A row
   carrying it means the writing path missed it. */
   const uint64_t id = vec_get_aux_id_from_row(table, row);
   ut_ad(id != 0);
-
-  const dfield_t *pk_df = nullptr;
-  const dict_index_t *clust = table->first_index();
-  ut_ad(dict_index_get_n_unique(clust) == 1);
-  pk_df = dtuple_get_nth_field(row, clust->get_col_no(0));
-  ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
-  const uint64_t base_pk =
-      mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
 
   const HnswResult irc = b->graph->insert(id, base_pk, q, &b->null_ctx);
   if (irc != HNSW_SUCCESS) {
@@ -1151,7 +1170,13 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     ulint vec_len = 0;
     const char *q = vec_row_vector_bytes(index, row, &vec_len);
     if (q == nullptr) continue;
-    if (vec_len != vec->dims * sizeof(float)) return DB_CORRUPTION;
+    const uint64_t base_pk = vec_row_base_pk(table, row);
+    if (vec_len != vec->dims * sizeof(float)) {
+      vec_report_wrong_dimensions(
+          thd, index, base_pk, static_cast<uint32_t>(vec_len / sizeof(float)),
+          vec->dims);
+      return DB_VEC_WRONG_DIMENSIONS;
+    }
 
     const uint64_t label = vec_get_aux_id_from_row(table, row);
     /* 0 is impossible per this column's contract - the aux reserves it
@@ -1164,16 +1189,7 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     /* base_pk is the base row's PRIMARY KEY, not the label. A search
     returns base_pk so the caller can fetch the row; the label
     identifies the node and is what the read path compares against the
-    row's hidden column. The design allows a single-column BIGINT
-    UNSIGNED primary key, so it is the first clustered field. */
-    const dict_index_t *clust = table->first_index();
-    ut_ad(dict_index_get_n_unique(clust) == 1);
-    const ulint pk_col = clust->get_col_no(0);
-    const dfield_t *pk_df = dtuple_get_nth_field(row, pk_col);
-    ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
-    const uint64_t base_pk =
-        mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
-
+    row's hidden column. */
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
   }

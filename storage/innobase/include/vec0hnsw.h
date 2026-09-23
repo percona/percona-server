@@ -134,6 +134,22 @@ the remedy is the obvious one.
 @param[in]  thd  session to report to; nothing is reported without one */
 void vec_report_memory_ceiling(THD *thd);
 
+/** Report a row whose vector has a different number of dimensions than
+its vector index.
+
+VECTOR(n) stores a value with fewer than n dimensions, so the index is
+where such a row is found. Reported here, naming the row, because the
+table is not damaged and what DB_VEC_WRONG_DIMENSIONS maps to says
+nothing about which row to fix.
+@param[in]  thd      session to report to; nothing is reported without one
+@param[in]  index    the vector index
+@param[in]  base_pk  the row's PRIMARY KEY
+@param[in]  dims     how many dimensions the row's vector has
+@param[in]  need     how many the index holds */
+void vec_report_wrong_dimensions(THD *thd, const dict_index_t *index,
+                                 uint64_t base_pk, uint32_t dims,
+                                 uint32_t need);
+
 /** Fill an unloaded node from its aux row.
 
 A template only because LoadNodeHandle is nested in the instantiation,
@@ -598,13 +614,19 @@ callback, concurrently from every scan thread: HNSW::insert serialises
 allocation on its own lock and guards neighbour lists with striped
 per-node locks. Writes nothing - the build persistor is
 Vec_null_persistor - so this takes no latches and calls no row API.
-@param[in,out]  b      build state
-@param[in]      table  base table the row belongs to
-@param[in]      row    the base row, as the scan built it
-@return DB_SUCCESS, or DB_OUT_OF_MEMORY once innodb_hnsw_max_memory is
-reached */
+A scan thread has no session to report to, so a row with the wrong number
+of dimensions is handed back for the ALTER's own thread to report.
+@param[in,out]  b        build state
+@param[in]      table    base table the row belongs to
+@param[in]      row      the base row, as the scan built it
+@param[out]     bad_pk   on DB_VEC_WRONG_DIMENSIONS, the row's PRIMARY KEY
+@param[out]     bad_dims on DB_VEC_WRONG_DIMENSIONS, its vector's dimensions
+@param[out]     need     on DB_VEC_WRONG_DIMENSIONS, the index's dimensions
+@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, or DB_OUT_OF_MEMORY once
+innodb_hnsw_max_memory is reached */
 [[nodiscard]] dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
-                                        const dtuple_t *row);
+                                        const dtuple_t *row, uint64_t *bad_pk,
+                                        uint32_t *bad_dims, uint32_t *need);
 
 /** Walk the finished graph and write the aux table bottom-up: record 0
 naming the entry point, then one row per node, in id order, with the

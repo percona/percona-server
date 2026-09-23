@@ -1163,6 +1163,7 @@ handle_new_error:
     case DB_OUT_OF_FILE_SPACE:
     /* A ceiling, not a failed allocation: fail the statement. */
     case DB_VEC_OUT_OF_MEMORY:
+    case DB_VEC_WRONG_DIMENSIONS:
     case DB_READ_ONLY:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:

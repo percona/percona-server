@@ -390,6 +390,10 @@ static UNIV_COLD void my_error_innodb(
     case DB_VEC_OUT_OF_MEMORY:
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
       break;
+    case DB_VEC_WRONG_DIMENSIONS:
+      /* Reported where the row was found, which is the only place that
+      knows which row it was. */
+      break;
     case DB_OUT_OF_FILE_SPACE:
       my_error(ER_RECORD_FILE_FULL, MYF(0), table);
       break;

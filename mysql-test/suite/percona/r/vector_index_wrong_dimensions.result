@@ -1,0 +1,72 @@
+#
+# PS-11578: a vector with fewer dimensions than its column must be
+# refused by the vector index as what it is, naming the row.
+#
+# VECTOR(n) stores a value with fewer than n dimensions (only a longer
+# one is refused), and that stays so here. The vector index cannot hold
+# such a value, and used to refuse it as DB_CORRUPTION: the client got
+# "Incorrect key file for table", an ALTER also logged "We detected
+# index corruption", and nothing said which row was the problem. The
+# table was never damaged. Every path that puts a row into the index
+# now fails with ER_VECTOR_INDEX_WRONG_DIMENSIONS and the row's key.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+# INSERT into an indexed table.
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+# A multi-row INSERT fails as a whole.
+INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),
+(4, STRING_TO_VECTOR('[4,0]'));
+ERROR HY000: Column 'v' of the row with primary key 4 has 2 dimensions, but its vector index needs 4.
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+id	LENGTH(v)
+1	16
+# The index still answers.
+SELECT id FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+# Without the index the short value is stored, as VECTOR(4) allows.
+# DROP KEY keeps the hidden label column, so the next ADD can be INPLACE.
+ALTER TABLE t DROP KEY vk;
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+id	LENGTH(v)
+1	16
+2	12
+# Building the index finds it, on either algorithm.
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=COPY;
+ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+# Fixing the row is enough.
+UPDATE t SET v = STRING_TO_VECTOR('[1,2,3,0]') WHERE id = 2;
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SELECT id FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+2
+DROP TABLE t;
+# A table that never had a vector index: the first ADD is COPY only.
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(7, STRING_TO_VECTOR('[1,0]'));
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+ERROR HY000: Column 'v' of the row with primary key 7 has 2 dimensions, but its vector index needs 4.
+DROP TABLE t;
+# A build on many scan threads reports the row too. The scan thread
+# that finds it has no session; the ALTER's own thread reports it.
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+ALTER TABLE t DROP KEY vk;
+SET @@global.innodb_limit_optimistic_insert_debug = 2;
+SET @@global.innodb_limit_optimistic_insert_debug = 0;
+SET SESSION innodb_parallel_read_threads = 8;
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ERROR HY000: Column 'v' of the row with primary key 777 has 2 dimensions, but its vector index needs 4.
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+DROP TABLE t;
+# None of it was reported as corruption.
+include/assert_grep.inc [no row with the wrong dimensions was logged as corruption]

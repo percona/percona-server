@@ -2,10 +2,10 @@
 --echo # PS-11299 phase 1: INSERT into a vec-indexed table must succeed.
 --echo #
 --echo # Before this commit, INSERT crashed:
---echo #   - rec_get_converted_size_comp_prefix_low at rem0rec.cc:406
+--echo #   - rec_get_converted_size_comp_prefix_low
 --echo #     (percona_vec_aux_id NOT NULL field had SQL_NULL value —
 --echo #      the column was never written)
---echo #   - btr_cur_search_to_nth_level at dict0dict.cc:3664
+--echo #   - btr_cur_search_to_nth_level, on index->page == FIL_NULL
 --echo #     (row_ins tried to insert into vector index B-tree which
 --echo #      has page=FIL_NULL by design)
 --echo #
@@ -25,7 +25,8 @@
 --echo #     index and returns 0 (planner thinks vec index has no rows
 --echo #     and is the cheapest cover). Use FORCE INDEX (PRIMARY).
 --echo #   - SELECT after ALGORITHM=INSTANT ADD COLUMN on a populated
---echo #     vec-indexed table asserts at row0sel.ic:199
+--echo #     vec-indexed table asserts in
+--echo #     row_sel_field_store_in_mysql_format_func
 --echo #     (mysql_col_len == len). Avoid INSTANT in tests below.
 --echo #
 

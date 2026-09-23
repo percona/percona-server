@@ -8810,7 +8810,8 @@ bool mysql_prepare_create_table(
     Refusing both is broader than the defect. Narrowing it to
     ON UPDATE CASCADE where the foreign key overlaps the primary key
     would be accurate, and is worth doing once cascades are supported
-    properly. Supporting them means what FTS does at row0ins.cc:1251:
+    properly. Supporting them means what FTS does in
+    row_ins_foreign_check_on_constraint():
     a per-foreign-key predicate, a hook in the ON UPDATE CASCADE branch,
     and - the part that makes it engine work rather than a handler tweak
     - deferring the aux write onto a queue drained at commit, because

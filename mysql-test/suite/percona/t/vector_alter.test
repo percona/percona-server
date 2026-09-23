@@ -106,7 +106,7 @@ DROP TABLE tc1;
 --echo #
 --echo # === Section D: ADD INDEX after INSTANT ADD COLUMN
 --echo #
---echo # Until PS-11299's rebuild-forcing fix, this crashed at dict0dd.cc:2682
+--echo # Until PS-11299's rebuild-forcing fix, this crashed in dd_write_table()
 --echo # because percona_vec_aux_id was missing from the rebuilt dict_table_t while
 --echo # the dd::Table carried it. ADD INDEX now forces a rebuild that
 --echo # materializes percona_vec_aux_id on a fresh dict_table_t (current_row_version=0),

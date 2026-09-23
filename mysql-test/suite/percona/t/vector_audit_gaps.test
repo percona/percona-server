@@ -4,14 +4,14 @@
 --echo #
 --echo # Each section exercises one audit finding:
 --echo #   C1  CHECK TABLE on a populated vec-indexed table must succeed
---echo #       without reporting the vec index as corrupt (row_scan_index_
---echo #       for_mysql at row0mysql.cc:5090).
+--echo #       without reporting the vec index as corrupt
+--echo #       (row_scan_index_for_mysql).
 --echo #   C2  DROP TABLE in a general tablespace with a vec index must
 --echo #       not hit the free-tree-log path for the vec index
---echo #       (log0ddl.cc:976).
+--echo #       (Log_DDL::write_free_tree_log).
 --echo #   I2  Adding a FOREIGN KEY whose column also has a vector index
 --echo #       must not pick the vec index as the FK backing index
---echo #       (innobase_find_fk_index at handler0alter.cc:1946).
+--echo #       (innobase_find_fk_index).
 --echo #   I3  HANDLER ... READ on a vec index must not crash on
 --echo #       FIL_NULL; it is refused before it reaches InnoDB.
 --echo #

@@ -3634,7 +3634,7 @@ static inline void row_ins_get_row_from_query_block(
     aux table will wire that. For phase 1 the aux
     stays empty, so we simply skip the index, same as FTS). Without
     this skip, btr_cur_search_to_nth_level asserts on
-    index->page == FIL_NULL at dict0dict.cc:3664. */
+    index->page == FIL_NULL. */
     if (node->index->type != DICT_FTS && !node->index->is_vector()) {
       err = row_ins_index_entry_step(node, thr);
 

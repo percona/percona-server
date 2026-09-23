@@ -11439,7 +11439,7 @@ int ha_innobase::change_active_index(
   since FT search returns rank only. In addition engine should
   be able to retrieve FTS_DOC_ID column value if necessary.
   Note: for vector indexes we take the "else" branch below - the
-  setup work is wasted (subsequent fetch is blocked at line 11058)
+  setup work is wasted (ha_innobase::index_read() refuses the fetch)
   but harmless. Not worth an extra branch here; keeping FTS-only
   check for minimal churn. */
   if ((m_prebuilt->index->type & DICT_FTS)) {

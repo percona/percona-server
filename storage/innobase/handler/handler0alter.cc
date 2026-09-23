@@ -890,7 +890,8 @@ static inline Instant_Type innobase_support_instant(
   InnoDB positions contiguously via `i - num_v`. That mapping doesn't
   know how to skip HT_HIDDEN_SE cols, so a subsequent SELECT reads
   percona_vec_aux_id's 8 bytes where the INSTANT-added INT column's 4 bytes
-  belong, tripping row0sel.ic:199 (mysql_col_len == len).
+  belong, tripping mysql_col_len == len in
+  row_sel_field_store_in_mysql_format_func().
 
   FTS is protected by ER_INNODB_FT_LIMIT (see below); vector reaches
   here because we deliberately allowed ADD VECTOR INDEX + subsequent

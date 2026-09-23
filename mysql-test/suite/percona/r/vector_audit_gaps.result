@@ -4,14 +4,14 @@
 #
 # Each section exercises one audit finding:
 #   C1  CHECK TABLE on a populated vec-indexed table must succeed
-#       without reporting the vec index as corrupt (row_scan_index_
-#       for_mysql at row0mysql.cc:5090).
+#       without reporting the vec index as corrupt
+#       (row_scan_index_for_mysql).
 #   C2  DROP TABLE in a general tablespace with a vec index must
 #       not hit the free-tree-log path for the vec index
-#       (log0ddl.cc:976).
+#       (Log_DDL::write_free_tree_log).
 #   I2  Adding a FOREIGN KEY whose column also has a vector index
 #       must not pick the vec index as the FK backing index
-#       (innobase_find_fk_index at handler0alter.cc:1946).
+#       (innobase_find_fk_index).
 #   I3  HANDLER ... READ on a vec index must not crash on
 #       FIL_NULL; it is refused before it reaches InnoDB.
 #
@@ -69,11 +69,9 @@ ERROR 42000: This version of MySQL doesn't yet support 'HANDLER ... READ on a ve
 HANDLER t_hand CLOSE;
 DROP TABLE t_hand;
 # === F1: rebuild on populated vec-indexed table ===
-# INPLACE rebuild with a surviving vector index is refused
-# (FTS-parity check in check_if_supported_inplace_alter — the aux
-# contents cannot be carried across a native rebuild). The
-# server-picked fallback (COPY) must preserve all rows and keep
-# the percona_vec_aux_id write path working.
+# An INPLACE rebuild with a surviving vector index rebuilds the
+# graph from the copied rows, under LOCK=SHARED. It must preserve all
+# rows and keep the percona_vec_aux_id write path working.
 CREATE TABLE t_rebuild (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 c INT,
@@ -81,10 +79,9 @@ VECTOR KEY (v) TYPE hnsw (M = 6));
 INSERT INTO t_rebuild VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 10);
 INSERT INTO t_rebuild VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'), 20);
 INSERT INTO t_rebuild VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'), 30);
-# Explicit INPLACE rebuild: supported now - the rebuild recreates
-# the vector index from the copied rows.
+# Explicit INPLACE rebuild.
 ALTER TABLE t_rebuild FORCE, ALGORITHM=INPLACE;
-# Server-picked algorithm succeeds too.
+# Server-picked algorithm, which is INPLACE as well.
 ALTER TABLE t_rebuild FORCE;
 # SELECT must return all 3 rows correctly (no col-count mismatch).
 SELECT id, c, VECTOR_TO_STRING(v) FROM t_rebuild

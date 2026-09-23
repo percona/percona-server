@@ -24,11 +24,19 @@ ENABLE_PAM_COMPAT=0
 DISABLE_PAM_COMPAT=0
 ENABLE_MYSQLX=0
 DISABLE_MYSQLX=0
+ENABLE_OPENID_CONNECT=0
+DISABLE_OPENID_CONNECT=0
+ENABLE_AUTO_UPDATE_JWKS=0
+DISABLE_AUTO_UPDATE_JWKS=0
+JWKS_UPDATE_INTERVAL=""
 STATUS_ROCKSDB_PLUGIN=0
 STATUS_AUDIT_PLUGIN=0
 STATUS_PAM_PLUGIN=0
 STATUS_PAM_COMPAT_PLUGIN=0
 STATUS_MYSQLX_PLUGIN=0
+STATUS_OPENID_CONNECT_PLUGIN=0
+STATUS_UPDATE_JWKS_UDF=0
+STATUS_AUTO_UPDATE_JWKS_EVENT=0
 STATUS_MYSQLD_SAFE=0
 HAROCKSDB_LOCATION=""
 
@@ -42,10 +50,10 @@ else
 fi
 
 # Check if we have a functional getopt(1)
-if ! getopt --test
+if ! getopt --test >/dev/null 2>&1
   then
-  go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinjKxgD \
-  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-audit,disable-audit,enable-pam,disable-pam,enable-pam-compat,disable-pam-compat,enable-mysqlx,disable-mysqlx,docker \
+  go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinjKxgDyYq:Q \
+  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-audit,disable-audit,enable-pam,disable-pam,enable-pam-compat,disable-pam-compat,enable-mysqlx,disable-mysqlx,enable-openid-connect,disable-openid-connect,enable-auto-update-jwks:,disable-auto-update-jwks,docker \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -165,6 +173,47 @@ do
     shift
     DISABLE_MYSQLX=1
     ;;
+    -y | --enable-openid-connect )
+    shift
+    ENABLE_OPENID_CONNECT=1
+    ;;
+    -Y | --disable-openid-connect )
+    shift
+    DISABLE_OPENID_CONNECT=1
+    ;;
+    -q | --enable-auto-update-jwks | --enable-auto-update-jwks=* )
+    # Without GNU getopt(1) (e.g. on macOS) the "--option=value" form is not
+    # split into separate arguments, so handle it here.
+    if [ "${arg#*=}" != "${arg}" ]; then
+      JWKS_UPDATE_INTERVAL="${arg#*=}"
+      shift
+    else
+       if [ "$#" -ge 2 ]; then
+         JWKS_UPDATE_INTERVAL="$2"
+         shift 2
+       else
+         JWKS_UPDATE_INTERVAL=""
+         shift
+       fi
+    fi
+    if [ -z "${JWKS_UPDATE_INTERVAL}" ]; then
+      echo "ERROR: The event interval (--enable-auto-update-jwks) was not provided. Terminating."
+      exit 1
+    fi
+    # The interval is put into SQL statement as is, so allow only safe characters.
+    # Characters are listed explicitly to avoid locale dependent ranges.
+    case "${JWKS_UPDATE_INTERVAL}" in
+      *[!0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_\ ]*)
+      echo "ERROR: The event interval (--enable-auto-update-jwks) may contain only digits, latin letters, underscore and space. Terminating."
+      exit 1
+      ;;
+    esac
+    ENABLE_AUTO_UPDATE_JWKS=1
+    ;;
+    -Q | --disable-auto-update-jwks )
+    shift
+    DISABLE_AUTO_UPDATE_JWKS=1
+    ;;
     -m | --force-mycnf )
     print_tokudb_removal
     exit 1
@@ -192,6 +241,10 @@ do
     printf "  --disable-pam-compat, -K\t\t disable PAM Compat Authentication plugin\n"
     printf "  --enable-mysqlx, -x\t\t\t enable MySQL X plugin\n"
     printf "  --disable-mysqlx, -g\t\t\t disable MySQL X plugin\n"
+    printf "  --enable-openid-connect, -y\t\t enable OpenID Connect Authentication plugin\n"
+    printf "  --disable-openid-connect, -Y\t\t disable OpenID Connect Authentication plugin (also removes auto update JWKS event)\n"
+    printf "  --enable-auto-update-jwks=interval, -q interval\t enable periodic update of IDP public keys from JWKS (OpenId Connect authentication), using the given event interval (e.g. \"1 HOUR\"), requires update_jwks UDF\n"
+    printf "  --disable-auto-update-jwks, -Q\t disable periodic update of IDP public keys from JWKS (OpenId Connect authentication)\n"
     printf "  --help\t\t\t\t show this help\n\n"
     exit 0
     ;;
@@ -204,7 +257,7 @@ SOCKET=${SOCKET:+"-S ${SOCKET}"}
 HOST=${HOST:+"-h ${HOST}"}
 PORT=${PORT:+"-P ${PORT}"}
 
-if [ ${ENABLE_ROCKSDB} = 0 -a ${DISABLE_ROCKSDB} = 0 -a ${ENABLE_AUDIT} = 0 -a ${DISABLE_AUDIT} = 0 -a ${ENABLE_PAM} = 0 -a ${DISABLE_PAM} = 0 -a ${ENABLE_PAM_COMPAT} = 0 -a ${DISABLE_PAM_COMPAT} = 0 -a ${ENABLE_MYSQLX} = 0 -a ${DISABLE_MYSQLX} = 0 ]; then
+if [ ${ENABLE_ROCKSDB} = 0 -a ${DISABLE_ROCKSDB} = 0 -a ${ENABLE_AUDIT} = 0 -a ${DISABLE_AUDIT} = 0 -a ${ENABLE_PAM} = 0 -a ${DISABLE_PAM} = 0 -a ${ENABLE_PAM_COMPAT} = 0 -a ${DISABLE_PAM_COMPAT} = 0 -a ${ENABLE_MYSQLX} = 0 -a ${DISABLE_MYSQLX} = 0 -a ${ENABLE_OPENID_CONNECT} = 0 -a ${DISABLE_OPENID_CONNECT} = 0 -a ${ENABLE_AUTO_UPDATE_JWKS} = 0 -a ${DISABLE_AUTO_UPDATE_JWKS} = 0 ]; then
   printf "ERROR: You should specify one of the --enable or --disable options.\n"
   printf "Use --help for printing options.\n"
   exit 1
@@ -223,6 +276,20 @@ elif [ ${ENABLE_PAM_COMPAT} = 1 -a ${DISABLE_PAM_COMPAT} = 1 ]; then
 elif [ ${ENABLE_MYSQLX} = 1 -a ${DISABLE_MYSQLX} = 1 ]; then
   printf "ERROR: Only --enable-mysqlx OR --disable-mysqlx can be specified - not both!\n\n"
   exit 1
+elif [ ${ENABLE_OPENID_CONNECT} = 1 -a ${DISABLE_OPENID_CONNECT} = 1 ]; then
+  printf "ERROR: Only --enable-openid-connect OR --disable-openid-connect can be specified - not both!\n\n"
+  exit 1
+elif [ ${ENABLE_AUTO_UPDATE_JWKS} = 1 -a ${DISABLE_AUTO_UPDATE_JWKS} = 1 ]; then
+  printf "ERROR: Only --enable-auto-update-jwks OR --disable-auto-update-jwks can be specified - not both!\n\n"
+  exit 1
+elif [ ${ENABLE_AUTO_UPDATE_JWKS} = 1 -a ${DISABLE_OPENID_CONNECT} = 1 ]; then
+  printf "ERROR: --enable-auto-update-jwks cannot be combined with --disable-openid-connect!\n\n"
+  exit 1
+fi
+
+# The auto update JWKS event depends on update_jwks UDF, so remove it as well
+if [ ${DISABLE_OPENID_CONNECT} = 1 ]; then
+  DISABLE_AUTO_UPDATE_JWKS=1
 fi
 
 # List plugins
@@ -312,6 +379,35 @@ if [ ${ENABLE_MYSQLX} = 1 -o ${DISABLE_MYSQLX} = 1 ]; then
   fi
 fi
 
+# Check OpenID Connect plugin status
+if [ ${ENABLE_OPENID_CONNECT} = 1 -o ${DISABLE_OPENID_CONNECT} = 1 ]; then
+  printf "Checking OpenID Connect plugin status...\n"
+  STATUS_OPENID_CONNECT_PLUGIN=$(echo "${LIST_PLUGINS}" | grep -c "auth_openid_connect#")
+  if [ ${STATUS_OPENID_CONNECT_PLUGIN} = 0 ]; then
+    printf "INFO: OpenID Connect Authentication plugin is not installed.\n\n"
+  else
+    printf "INFO: OpenID Connect Authentication plugin is installed.\n\n"
+  fi
+  printf "Checking update_jwks UDF status...\n"
+  STATUS_UPDATE_JWKS_UDF=$(${MYSQL_CLIENT_BIN} -N -B -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "SELECT COUNT(*) FROM mysql.func WHERE name = 'update_jwks';" 2>/dev/null)
+  if [ ${STATUS_UPDATE_JWKS_UDF} = 0 ]; then
+    printf "INFO: update_jwks UDF is not installed.\n\n"
+  else
+    printf "INFO: update_jwks UDF is installed.\n\n"
+  fi
+fi
+
+# Check auto update JWKS event status
+if [ ${ENABLE_AUTO_UPDATE_JWKS} = 1 -o ${DISABLE_AUTO_UPDATE_JWKS} = 1 -o ${DISABLE_OPENID_CONNECT} = 1 ]; then
+  printf "Checking auto update JWKS event status...\n"
+  STATUS_AUTO_UPDATE_JWKS_EVENT=$(${MYSQL_CLIENT_BIN} -N -B -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "SELECT COUNT(*) FROM information_schema.events WHERE event_schema = 'mysql' AND event_name = 'ps_admin_update_jwks';" 2>/dev/null)
+  if [ ${STATUS_AUTO_UPDATE_JWKS_EVENT} = 0 ]; then
+    printf "INFO: Auto update JWKS event is not installed.\n\n"
+  else
+    printf "INFO: Auto update JWKS event is installed.\n\n"
+  fi
+fi
+
 # Install RocksDB engine plugin
 if [ ${ENABLE_ROCKSDB} = 1 -a ${STATUS_ROCKSDB_PLUGIN} = 0 ]; then
   printf "Installing RocksDB engine...\n"
@@ -390,6 +486,75 @@ if [ ${ENABLE_MYSQLX} = 1 -a ${STATUS_MYSQLX_PLUGIN} = 0 ]; then
   fi
 fi
 
+# Install OpenID Connect plugin
+if [ ${ENABLE_OPENID_CONNECT} = 1 -a ${STATUS_OPENID_CONNECT_PLUGIN} = 0 ]; then
+  printf "Installing OpenID Connect Authentication plugin...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "INSTALL PLUGIN auth_openid_connect SONAME 'auth_openid_connect.so';" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully installed OpenID Connect Authentication plugin.\n\n"
+  else
+    printf "ERROR: Failed to install OpenID Connect Authentication plugin. Please check error log.\n\n"
+    exit 1
+  fi
+fi
+
+# Install update_jwks UDF
+if [ ${ENABLE_OPENID_CONNECT} = 1 -a ${STATUS_UPDATE_JWKS_UDF} = 0 ]; then
+  printf "Installing update_jwks UDF...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "CREATE FUNCTION update_jwks RETURNS INTEGER SONAME 'auth_openid_connect.so';" 2>/dev/null
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully installed update_jwks UDF.\n\n"
+  else
+    printf "ERROR: Failed to install update_jwks UDF. Please check error log.\n\n"
+    exit 1
+  fi
+fi
+
+# Install auto update JWKS event (or alter its interval if it already exists)
+if [ ${ENABLE_AUTO_UPDATE_JWKS} = 1 ]; then
+  printf "Checking update_jwks UDF availability...\n"
+  CURRENT_UPDATE_JWKS_UDF=$(${MYSQL_CLIENT_BIN} -N -B -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "SELECT COUNT(*) FROM mysql.func WHERE name = 'update_jwks';" 2>/dev/null)
+  if [ ${CURRENT_UPDATE_JWKS_UDF} = 0 ]; then
+    printf "ERROR: The update_jwks UDF must be installed before enabling automatic JWKS updates. Use --enable-openid-connect first.\n\n"
+    exit 1
+  fi
+
+  printf "Checking event scheduler status...\n"
+  CURRENT_EVENT_SCHEDULER=$(${MYSQL_CLIENT_BIN} -N -B -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "SELECT @@GLOBAL.event_scheduler;" 2>/dev/null)
+  if [ "${CURRENT_EVENT_SCHEDULER}" = "ON" ]; then
+    printf "INFO: Event scheduler is already enabled.\n\n"
+  else
+    printf "Enabling event scheduler...\n"
+    ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "SET PERSIST event_scheduler = ON;" 2>/dev/null
+    if [ $? -eq 0 ]; then
+      printf "INFO: Successfully enabled event scheduler.\n\n"
+    else
+      printf "ERROR: Failed to enable event scheduler. Please check error log.\n\n"
+      exit 1
+    fi
+  fi
+
+  if [ ${STATUS_AUTO_UPDATE_JWKS_EVENT} = 0 ]; then
+    printf "Installing auto update JWKS event...\n"
+    ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "CREATE EVENT mysql.ps_admin_update_jwks ON SCHEDULE EVERY ${JWKS_UPDATE_INTERVAL} DO SELECT update_jwks();" 2>/dev/null
+    if [ $? -eq 0 ]; then
+      printf "INFO: Successfully installed auto update JWKS event.\n\n"
+    else
+      printf "ERROR: Failed to install auto update JWKS event. Please check error log and verify the provided interval is valid.\n\n"
+      exit 1
+    fi
+  else
+    printf "Altering auto update JWKS event interval...\n"
+    ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "ALTER EVENT mysql.ps_admin_update_jwks ON SCHEDULE EVERY ${JWKS_UPDATE_INTERVAL} ENABLE;" 2>/dev/null
+    if [ $? -eq 0 ]; then
+      printf "INFO: Successfully altered auto update JWKS event interval.\n\n"
+    else
+      printf "ERROR: Failed to alter auto update JWKS event. Please check error log and verify the provided interval is valid.\n\n"
+      exit 1
+    fi
+  fi
+fi
+
 # Uninstall RocksDB engine plugin
 if [ ${DISABLE_ROCKSDB} = 1 -a ${STATUS_ROCKSDB_PLUGIN} -gt 0 ]; then
   printf "Uninstalling RocksDB engine plugin...\n"
@@ -451,5 +616,41 @@ if [ ${DISABLE_MYSQLX} = 1 -a ${STATUS_MYSQLX_PLUGIN} -gt 0 ]; then
     exit 1
   else
     printf "INFO: Successfully uninstalled MySQL X plugin.\n\n"
+  fi
+fi
+
+# Uninstall auto update JWKS event
+if [ ${DISABLE_AUTO_UPDATE_JWKS} = 1 -a ${STATUS_AUTO_UPDATE_JWKS_EVENT} -gt 0 ]; then
+  printf "Uninstalling auto update JWKS event...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "DROP EVENT mysql.ps_admin_update_jwks;" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    printf "ERROR: Failed to uninstall auto update JWKS event. Please check error log.\n\n"
+    exit 1
+  else
+    printf "INFO: Successfully uninstalled auto update JWKS event.\n\n"
+  fi
+fi
+
+# Uninstall update_jwks UDF
+if [ ${DISABLE_OPENID_CONNECT} = 1 -a ${STATUS_UPDATE_JWKS_UDF} -gt 0 ]; then
+  printf "Uninstalling update_jwks UDF...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "DROP FUNCTION update_jwks;" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    printf "ERROR: Failed to uninstall update_jwks UDF. Please check error log.\n\n"
+    exit 1
+  else
+    printf "INFO: Successfully uninstalled update_jwks UDF.\n\n"
+  fi
+fi
+
+# Uninstall OpenID Connect plugin
+if [ ${DISABLE_OPENID_CONNECT} = 1 -a ${STATUS_OPENID_CONNECT_PLUGIN} -gt 0 ]; then
+  printf "Uninstalling OpenID Connect Authentication plugin...\n"
+  ${MYSQL_CLIENT_BIN} -u ${USER} ${PASSWORD} ${SOCKET} ${HOST} ${PORT} -e "UNINSTALL PLUGIN auth_openid_connect;" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    printf "ERROR: Failed to uninstall OpenID Connect Authentication plugin. Please check error log.\n\n"
+    exit 1
+  else
+    printf "INFO: Successfully uninstalled OpenID Connect Authentication plugin.\n\n"
   fi
 fi

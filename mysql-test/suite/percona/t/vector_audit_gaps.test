@@ -13,7 +13,7 @@
 --echo #       must not pick the vec index as the FK backing index
 --echo #       (innobase_find_fk_index at handler0alter.cc:1946).
 --echo #   I3  HANDLER ... READ on a vec index must not crash on
---echo #       FIL_NULL; row_search_mvcc returns DB_END_OF_INDEX.
+--echo #       FIL_NULL; it is refused before it reaches InnoDB.
 --echo #
 
 --echo # === C1: CHECK TABLE on populated vec-indexed table ===
@@ -55,16 +55,18 @@ INSERT INTO t_parent VALUES (1);
 INSERT INTO t_child VALUES (1, 1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 DROP TABLE t_child, t_parent;
 
---echo # === I3: HANDLER READ on vec index returns 0 rows, no crash ===
+--echo # === I3: HANDLER READ on vec index is refused, no crash ===
 CREATE TABLE t_hand (id BIGINT UNSIGNED PRIMARY KEY,
                     v VECTOR(8) NOT NULL,
                     VECTOR KEY vidx (v) TYPE hnsw (M = 6));
 INSERT INTO t_hand VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 INSERT INTO t_hand VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
 HANDLER t_hand OPEN;
---echo # First read via the vec index — should return no rows,
---echo # not proceed into btr_pcur_open on FIL_NULL.
+--echo # A read via the vec index is refused rather than answered
+--echo # with no rows, and never reaches btr_pcur_open on FIL_NULL.
+--error ER_NOT_SUPPORTED_YET
 HANDLER t_hand READ vidx FIRST;
+--error ER_NOT_SUPPORTED_YET
 HANDLER t_hand READ vidx NEXT;
 HANDLER t_hand CLOSE;
 DROP TABLE t_hand;

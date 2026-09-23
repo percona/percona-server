@@ -1145,7 +1145,12 @@ dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     if (!index->is_vector()) continue;
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
-    if (q_len != vec->dims * sizeof(float)) return DB_CORRUPTION;
+    if (q_len != vec->dims * sizeof(float)) {
+      vec_report_wrong_dimensions(thd, index, base_pk,
+                                  static_cast<uint32_t>(q_len / sizeof(float)),
+                                  vec->dims);
+      return DB_VEC_WRONG_DIMENSIONS;
+    }
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
   }

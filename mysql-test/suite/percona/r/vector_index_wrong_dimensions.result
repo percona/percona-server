@@ -1,6 +1,6 @@
 #
-# PS-11578: a vector with fewer dimensions than its column must be
-# refused by the vector index as what it is, naming the row.
+# PS-11578, PS-11583: a vector with fewer dimensions than its column
+# must be refused by the vector index as what it is, naming the row.
 #
 # VECTOR(n) stores a value with fewer than n dimensions (only a longer
 # one is refused), and that stays so here. The vector index cannot hold
@@ -24,6 +24,25 @@ SELECT id, LENGTH(v) FROM t ORDER BY id;
 id	LENGTH(v)
 1	16
 # The index still answers.
+SELECT id FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+# PS-11583: UPDATE, and INSERT ... ON DUPLICATE KEY UPDATE, which is an
+# UPDATE of the existing row. The statement is rolled back, so the row
+# keeps its old value.
+UPDATE t SET v = STRING_TO_VECTOR('[1,2]') WHERE id = 1;
+ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+INSERT INTO t (id, v) VALUES (1, STRING_TO_VECTOR('[1,2]'))
+ON DUPLICATE KEY UPDATE v = VALUES(v);
+ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+# REPLACE on a primary-key conflict is an update of the row;
+# vector_replace covers its delete-and-insert path.
+REPLACE INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
+ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
 SELECT id FROM t
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
 id

@@ -1,8 +1,8 @@
 --source include/have_debug.inc
 
 --echo #
---echo # PS-11578: a vector with fewer dimensions than its column must be
---echo # refused by the vector index as what it is, naming the row.
+--echo # PS-11578, PS-11583: a vector with fewer dimensions than its column
+--echo # must be refused by the vector index as what it is, naming the row.
 --echo #
 --echo # VECTOR(n) stores a value with fewer than n dimensions (only a longer
 --echo # one is refused), and that stays so here. The vector index cannot hold
@@ -26,6 +26,22 @@ INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),
                      (4, STRING_TO_VECTOR('[4,0]'));
 SELECT id, LENGTH(v) FROM t ORDER BY id;
 --echo # The index still answers.
+SELECT id FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # PS-11583: UPDATE, and INSERT ... ON DUPLICATE KEY UPDATE, which is an
+--echo # UPDATE of the existing row. The statement is rolled back, so the row
+--echo # keeps its old value.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+UPDATE t SET v = STRING_TO_VECTOR('[1,2]') WHERE id = 1;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t (id, v) VALUES (1, STRING_TO_VECTOR('[1,2]'))
+  ON DUPLICATE KEY UPDATE v = VALUES(v);
+--echo # REPLACE on a primary-key conflict is an update of the row; its
+--echo # delete-and-insert path is at the end.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+REPLACE INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
 SELECT id FROM t
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
 
@@ -83,3 +99,29 @@ DROP TABLE t;
 --let $assert_count = 0
 --let $assert_text = no row with the wrong dimensions was logged as corruption
 --source include/assert_grep.inc
+
+--echo #
+--echo # REPLACE on a conflict with another unique key deletes the conflicting
+--echo # row and inserts the new one. The index must follow that, and a short
+--echo # vector is refused there too, leaving the old row in place.
+--echo #
+CREATE TABLE t_rep (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                    u INT, UNIQUE KEY ku (u),
+                    VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t_rep VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+                         (2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+--echo # Primary-key conflict: an update of row 1.
+REPLACE INTO t_rep VALUES (1, STRING_TO_VECTOR('[5,0,0,0]'), 10);
+--echo # Unique-key conflict: row 2 is deleted, row 3 inserted.
+REPLACE INTO t_rep VALUES (3, STRING_TO_VECTOR('[7,0,0,0]'), 20);
+SELECT id, u FROM t_rep ORDER BY id;
+SELECT id FROM t_rep
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t_rep IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t_rep
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+REPLACE INTO t_rep VALUES (4, STRING_TO_VECTOR('[9,9]'), 20);
+SELECT id, u FROM t_rep ORDER BY id;
+DROP TABLE t_rep;

@@ -11122,6 +11122,27 @@ bool JOIN::optimize_vector_query() {
 
   if (vector_column->type() != MYSQL_TYPE_VECTOR) return false;
 
+  /* A NULL query vector, or one with a NaN or infinite component, is left
+  to the exact path, which answers it as a table without the index does:
+  every distance is NULL, or DISTANCE() raises ER_DATA_OUT_OF_RANGE. The
+  graph search cannot answer either. The value is constant for this
+  execution, so it can be read here - where the optimizer may evaluate it
+  at all: not a stored function under EXPLAIN, say. When it may not, the
+  handler's own checks refuse such a vector (ultracodereview: issue7). */
+  if (evaluate_during_optimization(const_vector_expr, query_block)) {
+    String buf;
+    const String *q = const_vector_expr->val_str(&buf);
+    if (thd->is_error()) return true;
+    if (q == nullptr || q->ptr() == nullptr) return false;
+    if (q->length() % sizeof(float) == 0) {
+      for (size_t off = 0; off < q->length(); off += sizeof(float)) {
+        float f;
+        memcpy(&f, q->ptr() + off, sizeof(float));
+        if (!std::isfinite(f)) return false;
+      }
+    }
+  }
+
   JOIN_TAB *tab = best_ref[0];
   const TABLE *table = tab->table();
   if (table == nullptr || table != vector_column->table) return false;

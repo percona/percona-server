@@ -12224,17 +12224,34 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
   String buff_vec;
   String *vec = item->val_str(&buff_vec);
   if (vec == nullptr || vec->ptr() == nullptr) {
-    /* NULL query vector: no rows are "near" it. */
-    return HA_ERR_END_OF_FILE;
-  }
+    /* NULL query vector: every row's distance is NULL, so the ORDER BY
+    imposes no order and LIMIT n asks for any n rows - which is what the
+    scan without the index returns. Searching from the origin gives some
+    rows in some order, and keeps going for a filter above, as a search
+    from any vector would. */
+    m_vec_query.assign(vec_index_dims(vindex) * sizeof(float), '\0');
+  } else {
+    const uint32 vec_dims =
+        get_dimensions(vec->length(), Field_vector::precision);
+    if (vec_dims == UINT32_MAX || vec_dims != vec_index_dims(vindex)) {
+      return HA_ERR_END_OF_FILE;
+    }
 
-  const uint32 vec_dims =
-      get_dimensions(vec->length(), Field_vector::precision);
-  if (vec_dims == UINT32_MAX || vec_dims != vec_index_dims(vindex)) {
-    return HA_ERR_END_OF_FILE;
-  }
+    /* A column cannot store NaN or infinity, but a query vector given as
+    bytes can hold them. DISTANCE() refuses one as out of range. The graph
+    search must never see it: every comparison with NaN is false, so its
+    heaps lose their order. */
+    for (uint32 i = 0; i < vec_dims; ++i) {
+      float f;
+      memcpy(&f, vec->ptr() + i * sizeof(float), sizeof(float));
+      if (!std::isfinite(f)) {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "DOUBLE", "distance");
+        return HA_ERR_GENERIC;
+      }
+    }
 
-  m_vec_query.assign(vec->ptr(), vec->length());
+    m_vec_query.assign(vec->ptr(), vec->length());
+  }
 
   /* A re-executed statement can reach here with a scan still open. */
   vec_ann_close(m_vec_search);

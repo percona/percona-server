@@ -1,0 +1,47 @@
+#
+# PS-11562: audit_log_read() is broken when storing logs outside of the
+#           data directory
+# https://perconadev.atlassian.net/browse/PS-11562
+#
+CREATE TABLE t1 (c1 INT);
+SELECT audit_log_filter_set_filter('log_inserts', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": true}}}}');
+audit_log_filter_set_filter('log_inserts', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": true}}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+audit_log_filter_set_user('%', 'log_inserts')
+OK
+# Read using absolute path
+# restart
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+INSERT INTO t1 VALUES (1);
+SET @bookmark = JSON_SET(audit_log_read_bookmark(), '$.max_array_length', 1);
+INSERT INTO t1 VALUES (2);
+SELECT JSON_UNQUOTE(JSON_EXTRACT(audit_log_read(@bookmark), '$[0].table_access_data.query')) AS first_query;
+first_query
+INSERT INTO t1 VALUES (1)
+SELECT JSON_UNQUOTE(JSON_EXTRACT(audit_log_read(), '$[0].table_access_data.query')) AS next_query;
+next_query
+INSERT INTO t1 VALUES (2)
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
+# Read using relative path
+# restart
+SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+INSERT INTO t1 VALUES (1);
+SET @bookmark = JSON_SET(audit_log_read_bookmark(), '$.max_array_length', 1);
+INSERT INTO t1 VALUES (2);
+SELECT JSON_UNQUOTE(JSON_EXTRACT(audit_log_read(@bookmark), '$[0].table_access_data.query')) AS first_query;
+first_query
+INSERT INTO t1 VALUES (1)
+SELECT JSON_UNQUOTE(JSON_EXTRACT(audit_log_read(), '$[0].table_access_data.query')) AS next_query;
+next_query
+INSERT INTO t1 VALUES (2)
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
+# Restore the default audit_log_filter.file before removing its directory
+# restart:
+DROP TABLE t1;

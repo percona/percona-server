@@ -906,11 +906,14 @@ Page_handle_wrapper::Page_handle_wrapper(buf_block_t &block)
                     .zipped = {}} {
   const auto &comp_page_desc = m_block.get_page_zip();
   if (comp_page_desc) {
-    m_page_handle.zipped.emplace(
+    /* Zipped is an aggregate, so it has to be built with braces and moved
+    into the optional: parenthesized aggregate initialization (P0960) is not
+    available in all the compilers we support. */
+    m_page_handle.zipped.emplace(Page_handle::Zipped{
         std::span<uint8_t>(comp_page_desc->data, m_block.page.size.physical()),
         Page_handle::Zipped::Metadata{comp_page_desc->m_start,
                                       comp_page_desc->m_end,
-                                      comp_page_desc->n_blobs});
+                                      comp_page_desc->n_blobs}});
   }
 }
 

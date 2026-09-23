@@ -1650,8 +1650,9 @@ void recv_recover_page_func(
 
       ib::redo::Page_handle_wrapper page_handle_wrapper(*block);
 
-      const ib::redo::Record_handle record_handle(
-          recv->type, {(buf ? buf : not_null), recv->len});
+      const ib::redo::Record_handle record_handle{
+          static_cast<uint8_t>(recv->type),
+          {(buf ? buf : not_null), recv->len}};
 
       const auto success = recv_sys->redo_applier->apply(
           record_handle, page_handle_wrapper.handle());

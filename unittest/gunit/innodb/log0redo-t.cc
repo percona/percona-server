@@ -420,7 +420,8 @@ TEST(log0redo, test_apply_mlog_xbytes) {
     ib::redo::Page_handle page_handle{
         .space_id = 1, .page_no = 2, .frame = page.buffer(), .zipped = {}};
 
-    const ib::redo::Record_handle record_handle(type, mtr->records()[0].body());
+    const ib::redo::Record_handle record_handle{static_cast<uint8_t>(type),
+                                                mtr->records()[0].body()};
 
     auto success = applier.apply(record_handle, page_handle);
     EXPECT_TRUE(success);
@@ -484,8 +485,8 @@ TEST(log0redo, test_apply_mlog_rec_insert) {
   ib::redo::Page_handle page_handle{
       .space_id = 1, .page_no = 2, .frame = page.buffer(), .zipped = {}};
 
-  const ib::redo::Record_handle record_handle(MLOG_REC_INSERT,
-                                              mtr->records()[0].body());
+  const ib::redo::Record_handle record_handle{
+      static_cast<uint8_t>(MLOG_REC_INSERT), mtr->records()[0].body()};
 
   const auto success = applier.apply(record_handle, page_handle);
   EXPECT_TRUE(success);

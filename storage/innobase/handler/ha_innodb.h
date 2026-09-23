@@ -90,6 +90,15 @@ class Dictionary_client;
 }
 }  // namespace dd
 
+/** Handler error for DB_VEC_WRONG_DIMENSIONS. The code that finds the row
+has already raised ER_VECTOR_INDEX_WRONG_DIMENSIONS naming it, so
+ha_innobase::print_error() adds nothing. Engine-private, above HA_ERR_LAST,
+as MyRocks does for its own codes. Not ignorable: ALTER's row copy treats
+every ignorable error as a duplicate key. */
+constexpr int HA_ERR_INNODB_VEC_WRONG_DIMENSIONS = 600;
+static_assert(HA_ERR_INNODB_VEC_WRONG_DIMENSIONS > HA_ERR_LAST,
+              "an InnoDB-private handler error must be above HA_ERR_LAST");
+
 /** The class defining a handle to an InnoDB table */
 class ha_innobase : public handler {
  public:
@@ -361,6 +370,8 @@ class ha_innobase : public handler {
   void release_auto_increment() override;
 
   bool get_error_message(int error, String *buf) override;
+
+  void print_error(int error, myf errflag) override;
 
   bool get_foreign_dup_key(char *, uint, char *, uint) override;
 

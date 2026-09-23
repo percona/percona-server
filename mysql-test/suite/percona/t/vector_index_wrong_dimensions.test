@@ -20,6 +20,13 @@ INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
 --echo # INSERT into an indexed table.
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+--echo # That is the only condition: no generic engine error under it.
+SHOW WARNINGS;
+--echo # IGNORE does not skip the row. The refusal is not an ignorable
+--echo # error, because ALTER's copy treats every ignorable error as a
+--echo # duplicate key.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT IGNORE INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
 --echo # A multi-row INSERT fails as a whole.
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),
@@ -34,6 +41,7 @@ SELECT id FROM t
 --echo # keeps its old value.
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 UPDATE t SET v = STRING_TO_VECTOR('[1,2]') WHERE id = 1;
+SHOW WARNINGS;
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 INSERT INTO t (id, v) VALUES (1, STRING_TO_VECTOR('[1,2]'))
   ON DUPLICATE KEY UPDATE v = VALUES(v);
@@ -56,6 +64,7 @@ SELECT id, LENGTH(v) FROM t ORDER BY id;
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=COPY;
+SHOW WARNINGS;
 
 --echo # Fixing the row is enough.
 UPDATE t SET v = STRING_TO_VECTOR('[1,2,3,0]') WHERE id = 2;

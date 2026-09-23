@@ -16,6 +16,15 @@ INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
 # INSERT into an indexed table.
 INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
 ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+# That is the only condition: no generic engine error under it.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7040	Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+# IGNORE does not skip the row. The refusal is not an ignorable
+# error, because ALTER's copy treats every ignorable error as a
+# duplicate key.
+INSERT IGNORE INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
 # A multi-row INSERT fails as a whole.
 INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),
 (4, STRING_TO_VECTOR('[4,0]'));
@@ -33,6 +42,9 @@ id
 # keeps its old value.
 UPDATE t SET v = STRING_TO_VECTOR('[1,2]') WHERE id = 1;
 ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7040	Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
 INSERT INTO t (id, v) VALUES (1, STRING_TO_VECTOR('[1,2]'))
 ON DUPLICATE KEY UPDATE v = VALUES(v);
 ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
@@ -60,6 +72,9 @@ ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
 ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=COPY;
 ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7040	Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
 # Fixing the row is enough.
 UPDATE t SET v = STRING_TO_VECTOR('[1,2,3,0]') WHERE id = 2;
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;

@@ -417,15 +417,19 @@ install_deps() {
             sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://deb.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
             echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-valid-until
         fi
+        if [ "x${DIST}" == "xbullseye" ]; then
+           sed -i -E '/bullseye(-security|-updates)?[[:space:]]/d' /etc/apt/sources.list
+cat <<'EOF' | tee -a /etc/apt/sources.list
+deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260830T000000Z/ bullseye main
+deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260830T000000Z/ bullseye-updates main
+deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260830T000000Z/ bullseye-security main
+EOF
+        fi
         apt-get update
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release wget curl rsync
         wget https://repo.percona.com/apt/percona-release_latest.$(lsb_release -sc)_all.deb && dpkg -i percona-release_latest.$(lsb_release -sc)_all.deb
         percona-release enable tools testing
-        until apt-get update; do
-            sleep 5
-            echo "waiting"
-        done
         apt-get -y purge eatmydata || true
         apt-get -y install psmisc pkg-config
         apt-get -y install libsasl2-dev libsasl2-modules:amd64 libsasl2-modules-ldap || apt-get -y install libsasl2-modules libsasl2-modules-ldap libsasl2-dev

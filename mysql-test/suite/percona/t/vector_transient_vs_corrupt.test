@@ -1,0 +1,73 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A failed statement must not cost the index its graph unless the
+--echo # graph is actually wrong.
+--echo #
+--echo # Both kinds of failure arrive at the same place - the aux write did
+--echo # not happen - and they used to be treated the same: any error marked
+--echo # the runtime corrupt, so one lock wait forced a rebuild. That was the
+--echo # honest reading while a callback could only report "this node is
+--echo # gone". The result codes now separate them, and only one of the two
+--echo # means the graph and its table disagree.
+--echo #
+
+# The transient injection below makes the aux write fail the way a full
+# tablespace does, and the server logs that at ERROR level as well as
+# returning it. Scoped to the one message the injection produces.
+--disable_query_log
+call mtr.add_suppression("The table 't1' is full");
+--enable_query_log
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]'));
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo #
+--echo # Transient: the aux write fails the way a full tablespace or a lock
+--echo # wait makes it fail. The statement fails and nothing else does.
+--echo #
+SET DEBUG = '+d,vec_aux_insert_transient_fail';
+--error ER_RECORD_FILE_FULL
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SET DEBUG = '-d,vec_aux_insert_transient_fail';
+
+--echo # The runtime is untouched - not corrupt, still loaded.
+SET SESSION innodb_interpreter = 'vec_runtime_info test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # So the same INSERT works now, with no rebuild in between, and the
+--echo # index answers for the row it just took.
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+
+--echo #
+--echo # Permanent: a node the graph names is not in the aux. No retry fixes
+--echo # that, and nothing revisits a node the class has marked lost, so a
+--echo # graph left serving would answer with fewer rows and no error.
+--echo #
+--source include/restart_mysqld.inc
+SET DEBUG = '+d,vec_aux_node_missing';
+# Which node the walk reaches first depends on the layer each one drew,
+# and that draw is not seeded. The message naming the node is the point;
+# which node it names is not.
+--replace_regex /names node [0-9]+/names node <N>/
+--error ER_INNODB_INDEX_CORRUPT
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+SET DEBUG = '-d,vec_aux_node_missing';
+
+--echo # DROP and re-create is the repair the error asks for, and it works.
+ALTER TABLE t1 DROP KEY vk;
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

@@ -320,7 +320,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR ( 1234 ) NOT NULL,
-  VECTOR KEY ( v1 ) TYPE hnsw COMMENT 'abc' WITH ( M = 6 )
+  VECTOR KEY ( v1 ) TYPE hnsw COMMENT 'abc' ( M = 6 )
 );
 
 
@@ -398,6 +398,52 @@ CREATE TABLE t (
   VECTOR KEY ( v1 ) TYPE hnsw ( M = `M = 1`)
 );
 
+# M must be within [2, 200]: below 2, a graph with fewer connections per
+# node isn't a meaningful HNSW parameter and the runtime relies on M >= 2
+# downstream (e.g. 1 / log(M)); above 200, per-node neighbor buffers
+# (sized off M) would balloon to gigabytes for a single row.
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 0 )
+);
+
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 1 )
+);
+
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 2 )
+);
+DROP TABLE t;
+
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 200 )
+);
+DROP TABLE t;
+
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 201 )
+);
+
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 2147483647 )
+);
+
 --error ER_PARSE_ERROR
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ();
 --error ER_PARSE_ERROR
@@ -416,6 +462,24 @@ CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( metric = nosuchmetric );
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = abc );
 --error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = `M = 1` );
+
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 0 );
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 1 );
+
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 2 );
+SHOW INDEXES FROM t1;
+ALTER TABLE t1 DROP INDEX ix;
+
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 200 );
+SHOW INDEXES FROM t1;
+ALTER TABLE t1 DROP INDEX ix;
+
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 201 );
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 2147483647 );
 
 --error ER_INDEX_TYPE_NOT_SUPPORTED
 CREATE VECTOR INDEX ix ON t1(v1) TYPE no_such_type;
@@ -602,3 +666,39 @@ CREATE TABLE t (
 
 
 DROP TABLE t1;
+
+--echo #
+--echo # Every vector index in the statement is checked, not just the first
+--echo # one found. The option check used to return on the first vector key,
+--echo # so a bad option on a later key went unreported and the statement
+--echo # failed for some other reason - which made the error depend on the
+--echo # order the keys were written in.
+--echo #
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR( 8 ) NOT NULL,
+  v2 VECTOR( 8 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 ),
+  VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 )
+);
+
+--echo # Same statement, keys the other way round: same error.
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR( 8 ) NOT NULL,
+  v2 VECTOR( 8 ) NOT NULL,
+  VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 ),
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
+);
+
+--echo # An illegal VALUE on the later key is reported too.
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR( 8 ) NOT NULL,
+  v2 VECTOR( 8 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 ),
+  VECTOR KEY ( v2 ) TYPE hnsw ( M = abc )
+);

@@ -224,6 +224,20 @@ enum dberr_t {
   /** Generic error code for "Not found" type of errors */
   DB_NOT_FOUND,
 
+  /** A vector index could not get the memory it needed - either
+  innodb_hnsw_max_memory is spent or an allocation genuinely failed.
+
+  Distinct from DB_OUT_OF_MEMORY for one reason: row_mysql_handle_errors
+  does not list that code, so it reaches the ib::fatal arm there and a
+  failed allocation on the INSERT path would take the server down. This
+  one is listed, so the statement fails instead. Both map to
+  HA_ERR_OUT_OF_MEM, so the client sees no difference; where the cause is
+  the configured ceiling rather than real exhaustion, the caller says so
+  itself with ER_CAPACITY_EXCEEDED before returning this.
+
+  Appended here so no existing code is renumbered. */
+  DB_VEC_OUT_OF_MEMORY,
+
   /* The following are API only error codes. */
 
   /** Column update or read failed because the types mismatch */

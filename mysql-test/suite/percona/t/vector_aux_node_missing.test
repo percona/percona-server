@@ -1,0 +1,68 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A neighbour list names a node the aux table does not have.
+--echo #
+--echo # Unlike a spent memory budget, this does not repair itself: the
+--echo # graph and the table it is persisted in disagree, and no retry
+--echo # changes that. It is reported as index corruption, scoped to the
+--echo # index rather than the base table, and the message says which node
+--echo # went missing so the aux can be examined.
+--echo #
+--echo # vec_aux_read_node is where the miss surfaces, so the failure is
+--echo # injected there. Record 0 is deliberately left readable: it holds
+--echo # the entry point, not a node, and a miss on it means the index is
+--echo # empty - a different path with a different outcome.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]')),
+                      (3, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo # The graph answers normally while it is in memory.
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # Drop the in-memory graph so the next query has to read the aux.
+--source include/restart_mysqld.inc
+
+SET DEBUG = '+d,vec_aux_node_missing';
+
+--echo # The cold load reads record 0, then faults in the node it names -
+--echo # which is now gone. The statement fails, and the error names the
+--echo # node rather than saying only that some index is corrupt.
+# Which node is the entry point depends on the layer each one drew, and
+# the layer draw is not seeded, so the id in the message varies between
+# runs. That the message names the node is the point; which node it names
+# is not.
+--replace_regex /names node [0-9]+/names node <ENTRY>/
+--error ER_INNODB_INDEX_CORRUPT
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # The base table is untouched - only this index's graph failed to
+--echo # load, which is why the error is scoped to the index rather than
+--echo # reporting the table as crashed.
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+
+SET DEBUG = '-d,vec_aux_node_missing';
+
+--echo # The load is retried rather than latched. Nothing was left behind
+--echo # by the refusal - the graph is freed before the error is returned,
+--echo # so the next query builds it again from an aux that is now intact
+--echo # and answers correctly.
+--echo #
+--echo # Worth being explicit that this differs from the write path, where
+--echo # a node that failed to load leaves the runtime marked corrupt: a
+--echo # node HNSW marked lost is never retried, so a graph that kept
+--echo # serving would quietly return fewer rows. Nothing is lost here,
+--echo # because the entry point is checked before the graph is built.
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

@@ -158,8 +158,8 @@ SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN'
 | Operation | Effect on the index |
 |---|---|
 | `CREATE TABLE … VECTOR KEY (v) TYPE hnsw` | adds the hidden label column, creates the aux table, registers it in the DD |
-| `ALTER TABLE … ADD VECTOR KEY (v) TYPE hnsw` | COPY only; builds the graph from a clustered scan (§11) |
-| `DROP INDEX` | drops that index's aux table; the hidden column is **retained**, until something rebuilds the table |
+| `ALTER TABLE … ADD VECTOR KEY (v) TYPE hnsw` | INPLACE or COPY. The first vector index rebuilds the table to add the hidden label column and builds the graph from that scan (§15); on a table with FULLTEXT indexes it is COPY only |
+| `DROP INDEX` | drops that index's aux table. Dropping the **last** vector index also removes the hidden column, by rebuilding the table without it, and may run `LOCK=NONE`. Dropping and re-adding in one statement keeps the column and every row's label |
 | `DROP TABLE` | drops the aux table with the parent, under an exclusive MDL taken on each aux first |
 | `TRUNCATE TABLE` | drop and recreate — the aux comes back empty and the label counter restarts |
 | `RENAME TABLE` | same schema: nothing to do. Cross-schema: the aux moves with the parent. Renaming *onto* an aux name is refused |
@@ -171,11 +171,11 @@ Each of these is refused because the alternative is an index that is silently wr
 
 | Refused | Reason |
 |---|---|
-| `IMPORT` / `DISCARD TABLESPACE` | the imported rows have no aux rows describing them; the index would silently omit every one |
-| `ALTER … ALGORITHM=INSTANT` (ADD/DROP COLUMN) | an instant change does not rewrite rows, so the hidden label column cannot be maintained |
-| `ALGORITHM=INPLACE` for the *first* `ADD KEY` | adding the hidden column is a table rebuild by definition |
+| `IMPORT` / `DISCARD TABLESPACE` while a vector index exists | the imported rows have no aux rows describing them; the index would silently omit every one |
+| `ALTER … ALGORITHM=INSTANT` while a vector index exists | an instant change does not rewrite rows, so the hidden label column cannot be maintained. Allowed again once the last vector index is gone |
+| `ALGORITHM=INPLACE` for the first `ADD KEY` or the last `DROP INDEX` on a table with FULLTEXT indexes | both rebuild the table to add or remove the hidden column, and InnoDB does not rebuild a FULLTEXT table in place |
 | `ALGORITHM=INPLACE` for a rebuild while a vector index exists | the graph cannot be carried across a native rebuild, so the ALTER runs as `COPY` and the graph is rebuilt row by row. FTS refuses the same shape for its own reason — *"InnoDB presently supports one FULLTEXT index creation at a time"* — so this is parity, not extra strictness |
-| `LOCK=NONE` on `ADD KEY` | concurrent DML during the build has nowhere to record itself (§11) |
+| `LOCK=NONE` on any ALTER that leaves a vector index | concurrent DML during the build or rebuild has nowhere to record itself in the graph (§11, §15) |
 | Changing a vector index's `TYPE` in place | the stored aux rows belong to the old implementation; drop and re-add instead |
 | `ON UPDATE CASCADE` / `ON DELETE CASCADE` into a vector-indexed table | a cascade bypasses the row path that maintains the aux (§22) |
 | A second vector index on one table | one hidden label column cannot serve two graphs (§3) |
@@ -211,27 +211,15 @@ crash recovery, DDL logging and tablespace management like any other. It is hidd
 
 The hidden column is the `FTS_DOC_ID` device: an ordinary `BIGINT UNSIGNED` column, versioned by
 undo like any other, which is precisely what makes it usable for visibility decisions. It
-carries **no unique index** — nothing looks a row up by label, only ever the reverse — and it is
-retained when the vector index is dropped, so re-adding an index does not have to rebuild the
-table.
+carries **no unique index** — nothing looks a row up by label, only ever the reverse.
 
-Retention is not unconditional, and it took a corrupted table to establish what it actually is.
-**The column exists exactly when the current table definition needs it.** An `ALTER` that does
-not rebuild leaves it alone — `DROP INDEX` keeps it, because nothing rewrites the rows and the
-commit path carries it into the new `dd::Table`. An `ALTER` that *rebuilds* re-derives the column
-set from the new definition, so the column survives a rebuild only while a vector index still
-needs it, and disappears once none does.
-
-`FTS_DOC_ID` behaves identically, which is worth stating as a measurement rather than an
-assumption: drop the last `FULLTEXT` index, rebuild, and the column is gone from both the data
-dictionary and the dictionary cache, with `CHECK TABLE` clean. An earlier draft of this document
-claimed the opposite — "retained across all ALTERs" — and the code was written to match the
-claim, with `prepare_inplace_alter_table_dict` materialising the column whenever the *old* table
-carried the sticky flag. Since the commit path only carries it forward on the no-rebuild branch,
-`DROP INDEX` followed by `OPTIMIZE` then wrote every row with a column the committed definition
-did not describe: the next `INSERT` that split a page asserted in `btr_page_split_and_insert`,
-and `CHECK TABLE` reported the B-tree corrupt. Both places now read the new `dd::Table` and
-follow it.
+**The column exists exactly while the table has a vector index**, whatever algorithm an `ALTER` runs, so the
+result depends on the new definition and never on the table's history. The first vector index
+rebuilds the table to add it; dropping the last one rebuilds the table without it; every `ALTER`
+in between, including dropping and re-adding the index in one statement, keeps it and every
+row's label. `FTS_DOC_ID` is the model only in part: it survives a plain `DROP INDEX` of the
+last FULLTEXT index and goes on the next rebuild, which is exactly the path-dependence this rule
+removes.
 
 Both hidden columns can be present at once, and their order is fixed: `FTS_DOC_ID` then
 `percona_vec_aux_id`, after the user columns and before the system columns. A rebuild's column
@@ -922,35 +910,36 @@ first, so a crash in between leaves an orphan node, never a committed row withou
 
 ## 15. `ALTER TABLE … ADD VECTOR KEY (v) TYPE hnsw`
 
-There are two routes, and which one runs depends on a single question: **does the table already
+Both routes run in place; which one runs depends on a single question: **does the table already
 have the hidden label column?**
 
-### The first vector index: table copy
+### The first vector index: an in-place rebuild
 
 ```sql
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 16);   -- t has no vector index yet
 ```
 
-The hidden column has to be added, and adding a column to every row is a table rebuild by
-definition. So this is a COPY, and `ALGORITHM=INPLACE` is **refused** rather than silently
-downgraded — a native in-place rebuild would write a label on every row and leave the graph
-empty, which is a silently incomplete index.
+The hidden column has to be on every row, and adding a column to every row is a table rebuild
+by definition. ddl::Builder copies each row into the new clustered index, bottom-up;
+`ddl::Row::build` gives every copied row the next label from the new table's counter, and the
+vector index built from the same scan takes those labels as its node ids. The counter is written
+into the new definition at commit, so INSERTs carry on from it. A rebuild that keeps the primary
+key reads the rows in key order, so this scan runs on one thread.
 
-The copy path rewrites every row into the new table, and each of those rows travels the ordinary
-INSERT path: a label is assigned, `hnsw.insert()` runs, the callbacks populate the aux. The
-graph is built as a side effect of the copy, with no separate build phase.
+`ALGORITHM=COPY` reaches the same table by another road: every row travels the INSERT path, which
+labels it and inserts it into the graph. On a table with FULLTEXT indexes, which InnoDB does not
+rebuild in place, COPY is the only road.
 
-### A later vector index: in place, by clustered scan
+### Replacing a vector index: in place, by clustered scan
 
 ```sql
-ALTER TABLE t DROP KEY vk;                                        -- column is retained
-ALTER TABLE t ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4),
-              ALGORITHM=INPLACE, LOCK=SHARED;                     -- supported
+ALTER TABLE t DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4),
+              ALGORITHM=INPLACE, LOCK=SHARED;             -- column and labels kept
 ```
 
-Once the column exists there is nothing to rebuild, so `vec_build_index` does the work directly:
-one clustered scan of the base table, feeding each row into a private graph, **reusing the label
-already written on that row** rather than issuing a new one.
+With the column already there, nothing is rebuilt: one clustered scan of the base table feeds
+each row into a private graph, **reusing the label already written on that row** rather than
+issuing a new one. With no rebuild the scan can run on several threads.
 
 The scan streams, and the graph is built **without persisting anything**. Both matter:
 
@@ -968,8 +957,8 @@ fails has nothing to undo. With no callbacks there is nothing for a sub-transact
 so the aux rows ride the ALTER's own transaction and commit or roll back with it. And the scan
 performs no row writes at all, which is what keeps it clear of the rule that a clustered-index
 scan may not write rows while its mini-transaction holds latches. That is what makes the operation
-repeatable — dropping and re-adding an index does not renumber anything, and rows keep the
-identity the rest of the design depends on.
+repeatable — replacing an index does not renumber anything, and rows keep the identity the rest
+of the design depends on.
 
 Two things about that build are deliberately unlike DML:
 
@@ -981,13 +970,21 @@ Two things about that build are deliberately unlike DML:
 
 ### Why `LOCK=NONE` is not supported
 
-`ADD VECTOR INDEX` requires at least `LOCK=SHARED`. This is the *online* axis, independent of
-INPLACE-vs-COPY, and the reason is that there is nowhere for concurrent DML to record itself.
+Any `ALTER` that leaves a vector index on the table requires at least `LOCK=SHARED`. This is the
+*online* axis, independent of INPLACE-vs-COPY, and the reason is that there is nowhere for
+concurrent DML to record itself.
 An online build logs concurrent changes to a row log and replays them against the finished
 index; a vector index never enters `ONLINE_INDEX_CREATION` and the modification-log loop exempts
 it, so a concurrent INSERT during the build would simply be missing from the graph. FTS makes
 the same choice, and supporting `LOCK=NONE` here would be a deviation beyond FTS that would need
 justifying as one.
+
+### Dropping the last vector index
+
+`DROP INDEX` of the only vector index rebuilds the table without the hidden column. That rebuild
+may run `LOCK=NONE`: the new table has no graph for the row log to miss, and the row log drops
+the column from each row it applies, as for any dropped column. The old table's aux goes with
+the old table.
 
 ---
 
@@ -1109,8 +1106,8 @@ enforced would need an answer for the insert that exceeds it.
 **The aux is not transactional with the base table.** By design (§13). A count of aux rows will
 not equal a count of base rows, and that is correct behaviour rather than corruption.
 
-**`DISCARD` / `IMPORT TABLESPACE` is refused** on any table carrying `percona_vec_aux_id`, whether
-or not a vector index is still on it, and a `.cfg` describing that column is refused on import even
+**`DISCARD` / `IMPORT TABLESPACE` is refused** on any table carrying `percona_vec_aux_id` - that
+is, while a vector index is on it - and a `.cfg` describing that column is refused on import even
 by a target that does not carry it. Two things stand in the way. The aux `.ibd` holding the graph
 is a sibling tablespace and does not travel with the base one. And the label counter lives in the
 table's data dictionary entry while the labels it handed out live in the rows, so an imported
@@ -1131,7 +1128,7 @@ equally good:
 
 | | how it works | cost |
 |---|---|---|
-| a column per vector index | `percona_vec_aux_id_1`, `percona_vec_aux_id_2`, … each moving independently | one more hidden column per index; the first `ADD` is already COPY-only (§15), so adding one is free |
+| a column per vector index | `percona_vec_aux_id_1`, `percona_vec_aux_id_2`, … each moving independently | one more hidden column per index; the first `ADD` already rebuilds the table (§15), so adding one is free |
 | one shared column, FTS-style | a single label meaning "this version of this row", every aux keying on it | an UPDATE to *one* index's vector bumps the shared label, invalidating this row's nodes in **every** vector index — each must then insert a fresh node or the row silently vanishes from its results |
 
 FTS chose the shared column and pays that cost: a new `FTS_DOC_ID` on UPDATE re-indexes the row

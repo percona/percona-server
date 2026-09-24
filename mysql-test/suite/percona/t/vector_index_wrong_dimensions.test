@@ -53,6 +53,26 @@ SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
 SELECT id FROM t
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
 
+--echo # An empty value has no dimensions at all. Non-strict mode and IGNORE
+--echo # turn a missing, NULL or too-long value into one, and it used to be
+--echo # stored with no graph node - or, on UPDATE, to abort a debug server.
+SET sql_mode = '';
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t VALUES (6, STRING_TO_VECTOR('[1,0,0,0,0]'));
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t (id) VALUES (7);
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+UPDATE t SET v = NULL WHERE id = 1;
+SET sql_mode = DEFAULT;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT IGNORE INTO t VALUES (8, NULL);
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+UPDATE IGNORE t SET v = NULL WHERE id = 1;
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+SELECT COUNT(*) FROM
+  (SELECT id FROM t
+   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 10) d;
+
 --echo # Without the index the short value is stored, as VECTOR(4) allows.
 --echo # DROP KEY keeps the hidden label column, so the next ADD can be INPLACE.
 ALTER TABLE t DROP KEY vk;

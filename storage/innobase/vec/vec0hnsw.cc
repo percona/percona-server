@@ -547,7 +547,9 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
 }
 
 /** Read one row's vector column as raw float bytes.
-@return the bytes, or nullptr if the row has no usable vector */
+@return the bytes, or nullptr if the column is SQL NULL, which NOT NULL
+rules out. An empty value is returned with *len 0, never as nullptr, so
+the caller's dimension check refuses it rather than skipping the row. */
 static const char *vec_row_vector_bytes(const dict_index_t *index,
                                         const dtuple_t *row, ulint *len) {
   /* The column the index covers, taken from the index rather than
@@ -573,6 +575,9 @@ static const char *vec_row_vector_bytes(const dict_index_t *index,
   const dfield_t *df = dtuple_get_nth_field(row, col_no);
   if (dfield_is_null(df)) return nullptr;
   *len = dfield_get_len(df);
+  /* Non-strict mode and IGNORE store an empty value, whose data pointer
+  may be null. */
+  if (*len == 0) return "";
   return static_cast<const char *>(dfield_get_data(df));
 }
 

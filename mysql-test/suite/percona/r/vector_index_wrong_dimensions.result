@@ -59,6 +59,29 @@ SELECT id FROM t
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
 id
 1
+# An empty value has no dimensions at all. Non-strict mode and IGNORE
+# turn a missing, NULL or too-long value into one, and it used to be
+# stored with no graph node - or, on UPDATE, to abort a debug server.
+SET sql_mode = '';
+INSERT INTO t VALUES (6, STRING_TO_VECTOR('[1,0,0,0,0]'));
+ERROR HY000: Column 'v' of the row with primary key 6 has 0 dimensions, but its vector index needs 4.
+INSERT INTO t (id) VALUES (7);
+ERROR HY000: Column 'v' of the row with primary key 7 has 0 dimensions, but its vector index needs 4.
+UPDATE t SET v = NULL WHERE id = 1;
+ERROR HY000: Column 'v' of the row with primary key 1 has 0 dimensions, but its vector index needs 4.
+SET sql_mode = DEFAULT;
+INSERT IGNORE INTO t VALUES (8, NULL);
+ERROR HY000: Column 'v' of the row with primary key 8 has 0 dimensions, but its vector index needs 4.
+UPDATE IGNORE t SET v = NULL WHERE id = 1;
+ERROR HY000: Column 'v' of the row with primary key 1 has 0 dimensions, but its vector index needs 4.
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+id	LENGTH(v)
+1	16
+SELECT COUNT(*) FROM
+(SELECT id FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 10) d;
+COUNT(*)
+1
 # Without the index the short value is stored, as VECTOR(4) allows.
 # DROP KEY keeps the hidden label column, so the next ADD can be INPLACE.
 ALTER TABLE t DROP KEY vk;

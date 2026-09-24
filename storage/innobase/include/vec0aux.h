@@ -281,7 +281,8 @@ void vec_update_aux_id(dict_table_t *table, upd_field_t *ufield,
 @param[in]   table  the base table
 @param[in]   update the update vector
 @param[out]  len    its length in bytes
-@return the bytes, or nullptr if this update does not change the vector */
+@return the bytes, or nullptr if this update does not change the vector.
+An empty new value is returned with *len 0, not as nullptr. */
 const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
                                ulint *len);
 

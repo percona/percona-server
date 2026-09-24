@@ -329,6 +329,9 @@ const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
 
     if (dfield_is_null(&uf->new_val)) return nullptr;
     *len = dfield_get_len(&uf->new_val);
+    /* An empty value changes the vector too; its data pointer may be
+    null, and the caller must still see it to refuse it. */
+    if (*len == 0) return "";
     return static_cast<const char *>(dfield_get_data(&uf->new_val));
   }
   return nullptr;

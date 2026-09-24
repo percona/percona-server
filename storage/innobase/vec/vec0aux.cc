@@ -440,6 +440,10 @@ dict_table_t *create_in_mem_vec_aux_table(const char *aux_name,
   dict_table_t *t =
       dict_mem_table_create(aux_name, parent->space, VEC_AUX_TABLE_NUM_COLS, 0,
                             0, parent->flags, aux_flags2_from_parent(parent));
+  /* Set here, not only when the aux is reloaded from the DD: purge opens an
+  aux table's parent by this id, and skips the undo record when it finds
+  none (ultracodereview: issue6). */
+  t->parent_id = parent->id;
 
   if (DICT_TF_HAS_SHARED_SPACE(parent->flags)) {
     t->tablespace = mem_heap_strdup(t->heap, parent->tablespace);

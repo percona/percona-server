@@ -1,34 +1,55 @@
 #
 # PS-11578, PS-11583: a vector with fewer dimensions than its column
-# must be refused by the vector index as what it is, naming the row.
+# must be refused by the vector index as what it is.
 #
 # VECTOR(n) stores a value with fewer than n dimensions (only a longer
 # one is refused), and that stays so here. The vector index cannot hold
 # such a value, and used to refuse it as DB_CORRUPTION: the client got
 # "Incorrect key file for table", an ALTER also logged "We detected
-# index corruption", and nothing said which row was the problem. The
-# table was never damaged. Every path that puts a row into the index
-# now fails with ER_VECTOR_INDEX_WRONG_DIMENSIONS and the row's key.
+# index corruption", though the table was never damaged. Every path
+# that puts a row into the index now fails with
+# ER_VECTOR_INDEX_WRONG_DIMENSIONS, naming the column and the
+# dimensions its index needs.
 #
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
 VECTOR KEY vk (v) TYPE hnsw (M = 8));
 INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
 # INSERT into an indexed table.
 INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
-ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 # That is the only condition: no generic engine error under it.
 SHOW WARNINGS;
 Level	Code	Message
-Error	7040	Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+Error	7040	Column 'v' has a vector without the 4 dimensions its vector index needs.
 # IGNORE does not skip the row. The refusal is not an ignorable
 # error, because ALTER's copy treats every ignorable error as a
 # duplicate key.
 INSERT IGNORE INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
-ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
+# Under IGNORE a duplicate key is still skipped, but a row the vector
+# index refuses fails the whole statement: nothing below is inserted,
+# not even the good row.
+INSERT IGNORE INTO t VALUES (1, STRING_TO_VECTOR('[9,0,0,0]')),
+(20, STRING_TO_VECTOR('[2,0,0,0]')),
+(21, STRING_TO_VECTOR('[1,2]'));
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
+SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
+# Without the short row, IGNORE behaves as usual.
+INSERT IGNORE INTO t VALUES (1, STRING_TO_VECTOR('[9,0,0,0]')),
+(20, STRING_TO_VECTOR('[2,0,0,0]'));
+Warnings:
+Warning	1062	Duplicate entry '1' for key 't.PRIMARY'
+SELECT id FROM t ORDER BY id;
+id
+1
+20
+DELETE FROM t WHERE id = 20;
 # A multi-row INSERT fails as a whole.
 INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),
 (4, STRING_TO_VECTOR('[4,0]'));
-ERROR HY000: Column 'v' of the row with primary key 4 has 2 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SELECT id, LENGTH(v) FROM t ORDER BY id;
 id	LENGTH(v)
 1	16
@@ -41,17 +62,17 @@ id
 # UPDATE of the existing row. The statement is rolled back, so the row
 # keeps its old value.
 UPDATE t SET v = STRING_TO_VECTOR('[1,2]') WHERE id = 1;
-ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SHOW WARNINGS;
 Level	Code	Message
-Error	7040	Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+Error	7040	Column 'v' has a vector without the 4 dimensions its vector index needs.
 INSERT INTO t (id, v) VALUES (1, STRING_TO_VECTOR('[1,2]'))
 ON DUPLICATE KEY UPDATE v = VALUES(v);
-ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
-# REPLACE on a primary-key conflict is an update of the row;
-# vector_replace covers its delete-and-insert path.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
+# REPLACE on a primary-key conflict is an update of the row; its
+# delete-and-insert path is at the end.
 REPLACE INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
-ERROR HY000: Column 'v' of the row with primary key 1 has 2 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
 id	VECTOR_TO_STRING(v)
 1	[1.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
@@ -64,16 +85,16 @@ id
 # stored with no graph node - or, on UPDATE, to abort a debug server.
 SET sql_mode = '';
 INSERT INTO t VALUES (6, STRING_TO_VECTOR('[1,0,0,0,0]'));
-ERROR HY000: Column 'v' of the row with primary key 6 has 0 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 INSERT INTO t (id) VALUES (7);
-ERROR HY000: Column 'v' of the row with primary key 7 has 0 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 UPDATE t SET v = NULL WHERE id = 1;
-ERROR HY000: Column 'v' of the row with primary key 1 has 0 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SET sql_mode = DEFAULT;
 INSERT IGNORE INTO t VALUES (8, NULL);
-ERROR HY000: Column 'v' of the row with primary key 8 has 0 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 UPDATE IGNORE t SET v = NULL WHERE id = 1;
-ERROR HY000: Column 'v' of the row with primary key 1 has 0 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SELECT id, LENGTH(v) FROM t ORDER BY id;
 id	LENGTH(v)
 1	16
@@ -92,12 +113,12 @@ id	LENGTH(v)
 2	12
 # Building the index finds it, on either algorithm.
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
-ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=COPY;
-ERROR HY000: Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SHOW WARNINGS;
 Level	Code	Message
-Error	7040	Column 'v' of the row with primary key 2 has 3 dimensions, but its vector index needs 4.
+Error	7040	Column 'v' has a vector without the 4 dimensions its vector index needs.
 # Fixing the row is enough.
 UPDATE t SET v = STRING_TO_VECTOR('[1,2,3,0]') WHERE id = 2;
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
@@ -111,7 +132,7 @@ CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
 (7, STRING_TO_VECTOR('[1,0]'));
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
-ERROR HY000: Column 'v' of the row with primary key 7 has 2 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 DROP TABLE t;
 # A build on many scan threads reports the row too. The scan thread
 # that finds it has no session; the ALTER's own thread reports it.
@@ -122,8 +143,47 @@ SET @@global.innodb_limit_optimistic_insert_debug = 2;
 SET @@global.innodb_limit_optimistic_insert_debug = 0;
 SET SESSION innodb_parallel_read_threads = 8;
 ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
-ERROR HY000: Column 'v' of the row with primary key 777 has 2 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 SET SESSION innodb_parallel_read_threads = DEFAULT;
 DROP TABLE t;
 # None of it was reported as corruption.
 include/assert_grep.inc [no row with the wrong dimensions was logged as corruption]
+#
+# REPLACE on a conflict with another unique key deletes the conflicting
+# row and inserts the new one. The index must follow that, and a short
+# vector is refused there too, leaving the old row in place.
+#
+CREATE TABLE t_rep (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+u INT, UNIQUE KEY ku (u),
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t_rep VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+# Primary-key conflict: an update of row 1.
+REPLACE INTO t_rep VALUES (1, STRING_TO_VECTOR('[5,0,0,0]'), 10);
+# Unique-key conflict: row 2 is deleted, row 3 inserted.
+REPLACE INTO t_rep VALUES (3, STRING_TO_VECTOR('[7,0,0,0]'), 20);
+SELECT id, u FROM t_rep ORDER BY id;
+id	u
+1	10
+3	20
+SELECT id FROM t_rep
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+3
+1
+SELECT id FROM t_rep IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+3
+1
+SELECT id FROM t_rep
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+REPLACE INTO t_rep VALUES (4, STRING_TO_VECTOR('[9,9]'), 20);
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
+SELECT id, u FROM t_rep ORDER BY id;
+id	u
+1	10
+3	20
+DROP TABLE t_rep;

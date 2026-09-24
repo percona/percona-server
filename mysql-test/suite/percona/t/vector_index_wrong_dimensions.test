@@ -28,6 +28,19 @@ SHOW WARNINGS;
 --echo # duplicate key.
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 INSERT IGNORE INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+--echo # Under IGNORE a duplicate key is still skipped, but a row the vector
+--echo # index refuses fails the whole statement: nothing below is inserted,
+--echo # not even the good row.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT IGNORE INTO t VALUES (1, STRING_TO_VECTOR('[9,0,0,0]')),
+                            (20, STRING_TO_VECTOR('[2,0,0,0]')),
+                            (21, STRING_TO_VECTOR('[1,2]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
+--echo # Without the short row, IGNORE behaves as usual.
+INSERT IGNORE INTO t VALUES (1, STRING_TO_VECTOR('[9,0,0,0]')),
+                            (20, STRING_TO_VECTOR('[2,0,0,0]'));
+SELECT id FROM t ORDER BY id;
+DELETE FROM t WHERE id = 20;
 --echo # A multi-row INSERT fails as a whole.
 --error ER_VECTOR_INDEX_WRONG_DIMENSIONS
 INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),

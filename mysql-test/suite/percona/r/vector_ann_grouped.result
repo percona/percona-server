@@ -1,0 +1,99 @@
+#
+# A grouped, DISTINCT or windowed query must not take the vector path.
+#
+# Its ORDER BY sorts groups, or rows a window function has already seen
+# in full, so an approximate scan in distance order cannot answer it.
+# GROUP BY ... ORDER BY DISTANCE(...) LIMIT n used to be planned on the
+# index anyway, and the GROUP BY's own sort then reached the vector
+# shortcut in test_if_skip_sort_order, which asserted.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, g INT,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 1),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 2),
+(3, STRING_TO_VECTOR('[3,0,0,0]'), 1),
+(4, STRING_TO_VECTOR('[4,0,0,0]'), 2),
+(5, STRING_TO_VECTOR('[5,0,0,0]'), 1);
+# GROUP BY with the distance as the ORDER BY: this one crashed.
+EXPLAIN SELECT g FROM t GROUP BY g, v
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`g` AS `g` from `test`.`t` group by `test`.`t`.`g`,`test`.`t`.`v` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 3
+SELECT g FROM t GROUP BY g, v
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+g
+1
+2
+1
+SELECT g FROM t IGNORE INDEX (vk) GROUP BY g, v
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+g
+1
+2
+1
+# Aggregation with no GROUP BY.
+SELECT COUNT(*) FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+COUNT(*)
+5
+# DISTINCT over the ordering column.
+EXPLAIN SELECT DISTINCT id, v FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	NULL	vk	1	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`id` AS `id`,`test`.`t`.`v` AS `v` from `test`.`t` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
+SELECT DISTINCT id, v FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	v
+1	0x0000803F000000000000000000000000
+2	0x00000040000000000000000000000000
+# A window function sees every row before the ORDER BY applies.
+EXPLAIN SELECT id, SUM(g) OVER () AS s FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,sum(`test`.`t`.`g`) OVER ()  AS `s` from `test`.`t` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
+SELECT id, SUM(g) OVER () AS s FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	s
+1	7
+2	7
+SELECT id, ROW_NUMBER() OVER (ORDER BY id DESC) AS rn FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	rn
+1	5
+2	4
+# The plain shape still uses the index.
+EXPLAIN SELECT id FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	NULL	vk	1	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
+DROP TABLE t;
+# A MATCH() in the same block keeps the full-text access: the vector
+# scan would leave MATCH() reading a full-text result never built.
+CREATE TABLE tft (id BIGINT UNSIGNED PRIMARY KEY, txt TEXT, v VECTOR(2) NOT NULL,
+FULLTEXT KEY ft (txt), VECTOR KEY vk (v) TYPE hnsw);
+INSERT INTO tft VALUES (1, 'alpha beta', STRING_TO_VECTOR('[0,0]')),
+(2, 'alpha', STRING_TO_VECTOR('[1,0]')),
+(3, 'gamma', STRING_TO_VECTOR('[2,0]')),
+(4, 'alpha', STRING_TO_VECTOR('[3,0]'));
+EXPLAIN SELECT id FROM tft WHERE MATCH(txt) AGAINST('alpha')
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tft	NULL	fulltext	ft	ft	0	const	#	#	Using where; Ft_hints: no_ranking; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tft`.`id` AS `id` from `test`.`tft` where (match `test`.`tft`.`txt` against ('alpha')) order by distance(`test`.`tft`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 3
+SELECT id FROM tft WHERE MATCH(txt) AGAINST('alpha')
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+1
+2
+4
+DROP TABLE tft;

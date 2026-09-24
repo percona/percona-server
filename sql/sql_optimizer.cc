@@ -11082,13 +11082,30 @@ bool JOIN::optimize_vector_query() {
 
   A filter alongside a conforming ORDER BY is not a reason to refuse,
   including one over the distance itself. The scan yields rows in
-  ascending distance and resumes until the graph is exhausted, so the
-  executor applies WHERE between rows and the LIMIT is what ends it: the
-  rows that come back are the nearest ones that pass, however many
-  candidates the filter consumed on the way. vector_search.test covers
-  both filter shapes. */
+  ascending distance and resumes batch by batch, so the executor applies
+  WHERE between rows and the LIMIT is what ends it. vector_search.test
+  covers both filter shapes.
+
+  The scan is approximate, and not exhaustive: HNSW::nn_search_next() drops
+  a row a later batch finds closer than one already returned, and a region
+  of the graph can be unreachable from where the search starts. So a LIMIT
+  near the table's row count, or a filter that rejects most candidates, can
+  return fewer rows than qualify, with no error - the class says this API
+  is not meant for scanning most of the index. Nothing here refuses those
+  shapes yet (ultracodereview: issue12). */
   if (primary_tables != 1 || const_tables != 0) return false;
   if (m_select_limit == HA_POS_ERROR) return false;
+  /* A grouped or DISTINCT block's ORDER BY sorts groups, and a window
+  function must see every row before it applies; a scan in approximate
+  distance order answers none of them. */
+  if (grouped || implicit_grouping || select_distinct ||
+      m_windows.elements > 0) {
+    return false;
+  }
+  /* A MATCH() in the block reads its score from the full-text scan the
+  table's access sets up; replacing that access with the vector scan
+  leaves MATCH() reading a result that was never built. */
+  if (query_block->has_ft_funcs()) return false;
   if (order.order == nullptr || order.order->next != nullptr ||
       order.order->direction == ORDER_DESC) {
     return false;

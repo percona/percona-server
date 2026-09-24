@@ -1123,15 +1123,15 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   Instant_Type instant_type = innobase_support_instant(
       ha_alter_info, m_prebuilt->table, this->table, altered_table);
 
-  /* Phase 1 refuses ALGORITHM=INSTANT on any table owning
-  percona_vec_aux_id, index or no index: the column is retained after
-  DROP KEY and every INSERT keeps writing it, so the label counter is
-  live either way. Deliberate conservatism, not a correctness
-  requirement - INSTANT runs its prepare phase under
-  MDL_SHARED_UPGRADABLE, so concurrent DML is live throughout, and these
-  are the DD paths we have exercised least. */
+  /* ALGORITHM=INSTANT is refused while the table has a vector index.
+  Deliberate conservatism, not a correctness requirement - INSTANT runs
+  its prepare phase under MDL_SHARED_UPGRADABLE, so concurrent DML is live
+  throughout, and these are the DD paths we have exercised least. Once the
+  last vector index is gone, so is the hidden column, and the table is an
+  ordinary one again. (innobase_support_instant refuses INSTANT ADD/DROP
+  COLUMN separately, for the column's own reasons.) */
   if (instant_type != Instant_Type::INSTANT_IMPOSSIBLE &&
-      DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
+      vec_aux_table_has_vector_index(m_prebuilt->table)) {
     instant_type = Instant_Type::INSTANT_IMPOSSIBLE;
     ha_alter_info->unsupported_reason = innobase_get_err_msg(
         ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT);

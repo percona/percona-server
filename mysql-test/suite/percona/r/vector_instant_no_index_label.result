@@ -14,7 +14,7 @@ INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
 (3,30,STRING_TO_VECTOR('[3,0,0,0]'));
 # INSTANT is refused while the vector index exists.
 ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table carrying vector index metadata. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
 # A no-change ALTER rebuilds the new dd::Table from the TABLE_SHARE,
 # which has no SE-hidden columns. Without re-adding percona_vec_aux_id
 # the column counts no longer match the index counts and

@@ -11215,7 +11215,7 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK
   eng "InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph"
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT
-  eng "InnoDB does not support ALGORITHM=INSTANT on a table carrying vector index metadata"
+  eng "InnoDB does not support ALGORITHM=INSTANT on a table with a vector index"
 
 
 ################################################################################

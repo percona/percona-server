@@ -15,7 +15,7 @@ INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
 ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
 # Pure metadata, and still refused: the table carries a vector index.
 ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
-ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table carrying vector index metadata. Try ALGORITHM=COPY/INPLACE.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
 # Without ALGORITHM=INSTANT the server picks a supported algorithm.
 ALTER TABLE t1 RENAME COLUMN pad TO pad2;
 INSERT INTO t1 (id, pad2, v) VALUES (3,30,STRING_TO_VECTOR('[3,0,0,0]'));

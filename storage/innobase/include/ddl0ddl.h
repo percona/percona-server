@@ -617,14 +617,6 @@ struct Context {
   /** Index where the error occurred. */
   size_t m_err_key_number{std::numeric_limits<size_t>::max()};
 
-  /** On DB_VEC_WRONG_DIMENSIONS, the row a vector index build found. A
-  scan thread cannot report it, having no session, so the thread that set
-  m_err records it here and build() reports it once the scan has joined. */
-  const dict_index_t *m_vec_bad_index{};
-  uint64_t m_vec_bad_pk{};
-  uint32_t m_vec_bad_dims{};
-  uint32_t m_vec_bad_need{};
-
   /** Transaction covering the index build. */
   trx_t *m_trx{};
 

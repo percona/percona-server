@@ -756,6 +756,8 @@ int ha_init_errors(void) {
   SETMSG(HA_ERR_TOO_LONG_PATH, ER_DEFAULT(ER_TABLE_NAME_CAUSES_TOO_LONG_PATH));
   SETMSG(HA_ERR_FTS_TOO_MANY_NESTED_EXP,
          "Too many nested sub-expressions in a full-text search");
+  SETMSG(HA_ERR_VECTOR_WRONG_DIMENSIONS,
+         "A vector does not have the dimensions its vector index needs");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -4597,6 +4599,24 @@ bool handler::is_fatal_error(int error) {
     - table->s->path
     - table->alias
 */
+void my_error_vector_wrong_dimensions(const TABLE *table, myf errflag) {
+  /* A table has at most one vector index, so the column and the
+  dimensions it needs come from the definition, not from the row. */
+  for (uint k = 0; k < table->s->keys; k++) {
+    const KEY &key = table->key_info[k];
+    if (!(key.flags & HA_VECTOR)) continue;
+    /* The table's own field: KEY_PART_INFO::field is a key-image copy,
+    whose length is not the column's. */
+    const Field *field = table->field[key.key_part[0].fieldnr - 1];
+    assert(field->type() == MYSQL_TYPE_VECTOR);
+    my_error(ER_VECTOR_INDEX_WRONG_DIMENSIONS, errflag, field->field_name,
+             down_cast<const Field_vector *>(field)->get_max_dimensions());
+    return;
+  }
+  my_error(ER_GET_ERRNO, errflag, HA_ERR_VECTOR_WRONG_DIMENSIONS,
+           table->file->table_type());
+}
+
 void handler::print_error(int error, myf errflag) {
   THD *thd = current_thd;
   Foreign_key_error_handler foreign_key_error_handler(thd, this);
@@ -4626,6 +4646,12 @@ void handler::print_error(int error, myf errflag) {
       break;
     case HA_ERR_WRONG_MRG_TABLE_DEF:
       textno = ER_WRONG_MRG_TABLE;
+      break;
+    case HA_ERR_VECTOR_WRONG_DIMENSIONS:
+      if (table != nullptr) {
+        my_error_vector_wrong_dimensions(table, errflag);
+        return;
+      }
       break;
     case HA_ERR_FOUND_DUPP_KEY: {
       const uint key_nr = table ? get_dup_key(error) : -1;
@@ -8551,6 +8577,41 @@ int handler::ha_reset() {
   return retval;
 }
 
+/**
+  Whether the row in @p buf holds a vector its column's vector index cannot
+  take: VECTOR(n) stores a shorter or empty value, and only a table with a
+  vector index refuses one. The engine checks again; data written before
+  this check existed can hold such a value.
+
+  @param table         the table being written
+  @param buf           the row, table->record[0] or at an offset from it
+  @param only_written  true for an UPDATE: check the vector only if the
+                       statement writes it, so a row that already holds
+                       such a value can still have its other columns
+                       changed
+  @return true if the row must be refused
+*/
+static bool vector_row_has_wrong_dimensions(const TABLE *table,
+                                            const uchar *buf,
+                                            bool only_written) {
+  const ptrdiff_t off = buf - table->record[0];
+  for (uint k = 0; k < table->s->keys; k++) {
+    const KEY &key = table->key_info[k];
+    if (!(key.flags & HA_VECTOR)) continue;
+    /* The table's own field: KEY_PART_INFO::field is a key-image copy. */
+    const auto *field = down_cast<const Field_vector *>(
+        table->field[key.key_part[0].fieldnr - 1]);
+    if (only_written &&
+        !bitmap_is_set(table->write_set, field->field_index())) {
+      return false;
+    }
+    if (field->is_null(off)) return false;
+    return field->data_length(off) !=
+           Field_vector::dimension_bytes(field->get_max_dimensions());
+  }
+  return false;
+}
+
 int handler::ha_write_row(uchar *buf) {
   int error;
   Log_func *log_func = Write_rows_log_event::binlog_row_logging_function;
@@ -8568,6 +8629,11 @@ int handler::ha_write_row(uchar *buf) {
       "handler_crashed_table_on_usage",
       my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
       set_my_errno(HA_ERR_CRASHED); return HA_ERR_CRASHED;);
+
+  if (unlikely(ha_table_flags() & HA_CAN_VECTOR) &&
+      vector_row_has_wrong_dimensions(table, buf, false)) {
+    return HA_ERR_VECTOR_WRONG_DIMENSIONS;
+  }
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
                       { error = write_row(buf); })
@@ -8601,6 +8667,11 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data) {
       "handler_crashed_table_on_usage",
       my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
       set_my_errno(HA_ERR_CRASHED); return (HA_ERR_CRASHED););
+
+  if (unlikely(ha_table_flags() & HA_CAN_VECTOR) &&
+      vector_row_has_wrong_dimensions(table, new_data, true)) {
+    return HA_ERR_VECTOR_WRONG_DIMENSIONS;
+  }
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
                       { error = update_row(old_data, new_data); })

@@ -209,7 +209,7 @@ INSERT INTO t6 VALUES (1, 10), (2, 20);
 # the index can be added.
 ALTER TABLE t6 ADD COLUMN v VECTOR(4) NOT NULL,
 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
-ERROR HY000: Column 'v' of the row with primary key 1 has 0 dimensions, but its vector index needs 4.
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
 ALTER TABLE t6 ADD COLUMN v VECTOR(4) NOT NULL;
 UPDATE t6 SET v = STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'));
 ALTER TABLE t6 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;

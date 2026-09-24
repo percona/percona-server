@@ -2487,10 +2487,10 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_UNDO_REC_TOO_BIG);
     case DB_OUT_OF_MEMORY:
     case DB_VEC_OUT_OF_MEMORY:
+    case DB_VEC_MEMORY_LIMIT:
       return (HA_ERR_OUT_OF_MEM);
     case DB_VEC_WRONG_DIMENSIONS:
-      /* Reported by the caller, with the row. */
-      return (HA_ERR_INNODB_VEC_WRONG_DIMENSIONS);
+      return (HA_ERR_VECTOR_WRONG_DIMENSIONS);
     case DB_TABLESPACE_EXISTS:
       return (HA_ERR_TABLESPACE_EXISTS);
     case DB_TABLESPACE_DELETED:
@@ -21255,18 +21255,6 @@ void ha_innobase::get_auto_increment(
   m_prebuilt->autoinc_increment = increment;
 
   dict_table_autoinc_unlock(m_prebuilt->table);
-}
-
-/** See comment in handler.cc */
-
-void ha_innobase::print_error(int error, myf errflag) {
-  if (error == HA_ERR_INNODB_VEC_WRONG_DIMENSIONS) {
-    /* The statement's error is already the one naming the row. */
-    ut_ad(ha_thd()->is_error());
-    if (ha_thd()->is_error()) return;
-    error = HA_ERR_GENERIC;
-  }
-  handler::print_error(error, errflag);
 }
 
 bool ha_innobase::get_error_message(int, String *buf) {

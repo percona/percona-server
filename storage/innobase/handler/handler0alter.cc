@@ -390,9 +390,8 @@ static UNIV_COLD void my_error_innodb(
     case DB_VEC_OUT_OF_MEMORY:
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
       break;
-    case DB_VEC_WRONG_DIMENSIONS:
-      /* Reported where the row was found, which is the only place that
-      knows which row it was. */
+    case DB_VEC_MEMORY_LIMIT:
+      vec_report_memory_ceiling(current_thd);
       break;
     case DB_OUT_OF_FILE_SPACE:
       my_error(ER_RECORD_FILE_FULL, MYF(0), table);
@@ -6876,6 +6875,9 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
                  get_error_key_name(m_prebuilt->trx->error_key_num,
                                     ha_alter_info, m_prebuilt->table));
         break;
+      case DB_VEC_WRONG_DIMENSIONS:
+        my_error_vector_wrong_dimensions(altered_table, MYF(0));
+        break;
       default:
         my_error_innodb(err, table_share->table_name.str,
                         m_prebuilt->table->flags);
@@ -7588,6 +7590,9 @@ when rebuilding the table.
       case DB_INDEX_CORRUPT:
         my_error(ER_INDEX_CORRUPT, MYF(0),
                  get_error_key_name(err_key, ha_alter_info, rebuilt_table));
+        return true;
+      case DB_VEC_WRONG_DIMENSIONS:
+        my_error_vector_wrong_dimensions(altered_table, MYF(0));
         return true;
       default:
         my_error_innodb(error, table_name, user_table->flags);

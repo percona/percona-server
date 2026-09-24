@@ -134,22 +134,6 @@ the remedy is the obvious one.
 @param[in]  thd  session to report to; nothing is reported without one */
 void vec_report_memory_ceiling(THD *thd);
 
-/** Report a row whose vector has a different number of dimensions than
-its vector index.
-
-VECTOR(n) stores a value with fewer than n dimensions, so the index is
-where such a row is found. Reported here, naming the row, because the
-table is not damaged and what DB_VEC_WRONG_DIMENSIONS maps to says
-nothing about which row to fix.
-@param[in]  thd      session to report to; nothing is reported without one
-@param[in]  index    the vector index
-@param[in]  base_pk  the row's PRIMARY KEY
-@param[in]  dims     how many dimensions the row's vector has
-@param[in]  need     how many the index holds */
-void vec_report_wrong_dimensions(THD *thd, const dict_index_t *index,
-                                 uint64_t base_pk, uint32_t dims,
-                                 uint32_t need);
-
 /** Fill an unloaded node from its aux row.
 
 A template only because LoadNodeHandle is nested in the instantiation,
@@ -598,11 +582,12 @@ definition in `altered_table`, which is the only place they exist during
 an ALTER - nothing in the dictionary carries M or ef_construction.
 @param[in]   index          the vector index being built
 @param[in]   altered_table  the MySQL table definition the ALTER produces
-@param[out]  err            DB_SUCCESS on success; on failure, DB_OUT_OF_MEMORY
-                            only for an actual allocation/memory-budget
-                            failure, DB_ERROR for anything else (the index's
-                            own KEY could not be found or parsed) - the two
-                            are not interchangeable to the caller, which
+@param[out]  err            DB_SUCCESS on success; on failure,
+                            DB_VEC_MEMORY_LIMIT when innodb_hnsw_max_memory
+                            is already spent, DB_VEC_OUT_OF_MEMORY for a
+                            failed allocation, DB_ERROR for anything else (the
+                            index's own KEY could not be found or parsed) -
+                            they are not interchangeable to the caller, which
                             reports err to the user
 @return the build state, or nullptr if it could not be created */
 [[nodiscard]] Vec_build *vec_build_start(dict_index_t *index,
@@ -614,22 +599,18 @@ callback, concurrently from every scan thread: HNSW::insert serialises
 allocation on its own lock and guards neighbour lists with striped
 per-node locks. Writes nothing - the build persistor is
 Vec_null_persistor - so this takes no latches and calls no row API.
-A scan thread has no session to report to, so a row with the wrong number
-of dimensions is handed back for the ALTER's own thread to report.
+Reports nothing: a scan thread has no session, so the error goes back
+through the DDL's first-error slot and the ALTER reports it.
 @param[in,out]  b        build state
 @param[in]      table    base table the row belongs to
 @param[in]      lob_index clustered index the scan read, which owns the
                          row's off-page values
 @param[in]      row      the base row, as the scan built it
-@param[out]     bad_pk   on DB_VEC_WRONG_DIMENSIONS, the row's PRIMARY KEY
-@param[out]     bad_dims on DB_VEC_WRONG_DIMENSIONS, its vector's dimensions
-@param[out]     need     on DB_VEC_WRONG_DIMENSIONS, the index's dimensions
-@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, or DB_OUT_OF_MEMORY once
-innodb_hnsw_max_memory is reached */
+@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, DB_VEC_MEMORY_LIMIT or
+DB_VEC_OUT_OF_MEMORY */
 [[nodiscard]] dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
                                         const dict_index_t *lob_index,
-                                        const dtuple_t *row, uint64_t *bad_pk,
-                                        uint32_t *bad_dims, uint32_t *need);
+                                        const dtuple_t *row);
 
 /** Walk the finished graph and write the aux table bottom-up: record 0
 naming the entry point, then one row per node, in id order, with the

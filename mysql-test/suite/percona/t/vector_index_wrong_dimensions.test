@@ -2,15 +2,16 @@
 
 --echo #
 --echo # PS-11578, PS-11583: a vector with fewer dimensions than its column
---echo # must be refused by the vector index as what it is, naming the row.
+--echo # must be refused by the vector index as what it is.
 --echo #
 --echo # VECTOR(n) stores a value with fewer than n dimensions (only a longer
 --echo # one is refused), and that stays so here. The vector index cannot hold
 --echo # such a value, and used to refuse it as DB_CORRUPTION: the client got
 --echo # "Incorrect key file for table", an ALTER also logged "We detected
---echo # index corruption", and nothing said which row was the problem. The
---echo # table was never damaged. Every path that puts a row into the index
---echo # now fails with ER_VECTOR_INDEX_WRONG_DIMENSIONS and the row's key.
+--echo # index corruption", though the table was never damaged. Every path
+--echo # that puts a row into the index now fails with
+--echo # ER_VECTOR_INDEX_WRONG_DIMENSIONS, naming the column and the
+--echo # dimensions its index needs.
 --echo #
 
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,

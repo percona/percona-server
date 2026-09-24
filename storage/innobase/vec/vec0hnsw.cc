@@ -208,15 +208,6 @@ void vec_report_memory_ceiling(THD *thd) {
            " innodb_hnsw_max_memory and retry.");
 }
 
-void vec_report_wrong_dimensions(THD *thd, const dict_index_t *index,
-                                 uint64_t base_pk, uint32_t dims,
-                                 uint32_t need) {
-  if (thd == nullptr) return;
-  my_error(ER_VECTOR_INDEX_WRONG_DIMENSIONS, MYF(0),
-           index->get_field(0)->name(), static_cast<ulonglong>(base_pk), dims,
-           need);
-}
-
 void vec_report_missing_node(THD *thd, uint64_t id) {
   if (thd == nullptr) return;
   ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
@@ -949,8 +940,7 @@ Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table,
   the one branch that is an actual resource shortage. */
   if (srv_hnsw_max_memory != 0 &&
       Vec_arena::global_bytes() >= srv_hnsw_max_memory) {
-    vec_report_memory_ceiling(current_thd);
-    *err = DB_VEC_OUT_OF_MEMORY;
+    *err = DB_VEC_MEMORY_LIMIT;
     return nullptr;
   }
 
@@ -1027,9 +1017,7 @@ static uint64_t vec_row_base_pk(const dict_table_t *table,
 }
 
 dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
-                          const dict_index_t *lob_index, const dtuple_t *row,
-                          uint64_t *bad_pk, uint32_t *bad_dims,
-                          uint32_t *need) {
+                          const dict_index_t *lob_index, const dtuple_t *row) {
   ut_ad(b != nullptr && b->graph != nullptr);
 
   /* The graph copies the vector, so an off-page value only has to live
@@ -1047,13 +1035,8 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
   const char *q =
       vec_row_vector_bytes(b->index, row, &vec_len, lob_index, heap);
   if (q == nullptr) return DB_SUCCESS;
+  if (vec_len != b->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
   const uint64_t base_pk = vec_row_base_pk(table, row);
-  if (vec_len != b->dims * sizeof(float)) {
-    *bad_pk = base_pk;
-    *bad_dims = static_cast<uint32_t>(vec_len / sizeof(float));
-    *need = b->dims;
-    return DB_VEC_WRONG_DIMENSIONS;
-  }
 
   /* Label 0 is the empty-slot sentinel and can never be a node. A row
   carrying it means the writing path missed it. */
@@ -1076,8 +1059,7 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
   bounded by the thread count and cheaper than serialising them. */
   if (srv_hnsw_max_memory != 0 &&
       Vec_arena::global_bytes() >= srv_hnsw_max_memory) {
-    vec_report_memory_ceiling(current_thd);
-    return DB_VEC_OUT_OF_MEMORY;
+    return DB_VEC_MEMORY_LIMIT;
   }
   return DB_SUCCESS;
 }
@@ -1197,12 +1179,7 @@ dberr_t vec_update_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     if (!index->is_vector()) continue;
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
-    if (q_len != vec->dims * sizeof(float)) {
-      vec_report_wrong_dimensions(thd, index, base_pk,
-                                  static_cast<uint32_t>(q_len / sizeof(float)),
-                                  vec->dims);
-      return DB_VEC_WRONG_DIMENSIONS;
-    }
+    if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
   }
@@ -1237,13 +1214,8 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     const char *q =
         vec_row_vector_bytes(index, row, &vec_len, table->first_index(), heap);
     if (q == nullptr) continue;
+    if (vec_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
     const uint64_t base_pk = vec_row_base_pk(table, row);
-    if (vec_len != vec->dims * sizeof(float)) {
-      vec_report_wrong_dimensions(
-          thd, index, base_pk, static_cast<uint32_t>(vec_len / sizeof(float)),
-          vec->dims);
-      return DB_VEC_WRONG_DIMENSIONS;
-    }
 
     const uint64_t label = vec_get_aux_id_from_row(table, row);
     /* 0 is impossible per this column's contract - the aux reserves it

@@ -535,12 +535,6 @@ dberr_t Context::build() noexcept {
 
   auto err = loader.build_all();
 
-  if (err == DB_VEC_WRONG_DIMENSIONS) {
-    ut_ad(m_vec_bad_index != nullptr);
-    vec_report_wrong_dimensions(thd(), m_vec_bad_index, m_vec_bad_pk,
-                                m_vec_bad_dims, m_vec_bad_need);
-  }
-
   err = cleanup(err);
 
   /* Validate the indexes  after the pages have been flushed to disk.

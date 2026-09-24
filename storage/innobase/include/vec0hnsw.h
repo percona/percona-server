@@ -618,6 +618,8 @@ A scan thread has no session to report to, so a row with the wrong number
 of dimensions is handed back for the ALTER's own thread to report.
 @param[in,out]  b        build state
 @param[in]      table    base table the row belongs to
+@param[in]      lob_index clustered index the scan read, which owns the
+                         row's off-page values
 @param[in]      row      the base row, as the scan built it
 @param[out]     bad_pk   on DB_VEC_WRONG_DIMENSIONS, the row's PRIMARY KEY
 @param[out]     bad_dims on DB_VEC_WRONG_DIMENSIONS, its vector's dimensions
@@ -625,6 +627,7 @@ of dimensions is handed back for the ALTER's own thread to report.
 @return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, or DB_OUT_OF_MEMORY once
 innodb_hnsw_max_memory is reached */
 [[nodiscard]] dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
+                                        const dict_index_t *lob_index,
                                         const dtuple_t *row, uint64_t *bad_pk,
                                         uint32_t *bad_dims, uint32_t *need);
 

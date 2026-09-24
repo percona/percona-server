@@ -36,11 +36,13 @@ The HNSW runtime and the persistence callbacks behind it.
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ha_prototypes.h"
+#include "lob0lob.h"
 #include "lock0lock.h"
 #include "mach0data.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/field.h"
 #include "sql/table.h"
 #include "trx0roll.h"
@@ -547,11 +549,24 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
 }
 
 /** Read one row's vector column as raw float bytes.
+
+A row built from a record carries a vector stored off-page as its local
+part plus a 20-byte reference; the full value is fetched through lob_index
+into heap. That is safe for the same reason as the DDL builder's
+copy_blobs(): no DML runs while a vector index is built (it needs at
+least LOCK=SHARED), and on the DML path the record is this statement's.
+@param[in]   index      the vector index
+@param[in]   row        the base row
+@param[out]  len        the value's length in bytes
+@param[in]   lob_index  clustered index the row's off-page values belong to
+@param[in]   heap       where to fetch an off-page value into
 @return the bytes, or nullptr if the column is SQL NULL, which NOT NULL
 rules out. An empty value is returned with *len 0, never as nullptr, so
 the caller's dimension check refuses it rather than skipping the row. */
 static const char *vec_row_vector_bytes(const dict_index_t *index,
-                                        const dtuple_t *row, ulint *len) {
+                                        const dtuple_t *row, ulint *len,
+                                        const dict_index_t *lob_index,
+                                        mem_heap_t *heap) {
   /* The column the index covers, taken from the index rather than
   searched for.
 
@@ -578,6 +593,13 @@ static const char *vec_row_vector_bytes(const dict_index_t *index,
   /* Non-strict mode and IGNORE store an empty value, whose data pointer
   may be null. */
   if (*len == 0) return "";
+  if (dfield_is_ext(df)) {
+    return reinterpret_cast<const char *>(lob::btr_copy_externally_stored_field(
+        nullptr, lob_index, len, nullptr,
+        static_cast<const byte *>(dfield_get_data(df)),
+        dict_table_page_size(lob_index->table), dfield_get_len(df),
+        dict_index_is_sdi(lob_index), heap));
+  }
   return static_cast<const char *>(dfield_get_data(df));
 }
 
@@ -993,12 +1015,25 @@ static uint64_t vec_row_base_pk(const dict_table_t *table,
 }
 
 dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
-                          const dtuple_t *row, uint64_t *bad_pk,
-                          uint32_t *bad_dims, uint32_t *need) {
+                          const dict_index_t *lob_index, const dtuple_t *row,
+                          uint64_t *bad_pk, uint32_t *bad_dims,
+                          uint32_t *need) {
   ut_ad(b != nullptr && b->graph != nullptr);
 
+  /* The graph copies the vector, so an off-page value only has to live
+  until insert() returns. */
+  mem_heap_t *heap = nullptr;
+  auto heap_guard = create_scope_guard([&heap]() {
+    if (heap != nullptr) mem_heap_free(heap);
+  });
+  if (dfield_is_ext(dtuple_get_nth_field(
+          row, dict_col_get_no(b->index->get_field(0)->col)))) {
+    heap = mem_heap_create(b->dims * sizeof(float) + 64, UT_LOCATION_HERE);
+  }
+
   ulint vec_len = 0;
-  const char *q = vec_row_vector_bytes(b->index, row, &vec_len);
+  const char *q =
+      vec_row_vector_bytes(b->index, row, &vec_len, lob_index, heap);
   if (q == nullptr) return DB_SUCCESS;
   const uint64_t base_pk = vec_row_base_pk(table, row);
   if (vec_len != b->dims * sizeof(float)) {
@@ -1177,8 +1212,18 @@ dberr_t vec_insert_row(trx_t *trx [[maybe_unused]], dict_table_t *table,
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
 
+    mem_heap_t *heap = nullptr;
+    auto heap_guard = create_scope_guard([&heap]() {
+      if (heap != nullptr) mem_heap_free(heap);
+    });
+    if (dfield_is_ext(dtuple_get_nth_field(
+            row, dict_col_get_no(index->get_field(0)->col)))) {
+      heap = mem_heap_create(vec->dims * sizeof(float) + 64, UT_LOCATION_HERE);
+    }
+
     ulint vec_len = 0;
-    const char *q = vec_row_vector_bytes(index, row, &vec_len);
+    const char *q =
+        vec_row_vector_bytes(index, row, &vec_len, table->first_index(), heap);
     if (q == nullptr) continue;
     const uint64_t base_pk = vec_row_base_pk(table, row);
     if (vec_len != vec->dims * sizeof(float)) {

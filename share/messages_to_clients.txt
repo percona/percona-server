@@ -11209,7 +11209,7 @@ ER_CANT_DROP_CF
 #
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR
-  eng "InnoDB does not support adding the first vector index in-place to a table with a FULLTEXT index; adding the hidden label column rebuilds the table"
+  eng "InnoDB does not support adding the first vector index, or dropping the last one, in-place on a table with a FULLTEXT index; either rebuilds the table to add or remove the hidden label column"
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK
   eng "InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph"

@@ -32,8 +32,8 @@ SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/tvr';
 
 ALTER TABLE tvr ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 
---echo # Drop it. The hidden column is retained, so a later ADD is
---echo # eligible for INPLACE again.
+--echo # Drop it. The column goes with it, so a later ADD rebuilds in place
+--echo # again.
 ALTER TABLE tvr DROP KEY v;
 
 --echo # Add a column in the same ALTER so it must take the INPLACE

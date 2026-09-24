@@ -26,13 +26,13 @@ JOIN mysql.tables t ON c.table_id = t.id
 WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
 dd_hidden_col
 percona_vec_aux_id
-# DROP INDEX keeps it: nothing rebuilt, and the commit path carries it.
+# Dropping the last vector index removes it: that DROP rebuilds the
+# table without the column.
 ALTER TABLE t1 DROP KEY vk;
 SELECT c.name AS dd_hidden_col FROM mysql.columns c
 JOIN mysql.tables t ON c.table_id = t.id
 WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
 dd_hidden_col
-percona_vec_aux_id
 # Now the rebuild. No vector index remains, so the new definition has
 # no hidden column - and the dictionary must reach the same conclusion.
 ALTER TABLE t1 FORCE, ALGORITHM=INPLACE;

@@ -50,6 +50,8 @@ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
 ERROR HY000: Index corrupt: the vector index's graph names node <N>, which its auxiliary table does not have. DROP and re-create the index to rebuild it from the base rows.
 SET DEBUG = '-d,vec_aux_node_missing';
 # DROP and re-create is the repair the error asks for, and it works.
+# The DROP takes the hidden column with it, so the re-ADD labels the
+# rows afresh and the label the failed insert burned is gone.
 ALTER TABLE t1 DROP KEY vk;
 ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
 SELECT id FROM t1
@@ -59,5 +61,5 @@ id
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output
-nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=0
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
 DROP TABLE t1;

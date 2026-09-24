@@ -141,25 +141,19 @@ DROP TABLE te1;
 --echo #
 --echo # === Section F: DROP vector index then INSTANT ADD COLUMN
 --echo #
---echo # The hidden percona_vec_aux_id column is retained across DROP of the last
---echo # vector index in the current implementation. Consequently INSTANT
---echo # ADD is still blocked here (the retained hidden col would sit
---echo # between user cols and the INSTANT-added tail column, tripping
---echo # the row0sel.ic:199 mismatch on subsequent SELECT). Once
---echo # PS-11300 either clears percona_vec_aux_id on last-DROP-INDEX or fixes
---echo # the SELECT column mapping, this section can flip to expect
---echo # success.
+--echo # Dropping the last vector index takes the hidden percona_vec_aux_id
+--echo # column with it, so the table is a plain one again and INSTANT ADD
+--echo # COLUMN is allowed. A row read afterwards must map every column.
 
 CREATE TABLE tf1 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v VECTOR(8) NOT NULL,
   VECTOR KEY (v) TYPE hnsw (M = 6)
 );
+INSERT INTO tf1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 ALTER TABLE tf1 DROP KEY v;
---error ER_ALTER_OPERATION_NOT_SUPPORTED,ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE tf1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
---echo # Server-picked algorithm succeeds (rebuild).
-ALTER TABLE tf1 ADD COLUMN c1 INT;
+ALTER TABLE tf1 ADD COLUMN c1 INT DEFAULT 5, ALGORITHM=INSTANT;
+SELECT id, c1 FROM tf1;
 SHOW CREATE TABLE tf1;
 DROP TABLE tf1;
 

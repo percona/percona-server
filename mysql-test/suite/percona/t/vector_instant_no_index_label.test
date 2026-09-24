@@ -2,10 +2,11 @@
 --source include/not_valgrind.inc
 
 --echo #
---echo # PS-11299: percona_vec_aux_id is retained after DROP KEY and every
---echo # INSERT keeps writing it, so the label counter stays live on a table
---echo # with no vector index. ALTER has to treat such a table as one that
---echo # owns the column, not as a plain table.
+--echo # PS-11299: percona_vec_aux_id exists exactly while the table has a vector index.
+--echo #
+--echo # While the index is there, ALTER has to treat the table as one that
+--echo # owns the column. Once the last index is dropped, the column goes with
+--echo # it and the table is a plain one again.
 --echo #
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
@@ -16,12 +17,7 @@ INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
                                    (2,20,STRING_TO_VECTOR('[2,0,0,0]')),
                                    (3,30,STRING_TO_VECTOR('[3,0,0,0]'));
 
---echo # Drop the index. The hidden column stays, so labels keep being assigned.
-ALTER TABLE t1 DROP KEY vk;
-INSERT INTO t1 (id, pad, v) VALUES (4,40,STRING_TO_VECTOR('[4,0,0,0]')),
-                                   (5,50,STRING_TO_VECTOR('[5,0,0,0]'));
-
---echo # INSTANT is refused on the strength of the hidden column alone.
+--echo # INSTANT is refused while the vector index exists.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
 
@@ -35,12 +31,18 @@ ALTER TABLE t1 ALTER COLUMN pad SET DEFAULT 7, ALGORITHM=INPLACE;
 --echo # that cannot find the column trips the vec_add_aux_id_column invariant.
 SET GLOBAL innodb_log_checkpoint_now = ON;
 --source include/restart_mysqld.inc
-
 SELECT id, pad FROM t1 ORDER BY id;
 
---echo # Put the index back. Five labels were handed out, so the counter must
---echo # resume at 6 - vec_next_id assigns the label it reports. A counter that
---echo # regressed would reissue a label a live row already holds.
+--echo # Drop the index: the column goes too, so INSTANT is allowed and new
+--echo # rows carry no label.
+ALTER TABLE t1 DROP KEY vk;
+ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
+ALTER TABLE t1 RENAME COLUMN pad2 TO pad, ALGORITHM=INSTANT;
+INSERT INTO t1 (id, pad, v) VALUES (4,40,STRING_TO_VECTOR('[4,0,0,0]')),
+                                   (5,50,STRING_TO_VECTOR('[5,0,0,0]'));
+
+--echo # Put the index back. It adds the column afresh and labels the five
+--echo # rows 1..5, so the next label is 6.
 ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
 SET SESSION innodb_interpreter = 'vec_next_id test/t1';
 SELECT @@session.innodb_interpreter_output AS next_label;

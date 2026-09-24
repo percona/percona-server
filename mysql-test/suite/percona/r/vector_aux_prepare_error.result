@@ -24,9 +24,9 @@ n_cols
 5
 ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 percona_vec_hnsw_<TID>_<IID>.ibd
-# Drop it again. The hidden column is retained, so the NEXT ADD
-# runs INPLACE and does reach the prepare path — which is where
-# the injected failure belongs.
+# Drop it again. The column goes with it, so the NEXT ADD is again an
+# in-place rebuild through the prepare path — which is where the
+# injected failure belongs.
 ALTER TABLE tva DROP KEY v;
 # Inject failure so the prepare path bails out *after* the aux was
 # created. The DDL must error and the aux must not be left behind.

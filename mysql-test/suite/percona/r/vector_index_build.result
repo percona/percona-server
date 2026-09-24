@@ -5,10 +5,9 @@
 # column, which means rewriting every row: it rebuilds the table in
 # place, labels each copied row and builds the graph from that scan.
 #
-# Every ADD after that runs INPLACE too: the column was retained on
-# DROP INDEX, so vec_build_index populates the graph and the aux
-# from one clustered scan, reusing each row's existing label and
-# without rewriting a single base row.
+# Replacing the index in one statement - DROP and ADD together - keeps
+# the column, so the new graph and aux come from one clustered scan
+# that reuses each row's existing label, without rewriting a base row.
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
@@ -22,18 +21,16 @@ SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output
 nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
-# DROP the index. The hidden column is retained (FTS_DOC_ID
-# parity), which is what makes the next ADD eligible for INPLACE.
-ALTER TABLE t1 DROP KEY k1;
-# Record the table id, to prove the re-ADD does not rebuild.
-# Re-ADD with explicit INPLACE: now allowed, and populated by the
-# clustered-scan build.
-ALTER TABLE t1 ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+# Record the table id, to prove the replacement does not rebuild.
+# Replace the index in one statement: populated by the clustered-scan
+# build.
+ALTER TABLE t1 DROP KEY k1, ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4),
+ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output
 nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
-# TABLE_ID unchanged across the re-ADD — no table rebuild:
+# TABLE_ID unchanged across the replacement — no table rebuild:
 table_id_unchanged=1
 # The rebuilt index still answers for every row after a restart,
 # which is the real proof the aux was written and not just memory.
@@ -42,12 +39,12 @@ SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output
 nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
-# A DELETEd row is not collected by the build, so DROP/ADD
+# A DELETEd row is not collected by the build, so replacing the index
 # compacts tombstones — the first working "OPTIMIZE" for a vector
-# index.
+# index. The labels are kept, so row 2's leaves a gap.
 DELETE FROM t1 WHERE id = 2;
-ALTER TABLE t1 DROP KEY k2;
-ALTER TABLE t1 ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t1 DROP KEY k2, ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4),
+ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 @@session.innodb_interpreter_output

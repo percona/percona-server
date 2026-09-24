@@ -18,7 +18,7 @@ INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
                       (4, STRING_TO_VECTOR('[3,0]')),
                       (5, STRING_TO_VECTOR('[4,0]'));
 
---echo # Drop the key; the hidden column stays, so the next ADD can go INPLACE.
+--echo # Drop the key; the column goes with it, and the next ADD rebuilds in place.
 ALTER TABLE t1 DROP KEY vk;
 SHOW CREATE TABLE t1;
 

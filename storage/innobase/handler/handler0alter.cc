@@ -1057,20 +1057,22 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   row a label, and the vector index is built from the same scan with those
   labels as node ids.
 
+  Dropping the last vector index takes the column away again, by the same
+  kind of rebuild without it (prepare sets drop_vec_aux_col).
+
+  Either rebuild happens exactly when having the column and having a vector
+  index in the new definition disagree.
+
   InnoDB does not rebuild a table with FULLTEXT indexes in place (see the
-  ER_INNODB_FT_LIMIT refusal below), so on such a table the first vector
-  index goes through COPY. */
-  if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL) &&
-      m_prebuilt->table->fts != nullptr) {
-    for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
-      const KEY *key =
-          &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
-      if (key->flags & HA_VECTOR) {
-        ha_alter_info->unsupported_reason = innobase_get_err_msg(
-            ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR);
-        return HA_ALTER_INPLACE_NOT_SUPPORTED;
-      }
-    }
+  ER_INNODB_FT_LIMIT refusal below), so on such a table both go through
+  COPY. */
+  const bool vec_aux_col_changes =
+      DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL) !=
+      innobase_vector_exist(altered_table);
+  if (vec_aux_col_changes && m_prebuilt->table->fts != nullptr) {
+    ha_alter_info->unsupported_reason =
+        innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR);
+    return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
 
   /* We don't support change encryption attribute with inplace algorithm. */
@@ -1268,7 +1270,10 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
           */
           | Alter_inplace_info::ADD_INDEX | Alter_inplace_info::DROP_INDEX);
 
-    if (flags != 0 ||
+    /* ADD and DROP INDEX are allowed alongside only because neither
+    rebuilds. Adding the first vector index or dropping the last one does:
+    it adds or removes the hidden label column. */
+    if (flags != 0 || vec_aux_col_changes ||
         (altered_table->s->partition_info_str &&
          altered_table->s->partition_info_str_len) ||
         (!check_v_col_in_order(this->table, altered_table, ha_alter_info))) {
@@ -1437,12 +1442,14 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     operation is possible. */
   } else if (((ha_alter_info->handler_flags &
                Alter_inplace_info::ADD_PK_INDEX) ||
-              innobase_need_rebuild(ha_alter_info)) &&
+              innobase_need_rebuild(ha_alter_info) || vec_aux_col_changes) &&
              (innobase_fulltext_exist(altered_table) ||
               innobase_spatial_exist(altered_table) ||
               innobase_vector_exist(altered_table))) {
     /* Refuse to rebuild the table online, if
-    FULLTEXT, SPATIAL or VECTOR indexes are to survive the rebuild. */
+    FULLTEXT, SPATIAL or VECTOR indexes are to survive the rebuild. The
+    first ADD and the last DROP of a vector index are rebuilds too, though
+    the flags do not say so (vec_aux_col_changes). */
     online = false;
     /* If the table already contains fulltext indexes,
     refuse to rebuild the table natively altogether. */
@@ -1521,13 +1528,16 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     }
   }
 
-  /* No ALTER of a vector-indexed table runs with LOCK=NONE, whatever it
-  changes. A rebuild applies concurrent DML through the row log, and
-  row_log_apply maintains neither the HNSW graph nor the aux table, so a
-  row written during the rebuild would reach the new table and not the
-  index. Same reason ADD VECTOR INDEX is offline above. */
-  if (online && (innobase_vector_exist(altered_table) ||
-                 vec_aux_table_has_vector_index(m_prebuilt->table))) {
+  /* No ALTER that leaves a vector index on the table runs with LOCK=NONE,
+  whatever it changes. A rebuild applies concurrent DML through the row
+  log, and row_log_apply maintains neither the HNSW graph nor the aux
+  table, so a row written during the rebuild would reach the new table and
+  not the index. Same reason ADD VECTOR INDEX is offline above.
+
+  Dropping the last vector index may run online: the new table has no
+  graph to maintain, and the row log drops the hidden column from each
+  row it applies, as it does for any dropped column. */
+  if (online && innobase_vector_exist(altered_table)) {
     /* Not when INSTANT was refused above - that reason is the accurate
     one for this statement. */
     if (ha_alter_info->alter_info->requested_algorithm !=
@@ -1867,7 +1877,9 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   no-change paths clear se_private_data and refill it from the old
   definition - that copy restores autoinc and version by name, and would
   otherwise drop this. A zero is no counter to carry, and is ignored. */
-  dd_set_vec_next_id(new_dd_tab->se_private_data(), vec_next_id);
+  if (dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME) != nullptr) {
+    dd_set_vec_next_id(new_dd_tab->se_private_data(), vec_next_id);
+  }
 
 #ifdef UNIV_DEBUG
   /* Inplace ALTERs for expanded fast index creation can only be about
@@ -3231,9 +3243,13 @@ template <typename Table>
                               bool &add_fts_doc_idx,
                               /*!< in: whether we need to add new DOC ID
                               index for FTS index */
-                              bool add_vec_aux_col)
-/*!< in: whether we need to add hidden percona_vec_aux_id
-column for a new vector index */
+                              bool add_vec_aux_col,
+                              /*!< in: whether we need to add hidden
+                              percona_vec_aux_id column for a new vector
+                              index */
+                              bool drop_vec_aux_col)
+/*!< in: whether the last vector index is dropped, taking the hidden
+percona_vec_aux_id column with it */
 {
   ddl::Index_defn *indexdef;
   ddl::Index_defn *index_defs;
@@ -3270,7 +3286,7 @@ column for a new vector index */
   which is required to safely add a hidden SE-owned column. Mirrors how
   add_fts_doc_id forces rebuild for adding FTS_DOC_ID. */
   const bool rebuild = new_primary || add_fts_doc_id || add_vec_aux_col ||
-                       innobase_need_rebuild(ha_alter_info);
+                       drop_vec_aux_col || innobase_need_rebuild(ha_alter_info);
 
   /* Reserve one more space if new_primary is true, and we might
   need to add the FTS_DOC_ID_INDEX */
@@ -4593,14 +4609,17 @@ static void dd_commit_inplace_alter_table(
                                  FTS_DOC_ID_INDEX_NAME, col);
     }
 
-    /* Carry percona_vec_aux_id forward across rebuild-ALTERs, symmetric with
-    FTS_DOC_ID above. Only difference: no dd_set_hidden_unique_index
-    call because vec has no anchor B-tree (FTS has FTS_DOC_ID_INDEX;
-    vec links base to aux by base.percona_vec_aux_id = aux.id via each
-    table's own PK). Retention keeps DICT_TF2_HAS_VEC_AUX_COL truthful
-    and mirrors FTS's DICT_TF2_FTS_HAS_DOC_ID stickiness. */
+    /* The rows still carry percona_vec_aux_id when the table is not
+    rebuilt, so the new definition must too. It always does: the column
+    exists exactly while a vector index does, and an ALTER that drops the last
+    one rebuilds (drop_vec_aux_col), so a no-rebuild ALTER keeps its vector
+    index and get_extra_columns_and_keys() has put the column there. Were
+    that ever not so, dropping the column from the definition alone would
+    leave rows the dictionary does not describe; re-adding it is the safe
+    answer, and debug builds say the rule was broken. */
     if (old_info.m_vec_aux_col &&
         !dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME)) {
+      ut_d(ut_error);
       dd_add_hidden_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME,
                            sizeof(uint64_t), dd::enum_column_types::LONGLONG);
     }
@@ -4698,7 +4717,7 @@ template <typename Table>
     const TABLE *old_table, const Table *old_dd_tab, Table *new_dd_tab,
     const char *table_name, uint32_t flags, uint32_t flags2,
     ulint fts_doc_id_col, bool add_fts_doc_id, bool add_fts_doc_id_idx,
-    bool add_vec_aux_col, row_prebuilt_t *prebuilt) {
+    bool add_vec_aux_col, bool drop_vec_aux_col, row_prebuilt_t *prebuilt) {
   bool dict_locked = false;
   ulint *add_key_nums;         /* MySQL key numbers */
   ddl::Index_defn *index_defs; /* index definitions */
@@ -4798,7 +4817,7 @@ template <typename Table>
       ctx->heap, ha_alter_info, altered_table, new_dd_tab,
       ctx->num_to_add_index, num_fts_index,
       row_table_got_default_clust_index(ctx->new_table), fts_doc_id_col,
-      add_fts_doc_id, add_fts_doc_id_idx, add_vec_aux_col);
+      add_fts_doc_id, add_fts_doc_id_idx, add_vec_aux_col, drop_vec_aux_col);
 
   bool new_clustered = DICT_CLUSTERED & index_defs[0].m_ind_type;
 
@@ -4841,7 +4860,8 @@ template <typename Table>
   assert(!add_fts_doc_id || new_clustered);
   ut_ad(!add_vec_aux_col || new_clustered);
   assert(new_clustered == (innobase_need_rebuild(ha_alter_info) ||
-                           add_fts_doc_id || add_vec_aux_col));
+                           add_fts_doc_id || add_vec_aux_col ||
+                           drop_vec_aux_col));
 
   /* Allocate memory for dictionary index definitions */
 
@@ -4937,9 +4957,9 @@ template <typename Table>
     That gives the right answer in every case. ADD FULLTEXT on a
     vector-indexed table rebuilds through add_fts_doc_id without setting
     innobase_need_rebuild(), and the new definition still carries the
-    column because the vector index is still there. DROP INDEX keeps it,
-    through the commit path. A rebuild once no vector index remains drops
-    it from both sides at once, which is what FTS does with FTS_DOC_ID. */
+    column because the vector index is still there. Dropping the last
+    vector index is a rebuild of its own (drop_vec_aux_col), and any rebuild
+    with no vector index left drops the column from both sides at once. */
     const bool need_vec_aux_col =
         add_vec_aux_col ||
         dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME) != nullptr;
@@ -5951,8 +5971,13 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     Instant_Type type = innobase_support_instant(
         ha_alter_info, m_prebuilt->table, this->table, altered_table);
     /* Even if some operations can be done instantly without rebuilding, they
-    are still disallowed to behave like before. */
-    if (innobase_need_rebuild(ha_alter_info) ||
+    are still disallowed to behave like before. Adding the first vector
+    index or dropping the last one rebuilds, though the flags do not say
+    so: it adds or removes the hidden label column. */
+    const bool vec_aux_col_changes =
+        DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_HAS_VEC_AUX_COL) !=
+        innobase_vector_exist(altered_table);
+    if (innobase_need_rebuild(ha_alter_info) || vec_aux_col_changes ||
         (type == Instant_Type::INSTANT_VIRTUAL_ONLY ||
          type == Instant_Type::INSTANT_ADD_DROP_COLUMN)) {
       my_error(ER_TABLESPACE_DISCARDED, MYF(0), indexed_table->name.m_name);
@@ -6392,10 +6417,22 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     }
   }
 
-  if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
-      ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
-           Alter_inplace_info::CHANGE_CREATE_OPTION &&
-       !innobase_need_rebuild(ha_alter_info))) {
+  /* The last vector index is being dropped. The hidden column exists only
+  while a vector index does, so it goes too, and that means rewriting
+  every row: a plain DROP INDEX, which changes no data and would take the
+  shortcut below, becomes a rebuild. The rebuild drops the column by itself
+  - get_extra_columns_and_keys() left it out of the new definition and
+  innobase_build_col_map() maps it nowhere - so all this has to do is
+  force one. */
+  const bool drop_vec_aux_col =
+      DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL) &&
+      !innobase_vector_exist(altered_table);
+
+  if (!drop_vec_aux_col &&
+      (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
+       ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
+            Alter_inplace_info::CHANGE_CREATE_OPTION &&
+        !innobase_need_rebuild(ha_alter_info)))) {
     if (heap) {
       ha_alter_info->handler_ctx = new (m_user_thd->mem_root)
           ha_innobase_inplace_ctx(m_prebuilt, drop_index, n_drop_index,
@@ -6542,20 +6579,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   `rebuild = ... || add_vec_aux_col ...` in innobase_create_key_defs.
   Mirrors add_fts_doc_id.
 
-  Nothing here decides about a table that ALREADY owns the column. It
-  used to: "old table has the flag and the SQL layer wants a rebuild" set
-  this too, on the theory that the column is retained across every ALTER.
-  That is not what happens. The column reaches the rebuilt table's
-  dd::Table only when the new definition needs it - when a vector index
-  survives the ALTER - and the commit path carries it forward only on the
-  no-rebuild branch. So on a rebuild with no vector index left, this flag
-  put the column in the dict_table_t while the committed dd::Table had
-  none, every row was written with a column the dictionary did not
-  describe, and the next page-splitting INSERT asserted in
-  btr_page_split_and_insert. FTS_DOC_ID behaves the same way: a rebuild
-  after the last FULLTEXT index is dropped loses it, consistently on both
-  sides. prepare_inplace_alter_table_dict now reads the new dd::Table and
-  follows it. */
+  Whether a table that already owns the column keeps it is not decided
+  here: prepare_inplace_alter_table_dict follows the new dd::Table, which
+  has the column exactly when a vector index survives the ALTER. */
   if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
     for (uint k = 0; k < ha_alter_info->index_add_count; k++) {
       const KEY *new_key =
@@ -6571,7 +6597,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
       table_share->table_name.str, info.flags(), info.flags2() | encrypt_flag,
       fts_doc_col_no, add_fts_doc_id, add_fts_doc_id_idx, add_vec_aux_col,
-      m_prebuilt);
+      drop_vec_aux_col, m_prebuilt);
 }
 
 /** Check that the column is part of a virtual index(index contains
@@ -6674,7 +6700,17 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     return all_ok();
   };
 
-  if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
+  /* The decision is prepare_inplace_alter_table_impl()'s: when the old
+  table has the hidden column and no vector index survives the ALTER, it
+  sets drop_vec_aux_col and prepares a rebuild without the column. The
+  ALTER flags alone (a plain DROP INDEX) do not say the data changes, so
+  honour the rebuild prepare set up instead of taking the no-op exit. */
+  const auto *prepared =
+      static_cast<const ha_innobase_inplace_ctx *>(ha_alter_info->handler_ctx);
+  const bool forced_rebuild = prepared != nullptr && prepared->need_rebuild();
+
+  if ((!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) &&
+       !forced_rebuild) ||
       is_instant(ha_alter_info)) {
     return all_ok();
   }
@@ -11718,9 +11754,8 @@ bool ha_innobase::bulk_load_check(THD *) const {
 
   /* Vector index - mirror the FTS block above. The hidden percona_vec_aux_id
   column requires per-row writing via vec_write_aux_id, and BULK bypasses
-  the row-insert path. Retention (Option A) keeps the flag sticky, so
-  once-vec-indexed tables remain blocked even after all vec indexes are
-  dropped - same lifecycle as DICT_TF2_FTS_HAS_DOC_ID above. */
+  the row-insert path. The column, and so this refusal, lasts as long as
+  the table has a vector index. */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
     my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "Vector Index",
              "LOAD DATA ALGORITHM = BULK");

@@ -9,13 +9,11 @@
 # compared - v is [id,0,0,0], so id-1 and id+1 are the same distance
 # from id and may come back either way round.
 #
-CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
-# The first ADD has no hidden column yet, so it is refused INPLACE and
-# runs through COPY, rebuilding the table. Do it while the table is
-# empty, so the wide tree built below survives to the scan. DROP KEY
-# keeps percona_vec_aux_id.
-ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t1 DROP KEY v;
+# Created with the index, so the rows below get their labels as they
+# are inserted and the build further down needs no rebuild. A rebuild
+# keeps the primary key order and so scans on one thread.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
 # Split on nearly every insert, so the clustered index has enough leaf
 # pages for the parallel scan to have subtrees to hand out. Turned off
 # again before the ADD: it applies to the aux table's own primary key
@@ -25,8 +23,11 @@ SET @@global.innodb_limit_optimistic_insert_debug = 0;
 SELECT COUNT(*) AS base_rows FROM t1;
 base_rows
 1000
+# Dropping and re-adding the index in one statement keeps the column
+# and every label, so the new graph is built by a clustered scan of the
+# existing rows - the parallel one.
 SET SESSION innodb_parallel_read_threads = 8;
-ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
+ALTER TABLE t1 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 8);
 SET SESSION innodb_parallel_read_threads = DEFAULT;
 # The scan must have been given more than one thread - that is the
 # point of routing the build through ddl::Builder, and a single

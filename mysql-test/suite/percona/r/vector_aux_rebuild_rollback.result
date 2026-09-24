@@ -25,8 +25,8 @@ SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/tvr';
 n_cols
 5
 ALTER TABLE tvr ADD VECTOR KEY (v) TYPE hnsw (M = 6);
-# Drop it. The hidden column is retained, so a later ADD is
-# eligible for INPLACE again.
+# Drop it. The column goes with it, so a later ADD rebuilds in place
+# again.
 ALTER TABLE tvr DROP KEY v;
 # Add a column in the same ALTER so it must take the INPLACE
 # *rebuild* path, which is the path whose rollback this covers.

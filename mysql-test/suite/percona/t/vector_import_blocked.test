@@ -22,13 +22,6 @@ INSERT INTO t1 VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),
 --error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE t1 DISCARD TABLESPACE;
 
---echo # And still blocked after DROP KEY: percona_vec_aux_id is retained,
---echo # so the labels in the rows and the counter in the DD are still live.
-ALTER TABLE t1 DROP KEY vk;
---error ER_NOT_ALLOWED_COMMAND
-ALTER TABLE t1 DISCARD TABLESPACE;
---error ER_NOT_ALLOWED_COMMAND
-ALTER TABLE t1 IMPORT TABLESPACE;
 
 --echo #
 --echo # The export side only warns, so a .cfg describing the hidden column
@@ -68,3 +61,12 @@ DROP TABLE t1;
 --remove_file $VEC_EXPORT/t1.ibd
 --remove_file $VEC_EXPORT/t1.cfg
 --rmdir $VEC_EXPORT
+
+--echo # Dropping the last vector index takes the hidden column with it, and
+--echo # the table is an ordinary one again: DISCARD is allowed.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+ALTER TABLE t3 DROP KEY vk;
+ALTER TABLE t3 DISCARD TABLESPACE;
+DROP TABLE t3;

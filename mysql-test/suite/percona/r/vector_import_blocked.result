@@ -16,13 +16,6 @@ INSERT INTO t1 VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),
 # Blocked while the index is there.
 ALTER TABLE t1 DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t1` because it carries vector index metadata. DISCARD/IMPORT TABLESPACE is not yet supported for such tables.
-# And still blocked after DROP KEY: percona_vec_aux_id is retained,
-# so the labels in the rows and the counter in the DD are still live.
-ALTER TABLE t1 DROP KEY vk;
-ALTER TABLE t1 DISCARD TABLESPACE;
-ERROR 42000: InnoDB: Cannot discard table `test/t1` because it carries vector index metadata. DISCARD/IMPORT TABLESPACE is not yet supported for such tables.
-ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR 42000: InnoDB: Cannot import table `test/t1` because it carries vector index metadata. DISCARD/IMPORT TABLESPACE is not yet supported for such tables.
 #
 # The export side only warns, so a .cfg describing the hidden column
 # can still be produced. Importing it into a table that does not
@@ -48,3 +41,11 @@ DROP TABLE t1;
 # discarded its own tablespace, so DROP TABLE does not own them.
 t1.cfg
 t1.ibd
+# Dropping the last vector index takes the hidden column with it, and
+# the table is an ordinary one again: DISCARD is allowed.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+ALTER TABLE t3 DROP KEY vk;
+ALTER TABLE t3 DISCARD TABLESPACE;
+DROP TABLE t3;

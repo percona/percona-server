@@ -38,7 +38,8 @@ SELECT c.name AS dd_hidden_col FROM mysql.columns c
   JOIN mysql.tables t ON c.table_id = t.id
   WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
 
---echo # DROP INDEX keeps it: nothing rebuilt, and the commit path carries it.
+--echo # Dropping the last vector index removes it: that DROP rebuilds the
+--echo # table without the column.
 ALTER TABLE t1 DROP KEY vk;
 SELECT c.name AS dd_hidden_col FROM mysql.columns c
   JOIN mysql.tables t ON c.table_id = t.id

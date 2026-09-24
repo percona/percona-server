@@ -63,6 +63,8 @@ SELECT id FROM t1
 SET DEBUG = '-d,vec_aux_node_missing';
 
 --echo # DROP and re-create is the repair the error asks for, and it works.
+--echo # The DROP takes the hidden column with it, so the re-ADD labels the
+--echo # rows afresh and the label the failed insert burned is gone.
 ALTER TABLE t1 DROP KEY vk;
 ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
 SELECT id FROM t1

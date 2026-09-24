@@ -16,9 +16,9 @@
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 
---echo # The first ADD has no hidden column yet, so it is refused INPLACE and
---echo # runs through COPY. DROP KEY keeps percona_vec_aux_id, so the SECOND
---echo # ADD below runs INPLACE and reaches vec_build_start via Builder::init.
+--echo # Both ADDs below run INPLACE and reach vec_build_start via
+--echo # Builder::init: each rebuilds the table to add the hidden column, which
+--echo # the DROP between them removes again.
 ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4);
 ALTER TABLE t1 DROP KEY v;
 

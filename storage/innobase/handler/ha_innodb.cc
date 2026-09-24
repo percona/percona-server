@@ -16185,21 +16185,18 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     /* Auto-add hidden percona_vec_aux_id BIGINT UNSIGNED NOT NULL when the
     table owns any vector index.
 
-    Ownership of the column follows FTS_DOC_ID: once InnoDB has added it,
-    it is ours and it is sticky. DROP INDEX removes the vector index and
-    its aux table but leaves the column in place, and a later ADD VECTOR
-    INDEX reuses the existing HT_HIDDEN_SE column rather than adding a
-    second one - that is the `existing != nullptr` branch below, which
-    must never recreate and never error. Retention across rebuild-ALTERs
-    is done at InnoDB commit time by the carry-forward block in
-    dd_commit_inplace_alter_table (handler0alter.cc), which keeps
-    DICT_TF2_HAS_VEC_AUX_COL truthful.
+    The column exists exactly while the table has a vector index, and this is
+    where that is decided for every new definition: CREATE, the COPY target, and
+    an INPLACE ALTER's altered table. An ALTER that keeps a vector index
+    finds the column already there and reuses it - the `existing !=
+    nullptr` branch below, which must never recreate and never error - so
+    each row keeps its label. One that drops the last vector index leaves
+    it out, and InnoDB rebuilds the table without it.
 
     There is no companion hidden UNIQUE index on the column. The
     base-to-aux link is base.percona_vec_aux_id to aux.id through each
     table's own primary key, so two point lookups and no intermediate
-    B-tree; the carry-forward above is what keeps that link alive across
-    ALTER.
+    B-tree.
 
     A user-declared column of this name is rejected outright, on every
     table, vector index or not (see the reservation check above). The

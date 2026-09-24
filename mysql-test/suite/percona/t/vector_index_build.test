@@ -7,10 +7,9 @@
 --echo # column, which means rewriting every row: it rebuilds the table in
 --echo # place, labels each copied row and builds the graph from that scan.
 --echo #
---echo # Every ADD after that runs INPLACE too: the column was retained on
---echo # DROP INDEX, so vec_build_index populates the graph and the aux
---echo # from one clustered scan, reusing each row's existing label and
---echo # without rewriting a single base row.
+--echo # Replacing the index in one statement - DROP and ADD together - keeps
+--echo # the column, so the new graph and aux come from one clustered scan
+--echo # that reuses each row's existing label, without rewriting a base row.
 --echo #
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
@@ -25,21 +24,18 @@ ALTER TABLE t1 ADD VECTOR KEY k1 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 
---echo # DROP the index. The hidden column is retained (FTS_DOC_ID
---echo # parity), which is what makes the next ADD eligible for INPLACE.
-ALTER TABLE t1 DROP KEY k1;
-
---echo # Record the table id, to prove the re-ADD does not rebuild.
+--echo # Record the table id, to prove the replacement does not rebuild.
 --let $tid_before = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME='test/t1'`
 
---echo # Re-ADD with explicit INPLACE: now allowed, and populated by the
---echo # clustered-scan build.
-ALTER TABLE t1 ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+--echo # Replace the index in one statement: populated by the clustered-scan
+--echo # build.
+ALTER TABLE t1 DROP KEY k1, ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4),
+  ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 
 --let $tid_after = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME='test/t1'`
---echo # TABLE_ID unchanged across the re-ADD — no table rebuild:
+--echo # TABLE_ID unchanged across the replacement — no table rebuild:
 if ($tid_before != $tid_after) {
   --echo ERROR: table was rebuilt ($tid_before -> $tid_after)
 }
@@ -53,12 +49,12 @@ if ($tid_before == $tid_after) {
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 
---echo # A DELETEd row is not collected by the build, so DROP/ADD
+--echo # A DELETEd row is not collected by the build, so replacing the index
 --echo # compacts tombstones — the first working "OPTIMIZE" for a vector
---echo # index.
+--echo # index. The labels are kept, so row 2's leaves a gap.
 DELETE FROM t1 WHERE id = 2;
-ALTER TABLE t1 DROP KEY k2;
-ALTER TABLE t1 ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t1 DROP KEY k2, ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4),
+  ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 

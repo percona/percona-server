@@ -104,51 +104,90 @@ SELECT @@session.innodb_interpreter_output;
 DROP TABLE t3;
 
 --echo #
---echo # The first ADD together with other column and index changes. Adding
---echo # an index is never INSTANT, so each is the first ADD's rebuild with
---echo # the other changes applied to the same copy.
+--echo # The first ADD together with other column and index changes. The
+--echo # first ADD is a rebuild, and InnoDB never adds or drops a virtual
+--echo # column during a rebuild: those combinations are refused INPLACE, as
+--echo # for any other rebuild, and run through COPY.
 --echo #
 
---echo # A virtual column and an index on it, with the first vector index.
+--echo # Adding a virtual column and an index on it with the first ADD.
 CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, c INT);
 INSERT INTO t4 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
                       (2, STRING_TO_VECTOR('[2,0,0,0]'), 20),
                       (3, STRING_TO_VECTOR('[3,0,0,0]'), 30);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t4 ADD COLUMN g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
   ADD KEY kg (g), ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ALTER TABLE t4 ADD COLUMN g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+  ADD KEY kg (g), ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t4';
 SELECT @@session.innodb_interpreter_output;
 SELECT id, g FROM t4 WHERE g > 15 ORDER BY id;
-SELECT id FROM t4
-  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
 CHECK TABLE t4;
 
---echo # Dropping a virtual column and a stored one, with the first vector
---echo # index.
+--echo # Dropping a virtual column with the first ADD.
 CREATE TABLE t5 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, c INT,
-                 e INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL);
-INSERT INTO t5 (id, v, c, e) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10, 1),
-                                    (2, STRING_TO_VECTOR('[2,0,0,0]'), 20, 2);
-ALTER TABLE t5 DROP COLUMN g, DROP COLUMN e,
-  ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+                 g INT GENERATED ALWAYS AS (c + 1) VIRTUAL);
+INSERT INTO t5 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+                                 (2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t5 DROP COLUMN g, ADD VECTOR KEY vk (v) TYPE hnsw (M = 8),
+  ALGORITHM=INPLACE;
+ALTER TABLE t5 DROP COLUMN g, ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t5';
 SELECT @@session.innodb_interpreter_output;
-SELECT id, c FROM t5 ORDER BY id;
 CHECK TABLE t5;
+
+--echo # An index on an existing virtual column and a dropped stored column,
+--echo # with the first ADD, on a table that has a stored generated column: no
+--echo # virtual column is added or dropped, so this is the first ADD's
+--echo # rebuild, in place, building the virtual index and the vector index
+--echo # from one scan. (Adding a stored generated column is COPY-only in
+--echo # InnoDB, vector index or not.)
+CREATE TABLE t7 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, c INT,
+                 e INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+                 s INT GENERATED ALWAYS AS (c * 3) STORED);
+INSERT INTO t7 (id, v, c, e) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10, 1),
+                                    (2, STRING_TO_VECTOR('[2,0,0,0]'), 20, 2),
+                                    (3, STRING_TO_VECTOR('[3,0,0,0]'), 30, 3);
+ALTER TABLE t7 ADD KEY kg (g), DROP COLUMN e,
+  ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t7';
+SELECT @@session.innodb_interpreter_output;
+SELECT id, g, s FROM t7 WHERE g > 15 ORDER BY id;
+SELECT id FROM t7
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+CHECK TABLE t7;
 
 --echo # The vector column itself added in the same statement as its index.
 CREATE TABLE t6 (id BIGINT UNSIGNED PRIMARY KEY, c INT);
 INSERT INTO t6 VALUES (1, 10), (2, 20);
-ALTER TABLE t6 ADD COLUMN v VECTOR(4),
+--echo # The existing rows get an empty vector, which the index cannot hold,
+--echo # so the build refuses them; with the column added first and filled,
+--echo # the index can be added.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+ALTER TABLE t6 ADD COLUMN v VECTOR(4) NOT NULL,
   ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
-UPDATE t6 SET v = STRING_TO_VECTOR('[1,0,0,0]') WHERE id = 1;
+ALTER TABLE t6 ADD COLUMN v VECTOR(4) NOT NULL;
+UPDATE t6 SET v = STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'));
+ALTER TABLE t6 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t6';
 SELECT @@session.innodb_interpreter_output;
 CHECK TABLE t6;
 
 --echo # Every table reopens with the definition it was left with.
 --source include/restart_mysqld.inc
-CHECK TABLE t4, t5, t6;
-SELECT id FROM t4
+CHECK TABLE t4, t5, t6, t7;
+SELECT id FROM t7
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
-DROP TABLE t4, t5, t6;
+DROP TABLE t4, t5, t6, t7;
+
+--echo # On a discarded tablespace the first ADD is refused like any other
+--echo # rebuild, rather than creating an index nothing can populate
+--echo # (ultracodereview: issue4).
+CREATE TABLE t8 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t8 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+ALTER TABLE t8 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t8;
+DROP TABLE t8;

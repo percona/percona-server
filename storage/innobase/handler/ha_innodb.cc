@@ -12182,6 +12182,17 @@ next_record:
 int ha_innobase::vec_init() {
   DBUG_TRACE;
 
+  /* The checks every index read gets, in change_active_index(): a vector
+  index newer than this transaction's snapshot is refused with
+  ER_TABLE_DEF_CHANGED, as a B-tree is - the graph holds what its build
+  saw, so answering would leave out rows the snapshot sees - and a corrupt
+  one with ER_INDEX_CORRUPT. FULLTEXT gets the same from ha_index_init(). */
+  for (uint k = 0; k < table->s->keys; k++) {
+    if (!(table->key_info[k].flags & HA_VECTOR)) continue;
+    if (const int err = change_active_index(k); err != 0) return err;
+    break;
+  }
+
   /* The ANN candidates are fetched from the base table by PRIMARY KEY
   (row_ref is the PK image); rnd_init sets up the clustered-index
   positioning the per-candidate row_search_for_mysql below relies on. */

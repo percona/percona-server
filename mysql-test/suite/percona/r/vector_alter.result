@@ -5,6 +5,11 @@
 # Section D: ADD INDEX after INSTANT column ADD (forces rebuild).
 # Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
 # Section F: DROP vector index then INSTANT ADD COLUMN.
+# Section G: table rebuilds with a vector index.
+#
+# Adding the first vector index to a table, and dropping the last
+# one, add and remove the hidden label column; those are in
+# vector_first_add_inplace.test and vector_drop_last_index.test.
 #
 # ALGORITHM=BULK_LOAD is not covered here - it is not in the
 # community server, so there is nothing to run it against. If it
@@ -19,13 +24,12 @@ id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
 VECTOR KEY (v) TYPE hnsw (M = 6)
 );
-# A.1 ADD COLUMN ... ALGORITHM=INSTANT — blocked on vec-indexed tables
-# (parallel to FTS's ER_INNODB_FT_LIMIT). Enabling this needs a fix
-# in ha_innobase::build_template to skip HT_HIDDEN_SE cols when
-# computing the InnoDB→MySQL column map. Deferred to PS-11300.
+# A.1 ADD COLUMN ... ALGORITHM=INSTANT is refused while the table has
+# a vector index. That is phase-one conservatism, not a correctness
+# requirement.
 ALTER TABLE ta1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
-Got one of the listed errors
-# Fallback: server-picked algorithm succeeds (INPLACE or COPY).
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# Without ALGORITHM=INSTANT the server picks INPLACE.
 ALTER TABLE ta1 ADD COLUMN c1 INT;
 SHOW CREATE TABLE ta1;
 Table	Create Table
@@ -40,7 +44,9 @@ ta1	CREATE TABLE `ta1` (
 # rebuild recreates the vector index along with everything else, so
 # the graph comes back from the copied rows. Not ONLINE - LOCK=SHARED
 # - because the row log cannot maintain a graph.
-ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE;
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE ta1;
 Table	Create Table
 ta1	CREATE TABLE `ta1` (
@@ -89,10 +95,10 @@ v VECTOR(8) NOT NULL,
 c1 INT, c2 INT, c3 INT,
 VECTOR KEY (v) TYPE hnsw (M = 6)
 );
-# B.1 DROP COLUMN ... ALGORITHM=INSTANT — blocked (see A.1 note)
+# B.1 DROP COLUMN ... ALGORITHM=INSTANT is refused, as in A.1.
 ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
-Got one of the listed errors
-# Fallback: server-picked algorithm succeeds.
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# Without ALGORITHM=INSTANT the server picks INPLACE.
 ALTER TABLE tb1 DROP COLUMN c1;
 # B.2 DROP COLUMN ... ALGORITHM=COPY
 ALTER TABLE tb1 DROP COLUMN c2, ALGORITHM=COPY;
@@ -205,12 +211,10 @@ tf1	CREATE TABLE `tf1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE tf1;
 #
-# === Section G: native rebuild refused on vec-indexed tables ===
-# Mirrors FTS's ER_INNODB_FT_LIMIT policy: a native (INPLACE)
-# rebuild re-inserts every row under a new table_id/index_id, so
-# the vec aux table would be recreated empty and the HNSW graph
-# lost. ALGORITHM=COPY rebuilds the aux organically via per-row
-# INSERT writing.
+# === Section G: table rebuilds with a vector index ===
+# An INPLACE rebuild builds every index of the new table, the vector
+# index among them, from one scan of the old rows, keeping their
+# labels. It runs under LOCK=SHARED, never LOCK=NONE.
 CREATE TABLE tg1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(8) NOT NULL,
@@ -221,9 +225,12 @@ INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 # index is rebuilt with the table - see vector_alter_rebuild.test
 # for the full set of rebuild shapes.
 ALTER TABLE tg1 FORCE, ALGORITHM=INPLACE;
-# G.2 Server-picked algorithm: silently falls back to COPY.
+# G.2 The server picks INPLACE too: an INPLACE rebuild reports
+# 0 rows affected, where COPY would report 1.
 ALTER TABLE tg1 FORCE;
-# G.3 OPTIMIZE TABLE: same fallback, data survives, one aux .ibd.
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# G.3 OPTIMIZE TABLE is the same rebuild: data survives, one aux .ibd.
 OPTIMIZE TABLE tg1;
 Table	Op	Msg_type	Msg_text
 test.tg1	optimize	note	Table does not support optimize, doing recreate + analyze instead

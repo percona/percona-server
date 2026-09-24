@@ -5,10 +5,10 @@
 # scan, the phase driver and the dictionary with whatever else the same
 # ALTER is doing. These are the combinations that exercise that sharing.
 #
-# Reaching the INPLACE path takes care: the FIRST ADD VECTOR INDEX has no
-# hidden column yet, so it is refused INPLACE and runs through COPY. Each
-# case below therefore adds an index and drops it first, which leaves
-# percona_vec_aux_id behind, before the ADD under test.
+# Each ADD below is the table's first vector index, so it rebuilds the
+# table in place to add the hidden label column. "vector first, no
+# rebuild" replaces an existing index in the same statement instead,
+# which keeps the column and builds without a rebuild.
 #
 #
 # ---- mixed secondary ----
@@ -16,8 +16,6 @@
 # ADD a plain secondary index and a vector index in ONE ALTER.
 # Two builders, one scan, different phases each.
 CREATE TABLE t_mixed_secondary (id BIGINT UNSIGNED PRIMARY KEY, x INT, v VECTOR(4) NOT NULL);
-ALTER TABLE t_mixed_secondary ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_mixed_secondary DROP KEY v;
 INSERT INTO t_mixed_secondary VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
 (3,30,STRING_TO_VECTOR('[3,0,0,0]')),(4,40,STRING_TO_VECTOR('[4,0,0,0]'));
 ALTER TABLE t_mixed_secondary ADD INDEX x_idx (x), ADD VECTOR KEY (v) TYPE hnsw (M = 8);
@@ -47,8 +45,6 @@ DROP TABLE t_mixed_secondary;
 # Vector index listed FIRST: m_n_uniq is taken from the first index and
 # skipped for a vector index, so this is the ordering that could leave it 0.
 CREATE TABLE t_vector_first (id BIGINT UNSIGNED PRIMARY KEY, x INT, v VECTOR(4) NOT NULL);
-ALTER TABLE t_vector_first ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_vector_first DROP KEY v;
 INSERT INTO t_vector_first VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
 (3,30,STRING_TO_VECTOR('[3,0,0,0]'));
 ALTER TABLE t_vector_first ADD VECTOR KEY (v) TYPE hnsw (M = 8), ADD INDEX x_idx (x);
@@ -60,13 +56,32 @@ Table	Op	Msg_type	Msg_text
 test.t_vector_first	check	status	OK
 DROP TABLE t_vector_first;
 #
+# ---- vector first, no rebuild ----
+#
+# The same ordering without a rebuild: the old index is dropped and the
+# new one added in one statement, so the column and its labels stay.
+# "affected rows: 0" shows no row was copied: the table was not rebuilt.
+CREATE TABLE t_vector_first_nr (id BIGINT UNSIGNED PRIMARY KEY, x INT, v VECTOR(4) NOT NULL,
+VECTOR KEY v0 (v) TYPE hnsw (M = 8));
+INSERT INTO t_vector_first_nr VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+(3,30,STRING_TO_VECTOR('[3,0,0,0]'));
+ALTER TABLE t_vector_first_nr DROP KEY v0, ADD VECTOR KEY (v) TYPE hnsw (M = 8), ADD INDEX x_idx (x),
+ALGORITHM=INPLACE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SELECT id FROM t_vector_first_nr ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
+id
+2
+CHECK TABLE t_vector_first_nr;
+Table	Op	Msg_type	Msg_text
+test.t_vector_first_nr	check	status	OK
+DROP TABLE t_vector_first_nr;
+#
 # ---- with fulltext ----
 #
 # FULLTEXT and vector in one ALTER: two special index kinds, each with
 # its own build phase (FTS_SORT_AND_BUILD vs VEC_BUILD).
 CREATE TABLE t_with_fulltext (id BIGINT UNSIGNED PRIMARY KEY, txt TEXT, v VECTOR(4) NOT NULL);
-ALTER TABLE t_with_fulltext ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_with_fulltext DROP KEY v;
 INSERT INTO t_with_fulltext VALUES (1,'alpha beta',STRING_TO_VECTOR('[1,0,0,0]')),
 (2,'gamma delta',STRING_TO_VECTOR('[2,0,0,0]'));
 ALTER TABLE t_with_fulltext ADD FULLTEXT ft_idx (txt), ADD VECTOR KEY (v) TYPE hnsw (M = 8);
@@ -88,8 +103,6 @@ DROP TABLE t_with_fulltext;
 # SPATIAL forces Parallel_cursor into single-threaded mode for the whole
 # scan, so the vector build here loses its parallelism.
 CREATE TABLE t_with_spatial (id BIGINT UNSIGNED PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, v VECTOR(4) NOT NULL);
-ALTER TABLE t_with_spatial ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_with_spatial DROP KEY v;
 INSERT INTO t_with_spatial VALUES (1,ST_GeomFromText('POINT(1 1)'),STRING_TO_VECTOR('[1,0,0,0]')),
 (2,ST_GeomFromText('POINT(2 2)'),STRING_TO_VECTOR('[2,0,0,0]'));
 SET SESSION innodb_parallel_read_threads = 8;
@@ -108,8 +121,6 @@ DROP TABLE t_with_spatial;
 # Empty table: the graph has no nodes, so the bulk load never starts and
 # not even record 0 is written.
 CREATE TABLE t_empty_table (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
-ALTER TABLE t_empty_table ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_empty_table DROP KEY v;
 ALTER TABLE t_empty_table ADD VECTOR KEY (v) TYPE hnsw (M = 8);
 SELECT COUNT(*) FROM t_empty_table;
 COUNT(*)
@@ -156,7 +167,7 @@ DROP TABLE t_drop_add;
 CREATE TABLE t_two_vector (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, w VECTOR(4) NOT NULL);
 INSERT INTO t_two_vector VALUES (1,STRING_TO_VECTOR('[1,0,0,0]'),STRING_TO_VECTOR('[9,0,0,0]'));
 ALTER TABLE t_two_vector ADD VECTOR KEY (v) TYPE hnsw (M = 8), ADD VECTOR KEY (w) TYPE hnsw (M = 8);
-Got one of the listed errors
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
 SHOW CREATE TABLE t_two_vector;
 Table	Create Table
 t_two_vector	CREATE TABLE `t_two_vector` (
@@ -175,8 +186,6 @@ DROP TABLE t_two_vector;
 # ADD COLUMN together with the vector index: the hidden column's ordinal
 # has to survive a user column arriving in the same statement.
 CREATE TABLE t_add_column (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
-ALTER TABLE t_add_column ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_add_column DROP KEY v;
 INSERT INTO t_add_column VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
 ALTER TABLE t_add_column ADD COLUMN c INT DEFAULT 7, ADD VECTOR KEY (v) TYPE hnsw (M = 8);
 SELECT id, c FROM t_add_column ORDER BY id;
@@ -195,11 +204,9 @@ DROP TABLE t_add_column;
 #
 # Build the vector index, then force a rebuild of the table underneath it.
 CREATE TABLE t_rebuild_after (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
-ALTER TABLE t_rebuild_after ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_rebuild_after DROP KEY v;
 INSERT INTO t_rebuild_after VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
 ALTER TABLE t_rebuild_after ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-# A rebuild with a surviving vector index - refused, or rebuilt correctly.
+# A rebuild with a surviving vector index rebuilds the graph too.
 ALTER TABLE t_rebuild_after FORCE;
 SHOW CREATE TABLE t_rebuild_after;
 Table	Create Table
@@ -222,8 +229,6 @@ DROP TABLE t_rebuild_after;
 # Explicit ALGORITHM and LOCK on the INPLACE path. LOCK=NONE must be
 # refused; SHARED and INPLACE must work.
 CREATE TABLE t_algorithm_lock (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
-ALTER TABLE t_algorithm_lock ADD VECTOR KEY (v) TYPE hnsw (M = 8);
-ALTER TABLE t_algorithm_lock DROP KEY v;
 INSERT INTO t_algorithm_lock VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
 ALTER TABLE t_algorithm_lock ADD VECTOR KEY (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.

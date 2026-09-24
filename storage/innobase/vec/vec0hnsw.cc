@@ -427,6 +427,7 @@ static dict_table_t *vec_aux_open_for_dml(dict_table_t *base,
                          sizeof(aux_name));
 
   *mdl = nullptr;
+  DBUG_EXECUTE_IF("vec_aux_open_fail", return nullptr;);
   dict_table_t *aux = dd_table_open_on_name_in_mem(aux_name, false);
   if (aux == nullptr && thd != nullptr) {
     aux =
@@ -671,7 +672,14 @@ static dberr_t vec_add_node(vec_t *vec, dict_index_t *index,
 
   MDL_ticket *mdl = nullptr;
   dict_table_t *aux = vec_aux_open_for_dml(table, vec->index_id, thd, &mdl);
-  if (aux == nullptr) return DB_TABLE_NOT_FOUND;
+  if (aux == nullptr) {
+    /* The DML holds the base table's MDL, and every DDL that could drop
+    the aux takes the base table's exclusive MDL first, so a failed open
+    is a kill or an aux the dictionary does not have - never a code
+    row_mysql_handle_errors() would treat as fatal. */
+    return thd != nullptr && thd_killed(thd) ? DB_INTERRUPTED
+                                             : DB_INDEX_CORRUPT;
+  }
 
   /* The sub-transaction. Aux writes must not roll back with the
   statement: the graph is an in-memory cache whose only durable form is
@@ -720,6 +728,7 @@ static dberr_t vec_add_node(vec_t *vec, dict_index_t *index,
     const dberr_t lerr = vec_runtime_load_once(vec, index, aux, thd);
     if (lerr != DB_SUCCESS) {
       trx_rollback_to_savepoint(aux_trx, nullptr);
+      aux_trx->flush_log_later = false;
       trx_free_for_background(aux_trx);
       vec_aux_close_for_dml(aux, thd, &mdl);
       return lerr;
@@ -763,6 +772,9 @@ static dberr_t vec_add_node(vec_t *vec, dict_index_t *index,
     that keeps the aux tracking memory rather than diverging from it. */
     trx_rollback_to_savepoint(aux_trx, nullptr);
   }
+  /* Neither trx_free() nor the pool clears it, and the next background
+  transaction given this trx_t would commit without flushing the log. */
+  aux_trx->flush_log_later = false;
   trx_free_for_background(aux_trx);
   vec_aux_close_for_dml(aux, thd, &mdl);
 

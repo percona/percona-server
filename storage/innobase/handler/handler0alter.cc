@@ -1134,8 +1134,9 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   last vector index is gone, so is the hidden column, and the table is an
   ordinary one again. (innobase_support_instant refuses INSTANT ADD/DROP
   COLUMN separately, for the column's own reasons.) */
-  if (instant_type != Instant_Type::INSTANT_IMPOSSIBLE &&
-      vec_aux_table_has_vector_index(m_prebuilt->table)) {
+  const bool vec_refuses_instant =
+      vec_aux_table_has_vector_index(m_prebuilt->table);
+  if (instant_type != Instant_Type::INSTANT_IMPOSSIBLE && vec_refuses_instant) {
     instant_type = Instant_Type::INSTANT_IMPOSSIBLE;
     ha_alter_info->unsupported_reason = innobase_get_err_msg(
         ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT);
@@ -1542,14 +1543,17 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   row_log_apply to insert each applied row into the new graph, and the
   first ADD's labels to come from the row log as well as the scan. */
   if (online && innobase_vector_exist(altered_table)) {
-    /* Not when INSTANT was refused above - that reason is the accurate
-    one for this statement. */
-    if (ha_alter_info->alter_info->requested_algorithm !=
-        Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
-      ha_alter_info->unsupported_reason = innobase_get_err_msg(
-          ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK);
-    }
+    ha_alter_info->unsupported_reason = innobase_get_err_msg(
+        ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK);
     online = false;
+  }
+
+  /* The branches above set the LOCK=NONE reason whatever was requested.
+  For ALGORITHM=INSTANT the refusal above is the one the statement hit. */
+  if (vec_refuses_instant && ha_alter_info->alter_info->requested_algorithm ==
+                                 Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+    ha_alter_info->unsupported_reason = innobase_get_err_msg(
+        ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT);
   }
 
   return online ? HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE

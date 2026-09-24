@@ -2,10 +2,11 @@
 --echo # PS-11299: no ALTER of a vector-indexed table runs with
 --echo # ALGORITHM=INSTANT.
 --echo #
---echo # INSTANT runs its prepare phase under MDL_SHARED_UPGRADABLE, with
---echo # concurrent DML live throughout. Phase 1 refuses it and takes the
---echo # INPLACE path, which blocks writers. The label counter itself is
---echo # carried forward in the commit phase, under MDL_EXCLUSIVE.
+--echo # This is phase-one conservatism, not a correctness requirement: the
+--echo # label counter is carried forward in the commit phase, under
+--echo # MDL_EXCLUSIVE, so concurrent DML during an INSTANT ALTER could not
+--echo # make a label repeat. The refusal only avoids INSTANT's DD paths.
+--echo # Without ALGORITHM=INSTANT the server picks INPLACE.
 --echo #
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,

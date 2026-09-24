@@ -70,11 +70,9 @@ HANDLER t_hand CLOSE;
 DROP TABLE t_hand;
 
 --echo # === F1: rebuild on populated vec-indexed table ===
---echo # INPLACE rebuild with a surviving vector index is refused
---echo # (FTS-parity check in check_if_supported_inplace_alter — the aux
---echo # contents cannot be carried across a native rebuild). The
---echo # server-picked fallback (COPY) must preserve all rows and keep
---echo # the percona_vec_aux_id write path working.
+--echo # An INPLACE rebuild with a surviving vector index rebuilds the
+--echo # graph from the copied rows, under LOCK=SHARED. It must preserve all
+--echo # rows and keep the percona_vec_aux_id write path working.
 CREATE TABLE t_rebuild (id BIGINT UNSIGNED PRIMARY KEY,
                        v VECTOR(8) NOT NULL,
                        c INT,
@@ -82,10 +80,9 @@ CREATE TABLE t_rebuild (id BIGINT UNSIGNED PRIMARY KEY,
 INSERT INTO t_rebuild VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'), 10);
 INSERT INTO t_rebuild VALUES (2, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'), 20);
 INSERT INTO t_rebuild VALUES (3, STRING_TO_VECTOR('[3,3,3,3,3,3,3,3]'), 30);
---echo # Explicit INPLACE rebuild: supported now - the rebuild recreates
---echo # the vector index from the copied rows.
+--echo # Explicit INPLACE rebuild.
 ALTER TABLE t_rebuild FORCE, ALGORITHM=INPLACE;
---echo # Server-picked algorithm succeeds too.
+--echo # Server-picked algorithm, which is INPLACE as well.
 ALTER TABLE t_rebuild FORCE;
 --echo # SELECT must return all 3 rows correctly (no col-count mismatch).
 SELECT id, c, VECTOR_TO_STRING(v) FROM t_rebuild

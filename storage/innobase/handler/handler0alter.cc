@@ -1536,7 +1536,11 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
 
   Dropping the last vector index may run online: the new table has no
   graph to maintain, and the row log drops the hidden column from each
-  row it applies, as it does for any dropped column. */
+  row it applies, as it does for any dropped column.
+
+  TODO: lift this after MVP. It needs row_log_table_apply and
+  row_log_apply to insert each applied row into the new graph, and the
+  first ADD's labels to come from the row log as well as the scan. */
   if (online && innobase_vector_exist(altered_table)) {
     /* Not when INSTANT was refused above - that reason is the accurate
     one for this statement. */
@@ -1810,7 +1814,9 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   counter is zero. Read in this phase rather than in prepare because
   commit runs under MDL_EXCLUSIVE, where no writer can still be assigning. */
   uint64_t vec_next_id = 0;
-  {
+  /* Only on commit: a rollback returns before the value is used, and may
+  already have freed the new table. */
+  if (commit) {
     const dict_table_t *vec_src = (ctx != nullptr && ctx->old_table != nullptr)
                                       ? ctx->old_table
                                       : m_prebuilt->table;
@@ -1818,14 +1824,13 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
     if (vec_src != nullptr &&
         DICT_TF2_FLAG_IS_SET(vec_src, DICT_TF2_HAS_VEC_AUX_COL)) {
       vec_next_id = vec_src->vec_aux_autoinc_next_id.load();
-    } else if (commit && ctx != nullptr && ctx->new_table != nullptr &&
+    } else if (ctx != nullptr && ctx->new_table != nullptr &&
                ctx->need_rebuild() &&
                DICT_TF2_FLAG_IS_SET(ctx->new_table, DICT_TF2_HAS_VEC_AUX_COL)) {
       /* The rebuild added the column and labelled every row itself, in
       ddl::Row::build, on the new table's counter. That counter lives on
       as the table's own, so it is durable as soon as the definition
-      carrying it commits. Only on commit: a rollback may already have
-      freed the new table. */
+      carrying it commits. */
       vec_next_id = ctx->new_table->vec_aux_autoinc_next_id.load();
       ctx->new_table->vec_aux_autoinc_persisted.store(vec_next_id);
     }

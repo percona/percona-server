@@ -1024,9 +1024,12 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
 
   /* Record 0 first, then one row per node in ascending id order. The aux
   table is keyed by id, so the whole sequence is an append and the tree is
-  built left to right instead of being inserted into at random. All on the
-  ALTER's transaction, so a failure here rolls the aux back with the rest
-  of the statement.
+  built left to right instead of being inserted into at random.
+
+  Btree_load writes no undo and no redo, and the ALTER's transaction only
+  lends the rows its id, so a large graph needs no intermediate commits.
+  Nothing has to be undone on failure either: this ALTER created the aux,
+  and the ALTER failing drops it.
 
   Record 0 is not a node: id 0 is the empty-slot sentinel, so the row is
   free to hold the entry point in base_pk. */

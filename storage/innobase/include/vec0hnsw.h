@@ -606,10 +606,10 @@ reached */
 [[nodiscard]] dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
                                         const dtuple_t *row);
 
-/** Walk the finished graph and write the aux table: one row per node with
-the neighbours it ended up with, then record 0 naming the entry point. On
-the ALTER's own transaction, so a failure rolls the aux back with the rest
-of the statement.
+/** Walk the finished graph and write the aux table bottom-up: record 0
+naming the entry point, then one row per node, in id order, with the
+neighbours it ended up with. No undo and no redo; the aux is new to this
+ALTER and is dropped if the ALTER fails.
 @param[in,out]  b      build state
 @param[in]      trx    the ALTER's transaction
 @param[in]      table  base table being altered

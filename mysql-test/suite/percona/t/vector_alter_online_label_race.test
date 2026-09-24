@@ -1,10 +1,14 @@
 --echo #
---echo # PS-11299: no ALTER of a vector-indexed table runs with LOCK=NONE.
+--echo # PS-11299: no ALTER that leaves a vector index runs with LOCK=NONE.
 --echo #
---echo # The label counter is read in the prepare phase and written to the new
---echo # dd::Table at commit. DML in between keeps assigning labels, so the
---echo # value committed would be behind the labels already written into rows
---echo # and a later assignment could reissue one. LOCK=NONE is refused instead.
+--echo # DML during an online ALTER goes to the row log, and applying the
+--echo # row log maintains neither the graph nor its aux table, so a row
+--echo # written meanwhile would be in the table and not in the index.
+--echo # LOCK=NONE is refused instead, even for an ALTER such as ADD INDEX
+--echo # that never touches the vector index.
+--echo #
+--echo # The label counter is captured at commit, under MDL_EXCLUSIVE, so
+--echo # the labels written before and after the ALTER must never repeat.
 --echo #
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,

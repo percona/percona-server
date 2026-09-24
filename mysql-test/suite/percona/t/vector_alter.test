@@ -5,6 +5,11 @@
 --echo # Section D: ADD INDEX after INSTANT column ADD (forces rebuild).
 --echo # Section E: ADD INDEX after INSTANT column DROP (forces rebuild).
 --echo # Section F: DROP vector index then INSTANT ADD COLUMN.
+--echo # Section G: table rebuilds with a vector index.
+--echo #
+--echo # Adding the first vector index to a table, and dropping the last
+--echo # one, add and remove the hidden label column; those are in
+--echo # vector_first_add_inplace.test and vector_drop_last_index.test.
 --echo #
 --echo # ALGORITHM=BULK_LOAD is not covered here - it is not in the
 --echo # community server, so there is nothing to run it against. If it
@@ -24,11 +29,10 @@ CREATE TABLE ta1 (
   VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 
---echo # A.1 ADD COLUMN ... ALGORITHM=INSTANT — blocked on vec-indexed tables
---echo # (parallel to FTS's ER_INNODB_FT_LIMIT). Enabling this needs a fix
---echo # in ha_innobase::build_template to skip HT_HIDDEN_SE cols when
---echo # computing the InnoDB→MySQL column map. Deferred to PS-11300.
---error ER_ALTER_OPERATION_NOT_SUPPORTED,ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--echo # A.1 ADD COLUMN ... ALGORITHM=INSTANT is refused while the table has
+--echo # a vector index. That is phase-one conservatism, not a correctness
+--echo # requirement.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE ta1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
 --echo # Fallback: server-picked algorithm succeeds (INPLACE or COPY).
 ALTER TABLE ta1 ADD COLUMN c1 INT;
@@ -38,7 +42,9 @@ SHOW CREATE TABLE ta1;
 --echo # rebuild recreates the vector index along with everything else, so
 --echo # the graph comes back from the copied rows. Not ONLINE - LOCK=SHARED
 --echo # - because the row log cannot maintain a graph.
-ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=NONE;
+ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE ta1;
 
 --echo # A.3 ADD COLUMN ... ALGORITHM=COPY (full rebuild — aux .ibd gets a new id)
@@ -64,8 +70,8 @@ CREATE TABLE tb1 (
   VECTOR KEY (v) TYPE hnsw (M = 6)
 );
 
---echo # B.1 DROP COLUMN ... ALGORITHM=INSTANT — blocked (see A.1 note)
---error ER_ALTER_OPERATION_NOT_SUPPORTED,ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+--echo # B.1 DROP COLUMN ... ALGORITHM=INSTANT is refused, as in A.1.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
 --echo # Fallback: server-picked algorithm succeeds.
 ALTER TABLE tb1 DROP COLUMN c1;
@@ -158,12 +164,10 @@ SHOW CREATE TABLE tf1;
 DROP TABLE tf1;
 
 --echo #
---echo # === Section G: native rebuild refused on vec-indexed tables ===
---echo # Mirrors FTS's ER_INNODB_FT_LIMIT policy: a native (INPLACE)
---echo # rebuild re-inserts every row under a new table_id/index_id, so
---echo # the vec aux table would be recreated empty and the HNSW graph
---echo # lost. ALGORITHM=COPY rebuilds the aux organically via per-row
---echo # INSERT writing.
+--echo # === Section G: table rebuilds with a vector index ===
+--echo # An INPLACE rebuild builds every index of the new table, the vector
+--echo # index among them, from one scan of the old rows, keeping their
+--echo # labels. It runs under LOCK=SHARED, never LOCK=NONE.
 
 CREATE TABLE tg1 (
   id BIGINT UNSIGNED PRIMARY KEY,
@@ -177,10 +181,13 @@ INSERT INTO tg1 VALUES (1, STRING_TO_VECTOR('[1,1,1,1,1,1,1,1]'));
 --echo # for the full set of rebuild shapes.
 ALTER TABLE tg1 FORCE, ALGORITHM=INPLACE;
 
---echo # G.2 Server-picked algorithm: silently falls back to COPY.
+--echo # G.2 The server picks INPLACE too: an INPLACE rebuild reports
+--echo # 0 rows affected, where COPY would report 1.
+--enable_info
 ALTER TABLE tg1 FORCE;
+--disable_info
 
---echo # G.3 OPTIMIZE TABLE: same fallback, data survives, one aux .ibd.
+--echo # G.3 OPTIMIZE TABLE is the same rebuild: data survives, one aux .ibd.
 OPTIMIZE TABLE tg1;
 SELECT id, VECTOR_TO_STRING(v) FROM tg1 FORCE INDEX (PRIMARY);
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/

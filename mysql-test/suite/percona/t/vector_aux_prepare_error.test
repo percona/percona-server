@@ -17,13 +17,18 @@
 
 CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 
---echo # The FIRST ADD does not use the INPLACE prepare path at all —
---echo # the hidden column has to materialize, so it falls back to COPY.
---echo # With the knob ARMED it must therefore SUCCEED: that is a
---echo # standing guard that the INPLACE path was not entered.
+--echo # The FIRST ADD rebuilds the table in place to add the hidden label
+--echo # column, so it goes through the INPLACE prepare path as well. With the
+--echo # knob armed it fails there, and must leave neither an aux table nor
+--echo # the column behind: N_COLS stays 5 (id, v, three system columns).
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
+--error ER_GET_ERRNO,ER_OUT_OF_RESOURCES,ER_TOO_MANY_CONCURRENT_TRXS,1
 ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+--list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/tva';
+
+ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 

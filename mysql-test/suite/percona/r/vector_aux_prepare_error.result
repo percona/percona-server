@@ -11,13 +11,18 @@
 # is_vector() entry in ctx->add_index.
 #
 CREATE TABLE tva (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
-# The FIRST ADD does not use the INPLACE prepare path at all —
-# the hidden column has to materialize, so it falls back to COPY.
-# With the knob ARMED it must therefore SUCCEED: that is a
-# standing guard that the INPLACE path was not entered.
+# The FIRST ADD rebuilds the table in place to add the hidden label
+# column, so it goes through the INPLACE prepare path as well. With the
+# knob armed it fails there, and must leave neither an aux table nor
+# the column behind: N_COLS stays 5 (id, v, three system columns).
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
+Got one of the listed errors
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/tva';
+n_cols
+5
+ALTER TABLE tva ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 percona_vec_hnsw_<TID>_<IID>.ibd
 # Drop it again. The hidden column is retained, so the NEXT ADD
 # runs INPLACE and does reach the prepare path — which is where

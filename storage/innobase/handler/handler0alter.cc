@@ -1051,23 +1051,17 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
   }
 
-  /* ADD VECTOR INDEX runs INPLACE only when the hidden
-  percona_vec_aux_id column already exists - retained after a DROP INDEX
-  (see the retention note in prepare_inplace_alter_table_dict) or present
-  after an IMPORT.
+  /* The first vector index on a table adds the hidden percona_vec_aux_id
+  column, and adding a column means rewriting every row: prepare sets
+  add_vec_aux_col, which forces a rebuild, ddl::Row::build gives each copied
+  row a label, and the vector index is built from the same scan with those
+  labels as node ids.
 
-  When it does, vec_build_index() populates the graph and the aux from
-  one clustered scan, reusing each row's already-written id as its label,
-  without rebuilding the table or writing a base row. That is the ddl0fts
-  analog for HNSW.
-
-  The FIRST ever ADD is different and must fall back to COPY: the hidden
-  column has to materialize in the clustered record, and adding a column
-  means rewriting every row. The native rebuild would write the column on
-  each copied row and stop there - no HNSW build pass - leaving an index
-  that silently returns nothing for every pre-existing row. COPY routes
-  each row through write_row instead, which builds the graph organically. */
-  if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL)) {
+  InnoDB does not rebuild a table with FULLTEXT indexes in place (see the
+  ER_INNODB_FT_LIMIT refusal below), so on such a table the first vector
+  index goes through COPY. */
+  if (!DICT_TF2_FLAG_IS_SET(m_prebuilt->table, DICT_TF2_HAS_VEC_AUX_COL) &&
+      m_prebuilt->table->fts != nullptr) {
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
       const KEY *key =
           &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
@@ -1814,6 +1808,16 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
     if (vec_src != nullptr &&
         DICT_TF2_FLAG_IS_SET(vec_src, DICT_TF2_HAS_VEC_AUX_COL)) {
       vec_next_id = vec_src->vec_aux_autoinc_next_id.load();
+    } else if (commit && ctx != nullptr && ctx->new_table != nullptr &&
+               ctx->need_rebuild() &&
+               DICT_TF2_FLAG_IS_SET(ctx->new_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+      /* The rebuild added the column and labelled every row itself, in
+      ddl::Row::build, on the new table's counter. That counter lives on
+      as the table's own, so it is durable as soon as the definition
+      carrying it commits. Only on commit: a rollback may already have
+      freed the new table. */
+      vec_next_id = ctx->new_table->vec_aux_autoinc_next_id.load();
+      ctx->new_table->vec_aux_autoinc_persisted.store(vec_next_id);
     }
   }
 
@@ -3690,6 +3694,10 @@ to column numbers in altered_table */
     ut_ad(!strcmp(old_table->get_col_name(i), VEC_AUX_ID_COL_NAME));
     col_map[i] = new_has_vec_aux_col ? new_hidden_slot++ : ULINT_UNDEFINED;
     i++;
+  } else if (new_has_vec_aux_col) {
+    /* Added by this rebuild: nothing maps onto it, ddl::Row::build fills
+    it. */
+    new_hidden_slot++;
   }
 
   for (; i < old_table->n_cols; i++) {

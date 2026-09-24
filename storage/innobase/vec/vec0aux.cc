@@ -227,7 +227,7 @@ void vec_write_aux_id(dict_table_t *table, dtuple_t *row, byte *buf) {
   ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
   ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
 
-  const uint64_t id = vec_assign_next_aux_id(table);
+  const uint64_t id = vec_assign_next_aux_id(table, true);
   mach_write_to_8(buf, id);
 
   dfield_t *dfield = dtuple_get_nth_field(row, table->vec_aux_col);
@@ -377,7 +377,7 @@ bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
   return ok;
 }
 
-uint64_t vec_assign_next_aux_id(dict_table_t *table) {
+uint64_t vec_assign_next_aux_id(dict_table_t *table, bool persist) {
   ut_ad(table != nullptr);
   ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
   /* fetch_add returns the OLD value, so +1 makes the first assignment
@@ -388,6 +388,8 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table) {
       table->vec_aux_autoinc_next_id.fetch_add(1, std::memory_order_acq_rel) +
       1;
   ut_ad(id != 0);
+
+  if (!persist) return id;
 
   /* Persist the advance as dynamic metadata, autoinc-style: the redo
   record makes the id durable the moment it is consumed, so a label can
@@ -404,7 +406,7 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table) {
   among them. Logging where the id is assigned covers every one of them. */
   mtr_t mtr;
   mtr.start();
-  const bool persist = dict_table_vec_next_id_log(table, id, &mtr);
+  const bool to_buffer = dict_table_vec_next_id_log(table, id, &mtr);
   mtr.commit();
 
   /* The record for `id` is committed to the log and the watermark was
@@ -413,7 +415,7 @@ uint64_t vec_assign_next_aux_id(dict_table_t *table) {
   vector_counter_stale_buffer.test pins that. */
   DEBUG_SYNC_C("vec_id_record_committed");
 
-  if (persist) {
+  if (to_buffer) {
     dict_table_persist_to_dd_table_buffer(table);
   }
 

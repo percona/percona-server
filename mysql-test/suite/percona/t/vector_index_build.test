@@ -4,10 +4,10 @@
 --echo # PS-11299/PS-11300: ADD VECTOR INDEX populates the graph.
 --echo #
 --echo # The FIRST ADD must materialize the hidden percona_vec_aux_id
---echo # column, which means rewriting every row, so it falls back to
---echo # ALGORITHM=COPY and write_row builds the graph row by row.
+--echo # column, which means rewriting every row: it rebuilds the table in
+--echo # place, labels each copied row and builds the graph from that scan.
 --echo #
---echo # Every ADD after that runs INPLACE: the column was retained on
+--echo # Every ADD after that runs INPLACE too: the column was retained on
 --echo # DROP INDEX, so vec_build_index populates the graph and the aux
 --echo # from one clustered scan, reusing each row's existing label and
 --echo # without rewriting a single base row.
@@ -18,13 +18,10 @@ INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
                      (2, STRING_TO_VECTOR('[0,1,0,0]')),
                      (3, STRING_TO_VECTOR('[0,0,1,0]'));
 
---echo # First ADD, explicit INPLACE: refused, not silently empty.
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
-
---echo # First ADD, default algorithm: falls back to COPY and builds a
---echo # node per row. This is the case that used to give nodes=0.
-ALTER TABLE t1 ADD VECTOR KEY k1 (v) TYPE hnsw (M = 4);
+--echo # First ADD, explicit INPLACE: rebuilds the table with the column and
+--echo # builds a node per row. An in-place rebuild that wrote the column and
+--echo # no graph is the case that used to give nodes=0.
+ALTER TABLE t1 ADD VECTOR KEY k1 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
 SELECT @@session.innodb_interpreter_output;
 

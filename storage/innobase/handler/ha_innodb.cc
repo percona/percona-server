@@ -10612,7 +10612,7 @@ static dberr_t calc_row_difference(
   column. */
   trx->vec_next_label = 0;
   if (changes_vec_column) {
-    trx->vec_next_label = vec_assign_next_aux_id(prebuilt->table);
+    trx->vec_next_label = vec_assign_next_aux_id(prebuilt->table, true);
     ufield = uvect->fields + n_changed;
     vec_update_aux_id(prebuilt->table, ufield, &trx->vec_next_label);
     ++n_changed;

@@ -14,13 +14,17 @@
 # The second drop is a no-op for indexes the first drop handled.
 #
 CREATE TABLE tvr (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
-# The FIRST ADD materializes the hidden column and so falls back
-# to COPY, which never enters the INPLACE prepare path. With the
-# knob ARMED it must therefore succeed — a standing guard that
-# COPY is what runs.
+# The FIRST ADD materializes the hidden column by rebuilding the table
+# in place, so it is itself a rebuild that the armed knob rolls back:
+# no aux left behind, and the table keeps its old shape (N_COLS 5).
 SET @@SESSION.debug = '+d,vec_prepare_fail_after_aux_create';
 ALTER TABLE tvr ADD VECTOR KEY (v) TYPE hnsw (M = 6);
+Got one of the listed errors
 SET @@SESSION.debug = '-d,vec_prepare_fail_after_aux_create';
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/tvr';
+n_cols
+5
+ALTER TABLE tvr ADD VECTOR KEY (v) TYPE hnsw (M = 6);
 # Drop it. The hidden column is retained, so a later ADD is
 # eligible for INPLACE again.
 ALTER TABLE tvr DROP KEY v;

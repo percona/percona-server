@@ -640,7 +640,7 @@ Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
   }
   auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
 
-  const uint64_t id = vec_assign_next_aux_id(tt.base);
+  const uint64_t id = vec_assign_next_aux_id(tt.base, true);
   XLOG("id=" << id);
   set_output(sout);
   return RET_PASS;

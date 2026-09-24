@@ -192,21 +192,12 @@ SELECT id, VECTOR_TO_STRING(v) FROM tg1 FORCE INDEX (PRIMARY);
 --replace_regex /percona_vec_hnsw_[0-9a-f]+_[0-9a-f]+\.ibd/percona_vec_hnsw_<TID>_<IID>.ibd/
 --list_files $MYSQLD_DATADIR/test percona_vec_*.ibd
 
---echo # G.4 First ADD INDEX is refused for INPLACE and falls back to
---echo # COPY. This case previously asserted the opposite — that the
---echo # native rebuild was fine because the check checks the OLD table,
---echo # "mirroring FTS's first-ADD-FULLTEXT rebuild". The shape does
---echo # mirror FTS; the outcome does not. FTS populates its index
---echo # during that rebuild (row0ft); we had no build pass, so the
---echo # rebuild written percona_vec_aux_id on every row and left the
---echo # graph empty — a silently incomplete index. See
---echo # vector_index_build.test for the full contract.
+--echo # G.4 The first ADD INDEX runs INPLACE: the rebuild adds the hidden
+--echo # label column and builds the graph from the same scan, so the index
+--echo # is populated, never silently empty.
 CREATE TABLE tg2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
 INSERT INTO tg2 VALUES (1, STRING_TO_VECTOR('[2,2,2,2,2,2,2,2]'));
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE tg2 ADD VECTOR KEY vk (v) TYPE hnsw, ALGORITHM=INPLACE;
---echo # Server-picked algorithm succeeds via COPY, and populates.
-ALTER TABLE tg2 ADD VECTOR KEY vk (v) TYPE hnsw;
 SET SESSION innodb_interpreter = 'vec_aux_verify test/tg2';
 SELECT @@session.innodb_interpreter_output;
 SELECT id, VECTOR_TO_STRING(v) FROM tg2 FORCE INDEX (PRIMARY);

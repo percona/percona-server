@@ -294,10 +294,15 @@ const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
                                   const upd_node_t *node, uint64_t *pk);
 
 /** Atomically assign the next percona_vec_aux_id for a row about to be
-inserted. Valid ids start at 1. Written into the hidden percona_vec_aux_id
-dfield by the INSERT path. See the implementation comment for the phase-1
-persistence caveat. */
-uint64_t vec_assign_next_aux_id(dict_table_t *table);
+written. Valid ids start at 1.
+@param[in,out]  table    the table whose counter to advance
+@param[in]      persist  true to make the advance durable at once, as every
+                         DML must; false only for a rebuild that labels the
+                         rows of a table it created, whose final counter
+                         commit_inplace_alter_table() writes into the new
+                         definition
+@return the label */
+uint64_t vec_assign_next_aux_id(dict_table_t *table, bool persist);
 
 /** Write the hidden percona_vec_aux_id dfield in `row` with the next id from
 the per-table counter. No-op for tables without the hidden column.

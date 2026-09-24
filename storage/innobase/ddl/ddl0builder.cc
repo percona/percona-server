@@ -971,18 +971,11 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
     const auto col = ifield->col;
     const auto col_no = dict_col_get_no(col);
 
-    /* A rebuild that INTRODUCES percona_vec_aux_id would have to assign a
-    label for every copied row. No such rebuild reaches the builder:
-    check_if_supported_inplace_alter returns HA_ALTER_INPLACE_NOT_SUPPORTED
-    when the column does not exist yet, so the first ADD VECTOR INDEX goes
-    through COPY, and every rebuild the builder does see already has the
-    column and copies it like any other. Asserting that here would be
-    asserting on a condition no caller can produce; the branch that used
-    to assign is gone instead.
-
-    The copy case below carries existing ids through untouched, which is
-    what keeps base-to-aux linkage intact across a rebuild - exactly like
-    FTS_DOC_ID via Fetch_sequence. */
+    /* percona_vec_aux_id is copied like any other column. A rebuild that
+    introduces it (the table's first vector index) has already labelled the
+    row in ddl::Row::build; one that keeps it carries the existing labels
+    through untouched, which is what keeps base-to-aux linkage intact -
+    exactly like FTS_DOC_ID via Fetch_sequence. */
     if (likely(fts.m_doc_id == nullptr || !fts.m_doc_id->is_generated() ||
                col_no != m_index->table->fts->doc_col || col->is_virtual())) {
       dfield_t *src_field;

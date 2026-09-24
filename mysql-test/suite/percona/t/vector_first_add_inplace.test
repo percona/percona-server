@@ -2,10 +2,10 @@
 --echo #
 --echo # The first vector index on a table is added in place.
 --echo #
---echo # It needs the hidden label column on every row, which used to mean
---echo # COPY only. It now rebuilds in place: ddl::Builder writes the column
---echo # on each copied row with a fresh label, and the vector index is built
---echo # from the same scan with those labels as node ids.
+--echo # It needs the hidden label column on every row, so it rebuilds in
+--echo # place: ddl::Builder writes the column on each copied row with a fresh
+--echo # label, and the vector index is built from the same scan with those
+--echo # labels as node ids.
 --echo #
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);

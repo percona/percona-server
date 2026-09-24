@@ -614,6 +614,7 @@ ALTER and is dropped if the ALTER fails.
 @param[in]      trx    the ALTER's transaction
 @param[in]      table  base table being altered
 @param[in]      thd    connection, for the aux MDL
+@param[in]      observer  flushes the aux pages before the ALTER commits
 @return DB_SUCCESS or an error */
 [[nodiscard]] dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx,
                                           dict_table_t *table, THD *thd,

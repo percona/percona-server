@@ -16207,8 +16207,8 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     const dd::Column *existing = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
     if (existing != nullptr) {
       /* Present and SE-hidden (the check above rejected any other kind) -
-      carried forward from an earlier CREATE or ALTER. Reuse it: never
-      recreate, never error. */
+      the table already has a vector index. Reuse it: never recreate,
+      never error. */
     } else {
       dd::Column *col = dd_table->add_column();
       col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);

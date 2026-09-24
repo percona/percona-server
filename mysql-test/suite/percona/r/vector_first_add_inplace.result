@@ -1,10 +1,10 @@
 #
 # The first vector index on a table is added in place.
 #
-# It needs the hidden label column on every row, which used to mean
-# COPY only. It now rebuilds in place: ddl::Builder writes the column
-# on each copied row with a fresh label, and the vector index is built
-# from the same scan with those labels as node ids.
+# It needs the hidden label column on every row, so it rebuilds in
+# place: ddl::Builder writes the column on each copied row with a fresh
+# label, and the vector index is built from the same scan with those
+# labels as node ids.
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 # N_COLS counts InnoDB's own columns too: id, v and three system

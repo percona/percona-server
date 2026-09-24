@@ -1421,17 +1421,14 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
 
   m_prebuilt->trx->will_lock++;
 
-  /* A table with a vector index used to be refused a native rebuild here,
-  on the grounds that the rebuild assigns a new table_id and index_id and
-  the aux the graph lives in is named after them - so the graph would be
-  lost. That stopped being true when the build moved into ddl::Builder:
-  a rebuild recreates every index on the new table, the vector index among
-  them, so the graph is rebuilt from the copied rows with their labels
+  /* A table with a vector index can be rebuilt in place. The rebuild
+  recreates every index on the new table, the vector index among them, so
+  the graph and a new aux are built from the copied rows, with their labels
   intact and base_pk following the new primary key.
 
-  What remains is that such a rebuild is not ONLINE - the branch below
-  still clears `online` for it, because the row log cannot maintain a
-  graph while DML runs against it. LOCK=SHARED it is.
+  Such a rebuild is not ONLINE - the branch below clears `online` for it,
+  because the row log cannot maintain a graph while DML runs against it.
+  LOCK=SHARED it is.
 
   vector_alter_rebuild.test covers the shapes: FORCE, OPTIMIZE,
   ENGINE=InnoDB, ROW_FORMAT, a primary key swap, ADD and DROP COLUMN, and
@@ -1506,8 +1503,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
          entry_list referencing the index. A shared lock guarantees that;
          FTS documents the same reasoning there.
 
-      2. vec_build_index() populates the graph from a clustered scan
-         taken after the index build, outside ddl::Builder. Under
+      2. ddl::Builder builds the graph from its clustered scan. Under
          LOCK=NONE a concurrent INSERT would land in the row log and be
          applied by row_log_apply, which knows nothing about the graph:
          the row would exist in the table and not in the index.
@@ -4952,12 +4948,10 @@ template <typename Table>
     itself, so no flags2 OR-in here.
 
     The dict follows the DD: materialise the column exactly when the new
-    definition has it. Asking the OLD table's sticky
-    DICT_TF2_HAS_VEC_AUX_COL instead is what corrupted tables - the
-    carry-forward in dd_commit_inplace_alter_table only runs on the
-    no-rebuild branch, so a rebuild that kept the column here wrote rows
-    with a column the committed dd::Table did not describe, and the next
-    page-splitting INSERT asserted in btr_page_split_and_insert.
+    definition has it. Deciding from the OLD table's
+    DICT_TF2_HAS_VEC_AUX_COL instead would write rows with a column the
+    committed dd::Table does not describe, and the next page-splitting
+    INSERT asserts in btr_page_split_and_insert.
 
     That gives the right answer in every case. ADD FULLTEXT on a
     vector-indexed table rebuilds through add_fts_doc_id without setting

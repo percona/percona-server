@@ -34,7 +34,7 @@ CREATE TABLE ta1 (
 --echo # requirement.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE ta1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
---echo # Fallback: server-picked algorithm succeeds (INPLACE or COPY).
+--echo # Without ALGORITHM=INSTANT the server picks INPLACE.
 ALTER TABLE ta1 ADD COLUMN c1 INT;
 SHOW CREATE TABLE ta1;
 
@@ -73,7 +73,7 @@ CREATE TABLE tb1 (
 --echo # B.1 DROP COLUMN ... ALGORITHM=INSTANT is refused, as in A.1.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE tb1 DROP COLUMN c1, ALGORITHM=INSTANT;
---echo # Fallback: server-picked algorithm succeeds.
+--echo # Without ALGORITHM=INSTANT the server picks INPLACE.
 ALTER TABLE tb1 DROP COLUMN c1;
 
 --echo # B.2 DROP COLUMN ... ALGORITHM=COPY

@@ -1,12 +1,11 @@
 #
 # PS-11300: an INPLACE index build is one transaction.
 #
-# vec_build_index runs on the ALTER's own transaction, not on a
-# sub-transaction, so the persistor callbacks must not commit it.
-# If they do, the DDL commits itself a node at a time: the
-# dictionary changes made so far land, trx->dict_operation is
-# cleared, the ALTER's locks are dropped mid-statement, and a
-# failure can no longer roll the build back.
+# The graph is built in memory and its aux written on the ALTER's own
+# transaction, so nothing in the build may commit that transaction.
+# If it did, the dictionary changes made so far would land,
+# trx->dict_operation would be cleared, the ALTER's locks would drop
+# mid-statement, and a failure could no longer roll the build back.
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(2) NOT NULL,
@@ -27,8 +26,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Fail the build partway through, using the documented memory bound
 # rather than a debug hook: the pre-flight check passes because no
-# graph is resident, the first node is inserted and persisted, and
-# then the per-row budget check refuses the rest.
+# graph is resident, the first node goes into the in-memory graph,
+# and then the per-row budget check refuses the rest.
 SET @sv = @@GLOBAL.innodb_hnsw_max_memory;
 SET GLOBAL innodb_hnsw_max_memory = 1;
 ALTER TABLE t1 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;

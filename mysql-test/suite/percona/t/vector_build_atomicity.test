@@ -1,12 +1,11 @@
 --echo #
 --echo # PS-11300: an INPLACE index build is one transaction.
 --echo #
---echo # vec_build_index runs on the ALTER's own transaction, not on a
---echo # sub-transaction, so the persistor callbacks must not commit it.
---echo # If they do, the DDL commits itself a node at a time: the
---echo # dictionary changes made so far land, trx->dict_operation is
---echo # cleared, the ALTER's locks are dropped mid-statement, and a
---echo # failure can no longer roll the build back.
+--echo # The graph is built in memory and its aux written on the ALTER's own
+--echo # transaction, so nothing in the build may commit that transaction.
+--echo # If it did, the dictionary changes made so far would land,
+--echo # trx->dict_operation would be cleared, the ALTER's locks would drop
+--echo # mid-statement, and a failure could no longer roll the build back.
 --echo #
 
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
@@ -24,8 +23,8 @@ SHOW CREATE TABLE t1;
 
 --echo # Fail the build partway through, using the documented memory bound
 --echo # rather than a debug hook: the pre-flight check passes because no
---echo # graph is resident, the first node is inserted and persisted, and
---echo # then the per-row budget check refuses the rest.
+--echo # graph is resident, the first node goes into the in-memory graph,
+--echo # and then the per-row budget check refuses the rest.
 SET @sv = @@GLOBAL.innodb_hnsw_max_memory;
 SET GLOBAL innodb_hnsw_max_memory = 1;
 --error ER_CAPACITY_EXCEEDED

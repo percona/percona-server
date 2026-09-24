@@ -3,17 +3,11 @@ SET SESSION debug = '+d,skip_dd_table_access_check';
 # PS-11299: a rebuild must leave the data dictionary and the
 # tablespace agreeing about the hidden percona_vec_aux_id column.
 #
-# The column is added to the rebuilt table by the SQL layer only when
-# the new definition needs it - that is, when a vector index survives
-# the ALTER. InnoDB used to decide separately, from the OLD table's
-# sticky DICT_TF2_HAS_VEC_AUX_COL, and the commit path only carries the
-# column into the new dd::Table on the no-rebuild branch. So DROP INDEX
-# followed by a rebuild wrote every row with a column the committed
-# dictionary did not describe.
-#
-# The damage was not subtle: the next INSERT that split a page asserted
-# in btr_page_split_and_insert (page_validate), with no restart needed,
-# and CHECK TABLE reported the B-tree corrupt afterwards.
+# The column exists exactly while a vector index does, in the
+# dictionary and in every row. If the two disagree - rows written with
+# a column the committed dictionary does not describe - the next
+# INSERT that splits a page asserts in btr_page_split_and_insert
+# (page_validate), and CHECK TABLE reports the B-tree corrupt.
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 pad CHAR(200) NOT NULL,
@@ -40,7 +34,7 @@ SELECT c.name AS dd_hidden_col FROM mysql.columns c
 JOIN mysql.tables t ON c.table_id = t.id
 WHERE t.name = 't1' AND c.name = 'percona_vec_aux_id';
 dd_hidden_col
-# The INSERT that used to assert.
+# DML that splits pages.
 INSERT INTO t1 VALUES (1001, REPEAT('y', 200), STRING_TO_VECTOR('[1,0,0,0]'));
 UPDATE t1 SET pad = REPEAT('z', 200) WHERE id = 150;
 DELETE FROM t1 WHERE id = 151;
@@ -84,8 +78,8 @@ test.t2	check	status	OK
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 301
-# A vector index that survives a rebuild keeps its column, its labels
-# and its answers: re-adding one after all of the above still works.
+# Re-adding a vector index after all of the above adds the column back
+# and indexes every row that survived.
 ALTER TABLE t2 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 SET SESSION debug = '+d,skip_dd_table_access_check';
 SELECT c.name AS dd_hidden_col FROM mysql.columns c

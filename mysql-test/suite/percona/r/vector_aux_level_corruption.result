@@ -1,8 +1,9 @@
 #
-# vec_aux_read_node must report DB_CORRUPTION when an aux row's
-# level field has an unexpected length, not silently treat it as
-# level 0. The other fixed-width column read the same way
-# (base_pk) already does this; level did not.
+# vec_aux_read_node must refuse an aux row whose level field has an
+# unexpected length, not silently treat it as level 0. The other
+# fixed-width column read the same way (base_pk) already does this;
+# level did not. A malformed aux row is this index's corruption, and it
+# does not heal: the index is refused until it is rebuilt.
 #
 # The corruption is injected on the entry-point node's own row, not
 # the index's metadata row (aux id 0), so this also covers
@@ -26,9 +27,20 @@ SET SESSION debug = '+d,vec_aux_corrupt_level_len';
 # id 0, which is the index's own metadata row, not a graph node.
 SELECT id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
-ERROR HY000: Incorrect key file for table 't1'; try to repair it
+ERROR HY000: Index t1 is corrupted
 SET SESSION debug = '-d,vec_aux_corrupt_level_len';
-# Without the injected corruption the graph loads normally.
+# The index stays refused - the aux that failed to load is the same
+# aux - while the base table is untouched.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+ERROR HY000: Index vk is corrupted
+SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+# Rebuilding the index is the remedy. Under a new name: the same name
+# and definition in one statement is no change at all to the server.
+ALTER TABLE t1 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 SELECT id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
 id

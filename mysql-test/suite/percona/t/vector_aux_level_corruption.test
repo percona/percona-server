@@ -1,10 +1,11 @@
 --source include/have_debug.inc
 
 --echo #
---echo # vec_aux_read_node must report DB_CORRUPTION when an aux row's
---echo # level field has an unexpected length, not silently treat it as
---echo # level 0. The other fixed-width column read the same way
---echo # (base_pk) already does this; level did not.
+--echo # vec_aux_read_node must refuse an aux row whose level field has an
+--echo # unexpected length, not silently treat it as level 0. The other
+--echo # fixed-width column read the same way (base_pk) already does this;
+--echo # level did not. A malformed aux row is this index's corruption, and it
+--echo # does not heal: the index is refused until it is rebuilt.
 --echo #
 --echo # The corruption is injected on the entry-point node's own row, not
 --echo # the index's metadata row (aux id 0), so this also covers
@@ -31,13 +32,23 @@ SET SESSION debug = '+d,vec_aux_corrupt_level_len';
 --echo # here via init_from_entry_point(); with the hook active its level
 --echo # field reads back as length 0 instead of 1. The hook skips aux row
 --echo # id 0, which is the index's own metadata row, not a graph node.
---error ER_NOT_KEYFILE
+--error ER_INDEX_CORRUPT
 SELECT id FROM t1
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
 
 SET SESSION debug = '-d,vec_aux_corrupt_level_len';
 
---echo # Without the injected corruption the graph loads normally.
+--echo # The index stays refused - the aux that failed to load is the same
+--echo # aux - while the base table is untouched.
+--error ER_INDEX_CORRUPT
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # Rebuilding the index is the remedy. Under a new name: the same name
+--echo # and definition in one statement is no change at all to the server.
+ALTER TABLE t1 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 SELECT id FROM t1
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
 

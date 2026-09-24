@@ -1,6 +1,6 @@
 --source include/have_debug.inc
 --disable_query_log
-CALL mtr.add_suppression("A vector index's persisted graph named a node its auxiliary table does not have");
+CALL mtr.add_suppression("A vector index's auxiliary table does not agree with its graph");
 --enable_query_log
 
 --echo #

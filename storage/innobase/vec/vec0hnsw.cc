@@ -622,10 +622,12 @@ static dberr_t vec_runtime_load_once(vec_t *vec, dict_index_t *index,
   std::lock_guard<std::mutex> g(vec->load_mutex);
   if (vec->loaded.load(std::memory_order_relaxed)) return DB_SUCCESS;
 
-  const dberr_t err = vec_runtime_load(vec, aux, thd);
-  if (err == DB_INDEX_CORRUPT || err == DB_CORRUPTION) {
-    dict_set_corrupted(index);
-  }
+  dberr_t err = vec_runtime_load(vec, aux, thd);
+  /* A row the aux reader refused as malformed is this index's corruption,
+  not the table's: DB_CORRUPTION would reach the client as "Incorrect key
+  file for table". */
+  if (err == DB_CORRUPTION) err = DB_INDEX_CORRUPT;
+  if (err == DB_INDEX_CORRUPT) dict_set_corrupted(index);
   return err;
 }
 
@@ -789,12 +791,24 @@ being re-taken per batch: nn_search_next faults nodes in through
 load_node_cb, and that reads ctx.aux. */
 struct vec_search_t {
   vec_t *vec{nullptr};
+  dict_index_t *index{nullptr};
   dict_table_t *aux{nullptr};
   MDL_ticket *mdl{nullptr};
   THD *thd{nullptr};
   Vec_ctx ctx;
   Vec_hnsw::NNSearchContext nn;
 };
+
+/** Keep a search that found the graph and the aux disagreeing to the rule
+the load path follows: the index is marked corrupt, and stays refused until
+it is rebuilt. HNSW has marked the node lost and will not retry it, so a
+later search would otherwise answer without it.
+@param[in,out]  s  the scan whose ctx.err is set */
+static void vec_ann_note_error(vec_search_t *s) {
+  if (s->ctx.err != DB_INDEX_CORRUPT) return;
+  vec_runtime_set_corrupted(s->vec);
+  dict_set_corrupted(s->index);
+}
 
 dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
                      size_t ef_search, THD *thd, vec_search_t **out) {
@@ -825,6 +839,7 @@ dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
     return DB_VEC_OUT_OF_MEMORY;
   }
   s->vec = vec;
+  s->index = index;
   s->aux = aux;
   s->mdl = mdl;
   s->thd = thd;
@@ -845,6 +860,7 @@ dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
     s->ctx.err = vec_hnsw_dberr(src, &s->ctx);
   }
   if (s->ctx.err != DB_SUCCESS) {
+    vec_ann_note_error(s);
     const dberr_t err = s->ctx.err;
     vec_ann_close(s);
     return err;
@@ -859,12 +875,16 @@ bool vec_ann_next(vec_search_t *s, vec_hit_t *hit) {
   if (s->ctx.err != DB_SUCCESS) return false;
 
   const auto next = s->vec->hnsw->nn_search_next(&s->nn);
-  if (s->ctx.err != DB_SUCCESS) return false;
+  if (s->ctx.err != DB_SUCCESS) {
+    vec_ann_note_error(s);
+    return false;
+  }
   /* HNSW_NOT_FOUND is the ordinary end of the scan here, not a failure -
   the one caller for which that result is not an error at all. */
   if (next.first == HNSW_NOT_FOUND) return false;
   if (next.first != HNSW_SUCCESS) {
     s->ctx.err = vec_hnsw_dberr(next.first, &s->ctx);
+    vec_ann_note_error(s);
     return false;
   }
 

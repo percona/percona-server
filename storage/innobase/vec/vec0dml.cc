@@ -589,6 +589,12 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
   means the index is empty, which is a different path entirely. */
   DBUG_EXECUTE_IF(
       "vec_aux_node_missing", if (id != 0) { return DB_RECORD_NOT_FOUND; });
+  /* The same, but past the first node read: the entry point loads, and the
+  miss is found by the search that faults its neighbours in. */
+  DBUG_EXECUTE_IF("vec_aux_node_missing_after_entry", {
+    static thread_local int reads = 0;
+    if (id != 0 && reads++ > 0) return DB_RECORD_NOT_FOUND;
+  });
 
   dict_index_t *clust = aux->first_index();
 

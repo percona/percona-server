@@ -151,13 +151,16 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   neighbour list read from the aux table, so a 0 here means the aux is
   corrupt - report it rather than fault in the metadata as a node. */
   ut_ad(id != 0);
-  if (id == 0) return DB_CORRUPTION;
+  if (id == 0) return DB_INDEX_CORRUPT;
 
   mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   vec_aux_read_t node;
   dberr_t err = vec_aux_read_node(ctx->aux, id, heap, &node);
   if (err != DB_SUCCESS) {
     mem_heap_free(heap);
+    /* A malformed row is this index's corruption; anything else (a lock
+    wait, an interrupt) is passed back as it is, to be retried. */
+    if (err == DB_CORRUPTION) return DB_INDEX_CORRUPT;
     if (err != DB_RECORD_NOT_FOUND) return err;
     /* A miss here is never benign: this id came off a neighbour list, so
     the graph says the node must exist, and it does not. The graph and
@@ -171,7 +174,7 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
 
   if (node.vec_len != ctx->vec_bytes) {
     mem_heap_free(heap);
-    return DB_CORRUPTION;
+    return DB_INDEX_CORRUPT;
   }
 
   /* The neighbour blob must cover exactly the node's slots. Checking it
@@ -180,7 +183,7 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   shape of the graph, and load_node_neighbors would read past the blob. */
   if (node.neighbors_len != vec_aux_neighbors_blob_len(node.level, ctx->m)) {
     mem_heap_free(heap);
-    return DB_CORRUPTION;
+    return DB_INDEX_CORRUPT;
   }
 
   /* Order matters: load_node_neighbors sizes its allocation from the

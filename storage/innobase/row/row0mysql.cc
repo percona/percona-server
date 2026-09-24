@@ -1227,8 +1227,9 @@ handle_new_error:
       break;
 
     case DB_INDEX_CORRUPT:
-      /* A vector index's persisted graph named a node its aux table no
-      longer has. Recoverable at the statement level - nothing here says
+      /* A vector index's aux table does not agree with its graph: a node
+      the graph names is missing or malformed, or the aux table itself
+      cannot be found. Recoverable at the statement level - nothing here says
       the base table or the rest of the graph is unreadable - so fail the
       statement rather than fall through to the ib::fatal that an
       unhandled code would reach.
@@ -1237,8 +1238,8 @@ handle_new_error:
       vector indexes: row0log.cc raises it during an online ALTER, whose
       errors go through convert_error_code_to_mysql instead. */
       ib::error(ER_IB_MSG_973)
-          << "A vector index's persisted graph named a node its auxiliary"
-             " table does not have. DROP and re-create the vector index.";
+          << "A vector index's auxiliary table does not agree with its"
+             " graph. DROP and re-create the vector index.";
       break;
 
     case DB_FOREIGN_EXCEED_MAX_CASCADE:

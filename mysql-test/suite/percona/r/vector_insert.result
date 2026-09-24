@@ -89,8 +89,8 @@ SELECT COUNT(*) AS row_count_after_more FROM t1 FORCE INDEX (PRIMARY);
 row_count_after_more
 5
 # === RESTART preserves data; subsequent INSERT works ===
-# Note: counter resets on restart — phase-1 behaviour. Duplicates
-# in percona_vec_aux_id are harmless because the aux is empty.
+# The label counter is persisted, so INSERTs after the restart
+# get labels no earlier row has.
 # restart
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
 id	k	v_text

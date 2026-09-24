@@ -11440,8 +11440,7 @@ int ha_innobase::change_active_index(
   be able to retrieve FTS_DOC_ID column value if necessary.
   Note: for vector indexes we take the "else" branch below - the
   setup work is wasted (ha_innobase::index_read() refuses the fetch)
-  but harmless. Not worth an extra branch here; keeping FTS-only
-  check for minimal churn. */
+  but harmless. */
   if ((m_prebuilt->index->type & DICT_FTS)) {
     if (table->fts_doc_id_field &&
         bitmap_is_set(table->read_set,

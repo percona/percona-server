@@ -66,8 +66,8 @@ SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
 SELECT COUNT(*) AS row_count_after_more FROM t1 FORCE INDEX (PRIMARY);
 
 --echo # === RESTART preserves data; subsequent INSERT works ===
---echo # Note: counter resets on restart — phase-1 behaviour. Duplicates
---echo # in percona_vec_aux_id are harmless because the aux is empty.
+--echo # The label counter is persisted, so INSERTs after the restart
+--echo # get labels no earlier row has.
 --source include/restart_mysqld.inc
 
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;

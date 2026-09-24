@@ -123,10 +123,11 @@ Positioned by primary key rather than by search, so it takes the locks a
 searched UPDATE's read would have taken: IX on the table and an explicit
 X on the record.
 
-Passing new_base_pk re-points the node at a new primary key, which is
-what a base-row primary-key change needs (design: "UPDATE"). DELETE does
-not come through here at all: it writes nothing, because the node has to
-stay for read views still entitled to the row.
+new_base_pk is for record 0 only, whose base_pk names the entry point
+(vec_persist_entry_point). A base-row primary-key change does not come
+here: it gets a new node under a fresh label, and the old node keeps its
+key for read views that still see the old row. DELETE does not come here
+either.
 @param[in,out]  trx            transaction to update on
 @param[in,out]  aux            the aux table, already open with MDL held
 @param[in]      id             the node to update

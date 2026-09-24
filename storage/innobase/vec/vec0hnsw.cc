@@ -692,11 +692,8 @@ static dberr_t vec_add_node(vec_t *vec, dict_index_t *index,
   buys nothing. If the user's transaction never commits, the aux rows are an
   orphan at worst, which the design's rollback section accepts.
 
-  This is what makes committing per callback affordable. Measured on an idle
-  128-core box, RelWithDebInfo, 40000 single-threaded inserts: 8.5s for one
-  commit per insert, 17.7s for one per callback, and 8.55s for one per
-  callback with this flag - the entire cost of the extra commits was the
-  fsync.
+  This is what makes committing per callback affordable: the cost of the
+  extra commits is their fsync, and this skips it.
 
   trx_commit_low honours it by setting must_flush_log_later instead of
   calling trx_flush_log_if_needed (trx0trx.cc). Only

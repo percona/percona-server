@@ -888,8 +888,8 @@ bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
                              taken its LSN, so this record lands above the
                              cap and recovery scans it.
 
-  There is no third case. Raising after the record instead - which this
-  code did until it was measured - leaves both branches meaningless: a
+  There is no third case. Raising after the record instead leaves both
+  branches meaningless: a
   checkpoint in between writes the OLD value to DDTableBuffer, clears the
   dirty flag, and moves the checkpoint past a record nothing will read
   again. vector_counter_stale_buffer.test is that window.

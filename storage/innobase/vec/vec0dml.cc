@@ -497,11 +497,12 @@ dberr_t vec_aux_update_row(trx_t *trx, dict_table_t *aux, uint64_t id,
     col->copy_type(dfield_get_type(&uf->new_val));
   }
 
-  /* A primary-key change on the base row re-points the node at the new
-  key (design: "UPDATE"). DELETE does NOT come through here: it writes nothing
-  at all, because the node has to stay for read views still entitled to
-  the row. The old branch nulled a row_ref column here as a tombstone;
-  this design has no tombstone and base_pk is NOT NULL. */
+  /* Only record 0 changes its base_pk here: it names the entry point
+  (vec_persist_entry_point). A base-row primary-key change never comes
+  here - it gets a new node under a fresh label, and the old node keeps
+  its old key for read views that still see the old row
+  (vector_update_pk.test). DELETE writes nothing either, for the same
+  reason. */
   if (new_base_pk != nullptr) {
     upd_field_t *uf = upd_get_nth_field(update, n_fields++);
     const dict_col_t *col = aux->get_col(VEC_AUX_COL_BASE_PK);

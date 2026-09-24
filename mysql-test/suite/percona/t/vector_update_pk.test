@@ -1,7 +1,7 @@
 --source include/have_debug.inc
 
 --echo #
---echo # PS-11300 (PR #6145 review): UPDATE that changes the PRIMARY KEY of
+--echo # PS-11300: UPDATE that changes the PRIMARY KEY of
 --echo # a vector-indexed row.
 --echo #
 --echo # A PK change is treated the same way a vector change already is
@@ -14,8 +14,8 @@
 --echo # key, the same way an old node from a vector-only UPDATE is left
 --echo # naming the unmoved base_pk (vector_stale_node.test).
 --echo #
---echo # Rewriting the OLD node's base_pk in place instead (what an earlier,
---echo # buggy version of this fix did) is wrong, not just unimplemented: a
+--echo # Rewriting the OLD node's base_pk in place instead is wrong, not just
+--echo # unimplemented: a
 --echo # reader whose snapshot predates the UPDATE would resolve that node's
 --echo # base_pk to the clustered record this UPDATE itself just inserted,
 --echo # which is invisible to that reader -- DB_RECORD_NOT_FOUND -- and lose

@@ -1,5 +1,5 @@
 #
-# PS-11300 (PR #6145 review): UPDATE that changes the PRIMARY KEY of
+# PS-11300: UPDATE that changes the PRIMARY KEY of
 # a vector-indexed row.
 #
 # A PK change is treated the same way a vector change already is
@@ -12,8 +12,8 @@
 # key, the same way an old node from a vector-only UPDATE is left
 # naming the unmoved base_pk (vector_stale_node.test).
 #
-# Rewriting the OLD node's base_pk in place instead (what an earlier,
-# buggy version of this fix did) is wrong, not just unimplemented: a
+# Rewriting the OLD node's base_pk in place instead is wrong, not just
+# unimplemented: a
 # reader whose snapshot predates the UPDATE would resolve that node's
 # base_pk to the clustered record this UPDATE itself just inserted,
 # which is invisible to that reader -- DB_RECORD_NOT_FOUND -- and lose

@@ -274,11 +274,9 @@ static bool is_name_in_list(const char *name, List<String> list_names) {
     false                         Success
 */
 
-[[nodiscard]]
-static bool partition_default_handling(Partition_handler *part_handler,
-                                       partition_info *part_info,
-                                       bool is_create_table_ind,
-                                       const char *normalized_path) {
+[[nodiscard]] static bool partition_default_handling(
+    Partition_handler *part_handler, partition_info *part_info,
+    bool is_create_table_ind, const char *normalized_path) {
   DBUG_TRACE;
 
   if (!is_create_table_ind) {

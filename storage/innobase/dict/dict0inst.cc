@@ -197,6 +197,11 @@ bool Instant_ddl_impl<dd::Partition>::commit_instant_drop_col() {
 
 template <typename Table>
 bool Instant_ddl_impl<Table>::commit_instant_ddl() {
+  /* MVP: no INSTANT ALTER on a table with a vector index;
+  check_if_supported_inplace_alter() refuses it. Allowing it means handling
+  the hidden label column here and in build_template() (design doc). */
+  ut_ad(!DICT_TF2_FLAG_IS_SET(m_dict_table, DICT_TF2_HAS_VEC_AUX_COL));
+
   Instant_Type type =
       static_cast<Instant_Type>(m_ha_alter_info->handler_trivial_ctx);
 

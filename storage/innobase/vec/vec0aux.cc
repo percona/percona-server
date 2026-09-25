@@ -202,7 +202,16 @@ bool vec_aux_is_aux_table_name(const char *name) {
 const dict_index_t *vec_index_of(const dict_table_t *table) {
   for (const dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
-    if (index->is_vector()) return index;
+    if (!index->is_vector()) continue;
+#ifdef UNIV_DEBUG
+    /* MVP: one vector index per table, refused at CREATE and ALTER. Every
+    caller takes the first one it finds. */
+    for (const dict_index_t *other = index->next(); other != nullptr;
+         other = other->next()) {
+      ut_ad(!other->is_vector());
+    }
+#endif /* UNIV_DEBUG */
+    return index;
   }
   return nullptr;
 }

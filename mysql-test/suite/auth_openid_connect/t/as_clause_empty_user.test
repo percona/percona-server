@@ -1,0 +1,112 @@
+###############################################################################
+# Tests for an empty "user" in the 'IDENTIFIED AS' clause.
+#
+# Runs offline against the dummy IDP, no Keycloak needed.
+###############################################################################
+
+--source include/have_mysql_no_login_plugin.inc
+
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+
+--echo ### INITIALIZE
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE --kid rsa-key-1
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=oidc_proxy
+
+### The plugin reports the rejection at INFORMATION_LEVEL.
+SET @saved_log_error_verbosity = @@GLOBAL.log_error_verbosity;
+SET GLOBAL log_error_verbosity = 3;
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC'
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysql_no_login SONAME '$MYSQL_NO_LOGIN'
+
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+
+### Two possible proxy targets, both reachable.
+CREATE USER eng IDENTIFIED WITH 'mysql_no_login';
+CREATE USER acc IDENTIFIED WITH 'mysql_no_login';
+CREATE USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : "acc"}';
+GRANT PROXY ON eng TO oidc_proxy;
+GRANT PROXY ON acc TO oidc_proxy;
+
+### "eng" comes first in the group claim, "acc" is the configured group.
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"eng\", \"acc\"]"
+
+###############################################################################
+--echo
+--echo ## "user" absent -- the group requirement is honoured
+###############################################################################
+--echo # AS clause requires group "acc", token grants "eng" and "acc"
+--echo # expecting CURRENT_USER is acc, NOT eng
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## "user":"" alone is rejected
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : ""}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## "user":"" together with a "group" is rejected
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "", "group" : "acc"}';
+--echo # before the fix this proxied to "eng", the first group in the token,
+--echo # ignoring the configured group "acc" and any membership check
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## "user":"" together with a group mapping is rejected
+###############################################################################
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "", "group" : [["acc", "acc"]]}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## A non-member is still denied rather than proxied to the first group
+###############################################################################
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"eng\"]"
+ALTER USER oidc_proxy IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "", "group" : "acc"}';
+--echo # token grants only "eng", AS clause requires membership of "acc"
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT user(), current_user()"
+
+###############################################################################
+--echo
+--echo ## Each denial above came from the empty-user check
+###############################################################################
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: auth_openid_connect.as_clause_empty_user
+--let $assert_select = user in IDENTIFIED AS cannot be empty
+--let $assert_count = 4
+--let $assert_text = the four denied connections were all rejected for an empty user
+--source include/assert_grep.inc
+
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect_users%';
+
+###############################################################################
+--echo
+--echo ### CLEANUP
+DROP USER oidc_proxy;
+DROP USER eng;
+DROP USER acc;
+UNINSTALL PLUGIN auth_openid_connect;
+UNINSTALL PLUGIN mysql_no_login;
+SET GLOBAL log_error_verbosity = @saved_log_error_verbosity;
+--remove_file $TOKEN_FILE

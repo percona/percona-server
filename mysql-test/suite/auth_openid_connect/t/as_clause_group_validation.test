@@ -1,0 +1,124 @@
+###############################################################################
+#  Tests of validation of the "group" member of the 'IDENTIFIED AS' clause
+#
+# Runs offline against the dummy IDP, no Keycloak needed.
+###############################################################################
+
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+
+--echo ### INITIALIZE
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token.txt
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE --kid rsa-key-1
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=oidc_user
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC'
+
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+
+CREATE USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+
+### Every connection below presents the same well-formed token.  Only the
+### "group" member of the AS clause changes.
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"eng\"]"
+
+###############################################################################
+--echo
+--echo ## with "user" ABSENT, each malformed "group" is rejected
+###############################################################################
+
+--echo
+--echo # "group" : 123   -- neither a string nor an array
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : 123}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "group" : []    -- empty array
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : []}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "group" : [["eng"]]  -- pair with only one member
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["eng"]]}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "group" : {"eng" : "e"}  -- object instead of array
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : {"eng" : "e"}}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # proxy user name too long
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "group" : [["eng", "too_long_1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"]]}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+###############################################################################
+--echo
+--echo ## with "user" PRESENT, "group" cannot exist in any shape
+###############################################################################
+--echo
+--echo # "user" : "oidc-user", "group" : "eng" (correct group type, but "user" is present)
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : "eng"}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "user" : "oidc-user", "group" : [["eng","eng"]] (correct group type, but "user" is present)
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : [["eng","eng"]]}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "user" : "oidc-user", "group" : 123
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : 123}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "user" : "oidc-user", "group" : []
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : []}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "user" : "oidc-user", "group" : [["eng"]]
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : [["eng"]]}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+--echo # "user" : "oidc-user", "group" : {"eng" : "e"}
+ALTER USER oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user", "group" : {"eng" : "e"}}';
+--echo # expecting access denied
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT current_user()"
+
+--echo
+SHOW GLOBAL STATUS LIKE 'auth_openid_connect_users%';
+
+###############################################################################
+--echo
+--echo ### CLEANUP
+DROP USER oidc_user;
+UNINSTALL PLUGIN auth_openid_connect;
+--remove_file $TOKEN_FILE

@@ -22,5 +22,6 @@ namespace audit_log_filter {
 // Run after filtering and before entering the writer. Publishes output only
 // after every query field succeeds. Throws without exposing query text.
 void prepare_query_output(AuditRecordVariant &record);
+bool query_output_is_ready(const AuditRecordVariant &record) noexcept;
 }  // namespace audit_log_filter
 #endif  // AUDIT_LOG_FILTER_QUERY_OUTPUT_H_INCLUDED

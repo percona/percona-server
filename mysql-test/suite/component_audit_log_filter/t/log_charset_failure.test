@@ -6,6 +6,7 @@
 --disable_result_log
 call mtr.add_suppression("Invalid audit query charset or buffer");
 call mtr.add_suppression("std::bad_alloc");
+call mtr.add_suppression("Audit query output was not prepared");
 SELECT audit_log_filter_set_filter('failure', '{"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.str","value":"SELECT 10355 AS secret_query_marker"}}}}}}');
 SELECT audit_log_filter_set_user('root@localhost', 'failure');
 --source include/count_sessions.inc
@@ -35,6 +36,39 @@ connection default;
 SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
 SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
 --disable_result_log
+# An unprepared record must never reach the formatter.
+connection logged;
+SET SESSION debug='+d,audit_log_filter_query_output_not_ready';
+SELECT 10355 AS secret_query_marker;
+SET SESSION debug='-d,audit_log_filter_query_output_not_ready';
+DO 0;
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+# Capture exceptions are counted even before filtering.
+connection logged;
+SET SESSION debug='+d,audit_log_filter_query_capture_bad_alloc';
+SELECT 10355 AS secret_query_marker;
+SET SESSION debug='-d,audit_log_filter_query_capture_bad_alloc';
+DO 0;
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+# Charset-name capture uses the same exception accounting.
+connection logged;
+SET SESSION debug='+d,audit_log_filter_query_charset_bad_alloc';
+SELECT 10355 AS secret_query_marker;
+SET SESSION debug='-d,audit_log_filter_query_charset_bad_alloc';
+DO 0;
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
 --let charset_closed = `SELECT audit_log_rotate()`
 perl;
   use strict;
@@ -51,6 +85,51 @@ DO 0;
 connection default;
 --enable_result_log
 SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+# An oversized event must report an allocation error without killing the
+# server. Starting another read sequence after the error must still work.
+CREATE USER reader_writer@localhost;
+SELECT audit_log_filter_set_filter('reader_growth', '{"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.length","value":40026}}}}}}');
+SELECT audit_log_filter_set_user('reader_writer@localhost', 'reader_growth');
+--let reader_growth_sql = $MYSQLTEST_VARDIR/tmp/reader_growth.sql
+perl;
+  open my $f, '>:raw', $ENV{reader_growth_sql} or die $!;
+  print $f "SELECT '" . ('x' x 40000) . "' AS reader_growth;\n";
+  close $f;
+EOF
+--exec $MYSQL -u reader_writer < $reader_growth_sql > $MYSQLTEST_VARDIR/tmp/reader_growth.out
+SELECT audit_log_rotate();
+delimiter |;
+CREATE PROCEDURE reader_growth_probe()
+BEGIN
+  DECLARE EXIT HANDLER FOR 3200 SET @reader_failed = 1;
+  SET @reader_failed = 0, @saw_large_record = 0;
+  SET @reader_batch = audit_log_read('{"start":{"timestamp":"2000-01-01 00:00:00"}}');
+  read_loop: LOOP
+    IF LENGTH(@reader_batch) > 32768 THEN SET @saw_large_record = 1; END IF;
+    IF @reader_batch IS NULL OR JSON_LENGTH(@reader_batch) = 0 OR
+       JSON_TYPE(JSON_EXTRACT(@reader_batch, '$[last]')) = 'NULL' THEN
+      LEAVE read_loop;
+    END IF;
+    SET @reader_batch = audit_log_read();
+  END LOOP;
+END|
+delimiter ;|
+SET SESSION debug='+d,audit_log_filter_reader_grow_bad_alloc';
+CALL reader_growth_probe();
+--enable_result_log
+SELECT @reader_failed AS reader_failed;
+--disable_result_log
+SET SESSION debug='-d,audit_log_filter_reader_grow_bad_alloc';
+CALL reader_growth_probe();
+--enable_result_log
+SELECT @reader_failed AS reader_failed, @saw_large_record AS oversized;
+--disable_result_log
+DROP PROCEDURE reader_growth_probe;
+DROP USER reader_writer@localhost;
+--remove_file $reader_growth_sql
+--remove_file $MYSQLTEST_VARDIR/tmp/reader_growth.out
+--enable_result_log
 --enable_query_log
 disconnect logged;
 --source include/wait_until_count_sessions.inc

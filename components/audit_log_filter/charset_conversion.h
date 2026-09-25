@@ -24,16 +24,18 @@ struct CHARSET_INFO;
 
 namespace audit_log_filter {
 
-// Convert query text from the source charset to UTF-8 (utf8mb4). The
-// conversion is length-aware and keeps embedded NULs. Each malformed or
-// unmappable character becomes '?'; an incomplete final sequence becomes one
-// '?'. Invalid arguments and internal/resource failures throw; raw bytes are
-// never returned. A binary source is treated as UTF-8, because password
-// rewrites label UTF-8 text as binary.
+// Convert query text from the source charset to UTF-8 (utf8mb4) with the
+// server's charset decoders. The conversion is length-aware and keeps embedded
+// NULs. Each malformed byte, unmappable character or byte of an incomplete
+// final sequence becomes '?'. Invalid arguments and resource failures throw;
+// raw bytes are never returned. A binary source is treated as UTF-8, because
+// password rewrites label UTF-8 text as binary.
 //
 // my_convert() is not used because it silently stops at an incomplete final
-// sequence, dropping up to mbmaxlen - 1 trailing bytes with no '?' marker. It
-// also needs an output buffer of input.size() * 4 bytes up front.
+// sequence, dropping up to mbmaxlen - 1 trailing bytes (including valid text
+// after a bad lead byte) with no '?' marker. It also encodes surrogates and
+// values above U+10FFFF from ucs2/utf32 as invalid UTF-8, and needs an output
+// buffer of input.size() * 4 bytes up front.
 std::string convert_query_to_utf8mb4(std::string_view input,
                                      const CHARSET_INFO *source);
 

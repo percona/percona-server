@@ -23,6 +23,7 @@
 #include "components/audit_log_filter/log_record_formatter.h"
 #include "components/audit_log_filter/log_writer.h"
 #include "components/audit_log_filter/log_writer/file_handle.h"
+#include "components/audit_log_filter/query_output.h"
 #include "components/audit_log_filter/sys_vars.h"
 
 #include <mysql/components/component_implementation.h>
@@ -724,6 +725,11 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     set_extended_info(thd, sctx, *rec);
   }
 
+  if (auto rec = std::get_if<AuditRecordParse>(&record)) {
+    // Do not fetch sql_text here: it can rewrite the not-yet-parsed LEX.
+    rec->extended_info.query_charset = get_query_charset(thd);
+  }
+
   // Apply filtering rule
   AuditAction filter_result =
       AuditEventFilter::apply(filter_rule.get(), record);
@@ -761,6 +767,7 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
   }
 
   try {
+    prepare_query_output(record);
     m_log_writer->write(record);
   } catch (...) {
     SysVars::inc_events_lost();
@@ -1021,27 +1028,40 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
   return false;
 }
 
-std::string AuditLogFilter::get_sql_text(MYSQL_THD thd) {
-  if (!thd) return std::string();
+std::optional<std::string> AuditLogFilter::get_sql_text(MYSQL_THD thd) {
+  if (!thd) return std::nullopt;
 
   my_h_string hstr = nullptr;
-  int rc = mysql_service_mysql_thd_attributes->get(thd, "sql_text", &hstr);
-
-  if (rc != 0 || hstr == nullptr) return std::string();
+  const auto destroy = create_scope_guard([&] {
+    if (hstr != nullptr) mysql_service_mysql_string_factory->destroy(hstr);
+  });
+  if (mysql_service_mysql_thd_attributes->get(thd, "sql_text", &hstr) ||
+      hstr == nullptr) {
+    return std::nullopt;
+  }
 
   const char *raw_buffer = nullptr;
   size_t raw_length = 0;
   CHARSET_INFO_h raw_charset = nullptr;
-
   if (mysql_service_mysql_string_get_data_in_charset->get_data(
-          hstr, &raw_buffer, &raw_length, &raw_charset)) {
-    mysql_service_mysql_string_factory->destroy(hstr);
-    return std::string();
+          hstr, &raw_buffer, &raw_length, &raw_charset) ||
+      (raw_buffer == nullptr && raw_length != 0)) {
+    return std::nullopt;
   }
+  // Keep client-charset bytes for filtering (or the password-obfuscated SQL).
+  // The output preparation step converts them; sql_text's binary tag is not
+  // the source charset. Fetch query_charset AFTER this getter can rewrite SQL.
+  return raw_length == 0 ? std::string() : std::string(raw_buffer, raw_length);
+}
 
-  std::string result(raw_buffer, raw_length);
-  mysql_service_mysql_string_factory->destroy(hstr);
-  return result;
+std::string AuditLogFilter::get_query_charset(MYSQL_THD thd) {
+  mysql_cstring_with_length charset{};
+  if (!thd ||
+      mysql_service_mysql_thd_attributes->get(thd, "query_charset", &charset) ||
+      charset.str == nullptr) {
+    return {};
+  }
+  return {charset.str, charset.length};
 }
 
 bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
@@ -1059,6 +1079,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   auto &extra = record.extended_info;
 
   extra.query = get_sql_text(thd);
+  extra.query_charset = get_query_charset(thd);
 
   mysql_cstring_with_length sql_command;
   if (get_sql_command(thd, sql_command)) {
@@ -1084,9 +1105,11 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
 
 bool AuditLogFilter::set_extended_info(MYSQL_THD, Security_context_handle sctx,
                                        AuditRecordQuery &record) {
-  if (!sctx) return false;
-
   auto &extra = record.extended_info;
+  if (record.event->query_charset != nullptr) {
+    extra.query_charset = record.event->query_charset;
+  }
+  if (!sctx) return false;
 
   get_security_context_option(sctx, "user", extra.user);
   get_security_context_option(sctx, "host", extra.host);
@@ -1133,6 +1156,7 @@ bool AuditLogFilter::set_extended_info(MYSQL_THD thd,
   auto &extra = record.extended_info;
 
   extra.query = get_sql_text(thd);
+  extra.query_charset = get_query_charset(thd);
 
   mysql_cstring_with_length sql_command;
   if (get_sql_command(thd, sql_command)) {

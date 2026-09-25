@@ -1,0 +1,206 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+--disable_query_log
+--disable_result_log
+SET GLOBAL audit_log_filter.event_mode=FULL;
+CREATE USER charset_client@localhost;
+GRANT ALL ON test.* TO charset_client@localhost;
+GRANT CREATE USER ON *.* TO charset_client@localhost;
+SELECT audit_log_filter_set_filter('charset', '{"filter":{"class":[{"name":"general","event":{"name":"status"}},{"name":"table_access"},{"name":"query"},{"name":"parse"}]}}');
+SELECT audit_log_filter_set_user('charset_client@localhost', 'charset');
+CREATE TABLE charset_data (c TEXT CHARACTER SET cp1250 COLLATE cp1250_czech_cs);
+CREATE PROCEDURE `charset_é`() SELECT 'é' AS ps10355_nested_body;
+--let charset_dir = `SELECT @@datadir`
+--let charset_format = `SELECT @@global.audit_log_filter.format`
+--let charset_sql = $MYSQLTEST_VARDIR/tmp/charset.sql
+SELECT audit_log_rotate();
+# Build real client-encoded statements, plus their exact expected output.
+perl;
+  use strict;
+  use warnings;
+  use Encode qw(encode);
+  use JSON;
+  open my $f, '>:raw', $ENV{charset_sql} or die $!;
+  my %expected;
+  sub statement {
+    my ($name, $cs, $raw, $unicode) = @_;
+    print $f "\\C $cs\nSELECT '$raw' AS ps10355_$name;\n";
+    $expected{$name} = "SELECT '$unicode' AS ps10355_$name";
+  }
+  statement('latin1', 'latin1', "caf\xe9", "caf\x{e9}");
+  statement('cp1250', 'cp1250', "\xb9\x9c", "\x{105}\x{15b}");
+  print $f "INSERT INTO charset_data VALUES ('\xb9\x9c');\n";
+  statement('sjis', 'sjis', "\x83\x5c", "\x{30bd}");
+  statement('gbk', 'gbk', "\x81\x5c", "\x{4e57}");
+  statement('big5', 'big5', "\xa4\x5c", "\x{4e48}");
+  statement('ascii', 'ascii', 'hello', 'hello');
+  statement('utf8', 'utf8mb4', encode('UTF-8', "\x{e9}\x{1f600}"), "\x{e9}\x{1f600}");
+  statement('escape', 'latin1', "\xe9 <>& \\\\ \\' \\\"", "\x{e9} <>& \\\\ \\' \\\"");
+  statement('expansion', 'latin1', "\xe9" x 6000, "\x{e9}" x 6000);
+  statement('invalid', 'utf8mb4', "\xe9", '?');
+  statement('incomplete', 'utf8mb4', "\xf0\x9f", '??');
+  statement('unmapped', 'cp1250', "\x81", '?');
+  statement('binary_valid', 'binary', "\xc3\xa9", "\x{e9}");
+  statement('binary_invalid', 'binary', "\xe9", '?');
+  print $f "SET NAMES latin1;\nPREPARE stmt FROM \"SELECT '\xe9' AS ps10355_prepared\";\nEXECUTE stmt;\nDEALLOCATE PREPARE stmt;\n";
+  print $f "SET NAMES latin1;\nCALL charset_\xe9();\n";
+  $expected{nested} = "CALL charset_\x{e9}()";
+  $expected{nested_body} = "SELECT '\x{e9}' AS ps10355_nested_body";
+  for my $cs ('latin1', 'utf8mb4') {
+    my $query = "CREATE USER '\x{fc}ser_$cs'\@'h' IDENTIFIED BY 'p\x{e4}ssw\x{f6}rd' COMMENT '\x{e9}';";
+    print $f "\\C $cs\n", encode($cs eq 'latin1' ? 'iso-8859-1' : 'UTF-8', $query), "\n";
+    $query = "CREATE USER '\x{fc}attr_$cs'\@'h' IDENTIFIED BY 'p\x{e4}ssw\x{f6}rd' ATTRIBUTE '{\"note\":\"\x{e9}\"}';";
+    print $f encode($cs eq 'latin1' ? 'iso-8859-1' : 'UTF-8', $query), "\n";
+  }
+  close $f;
+  if ($ENV{charset_format} =~ /^JSON/) {
+    open my $nul, '>:raw', "$ENV{charset_sql}.nul" or die $!;
+    print $nul "SELECT 'a\0\xe9' AS ps10355_nul;\n";
+    close $nul;
+    $expected{nul} = "SELECT 'a\0\x{e9}' AS ps10355_nul";
+  }
+  open my $e, '>:raw', "$ENV{charset_sql}.expected" or die $!;
+  print $e JSON->new->utf8->encode(\%expected);
+  close $e;
+EOF
+if (`SELECT @@global.audit_log_filter.format IN ('JSON','JSONL')`) {
+  SET @charset_bookmark = audit_log_read_bookmark();
+}
+--exec $MYSQL --default-character-set=latin1 -u charset_client test < $charset_sql > $MYSQLTEST_VARDIR/tmp/charset.out
+if (`SELECT @@global.audit_log_filter.format IN ('JSON','JSONL')`) {
+  --exec $MYSQL --binary-mode --default-character-set=latin1 -u charset_client test < $charset_sql.nul > $MYSQLTEST_VARDIR/tmp/charset.out
+  --remove_file $charset_sql.nul
+}
+--let charset_closed = `SELECT audit_log_rotate()`
+--let charset_reader = $MYSQLTEST_VARDIR/tmp/charset.reader
+if (`SELECT @@global.audit_log_filter.format IN ('JSON','JSONL')`) {
+  # Read all batches on one connection, including continuation of large output.
+  --let charset_bookmark = `SELECT @charset_bookmark`
+  perl;
+    open my $f, '>', "$ENV{charset_sql}.reader" or die $!;
+    print $f "SET NAMES latin1;\nDELIMITER //\n";
+    print $f "CREATE PROCEDURE test.ps10355_read() BEGIN SET \@b=audit_log_read('$ENV{charset_bookmark}'); ";
+    print $f "read_loop: LOOP SELECT CHARSET(\@b),HEX(\@b); IF \@b IS NULL OR JSON_LENGTH(\@b)=0 OR JSON_TYPE(JSON_EXTRACT(\@b,'\$[last]'))='NULL' THEN LEAVE read_loop; END IF; SET \@b=audit_log_read(); END LOOP; END//\n";
+    print $f "DELIMITER ;\nCALL test.ps10355_read();\nDROP PROCEDURE test.ps10355_read;\n";
+    close $f;
+  EOF
+  --exec $MYSQL --batch --skip-column-names --raw < $charset_sql.reader > $charset_reader
+  --remove_file $charset_sql.reader
+}
+perl;
+  use strict;
+  use warnings;
+  use Encode qw(decode encode FB_CROAK);
+  use JSON;
+  use XML::Parser;
+  open my $e, '<:raw', "$ENV{charset_sql}.expected" or die $!;
+  my $expected = JSON->new->utf8->decode(do { local $/; <$e> });
+  open my $f, '<:raw', "$ENV{charset_dir}/$ENV{charset_closed}" or die $!;
+  my $bytes = do { local $/; <$f> };
+  my $text = decode('UTF-8', $bytes, FB_CROAK);
+  my $format = $ENV{charset_format};
+  my @fields;
+  sub json_fields {
+    my ($records) = @_;
+    my @result;
+    for my $rec (@$records) {
+      next unless ref $rec eq 'HASH';
+      my $data = $rec->{$rec->{class} . '_data'};
+      push @result, [$rec->{class}, $data->{query}] if $data && exists $data->{query};
+    }
+    return @result;
+  }
+  if ($format =~ /^JSON/) {
+    my $records = $format eq 'JSON' ? JSON->new->decode($text) :
+      [map { s/,\s*$//; JSON->new->decode($_) } grep { /^\s*\{/ } split /\n/, $text];
+    @fields = json_fields($records);
+    die 'Missing nested query events' unless grep {
+      $_->{class} eq 'query' && $_->{event} eq 'query_nested_start' &&
+      $_->{query_data}{query} eq $expected->{nested_body}
+    } @$records;
+    open my $r, '<:raw', $ENV{charset_reader} or die $!;
+    my @reader;
+    my $ended = 0;
+    while (<$r>) {
+      chomp;
+      next if $_ eq 'NULL';
+      my ($cs, $hex) = split /\t/;
+      die "Reader charset is $cs" unless $cs eq 'utf8mb4';
+      my $batch = JSON->new->utf8->decode(pack('H*', $hex));
+      die 'Reader returned data after end' if $ended && grep { defined } @$batch;
+      $ended = 1 if !@$batch || !defined $batch->[-1];
+      push @reader, json_fields($batch);
+    }
+    die 'Reader never finished' unless $ended;
+    # Compare exact query bytes, not just validity or code point presence.
+    my @file_queries = sort map { unpack('H*', encode('UTF-8', $_->[1])) } @fields;
+    my @read_queries = sort map { unpack('H*', encode('UTF-8', $_->[1])) } @reader;
+    die 'Reader/file query bytes differ' unless "@file_queries" eq "@read_queries";
+  } else {
+    my ($record, $tag);
+    my $parser = XML::Parser->new(Handlers => {
+      Start => sub {
+        my ($p, $element, %attrs) = @_;
+        $tag = $element;
+        $record = {%attrs} if $element eq 'AUDIT_RECORD';
+      },
+      Char => sub { $record->{$tag} .= $_[1] if $record && $tag ne 'AUDIT_RECORD'; },
+      End => sub {
+        if ($_[1] eq 'AUDIT_RECORD') {
+          push @fields, [$record->{NAME}, $record->{SQLTEXT}] if exists $record->{SQLTEXT};
+          undef $record;
+        }
+        $tag = 'AUDIT_RECORD';
+      }
+    });
+    $parser->parse(encode('UTF-8', $text));
+  }
+  my %seen;
+  my %password;
+  my $insert = 0;
+  my $prepared = 0;
+  for my $field (@fields) {
+    my ($class, $query) = @$field;
+    my ($name) = $query =~ /^SELECT .* AS ps10355_(\w+)$/s;
+    $name = 'nested' if $query =~ /^CALL charset_/;
+    if (defined $name && exists $expected->{$name}) {
+      die "Wrong $name text in $class" unless $query eq $expected->{$name};
+      $seen{$name}{$class}++;
+    }
+    $insert++ if $query eq "INSERT INTO charset_data VALUES ('\x{105}\x{15b}')";
+    $prepared++ if $query eq "SELECT '\x{e9}' AS ps10355_prepared";
+    if ($query =~ /CREATE USER .*IDENTIFIED BY <secret>/) {
+      die 'Double-encoded user' if $query =~ /\x{c3}\x{bc}/;
+      $password{"$1_$2"}++ if $query =~ /'\x{fc}(ser|attr)_(latin1|utf8mb4)'/;
+    }
+  }
+  for my $name (keys %$expected) {
+    die "Missing $name" unless $seen{$name};
+    if ($format =~ /^JSON/) {
+      for my $class ($name eq 'nested_body' ? ('query') : ('general', 'query', 'parse')) {
+        die "Missing $class $name" unless $seen{$name}{$class};
+      }
+    }
+  }
+  die 'Missing converted table INSERT' unless $insert;
+  die 'Missing prepared query' unless $prepared;
+  for my $name ('ser_latin1', 'ser_utf8mb4', 'attr_latin1', 'attr_utf8mb4') {
+    die "Missing obfuscated $name" unless $password{$name};
+  }
+EOF
+--remove_file $charset_sql.expected
+if (`SELECT @@global.audit_log_filter.format IN ('JSON','JSONL')`) {
+  --remove_file $charset_reader
+}
+DROP USER 'üser_latin1'@'h', 'üser_utf8mb4'@'h', 'üattr_latin1'@'h', 'üattr_utf8mb4'@'h';
+DROP PROCEDURE `charset_é`;
+DROP TABLE charset_data;
+DROP USER charset_client@localhost;
+--enable_result_log
+--enable_query_log
+--echo Query charset conversion OK
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+--remove_file $charset_sql
+--remove_file $MYSQLTEST_VARDIR/tmp/charset.out

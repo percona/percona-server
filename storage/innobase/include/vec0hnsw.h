@@ -485,16 +485,16 @@ that has to maintain or read the graph fails with the reason instead.
 
 /** Open (lazily create) the runtime for a vector index.
 
-Takes the KEY because that is where the parameters are: M, metric and
-ef_construction come back from the DD on the KEY the SQL layer builds,
-and the row-level code that needs the graph has only dict objects.
+Takes the open TABLE because that is where the parameters are: M, metric
+and ef_construction come back from the DD on the index's KEY, and the
+dimension from its VECTOR column; the row-level code that needs the graph
+has only dict objects. When the definition cannot be read, the reason is
+logged and recorded for vec_runtime_unavailable().
 @param[in,out]  index  the vector index
-@param[in]      key    the KEY describing it
-@param[in]      form   the open TABLE, for the vector column's dimension
+@param[in]      form   the open TABLE
 @param[in]      thd    session, for error reporting
 @return the runtime, or nullptr if the parameters could not be read */
-vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
-                        THD *thd);
+vec_t *vec_runtime_open(dict_index_t *index, const TABLE *form, THD *thd);
 
 /** Add one row's vector to every vector index on the table.
 

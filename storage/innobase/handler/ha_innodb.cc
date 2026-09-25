@@ -8428,23 +8428,11 @@ int ha_innobase::open(const char *name, int, uint open_flags,
        index = index->next()) {
     if (!index->is_vector() || vec_runtime_get(index) != nullptr) continue;
 
-    /* Match by name, which is how InnoDB pairs a KEY with a
-    dict_index_t everywhere else - dict_table_get_index_on_name() is the
-    same lookup. Index names are unique within a table, so this is exact. */
-    const KEY *key = nullptr;
-    for (uint i = 0; i < table->s->keys; i++) {
-      if ((table->key_info[i].flags & HA_VECTOR) != 0 &&
-          innobase_strcasecmp(table->key_info[i].name, index->name) == 0) {
-        key = &table->key_info[i];
-        break;
-      }
-    }
-    if (key == nullptr) continue;
-
-    /* A failure has already reported itself on the THD, and an index
-    with no runtime simply has no graph yet - the next open tries
-    again. Opening the table must not fail for it. */
-    vec_runtime_open(index, key, table, thd);
+    /* A failure has already reported itself on the THD and recorded its
+    reason on the index, and an index with no runtime simply has no graph
+    yet - the next open tries again. Opening the table must not fail for
+    it. */
+    vec_runtime_open(index, table, thd);
   }
 
   return 0;

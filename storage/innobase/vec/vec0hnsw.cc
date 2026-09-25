@@ -291,69 +291,95 @@ dberr_t vec_runtime_unavailable(const dict_index_t *index) {
   return err == DB_ERROR_UNSET ? DB_INDEX_CORRUPT : err;
 }
 
-vec_t *vec_runtime_open(dict_index_t *index, const KEY *key, const TABLE *form,
-                        THD *thd) {
+/** A vector index's settings, as its KEY declares them. */
+struct Vec_index_config {
+  uint32_t dims;
+  uint32_t M;
+  uint32_t ef_construction;
+  decltype(storage::innobase::vec::HnswParam::dist) dist;
+};
+
+/** Find a vector index's KEY in a TABLE and read its settings: the
+dimension from the VECTOR column, M, ef_construction and the metric from
+WITH(...), which come back from the DD on the KEY. The one place both the
+runtime open and the index build read them, so the two cannot drift.
+@param[in]   table  the TABLE the KEY is in: the open table, or the table
+                    an ALTER is producing
+@param[in]   index  the vector index
+@param[out]  out    the settings, when the definition is usable
+@return nullptr, or why the definition cannot be used */
+static const char *vec_index_config(const TABLE *table,
+                                    const dict_index_t *index,
+                                    Vec_index_config *out) {
+  /* Match by name, which is how InnoDB pairs a KEY with a dict_index_t
+  everywhere else - dict_table_get_index_on_name() is the same lookup.
+  Index names are unique within a table, so this is exact. */
+  const KEY *key = nullptr;
+  for (uint k = 0; k < table->s->keys; k++) {
+    if ((table->key_info[k].flags & HA_VECTOR) != 0 &&
+        innobase_strcasecmp(table->key_info[k].name, index->name) == 0) {
+      key = &table->key_info[k];
+      break;
+    }
+  }
+  if (key == nullptr) return "no matching vector KEY in the table";
+
+  storage::innobase::vec::VectorIndexParam vip;
+  if (storage::innobase::vec::parse_options(*key, vip)) {
+    return "could not parse the index's WITH(...) options";
+  }
+  const auto &hp = std::get<storage::innobase::vec::HnswParam>(vip);
+
+  /* Dimension is a property of the column, not of WITH(...), so it has
+  to come from the Field. key_part[0].field is not usable directly - for a
+  vector key part get_index_prefix_len() reports 1, so the KEY_PART_INFO
+  describes a 1-byte prefix rather than the column. Its field_index() is
+  still correct, though, and indexing table->field with it is exactly the
+  dance create_index() does to see past a forged prefix field. */
+  ut_ad(key->user_defined_key_parts == 1);
+  const Field *f = table->field[key->key_part[0].field->field_index()];
+  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
+    return "the indexed column is not a VECTOR column";
+  }
+  const uint32_t dims =
+      down_cast<const Field_vector *>(f)->get_max_dimensions();
+  if (dims == 0 || dims == UINT32_MAX || hp.M == 0) {
+    return "invalid vector dimensions or M";
+  }
+
+  out->dims = dims;
+  out->M = static_cast<uint32_t>(hp.M);
+  out->ef_construction = static_cast<uint32_t>(hp.ef_construction);
+  out->dist = hp.dist;
+  return nullptr;
+}
+
+vec_t *vec_runtime_open(dict_index_t *index, const TABLE *form, THD *thd) {
   ut_ad(index != nullptr);
   ut_ad(index->is_vector());
-  ut_ad(key != nullptr);
 
-  if (vec_t *existing = vec_runtime_get(index); existing != nullptr) {
-    return existing;
-  }
+  vec_t *existing = vec_runtime_get(index);
+  if (existing != nullptr) return existing;
 
   /* Test-only: drives the open-error path, where the reason is recorded in
   vec_open_err for later statements and a later open can still succeed. */
   DBUG_EXECUTE_IF("vec_runtime_open_fail",
                   return vec_runtime_open_failed(index, DB_VEC_OUT_OF_MEMORY););
 
-  /* The values the user wrote in WITH(...), round-tripped through the
-  DD and parsed by the open-time overload added for exactly this. */
-  storage::innobase::vec::VectorIndexParam vip;
-  if (storage::innobase::vec::parse_options(*key, vip)) {
+  Vec_index_config cfg;
+  const char *why = vec_index_config(form, index, &cfg);
+  if (why != nullptr) {
     ib::error(ER_IB_MSG_456)
         << "Failed to open vector runtime for index " << index->name
-        << " on table " << index->table->name << ": could not parse the"
-        << " index's WITH(...) options; vector search on it will not"
-        << " work until the table is reopened.";
-    return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
-  }
-  const auto &hnsw_param = std::get<storage::innobase::vec::HnswParam>(vip);
-
-  /* Dimension is a property of the column, not of WITH(...), so it has
-  to come from the Field.
-
-  key_part[0].field is not usable directly - for a vector key part
-  get_index_prefix_len() reports 1, so the KEY_PART_INFO describes a
-  1-byte prefix rather than the column. Its field_index() is still
-  correct, though, and indexing form->field with it is exactly the dance
-  create_index() does (ha_innodb.cc) to see past a forged prefix
-  field. */
-  ut_ad(key->user_defined_key_parts == 1);
-  const Field *f = form->field[key->key_part[0].field->field_index()];
-  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
-    ib::error(ER_IB_MSG_456)
-        << "Failed to open vector runtime for index " << index->name
-        << " on table " << index->table->name << ": the indexed column is"
-        << " not a VECTOR column; vector search on it will not work"
-        << " until the table is reopened.";
-    return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
-  }
-  const Field_vector *field = down_cast<const Field_vector *>(f);
-
-  const uint32_t dims = field->get_max_dimensions();
-  if (dims == 0 || dims == UINT32_MAX) {
-    ib::error(ER_IB_MSG_456)
-        << "Failed to open vector runtime for index " << index->name
-        << " on table " << index->table->name << ": invalid vector"
-        << " dimension " << dims << "; vector search on it will not work"
-        << " until the table is reopened.";
+        << " on table " << index->table->name << ": " << why
+        << "; vector search on it will not work until the table is"
+        << " reopened.";
     return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
 
-  auto *vec = ut::new_withkey<vec_t>(
-      UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table, dims,
-      static_cast<uint32_t>(hnsw_param.M),
-      static_cast<uint32_t>(hnsw_param.ef_construction), hnsw_param.dist);
+  auto *vec =
+      ut::new_withkey<vec_t>(UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table,
+                             cfg.dims, cfg.M, cfg.ef_construction, cfg.dist);
 
   /* Publish, or lose the race and use the winner. Two sessions opening
   the same table both find dict_index_t::vec null - ha_innobase::open
@@ -914,47 +940,19 @@ Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table,
   /* M and ef_construction exist only in the index definition the ALTER is
   producing - the dictionary carries neither - so they are read from the
   KEY here rather than plumbed down from the handler. */
-  const KEY *vkey = nullptr;
-  for (uint k = 0; k < altered_table->s->keys; k++) {
-    if ((altered_table->key_info[k].flags & HA_VECTOR) != 0 &&
-        innobase_strcasecmp(altered_table->key_info[k].name, index->name) ==
-            0) {
-      vkey = &altered_table->key_info[k];
-      break;
-    }
-  }
+  Vec_index_config cfg;
+  const char *why = vec_index_config(altered_table, index, &cfg);
 
-  /* Test-only: let an MTR test force the "KEY not found" branch below
-  without needing a genuinely corrupt DD round-trip. */
-  DBUG_EXECUTE_IF("vec_build_start_key_not_found", vkey = nullptr;);
+  /* Test-only: let an MTR test force the "KEY not found" failure without
+  needing a genuinely corrupt DD round-trip. */
+  DBUG_EXECUTE_IF("vec_build_start_key_not_found",
+                  why = "no matching vector KEY in the altered table";);
 
-  if (vkey == nullptr) {
-    return fail_config("no matching vector KEY in the altered table");
-  }
+  if (why != nullptr) return fail_config(why);
 
-  storage::innobase::vec::VectorIndexParam vip;
-  if (storage::innobase::vec::parse_options(*vkey, vip)) {
-    return fail_config("could not parse the index's WITH(...) options");
-  }
-
-  const auto &hp = std::get<storage::innobase::vec::HnswParam>(vip);
-
-  /* Same resolution as vec_runtime_open: the key part describes a 1-byte
-  prefix, but its field_index() is correct. */
-  const Field *f = altered_table->field[vkey->key_part[0].field->field_index()];
-  if (f == nullptr || f->type() != MYSQL_TYPE_VECTOR) {
-    return fail_config("the indexed column is not a VECTOR column");
-  }
-
-  const uint32_t dims =
-      down_cast<const Field_vector *>(f)->get_max_dimensions();
-  if (dims == 0 || hp.M == 0) {
-    return fail_config("invalid vector dimensions or M");
-  }
-
-  auto *b = ut::new_withkey<Vec_build>(
-      UT_NEW_THIS_FILE_PSI_KEY, dims, static_cast<uint32_t>(hp.M),
-      static_cast<uint32_t>(hp.ef_construction), hp.dist, index);
+  auto *b =
+      ut::new_withkey<Vec_build>(UT_NEW_THIS_FILE_PSI_KEY, cfg.dims, cfg.M,
+                                 cfg.ef_construction, cfg.dist, index);
   *err = DB_SUCCESS;
   return b;
 }

@@ -1,0 +1,66 @@
+#
+# The doublewrite copy of a page must be durable before the page is
+# written to its tablespace, so the doublewrite file is fsynced after
+# each batch, unless innodb_flush_method=O_DIRECT_NO_FSYNC asks for no
+# fsyncs at all.  An O_DIRECT write alone does not make the copy
+# durable, so O_DIRECT must fsync the doublewrite file as well.
+#
+# The fsyncs of the doublewrite files show up as COUNT_MISC in
+# performance_schema.file_summary_by_instance (the files are opened at
+# startup, so after a TRUNCATE nothing else counts there).
+#
+# O_DIRECT: the doublewrite file must be fsynced.
+# restart: --innodb_flush_method=O_DIRECT
+SELECT @@innodb_flush_method;
+@@innodb_flush_method
+O_DIRECT
+TRUNCATE performance_schema.file_summary_by_instance;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+SELECT SUM(COUNT_WRITE) > 0 AS dblwr_written, SUM(COUNT_MISC) > 0 AS dblwr_fsynced
+FROM performance_schema.file_summary_by_instance
+WHERE FILE_NAME LIKE '%.dblwr';
+dblwr_written	dblwr_fsynced
+1	1
+DROP TABLE t1;
+# O_DIRECT_NO_FSYNC: no fsync, as documented.
+# restart: --innodb_flush_method=O_DIRECT_NO_FSYNC
+SELECT @@innodb_flush_method;
+@@innodb_flush_method
+O_DIRECT_NO_FSYNC
+TRUNCATE performance_schema.file_summary_by_instance;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+SELECT SUM(COUNT_WRITE) > 0 AS dblwr_written, SUM(COUNT_MISC) > 0 AS dblwr_fsynced
+FROM performance_schema.file_summary_by_instance
+WHERE FILE_NAME LIKE '%.dblwr';
+dblwr_written	dblwr_fsynced
+1	0
+DROP TABLE t1;
+# fsync: the doublewrite file is fsynced.
+# restart: --innodb_flush_method=fsync
+SELECT @@innodb_flush_method;
+@@innodb_flush_method
+fsync
+TRUNCATE performance_schema.file_summary_by_instance;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+SELECT SUM(COUNT_WRITE) > 0 AS dblwr_written, SUM(COUNT_MISC) > 0 AS dblwr_fsynced
+FROM performance_schema.file_summary_by_instance
+WHERE FILE_NAME LIKE '%.dblwr';
+dblwr_written	dblwr_fsynced
+1	1
+DROP TABLE t1;
+# restart:

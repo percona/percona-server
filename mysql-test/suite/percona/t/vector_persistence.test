@@ -49,6 +49,27 @@ CREATE TABLE t3 (
   percona_vec_aux_id BIGINT UNSIGNED
 );
 
+--echo # ALTER cannot bring the name in either: renaming or adding a user
+--echo # column to it is refused, with or without a vector index, whatever
+--echo # the algorithm. get_extra_columns_and_keys() refuses it; no InnoDB
+--echo # rename guard is needed, since the hidden column is never a user field.
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, c INT,
+                 v1 VECTOR(8) NOT NULL, VECTOR KEY vk (v1) TYPE hnsw);
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t4 RENAME COLUMN c TO percona_vec_aux_id;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t4 RENAME COLUMN c TO percona_vec_aux_id, ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t4 CHANGE c percona_vec_aux_id INT, ALGORITHM=COPY;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t4 ADD COLUMN percona_vec_aux_id INT;
+ALTER TABLE t4 DROP KEY vk;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t4 RENAME COLUMN c TO percona_vec_aux_id, ALGORITHM=INSTANT;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t4 ADD COLUMN percona_vec_aux_id INT, ALGORITHM=INSTANT;
+DROP TABLE t4;
+
 --echo #
 --echo # RENAME TABLE — aux name is "<db>/vec_<table_id>_<index_id>" so a
 --echo # same-schema rename is a no-op on disk. Cross-schema rename

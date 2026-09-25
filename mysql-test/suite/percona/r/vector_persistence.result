@@ -51,6 +51,26 @@ id BIGINT UNSIGNED PRIMARY KEY,
 percona_vec_aux_id BIGINT UNSIGNED
 );
 ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+# ALTER cannot bring the name in either: renaming or adding a user
+# column to it is refused, with or without a vector index, whatever
+# the algorithm. get_extra_columns_and_keys() refuses it; no InnoDB
+# rename guard is needed, since the hidden column is never a user field.
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, c INT,
+v1 VECTOR(8) NOT NULL, VECTOR KEY vk (v1) TYPE hnsw);
+ALTER TABLE t4 RENAME COLUMN c TO percona_vec_aux_id;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+ALTER TABLE t4 RENAME COLUMN c TO percona_vec_aux_id, ALGORITHM=INPLACE;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+ALTER TABLE t4 CHANGE c percona_vec_aux_id INT, ALGORITHM=COPY;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+ALTER TABLE t4 ADD COLUMN percona_vec_aux_id INT;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+ALTER TABLE t4 DROP KEY vk;
+ALTER TABLE t4 RENAME COLUMN c TO percona_vec_aux_id, ALGORITHM=INSTANT;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+ALTER TABLE t4 ADD COLUMN percona_vec_aux_id INT, ALGORITHM=INSTANT;
+ERROR 42000: Incorrect column name 'percona_vec_aux_id'
+DROP TABLE t4;
 #
 # RENAME TABLE — aux name is "<db>/vec_<table_id>_<index_id>" so a
 # same-schema rename is a no-op on disk. Cross-schema rename

@@ -4046,10 +4046,10 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   truth because DD se_private_data does not currently round-trip flags2's
   AUX bit. Reconstruct DICT_TF2_VEC_AUX and the parent_id from the
   "<db>/percona_vec_<type>_<parent_id>_<index_id>" name pattern. */
-  if (table_id_t parent_id = 0;
-      vec_aux_parse_table_name(norm_name, &parent_id, nullptr)) {
+  table_id_t vec_parent_id = 0;
+  if (vec_aux_parse_table_name(norm_name, &vec_parent_id, nullptr)) {
     DICT_TF2_FLAG_SET(m_table, DICT_TF2_VEC_AUX);
-    m_table->parent_id = parent_id;
+    m_table->parent_id = vec_parent_id;
   }
 
   if (is_discard) {

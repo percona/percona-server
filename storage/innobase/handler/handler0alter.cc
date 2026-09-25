@@ -4582,12 +4582,19 @@ static void dd_commit_inplace_alter_table(
     }
 
     /* The rows still carry percona_vec_aux_id when the table is not
-    rebuilt, so the new definition does too: the column comes or goes only
-    with a rebuild (innobase_vec_aux_col_changes), so a no-rebuild ALTER
-    keeps its vector index and get_extra_columns_and_keys() has put the
-    column there. */
-    ut_ad(!DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_HAS_VEC_AUX_COL) ||
-          dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME) != nullptr);
+    rebuilt, so the new definition must too. It always does: the column
+    comes or goes only with a rebuild (innobase_vec_aux_col_changes), so a
+    no-rebuild ALTER keeps its vector index and get_extra_columns_and_keys()
+    has put the column there. Unlike FTS_DOC_ID, which outlives its index,
+    nothing re-adds it in the normal course. Were the rule ever broken, a
+    definition without the column would describe rows that carry it, so
+    release re-adds it and debug says the rule was broken. */
+    if (DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_HAS_VEC_AUX_COL) &&
+        dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME) == nullptr) {
+      ut_d(ut_error);
+      dd_add_hidden_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME,
+                           sizeof(uint64_t), dd::enum_column_types::LONGLONG);
+    }
 
     /* This can happen only with expanded fast index creation. On the
     intermediate table during ALTER COPY, we drop secondary indexes using

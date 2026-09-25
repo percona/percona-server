@@ -13,7 +13,8 @@ filter-definition validation through `audit_log_filter_set_filter()`.
 - SQL text written to JSON, JSONL, NEW XML, OLD XML, and syslog is converted to
   UTF-8 (utf8mb4) after filtering and before escaping. Digest replacements are
   already UTF-8. `audit_log_read()` returns the converted file bytes; historical
-  files are not rewritten.
+  files are not rewritten. A record larger than `read_buffer_size` is returned
+  whole in its own batch; the reader grows its output buffer for that record.
 - Known limitation: the server reports the query charset in effect when an
   event is generated, not the one prepared statement text was parsed with.
   Events that carry the text of a prepared statement (for example the
@@ -23,10 +24,12 @@ filter-definition validation through `audit_log_filter_set_filter()`.
   `SET NAMES utf8mb4; PREPARE s FROM 'SELECT "é"'; SET NAMES latin1; EXECUTE s;`
   logs `SELECT "Ã©"`. `PREPARE ... FROM '<literal>'` in a non-UTF-8 session is
   affected the same way, because the server stores the literal as utf8mb3.
-- Malformed query characters are replaced with `?`; an incomplete final
-  sequence becomes one `?` for the remaining suffix. Binary-labeled text is
-  validated as UTF-8, preserving password-rewritten UTF-8 identifiers. Missing
-  or unknown source charsets and resource failures lose the event through the
+- Malformed query bytes, characters without a Unicode mapping and bytes of an
+  incomplete final sequence are replaced with `?`. Conversion resumes after
+  each bad byte, preserving trailing ASCII and multibyte text.
+  Binary-labeled text is validated as UTF-8, preserving password-rewritten
+  UTF-8 identifiers. Missing or unknown source charsets and resource failures
+  lose the event through the
   counted `Audit_log_filter_events_lost` path; they never emit raw query bytes.
 
 - The names below are filter-definition names, not necessarily the names used by

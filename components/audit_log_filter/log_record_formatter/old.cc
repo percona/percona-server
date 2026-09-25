@@ -252,7 +252,7 @@ AuditRecordString LogRecordFormatterOld::apply(
          << "    CONNECTION_ID=\"" << audit_record.event->connection_id << "\"\n"
          << "    FLAGS=\"" << (audit_record.event->flags != nullptr ? *audit_record.event->flags : 0) << "\"\n"
          << "    SQLTEXT=\"" << make_escaped_string(query_output(audit_record.extended_info)) << "\"\n"
-         << "    REWRITTEN_QUERY=\"" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << "\"/>\n";
+         << "    REWRITTEN_QUERY=\"" << make_escaped_string(rewritten_query_output(audit_record.extended_info)) << "\"/>\n";
   /* clang-format on */
 
   return result.str();

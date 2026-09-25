@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cstring>  // std::strcpy
 #include "components/audit_log_filter/audit_log_reader.h"
+#include "components/audit_log_filter/json_escape.h"
 
 namespace audit_log_filter::json_reader {
 
@@ -27,6 +28,17 @@ const std::string kJsonArrayCloseTag = "\n]\n";
 const std::string kJsonArrayCloseWithNullTag = "null\n]\n";
 const auto kBufferReservedSize =
     kJsonArrayCloseTag.length() + kJsonArrayCloseWithNullTag.length();
+
+// SAX values are already unescaped. Re-encode them when constructing the UDF's
+// JSON result, including embedded NULs and non-ASCII query text.
+std::string json_string(const char *value, size_t length) {
+  std::string out;
+  out.reserve(length + 2);
+  out.push_back('"');
+  append_json_escaped(out, {value, length});
+  out.push_back('"');
+  return out;
+}
 
 }  // namespace
 
@@ -130,7 +142,7 @@ bool AuditJsonHandler::String(const char *value, rapidjson::SizeType length,
   std::string s_value(value, length);
   update_bookmark(s_value);
   before_value();
-  m_event_str << "\"" << s_value << "\"";
+  m_event_str << json_string(value, length);
   return true;
 }
 
@@ -157,7 +169,7 @@ bool AuditJsonHandler::Key(const char *str, rapidjson::SizeType length,
     m_event_str << ", ";
   }
 
-  m_event_str << "\"" << str << "\": ";
+  m_event_str << json_string(str, length) << ": ";
   return true;
 }
 

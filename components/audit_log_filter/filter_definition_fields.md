@@ -5,6 +5,30 @@ filter-definition validation through `audit_log_filter_set_filter()`.
 
 ## Notes
 
+- Query string filters compare the original client-charset bytes (or the
+  password-obfuscated statement selected by the server). Query length fields
+  count those bytes, before conversion or replacement. For example, a UTF-8
+  filter value containing `café` matches a utf8mb4 statement but not the same
+  statement sent as latin1.
+- SQL text written to JSON, JSONL, NEW XML, and syslog is converted to UTF-8
+  (utf8mb4) after filtering and before escaping. Digest replacements are
+  already UTF-8. `audit_log_read()` returns the converted file bytes; historical
+  files are not rewritten.
+- Known limitation: the server reports the query charset in effect when an
+  event is generated, not the one prepared statement text was parsed with.
+  Events that carry the text of a prepared statement (for example the
+  `general`, `query` status and `table_access` events of `EXECUTE` or
+  `COM_STMT_EXECUTE`) are therefore converted from the wrong charset if
+  `character_set_client` changed after `PREPARE`, e.g.
+  `SET NAMES utf8mb4; PREPARE s FROM 'SELECT "é"'; SET NAMES latin1; EXECUTE s;`
+  logs `SELECT "Ã©"`. `PREPARE ... FROM '<literal>'` in a non-UTF-8 session is
+  affected the same way, because the server stores the literal as utf8mb3.
+- Malformed query characters are replaced with `?`; an incomplete final
+  sequence becomes one `?` for the remaining suffix. Binary-labeled text is
+  validated as UTF-8, preserving password-rewritten UTF-8 identifiers. Missing
+  or unknown source charsets and resource failures lose the event through the
+  counted `Audit_log_filter_events_lost` path; they never emit raw query bytes.
+
 - The names below are filter-definition names, not necessarily the names used by
   the JSON log formatter.
 - `Field Type` reflects the type accepted by the current validator in
@@ -31,6 +55,20 @@ filter-definition validation through `audit_log_filter_set_filter()`.
 - For `connection.connection_type`, the validator accepts numeric values `0..5`
   and the pseudo-constants `::undefined`, `::tcp/ip`, `::socket`,
   `::named_pipe`, `::ssl`, and `::shared_memory`.
+
+### Differences from MySQL Enterprise Audit 8.4.7
+
+For ordinary client character sets, query output is converted to UTF-8 in the
+same way as Enterprise Audit. Binary-labeled query text is instead validated as
+UTF-8: valid sequences are preserved and malformed sequences are replaced with
+`?`. Enterprise 8.4.7 re-encodes each binary byte as a Unicode code point, which
+also double-encodes UTF-8 usernames in password-obfuscated statements. Validation
+avoids that double encoding; mixed-encoding literal fragments in rewritten SQL
+may still require replacements.
+
+This conversion applies only to SQL statement text. Connection attributes and
+other non-query fields retain their existing behavior. In particular, this
+change does not add Enterprise's charset conversion for connection attributes.
 
 ## `general`
 

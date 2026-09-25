@@ -285,12 +285,12 @@ class LogRecordFormatter<AuditLogFormatType::Json>
       int connection_type) const noexcept override;
 
   /**
-   * @brief Get escape rules.
+   * @brief Append string escaped as JSON string contents.
    *
-   * @return Escape rules
+   * @param out Output string
+   * @param in String to be escaped
    */
-  [[nodiscard]] const EscapeRulesContainer &get_escape_rules()
-      const noexcept override;
+  void append_escaped(std::string &out, std::string_view in) const override;
 
   /**
    * @brief Get JSON string representation of extra attributes

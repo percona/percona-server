@@ -447,8 +447,10 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   mem_heap_t *heap = mem_heap_create(256, UT_LOCATION_HERE);
   vec_aux_read_t meta;
   const dberr_t err = vec_aux_read_node(aux, 0, heap, &meta);
-  const uint64_t entry_point = meta.base_pk;
+  uint64_t entry_point = meta.base_pk;
   mem_heap_free(heap);
+  /* Test-only: a record 0 that names entry point 0. */
+  DBUG_EXECUTE_IF("vec_aux_entry_point_zero", entry_point = 0;);
 
   if (err == DB_RECORD_NOT_FOUND) {
     /* Empty index. The graph stays empty and the first insert will
@@ -464,9 +466,8 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
 
   /* Graph node id 0 is the class's reserved empty-slot sentinel; no real
   node is ever assigned it (vec_persist_entry_point). A record 0 naming it
-  as the entry point is therefore corrupt, not merely empty - and passing
-  it on would hit ut_a(id != 0) in vec_persist_load_node instead of
-  failing gracefully.
+  as the entry point is therefore corrupt, not merely empty, and must not
+  reach vec_persist_load_node, which asserts the id is not 0.
 
   DB_INDEX_CORRUPT, not DB_CORRUPTION: convert_error_code_to_mysql maps
   DB_CORRUPTION to HA_ERR_CRASHED, which reports the *base table* as

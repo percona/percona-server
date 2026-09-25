@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+
 --echo #
 --echo # PS-11299: no ALTER of a vector-indexed table runs with
 --echo # ALGORITHM=INSTANT.

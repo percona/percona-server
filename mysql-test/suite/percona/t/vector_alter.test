@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+
 --echo #
 --echo # PS-11299: ALTER TABLE interactions with vector indexes.
 --echo # Section A/B: column ops on tables that already have a vector index.

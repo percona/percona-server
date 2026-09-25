@@ -1,3 +1,5 @@
+--source include/have_debug.inc
+
 --echo #
 --echo # PS-11299: no ALTER that leaves a vector index runs with LOCK=NONE.
 --echo #

@@ -234,7 +234,18 @@ struct fts_trx_t {
                            savepoint */
   ib_vector_t *last_stmt;  /*!< last_stmt */
 
+  ib_vector_t *inflight; /*!< Doc IDs registered in
+                         fts_cache_t::inflight_doc_ids by this
+                         transaction; elements are
+                         fts_trx_inflight_t */
+
   mem_heap_t *heap; /*!< heap */
+};
+
+/** A doc id assigned by a transaction that has not ended yet. */
+struct fts_trx_inflight_t {
+  const dict_table_t *table; /*!< table */
+  doc_id_t doc_id;           /*!< smallest doc id of trx in table */
 };
 
 /** Information required for transaction savepoint handling. */
@@ -457,7 +468,10 @@ void fts_cache_index_cache_remove(dict_table_t *table, dict_index_t *index);
  transaction to generate the document id.
  @return DB_SUCCESS if OK */
 dberr_t fts_get_next_doc_id(const dict_table_t *table, /*!< in: table */
-                            doc_id_t *doc_id); /*!< out: new document id */
+                            doc_id_t *doc_id,      /*!< out: new document id */
+                            trx_t *trx = nullptr); /*!< in: transaction that
+                                                   will insert the document,
+                                                   or NULL */
 /** Update the next and last Doc ID in the CONFIG table to be the input
  "doc_id" value (+ 1). We would do so after each FTS index build or
  table truncate */
@@ -472,8 +486,10 @@ void fts_update_next_doc_id(
 @param[in,out]  row    Add doc id value to this row. This is the current row
 that is being inserted.
 @param[in]      heap   Memory heap on which the doc_id object will be created.
+@param[in]      trx    Transaction inserting the row, or NULL.
 @return DB_SUCCESS if all went well else error */
-dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap);
+dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap,
+                          trx_t *trx = nullptr);
 
 /** Create a new fts_doc_ids_t.
  @return new fts_doc_ids_t. */
@@ -643,7 +659,7 @@ doc_id_t fts_get_doc_id_from_rec(dict_table_t *table, const rec_t *rec,
                                 memory matches that of the update vector.
 @return the fts doc id used in the update vector */
 doc_id_t fts_update_doc_id(dict_table_t *table, upd_field_t *ufield,
-                           doc_id_t *next_doc_id);
+                           doc_id_t *next_doc_id, trx_t *trx = nullptr);
 
 /** FTS initialize. */
 void fts_startup(void);

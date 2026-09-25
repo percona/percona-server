@@ -1,0 +1,70 @@
+#
+# A FULLTEXT locking read (SERIALIZABLE, FOR SHARE, FOR UPDATE) must not
+# allow phantoms: a concurrent transaction may not insert a document that
+# matches the predicate until the reader commits.
+#
+CREATE TABLE doc (id INT PRIMARY KEY, body TEXT, FULLTEXT(body)) ENGINE=InnoDB;
+INSERT INTO doc VALUES (1, 'banana split'), (2, 'apple pie');
+#
+# SERIALIZABLE: plain MATCH ... AGAINST is a locking read.
+#
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+id
+2
+SET SESSION innodb_lock_wait_timeout = 1;
+INSERT INTO doc VALUES (3, 'apple crumble');
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Re-read must be identical to the first read.
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+id
+2
+COMMIT;
+INSERT INTO doc VALUES (3, 'apple crumble');
+#
+# REPEATABLE READ with FOR SHARE is a locking read as well.
+#
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id FOR SHARE;
+id
+2
+3
+INSERT INTO doc VALUES (4, 'apple strudel');
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id FOR SHARE;
+id
+2
+3
+COMMIT;
+INSERT INTO doc VALUES (4, 'apple strudel');
+#
+# A non-locking read (autocommit SELECT, or REPEATABLE READ without
+# FOR SHARE) takes no table lock and does not block writers.
+#
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+id
+2
+3
+4
+INSERT INTO doc VALUES (5, 'apple tart');
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+id
+2
+3
+4
+5
+INSERT INTO doc VALUES (6, 'apple juice');
+COMMIT;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+id
+2
+3
+4
+5
+6
+DROP TABLE doc;

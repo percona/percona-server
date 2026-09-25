@@ -66,11 +66,29 @@ TEST(AuditQueryCharset, EncodingsAndCharacterBoundaries) {
 
 TEST(AuditQueryCharset, MalformedAndBinary) {
   check("utf8mb4", "\xe9", "?");
-  check("utf8mb4", "\xf0\x9f", "?");
+  check("utf8mb4", "\xf0\x9f", "??");
   check("utf8mb4", "\xc0\xaf", "??");
   check("utf8mb4", "\xed\xa0\x80", "???");
   check("utf8mb4", "\xf4\x90\x80\x80", "????");
-  check("utf8mb4", "\xf0\x9f'", "?");
+  check("utf8mb4", "\xf0\x9f'",
+        "?"
+        "?'");
+  check("utf8mb4",
+        "a\xe9"
+        "b",
+        "a?b");
+  check("utf8mb4", "SELECT 'caf\xe9'", "SELECT 'caf?'");
+  check("utf8mb4", "SELECT '\xff'", "SELECT '?'");
+  check("utf8mb3",
+        "x\xe2"
+        "A",
+        "x?A");
+  check("utf8mb4", "\xf0\xc3\xa9", "?\xc3\xa9");
+  check("binary", "'\xe9'", "'?'");
+  check("gb18030", "\x81\x30'", "?0'");
+  check("ucs2", std::string_view("\xd8\0", 2), "?");
+  check("utf32", std::string_view("\0\0\xd8\0", 4), "?");
+  check("utf32", std::string_view("\0\x11\0\0", 4), "?");
   check("cp1250", "\x81", "?");
   check("sjis", "\x81\xad", "?");
   check("sjis", "\x83", "?");
@@ -87,14 +105,12 @@ TEST(AuditQueryCharset, RejectImpossibleDecoderResults) {
   handler.mb_wc = [](const CHARSET_INFO *, my_wc_t *, const uint8_t *,
                      const uint8_t *) { return 8; };
   EXPECT_THROW(convert_query_to_utf8mb4("\x80", &source), std::runtime_error);
-  EXPECT_THROW(convert_query_to_utf8mb4("\x80xxxxxxx", &source),
-               std::runtime_error);
   handler.mb_wc = [](const CHARSET_INFO *, my_wc_t *, const uint8_t *,
                      const uint8_t *) { return -8; };
   EXPECT_THROW(convert_query_to_utf8mb4("\x80", &source), std::runtime_error);
   handler.mb_wc = [](const CHARSET_INFO *, my_wc_t *, const uint8_t *,
                      const uint8_t *) { return MY_CS_TOOSMALL2; };
-  EXPECT_THROW(convert_query_to_utf8mb4("\x80xx", &source), std::runtime_error);
+  EXPECT_EQ("?xx", convert_query_to_utf8mb4("\x80xx", &source));
   handler.mb_wc = [](const CHARSET_INFO *, my_wc_t *wc, const uint8_t *,
                      const uint8_t *) {
     *wc = 0xd800;
@@ -112,7 +128,9 @@ TEST(AuditQueryCharset, PrepareParseReplacementAndPreserveRaw) {
   parse.event = &event;
   parse.extended_info.query_charset = "cp1250";
   AuditRecordVariant record = parse;
+  EXPECT_FALSE(query_output_is_ready(record));
   prepare_query_output(record);
+  EXPECT_TRUE(query_output_is_ready(record));
   const auto &output =
       std::get<AuditRecordParse>(record).extended_info.query_output;
   ASSERT_TRUE(output.has_value());
@@ -140,6 +158,7 @@ TEST(AuditQueryCharset, DigestSelectionAndCaptureFailure) {
   extra.query = "\xe9";
   extra.query_charset = "no_such_charset";
   EXPECT_THROW(prepare_query_output(record), std::invalid_argument);
+  EXPECT_FALSE(query_output_is_ready(record));
   EXPECT_FALSE(extra.query_output.has_value());
   extra.query_charset = "latin1";
   prepare_query_output(record);
@@ -180,7 +199,21 @@ TEST(AuditQueryCharset, QueryUsesCapturedCharsetAndSanitizesDigest) {
   EXPECT_EQ("\xc3\xa9", extra.query_output->query);
   extra.digest = "`\xe9`";
   prepare_query_output(record);
-  EXPECT_EQ("`?", extra.query_output->query);
+  EXPECT_EQ("`?`", extra.query_output->query);
+}
+
+TEST(AuditQueryCharset, ReadinessChecksOnlyQueryBearingRecords) {
+  EXPECT_TRUE(query_output_is_ready(AuditRecordConnection{}));
+  EXPECT_TRUE(query_output_is_ready(AuditRecordAudit{}));
+  for (auto record : {AuditRecordVariant{AuditRecordGeneral{}},
+                      AuditRecordVariant{AuditRecordTableAccess{}},
+                      AuditRecordVariant{AuditRecordQuery{}},
+                      AuditRecordVariant{AuditRecordParse{}}}) {
+    EXPECT_FALSE(query_output_is_ready(record));
+    std::visit([](auto &rec) { rec.extended_info.query_output.emplace(); },
+               record);
+    EXPECT_TRUE(query_output_is_ready(record));
+  }
 }
 }  // namespace
 }  // namespace audit_log_filter

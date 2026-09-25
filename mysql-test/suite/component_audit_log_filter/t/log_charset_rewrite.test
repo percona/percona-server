@@ -1,0 +1,67 @@
+--source include/have_component_audit_log.inc
+--source suite/query_rewrite_plugins/include/have_ddl_rewriter.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+--disable_query_log
+--disable_result_log
+SET GLOBAL audit_log_filter.event_mode=FULL;
+CREATE USER charset_rewriter@localhost;
+GRANT ALL ON test.* TO charset_rewriter@localhost;
+SELECT audit_log_filter_set_filter('rewrite', '{"filter":{"class":{"name":"parse"}}}');
+SELECT audit_log_filter_set_user('charset_rewriter@localhost', 'rewrite');
+--source suite/query_rewrite_plugins/include/install_ddl_rewriter.inc
+--let rewrite_dir = `SELECT @@datadir`
+--let rewrite_format = `SELECT @@global.audit_log_filter.format`
+--let rewrite_sql = $MYSQLTEST_VARDIR/tmp/charset_rewrite.sql
+SELECT audit_log_rotate();
+perl;
+  open my $f, '>:raw', $ENV{rewrite_sql} or die $!;
+  print $f "CREATE TABLE charset_rewrite (c VARCHAR(20) DEFAULT 'caf\xe9') ENGINE=InnoDB, ENCRYPTION='N';\n";
+  close $f;
+EOF
+--exec $MYSQL --default-character-set=latin1 -u charset_rewriter test < $rewrite_sql
+--let rewrite_closed = `SELECT audit_log_rotate()`
+perl;
+  use strict;
+  use warnings;
+  use Encode qw(decode encode FB_CROAK);
+  use JSON;
+  use XML::Parser;
+  open my $f, '<:raw', "$ENV{rewrite_dir}/$ENV{rewrite_closed}" or die $!;
+  my $bytes = do { local $/; <$f> };
+  my $text = decode('UTF-8', $bytes, FB_CROAK);
+  my @rewritten;
+  if ($ENV{rewrite_format} =~ /^JSON/) {
+    my $records = JSON->new->decode($text);
+    @rewritten = map { $_->{parse_data}{rewritten_query} }
+      grep { $_->{class} eq 'parse' && length($_->{parse_data}{rewritten_query}) } @$records;
+  } else {
+    my ($in_rewrite, $value);
+    XML::Parser->new(Handlers => {
+      Start => sub {
+        my ($p, $tag, %attrs) = @_;
+        push @rewritten, $attrs{REWRITTEN_QUERY}
+          if $tag eq 'AUDIT_RECORD' && length($attrs{REWRITTEN_QUERY} // '');
+        if ($tag eq 'REWRITTEN_QUERY') { $in_rewrite = 1; $value = ''; }
+      },
+      Char => sub { $value .= $_[1] if $in_rewrite; },
+      End => sub {
+        if ($_[1] eq 'REWRITTEN_QUERY') {
+          push @rewritten, $value if length $value;
+          $in_rewrite = 0;
+        }
+      }
+    })->parse(encode('UTF-8', $text));
+  }
+  my $expected = "CREATE TABLE charset_rewrite (c VARCHAR(20) DEFAULT 'caf\x{e9}') ENGINE=InnoDB ";
+  die 'Missing exact converted parse replacement' unless grep { $_ eq $expected } @rewritten;
+EOF
+UNINSTALL PLUGIN ddl_rewriter;
+DROP TABLE charset_rewrite;
+DROP USER charset_rewriter@localhost;
+--remove_file $rewrite_sql
+--enable_result_log
+--enable_query_log
+--echo Parse replacement charset conversion OK
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

@@ -37,7 +37,9 @@ perl;
   statement('ascii', 'ascii', 'hello', 'hello');
   statement('utf8', 'utf8mb4', encode('UTF-8', "\x{e9}\x{1f600}"), "\x{e9}\x{1f600}");
   statement('escape', 'latin1', "\xe9 <>& \\\\ \\' \\\"", "\x{e9} <>& \\\\ \\' \\\"");
-  statement('expansion', 'latin1', "\xe9" x 6000, "\x{e9}" x 6000);
+  # Each converted record exceeds the default 32 KiB reader buffer.
+  statement('expansion', 'latin1', "\xe9" x 20000, "\x{e9}" x 20000);
+  statement('expansion_larger', 'latin1', "\xe9" x 40000, "\x{e9}" x 40000);
   statement('invalid', 'utf8mb4', "\xe9", '?');
   statement('incomplete', 'utf8mb4', "\xf0\x9f", '??');
   statement('unmapped', 'cp1250', "\x81", '?');
@@ -53,6 +55,7 @@ perl;
     $query = "CREATE USER '\x{fc}attr_$cs'\@'h' IDENTIFIED BY 'p\x{e4}ssw\x{f6}rd' ATTRIBUTE '{\"note\":\"\x{e9}\"}';";
     print $f encode($cs eq 'latin1' ? 'iso-8859-1' : 'UTF-8', $query), "\n";
   }
+  print $f "\\C utf8mb4\nSELECT 'caf\xe9';\nSELECT '\xf0\xc3\xa9';\n\\C binary\nSELECT 'caf\xe9';\n";
   close $f;
   if ($ENV{charset_format} =~ /^JSON/) {
     open my $nul, '>:raw', "$ENV{charset_sql}.nul" or die $!;
@@ -160,8 +163,10 @@ perl;
   my %password;
   my $insert = 0;
   my $prepared = 0;
+  my %suffix;
   for my $field (@fields) {
     my ($class, $query) = @$field;
+    $suffix{$query}++ if $query eq "SELECT 'caf?'" || $query eq "SELECT '?\x{e9}'";
     my ($name) = $query =~ /^SELECT .* AS ps10355_(\w+)$/s;
     $name = 'nested' if $query =~ /^CALL charset_/;
     if (defined $name && exists $expected->{$name}) {
@@ -185,6 +190,7 @@ perl;
   }
   die 'Missing converted table INSERT' unless $insert;
   die 'Missing prepared query' unless $prepared;
+  die 'Malformed suffix lost following text' unless $suffix{"SELECT 'caf?'"} && $suffix{"SELECT '?\x{e9}'"};
   for my $name ('ser_latin1', 'ser_utf8mb4', 'attr_latin1', 'attr_utf8mb4') {
     die "Missing obfuscated $name" unless $password{$name};
   }

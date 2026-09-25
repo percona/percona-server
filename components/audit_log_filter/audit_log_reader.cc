@@ -287,7 +287,7 @@ bool AuditLogReader::init() noexcept {
   return true;
 }
 
-bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept {
+bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept try {
   std::shared_lock lock(m_reader_mutex);
 
   if (m_reload_requested) {
@@ -357,6 +357,11 @@ bool AuditLogReader::read(AuditLogReaderContext *reader_context) noexcept {
   reader_context->audit_json_handler->iterative_parse_close(false);
 
   return true;
+} catch (...) {
+  // The UDF reports a read error and disposes of this session. In particular,
+  // allocation failure while growing for a large event must not terminate
+  // mysqld or leave a partially returned record.
+  return false;
 }
 
 AuditLogReaderContext *AuditLogReader::init_reader_session(

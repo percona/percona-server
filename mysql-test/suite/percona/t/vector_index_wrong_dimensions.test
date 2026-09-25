@@ -88,7 +88,8 @@ SELECT COUNT(*) FROM
    ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 10) d;
 
 --echo # Without the index the short value is stored, as VECTOR(4) allows.
---echo # DROP KEY keeps the hidden label column, so the next ADD can be INPLACE.
+--echo # Dropping the last vector index removes the hidden label column; the
+--echo # next ADD adds it back, in place.
 ALTER TABLE t DROP KEY vk;
 INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
 SELECT id, LENGTH(v) FROM t ORDER BY id;
@@ -107,7 +108,7 @@ SELECT id FROM t
   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,0]'), 'EUCLIDEAN') LIMIT 1;
 DROP TABLE t;
 
---echo # A table that never had a vector index: the first ADD is COPY only.
+--echo # A table that never had a vector index: its first ADD finds it too.
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
                      (7, STRING_TO_VECTOR('[1,0]'));

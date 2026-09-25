@@ -1,0 +1,58 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("Invalid audit query charset or buffer");
+call mtr.add_suppression("std::bad_alloc");
+SELECT audit_log_filter_set_filter('failure', '{"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.str","value":"SELECT 10355 AS secret_query_marker"}}}}}}');
+SELECT audit_log_filter_set_user('root@localhost', 'failure');
+--source include/count_sessions.inc
+connect (logged,localhost,root,,test);
+connection default;
+--let charset_dir = `SELECT @@datadir`
+SELECT audit_log_rotate();
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written');
+connection logged;
+SET SESSION debug='+d,audit_log_filter_unknown_query_charset';
+SELECT 10355 AS secret_query_marker;
+DO 0;
+SET SESSION debug='-d,audit_log_filter_unknown_query_charset';
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+connection logged;
+SET SESSION debug='+d,audit_log_filter_query_output_bad_alloc';
+SELECT 10355 AS secret_query_marker;
+DO 0;
+SET SESSION debug='-d,audit_log_filter_query_output_bad_alloc';
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+--let charset_closed = `SELECT audit_log_rotate()`
+perl;
+  use strict;
+  use warnings;
+  for my $path ("$ENV{charset_dir}/$ENV{charset_closed}", "$ENV{MYSQLTEST_VARDIR}/log/mysqld.1.err") {
+    open my $f, '<:raw', $path or die "$path: $!";
+    local $/;
+    die 'Failed query leaked' if <$f> =~ /secret_query_marker/;
+  }
+EOF
+connection logged;
+SELECT 10355 AS secret_query_marker;
+DO 0;
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--enable_query_log
+disconnect logged;
+--source include/wait_until_count_sessions.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

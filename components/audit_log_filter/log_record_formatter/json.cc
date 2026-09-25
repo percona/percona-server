@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "components/audit_log_filter/log_record_formatter/json.h"
+#include "components/audit_log_filter/json_escape.h"
 #include "components/audit_log_filter/sys_vars.h"
 
 #define ALLOW_COMPONENT_INCLUDE  // for my_io.h
@@ -334,9 +335,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto esc_command = make_escaped_string(extra.command);
   const auto esc_sql_command = make_escaped_string(extra.sql_command);
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(extra.query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -460,9 +459,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto esc_external_user = make_escaped_string(extra.external_user);
   const auto esc_proxy_user = make_escaped_string(extra.proxy_user);
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(extra.query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -588,9 +585,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto rec_id = make_record_id();
 
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(&audit_record.event->query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -794,9 +789,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto rec_id = make_record_id();
 
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(&audit_record.event->query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
   const auto flags =
       audit_record.event->flags != nullptr ? *audit_record.event->flags : 0;
 
@@ -811,7 +804,7 @@ AuditRecordString LogRecordFormatterJson::apply(
            << R"(    "parse_data": {)" << "\n"
            << R"(      "flags": )" << flags << ",\n"
            << R"(      "query": ")" << esc_query << "\",\n"
-           << R"(      "rewritten_query": ")" << make_escaped_string(audit_record.event->rewritten_query) << "\"}"
+           << R"(      "rewritten_query": ")" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << "\"}"
            << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
   } else {
     format_jsonl_header(result, timestamp, time_now);
@@ -822,7 +815,7 @@ AuditRecordString LogRecordFormatterJson::apply(
            << R"("connection_id": )" << audit_record.event->connection_id << ", "
            << R"("parse_data": { "flags": )" << flags
            << R"(, "query": ")" << esc_query
-           << R"(", "rewritten_query": ")" << make_escaped_string(audit_record.event->rewritten_query) << R"(" })"
+           << R"(", "rewritten_query": ")" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << R"(" })"
            << extra_attrs_to_string_jsonl(audit_record.extended_info) << " }";
   }
   /* clang-format on */
@@ -943,20 +936,9 @@ std::string LogRecordFormatterJson::get_record_separator() const noexcept {
   return ",\n";
 }
 
-const EscapeRulesContainer &LogRecordFormatterJson::get_escape_rules()
-    const noexcept {
-  static const EscapeRulesContainer escape_rules = {
-      {0, "\\u0000"},  {1, "\\u0001"},  {2, "\\u0002"},  {3, "\\u0003"},
-      {4, "\\u0004"},  {5, "\\u0005"},  {6, "\\u0006"},  {7, "\\u0007"},
-      {'\b', "\\b"},   {'\t', "\\t"},   {'\n', "\\n"},   {11, "\\u000B"},
-      {'\f', "\\f"},   {'\r', "\\r"},   {14, "\\u000E"}, {15, "\\u000F"},
-      {16, "\\u0010"}, {17, "\\u0011"}, {18, "\\u0012"}, {19, "\\u0013"},
-      {20, "\\u0014"}, {21, "\\u0015"}, {22, "\\u0016"}, {23, "\\u0017"},
-      {24, "\\u0018"}, {25, "\\u0019"}, {26, "\\u001A"}, {27, "\\u001B"},
-      {28, "\\u001C"}, {29, "\\u001D"}, {30, "\\u001E"}, {31, "\\u001F"},
-      {'\\', "\\\\"},  {'"', "\\\""}};
-
-  return escape_rules;
+void LogRecordFormatterJson::append_escaped(std::string &out,
+                                            std::string_view in) const {
+  append_json_escaped(out, in);
 }
 
 std::string LogRecordFormatterJson::make_timestamp(

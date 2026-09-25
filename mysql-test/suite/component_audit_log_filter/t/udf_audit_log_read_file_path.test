@@ -1,0 +1,62 @@
+--echo #
+--echo # PS-11562: audit_log_read() is broken when storing logs outside of the
+--echo #           data directory
+--echo # https://perconadev.atlassian.net/browse/PS-11562
+--echo #
+
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+CREATE TABLE t1 (c1 INT);
+SELECT audit_log_filter_set_filter('log_inserts', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": true}}}}');
+SELECT audit_log_filter_set_user('%', 'log_inserts');
+
+--let $data_dir = `SELECT @@datadir`
+--let $absolute_log_dir = $MYSQL_TMP_DIR/audit_read_absolute
+--let $relative_log_dir = $data_dir/audit_read_relative
+--mkdir $absolute_log_dir
+--mkdir $relative_log_dir
+
+--let $path_count = 2
+while ($path_count)
+{
+  --let $log_file = ./audit_read_relative/audit.log
+  --let $path_type = relative
+  if ($path_count == 2)
+  {
+    --let $log_file = $absolute_log_dir/audit.log
+    --let $path_type = absolute
+  }
+  --echo # Read using $path_type path
+  --let $do_not_echo_parameters = 1
+  --let $restart_parameters = restart: --audit-log-filter.file=$log_file
+  --source include/restart_mysqld.inc
+
+  SET GLOBAL DEBUG='+d,audit_log_filter_debug_timestamp';
+  INSERT INTO t1 VALUES (1);
+  SET @bookmark = JSON_SET(audit_log_read_bookmark(), '$.max_array_length', 1);
+  --let $rotated_file = `SELECT audit_log_rotate()`
+  INSERT INTO t1 VALUES (2);
+  --let $rotated_file = `SELECT audit_log_rotate()`
+
+  SELECT JSON_UNQUOTE(JSON_EXTRACT(audit_log_read(@bookmark), '$[0].table_access_data.query')) AS first_query;
+  SELECT JSON_UNQUOTE(JSON_EXTRACT(audit_log_read(), '$[0].table_access_data.query')) AS next_query;
+  SELECT audit_log_read('null');
+  SET GLOBAL DEBUG='-d,audit_log_filter_debug_timestamp';
+  --dec $path_count
+}
+
+--echo # Restore the default audit_log_filter.file before removing its directory
+--let $do_not_echo_parameters = 0
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+DROP TABLE t1;
+--remove_files_wildcard $absolute_log_dir *
+--remove_files_wildcard $relative_log_dir *
+--rmdir $absolute_log_dir
+--rmdir $relative_log_dir

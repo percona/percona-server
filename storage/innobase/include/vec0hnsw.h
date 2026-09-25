@@ -143,8 +143,10 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
 
   /* Record 0 is the metadata record, never a node. No stub is ever made
   for it: the entry point is refused as 0 by vec_runtime_load, and a 0 on
-  a neighbour list is an empty slot, which load_node_neighbors skips. */
+  a neighbour list is an empty slot, which load_node_neighbors skips. Should
+  one get here anyway, refuse it rather than read the metadata as a node. */
   ut_ad(id != 0);
+  if (id == 0) return DB_INDEX_CORRUPT;
 
   mem_heap_t *heap = mem_heap_create(1024, UT_LOCATION_HERE);
   vec_aux_read_t node;
@@ -155,9 +157,16 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
     the graph says the node must exist, and it does not. The graph and
     the aux disagree, which is what DB_INDEX_CORRUPT means, as it is for a
     malformed row. DB_RECORD_NOT_FOUND would reach the client as
-    HA_ERR_NO_ACTIVE_RECORD, indistinguishable from a missing row. */
-    if (err == DB_RECORD_NOT_FOUND) vec_report_missing_node(ctx->thd, id);
-    return DB_INDEX_CORRUPT;
+    HA_ERR_NO_ACTIVE_RECORD, indistinguishable from a missing row.
+
+    Anything else is passed back as it is. vec_aux_read_node takes no locks
+    and returns nothing else today, but a transient error (a lock wait, an
+    interrupt) must stay retryable, not become corruption that sticks. */
+    if (err == DB_RECORD_NOT_FOUND) {
+      vec_report_missing_node(ctx->thd, id);
+      return DB_INDEX_CORRUPT;
+    }
+    return err;
   }
 
   if (node.vec_len != ctx->vec_bytes) {

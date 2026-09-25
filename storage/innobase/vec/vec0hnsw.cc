@@ -644,8 +644,8 @@ static dberr_t vec_add_node(vec_t *vec, dict_index_t *index,
   }
 
   /* Before the sub-transaction: the load reads the aux without one. */
-  if (const dberr_t lerr = vec_runtime_load_once(vec, index, aux, thd);
-      lerr != DB_SUCCESS) {
+  const dberr_t lerr = vec_runtime_load_once(vec, index, aux, thd);
+  if (lerr != DB_SUCCESS) {
     vec_aux_close_for_dml(aux, thd, &mdl);
     return lerr;
   }
@@ -741,10 +741,17 @@ vector scan, which is why the aux table and its MDL live here rather than
 being re-taken per batch: nn_search_next faults nodes in through
 load_node_cb, and that reads ctx.aux. */
 struct vec_search_t {
+  /** The graph being searched: base_index->vec. */
   vec_t *vec{nullptr};
-  dict_index_t *index{nullptr};
+  /** The base table's vector index: owns the runtime and is what a
+  corruption found mid-scan marks. Not the aux table's clustered index. */
+  dict_index_t *base_index{nullptr};
+  /** MDL on the aux table, held until vec_ann_close(). */
   MDL_ticket *mdl{nullptr};
+  /** What the load callbacks read: the aux table (ctx.aux), the session,
+  and the first failure (ctx.err). No trx: a search only reads. */
   Vec_ctx ctx;
+  /** HNSW's resumable search state, one batch per nn_search_next(). */
   Vec_hnsw::NNSearchContext nn;
 };
 
@@ -753,10 +760,10 @@ the load path follows: the index is marked corrupt, and stays refused until
 it is rebuilt. HNSW has marked the node lost and will not retry it, so a
 later search would otherwise answer without it.
 @param[in,out]  s  the scan whose ctx.err is set */
-static void vec_ann_note_error(vec_search_t *s) {
+static void vec_ann_set_corrupted(vec_search_t *s) {
   if (s->ctx.err != DB_INDEX_CORRUPT) return;
   vec_runtime_set_corrupted(s->vec);
-  dict_set_corrupted(s->index);
+  dict_set_corrupted(s->base_index);
 }
 
 dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
@@ -784,7 +791,7 @@ dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
 
   auto *s = ut::new_withkey<vec_search_t>(UT_NEW_THIS_FILE_PSI_KEY);
   s->vec = vec;
-  s->index = index;
+  s->base_index = index;
   s->mdl = mdl;
   s->ctx.trx = nullptr;
   s->ctx.aux = aux;
@@ -803,7 +810,7 @@ dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
     s->ctx.err = vec_hnsw_dberr(src, &s->ctx);
   }
   if (s->ctx.err != DB_SUCCESS) {
-    vec_ann_note_error(s);
+    vec_ann_set_corrupted(s);
     const dberr_t err = s->ctx.err;
     vec_ann_close(s);
     return err;
@@ -819,7 +826,7 @@ bool vec_ann_next(vec_search_t *s, vec_hit_t *hit) {
 
   const auto next = s->vec->hnsw->nn_search_next(&s->nn);
   if (s->ctx.err != DB_SUCCESS) {
-    vec_ann_note_error(s);
+    vec_ann_set_corrupted(s);
     return false;
   }
   /* HNSW_NOT_FOUND is the ordinary end of the scan here, not a failure -
@@ -827,7 +834,7 @@ bool vec_ann_next(vec_search_t *s, vec_hit_t *hit) {
   if (next.first == HNSW_NOT_FOUND) return false;
   if (next.first != HNSW_SUCCESS) {
     s->ctx.err = vec_hnsw_dberr(next.first, &s->ctx);
-    vec_ann_note_error(s);
+    vec_ann_set_corrupted(s);
     return false;
   }
 
@@ -956,7 +963,10 @@ BIGINT UNSIGNED primary key, so it is the first clustered field. */
 static uint64_t vec_row_base_pk(const dict_table_t *table,
                                 const dtuple_t *row) {
   const dict_index_t *clust = table->first_index();
+  /* MVP: the primary key is one BIGINT UNSIGNED column, refused otherwise
+  at CREATE and ALTER. The aux stores it as the node's base_pk. */
   ut_ad(dict_index_get_n_unique(clust) == 1);
+  ut_ad(clust->get_col(0)->prtype & DATA_UNSIGNED);
   const dfield_t *pk_df = dtuple_get_nth_field(row, clust->get_col_no(0));
   ut_ad(!dfield_is_null(pk_df) && dfield_get_len(pk_df) == 8);
   return mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
@@ -1111,8 +1121,7 @@ void vec_build_free(Vec_build *b) {
 }
 
 dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
-                       ulint q_len [[maybe_unused]], uint64_t base_pk,
-                       THD *thd) {
+                       ulint q_len, uint64_t base_pk, THD *thd) {
   ut_ad(label != 0);
 
   for (dict_index_t *index = table->first_index(); index != nullptr;
@@ -1122,8 +1131,10 @@ dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
     if (vec == nullptr) return vec_runtime_unavailable(index);
     /* handler::ha_update_row refused a written vector of the wrong length
     before update_row() was called, and a label is only assigned when the
-    vector column changed. */
+    vector column changed. Should one get here anyway, refuse it: the graph
+    would read past a short vector. */
     ut_ad(q_len == vec->dims * sizeof(float));
+    if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
   }
@@ -1158,9 +1169,17 @@ dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd) {
     const uint64_t base_pk = vec_row_base_pk(table, row);
 
     /* Label 0 is the empty-slot sentinel and can never be a node. A row
-    carrying it means the writing path missed it. */
+    carrying it means the writing path missed it: refuse the row rather than
+    build a node under the id of the aux's metadata record, or skip it and
+    leave the row out of the index. */
     const uint64_t label = vec_get_aux_id_from_row(table, row);
     ut_ad(label != 0);
+    if (label == 0) {
+      ib::error(ER_IB_MSG_456)
+          << "Vector index " << index->name << " on table " << table->name
+          << ": a row reached the index with label 0; the statement fails.";
+      return DB_INDEX_CORRUPT;
+    }
 
     /* base_pk is the base row's PRIMARY KEY, not the label. A search
     returns base_pk so the caller can fetch the row; the label

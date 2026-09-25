@@ -1128,6 +1128,11 @@ dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
     if (!index->is_vector()) continue;
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
+    /* handler::ha_update_row refused a written vector of the wrong length
+    before update_row() was called, and a label is only assigned when the
+    vector column changed. Should one get here anyway, refuse it: the graph
+    would read past a short vector. */
+    ut_ad(q_len == vec->dims * sizeof(float));
     if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;

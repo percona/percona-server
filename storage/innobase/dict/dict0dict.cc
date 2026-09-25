@@ -869,6 +869,19 @@ bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
   return (log && dict_persist->check_persist_immediately());
 }
 
+/** Raise the persisted watermark of a table's vector label counter to
+value, never lowering it: a CAS-max, since racing assigners raise it
+concurrently. dict_table_vec_next_id_log() calls it before writing the
+record, and says why that order is the safe one.
+@param[in,out]  table  the table
+@param[in]      value  the id about to be logged */
+static void vec_next_id_raise_watermark(dict_table_t *table, uint64_t value) {
+  uint64_t prev = table->vec_aux_autoinc_persisted.load();
+  while (prev < value &&
+         !table->vec_aux_autoinc_persisted.compare_exchange_weak(prev, value)) {
+  }
+}
+
 bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
                                 mtr_t *mtr) {
   /* Raise the watermark FIRST, before the dirty handshake below. That
@@ -907,7 +920,7 @@ bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
   that may never be written - see PS-autoinc-persist-crash-window.md. We
   always log. The mtr the caller hands us is committed either way, so the
   cost is one record in an mtr that was being committed anyway. */
-  dict_table_vec_next_id_persisted_advance(table, value);
+  vec_next_id_raise_watermark(table, value);
 
   if (table->dirty_status.load() != METADATA_DIRTY) {
     dict_table_mark_dirty(table);
@@ -922,18 +935,6 @@ bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
   /* No need to flush due to performance reason */
 
   return (dict_persist->check_persist_immediately());
-}
-
-void dict_table_vec_next_id_persisted_advance(dict_table_t *table,
-                                              uint64_t value) {
-  /* CAS-max so the watermark never regresses under racing assigners.
-  Called only after the covering record's mini-transaction has
-  committed - see the ordering argument in
-  dict_table_vec_next_id_log. */
-  uint64_t prev = table->vec_aux_autoinc_persisted.load();
-  while (prev < value &&
-         !table->vec_aux_autoinc_persisted.compare_exchange_weak(prev, value)) {
-  }
 }
 
 /** Get all the FTS indexes on a table.

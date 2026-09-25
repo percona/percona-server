@@ -76,7 +76,7 @@ open; "parse" here is not a promise that nothing is rejected.
 @param[in]   params  the WITH(...) pairs, empty for none
 @param[out]  vip     the parameters, on success
 @return true on error */
-bool parse_options(LEX_CSTRING type, const Vector_index_params_YY *params,
+bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
                    VectorIndexParam &vip);
 
 /** DDL-time overload: checks the shape, then the contents. */

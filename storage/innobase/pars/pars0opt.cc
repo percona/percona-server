@@ -302,10 +302,10 @@ static ulint opt_calc_index_goodness(
 
   /* At least for now we don't support using FTS indexes, vector
   indexes, or virtual indexes for queries done through InnoDB's
-  own SQL parser. None of the tables the parser is pointed at - the
-  data dictionary, the FTS aux tables, the persistent statistics
-  tables - carries a vector index, so the vector arm is unreachable
-  today; it is here to keep the filter symmetric. */
+  own SQL parser. The vector arm is reached: FULLTEXT runs internal SQL
+  against the base table itself (fetching a document by FTS_DOC_ID), and
+  a table can have both a FULLTEXT and a vector index. A vector index has
+  no key fields to match, so it must never be chosen here. */
   if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS) ||
       dict_index_is_vector(index) || dict_index_has_virtual(index)) {
     return (0);

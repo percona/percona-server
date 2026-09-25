@@ -131,12 +131,13 @@ TEST_F(Vec0VecTest, HnswNoOptionList) {
   EXPECT_EQ(200, get<HnswParam>(m_vip).ef_construction);
 }
 
-/* The core overload is what table open uses; exercise it directly with a
-NULL params pointer, which no Key_spec path can produce. */
-TEST_F(Vec0VecTest, ParseFieldsNullParams) {
+/* The core overload is what table open uses; exercise it directly with
+no WITH(...) options, which gives the defaults. */
+TEST_F(Vec0VecTest, ParseFieldsNoParams) {
   VectorIndexParam vip;
   LEX_CSTRING hnsw{STRING_WITH_LEN("hnsw")};
-  EXPECT_FALSE(parse_options(hnsw, nullptr, vip));
+  const Vector_index_params_YY no_params{};
+  EXPECT_FALSE(parse_options(hnsw, no_params, vip));
   ASSERT_TRUE(holds_alternative<HnswParam>(vip));
   EXPECT_EQ(25, get<HnswParam>(vip).M);
 }

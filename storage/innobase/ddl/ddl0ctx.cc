@@ -40,7 +40,6 @@ Created 2020-11-01 by Sunny Bains. */
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "row0log.h"
-#include "vec0hnsw.h"
 
 namespace ddl {
 
@@ -88,15 +87,9 @@ Context::Context(trx_t *trx, dict_table_t *old_table, dict_table_t *new_table,
   for (size_t i = 0; i < n_indexes; ++i) {
     m_indexes.push_back(indexes[i]);
 
-    if (m_indexes.size() == 1) {
+    if (i == 0) {
       ut_a(!m_skip_pk_sort || m_indexes.back()->is_clustered());
-      /* A vector index has no key fields, and never reaches the sort:
-      Builder::set_next_state sends it from ADD straight to VEC_BUILD. It
-      must not set m_n_uniq either, which feeds Compare_key through
-      setup_pk_sort and asserts n_unique > 0. */
-      if (!m_indexes.back()->is_vector()) {
-        m_n_uniq = dict_index_get_n_unique(m_indexes.back());
-      }
+      m_n_uniq = dict_index_get_n_unique(m_indexes.back());
     }
 
     if (!dict_index_is_spatial(m_indexes.back())) {
@@ -521,21 +514,9 @@ dberr_t Context::read_init(Cursor *cursor) noexcept {
 }
 
 dberr_t Context::build() noexcept {
-  /* If every requested index was filtered out (e.g. ALTER ADD only
-  vector indexes), there is nothing to merge-sort. The Loader's
-  Parallel_cursor asserts on an empty builder set, so short-circuit
-  here. The dict_index_t entries were already added to dict_sys
-  during prepare; the build phase has no per-row work for vector
-  indexes in phase 1. */
-  if (m_indexes.empty()) {
-    return cleanup(DB_SUCCESS);
-  }
-
   Loader loader{*this};
 
-  auto err = loader.build_all();
-
-  err = cleanup(err);
+  const auto err = cleanup(loader.build_all());
 
   /* Validate the indexes  after the pages have been flushed to disk.
   Otherwise we can deadlock between flushing and is_free page check. */

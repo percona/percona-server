@@ -247,18 +247,6 @@ immediately (mirror of dict_table_autoinc_log's contract). */
 bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
                                 mtr_t *mtr);
 
-/** Advance the persisted watermark for a table's vector label counter.
-
-Call this only AFTER the mini-transaction carrying the covering redo
-record has committed. Advancing earlier lets a racing assigner skip its
-own redo on the strength of a value that is not yet durable, which is
-how labels get reissued after a crash - see the ordering argument in
-dict_table_vec_next_id_log.
-@param[in,out]  table  the table
-@param[in]      value  the id that has now been logged */
-void dict_table_vec_next_id_persisted_advance(dict_table_t *table,
-                                              uint64_t value);
-
 /** Check if a table has an autoinc counter column.
 @param[in]      table   table
 @return true if there is an autoinc column in the table, otherwise false. */

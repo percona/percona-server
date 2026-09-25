@@ -546,6 +546,13 @@ ADD_SUBDIRECTORY(libs/utils)
 ADD_SUBDIRECTORY(libs/uuids)
 
 IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
+  MYSQL_ADD_EXECUTABLE(audit_json_handler-t
+    audit_json_handler-t.cc
+    ../../components/audit_log_filter/json_reader/audit_json_handler.cc
+    ../../components/audit_log_filter/audit_psi_info.cc
+    ADD_TEST audit_json_handler
+    LINK_LIBRARIES gunit_small
+  )
   MYSQL_ADD_EXECUTABLE(audit_query_charset-t
     audit_query_charset-t.cc
     ../../components/audit_log_filter/charset_conversion.cc

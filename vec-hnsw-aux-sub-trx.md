@@ -1940,3 +1940,47 @@ they replicate the graph, force determinism, or accept divergence. Worth checkin
 since matching an existing convention is worth more than inventing one. Raised for the server
 layer (Martin) because the decision is about user-visible semantics, not storage.
 
+
+## 42. `ALGORITHM=COPY` writes the aux through the DML path
+
+A COPY rebuild of a table with a vector index builds the aux one row at a time. Each copied row
+reaches `vec_insert_row()`, which writes its node on an aux sub-transaction and rewrites its
+neighbours' rows as the graph grows - all through the normal undo and redo path. The
+intermediate base table skips undo (`dict_table_t::skip_alter_undo`, set at
+`HA_EXTRA_BEGIN_ALTER_COPY`), but upstream allows that for inserts only: the update, undo and
+purge paths assert against it, and the aux takes updates.
+
+`INPLACE` builds the same kind of graph in memory with `Vec_null_persistor` and writes each node
+once, in id order, through `Vec_aux_bulk` and `Btree_load` (§15). So a COPY-built aux is correct
+but larger, slower to build, and leaves undo for purge. The two graphs are equivalent, not
+identical: HNSW depends on insertion order and on its layer draws (§40).
+
+The follow-up reuses the INPLACE pieces rather than extending `skip_alter_undo` to updates:
+
+```
+  COPY today        write_row -> vec_insert_row -> aux sub-trx (undo + redo, per node and neighbour)
+  COPY, follow-up   write_row -> Vec_build (null persistor, graph in memory)
+                    HA_EXTRA_END_ALTER_COPY -> vec_build_write_aux -> Vec_aux_bulk -> Btree_load
+```
+
+Roughly 150-250 lines plus tests (COPY ADD, a COPY rebuild via a column type change, the memory
+ceiling during COPY, a failed COPY). Not needed for the MVP: the first ADD is INPLACE, so COPY
+with a vector index happens only with an explicit `ALGORITHM=COPY` or an `ALTER` that INPLACE
+cannot do.
+
+## 43. The first `ADD VECTOR INDEX` scans on one thread
+
+The first ADD is a rebuild that keeps the primary key. The new clustered index is then written
+bottom-up straight from the scan, without a sort (`skip_pk_sort`), and upstream's
+`Parallel_cursor::scan()` drops to one thread for any builder that skips the sort: a parallel
+scan hands out key ranges and would feed `Btree_load` out of order. The vector builder shares
+that scan, so every HNSW insert of the first ADD runs on one thread. A later ADD is not a rebuild,
+has no clustered builder, and scans in parallel.
+
+Persistence is the same for both: the graph is built with the null persistor and the aux written
+in bulk (§15). Only the scan's thread count differs.
+
+The follow-up is upstream's own path for a changed primary key: take the sort
+(`skip_pk_sort = false`) when the rebuild adds the hidden column, so the scan and the graph
+inserts run on `innodb_parallel_read_threads` threads. It trades a merge sort of the clustered
+rows for a parallel graph build; measure on a large table before deciding.

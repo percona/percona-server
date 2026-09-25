@@ -58,9 +58,7 @@ AuditRecordString LogRecordFormatterNew::apply(
   std::stringstream result;
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
-  const auto &sqltext = (audit_record.extended_info.digest.empty()
-                             ? audit_record.extended_info.query
-                             : audit_record.extended_info.digest);
+  const auto &sqltext = query_output(audit_record.extended_info);
 
   /* clang-format off */
   result << " <AUDIT_RECORD>\n"
@@ -135,8 +133,7 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  " << make_xml_element("HOST", make_escaped_string(audit_record.extended_info.host)) << "\n"
          << "  " << make_xml_element("IP", make_escaped_string(audit_record.extended_info.ip)) << "\n"
          << "  " << make_xml_element("COMMAND_CLASS", audit_record.extended_info.sql_command) << "\n"
-         << "  <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(audit_record.extended_info.query)
-                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
+         << "  <SQLTEXT>" << make_escaped_string(query_output(audit_record.extended_info)) << "</SQLTEXT>\n"
          << "  <DB>" << make_escaped_string(&audit_record.event->table_database) << "</DB>\n"
          << "  <TABLE>" << make_escaped_string(&audit_record.event->table_name) << "</TABLE>\n"
          << " </AUDIT_RECORD>\n";
@@ -197,8 +194,7 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  <STATUS>" << audit_record.event->status << "</STATUS>\n"
          << "  <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "  <COMMAND_CLASS>" << make_escaped_string(audit_record.event->sql_command) << "</COMMAND_CLASS>\n"
-         << "  <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(&audit_record.event->query)
-                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
+         << "  <SQLTEXT>" << make_escaped_string(query_output(audit_record.extended_info)) << "</SQLTEXT>\n"
          << " </AUDIT_RECORD>\n";
   /* clang-format on */
 
@@ -313,9 +309,8 @@ AuditRecordString LogRecordFormatterNew::apply(
          << "  <COMMAND_CLASS>" << event_class_to_string(audit_record.event_class) << "</COMMAND_CLASS>\n"
          << "  <CONNECTION_ID>" << audit_record.event->connection_id << "</CONNECTION_ID>\n"
          << "  <FLAGS>" << (audit_record.event->flags != nullptr ? *audit_record.event->flags : 0) << "</FLAGS>\n"
-         << "  <SQLTEXT>" << (audit_record.extended_info.digest.empty() ? make_escaped_string(&audit_record.event->query)
-                                                                          : make_escaped_string(audit_record.extended_info.digest)) << "</SQLTEXT>\n"
-         << "  <REWRITTEN_QUERY>" << make_escaped_string(audit_record.event->rewritten_query) << "</REWRITTEN_QUERY>\n"
+         << "  <SQLTEXT>" << make_escaped_string(query_output(audit_record.extended_info)) << "</SQLTEXT>\n"
+         << "  <REWRITTEN_QUERY>" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << "</REWRITTEN_QUERY>\n"
          << " </AUDIT_RECORD>\n";
   /* clang-format on */
 

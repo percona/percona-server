@@ -120,21 +120,16 @@ uint64_t LogRecordFormatterBase::make_record_id() const noexcept {
   return SysVars::get_next_record_id();
 }
 
+const std::string &LogRecordFormatterBase::query_output(
+    const ExtendedInfo &extra) noexcept {
+  assert(extra.query_output.has_value());
+  return extra.query_output->query;
+}
+
 std::string LogRecordFormatterBase::make_escaped_string(
     const char *in) const noexcept {
   std::string out;
-  if (in != nullptr) {
-    const auto &escape_rules = get_escape_rules();
-
-    for (const char *ptr = in; *ptr != '\0'; ++ptr) {
-      const auto it = escape_rules.find(*ptr);
-      if (it == escape_rules.end()) {
-        out.append(ptr, 1);
-      } else {
-        out.append(it->second);
-      }
-    }
-  }
+  if (in != nullptr) append_escaped(out, in);
 
   return out;
 }
@@ -150,17 +145,7 @@ std::string LogRecordFormatterBase::make_escaped_string(
   std::string out;
 
   if (in != nullptr && in->str != nullptr && in->length != 0) {
-    const auto &escape_rules = get_escape_rules();
-
-    for (const char *ptr = in->str, *en = in->str + in->length; ptr < en;
-         ++ptr) {
-      const auto it = escape_rules.find(*ptr);
-      if (it == escape_rules.end()) {
-        out.append(ptr, 1);
-      } else {
-        out.append(it->second);
-      }
-    }
+    append_escaped(out, {in->str, in->length});
   }
 
   return out;
@@ -415,8 +400,7 @@ std::string LogRecordFormatterBaseXml::get_record_separator() const noexcept {
   return "";
 }
 
-const EscapeRulesContainer &LogRecordFormatterBaseXml::get_escape_rules()
-    const noexcept {
+const EscapeRulesContainer &LogRecordFormatterBaseXml::get_escape_rules() {
   // Although most control sequences aren't supported in XML 1.0, we are better
   // off printing them anyway instead of the original control characters
   static const EscapeRulesContainer escape_rules = {
@@ -431,6 +415,20 @@ const EscapeRulesContainer &LogRecordFormatterBaseXml::get_escape_rules()
       {'<', "&lt;"}, {'>', "&gt;"},   {'&', "&amp;"},  {'"', "&quot;"}};
 
   return escape_rules;
+}
+
+void LogRecordFormatterBaseXml::append_escaped(std::string &out,
+                                               std::string_view in) const {
+  const auto &escape_rules = get_escape_rules();
+
+  for (const char c : in) {
+    const auto it = escape_rules.find(c);
+    if (it == escape_rules.end()) {
+      out.push_back(c);
+    } else {
+      out.append(it->second);
+    }
+  }
 }
 
 std::string LogRecordFormatterBaseXml::make_timestamp(

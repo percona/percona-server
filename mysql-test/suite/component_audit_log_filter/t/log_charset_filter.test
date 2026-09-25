@@ -1,0 +1,48 @@
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+--disable_query_log
+--disable_result_log
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SET NAMES utf8mb4;
+CREATE USER charset_filter@localhost;
+GRANT SELECT ON test.* TO charset_filter@localhost;
+CREATE TABLE charset_filter_data (id INT);
+INSERT INTO charset_filter_data VALUES (1);
+--let charset_dir = `SELECT @@datadir`
+--let charset_sql = $MYSQLTEST_VARDIR/tmp/charset_filter.sql
+SET GLOBAL audit_log_filter.event_mode=FULL;
+--let charset_class = general
+--let charset_event = status
+--let charset_field = general_query
+--source log_charset_filter.inc
+SET GLOBAL audit_log_filter.event_mode=FULL;
+--let charset_class = query
+--let charset_event = start
+--let charset_field = query
+--source log_charset_filter.inc
+SET GLOBAL audit_log_filter.event_mode=FULL;
+--let charset_class = table_access
+--let charset_event = read
+--let charset_field = query
+--source log_charset_filter.inc
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+--let charset_class = general
+--let charset_event = status
+--let charset_field = general_query
+--source log_charset_filter.inc
+SET GLOBAL audit_log_filter.event_mode=REDUCED;
+--let charset_class = table_access
+--let charset_event = read
+--let charset_field = query
+--source log_charset_filter.inc
+DROP TABLE charset_filter_data;
+DROP USER charset_filter@localhost;
+--enable_result_log
+--enable_query_log
+--echo Query charset filter parity OK
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+--remove_file $charset_sql.latin1
+--remove_file $charset_sql.utf8mb4
+--remove_file $MYSQLTEST_VARDIR/tmp/charset_filter.out

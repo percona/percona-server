@@ -1,0 +1,207 @@
+--source include/not_valgrind.inc
+
+--echo #
+--echo # A torn write of the first page of a tablespace leaves arbitrary
+--echo # bytes in the tablespace flags.  Recovery must treat such a page as
+--echo # corrupted and restore it from the doublewrite buffer, instead of
+--echo # deriving a page size or the encryption attribute from the garbage
+--echo # and refusing to start.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Tablespace flags are invalid in datafile");
+call mtr.add_suppression("Space ID in fsp header is");
+call mtr.add_suppression("Checksum mismatch in datafile");
+call mtr.add_suppression("uses page size \\d+, but the innodb_page_size start-up parameter is");
+--enable_query_log
+
+let MYSQLD_DATADIR=`select @@datadir`;
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+                      (3, repeat('/', 12)), (4, repeat('-', 12));
+
+--echo #
+--echo # 1. Flags that are not valid at all: every bit set.
+--echo #
+
+--echo # Write the dirty pages of t1, including its first page, through the
+--echo # doublewrite buffer, then kill the server before anything else can
+--echo # reuse the doublewrite slots.  A committed change of a data page,
+--echo # which the page cleaner is not allowed to write, keeps redo for the
+--echo # tablespace ahead of the checkpoint, so that recovery opens its
+--echo # file.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('#', 12) WHERE f1 = 1;
+
+--source include/kill_mysqld.inc
+
+--echo # Overwrite the FIL and FSP headers of page 0 with garbage: all bits
+--echo # of the tablespace flags set, including the unused ones and the
+--echo # encryption bit.
+perl;
+use IO::Handle;
+my $fname = "$ENV{'MYSQLD_DATADIR'}/test/t1.ibd";
+open(FILE, "+<", $fname) or die "cannot open $fname: $!";
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, 0, SEEK_SET);
+print FILE chr(0xff) x 64;
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_PATTERN= Tablespace flags are invalid in datafile: .*t1.ibd;
+--source include/search_pattern.inc
+let SEARCH_PATTERN= Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd. from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo #
+--echo # 2. Flags that are valid, but corrupted: they encode another page
+--echo #    size and the encryption attribute.  The rest of the page is left
+--echo #    as it was, so the flags are the only damage.  The page size
+--echo #    mismatch is reported, then the page is restored from the
+--echo #    doublewrite buffer like any other damaged first page: the
+--echo #    encryption attribute must not prevent that.
+--echo #
+
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('*', 12) WHERE f1 = 1;
+
+--source include/kill_mysqld.inc
+
+perl;
+use IO::Handle;
+use Fcntl qw(SEEK_SET);
+my $fname = "$ENV{'MYSQLD_DATADIR'}/test/t1.ibd";
+# FSP_HEADER_OFFSET + FSP_SPACE_FLAGS
+my $flags_off = 38 + 16;
+# log2(size) - 9, as FSP_FLAGS_GET_PAGE_SSIZE() stores it; 4K unless the
+# server runs 4K pages, then 8K
+my $other_ssize = $ENV{'INNODB_PAGE_SIZE'} == 4096 ? 4 : 3;
+open(FILE, "+<", $fname) or die "cannot open $fname: $!";
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $flags_off, SEEK_SET);
+read(FILE, my $buf, 4) == 4 or die "short read";
+my $flags = unpack("N", $buf);
+# FSP_FLAGS_MASK_PAGE_SSIZE: bits 6-9; FSP_FLAGS_MASK_ENCRYPTION: bit 13
+$flags = ($flags & ~(0xf << 6)) | ($other_ssize << 6) | (1 << 13);
+seek(FILE, $flags_off, SEEK_SET);
+print FILE pack("N", $flags);
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_PATTERN= Data file .*t1.ibd. uses page size \d+, but the innodb_page_size start-up parameter is $INNODB_PAGE_SIZE;
+--source include/search_pattern.inc
+let SEARCH_PATTERN= Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd. from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+--echo #
+--echo # 3. Control: a file that really is of another page size.  Its first
+--echo #    page is intact and names the space id it belongs to, so the
+--echo #    directory scan files it under that id, and recovery finds no
+--echo #    file for the tablespace the redo log needs.  The file must be
+--echo #    rejected, not rewritten from the doublewrite buffer.
+--echo #
+
+let $other_page_size = 4096;
+if ($INNODB_PAGE_SIZE == 4096) {
+  let $other_page_size = 8192;
+}
+
+--echo # Create t1 in a second data directory with the other page size.
+--echo # Tablespaces created before it give it a space id the first data
+--echo # directory has not used, so no doublewrite copy can match it.
+let $MYSQLD_BASEDIR= `select @@basedir`;
+let OTHER_DATADIR = $MYSQL_TMP_DIR/other_datadir;
+let BOOTSTRAP_SQL = $MYSQL_TMP_DIR/boot.sql;
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+USE test;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 16;
+CREATE TABLE t3 (a INT) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 16;
+CREATE TABLE t4 (a INT) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 16;
+CREATE TABLE t5 (a INT) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 16;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'other');
+EOF
+--exec $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=$other_page_size --basedir=$MYSQLD_BASEDIR --datadir=$OTHER_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
+
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('=', 12) WHERE f1 = 2;
+
+--source include/kill_mysqld.inc
+
+--echo # Put the other file in place of t1.ibd and try to start.
+perl;
+use Fcntl qw(SEEK_SET);
+# The two files must not claim the same space id, or the test would not
+# be testing what it says: FSP_HEADER_OFFSET + FSP_SPACE_ID
+sub space_id {
+  open(my $f, "<", $_[0]) or die "cannot open $_[0]: $!";
+  binmode $f;
+  seek($f, 38, SEEK_SET);
+  read($f, my $buf, 4) == 4 or die "short read of $_[0]";
+  close $f;
+  return unpack("N", $buf);
+}
+my $ours = space_id("$ENV{'MYSQLD_DATADIR'}/test/t1.ibd");
+my $other = space_id("$ENV{'OTHER_DATADIR'}/test/t1.ibd");
+die "both files have space id $ours" if $ours == $other;
+EOF
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQL_TMP_DIR/t1.ibd.saved
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $OTHER_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+let $OTHER_ERR = $MYSQL_TMP_DIR/other_start.err;
+--error 1
+--exec $MYSQLD_CMD --log-error=$OTHER_ERR
+
+let SEARCH_FILE= $OTHER_ERR;
+let SEARCH_PATTERN= Could not find any file associated with the tablespace ID: \d+;
+--source include/search_pattern.inc
+let SEARCH_PATTERN= Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd;
+--source include/search_pattern.inc
+
+--echo # The other file is untouched.
+--diff_files $OTHER_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+--echo # Put the real t1.ibd back and start.
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--move_file $MYSQL_TMP_DIR/t1.ibd.saved $MYSQLD_DATADIR/test/t1.ibd
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;
+--remove_file $OTHER_ERR
+--remove_file $BOOTSTRAP_SQL
+--force-rmdir $OTHER_DATADIR

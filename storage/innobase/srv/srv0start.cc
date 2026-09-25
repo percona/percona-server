@@ -2016,6 +2016,16 @@ dberr_t srv_start(bool create_new_db) {
     }
 
   } else {
+    /* The boundaries are read from the TRX_SYS page, before crash
+    recovery has restored torn pages from the doublewrite files.  If the
+    TRX_SYS page itself was torn, reading it would abort the startup, so
+    restore that one page first; the other pages of the system tablespace
+    are left to crash recovery.  The doublewrite pages were loaded when
+    the system tablespace was opened. */
+    if (!srv_read_only_mode && dblwr::is_enabled()) {
+      recv_sys->dblwr->recover(fil_space_get(TRX_SYS_SPACE), TRX_SYS_PAGE_NO);
+    }
+
     /* Load the reserved boundaries of the legacy dblwr buffer, this is
     required to check for stray reads and writes trying to access this
     reserved region in the sys tablespace.

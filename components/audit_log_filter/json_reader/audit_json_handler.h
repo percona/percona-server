@@ -44,7 +44,7 @@ class AuditJsonHandler
    * @brief Prepare handler to process next chunk of records
    *        (reset buffer and printed out records counter).
    */
-  void iterative_parse_init() noexcept;
+  void iterative_parse_init();
 
   /**
    * @brief Finish processing chunk of data which is ready to be printed out
@@ -53,7 +53,7 @@ class AuditJsonHandler
    * @param with_null_tag Indicates if terminating 'null' element should be
    *                      added to JSON array.
    */
-  void iterative_parse_close(bool with_null_tag) noexcept;
+  void iterative_parse_close(bool with_null_tag);
 
   bool Null();
   bool Bool(bool value);
@@ -96,8 +96,9 @@ class AuditJsonHandler
 
   std::unique_ptr<char, std::function<void(char *)>> m_out_buff;
   char *m_current_buff;
-  ulong m_out_buff_size;
-  ulong m_used_buff_size;
+  const size_t m_batch_size;
+  size_t m_out_buff_size;
+  size_t m_used_buff_size;
   ulong m_printed_events_count;
   bool m_reading_start_reached;
 

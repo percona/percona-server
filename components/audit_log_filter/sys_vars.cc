@@ -725,13 +725,14 @@ SysVarListType sys_vars = {
     /*
      * The audit_log_filter.read_buffer_size variable defines buffer size for
      * reading from the audit log file, in bytes. The audit_log_read() function
-     * reads no more than this many bytes. Log file reading is supported only
-     * for JSON log format.
+     * uses this as its target batch size. A single larger record is returned
+     * whole in its own batch. Log file reading supports JSON and JSONL.
      */
     {{"read_buffer_size",
       PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_RQCMDARG,
-      "The buffer size for reading from the audit log file, in bytes.", nullptr,
-      nullptr, static_cast<void *>(&check_read_buffer_size),
+      "The target batch size for reading the audit log, in bytes. A single "
+      "larger record is returned whole.",
+      nullptr, nullptr, static_cast<void *>(&check_read_buffer_size),
       static_cast<void *>(&read_buffer_size)},
      false}};
 

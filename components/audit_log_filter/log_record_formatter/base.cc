@@ -122,8 +122,16 @@ uint64_t LogRecordFormatterBase::make_record_id() const noexcept {
 
 const std::string &LogRecordFormatterBase::query_output(
     const ExtendedInfo &extra) noexcept {
-  assert(extra.query_output.has_value());
-  return extra.query_output->query;
+  // notify_event rejects unprepared records; remain safe for other callers
+  // without ever falling back to unconverted query bytes.
+  static const std::string empty;
+  return extra.query_output ? extra.query_output->query : empty;
+}
+
+const std::string &LogRecordFormatterBase::rewritten_query_output(
+    const ExtendedInfo &extra) noexcept {
+  static const std::string empty;
+  return extra.query_output ? extra.query_output->rewritten_query : empty;
 }
 
 std::string LogRecordFormatterBase::make_escaped_string(

@@ -54,6 +54,8 @@
 #include <array>
 #include <exception>
 #include <memory>
+#include <new>
+#include <stdexcept>
 #include <variant>
 
 #ifdef WIN32
@@ -697,70 +699,79 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     return 0;
   }
 
-  if (auto rec = std::get_if<AuditRecordGeneral>(&record)) {
-    set_extended_info(thd, sctx, *rec);
+  // An exception during capture, filtering, output preparation or writing
+  // loses the event. Skip and Block returns do not.
+  try {
+    if (auto rec = std::get_if<AuditRecordGeneral>(&record)) {
+      set_extended_info(thd, sctx, *rec);
 
-    if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
-        rec->extended_info.command == "Quit") {
+      if (SysVars::get_event_mode_type() == AuditLogEventModeType::Reduced &&
+          rec->extended_info.command == "Quit") {
+        return 0;
+      }
+    }
+
+    if (auto rec = std::get_if<AuditRecordQuery>(&record)) {
+      set_extended_info(thd, sctx, *rec);
+    }
+
+    if (auto rec = std::get_if<AuditRecordMessage>(&record)) {
+      set_extended_info(thd, sctx, *rec);
+    }
+
+    if (auto rec = std::get_if<AuditRecordTableAccess>(&record)) {
+      set_extended_info(thd, sctx, *rec);
+    }
+
+    if (auto rec = std::get_if<AuditRecordParse>(&record)) {
+      // Do not fetch sql_text here: it can rewrite the not-yet-parsed LEX.
+      rec->extended_info.query_charset = get_query_charset(thd);
+    }
+
+    // Apply filtering rule
+    AuditAction filter_result =
+        AuditEventFilter::apply(filter_rule.get(), record);
+
+    if (filter_result == AuditAction::Skip) {
+      SysVars::inc_events_filtered();
       return 0;
     }
-  }
 
-  if (auto rec = std::get_if<AuditRecordQuery>(&record)) {
-    set_extended_info(thd, sctx, *rec);
-  }
+    if (filter_result == AuditAction::Block &&
+        !check_abort_exempt_privilege(sctx)) {
+      auto ev_name = std::visit(
+          [](const auto &rec) -> std::string_view {
+            return rec.event_class_name;
+          },
+          record);
+      LogComponentErr(INFORMATION_LEVEL, ER_AUDIT_BLOCKED_EVENT, ev_name.data(),
+                      event_class);
+      /*
+        Report the abort ourselves. Without this the server falls back to
+        ER_AUDIT_API_ABORT with its generic "Aborted by Audit API ('%s';%d)"
+        text (sql_audit.cc, mysql_audit_notify()), which it only emits when the
+        handler left no error of its own. Keep that error number - it is what
+        the audit API uses for an aborted event - and only give it the wording
+        documented for an audit log filter abort. The blocked event class stays
+        available in the error log through ER_AUDIT_BLOCKED_EVENT above.
+      */
+      my_printf_error(ER_AUDIT_API_ABORT,
+                      "Statement was aborted by an audit log filter.", MYF(0));
+      return 1;
+    }
 
-  if (auto rec = std::get_if<AuditRecordMessage>(&record)) {
-    set_extended_info(thd, sctx, *rec);
-  }
+    if (event_class == audit_event_class_t::AUDIT_CONNECTION_CLASS) {
+      get_connection_attrs(thd, record);
+    }
 
-  if (auto rec = std::get_if<AuditRecordTableAccess>(&record)) {
-    set_extended_info(thd, sctx, *rec);
-  }
-
-  if (auto rec = std::get_if<AuditRecordParse>(&record)) {
-    // Do not fetch sql_text here: it can rewrite the not-yet-parsed LEX.
-    rec->extended_info.query_charset = get_query_charset(thd);
-  }
-
-  // Apply filtering rule
-  AuditAction filter_result =
-      AuditEventFilter::apply(filter_rule.get(), record);
-
-  if (filter_result == AuditAction::Skip) {
-    SysVars::inc_events_filtered();
-    return 0;
-  }
-
-  if (filter_result == AuditAction::Block &&
-      !check_abort_exempt_privilege(sctx)) {
-    auto ev_name = std::visit(
-        [](const auto &rec) -> std::string_view {
-          return rec.event_class_name;
-        },
-        record);
-    LogComponentErr(INFORMATION_LEVEL, ER_AUDIT_BLOCKED_EVENT, ev_name.data(),
-                    event_class);
-    /*
-      Report the abort ourselves. Without this the server falls back to
-      ER_AUDIT_API_ABORT with its generic "Aborted by Audit API ('%s';%d)"
-      text (sql_audit.cc, mysql_audit_notify()), which it only emits when the
-      handler left no error of its own. Keep that error number - it is what
-      the audit API uses for an aborted event - and only give it the wording
-      documented for an audit log filter abort. The blocked event class stays
-      available in the error log through ER_AUDIT_BLOCKED_EVENT above.
-    */
-    my_printf_error(ER_AUDIT_API_ABORT,
-                    "Statement was aborted by an audit log filter.", MYF(0));
-    return 1;
-  }
-
-  if (event_class == audit_event_class_t::AUDIT_CONNECTION_CLASS) {
-    get_connection_attrs(thd, record);
-  }
-
-  try {
     prepare_query_output(record);
+    DBUG_EXECUTE_IF("audit_log_filter_query_output_not_ready", {
+      std::visit([](auto &rec) { rec.extended_info.query_output.reset(); },
+                 record);
+    });
+    if (!query_output_is_ready(record)) {
+      throw std::runtime_error("Audit query output was not prepared");
+    }
     m_log_writer->write(record);
   } catch (...) {
     SysVars::inc_events_lost();
@@ -1023,6 +1034,8 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
 
 std::optional<std::string> AuditLogFilter::get_sql_text(MYSQL_THD thd) {
   if (!thd) return std::nullopt;
+  DBUG_EXECUTE_IF("audit_log_filter_query_capture_bad_alloc",
+                  throw std::bad_alloc(););
 
   my_h_string hstr = nullptr;
   const auto destroy = create_scope_guard([&] {
@@ -1048,6 +1061,8 @@ std::optional<std::string> AuditLogFilter::get_sql_text(MYSQL_THD thd) {
 }
 
 std::string AuditLogFilter::get_query_charset(MYSQL_THD thd) {
+  DBUG_EXECUTE_IF("audit_log_filter_query_charset_bad_alloc",
+                  throw std::bad_alloc(););
   mysql_cstring_with_length charset{};
   if (!thd ||
       mysql_service_mysql_thd_attributes->get(thd, "query_charset", &charset) ||

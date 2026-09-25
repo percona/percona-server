@@ -804,7 +804,7 @@ AuditRecordString LogRecordFormatterJson::apply(
            << R"(    "parse_data": {)" << "\n"
            << R"(      "flags": )" << flags << ",\n"
            << R"(      "query": ")" << esc_query << "\",\n"
-           << R"(      "rewritten_query": ")" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << "\"}"
+           << R"(      "rewritten_query": ")" << make_escaped_string(rewritten_query_output(audit_record.extended_info)) << "\"}"
            << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
   } else {
     format_jsonl_header(result, timestamp, time_now);
@@ -815,7 +815,7 @@ AuditRecordString LogRecordFormatterJson::apply(
            << R"("connection_id": )" << audit_record.event->connection_id << ", "
            << R"("parse_data": { "flags": )" << flags
            << R"(, "query": ")" << esc_query
-           << R"(", "rewritten_query": ")" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << R"(" })"
+           << R"(", "rewritten_query": ")" << make_escaped_string(rewritten_query_output(audit_record.extended_info)) << R"(" })"
            << extra_attrs_to_string_jsonl(audit_record.extended_info) << " }";
   }
   /* clang-format on */

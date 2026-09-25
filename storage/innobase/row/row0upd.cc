@@ -71,6 +71,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rec.h"
 #include "vec0aux.h"
 #include "vec0hnsw.h"
+#include "vec0label.h"
 #endif /* !UNIV_HOTBACKUP */
 #include <algorithm>
 #include "lob0lob.h"
@@ -2604,11 +2605,11 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL);
   ut_ad(!vec_new_node || vec_indexed_col_no(table) != ULINT_UNDEFINED);
 
-  if (vec_new_node && vec_get_aux_id_from_row(table, node->upd_row) ==
-                          vec_get_aux_id_from_row(table, node->row)) {
+  if (vec_new_node && vec_label_from_dtuple(table, node->upd_row) ==
+                          vec_label_from_dtuple(table, node->row)) {
     /* The label buffer has to outlive `entry`, which points into it, and
     upd_row, which keeps naming it - node->heap is emptied with both. */
-    vec_write_aux_id(
+    vec_label_write(
         table, node->upd_row,
         static_cast<byte *>(mem_heap_alloc(node->heap, VEC_AUX_ID_LEN)));
   }

@@ -80,6 +80,7 @@ Data dictionary interface */
 #include "sql_table.h"
 #include "univ.i"  // Using OS_PATH_SEPARATOR
 #include "vec0aux.h"
+#include "vec0label.h"
 #endif /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
@@ -1631,19 +1632,6 @@ void dd_set_autoinc(dd::Properties &se_private_data, uint64_t autoinc) {
 
   se_private_data.set(dd_table_key_strings[DD_TABLE_VERSION], version);
   se_private_data.set(dd_table_key_strings[DD_TABLE_AUTOINC], autoinc);
-}
-
-void dd_set_vec_next_id(dd::Properties &se_private_data, uint64_t next_id) {
-  if (next_id == 0) return;
-  se_private_data.set(dd_table_key_strings[DD_TABLE_VEC_NEXT_ID], next_id);
-}
-
-uint64_t dd_get_vec_next_id(const dd::Properties &se_private_data) {
-  uint64_t next_id = 0;
-  if (se_private_data.exists(dd_table_key_strings[DD_TABLE_VEC_NEXT_ID])) {
-    se_private_data.get(dd_table_key_strings[DD_TABLE_VEC_NEXT_ID], &next_id);
-  }
-  return next_id;
 }
 
 /** Copy the AUTO_INCREMENT and version attribute if exist.
@@ -5203,18 +5191,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     m_table->autoinc_persisted = autoinc;
   }
 
-  /* Restore the label counter from the definition. The buffered dynamic
-  metadata is applied later and takes the maximum, so a value there that
-  is further ahead still wins; this only ensures the counter survives an
-  ALTER that invalidated that buffer. */
-  if (DICT_TF2_FLAG_IS_SET(m_table, DICT_TF2_HAS_VEC_AUX_COL)) {
-    const uint64_t next_id =
-        dd_get_vec_next_id(dd_table->table().se_private_data());
-    if (next_id > m_table->vec_aux_autoinc_next_id.load()) {
-      m_table->vec_aux_autoinc_next_id.store(next_id);
-      m_table->vec_aux_autoinc_persisted.store(next_id);
-    }
-  }
+  Vec_label_counter::load_from_dd(m_table, dd_table->table().se_private_data());
 
   mem_heap_t *heap = mem_heap_create(100, UT_LOCATION_HERE);
   bool fail = false;

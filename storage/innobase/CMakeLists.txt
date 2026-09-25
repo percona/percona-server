@@ -164,6 +164,7 @@ SET(INNOBASE_SOURCES
   handler/xtradb_i_s.cc
   vec/vec0arena.cc
   vec/vec0aux.cc
+  vec/vec0label.cc
   vec/vec0hnsw.cc
   vec/vec0index.cc
   vec/vec0dml.cc

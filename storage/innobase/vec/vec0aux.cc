@@ -225,60 +225,6 @@ void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
   table->vec_aux_col = table->n_def - 1;
 }
 
-void vec_write_aux_id(dict_table_t *table, dtuple_t *row, byte *buf) {
-  ut_ad(table != nullptr);
-  ut_ad(row != nullptr);
-  ut_ad(buf != nullptr);
-  if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
-    return;
-  }
-  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
-  ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
-
-  const uint64_t id = vec_assign_next_aux_id(table, true);
-  mach_write_to_8(buf, id);
-
-  dfield_t *dfield = dtuple_get_nth_field(row, table->vec_aux_col);
-  dfield_set_data(dfield, buf, VEC_AUX_ID_LEN);
-}
-
-uint64_t vec_get_aux_id_from_row(const dict_table_t *table,
-                                 const dtuple_t *row) {
-  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
-  ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
-
-  const dfield_t *df = dtuple_get_nth_field(row, table->vec_aux_col);
-  ut_ad(!dfield_is_null(df));
-  ut_ad(dfield_get_len(df) == 8);
-  return mach_read_from_8(static_cast<const byte *>(dfield_get_data(df)));
-}
-
-uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
-                                 const dict_index_t *index) {
-  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
-
-  ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets = offsets_;
-  mem_heap_t *heap = nullptr;
-
-  rec_offs_init(offsets_);
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                            UT_LOCATION_HERE, &heap);
-
-  const ulint pos = index->get_col_pos(table->vec_aux_col);
-  ut_ad(pos != ULINT_UNDEFINED);
-
-  ulint len;
-  const byte *data = rec_get_nth_field(nullptr, rec, offsets, pos, &len);
-  ut_ad(len == 8);
-  const uint64_t label = mach_read_from_8(data);
-
-  if (heap != nullptr) {
-    mem_heap_free(heap);
-  }
-  return label;
-}
-
 ulint vec_indexed_col_no(const dict_table_t *table) {
   const dict_index_t *index = vec_index_of(table);
   if (index == nullptr) return ULINT_UNDEFINED;
@@ -297,27 +243,6 @@ bool vec_upd_changes_indexed_vector(const dict_table_t *table,
   the way row_upd_changes_fts_column does. */
   const dict_index_t *clust = table->first_index();
   return clust->get_col_no(ufield->field_no) == vec_col;
-}
-
-void vec_update_aux_id(dict_table_t *table, upd_field_t *ufield,
-                       uint64_t *next_label) {
-  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
-  ut_ad(*next_label != 0);
-
-  dict_index_t *clust = table->first_index();
-  dict_col_t *col = table->get_col(table->vec_aux_col);
-
-  ufield->exp = nullptr;
-  ufield->field_no = dict_col_get_clust_pos(col, clust);
-  col->copy_type(dfield_get_type(&ufield->new_val));
-
-  /* Storage byte order, written back over the trx member the label was assigned
-  into - which then IS the field's buffer. */
-  mach_write_to_8(reinterpret_cast<byte *>(next_label), *next_label);
-
-  ufield->new_val.data = next_label;
-  ufield->new_val.len = sizeof(*next_label);
-  ufield->new_val.ext = 0;
 }
 
 const char *vec_upd_new_vector(const dict_table_t *table, const upd_t *update,
@@ -383,51 +308,6 @@ bool vec_upd_row_pk(const dict_table_t *table, const upd_node_t *node,
 
   if (heap != nullptr) mem_heap_free(heap);
   return ok;
-}
-
-uint64_t vec_assign_next_aux_id(dict_table_t *table, bool persist) {
-  ut_ad(table != nullptr);
-  ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
-  /* fetch_add returns the OLD value, so +1 makes the first assignment
-  1 and never 0. That is not cosmetic: the class reserves graph node id
-  0 as the empty-neighbour sentinel, which is what lets aux record 0
-  hold the entry point instead of a node. */
-  const uint64_t id =
-      table->vec_aux_autoinc_next_id.fetch_add(1, std::memory_order_acq_rel) +
-      1;
-  ut_ad(id != 0);
-
-  if (!persist) return id;
-
-  /* Persist the advance as dynamic metadata, autoinc-style: the redo
-  record makes the id durable the moment it is consumed, so a label can
-  never be reissued - not across restart, not across crash, and whether
-  or not the id ever reaches the aux table. Rolled-back inserts consume
-  ids that the aux maximum cannot see, which is why the aux cannot be
-  the source of truth for this.
-
-  The write runs outside any active mini-transaction, so it gets a
-  dedicated one. Upstream avoids that by logging into the row's own mtr
-  (WL#6204: "we should not introduce a new mtr ... mtr_commit would be
-  time consuming"), which we could do from row_ins_clust_index_entry_low -
-  at the price of covering the paths that never reach it, the DDL builder
-  among them. Logging where the id is assigned covers every one of them. */
-  mtr_t mtr;
-  mtr.start();
-  const bool to_buffer = dict_table_vec_next_id_log(table, id, &mtr);
-  mtr.commit();
-
-  /* The record for `id` is committed to the log and the watermark was
-  raised before it was written, so a checkpoint landing here sees a
-  watermark that already covers the record. Parking a test here is how
-  vector_counter_stale_buffer.test pins that. */
-  DEBUG_SYNC_C("vec_id_record_committed");
-
-  if (to_buffer) {
-    dict_table_persist_to_dd_table_buffer(table);
-  }
-
-  return id;
 }
 
 namespace {

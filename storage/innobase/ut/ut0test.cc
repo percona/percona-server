@@ -41,6 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "vec0dml.h"
 #include "vec0hnsw.h"
 #include "vec0index.h"
+#include "vec0label.h"
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
@@ -601,7 +602,7 @@ Ret_t Tester::vec_next_id(std::vector<std::string> &tokens) noexcept {
   }
   auto guard = create_scope_guard([&]() { vec_test_close_aux(tt); });
 
-  const uint64_t id = vec_assign_next_aux_id(tt.base, true);
+  const uint64_t id = Vec_label_counter::assign(tt.base, true);
   XLOG("id=" << id);
   set_output(sout);
   return RET_PASS;

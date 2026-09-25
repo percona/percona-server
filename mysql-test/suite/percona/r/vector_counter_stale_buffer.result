@@ -2,7 +2,7 @@
 # REPRO (PS-11300): the percona_vec_aux_id counter can regress across a
 # crash, so a label that was already handed out is handed out again.
 #
-# vec_assign_next_aux_id() logs the record for its id and commits the
+# Vec_label_counter::assign() logs the record for its id and commits the
 # mtr, then raises vec_aux_autoinc_persisted. Between those two steps
 # the table is METADATA_DIRTY while the in-memory watermark still holds
 # the OLD value. A checkpoint landing there writes that old value into

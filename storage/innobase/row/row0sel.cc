@@ -74,6 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0new.h"
 #include "vec0aux.h"
+#include "vec0label.h"
 
 #include "my_dbug.h"
 
@@ -2855,8 +2856,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   prebuilt->vec_aux_id = 0;
   if (rec_index->table->vec_aux_col != ULINT_UNDEFINED &&
       rec_index->is_clustered() && !clust_templ_for_sec) {
-    prebuilt->vec_aux_id =
-        vec_get_aux_id_from_rec(rec_index->table, rec, rec_index);
+    prebuilt->vec_aux_id = vec_label_from_rec(rec_index->table, rec, rec_index);
   }
 
   return true;

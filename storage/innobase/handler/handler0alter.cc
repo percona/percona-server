@@ -114,6 +114,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0stage.h"
 #include "vec0aux.h"
 #include "vec0hnsw.h"
+#include "vec0label.h"
 #include "vec0vec.h"
 
 /* For supporting Native InnoDB Partitioning. */
@@ -1792,19 +1793,8 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
     /* m_prebuilt->table is still the old table here: it is swapped for the
     rebuilt one in commit_inplace_alter_table_impl() below, and ctx->old_table
     is the same pointer. */
-    const dict_table_t *old_table = m_prebuilt->table;
-
-    if (DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_HAS_VEC_AUX_COL)) {
-      vec_next_id = old_table->vec_aux_autoinc_next_id.load();
-    } else if (ctx != nullptr &&
-               DICT_TF2_FLAG_IS_SET(ctx->new_table, DICT_TF2_HAS_VEC_AUX_COL)) {
-      /* The rebuild added the column and labelled every row itself, in
-      ddl::Row::build, on the new table's counter. That counter lives on
-      as the table's own, so it is durable as soon as the definition
-      carrying it commits. */
-      vec_next_id = ctx->new_table->vec_aux_autoinc_next_id.load();
-      ctx->new_table->vec_aux_autoinc_persisted.store(vec_next_id);
-    }
+    vec_next_id = Vec_label_counter::capture_at_alter_commit(
+        m_prebuilt->table, ctx != nullptr ? ctx->new_table : nullptr);
   }
 
   bool res = commit_inplace_alter_table_impl<dd::Table>(
@@ -1854,7 +1844,7 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
   definition - that copy restores autoinc and version by name, and would
   otherwise drop this. A zero is no counter to carry, and is ignored. */
   if (dd_find_column(&new_dd_tab->table(), VEC_AUX_ID_COL_NAME) != nullptr) {
-    dd_set_vec_next_id(new_dd_tab->se_private_data(), vec_next_id);
+    Vec_label_counter::write_to_dd(new_dd_tab->se_private_data(), vec_next_id);
   }
 
 #ifdef UNIV_DEBUG
@@ -11701,7 +11691,7 @@ bool ha_innobase::bulk_load_check(THD *) const {
   }
 
   /* Vector index - mirror the FTS block above. The hidden percona_vec_aux_id
-  column requires per-row writing via vec_write_aux_id, and BULK bypasses
+  column requires per-row writing via vec_label_write, and BULK bypasses
   the row-insert path. The column, and so this refusal, lasts as long as
   the table has a vector index. */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {

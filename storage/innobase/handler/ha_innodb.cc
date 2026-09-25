@@ -215,6 +215,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vec0aux.h"
 #include "vec0hnsw.h"
+#include "vec0label.h"
 #include "vec0vec.h"
 
 #include "os0enc.h"
@@ -10615,9 +10616,9 @@ static dberr_t calc_row_difference(
   column. */
   trx->vec_next_label = 0;
   if (changes_vec_column) {
-    trx->vec_next_label = vec_assign_next_aux_id(prebuilt->table, true);
+    trx->vec_next_label = Vec_label_counter::assign(prebuilt->table, true);
     ufield = uvect->fields + n_changed;
-    vec_update_aux_id(prebuilt->table, ufield, &trx->vec_next_label);
+    vec_label_update(prebuilt->table, ufield, &trx->vec_next_label);
     ++n_changed;
   }
 

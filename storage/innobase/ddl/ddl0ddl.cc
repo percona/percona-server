@@ -40,6 +40,7 @@ Created 2020-11-01 by Sunny Bains. */
 #include "lock0lock.h"
 #include "row0log.h"
 #include "vec0aux.h"
+#include "vec0label.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -582,7 +583,7 @@ dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
   if (ctx.m_new_table->vec_aux_col != ULINT_UNDEFINED &&
       ctx.m_old_table->vec_aux_col == ULINT_UNDEFINED) {
     const uint64_t label =
-        vec_assign_next_aux_id(ctx.m_new_table, /*persist=*/false);
+        Vec_label_counter::assign(ctx.m_new_table, /*persist=*/false);
     auto buf = static_cast<byte *>(mem_heap_alloc(heap, sizeof(label)));
     mach_write_to_8(buf, label);
     dfield_set_data(dtuple_get_nth_field(m_ptr, ctx.m_new_table->vec_aux_col),

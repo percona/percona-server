@@ -741,16 +741,6 @@ inline uint64_t dd_get_version(const dd::Table *dd_table);
 @param[out]     dest    dd::Table::se_private_data to copy to */
 void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest);
 
-/** Store the next percona_vec_aux_id label in a table definition.
-@param[in,out]  se_private_data  dd::Table::se_private_data
-@param[in]      next_id          the counter; 0 stores nothing */
-void dd_set_vec_next_id(dd::Properties &se_private_data, uint64_t next_id);
-
-/** Read the next percona_vec_aux_id label from a table definition.
-@param[in]  se_private_data  dd::Table::se_private_data
-@return the counter, or 0 if the definition predates it */
-uint64_t dd_get_vec_next_id(const dd::Properties &se_private_data);
-
 /** Copy the metadata of a table definition if there was an instant
 ADD COLUMN happened. This should be done when it's not an ALTER TABLE
 with rebuild.

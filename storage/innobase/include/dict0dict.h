@@ -236,17 +236,6 @@ update some existing smaller one to bigger.
 @return true if auto increment needs to be persisted to DD table buffer. */
 bool dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
 
-/** Write redo logs for the hidden vec_idx_id counter of a
-vector-indexed table when it advances past the persisted watermark -
-the dict_table_autoinc_log analog.
-@param[in,out]  table   table whose counter advanced
-@param[in]      value   counter value AFTER the assignment
-@param[in,out]  mtr     mini-transaction carrying the redo record
-@return true if the change should be persisted to the DD buffer table
-immediately (mirror of dict_table_autoinc_log's contract). */
-bool dict_table_vec_next_id_log(dict_table_t *table, uint64_t value,
-                                mtr_t *mtr);
-
 /** Check if a table has an autoinc counter column.
 @param[in]      table   table
 @return true if there is an autoinc column in the table, otherwise false. */

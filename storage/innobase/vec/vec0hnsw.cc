@@ -49,6 +49,7 @@ The HNSW runtime and the persistence callbacks behind it.
 #include "ut0new.h"
 #include "vec0aux.h"
 #include "vec0dml.h"
+#include "vec0label.h"
 
 #include "vector-common/vector_distance.h"
 
@@ -992,7 +993,7 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
 
   /* Label 0 is the empty-slot sentinel and can never be a node. A row
   carrying it means the writing path missed it. */
-  const uint64_t id = vec_get_aux_id_from_row(table, row);
+  const uint64_t id = vec_label_from_dtuple(table, row);
   ut_ad(id != 0);
 
   const HnswResult irc = b->graph->insert(id, base_pk, q, &b->null_ctx);
@@ -1172,7 +1173,7 @@ dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd) {
     carrying it means the writing path missed it: refuse the row rather than
     build a node under the id of the aux's metadata record, or skip it and
     leave the row out of the index. */
-    const uint64_t label = vec_get_aux_id_from_row(table, row);
+    const uint64_t label = vec_label_from_dtuple(table, row);
     ut_ad(label != 0);
     if (label == 0) {
       ib::error(ER_IB_MSG_456)

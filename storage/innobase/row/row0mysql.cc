@@ -82,6 +82,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "vec0aux.h"
 #include "vec0hnsw.h"
+#include "vec0label.h"
 #include "zlib.h"
 
 #include "current_thd.h"
@@ -1120,8 +1121,8 @@ static void row_mysql_convert_row_to_innobase(
   The SQL layer leaves the dfield set to SQL_NULL because the column
   is HT_HIDDEN_SE; without this write, rec_get_converted_size_*
   asserts on NOT-NULL + SQL_NULL. */
-  vec_write_aux_id(prebuilt->table, row,
-                   prebuilt->ins_upd_rec_buff + prebuilt->mysql_row_len);
+  vec_label_write(prebuilt->table, row,
+                  prebuilt->ins_upd_rec_buff + prebuilt->mysql_row_len);
 }
 
 /** Handles user errors and lock waits detected by the database engine.
@@ -1560,7 +1561,7 @@ static dtuple_t *row_get_prebuilt_insert_row(
 
   if (prebuilt->ins_upd_rec_buff == nullptr) {
     /* An 8-byte tail for the hidden percona_vec_aux_id, written afresh
-    for every row by vec_write_aux_id. It is reserved once here rather
+    for every row by vec_label_write. It is reserved once here rather
     than allocated per row on prebuilt->heap, which is freed only when
     the handle is closed - 8 bytes a row for the life of a connection.
 
@@ -2957,7 +2958,7 @@ run_again:
   views still entitled to the row, and the read path filters it by
   resolving base_pk under the reader's own view. */
   {
-    /* Storage byte order - vec_update_aux_id wrote it back over this
+    /* Storage byte order - vec_label_update wrote it back over this
     member so it could double as the update field's buffer. */
     const uint64_t label =
         mach_read_from_8(reinterpret_cast<const byte *>(&trx->vec_next_label));

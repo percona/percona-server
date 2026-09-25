@@ -2445,14 +2445,14 @@ detect this and will eventually quit sooner. */
   ulint autoinc_field_no;
 
   /** Counter for the hidden percona_vec_aux_id column (auto-assigned on
-  INSERT). Valid IDs start at 1. Advanced by vec_assign_next_aux_id via
+  INSERT). Valid IDs start at 1. Advanced by Vec_label_counter::assign via
   fetch_add, and persisted through the autoinc-style dynamic-metadata
   path; see vec_aux_autoinc_persisted below. */
   std::atomic<uint64_t> vec_aux_autoinc_next_id;
 
   /** Watermark of vec_aux_autoinc_next_id already redo-logged for
   dynamic-metadata persistence - the autoinc_persisted analog, but
-  lock-free: advanced only by CAS-max in dict_table_vec_next_id_log, so
+  lock-free: advanced only by CAS-max in Vec_label_counter::log, so
   it never regresses. Assignments at or below it need no new redo. */
   std::atomic<uint64_t> vec_aux_autoinc_persisted;
 

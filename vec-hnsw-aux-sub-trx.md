@@ -986,6 +986,39 @@ may run `LOCK=NONE`: the new table has no graph for the row log to miss, and the
 the column from each row it applies, as for any dropped column. The old table's aux goes with
 the old table.
 
+### What the build does
+
+An INPLACE ADD has two steps. Prepare *creates* the index (its `dict_index_t`, and for a vector
+index the empty aux table). The inplace phase *populates* it: `ddl::Context` holds in `m_indexes`
+the indexes one scan of the clustered index must fill, and gives each a `ddl::Builder`.
+
+```
+first ADD (rebuild, adds the hidden column)
+  m_indexes = {new clustered, vk}
+  one scan of the old clustered index, per row:
+    new clustered  <- row + fresh label (ddl::Row::build)
+    vk             <- vector + label -> HNSW insert (null persistor, in memory)
+  end of scan:
+    new clustered  -> Btree_load finishes
+    vk             -> VEC_BUILD: graph written to the aux in bulk (Vec_aux_bulk)
+
+DROP KEY vk, ADD VECTOR KEY vk2 (no rebuild; the column stays)
+  m_indexes = {vk2}
+  one scan of the clustered index: vector + existing label -> HNSW insert
+  end of scan: VEC_BUILD writes vk2's aux
+```
+
+So every vector index an ALTER creates is populated by that ALTER, and `m_indexes` always holds
+it. (Phase 1 left vector indexes out of `m_indexes`, because nothing could populate one yet; an
+ADD of only a vector index then left it empty, which is what the removed `empty()` shortcut in
+`ddl::Context::build()` was for.)
+
+The first ADD scans on one thread: the rebuilt clustered index skips the sort, and upstream
+forces a single-threaded scan for that (§43). A later ADD scans in parallel. A same-name
+`DROP KEY vk, ADD VECTOR KEY vk` with an identical definition is a no-op to the server, which
+cancels the pair before InnoDB sees it; `ALTER TABLE … FORCE` or `OPTIMIZE TABLE` is the rebuild
+that repairs a corrupt index.
+
 ---
 
 ## 16. Foreign keys, and why CASCADE is refused
@@ -1984,3 +2017,28 @@ The follow-up is upstream's own path for a changed primary key: take the sort
 (`skip_pk_sort = false`) when the rebuild adds the hidden column, so the scan and the graph
 inserts run on `innodb_parallel_read_threads` threads. It trades a merge sort of the clustered
 rows for a parallel graph build; measure on a large table before deciding.
+
+## 44. What `LOCK=NONE` and `ALGORITHM=INSTANT` need after the MVP
+
+Both are refused while a table has a vector index (§3). The `MVP:` assertions in the code mark
+where each refusal is relied on, so lifting one shows what breaks. What each would take:
+
+**`LOCK=NONE`**
+
+| case | what is missing | code |
+|---|---|---|
+| rebuild that keeps a vector index | row-log replay must maintain the new table's graph: an insert takes a fresh label from the new table's counter and adds a node, an update of the vector takes a fresh label, a delete marks the node deleted | `row_log_table_apply_insert_low()`, `_delete_low()`, `_update()` (today refuse, `row_log_refuse_vector_index()`) |
+| first ADD | rows applied from the log need labels too; only `ddl::Row::build` assigns them, on the scan | `row_log_table_apply_convert_mrec()` |
+| later ADD (no rebuild) | concurrent DML goes to `row_log_online_op()`, which logs B-tree entries; a vector index needs its own log, or a replay into the graph between VEC_BUILD and the bulk aux write, ordered against DML writing the aux | `row0log.cc`, `ddl::Builder` VEC_BUILD, `vec_build_write_aux()` |
+
+**`ALGORITHM=INSTANT`**
+
+| what is missing | code |
+|---|---|
+| `build_template()` maps user fields to InnoDB positions contiguously and does not skip an HT_HIDDEN_SE column, so a column added after `percona_vec_aux_id` is read from the wrong bytes | `ha_innobase::build_template()` |
+| INSTANT ADD/DROP gives rows versions; the hidden column needs a correct `phy_pos` in each | `dict0inst.cc`, `dd_commit_inplace_no_change()` |
+| code that assumes the only hidden InnoDB column is FTS_DOC_ID must learn the second one, and the label counter must be carried in `se_private_data` | `innobase_build_col_map()`, `Instant_ddl_impl::commit_instant_ddl()` |
+| INSTANT holds MDL_SHARED_UPGRADABLE with DML live, so labels are assigned while the definition changes | `check_if_supported_inplace_alter()` |
+
+The other MVP restrictions have `MVP:` assertions too: one vector index per table
+(`vec_index_of()`) and a single BIGINT UNSIGNED primary key (`vec_row_base_pk()`).

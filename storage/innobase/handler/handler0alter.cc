@@ -1107,8 +1107,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   HT_HIDDEN_SE column, so a column added after percona_vec_aux_id would be
   read from the wrong bytes. Once the last vector index is gone the table is
   an ordinary one again. The reason is set once, at the end. */
-  const bool vec_refuses_instant =
-      vec_aux_table_has_vector_index(m_prebuilt->table);
+  const bool vec_refuses_instant = vec_index_of(m_prebuilt->table) != nullptr;
   if (vec_refuses_instant) instant_type = Instant_Type::INSTANT_IMPOSSIBLE;
 
   ha_alter_info->handler_trivial_ctx =

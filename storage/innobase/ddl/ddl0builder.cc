@@ -750,8 +750,7 @@ dberr_t Builder::init(Cursor &cursor, size_t n_threads) noexcept {
 
     if (m_vec == nullptr) {
       /* vec_build_start distinguishes the configured ceiling
-      (DB_VEC_MEMORY_LIMIT) and an actual memory shortage
-      (DB_VEC_OUT_OF_MEMORY) from its own KEY not being where it should be
+      (DB_VEC_MEMORY_LIMIT) from its own KEY not being where it should be
       (DB_ERROR, logged) - report whichever it found rather than always
       claiming the index ran out of memory. Either way the ALTER fails: a
       partially built graph is never left behind, because the builder's

@@ -47,6 +47,7 @@ internal SQL parser is not used. */
 #include "read0types.h"
 #include "row0ins.h"
 #include "row0mysql.h"
+#include "row0row.h"
 #include "row0upd.h"
 #include "row0vers.h"
 #include "scope_guard.h"
@@ -136,13 +137,8 @@ Vec_aux_bulk *vec_aux_bulk_start(trx_t *trx, dict_table_t *aux,
   ut_ad(trx != nullptr && aux != nullptr);
   /* Btree_load requires one, and the caller's is the statement's. */
   if (observer == nullptr) return nullptr;
-  auto *b = ut::new_withkey<Vec_aux_bulk>(UT_NEW_THIS_FILE_PSI_KEY, trx, aux,
-                                          observer);
-  if (b != nullptr && (b->observer == nullptr || b->load == nullptr)) {
-    ut::delete_(b);
-    return nullptr;
-  }
-  return b;
+  return ut::new_withkey<Vec_aux_bulk>(UT_NEW_THIS_FILE_PSI_KEY, trx, aux,
+                                       observer);
 }
 
 dberr_t vec_aux_bulk_insert(Vec_aux_bulk *b, const vec_aux_row_t &row) {
@@ -607,16 +603,12 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
   mtr_t mtr;
   mtr_start(&mtr);
   btr_pcur_t pcur;
-  pcur.open_no_init(clust, ref, PAGE_CUR_LE, BTR_SEARCH_LEAF, 0, &mtr,
-                    UT_LOCATION_HERE);
-
-  const rec_t *rec = pcur.get_rec();
-  if (!page_rec_is_user_rec(rec) ||
-      pcur.get_low_match() < dict_index_get_n_unique(clust)) {
+  if (!row_search_on_row_ref(&pcur, BTR_SEARCH_LEAF, aux, ref, &mtr)) {
     pcur.close();
     mtr_commit(&mtr);
     return DB_RECORD_NOT_FOUND;
   }
+  const rec_t *rec = pcur.get_rec();
 
   mem_heap_t *offs_heap = nullptr;
   ulint *offsets = rec_get_offsets(rec, clust, nullptr, ULINT_UNDEFINED,
@@ -640,7 +632,7 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
 
   p = rec_get_nth_field(clust, rec, offsets, p_base_pk, &len);
   if (len != 8) {
-    err = DB_CORRUPTION;
+    err = DB_INDEX_CORRUPT;
     goto done;
   }
   out->base_pk = mach_read_from_8(p);
@@ -656,7 +648,7 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
     length that happens to match would be accepted and a node quietly
     misplaced. The base_pk field above already refuses a bad length;
     this one now does too. */
-    err = DB_CORRUPTION;
+    err = DB_INDEX_CORRUPT;
     goto done;
   }
   out->level = p[0];
@@ -665,7 +657,7 @@ dberr_t vec_aux_read_node(dict_table_t *aux, uint64_t id, mem_heap_t *heap,
                           &out->vec_len) ||
       !vec_aux_copy_field(clust, rec, offsets, p_nb, heap, &out->neighbors,
                           &out->neighbors_len)) {
-    err = DB_CORRUPTION;
+    err = DB_INDEX_CORRUPT;
   }
 
 done:

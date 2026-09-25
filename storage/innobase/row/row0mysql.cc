@@ -2130,7 +2130,7 @@ run_again:
   reading the label back from the row the same way FTS reads its doc id
   below. */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
-    err = vec_insert_row(trx, table, node->row, trx->mysql_thd);
+    err = vec_insert_row(table, node->row, trx->mysql_thd);
     if (err != DB_SUCCESS) {
       trx->error_state = err;
       goto error_exit;
@@ -2982,8 +2982,7 @@ run_again:
         goto error;
       }
 
-      err =
-          vec_update_row(trx, table, label, q, q_len, base_pk, trx->mysql_thd);
+      err = vec_update_row(table, label, q, q_len, base_pk, trx->mysql_thd);
       if (err != DB_SUCCESS) {
         goto error;
       }

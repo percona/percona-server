@@ -12226,7 +12226,8 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
   with no rows would make that look like a table with nothing near the
   query vector; the reason the open recorded is what the client should
   see. */
-  if (vec_runtime_get(vindex) == nullptr) {
+  const vec_t *rt = vec_runtime_get(vindex);
+  if (rt == nullptr) {
     return convert_error_code_to_mysql(vec_runtime_unavailable(vindex), 0,
                                        ha_thd());
   }
@@ -12239,11 +12240,11 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
     scan without the index returns. Searching from the origin gives some
     rows in some order, and keeps going for a filter above, as a search
     from any vector would. */
-    m_vec_query.assign(vec_index_dims(vindex) * sizeof(float), '\0');
+    m_vec_query.assign(rt->dims * sizeof(float), '\0');
   } else {
     const uint32 vec_dims =
         get_dimensions(vec->length(), Field_vector::precision);
-    if (vec_dims == UINT32_MAX || vec_dims != vec_index_dims(vindex)) {
+    if (vec_dims != rt->dims) {
       return HA_ERR_END_OF_FILE;
     }
 
@@ -16200,28 +16201,26 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   table without a vector index only moves the failure to the ALTER that
   later adds one, where it surfaces as a confusing mid-DDL error on a
   table the user never associated with vectors. */
-  {
-    const dd::Column *user_col = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
-    if (user_col != nullptr && !user_col->is_se_hidden()) {
-      my_error(ER_WRONG_COLUMN_NAME, MYF(0), VEC_AUX_ID_COL_NAME);
-      push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_COLUMN_NAME,
-                   " InnoDB: Column name " VEC_AUX_ID_COL_NAME
-                   " is reserved for vector index bookkeeping.");
-      return ER_WRONG_COLUMN_NAME;
-    }
+  const dd::Column *vec_aux_col = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
+  if (vec_aux_col != nullptr && !vec_aux_col->is_se_hidden()) {
+    my_error(ER_WRONG_COLUMN_NAME, MYF(0), VEC_AUX_ID_COL_NAME);
+    push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_COLUMN_NAME,
+                 " InnoDB: Column name " VEC_AUX_ID_COL_NAME
+                 " is reserved for vector index bookkeeping.");
+    return ER_WRONG_COLUMN_NAME;
   }
 
-  if (has_vector) {
+  if (has_vector && vec_aux_col == nullptr) {
     /* Auto-add hidden percona_vec_aux_id BIGINT UNSIGNED NOT NULL when the
     table owns any vector index.
 
     The column exists exactly while the table has a vector index, and this is
     where that is decided for every new definition: CREATE, the COPY target, and
     an INPLACE ALTER's altered table. An ALTER that keeps a vector index
-    finds the column already there and reuses it - the `existing !=
-    nullptr` branch below, which must never recreate and never error - so
-    each row keeps its label. One that drops the last vector index leaves
-    it out, and InnoDB rebuilds the table without it.
+    finds the column already there, SE-hidden (the check above rejected
+    any other kind), and reuses it - never recreating it, never erroring -
+    so each row keeps its label. One that drops the last vector index
+    leaves it out, and InnoDB rebuilds the table without it.
 
     There is no companion hidden UNIQUE index on the column. The
     base-to-aux link is base.percona_vec_aux_id to aux.id through each
@@ -16234,20 +16233,13 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     rejecting it even without a vector index removes the case where a
     pre-existing user column would collide with the hidden one at
     ALTER ... ADD VECTOR KEY ... TYPE hnsw time. */
-    const dd::Column *existing = dd_find_column(dd_table, VEC_AUX_ID_COL_NAME);
-    if (existing != nullptr) {
-      /* Present and SE-hidden (the check above rejected any other kind) -
-      the table already has a vector index. Reuse it: never recreate,
-      never error. */
-    } else {
-      dd::Column *col = dd_table->add_column();
-      col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
-      col->set_name(VEC_AUX_ID_COL_NAME);
-      col->set_type(dd::enum_column_types::LONGLONG);
-      col->set_nullable(false);
-      col->set_unsigned(true);
-      col->set_collation_id(1);
-    }
+    dd::Column *col = dd_table->add_column();
+    col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
+    col->set_name(VEC_AUX_ID_COL_NAME);
+    col->set_type(dd::enum_column_types::LONGLONG);
+    col->set_nullable(false);
+    col->set_unsigned(true);
+    col->set_collation_id(1);
   }
 
   if (primary == nullptr) {

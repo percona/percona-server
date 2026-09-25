@@ -199,13 +199,12 @@ bool vec_aux_is_aux_table_name(const char *name) {
   return vec_aux_parse_table_name(name, nullptr, nullptr, nullptr);
 }
 
-bool vec_aux_table_has_vector_index(const dict_table_t *table) {
-  if (table == nullptr) return false;
-  for (const dict_index_t *idx = UT_LIST_GET_FIRST(table->indexes);
-       idx != nullptr; idx = UT_LIST_GET_NEXT(indexes, idx)) {
-    if (idx->is_vector()) return true;
+const dict_index_t *vec_index_of(const dict_table_t *table) {
+  for (const dict_index_t *index = table->first_index(); index != nullptr;
+       index = index->next()) {
+    if (index->is_vector()) return index;
   }
-  return false;
+  return nullptr;
 }
 
 void vec_add_aux_id_column(dict_table_t *table, mem_heap_t *heap) {
@@ -272,13 +271,10 @@ uint64_t vec_get_aux_id_from_rec(const dict_table_t *table, const rec_t *rec,
 }
 
 ulint vec_indexed_col_no(const dict_table_t *table) {
-  for (const dict_index_t *index = table->first_index(); index != nullptr;
-       index = index->next()) {
-    if (!index->is_vector()) continue;
-    ut_ad(index->n_fields == 1);
-    return dict_col_get_no(index->get_field(0)->col);
-  }
-  return ULINT_UNDEFINED;
+  const dict_index_t *index = vec_index_of(table);
+  if (index == nullptr) return ULINT_UNDEFINED;
+  ut_ad(index->n_fields == 1);
+  return dict_col_get_no(index->get_field(0)->col);
 }
 
 bool vec_upd_changes_indexed_vector(const dict_table_t *table,
@@ -697,27 +693,23 @@ namespace {
 
 /** Build the post-rename aux name. Given the OLD aux name
 "old_db/percona_vec_<type>_<tid>_<iid>" and the parent's NEW name
-"new_db/<tbl>", write "new_db/percona_vec_<type>_<tid>_<iid>" into `out`.
-Returns false if the result would not fit, or if the old name has no
-database part - neither can happen for a name this module built, but both
-would be a memcpy past the end of `out`. */
-[[nodiscard]] bool rebuild_aux_name_with_new_db(const char *old_aux_name,
-                                                const char *new_parent_name,
-                                                char *out, size_t out_len) {
+"new_db/<tbl>", write "new_db/percona_vec_<type>_<tid>_<iid>" into `out`,
+as fts_rename_one_aux_table does. The old name, built by this module, has
+a database part, and the result fits in `out`. */
+void rebuild_aux_name_with_new_db(const char *old_aux_name,
+                                  const char *new_parent_name, char *out,
+                                  size_t out_len [[maybe_unused]]) {
   const ulint new_db_len = dict_get_db_name_len(new_parent_name);
-  const ulint old_db_len = dict_get_db_name_len(old_aux_name);
   /* +1 for the slash; +1 for NUL */
-  const size_t needed = strlen(old_aux_name) + new_db_len - old_db_len + 1;
-  const char *old_slash = strchr(old_aux_name, '/');
-
+  ut_d(const size_t needed = strlen(old_aux_name) + new_db_len -
+                             dict_get_db_name_len(old_aux_name) + 1);
   ut_ad(needed <= out_len);
+  const char *old_slash = strchr(old_aux_name, '/');
   ut_ad(old_slash != nullptr);
-  if (needed > out_len || old_slash == nullptr) return false;
 
   memcpy(out, new_parent_name, new_db_len);
   const size_t suffix_len = strlen(old_slash); /* includes leading '/' */
   memcpy(out + new_db_len, old_slash, suffix_len + 1 /* NUL */);
-  return true;
 }
 
 }  // namespace
@@ -737,13 +729,8 @@ dberr_t vec_aux_rename_tables(trx_t *trx, dict_table_t *parent,
                            sizeof(old_aux_name));
 
     char new_aux_name[MAX_FULL_NAME_LEN];
-    if (!rebuild_aux_name_with_new_db(old_aux_name, new_parent_name,
-                                      new_aux_name, sizeof(new_aux_name))) {
-      ib::warn(ER_IB_MSG_466)
-          << "Cannot build the new name for vector aux table " << old_aux_name
-          << " under " << new_parent_name;
-      return DB_ERROR;
-    }
+    rebuild_aux_name_with_new_db(old_aux_name, new_parent_name, new_aux_name,
+                                 sizeof(new_aux_name));
 
     dberr_t err = row_rename_table_for_mysql(old_aux_name, new_aux_name,
                                              nullptr, trx, replay);

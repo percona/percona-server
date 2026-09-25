@@ -2702,7 +2702,7 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
     the insert, the same window row_insert_for_mysql builds its node in.
     A failure that leaves us here without an insert (a lock wait, a
     duplicate key) keeps the label in upd_row for the retry. */
-    err = vec_insert_row(trx, node->table, node->upd_row, trx->mysql_thd);
+    err = vec_insert_row(node->table, node->upd_row, trx->mysql_thd);
 
     /* The label is consumed: row_update_for_mysql must not build a
     second node for the same statement. */

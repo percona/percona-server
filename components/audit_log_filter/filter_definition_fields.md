@@ -13,11 +13,15 @@ filter-definition validation through `audit_log_filter_set_filter()`.
 - SQL text written to JSON, JSONL, NEW XML, OLD XML, and syslog is converted to
   UTF-8 (utf8mb4) after filtering and before escaping. Digest replacements are
   already UTF-8. `audit_log_read()` returns the converted file bytes; historical
-  files are not rewritten.
+  files are not rewritten. A record larger than `read_buffer_size` is returned
+  whole in its own batch; the reader grows its output buffer for that record.
 - Malformed query characters are replaced with `?`; an incomplete final
-  sequence becomes one `?` for the remaining suffix. Binary-labeled text is
-  validated as UTF-8, preserving password-rewritten UTF-8 identifiers. Missing
-  or unknown source charsets and resource failures lose the event through the
+  sequence becomes one `?` for the remaining suffix only when no following
+  complete character can be decoded. Otherwise one bad byte is replaced and
+  conversion resumes, preserving trailing ASCII and multibyte text.
+  Binary-labeled text is validated as UTF-8, preserving password-rewritten
+  UTF-8 identifiers. Missing or unknown source charsets and resource failures
+  lose the event through the
   counted `Audit_log_filter_events_lost` path; they never emit raw query bytes.
 
 - The names below are filter-definition names, not necessarily the names used by

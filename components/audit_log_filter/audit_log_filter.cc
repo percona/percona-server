@@ -53,6 +53,8 @@
 #include <array>
 #include <exception>
 #include <memory>
+#include <new>
+#include <stdexcept>
 #include <variant>
 
 #ifdef WIN32
@@ -704,6 +706,14 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     return 0;
   }
 
+  // Count an exception during capture/filtering as well as output preparation
+  // or writing. Normal Skip/Block returns do not lose an event, and unwinding
+  // increments the counter only once before the outer diagnostic handler.
+  const auto count_lost_event =
+      create_scope_guard([exceptions = std::uncaught_exceptions()] {
+        if (std::uncaught_exceptions() > exceptions) SysVars::inc_events_lost();
+      });
+
   if (auto rec = std::get_if<AuditRecordGeneral>(&record)) {
     set_extended_info(thd, sctx, *rec);
 
@@ -766,13 +776,15 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
     get_connection_attrs(thd, record);
   }
 
-  try {
-    prepare_query_output(record);
-    m_log_writer->write(record);
-  } catch (...) {
-    SysVars::inc_events_lost();
-    throw;
+  prepare_query_output(record);
+  DBUG_EXECUTE_IF("audit_log_filter_query_output_not_ready", {
+    std::visit([](auto &rec) { rec.extended_info.query_output.reset(); },
+               record);
+  });
+  if (!query_output_is_ready(record)) {
+    throw std::runtime_error("Audit query output was not prepared");
   }
+  m_log_writer->write(record);
   SysVars::inc_events_written();
 
   return 0;
@@ -1030,6 +1042,8 @@ bool AuditLogFilter::get_security_context_option(Security_context_handle &ctx,
 
 std::optional<std::string> AuditLogFilter::get_sql_text(MYSQL_THD thd) {
   if (!thd) return std::nullopt;
+  DBUG_EXECUTE_IF("audit_log_filter_query_capture_bad_alloc",
+                  throw std::bad_alloc(););
 
   my_h_string hstr = nullptr;
   const auto destroy = create_scope_guard([&] {
@@ -1055,6 +1069,8 @@ std::optional<std::string> AuditLogFilter::get_sql_text(MYSQL_THD thd) {
 }
 
 std::string AuditLogFilter::get_query_charset(MYSQL_THD thd) {
+  DBUG_EXECUTE_IF("audit_log_filter_query_charset_bad_alloc",
+                  throw std::bad_alloc(););
   mysql_cstring_with_length charset{};
   if (!thd ||
       mysql_service_mysql_thd_attributes->get(thd, "query_charset", &charset) ||

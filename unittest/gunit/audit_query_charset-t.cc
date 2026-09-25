@@ -72,7 +72,26 @@ TEST(AuditQueryCharset, MalformedAndBinary) {
   check("utf8mb4", "\xc0\xaf", "??", 2);
   check("utf8mb4", "\xed\xa0\x80", "???", 3);
   check("utf8mb4", "\xf4\x90\x80\x80", "????", 4);
-  check("utf8mb4", "\xf0\x9f'", "?", 1);
+  check("utf8mb4", "\xf0\x9f'",
+        "?"
+        "?'",
+        2);
+  check("utf8mb4",
+        "a\xe9"
+        "b",
+        "a?b", 1);
+  check("utf8mb4", "SELECT 'caf\xe9'", "SELECT 'caf?'", 1);
+  check("utf8mb4", "SELECT '\xff'", "SELECT '?'", 1);
+  check("utf8mb3",
+        "x\xe2"
+        "A",
+        "x?A", 1);
+  check("utf8mb4", "\xf0\xc3\xa9", "?\xc3\xa9", 1);
+  check("binary", "'\xe9'", "'?'", 1);
+  check("gb18030", "\x81\x30'", "?0'", 1);
+  check("ucs2", std::string_view("\xd8\0", 2), "?", 1);
+  check("utf32", std::string_view("\0\0\xd8\0", 4), "?", 1);
+  check("utf32", std::string_view("\0\x11\0\0", 4), "?", 1);
   check("cp1250", "\x81", "?", 1);
   check("sjis", "\x81\xad", "?", 1);
   check("sjis", "\x83", "?", 1);
@@ -116,7 +135,9 @@ TEST(AuditQueryCharset, PrepareParseReplacementAndPreserveRaw) {
   parse.event = &event;
   parse.extended_info.query_charset = "cp1250";
   AuditRecordVariant record = parse;
+  EXPECT_FALSE(query_output_is_ready(record));
   prepare_query_output(record);
+  EXPECT_TRUE(query_output_is_ready(record));
   const auto &output =
       std::get<AuditRecordParse>(record).extended_info.query_output;
   ASSERT_TRUE(output.has_value());
@@ -144,6 +165,7 @@ TEST(AuditQueryCharset, DigestSelectionAndCaptureFailure) {
   extra.query = "\xe9";
   extra.query_charset = "no_such_charset";
   EXPECT_THROW(prepare_query_output(record), std::invalid_argument);
+  EXPECT_FALSE(query_output_is_ready(record));
   EXPECT_FALSE(extra.query_output.has_value());
   extra.query_charset = "latin1";
   prepare_query_output(record);
@@ -184,7 +206,21 @@ TEST(AuditQueryCharset, QueryUsesCapturedCharsetAndValidatesDigest) {
   EXPECT_EQ("\xc3\xa9", extra.query_output->query);
   extra.digest = "`\xe9`";
   prepare_query_output(record);
-  EXPECT_EQ("`?", extra.query_output->query);
+  EXPECT_EQ("`?`", extra.query_output->query);
+}
+
+TEST(AuditQueryCharset, ReadinessChecksOnlyQueryBearingRecords) {
+  EXPECT_TRUE(query_output_is_ready(AuditRecordConnection{}));
+  EXPECT_TRUE(query_output_is_ready(AuditRecordAudit{}));
+  for (auto record : {AuditRecordVariant{AuditRecordGeneral{}},
+                      AuditRecordVariant{AuditRecordTableAccess{}},
+                      AuditRecordVariant{AuditRecordQuery{}},
+                      AuditRecordVariant{AuditRecordParse{}}}) {
+    EXPECT_FALSE(query_output_is_ready(record));
+    std::visit([](auto &rec) { rec.extended_info.query_output.emplace(); },
+               record);
+    EXPECT_TRUE(query_output_is_ready(record));
+  }
 }
 }  // namespace
 }  // namespace audit_log_filter

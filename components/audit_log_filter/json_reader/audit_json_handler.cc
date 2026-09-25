@@ -14,9 +14,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "components/audit_log_filter/json_reader/audit_json_handler.h"
+#include <algorithm>
 #include <cassert>
-#include <cstring>  // std::strcpy
+#include <cstring>
+#include <limits>
+#include <new>
+#include <stdexcept>
 #include "components/audit_log_filter/audit_log_reader.h"
+#include "components/audit_log_filter/audit_psi_info.h"
+#include "my_dbug.h"
+#include "my_sys.h"
+#ifdef MYSQL_COMPONENT
+#include "mysql/components/library_mysys/my_memory.h"
+#else
+#include "mysql/service_mysql_alloc.h"
+#endif
 
 namespace audit_log_filter::json_reader {
 
@@ -93,6 +105,7 @@ AuditJsonHandler::AuditJsonHandler(
       m_arr_level{0},
       m_out_buff{std::move(out_buff)},
       m_current_buff{m_out_buff.get()},
+      m_batch_size{out_buff_size},
       m_out_buff_size{out_buff_size},
       m_used_buff_size{0},
       m_printed_events_count{0},
@@ -102,7 +115,7 @@ char *AuditJsonHandler::get_result_buffer_ptr() noexcept {
   return m_out_buff.get();
 }
 
-void AuditJsonHandler::iterative_parse_init() noexcept {
+void AuditJsonHandler::iterative_parse_init() {
   m_current_buff = m_out_buff.get();
   m_used_buff_size = 0;
   m_printed_events_count = 0;
@@ -117,7 +130,7 @@ void AuditJsonHandler::iterative_parse_init() noexcept {
   }
 }
 
-void AuditJsonHandler::iterative_parse_close(bool with_null_tag) noexcept {
+void AuditJsonHandler::iterative_parse_close(bool with_null_tag) {
   // Remove the trailing ",\n" from the last event, if present,
   // to ensure valid JSON array closing.
   if (m_used_buff_size >= 2 && (m_current_buff - 2)[0] == ',' &&
@@ -240,8 +253,15 @@ bool AuditJsonHandler::EndObject(rapidjson::SizeType memberCount
     const auto max_array_length =
         m_reader_context->batch_reader_args->max_array_length;
 
-    if ((m_used_buff_size + event_length >=
-         m_out_buff_size - kBufferReservedSize) ||
+    // A single event may exceed the configured batch size after conversion or
+    // JSON escaping. Return it whole, growing the output buffer if necessary,
+    // rather than producing an empty batch or overflowing on the next call.
+    // Keep subsequent batches bounded by the original configured size.
+    const bool exceeds_batch =
+        event_length >= m_batch_size ||
+        m_used_buff_size >= m_batch_size - event_length ||
+        kBufferReservedSize >= m_batch_size - event_length - m_used_buff_size;
+    if ((m_printed_events_count != 0 && exceeds_batch) ||
         (max_array_length != 0 && m_printed_events_count == max_array_length)) {
       m_reader_context->next_event_bookmark = m_current_event_bookmark;
       m_reader_context->is_batch_end = true;
@@ -341,9 +361,31 @@ void AuditJsonHandler::update_bookmark(const std::string &timestamp) {
 }
 
 void AuditJsonHandler::write_out_buff(const char *str, std::size_t str_length) {
-  std::strcpy(m_current_buff, str);
+  if (str_length >= std::numeric_limits<size_t>::max() - m_used_buff_size) {
+    throw std::length_error("Audit reader output is too large");
+  }
+  const size_t required = m_used_buff_size + str_length + 1;
+  if (required > m_out_buff_size) {
+    const size_t capacity =
+        m_out_buff_size <= std::numeric_limits<size_t>::max() / 2
+            ? std::max(required, m_out_buff_size * 2)
+            : required;
+    std::unique_ptr<char, std::function<void(char *)>> buffer(
+        nullptr, [](char *p) { my_free(p); });
+    DBUG_EXECUTE_IF("audit_log_filter_reader_grow_bad_alloc",
+                    throw std::bad_alloc(););
+    buffer.reset(static_cast<char *>(
+        my_malloc(key_memory_audit_log_filter_read_buffer, capacity, MYF(0))));
+    if (!buffer) throw std::bad_alloc();
+    std::memcpy(buffer.get(), m_out_buff.get(), m_used_buff_size);
+    m_out_buff.swap(buffer);
+    m_out_buff_size = capacity;
+    m_current_buff = m_out_buff.get() + m_used_buff_size;
+  }
+  std::memcpy(m_current_buff, str, str_length);
   m_current_buff += str_length;
   m_used_buff_size += str_length;
+  *m_current_buff = '\0';
 }
 
 }  // namespace audit_log_filter::json_reader

@@ -47,6 +47,21 @@ std::string convert(std::string_view query, const std::string &charset) {
 }
 }  // namespace
 
+bool query_output_is_ready(const AuditRecordVariant &record) noexcept {
+  return std::visit(
+      [](const auto &rec) {
+        using Record = std::decay_t<decltype(rec)>;
+        if constexpr (std::is_same_v<Record, AuditRecordGeneral> ||
+                      std::is_same_v<Record, AuditRecordTableAccess> ||
+                      std::is_same_v<Record, AuditRecordQuery> ||
+                      std::is_same_v<Record, AuditRecordParse>) {
+          return rec.extended_info.query_output.has_value();
+        }
+        return true;
+      },
+      record);
+}
+
 void prepare_query_output(AuditRecordVariant &record) {
   std::visit(
       [](auto &rec) {

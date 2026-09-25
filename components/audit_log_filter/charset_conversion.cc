@@ -83,6 +83,19 @@ Utf8Conversion convert_query_to_utf8mb4(std::string_view input,
         throw std::runtime_error("Invalid audit query incomplete sequence");
       }
       consumed = end - pos;
+      // Some decoders check the required length before validating the bytes.
+      // A short suffix can therefore contain a bad lead followed by real text
+      // (including another multibyte character). Preserve that text instead of
+      // treating the entire suffix as one incomplete character. This scan is
+      // bounded by mbmaxlen and runs only on malformed input.
+      for (const auto *next = pos + 1; next < end; ++next) {
+        my_wc_t next_wc = 0;
+        const int length = source->cset->mb_wc(source, &next_wc, next, end);
+        if (length > 0 || (length < 0 && length > MY_CS_TOOSMALL)) {
+          consumed = 1;
+          break;
+        }
+      }
     }
     if (consumed == 0 || consumed > static_cast<size_t>(end - pos)) {
       throw std::runtime_error("Invalid audit query decoder progress");

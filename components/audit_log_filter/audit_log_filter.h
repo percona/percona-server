@@ -169,14 +169,14 @@ class AuditLogFilter {
    * @brief Retrieves the SQL text associated with a THD.
    *
    * This function accesses the "sql_text" THD attribute and returns the query
-   * text as a std::string. If the attribute is missing, null, or cannot be
-   * retrieved, an empty string is returned.
+   * text as a std::string. Failed capture is distinct from an empty query.
    *
    * @param thd Thread handle (THD) from which to extract SQL text.
    *
-   * @return SQL text string, or an empty string on failure.
+   * @return SQL text string, or std::nullopt on failure.
    */
-  std::string get_sql_text(MYSQL_THD thd);
+  std::optional<std::string> get_sql_text(MYSQL_THD thd);
+  std::string get_query_charset(MYSQL_THD thd);
 
   /**
    * @brief Populates extended audit information for a record.

@@ -211,6 +211,8 @@ class LogRecordFormatterBase {
                                 std::string &record_str) noexcept = 0;
 
  protected:
+  static const std::string &query_output(const ExtendedInfo &extra) noexcept;
+
   /**
    * @brief Get timestamp string representation.
    *
@@ -381,12 +383,12 @@ class LogRecordFormatterBase {
 
  private:
   /**
-   * @brief Get escape rules.
+   * @brief Append string escaped according to the log format rules.
    *
-   * @return Escape rules
+   * @param out Output string
+   * @param in String to be escaped
    */
-  [[nodiscard]] virtual const EscapeRulesContainer &get_escape_rules()
-      const noexcept = 0;
+  virtual void append_escaped(std::string &out, std::string_view in) const = 0;
 
   /**
    * @brief Get string representation of extra attributes
@@ -437,8 +439,15 @@ class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
    *
    * @return Escape rules
    */
-  [[nodiscard]] const EscapeRulesContainer &get_escape_rules()
-      const noexcept override;
+  [[nodiscard]] static const EscapeRulesContainer &get_escape_rules();
+
+  /**
+   * @brief Append string escaped according to the XML rules.
+   *
+   * @param out Output string
+   * @param in String to be escaped
+   */
+  void append_escaped(std::string &out, std::string_view in) const override;
 };
 
 template <AuditLogFormatType FormatType>

@@ -48,6 +48,14 @@ enum class EventFieldValueType { String, SignedInteger, UnsignedInteger };
 
 constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
+// Query text as written to the log: converted to UTF-8 (utf8mb4) after
+// filtering, or the sanitized digest. ExtendedInfo::query and the event's own
+// query buffers keep the original client-charset bytes for filters.
+struct QueryOutput {
+  std::string query;
+  std::string rewritten_query;
+};
+
 struct ExtendedInfo {
   std::string digest;
   std::string user;
@@ -58,7 +66,10 @@ struct ExtendedInfo {
   std::string command;
   std::string sql_command;
   enum_sql_command sql_command_id;
-  std::string query;
+  // Raw text used by filters; nullopt if capturing it failed.
+  std::optional<std::string> query;
+  std::string query_charset;
+  std::optional<QueryOutput> query_output;
   std::map<std::string, std::vector<std::pair<std::string, std::string>>> attrs;
 };
 

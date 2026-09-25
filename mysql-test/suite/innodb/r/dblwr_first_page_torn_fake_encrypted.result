@@ -1,0 +1,40 @@
+#
+# When the first page of a tablespace is torn, recovery surveys the first
+# 64 pages of the file for every page size from 1K up to decide which
+# space id to look up in the doublewrite buffer.  Any 1K-aligned piece of
+# the file whose bytes at the FIL_PAGE_TYPE offset read as an encrypted
+# page type is accepted without a checksum check, and the space id stored
+# in it wins.  Recovery must instead use the space id it already knows
+# from the redo log and the directory scan, and restore the page.
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+(3, repeat('/', 12)), (4, repeat('-', 12));
+# Write all dirty pages of t1 through the doublewrite buffer, then kill
+# the server before anything else can reuse the doublewrite slots.  A
+# committed change of a data page, which the page cleaner is not
+# allowed to write, keeps redo for the tablespace ahead of the
+# checkpoint, so that recovery is the one to open the file.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('*', 12) WHERE f1 = 1;
+# Kill the server
+# Tear page 0: overwrite 64 bytes at offset 5K.  Seen as the 1K page
+# number 5, the garbage has FIL_PAGE_TYPE = FIL_PAGE_ENCRYPTED and
+# FIL_PAGE_SPACE_ID = 65535.
+# restart
+Pattern "Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd. from the doublewrite buffer" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	************
+2	++++++++++++
+3	////////////
+4	------------
+DROP TABLE t1;

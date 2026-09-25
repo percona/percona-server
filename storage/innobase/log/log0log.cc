@@ -784,7 +784,19 @@ dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
 
     const auto err = log_data_blocks_read(file_handle, file->offset(block_lsn),
                                           OS_FILE_LOG_BLOCK_SIZE, block);
-    if (err != DB_SUCCESS) {
+    if (err == DB_UNSUPPORTED &&
+        log_block_get_hdr_no(block) !=
+            log_block_convert_lsn_to_hdr_no(block_lsn)) {
+      /* The block has the encryption bit set, but the redo log is not
+      encrypted, and its header number is not the one of this position:
+      it was being written when the server was killed and holds arbitrary
+      bytes.  Recovery ended the redo log at this block, the same way as
+      for a block with a wrong header number or checksum (see
+      recv_read_log_seg()), so start_lsn is the checkpoint lsn, and
+      nothing before it in the block is needed.  Start from an empty block;
+      log_fix_first_rec_group() points its first_rec_group at start_lsn. */
+      memset(block, 0, OS_FILE_LOG_BLOCK_SIZE);
+    } else if (err != DB_SUCCESS) {
       return err;
     }
   }

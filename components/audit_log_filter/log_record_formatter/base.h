@@ -212,6 +212,8 @@ class LogRecordFormatterBase {
                                 std::string &record_str) noexcept = 0;
 
  protected:
+  static const std::string &query_output(const ExtendedInfo &extra) noexcept;
+
   /**
    * @brief Get timestamp string representation.
    *

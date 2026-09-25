@@ -120,6 +120,12 @@ uint64_t LogRecordFormatterBase::make_record_id() const noexcept {
   return SysVars::get_next_record_id();
 }
 
+const std::string &LogRecordFormatterBase::query_output(
+    const ExtendedInfo &extra) noexcept {
+  assert(extra.query_output.has_value());
+  return extra.query_output->query;
+}
+
 std::string LogRecordFormatterBase::make_escaped_string(
     const char *in) const noexcept {
   std::string out;

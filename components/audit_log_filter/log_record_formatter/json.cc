@@ -332,9 +332,8 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto esc_proxy_user = make_escaped_string(extra.proxy_user);
   const auto esc_command = make_escaped_string(extra.command);
   const auto esc_sql_command = make_escaped_string(extra.sql_command);
-  const auto esc_query = audit_record.extended_info.digest.empty()
-                 ? make_escaped_string(extra.query)
-                 : make_escaped_string(audit_record.extended_info.digest);
+  const auto esc_query =
+      make_escaped_string(query_output(audit_record.extended_info));
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -456,9 +455,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto esc_external_user = make_escaped_string(extra.external_user);
   const auto esc_proxy_user = make_escaped_string(extra.proxy_user);
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(extra.query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -584,9 +581,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto rec_id = make_record_id();
 
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(&audit_record.event->query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -790,9 +785,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto rec_id = make_record_id();
 
   const auto esc_query =
-      audit_record.extended_info.digest.empty()
-          ? make_escaped_string(&audit_record.event->query)
-          : make_escaped_string(audit_record.extended_info.digest);
+      make_escaped_string(query_output(audit_record.extended_info));
   const auto flags =
       audit_record.event->flags != nullptr ? *audit_record.event->flags : 0;
 
@@ -807,7 +800,7 @@ AuditRecordString LogRecordFormatterJson::apply(
            << R"(    "parse_data": {)" << "\n"
            << R"(      "flags": )" << flags << ",\n"
            << R"(      "query": ")" << esc_query << "\",\n"
-           << R"(      "rewritten_query": ")" << make_escaped_string(audit_record.event->rewritten_query) << "\"}"
+           << R"(      "rewritten_query": ")" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << "\"}"
            << extra_attrs_to_string(audit_record.extended_info) << "\n  }";
   } else {
     format_jsonl_header(result, timestamp, time_now);
@@ -818,7 +811,7 @@ AuditRecordString LogRecordFormatterJson::apply(
            << R"("connection_id": )" << audit_record.event->connection_id << ", "
            << R"("parse_data": { "flags": )" << flags
            << R"(, "query": ")" << esc_query
-           << R"(", "rewritten_query": ")" << make_escaped_string(audit_record.event->rewritten_query) << R"(" })"
+           << R"(", "rewritten_query": ")" << make_escaped_string(audit_record.extended_info.query_output->rewritten_query) << R"(" })"
            << extra_attrs_to_string_jsonl(audit_record.extended_info) << " }";
   }
   /* clang-format on */

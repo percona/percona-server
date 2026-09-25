@@ -496,3 +496,13 @@ ADD_SUBDIRECTORY(locks)
 ADD_SUBDIRECTORY(changestreams)
 ADD_SUBDIRECTORY(libs/utils)
 ADD_SUBDIRECTORY(libs/serialization)
+
+IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
+  MYSQL_ADD_EXECUTABLE(audit_query_charset-t
+    audit_query_charset-t.cc
+    ../../components/audit_log_filter/charset_conversion.cc
+    ../../components/audit_log_filter/query_output.cc
+    ADD_TEST audit_query_charset
+    LINK_LIBRARIES gunit_small
+  )
+ENDIF()

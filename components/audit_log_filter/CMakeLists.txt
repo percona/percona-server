@@ -25,6 +25,8 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       audit_log_reader.cc
       audit_encryption.cc
       audit_record.cc
+      charset_conversion.cc
+      query_output.cc
       audit_filter.cc
       audit_keyring.cc
       audit_rule.cc

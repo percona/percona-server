@@ -48,6 +48,11 @@ enum class EventFieldValueType { String, SignedInteger, UnsignedInteger };
 
 constexpr std::string_view CONNECTION_TYPE_FIELD_NAME = "connection_type";
 
+struct QueryOutput {
+  std::string query;
+  std::string rewritten_query;
+};
+
 struct ExtendedInfo {
   std::string digest;
   std::string user;
@@ -58,7 +63,10 @@ struct ExtendedInfo {
   std::string command;
   std::string sql_command;
   enum_sql_command sql_command_id;
-  std::string query;
+  std::string query;  // Raw text used by filters.
+  std::string query_charset;
+  bool query_capture_succeeded{false};
+  std::optional<QueryOutput> query_output;
   std::map<std::string, std::vector<std::pair<std::string, std::string>>> attrs;
 };
 

@@ -28,6 +28,60 @@ const std::string kJsonArrayCloseWithNullTag = "null\n]\n";
 const auto kBufferReservedSize =
     kJsonArrayCloseTag.length() + kJsonArrayCloseWithNullTag.length();
 
+// SAX values are already unescaped. Re-encode them when constructing the UDF's
+// JSON result, including embedded NULs and non-ASCII query text.
+//
+// The output is the same as rapidjson::Writer<StringBuffer>::String(): quote
+// and backslash are escaped, \b \f \n \r \t use their short forms, any other
+// byte below 0x20 becomes \u00XX, and every other byte (UTF-8 included) is
+// copied. Using the Writer here makes GCC 16 report a false
+// -Wstringop-overflow inside rapidjson's StringBuffer in optimized builds.
+std::string json_string(const char *value, size_t length) {
+  static constexpr char kHexDigits[] = "0123456789ABCDEF";
+
+  std::string out;
+  out.reserve(length + 2);
+  out.push_back('"');
+
+  for (size_t i = 0; i < length; ++i) {
+    const auto c = static_cast<unsigned char>(value[i]);
+    switch (c) {
+      case '"':
+        out.append("\\\"");
+        break;
+      case '\\':
+        out.append("\\\\");
+        break;
+      case '\b':
+        out.append("\\b");
+        break;
+      case '\f':
+        out.append("\\f");
+        break;
+      case '\n':
+        out.append("\\n");
+        break;
+      case '\r':
+        out.append("\\r");
+        break;
+      case '\t':
+        out.append("\\t");
+        break;
+      default:
+        if (c < 0x20) {
+          const char escaped[] = {
+              '\\', 'u', '0', '0', kHexDigits[c >> 4], kHexDigits[c & 0x0F]};
+          out.append(escaped, sizeof(escaped));
+        } else {
+          out.push_back(static_cast<char>(c));
+        }
+    }
+  }
+
+  out.push_back('"');
+  return out;
+}
+
 }  // namespace
 
 AuditJsonHandler::AuditJsonHandler(
@@ -130,7 +184,7 @@ bool AuditJsonHandler::String(const char *value, rapidjson::SizeType length,
   std::string s_value(value, length);
   update_bookmark(s_value);
   before_value();
-  m_event_str << "\"" << s_value << "\"";
+  m_event_str << json_string(value, length);
   return true;
 }
 
@@ -157,7 +211,7 @@ bool AuditJsonHandler::Key(const char *str, rapidjson::SizeType length,
     m_event_str << ", ";
   }
 
-  m_event_str << "\"" << str << "\": ";
+  m_event_str << json_string(str, length) << ": ";
   return true;
 }
 

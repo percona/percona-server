@@ -1,0 +1,171 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11578, PS-11583: a vector with fewer dimensions than its column
+--echo # must be refused by the vector index as what it is.
+--echo #
+--echo # VECTOR(n) stores a value with fewer than n dimensions (only a longer
+--echo # one is refused), and that stays so here. The vector index cannot hold
+--echo # such a value, and used to refuse it as DB_CORRUPTION: the client got
+--echo # "Incorrect key file for table", an ALTER also logged "We detected
+--echo # index corruption", though the table was never damaged. Every path
+--echo # that puts a row into the index now fails with
+--echo # ER_VECTOR_INDEX_WRONG_DIMENSIONS, naming the column and the
+--echo # dimensions its index needs.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+
+--echo # INSERT into an indexed table.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+--echo # That is the only condition: no generic engine error under it.
+SHOW WARNINGS;
+--echo # IGNORE does not skip the row. The refusal is not an ignorable
+--echo # error, because ALTER's copy treats every ignorable error as a
+--echo # duplicate key.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT IGNORE INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+--echo # Under IGNORE a duplicate key is still skipped, but a row the vector
+--echo # index refuses fails the whole statement: nothing below is inserted,
+--echo # not even the good row.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT IGNORE INTO t VALUES (1, STRING_TO_VECTOR('[9,0,0,0]')),
+                            (20, STRING_TO_VECTOR('[2,0,0,0]')),
+                            (21, STRING_TO_VECTOR('[1,2]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
+--echo # Without the short row, IGNORE behaves as usual.
+INSERT IGNORE INTO t VALUES (1, STRING_TO_VECTOR('[9,0,0,0]')),
+                            (20, STRING_TO_VECTOR('[2,0,0,0]'));
+SELECT id FROM t ORDER BY id;
+DELETE FROM t WHERE id = 20;
+--echo # A multi-row INSERT fails as a whole.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t VALUES (3, STRING_TO_VECTOR('[3,0,0,0]')),
+                     (4, STRING_TO_VECTOR('[4,0]'));
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+--echo # The index still answers.
+SELECT id FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # PS-11583: UPDATE, and INSERT ... ON DUPLICATE KEY UPDATE, which is an
+--echo # UPDATE of the existing row. The statement is rolled back, so the row
+--echo # keeps its old value.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+UPDATE t SET v = STRING_TO_VECTOR('[1,2]') WHERE id = 1;
+SHOW WARNINGS;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t (id, v) VALUES (1, STRING_TO_VECTOR('[1,2]'))
+  ON DUPLICATE KEY UPDATE v = VALUES(v);
+--echo # REPLACE on a primary-key conflict is an update of the row; its
+--echo # delete-and-insert path is at the end.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+REPLACE INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t ORDER BY id;
+SELECT id FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # An empty value has no dimensions at all. Non-strict mode and IGNORE
+--echo # turn a missing, NULL or too-long value into one, and it used to be
+--echo # stored with no graph node - or, on UPDATE, to abort a debug server.
+SET sql_mode = '';
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t VALUES (6, STRING_TO_VECTOR('[1,0,0,0,0]'));
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT INTO t (id) VALUES (7);
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+UPDATE t SET v = NULL WHERE id = 1;
+SET sql_mode = DEFAULT;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+INSERT IGNORE INTO t VALUES (8, NULL);
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+UPDATE IGNORE t SET v = NULL WHERE id = 1;
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+SELECT COUNT(*) FROM
+  (SELECT id FROM t
+   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 10) d;
+
+--echo # Without the index the short value is stored, as VECTOR(4) allows.
+--echo # Dropping the last vector index removes the hidden label column; the
+--echo # next ADD adds it back, in place.
+ALTER TABLE t DROP KEY vk;
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[1,2,3]'));
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+
+--echo # Building the index finds it, on either algorithm.
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=COPY;
+SHOW WARNINGS;
+
+--echo # Fixing the row is enough.
+UPDATE t SET v = STRING_TO_VECTOR('[1,2,3,0]') WHERE id = 2;
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SELECT id FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,0]'), 'EUCLIDEAN') LIMIT 1;
+DROP TABLE t;
+
+--echo # A table that never had a vector index: its first ADD finds it too.
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (7, STRING_TO_VECTOR('[1,0]'));
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+DROP TABLE t;
+
+--echo # A build on many scan threads reports the row too. The scan thread
+--echo # that finds it has no session; the ALTER's own thread reports it.
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+ALTER TABLE t DROP KEY vk;
+SET @@global.innodb_limit_optimistic_insert_debug = 2;
+--disable_query_log
+SET SESSION cte_max_recursion_depth = 5000;
+INSERT INTO t
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < 1000)
+SELECT n, STRING_TO_VECTOR(IF(n = 777, '[1,2]', CONCAT('[', n, ',0,0,0]')))
+  FROM seq;
+--enable_query_log
+SET @@global.innodb_limit_optimistic_insert_debug = 0;
+SET SESSION innodb_parallel_read_threads = 8;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+DROP TABLE t;
+
+--echo # None of it was reported as corruption.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: percona.vector_index_wrong_dimensions
+--let $assert_select = index corruption
+--let $assert_count = 0
+--let $assert_text = no row with the wrong dimensions was logged as corruption
+--source include/assert_grep.inc
+
+--echo #
+--echo # REPLACE on a conflict with another unique key deletes the conflicting
+--echo # row and inserts the new one. The index must follow that, and a short
+--echo # vector is refused there too, leaving the old row in place.
+--echo #
+CREATE TABLE t_rep (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                    u INT, UNIQUE KEY ku (u),
+                    VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t_rep VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+                         (2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+--echo # Primary-key conflict: an update of row 1.
+REPLACE INTO t_rep VALUES (1, STRING_TO_VECTOR('[5,0,0,0]'), 10);
+--echo # Unique-key conflict: row 2 is deleted, row 3 inserted.
+REPLACE INTO t_rep VALUES (3, STRING_TO_VECTOR('[7,0,0,0]'), 20);
+SELECT id, u FROM t_rep ORDER BY id;
+SELECT id FROM t_rep
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t_rep IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t_rep
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+--error ER_VECTOR_INDEX_WRONG_DIMENSIONS
+REPLACE INTO t_rep VALUES (4, STRING_TO_VECTOR('[9,9]'), 20);
+SELECT id, u FROM t_rep ORDER BY id;
+DROP TABLE t_rep;

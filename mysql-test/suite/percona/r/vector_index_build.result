@@ -1,0 +1,153 @@
+#
+# PS-11299/PS-11300: ADD VECTOR INDEX populates the graph.
+#
+# The FIRST ADD must materialize the hidden percona_vec_aux_id
+# column, which means rewriting every row: it rebuilds the table in
+# place, labels each copied row and builds the graph from that scan.
+#
+# Replacing the index in one statement - DROP and ADD together - keeps
+# the column, so the new graph and aux come from one clustered scan
+# that reuses each row's existing label, without rewriting a base row.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]'));
+# First ADD, explicit INPLACE: rebuilds the table with the column and
+# builds a node per row. An in-place rebuild that wrote the column and
+# no graph is the case that used to give nodes=0.
+ALTER TABLE t1 ADD VECTOR KEY k1 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# Record the table id, to prove the replacement does not rebuild.
+# Replace the index in one statement: populated by the clustered-scan
+# build.
+ALTER TABLE t1 DROP KEY k1, ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4),
+ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# TABLE_ID unchanged across the replacement — no table rebuild:
+table_id_unchanged=1
+# The rebuilt index still answers for every row after a restart,
+# which is the real proof the aux was written and not just memory.
+# restart
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# A DELETEd row is not collected by the build, so replacing the index
+# compacts tombstones — the first working "OPTIMIZE" for a vector
+# index. The labels are kept, so row 2's leaves a gap.
+DELETE FROM t1 WHERE id = 2;
+ALTER TABLE t1 DROP KEY k2, ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4),
+ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=0
+DROP TABLE t1;
+#
+# The graph is not just present, it ANSWERS: an ORDER BY DISTANCE
+# query loads the runtime from the aux and searches it.
+#
+CREATE TABLE tk (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO tk VALUES (10, STRING_TO_VECTOR('[1,0,0,0]')),
+(20, STRING_TO_VECTOR('[0,1,0,0]')),
+(30, STRING_TO_VECTOR('[0,0,1,0]')),
+(40, STRING_TO_VECTOR('[0,0,0,1]'));
+ALTER TABLE tk ADD VECTOR KEY kv (v) TYPE hnsw (M = 4);
+# Touch the table so the handler opens it and creates the runtime
+# (vec_runtime_open runs in ha_innobase::open).
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+COUNT(*)
+4
+# Nearest to [1,0,0,0] is row 10, then the rest.
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+10
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 4;
+id
+10
+20
+30
+40
+# Nearest to [0,0,1,0] is row 30.
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+id
+30
+# Same answers after a restart, which means they came from the aux
+# and not from a graph that happened to still be in memory.
+# restart
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+COUNT(*)
+4
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+id
+30
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 1;
+id
+40
+# And after an INPLACE rebuild of the index, the answers must be
+# the same — the build produced an equivalent graph, not just a
+# populated table.
+ALTER TABLE tk DROP KEY kv;
+ALTER TABLE tk ADD VECTOR KEY kv2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+COUNT(*)
+4
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+10
+SELECT id FROM tk
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 4;
+id
+10
+20
+30
+40
+# A row inserted after the rebuild is reachable through the rebuilt
+# index, and the index and a plain table scan agree on the answer.
+# vec_aux_verify only says the aux is well formed; this says the
+# graph it describes returns what the data says it should.
+INSERT INTO tk VALUES (50, STRING_TO_VECTOR('[0.9,0,0,0]'));
+SELECT id FROM tk FORCE INDEX (kv2)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 2;
+id
+10
+50
+SELECT id FROM tk IGNORE INDEX (kv2)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 2;
+id
+10
+50
+DROP TABLE tk;
+#
+# M is bounded to [2, 200] (vec0vec.cc). An oversized M must be
+# rejected at parse time, on a populated table, for both CREATE and
+# ALTER - never reach vec_build and size a per-node neighbor buffer
+# off it.
+#
+CREATE TABLE tm (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO tm VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+ALTER TABLE tm ADD VECTOR KEY km (v) TYPE hnsw (M = 201);
+ERROR HY000: Illegal index construction parameter value: 201.
+# Same for CREATE INDEX on the populated table.
+CREATE VECTOR INDEX kmi ON tm(v) TYPE hnsw (M = 201);
+ERROR HY000: Illegal index construction parameter value: 201.
+# M at the bound still builds normally on a populated table.
+ALTER TABLE tm ADD VECTOR KEY km (v) TYPE hnsw (M = 200);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/tm';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1 distinct_ids=1 distinct_base_pks=1 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+DROP TABLE tm;

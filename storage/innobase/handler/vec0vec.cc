@@ -27,6 +27,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vec0vec.h"
 
+#include "vector-common/vector_distance.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -60,8 +62,8 @@ namespace {
 const char *alg_to_string(ha_key_alg alg) {
   switch (alg) {
     case HA_KEY_ALG_SE_SPECIFIC:
-      assert(false);
-      return nullptr;
+      ut_ad(0); /* the accepted algorithm; never named in an error */
+      return "SE-SPECIFIC";
     case HA_KEY_ALG_BTREE:
       return "BTREE";
     case HA_KEY_ALG_RTREE:
@@ -74,23 +76,93 @@ const char *alg_to_string(ha_key_alg alg) {
       return "VECTOR";
   }
 
-  assert(false);
-  return nullptr;
+  ut_ad(0); /* never nullptr: the caller passes this to my_error as %s */
+  return "UNKNOWN";
 }
 }  // namespace
 
 namespace storage::innobase::vec {
+
+/* The shared implementation. Takes the two fields that actually matter -
+the TYPE token and the WITH(...) list - so the same parse serves DDL,
+where they arrive on a Key_spec, and table open, where they arrive on a
+KEY. */
+namespace {
+/** Upper bound on the HNSW "M" option. Each node's neighbor buffer is
+(layer + 2) * M pointers (vector-common/hnsw.h), so an unbounded M turns
+even a single-row index into a multi-gigabyte allocation; 200 keeps that
+buffer small while leaving headroom over any M a real workload would
+choose. */
+constexpr int kMaxHnswM = 200;
+}  // namespace
+
+bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
+                   VectorIndexParam &vip) {
+  if (type.str == nullptr) {
+    my_error(ER_NO_INDEX_TYPE, MYF(0), "");
+    return true;
+  }
+
+  if (my_strcasecmp(system_charset_info, type.str, "HNSW") != 0) {
+    my_error(ER_INDEX_TYPE_NOT_SUPPORTED, MYF(0), type.str, "vector");
+    return true;
+  }
+
+  auto &hnsw_param = vip.emplace<HnswParam>();
+
+  for (const auto &[key, value] : params) {
+    if (my_strcasecmp(system_charset_info, key.str, "M") == 0) {
+      const auto *last = value.str + value.length;
+      int val;
+      auto result = std::from_chars(value.str, last, val);
+      if (result.ptr == last && result.ec == errc() && val >= 2 &&
+          val <= kMaxHnswM) {
+        hnsw_param.M = val;
+      } else {
+        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
+                 value.str);
+        return true;
+      }
+    } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
+      std::string_view name(value.str, value.length);
+      const auto *m = vector_constants::metric_from_name(name);
+      if (m == nullptr) {
+        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
+                 value.str);
+        return true;
+      }
+      hnsw_param.metric = *m;
+    } else {
+      my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+      return true;
+    }
+  }
+
+  if (hnsw_param.metric != vector_constants::Metric::kEuclidean) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "HNSW indexes on anything but the EUCLIDEAN metric");
+    return true;
+  }
+
+  /* The only metric accepted. Squared euclidean is deliberate: the graph
+  only ever compares distances, and skipping the square root costs nothing
+  in ordering. */
+  hnsw_param.dist = &vector_distance_euclidean_squared;
+  return false;
+}
 
 bool validate_options(const Key_spec &index_def) {
   VectorIndexParam vip;
   return parse_options(index_def, vip);
 }
 
+/* DDL-time: validate the shape the user wrote, then parse. */
 bool parse_options(const Key_spec &index_def, VectorIndexParam &vip) {
   if (index_def.type != KEYTYPE_VECTOR) return false;
 
-  // prepare_key() will make sure there's only one column.
-  // Possibly this check belongs there, too.
+  /* Column count is checked later by the server, not here. */
+  ut_ad(!index_def.columns.empty());
+
   if (index_def.columns[0]->get_prefix_length() != 0) {
     my_error(ER_WRONG_SUB_KEY, MYF(0));
     return true;
@@ -102,54 +174,14 @@ bool parse_options(const Key_spec &index_def, VectorIndexParam &vip) {
     return true;
   }
 
-  if (index_def.key_create_info.vector_index_type.str == nullptr) {
-    my_error(ER_NO_INDEX_TYPE, MYF(0), "");
-    return true;
-  }
-  if (my_strcasecmp(system_charset_info,
-                    index_def.key_create_info.vector_index_type.str,
-                    "HNSW") == 0) {
-    vip = HnswParam();
-    auto &hnsw_param = vip.emplace<HnswParam>();
-    for (const auto &[key, value] :
-         index_def.key_create_info.vector_index_params) {
-      if (my_strcasecmp(system_charset_info, key.str, "M") == 0) {
-        const auto *last = value.str + value.length;
-        int val;
-        auto result = std::from_chars(value.str, last, val);
-        if (result.ptr == last && result.ec == errc())
-          hnsw_param.M = val;
-        else {
-          my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                   value.str);
-          return true;
-        }
-      } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
-        std::string_view name(value.str, value.length);
-        const auto *m = vector_constants::metric_from_name(name);
-        if (m == nullptr) {
-          my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                   value.str);
-          return true;
-        }
-        hnsw_param.metric = *m;
-      } else {
-        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
-        return true;
-      }
-    }
+  return parse_options(index_def.key_create_info.vector_index_type,
+                       index_def.key_create_info.vector_index_params, vip);
+}
 
-    if (hnsw_param.metric != vector_constants::Metric::kEuclidean) {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "HNSW indexes on anything but the EUCLIDEAN metric");
-      return true;
-    }
-
-    return false;
-  }
-  my_error(ER_INDEX_TYPE_NOT_SUPPORTED, MYF(0),
-           index_def.key_create_info.vector_index_type.str, "vector");
-  return true;
+/* Open-time: the definition came back from the DD, so its shape was
+already validated at DDL time. Parse only. */
+bool parse_options(const KEY &key, VectorIndexParam &vip) {
+  return parse_options(key.vector_index_type, key.vector_index_params, vip);
 }
 
 }  // namespace storage::innobase::vec

@@ -1,0 +1,319 @@
+#
+# Dropping the last vector index removes the hidden label column.
+#
+# The column exists exactly while the table has a vector index, whatever the
+# ALTER's algorithm. It used to stay after a plain DROP INDEX and go
+# after any rebuild, so the same statement gave different tables. The
+# last DROP now rebuilds the table without it, and may run online.
+#
+# N_COLS counts InnoDB's own columns: id, v and three system columns
+# make 5, the hidden label column makes 6.
+#
+# The same end state on every algorithm.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'));
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+6
+ALTER TABLE t1 DROP KEY vk, ALGORITHM=INPLACE;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+5
+SELECT COUNT(*) AS aux FROM information_schema.innodb_tables WHERE name LIKE 'test/percona_vec_hnsw%';
+aux
+0
+DROP TABLE t1;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'));
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+6
+ALTER TABLE t1 DROP KEY vk, ALGORITHM=COPY;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+5
+SELECT COUNT(*) AS aux FROM information_schema.innodb_tables WHERE name LIKE 'test/percona_vec_hnsw%';
+aux
+0
+DROP TABLE t1;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'));
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+6
+ALTER TABLE t1 DROP KEY vk;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+5
+SELECT COUNT(*) AS aux FROM information_schema.innodb_tables WHERE name LIKE 'test/percona_vec_hnsw%';
+aux
+0
+DROP TABLE t1;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]')),
+(3, STRING_TO_VECTOR('[3,0,0,0]'));
+# While a vector index stays, LOCK=NONE is refused.
+ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+# The last DROP rebuilds, so it gets a new table id, and it runs
+# online: DML during the rebuild reaches the new table through the row
+# log, without the column.
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt WAIT_FOR dml_done';
+ALTER TABLE t1 DROP KEY vk, ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC = 'now WAIT_FOR rebuilt TIMEOUT 30';
+INSERT INTO t1 VALUES (4, STRING_TO_VECTOR('[4,0,0,0]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[20,0,0,0]') WHERE id = 2;
+DELETE FROM t1 WHERE id = 3;
+SET DEBUG_SYNC = 'now SIGNAL dml_done';
+SET DEBUG_SYNC = 'RESET';
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+5
+SELECT COUNT(*) AS aux FROM information_schema.innodb_tables WHERE name LIKE 'test/percona_vec_hnsw%';
+aux
+0
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
+2	[2.00000e+01,0.00000e+00,0.00000e+00,0.00000e+00]
+4	[4.00000e+00,0.00000e+00,0.00000e+00,0.00000e+00]
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# With no vector index left, the table is an ordinary one again:
+# INSTANT is allowed.
+ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INSTANT;
+ALTER TABLE t1 DROP COLUMN c, ALGORITHM=INSTANT;
+# A later ADD brings the column back and labels afresh from 1.
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+6
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[20,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+2
+DROP TABLE t1;
+# A table with a FULLTEXT index cannot be rebuilt in place, so its last
+# vector index is dropped by COPY.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+d VARCHAR(20), FULLTEXT KEY fd (d),
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 'a');
+ALTER TABLE t2 DROP KEY vk, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding the first vector index, or dropping the last one, in-place on a table with a FULLTEXT index; either rebuilds the table to add or remove the hidden label column. Try ALGORITHM=COPY.
+ALTER TABLE t2 DROP KEY vk;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t2';
+n_cols
+7
+DROP TABLE t2;
+#
+# The last DROP together with other column and index changes.
+#
+# INSTANT is refused while the old table has a vector index, so none
+# of these is INSTANT. The last DROP is a rebuild, and InnoDB never
+# adds or drops a virtual column during a rebuild: those combinations
+# are refused INPLACE, as for any other rebuild, and run through COPY.
+#
+# Dropping a virtual column with the last vector index.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t3 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t3 DROP KEY vk, DROP COLUMN g, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t3 DROP KEY vk, DROP COLUMN g, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t3 DROP KEY vk, DROP COLUMN g;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t3';
+n_cols
+6
+SELECT id, c FROM t3 ORDER BY id;
+id	c
+1	10
+2	20
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+# Adding a virtual column and an index on it with the last DROP.
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t4 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t4 DROP KEY vk,
+ADD COLUMN g INT GENERATED ALWAYS AS (c * 2) VIRTUAL, ADD KEY kg (g),
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t4 DROP KEY vk,
+ADD COLUMN g INT GENERATED ALWAYS AS (c * 2) VIRTUAL, ADD KEY kg (g);
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t4';
+n_cols
+6
+SELECT id, g FROM t4 WHERE g > 30;
+id	g
+2	40
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# An index on an existing virtual column and a new stored column, with
+# the last DROP, on a table that has a stored generated column: no
+# virtual column is added or dropped, so this is the last DROP's
+# rebuild, in place. (Adding a stored generated column is COPY-only in
+# InnoDB, vector index or not.)
+CREATE TABLE t6 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+s INT GENERATED ALWAYS AS (c * 3) STORED,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t6 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t6 DROP KEY vk, ADD KEY kg (g), ADD COLUMN d INT DEFAULT 7,
+ALGORITHM=INPLACE;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t6';
+n_cols
+8
+SELECT id, g, s, d FROM t6 WHERE g > 15;
+id	g	s	d
+2	21	60	7
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	status	OK
+# The same on each algorithm, with an index on a virtual column dropped
+# as well.
+CREATE TABLE t7 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+s INT GENERATED ALWAYS AS (c * 3) STORED,
+KEY kg (g), VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t7 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t7 DROP KEY vk, DROP KEY kg, ADD COLUMN d INT DEFAULT 7 , ALGORITHM=INPLACE;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t7';
+n_cols
+8
+SELECT id, g, s, d FROM t7 ORDER BY id;
+id	g	s	d
+1	11	30	7
+2	21	60	7
+CHECK TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+DROP TABLE t7;
+CREATE TABLE t7 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+s INT GENERATED ALWAYS AS (c * 3) STORED,
+KEY kg (g), VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t7 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t7 DROP KEY vk, DROP KEY kg, ADD COLUMN d INT DEFAULT 7 , ALGORITHM=COPY;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t7';
+n_cols
+8
+SELECT id, g, s, d FROM t7 ORDER BY id;
+id	g	s	d
+1	11	30	7
+2	21	60	7
+CHECK TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+DROP TABLE t7;
+CREATE TABLE t7 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+s INT GENERATED ALWAYS AS (c * 3) STORED,
+KEY kg (g), VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t7 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t7 DROP KEY vk, DROP KEY kg, ADD COLUMN d INT DEFAULT 7 ;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t7';
+n_cols
+8
+SELECT id, g, s, d FROM t7 ORDER BY id;
+id	g	s	d
+1	11	30	7
+2	21	60	7
+CHECK TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+DROP TABLE t7;
+# Replacing the vector index while adding a virtual column: no rebuild
+# (the column stays), so it is allowed in place, and the labels stay.
+CREATE TABLE t5 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+c INT, e INT, VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t5 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10, 1),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20, 2),
+(3, STRING_TO_VECTOR('[3,0,0,0]'), 30, 3);
+DELETE FROM t5 WHERE id = 2;
+INSERT INTO t5 VALUES (4, STRING_TO_VECTOR('[4,0,0,0]'), 40, 4);
+ALTER TABLE t5 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 8),
+ADD COLUMN g INT GENERATED ALWAYS AS (c + 1) VIRTUAL, ALGORITHM=INPLACE;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+# Replacing it while dropping a stored column: a rebuild that keeps
+# the column, so the labels are copied, not reassigned.
+ALTER TABLE t5 DROP KEY vk2, ADD VECTOR KEY vk3 (v) TYPE hnsw (M = 8),
+DROP COLUMN e, ALGORITHM=INPLACE;
+# Labels 1, 3 and 4: row 2's label is not reissued.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t5';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=4 max_id=4
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=3 level=# base_pk=3 nb=#
+id=4 level=# base_pk=4 nb=#
+
+SELECT id, g FROM t5 ORDER BY id;
+id	g
+1	11
+3	31
+4	41
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	status	OK
+# Every table reopens with the definition it was left with.
+# restart
+CHECK TABLE t3, t4, t5, t6;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+test.t4	check	status	OK
+test.t5	check	status	OK
+test.t6	check	status	OK
+SELECT id FROM t5
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[4,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+4
+DROP TABLE t3, t4, t5, t6;
+#
+# The last DROP is a rebuild, so a surviving SPATIAL index refuses
+# LOCK=NONE as it does for any online rebuild (ultracodereview: issue3).
+#
+CREATE TABLE t8 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+g GEOMETRY NOT NULL SRID 0, SPATIAL KEY gk (g),
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t8 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), ST_GeomFromText('POINT(1 1)')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), ST_GeomFromText('POINT(2 2)'));
+ALTER TABLE t8 DROP KEY vk, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
+ALTER TABLE t8 DROP KEY vk, ALGORITHM=INPLACE, LOCK=SHARED;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t8';
+n_cols
+6
+SELECT id FROM t8 WHERE MBRContains(ST_GeomFromText('POLYGON((0 0,0 3,3 3,3 0,0 0))'), g) ORDER BY id;
+id
+1
+2
+CHECK TABLE t8;
+Table	Op	Msg_type	Msg_text
+test.t8	check	status	OK
+DROP TABLE t8;

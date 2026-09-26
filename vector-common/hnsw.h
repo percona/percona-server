@@ -192,7 +192,7 @@ enum HnswResult {
         2) Support for transactions (might be unnecessary).
         3) Support for arbitrary PKs.
         4) Memory limits/expulsion strategy.
-        5) Performance optimizations (visited set?).
+        5) Performance optimizations.
 */
 template <typename ArenaAllocator, typename Persistor,
           typename RandomEngine = std::default_random_engine>
@@ -790,6 +790,80 @@ class HNSW {
   typedef std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMinCmp>
       NodeDistMinQueue;
 
+  /**
+    Visited set of SEARCH-LAYER (v in the HNSW paper).
+
+    Open addressing with linear probing over one flat array of node
+    pointers, kept at most half full. std::unordered_set allocated and freed
+    a hash node for every visited node, which was a fifth of the time of an
+    index build. Only insertion and lookup are needed: a search never
+    removes a node from the set.
+
+    Allocation failure throws std::bad_alloc, as the standard containers do;
+    callers map it to HNSW_OOM_CONTEXT.
+  */
+  class VisitedSet {
+   public:
+    /** Make room for @p n nodes without growing. */
+    void reserve(size_t n) {
+      size_t capacity = MIN_CAPACITY;
+      while (capacity < 2 * n) capacity *= 2;
+      if (capacity > m_slots.size()) rehash(capacity);
+    }
+
+    /** Insert @p node; return false if it was already present. */
+    bool insert(Node *node) {
+      assert(node != nullptr);
+      if (2 * (m_size + 1) > m_slots.size()) {
+        rehash(std::max(MIN_CAPACITY, 2 * m_slots.size()));
+      }
+      for (size_t i = slot(node);; i = (i + 1) & m_mask) {
+        if (m_slots[i] == node) return false;
+        if (m_slots[i] == nullptr) {
+          m_slots[i] = node;
+          ++m_size;
+          return true;
+        }
+      }
+    }
+
+    size_t count(const Node *node) const {
+      if (m_size == 0) return 0;
+      for (size_t i = slot(node);; i = (i + 1) & m_mask) {
+        if (m_slots[i] == node) return 1;
+        if (m_slots[i] == nullptr) return 0;
+      }
+    }
+
+    bool empty() const { return m_size == 0; }
+
+   private:
+    static constexpr size_t MIN_CAPACITY = 64;
+
+    /** Fibonacci hash of the pointer; nodes are at least 8-byte aligned. */
+    size_t slot(const Node *node) const {
+      const uint64_t key = reinterpret_cast<uintptr_t>(node) >> 3;
+      return (key * 0x9E3779B97F4A7C15ULL) >> m_shift;
+    }
+
+    void rehash(size_t capacity) {
+      std::vector<Node *> old(capacity, nullptr);
+      old.swap(m_slots);
+      m_mask = capacity - 1;
+      m_shift = 64;
+      for (size_t c = capacity; c > 1; c >>= 1) --m_shift;
+      m_size = 0;
+      for (Node *node : old) {
+        if (node != nullptr) insert(node);
+      }
+    }
+
+    std::vector<Node *> m_slots;
+    size_t m_size{0};
+    size_t m_mask{0};
+    unsigned m_shift{64};
+  };
+
  public:
   /**
     Mutable state for a batched streaming nearest-neighbor search.
@@ -835,7 +909,7 @@ class HNSW {
       m_ef_search = 0;
       m_persistor_ctx = nullptr;
 
-      m_visited = std::unordered_set<Node *>();
+      m_visited = VisitedSet();
       m_discarded = {};
       m_scratch_buffer.clear();
 
@@ -888,7 +962,7 @@ class HNSW {
     // TODO: Is it possible to use minimal seen distance + result from
     //       previous batch as the only search state, like MariaDB does?
     //       Our implementation is more complex, but should be more exact.
-    std::unordered_set<Node *> m_visited;
+    VisitedSet m_visited;
     // Min-heap of nodes which were removed from the tentative result set
     // and neighbors of nodes which are or were present in the result set
     // which themselves were considered to be not good enough to be included
@@ -1675,6 +1749,95 @@ class HNSW {
     Node **m_end;
   };
 
+  /**
+    Visit every complete node exactly once, in ascending id order, handing
+    the visitor everything a persisted node consists of:
+
+        HnswResult visit(uint64_t id, uint64_t base_pk, const char *vec,
+                         uint8_t layer, NeighborIdRange neighbors)
+
+    The arguments are the same shapes insert_cb() receives, so a persistor
+    can be driven from here as well as from insert().
+
+    This exists so a graph can be built without persisting anything - with a
+    Persistor whose callbacks do nothing - and written out once at the end,
+    each node with its final neighbor list. Persisting during the build
+    instead rewrites a node's row every time a later insert rewires it.
+
+    Ascending id order because m_nodes is a hash map and hands nodes out in
+    whatever order it happens to hold them. A caller writing them to a store
+    keyed by id wants them sorted: that turns scattered inserts into
+    appends. Only the ids are sorted, which is a few bytes a node next to
+    the graph itself.
+
+    Nodes that are not NODE_COMPLETE are skipped, and validate() says which
+    ones those can be: a NODE_DUMMY stub has no vector or neighbors to
+    write, a NODE_LOST one has no row to write them to, and a NODE_FAILED
+    insert has neither. NODE_NEW and NODE_LINKING cannot appear, because
+    they mean an insert is in flight - asserted rather than skipped, since
+    this is not thread-safe against insert() in the first place, like
+    init_from_entry_point() and validate(): the graph must be quiescent,
+    which it is at the end of a build.
+
+    A skipped node can still be named by the neighbor list of one that is
+    written, which validate() allows too. A caller that needs every node
+    accounted for - a build persisting a finished graph, where nothing
+    should be skipped at all - compares what it wrote against size().
+
+    @param visit  called once per complete node; HNSW_SUCCESS to carry on,
+                  anything else ends the walk and is what this returns. A
+                  caller writing these nodes out stops there - a graph can
+                  hold millions of them, and every later write would go
+                  into a store that has already failed
+    @return HNSW_SUCCESS, the visitor's result if one failed, or
+            HNSW_OOM_CONTEXT if the walk's own id list could not be built
+  */
+  template <typename Visitor>
+  HnswResult for_each_node_sorted(Visitor &&visit) const {
+    std::vector<uint64_t> ids;
+
+    try {
+      ids.reserve(m_nodes.size());
+
+      for (const auto &entry : m_nodes) {
+        const NodeState state = entry.second->state();
+        // A quiescent graph has no insert in flight, so these two cannot be
+        // here; reading one would race with the insert that owns it.
+        assert(state != NODE_NEW && state != NODE_LINKING);
+        if (state == NODE_COMPLETE) ids.push_back(entry.first);
+      }
+    } catch (const std::bad_alloc &) {
+      // The id list is per-operation scratch, like the search heaps: graph
+      // allocations report HNSW_OOM_GRAPH instead. The visitor is called
+      // outside this, because a callback should not throw.
+      return HNSW_OOM_CONTEXT;
+    }
+
+    std::sort(ids.begin(), ids.end());
+
+    for (const uint64_t id : ids) {
+      const Node *node = m_nodes.find(id)->second;
+      const HnswResult rc = visit(node->id(), node->base_pk(), node->vec(),
+                                  node->layer(), neighbor_ids(node));
+      if (rc != HNSW_SUCCESS) return rc;
+    }
+
+    return HNSW_SUCCESS;
+  }
+
+  /**
+    The entry point's id, or 0 if the graph has none - which is either an
+    empty graph or one whose entry point was never published. 0 is never a
+    node id (it is the empty-neighbor sentinel), so it doubles as "none".
+  */
+  uint64_t entry_point_id() const {
+    const Node *ep = m_entry_point.load();
+    return ep == nullptr ? 0 : ep->id();
+  }
+
+  /** Number of nodes the graph holds, complete or not. */
+  size_t size() const { return m_nodes.size(); }
+
  private:
   NeighborIdRange neighbor_ids(const Node *node) const {
     return NeighborIdRange{node->all_neighbors_begin(*this),
@@ -1764,7 +1927,7 @@ class HNSW {
     const double u =
         std::max(std::uniform_real_distribution<double>(0.0, 1.0)(m_rng),
                  std::numeric_limits<double>::min());
-    // Throttle layer growth and avoid UB caused by double -> uint8_t overflow.
+    // Throttle layer growth and avoid UB caused by double to uint8_t overflow.
     const uint8_t layer_cap = std::min<int>(
         current_max_layer + 1, std::numeric_limits<uint8_t>::max());
     return static_cast<uint8_t>(
@@ -1951,7 +2114,7 @@ class HNSW {
                           uint8_t layer, PersistorContext *persistor_ctx,
                           Node **scratch_buffer) {
     assert(result != nullptr && !result->empty());
-    std::unordered_set<Node *> visited;  // v in the paper
+    VisitedSet visited;  // v in the paper
     // Guesstimate the number of unique nodes to visit in the layer.
     visited.reserve(ef * get_Mmax(layer));
     // C in the paper. Min-heap of nodes which neighbors we are going to
@@ -1961,7 +2124,7 @@ class HNSW {
     // the tentative result set (i.e. tentatively the closest ef nodes).
 
     for (const NodeDist &entry : *result) {
-      const bool res [[maybe_unused]] = visited.insert(entry.node).second;
+      const bool res [[maybe_unused]] = visited.insert(entry.node);
       assert(res == true);
       // Entry point nodes must be complete.
       assert(entry.node->state() == NODE_COMPLETE);
@@ -2001,9 +2164,9 @@ class HNSW {
   */
   HnswResult search_layer_core(const char *q, SearchLayerResult *result,
                                NodeDistMinQueue *candidates,
-                               std::unordered_set<Node *> *visited,
-                               NodeDistMinQueue *discarded, size_t ef,
-                               uint8_t layer, PersistorContext *persistor_ctx,
+                               VisitedSet *visited, NodeDistMinQueue *discarded,
+                               size_t ef, uint8_t layer,
+                               PersistorContext *persistor_ctx,
                                Node **scratch_buffer) {
     assert(result != nullptr && !result->empty());
     assert(candidates != nullptr && !candidates->empty());
@@ -2075,7 +2238,7 @@ class HNSW {
 
         assert(e->state() == NODE_COMPLETE);
 
-        if (!visited->insert(e).second) {
+        if (!visited->insert(e)) {
           continue;
         }
 

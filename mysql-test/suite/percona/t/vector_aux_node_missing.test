@@ -1,0 +1,106 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A neighbour list names a node the aux table does not have.
+--echo #
+--echo # Unlike a spent memory budget, this does not repair itself: the
+--echo # graph and the table it is persisted in disagree, and no retry
+--echo # changes that. It is reported as index corruption, scoped to the
+--echo # index rather than the base table, and the message says which node
+--echo # went missing so the aux can be examined.
+--echo #
+--echo # vec_aux_read_node is where the miss surfaces, so the failure is
+--echo # injected there. Record 0 is deliberately left readable: it holds
+--echo # the entry point, not a node, and a miss on it means the index is
+--echo # empty - a different path with a different outcome.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]')),
+                      (3, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo # The graph answers normally while it is in memory.
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # Drop the in-memory graph so the next query has to read the aux.
+--source include/restart_mysqld.inc
+
+SET DEBUG = '+d,vec_aux_node_missing';
+
+--echo # The cold load reads record 0, then faults in the node it names -
+--echo # which is now gone. The statement fails, and the error names the
+--echo # node rather than saying only that some index is corrupt.
+# Which node is the entry point depends on the layer each one drew, and
+# the layer draw is not seeded, so the id in the message varies between
+# runs. That the message names the node is the point; which node it names
+# is not.
+--replace_regex /names node [0-9]+/names node <ENTRY>/
+--error ER_INNODB_INDEX_CORRUPT
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # The base table is untouched - only this index's graph failed to
+--echo # load, which is why the error is scoped to the index rather than
+--echo # reporting the table as crashed.
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+
+SET DEBUG = '-d,vec_aux_node_missing';
+
+--echo # A missing node does not come back, so the index stays refused until
+--echo # it is rebuilt; a transient failure (vector_transient_vs_corrupt)
+--echo # is retried instead.
+--error ER_INDEX_CORRUPT
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # Rebuilding the index is the remedy. Under a new name: the same name
+--echo # and definition in one statement is no change at all to the server.
+ALTER TABLE t1 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;
+
+--echo #
+--echo # The same, found by a search instead of the load: the entry point
+--echo # loads, and a node the search then faults in is missing. HNSW marks it
+--echo # lost and will not retry it, so a later search that answered would
+--echo # quietly leave it out. The index is refused until rebuilt instead.
+--echo #
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]')),
+                      (3, STRING_TO_VECTOR('[0,0,1,0]')),
+                      (4, STRING_TO_VECTOR('[0,0,0,1]')),
+                      (5, STRING_TO_VECTOR('[1,1,0,0]')),
+                      (6, STRING_TO_VECTOR('[0,1,1,0]'));
+--echo # The row estimate must exceed the LIMIT for the vector path.
+ANALYZE TABLE t2;
+--source include/restart_mysqld.inc
+
+SET DEBUG = '+d,vec_aux_node_missing_after_entry';
+--replace_regex /names node [0-9]+/names node <N>/
+--error ER_INNODB_INDEX_CORRUPT
+SELECT id FROM t2
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 3;
+SET DEBUG = '-d,vec_aux_node_missing_after_entry';
+
+--echo # Refused, not answered with a node short.
+--error ER_INDEX_CORRUPT
+SELECT id FROM t2
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 3;
+
+--echo # Rebuilding the index is the remedy. A query vector at a distinct
+--echo # distance from every row, so the answer has one order.
+ALTER TABLE t2 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+SELECT id FROM t2
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[4,3,2,1]'), 'euclidean') LIMIT 3;
+DROP TABLE t2;

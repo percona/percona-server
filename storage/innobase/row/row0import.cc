@@ -61,6 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/mysqld.h"
 #include "srv0start.h"
 #include "ut0new.h"
+#include "vec0aux.h"
 #include "zlob0first.h"
 
 #include "my_dbug.h"
@@ -1418,6 +1419,26 @@ matches the in memory table definition.
 @return DB_SUCCESS or error code. */
 dberr_t row_import::match_schema(THD *thd,
                                  const dd::Table *dd_table) UNIV_NOTHROW {
+  /* Refuse a source that carried the hidden percona_vec_aux_id column,
+  with or without a vector index on it. Its rows hold labels assigned
+  against the source table's counter, and that counter lives in the
+  source's data dictionary entry rather than in the tablespace, so it
+  does not travel with the .ibd. The target would keep assigning from its
+  own counter and hand out a label an imported row already holds. */
+  for (ulint i = 0; m_col_names != nullptr && i < m_n_cols; ++i) {
+    const char *col_name = reinterpret_cast<const char *>(m_col_names[i]);
+
+    if (col_name != nullptr && strcmp(col_name, VEC_AUX_ID_COL_NAME) == 0) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "The meta-data file describes a table carrying vector index"
+              " metadata (column %s). IMPORT TABLESPACE is not supported"
+              " for such tables.",
+              VEC_AUX_ID_COL_NAME);
+
+      return (DB_ERROR);
+    }
+  }
+
   /* Do some simple checks. */
   const auto relevant_flags = m_flags & ~DICT_TF_MASK_DATA_DIR;
   const auto relevant_table_flags = m_table->flags & ~DICT_TF_MASK_DATA_DIR;

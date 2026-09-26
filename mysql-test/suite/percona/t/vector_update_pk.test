@@ -1,0 +1,148 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: UPDATE that changes the PRIMARY KEY of
+--echo # a vector-indexed row.
+--echo #
+--echo # A PK change is treated the same way a vector change already is
+--echo # (design: "UPDATE"): a node is immutable, and base_pk is baked into
+--echo # it, so once the row's key moves it is effectively a new version as
+--echo # far as the graph is concerned. calc_row_difference() assigns a fresh
+--echo # label for a PK change exactly as it does for a vector change, and
+--echo # the new node carries the row's (possibly unchanged) vector together
+--echo # with its NEW key. The old node is left alone, still naming the OLD
+--echo # key, the same way an old node from a vector-only UPDATE is left
+--echo # naming the unmoved base_pk (vector_stale_node.test).
+--echo #
+--echo # Rewriting the OLD node's base_pk in place instead is wrong, not just
+--echo # unimplemented: a
+--echo # reader whose snapshot predates the UPDATE would resolve that node's
+--echo # base_pk to the clustered record this UPDATE itself just inserted,
+--echo # which is invisible to that reader -- DB_RECORD_NOT_FOUND -- and lose
+--echo # the row outright. The isolation check near the end of this test
+--echo # guards against that regression.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+
+INSERT INTO t1 VALUES (7, 100, STRING_TO_VECTOR('[1,0,0,0]'));
+INSERT INTO t1 VALUES (8, 200, STRING_TO_VECTOR('[0,1,0,0]'));
+INSERT INTO t1 VALUES (9, 300, STRING_TO_VECTOR('[0,0,2,0]'));
+
+--echo # Baseline: node for row 7 carries base_pk=7, and the ANN query for
+--echo # row 7's own vector finds it -- both via the index and via the
+--echo # exact (IGNORE INDEX) path.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+SELECT id FROM t1 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo #
+--echo # Change ONLY the primary key of row 7: 7 -> 70. The vector is
+--echo # untouched.
+--echo #
+UPDATE t1 SET id = 70 WHERE id = 7;
+
+--echo # A new node is created, carrying the SAME vector and the NEW key.
+--echo # The old node is left exactly as it was, still naming base_pk=7.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+SELECT id, k, VECTOR_TO_STRING(v) FROM t1 FORCE INDEX (PRIMARY) WHERE id = 70;
+
+--echo # Row 70 is found via both paths now: the exact scan, and the
+--echo # vector index (via its new node).
+SELECT id FROM t1 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # Same agreement with a wider LIMIT: row 70 ranks first on both
+--echo # paths (its own vector, distance 0); the old node (still naming
+--echo # base_pk=7, now nonexistent) resolves to nothing and is skipped,
+--echo # exactly like any other stale node (vector_stale_node.test).
+SELECT id FROM t1 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t1 FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo #
+--echo # A combined UPDATE (PK AND vector change together) assigns ONE new
+--echo # node carrying the NEW vector together with the NEW key -- not the
+--echo # pre-update key vec_upd_row_pk() would have reported.
+--echo #
+UPDATE t1 SET id = 80, v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 8;
+
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+--replace_regex /id=0 level=[0-9]+ base_pk=[0-9]+/id=0 level=# base_pk=#/ /level=[0-9]+/level=#/ /nb=[0-9,]*/nb=#/
+SELECT @@session.innodb_interpreter_output;
+
+SELECT id FROM t1 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo #
+--echo # Isolation: a reader whose snapshot predates a PK-changing UPDATE
+--echo # must still find the row at its OLD key -- not lose it, and not see
+--echo # it at the new one. This is the case that a base_pk-rewritten-in-
+--echo # place fix gets wrong (see header comment).
+--echo #
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[10,0]')),
+                      (3, STRING_TO_VECTOR('[50,0]'));
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connect (con2, localhost, root,,);
+UPDATE t2 SET id = 101 WHERE id = 1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo # The snapshot reader still finds row 1 under its OLD key... via the
+--echo # vector index itself (FORCE INDEX), not merely the always-correct
+--echo # exact path -- this is the query the isolation guarantee is about.
+SELECT id, VECTOR_TO_STRING(v) FROM t2 FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+COMMIT;
+
+--echo # After the snapshot ends, the new key is what a fresh read sees,
+--echo # again via the index.
+SELECT id, VECTOR_TO_STRING(v) FROM t2 FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Dropping the last vector index removes the hidden aux-id column,
+--echo # and a later PK UPDATE must not trigger vector maintenance when no
+--echo # vector index exists.
+--echo #
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[0,0]'));
+
+ALTER TABLE t3 DROP KEY vk;
+UPDATE t3 SET id = 2 WHERE id = 1;
+SELECT id FROM t3;
+
+--echo # Rebuilding the vector index must use the updated primary key.
+ALTER TABLE t3 ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+SELECT id FROM t3 FORCE INDEX (vk2)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t3;

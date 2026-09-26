@@ -76,6 +76,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_row.h"
+#include "sql/item_strfunc.h"  // Item_func_vector_distance
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/iterators/basic_row_iterators.h"
@@ -834,6 +835,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
 
   /* Perform FULLTEXT search before all regular searches */
   if (query_block->has_ft_funcs() && optimize_fts_query()) return true;
+
+  /* Not gated on has_vector_funcs(): a select-list DISTANCE() the ORDER BY
+  names by alias or position is not on that list, and
+  optimize_vector_query() works everything out from the ORDER BY. */
+  if (!thd->lex->using_hypergraph_optimizer() && optimize_vector_query())
+    return true;
 
   /*
     By setting child_subquery_can_materialize so late we gain the following:
@@ -2258,6 +2265,18 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   /* Sorting a single row can always be skipped */
   if (tab->type() == JT_EQ_REF || tab->type() == JT_CONST ||
       tab->type() == JT_SYSTEM) {
+    return true;
+  }
+
+  /* JT_VECTOR produces rows in ascending distance order - exactly the
+  single ORDER BY expression optimize_vector_query activated it for.
+  The sort is redundant. */
+  if (tab->type() == JT_VECTOR) {
+    assert(order.order != nullptr && order.order->next == nullptr &&
+           order.order->direction != ORDER_DESC &&
+           is_function_of_type((*order.order->item)->real_item(),
+                               Item_func::VECTOR_DISTANCE_FUNC) &&
+           select_limit != HA_POS_ERROR);
     return true;
   }
 
@@ -11048,6 +11067,123 @@ bool JOIN::optimize_fts_query() {
   }
 
   return init_ftfuncs(thd, query_block);
+}
+
+bool JOIN::optimize_vector_query() {
+  ASSERT_BEST_REF_IN_JOIN_ORDER(this);
+
+  // Only used by the old optimizer.
+  assert(!thd->lex->using_hypergraph_optimizer());
+
+  /* Only the canonical approximate-ANN shape activates the index: a
+  single-table block whose single ascending ORDER BY expression is a
+  distance call over the indexed column with a constant query vector,
+  under a finite LIMIT. A distance call anywhere else on its own - in the
+  projection, in a filter - leaves the block on the exact path, as does
+  that same ORDER BY without a LIMIT.
+
+  A filter alongside a conforming ORDER BY is not a reason to refuse,
+  including one over the distance itself. The scan yields rows in
+  ascending distance and resumes batch by batch, so the executor applies
+  WHERE between rows and the LIMIT is what ends it. vector_search.test
+  covers both filter shapes.
+
+  The scan is approximate, and not exhaustive: HNSW::nn_search_next() drops
+  a row a later batch finds closer than one already returned, and a region
+  of the graph can be unreachable from where the search starts. So a LIMIT
+  near the table's row count, or a filter that rejects most candidates, can
+  return fewer rows than qualify, with no error - the class says this API
+  is not meant for scanning most of the index. Nothing here refuses those
+  shapes yet (ultracodereview: issue12). */
+  if (primary_tables != 1 || const_tables != 0) return false;
+  if (m_select_limit == HA_POS_ERROR) return false;
+  /* A grouped or DISTINCT block's ORDER BY sorts groups, and a window
+  function must see every row before it applies; a scan in approximate
+  distance order answers none of them. */
+  if (grouped || implicit_grouping || select_distinct ||
+      m_windows.elements > 0) {
+    return false;
+  }
+  /* A MATCH() in the block reads its score from the full-text scan the
+  table's access sets up; replacing that access with the vector scan
+  leaves MATCH() reading a result that was never built. */
+  if (query_block->has_ft_funcs()) return false;
+  if (order.order == nullptr || order.order->next != nullptr ||
+      order.order->direction == ORDER_DESC) {
+    return false;
+  }
+
+  Item *order_item = (*order.order->item)->real_item();
+  if (!is_function_of_type(order_item, Item_func::VECTOR_DISTANCE_FUNC)) {
+    return false;
+  }
+  auto *dist_fn = down_cast<Item_func_vector_distance *>(order_item);
+
+  /* The index's construction metric is (squared) euclidean - the only
+  one CREATE accepts today; other query metrics order differently and
+  fall back to the exact path. */
+  if (!dist_fn->l2_index_servable()) return false;
+
+  const auto arg1 = dist_fn->arguments()[0]->real_item();
+  const auto arg2 = dist_fn->arguments()[1]->real_item();
+
+  Item *const_vector_expr;
+  const Field *vector_column;
+  if (arg1->type() == Item::FIELD_ITEM && arg2->const_for_execution()) {
+    vector_column = down_cast<const Item_field *>(arg1)->field;
+    const_vector_expr = arg2;
+  } else if (arg2->type() == Item::FIELD_ITEM && arg1->const_for_execution()) {
+    vector_column = down_cast<const Item_field *>(arg2)->field;
+    const_vector_expr = arg1;
+  } else {
+    return false;
+  }
+
+  if (vector_column->type() != MYSQL_TYPE_VECTOR) return false;
+
+  /* A NULL query vector, or one with a NaN or infinite component, is left
+  to the exact path, which answers it as a table without the index does:
+  every distance is NULL, or DISTANCE() raises ER_DATA_OUT_OF_RANGE. The
+  graph search cannot answer either. The value is constant for this
+  execution, so it can be read here - where the optimizer may evaluate it
+  at all: not a stored function under EXPLAIN, say. When it may not, the
+  handler's own checks refuse such a vector (ultracodereview: issue7). */
+  if (evaluate_during_optimization(const_vector_expr, query_block)) {
+    String buf;
+    const String *q = const_vector_expr->val_str(&buf);
+    if (thd->is_error()) return true;
+    if (q == nullptr || q->ptr() == nullptr) return false;
+    if (q->length() % sizeof(float) == 0) {
+      for (size_t off = 0; off < q->length(); off += sizeof(float)) {
+        float f;
+        memcpy(&f, q->ptr() + off, sizeof(float));
+        if (!std::isfinite(f)) return false;
+      }
+    }
+  }
+
+  JOIN_TAB *tab = best_ref[0];
+  const TABLE *table = tab->table();
+  if (table == nullptr || table != vector_column->table) return false;
+
+  for (uint idx = 0; idx < table->s->keys; ++idx) {
+    const auto &index = table->key_info[idx];
+    /* Compare by position, not Field pointer: KEY_PART_INFO::field is
+    a key-image copy of the table field, not the same object the
+    Item_field resolved to. */
+    if (index.flags & HA_VECTOR && table->keys_in_use_for_query.is_set(idx) &&
+        index.key_part[0].field->field_index() ==
+            vector_column->field_index()) {
+      tab->set_type(JT_VECTOR);
+      tab->ref().key = idx;
+      tab->ref().key_parts = 0;
+      tab->set_index(idx);
+      tab->set_vec(const_vector_expr);
+      tab->set_vec_limit(m_select_limit);
+      return false;
+    }
+  }
+  return false;
 }
 
 /**

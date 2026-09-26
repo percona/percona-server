@@ -1013,8 +1013,8 @@ it. (Phase 1 left vector indexes out of `m_indexes`, because nothing could popul
 ADD of only a vector index then left it empty, which is what the removed `empty()` shortcut in
 `ddl::Context::build()` was for.)
 
-The first ADD scans on one thread: the rebuilt clustered index skips the sort, and upstream
-forces a single-threaded scan for that (§43). A later ADD scans in parallel. A same-name
+The first ADD, a rebuild, sorts the clustered rows so that its scan is parallel too (§43). A
+later ADD is not a rebuild and scans in parallel. A same-name
 `DROP KEY vk, ADD VECTOR KEY vk` with an identical definition is a no-op to the server, which
 cancels the pair before InnoDB sees it; `ALTER TABLE … FORCE` or `OPTIMIZE TABLE` is the rebuild
 that repairs a corrupt index.
@@ -2001,22 +2001,26 @@ ceiling during COPY, a failed COPY). Not needed for the MVP: the first ADD is IN
 with a vector index happens only with an explicit `ALGORITHM=COPY` or an `ALTER` that INPLACE
 cannot do.
 
-## 43. The first `ADD VECTOR INDEX` scans on one thread
+## 43. The first `ADD VECTOR INDEX` sorts, so its scan is parallel
 
-The first ADD is a rebuild that keeps the primary key. The new clustered index is then written
-bottom-up straight from the scan, without a sort (`skip_pk_sort`), and upstream's
+The first ADD is a rebuild that keeps the primary key. Upstream would write the new clustered
+index bottom-up straight from the scan, without a sort (`skip_pk_sort`), but
 `Parallel_cursor::scan()` drops to one thread for any builder that skips the sort: a parallel
 scan hands out key ranges and would feed `Btree_load` out of order. The vector builder shares
-that scan, so every HNSW insert of the first ADD runs on one thread. A later ADD is not a rebuild,
-has no clustered builder, and scans in parallel.
+that scan, so every HNSW insert would run on one thread.
 
-Persistence is the same for both: the graph is built with the null persistor and the aux written
-in bulk (§15). Only the scan's thread count differs.
+So a rebuild that builds a vector index turns the sort back on
+(`prepare_inplace_alter_table_dict()`, `skip_pk_sort = false` when `vec_index` is set). The
+clustered rows go through the merge sort, and the scan and the graph inserts run on
+`innodb_parallel_read_threads` threads, each assigning labels from the table's atomic counter
+(`Vec_label_counter::assign()`). Labels are node ids, not positions, so their order across
+threads does not matter.
 
-The follow-up is upstream's own path for a changed primary key: take the sort
-(`skip_pk_sort = false`) when the rebuild adds the hidden column, so the scan and the graph
-inserts run on `innodb_parallel_read_threads` threads. It trades a merge sort of the clustered
-rows for a parallel graph build; measure on a large table before deciding.
+The trade is a merge sort of the clustered rows for a parallel graph build. The graph is nearly
+all of the cost: on SIFT-1M the rebuild alone takes about 2 s, the serial graph build minutes.
+
+Persistence is the same for the first and a later ADD: the graph is built with the null
+persistor and the aux written in bulk (§15).
 
 ## 44. What `LOCK=NONE` and `ALGORITHM=INSTANT` need after the MVP
 

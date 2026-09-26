@@ -192,7 +192,7 @@ enum HnswResult {
         2) Support for transactions (might be unnecessary).
         3) Support for arbitrary PKs.
         4) Memory limits/expulsion strategy.
-        5) Performance optimizations (visited set?).
+        5) Performance optimizations.
 */
 template <typename ArenaAllocator, typename Persistor,
           typename RandomEngine = std::default_random_engine>
@@ -790,6 +790,80 @@ class HNSW {
   typedef std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMinCmp>
       NodeDistMinQueue;
 
+  /**
+    Visited set of SEARCH-LAYER (v in the HNSW paper).
+
+    Open addressing with linear probing over one flat array of node
+    pointers, kept at most half full. std::unordered_set allocated and freed
+    a hash node for every visited node, which was a fifth of the time of an
+    index build. Only insertion and lookup are needed: a search never
+    removes a node from the set.
+
+    Allocation failure throws std::bad_alloc, as the standard containers do;
+    callers map it to HNSW_OOM_CONTEXT.
+  */
+  class VisitedSet {
+   public:
+    /** Make room for @p n nodes without growing. */
+    void reserve(size_t n) {
+      size_t capacity = MIN_CAPACITY;
+      while (capacity < 2 * n) capacity *= 2;
+      if (capacity > m_slots.size()) rehash(capacity);
+    }
+
+    /** Insert @p node; return false if it was already present. */
+    bool insert(Node *node) {
+      assert(node != nullptr);
+      if (2 * (m_size + 1) > m_slots.size()) {
+        rehash(std::max(MIN_CAPACITY, 2 * m_slots.size()));
+      }
+      for (size_t i = slot(node);; i = (i + 1) & m_mask) {
+        if (m_slots[i] == node) return false;
+        if (m_slots[i] == nullptr) {
+          m_slots[i] = node;
+          ++m_size;
+          return true;
+        }
+      }
+    }
+
+    size_t count(const Node *node) const {
+      if (m_size == 0) return 0;
+      for (size_t i = slot(node);; i = (i + 1) & m_mask) {
+        if (m_slots[i] == node) return 1;
+        if (m_slots[i] == nullptr) return 0;
+      }
+    }
+
+    bool empty() const { return m_size == 0; }
+
+   private:
+    static constexpr size_t MIN_CAPACITY = 64;
+
+    /** Fibonacci hash of the pointer; nodes are at least 8-byte aligned. */
+    size_t slot(const Node *node) const {
+      const uint64_t key = reinterpret_cast<uintptr_t>(node) >> 3;
+      return (key * 0x9E3779B97F4A7C15ULL) >> m_shift;
+    }
+
+    void rehash(size_t capacity) {
+      std::vector<Node *> old(capacity, nullptr);
+      old.swap(m_slots);
+      m_mask = capacity - 1;
+      m_shift = 64;
+      for (size_t c = capacity; c > 1; c >>= 1) --m_shift;
+      m_size = 0;
+      for (Node *node : old) {
+        if (node != nullptr) insert(node);
+      }
+    }
+
+    std::vector<Node *> m_slots;
+    size_t m_size{0};
+    size_t m_mask{0};
+    unsigned m_shift{64};
+  };
+
  public:
   /**
     Mutable state for a batched streaming nearest-neighbor search.
@@ -835,7 +909,7 @@ class HNSW {
       m_ef_search = 0;
       m_persistor_ctx = nullptr;
 
-      m_visited = std::unordered_set<Node *>();
+      m_visited = VisitedSet();
       m_discarded = {};
       m_scratch_buffer.clear();
 
@@ -888,7 +962,7 @@ class HNSW {
     // TODO: Is it possible to use minimal seen distance + result from
     //       previous batch as the only search state, like MariaDB does?
     //       Our implementation is more complex, but should be more exact.
-    std::unordered_set<Node *> m_visited;
+    VisitedSet m_visited;
     // Min-heap of nodes which were removed from the tentative result set
     // and neighbors of nodes which are or were present in the result set
     // which themselves were considered to be not good enough to be included
@@ -2040,7 +2114,7 @@ class HNSW {
                           uint8_t layer, PersistorContext *persistor_ctx,
                           Node **scratch_buffer) {
     assert(result != nullptr && !result->empty());
-    std::unordered_set<Node *> visited;  // v in the paper
+    VisitedSet visited;  // v in the paper
     // Guesstimate the number of unique nodes to visit in the layer.
     visited.reserve(ef * get_Mmax(layer));
     // C in the paper. Min-heap of nodes which neighbors we are going to
@@ -2050,7 +2124,7 @@ class HNSW {
     // the tentative result set (i.e. tentatively the closest ef nodes).
 
     for (const NodeDist &entry : *result) {
-      const bool res [[maybe_unused]] = visited.insert(entry.node).second;
+      const bool res [[maybe_unused]] = visited.insert(entry.node);
       assert(res == true);
       // Entry point nodes must be complete.
       assert(entry.node->state() == NODE_COMPLETE);
@@ -2090,9 +2164,9 @@ class HNSW {
   */
   HnswResult search_layer_core(const char *q, SearchLayerResult *result,
                                NodeDistMinQueue *candidates,
-                               std::unordered_set<Node *> *visited,
-                               NodeDistMinQueue *discarded, size_t ef,
-                               uint8_t layer, PersistorContext *persistor_ctx,
+                               VisitedSet *visited, NodeDistMinQueue *discarded,
+                               size_t ef, uint8_t layer,
+                               PersistorContext *persistor_ctx,
                                Node **scratch_buffer) {
     assert(result != nullptr && !result->empty());
     assert(candidates != nullptr && !candidates->empty());
@@ -2164,7 +2238,7 @@ class HNSW {
 
         assert(e->state() == NODE_COMPLETE);
 
-        if (!visited->insert(e).second) {
+        if (!visited->insert(e)) {
           continue;
         }
 

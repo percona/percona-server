@@ -1,0 +1,250 @@
+#
+# The first vector index on a table is added in place.
+#
+# It needs the hidden label column on every row, so it rebuilds in
+# place: ddl::Builder writes the column on each copied row with a fresh
+# label, and the vector index is built from the same scan with those
+# labels as node ids.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# N_COLS counts InnoDB's own columns too: id, v and three system
+# columns make 5; the hidden label column makes 6.
+# Many leaf pages, so the rebuild copies a real tree.
+SET @@global.innodb_limit_optimistic_insert_debug = 2;
+SET @@global.innodb_limit_optimistic_insert_debug = 0;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+5
+# A rebuild that keeps the primary key reads the rows in key order on
+# one scan thread, so this labels them 1..1000 in that order.
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t1';
+n_cols
+6
+# One node per row, each under its own label, labels 1..1000.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1000 distinct_ids=1000 distinct_base_pks=1000 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# The index answers the same as the exact scan.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[500.2,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+500
+501
+499
+SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[500.2,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+500
+501
+499
+# The counter carries on from the rebuild: new rows get 1001 onwards,
+# before and after a restart.
+INSERT INTO t1 VALUES (1001, STRING_TO_VECTOR('[1001,0,0,0]'));
+# restart
+INSERT INTO t1 VALUES (1002, STRING_TO_VECTOR('[1002,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=1002 distinct_ids=1002 distinct_base_pks=1002 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1002,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1002
+DROP TABLE t1;
+# A table with a FULLTEXT index cannot be rebuilt in place, so there the
+# first vector index still needs COPY.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+d VARCHAR(20), FULLTEXT KEY fd (d));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 'a');
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding the first vector index, or dropping the last one, in-place on a table with a FULLTEXT index; either rebuilds the table to add or remove the hidden label column. Try ALGORITHM=COPY.
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+DROP TABLE t2;
+# Dropping and re-adding the vector index in one statement keeps the
+# column, so every row keeps its label and the new graph is built under
+# those labels. Row 3's vector is updated first, which moves it to label
+# 6: a relabelling would give 1..5 again, a reuse keeps 1,2,4,5,6.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]')),
+(3, STRING_TO_VECTOR('[3,0,0,0]')),
+(4, STRING_TO_VECTOR('[4,0,0,0]')),
+(5, STRING_TO_VECTOR('[5,0,0,0]'));
+UPDATE t3 SET v = STRING_TO_VECTOR('[30,0,0,0]') WHERE id = 3;
+# Without a rebuild.
+ALTER TABLE t3 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 8),
+ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=6 max_id=6
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=2 level=# base_pk=2 nb=#
+id=4 level=# base_pk=4 nb=#
+id=5 level=# base_pk=5 nb=#
+id=6 level=# base_pk=3 nb=#
+
+# With a rebuild: the labels are copied, not reassigned, and the
+# counter carries on - the new row gets 7.
+ALTER TABLE t3 DROP KEY vk2, ADD VECTOR KEY vk3 (v) TYPE hnsw (M = 8),
+ADD COLUMN c INT, ALGORITHM=INPLACE;
+INSERT INTO t3 (id, v) VALUES (6, STRING_TO_VECTOR('[6,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=7 max_id=7
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=2 level=# base_pk=2 nb=#
+id=4 level=# base_pk=4 nb=#
+id=5 level=# base_pk=5 nb=#
+id=6 level=# base_pk=3 nb=#
+id=7 level=# base_pk=6 nb=#
+
+SELECT id FROM t3
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[30,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+3
+# COPY writes every row through write_row, which labels afresh: 1..6.
+ALTER TABLE t3 DROP KEY vk3, ADD VECTOR KEY vk4 (v) TYPE hnsw (M = 8),
+ALGORITHM=COPY;
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=7 max_id=6
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=2 level=# base_pk=2 nb=#
+id=3 level=# base_pk=3 nb=#
+id=4 level=# base_pk=4 nb=#
+id=5 level=# base_pk=5 nb=#
+id=6 level=# base_pk=6 nb=#
+
+DROP TABLE t3;
+#
+# The first ADD together with other column and index changes. The
+# first ADD is a rebuild, and InnoDB never adds or drops a virtual
+# column during a rebuild: those combinations are refused INPLACE, as
+# for any other rebuild, and run through COPY.
+#
+# Adding a virtual column and an index on it with the first ADD.
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, c INT);
+INSERT INTO t4 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20),
+(3, STRING_TO_VECTOR('[3,0,0,0]'), 30);
+ALTER TABLE t4 ADD COLUMN g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+ADD KEY kg (g), ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t4 ADD COLUMN g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+ADD KEY kg (g), ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t4';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id, g FROM t4 WHERE g > 15 ORDER BY id;
+id	g
+2	21
+3	31
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Dropping a virtual column with the first ADD.
+CREATE TABLE t5 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, c INT,
+g INT GENERATED ALWAYS AS (c + 1) VIRTUAL);
+INSERT INTO t5 (id, v, c) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20);
+ALTER TABLE t5 DROP COLUMN g, ADD VECTOR KEY vk (v) TYPE hnsw (M = 8),
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t5 DROP COLUMN g, ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t5';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+CHECK TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	check	status	OK
+# An index on an existing virtual column and a dropped stored column,
+# with the first ADD, on a table that has a stored generated column: no
+# virtual column is added or dropped, so this is the first ADD's
+# rebuild, in place, building the virtual index and the vector index
+# from one scan. (Adding a stored generated column is COPY-only in
+# InnoDB, vector index or not.)
+CREATE TABLE t7 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, c INT,
+e INT, g INT GENERATED ALWAYS AS (c + 1) VIRTUAL,
+s INT GENERATED ALWAYS AS (c * 3) STORED);
+INSERT INTO t7 (id, v, c, e) VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 10, 1),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), 20, 2),
+(3, STRING_TO_VECTOR('[3,0,0,0]'), 30, 3);
+ALTER TABLE t7 ADD KEY kg (g), DROP COLUMN e,
+ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t7';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id, g, s FROM t7 WHERE g > 15 ORDER BY id;
+id	g	s
+2	21	60
+3	31	90
+SELECT id FROM t7
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+3
+CHECK TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	check	status	OK
+# The vector column itself added in the same statement as its index.
+CREATE TABLE t6 (id BIGINT UNSIGNED PRIMARY KEY, c INT);
+INSERT INTO t6 VALUES (1, 10), (2, 20);
+# The existing rows get an empty vector, which the index cannot hold,
+# so the build refuses them; with the column added first and filled,
+# the index can be added.
+ALTER TABLE t6 ADD COLUMN v VECTOR(4) NOT NULL,
+ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ERROR HY000: Column 'v' has a vector without the 4 dimensions its vector index needs.
+ALTER TABLE t6 ADD COLUMN v VECTOR(4) NOT NULL;
+UPDATE t6 SET v = STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'));
+ALTER TABLE t6 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t6';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+CHECK TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	check	status	OK
+# Every table reopens with the definition it was left with.
+# restart
+CHECK TABLE t4, t5, t6, t7;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+test.t5	check	status	OK
+test.t6	check	status	OK
+test.t7	check	status	OK
+SELECT id FROM t7
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+DROP TABLE t4, t5, t6, t7;
+# On a discarded tablespace the first ADD is refused like any other
+# rebuild, rather than creating an index nothing can populate
+# (ultracodereview: issue4).
+CREATE TABLE t8 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t8 DISCARD TABLESPACE;
+ALTER TABLE t8 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+ERROR HY000: Tablespace is discarded for table, 'test/t8'
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t8;

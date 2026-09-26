@@ -1,0 +1,95 @@
+#
+# PS-11299: DROP INDEX on a vector index must not silently swallow a
+# failure to drop the index's auxiliary table - neither the physical
+# dict_sys/.ibd drop, nor the dd::Table/dd::Tablespace drop that
+# follows it.
+#
+# vec_aux_drop_one_table's return value used to be discarded in
+# commit_cache_norebuild, so either failure left the DROP INDEX
+# reporting success with no trace visible to the client (only a
+# server error log entry). This forces each failure via a DBUG
+# point and checks a warning surfaces.
+#
+# Dropping the only vector index rebuilds the table, and the old table
+# takes its aux with it. The per-index aux drop runs when a vector index
+# goes without a rebuild, which means replacing it in the same statement.
+#
+#
+# === A. The physical dict_sys/.ibd drop fails ===
+#
+# Injected before row_drop_table_for_mysql is even called, so the
+# aux is left completely untouched - exactly the state a real
+# failure (lock wait, I/O error) would leave it in.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+(2, STRING_TO_VECTOR('[1,1]'));
+SET DEBUG = '+d,vec_aux_drop_force_error';
+ALTER TABLE t1 DROP INDEX vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+Warnings:
+Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
+# The DROP still succeeds (the ALTER is already past its
+# point-of-no-return), but the aux-drop failure must be visible.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
+SET DEBUG = '-d,vec_aux_drop_force_error';
+# The index itself is replaced...
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk2` (`v`) USING `hnsw` (`M`=4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ...but the untouched aux table is still there beside vk2's own,
+# orphaned - and
+# unreachable through any SQL path from here (a known, separately
+# tracked gap: see the DROP VECTOR INDEX aux-cleanup discussion on
+# PS-11299 / PS-11300).
+SELECT COUNT(*) FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+COUNT(*)
+2
+DROP TABLE t1;
+# Cleanup: InnoDB still holds the orphan's tablespace open in
+# fil_system even though nothing in the DD or the dict cache can
+# reach it any more - deleting its .ibd file with the server
+# running crashes it (verified: "Cannot continue operation").
+# The only safe way to remove it is offline, same as a DBA would
+# have to.
+# restart
+#
+# === B. The physical drop succeeds but the DD-side drop fails ===
+#
+# dd_drop_aux_table's result used to be discarded outright, so this
+# failure was invisible even after fixing A above: the dict_sys +
+# .ibd are gone but the dd::Table/dd::Tablespace rows survive,
+# referencing a tablespace with no backing file. Unlike scenario A,
+# this leaves no physical file behind, so there is nothing to clean
+# up by hand here.
+#
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+(2, STRING_TO_VECTOR('[1,1]'));
+SET DEBUG = '+d,vec_aux_dd_drop_force_error';
+ALTER TABLE t2 DROP INDEX vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+Warnings:
+Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
+SET DEBUG = '-d,vec_aux_dd_drop_force_error';
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk2` (`v`) USING `hnsw` (`M`=4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;

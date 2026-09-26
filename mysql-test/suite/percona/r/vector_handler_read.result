@@ -1,0 +1,29 @@
+#
+# HANDLER ... READ on a vector index must be refused.
+#
+# A vector index has no B-tree to position on, so every HANDLER READ
+# through it used to answer with no rows and no error, on a table
+# that has rows. It is refused now, like any other read the index
+# cannot serve. The primary key still reads as before.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'));
+HANDLER t OPEN;
+HANDLER t READ vk FIRST;
+ERROR 42000: This version of MySQL doesn't yet support 'HANDLER ... READ on a vector index'
+HANDLER t READ vk NEXT;
+ERROR 42000: This version of MySQL doesn't yet support 'HANDLER ... READ on a vector index'
+HANDLER t READ vk LAST;
+ERROR 42000: This version of MySQL doesn't yet support 'HANDLER ... READ on a vector index'
+HANDLER t READ vk = (STRING_TO_VECTOR('[2,0,0,0]'));
+ERROR 42000: This version of MySQL doesn't yet support 'HANDLER ... READ on a vector index'
+HANDLER t READ `PRIMARY` FIRST;
+id	v
+1	0x0000803F000000000000000000000000
+HANDLER t READ FIRST;
+id	v
+1	0x0000803F000000000000000000000000
+HANDLER t CLOSE;
+DROP TABLE t;

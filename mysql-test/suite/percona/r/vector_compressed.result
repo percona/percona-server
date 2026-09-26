@@ -1,0 +1,168 @@
+# Vector indexes on compressed tables, at the default InnoDB page
+# size. vector_compressed_4k and vector_compressed_64k run the same
+# body at the smallest page size InnoDB has and at one with no
+# compressed format at all.
+#
+# PS-11299: vector indexes on compressed tables.
+#
+# Two separate questions that are easy to run together and should not
+# be. A vector index refuses a KEY_BLOCK_SIZE of its own - it has no
+# B-tree, so there are no pages of its own for the number to describe.
+# The table underneath it is a different matter: ROW_FORMAT=COMPRESSED
+# there is supported, and the auxiliary table holding the graph takes
+# the base table's format, so the graph is compressed along with it.
+#
+# This body runs at three page sizes, one wrapper test each. Above
+# 16k InnoDB has no
+# compressed format at all, so the compressed half is refused by
+# InnoDB rather than by anything of ours, and the test says so.
+#
+# The page size this run got. If it is not the one the wrapper's
+# .opt file asked for then the rest of the file is running somewhere
+# else and proves nothing about that page size.
+SELECT @@innodb_page_size;
+@@innodb_page_size
+16384
+#
+# === KEY_BLOCK_SIZE on the vector index itself: always refused ===
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4) KEY_BLOCK_SIZE=8);
+ERROR 42000: This version of MySQL doesn't yet support 'KEY_BLOCK_SIZE for vector indexes'
+# And through ALTER, which is a different code path to the same rule.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4) KEY_BLOCK_SIZE=8;
+ERROR 42000: This version of MySQL doesn't yet support 'KEY_BLOCK_SIZE for vector indexes'
+# Without it the same statement is fine, so the refusal is about
+# KEY_BLOCK_SIZE and not about the rest of the clause.
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# === A compressed table carrying a vector index ===
+#
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4)) ROW_FORMAT=COMPRESSED;
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]'));
+# The aux table took the base table's row format.
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format
+test/percona_vec_hnsw_<AUX>	Compressed
+# The graph is whole and answers.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+id
+3
+# And still does once it has been read back off compressed pages.
+# restart
+SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,1,0,0]'), 'euclidean') LIMIT 1;
+id
+2
+DROP TABLE t2;
+#
+# === Compressing a table that already has a vector index ===
+#
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]'));
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format
+test/percona_vec_hnsw_<AUX>	Dynamic
+# The rebuild carries the graph across, and the aux follows the base
+# into the compressed format.
+ALTER TABLE t3 ROW_FORMAT=COMPRESSED;
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format
+test/percona_vec_hnsw_<AUX>	Compressed
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM t3
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+1
+# And back out again.
+ALTER TABLE t3 ROW_FORMAT=DYNAMIC;
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format
+test/percona_vec_hnsw_<AUX>	Dynamic
+SELECT id FROM t3
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,1,0,0]'), 'euclidean') LIMIT 1;
+id
+2
+DROP TABLE t3;
+#
+# === Adding a vector index to a table that is already compressed ===
+#
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL)
+ROW_FORMAT=COMPRESSED;
+INSERT INTO t4 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]'));
+ALTER TABLE t4 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format
+test/percona_vec_hnsw_<AUX>	Compressed
+SELECT id FROM t4
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+1
+DROP TABLE t4;
+#
+# === The two ends of the KEY_BLOCK_SIZE range ===
+#
+# 1 is the smallest compressed page InnoDB has, and the one where an
+# aux row that does not fit would show up: each carries a vector and
+# a neighbour list. page_size/1024 is the largest, where the pages
+# are nominally compressed and nothing is squeezed. Both are valid at
+# every page size that has a compressed format at all, so neither of
+# these needs to tolerate an error.
+#
+# --- KEY_BLOCK_SIZE=1 ---
+CREATE TABLE k1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(256) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4))
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO k1 VALUES
+(1, STRING_TO_VECTOR(CONCAT('[', REPEAT('0.25,', 255), '0.25]'))),
+(2, STRING_TO_VECTOR(CONCAT('[', REPEAT('0.75,', 255), '0.75]')));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/k1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM k1
+ORDER BY DISTANCE(v, (SELECT v FROM k1 WHERE id = 2), 'euclidean') LIMIT 1;
+id
+2
+DROP TABLE k1;
+# --- KEY_BLOCK_SIZE = page_size/1024, the largest this page size takes ---
+CREATE TABLE k2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(256) NOT NULL, VECTOR KEY vk (v) TYPE hnsw (M = 4)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+INSERT INTO k2 VALUES
+(1, STRING_TO_VECTOR(CONCAT('[', REPEAT('0.25,', 255), '0.25]'))),
+(2, STRING_TO_VECTOR(CONCAT('[', REPEAT('0.75,', 255), '0.75]')));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/k2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM k2
+ORDER BY DISTANCE(v, (SELECT v FROM k2 WHERE id = 1), 'euclidean') LIMIT 1;
+id
+1
+DROP TABLE k2;
+# Nothing of ours left behind:
+SELECT name, row_format FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
+name	row_format

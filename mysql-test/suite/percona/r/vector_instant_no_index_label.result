@@ -1,0 +1,51 @@
+#
+# PS-11299: percona_vec_aux_id exists exactly while the table has a vector index.
+#
+# While the index is there, ALTER has to treat the table as one that
+# owns the column. Once the last index is dropped, the column goes with
+# it and the table is a plain one again.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+pad INT,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, pad, v) VALUES (1,10,STRING_TO_VECTOR('[1,0,0,0]')),
+(2,20,STRING_TO_VECTOR('[2,0,0,0]')),
+(3,30,STRING_TO_VECTOR('[3,0,0,0]'));
+# INSTANT is refused while the vector index exists.
+ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# A no-change ALTER rebuilds the new dd::Table from the TABLE_SHARE,
+# which has no SE-hidden columns. Without re-adding percona_vec_aux_id
+# the column counts no longer match the index counts and
+# dd_add_fts_doc_id_index asserts.
+ALTER TABLE t1 ALTER COLUMN pad SET DEFAULT 7, ALGORITHM=INPLACE;
+# Checkpoint so the DD, not the redo, is what recovery reads. A reload
+# that cannot find the column trips the vec_add_aux_id_column invariant.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+# restart
+SELECT id, pad FROM t1 ORDER BY id;
+id	pad
+1	10
+2	20
+3	30
+# Drop the index: the column goes too, so INSTANT is allowed and new
+# rows carry no label.
+ALTER TABLE t1 DROP KEY vk;
+ALTER TABLE t1 RENAME COLUMN pad TO pad2, ALGORITHM=INSTANT;
+ALTER TABLE t1 RENAME COLUMN pad2 TO pad, ALGORITHM=INSTANT;
+INSERT INTO t1 (id, pad, v) VALUES (4,40,STRING_TO_VECTOR('[4,0,0,0]')),
+(5,50,STRING_TO_VECTOR('[5,0,0,0]'));
+# Put the index back. It adds the column afresh and labels the five
+# rows 1..5, so the next label is 6.
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output AS next_label;
+next_label
+id=6
+# And no label is held by two rows.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output AS verify;
+verify
+nodes=5 distinct_ids=5 distinct_base_pks=5 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+DROP TABLE t1;

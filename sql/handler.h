@@ -6154,6 +6154,17 @@ class handler {
   int ha_ft_read(uchar *buf);
   int ha_read_first_row(uchar *buf, uint primary_key);
 
+  /** Approximate ANN read path over a vector index: rows
+  are produced in ascending distance from the constant query vector.
+  `limit` is the initial batch size (the query's LIMIT); readers must
+  keep producing past it - the engine widens the search - because
+  filters above the iterator may consume arbitrarily many rows. */
+  virtual int vec_init() { return HA_ERR_WRONG_COMMAND; }
+  virtual int vec_read_first(Item *, uchar *, ha_rows) {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  virtual int vec_read_next(uchar *) { return HA_ERR_WRONG_COMMAND; }
+
  protected:
   /// @see index_read_map().
   virtual int rnd_next(uchar *buf) = 0;
@@ -8252,6 +8263,12 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag,
                         const char *org_table_name);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag,
                         const char *org_table_name);
+
+/** Report ER_VECTOR_INDEX_WRONG_DIMENSIONS for a table's vector index:
+a row's vector does not have the dimensions the index needs.
+@param[in]  table     the table whose vector index refused the row
+@param[in]  errflag   flags for my_error() */
+void my_error_vector_wrong_dimensions(const TABLE *table, myf errflag);
 
 inline void print_keydup_error(TABLE *table, KEY *key, const char *msg,
                                myf errflag) {

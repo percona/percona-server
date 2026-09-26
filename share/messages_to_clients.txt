@@ -11130,6 +11130,18 @@ ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
 ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
   eng "Illegal index construction parameter value: %.20s."
 
+ER_VECTOR_INDEX_WRONG_DIMENSIONS
+  eng "Column '%-.192s' has a vector without the %u dimensions its vector index needs."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR
+  eng "InnoDB does not support adding the first vector index, or dropping the last one, in-place on a table with a FULLTEXT index; either rebuilds the table to add or remove the hidden label column"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK
+  eng "InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT
+  eng "InnoDB does not support ALGORITHM=INSTANT on a table with a vector index"
+
 start-error-number 7100
 
 #

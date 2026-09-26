@@ -1,0 +1,148 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11299/PS-11300: ADD VECTOR INDEX populates the graph.
+--echo #
+--echo # The FIRST ADD must materialize the hidden percona_vec_aux_id
+--echo # column, which means rewriting every row: it rebuilds the table in
+--echo # place, labels each copied row and builds the graph from that scan.
+--echo #
+--echo # Replacing the index in one statement - DROP and ADD together - keeps
+--echo # the column, so the new graph and aux come from one clustered scan
+--echo # that reuses each row's existing label, without rewriting a base row.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (2, STRING_TO_VECTOR('[0,1,0,0]')),
+                     (3, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo # First ADD, explicit INPLACE: rebuilds the table with the column and
+--echo # builds a node per row. An in-place rebuild that wrote the column and
+--echo # no graph is the case that used to give nodes=0.
+ALTER TABLE t1 ADD VECTOR KEY k1 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Record the table id, to prove the replacement does not rebuild.
+--let $tid_before = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME='test/t1'`
+
+--echo # Replace the index in one statement: populated by the clustered-scan
+--echo # build.
+ALTER TABLE t1 DROP KEY k1, ADD VECTOR KEY k2 (v) TYPE hnsw (M = 4),
+  ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--let $tid_after = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME='test/t1'`
+--echo # TABLE_ID unchanged across the replacement — no table rebuild:
+if ($tid_before != $tid_after) {
+  --echo ERROR: table was rebuilt ($tid_before -> $tid_after)
+}
+if ($tid_before == $tid_after) {
+  --echo table_id_unchanged=1
+}
+
+--echo # The rebuilt index still answers for every row after a restart,
+--echo # which is the real proof the aux was written and not just memory.
+--source include/restart_mysqld.inc
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # A DELETEd row is not collected by the build, so replacing the index
+--echo # compacts tombstones — the first working "OPTIMIZE" for a vector
+--echo # index. The labels are kept, so row 2's leaves a gap.
+DELETE FROM t1 WHERE id = 2;
+ALTER TABLE t1 DROP KEY k2, ADD VECTOR KEY k3 (v) TYPE hnsw (M = 4),
+  ALGORITHM=INPLACE;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;
+
+--echo #
+--echo # The graph is not just present, it ANSWERS: an ORDER BY DISTANCE
+--echo # query loads the runtime from the aux and searches it.
+--echo #
+CREATE TABLE tk (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO tk VALUES (10, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (20, STRING_TO_VECTOR('[0,1,0,0]')),
+                     (30, STRING_TO_VECTOR('[0,0,1,0]')),
+                     (40, STRING_TO_VECTOR('[0,0,0,1]'));
+ALTER TABLE tk ADD VECTOR KEY kv (v) TYPE hnsw (M = 4);
+--echo # Touch the table so the handler opens it and creates the runtime
+--echo # (vec_runtime_open runs in ha_innobase::open).
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+
+--echo # Nearest to [1,0,0,0] is row 10, then the rest.
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+--sorted_result
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 4;
+# The three non-nearest rows are equidistant, so their order is a tie the
+# traversal breaks however the layer draws fell. The LIMIT 1 query above
+# asserts the nearest row deterministically; this one is sorted so only the
+# set of rows returned is asserted, not their order.
+--echo # Nearest to [0,0,1,0] is row 30.
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+
+--echo # Same answers after a restart, which means they came from the aux
+--echo # and not from a graph that happened to still be in memory.
+--source include/restart_mysqld.inc
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 1;
+
+--echo # And after an INPLACE rebuild of the index, the answers must be
+--echo # the same — the build produced an equivalent graph, not just a
+--echo # populated table.
+ALTER TABLE tk DROP KEY kv;
+ALTER TABLE tk ADD VECTOR KEY kv2 (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE, LOCK=SHARED;
+SELECT COUNT(*) FROM tk FORCE INDEX (PRIMARY);
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+--sorted_result
+SELECT id FROM tk
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 4;
+# The three non-nearest rows are equidistant, so their order is a tie the
+# traversal breaks however the layer draws fell. The LIMIT 1 query above
+# asserts the nearest row deterministically; this one is sorted so only the
+# set of rows returned is asserted, not their order.
+
+--echo # A row inserted after the rebuild is reachable through the rebuilt
+--echo # index, and the index and a plain table scan agree on the answer.
+--echo # vec_aux_verify only says the aux is well formed; this says the
+--echo # graph it describes returns what the data says it should.
+INSERT INTO tk VALUES (50, STRING_TO_VECTOR('[0.9,0,0,0]'));
+SELECT id FROM tk FORCE INDEX (kv2)
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 2;
+SELECT id FROM tk IGNORE INDEX (kv2)
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 2;
+
+DROP TABLE tk;
+
+--echo #
+--echo # M is bounded to [2, 200] (vec0vec.cc). An oversized M must be
+--echo # rejected at parse time, on a populated table, for both CREATE and
+--echo # ALTER - never reach vec_build and size a per-node neighbor buffer
+--echo # off it.
+--echo #
+CREATE TABLE tm (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO tm VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+ALTER TABLE tm ADD VECTOR KEY km (v) TYPE hnsw (M = 201);
+
+--echo # Same for CREATE INDEX on the populated table.
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE VECTOR INDEX kmi ON tm(v) TYPE hnsw (M = 201);
+
+--echo # M at the bound still builds normally on a populated table.
+ALTER TABLE tm ADD VECTOR KEY km (v) TYPE hnsw (M = 200);
+SET SESSION innodb_interpreter = 'vec_aux_verify test/tm';
+SELECT @@session.innodb_interpreter_output;
+DROP TABLE tm;

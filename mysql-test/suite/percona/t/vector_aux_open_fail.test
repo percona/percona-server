@@ -1,0 +1,26 @@
+--source include/have_debug.inc
+--disable_query_log
+CALL mtr.add_suppression("A vector index's auxiliary table does not agree with its graph");
+--enable_query_log
+
+--echo #
+--echo # An INSERT or UPDATE whose vector index's aux table cannot be opened
+--echo # fails the statement; it does not end the server. The failed open used
+--echo # to return DB_TABLE_NOT_FOUND, which row_mysql_handle_errors() does not
+--echo # list and so reached its ib::fatal() arm (ultracodereview: issue5).
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+
+SET DEBUG = '+d,vec_aux_open_fail';
+--error ER_INDEX_CORRUPT
+INSERT INTO t1 VALUES (2, STRING_TO_VECTOR('[2,0,0,0]'));
+--error ER_INDEX_CORRUPT
+UPDATE t1 SET v = STRING_TO_VECTOR('[3,0,0,0]') WHERE id = 1;
+SET DEBUG = '-d,vec_aux_open_fail';
+
+--echo # The server is still up, and neither statement changed a row.
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DROP TABLE t1;

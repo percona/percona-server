@@ -27,6 +27,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <gtest/gtest.h>
 
+#include "mysqld_error.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_lex.h"
 #include "storage/innobase/include/vec0vec.h"
@@ -77,6 +78,68 @@ TEST_F(Vec0VecTest, HnswWithM) {
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
   EXPECT_EQ(16, get<HnswParam>(m_vip).M);
+}
+
+/* ef_construction is a field of HnswParam that the parser does not
+recognise: the loop knows only M and metric, and anything else is
+ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER. The field keeps its default and
+the statement is refused.
+
+This asserts the refusal rather than skipping it, so that whoever wires
+the parameter up sees this test go red and knows to update the design's
+open item along with it. The vector_runtime_open MTR test asserts the
+same thing at SQL level. */
+TEST_F(Vec0VecTest, HnswEfConstructionIsRefused) {
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 300)"
+            ")",
+            ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER));
+}
+
+/* Every parameter the parser actually supports, together. */
+TEST_F(Vec0VecTest, HnswAllSupportedParams) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8, metric = euclidean)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(8, get<HnswParam>(m_vip).M);
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
+  /* Untouched by the parser, so still the header's default. */
+  EXPECT_EQ(200, get<HnswParam>(m_vip).ef_construction);
+}
+
+/* No option list at all: every parameter keeps its default. Worth its own
+case because the parameter container (Vector_index_params_YY, a
+Mem_root_array_YY of name/value pairs) is then empty and its backing
+array is null - both overloads reach the parser that way, and parsing
+must leave every default alone. */
+TEST_F(Vec0VecTest, HnswNoOptionList) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(25, get<HnswParam>(m_vip).M);
+  EXPECT_EQ(200, get<HnswParam>(m_vip).ef_construction);
+}
+
+/* The core overload is what table open uses; exercise it directly with
+no WITH(...) options, which gives the defaults. */
+TEST_F(Vec0VecTest, ParseFieldsNoParams) {
+  VectorIndexParam vip;
+  LEX_CSTRING hnsw{STRING_WITH_LEN("hnsw")};
+  const Vector_index_params_YY no_params{};
+  EXPECT_FALSE(parse_options(hnsw, no_params, vip));
+  ASSERT_TRUE(holds_alternative<HnswParam>(vip));
+  EXPECT_EQ(25, get<HnswParam>(vip).M);
 }
 
 TEST_F(Vec0VecTest, HnswMetricEuclidean) {

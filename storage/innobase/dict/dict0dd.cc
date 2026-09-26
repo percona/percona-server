@@ -79,7 +79,9 @@ Data dictionary interface */
 #include "sql_base.h"
 #include "sql_table.h"
 #include "univ.i"  // Using OS_PATH_SEPARATOR
-#endif             /* !UNIV_HOTBACKUP */
+#include "vec0aux.h"
+#include "vec0label.h"
+#endif /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
                                              size_t *out_len) {
@@ -1786,7 +1788,8 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 
   for (const auto old_col : old_table.columns()) {
     if (old_col->is_se_hidden() && !is_system_column(old_col->name().c_str()) &&
-        (strcmp(old_col->name().c_str(), FTS_DOC_ID_COL_NAME) != 0)) {
+        (strcmp(old_col->name().c_str(), FTS_DOC_ID_COL_NAME) != 0) &&
+        (strcmp(old_col->name().c_str(), VEC_AUX_ID_COL_NAME) != 0)) {
       /* Must be an already dropped column. */
       ut_ad(dd_column_is_dropped(old_col));
       continue;
@@ -2033,7 +2036,8 @@ bool copy_dropped_columns(const dd::Table *old_dd_table,
     }
 
     if (!column->is_se_hidden() ||
-        innobase_strcasecmp(col_name, FTS_DOC_ID_COL_NAME) == 0) {
+        innobase_strcasecmp(col_name, FTS_DOC_ID_COL_NAME) == 0 ||
+        innobase_strcasecmp(col_name, VEC_AUX_ID_COL_NAME) == 0) {
       continue;
     }
 
@@ -2657,7 +2661,7 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
   }
 
   bool has_row_versions = table->has_row_versions();
-  ut_ad(!has_row_versions || !table->is_fts_aux());
+  ut_ad(!has_row_versions || !table->is_aux());
 
   if (!dd_table_is_partitioned(dd_table->table()) ||
       dd_part_is_first(reinterpret_cast<dd::Partition *>(dd_table))) {
@@ -2830,6 +2834,27 @@ void dd_write_tablespace(dd::Tablespace *dd_space, space_id_t space_id,
         DD_SPACE_CURRENT_SRV_VERSION);
   p.set(dd_space_key_strings[DD_SPACE_VERSION], DD_SPACE_CURRENT_SPACE_VERSION);
   p.set(dd_space_key_strings[DD_SPACE_STATE], dd_space_state_values[state]);
+}
+
+/** Re-add the hidden percona_vec_aux_id column to a new dd::Table that lost
+it. The new definition is built from the server's TABLE_SHARE, which carries
+no SE-hidden columns, so a table that owns this one has to have it put back
+before the column counts of the two definitions are compared.
+@param[in,out]  new_table       New dd table
+@param[in]      old_table       Old dd table */
+void dd_add_vec_aux_id_column(dd::Table &new_table,
+                              const dd::Table &old_table) {
+  if (dd_find_column(&old_table, VEC_AUX_ID_COL_NAME) == nullptr) {
+    return;
+  }
+  if (dd_find_column(&new_table, VEC_AUX_ID_COL_NAME) != nullptr) {
+    return;
+  }
+
+  /* No companion index, unlike FTS_DOC_ID: the base row is linked to the
+  aux by percona_vec_aux_id = aux.id through each table's own PK. */
+  dd_add_hidden_column(&new_table, VEC_AUX_ID_COL_NAME, sizeof(uint64_t),
+                       dd::enum_column_types::LONGLONG);
 }
 
 /** Add fts doc id column and index to new table
@@ -3658,7 +3683,7 @@ static inline void fill_dict_existing_column(
     /* Get physical pos */
     uint32_t phy_pos = UINT32_UNDEFINED;
     if (has_row_versions) {
-      ut_ad(!m_table->is_system_table && !m_table->is_fts_aux());
+      ut_ad(!m_table->is_system_table && !m_table->is_aux());
       const char *s = dd_column_key_strings[DD_INSTANT_PHYSICAL_POS];
 
       ut_ad(column->se_private_data().exists(s));
@@ -3712,7 +3737,8 @@ template <typename Table>
 static inline void fill_dict_columns(const Table *dd_table, const TABLE *m_form,
                                      dict_table_t *dict_table,
                                      const unsigned n_mysql_cols,
-                                     mem_heap_t *heap, bool add_doc_id) {
+                                     mem_heap_t *heap, bool add_doc_id,
+                                     bool add_vec_aux_col) {
   IF_DEBUG(uint32_t crv = 0;)
 
   /* Add existing columns metadata information. */
@@ -3725,6 +3751,15 @@ static inline void fill_dict_columns(const Table *dd_table, const TABLE *m_form,
   if (add_doc_id) {
     /* Add the hidden FTS_DOC_ID column. */
     fts_add_doc_id_column(dict_table, heap);
+  }
+
+  if (add_vec_aux_col) {
+    /* Materialize the hidden percona_vec_aux_id column on dict_table_t.
+    Same simple shape as fts_add_doc_id_column above: INSTANT
+    ADD/DROP COLUMN is blocked on vec-indexed tables (see
+    innobase_support_instant), so the table can never have
+    row_versions > 0 and no phy_pos plumbing is needed. */
+    vec_add_aux_id_column(dict_table, heap);
   }
 
   /* Add system columns to make adding index work */
@@ -3865,7 +3900,22 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     add_doc_id = true;
   }
 
-  const unsigned n_cols = n_mysql_cols + (add_doc_id ? 1 : 0);
+  /* Same shape for the vector percona_vec_aux_id auxiliary column: detect it in
+  the dd::Table and reserve a cols slot so fill_dict_columns can
+  materialize it into dict_table_t. Mirrors FTS_DOC_ID. */
+  bool add_vec_aux_col = false;
+  {
+    const dd::Column *vec_col =
+        dd_find_column(&dd_tab->table(), VEC_AUX_ID_COL_NAME);
+    if (vec_col != nullptr &&
+        vec_col->type() == dd::enum_column_types::LONGLONG &&
+        !vec_col->is_nullable() && vec_col->is_se_hidden()) {
+      add_vec_aux_col = true;
+    }
+  }
+
+  const unsigned n_cols =
+      n_mysql_cols + (add_doc_id ? 1 : 0) + (add_vec_aux_col ? 1 : 0);
 
   row_type real_type = ROW_TYPE_NOT_USED;
 
@@ -3980,6 +4030,16 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     m_table->parent_id = aux_table.parent_id;
   }
 
+  /* Same check for vector aux tables: the on-disk name is the source of
+  truth because DD se_private_data does not currently round-trip flags2's
+  AUX bit. Reconstruct DICT_TF2_VEC_AUX and the parent_id from the
+  "<db>/percona_vec_<type>_<parent_id>_<index_id>" name pattern. */
+  table_id_t vec_parent_id = 0;
+  if (vec_aux_parse_table_name(norm_name, &vec_parent_id, nullptr)) {
+    DICT_TF2_FLAG_SET(m_table, DICT_TF2_VEC_AUX);
+    m_table->parent_id = vec_parent_id;
+  }
+
   if (is_discard) {
     m_table->ibd_file_missing = true;
     m_table->flags2 |= DICT_TF2_DISCARDED;
@@ -4035,7 +4095,8 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   mem_heap_t *heap = mem_heap_create(1000, UT_LOCATION_HERE);
 
   /* Fill out each column info */
-  fill_dict_columns(dd_tab, m_form, m_table, n_mysql_cols, heap, add_doc_id);
+  fill_dict_columns(dd_tab, m_form, m_table, n_mysql_cols, heap, add_doc_id,
+                    add_vec_aux_col);
 
 #ifdef UNIV_DEBUG
   if (m_table->is_upgraded_instant()) {
@@ -5130,6 +5191,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     m_table->autoinc_persisted = autoinc;
   }
 
+  Vec_label_counter::load_from_dd(m_table, dd_table->table().se_private_data());
+
   mem_heap_t *heap = mem_heap_create(100, UT_LOCATION_HERE);
   bool fail = false;
 
@@ -6057,7 +6120,11 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
       return false;
     }
 
-    /* For fts aux table, we need to acquire mdl lock on parent. */
+    /* For an FTS or vector aux table, we need to acquire mdl lock on
+    parent. Only the name parse differs between the two; the reopen below
+    is shared. A parent id of 0 means this is not an aux table at all. */
+    table_id_t parent_id = 0;
+
     if (table->is_fts_aux()) {
       fts_aux_table_t fts_table;
 
@@ -6066,8 +6133,18 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
                                                 strlen(table->name.m_name));
       ut_ad(is_fts);
 
-      table_id_t parent_id = fts_table.parent_id;
+      parent_id = fts_table.parent_id;
+    } else if (table->is_vec_aux()) {
+      /* DICT_TF2_VEC_AUX is only ever set on a name this parser accepts:
+      creation computes the name itself, and the DD reload path checks
+      vec_aux_is_aux_table_name, which is this same parse. So the parent
+      id is always recoverable, exactly as it is for FTS above. */
+      ut_d(bool is_vec =)
+          vec_aux_parse_table_name(table->name.m_name, &parent_id, nullptr);
+      ut_ad(is_vec);
+    }
 
+    if (parent_id != 0) {
       dd_table_close(table, thd, mdl, true);
 
       *parent = dd_table_open_on_id(parent_id, thd, parent_mdl, true, true);
@@ -6095,7 +6172,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
 
     if (*index == nullptr) {
       dd_table_close(table, thd, mdl, true);
-      if (table->is_fts_aux() && *parent) {
+      if (table->is_aux() && *parent) {
         dd_table_close(*parent, thd, parent_mdl, true);
       }
       delete p;
@@ -6326,12 +6403,12 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   return true;
 }
 
-/** Get dd tablespace id for fts table
-@param[in]      parent_table    parent table of fts table
-@param[in]      table           fts table
+/** Get dd tablespace id for an auxiliary table - FTS or vector
+@param[in]      parent_table    parent table of the aux table
+@param[in]      table           aux table
 @param[in,out]  dd_space_id     dd table space id
 @return true on success, false on failure. */
-static bool dd_get_or_assign_fts_tablespace_id(const dict_table_t *parent_table,
+static bool dd_get_or_assign_aux_tablespace_id(const dict_table_t *parent_table,
                                                const dict_table_t *table,
                                                dd::Object_id &dd_space_id) {
   THD *thd = current_thd;
@@ -6567,7 +6644,7 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
-  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_aux_tablespace_id(parent_table, table, dd_space_id)) {
     return false;
   }
 
@@ -6585,6 +6662,125 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
   /* Store table to dd */
   bool fail = client->store(dd_table);
   if (fail) {
+    ut_d(ut_error);
+    ut_o(return false);
+  }
+
+  return true;
+}
+
+bool dd_create_vec_aux_table(const dict_table_t *parent_table,
+                             dict_table_t *table) {
+  std::string db_name;
+  std::string table_name;
+  dict_name::get_table(table->name.m_name, db_name, table_name);
+
+  THD *thd = current_thd;
+  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  const dd::Schema *schema = nullptr;
+  if (mdl_locker.ensure_locked(db_name.c_str()) ||
+      client->acquire<dd::Schema>(db_name.c_str(), &schema)) {
+    return false;
+  }
+  if (schema == nullptr) {
+    my_error(ER_BAD_DB_ERROR, MYF(0), db_name.c_str());
+    return false;
+  }
+
+  std::unique_ptr<dd::Table> dd_table_obj(schema->create_table(thd));
+  dd::Table *dd_table = dd_table_obj.get();
+
+  dd_table->set_name(table_name.c_str());
+  dd_table->set_schema_id(schema->id());
+
+  /* Re-use the FTS aux table options (hidden, dynamic, binary collation,
+  no compression/encryption) - the vec aux is the same kind of object. */
+  dd_set_fts_table_options(dd_table, table);
+
+  /* Columns. Order and types must match the in-memory dict_table_t
+  created by vec_aux_create_one_table; see vec0aux.h for the layout. */
+
+  /* 1: id BIGINT UNSIGNED NOT NULL */
+  dd::Column *col = dd_table->add_column();
+  col->set_name("id");
+  col->set_type(dd::enum_column_types::LONGLONG);
+  col->set_char_length(20);
+  col->set_numeric_scale(0);
+  col->set_nullable(false);
+  col->set_unsigned(true);
+  col->set_collation_id(my_charset_bin.number);
+  dd_set_fts_nullability(col, table->get_col(0));
+  dd::Column *key_col = col;
+
+  /* 2: vec BLOB NOT NULL */
+  col = dd_table->add_column();
+  col->set_name("vec");
+  col->set_type(dd::enum_column_types::BLOB);
+  col->set_char_length(8);
+  col->set_nullable(false);
+  col->set_collation_id(my_charset_bin.number);
+
+  /* 3: base_pk BIGINT UNSIGNED NOT NULL */
+  col = dd_table->add_column();
+  col->set_name("base_pk");
+  col->set_type(dd::enum_column_types::LONGLONG);
+  col->set_char_length(VEC_AUX_BASE_PK_COL_LEN);
+  col->set_nullable(false);
+  col->set_unsigned(true);
+  col->set_collation_id(my_charset_bin.number);
+
+  /* 4: level TINYINT NOT NULL */
+  col = dd_table->add_column();
+  col->set_name("level");
+  col->set_type(dd::enum_column_types::TINY);
+  col->set_char_length(1);
+  col->set_numeric_scale(0);
+  col->set_nullable(false);
+  col->set_collation_id(my_charset_bin.number);
+
+  /* 5: neighbors BLOB NOT NULL */
+  col = dd_table->add_column();
+  col->set_name("neighbors");
+  col->set_type(dd::enum_column_types::BLOB);
+  col->set_char_length(8);
+  col->set_nullable(false);
+  col->set_collation_id(my_charset_bin.number);
+
+  /* Clustered PRIMARY index on `id`. */
+  dd::Index *index = dd_table->add_index();
+  index->set_name("VEC_AUX_TABLE_PK");
+  index->set_algorithm(dd::Index::IA_BTREE);
+  index->set_algorithm_explicit(false);
+  index->set_visible(true);
+  index->set_type(dd::Index::IT_PRIMARY);
+  index->set_ordinal_position(1);
+  index->set_generated(false);
+  index->set_engine(dd_table->engine());
+  index->options().set("flags", 32);
+
+  dd::Index_element *index_elem = index->add_element(key_col);
+  index_elem->set_length(VEC_AUX_ID_COL_LEN);
+
+  /* Tablespace. Same machinery FTS uses for its per-aux tablespace. */
+  dd::Object_id dd_space_id;
+  if (!dd_get_or_assign_aux_tablespace_id(parent_table, table, dd_space_id)) {
+    return false;
+  }
+  table->dd_space_id = dd_space_id;
+
+  dd_write_table(dd_space_id, dd_table, table);
+
+  MDL_ticket *mdl_ticket = nullptr;
+  if (dd::acquire_exclusive_table_mdl(thd, db_name.c_str(), table_name.c_str(),
+                                      false, &mdl_ticket)) {
+    ut_d(ut_error);
+    ut_o(return false);
+  }
+
+  if (client->store(dd_table)) {
     ut_d(ut_error);
     ut_o(return false);
   }
@@ -6707,7 +6903,7 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
 
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
-  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_aux_tablespace_id(parent_table, table, dd_space_id)) {
     ut_d(ut_error);
     ut_o(return false);
   }
@@ -6732,11 +6928,11 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
   return true;
 }
 
-/** Drop dd table & tablespace for fts aux table
+/** Drop dd table & tablespace for an auxiliary table - FTS or vector
 @param[in]      name            table name
 @param[in]      file_per_table  flag whether use file per table
 @return true on success, false on failure. */
-bool dd_drop_fts_table(const char *name, bool file_per_table) {
+bool dd_drop_aux_table(const char *name, bool file_per_table) {
   std::string db_name;
   std::string table_name;
 
@@ -6785,11 +6981,11 @@ bool dd_drop_fts_table(const char *name, bool file_per_table) {
   return true;
 }
 
-/** Rename dd table & tablespace files for fts aux table
+/** Rename dd table & tablespace files for an auxiliary table - FTS or vector
 @param[in]      table           dict table
 @param[in]      old_name        old innodb table name
 @return true on success, false on failure. */
-bool dd_rename_fts_table(const dict_table_t *table, const char *old_name) {
+bool dd_rename_aux_table(const dict_table_t *table, const char *old_name) {
   std::string new_db;
   std::string new_table;
   dict_name::get_table(table->name.m_name, new_db, new_table);

@@ -1,0 +1,67 @@
+#
+# ORDER BY the alias of a select-list DISTANCE() uses the index the same
+# as ORDER BY the call itself.
+#
+# Whether the optimizer even looked at the ORDER BY depended on a list
+# of DISTANCE() calls that the select list does not add to, so the
+# alias form used the index only when some other DISTANCE() happened
+# to appear in WHERE.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]')),
+(3, STRING_TO_VECTOR('[3,0,0,0]'));
+EXPLAIN SELECT id, DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') AS d
+FROM t ORDER BY d LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	NULL	vk	1	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') AS `d` from `test`.`t` order by `d` limit 2
+SELECT id, DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') AS d
+FROM t ORDER BY d LIMIT 2;
+id	d
+1	1
+2	2
+# The same with an unrelated DISTANCE() in WHERE, which already did.
+EXPLAIN SELECT id, DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') AS d
+FROM t WHERE DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'EUCLIDEAN') > 0
+ORDER BY d LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	NULL	vk	1	NULL	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') AS `d` from `test`.`t` where (distance(`test`.`t`.`v`,<cache>(to_vector('[9,0,0,0]')),'EUCLIDEAN') > 0) order by `d` limit 2
+# And by position.
+EXPLAIN SELECT id, DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') AS d
+FROM t ORDER BY 2 LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	NULL	vk	1	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') AS `d` from `test`.`t` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
+# Through a view: the ORDER BY names the view's DISTANCE() column, and
+# the plan's own check must look through the view reference too.
+CREATE VIEW vw AS
+SELECT id, DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') AS d
+FROM t;
+EXPLAIN SELECT id FROM vw ORDER BY d LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	NULL	vk	1	NULL	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
+SELECT id FROM vw ORDER BY d LIMIT 2;
+id
+1
+2
+SELECT id FROM t IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id
+1
+2
+DROP VIEW vw;
+# A query with no DISTANCE() at all is untouched.
+EXPLAIN SELECT id FROM t ORDER BY id LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	NULL	PRIMARY	8	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` order by `test`.`t`.`id` limit 2
+DROP TABLE t;

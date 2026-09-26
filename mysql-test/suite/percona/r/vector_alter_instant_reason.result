@@ -1,0 +1,21 @@
+#
+# ALGORITHM=INSTANT on a vector-indexed table is refused with its own
+# reason, not the LOCK=NONE one.
+#
+# The INSTANT refusal set its reason, and then the rebuild branch and
+# the ADD INDEX branch of check_if_supported_inplace_alter replaced it
+# with the text for building a vector index with LOCK=NONE - which the
+# statement did not ask for.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, g INT,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t DROP COLUMN g, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t ADD COLUMN c INT, ADD KEY kc (c), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# LOCK=NONE still gets the LOCK=NONE reason.
+ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+DROP TABLE t;

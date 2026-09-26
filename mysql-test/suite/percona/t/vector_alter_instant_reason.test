@@ -1,0 +1,25 @@
+--echo #
+--echo # ALGORITHM=INSTANT on a vector-indexed table is refused with its own
+--echo # reason, not the LOCK=NONE one.
+--echo #
+--echo # The INSTANT refusal set its reason, and then the rebuild branch and
+--echo # the ADD INDEX branch of check_if_supported_inplace_alter replaced it
+--echo # with the text for building a vector index with LOCK=NONE - which the
+--echo # statement did not ask for.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, g INT,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t DROP COLUMN g, ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN c INT, ADD KEY kc (c), ALGORITHM=INSTANT;
+
+--echo # LOCK=NONE still gets the LOCK=NONE reason.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INPLACE, LOCK=NONE;
+
+DROP TABLE t;

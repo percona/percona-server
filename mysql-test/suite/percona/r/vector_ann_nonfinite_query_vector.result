@@ -1,0 +1,80 @@
+#
+# A query vector holding NaN or infinity must get the error it gets
+# without the index.
+#
+# VECTOR columns cannot store NaN or infinity, but a query vector given
+# as bytes can hold them. DISTANCE() refuses such a vector with
+# ER_DATA_OUT_OF_RANGE when it is evaluated row by row. The index path
+# fed it to the graph search, where every NaN comparison is false: a
+# debug build asserted in HNSW::search_layer_core and took the server
+# down, and a release build searched a heap whose order no longer held.
+# The optimizer now keeps such a query on the exact path, where
+# DISTANCE() raises the error; the handler still refuses one that
+# reaches the index.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'));
+# NaN is 0x7FC00000, +infinity 0x7F800000, -infinity 0xFF800000.
+EXPLAIN SELECT id FROM t
+ORDER BY DISTANCE(v, X'0000C07F000000000000000000000000', 'EUCLIDEAN') LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` order by distance(`test`.`t`.`v`,0x0000c07f000000000000000000000000,'EUCLIDEAN') limit 1
+SELECT id FROM t
+ORDER BY DISTANCE(v, X'0000C07F000000000000000000000000', 'EUCLIDEAN') LIMIT 1;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t`.`v`,0x0000c07f000000000000000000000000,'EUCLIDEAN')'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1690	DOUBLE value is out of range in 'distance(`test`.`t`.`v`,0x0000c07f000000000000000000000000,'EUCLIDEAN')'
+SELECT id FROM t IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, X'0000C07F000000000000000000000000', 'EUCLIDEAN') LIMIT 1;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t`.`v`,0x0000c07f000000000000000000000000,'EUCLIDEAN')'
+SELECT id FROM t
+ORDER BY DISTANCE(v, X'000000000000807F0000000000000000', 'EUCLIDEAN') LIMIT 1;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t`.`v`,0x000000000000807f0000000000000000,'EUCLIDEAN')'
+SELECT id FROM t
+ORDER BY DISTANCE(v, X'000000000000000000000000000080FF', 'EUCLIDEAN') LIMIT 1;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t`.`v`,0x000000000000000000000000000080ff,'EUCLIDEAN')'
+# Through a user variable and a statement parameter.
+SET @q = X'0000C07F000000000000000000000000';
+SELECT id FROM t ORDER BY DISTANCE(v, @q, 'EUCLIDEAN') LIMIT 1;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t`.`v`,(@`q`),'EUCLIDEAN')'
+PREPARE s FROM 'SELECT id FROM t ORDER BY DISTANCE(v, ?, ''EUCLIDEAN'') LIMIT 1';
+EXECUTE s USING @q;
+ERROR 22003: DOUBLE value is out of range in 'distance(`test`.`t`.`v`,?,'EUCLIDEAN')'
+SET @q = STRING_TO_VECTOR('[2,0,0,0]');
+EXECUTE s USING @q;
+id
+2
+DEALLOCATE PREPARE s;
+# The server is still up, and the index still answers.
+SELECT id FROM t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+DROP TABLE t;
+# The check reads the query vector only where the optimizer may
+# evaluate it: a stored function is not run by EXPLAIN
+# (ultracodereview: issue7).
+CREATE TABLE calls (n INT);
+CREATE TABLE tq (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO tq VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[2,0,0,0]'));
+CREATE FUNCTION qv() RETURNS VARBINARY(16) DETERMINISTIC
+BEGIN
+INSERT INTO calls VALUES (1);
+RETURN STRING_TO_VECTOR('[2,0,0,0]');
+END|
+EXPLAIN SELECT id FROM tq ORDER BY DISTANCE(v, qv(), 'EUCLIDEAN') LIMIT 1;
+SELECT COUNT(*) AS calls_during_explain FROM calls;
+calls_during_explain
+0
+SELECT id FROM tq ORDER BY DISTANCE(v, qv(), 'EUCLIDEAN') LIMIT 1;
+id
+2
+DROP FUNCTION qv;
+DROP TABLE calls, tq;

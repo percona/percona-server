@@ -1,0 +1,165 @@
+#
+# A vector stored off-page must reach the index as its full value.
+#
+# A VECTOR(3000) value is 12000 bytes, so InnoDB stores it externally
+# and the record keeps a 20-byte reference. Paths that read the vector
+# back from a record - a primary key change, and an INPLACE build -
+# handed the index that reference, which it refused as a vector of 5
+# dimensions. Each path below must work, and the index must agree with
+# the exact scan afterwards.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(3000) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES
+(1, STRING_TO_VECTOR(CONCAT('[', REPEAT('1,', 2999), '1]'))),
+(2, STRING_TO_VECTOR(CONCAT('[', REPEAT('2,', 2999), '2]'))),
+(3, STRING_TO_VECTOR(CONCAT('[', REPEAT('3,', 2999), '3]')));
+SELECT id, LENGTH(v) FROM t ORDER BY id;
+id	LENGTH(v)
+1	12000
+2	12000
+3	12000
+# Changing the primary key re-inserts the row from its record.
+UPDATE t SET id = 30 WHERE id = 3;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+2
+30
+SELECT id FROM t IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+2
+30
+# Changing the vector itself.
+UPDATE t SET v = STRING_TO_VECTOR(CONCAT('[', REPEAT('2.15,', 2999), '2.15]'))
+WHERE id = 30;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+SELECT id FROM t IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+# The INPLACE build scans the records.
+ALTER TABLE t DROP KEY vk;
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+# And the COPY build.
+ALTER TABLE t DROP KEY vk;
+ALTER TABLE t ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=COPY;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+# A rebuild of the whole table.
+OPTIMIZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	status	OK
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+SELECT id FROM t IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 2999), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+DROP TABLE t;
+#
+# A vector that moves between inline and off-page storage.
+#
+# A VECTOR(300) value is 1200 bytes: inline in DYNAMIC, off-page in a
+# compressed table with 1K pages. The rebuild reads the vectors from
+# the records. (Not the way back: once the vector key has inherited the
+# table's KEY_BLOCK_SIZE, every later ALTER that keeps it is refused.)
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(300) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t2 VALUES
+(1, STRING_TO_VECTOR(CONCAT('[', REPEAT('1,', 299), '1]'))),
+(2, STRING_TO_VECTOR(CONCAT('[', REPEAT('2,', 299), '2]'))),
+(3, STRING_TO_VECTOR(CONCAT('[', REPEAT('3,', 299), '3]')));
+ALTER TABLE t2 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1, ALGORITHM=INPLACE;
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 299), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+2
+3
+SELECT id FROM t2 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 299), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+2
+3
+# Off-page now: a primary key change and a new vector.
+UPDATE t2 SET id = 30 WHERE id = 3;
+UPDATE t2 SET v = STRING_TO_VECTOR(CONCAT('[', REPEAT('2.15,', 299), '2.15]'))
+WHERE id = 30;
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 299), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+SELECT id FROM t2 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 299), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+DROP TABLE t2;
+# In one table: a VECTOR(1900) value (7600 bytes) fits inline beside
+# an empty pad. Filling the pad makes the record too long for a 16K
+# page, and the vector, the longest field, goes off-page; emptying it
+# brings the vector back inline.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1900) NOT NULL,
+pad VARCHAR(3000) NOT NULL DEFAULT '',
+VECTOR KEY vk (v) TYPE hnsw (M = 8)) ROW_FORMAT=DYNAMIC;
+INSERT INTO t3 (id, v) VALUES
+(1, STRING_TO_VECTOR(CONCAT('[', REPEAT('1,', 1899), '1]'))),
+(2, STRING_TO_VECTOR(CONCAT('[', REPEAT('2,', 1899), '2]'))),
+(3, STRING_TO_VECTOR(CONCAT('[', REPEAT('3,', 1899), '3]')));
+UPDATE t3 SET pad = REPEAT('x', 3000);
+# Off-page now: a primary key change, a new vector and a rebuild.
+UPDATE t3 SET id = 30 WHERE id = 3;
+UPDATE t3 SET v = STRING_TO_VECTOR(CONCAT('[', REPEAT('2.15,', 1899), '2.15]'))
+WHERE id = 30;
+SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+SELECT id FROM t3 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+ALTER TABLE t3 FORCE, ALGORITHM=INPLACE;
+SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+SELECT id FROM t3 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+30
+2
+UPDATE t3 SET pad = '';
+# Inline again: the same.
+UPDATE t3 SET id = 3 WHERE id = 30;
+SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+3
+2
+SELECT id FROM t3 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+3
+2
+ALTER TABLE t3 FORCE, ALGORITHM=INPLACE;
+SELECT id FROM t3 ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+3
+2
+SELECT id FROM t3 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR(CONCAT('[', REPEAT('2.1,', 1899), '2.1]')), 'EUCLIDEAN') LIMIT 2;
+id
+3
+2
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
+DROP TABLE t3;

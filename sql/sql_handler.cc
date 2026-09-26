@@ -570,6 +570,13 @@ retry:
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), m_key_name, tables->alias);
       goto err;
     }
+    /* A vector index is a graph for nearest-neighbour search, with no
+    ordered copy of the values to position on or step through. */
+    if (table->key_info[keyno].flags & HA_VECTOR) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "HANDLER ... READ on a vector index");
+      goto err;
+    }
     /* Check if the same index involved. */
     if ((uint)keyno != table->file->get_index()) {
       if (mode == enum_ha_read_modes::RNEXT)

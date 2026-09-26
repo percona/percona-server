@@ -5321,6 +5321,14 @@ template <typename Table>
     ctx->skip_pk_sort = innobase_pk_order_preserved(
         ctx->col_map, clust_index, new_clust_index, ctx->add_autoinc);
 
+    /* A builder that skips the sort makes Parallel_cursor::scan() read on
+    one thread, and the vector index builds its graph on the scan threads.
+    The graph is nearly all the cost of such a rebuild, so sort the
+    clustered rows and let the scan run in parallel. */
+    if (vec_index != nullptr) {
+      ctx->skip_pk_sort = false;
+    }
+
     DBUG_EXECUTE_IF("innodb_alter_table_pk_assert_no_sort",
                     assert(ctx->skip_pk_sort););
 

@@ -10,8 +10,8 @@
 # from id and may come back either way round.
 #
 # Created with the index, so the rows below get their labels as they
-# are inserted and the build further down needs no rebuild. A rebuild
-# keeps the primary key order and so scans on one thread.
+# are inserted and the build further down needs no rebuild. The first
+# ADD, which is a rebuild, is covered at the end.
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
 VECTOR KEY vk (v) TYPE hnsw (M = 8));
 # Split on nearly every insert, so the clustered index has enough leaf
@@ -55,3 +55,36 @@ SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,0,0,0]'), 'euclid
 id
 1000
 DROP TABLE t1;
+#
+# The first ADD is a rebuild that adds the hidden label column. It keeps
+# the primary key, but it sorts the clustered rows rather than streaming
+# them in key order, because a builder that skips the sort makes the
+# scan single threaded. So its scan is parallel as well, and every scan
+# thread assigns labels.
+#
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+SET @@global.innodb_limit_optimistic_insert_debug = 2;
+SET @@global.innodb_limit_optimistic_insert_debug = 0;
+SET SESSION innodb_parallel_read_threads = 8;
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
+SET SESSION innodb_parallel_read_threads = DEFAULT;
+# Two parallel scans now: the DROP+ADD on t1 above and this one.
+include/assert_grep.inc [the first ADD's scan was given more than one thread too]
+# Labels from several threads are still unique and cover every row.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t2';
+SELECT @@session.innodb_interpreter_output AS verify_first_add;
+verify_first_add
+nodes=1000 distinct_ids=1000 distinct_base_pks=1000 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+1
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[500,0,0,0]'), 'euclidean') LIMIT 1;
+id
+500
+SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,0,0,0]'), 'euclidean') LIMIT 1;
+id
+1000
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+DROP TABLE t2;

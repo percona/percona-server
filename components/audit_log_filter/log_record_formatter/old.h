@@ -31,7 +31,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordGeneral &audit_record) const noexcept override;
+      const AuditRecordGeneral &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordConnection audit record.
@@ -40,7 +40,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordConnection &audit_record) const noexcept override;
+      const AuditRecordConnection &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordTableAccess audit record.
@@ -49,7 +49,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordTableAccess &audit_record) const noexcept override;
+      const AuditRecordTableAccess &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordGlobalVariable audit record.
@@ -58,7 +58,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordGlobalVariable &audit_record) const noexcept override;
+      const AuditRecordGlobalVariable &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordCommand audit record.
@@ -67,7 +67,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordCommand &audit_record) const noexcept override;
+      const AuditRecordCommand &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordQuery audit record.
@@ -76,7 +76,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordQuery &audit_record) const noexcept override;
+      const AuditRecordQuery &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordStoredProgram audit record.
@@ -85,7 +85,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordStoredProgram &audit_record) const noexcept override;
+      const AuditRecordStoredProgram &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordAuthentication audit record.
@@ -94,7 +94,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordAuthentication &audit_record) const noexcept override;
+      const AuditRecordAuthentication &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordMessage audit record.
@@ -103,7 +103,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordMessage &audit_record) const noexcept override;
+      const AuditRecordMessage &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordParse audit record.
@@ -112,7 +112,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordParse &audit_record) const noexcept override;
+      const AuditRecordParse &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordAudit audit record.
@@ -121,7 +121,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordAudit &audit_record) const noexcept override;
+      const AuditRecordAudit &audit_record) const override;
 
   /**
    * @brief Insert audit event class and subclass names into record printed to
@@ -133,7 +133,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    */
   void apply_debug_info(std::string_view event_class_name,
                         std::string_view event_subclass_name,
-                        std::string &record_str) noexcept override;
+                        std::string &record_str) override;
 
  private:
   /**
@@ -143,7 +143,7 @@ class LogRecordFormatter<AuditLogFormatType::Old>
    * @return Formatted string
    */
   [[nodiscard]] std::string extra_attrs_to_string(
-      const ExtendedInfo &info) const noexcept override;
+      const ExtendedInfo &info) const override;
 };
 
 using LogRecordFormatterOld = LogRecordFormatter<AuditLogFormatType::Old>;

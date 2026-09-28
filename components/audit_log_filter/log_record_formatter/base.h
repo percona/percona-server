@@ -20,10 +20,13 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 struct mysql_event_tracking_general_data;
 struct mysql_event_tracking_connection_data;
@@ -77,7 +80,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordGeneral &audit_record) const noexcept = 0;
+      const AuditRecordGeneral &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordConnection audit record.
@@ -86,7 +89,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordConnection &audit_record) const noexcept = 0;
+      const AuditRecordConnection &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordTableAccess audit record.
@@ -95,7 +98,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordTableAccess &audit_record) const noexcept = 0;
+      const AuditRecordTableAccess &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordGlobalVariable audit record.
@@ -104,7 +107,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordGlobalVariable &audit_record) const noexcept = 0;
+      const AuditRecordGlobalVariable &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordCommand audit record.
@@ -113,7 +116,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordCommand &audit_record) const noexcept = 0;
+      const AuditRecordCommand &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordQuery audit record.
@@ -122,7 +125,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordQuery &audit_record) const noexcept = 0;
+      const AuditRecordQuery &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordStoredProgram audit record.
@@ -131,7 +134,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordStoredProgram &audit_record) const noexcept = 0;
+      const AuditRecordStoredProgram &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordAuthentication audit record.
@@ -140,7 +143,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordAuthentication &audit_record) const noexcept = 0;
+      const AuditRecordAuthentication &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordMessage audit record.
@@ -149,7 +152,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordMessage &audit_record) const noexcept = 0;
+      const AuditRecordMessage &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordParse audit record.
@@ -158,7 +161,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordParse &audit_record) const noexcept = 0;
+      const AuditRecordParse &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordAudit audit record.
@@ -167,7 +170,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] virtual AuditRecordString apply(
-      const AuditRecordAudit &audit_record) const noexcept = 0;
+      const AuditRecordAudit &audit_record) const = 0;
 
   /**
    * @brief Apply formatting to AuditRecordUnknown audit record.
@@ -176,7 +179,7 @@ class LogRecordFormatterBase {
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordUnknown &audit_record) const noexcept;
+      const AuditRecordUnknown &audit_record) const;
 
   /**
    * @brief Get log file header string.
@@ -209,9 +212,30 @@ class LogRecordFormatterBase {
    */
   virtual void apply_debug_info(std::string_view event_class_name,
                                 std::string_view event_subclass_name,
-                                std::string &record_str) noexcept = 0;
+                                std::string &record_str) = 0;
+
+  /**
+   * @brief Forget the read bookmark of a record that was not written.
+   */
+  void discard_pending_bookmark() { m_pending_bookmark.reset(); }
+
+  /**
+   * @brief Publish the read bookmark of the last formatted record.
+   *
+   * Call it only after the writer returns, so formatting or payload allocation
+   * failures do not advance audit_log_read_bookmark().
+   */
+  void publish_pending_bookmark();
 
  protected:
+  /**
+   * @brief Remember the read bookmark of the record being formatted.
+   *
+   * @param id Record ID
+   * @param timestamp Record timestamp
+   */
+  void set_pending_bookmark(uint64_t id, const std::string &timestamp) const;
+
   static const std::string &query_output(const ExtendedInfo &extra) noexcept;
   static const std::string &rewritten_query_output(
       const ExtendedInfo &extra) noexcept;
@@ -223,7 +247,7 @@ class LogRecordFormatterBase {
    * @return Timestamp string
    */
   [[nodiscard]] virtual std::string make_timestamp(
-      std::chrono::system_clock::time_point time_point) const noexcept = 0;
+      std::chrono::system_clock::time_point time_point) const = 0;
 
   /**
    * @brief Get record ID string representation.
@@ -232,7 +256,7 @@ class LogRecordFormatterBase {
    * @return Record ID string
    */
   [[nodiscard]] std::string make_record_id(
-      std::chrono::system_clock::time_point time_point) const noexcept;
+      std::chrono::system_clock::time_point time_point) const;
 
   /**
    * @brief Get numeric record ID.
@@ -247,7 +271,15 @@ class LogRecordFormatterBase {
    * @param in String to be escaped
    * @return Escaped string (an empty string if 'in' is nullptr)
    */
-  [[nodiscard]] std::string make_escaped_string(const char *in) const noexcept;
+  [[nodiscard]] std::string make_escaped_string(const char *in) const;
+
+  /**
+   * @brief Apply escaping rules to provided string.
+   *
+   * @param in String to be escaped
+   * @return Escaped string
+   */
+  [[nodiscard]] std::string make_escaped_string(const std::string &in) const;
 
   /**
    * @brief Apply escaping rules to provided string.
@@ -256,16 +288,7 @@ class LogRecordFormatterBase {
    * @return Escaped string
    */
   [[nodiscard]] std::string make_escaped_string(
-      const std::string &in) const noexcept;
-
-  /**
-   * @brief Apply escaping rules to provided string.
-   *
-   * @param in String to be escaped
-   * @return Escaped string
-   */
-  [[nodiscard]] std::string make_escaped_string(
-      const mysql_cstring_with_length *in) const noexcept;
+      const mysql_cstring_with_length *in) const;
 
   /**
    * @brief Get string representation of audit event class name.
@@ -400,7 +423,13 @@ class LogRecordFormatterBase {
    * @return Formatted string
    */
   [[nodiscard]] virtual std::string extra_attrs_to_string(
-      const ExtendedInfo &info) const noexcept = 0;
+      const ExtendedInfo &info) const = 0;
+
+  /*
+    Formatting and writing are serialized by LogWriterBase::m_write_mutex,
+    which is what makes updating this from the const apply() methods safe.
+  */
+  mutable std::optional<std::pair<uint64_t, std::string>> m_pending_bookmark;
 };
 
 class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
@@ -434,7 +463,7 @@ class LogRecordFormatterBaseXml : public LogRecordFormatterBase {
    * @return Timestamp string
    */
   [[nodiscard]] std::string make_timestamp(
-      std::chrono::system_clock::time_point time_point) const noexcept override;
+      std::chrono::system_clock::time_point time_point) const override;
 
  private:
   /**

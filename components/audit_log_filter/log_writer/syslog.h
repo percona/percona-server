@@ -57,7 +57,7 @@ class LogWriter<AuditLogHandlerType::Syslog> : public LogWriterBase {
    * @param print_separator Add lor record separator before a record
    *                        if set to true
    */
-  void write(const std::string &record, bool print_separator) noexcept override;
+  void write(const std::string &record, bool print_separator) override;
 
   /**
    * @brief Prune outdated log files.

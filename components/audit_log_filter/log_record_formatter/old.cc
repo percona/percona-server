@@ -34,8 +34,9 @@
 namespace audit_log_filter::log_record_formatter {
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordGeneral &audit_record) const noexcept {
+    const AuditRecordGeneral &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -58,8 +59,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordConnection &audit_record) const noexcept {
+    const AuditRecordConnection &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -84,8 +86,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordTableAccess &audit_record) const noexcept {
+    const AuditRecordTableAccess &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -106,8 +109,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordGlobalVariable &audit_record) const noexcept {
+    const AuditRecordGlobalVariable &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -125,8 +129,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordCommand &audit_record) const noexcept {
+    const AuditRecordCommand &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -143,8 +148,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordQuery &audit_record) const noexcept {
+    const AuditRecordQuery &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -162,8 +168,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordStoredProgram &audit_record) const noexcept {
+    const AuditRecordStoredProgram &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -181,8 +188,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordAuthentication &audit_record) const noexcept {
+    const AuditRecordAuthentication &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -201,8 +209,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordMessage &audit_record) const noexcept {
+    const AuditRecordMessage &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -239,8 +248,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordParse &audit_record) const noexcept {
+    const AuditRecordParse &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -259,8 +269,9 @@ AuditRecordString LogRecordFormatterOld::apply(
 }
 
 AuditRecordString LogRecordFormatterOld::apply(
-    const AuditRecordAudit &audit_record) const noexcept {
+    const AuditRecordAudit &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   std::chrono::system_clock::time_point tp = std::chrono::system_clock::now();
 
   /* clang-format off */
@@ -277,10 +288,11 @@ AuditRecordString LogRecordFormatterOld::apply(
 
 void LogRecordFormatterOld::apply_debug_info(
     std::string_view event_class_name, std::string_view event_subclass_name,
-    std::string &record_str) noexcept {
+    std::string &record_str) {
   assert(!record_str.empty());
 
   std::stringstream debug_info;
+  debug_info.exceptions(std::ios::badbit | std::ios::failbit);
   debug_info << "    EVENT_CLASS_NAME=\"" << event_class_name << "\"\n"
              << "    EVENT_SUBCLASS_NAME=\"" << event_subclass_name << "\"\n";
 
@@ -290,7 +302,7 @@ void LogRecordFormatterOld::apply_debug_info(
 }
 
 std::string LogRecordFormatterOld::extra_attrs_to_string(
-    const ExtendedInfo &info [[maybe_unused]]) const noexcept {
+    const ExtendedInfo &info [[maybe_unused]]) const {
   return "";
 }
 

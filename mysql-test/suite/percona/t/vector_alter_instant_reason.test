@@ -4,8 +4,7 @@
 --echo #
 --echo # The INSTANT refusal set its reason, and then the rebuild branch and
 --echo # the ADD INDEX branch of check_if_supported_inplace_alter replaced it
---echo # with the text for building a vector index with LOCK=NONE - which the
---echo # statement did not ask for.
+--echo # with the LOCK=NONE text - which the statement did not ask for.
 --echo #
 
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, g INT,

@@ -59,7 +59,7 @@ CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
 d VARCHAR(20), FULLTEXT KEY fd (d));
 INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 'a');
 ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding the first vector index, or dropping the last one, in-place on a table with a FULLTEXT index; either rebuilds the table to add or remove the hidden label column. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a FULLTEXT index in-place. Try ALGORITHM=COPY.
 ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
 SELECT id FROM t2
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;

@@ -62,7 +62,7 @@ INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
 (3, STRING_TO_VECTOR('[3,0,0,0]'));
 # While a vector index stays, LOCK=NONE is refused.
 ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
 # The last DROP rebuilds, so it gets a new table id, and it runs
 # online: DML during the rebuild reaches the new table through the row
 # log, without the column.
@@ -113,7 +113,7 @@ d VARCHAR(20), FULLTEXT KEY fd (d),
 VECTOR KEY vk (v) TYPE hnsw (M = 8));
 INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 'a');
 ALTER TABLE t2 DROP KEY vk, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support adding the first vector index, or dropping the last one, in-place on a table with a FULLTEXT index; either rebuilds the table to add or remove the hidden label column. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a FULLTEXT index in-place. Try ALGORITHM=COPY.
 ALTER TABLE t2 DROP KEY vk;
 SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t2';
 n_cols

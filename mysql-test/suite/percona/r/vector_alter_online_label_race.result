@@ -23,7 +23,7 @@ nodes=2 distinct_ids=2 distinct_base_pks=2 dup_ids=0 dup_base_pks=0 labels_conti
 # An ordinary secondary index: not a rebuild, does not touch the vector
 # key. Refused anyway, because the table carries a vector index.
 ALTER TABLE t1 ADD INDEX id_idx (id), ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
 # The same ALTER without LOCK=NONE is supported.
 ALTER TABLE t1 ADD INDEX id_idx (id), ALGORITHM=INPLACE;
 # Rows inserted after it keep assigning labels from where the build left

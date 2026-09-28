@@ -231,7 +231,7 @@ DROP TABLE t_rebuild_after;
 CREATE TABLE t_algorithm_lock (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
 INSERT INTO t_algorithm_lock VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),(2,STRING_TO_VECTOR('[2,0,0,0]'));
 ALTER TABLE t_algorithm_lock ADD VECTOR KEY (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
 ALTER TABLE t_algorithm_lock ADD VECTOR KEY (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE, LOCK=SHARED;
 SELECT id FROM t_algorithm_lock ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
 id

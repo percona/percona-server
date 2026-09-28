@@ -45,7 +45,7 @@ ta1	CREATE TABLE `ta1` (
 # the graph comes back from the copied rows. Not ONLINE - LOCK=SHARED
 # - because the row log cannot maintain a graph.
 ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=NONE;
-ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support building a vector index with LOCK=NONE; rows written while it is built would not reach the graph. Try LOCK=SHARED.
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
 ALTER TABLE ta1 ADD COLUMN c2 INT, ALGORITHM=INPLACE, LOCK=SHARED;
 SHOW CREATE TABLE ta1;
 Table	Create Table

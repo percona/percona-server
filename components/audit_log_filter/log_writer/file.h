@@ -64,7 +64,7 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
    * @param print_separator Add lor record separator before a record
    *                        if set to true
    */
-  void write(const std::string &record, bool print_separator) noexcept override;
+  void write(const std::string &record, bool print_separator) override;
 
   /**
    * @brief Get current log file size in bytes.
@@ -106,8 +106,17 @@ class LogWriter<AuditLogHandlerType::File> : public LogWriterBase {
    * @param record String representation of audit record
    * @param print_separator Add lor record separator before a record
    *                        if set to true
+   * @throw std::exception if the separated record cannot be allocated;
+   *        nothing is written in that case
    */
-  void do_write(const std::string &record, bool print_separator) noexcept;
+  void do_write(const std::string &record, bool print_separator);
+
+  /**
+   * @brief Write a complete payload to the log and account for it.
+   *
+   * @param payload Bytes to write
+   */
+  void write_payload(const std::string &payload) noexcept;
 
   /**
    * @brief Get current log file size while m_write_mutex is held.

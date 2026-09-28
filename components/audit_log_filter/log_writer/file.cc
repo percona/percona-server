@@ -27,9 +27,12 @@
 #include "components/audit_log_filter/log_record_formatter/base.h"
 #include "components/audit_log_filter/sys_vars.h"
 
+#include "my_dbug.h"
+
 #include <exception>
 #include <filesystem>
 #include <memory>
+#include <new>
 #include <numeric>
 #include <queue>
 
@@ -223,22 +226,35 @@ bool LogWriterFile::do_close_file() noexcept {
 }
 
 void LogWriterFile::write(const std::string &record,
-                          const bool print_separator) noexcept {
+                          const bool print_separator) {
   do_write(record, print_separator);
 }
 
-void LogWriterFile::do_write(const std::string &record,
-                             bool print_separator) noexcept {
-  size_t written_size = 0;
-  std::string payload;
-  if (print_separator && !m_is_log_empty) {
-    const auto separator = get_formatter()->get_record_separator();
-    payload.reserve(separator.length() + record.length());
-    payload.append(separator);
-  } else {
-    payload.reserve(record.length());
+void LogWriterFile::do_write(const std::string &record, bool print_separator) {
+  if (!print_separator || m_is_log_empty) {
+    write_payload(record);
+    return;
   }
+
+  /*
+    Build the separated record before writing anything: an allocation
+    failure must leave the log untouched so the event is simply lost.
+    A single write keeps separator and record together when the buffering
+    writer drops a record because its buffer is full.
+  */
+  DBUG_EXECUTE_IF("audit_log_filter_write_payload_bad_alloc",
+                  { throw std::bad_alloc(); });
+  const auto separator = get_formatter()->get_record_separator();
+  std::string payload;
+  payload.reserve(separator.length() + record.length());
+  payload.append(separator);
   payload.append(record);
+
+  write_payload(payload);
+}
+
+void LogWriterFile::write_payload(const std::string &payload) noexcept {
+  size_t written_size = 0;
 
   m_file_writer->write(payload.c_str(), payload.length());
   written_size += payload.length();

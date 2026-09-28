@@ -31,6 +31,9 @@ filter-definition validation through `audit_log_filter_set_filter()`.
   UTF-8 identifiers. Missing or unknown source charsets and resource failures
   lose the event through the
   counted `Audit_log_filter_events_lost` path; they never emit raw query bytes.
+  The same applies to memory exhaustion while the record is formatted and
+  escaped for the log: the event is counted as lost, nothing is written, and
+  `audit_log_read_bookmark()` is not advanced.
 
 - The names below are filter-definition names, not necessarily the names used by
   the JSON log formatter.

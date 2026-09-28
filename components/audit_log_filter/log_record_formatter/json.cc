@@ -319,8 +319,9 @@ std::string_view LogRecordFormatterJson::connection_type_name_to_string(
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordGeneral &audit_record) const noexcept {
+    const AuditRecordGeneral &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -374,14 +375,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordConnection &audit_record) const noexcept {
+    const AuditRecordConnection &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -439,14 +441,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordTableAccess &audit_record) const noexcept {
+    const AuditRecordTableAccess &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -494,14 +497,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordGlobalVariable &audit_record) const noexcept {
+    const AuditRecordGlobalVariable &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -533,14 +537,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordCommand &audit_record) const noexcept {
+    const AuditRecordCommand &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -572,14 +577,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordQuery &audit_record) const noexcept {
+    const AuditRecordQuery &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -614,14 +620,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordStoredProgram &audit_record) const noexcept {
+    const AuditRecordStoredProgram &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -651,14 +658,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordAuthentication &audit_record) const noexcept {
+    const AuditRecordAuthentication &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -690,14 +698,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordMessage &audit_record) const noexcept {
+    const AuditRecordMessage &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -776,14 +785,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordParse &audit_record) const noexcept {
+    const AuditRecordParse &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -820,14 +830,15 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
 
 AuditRecordString LogRecordFormatterJson::apply(
-    const AuditRecordAudit &audit_record) const noexcept {
+    const AuditRecordAudit &audit_record) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto time_now = std::chrono::system_clock::now();
   const auto timestamp = make_timestamp(time_now);
   const auto rec_id = make_record_id();
@@ -919,7 +930,7 @@ AuditRecordString LogRecordFormatterJson::apply(
   }
   /* clang-format on */
 
-  SysVars::update_log_bookmark(rec_id, timestamp);
+  set_pending_bookmark(rec_id, timestamp);
 
   return result.str();
 }
@@ -942,7 +953,7 @@ void LogRecordFormatterJson::append_escaped(std::string &out,
 }
 
 std::string LogRecordFormatterJson::make_timestamp(
-    const std::chrono::system_clock::time_point time_point) const noexcept {
+    const std::chrono::system_clock::time_point time_point) const {
   std::time_t tp = std::chrono::system_clock::to_time_t(time_point);
 
   DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
@@ -964,10 +975,11 @@ std::string LogRecordFormatterJson::make_timestamp(
 
 void LogRecordFormatterJson::apply_debug_info(
     std::string_view event_class_name, std::string_view event_subclass_name,
-    std::string &record_str) noexcept {
+    std::string &record_str) {
   assert(!record_str.empty());
 
   std::stringstream debug_info;
+  debug_info.exceptions(std::ios::badbit | std::ios::failbit);
   debug_info << R"(  "event_class_name": ")" << event_class_name << "\",\n"
              << R"(  "event_subclass_name": ")" << event_subclass_name
              << "\",\n";
@@ -978,14 +990,15 @@ void LogRecordFormatterJson::apply_debug_info(
 }
 
 std::string LogRecordFormatterJson::extra_attrs_to_string(
-    const ExtendedInfo &info) const noexcept {
+    const ExtendedInfo &info) const {
   return extra_attrs_to_string(info, 4, 6);
 }
 
 std::string LogRecordFormatterJson::extra_attrs_to_string(
     const ExtendedInfo &info, std::size_t tag_indent,
-    std::size_t value_indent) const noexcept {
+    std::size_t value_indent) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
   const auto tag_padding = std::string(tag_indent, ' ');
   const auto value_padding = std::string(value_indent, ' ');
 
@@ -1007,8 +1020,9 @@ std::string LogRecordFormatterJson::extra_attrs_to_string(
 }
 
 std::string LogRecordFormatterJson::extra_attrs_to_string_jsonl(
-    const ExtendedInfo &info) const noexcept {
+    const ExtendedInfo &info) const {
   std::stringstream result;
+  result.exceptions(std::ios::badbit | std::ios::failbit);
 
   for (const auto &pair : info.attrs) {
     result << R"(, ")" << pair.first << R"(": { )";

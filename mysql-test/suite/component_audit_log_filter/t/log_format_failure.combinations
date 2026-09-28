@@ -1,0 +1,11 @@
+[json]
+loose-audit_log_filter.format=JSON
+loose-audit_log_filter.file=format_failure.json
+
+[jsonl]
+loose-audit_log_filter.format=JSONL
+loose-audit_log_filter.file=format_failure.jsonl
+
+[new]
+loose-audit_log_filter.format=NEW
+loose-audit_log_filter.file=format_failure.xml

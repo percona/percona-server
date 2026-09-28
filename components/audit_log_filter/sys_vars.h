@@ -352,8 +352,7 @@ class SysVars {
    * @param id ID of an audit event
    * @param timestamp timestamp of an audit event
    */
-  static void update_log_bookmark(uint64_t id,
-                                  const std::string &timestamp) noexcept;
+  static void update_log_bookmark(uint64_t id, std::string timestamp) noexcept;
 
   /**
    * @brief Get bookmark for the latest audit event written to a log.

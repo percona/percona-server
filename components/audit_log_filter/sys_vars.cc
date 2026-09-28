@@ -1051,10 +1051,9 @@ ulong SysVars::get_read_buffer_size(MYSQL_THD thd [[maybe_unused]]) noexcept {
   return read_buffer_size;
 }
 
-void SysVars::update_log_bookmark(uint64_t id,
-                                  const std::string &timestamp) noexcept {
+void SysVars::update_log_bookmark(uint64_t id, std::string timestamp) noexcept {
   log_bookmark.id = id;
-  log_bookmark.timestamp = timestamp;
+  log_bookmark.timestamp = std::move(timestamp);
 }
 
 LogBookmark SysVars::get_log_bookmark() noexcept { return log_bookmark; }

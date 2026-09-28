@@ -38,7 +38,7 @@ bool LogWriterSyslog::open() noexcept { return true; }
 bool LogWriterSyslog::close() noexcept { return true; }
 
 void LogWriterSyslog::write(const std::string &record,
-                            bool print_separator [[maybe_unused]]) noexcept {
+                            bool print_separator [[maybe_unused]]) {
   syslog(m_priority, "%s: %s", m_tag.c_str(), record.c_str());
 }
 

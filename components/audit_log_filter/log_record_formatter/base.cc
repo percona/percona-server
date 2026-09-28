@@ -16,6 +16,7 @@
 #include "components/audit_log_filter/log_record_formatter/base.h"
 
 #include "components/audit_log_filter/sys_vars.h"
+#include "my_dbug.h"
 
 #include <mysql/components/services/defs/event_tracking_authentication_defs.h>
 #include <mysql/components/services/defs/event_tracking_command_defs.h>
@@ -33,6 +34,7 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <new>
 #include <unordered_map>
 
 namespace audit_log_filter::log_record_formatter {
@@ -108,12 +110,26 @@ const std::string_view kAuditNameUnknown{"unknown"};
 }  // namespace
 
 std::string LogRecordFormatterBase::make_record_id(
-    const std::chrono::system_clock::time_point time_point) const noexcept {
+    const std::chrono::system_clock::time_point time_point) const {
   std::stringstream id;
+  id.exceptions(std::ios::badbit | std::ios::failbit);
   id << (SysVars::get_next_record_id() + 1) << "_"
      << make_timestamp(time_point);
 
   return id.str();
+}
+
+void LogRecordFormatterBase::set_pending_bookmark(
+    uint64_t id, const std::string &timestamp) const {
+  m_pending_bookmark.emplace(id, timestamp);
+}
+
+void LogRecordFormatterBase::publish_pending_bookmark() {
+  if (m_pending_bookmark.has_value()) {
+    SysVars::update_log_bookmark(m_pending_bookmark->first,
+                                 std::move(m_pending_bookmark->second));
+    m_pending_bookmark.reset();
+  }
 }
 
 uint64_t LogRecordFormatterBase::make_record_id() const noexcept {
@@ -134,8 +150,7 @@ const std::string &LogRecordFormatterBase::rewritten_query_output(
   return extra.query_output ? extra.query_output->rewritten_query : empty;
 }
 
-std::string LogRecordFormatterBase::make_escaped_string(
-    const char *in) const noexcept {
+std::string LogRecordFormatterBase::make_escaped_string(const char *in) const {
   std::string out;
   if (in != nullptr) append_escaped(out, in);
 
@@ -143,16 +158,18 @@ std::string LogRecordFormatterBase::make_escaped_string(
 }
 
 std::string LogRecordFormatterBase::make_escaped_string(
-    const std::string &in) const noexcept {
+    const std::string &in) const {
   const mysql_cstring_with_length wrapper{in.data(), in.size()};
   return make_escaped_string(&wrapper);
 }
 
 std::string LogRecordFormatterBase::make_escaped_string(
-    const mysql_cstring_with_length *in) const noexcept {
+    const mysql_cstring_with_length *in) const {
   std::string out;
 
   if (in != nullptr && in->str != nullptr && in->length != 0) {
+    DBUG_EXECUTE_IF("audit_log_filter_escape_bad_alloc",
+                    { throw std::bad_alloc(); });
     append_escaped(out, {in->str, in->length});
   }
 
@@ -390,7 +407,7 @@ std::string_view LogRecordFormatterBase::connection_type_name_to_string(
 }
 
 AuditRecordString LogRecordFormatterBase::apply(
-    const AuditRecordUnknown &audit_record [[maybe_unused]]) const noexcept {
+    const AuditRecordUnknown &audit_record [[maybe_unused]]) const {
   // Should not happen
   assert(false);
   return "";
@@ -440,7 +457,7 @@ void LogRecordFormatterBaseXml::append_escaped(std::string &out,
 }
 
 std::string LogRecordFormatterBaseXml::make_timestamp(
-    const std::chrono::system_clock::time_point time_point) const noexcept {
+    const std::chrono::system_clock::time_point time_point) const {
   std::time_t t = std::chrono::system_clock::to_time_t(time_point);
   std::tm tm;
   static constexpr std::size_t max_buffer_size{32};

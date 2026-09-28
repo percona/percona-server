@@ -1,0 +1,65 @@
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+--disable_query_log
+--disable_result_log
+call mtr.add_suppression("std::bad_alloc");
+SET GLOBAL audit_log_filter.event_mode=FULL;
+SELECT audit_log_filter_set_filter('failure', '{"filter":{"class":{"name":"query","event":{"name":"status_end","log":{"field":{"name":"query.str","value":"SELECT 10355 AS secret_query_marker"}}}}}}');
+SELECT audit_log_filter_set_user('root@localhost', 'failure');
+--source include/count_sessions.inc
+connect (logged,localhost,root,,test);
+connection default;
+--let format_dir = `SELECT @@datadir`
+SELECT audit_log_rotate();
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written');
+
+# Conversion succeeds, but escaping inside the writer fails. The statement
+# must succeed, with exactly one lost event and no event counted as written.
+connection logged;
+SET SESSION debug='+d,audit_log_filter_escape_bad_alloc';
+SELECT 10355 AS secret_query_marker;
+SET SESSION debug='-d,audit_log_filter_escape_bad_alloc';
+DO 0;
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+--let format_closed = `SELECT audit_log_rotate()`
+perl;
+  use strict;
+  use warnings;
+  for my $path ("$ENV{format_dir}/$ENV{format_closed}", "$ENV{MYSQLTEST_VARDIR}/log/mysqld.1.err") {
+    open my $f, '<:raw', $path or die "$path: $!";
+    local $/;
+    die 'Failed query leaked' if <$f> =~ /secret_query_marker/;
+  }
+EOF
+
+# The writer lock must be released and subsequent events must still be logged.
+connection logged;
+SELECT 10355 AS secret_query_marker;
+DO 0;
+connection default;
+--enable_result_log
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_lost';
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME='Audit_log_filter_events_written';
+--disable_result_log
+--let format_closed = `SELECT audit_log_rotate()`
+perl;
+  use strict;
+  use warnings;
+  my $path = "$ENV{format_dir}/$ENV{format_closed}";
+  open my $f, '<:raw', $path or die "$path: $!";
+  local $/;
+  die 'Subsequent query missing' unless <$f> =~ /secret_query_marker/;
+EOF
+--enable_result_log
+--enable_query_log
+disconnect logged;
+--source include/wait_until_count_sessions.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

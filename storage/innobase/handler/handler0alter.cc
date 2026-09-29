@@ -490,23 +490,6 @@ static bool innobase_vec_aux_col_changes(const dict_table_t *old_table,
          innobase_vector_exist(altered_table);
 }
 
-/** Why an ALTER that builds or keeps a vector index cannot run LOCK=NONE. */
-static constexpr const char *vec_reason_lock_none =
-    "LOCK=NONE on a table with a vector index";
-
-/** ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR ("InnoDB does not support
-%s") with what filled in, for ha_alter_info->unsupported_reason. The server
-prints it later in the same statement, so a per-thread buffer is enough.
-@param what  what is not supported
-@return the reason */
-static const char *vec_unsupported_reason(const char *what) {
-  thread_local char buf[512];
-  snprintf(buf, sizeof buf,
-           innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR),
-           what);
-  return buf;
-}
-
 /** Determine if spatial indexes exist in a given table.
 @param table MySQL table
 @return whether spatial indexes exist on the table */
@@ -1062,11 +1045,6 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   COPY. */
   const bool vec_aux_col_changes =
       innobase_vec_aux_col_changes(m_prebuilt->table, altered_table);
-  if (vec_aux_col_changes && m_prebuilt->table->fts != nullptr) {
-    ha_alter_info->unsupported_reason = vec_unsupported_reason(
-        "rebuilding a table with a FULLTEXT index in-place");
-    return HA_ALTER_INPLACE_NOT_SUPPORTED;
-  }
 
   /* We don't support change encryption attribute with inplace algorithm. */
   char *old_encryption = this->table->s->encrypt_type.str;
@@ -1455,8 +1433,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
       ha_alter_info->unsupported_reason =
           innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
     } else if (innobase_vector_exist(altered_table)) {
-      ha_alter_info->unsupported_reason =
-          vec_unsupported_reason(vec_reason_lock_none);
+      ha_alter_info->unsupported_reason = innobase_get_err_msg(
+          ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK);
     } else {
       ha_alter_info->unsupported_reason =
           innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
@@ -1507,8 +1485,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         /* Without this the server prints "ALGORITHM=INPLACE is not
         supported. Reason:" and then nothing, because every other branch
         here sets a reason and this one did not. */
-        ha_alter_info->unsupported_reason =
-            vec_unsupported_reason(vec_reason_lock_none);
+        ha_alter_info->unsupported_reason = innobase_get_err_msg(
+            ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK);
         online = false;
         break;
       }
@@ -1529,8 +1507,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
   row_log_apply to insert each applied row into the new graph, and the
   first ADD's labels to come from the row log as well as the scan. */
   if (online && innobase_vector_exist(altered_table)) {
-    ha_alter_info->unsupported_reason =
-        vec_unsupported_reason(vec_reason_lock_none);
+    ha_alter_info->unsupported_reason = innobase_get_err_msg(
+        ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK);
     online = false;
   }
 

@@ -113,7 +113,7 @@ d VARCHAR(20), FULLTEXT KEY fd (d),
 VECTOR KEY vk (v) TYPE hnsw (M = 8));
 INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 'a');
 ALTER TABLE t2 DROP KEY vk, ALGORITHM=INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB does not support rebuilding a table with a FULLTEXT index in-place. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
 ALTER TABLE t2 DROP KEY vk;
 SELECT n_cols FROM information_schema.innodb_tables WHERE name = 'test/t2';
 n_cols

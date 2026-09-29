@@ -12,8 +12,8 @@ include/rpl/stop_replica.inc
 [connection master]
 include/rpl/stop_dump_threads.inc
 include/suppress_messages.inc
-# Connection 1 suppresses message <.*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*>.
-# Connection 2 suppresses message <.*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*>.
+# Connection 1 suppresses message <^.... repeated [0-9]+ times: .*rpl_semi_sync_.* is deprecated and will be removed in a future release.*>.
+# Connection 2 suppresses message <^.... repeated [0-9]+ times: .*rpl_semi_sync_.* is deprecated and will be removed in a future release.*>.
 include/suppress_messages.inc
 # Connection 1 un-suppresses message <rpl_semi_sync.*is deprecated and will be removed in a future release.*>.
 # Connection 2 un-suppresses message <rpl_semi_sync.*is deprecated and will be removed in a future release.*>.

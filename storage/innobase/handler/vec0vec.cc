@@ -30,11 +30,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "vector-common/vector_distance.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
 #include <string>
+#include <utility>
 #include <variant>
 
 // ut0ut.h isn't self-contained.
@@ -127,17 +129,43 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
 
   auto &hnsw_param = vip.emplace<HnswParam>();
 
+  std::array<std::pair<std::string_view, bool>, 3> used_options{
+      {{"M", false}, {"ef_construction", false}, {"metric", false}}};
+  const auto is_used = [&](std::string_view name) -> bool & {
+    return std::find_if(used_options.begin(), used_options.end(),
+                        [&](const auto &opt) { return opt.first == name; })
+        ->second;
+  };
+
   for (const auto &[key, value] : params) {
     if (my_strcasecmp(system_charset_info, key.str, "M") == 0) {
+      if (bool &used = is_used("M"); used) {
+        my_error(ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+        return true;
+      } else {
+        used = true;
+      }
       if (parse_int_option(value, hnsw::min_M, hnsw::max_M, &hnsw_param.M))
         return true;
     } else if (my_strcasecmp(system_charset_info, key.str,
                              "ef_construction") == 0) {
+      if (bool &used = is_used("ef_construction"); used) {
+        my_error(ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+        return true;
+      } else {
+        used = true;
+      }
       if (parse_int_option(value, hnsw::min_ef_construction,
                            hnsw::max_ef_construction,
                            &hnsw_param.ef_construction))
         return true;
     } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
+      if (bool &used = is_used("metric"); used) {
+        my_error(ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+        return true;
+      } else {
+        used = true;
+      }
       std::string_view name(value.str, value.length);
       const auto *m = vector_constants::metric_from_name(name);
       if (m == nullptr) {

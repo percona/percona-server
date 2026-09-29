@@ -1009,6 +1009,8 @@ class HNSW {
       candidates.push(nearest_entry);
 
       assert(ctx->m_visited.empty());
+      // The same guess search_layer() makes; later batches may outgrow it.
+      ctx->m_visited.reserve(ef * get_Mmax(0));
       ctx->m_visited.insert(nearest_entry.node);
 
       assert(ctx->m_discarded.empty());

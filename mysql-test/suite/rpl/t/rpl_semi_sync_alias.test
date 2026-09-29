@@ -54,8 +54,11 @@ CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT);
 --source include/rpl/connection_source.inc
 --source include/rpl/stop_dump_threads.inc
 
+# mtr collapses consecutive identical warnings into a synthetic
+# ".... repeated N times: ..." line, which cannot match the lines recorded
+# by assert_error_log.inc. The individual lines are still asserted below.
 let $messages =
-.*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*
+^.... repeated [0-9]+ times: .*rpl_semi_sync_.* is deprecated and will be removed in a future release.*
 ;
 --source include/suppress_messages.inc
 

@@ -23,6 +23,7 @@ Usage: $0 [OPTIONS]
         --deb_release               DEB version( default = 1)
         --debug                     Build debug tarball
         --enable_pgo                PGO (Profile-Guided Optimization) build (default = 1, set to 0 to disable)
+        --sbom                      If it is 1 SBOMs are generated and shipped (default = 0)
         --help) usage ;;
 Example $0 --builddir=/tmp/PS57 --get_sources=1 --build_src_rpm=1 --build_rpm=1
 EOF
@@ -65,6 +66,7 @@ parse_arguments() {
             --deb_release=*) DEB_RELEASE="$val" ;;
             --debug=*) DEBUG="$val" ;;
             --enable_pgo=*) ENABLE_PGO="$val" ;;
+            --sbom=*) SBOM="$val" ;;
             --help) usage ;;
             *)
               if test -n "$pick_args"
@@ -316,7 +318,20 @@ get_sources(){
     rsync -av extra/coredumper/ ${PSDIR}/extra/coredumper --exclude .git
     rsync -av extra/libkmip/ ${PSDIR}/extra/libkmip/ --exclude .git
     rsync -av extra/jwt-cpp/ ${PSDIR}/extra/jwt-cpp --exclude .git
-    #
+
+    # the rsync above drops .git, so record the submodule pins while they are
+    # still resolvable; the SBOM tooling reads this file instead of git
+    if [ ${SBOM} = 1 ]; then
+        mkdir -p ${PSDIR}/build-ps/sbom
+        git submodule status --recursive \
+            | awk '{ sub(/^[-+U]/, "", $1); print $2 "|" $1 }' \
+            > ${PSDIR}/build-ps/sbom/submodule-pins.txt
+        if [ ! -s ${PSDIR}/build-ps/sbom/submodule-pins.txt ]; then
+            echo "ERROR: --sbom=1 but no submodule pins could be recorded"
+            exit 1
+        fi
+    fi
+    
     cd ${PSDIR}
 
     # PS-7429 Remove TokuDB and TokuBackup from Percona Server 8.0.28 packages
@@ -351,6 +366,27 @@ get_sources(){
     mv "${WORKDIR}"/v8/LICENSE "${WORKDIR}"/v8/LICENSE.v8.libraries
     mkdir ${PSDIR}/js
     cp -v "${WORKDIR}"/v8/LICENSE* ${PSDIR}/js
+#
+    if [ ${SBOM} = 1 ]; then
+        if ! sh ${PSDIR}/build-ps/sbom/check-components.sh --root ${PSDIR}; then
+            echo "ERROR: --sbom=1 but the component registry does not match the tree"
+            exit 1
+        fi
+        if ! sh ${PSDIR}/build-ps/sbom/gen-sbom.sh \
+            --pkg percona-server \
+            --version ${MYSQL_VERSION_MAJOR}.${MYSQL_VERSION_MINOR}.${MYSQL_VERSION_PATCH}${MYSQL_VERSION_EXTRA} \
+            --root ${PSDIR} \
+            --pins ${PSDIR}/build-ps/sbom/submodule-pins.txt \
+            --artifact source \
+            --dest ${PSDIR}/sbom; then
+            echo "ERROR: --sbom=1 but SBOM generation failed"
+            exit 1
+        fi
+        if [ -z "$(ls -A ${PSDIR}/sbom 2>/dev/null)" ]; then
+            echo "ERROR: --sbom=1 but no SBOM was produced for the source tarball"
+            exit 1
+        fi
+    fi
 #
     tar --owner=0 --group=0 --exclude=.bzr --exclude=.git -czf ${PSDIR}.tar.gz ${PSDIR}
 
@@ -733,12 +769,22 @@ build_srpm(){
     mv -fv ${TARFILE} ${WORKDIR}/rpmbuild/SOURCES
     #
     rpmbuild -bs --define "_topdir ${WORKDIR}/rpmbuild" --define "dist .generic" rpmbuild/SPECS/percona-server.spec
+    srpm_build_status=$?
+    if [ ${srpm_build_status} -ne 0 ]; then
+        echo "ERROR: rpmbuild -bs failed (exit code ${srpm_build_status})"
+        exit ${srpm_build_status}
+    fi
     #
 
     mkdir -p ${WORKDIR}/srpm
     mkdir -p ${CURDIR}/srpm
     cp rpmbuild/SRPMS/*.src.rpm ${CURDIR}/srpm
     cp rpmbuild/SRPMS/*.src.rpm ${WORKDIR}/srpm
+
+    if [ -z "$(ls -A ${WORKDIR}/srpm/*.src.rpm 2>/dev/null)" ] || [ -z "$(ls -A ${CURDIR}/srpm/*.src.rpm 2>/dev/null)" ]; then
+        echo "ERROR: no .src.rpm file was produced (checked ${WORKDIR}/srpm and ${CURDIR}/srpm)"
+        exit 1
+    fi
     return
 }
 
@@ -863,6 +909,9 @@ build_rpm(){
     if [ "${ENABLE_PGO}" = "1" ]; then
         EXTRA_DEFINES+=(--define "with_pgo 1")
     fi
+    if [ "${SBOM}" = "1" ]; then
+        EXTRA_DEFINES+=(--define "with_sbom 1")
+    fi
 
     rpmbuild \
         --define "_topdir ${WORKDIR}/rpmbuild" \
@@ -872,12 +921,16 @@ build_rpm(){
         "${EXTRA_DEFINES[@]}" \
         --rebuild rpmbuild/SRPMS/${SRCRPM}
 
+    # Capture rpmbuild's exit status right away - the RHEL==6 strip
+    # workaround below runs more commands and would otherwise clobber $?,
+    # masking a failed build as success.
+    return_code=$?
+
     if [ $RHEL = 6 ]; then
         sudo rm -f /usr/bin/strip
         sudo mv /usr/bin/strip_back /usr/bin/strip
     fi
 
-    return_code=$?
     if [ $return_code != 0 ]; then
         exit $return_code
     fi
@@ -886,6 +939,10 @@ build_rpm(){
     cp rpmbuild/RPMS/*/*.rpm ${WORKDIR}/rpm
     cp rpmbuild/RPMS/*/*.rpm ${CURDIR}/rpm
 
+    if [ -z "$(ls -A ${WORKDIR}/rpm/*.rpm 2>/dev/null)" ] || [ -z "$(ls -A ${CURDIR}/rpm/*.rpm 2>/dev/null)" ]; then
+        echo "ERROR: no .rpm files were produced (checked ${WORKDIR}/rpm and ${CURDIR}/rpm)"
+        exit 1
+    fi
 }
 
 build_source_deb(){
@@ -1018,7 +1075,16 @@ build_deb(){
         export DEB_PGO=1
     fi
 
-    dpkg-buildpackage -rfakeroot -uc -us -b
+    if [ "${SBOM}" = "1" ]; then
+        DEB_BUILD_PROFILES="${DEB_BUILD_PROFILES:+${DEB_BUILD_PROFILES} }pkg.ps.sbom" \
+            dpkg-buildpackage -rfakeroot -uc -us -b
+    else
+        dpkg-buildpackage -rfakeroot -uc -us -b
+    fi
+    if [ $? != 0 ]; then
+        echo "ERROR: dpkg-buildpackage failed"
+        exit 1
+    fi
 
     cd ${WORKDIR}
     mkdir -p $CURDIR/deb
@@ -1113,8 +1179,25 @@ build_tarball(){
     fi
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}
+    if [ -z "$(ls -A ../TARGET/*.tar.gz 2>/dev/null)" ]; then
+        echo "ERROR: build-binary.sh produced no tarballs"
+        exit 1
+    fi
+
     cp ../TARGET/*.tar.gz ${WORKDIR}/${DIRNAME}
     cp ../TARGET/*.tar.gz ${CURDIR}/${DIRNAME}
+
+    if [ ${SBOM} = 1 ]; then
+        mkdir -p ${WORKDIR}/sbom
+        mkdir -p ${CURDIR}/sbom
+        if [ -n "$(ls -A ../TARGET/sbom 2>/dev/null)" ]; then
+            cp ../TARGET/sbom/* ${WORKDIR}/sbom/
+            cp ../TARGET/sbom/* ${CURDIR}/sbom/
+        else
+            echo "ERROR: --sbom=1 but build-binary.sh produced no SBOMs"
+            exit 1
+        fi
+    fi
 }
 
 #main
@@ -1140,6 +1223,7 @@ RPM_RELEASE=1
 DEB_RELEASE=1
 DEBUG=0
 ENABLE_PGO=1
+SBOM=0
 REVISION=0
 BRANCH="release-9.0.1-1"
 RPM_RELEASE=1
@@ -1154,6 +1238,7 @@ MYSQL_VERSION_EXTRA=-1
 PRODUCT_FULL=Percona-Server-9.0.1
 BUILD_TOKUDB_TOKUBACKUP=0
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
+export SBOM
 
 check_workdir
 get_system

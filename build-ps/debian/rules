@@ -39,6 +39,7 @@ TOKUDB_OPTS_RELEASE ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=OFF
 TOKUDB_OPTS_DEBUG ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=ON
 
 EXPORTED_SOURCE_TARBALL = debian/percona-server-source.tar.gz
+SBOM_UTILS = build-ps/sbom
 
 DISTRIBUTION = $(shell lsb_release -i -s)
 DISTRELEASE = $(shell lsb_release -c -s)
@@ -72,6 +73,17 @@ else ifeq ($(DISTRELEASE),buster)
 	LZ4_OPTION = -DWITH_LZ4=bundled
 else
 	LZ4_OPTION = -DWITH_LZ4=system
+endif
+
+# zstd is always system on DEB; zlib and lz4 are bundled only on the distros
+# selected above. Drop whatever resolved to a system library so the SBOM
+# describes what the package actually contains. Must follow those blocks.
+SBOM_EXCLUDE = zstd
+ifeq (,$(findstring bundled,$(ZLIB_OPTION)))
+SBOM_EXCLUDE := $(SBOM_EXCLUDE),zlib
+endif
+ifeq (,$(findstring bundled,$(LZ4_OPTION)))
+SBOM_EXCLUDE := $(SBOM_EXCLUDE),lz4
 endif
 
 MYSQL_SRC = $(shell pwd)
@@ -244,6 +256,22 @@ override_dh_install:
 		install -D -m 0755 debian/tmp/usr/bin/mysqld_pre_systemd debian/percona-server-server/usr/bin/mysqld_pre_systemd; \
 	fi
 	cp js/LICENSE* debian/percona-server-js/usr/share/doc/percona-server-js/
+ifneq (,$(filter pkg.ps.sbom,$(DEB_BUILD_PROFILES)))
+	@test -n "$(DEB_VERSION)" || \
+		{ echo "SBOM: dpkg-parsechangelog produced no Version" >&2; exit 1; }
+	@test -d debian/percona-server-server || \
+		{ echo "SBOM: debian/percona-server-server is not a staging dir" >&2; exit 1; }
+	sh $(SBOM_UTILS)/check-components.sh --root .
+	install -d -m 0755 debian/percona-server-server/usr/share/percona-server/sbom
+	sh $(SBOM_UTILS)/gen-sbom.sh \
+		--pkg percona-server \
+		--version $(DEB_VERSION) \
+		--root . \
+		--pins $(SBOM_UTILS)/submodule-pins.txt \
+		--artifact package \
+		--exclude $(SBOM_EXCLUDE) \
+		--dest debian/percona-server-server/usr/share/percona-server/sbom
+endif
 
 override_dh_installinit:
 	@echo "RULES.$@"

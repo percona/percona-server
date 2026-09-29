@@ -156,6 +156,20 @@ CREATE TABLE t1 (
   VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
 ) ENGINE = memory;
 
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id INT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( m = 6, metric = euclidean, M = 7 )
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id INT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, M = 7, Metric = euclidean )
+);
+
 CREATE TABLE t1 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR ( 1234 ) NOT NULL,

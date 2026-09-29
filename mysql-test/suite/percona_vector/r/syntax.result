@@ -209,6 +209,18 @@ VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
 ) ENGINE = memory;
 ERROR HY000: The used table type doesn't support vector indexes
 CREATE TABLE t1 (
+id INT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( m = 6, metric = euclidean, M = 7 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id INT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, M = 7, Metric = euclidean )
+);
+ERROR HY000: Duplicate index construction parameter: Metric.
+CREATE TABLE t1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw

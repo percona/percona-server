@@ -26,17 +26,25 @@
 #include "my_config.h"
 
 #include <errno.h>
+#include <sys/types.h>
+#include <new>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_stage.h"
+#include "mysql/thread_type.h"
 #include "mysqld_error.h"
 #include "plugin/semisync/semisync.h"
 #include "plugin/semisync/semisync_source.h"
 #include "plugin/semisync/semisync_source_socket_listener.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/error_handler.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
+#include "sql/sql_error.h"
 
 extern ReplSemiSyncSource *repl_semisync;
 
@@ -48,6 +56,37 @@ extern PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 extern PSI_cond_key key_ss_cond_Ack_receiver_cond;
 extern PSI_thread_key key_ss_thread_Ack_receiver_thread;
 #endif
+
+namespace {
+/**
+  Error handler installed on the ack receive thread's THD.
+
+  my_net_read() raises ER_NET_READ_ERROR through my_error() whenever a replica
+  closes its connection. Without a THD such errors are written to the error
+  log as ER_SERVER_NO_SESSION_TO_SEND_TO, which floods it on every replica
+  disconnect although Ack_receiver::run() handles the condition itself.
+*/
+class Ack_receiver_error_handler : public Internal_error_handler {
+ public:
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override {
+    /* Replica disconnected: expected and handled via net.last_errno. */
+    if (sql_errno == ER_NET_READ_ERROR) return true;
+
+    /* There is no client to report to, keep logging any other error. */
+    loglevel log_level = ERROR_LEVEL;
+    if (*level == Sql_condition::SL_WARNING)
+      log_level = WARNING_LEVEL;
+    else if (*level == Sql_condition::SL_NOTE)
+      log_level = INFORMATION_LEVEL;
+    LogErr(log_level, ER_SERVER_NO_SESSION_TO_SEND_TO, sql_errno, msg);
+    return true;
+  }
+};
+
+Ack_receiver_error_handler ack_receiver_error_handler;
+}  // namespace
 
 /* Callback function of ack receive thread */
 extern "C" {
@@ -77,10 +116,36 @@ Ack_receiver::~Ack_receiver() {
   function_enter(kWho);
 
   stop();
+  if (m_thd != nullptr) {
+    m_thd->pop_internal_handler();
+    m_thd->release_resources();
+    delete m_thd;
+    m_thd = nullptr;
+  }
   mysql_mutex_destroy(&m_mutex);
   mysql_cond_destroy(&m_cond);
 
   function_exit(kWho);
+}
+
+bool Ack_receiver::init() {
+  setTraceLevel(rpl_semi_sync_source_trace_level);
+
+  /*
+    The THD is created here, once, instead of in the ack receive thread:
+    constructing a THD takes LOCK_global_system_variables, which
+    SET GLOBAL rpl_semi_sync_source_enabled holds while stop() waits for
+    the thread to exit. The thread only attaches to it while running.
+  */
+  m_thd = new (std::nothrow) THD(false);
+  if (m_thd == nullptr) return true;
+  m_thd->set_new_thread_id();
+  m_thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  m_thd->security_context()->skip_grants();
+  m_thd->push_internal_handler(&ack_receiver_error_handler);
+
+  if (rpl_semi_sync_source_enabled) return start();
+  return false;
 }
 
 bool Ack_receiver::start() {
@@ -248,6 +313,11 @@ void Ack_receiver::run() {
   uint i;
   Socket_listener listener;
 
+  if (m_thd != nullptr) {
+    m_thd->thread_stack = reinterpret_cast<char *>(&net);
+    m_thd->store_globals();
+  }
+
   LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STARTING_ACK_RECEIVER_THD);
 
   init_net(&net, net_buff, REPLY_MESSAGE_MAX_LENGTH);
@@ -324,6 +394,8 @@ void Ack_receiver::run() {
   }
 end:
   LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STOPPING_ACK_RECEIVER_THREAD);
+  /* Detach before stop() may return and the THD be destroyed. */
+  if (m_thd != nullptr) m_thd->restore_globals();
   m_status = ST_DOWN;
   mysql_cond_broadcast(&m_cond);
   mysql_mutex_unlock(&m_mutex);

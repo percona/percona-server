@@ -667,4 +667,13 @@ drop table t1;
 source include/rpl/connection_source.inc;
 drop user rpl@127.0.0.1;
 flush privileges;
+
+# PS-8313: replica disconnects must not make the ack receiver thread log
+# network read errors as messages without a client session.
+--let $assert_text = Ack receiver did not log read errors without a client session
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = no client-session is attached.*Got an error reading communication packets
+--let $assert_count = 0
+--source include/assert_grep.inc
+
 --source include/rpl/deinit.inc

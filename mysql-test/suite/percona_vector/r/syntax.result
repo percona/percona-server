@@ -211,6 +211,66 @@ ERROR HY000: The used table type doesn't support vector indexes
 CREATE TABLE t1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( m = 6, metric = euclidean, M = 7 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, M = 7, Metric = euclidean )
+);
+ERROR HY000: Duplicate index construction parameter: Metric.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, EF_CONSTRUCTION = 200 )
+);
+ERROR HY000: Duplicate index construction parameter: EF_CONSTRUCTION.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6, M = 1 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, ef_construction = 0 )
+);
+ERROR HY000: Duplicate index construction parameter: ef_construction.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, metric = no_such_metric )
+);
+ERROR HY000: Duplicate index construction parameter: metric.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL
+);
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+ERROR HY000: Duplicate index construction parameter: m.
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+ERROR HY000: Duplicate index construction parameter: Ef_Construction.
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+ERROR HY000: Duplicate index construction parameter: METRIC.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+ERROR HY000: Duplicate index construction parameter: m.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+ERROR HY000: Duplicate index construction parameter: Ef_Construction.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+ERROR HY000: Duplicate index construction parameter: METRIC.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw
 );
 SHOW CREATE TABLE t1;

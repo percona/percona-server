@@ -1,0 +1,40 @@
+# PS-11593: an ordinary login must take the ACL cache lock in SHARED mode.
+#
+# apply_external_roles() has to look in g_external_roles to decide whether any
+# external role must be granted or revoked. For a login whose authentication
+# plugin reports no roles - every password login - the answer is always "none",
+# so that lookup must happen under a SHARED lock. Taking the EXCLUSIVE lock
+# serializes every login and re-introduces the freeze PS-7143 fixed.
+#
+# The debug point reports the mode actually held at that point, read back from
+# the thread's own MDL context, so this test fails if the probe is ever changed
+# to acquire the exclusive lock.
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+CREATE USER ps11593@localhost IDENTIFIED BY 'pw';
+
+--let $old_debug = `SELECT @@GLOBAL.debug`
+SET GLOBAL debug = '+d,acl_external_roles_log_lock_mode';
+
+--echo #
+--echo # An ordinary login - caching_sha2_password reports no external roles
+--echo #
+--exec $MYSQL -ups11593 -ppw -e "SELECT 1" > /dev/null 2>&1
+
+--eval SET GLOBAL debug = '$old_debug'
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+--let $assert_text = the probe took a SHARED ACL cache lock
+--let $assert_select = PS-11593 external roles probe lock mode: SHARED
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = the probe never took the EXCLUSIVE ACL cache lock
+--let $assert_select = PS-11593 external roles probe lock mode: EXCLUSIVE
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+DROP USER ps11593@localhost;

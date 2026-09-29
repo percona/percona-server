@@ -1,0 +1,62 @@
+# PS-11593: when the EXCLUSIVE ACL cache lock cannot be acquired while applying
+# external roles, the login must FAIL and not reach my_ok().
+#
+# Only a login whose authentication plugin reports external roles should reach
+# the exclusive lock in apply_external_roles(); an ordinary password login
+# returns earlier, under the shared probe. This test uses the OIDC plugin to
+# reach that path.
+#
+# Before the fix apply_external_roles() returned void and discarded the result
+# of lock(), so ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES was left in the
+# diagnostics area and acl_authenticate() carried on to my_ok(), aborting a
+# debug server on Diagnostics_area::assert_not_set.
+
+--source include/have_debug.inc
+
+if ($CREATE_ID_TOKEN == "")
+{
+  --skip create_id_token tool not available, skipping test
+}
+
+--let $CONFIG_FILE = FILE://$MYSQL_TEST_DIR/std_data/oidc/dummy_oidc_conf.json
+--let $TOKEN_FILE = $MYSQLTEST_VARDIR/tmp/id_token_ps11593.txt
+--let $COMMON_TOKEN_ARGS = --key $MYSQL_TEST_DIR/std_data/oidc/idp_private.pem --sub oidc-user --iss https://idp-test.com/realms/dummy --aud ee2811b9-10b8 --out $TOKEN_FILE --kid rsa-key-1
+--let $MYSQL_OIDC_USER = --authentication-openid-connect-client-id-token-file=$TOKEN_FILE --plugin-dir=$AUTH_OIDC_DIR --user=mysql_oidc_user
+
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN auth_openid_connect SONAME '$AUTH_OIDC';
+--replace_result $CONFIG_FILE FILE://<MYSQL_TEST_DIR>/std_data/oidc/dummy_oidc_conf.json
+--eval SET GLOBAL auth_openid_connect_configuration = '$CONFIG_FILE'
+
+CREATE USER mysql_oidc_user IDENTIFIED WITH 'auth_openid_connect' AS '{"identity_provider" : "oidc-idp", "user" : "oidc-user"}';
+CREATE ROLE accounting;
+
+--let $old_debug = `SELECT @@GLOBAL.debug`
+
+--echo #
+--echo # A login reporting external roles reaches the EXCLUSIVE lock; when that
+--echo # acquisition fails the login must fail too
+--echo #
+--exec $CREATE_ID_TOKEN $COMMON_TOKEN_ARGS --groups "[\"acc\"]"
+SET GLOBAL debug = '+d,fail_acl_external_roles_write_lock';
+
+--replace_regex /^mysql: \[Warning\].*\n//
+--error 1
+--exec $MYSQL $MYSQL_OIDC_USER -e "SELECT 1" 2>&1
+
+--eval SET GLOBAL debug = '$old_debug'
+
+--echo #
+--echo # The server is still up and the same login works again
+--echo #
+--exec $MYSQL $MYSQL_OIDC_USER -e "SET ROLE accounting"
+
+SELECT 1 AS server_alive;
+
+--echo #
+--echo # CLEANUP
+--echo #
+DROP USER mysql_oidc_user;
+DROP USER accounting;
+UNINSTALL PLUGIN auth_openid_connect;
+--remove_file $TOKEN_FILE

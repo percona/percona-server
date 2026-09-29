@@ -1,0 +1,9 @@
+CREATE USER ps11593@localhost IDENTIFIED BY 'pw';
+SET GLOBAL debug = '+d,acl_external_roles_log_lock_mode';
+#
+# An ordinary login - caching_sha2_password reports no external roles
+#
+SET GLOBAL debug = '';
+include/assert_grep.inc [the probe took a SHARED ACL cache lock]
+include/assert_grep.inc [the probe never took the EXCLUSIVE ACL cache lock]
+DROP USER ps11593@localhost;

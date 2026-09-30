@@ -1,0 +1,62 @@
+SET @start_global_value = @@global.innodb_hnsw_ef_search;
+# Default: 40, in both scopes.
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+@@global.innodb_hnsw_ef_search	@@session.innodb_hnsw_ef_search
+40	40
+SHOW GLOBAL VARIABLES LIKE 'innodb_hnsw_ef_search';
+Variable_name	Value
+innodb_hnsw_ef_search	40
+SHOW SESSION VARIABLES LIKE 'innodb_hnsw_ef_search';
+Variable_name	Value
+innodb_hnsw_ef_search	40
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_hnsw_ef_search';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_hnsw_ef_search	40
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name = 'innodb_hnsw_ef_search';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_hnsw_ef_search	40
+# A session value does not change the global one.
+SET SESSION innodb_hnsw_ef_search = 200;
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+@@global.innodb_hnsw_ef_search	@@session.innodb_hnsw_ef_search
+40	200
+# A new connection takes the global value.
+SET GLOBAL innodb_hnsw_ef_search = 64;
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+@@global.innodb_hnsw_ef_search	@@session.innodb_hnsw_ef_search
+64	64
+# The bounds, and values outside them clamped with a warning.
+SET SESSION innodb_hnsw_ef_search = 1;
+SELECT @@session.innodb_hnsw_ef_search;
+@@session.innodb_hnsw_ef_search
+1
+SET SESSION innodb_hnsw_ef_search = 100000;
+SELECT @@session.innodb_hnsw_ef_search;
+@@session.innodb_hnsw_ef_search
+100000
+SET SESSION innodb_hnsw_ef_search = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_hnsw_ef_search value: '0'
+SELECT @@session.innodb_hnsw_ef_search;
+@@session.innodb_hnsw_ef_search
+1
+SET GLOBAL innodb_hnsw_ef_search = 100001;
+Warnings:
+Warning	1292	Truncated incorrect innodb_hnsw_ef_search value: '100001'
+SELECT @@global.innodb_hnsw_ef_search;
+@@global.innodb_hnsw_ef_search
+100000
+# Wrong types.
+SET SESSION innodb_hnsw_ef_search = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_hnsw_ef_search'
+SET GLOBAL innodb_hnsw_ef_search = 1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_hnsw_ef_search'
+SET GLOBAL innodb_hnsw_ef_search = 'AUTO';
+ERROR 42000: Incorrect argument type to variable 'innodb_hnsw_ef_search'
+SET GLOBAL innodb_hnsw_ef_search = @start_global_value;
+SET SESSION innodb_hnsw_ef_search = DEFAULT;
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+@@global.innodb_hnsw_ef_search	@@session.innodb_hnsw_ef_search
+40	40

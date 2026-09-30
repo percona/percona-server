@@ -1,0 +1,60 @@
+#
+# A neighbour list names a node the aux table does not have.
+#
+# Unlike a spent memory budget, this does not repair itself: the
+# graph and the table it is persisted in disagree, and no retry
+# changes that. It is reported as index corruption, scoped to the
+# index rather than the base table, and the message says which node
+# went missing so the aux can be examined.
+#
+# vec_aux_read_node is where the miss surfaces, so the failure is
+# injected there. Record 0 is deliberately left readable: it holds
+# the entry point, not a node, and a miss on it means the index is
+# empty - a different path with a different outcome.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]'));
+# The graph answers normally while it is in memory.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+1
+# Drop the in-memory graph so the next query has to read the aux.
+# restart
+SET DEBUG = '+d,vec_aux_node_missing';
+# The cold load reads record 0, then faults in the node it names -
+# which is now gone. The statement fails, and the error names the
+# node rather than saying only that some index is corrupt.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+ERROR HY000: Index corrupt: the vector index's graph names node <ENTRY>, which its auxiliary table does not have. DROP and re-create the index to rebuild it from the base rows.
+# The base table is untouched - only this index's graph failed to
+# load, which is why the error is scoped to the index rather than
+# reporting the table as crashed.
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+id
+1
+2
+3
+SET DEBUG = '-d,vec_aux_node_missing';
+# A missing node does not come back, so the index stays refused until
+# it is rebuilt.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+ERROR HY000: Index vk is corrupted
+# Rebuilding the index is the remedy. Under a new name: the same name
+# and definition in one statement is no change at all to the server.
+ALTER TABLE t1 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+id
+1
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+DROP TABLE t1;

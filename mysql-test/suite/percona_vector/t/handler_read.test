@@ -1,0 +1,28 @@
+--echo #
+--echo # HANDLER ... READ on a vector index must be refused.
+--echo #
+--echo # A vector index has no B-tree to position on, so every HANDLER READ
+--echo # through it used to answer with no rows and no error, on a table
+--echo # that has rows. It is refused now, like any other read the index
+--echo # cannot serve. The primary key still reads as before.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (2, STRING_TO_VECTOR('[2,0,0,0]'));
+
+HANDLER t OPEN;
+--error ER_NOT_SUPPORTED_YET
+HANDLER t READ vk FIRST;
+--error ER_NOT_SUPPORTED_YET
+HANDLER t READ vk NEXT;
+--error ER_NOT_SUPPORTED_YET
+HANDLER t READ vk LAST;
+--error ER_NOT_SUPPORTED_YET
+HANDLER t READ vk = (STRING_TO_VECTOR('[2,0,0,0]'));
+HANDLER t READ `PRIMARY` FIRST;
+HANDLER t READ FIRST;
+HANDLER t CLOSE;
+
+DROP TABLE t;

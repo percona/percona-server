@@ -768,8 +768,12 @@ being re-taken per batch: nn_search_next faults nodes in through
 load_node_cb, and that reads ctx.aux. */
 struct vec_search_t {
   vec_t *vec{nullptr};
+  /** MDL on the aux table, held until vec_ann_close(). */
   MDL_ticket *mdl{nullptr};
+  /** What the load callbacks read: the aux table (ctx.aux), the session,
+  and the first failure (ctx.err). No trx: a search only reads. */
   Vec_ctx ctx;
+  /** HNSW's resumable search state, one batch per nn_search_next(). */
   Vec_hnsw::NNSearchContext nn;
 };
 

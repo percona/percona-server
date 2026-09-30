@@ -16461,6 +16461,24 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
     return HA_ERR_NOT_ALLOWED_COMMAND;
   }
 
+  /* DISCARD/IMPORT is blocked on any table carrying the hidden column,
+  with or without a vector index on it. The aux .ibd holding the graph
+  does not travel with the base tablespace, and the label counter lives
+  in this table's data dictionary entry while the labels it handed out
+  live in the rows - an imported .ibd brings rows whose labels the
+  target's counter knows nothing about, so the next assignment reissues one.
+  Lifting the block needs the counter carried with the tablespace and
+  reconciled against the highest label in the imported rows. */
+  if (DICT_TF2_FLAG_IS_SET(dict_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    my_printf_error(ER_NOT_ALLOWED_COMMAND,
+                    "InnoDB: Cannot %s table `%s` because it carries"
+                    " vector index metadata. DISCARD/IMPORT TABLESPACE is"
+                    " not yet supported for such tables.",
+                    MYF(0), discard ? "discard" : "import",
+                    dict_table->name.m_name);
+    return HA_ERR_NOT_ALLOWED_COMMAND;
+  }
+
   TrxInInnoDB trx_in_innodb(m_prebuilt->trx);
 
   if (trx_in_innodb.is_aborted()) {

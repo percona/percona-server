@@ -1,0 +1,72 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # PS-11299: DISCARD / IMPORT TABLESPACE on a table carrying vector
+--echo # index metadata.
+--echo #
+--echo # The aux .ibd holding the graph does not travel with the base
+--echo # tablespace, and the label counter lives in the table's data
+--echo # dictionary entry while the labels it handed out live in the rows.
+--echo # An imported .ibd would bring rows whose labels the target's counter
+--echo # knows nothing about, so the next assignment would reissue one.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2,STRING_TO_VECTOR('[2,0,0,0]'));
+
+--echo # Blocked while the index is there.
+--error ER_NOT_ALLOWED_COMMAND
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+
+--echo #
+--echo # The export side only warns, so a .cfg describing the hidden column
+--echo # can still be produced. Importing it into a table that does not
+--echo # carry the column is refused on the strength of the .cfg alone.
+--echo #
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $VEC_EXPORT = $MYSQL_TMP_DIR/vec_export
+--mkdir $VEC_EXPORT
+
+FLUSH TABLES t1 FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $VEC_EXPORT/t1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $VEC_EXPORT/t1.cfg
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Same columns, no vector index - so no hidden column, and the
+--echo # target-side block does not apply.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 DISCARD TABLESPACE;
+--copy_file $VEC_EXPORT/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $VEC_EXPORT/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
+
+--echo # Refused by the source-side check in row_import::match_schema.
+--replace_regex /Index.*//
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+DROP TABLE t1;
+
+--echo # The staged files outlive the failed import: the table had already
+--echo # discarded its own tablespace, so DROP TABLE does not own them.
+--list_files $MYSQLD_DATADIR/test t1.*
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+
+--remove_file $VEC_EXPORT/t1.ibd
+--remove_file $VEC_EXPORT/t1.cfg
+--rmdir $VEC_EXPORT
+
+--echo # Dropping the last vector index takes the hidden column with it, and
+--echo # the table is an ordinary one again: DISCARD is allowed.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t3 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'));
+ALTER TABLE t3 DROP KEY vk;
+ALTER TABLE t3 DISCARD TABLESPACE;
+DROP TABLE t3;

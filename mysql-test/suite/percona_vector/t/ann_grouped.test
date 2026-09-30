@@ -1,0 +1,68 @@
+--echo #
+--echo # A grouped, DISTINCT or windowed query must not take the vector path.
+--echo #
+--echo # Its ORDER BY sorts groups, or rows a window function has already seen
+--echo # in full, so an approximate scan in distance order cannot answer it.
+--echo # GROUP BY ... ORDER BY DISTANCE(...) LIMIT n used to be planned on the
+--echo # index anyway, and the GROUP BY's own sort then reached the vector
+--echo # shortcut in test_if_skip_sort_order, which asserted.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, g INT,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 1),
+                     (2, STRING_TO_VECTOR('[2,0,0,0]'), 2),
+                     (3, STRING_TO_VECTOR('[3,0,0,0]'), 1),
+                     (4, STRING_TO_VECTOR('[4,0,0,0]'), 2),
+                     (5, STRING_TO_VECTOR('[5,0,0,0]'), 1);
+
+--echo # GROUP BY with the distance as the ORDER BY: this one crashed.
+--replace_column 10 # 11 #
+EXPLAIN SELECT g FROM t GROUP BY g, v
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT g FROM t GROUP BY g, v
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT g FROM t IGNORE INDEX (vk) GROUP BY g, v
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # Aggregation with no GROUP BY.
+SELECT COUNT(*) FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # DISTINCT over the ordering column.
+--replace_column 10 # 11 #
+EXPLAIN SELECT DISTINCT id, v FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT DISTINCT id, v FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+
+--echo # A window function sees every row before the ORDER BY applies.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id, SUM(g) OVER () AS s FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT id, SUM(g) OVER () AS s FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT id, ROW_NUMBER() OVER (ORDER BY id DESC) AS rn FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+
+--echo # The plain shape still uses the index.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+
+DROP TABLE t;
+
+--echo # A MATCH() in the same block keeps the full-text access: the vector
+--echo # scan would leave MATCH() reading a full-text result never built.
+CREATE TABLE tft (id BIGINT UNSIGNED PRIMARY KEY, txt TEXT, v VECTOR(2) NOT NULL,
+                  FULLTEXT KEY ft (txt), VECTOR KEY vk (v) TYPE hnsw);
+INSERT INTO tft VALUES (1, 'alpha beta', STRING_TO_VECTOR('[0,0]')),
+                       (2, 'alpha', STRING_TO_VECTOR('[1,0]')),
+                       (3, 'gamma', STRING_TO_VECTOR('[2,0]')),
+                       (4, 'alpha', STRING_TO_VECTOR('[3,0]'));
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM tft WHERE MATCH(txt) AGAINST('alpha')
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM tft WHERE MATCH(txt) AGAINST('alpha')
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+DROP TABLE tft;

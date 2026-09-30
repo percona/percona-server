@@ -1,0 +1,52 @@
+SET @start_global_value = @@global.innodb_hnsw_max_memory;
+# Default: 1 GiB.
+SELECT @@global.innodb_hnsw_max_memory;
+@@global.innodb_hnsw_max_memory
+1073741824
+SHOW GLOBAL VARIABLES LIKE 'innodb_hnsw_max_memory';
+Variable_name	Value
+innodb_hnsw_max_memory	1073741824
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name = 'innodb_hnsw_max_memory';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_hnsw_max_memory	1073741824
+# Global only.
+SELECT @@session.innodb_hnsw_max_memory;
+ERROR HY000: Variable 'innodb_hnsw_max_memory' is a GLOBAL variable
+SET SESSION innodb_hnsw_max_memory = 1024;
+ERROR HY000: Variable 'innodb_hnsw_max_memory' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name = 'innodb_hnsw_max_memory';
+VARIABLE_NAME	VARIABLE_VALUE
+innodb_hnsw_max_memory	1073741824
+# Writable: no limit, a small bound, the maximum.
+SET GLOBAL innodb_hnsw_max_memory = 0;
+SELECT @@global.innodb_hnsw_max_memory;
+@@global.innodb_hnsw_max_memory
+0
+SET GLOBAL innodb_hnsw_max_memory = 1024;
+SELECT @@global.innodb_hnsw_max_memory;
+@@global.innodb_hnsw_max_memory
+1024
+SET GLOBAL innodb_hnsw_max_memory = 18446744073709551615;
+SELECT @@global.innodb_hnsw_max_memory;
+@@global.innodb_hnsw_max_memory
+18446744073709551615
+# Below the minimum is clamped to 0.
+SET GLOBAL innodb_hnsw_max_memory = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_hnsw_max_memory value: '-1'
+SELECT @@global.innodb_hnsw_max_memory;
+@@global.innodb_hnsw_max_memory
+0
+# Wrong types.
+SET GLOBAL innodb_hnsw_max_memory = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_hnsw_max_memory'
+SET GLOBAL innodb_hnsw_max_memory = 1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_hnsw_max_memory'
+SET GLOBAL innodb_hnsw_max_memory = 'AUTO';
+ERROR 42000: Incorrect argument type to variable 'innodb_hnsw_max_memory'
+SET GLOBAL innodb_hnsw_max_memory = @start_global_value;
+SELECT @@global.innodb_hnsw_max_memory;
+@@global.innodb_hnsw_max_memory
+1073741824

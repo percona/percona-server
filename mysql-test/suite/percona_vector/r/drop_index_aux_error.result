@@ -10,6 +10,10 @@
 # server error log entry). This forces each failure via a DBUG
 # point and checks a warning surfaces.
 #
+# Dropping the only vector index rebuilds the table, and the old table
+# takes its aux with it. The per-index aux drop runs when a vector index
+# goes without a rebuild, which means replacing it in the same statement.
+#
 #
 # === A. The physical dict_sys/.ibd drop fails ===
 #
@@ -23,7 +27,7 @@ VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
 (2, STRING_TO_VECTOR('[1,1]'));
 SET DEBUG = '+d,vec_aux_drop_force_error';
-ALTER TABLE t1 DROP INDEX vk;
+ALTER TABLE t1 DROP INDEX vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 Warnings:
 Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
 # The DROP still succeeds (the ALTER is already past its
@@ -32,21 +36,23 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
 SET DEBUG = '-d,vec_aux_drop_force_error';
-# The index itself is gone from the table...
+# The index itself is replaced...
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(2) NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk2` (`v`) USING `hnsw` (`M`=4)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-# ...but the untouched aux table is still there, orphaned - and
+# ...but the untouched aux table is still there beside vk2's own,
+# orphaned - and
 # unreachable through any SQL path from here (a known, separately
 # tracked gap: see the DROP VECTOR INDEX aux-cleanup discussion on
 # PS-11299 / PS-11300).
 SELECT COUNT(*) FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\_vec\_hnsw\_%');
 COUNT(*)
-1
+2
 DROP TABLE t1;
 # Cleanup: InnoDB still holds the orphan's tablespace open in
 # fil_system even though nothing in the DD or the dict cache can
@@ -71,7 +77,7 @@ VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
 (2, STRING_TO_VECTOR('[1,1]'));
 SET DEBUG = '+d,vec_aux_dd_drop_force_error';
-ALTER TABLE t2 DROP INDEX vk;
+ALTER TABLE t2 DROP INDEX vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
 Warnings:
 Warning	1088	InnoDB: Failed to drop the auxiliary table for vector index 'vk' (error 11); it may require manual cleanup.
 SHOW WARNINGS;
@@ -83,6 +89,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `id` bigint unsigned NOT NULL,
   `v` vector(2) NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk2` (`v`) USING `hnsw` (`M`=4)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;

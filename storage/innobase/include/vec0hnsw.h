@@ -568,6 +568,57 @@ building that index. Opaque so the DDL layer needs none of the graph's
 headers. */
 struct Vec_build;
 
+/** Start building `index`. The HNSW parameters come from the index's own
+definition in `altered_table`, which is the only place they exist during
+an ALTER - nothing in the dictionary carries M or ef_construction.
+@param[in]   index          the vector index being built
+@param[in]   altered_table  the MySQL table definition the ALTER produces
+@param[out]  err            DB_SUCCESS on success; on failure,
+                            DB_VEC_MEMORY_LIMIT when innodb_hnsw_max_memory
+                            is already spent, DB_ERROR for anything else (the
+                            index's own KEY could not be found or parsed) -
+                            they are not interchangeable to the caller, which
+                            reports err to the user
+@return the build state, or nullptr if it could not be created */
+[[nodiscard]] Vec_build *vec_build_start(dict_index_t *index,
+                                         const TABLE *altered_table,
+                                         dberr_t *err);
+
+/** Add one base row to the graph. Called from the DDL scan's per-row
+callback, concurrently from every scan thread: HNSW::insert serialises
+allocation on its own lock and guards neighbour lists with striped
+per-node locks. Writes nothing - the build persistor is
+Vec_null_persistor - so this takes no latches and calls no row API.
+Reports nothing: a scan thread has no session, so the error goes back
+through the DDL's first-error slot and the ALTER reports it.
+@param[in,out]  b        build state
+@param[in]      table    base table the row belongs to
+@param[in]      lob_index clustered index the scan read, which owns the
+                         row's off-page values
+@param[in]      row      the base row, as the scan built it
+@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, DB_VEC_MEMORY_LIMIT or
+DB_VEC_OUT_OF_MEMORY */
+[[nodiscard]] dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
+                                        const dict_index_t *lob_index,
+                                        const dtuple_t *row);
+
+/** Walk the finished graph and write the aux table bottom-up: record 0
+naming the entry point, then one row per node, in id order, with the
+neighbours it ended up with. No undo and no redo; the aux is new to this
+ALTER and is dropped if the ALTER fails.
+@param[in,out]  b      build state
+@param[in]      trx    the ALTER's transaction
+@param[in]      table  base table being altered
+@param[in]      thd    connection, for the aux MDL
+@param[in]      observer  flushes the aux pages before the ALTER commits
+@return DB_SUCCESS or an error */
+[[nodiscard]] dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx,
+                                          dict_table_t *table, THD *thd,
+                                          Flush_observer *observer);
+
+/** Release the build state and the graph it holds. Safe on nullptr. */
+void vec_build_free(Vec_build *b);
+
 /** Add the new node for a vector-column UPDATE.
 
 A node is immutable, so a changed vector is an INSERT of a new node

@@ -522,4 +522,5 @@ drop user rpl@127.0.0.1;
 flush privileges;
 Warnings:
 Warning	1681	'FLUSH PRIVILEGES' is deprecated and will be removed in a future release.
+include/assert_grep.inc [Ack receiver did not log read errors without a client session]
 include/rpl/deinit.inc

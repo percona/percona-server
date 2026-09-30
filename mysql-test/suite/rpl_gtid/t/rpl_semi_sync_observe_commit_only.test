@@ -42,7 +42,6 @@
 --eval SET GLOBAL replication_optimize_for_static_plugin_config = 1
 CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 CALL mtr.add_suppression("Read semi-sync reply magic number error.*");
-CALL mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached.*");
 CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
 --source include/rpl/install_semisync_source.inc
 

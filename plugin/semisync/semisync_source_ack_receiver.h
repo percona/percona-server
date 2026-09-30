@@ -105,11 +105,7 @@ class Ack_receiver : public ReplSemiSyncBase {
 
   void setTraceLevel(unsigned long trace_level) { trace_level_ = trace_level; }
 
-  bool init() {
-    setTraceLevel(rpl_semi_sync_source_trace_level);
-    if (rpl_semi_sync_source_enabled) return start();
-    return false;
-  }
+  bool init();
 
  private:
   enum status { ST_UP, ST_DOWN, ST_STOPPING };
@@ -124,6 +120,11 @@ class Ack_receiver : public ReplSemiSyncBase {
   bool m_replicas_changed;
   Replica_vector m_replicas;
   my_thread_handle m_pid;
+  /*
+    Session attached to the ack receive thread while it runs, so that errors
+    raised by the network layer are not sent to the error log.
+  */
+  THD *m_thd = nullptr;
 
   /* Declare them private, so no one can copy the object. */
   Ack_receiver(const Ack_receiver &ack_receiver);

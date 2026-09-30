@@ -384,9 +384,9 @@ static inline byte *buf_frame_copy(byte *buf, const buf_frame_t *frame);
 
 #ifndef UNIV_HOTBACKUP
 /** This is the general function used to get optimistic access to a database
-page.
+page. The caller must keep the block buffer-fixed for the whole call.
 @param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH
-@param[in,out]  block           Guessed block
+@param[in,out]  block           Guessed block, buffer-fixed by the caller
 @param[in]      modify_clock    Modify clock value
 @param[in]      fetch_mode      Fetch mode
 @param[in]      file            File name
@@ -1963,6 +1963,17 @@ struct buf_block_t {
   new mutex in InnoDB-5.1 to relieve contention on the buffer pool mutex */
   BPageMutex mutex;
 
+  /** Padding, see the static_assert on sizeof(buf_block_t) below. The size of
+  the fields above depends on whether PFS instrumentation of mutex and rw_lock
+  is enabled. */
+#if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
+  byte m_padding[16];
+#elif defined(UNIV_PFS_MUTEX)
+  byte m_padding[24];
+#else
+  byte m_padding[32];
+#endif
+
   /** Get the modified clock (version) value.
   @param[in] single_threaded    Thread can only be written to or read by a
                                 single thread
@@ -2050,6 +2061,18 @@ struct buf_block_t {
 
   [[nodiscard]] bool is_memory() const noexcept { return page.is_memory(); }
 };
+
+#ifndef UNIV_DEBUG
+/* Blocks are stored in an array at the page-aligned start of each buffer pool
+chunk. When sizeof(buf_block_t) is a multiple of the cache line size, all
+blocks have the same layout with regard to cache lines. Otherwise, for most
+blocks, page.m_space and page.m_version, which buf_page_t::was_stale() reads
+on every page lookup, would share the cache line with the lock word of
+buf_block_t::lock, which is modified on every latch acquisition and release.
+Adjust buf_block_t::m_padding when fields of buf_block_t change. */
+static_assert(sizeof(buf_block_t) == 384,
+              "sizeof(buf_block_t) must be a multiple of the cache line size");
+#endif /* !UNIV_DEBUG */
 
 inline bool buf_block_t::is_root() const {
   return ((get_next_page_no() == FIL_NULL) && (get_prev_page_no() == FIL_NULL));

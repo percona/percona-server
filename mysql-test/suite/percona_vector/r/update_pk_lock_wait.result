@@ -1,0 +1,103 @@
+#
+# PS-11300: a PK-changing UPDATE that has to wait for a lock before it
+# can insert the new clustered record.
+#
+# row_upd_clust_rec_by_insert() is entered twice for such a statement:
+# the first pass delete-marks the old record and then gets DB_LOCK_WAIT
+# from row_ins_clust_index_entry(); the second pass, after the lock is
+# granted, does the insert. Only the second one may build a graph node.
+#
+# The first pass has already assigned a label by then, and it is not
+# reused: row_upd_clust_step() calls row_upd_store_row() again on
+# re-entry, which rebuilds the row it was written into. So the label is
+# consumed without ever reaching the aux table - the same thing that
+# happens to a rolled-back INSERT's label - and the node that is finally
+# built carries the second one. The skipped id below is how this test
+# knows the retry really happened.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[0,0]'));
+INSERT INTO t VALUES (2, STRING_TO_VECTOR('[10,0]'));
+# Two nodes, ids 1 and 2. The next label to be handed out is 3.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=3 max_id=2
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=2 level=# base_pk=2 nb=#
+
+# Lock the gap the UPDATE below has to insert into.
+BEGIN;
+SELECT id FROM t WHERE id BETWEEN 50 AND 200 FOR UPDATE;
+id
+BEGIN;
+# Blocks on the gap lock, inside row_ins_clust_index_entry().
+UPDATE t SET id = 70 WHERE id = 1;
+# Release it; the UPDATE retries its insert and succeeds.
+ROLLBACK;
+COMMIT;
+# ONE new node for the two labels the statement consumed: id 3 was
+# assigned by the pass that hit the lock wait and never reached the aux,
+# id 4 is the node the retry built. The old node 1 stays, naming the
+# key the row no longer has.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=4 max_id=4
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=2 level=# base_pk=2 nb=#
+id=4 level=# base_pk=70 nb=#
+
+# And the row is reachable through the index at its new key.
+SELECT id FROM t FORCE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+70
+SELECT id FROM t IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+70
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+#
+# Same wait, but the statement changes the vector too. The label then
+# comes from calc_row_difference and lives in the update vector, so
+# row_upd_store_row's rebuild reproduces it rather than losing it -
+# this pass must NOT assign a second one. Where the PK-only case above
+# skipped an id, this one does not.
+#
+BEGIN;
+SELECT id FROM t WHERE id BETWEEN 300 AND 400 FOR UPDATE;
+id
+BEGIN;
+UPDATE t SET id = 350, v = STRING_TO_VECTOR('[7,7]') WHERE id = 70;
+ROLLBACK;
+COMMIT;
+# One new node, id 5 - the next one, no gap.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+count=5 max_id=5
+id=0 level=# base_pk=# nb=#
+id=1 level=# base_pk=1 nb=#
+id=2 level=# base_pk=2 nb=#
+id=4 level=# base_pk=70 nb=#
+id=5 level=# base_pk=350 nb=#
+
+SELECT id FROM t FORCE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,7]'), 'EUCLIDEAN') LIMIT 1;
+id
+350
+SELECT id FROM t IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,7]'), 'EUCLIDEAN') LIMIT 1;
+id
+350
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;

@@ -37,6 +37,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ddl0impl-file-reader.h"
 #include "row0pread.h"
 
+/** Vector index build state, defined in the vec layer. Opaque here so the
+DDL builder needs none of the HNSW headers. */
+struct Vec_build;
+
 namespace ddl {
 
 // Forward declaration.
@@ -67,6 +71,10 @@ struct Builder {
 
     /** FTS sort and build, this is done in one "step" */
     FTS_SORT_AND_BUILD,
+
+    /** Vector: walk the graph built during ADD and write the aux table.
+    Also one "step", and for the same reason - there is nothing to sort. */
+    VEC_BUILD,
 
     /** Finish the loading of the index. */
     FINISH,
@@ -117,6 +125,11 @@ struct Builder {
     return m_index->type & DICT_FTS;
   }
 
+  /** @return true if the index is a vector index. */
+  [[nodiscard]] bool is_vector_index() const noexcept {
+    return m_index->is_vector();
+  }
+
   /** @return true if the index is a unique index. */
   [[nodiscard]] bool is_unique_index() const noexcept {
     ut_a(!is_fts_index());
@@ -163,6 +176,10 @@ struct Builder {
   /** FTS: Sort and insert the rows read.
   @return DB_SUCCESS or error code. */
   [[nodiscard]] dberr_t fts_sort_and_build() noexcept;
+
+  /** Vector: walk the graph the scan built and write the aux table.
+  @return DB_SUCCESS or error code. */
+  [[nodiscard]] dberr_t vec_build() noexcept;
 
   /** Non-FTS: Sort the rows read.
   @return DB_SUCCESS or error code. */
@@ -466,6 +483,11 @@ struct Builder {
 
   /** Stage per builder. */
   Alter_stage *m_local_stage{};
+
+  /** Vector index build state: the in-memory graph the scan threads
+  insert into, written out to the aux table in VEC_BUILD. Null unless
+  is_vector_index(). */
+  Vec_build *m_vec{};
 
   row_prebuilt_t *m_prebuilt;
 };

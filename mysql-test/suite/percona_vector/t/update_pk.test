@@ -127,8 +127,8 @@ SELECT id, VECTOR_TO_STRING(v) FROM t2 FORCE INDEX (vk)
 DROP TABLE t1, t2;
 
 --echo #
---echo # Dropping the last vector index retains the hidden aux-id column,
---echo # but a later PK UPDATE must not trigger vector maintenance when no
+--echo # Dropping the last vector index removes the hidden aux-id column,
+--echo # and a later PK UPDATE must not trigger vector maintenance when no
 --echo # vector index exists.
 --echo #
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,

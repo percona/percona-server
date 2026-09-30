@@ -148,11 +148,9 @@ DROP TABLE t_alter;
 
 --echo #
 --echo # ALTER round-trip — drop the only vector index, then add another.
---echo # The hidden percona_vec_aux_id column is carried forward into the new
---echo # dd::Table by dd_commit_inplace_alter_table (mirroring FTS_DOC_ID);
---echo # if the SQL layer subsequently prunes it because no index points at
---echo # it, the next ALTER ADD INDEX recreates it transparently —
---echo # the round-trip succeeds either way.
+--echo # Dropping the only vector index takes the hidden percona_vec_aux_id
+--echo # column with it, and the next ADD rebuilds the table to add it back and
+--echo # relabel the rows.
 --echo #
 
 CREATE TABLE t_rt (

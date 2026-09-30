@@ -1,13 +1,10 @@
 #
 # PS-11299: ALTER ADD INDEX on a table with existing data.
 #
-# The ADD forces a rebuild (percona_vec_aux_id must materialise on a
-# fresh dict_table_t with current_row_version = 0; see PS-11299
-# rebuild-forcing rule). The rebuild's row copy must:
-#   - populate percona_vec_aux_id on each copied row via the per-table
-#     counter (commit 1's helper);
-#   - leave the vector index aux .ibd empty (HNSW build is
-#     PS-11300, no row-level work here).
+# The first ADD forces a rebuild: percona_vec_aux_id must materialise
+# on a fresh dict_table_t with current_row_version = 0. The rebuild's
+# row copy gives each row a label from the per-table counter, and the
+# graph and its aux are built from the same scan.
 #
 # === Build a populated table WITHOUT a vector index ===
 CREATE TABLE t1 (
@@ -53,7 +50,7 @@ id	k	v_text
 SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
 COUNT(*)
 5
-# === Aux .ibd created, holds 0 user rows (HNSW = PS-11300) ===
+# === Aux .ibd created ===
 percona_vec_hnsw_<TID>_<IID>.ibd
 # === Further INSERTs after the rebuild continue to work ===
 INSERT INTO t1 VALUES
@@ -66,7 +63,7 @@ id	k	v_text
 4	40	[4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00,4.00000e+00]
 5	50	[5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00,5.00000e+00]
 6	60	[6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00,6.00000e+00]
-# === DROP INDEX leaves the rows intact ===
+# === DROP INDEX rebuilds without the column, rows intact ===
 ALTER TABLE t1 DROP KEY v;
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
 id	k	v_text

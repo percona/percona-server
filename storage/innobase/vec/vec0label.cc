@@ -45,7 +45,7 @@ The hidden label column percona_vec_aux_id and its per-table counter. */
 #include "univ.i"
 #include "vec0aux.h"
 
-uint64_t Vec_label_counter::assign(dict_table_t *table) {
+uint64_t Vec_label_counter::assign(dict_table_t *table, bool persist) {
   ut_ad(table != nullptr);
   ut_ad(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL));
   /* fetch_add returns the OLD value, so +1 makes the first assignment
@@ -56,6 +56,8 @@ uint64_t Vec_label_counter::assign(dict_table_t *table) {
       table->vec_aux_autoinc_next_id.fetch_add(1, std::memory_order_acq_rel) +
       1;
   ut_ad(id != 0);
+
+  if (!persist) return id;
 
   /* Persist the advance as dynamic metadata, autoinc-style: the id is
   written to DDTableBuffer the moment it is consumed, so a label can never
@@ -136,6 +138,23 @@ void Vec_label_counter::load_from_dd(dict_table_t *table,
   }
 }
 
+uint64_t Vec_label_counter::capture_at_alter_commit(
+    const dict_table_t *old_table, dict_table_t *new_table) {
+  uint64_t vec_next_id = 0;
+  if (DICT_TF2_FLAG_IS_SET(old_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    vec_next_id = old_table->vec_aux_autoinc_next_id.load();
+  } else if (new_table != nullptr &&
+             DICT_TF2_FLAG_IS_SET(new_table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    /* The rebuild added the column and labelled every row itself, in
+    ddl::Row::build, on the new table's counter. That counter lives on
+    as the table's own, so it is durable as soon as the definition
+    carrying it commits. */
+    vec_next_id = new_table->vec_aux_autoinc_next_id.load();
+    new_table->vec_aux_autoinc_persisted.store(vec_next_id);
+  }
+  return vec_next_id;
+}
+
 void vec_label_write(dict_table_t *table, dtuple_t *row, byte *buf) {
   ut_ad(table != nullptr);
   ut_ad(row != nullptr);
@@ -146,7 +165,7 @@ void vec_label_write(dict_table_t *table, dtuple_t *row, byte *buf) {
   ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
   ut_ad(table->vec_aux_col < dtuple_get_n_fields(row));
 
-  const uint64_t id = Vec_label_counter::assign(table);
+  const uint64_t id = Vec_label_counter::assign(table, true);
   mach_write_to_8(buf, id);
 
   dfield_t *dfield = dtuple_get_nth_field(row, table->vec_aux_col);

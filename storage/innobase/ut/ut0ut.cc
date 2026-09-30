@@ -305,6 +305,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Vector index memory limit reached");
     case DB_VEC_WRONG_DIMENSIONS:
       return ("Vector has the wrong number of dimensions for its index");
+    case DB_VEC_MEMORY_LIMIT:
+      return ("Vector index build reached innodb_hnsw_max_memory");
     case DB_OUT_OF_FILE_SPACE:
     case DB_OUT_OF_DISK_SPACE:
       return ("Out of disk space");

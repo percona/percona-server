@@ -81,6 +81,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0cpu_cache.h"
 #include "ut0new.h"
 #include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "vec0label.h"
 #include "zlib.h"
 
@@ -1161,6 +1162,9 @@ handle_new_error:
     case DB_CANNOT_ADD_CONSTRAINT:
     case DB_TOO_MANY_CONCURRENT_TRXS:
     case DB_OUT_OF_FILE_SPACE:
+    /* A ceiling, not a failed allocation: fail the statement. */
+    case DB_VEC_OUT_OF_MEMORY:
+    case DB_VEC_WRONG_DIMENSIONS:
     case DB_READ_ONLY:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:
@@ -1222,6 +1226,22 @@ handle_new_error:
              " the startup or when you dump the tables. "
           << FORCE_RECOVERY_MSG;
       break;
+    case DB_INDEX_CORRUPT:
+      /* A vector index's aux table does not agree with its graph: a node
+      the graph names is missing or malformed, or the aux table itself
+      cannot be found. Recoverable at the statement level - nothing here says
+      the base table or the rest of the graph is unreadable - so fail the
+      statement rather than fall through to the ib::fatal that an
+      unhandled code would reach.
+
+      Nothing that reaches this function produced DB_INDEX_CORRUPT before
+      vector indexes: row0log.cc raises it during an online ALTER, whose
+      errors go through convert_error_code_to_mysql instead. */
+      ib::error(ER_IB_MSG_973)
+          << "A vector index's auxiliary table does not agree with its"
+             " graph. DROP and re-create the vector index.";
+      break;
+
     case DB_FOREIGN_EXCEED_MAX_CASCADE:
       ib::error(ER_IB_MSG_974)
           << "Cannot delete/update rows with cascading"
@@ -2105,6 +2125,18 @@ run_again:
     return (err);
   }
 
+  /* Add the row to every vector index's graph, and through the
+  persistor to its aux table. After the base row insert succeeded, and
+  reading the label back from the row the same way FTS reads its doc id
+  below. */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_HAS_VEC_AUX_COL)) {
+    err = vec_insert_row(table, node->row, trx->mysql_thd);
+    if (err != DB_SUCCESS) {
+      trx->error_state = err;
+      goto error_exit;
+    }
+  }
+
   if (dict_table_has_fts_index(table)) {
     doc_id_t doc_id;
 
@@ -2914,6 +2946,46 @@ run_again:
     ut_ad(err == DB_SUCCESS);
     if (err != DB_SUCCESS) {
       goto error;
+    }
+  }
+
+  /* A vector-column UPDATE adds the new node. calc_row_difference has
+  already assigned the label and put it into the update vector, so the row
+  written above already names the new node - this only has to create it.
+
+  DELETE deliberately does nothing here: the node has to stay for read
+  views still entitled to the row, and the read path filters it by
+  resolving base_pk under the reader's own view. */
+  {
+    /* Storage byte order - vec_label_update wrote it back over this
+    member so it could double as the update field's buffer. */
+    const uint64_t label =
+        mach_read_from_8(reinterpret_cast<const byte *>(&trx->vec_next_label));
+    trx->vec_next_label = 0;
+
+    if (!node->is_delete && label != 0) {
+      /* Both of these were established by calc_row_difference before it
+      assigned the label, so a miss here means the row now names a node
+      that will never exist. Fail the statement rather than leave the
+      graph behind the table. */
+      ulint q_len = 0;
+      const char *q = vec_upd_new_vector(table, node->update, &q_len);
+
+      uint64_t base_pk = 0;
+      const bool have_pk = vec_upd_row_pk(table, node, &base_pk);
+
+      ut_ad(q != nullptr);
+      ut_ad(have_pk);
+
+      if (q == nullptr || !have_pk) {
+        err = DB_ERROR;
+        goto error;
+      }
+
+      err = vec_update_row(table, label, q, q_len, base_pk, trx->mysql_thd);
+      if (err != DB_SUCCESS) {
+        goto error;
+      }
     }
   }
 

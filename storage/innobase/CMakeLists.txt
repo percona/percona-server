@@ -165,6 +165,8 @@ SET(INNOBASE_SOURCES
   vec/vec0arena.cc
   vec/vec0aux.cc
   vec/vec0label.cc
+  vec/vec0hnsw.cc
+  vec/vec0index.cc
   vec/vec0dml.cc
   ibuf/ibuf0ibuf.cc
   lob/lob0bulk.cc
@@ -360,7 +362,7 @@ MYSQL_ADD_PLUGIN(innobase
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES sql_dd sql_gis ext::zlib ext::lz4 ${NUMA_LIBRARY}
-                 extra::rapidjson library_mysys)
+                 extra::rapidjson extra::unordered_dense library_mysys)
 
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024

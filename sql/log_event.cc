@@ -358,6 +358,8 @@ static const char *HA_ERR(int i) {
       return "HA_ERR_NO_WAIT_LOCK";
     case HA_ERR_FTS_TOO_MANY_NESTED_EXP:
       return "HA_ERR_FTS_TOO_MANY_NESTED_EXP";
+    case HA_ERR_VECTOR_WRONG_DIMENSIONS:
+      return "HA_ERR_VECTOR_WRONG_DIMENSIONS";
   }
   return "No Error!";
 }

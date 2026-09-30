@@ -113,6 +113,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0stage.h"
 #include "vec0aux.h"
+#include "vec0hnsw.h"
 #include "vec0vec.h"
 
 /* For supporting Native InnoDB Partitioning. */

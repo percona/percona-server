@@ -191,4 +191,73 @@ TEST(Vec0ArenaTest, PersistorSatisfiesHnswContract) {
   EXPECT_EQ(DB_SUCCESS, ctx.err);
 }
 
+/* What InnoDB does with each result the HNSW class can hand back.
+
+Enumerated rather than reached through SQL because the paths that produce
+some of these - an arena that could not grow, a node map insert that threw
+- have no way in from a statement, and because getting one of them wrong
+is not a subtle bug: DB_OUT_OF_MEMORY is not listed in
+row_mysql_handle_errors, so returning it from anything on the INSERT path
+is a dead server rather than a failed statement. That mistake has been
+made twice in this file's history.
+
+HNSW_ERROR_CB with no reason in the context is deliberately not exercised
+here: the mapping asserts on it, because every callback sets ctx->err
+before returning that result. */
+TEST(Vec0HnswErrorTest, EveryResultMapsToItsOwnError) {
+  Vec_ctx ctx;
+  ASSERT_EQ(DB_SUCCESS, ctx.err);
+
+  EXPECT_EQ(DB_SUCCESS, vec_hnsw_dberr(HNSW_SUCCESS, &ctx));
+
+  /* The graph names a node its table does not have: the two disagree and
+  no retry changes that. Index-scoped, not DB_CORRUPTION, which would
+  report the base table as crashed. */
+  EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_NOT_FOUND, &ctx));
+
+  /* Both OOM results are transient, and neither may be DB_OUT_OF_MEMORY. */
+  EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, &ctx));
+  EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_CONTEXT, &ctx));
+  EXPECT_NE(DB_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, &ctx));
+  EXPECT_NE(DB_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_CONTEXT, &ctx));
+
+  /* A callback failure carries no information the context does not
+  already have, so the reason the callback recorded is what comes out -
+  whatever it was. */
+  for (const dberr_t reported :
+       {DB_LOCK_WAIT_TIMEOUT, DB_INDEX_CORRUPT, DB_OUT_OF_FILE_SPACE,
+        DB_INTERRUPTED, DB_VEC_OUT_OF_MEMORY}) {
+    Vec_ctx failed;
+    failed.err = reported;
+    EXPECT_EQ(reported, vec_hnsw_dberr(HNSW_ERROR_CB, &failed));
+  }
+
+  /* A context carrying a reason does not change what the other results
+  mean: only HNSW_ERROR_CB defers to it. */
+  Vec_ctx noisy;
+  noisy.err = DB_LOCK_WAIT_TIMEOUT;
+  EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_NOT_FOUND, &noisy));
+  EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, &noisy));
+
+  /* An index build has no context to report through - its persistor
+  cannot fail - and every result it can see maps without one. */
+  EXPECT_EQ(DB_SUCCESS, vec_hnsw_dberr(HNSW_SUCCESS, nullptr));
+  EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, nullptr));
+  EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_CONTEXT, nullptr));
+}
+
+/* Nothing this returns may be a code row_mysql_handle_errors leaves to its
+ib::fatal arm, because the INSERT path goes through that function. The list
+below is what that switch handles as statement-level, for the memory case
+that matters here. */
+TEST(Vec0HnswErrorTest, NoResultMapsToAFatalError) {
+  Vec_ctx ctx;
+  for (const HnswResult rc :
+       {HNSW_NOT_FOUND, HNSW_OOM_GRAPH, HNSW_OOM_CONTEXT}) {
+    const dberr_t err = vec_hnsw_dberr(rc, &ctx);
+    EXPECT_NE(DB_OUT_OF_MEMORY, err) << "result " << rc;
+    EXPECT_NE(DB_ERROR, err) << "result " << rc;
+  }
+}
+
 }  // namespace innodb_vec0arena_unittest

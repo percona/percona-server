@@ -1,0 +1,115 @@
+--echo #
+--echo # PS-11614: a locking vector search releases the lock of a candidate
+--echo # it skips under READ COMMITTED, and keeps it under REPEATABLE READ.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES
+  (1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,2,0,0]')),
+  (3, STRING_TO_VECTOR('[0,0,0,0.1]')), (4, STRING_TO_VECTOR('[10,10,10,10]')),
+  (5, STRING_TO_VECTOR('[-10,-10,-10,-11]'));
+--echo # Row 3's node near the origin is now stale: its row moved far away.
+UPDATE t SET v = STRING_TO_VECTOR('[1000,1000,1000,1000]') WHERE id = 3;
+
+--let $q = SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2
+--let $qf = SELECT id FROM t WHERE id <> 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2
+--let $locks = SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode
+
+--replace_column 10 # 11 #
+eval EXPLAIN $q;
+--echo # The WHERE is evaluated above the vector index scan.
+--replace_regex /cost=[0-9.e+]+/cost=#/ /rows=[0-9.e+]+/rows=#/
+eval EXPLAIN FORMAT=TREE $qf;
+
+--echo # READ COMMITTED, FOR UPDATE: rows 1 and 2 only.
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+START TRANSACTION;
+eval $q FOR UPDATE;
+eval $locks;
+ROLLBACK;
+
+--echo # READ COMMITTED, with a WHERE that rejects row 1: rows 2 and 4 only.
+START TRANSACTION;
+eval $qf FOR UPDATE;
+eval $locks;
+ROLLBACK;
+
+--echo # READ COMMITTED: a lock the transaction held before the search is kept.
+START TRANSACTION;
+SELECT id FROM t WHERE id = 3 FOR UPDATE;
+eval $q FOR UPDATE;
+eval $locks;
+ROLLBACK;
+
+--echo # READ COMMITTED: so is the lock on a row the transaction updated.
+START TRANSACTION;
+UPDATE t SET v = STRING_TO_VECTOR('[2000,2000,2000,2000]') WHERE id = 3;
+eval $q FOR UPDATE;
+eval $locks;
+ROLLBACK;
+
+--echo # REPEATABLE READ, FOR UPDATE: the skipped row 3 stays locked.
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+START TRANSACTION;
+eval $q FOR UPDATE;
+eval $locks;
+ROLLBACK;
+
+--echo # REPEATABLE READ, FOR SHARE.
+START TRANSACTION;
+eval $q FOR SHARE;
+eval $locks;
+ROLLBACK;
+
+--echo # REPEATABLE READ, with a WHERE that rejects row 1: row 1 stays locked.
+START TRANSACTION;
+eval $qf FOR UPDATE;
+eval $locks;
+ROLLBACK;
+
+--echo #
+--echo # SKIP LOCKED: under READ COMMITTED a skipped candidate's lock in one
+--echo # session does not hide that row from another session's search. Under
+--echo # REPEATABLE READ it does, as any row the first session read would.
+--echo #
+CREATE TABLE q (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+--echo # Row 10 ends near A; row 20 starts near A (a stale node there) and
+--echo # ends near B; row 30 is near B but farther than row 20.
+INSERT INTO q VALUES (10, STRING_TO_VECTOR('[100,100,100,99.5]'));
+UPDATE q SET v = STRING_TO_VECTOR('[1,0,0,0]') WHERE id = 10;
+INSERT INTO q VALUES (20, STRING_TO_VECTOR('[0,0,0,0.5]'));
+UPDATE q SET v = STRING_TO_VECTOR('[101,100,100,100]') WHERE id = 20;
+INSERT INTO q VALUES (30, STRING_TO_VECTOR('[110,100,100,100]'));
+
+--let $near_a = SELECT id FROM q ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 1
+--let $near_b = SELECT id FROM q ORDER BY DISTANCE(v, STRING_TO_VECTOR('[100,100,100,100]'), 'EUCLIDEAN') LIMIT 1
+--let $qlocks = SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 'q' AND lock_type = 'RECORD' ORDER BY lock_data
+
+--let $iso = READ-COMMITTED
+--let $i = 2
+while ($i)
+{
+  --echo # Worker A searches near A under $iso.
+  --connect (worker_a, localhost, root)
+  eval SET SESSION transaction_isolation = '$iso';
+  START TRANSACTION;
+  eval $near_a FOR UPDATE;
+
+  --connection default
+  eval $qlocks;
+  --echo # Worker B searches near B.
+  START TRANSACTION;
+  eval $near_b FOR UPDATE SKIP LOCKED;
+  ROLLBACK;
+
+  --connection worker_a
+  ROLLBACK;
+  --disconnect worker_a
+  --connection default
+  --let $iso = REPEATABLE-READ
+  --dec $i
+}
+
+DROP TABLE t, q;

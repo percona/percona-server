@@ -209,6 +209,8 @@ inline unsigned get_used_key_parts(const AccessPath *path) {
       return path->pushed_join_ref().ref->key_parts;
     case AccessPath::FULL_TEXT_SEARCH:
       return path->full_text_search().ref->key_parts;
+    case AccessPath::VECTOR_SEARCH:
+      return path->vector_search().ref->key_parts;
     case AccessPath::MRR:
       return path->mrr().ref->key_parts;
     case AccessPath::INDEX_DISTANCE_SCAN:

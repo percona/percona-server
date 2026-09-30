@@ -746,6 +746,10 @@ If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
 extern ulong srv_fast_shutdown;
 extern bool srv_innodb_status;
 
+/** Upper bound in bytes on memory held by HNSW vector index graphs across
+all tables and indexes; 0 means no limit. */
+extern unsigned long long srv_hnsw_max_memory;
+
 extern unsigned long long srv_stats_transient_sample_pages;
 extern bool srv_stats_persistent;
 extern unsigned long long srv_stats_persistent_sample_pages;

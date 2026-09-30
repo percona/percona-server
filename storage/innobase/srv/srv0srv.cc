@@ -630,6 +630,11 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 unsigned long long srv_stats_transient_sample_pages = 8;
+
+/** Upper bound in bytes on the node arenas of HNSW vector index graphs,
+across all tables and indexes; 0 means no limit. */
+unsigned long long srv_hnsw_max_memory = 1ULL << 30;
+
 bool srv_stats_persistent = true;
 bool srv_stats_include_delete_marked = false;
 unsigned long long srv_stats_persistent_sample_pages = 20;

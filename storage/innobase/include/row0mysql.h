@@ -725,6 +725,14 @@ struct row_prebuilt_t {
                                 but in the future we must only fetch
                                 it when FTS columns are being
                                 updated */
+  /** The label read out of the hidden percona_vec_aux_id column of the
+  record last stored into the MySQL buffer, or 0 when the table has no
+  such column. The vector-index read path compares it against the node id
+  the graph returned; a mismatch means the row the node described is no
+  longer the version this reader sees. Filled the way fts_doc_id is,
+  straight from the record, so the hidden column need not join the
+  read set. */
+  uint64_t vec_aux_id;
   dtuple_t *clust_ref;          /*!< prebuilt dtuple used in
                                 sel/upd/del */
   ulint select_lock_type;       /*!< LOCK_NONE, LOCK_S, or LOCK_X */

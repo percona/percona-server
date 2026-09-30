@@ -274,6 +274,13 @@ struct Tester {
   @return the status */
   [[nodiscard]] Ret_t vec_next_id(std::vector<std::string> &tokens) noexcept;
 
+  /** Print a vector index runtime's parameters.
+  Usage: vec_runtime_info db/table
+  @param[in]  tokens  the command
+  @return the status */
+  [[nodiscard]] Ret_t vec_runtime_info(
+      std::vector<std::string> &tokens) noexcept;
+
   /** A macro to declare a dispatch function or a command function.  They all
   have the same signature.
   @param[in]   func_  the function that is being declared. */

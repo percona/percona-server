@@ -125,6 +125,7 @@ void ForEachChild(AccessPathPtr path, JoinPtr join,
     case AccessPath::EQ_REF:
     case AccessPath::PUSHED_JOIN_REF:
     case AccessPath::FULL_TEXT_SEARCH:
+    case AccessPath::VECTOR_SEARCH:
     case AccessPath::CONST_TABLE:
     case AccessPath::MRR:
     case AccessPath::FOLLOW_TAIL:
@@ -281,6 +282,8 @@ void WalkTablesUnderAccessPath(const AccessPath *root_path, Func &&func,
             return func(path->pushed_join_ref().table);
           case AccessPath::FULL_TEXT_SEARCH:
             return func(path->full_text_search().table);
+          case AccessPath::VECTOR_SEARCH:
+            return func(path->vector_search().table);
           case AccessPath::CONST_TABLE:
             return func(path->const_table().table);
           case AccessPath::MRR:

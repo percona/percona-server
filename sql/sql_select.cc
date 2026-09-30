@@ -3515,6 +3515,8 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
           table->covering_keys.set_bit(tab->ft_func()->key);
         }
         break;
+      case JT_VECTOR:
+        break;
       default:
         DBUG_PRINT("error", ("Table type %d found",
                              qep_tab->type())); /* purecov: deadcode */

@@ -1,0 +1,45 @@
+# innodb_hnsw_ef_search: global and session, dynamic, 1..100000.
+
+SET @start_global_value = @@global.innodb_hnsw_ef_search;
+
+--echo # Default: 40, in both scopes.
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+SHOW GLOBAL VARIABLES LIKE 'innodb_hnsw_ef_search';
+SHOW SESSION VARIABLES LIKE 'innodb_hnsw_ef_search';
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name = 'innodb_hnsw_ef_search';
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name = 'innodb_hnsw_ef_search';
+
+--echo # A session value does not change the global one.
+SET SESSION innodb_hnsw_ef_search = 200;
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+
+--echo # A new connection takes the global value.
+SET GLOBAL innodb_hnsw_ef_search = 64;
+--connect (con1, localhost, root)
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;
+--disconnect con1
+--connection default
+
+--echo # The bounds, and values outside them clamped with a warning.
+SET SESSION innodb_hnsw_ef_search = 1;
+SELECT @@session.innodb_hnsw_ef_search;
+SET SESSION innodb_hnsw_ef_search = 100000;
+SELECT @@session.innodb_hnsw_ef_search;
+SET SESSION innodb_hnsw_ef_search = 0;
+SELECT @@session.innodb_hnsw_ef_search;
+SET GLOBAL innodb_hnsw_ef_search = 100001;
+SELECT @@global.innodb_hnsw_ef_search;
+
+--echo # Wrong types.
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION innodb_hnsw_ef_search = 1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_hnsw_ef_search = 1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL innodb_hnsw_ef_search = 'AUTO';
+
+SET GLOBAL innodb_hnsw_ef_search = @start_global_value;
+SET SESSION innodb_hnsw_ef_search = DEFAULT;
+SELECT @@global.innodb_hnsw_ef_search, @@session.innodb_hnsw_ef_search;

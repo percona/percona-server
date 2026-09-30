@@ -384,9 +384,9 @@ static inline byte *buf_frame_copy(byte *buf, const buf_frame_t *frame);
 
 #ifndef UNIV_HOTBACKUP
 /** This is the general function used to get optimistic access to a database
-page.
+page. The caller must keep the block buffer-fixed for the whole call.
 @param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH
-@param[in,out]  block           Guessed block
+@param[in,out]  block           Guessed block, buffer-fixed by the caller
 @param[in]      modify_clock    Modify clock value
 @param[in]      fetch_mode      Fetch mode
 @param[in]      file            File name

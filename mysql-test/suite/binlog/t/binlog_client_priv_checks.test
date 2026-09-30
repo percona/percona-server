@@ -1,0 +1,181 @@
+# ==== Purpose ====
+#
+# Verify that a client executing `BINLOG '<payload>'` has applier-time
+# privilege checks enforced on the events inside the payload, and that
+# the decision is independent of the base64-encoded payload's length.
+#
+# Prior to Bug#39474825, the Applier_security_context_guard chose its
+# "no privilege checks" branch from `thd->lex->binlog_stmt_arg.length`
+# (in particular the `>= 2048` threshold), so a client BINLOG statement
+# with a long payload would silently skip the guard while an equivalent
+# short-payload statement would not. The fix identifies client BINLOG
+# execution via `rli->belongs_to_client()`, giving both short and long
+# payloads the same behavior.
+#
+# ==== Requirements ====
+#
+# R1. A client with REPLICATION_APPLIER (needed to run BINLOG at all)
+#     but without SUPER, BINLOG_ADMIN, or INSERT on the target table
+#     must be rejected with ER_TABLEACCESS_DENIED_ERROR when applying a
+#     Write_rows_log_event embedded in a client BINLOG statement.
+# R2. R1 must hold regardless of whether the base64-encoded payload of
+#     the BINLOG statement is below or above 2048 bytes.
+# R3. Granting BINLOG_ADMIN to that client must be sufficient to
+#     bypass the per-event applier privilege check
+#     (privilege_checks_none path).
+#
+# ==== References ====
+#
+# Bug#39474825 Align applier privilege checks for client BINLOG
+#              execution
+# Upstream: mysql/mysql-server@90f3b62e1a1
+
+--source include/have_binlog_format_row.inc
+--source include/have_log_bin.inc
+
+# A dedicated schema is used instead of `test` because the default
+# installation grants every authenticated user full DML on the `test`
+# schema via a `%.test.` entry in mysql.db.  That default would make
+# the unprivileged user in this test able to INSERT into test.<any>,
+# hiding the very check we are trying to exercise.
+--let $DB              = binlog_client_priv_db
+--let $MYSQLD_DATADIR  = `SELECT @@datadir`
+--let $DUMP_SMALL      = $MYSQLTEST_VARDIR/tmp/binlog_client_priv_small.sql
+--let $DUMP_LARGE      = $MYSQLTEST_VARDIR/tmp/binlog_client_priv_large.sql
+--let $CLIENT_OUT      = $MYSQLTEST_VARDIR/tmp/binlog_client_priv.out
+--let $SERVER_ERR_LOG  = $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+# The Applier_security_context_guard reports privilege failures on the
+# client BINLOG path via rli->report(), which writes the specific
+# ER_TABLEACCESS_DENIED_ERROR text to the server error log.  The
+# BINLOG statement itself surfaces every applier error to the client
+# as the generic ER_UNKNOWN_ERROR (see sql_binlog.cc), so the
+# server-side log is where the specific message lives.  Suppress it
+# so MTR's post-run error-log scan does not treat these expected
+# failures as unexpected.
+CALL mtr.add_suppression("INSERT command denied to user 'u1'@'localhost' for table 't1'");
+
+--echo #
+--echo # 1. Prepare two binlog files: one that only holds a small INSERT
+--echo #    (base64 payload below 2048 bytes) and one that only holds a
+--echo #    large INSERT (base64 payload above 2048 bytes).
+--echo #
+
+--eval CREATE DATABASE $DB
+--eval CREATE TABLE $DB.t1 (c1 INT PRIMARY KEY, payload LONGTEXT) ENGINE = InnoDB
+
+FLUSH BINARY LOGS;
+--let $SMALL_BINLOG = query_get_value(SHOW MASTER STATUS, File, 1)
+--eval INSERT INTO $DB.t1 VALUES (1, 'small')
+
+FLUSH BINARY LOGS;
+--let $LARGE_BINLOG = query_get_value(SHOW MASTER STATUS, File, 1)
+--eval INSERT INTO $DB.t1 VALUES (2, REPEAT('X', 4000))
+
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # 2. Dump each binlog to a SQL script via mysqlbinlog.
+--echo #
+
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$SMALL_BINLOG > $DUMP_SMALL
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$LARGE_BINLOG > $DUMP_LARGE
+
+--echo #
+--echo # 3. Remove the rows added on the primary so the dumps can be
+--echo #    re-applied via BINLOG '...' without primary-key conflicts.
+--echo #
+
+--eval DELETE FROM $DB.t1
+
+--echo #
+--echo # 4. Create user u1 with the minimum set of privileges needed to
+--echo #    reach the BINLOG '<payload>' statement in the mysqlbinlog
+--echo #    dump:
+--echo #      - REPLICATION_APPLIER      (required to run BINLOG at all
+--echo #                                  and to set the GTID_NEXT /
+--echo #                                  ORIGINAL_* variables that
+--echo #                                  mysqlbinlog emits)
+--echo #      - SESSION_VARIABLES_ADMIN  (required for the
+--echo #                                  SET @@SESSION.pseudo_thread_id
+--echo #                                  lines that mysqlbinlog emits
+--echo #                                  before each Query event)
+--echo #      - SELECT on the target     (keeps u1 usable; harmless)
+--echo #    u1 has neither SUPER, BINLOG_ADMIN, nor INSERT on t1, so the
+--echo #    row event inside the BINLOG payload is the only thing that
+--echo #    can reject the replay.
+--echo #
+
+CREATE USER 'u1'@'%';
+GRANT REPLICATION_APPLIER, SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'%';
+--eval GRANT SELECT ON $DB.t1 TO 'u1'@'%'
+SHOW GRANTS FOR 'u1'@'%';
+
+--echo #
+--echo # 5. Attempt to replay the SMALL dump as u1. The Write_rows event
+--echo #    inside the BINLOG payload must be rejected because u1 lacks
+--echo #    INSERT on the target table.
+--echo #
+
+--error 1
+--exec $MYSQL -uu1 < $DUMP_SMALL > $CLIENT_OUT 2>&1
+
+--let $assert_file  = $SERVER_ERR_LOG
+--let $assert_select = INSERT command denied to user 'u1'@'localhost' for table 't1'
+--let $assert_count  = 1
+--let $assert_text   = Small-payload BINLOG rejected with ER_TABLEACCESS_DENIED_ERROR for the applier context.
+--source include/assert_grep.inc
+
+# Guard the row-count too — the write must not have taken effect.
+--let $assert_text = t1 must still be empty after the small-dump replay was rejected.
+--let $assert_cond = [SELECT COUNT(*) FROM $DB.t1] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 6. Attempt to replay the LARGE dump as u1. Pre-fix, this would
+--echo #    have succeeded because the base64 payload exceeded 2048
+--echo #    bytes and the guard's length-based branch skipped all
+--echo #    applier privilege checks. Post-fix it must fail in the same
+--echo #    way as the small dump.
+--echo #
+
+--error 1
+--exec $MYSQL -uu1 < $DUMP_LARGE > $CLIENT_OUT 2>&1
+
+# The applier reports on both the small- and large-dump replays, so
+# the total occurrence count in the server error log is now 2.
+--let $assert_file  = $SERVER_ERR_LOG
+--let $assert_select = INSERT command denied to user 'u1'@'localhost' for table 't1'
+--let $assert_count  = 2
+--let $assert_text   = Large-payload BINLOG also rejected with ER_TABLEACCESS_DENIED_ERROR (regression guard for Bug#39474825).
+--source include/assert_grep.inc
+
+--let $assert_text = t1 must still be empty after the large-dump replay was rejected.
+--let $assert_cond = [SELECT COUNT(*) FROM $DB.t1] = 0
+--source include/assert.inc
+
+--echo #
+--echo # 7. Grant BINLOG_ADMIN. Both dumps must now apply cleanly: the
+--echo #    guard's client-BINLOG branch sets privilege_checks_none via
+--echo #    the standing BINLOG_ADMIN privilege.
+--echo #
+
+GRANT BINLOG_ADMIN ON *.* TO 'u1'@'%';
+
+--exec $MYSQL -uu1 < $DUMP_SMALL
+--exec $MYSQL -uu1 < $DUMP_LARGE
+
+--let $assert_text = Both rows must be present after BINLOG_ADMIN was granted.
+--let $assert_cond = [SELECT COUNT(*) FROM $DB.t1] = 2
+--source include/assert.inc
+
+--echo #
+--echo # 8. Clean up.
+--echo #
+
+DROP USER 'u1'@'%';
+--eval DROP DATABASE $DB
+
+--remove_file $DUMP_SMALL
+--remove_file $DUMP_LARGE
+--remove_file $CLIENT_OUT

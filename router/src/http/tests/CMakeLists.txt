@@ -34,6 +34,11 @@ add_test_file(test_http_uri.cc
   LIB_DEPENDS http_common
   )
 
+add_test_file(test_http_server_body_limit.cc
+  MODULE http
+  LIB_DEPENDS http_common http_client
+  )
+
 add_test_file(test_base64.cc
   MODULE http
   LIB_DEPENDS http_common

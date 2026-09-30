@@ -1,0 +1,40 @@
+# ==== Purpose ====
+#
+# Bug#39253383 - Improve validation for malformed replication metadata
+#
+# Table_map_event's decoder read the database and table name lengths from the
+# event with net_field_length() and used them without checking them against
+# NAME_LEN. The lengths are attacker controlled: they come straight off the
+# wire from a malicious or corrupted source, or out of a crafted binlog. A
+# decoded name longer than NAME_LEN then flows into every consumer of
+# Table_map_event::get_db_name()/get_table_name(), all of which are written
+# against the NAME_LEN bound.
+#
+# ==== Requirements ====
+#
+# R1. A TABLE_MAP_EVENT encoding a database name longer than NAME_LEN must be
+#     rejected while the event is being decoded.
+#
+# R2. A well-formed TABLE_MAP_EVENT must still decode, so that R1 is not
+#     satisfied by refusing table-map events in general.
+#
+
+--source include/have_log_bin.inc
+--source include/have_gtid_mode_off.inc
+
+--echo #
+--echo # Bug#39253383 - reject table-map metadata with an oversized name
+--echo #
+
+--echo # A format description event must be established first.
+BINLOG '5fVxag8BAAAAegAAAH4AAAAAAAQAOC4wLjQ2LWVvbC0yLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADl9XFqEwANAAgAAAAABAAEAAAAYgAEGggAAAAICAgCAAAACgoKKioAEjQACigAAMm/ykw=';
+
+--echo # R2: a well-formed table-map event decodes.
+--echo #     (test.t1, one INT column - the unmodified event from the binlog.)
+BINLOG '5fVxahMBAAAALAAAAAsCAAAAAKEAAAAAAAEABHRlc3QAAnQxAAEDAAEBAQA=';
+
+--echo # R1: the same event with a 200-byte database name must be rejected while
+--echo #     it is decoded, not accepted and passed on to the consumers that
+--echo #     assume NAME_LEN.
+--error ER_SYNTAX_ERROR
+BINLOG 'AAAAABMBAAAA7QAAAAAAAAAAAKEAAAAAAAEAyGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkAAJ0MQABAwAB';

@@ -524,4 +524,15 @@ extern "C" void synthesize_leaders(leader_array *leaders);
 int pm_finished(pax_machine *p);
 bool_t handle_max_leaders(app_data_ptr a);
 
+/*
+  Bug#39234600 test hooks. Thin forwarders to the file-static predicates in
+  xcom_base.cc that gate cargo arriving on an external XCom client connection.
+  They exist so a unit test can pin the allowlist without changing the linkage
+  of the upstream fix. No production caller - do not add one.
+*/
+int unittest_only_prop_input_queue_len(void);
+bool_t unittest_only_is_allowed_external_client_cargo_type(cargo_type cargo);
+bool_t unittest_only_has_disallowed_external_client_cargo_type(
+    app_data_ptr data);
+
 #endif

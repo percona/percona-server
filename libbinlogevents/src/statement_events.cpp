@@ -27,6 +27,13 @@
 
 namespace binary_log {
 
+namespace {
+
+constexpr int k_max_user_var_decimal_precision = 65;
+constexpr int k_max_user_var_decimal_scale = 30;
+
+}  // namespace
+
 /******************************************************************************
                      Query_event methods
 ******************************************************************************/
@@ -438,9 +445,10 @@ User_var_event::User_var_event(const char *buf,
     READER_TRY_SET(charset_number, read<uint32_t>);
     READER_TRY_SET(val_len, read<uint32_t>);
     val = const_cast<char *>(READER_CALL(ptr, val_len));
-    // val[0] is precision and val[1] is scale so precision >= scale for decimal
     if (type == DECIMAL_RESULT) {
-      if (val[0] < val[1])
+      if (!is_user_var_decimal_metadata_valid(val, val_len,
+                                              k_max_user_var_decimal_precision,
+                                              k_max_user_var_decimal_scale))
         READER_THROW(
             "Invalid User value found while deserializing User_var_event");
     }

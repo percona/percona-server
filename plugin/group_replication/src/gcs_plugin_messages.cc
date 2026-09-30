@@ -110,31 +110,51 @@ void Plugin_gcs_message::decode(const unsigned char *buffer, size_t length) {
   decode_payload(slider, end);
 }
 
-Plugin_gcs_message::enum_cargo_type Plugin_gcs_message::get_cargo_type(
-    const unsigned char *buffer) {
+bool Plugin_gcs_message::get_cargo_type(const unsigned char *buffer,
+                                        size_t length,
+                                        enum_cargo_type *cargo_type) {
   DBUG_TRACE;
+  if (length < WIRE_FIXED_HEADER_SIZE) {
+    return true;
+  }
+
   const unsigned char *slider =
       buffer + WIRE_VERSION_SIZE + WIRE_HD_LEN_SIZE + WIRE_MSG_LEN_SIZE;
 
   unsigned short s_cargo_type = 0;
   s_cargo_type = uint2korr(slider);
-  // enum may have 32bit storage
-  Plugin_gcs_message::enum_cargo_type cargo_type =
-      (Plugin_gcs_message::enum_cargo_type)s_cargo_type;
+  if (s_cargo_type <= CT_UNKNOWN || s_cargo_type >= CT_MAX) {
+    return true;
+  }
 
-  return cargo_type;
+  // enum may have 32bit storage
+  *cargo_type = (Plugin_gcs_message::enum_cargo_type)s_cargo_type;
+
+  return false;
 }
 
-void Plugin_gcs_message::get_first_payload_item_raw_data(
-    const unsigned char *buffer, const unsigned char **payload_item_data,
-    size_t *payload_item_length) {
+bool Plugin_gcs_message::get_first_payload_item_raw_data(
+    const unsigned char *buffer, size_t length,
+    const unsigned char **payload_item_data, size_t *payload_item_length) {
   DBUG_TRACE;
+  if (length < WIRE_FIXED_HEADER_SIZE + WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    return true;
+  }
+
+  const unsigned char *end = buffer + length;
   const unsigned char *slider =
       buffer + WIRE_FIXED_HEADER_SIZE + WIRE_PAYLOAD_ITEM_TYPE_SIZE;
 
-  *payload_item_length = uint8korr(slider);
+  const unsigned long long payload_item_length_aux = uint8korr(slider);
   slider += WIRE_PAYLOAD_ITEM_LEN_SIZE;
+  if (slider > end ||
+      static_cast<unsigned long long>(end - slider) < payload_item_length_aux) {
+    return true;
+  }
+
   *payload_item_data = slider;
+  *payload_item_length = static_cast<size_t>(payload_item_length_aux);
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_type_and_length(
@@ -176,15 +196,25 @@ void Plugin_gcs_message::encode_payload_item_char(
   buffer->insert(buffer->end(), buf, buf + 1);
 }
 
-void Plugin_gcs_message::decode_payload_item_char(const unsigned char **buffer,
+bool Plugin_gcs_message::decode_payload_item_char(const unsigned char **buffer,
                                                   uint16 *type,
+                                                  const unsigned char *end,
                                                   unsigned char *value) {
   DBUG_TRACE;
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 1) {
+    return true;
+  }
+
   unsigned long long length = 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 1 || *buffer > end || static_cast<size_t>(end - *buffer) < 1) {
+    return true;
+  }
   *value = **buffer;
   *buffer += 1;
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_int2(
@@ -197,14 +227,25 @@ void Plugin_gcs_message::encode_payload_item_int2(
   buffer->insert(buffer->end(), buf, buf + 2);
 }
 
-void Plugin_gcs_message::decode_payload_item_int2(const unsigned char **buffer,
-                                                  uint16 *type, uint16 *value) {
+bool Plugin_gcs_message::decode_payload_item_int2(const unsigned char **buffer,
+                                                  uint16 *type,
+                                                  const unsigned char *end,
+                                                  uint16 *value) {
   DBUG_TRACE;
+
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 2) {
+    return true;
+  }
 
   unsigned long long length = 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 2 || *buffer > end || static_cast<size_t>(end - *buffer) < 2) {
+    return true;
+  }
   *value = uint2korr(*buffer);
   *buffer += 2;
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_int4(
@@ -217,14 +258,25 @@ void Plugin_gcs_message::encode_payload_item_int4(
   buffer->insert(buffer->end(), buf, buf + 4);
 }
 
-void Plugin_gcs_message::decode_payload_item_int4(const unsigned char **buffer,
-                                                  uint16 *type, uint32 *value) {
+bool Plugin_gcs_message::decode_payload_item_int4(const unsigned char **buffer,
+                                                  uint16 *type,
+                                                  const unsigned char *end,
+                                                  uint32 *value) {
   DBUG_TRACE;
+
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 4) {
+    return true;
+  }
 
   unsigned long long length = 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 4 || *buffer > end || static_cast<size_t>(end - *buffer) < 4) {
+    return true;
+  }
   *value = uint4korr(*buffer);
   *buffer += 4;
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_int8(
@@ -237,14 +289,25 @@ void Plugin_gcs_message::encode_payload_item_int8(
   buffer->insert(buffer->end(), buf, buf + 8);
 }
 
-void Plugin_gcs_message::decode_payload_item_int8(const unsigned char **buffer,
-                                                  uint16 *type, uint64 *value) {
+bool Plugin_gcs_message::decode_payload_item_int8(const unsigned char **buffer,
+                                                  uint16 *type,
+                                                  const unsigned char *end,
+                                                  uint64 *value) {
   DBUG_TRACE;
+
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE + 8) {
+    return true;
+  }
 
   unsigned long long length = 0;
   decode_payload_item_type_and_length(buffer, type, &length);
+  if (length != 8 || *buffer > end || static_cast<size_t>(end - *buffer) < 8) {
+    return true;
+  }
   *value = uint8korr(*buffer);
   *buffer += 8;
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_string(
@@ -256,14 +319,25 @@ void Plugin_gcs_message::encode_payload_item_string(
   buffer->insert(buffer->end(), value, value + length);
 }
 
-void Plugin_gcs_message::decode_payload_item_string(
-    const unsigned char **buffer, uint16 *type, std::string *value,
-    unsigned long long *length) {
+bool Plugin_gcs_message::decode_payload_item_string(
+    const unsigned char **buffer, uint16 *type, const unsigned char *end,
+    std::string *value, unsigned long long *length) {
   DBUG_TRACE;
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    return true;
+  }
+
   decode_payload_item_type_and_length(buffer, type, length);
+  if (*buffer > end ||
+      static_cast<unsigned long long>(end - *buffer) < *length) {
+    return true;
+  }
+
   value->assign(reinterpret_cast<const char *>(*buffer), (size_t)*length);
   *buffer += *length;
+  return false;
 }
 
 void Plugin_gcs_message::encode_payload_item_bytes(
@@ -276,14 +350,26 @@ void Plugin_gcs_message::encode_payload_item_bytes(
 }
 
 /* purecov: begin inspected */
-void Plugin_gcs_message::decode_payload_item_bytes(const unsigned char **buffer,
+bool Plugin_gcs_message::decode_payload_item_bytes(const unsigned char **buffer,
                                                    uint16 *type,
+                                                   const unsigned char *end,
                                                    unsigned char *value,
                                                    unsigned long long *length) {
   DBUG_TRACE;
 
+  if (*buffer > end ||
+      static_cast<size_t>(end - *buffer) < WIRE_PAYLOAD_ITEM_HEADER_SIZE) {
+    return true;
+  }
+
   decode_payload_item_type_and_length(buffer, type, length);
-  memcpy(value, buffer, *length);
+  if (*buffer > end ||
+      static_cast<unsigned long long>(end - *buffer) < *length) {
+    return true;
+  }
+
+  memcpy(value, *buffer, *length);
   *buffer += *length;
+  return false;
 }
 /* purecov: end */

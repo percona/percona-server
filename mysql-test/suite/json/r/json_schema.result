@@ -546,3 +546,70 @@ ERROR 22032: Invalid data type for JSON data in argument 2 to function json_sche
 PREPARE ps FROM 'SELECT * FROM t WHERE JSON_SCHEMA_VALID(g, j)';
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
 DROP TABLE t;
+#
+# Bug#39489024 Reject cyclic JSON schema references
+#
+# Cyclic local ref graphs must be rejected before rapidjson schema
+# compilation, which can otherwise recurse until the thread stack is
+# exhausted. Cover the shapes called out by the fix: allOf, anyOf,
+# oneOf, and items. Also cover a mutual cycle via definitions, and keep
+# a non-cyclic local ref as a positive control.
+# Non-cyclic local ref still validates.
+SELECT JSON_SCHEMA_VALID('{
+  "definitions": {
+    "positiveInteger": { "type": "integer", "minimum": 0 }
+  },
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "#/definitions/positiveInteger" }
+  }
+}', '{"id": 1}') AS should_be_valid;
+should_be_valid
+1
+SELECT JSON_SCHEMA_VALID('{
+  "definitions": {
+    "positiveInteger": { "type": "integer", "minimum": 0 }
+  },
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "#/definitions/positiveInteger" }
+  }
+}', '{"id": -1}') AS should_be_invalid;
+should_be_invalid
+0
+# Cyclic allOf
+SELECT JSON_SCHEMA_VALID('{"allOf":[{"$ref":"#"}]}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+# Cyclic anyOf
+SELECT JSON_SCHEMA_VALID('{"anyOf":[{"$ref":"#"}]}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+# Cyclic oneOf
+SELECT JSON_SCHEMA_VALID('{"oneOf":[{"$ref":"#"}]}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+# Cyclic items
+SELECT JSON_SCHEMA_VALID('{"type":"array","items":{"$ref":"#"}}', '[]');
+ERROR 22032: The JSON document exceeds the maximum depth.
+# Mutual cycle through definitions + allOf
+SELECT JSON_SCHEMA_VALID('{
+  "definitions": {
+    "a": { "allOf": [ { "$ref": "#/definitions/b" } ] },
+    "b": { "allOf": [ { "$ref": "#/definitions/a" } ] }
+  },
+  "allOf": [ { "$ref": "#/definitions/a" } ]
+}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+# Same cycles via JSON_SCHEMA_VALIDATION_REPORT
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"allOf":[{"$ref":"#"}]}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"anyOf":[{"$ref":"#"}]}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"oneOf":[{"$ref":"#"}]}', '{}');
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type":"array","items":{"$ref":"#"}}', '[]');
+ERROR 22032: The JSON document exceeds the maximum depth.
+# CHECK constraint with a cyclic schema is rejected at prepare/create time
+CREATE TABLE t_cyclic_schema (
+doc JSON,
+CHECK (JSON_SCHEMA_VALID('{"allOf":[{"$ref":"#"}]}', doc))
+);
+ERROR 22032: The JSON document exceeds the maximum depth.

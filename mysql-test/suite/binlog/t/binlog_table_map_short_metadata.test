@@ -1,0 +1,39 @@
+# ==== Purpose ====
+#
+# Bug#39254867 - Validate table-map metadata bounds
+#
+# A TABLE_MAP_EVENT carries a per-column metadata block whose length is encoded
+# in the event, and a column type array that says how many metadata bytes each
+# column consumes. The decoder walked the type array and consumed metadata for
+# each column without checking that the bytes it consumed stayed inside the
+# encoded metadata block, so an event whose metadata block is shorter than its
+# column types require made table_def read past the end of that block. The
+# lengths are attacker controlled: they come off the wire from a malicious or
+# corrupted source, or out of a crafted binlog.
+#
+# ==== Requirements ====
+#
+# R1. A TABLE_MAP_EVENT whose column types require more metadata than the
+#     encoded metadata block holds must be rejected while it is decoded.
+#
+# R2. The same event with a correctly sized metadata block must still decode,
+#     so R1 is not satisfied by refusing VARCHAR table maps in general.
+#
+
+--source include/have_log_bin.inc
+--source include/have_gtid_mode_off.inc
+
+--echo #
+--echo # Bug#39254867 - reject table-map metadata shorter than the column types
+--echo #
+
+--echo # A format description event must be established first.
+BINLOG '5fVxag8BAAAAegAAAH4AAAAAAAQAOC4wLjQ2LWVvbC0yLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADl9XFqEwANAAgAAAAABAAEAAAAYgAEGggAAAAICAgCAAAACgoKKioAEjQACigAAMm/ykw=';
+
+--echo # R2: one VARCHAR column with its full two metadata bytes decodes.
+BINLOG 'AAAAABMBAAAAKwAAAAAAAAAAAKEAAAAAAAEABHRlc3QAAnQxAAEPAhAAAQ==';
+
+--echo # R1: the same event one metadata byte short must be rejected while it is
+--echo #     decoded, rather than read past the end of the metadata block.
+--error ER_SYNTAX_ERROR
+BINLOG 'AAAAABMBAAAAKgAAAAAAAAAAAKEAAAAAAAEABHRlc3QAAnQxAAEPARAB';

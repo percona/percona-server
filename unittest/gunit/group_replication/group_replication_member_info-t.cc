@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
@@ -35,6 +36,29 @@ using std::string;
 using std::vector;
 
 namespace gcs_member_info_unittest {
+
+namespace {
+
+constexpr size_t kInt2PayloadSize = 2;
+
+size_t get_first_member_entry_offset() {
+  return Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+         Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE + kInt2PayloadSize;
+}
+
+size_t get_first_member_port_length_offset(size_t hostname_length) {
+  const size_t first_member_payload_offset =
+      get_first_member_entry_offset() +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
+  const size_t hostname_item_size =
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE + hostname_length;
+
+  return first_member_payload_offset +
+         Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE + hostname_item_size +
+         Plugin_gcs_message::WIRE_PAYLOAD_ITEM_TYPE_SIZE;
+}
+
+}  // namespace
 
 class ClusterMemberInfoTest : public ::testing::Test {
  protected:
@@ -437,6 +461,195 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
             retrieved_local_info.get_view_change_uuid());
   ASSERT_EQ(local_node->get_allow_single_leader(),
             retrieved_local_info.get_allow_single_leader());
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       DecodeRejectsMemberEntryWithInvalidPortLength) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  const size_t port_length_offset =
+      get_first_member_port_length_offset(local_node->get_hostname().length());
+  ASSERT_LT(port_length_offset + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_LEN_SIZE,
+            encoded.size() + 1);
+
+  int8store(encoded.data() + port_length_offset, 1ULL);
+
+  Group_member_info_list *decoded_members =
+      cluster_member_mgr->decode(encoded.data(), encoded.size());
+
+  EXPECT_EQ(nullptr, decoded_members);
+  delete decoded_members;
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       DecodeRejectsUnexpectedMemberInfoManagerEntryType) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  const size_t member_entry_offset = get_first_member_entry_offset();
+  ASSERT_LT(
+      member_entry_offset + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_TYPE_SIZE,
+      encoded.size() + 1);
+
+  int2store(encoded.data() + member_entry_offset,
+            Group_member_info_manager_message::PIT_MEMBER_ACTIONS);
+
+  Group_member_info_list *decoded_members =
+      cluster_member_mgr->decode(encoded.data(), encoded.size());
+
+  EXPECT_EQ(nullptr, decoded_members);
+  delete decoded_members;
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       GetPitDataRejectsUnexpectedMemberInfoManagerEntryType) {
+  Group_member_info_manager_message message(new Group_member_info(*local_node));
+  vector<uchar> encoded;
+  const string member_actions_serialized_configuration("member-actions");
+
+  message.encode(&encoded);
+  message.add_member_actions_serialized_configuration(
+      &encoded, member_actions_serialized_configuration);
+
+  const size_t member_entry_offset = get_first_member_entry_offset();
+  ASSERT_LT(
+      member_entry_offset + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_TYPE_SIZE,
+      encoded.size() + 1);
+
+  int2store(encoded.data() + member_entry_offset,
+            Group_member_info_manager_message::PIT_MEMBER_ACTIONS);
+
+  const unsigned char *pit_data = nullptr;
+  size_t pit_length = 0;
+  const bool error = message.get_pit_data(
+      Group_member_info_manager_message::PIT_MEMBER_ACTIONS, encoded.data(),
+      encoded.size(), &pit_data, &pit_length);
+
+  EXPECT_TRUE(error);
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsTruncatedFixedHeader) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  ASSERT_GT(encoded.size(), Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE);
+
+  Plugin_gcs_message::enum_cargo_type cargo_type =
+      Plugin_gcs_message::CT_UNKNOWN;
+  const bool error = Plugin_gcs_message::get_cargo_type(
+      encoded.data(), Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE - 1,
+      &cargo_type);
+
+  EXPECT_TRUE(error);
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeRejectsOutOfRangeCargoType) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  const size_t cargo_type_offset = Plugin_gcs_message::WIRE_VERSION_SIZE +
+                                   Plugin_gcs_message::WIRE_HD_LEN_SIZE +
+                                   Plugin_gcs_message::WIRE_MSG_LEN_SIZE;
+  ASSERT_LT(cargo_type_offset + Plugin_gcs_message::WIRE_CARGO_TYPE_SIZE,
+            encoded.size() + 1);
+
+  for (const uint16 invalid_cargo_type :
+       {static_cast<uint16>(Plugin_gcs_message::CT_UNKNOWN),
+        static_cast<uint16>(Plugin_gcs_message::CT_MAX),
+        static_cast<uint16>(Plugin_gcs_message::CT_MAX + 1)}) {
+    int2store(encoded.data() + cargo_type_offset, invalid_cargo_type);
+
+    Plugin_gcs_message::enum_cargo_type cargo_type =
+        Plugin_gcs_message::CT_UNKNOWN;
+    const bool error = Plugin_gcs_message::get_cargo_type(
+        encoded.data(), encoded.size(), &cargo_type);
+
+    EXPECT_TRUE(error) << "cargo type " << invalid_cargo_type
+                       << " must be rejected";
+  }
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetCargoTypeAcceptsValidMessage) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  Plugin_gcs_message::enum_cargo_type cargo_type =
+      Plugin_gcs_message::CT_UNKNOWN;
+  const bool error = Plugin_gcs_message::get_cargo_type(
+      encoded.data(), encoded.size(), &cargo_type);
+
+  EXPECT_FALSE(error);
+  EXPECT_EQ(Plugin_gcs_message::CT_MEMBER_INFO_MANAGER_MESSAGE, cargo_type);
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       GetFirstPayloadItemRejectsTruncatedHeader) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  const size_t minimum_size =
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE;
+  ASSERT_GT(encoded.size(), minimum_size);
+
+  const unsigned char *payload_data = nullptr;
+  size_t payload_length = 0;
+  const bool error = Plugin_gcs_message::get_first_payload_item_raw_data(
+      encoded.data(), minimum_size - 1, &payload_data, &payload_length);
+
+  EXPECT_TRUE(error);
+}
+
+TEST_F(ClusterMemberInfoManagerTest,
+       GetFirstPayloadItemRejectsOverrunningLength) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  const size_t payload_item_len_offset =
+      Plugin_gcs_message::WIRE_FIXED_HEADER_SIZE +
+      Plugin_gcs_message::WIRE_PAYLOAD_ITEM_TYPE_SIZE;
+  ASSERT_LT(payload_item_len_offset +
+                Plugin_gcs_message::WIRE_PAYLOAD_ITEM_LEN_SIZE,
+            encoded.size() + 1);
+
+  const size_t bytes_after_item_header =
+      encoded.size() - (payload_item_len_offset +
+                        Plugin_gcs_message::WIRE_PAYLOAD_ITEM_LEN_SIZE);
+
+  int8store(encoded.data() + payload_item_len_offset,
+            static_cast<ulonglong>(bytes_after_item_header + 1));
+
+  const unsigned char *payload_data = nullptr;
+  size_t payload_length = 0;
+  bool error = Plugin_gcs_message::get_first_payload_item_raw_data(
+      encoded.data(), encoded.size(), &payload_data, &payload_length);
+
+  EXPECT_TRUE(error);
+
+  int8store(encoded.data() + payload_item_len_offset,
+            static_cast<ulonglong>(bytes_after_item_header));
+
+  error = Plugin_gcs_message::get_first_payload_item_raw_data(
+      encoded.data(), encoded.size(), &payload_data, &payload_length);
+
+  EXPECT_FALSE(error);
+  EXPECT_EQ(bytes_after_item_header, payload_length);
+}
+
+TEST_F(ClusterMemberInfoManagerTest, GetFirstPayloadItemAcceptsValidMessage) {
+  vector<uchar> encoded;
+  cluster_member_mgr->encode(&encoded);
+
+  const unsigned char *payload_data = nullptr;
+  size_t payload_length = 0;
+  const bool error = Plugin_gcs_message::get_first_payload_item_raw_data(
+      encoded.data(), encoded.size(), &payload_data, &payload_length);
+
+  EXPECT_FALSE(error);
+  EXPECT_NE(nullptr, payload_data);
+  EXPECT_GT(payload_length, 0U);
+  EXPECT_LE(payload_data + payload_length, encoded.data() + encoded.size());
 }
 
 }  // namespace gcs_member_info_unittest

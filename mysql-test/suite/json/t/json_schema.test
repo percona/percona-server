@@ -501,3 +501,76 @@ PREPARE ps FROM 'SELECT * FROM t WHERE JSON_SCHEMA_VALID(j, g)';
 --error ER_INVALID_TYPE_FOR_JSON
 PREPARE ps FROM 'SELECT * FROM t WHERE JSON_SCHEMA_VALID(g, j)';
 DROP TABLE t;
+
+--echo #
+--echo # Bug#39489024 Reject cyclic JSON schema references
+--echo #
+--echo # Cyclic local ref graphs must be rejected before rapidjson schema
+--echo # compilation, which can otherwise recurse until the thread stack is
+--echo # exhausted. Cover the shapes called out by the fix: allOf, anyOf,
+--echo # oneOf, and items. Also cover a mutual cycle via definitions, and keep
+--echo # a non-cyclic local ref as a positive control.
+
+--echo # Non-cyclic local ref still validates.
+SELECT JSON_SCHEMA_VALID('{
+  "definitions": {
+    "positiveInteger": { "type": "integer", "minimum": 0 }
+  },
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "#/definitions/positiveInteger" }
+  }
+}', '{"id": 1}') AS should_be_valid;
+
+SELECT JSON_SCHEMA_VALID('{
+  "definitions": {
+    "positiveInteger": { "type": "integer", "minimum": 0 }
+  },
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "#/definitions/positiveInteger" }
+  }
+}', '{"id": -1}') AS should_be_invalid;
+
+--echo # Cyclic allOf
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID('{"allOf":[{"$ref":"#"}]}', '{}');
+
+--echo # Cyclic anyOf
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID('{"anyOf":[{"$ref":"#"}]}', '{}');
+
+--echo # Cyclic oneOf
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID('{"oneOf":[{"$ref":"#"}]}', '{}');
+
+--echo # Cyclic items
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID('{"type":"array","items":{"$ref":"#"}}', '[]');
+
+--echo # Mutual cycle through definitions + allOf
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALID('{
+  "definitions": {
+    "a": { "allOf": [ { "$ref": "#/definitions/b" } ] },
+    "b": { "allOf": [ { "$ref": "#/definitions/a" } ] }
+  },
+  "allOf": [ { "$ref": "#/definitions/a" } ]
+}', '{}');
+
+--echo # Same cycles via JSON_SCHEMA_VALIDATION_REPORT
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"allOf":[{"$ref":"#"}]}', '{}');
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"anyOf":[{"$ref":"#"}]}', '{}');
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"oneOf":[{"$ref":"#"}]}', '{}');
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type":"array","items":{"$ref":"#"}}', '[]');
+
+--echo # CHECK constraint with a cyclic schema is rejected at prepare/create time
+--error ER_JSON_DOCUMENT_TOO_DEEP
+CREATE TABLE t_cyclic_schema (
+  doc JSON,
+  CHECK (JSON_SCHEMA_VALID('{"allOf":[{"$ref":"#"}]}', doc))
+);

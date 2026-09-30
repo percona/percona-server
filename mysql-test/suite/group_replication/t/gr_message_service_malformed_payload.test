@@ -1,0 +1,172 @@
+################################################################################
+#
+# Bug#39253416 Group Replication malformed payload decode validation
+#
+# A Group Replication message carries its payload as a sequence of
+# (type, length, value) items. The length is attacker controlled data: it comes
+# from the message, not from the local member. Decoding must therefore validate
+# every declared length against the end of the received buffer, otherwise a
+# malformed payload from a peer drives the decoders past the end of the message.
+#
+# This test uses the debug point gr_invalid_message_service_tag_length, which
+# makes the sender encode a PIT_TAG payload item that declares a length of 1GB
+# on a message that is a few dozen bytes long, and asserts that the receiving
+# members reject the message instead of decoding it.
+#
+# The corruption is applied on encode, so it is on the wire: every member of the
+# group receives the malformed message, the sender included, and every member
+# must reject it. Rejection is not silent - the message service cannot deliver a
+# message it could not decode, so the member logs the rejection, delivers
+# nothing to the registered consumers, and leaves the group following
+# group_replication_exit_state_action, which defaults to READ_ONLY.
+#
+# Without the fix, Group_service_message::decode_payload() assigned the tag from
+# a 1GB read starting inside a small buffer, reading far past the end of the
+# message.
+#
+# Test:
+#   0. This test requires two servers with GR and a debug build.
+#   1. Load plugin replication observers example on server1, it provides the
+#      message service send UDF and logs every message delivered to a consumer.
+#   2. Load plugin replication observers example on server2.
+#   3. Enable on server1 the debug point that encodes an out of bounds PIT_TAG
+#      payload item length on the outgoing service message.
+#   4. Send a service message. The UDF succeeds: the payload is corrupted on
+#      encode, after the send has been accepted.
+#   5. Both members reject the malformed message and move to ERROR.
+#   6. Assert server1, the sender, rejected its own copy of the message,
+#      delivered nothing to the consumer, and applied the exit state action.
+#   7. Assert server2, the receiver, did the same.
+#   8. Restore the group.
+#   9. Cleanup.
+#
+################################################################################
+--source include/have_debug.inc
+--source include/have_replication_observers_example_plugin.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Load plugin replication observers example on server1, it provides
+--echo #    the message service send UDF and logs every message delivered to a
+--echo #    consumer.
+
+--source include/install_replication_observers_example.inc
+
+--echo
+--echo # 2. Load plugin replication observers example on server2.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/install_replication_observers_example.inc
+
+--echo
+--echo # 3. Enable on server1 the debug point that encodes an out of bounds
+--echo #    PIT_TAG payload item length on the outgoing service message.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point= gr_invalid_message_service_tag_length
+--source include/add_debug_point.inc
+
+--echo
+--echo # 4. Send a service message. The UDF succeeds: the payload is corrupted
+--echo #    on encode, after the send has been accepted.
+
+# Steps 6 and 7 count rows in performance_schema.error_log. That ring buffer is
+# not truncated between repetitions of the test the way the error log file is, so
+# the counts must be scoped to the messages this run produces, otherwise --repeat
+# accumulates them. Taken before the send, so every rejection lands after it.
+--let $error_log_scan_from= `SELECT NOW(6)`
+
+SELECT group_replication_service_message_send("tag", "Server1 sent a message");
+
+--echo
+--echo # 5. Both members reject the malformed message and move to ERROR.
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 6. Assert server1, the sender, rejected its own copy of the message,
+--echo #    delivered nothing to the consumer, and applied the exit state
+--echo #    action.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Server 1 rejected the malformed service message payload.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.error_log WHERE logged > "$error_log_scan_from" AND error_code = "MY-011254" AND data LIKE "%Malformed payload length in the group replication message service message%", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Server 1 left the group after rejecting the message.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.error_log WHERE logged > "$error_log_scan_from" AND error_code = "MY-013487" AND data LIKE "%A message sent through the Group Replication message deliver service was not delivered successfully.%", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Server 1 delivered no message to the consumer.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.error_log WHERE logged > "$error_log_scan_from" AND error_code = "MY-011071" AND data LIKE "%Plugin replication_observers_example reported: \'Service message recv%", count, 1] = 0
+--source include/assert.inc
+
+--source include/assert_and_disable_read_only.inc
+
+--echo
+--echo # 7. Assert server2, the receiver, did the same.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= Server 2 rejected the malformed service message payload.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.error_log WHERE logged > "$error_log_scan_from" AND error_code = "MY-011254" AND data LIKE "%Malformed payload length in the group replication message service message%", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Server 2 left the group after rejecting the message.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.error_log WHERE logged > "$error_log_scan_from" AND error_code = "MY-013487" AND data LIKE "%A message sent through the Group Replication message deliver service was not delivered successfully.%", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Server 2 delivered no message to the consumer.
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.error_log WHERE logged > "$error_log_scan_from" AND error_code = "MY-011071" AND data LIKE "%Plugin replication_observers_example reported: \'Service message recv%", count, 1] = 0
+--source include/assert.inc
+
+--source include/assert_and_disable_read_only.inc
+
+--echo
+--echo # 8. Restore the group.
+
+--let $skip_assert_read_only= 1
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $debug_point= gr_invalid_message_service_tag_length
+--source include/remove_debug_point.inc
+
+--let $skip_assert_read_only= 1
+--source include/stop_group_replication.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 9. Cleanup.
+
+--source include/uninstall_replication_observers_example.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/uninstall_replication_observers_example.inc
+
+--source include/group_replication_end.inc

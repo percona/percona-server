@@ -1,0 +1,40 @@
+#
+# Bug#39377010 - reject header-only legacy heartbeat events
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+# Adding debug point 'use_old_heartbeat_version' to @@GLOBAL.debug
+# Adding debug point 'binlog_sender_header_only_heartbeat_v1' to @@GLOBAL.debug
+call mtr.add_suppression("Unexpected source's heartbeat data");
+call mtr.add_suppression("Relay log write failure: could not queue event from source");
+include/stop_slave.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0.1;
+include/start_slave_io.inc
+# R1: header-only v1 heartbeat must fail on the receiver path.
+include/wait_for_slave_io_error.inc [errno=13122]
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
+include/assert_grep.inc [Found heartbeat validation failure in the replica error log]
+# R2: normal v1 heartbeats must work after removing the malformed hook.
+[connection master]
+# Removing debug point 'binlog_sender_header_only_heartbeat_v1' from @@GLOBAL.debug
+CREATE TABLE t1 (a INT);
+include/stop_slave.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+# Clean up
+[connection master]
+# Removing debug point 'use_old_heartbeat_version' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

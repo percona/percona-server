@@ -1,0 +1,29 @@
+#
+# OBJECT_INSTANCE_BEGIN in performance_schema.metadata_locks
+#
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+SELECT OBJECT_INSTANCE_BEGIN INTO @mdl_identity
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'TABLE'
+    AND OBJECT_SCHEMA = 'test'
+    AND OBJECT_NAME = 't1'
+    AND LOCK_STATUS = 'GRANTED';
+SELECT @mdl_identity IS NOT NULL AS identity_found,
+(@mdl_identity >> 48) <> 0 AS identity_is_not_a_raw_pointer;
+identity_found	identity_is_not_a_raw_pointer
+1	1
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# OBJECT_INSTANCE_BEGIN in performance_schema.prepared_statements_instances
+#
+PREPARE stmt FROM 'SELECT 1';
+SELECT OBJECT_INSTANCE_BEGIN INTO @stmt_identity
+FROM performance_schema.prepared_statements_instances
+WHERE STATEMENT_NAME = 'stmt';
+SELECT @stmt_identity IS NOT NULL AS identity_found,
+(@stmt_identity >> 48) <> 0 AS identity_is_not_a_raw_pointer;
+identity_found	identity_is_not_a_raw_pointer
+1	1
+DEALLOCATE PREPARE stmt;

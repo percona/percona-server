@@ -635,10 +635,15 @@ class Group_member_info : public Plugin_gcs_message {
   /**
     Get UID used when logging view change events
     @return view change uuid or "AUTOMATIC"
-   */
+  */
   std::string get_view_change_uuid();
 
   bool get_allow_single_leader();
+
+  /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
 
   /**
     Get group action name if running on the member.
@@ -679,7 +684,7 @@ class Group_member_info : public Plugin_gcs_message {
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const override;
   void decode_payload(const unsigned char *buffer,
-                      const unsigned char *) override;
+                      const unsigned char *end) override;
 
  private:
   /**
@@ -722,6 +727,7 @@ class Group_member_info : public Plugin_gcs_message {
   bool m_allow_single_leader;
   std::string m_group_action_running_name;
   std::string m_group_action_running_description;
+  bool m_decode_error{false};
 #ifndef NDEBUG
  public:
   bool skip_encode_default_table_encryption;
@@ -1307,6 +1313,11 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
   ~Group_member_info_manager_message() override;
 
   /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
+
+  /**
     Retrieves all Group members on this message.
 
     @return a vector with copies to all members.
@@ -1338,7 +1349,8 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
 
     @return the operation status
       @retval false  OK
-      @retval true   member actions do not exist on the message
+      @retval true   payload item does not exist on the message or the
+                     message is malformed
    */
   bool get_pit_data(const enum_payload_item_type pit,
                     const unsigned char *buffer, size_t length,
@@ -1369,6 +1381,7 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
   void clear_members();
 
   Group_member_info_list *members;
+  bool m_decode_error{false};
 };
 
 #endif /* MEMBER_INFO_INCLUDE */

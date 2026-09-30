@@ -123,6 +123,11 @@ class Single_primary_message : public Plugin_gcs_message {
   */
   enum_primary_election_mode get_election_mode();
 
+  /**
+    @return true if a decode error was detected while parsing the payload.
+   */
+  bool is_decode_error() const { return m_decode_error; }
+
  protected:
   /**
     Encodes the message contents for transmission.
@@ -148,6 +153,7 @@ class Single_primary_message : public Plugin_gcs_message {
   std::string primary_uuid;
   /** The mode for election requests */
   enum_primary_election_mode election_mode;
+  bool m_decode_error{false};
 };
 
 #endif /* SINGLE_PRIMARY_MESSAGE_INCLUDED */

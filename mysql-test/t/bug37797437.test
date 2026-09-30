@@ -1,0 +1,24 @@
+#
+# CHECK/REPAIR TABLE tests which execution requires a debug server.
+#
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#37797437 Crash caused by check table and network error
+--echo #
+--echo # close_thread_tables() frees table_list->table and releases its MDL
+--echo # ticket. If protocol->end_row() then fails (e.g. due to a network
+--echo # error), the error path used to dereference the now-stale table
+--echo # pointer. mysql_admin_table_force_end_row_fail simulates such an
+--echo # end_row() failure so this can be tested without a real network
+--echo # error.
+--echo #
+
+CREATE TABLE t1(a INT);
+
+SET SESSION DEBUG = "+d,mysql_admin_table_force_end_row_fail";
+--error ER_UNKNOWN_ERROR
+CHECK TABLE t1;
+SET SESSION DEBUG = "-d,mysql_admin_table_force_end_row_fail";
+
+DROP TABLE t1;

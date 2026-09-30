@@ -1,0 +1,181 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test the error handling path that is
+# executed when the applier fails to set the additional multi-threaded
+# applier (MTA) context for an event. There are two such paths: one in
+# the coordinator main loop, before the event is scheduled to a worker,
+# and another one in the worker transaction retry loop, when the event is
+# re-read from the relay log.
+#
+# ==== Requirements ====
+#
+# R1. When setting the MTA context fails in the coordinator main loop,
+#     the coordinator reports ER_REPLICA_FATAL_ERROR, releases the event
+#     and stops.
+#
+# R2. When setting the MTA context fails while a worker is retrying a
+#     transaction, the worker releases the event and gives up the retry.
+#
+# R3. In both cases the applier resumes normally once the failure is no
+#     longer injected.
+#
+# ==== Implementation ====
+#
+# 1. Set up the replica with replica_parallel_type=DATABASE, which is the
+#    submode whose set_multi_threaded_applier_context() may fail.
+# 2. With the applier stopped, generate a transaction on the source.
+# 3. Activate error_on_set_mta_context_main and start the applier: the
+#    coordinator must stop with ER_REPLICA_FATAL_ERROR.
+# 4. Deactivate the debug point, restart the applier and check that the
+#    transaction is applied.
+# 5. Activate error_on_set_mta_context_trx_retry, block on the replica the
+#    record that the applier is about to insert and insert it on the
+#    source, so that the worker fails with a lock wait timeout and enters
+#    the transaction retry loop. The retry is given up while the event is
+#    re-read from the relay log.
+# 6. Deactivate the debug point, release the record, restart the applier
+#    and check that the transaction is applied.
+# 7. Clean up.
+#
+# Note: the leak itself is only observable in instrumented builds (for
+# instance, ASAN/LeakSanitizer). This script makes sure that both error
+# handling paths are exercised and that the applier behaves as expected
+# around them.
+#
+# ==== References ====
+#
+# Bug#38924622 Error handling, while the applier prepares a transaction
+#              context, does not release the event
+#
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo
+--echo # 1. Set up the replica to apply transactions in parallel, per database.
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Replication encountered an internal error and could not complete");
+CALL mtr.add_suppression("worker thread retried transaction");
+CALL mtr.add_suppression("Lock wait timeout exceeded");
+CALL mtr.add_suppression("Could not execute Write_rows event on table test.t1");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Coordinator stopped because there were error");
+
+SET @saved_parallel_type= @@GLOBAL.replica_parallel_type;
+SET @saved_parallel_workers= @@GLOBAL.replica_parallel_workers;
+SET @saved_preserve_commit_order= @@GLOBAL.replica_preserve_commit_order;
+SET @saved_transaction_retries= @@GLOBAL.replica_transaction_retries;
+SET @saved_lock_wait_timeout= @@GLOBAL.innodb_lock_wait_timeout;
+
+--source include/stop_slave.inc
+# replica_preserve_commit_order is not supported together with
+# replica_parallel_type=DATABASE. A single retry is enough to reach the
+# retry code path and keeps the test fast.
+--disable_warnings
+SET @@GLOBAL.replica_preserve_commit_order= OFF;
+SET @@GLOBAL.replica_parallel_type= 'DATABASE';
+SET @@GLOBAL.replica_parallel_workers= 2;
+SET @@GLOBAL.replica_transaction_retries= 1;
+SET @@GLOBAL.innodb_lock_wait_timeout= 1;
+--enable_warnings
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # 2. Make the coordinator fail while setting the MTA context.
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_sql.inc
+--let $debug_point= error_on_set_mta_context_main
+--source include/add_debug_point.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+
+--source include/rpl_connection_slave.inc
+--disable_warnings
+START REPLICA SQL_THREAD;
+--enable_warnings
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo # 3. The applier resumes once the failure is no longer injected.
+
+--let $debug_point= error_on_set_mta_context_main
+--source include/remove_debug_point.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let $assert_text= the transaction is applied after resuming the applier
+--let $assert_cond= COUNT(*) = 1 FROM t1 WHERE a = 1
+--source include/assert.inc
+
+--echo
+--echo # 4. Make a worker fail while setting the MTA context on a retry.
+
+--let $debug_point= error_on_set_mta_context_trx_retry
+--source include/add_debug_point.inc
+
+# Block the record that the applier is about to insert, so that the
+# worker fails with a lock wait timeout and retries the transaction.
+--source include/rpl_connection_slave1.inc
+BEGIN;
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_connection_slave.inc
+--let $err_deadlock= convert_error(ER_LOCK_DEADLOCK)
+--let $err_timeout= convert_error(ER_LOCK_WAIT_TIMEOUT)
+--let $slave_sql_errno= $err_deadlock,$err_timeout
+--source include/wait_for_slave_sql_error.inc
+
+--echo
+--echo # 5. The applier resumes once the failure is no longer injected.
+
+--source include/rpl_connection_slave1.inc
+ROLLBACK;
+
+--source include/rpl_connection_slave.inc
+--let $debug_point= error_on_set_mta_context_trx_retry
+--source include/remove_debug_point.inc
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let $assert_text= the retried transaction is applied after resuming the applier
+--let $assert_cond= COUNT(*) = 1 FROM t1 WHERE a = 2
+--source include/assert.inc
+
+--echo
+--echo # 6. Clean up.
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--disable_warnings
+SET @@GLOBAL.replica_parallel_type= @saved_parallel_type;
+SET @@GLOBAL.replica_parallel_workers= @saved_parallel_workers;
+SET @@GLOBAL.replica_preserve_commit_order= @saved_preserve_commit_order;
+SET @@GLOBAL.replica_transaction_retries= @saved_transaction_retries;
+SET @@GLOBAL.innodb_lock_wait_timeout= @saved_lock_wait_timeout;
+--enable_warnings
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -42,6 +42,7 @@ Created 2020-11-01 by Sunny Bains. */
 #include "os0thread-create.h"
 #include "row0ext.h"
 #include "row0vers.h"
+#include "sync0debug.h"
 #include "ut0stage.h"
 
 namespace ddl {
@@ -1231,6 +1232,7 @@ dberr_t Builder::key_buffer_sort(size_t thread_id) noexcept {
 }
 
 dberr_t Builder::handle_error(dberr_t err) noexcept {
+  ut_ad(err != DB_SUCCESS);
   set_error(err);
 
   if (m_btr_load != nullptr) {
@@ -1327,6 +1329,10 @@ dberr_t Builder::insert_direct(Cursor &cursor, size_t thread_id) noexcept {
       m_btr_load = nullptr;
     } else {
       m_btr_load->release();
+      /* Arm ddl_ins_spatial_fail after pages are buffer-fixed. */
+      DBUG_EXECUTE_IF("ddl_batch_inserter_fail", {
+        Sync_point::add(m_ctx.thd(), "ddl_ins_spatial_fail");
+      });
     }
 
     if (err != DB_SUCCESS) {

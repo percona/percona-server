@@ -1,0 +1,62 @@
+include/have_replication_observers_example_plugin.inc
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Load plugin replication observers example on server1, it provides
+#    the message service send UDF and logs every message delivered to a
+#    consumer.
+include/install_replication_observers_example.inc
+
+# 2. Load plugin replication observers example on server2.
+[connection server2]
+include/install_replication_observers_example.inc
+
+# 3. Enable on server1 the debug point that encodes an out of bounds
+#    PIT_TAG payload item length on the outgoing service message.
+[connection server1]
+# Adding debug point 'gr_invalid_message_service_tag_length' to @@GLOBAL.debug
+
+# 4. Send a service message. The UDF succeeds: the payload is corrupted
+#    on encode, after the send has been accepted.
+SELECT group_replication_service_message_send("tag", "Server1 sent a message");
+group_replication_service_message_send("tag", "Server1 sent a message")
+The tag and message was sent to the group.
+
+# 5. Both members reject the malformed message and move to ERROR.
+include/gr_wait_for_member_state.inc
+[connection server2]
+include/gr_wait_for_member_state.inc
+
+# 6. Assert server1, the sender, rejected its own copy of the message,
+#    delivered nothing to the consumer, and applied the exit state
+#    action.
+[connection server1]
+include/assert.inc [Server 1 rejected the malformed service message payload.]
+include/assert.inc [Server 1 left the group after rejecting the message.]
+include/assert.inc [Server 1 delivered no message to the consumer.]
+include/assert_and_disable_read_only.inc
+
+# 7. Assert server2, the receiver, did the same.
+[connection server2]
+include/assert.inc [Server 2 rejected the malformed service message payload.]
+include/assert.inc [Server 2 left the group after rejecting the message.]
+include/assert.inc [Server 2 delivered no message to the consumer.]
+include/assert_and_disable_read_only.inc
+
+# 8. Restore the group.
+include/stop_group_replication.inc
+[connection server1]
+# Removing debug point 'gr_invalid_message_service_tag_length' from @@GLOBAL.debug
+include/stop_group_replication.inc
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 9. Cleanup.
+include/uninstall_replication_observers_example.inc
+[connection server1]
+include/uninstall_replication_observers_example.inc
+include/group_replication_end.inc

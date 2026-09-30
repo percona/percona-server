@@ -68,6 +68,7 @@
 #include <deque>
 #include <map>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -7380,7 +7381,15 @@ extern "C" void *handle_slave_sql(void *arg) {
       if (ev != nullptr && rli->is_parallel_exec() &&
           rli->current_mts_submode != nullptr) {
         if (rli->current_mts_submode->set_multi_threaded_applier_context(*rli,
-                                                                         *ev)) {
+                                                                         *ev) ||
+            DBUG_EVALUATE_IF("error_on_set_mta_context_main", true, false)) {
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR),
+                      "Replication encountered an internal error and could not "
+                      "complete. "
+                      "Try stopping and starting replication.");
+          delete ev;
+          ev = nullptr;
           goto err;
         }
       }
@@ -7685,6 +7694,93 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
   return 0;
 }
 
+/// Check whether queue_event() constructs this event type directly instead of
+/// using the general deserialization path.
+///
+/// @param event_type The incoming event type.
+///
+/// @retval true if queue_event() uses direct construction for this event type.
+/// @retval false otherwise.
+static bool queue_event_uses_direct_construction(Log_event_type event_type) {
+  return event_type == binary_log::ROTATE_EVENT ||
+         event_type == binary_log::HEARTBEAT_LOG_EVENT ||
+         event_type == binary_log::HEARTBEAT_LOG_EVENT_V2 ||
+         event_type == binary_log::TRANSACTION_PAYLOAD_EVENT ||
+         event_type == binary_log::GTID_LOG_EVENT ||
+         event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT;
+}
+
+/**
+  This function checks if a format description event has been processed and
+  stored in the receiver thread context.
+
+  @note In case the format description event is missing, this function writes
+  an error to the error log, but does not add it to the diagnostics area of the
+  receiver thread. The error code is:
+  ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION
+
+  @param mi the receiver thread context.
+  @return true if the fd event has not been processed and saved, false
+  otherwise.
+*/
+static bool is_fd_event_saved_in_context(Master_info &mi) {
+  DBUG_TRACE;
+  if (mi.get_mi_description_event() == nullptr) {
+    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION,
+           mi.get_channel());
+    return false;
+  }
+
+  return true;
+}
+
+/**
+  This function checks if the format description event exists
+  and whether it is able to be used with the event types.
+
+  @note this function, in case it finds the format description event unusable,
+  writes an error to the error log and pushes that error to the diagnostics
+  area of the receiver thread. The error code is: ER_REPLICA_CORRUPT_EVENT .
+
+  @param mi the io thread context, containing the current format description
+            event
+  @param event_type the event type to handle together with the format
+                    description event
+  @return false if the event is not usable, true otherwise.
+*/
+static bool is_fd_event_saved_in_context_usable_with_event_type(
+    Master_info &mi, Log_event_type event_type) {
+  DBUG_TRACE;
+  auto fde{mi.get_mi_description_event()};
+
+  /* on debug builds assert, on production builds, return false */
+  assert(fde != nullptr);
+  if (fde == nullptr) return false;
+
+  /* make the fde have fewer event types than those that come down the pipe. */
+  DBUG_EXECUTE_IF("queue_event_unknown_event_type_by_fd_event", {
+    auto new_post_header_len_size{binary_log::START_EVENT_V3};
+    fde->post_header_len.resize(new_post_header_len_size);
+    fde->number_of_event_types = new_post_header_len_size;
+  });
+
+  DBUG_PRINT(
+      "info",
+      ("number of event types: %d, post_header_len size: %lu, event_type: %d",
+       fde->number_of_event_types, fde->post_header_len.size(), event_type));
+
+  if (event_type > fde->number_of_event_types) {
+    mi.report(ERROR_LEVEL, ER_REPLICA_CORRUPT_EVENT,
+              "Event type '%s' is not recognized by the format description "
+              "event currently in use. Please, restart the receiver thread. "
+              "If the problem persists, inspecting the relay logs may help "
+              "diagnosing the issue.",
+              Log_event::get_type_str(event_type));
+    return false;
+  }
+  return true;
+}
+
 /**
   Store an event received from the master connection into the relay
   log.
@@ -7800,6 +7896,22 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     goto err;
   }
 
+  if (queue_event_uses_direct_construction(event_type) &&
+      (event_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
+       event_len != uint4korr(buf + EVENT_LEN_OFFSET))) {
+    std::stringstream ss;
+    const uint32 header_event_len = event_len < LOG_EVENT_MINIMAL_HEADER_LEN
+                                        ? 0
+                                        : uint4korr(buf + EVENT_LEN_OFFSET);
+    ss << "Rejected malformed " << Log_event::get_type_str(event_type)
+       << " event from source: received packet length " << event_len
+       << " does not match event header length " << header_event_len
+       << ". Verify the source and binary log stream integrity.";
+    mi->report(ERROR_LEVEL, ER_REPLICA_CREATE_EVENT_FAILURE, "%s",
+               ss.str().c_str());
+    goto err;
+  }
+
   /*
     From now, and up to finishing queuing the event, no other thread is allowed
     to write to the relay log, or to rotate it.
@@ -7808,11 +7920,10 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   assert(lock_count == 0);
   lock_count = 1;
 
-  if (mi->get_mi_description_event() == nullptr) {
-    LogErr(ERROR_LEVEL, ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION,
-           mi->get_channel());
+  /* format description event checks */
+  if (!is_fd_event_saved_in_context(*mi)) goto err;
+  if (!is_fd_event_saved_in_context_usable_with_event_type(*mi, event_type))
     goto err;
-  }
 
   /*
     Simulate an unknown ignorable log event by rewriting a Xid
@@ -7896,10 +8007,35 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     case binary_log::ROTATE_EVENT: {
       Format_description_log_event *fde = mi->get_mi_description_event();
       enum_binlog_checksum_alg fde_checksum_alg = fde->footer()->checksum_alg;
+      const bool is_fake_rotate = uint4korr(&buf[0]) == 0;
+      const bool add_checksum_to_fake_rotate =
+          is_fake_rotate &&
+          checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+          mi->rli->relay_log.relay_log_checksum_alg !=
+              binary_log::BINLOG_CHECKSUM_ALG_OFF;
+      const bool strip_checksum_from_fake_rotate =
+          is_fake_rotate &&
+          checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF &&
+          mi->rli->relay_log.relay_log_checksum_alg ==
+              binary_log::BINLOG_CHECKSUM_ALG_OFF;
+
       if (fde_checksum_alg != checksum_alg)
         fde->footer()->checksum_alg = checksum_alg;
       Rotate_log_event rev(buf, fde);
       fde->footer()->checksum_alg = fde_checksum_alg;
+
+      if ((add_checksum_to_fake_rotate &&
+           event_len > sizeof(rot_buf) - BINLOG_CHECKSUM_LEN) ||
+          (strip_checksum_from_fake_rotate &&
+           (event_len < BINLOG_CHECKSUM_LEN ||
+            event_len - BINLOG_CHECKSUM_LEN > sizeof(rot_buf)))) {
+        mi->report(ERROR_LEVEL, ER_REPLICA_RELAY_LOG_WRITE_FAILURE,
+                   "Received oversized rotate event. Please retry the "
+                   "connection. If the problem persists, investigate the "
+                   "source of the invalid event and verify the "
+                   "source-replica connection.");
+        goto err;
+      }
 
       if (unlikely(process_io_rotate(mi, &rev))) {
         // This error will be reported later at handle_slave_io().
@@ -7918,11 +8054,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
                 to compute checksum for its first FD event for RL
                 the fake Rotate gets checksummed here.
       */
-      if (uint4korr(&buf[0]) == 0 &&
-          checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-          mi->rli->relay_log.relay_log_checksum_alg !=
-              binary_log::BINLOG_CHECKSUM_ALG_OFF) {
+      if (add_checksum_to_fake_rotate) {
         ha_checksum rot_crc = checksum_crc32(0L, nullptr, 0);
+        assert(event_len <= sizeof(rot_buf) - BINLOG_CHECKSUM_LEN);
         event_len += BINLOG_CHECKSUM_LEN;
         memcpy(rot_buf, buf, event_len - BINLOG_CHECKSUM_LEN);
         int4store(&rot_buf[EVENT_LEN_OFFSET],
@@ -7943,10 +8077,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
           RSC_2: If NM \and fake Rotate \and slave does not compute checksum
           the fake Rotate's checksum is stripped off before relay-logging.
         */
-        if (uint4korr(&buf[0]) == 0 &&
-            checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-            mi->rli->relay_log.relay_log_checksum_alg ==
-                binary_log::BINLOG_CHECKSUM_ALG_OFF) {
+        if (strip_checksum_from_fake_rotate) {
+          assert(event_len >= BINLOG_CHECKSUM_LEN);
+          assert(event_len - BINLOG_CHECKSUM_LEN <= sizeof(rot_buf));
           event_len -= BINLOG_CHECKSUM_LEN;
           memcpy(rot_buf, buf, event_len);
           int4store(

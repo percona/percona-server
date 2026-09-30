@@ -1,0 +1,19 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Preparing a dedicated datadir and restarting onto it with --datadir=d
+SELECT @@global.innodb_redo_log_encrypt;
+@@global.innodb_redo_log_encrypt
+1
+# Restoring the original datadir before removing the prepared tree
+# Kill the server
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -1,0 +1,59 @@
+# Bug#39245844 CLONE client might write to arbitrary path
+#
+# Clone_Snapshot::build_file_path() computes the destination path for a
+# cloned file. For a file that has an absolute path on the Donor (e.g. a
+# table created with DATA DIRECTORY outside the datadir), the computed
+# path must be inside the clone destination directory or inside a
+# directory known to InnoDB (--datadir, --innodb-directories,
+# --innodb-data-home-dir, --innodb-undo-directory). Otherwise the clone
+# must be rejected with ER_WRONG_VALUE instead of writing to that path.
+#
+# This test creates a table with an absolute-path DATA DIRECTORY while
+# that directory is known, then restarts without it registered, and
+# shows that a local clone which would need to touch that now-unknown
+# path is rejected.
+
+--let $KNOWN_DIR = $MYSQL_TMP_DIR/known_dir
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--disable_query_log
+--mkdir $KNOWN_DIR
+call mtr.add_suppression("The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
+--enable_query_log
+
+--echo # Register a known directory and create a table there.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters = restart: --innodb-directories=$KNOWN_DIR
+--source include/restart_mysqld.inc
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval CREATE TABLE t1(col1 INT PRIMARY KEY) DATA DIRECTORY = '$KNOWN_DIR'
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo # Restart without the known directory registered. The table's file
+--echo # is untouched on disk, but its absolute path is no longer a known
+--echo # location as far as this server instance is concerned.
+--let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+
+SELECT * FROM t1 ORDER BY col1;
+
+--echo # The clone must be rejected: build_file_path() finds the file's
+--echo # absolute path neither inside the clone destination directory
+--echo # nor inside any directory known to InnoDB.
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+--replace_result $CLONE_DATADIR CLONE_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_WRONG_VALUE
+--eval CLONE LOCAL DATA DIRECTORY = '$CLONE_DATADIR'
+
+--echo # Cleanup
+SET GLOBAL clone_autotune_concurrency = default;
+SET GLOBAL clone_max_concurrency = default;
+UNINSTALL PLUGIN clone;
+DROP TABLE t1;
+--force-rmdir $KNOWN_DIR
+--force-rmdir $CLONE_DATADIR

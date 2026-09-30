@@ -1,0 +1,67 @@
+# ==== Purpose ====
+#
+# Verify that a COM_BINLOG_DUMP_GTID request whose encoded GTID set declares an
+# interval count large enough to wrap the payload-length check is refused
+# before any interval is decoded.
+#
+# ==== Requirements ====
+#
+# R1. A dump request whose declared interval count cannot fit in the encoded
+#     payload MUST be refused with ER_MALFORMED_GTID_SET_ENCODING, without the
+#     source reading past the end of the payload.
+#
+# R2. A well-formed dump request MUST still be served, so that the added bound
+#     does not over-reject.
+#
+# ==== Implementation ====
+#
+# 1) R2 first: dump the source's binary log over COM_BINLOG_DUMP_GTID with a
+#    well-formed (empty) GTID set and expect it to be served.
+# 2) Enable the debug point simulate_large_com_binlog_dump_gtid_encoding, which
+#    replaces the received payload with one declaring 2^60 intervals in 32
+#    declared bytes, and expect the dump to be refused.
+# 3) Assert the source reported "Malformed GTID set encoding".
+# 4) Clean up.
+#
+# Without the fix, `length - pos < 2 * 8 * n_intervals` wraps to 0 for
+# n_intervals = 2^60, so the bound passes and the decode loop - which used a
+# 32-bit counter against a 64-bit count - keeps reading past the end of the
+# payload. An ASAN build reports a heap-buffer-overflow READ in
+# Gtid_set::add_gtid_encoding(); a non-instrumented build performs the
+# out-of-bounds reads and decodes millions of intervals before giving up.
+#
+# ==== References ====
+#
+# Bug#39253491 : Validate GTID interval payload length
+# mysql/mysql-server@7359acd40cc
+#
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+
+--let $binlog_file= query_get_value(SHOW BINARY LOGS, Log_name, 1)
+--let $out= $MYSQL_TMP_DIR/dump_gtid_interval_count.out
+
+--echo #
+--echo # R2. A well-formed COM_BINLOG_DUMP_GTID request is served.
+--echo #
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTIDS --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $out 2>&1
+
+--echo #
+--echo # R1. A declared interval count that overflows the payload check is refused.
+--echo #
+--let $debug_point= simulate_large_com_binlog_dump_gtid_encoding
+--source include/add_debug_point.inc
+
+--error 1
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTIDS --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $out 2>&1
+
+--let $assert_file= $out
+--let $assert_select= Malformed GTID set encoding
+--let $assert_count= 1
+--let $assert_text= The source refused the malformed interval count
+--source include/assert_grep.inc
+
+--let $debug_point= simulate_large_com_binlog_dump_gtid_encoding
+--source include/remove_debug_point.inc
+
+--remove_file $out

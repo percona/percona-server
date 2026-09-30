@@ -1,0 +1,60 @@
+# Bug#39181231 / PS-11437
+#
+# Plugin_and_data_dir_option_parser used to memcpy a temporary datadir into
+# mysql_real_data_home without clearing the buffer. The compiled-in default
+# is the relative path "data". A shorter --datadir value then leaves the
+# leftover suffix in place, so the instance manifest is read from a bogus
+# path and innodb_redo_log_encrypt=ON fails during startup.
+#
+# The one-character --datadir=d is shorter than that compiled-in default, so
+# unfixed code derives "d/ta" (or similar) instead of "d/".
+#
+# The server is restarted onto a dedicated prepared datadir. --datadir=d is
+# still required so the early parser sees a shorter replacement than "data".
+# That relative name is resolved against process cwd (MYSQL_TEST_DIR) for
+# the local manifest, and against basedir for the real InnoDB datadir.
+
+--source include/have_component_keyring_file.inc
+--source include/not_windows.inc
+--source include/not_parallel.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb_max_16k.inc
+
+--source ../inc/setup_component.inc
+
+--let $MYSQLD_BASEDIR = `SELECT @@basedir`
+--let $PREPARED_DATADIR = $MYSQL_TMP_DIR/bug39181231_data
+
+--echo # Preparing a dedicated datadir and restarting onto it with --datadir=d
+--source include/shutdown_mysqld.inc
+
+--error 0,1
+--force-rmdir $PREPARED_DATADIR
+--force-cpdir $CURRENT_DATADIR $PREPARED_DATADIR
+
+# Early manifest lookup opens "d/mysqld.my" from process cwd. Later
+# my_load_path resolves relative --datadir=d against basedir.
+--error 0,1
+--remove_file $MYSQL_TEST_DIR/d
+--error 0,1
+--remove_file $MYSQLD_BASEDIR/d
+--exec ln -sfn $PREPARED_DATADIR $MYSQL_TEST_DIR/d
+--exec ln -sfn $PREPARED_DATADIR $MYSQLD_BASEDIR/d
+
+--let $restart_parameters= restart: $PLUGIN_DIR_OPT --datadir=d --innodb_redo_log_encrypt=ON
+--source include/start_mysqld_no_echo.inc
+
+SELECT @@global.innodb_redo_log_encrypt;
+
+--echo # Restoring the original datadir before removing the prepared tree
+--source include/kill_mysqld.inc
+--let $restart_parameters= restart: $PLUGIN_DIR_OPT
+--source include/start_mysqld_no_echo.inc
+
+--error 0,1
+--remove_file $MYSQL_TEST_DIR/d
+--error 0,1
+--remove_file $MYSQLD_BASEDIR/d
+--force-rmdir $PREPARED_DATADIR
+
+--source ../inc/teardown_component.inc

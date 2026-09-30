@@ -1,0 +1,31 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (2);
+# Adding debug point 'binlog_sender_short_rotate_event_len' to @@GLOBAL.debug
+[connection slave]
+CALL mtr.add_suppression("Rejected malformed Rotate event from source");
+CALL mtr.add_suppression("could not queue event from source");
+START SLAVE IO_THREAD;
+Warnings:
+Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+include/wait_for_slave_io_error.inc [errno=13122]
+Last_IO_Error = 'Relay log write failure: could not queue event from source'
+include/assert_grep.inc [Found rejection message for malformed Rotate event]
+[connection master]
+# Removing debug point 'binlog_sender_short_rotate_event_len' from @@GLOBAL.debug
+[connection slave]
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Replica has all rows after recovery]
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

@@ -73,6 +73,8 @@ bool Cache_based_verification::verify_authentication_string(
     const std::string & /* unused */) const {
   if (client_string_hex.empty()) return false;
 
+  if (client_string_hex.size() != SHA256_DIGEST_LENGTH * 2) return false;
+
   if (!m_sha256_password_cache) return false;
 
   auto stored_hash = m_sha256_password_cache->get_entry(user, host);

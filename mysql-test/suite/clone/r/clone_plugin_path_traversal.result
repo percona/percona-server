@@ -1,0 +1,14 @@
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL DEBUG = '+d,clone_inject_invalid_donor_plugin_so';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR HY000: Clone Donor plugin clone_path_traversal is not active in Recipient.
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	3870
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+SET GLOBAL DEBUG = '-d,clone_inject_invalid_donor_plugin_so';
+UNINSTALL PLUGIN clone;

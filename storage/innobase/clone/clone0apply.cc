@@ -87,9 +87,7 @@ int Clone_Snapshot::rename_desc(const Clone_File_Meta *file_meta,
   file_ctx->m_state.store(Clone_file_ctx::State::RENAMED);
 
   /* Overwrite with the renamed file context. */
-  add_file_from_desc(file_ctx, false);
-
-  return 0;
+  return add_file_from_desc(file_ctx, false);
 }
 
 int Clone_Snapshot::fix_ddl_extension(const char *data_dir,
@@ -320,9 +318,9 @@ int Clone_Snapshot::handle_existing_file(bool replace, bool undo_file,
   return err;
 }
 
-int Clone_Snapshot::build_file_path(const char *data_dir,
-                                    const Clone_File_Meta *file_meta,
-                                    std::string &built_path) {
+int Clone_Snapshot::build_file_path_unsafe(const char *data_dir,
+                                           const Clone_File_Meta *file_meta,
+                                           std::string &built_path) {
   std::string source;
 
   bool redo_file = (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
@@ -401,6 +399,26 @@ int Clone_Snapshot::build_file_path(const char *data_dir,
   }
 
   built_path.append(source);
+  return 0;
+}
+
+int Clone_Snapshot::build_file_path(const char *data_dir,
+                                    const Clone_File_Meta *file_meta,
+                                    std::string &built_path) {
+  const auto err = build_file_path_unsafe(data_dir, file_meta, built_path);
+
+  if (err != 0) {
+    return err;
+  }
+  /* the only permited "unknown" paths are the destination data_dir, and redo
+  log dir, but in case data_dir is specified we put redo logs in it anyway.*/
+  if (!fil_path_is_known(built_path) &&
+      !Fil_path(data_dir != nullptr ? data_dir : srv_log_group_home_dir, true)
+           .is_ancestor(built_path)) {
+    my_error(ER_WRONG_VALUE, MYF(0), "file path", built_path.c_str());
+    return ER_WRONG_VALUE;
+  }
+
   return 0;
 }
 
@@ -499,8 +517,8 @@ int Clone_Snapshot::create_desc(const char *data_dir,
   return (err);
 }
 
-bool Clone_Snapshot::add_file_from_desc(Clone_file_ctx *&file_ctx,
-                                        bool ddl_create) {
+int Clone_Snapshot::add_file_from_desc(Clone_file_ctx *&file_ctx,
+                                       bool ddl_create, bool *is_last) {
   mutex_enter(&m_snapshot_mutex);
 
   ut_ad(m_snapshot_handle_type == CLONE_HDL_APPLY);
@@ -513,21 +531,32 @@ bool Clone_Snapshot::add_file_from_desc(Clone_file_ctx *&file_ctx,
       /* Add data file at the end and extend length. */
       m_data_file_vector.push_back(file_ctx);
     } else {
+      if (file_meta->m_file_index >= m_data_file_vector.size()) {
+        mutex_exit(&m_snapshot_mutex);
+        my_error(ER_CLONE_PROTOCOL, MYF(0),
+                 "Wrong Clone RPC: Invalid File Index");
+        return ER_CLONE_PROTOCOL;
+      }
       m_data_file_vector[file_meta->m_file_index] = file_ctx;
     }
   } else {
     ut_ad(m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
+    if (file_meta->m_file_index >= m_redo_file_vector.size()) {
+      mutex_exit(&m_snapshot_mutex);
+      my_error(ER_CLONE_PROTOCOL, MYF(0),
+               "Wrong Clone RPC: Invalid File Index");
+      return ER_CLONE_PROTOCOL;
+    }
     m_redo_file_vector[file_meta->m_file_index] = file_ctx;
   }
 
   mutex_exit(&m_snapshot_mutex);
 
-  /** Check if it the last file */
-  if (file_meta->m_file_index == num_data_files() - 1) {
-    return true;
+  if (is_last != nullptr) {
+    *is_last = (file_meta->m_file_index == num_data_files() - 1);
   }
 
-  return (false);
+  return 0;
 }
 
 int Clone_Handle::apply_task_metadata(Clone_Task *task,
@@ -1215,8 +1244,14 @@ int Clone_Handle::apply_file_metadata(Clone_Task *task,
     }
 
     /* If last file is received, set all file metadata transferred */
-    if (snapshot->add_file_from_desc(file_ctx, ddl_desc)) {
-      m_clone_task_manager.set_file_meta_transferred();
+    bool is_last = false;
+    auto add_err = snapshot->add_file_from_desc(file_ctx, ddl_desc, &is_last);
+    if (add_err == 0) {
+      if (is_last) {
+        m_clone_task_manager.set_file_meta_transferred();
+      }
+    } else if (err == 0) {
+      err = add_err;
     }
 
     mutex_exit(m_clone_task_manager.get_mutex());
@@ -1236,7 +1271,10 @@ int Clone_Handle::apply_file_metadata(Clone_Task *task,
 
   err = open_file(nullptr, file_ctx, OS_CLONE_LOG_FILE, true, empty_cbk);
 
-  snapshot->add_file_from_desc(file_ctx, false);
+  auto add_err = snapshot->add_file_from_desc(file_ctx, false);
+  if (add_err != 0 && err == 0) {
+    err = add_err;
+  }
 
   mutex_exit(m_clone_task_manager.get_mutex());
   return (err);
@@ -1397,6 +1435,11 @@ int Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
   auto snapshot = m_clone_task_manager.get_snapshot();
 
   auto file_ctx = snapshot->get_file_ctx_by_index(task->m_current_file_index);
+  if (file_ctx == nullptr) {
+    int err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data File Index");
+    return err;
+  }
   auto file_meta = file_ctx->get_file_meta();
 
   std::string file_name;
@@ -1540,6 +1583,13 @@ int Clone_Handle::apply_data(Clone_Task *task, Ha_clone_cbk *callback) {
       return (err);
     }
     task->m_current_file_index = data_desc.m_file_index;
+  }
+
+  auto snapshot = m_clone_task_manager.get_snapshot();
+  if (snapshot->get_file_ctx_by_index(task->m_current_file_index) == nullptr) {
+    int err = ER_CLONE_PROTOCOL;
+    my_error(err, MYF(0), "Wrong Clone RPC: Invalid Data File Index");
+    return err;
   }
 
   /* Receive data from callback and apply. */

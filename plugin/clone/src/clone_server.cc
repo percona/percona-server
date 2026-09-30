@@ -31,6 +31,7 @@ Clone Plugin: Server implementation
 #include "plugin/clone/include/clone_status.h"
 
 #include "my_byteorder.h"
+#include "my_dbug.h"
 
 /* Namespace for all clone data types */
 namespace myclone {
@@ -616,6 +617,7 @@ int Server::send_descriptor(handlerton *hton, bool secure, uint loc_index,
   ++buf_ptr;
 
   /* Store Locator Index */
+  DBUG_EXECUTE_IF("clone_send_invalid_locator_index", { loc_index = 0xFF; };);
   *buf_ptr = static_cast<uchar>(loc_index);
   ++buf_ptr;
 

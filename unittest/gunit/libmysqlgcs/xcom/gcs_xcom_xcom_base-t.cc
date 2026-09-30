@@ -1219,4 +1219,245 @@ TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
   free(srv_from2.con);
 }
 
+/*
+  Bug#39234600 - Unauthenticated XCom client_msg injection executes arbitrary
+  replicated SQL on Group Replication members.
+
+  acceptor_learner_task() used to hand an externally received client_msg to the
+  same dispatch path as locally submitted Group Replication input, so a peer
+  able to reach the XCom port could submit app_type cargo that is applied as
+  replicated SQL on every group member. The fix gates that path with an
+  allowlist of cargo types acceptable from an external client.
+*/
+
+/* Build a single-element app_data list carrying the given cargo type. */
+static app_data_ptr new_app_data_with_cargo(cargo_type cargo) {
+  app_data_ptr a = new_app_data();
+  a->body.c_t = cargo;
+  return a;
+}
+
+/*
+  XCom client/control and membership configuration requests, which must keep
+  working over an external client connection.
+*/
+static cargo_type const allowed_external_client_cargo[] = {
+    add_node_type,
+    disable_arbitrator,
+    enable_arbitrator,
+    force_config_type,
+    get_event_horizon_type,
+    get_leaders_type,
+    get_synode_app_data_type,
+    remove_node_type,
+    set_cache_limit,
+    set_event_horizon_type,
+    set_leaders_type,
+    set_max_leaders,
+    unified_boot_type};
+
+/*
+  Application delivery, transaction/view handling, reset and termination cargo,
+  which must never be accepted from an external client. app_type is the vehicle
+  for arbitrary replicated content and is the actual vulnerability.
+*/
+static cargo_type const disallowed_external_client_cargo[] = {
+    abort_trans,       app_type,
+    begin_trans,       convert_into_local_server_type,
+    exit_type,         prepared_trans,
+    remove_reset_type, reset_type,
+    view_msg,          x_terminate_and_exit,
+    xcom_boot_type,    xcom_set_group};
+
+TEST_F(XcomBase, ExternalClientCargoAllowlistAcceptsControlCargo) {
+  for (auto cargo : allowed_external_client_cargo) {
+    ASSERT_TRUE(unittest_only_is_allowed_external_client_cargo_type(cargo))
+        << "cargo type " << static_cast<int>(cargo)
+        << " must remain allowed on an external client connection";
+  }
+}
+
+TEST_F(XcomBase, ExternalClientCargoAllowlistRejectsDeliveryCargo) {
+  for (auto cargo : disallowed_external_client_cargo) {
+    ASSERT_FALSE(unittest_only_is_allowed_external_client_cargo_type(cargo))
+        << "cargo type " << static_cast<int>(cargo)
+        << " must be rejected on an external client connection";
+  }
+}
+
+TEST_F(XcomBase, ExternalClientCargoAllowlistCoversEveryCargoType) {
+  /*
+    The two lists above must together account for every member of cargo_type.
+    The production switch is exhaustive, so the compiler already rejects a
+    *forgotten* cargo type - but nothing stops a newly added one being placed in
+    the allowed arm by mistake, or this test drifting out of step with the enum.
+    If cargo_type grows, this count must be updated deliberately, alongside a
+    decision about which arm the new type belongs in.
+
+    Note cargo_type is NOT contiguous: values 3, 5 and 6 were retired with
+    xcom_recover, query_type and query_next_log (they still exist in 5.7), so
+    iterating 0..get_leaders_type would visit non-members. Counting the lists is
+    the reliable check.
+  */
+  size_t const n_allowed = sizeof(allowed_external_client_cargo) /
+                           sizeof(allowed_external_client_cargo[0]);
+  size_t const n_disallowed = sizeof(disallowed_external_client_cargo) /
+                              sizeof(disallowed_external_client_cargo[0]);
+  ASSERT_EQ(13u, n_allowed);
+  ASSERT_EQ(12u, n_disallowed);
+  ASSERT_EQ(25u, n_allowed + n_disallowed);
+}
+
+TEST_F(XcomBase, ExternalClientCargoAllowlistFailsClosedOnRetiredValues) {
+  /*
+    The retired enum values 3, 5 and 6 have no case in the switch, so they fall
+    through to the closing `return FALSE`. Pin that fail-closed behaviour: an
+    unrecognised cargo type must never be treated as allowed.
+  */
+  for (int retired : {3, 5, 6}) {
+    ASSERT_FALSE(unittest_only_is_allowed_external_client_cargo_type(
+        static_cast<cargo_type>(retired)))
+        << "unrecognised cargo type " << retired << " must fail closed";
+  }
+}
+
+TEST_F(XcomBase, ExternalClientRejectsAppTypeInAppDataList) {
+  app_data_ptr data = new_app_data_with_cargo(app_type);
+  ASSERT_TRUE(unittest_only_has_disallowed_external_client_cargo_type(data));
+  _replace_app_data_list(&data, nullptr);
+}
+
+TEST_F(XcomBase, ExternalClientAcceptsMembershipAppDataList) {
+  app_data_ptr data = new_app_data_with_cargo(add_node_type);
+  ASSERT_FALSE(unittest_only_has_disallowed_external_client_cargo_type(data));
+  _replace_app_data_list(&data, nullptr);
+}
+
+TEST_F(XcomBase, ExternalClientRejectsAppTypeAnywhereInList) {
+  /* The scan must not stop at the first element: an attacker can prepend
+     legitimate cargo to smuggle app_type further down the list. */
+  app_data_ptr data = new_app_data_with_cargo(add_node_type);
+  data->next = new_app_data_with_cargo(remove_node_type);
+  data->next->next = new_app_data_with_cargo(app_type);
+
+  ASSERT_TRUE(unittest_only_has_disallowed_external_client_cargo_type(data));
+  _replace_app_data_list(&data, nullptr);
+}
+
+TEST_F(XcomBase, ExternalClientRejectsMixedDisallowedCargoInList) {
+  /* Same for a non-app_type disallowed cargo behind an allowed one, which
+     exercises the second loop rather than the app_type fast path. */
+  app_data_ptr data = new_app_data_with_cargo(add_node_type);
+  data->next = new_app_data_with_cargo(exit_type);
+
+  ASSERT_TRUE(unittest_only_has_disallowed_external_client_cargo_type(data));
+  _replace_app_data_list(&data, nullptr);
+}
+
+TEST_F(XcomBase, ExternalClientAcceptsEmptyAppDataList) {
+  /* A null list carries no disallowed cargo; the gate must not invent one. */
+  ASSERT_FALSE(
+      unittest_only_has_disallowed_external_client_cargo_type(nullptr));
+}
+
+/*
+  Bug#39234600 - demonstrates the attack path, and pins the gate that closes it.
+
+  acceptor_learner_task() did not distinguish an externally received client_msg
+  application payload from local Group Replication input.
+  Both paths end in the same place:
+
+    local     xcom_send()             -> channel_put(&prop_input_queue, ...)
+    external  acceptor_learner_task() -> dispatch_op()
+                                      -> case client_msg
+                                      -> handle_client_msg()
+                                      -> channel_put(&prop_input_queue, ...)
+
+  This test builds the hostile message - a client_msg carrying app_type, which
+  is the cargo that becomes replicated content - and establishes two things:
+
+  1. dispatch_op() accepts it onto prop_input_queue on exactly the same terms as
+     a locally submitted message. dispatch_op() is precisely the call
+     acceptor_learner_task() makes for a message read off the wire, and the
+     pax_msg carries no provenance, so once queued the proposer cannot tell the
+     two apart. Nothing downstream of the gate protects against this.
+
+  2. The gate rejects that same message. This is the regression assertion: if
+     the allowlist is removed or misclassifies app_type, step 2 fails.
+
+  SCOPE. Step 1 passes with or without the fix, by design - the gate sits
+  upstream in acceptor_learner_task(), not in dispatch_op(). It is here to show
+  what the gate is protecting, not to detect its absence; step 2 does that.
+  Driving acceptor_learner_task() itself would need the XCom scheduler
+  (task_loop() does not return) and a socketpair, which no test in this tree
+  does, so the accept -> task -> dispatch link is established by reading
+  incoming_connection_task() in xcom_transport.cc rather than by execution.
+*/
+TEST_F(XcomBase, ExternalClientMsgReachesProposerQueueAndIsGated) {
+  /*
+    The fixture already init_cache()d. xcom_thread_init() calls init_cache()
+    again, which would orphan that first allocation, so release it here and
+    let xcom_thread_init() own the cache for the rest of the test.
+  */
+  ::deinit_cache();
+
+  /* xcom_thread_init() is what channel_init()s prop_input_queue. */
+  xcom_thread_init();
+
+  int const base = unittest_only_prop_input_queue_len();
+
+  /* Locally submitted Group Replication input. */
+  app_data_ptr local_a = new_app_data();
+  local_a->body.c_t = app_type;
+  pax_msg *local_msg = pax_msg_new_0(null_synode);
+  local_msg->refcnt = 1;
+  xcom_send(local_a, local_msg);
+
+  int const after_local = unittest_only_prop_input_queue_len();
+  ASSERT_EQ(base + 1, after_local)
+      << "local xcom_send() must queue exactly one message";
+
+  /* The same application cargo, arriving as an external client_msg. */
+  app_data_ptr ext_a = new_app_data();
+  ext_a->body.c_t = app_type;
+  pax_msg *ext_msg = pax_msg_new_0(null_synode);
+  ext_msg->refcnt = 1;
+  ext_msg->op = client_msg;
+  ext_msg->a = ext_a;
+
+  linkage reply_queue;
+  link_init(&reply_queue, TYPE_HASH("msg_link"));
+
+  /* 1. It is accepted on the same terms as the local one. */
+  dispatch_op(nullptr, ext_msg, &reply_queue);
+  ASSERT_EQ(after_local + 1, unittest_only_prop_input_queue_len())
+      << "an external client_msg carrying app_type reached the proposer queue "
+         "on the same terms as locally submitted input - nothing downstream "
+         "distinguishes them. This is the path Bug#39234600 opens.";
+
+  /*
+    2. The gate rejects exactly that message. Regression assertion.
+
+    The gate has two independent layers and both are asserted, because either
+    alone leaves a hole:
+      - an app_type fast path, which does not consult the allowlist
+      - the allowlist loop, for every other disallowed cargo
+    Asserting only app_type would keep passing if the allowlist were broken,
+    since the fast path would still catch it.
+  */
+  ASSERT_TRUE(unittest_only_has_disallowed_external_client_cargo_type(ext_a))
+      << "the app_type fast path must reject this message; without it the "
+         "payload above is applied as replicated SQL on every group member";
+
+  app_data_ptr other_a = new_app_data();
+  other_a->body.c_t = exit_type;
+  ASSERT_TRUE(unittest_only_has_disallowed_external_client_cargo_type(other_a))
+      << "the allowlist loop must reject non-app_type cargo that has no place "
+         "on an external client connection";
+  ASSERT_FALSE(unittest_only_is_allowed_external_client_cargo_type(app_type))
+      << "app_type must never be classified as allowed, independently of the "
+         "fast path that also catches it";
+  _replace_app_data_list(&other_a, nullptr);
+}
+
 }  // namespace xcom_base_unittest

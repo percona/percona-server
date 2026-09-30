@@ -1,0 +1,55 @@
+# Regression test for PS-11437 / Bug#39449066.
+#
+# OBJECT_INSTANCE_BEGIN and the *_IDENTITY columns exposed by several
+# performance_schema tables used to be raw process memory addresses
+# (const void *) reinterpreted as BIGINT UNSIGNED, leaking heap/mmap
+# pointer values -- and therefore process ASLR layout -- to any account
+# with SELECT on performance_schema.
+#
+# The fix replaces the raw pointer with a synthetic identity built from
+# a small container id, a page id, an object index and an ABA-avoidance
+# version number (see make_identity() in pfs_buffer_container.cc). The
+# container id occupies the top 16 bits of the 64-bit identity, and
+# container ids are assigned starting at 1.
+#
+# On x86-64 and aarch64 Linux, canonical user-space pointers only use
+# the low 48 bits of the address space, so the top 16 bits of a raw
+# pointer reinterpreted as an integer are always 0. This test checks
+# that the top 16 bits of the exposed identity are non-zero, instead of
+# asserting an exact identity value, so it keeps working across
+# container-count changes and future container id assignment.
+
+--echo #
+--echo # OBJECT_INSTANCE_BEGIN in performance_schema.metadata_locks
+--echo #
+
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+
+SELECT OBJECT_INSTANCE_BEGIN INTO @mdl_identity
+  FROM performance_schema.metadata_locks
+  WHERE OBJECT_TYPE = 'TABLE'
+    AND OBJECT_SCHEMA = 'test'
+    AND OBJECT_NAME = 't1'
+    AND LOCK_STATUS = 'GRANTED';
+
+SELECT @mdl_identity IS NOT NULL AS identity_found,
+       (@mdl_identity >> 48) <> 0 AS identity_is_not_a_raw_pointer;
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo #
+--echo # OBJECT_INSTANCE_BEGIN in performance_schema.prepared_statements_instances
+--echo #
+
+PREPARE stmt FROM 'SELECT 1';
+
+SELECT OBJECT_INSTANCE_BEGIN INTO @stmt_identity
+  FROM performance_schema.prepared_statements_instances
+  WHERE STATEMENT_NAME = 'stmt';
+
+SELECT @stmt_identity IS NOT NULL AS identity_found,
+       (@stmt_identity >> 48) <> 0 AS identity_is_not_a_raw_pointer;
+
+DEALLOCATE PREPARE stmt;

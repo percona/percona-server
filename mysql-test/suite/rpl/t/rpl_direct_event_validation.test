@@ -1,0 +1,86 @@
+# ==== Purpose ====
+#
+# Verify that the replica rejects directly queued events whose packet
+# length does not match the event header length field.
+#
+# ==== Requirements ====
+#
+# R1. When a directly queued event (ROTATE, HEARTBEAT, etc.) arrives
+#     with a packet length that differs from the event header's length
+#     field, the replica must reject it and stop the I/O thread.
+#
+# ==== Implementation ====
+#
+# 1. Skip starting the slave so we control when the dump thread is created.
+# 2. On the source: create data and FLUSH BINARY LOGS to produce a
+#    completed binlog with a real ROTATE event at the end.
+# 3. Enable the debug point on the source BEFORE the slave connects,
+#    guaranteeing the dump thread inherits it at creation.
+# 4. Start the slave.  The dump thread reads from the first binlog,
+#    hits the real ROTATE, corrupts it, and sends it.
+# 5. The replica's validation detects the length mismatch and stops
+#    the I/O thread with an error.
+# 6. Remove the debug point and verify replication resumes.
+#
+# ==== References ====
+#
+# Bug#39254914: Improve directly queued event validation
+#
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Produce a completed binlog that contains a real ROTATE at its end
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (2);
+
+# Set the debug point before the slave connects so the dump thread
+# is guaranteed to inherit it at creation time.
+--let $debug_point= binlog_sender_short_rotate_event_len
+--source include/add_debug_point.inc
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Rejected malformed Rotate event from source");
+CALL mtr.add_suppression("could not queue event from source");
+
+START SLAVE IO_THREAD;
+
+# Without the fix the corrupted ROTATE is silently accepted (truncated
+# filename stored), so this wait would time out.  Keep timeout short.
+--let $slave_timeout= 30
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+# Verify the detailed rejection message in the error log
+--let $assert_text= Found rejection message for malformed Rotate event
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select= Rejected malformed Rotate event from source: received packet length .* does not match event header length
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# Clean up: remove debug point and restart replication
+--source include/rpl_connection_master.inc
+--let $debug_point= binlog_sender_short_rotate_event_len
+--source include/remove_debug_point.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+# Verify replication works after recovery
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (3);
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Replica has all rows after recovery
+--let $assert_cond= COUNT(*) = 3 FROM t1
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

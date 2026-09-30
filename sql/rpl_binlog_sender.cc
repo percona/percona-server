@@ -1046,6 +1046,8 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
                      Binary_log_event::ROTATE_HEADER_LEN +
                      (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
 
+  DBUG_EXECUTE_IF("binlog_sender_large_rotate_event", event_len = 4096;);
+
   /* reset transmit packet for the fake rotate event below */
   if (reset_transmit_packet(0, event_len)) return 1;
 
@@ -1066,6 +1068,13 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 
   int8store(rotate_header, log_pos);
   memcpy(rotate_header + Binary_log_event::ROTATE_HEADER_LEN, p, ident_len);
+  DBUG_EXECUTE_IF("binlog_sender_large_rotate_event", {
+    uchar *rotate_payload = rotate_header + Binary_log_event::ROTATE_HEADER_LEN;
+    const size_t rotate_payload_len =
+        event_len - LOG_EVENT_HEADER_LEN - Binary_log_event::ROTATE_HEADER_LEN -
+        (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+    memset(rotate_payload + ident_len, 'X', rotate_payload_len - ident_len);
+  };);
 
   if (event_checksum_on()) calc_event_checksum(header, event_len);
 
@@ -1316,6 +1325,16 @@ inline int Binlog_sender::read_event(File_reader &reader, uchar **event_ptr,
 
   DBUG_PRINT("info", ("Read event %s", Log_event::get_type_str(Log_event_type(
                                            (*event_ptr)[EVENT_TYPE_OFFSET]))));
+  DBUG_EXECUTE_IF("binlog_sender_short_rotate_event_len", {
+    if ((*event_ptr)[EVENT_TYPE_OFFSET] == binary_log::ROTATE_EVENT &&
+        *event_len > 8) {
+      // Advertise a shorter event length while keeping the transmitted packet
+      // intact so the receiver's direct Rotate parser truncates the filename
+      // if it trusts the header length over the packet length.
+      int4store(*event_ptr + EVENT_LEN_OFFSET, *event_len - 8);
+      if (event_checksum_on()) calc_event_checksum(*event_ptr, *event_len);
+    }
+  };);
 #ifndef NDEBUG
   if (!readahead && check_event_count()) return 1;
 #endif
@@ -1329,6 +1348,11 @@ int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
   size_t ident_len = strlen(p);
   size_t event_len = ident_len + LOG_EVENT_HEADER_LEN +
                      (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+  DBUG_EXECUTE_IF("binlog_sender_header_only_heartbeat_v1", {
+    ident_len = 0;
+    event_len =
+        LOG_EVENT_HEADER_LEN + (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
+  };);
 
   DBUG_PRINT("info", ("log_file_name %s, log_pos %llu", p, log_pos));
   if (reset_transmit_packet(0, event_len)) return 1;
@@ -1344,7 +1368,7 @@ int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
   int2store(header + FLAGS_OFFSET, 0);
-  memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
+  if (ident_len > 0) memcpy(header + LOG_EVENT_HEADER_LEN, p, ident_len);
   if (event_checksum_on()) calc_event_checksum(header, event_len);
   return send_packet_and_flush();
 }

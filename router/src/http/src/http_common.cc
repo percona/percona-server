@@ -30,6 +30,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -239,9 +240,27 @@ struct EventHttp::impl {
   void *requestArgument_ = nullptr;
 };
 
+namespace {
+
+// evhttp_set_max_*_size() take a signed size; negative means unlimited.
+// Clamp to the positive range of ev_ssize_t so a large limit cannot wrap to
+// negative on platforms where ev_ssize_t is 32-bit.
+ev_ssize_t clamp_evhttp_size_limit(uint64_t max_size) {
+  constexpr auto kMaxSsize =
+      static_cast<uint64_t>(std::numeric_limits<ev_ssize_t>::max());
+  return static_cast<ev_ssize_t>(max_size > kMaxSsize ? kMaxSsize : max_size);
+}
+
+}  // namespace
+
 EventHttp::EventHttp(EventBase *base)
     : pImpl_{std::make_unique<impl>(evhttp_new(impl_get_base(base->pImpl_)),
-                                    impl_get_base(base->pImpl_))} {}
+                                    impl_get_base(base->pImpl_))} {
+  // Bug#39268619: reject oversized request bodies/headers instead of
+  // buffering them unboundedly (libevent defaults both to EV_SIZE_MAX).
+  set_max_body_size(kHttpMaxRequestBodySize);
+  set_max_headers_size(kHttpMaxRequestHeaderSize);
+}
 
 EventHttp::EventHttp(EventHttp &&http) : pImpl_(std::move(http.pImpl_)) {}
 
@@ -251,6 +270,16 @@ EventHttp::~EventHttp() = default;
 
 void EventHttp::set_allowed_http_methods(const HttpMethod::Bitset methods) {
   evhttp_set_allowed_methods(impl_get_base(pImpl_), methods.to_ullong());
+}
+
+void EventHttp::set_max_body_size(uint64_t max_body_size) {
+  evhttp_set_max_body_size(impl_get_base(pImpl_),
+                           clamp_evhttp_size_limit(max_body_size));
+}
+
+void EventHttp::set_max_headers_size(uint64_t max_headers_size) {
+  evhttp_set_max_headers_size(impl_get_base(pImpl_),
+                              clamp_evhttp_size_limit(max_headers_size));
 }
 
 EventHttpBoundSocket EventHttp::accept_socket_with_handle(

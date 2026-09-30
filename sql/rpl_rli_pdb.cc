@@ -1512,6 +1512,13 @@ size_t Slave_committed_queue::find_lwm(Slave_job_group **arg_g,
 void Slave_committed_queue::free_dynamic_items() {
   for (size_t i = entry; i < avail; i++) {
     Slave_job_group *ptr_g = &m_Q[i % capacity];
+    if (ptr_g->new_fd_event) {
+      assert(ptr_g->new_fd_event->atomic_usage_counter > 0);
+      if (--ptr_g->new_fd_event->atomic_usage_counter == 0) {
+        delete ptr_g->new_fd_event;
+      }
+      ptr_g->new_fd_event = nullptr;
+    }
     if (ptr_g->group_relay_log_name) {
       my_free(ptr_g->group_relay_log_name);
     }
@@ -2017,7 +2024,11 @@ bool Slave_worker::read_and_apply_events(my_off_t start_relay_pos,
         // additional context needed, before re-executing (just like in
         // the main loop before exec_relay_log_event)
         if (rli->current_mts_submode->set_multi_threaded_applier_context(*rli,
-                                                                         *ev)) {
+                                                                         *ev) ||
+            DBUG_EVALUATE_IF("error_on_set_mta_context_trx_retry", true,
+                             false)) {
+          delete ev;
+          ev = nullptr;
           return true;
         }
 
@@ -2515,6 +2526,44 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
         diff_timespec(&worker->ts_exec[0], &worker->ts_exec[1]);
     /* Adapting to possible new Format_description_log_event */
     ptr_g = rli->gaq->get_job_group(ev->mts_group_idx);
+    DBUG_EXECUTE_IF("mta_pending_fd_event_on_stop", {
+      /*
+        Deterministically reproduce the leak fixed for Bug#39319907: the
+        Coordinator queues a Format_description notification for a group via
+        (Slave_job_group::new_fd_event), taking a reference on the shared FD
+        event) but the Worker stops before consuming it. Here we mimic that
+        queued-but-unconsumed reference and then error out before the
+        consumption code below runs, so the reference is left dangling in
+        the GAQ. Slave_committed_queue::free_dynamic_items() must release it
+        at GAQ teardown; without the fix the Format_description_log_event
+        leaks.
+      */
+      if (ptr_g->new_fd_event == nullptr) {
+        ptr_g->new_fd_event = rli->get_rli_description_event();
+        ++ptr_g->new_fd_event->atomic_usage_counter;
+      }
+      /*
+        Bind the Worker to the group before reporting, exactly as
+        slave_worker_exec_event() does further below. Slave_worker::do_report()
+        resolves the failing group through gaq_index, which is still the
+        out-of-range sentinel at this point.
+      */
+      worker->set_gaq_index(ev->mts_group_idx);
+      /*
+        do_report() formats the worker's cached master_log_pos into the error
+        message (end_log_pos %llu). That field is normally set by
+        slave_worker_exec_event() as each event is applied, which we skip by
+        erroring out here, so seed it from the current event exactly as that
+        path would so that do_report() does not format an uninitialised value.
+      */
+      worker->set_master_log_pos(
+                static_cast<ulong>(ev->common_header->log_pos));
+      worker->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                     "Injected pending Format_description notification at MTA "
+                     "stop");
+      error = 1;
+      goto err;
+    });
     if (ptr_g->new_fd_event) {
       error = worker->set_rli_description_event(ptr_g->new_fd_event);
       if (unlikely(error)) goto err;

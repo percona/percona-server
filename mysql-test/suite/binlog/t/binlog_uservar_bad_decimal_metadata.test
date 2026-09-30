@@ -1,0 +1,52 @@
+# ==== Purpose ====
+#
+# Bug#39254885 - Validate DECIMAL user var event metadata
+#
+# A User_var event of type DECIMAL_RESULT carries its precision in val[0] and
+# its scale in val[1], followed by the binary decimal payload. The decoder
+# checked only that precision was not smaller than scale, and then handed the
+# payload to bin2decimal(), which reads decimal_bin_size(precision, scale)
+# bytes from it. Nothing checked that the event actually carried that many
+# bytes, so an event declaring a large precision over a short payload made
+# bin2decimal() read past the end of the event buffer. The metadata is attacker
+# controlled: it comes off the wire from a malicious or corrupted source, or
+# out of a crafted binlog.
+#
+# ==== Requirements ====
+#
+# R1. A DECIMAL User_var event whose declared precision and scale need more
+#     payload bytes than the event carries must be rejected while it is
+#     decoded.
+#
+# R2. A DECIMAL User_var event whose payload matches its declared precision and
+#     scale must still decode, so R1 is not satisfied by refusing DECIMAL user
+#     variables in general.
+
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Bug#39254885 - reject DECIMAL user var metadata that overruns the payload
+--echo #
+
+--echo # R2: payload matches the declared precision and scale, so it decodes.
+--exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/binlog_uservar_good_decimal.000001 > $MYSQLTEST_VARDIR/tmp/uservar_good.out 2>&1
+
+--let $assert_text= a well-formed DECIMAL user var event is not rejected
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/uservar_good.out
+--let $assert_select= Found invalid event in binary log
+--let $assert_count= 0
+--source include/assert_grep.inc
+
+--echo # R1: declared precision 65 over a two-byte payload needs 29 bytes, so the
+--echo #     event must be refused instead of read past its end.
+--error 1
+--exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/binlog_uservar_bad_decimal.000001 > $MYSQLTEST_VARDIR/tmp/uservar_bad.out 2>&1
+
+--let $assert_text= the oversized DECIMAL metadata is rejected while decoding
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/uservar_bad.out
+--let $assert_select= Found invalid event in binary log
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/uservar_good.out
+--remove_file $MYSQLTEST_VARDIR/tmp/uservar_bad.out

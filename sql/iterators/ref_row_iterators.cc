@@ -720,6 +720,16 @@ int VectorSearchIterator::DoRead() {
     int error =
         table()->file->vec_read_first(m_item, table()->record[0], m_limit);
     if (error) {
+      /*
+        When the query vector has the wrong dimensions we override the
+        somewhat confusing error reported by handler::print_error() with
+        the one DISTANCE() reports for a dimensions mismatch (which is
+        appropriate here, since vector search is only used with distance).
+      */
+      if (error == HA_ERR_VECTOR_WRONG_DIMENSIONS) {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0), "distance");
+        return 1;
+      }
       return HandleError(error);
     }
     m_first = false;

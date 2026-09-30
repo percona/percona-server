@@ -1,0 +1,250 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11300: a table with a vector index can be rebuilt in place.
+--echo #
+--echo # The rebuild recreates every index on the new table, the vector index
+--echo # among them, so ddl::Builder rebuilds the graph from the copied rows:
+--echo # labels come across untouched in the hidden column, base_pk follows
+--echo # whatever the primary key has become, and the label counter is carried
+--echo # in the table definition.
+--echo #
+--echo # Not online, though - the row log cannot maintain a graph while DML
+--echo # runs against it, so these are LOCK=SHARED.
+--echo #
+--echo # Each case: rebuild, insert, search, CHECK TABLE, restart, search.
+--echo # Node levels are random, so nothing here asserts a graph shape.
+--echo #
+
+--disable_query_log
+DELIMITER |;
+CREATE PROCEDURE seed()
+BEGIN
+  DROP TABLE IF EXISTS t1;
+  CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, alt BIGINT UNSIGNED NOT NULL,
+                   pad INT, v VECTOR(4) NOT NULL);
+  INSERT INTO t1 VALUES (1,101,10,STRING_TO_VECTOR('[1,0,0,0]')),
+                        (2,102,20,STRING_TO_VECTOR('[2,0,0,0]')),
+                        (3,103,30,STRING_TO_VECTOR('[3,0,0,0]'));
+  ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
+END|
+DELIMITER ;|
+--enable_query_log
+
+
+--echo #
+--echo # ---- FORCE ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 FORCE, ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+
+--echo # The new table copied its labels from the old rows without assigning
+--echo # any, so its own counter is zero and the old table holding the real
+--echo # one is already freed. A counter that did not come across reissues a
+--echo # label the INSERT above still holds.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output AS verify_after_force;
+
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- OPTIMIZE ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+OPTIMIZE TABLE t1;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- ENGINE ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 ENGINE=InnoDB;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- ROW_FORMAT ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC, ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- primary key swap ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (alt), ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- ADD COLUMN ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 ADD COLUMN extra VARCHAR(50) DEFAULT 'x', ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- DROP COLUMN ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 DROP COLUMN pad, ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- AUTO_INCREMENT ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 ADD COLUMN serial BIGINT UNSIGNED AUTO_INCREMENT, ADD UNIQUE KEY(serial), ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo #
+--echo # ---- AUTO_INCREMENT + primary key swap ----
+--echo #
+--disable_query_log
+CALL seed();
+--enable_query_log
+ALTER TABLE t1 ADD COLUMN serial BIGINT UNSIGNED AUTO_INCREMENT, ADD UNIQUE KEY(serial), DROP PRIMARY KEY, ADD PRIMARY KEY (alt), ALGORITHM=INPLACE;
+INSERT INTO t1 (id, alt, v) VALUES (9,109,STRING_TO_VECTOR('[9,0,0,0]'));
+SELECT COUNT(*) AS rows_after FROM t1;
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,0,0,0]'), 'euclidean') LIMIT 1;
+CHECK TABLE t1;
+--source include/restart_mysqld.inc
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
+--echo # The rebuild renames the aux after the new table_id - the old one
+--echo # must not be left behind.
+SELECT COUNT(*) AS aux_tables FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+
+--echo #
+--echo # ---- the aux follows the new table_id and index_id ----
+--echo #
+--echo # The aux is named percona_vec_hnsw_<table_id>_<index_id>. A rebuild
+--echo # assigns both afresh, so the name must change and the old one must not
+--echo # be left behind.
+--disable_query_log
+CALL seed();
+--enable_query_log
+CREATE TABLE aux_before AS
+ SELECT name FROM information_schema.innodb_tables
+  WHERE name LIKE '%percona_vec_hnsw%';
+SELECT COUNT(*) AS aux_before_rebuild FROM aux_before;
+
+ALTER TABLE t1 FORCE, ALGORITHM=INPLACE;
+
+--echo # Exactly one aux, and not the one that was there before.
+SELECT COUNT(*) AS aux_after_rebuild FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+SELECT COUNT(*) AS carried_over_stale FROM information_schema.innodb_tables i
+ JOIN aux_before b ON b.name = i.name
+ WHERE i.name LIKE '%percona_vec_hnsw%';
+DROP TABLE aux_before;
+
+--echo #
+--echo # ---- dropping the index drops its aux ----
+--echo #
+ALTER TABLE t1 DROP KEY v;
+SELECT COUNT(*) AS aux_after_drop_index FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo # And adding one back creates exactly one again.
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
+SELECT COUNT(*) AS aux_after_readd FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--echo # Dropping the table takes it with it.
+DROP TABLE t1;
+SELECT COUNT(*) AS aux_after_drop_table FROM information_schema.innodb_tables
+ WHERE name LIKE '%percona_vec_hnsw%';
+
+--disable_query_log
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE seed;
+--enable_query_log

@@ -42,7 +42,8 @@ id
 3
 SET DEBUG = '-d,vec_aux_node_missing';
 # A missing node does not come back, so the index stays refused until
-# it is rebuilt.
+# it is rebuilt; a transient failure (vector_transient_vs_corrupt)
+# is retried instead.
 SELECT id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
 ERROR HY000: Index vk is corrupted

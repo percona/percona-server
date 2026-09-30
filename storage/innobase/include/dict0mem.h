@@ -290,9 +290,9 @@ constexpr uint32_t DICT_TF2_USE_FILE_PER_TABLE = 16;
 constexpr uint32_t DICT_TF2_DISCARDED = 32;
 
 /** The table has an auto-added hidden percona_vec_aux_id column (BIGINT
-UNSIGNED NOT NULL) because at least one vector (HNSW) index lives, or once
-lived, on it: the column and this bit persist across an ALTER that drops
-the last vector index, mirroring DICT_TF2_FTS_HAS_DOC_ID. */
+UNSIGNED NOT NULL). It exists exactly while the table has a vector (HNSW) index:
+the first ADD VECTOR INDEX rebuilds the table to add it, and dropping the last
+one rebuilds the table without it. */
 constexpr uint32_t DICT_TF2_HAS_VEC_AUX_COL = 64;
 
 /** Intrinsic table bit

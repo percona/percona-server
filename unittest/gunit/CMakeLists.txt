@@ -405,7 +405,7 @@ MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ENABLE_EXPORTS
   EXCLUDE_FROM_GCOV
   LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson extra::boost
-    library_mysys
+    extra::unordered_dense library_mysys
   )
 IF(TARGET merge_small_tests-t)
   DOWNGRADE_STRINGOP_WARNINGS(merge_small_tests-t)
@@ -431,7 +431,8 @@ FOREACH(test ${TESTS})
     COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL
-    LINK_LIBRARIES sqlgunitlib gunit_small extra::boost library_mysys
+    LINK_LIBRARIES sqlgunitlib gunit_small extra::boost extra::unordered_dense
+      library_mysys
     SKIP_INSTALL
     ADD_GCOV_TEST ${test}
   )
@@ -455,7 +456,7 @@ MYSQL_ADD_EXECUTABLE(hnsw_bench-t hnsw_bench-t.cc
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
   EXCLUDE_FROM_ALL
-  LINK_LIBRARIES sqlgunitlib gunit_small extra::boost
+  LINK_LIBRARIES sqlgunitlib gunit_small extra::boost extra::unordered_dense
   SKIP_INSTALL
 )
 

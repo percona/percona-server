@@ -231,3 +231,24 @@ uint64_t vec_label_from_rec(const dict_table_t *table, const rec_t *rec,
   }
   return label;
 }
+
+void vec_label_update(dict_table_t *table, upd_field_t *ufield,
+                      uint64_t *next_label) {
+  ut_ad(table->vec_aux_col != ULINT_UNDEFINED);
+  ut_ad(*next_label != 0);
+
+  dict_index_t *clust = table->first_index();
+  dict_col_t *col = table->get_col(table->vec_aux_col);
+
+  ufield->exp = nullptr;
+  ufield->field_no = dict_col_get_clust_pos(col, clust);
+  col->copy_type(dfield_get_type(&ufield->new_val));
+
+  /* Storage byte order, written back over the trx member the label was assigned
+  into - which then IS the field's buffer. */
+  mach_write_to_8(reinterpret_cast<byte *>(next_label), *next_label);
+
+  ufield->new_val.data = next_label;
+  ufield->new_val.len = sizeof(*next_label);
+  ufield->new_val.ext = 0;
+}

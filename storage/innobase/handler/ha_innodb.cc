@@ -2487,6 +2487,7 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
     case DB_UNDO_RECORD_TOO_BIG:
       return (HA_ERR_UNDO_REC_TOO_BIG);
     case DB_OUT_OF_MEMORY:
+    case DB_VEC_OUT_OF_MEMORY:
       return (HA_ERR_OUT_OF_MEM);
     case DB_VEC_WRONG_DIMENSIONS:
       return (HA_ERR_VECTOR_WRONG_DIMENSIONS);

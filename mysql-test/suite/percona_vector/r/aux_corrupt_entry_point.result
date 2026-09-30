@@ -3,54 +3,30 @@
 # Graph node id 0 is a reserved empty-slot sentinel that no real
 # node is ever assigned, so a record 0 naming entry point 0 is
 # corrupt (bit-flip, torn page, crafted data). vec_runtime_load()
-# must reject it with an error rather than hand it to the graph,
-# which asserts on id 0 deeper in the load path.
+# must reject it with an error rather than hand it to the graph.
 #
 CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(4) NOT NULL,
-VECTOR KEY (v) TYPE hnsw (M = 4));
-# Open the table so its vector runtime exists, before any real
-# insert would create the aux table's own record 0.
-SELECT COUNT(*) FROM t1;
-COUNT(*)
-0
-# Forge a corrupt record 0: entry point id 0, the reserved sentinel.
-SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t1 0 0 0.0,0.0,0.0,0.0 -';
-SELECT @@session.innodb_interpreter_output;
-@@session.innodb_interpreter_output
-PASS: inserted id=0
-# A search forces the lazy graph load, which must now fail cleanly
-# instead of asserting. The error is index-scoped: the base table is
-# not reported as crashed.
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]')),
+(4, STRING_TO_VECTOR('[0,0,0,1]'));
+# Drop the in-memory graph so the next query has to read the aux.
+# restart
+# The load reads a real record 0; the hook makes it name entry point 0.
+# The error is index-scoped: the base table is not reported as crashed.
+SET DEBUG = '+d,vec_aux_entry_point_zero';
 SELECT id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'euclidean') LIMIT 1;
 ERROR HY000: Index t1 is corrupted
-# The server is still alive and the table remains usable otherwise.
+SET DEBUG = '-d,vec_aux_entry_point_zero';
+# The index stays refused once the hook is gone.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'euclidean') LIMIT 1;
+ERROR HY000: Index vk is corrupted
+# The base table is unaffected.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-0
+4
 DROP TABLE t1;
-#
-# Same corruption, reached through the real SQL ANN path rather than
-# the debug hook: ORDER BY DISTANCE(...) LIMIT k must surface
-# ER_INDEX_CORRUPT, not a crash and not a false "table is crashed"
-# (which is what DB_CORRUPTION would have mapped to instead).
-#
-CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
-v VECTOR(4) NOT NULL,
-VECTOR KEY (v) TYPE hnsw (M = 4));
-SELECT COUNT(*) FROM t2;
-COUNT(*)
-0
-SET SESSION innodb_interpreter = 'vec_aux_insert_row test/t2 0 0 0.0,0.0,0.0,0.0 -';
-SELECT @@session.innodb_interpreter_output;
-@@session.innodb_interpreter_output
-PASS: inserted id=0
-SELECT id FROM t2 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
-ERROR HY000: Index t2 is corrupted
-# The base table is unaffected: it is neither crashed nor otherwise
-# unusable, only this index's runtime failed to load.
-SELECT COUNT(*) FROM t2;
-COUNT(*)
-0
-DROP TABLE t2;

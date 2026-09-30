@@ -472,8 +472,10 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   mem_heap_t *heap = mem_heap_create(256, UT_LOCATION_HERE);
   vec_aux_read_t meta;
   const dberr_t err = vec_aux_read_node(aux, 0, heap, &meta);
-  const uint64_t entry_point = meta.base_pk;
+  uint64_t entry_point = meta.base_pk;
   mem_heap_free(heap);
+  /* Test-only: a record 0 that names entry point 0. */
+  DBUG_EXECUTE_IF("vec_aux_entry_point_zero", entry_point = 0;);
 
   if (err == DB_RECORD_NOT_FOUND) {
     /* Empty index. The graph stays empty and the first insert will
@@ -489,9 +491,8 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
 
   /* Graph node id 0 is the class's reserved empty-slot sentinel; no real
   node is ever assigned it (vec_persist_entry_point). A record 0 naming it
-  as the entry point is therefore corrupt, not merely empty - and passing
-  it on would hit ut_a(id != 0) in vec_persist_load_node instead of
-  failing gracefully.
+  as the entry point is therefore corrupt, not merely empty, and must not
+  reach vec_persist_load_node, which asserts the id is not 0.
 
   DB_INDEX_CORRUPT, not DB_CORRUPTION: convert_error_code_to_mysql maps
   DB_CORRUPTION to HA_ERR_CRASHED, which reports the *base table* as
@@ -622,9 +623,7 @@ static dberr_t vec_runtime_load_once(vec_t *vec, dict_index_t *index,
   if (vec->loaded.load(std::memory_order_relaxed)) return DB_SUCCESS;
 
   const dberr_t err = vec_runtime_load(vec, aux, thd);
-  if (err == DB_INDEX_CORRUPT || err == DB_CORRUPTION) {
-    dict_set_corrupted(index);
-  }
+  if (err == DB_INDEX_CORRUPT) dict_set_corrupted(index);
   return err;
 }
 
@@ -767,7 +766,11 @@ vector scan, which is why the aux table and its MDL live here rather than
 being re-taken per batch: nn_search_next faults nodes in through
 load_node_cb, and that reads ctx.aux. */
 struct vec_search_t {
+  /** The graph being searched: base_index->vec. */
   vec_t *vec{nullptr};
+  /** The base table's vector index: owns the runtime and is what a
+  corruption found mid-scan marks. Not the aux table's clustered index. */
+  dict_index_t *base_index{nullptr};
   /** MDL on the aux table, held until vec_ann_close(). */
   MDL_ticket *mdl{nullptr};
   /** What the load callbacks read: the aux table (ctx.aux), the session,
@@ -776,6 +779,17 @@ struct vec_search_t {
   /** HNSW's resumable search state, one batch per nn_search_next(). */
   Vec_hnsw::NNSearchContext nn;
 };
+
+/** Keep a search that found the graph and the aux disagreeing to the rule
+the load path follows: the index is marked corrupt, and stays refused until
+it is rebuilt. HNSW has marked the node lost and will not retry it, so a
+later search would otherwise answer without it.
+@param[in,out]  s  the scan whose ctx.err is set */
+static void vec_ann_set_corrupted(vec_search_t *s) {
+  if (s->ctx.err != DB_INDEX_CORRUPT) return;
+  vec_runtime_set_corrupted(s->vec);
+  dict_set_corrupted(s->base_index);
+}
 
 dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
                      size_t ef_search, THD *thd, vec_search_t **out) {
@@ -802,6 +816,7 @@ dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
 
   auto *s = ut::new_withkey<vec_search_t>(UT_NEW_THIS_FILE_PSI_KEY);
   s->vec = vec;
+  s->base_index = index;
   s->mdl = mdl;
   s->ctx.trx = nullptr;
   s->ctx.aux = aux;
@@ -820,6 +835,7 @@ dberr_t vec_ann_open(dict_index_t *index, const float *q, size_t batch_size,
     s->ctx.err = vec_hnsw_dberr(src, &s->ctx);
   }
   if (s->ctx.err != DB_SUCCESS) {
+    vec_ann_set_corrupted(s);
     const dberr_t err = s->ctx.err;
     vec_ann_close(s);
     return err;
@@ -834,12 +850,16 @@ bool vec_ann_next(vec_search_t *s, vec_hit_t *hit) {
   if (s->ctx.err != DB_SUCCESS) return false;
 
   const auto next = s->vec->hnsw->nn_search_next(&s->nn);
-  if (s->ctx.err != DB_SUCCESS) return false;
+  if (s->ctx.err != DB_SUCCESS) {
+    vec_ann_set_corrupted(s);
+    return false;
+  }
   /* HNSW_NOT_FOUND is the ordinary end of the scan here, not a failure -
   the one caller for which that result is not an error at all. */
   if (next.first == HNSW_NOT_FOUND) return false;
   if (next.first != HNSW_SUCCESS) {
     s->ctx.err = vec_hnsw_dberr(next.first, &s->ctx);
+    vec_ann_set_corrupted(s);
     return false;
   }
 

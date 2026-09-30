@@ -1,0 +1,98 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A vector index whose runtime could not be opened must not be
+--echo # silently skipped by DML.
+--echo #
+--echo # ha_innobase::open() does not fail the table open when
+--echo # vec_runtime_open() cannot build a runtime - the table has to stay
+--echo # readable and droppable, which is how it gets repaired. But the
+--echo # runtime lives on dict_index_t, so the index then has none for
+--echo # every session until the table is reopened, and an INSERT that
+--echo # skips it writes a row with a hidden label that no node is ever
+--echo # created under. The index answers without that row for good, and
+--echo # nothing reconciles the two afterwards.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 k INT,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, 0, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, 0, STRING_TO_VECTOR('[0,1,0,0]'));
+
+--echo # One node per row, and the index answers.
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Drop the runtime, then refuse to build it again. The next
+--echo # statement is the one that opens the table.
+--source include/restart_mysqld.inc
+SET DEBUG = '+d,vec_runtime_open_fail';
+
+--echo #
+--echo # INSERT fails rather than writing a row the index will never have.
+--echo #
+--error ER_OUT_OF_RESOURCES
+INSERT INTO t1 VALUES (3, 0, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo #
+--echo # UPDATE of the vector column, the same: calc_row_difference has
+--echo # already given the row a fresh label, so skipping the graph would
+--echo # strand the row exactly as an INSERT would.
+--echo #
+--error ER_OUT_OF_RESOURCES
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 2;
+
+--echo #
+--echo # Changing the primary key is graph work too - the node carries the
+--echo # base row's key, which is what a search returns - so it is refused
+--echo # for the same reason.
+--echo #
+--error ER_OUT_OF_RESOURCES
+UPDATE t1 SET id = 20 WHERE id = 2;
+
+--echo #
+--echo # An UPDATE that touches neither the vector nor the key has nothing
+--echo # to maintain, and goes through.
+--echo #
+UPDATE t1 SET k = 5 WHERE id = 2;
+SELECT id, k FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+
+--echo #
+--echo # And the read path says so too, rather than reporting a table with
+--echo # nothing near the query vector.
+--echo #
+--echo # The LIMIT has to stay under the table's two rows. One that reaches
+--echo # the whole table leaves the optimizer free to answer from a scan,
+--echo # which never opens the runtime and so never reaches the failure
+--echo # this checks - the statement would just succeed.
+--echo #
+--error ER_OUT_OF_RESOURCES
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+SET DEBUG = '-d,vec_runtime_open_fail';
+
+--echo #
+--echo # Nothing was lost. The reason recorded was an allocation failure,
+--echo # which a later open can get past, and once it does the statements
+--echo # that were refused go through and the index has every row.
+--echo #
+--source include/restart_mysqld.inc
+INSERT INTO t1 VALUES (3, 0, STRING_TO_VECTOR('[0,0,1,0]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0,0,1]') WHERE id = 2;
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 1;
+--echo # Four nodes for three rows: the UPDATE above gave row 2 a fresh
+--echo # label, and the node under its old label stays. That orphan is what
+--echo # the design accepts for an UPDATE, so dup_base_pks=1 here is the
+--echo # expected shape, not a defect.
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

@@ -1,0 +1,51 @@
+#
+# A vector index that cannot get memory must fail the statement, not
+# the server.
+#
+# Every HNSW result code now maps to a specific InnoDB error rather
+# than all of them collapsing to one. The memory ones map to
+# DB_VEC_OUT_OF_MEMORY and not DB_OUT_OF_MEMORY, and that is the
+# whole point of the distinction: row_mysql_handle_errors does not
+# list DB_OUT_OF_MEMORY, so it reaches the ib::fatal arm there. The
+# INSERT path goes through that function, so returning the wrong one
+# of the two takes the server down instead of failing one statement.
+#
+# Both cold-load entry points are covered: a SELECT that has to build
+# the graph, and an INSERT that has to.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]'));
+# Drop the in-memory graph so the next statement has to build one.
+# restart
+SET DEBUG = '+d,vec_graph_alloc_fail';
+# The search path: reported through convert_error_code_to_mysql, which
+# was never the fatal one, but assert it is an error and not an empty
+# result.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+# The INSERT path: this is the one that reaches
+# row_mysql_handle_errors. Before the mapping it was a dead server.
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET DEBUG = '-d,vec_graph_alloc_fail';
+# Still alive, and the refusal was transient: nothing durable
+# changed, so the same INSERT now works and the index answers.
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+id
+1
+2
+3
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+id
+3
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=3 distinct_ids=3 distinct_base_pks=3 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=0
+DROP TABLE t1;

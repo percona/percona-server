@@ -1,0 +1,53 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A vector index that cannot get memory must fail the statement, not
+--echo # the server.
+--echo #
+--echo # Every HNSW result code now maps to a specific InnoDB error rather
+--echo # than all of them collapsing to one. The memory ones map to
+--echo # DB_VEC_OUT_OF_MEMORY and not DB_OUT_OF_MEMORY, and that is the
+--echo # whole point of the distinction: row_mysql_handle_errors does not
+--echo # list DB_OUT_OF_MEMORY, so it reaches the ib::fatal arm there. The
+--echo # INSERT path goes through that function, so returning the wrong one
+--echo # of the two takes the server down instead of failing one statement.
+--echo #
+--echo # Both cold-load entry points are covered: a SELECT that has to build
+--echo # the graph, and an INSERT that has to.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]'));
+
+--echo # Drop the in-memory graph so the next statement has to build one.
+--source include/restart_mysqld.inc
+
+SET DEBUG = '+d,vec_graph_alloc_fail';
+
+--echo # The search path: reported through convert_error_code_to_mysql, which
+--echo # was never the fatal one, but assert it is an error and not an empty
+--echo # result.
+--error ER_OUT_OF_RESOURCES
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # The INSERT path: this is the one that reaches
+--echo # row_mysql_handle_errors. Before the mapping it was a dead server.
+--error ER_OUT_OF_RESOURCES
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+
+SET DEBUG = '-d,vec_graph_alloc_fail';
+
+--echo # Still alive, and the refusal was transient: nothing durable
+--echo # changed, so the same INSERT now works and the index answers.
+INSERT INTO t1 VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,1,0]'), 'euclidean') LIMIT 1;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

@@ -1226,6 +1226,7 @@ handle_new_error:
              " the startup or when you dump the tables. "
           << FORCE_RECOVERY_MSG;
       break;
+
     case DB_INDEX_CORRUPT:
       /* A vector index's aux table does not agree with its graph: a node
       the graph names is missing or malformed, or the aux table itself

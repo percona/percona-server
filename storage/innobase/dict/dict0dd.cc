@@ -80,6 +80,7 @@ Data dictionary interface */
 #include "sql_table.h"
 #include "univ.i"  // Using OS_PATH_SEPARATOR
 #include "vec0aux.h"
+#include "vec0label.h"
 #endif /* !UNIV_HOTBACKUP */
 
 const char *DD_instant_col_val_coder::encode(const byte *stream, size_t in_len,
@@ -1787,7 +1788,8 @@ void dd_copy_table_columns(const Alter_inplace_info *ha_alter_info,
 
   for (const auto old_col : old_table.columns()) {
     if (old_col->is_se_hidden() && !is_system_column(old_col->name().c_str()) &&
-        (strcmp(old_col->name().c_str(), FTS_DOC_ID_COL_NAME) != 0)) {
+        (strcmp(old_col->name().c_str(), FTS_DOC_ID_COL_NAME) != 0) &&
+        (strcmp(old_col->name().c_str(), VEC_AUX_ID_COL_NAME) != 0)) {
       /* Must be an already dropped column. */
       ut_ad(dd_column_is_dropped(old_col));
       continue;
@@ -2034,7 +2036,8 @@ bool copy_dropped_columns(const dd::Table *old_dd_table,
     }
 
     if (!column->is_se_hidden() ||
-        innobase_strcasecmp(col_name, FTS_DOC_ID_COL_NAME) == 0) {
+        innobase_strcasecmp(col_name, FTS_DOC_ID_COL_NAME) == 0 ||
+        innobase_strcasecmp(col_name, VEC_AUX_ID_COL_NAME) == 0) {
       continue;
     }
 
@@ -2831,6 +2834,27 @@ void dd_write_tablespace(dd::Tablespace *dd_space, space_id_t space_id,
         DD_SPACE_CURRENT_SRV_VERSION);
   p.set(dd_space_key_strings[DD_SPACE_VERSION], DD_SPACE_CURRENT_SPACE_VERSION);
   p.set(dd_space_key_strings[DD_SPACE_STATE], dd_space_state_values[state]);
+}
+
+/** Re-add the hidden percona_vec_aux_id column to a new dd::Table that lost
+it. The new definition is built from the server's TABLE_SHARE, which carries
+no SE-hidden columns, so a table that owns this one has to have it put back
+before the column counts of the two definitions are compared.
+@param[in,out]  new_table       New dd table
+@param[in]      old_table       Old dd table */
+void dd_add_vec_aux_id_column(dd::Table &new_table,
+                              const dd::Table &old_table) {
+  if (dd_find_column(&old_table, VEC_AUX_ID_COL_NAME) == nullptr) {
+    return;
+  }
+  if (dd_find_column(&new_table, VEC_AUX_ID_COL_NAME) != nullptr) {
+    return;
+  }
+
+  /* No companion index, unlike FTS_DOC_ID: the base row is linked to the
+  aux by percona_vec_aux_id = aux.id through each table's own PK. */
+  dd_add_hidden_column(&new_table, VEC_AUX_ID_COL_NAME, sizeof(uint64_t),
+                       dd::enum_column_types::LONGLONG);
 }
 
 /** Add fts doc id column and index to new table
@@ -3713,7 +3737,8 @@ template <typename Table>
 static inline void fill_dict_columns(const Table *dd_table, const TABLE *m_form,
                                      dict_table_t *dict_table,
                                      const unsigned n_mysql_cols,
-                                     mem_heap_t *heap, bool add_doc_id) {
+                                     mem_heap_t *heap, bool add_doc_id,
+                                     bool add_vec_aux_col) {
   IF_DEBUG(uint32_t crv = 0;)
 
   /* Add existing columns metadata information. */
@@ -3726,6 +3751,15 @@ static inline void fill_dict_columns(const Table *dd_table, const TABLE *m_form,
   if (add_doc_id) {
     /* Add the hidden FTS_DOC_ID column. */
     fts_add_doc_id_column(dict_table, heap);
+  }
+
+  if (add_vec_aux_col) {
+    /* Materialize the hidden percona_vec_aux_id column on dict_table_t.
+    Same simple shape as fts_add_doc_id_column above: INSTANT
+    ADD/DROP COLUMN is blocked on vec-indexed tables (see
+    innobase_support_instant), so the table can never have
+    row_versions > 0 and no phy_pos plumbing is needed. */
+    vec_add_aux_id_column(dict_table, heap);
   }
 
   /* Add system columns to make adding index work */
@@ -3866,7 +3900,22 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     add_doc_id = true;
   }
 
-  const unsigned n_cols = n_mysql_cols + (add_doc_id ? 1 : 0);
+  /* Same shape for the vector percona_vec_aux_id auxiliary column: detect it in
+  the dd::Table and reserve a cols slot so fill_dict_columns can
+  materialize it into dict_table_t. Mirrors FTS_DOC_ID. */
+  bool add_vec_aux_col = false;
+  {
+    const dd::Column *vec_col =
+        dd_find_column(&dd_tab->table(), VEC_AUX_ID_COL_NAME);
+    if (vec_col != nullptr &&
+        vec_col->type() == dd::enum_column_types::LONGLONG &&
+        !vec_col->is_nullable() && vec_col->is_se_hidden()) {
+      add_vec_aux_col = true;
+    }
+  }
+
+  const unsigned n_cols =
+      n_mysql_cols + (add_doc_id ? 1 : 0) + (add_vec_aux_col ? 1 : 0);
 
   row_type real_type = ROW_TYPE_NOT_USED;
 
@@ -3981,6 +4030,16 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     m_table->parent_id = aux_table.parent_id;
   }
 
+  /* Same check for vector aux tables: the on-disk name is the source of
+  truth because DD se_private_data does not currently round-trip flags2's
+  AUX bit. Reconstruct DICT_TF2_VEC_AUX and the parent_id from the
+  "<db>/percona_vec_<type>_<parent_id>_<index_id>" name pattern. */
+  table_id_t vec_parent_id = 0;
+  if (vec_aux_parse_table_name(norm_name, &vec_parent_id, nullptr)) {
+    DICT_TF2_FLAG_SET(m_table, DICT_TF2_VEC_AUX);
+    m_table->parent_id = vec_parent_id;
+  }
+
   if (is_discard) {
     m_table->ibd_file_missing = true;
     m_table->flags2 |= DICT_TF2_DISCARDED;
@@ -4036,7 +4095,8 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   mem_heap_t *heap = mem_heap_create(1000, UT_LOCATION_HERE);
 
   /* Fill out each column info */
-  fill_dict_columns(dd_tab, m_form, m_table, n_mysql_cols, heap, add_doc_id);
+  fill_dict_columns(dd_tab, m_form, m_table, n_mysql_cols, heap, add_doc_id,
+                    add_vec_aux_col);
 
 #ifdef UNIV_DEBUG
   if (m_table->is_upgraded_instant()) {
@@ -5130,6 +5190,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     dict_table_autoinc_unlock(m_table);
     m_table->autoinc_persisted = autoinc;
   }
+
+  Vec_label_counter::load_from_dd(m_table, dd_table->table().se_private_data());
 
   mem_heap_t *heap = mem_heap_create(100, UT_LOCATION_HERE);
   bool fail = false;

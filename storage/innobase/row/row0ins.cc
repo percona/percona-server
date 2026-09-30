@@ -3629,7 +3629,11 @@ static inline void row_ins_get_row_from_query_block(
   ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
   while (node->index != nullptr) {
-    if (node->index->type != DICT_FTS) {
+    /* FTS and vector indexes have no B-tree at the InnoDB layer: FTS has
+    its own aux tables, and a vector index is written by vec_insert_row()
+    once the row is in. Without this skip, btr_cur_search_to_nth_level
+    asserts on index->page == FIL_NULL. */
+    if (node->index->type != DICT_FTS && !node->index->is_vector()) {
       err = row_ins_index_entry_step(node, thr);
 
       switch (err) {

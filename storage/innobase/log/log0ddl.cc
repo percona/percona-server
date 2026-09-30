@@ -973,7 +973,13 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
     return (DB_SUCCESS);
   }
 
-  if (index->type & DICT_FTS) {
+  if ((index->type & DICT_FTS) || index->is_vector()) {
+    /* Vector indexes, like FTS, have no B-tree (page == FIL_NULL).
+    No free-tree log entry needed. Without this skip, DROP TABLE of
+    a vec-indexed table in a shared/general tablespace would hit the
+    ut_ad(index->page != FIL_NULL) assert in insert_free_tree_log,
+    and in release builds write a bogus log entry that trips the
+    matching assert during recovery replay. */
     ut_ad(index->page == FIL_NULL);
     return (DB_SUCCESS);
   }

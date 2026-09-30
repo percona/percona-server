@@ -1,0 +1,113 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11299: DROP INDEX on a vector index must not silently swallow a
+--echo # failure to drop the index's auxiliary table - neither the physical
+--echo # dict_sys/.ibd drop, nor the dd::Table/dd::Tablespace drop that
+--echo # follows it.
+--echo #
+--echo # vec_aux_drop_one_table's return value used to be discarded in
+--echo # commit_cache_norebuild, so either failure left the DROP INDEX
+--echo # reporting success with no trace visible to the client (only a
+--echo # server error log entry). This forces each failure via a DBUG
+--echo # point and checks a warning surfaces.
+--echo #
+
+# Both of these are the injected failure's own consequences: the drop
+# helper's own ib::warn, and the tablespace the test deliberately leaves
+# orphaned. Scoped to the vec aux name so nothing else is masked.
+--disable_query_log
+call mtr.add_suppression("Failed to drop vector aux table .*percona_vec_hnsw_");
+call mtr.add_suppression("Tablespace .*percona_vec_hnsw_.* is missing");
+--enable_query_log
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $aux_count_query = SELECT COUNT(*) FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\\_vec\\_hnsw\\_%')
+
+--echo #
+--echo # === A. The physical dict_sys/.ibd drop fails ===
+--echo #
+--echo # Injected before row_drop_table_for_mysql is even called, so the
+--echo # aux is left completely untouched - exactly the state a real
+--echo # failure (lock wait, I/O error) would leave it in.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[1,1]'));
+
+--let $aux_name = `SELECT SUBSTRING_INDEX(name, '/', -1) FROM information_schema.innodb_tables WHERE name LIKE CONCAT((SELECT DATABASE()), '/percona\\_vec\\_hnsw\\_%')`
+
+SET DEBUG = '+d,vec_aux_drop_force_error';
+ALTER TABLE t1 DROP INDEX vk;
+
+--echo # The DROP still succeeds (the ALTER is already past its
+--echo # point-of-no-return), but the aux-drop failure must be visible.
+SHOW WARNINGS;
+SET DEBUG = '-d,vec_aux_drop_force_error';
+
+--echo # The index itself is gone from the table...
+SHOW CREATE TABLE t1;
+--echo # ...but the untouched aux table is still there, orphaned - and
+--echo # unreachable through any SQL path from here (a known, separately
+--echo # tracked gap: see the DROP VECTOR INDEX aux-cleanup discussion on
+--echo # PS-11299 / PS-11300).
+--eval $aux_count_query
+
+DROP TABLE t1;
+
+--echo # Cleanup: InnoDB still holds the orphan's tablespace open in
+--echo # fil_system even though nothing in the DD or the dict cache can
+--echo # reach it any more - deleting its .ibd file with the server
+--echo # running crashes it (verified: "Cannot continue operation").
+--echo # The only safe way to remove it is offline, same as a DBA would
+--echo # have to.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/test/$aux_name.ibd
+--source include/start_mysqld.inc
+
+--echo #
+--echo # === B. The physical drop succeeds but the DD-side drop fails ===
+--echo #
+--echo # dd_drop_aux_table's result used to be discarded outright, so this
+--echo # failure was invisible even after fixing A above: the dict_sys +
+--echo # .ibd are gone but the dd::Table/dd::Tablespace rows survive,
+--echo # referencing a tablespace with no backing file. Unlike scenario A,
+--echo # this leaves no physical file behind, so there is nothing to clean
+--echo # up by hand here.
+--echo #
+
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[1,1]'));
+
+SET DEBUG = '+d,vec_aux_dd_drop_force_error';
+ALTER TABLE t2 DROP INDEX vk;
+SHOW WARNINGS;
+SET DEBUG = '-d,vec_aux_dd_drop_force_error';
+
+SHOW CREATE TABLE t2;
+
+DROP TABLE t2;
+
+# Both injections above orphan an aux table on purpose, and the test says
+# why nothing reaches them through SQL any more. They are still not this
+# test's to leave behind: an MTR worker reuses its datadir for every test
+# it runs, so the next test inherits them - one counts aux tables and fails,
+# another restarts and finds a missing tablespace in its error log. Which
+# test that is depends on --parallel, so the failure looks random.
+#
+# Nothing here can clean them up by hand. Scenario B leaves a dd::Table whose
+# schema still exists but whose tablespace file does not, and DROP DATABASE
+# leaves that dd::Table behind while removing the schema row - after which any
+# query that enumerates InnoDB tables resolves it and asserts in
+# dd::Table_impl::load_foreign_key_parents.
+#
+# Forcing a restart hands the problem to MTR instead: it stops every server
+# when this test ends, so the next test finds none running and wipes the
+# datadir before it starts. No SQL ever touches the orphans.
+--source include/force_restart.inc

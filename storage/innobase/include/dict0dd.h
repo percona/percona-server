@@ -879,6 +879,11 @@ void dd_update_v_cols(dd::Table *dd_table, table_id_t id);
 void dd_write_tablespace(dd::Tablespace *dd_space, space_id_t space_id,
                          uint32_t fsp_flags, dd_space_states state);
 
+/** Re-add the hidden percona_vec_aux_id column to a new dd::Table that lost it
+@param[in,out]  new_table       New dd table
+@param[in]      old_table       Old dd table */
+void dd_add_vec_aux_id_column(dd::Table &new_table, const dd::Table &old_table);
+
 /** Add fts doc id column and index to new table
 when old table has hidden fts doc id without fulltext index
 @param[in,out]  new_table       New dd table

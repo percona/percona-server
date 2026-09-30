@@ -239,6 +239,12 @@ struct Tester {
   [[nodiscard]] Ret_t find_tablespace_file_name(
       std::vector<std::string> &tokens) noexcept;
 
+  /** Assign the next vector label for a table and print it.
+  Usage: vec_next_id db/table
+  @param[in]  tokens  the command
+  @return the status */
+  [[nodiscard]] Ret_t vec_next_id(std::vector<std::string> &tokens) noexcept;
+
   /** A macro to declare a dispatch function or a command function.  They all
   have the same signature.
   @param[in]   func_  the function that is being declared. */

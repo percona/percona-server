@@ -72,6 +72,7 @@ class Redo_applier::Impl {
   Impl() : m_persisters(std::make_unique<Persisters>()) {
     m_persisters->add(PM_INDEX_CORRUPTED);
     m_persisters->add(PM_TABLE_AUTO_INC);
+    m_persisters->add(PM_TABLE_VEC_IDX_ID);
   }
 
   [[nodiscard]] Parse_result<Mtr_view> parse_mtr(

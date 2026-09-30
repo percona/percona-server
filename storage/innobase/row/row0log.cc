@@ -1686,6 +1686,21 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
   return (err);
 }
 
+/** No vector index reaches the row log: the only ALTER that may run with
+LOCK=NONE is the one dropping the last vector index, and the table it
+rebuilds has none. Applying the log knows B-trees and FTS, not a graph, so a
+vector index here fails the ALTER instead of being skipped or treated as a
+B-tree: debug stops, release logs it and returns an error.
+@param[in]  index  the vector index found in the rebuilt table
+@return DB_INDEX_CORRUPT */
+static dberr_t row_log_refuse_vector_index(const dict_index_t *index) {
+  ut_d(ut_error);
+  ib::error(ER_IB_MSG_456) << "Vector index " << index->name << " of table "
+                           << index->table->name
+                           << " reached the online ALTER log; the ALTER fails.";
+  return DB_INDEX_CORRUPT;
+}
+
 /** Replays an insert operation on a table that was rebuilt.
  @return DB_SUCCESS or error code */
 [[nodiscard]] static dberr_t row_log_table_apply_insert_low(
@@ -1737,8 +1752,10 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
       break;
     }
 
-    /* No vector index reaches this log: an ONLINE alter never leaves one. */
-    ut_ad(!index->is_vector());
+    if (index->is_vector()) {
+      error = row_log_refuse_vector_index(index);
+      break;
+    }
 
     if (index->type & DICT_FTS) {
       continue;
@@ -1939,8 +1956,10 @@ flag_ok:
   }
 
   while ((index = index->next()) != nullptr) {
-    /* No vector index reaches this log: an ONLINE alter never leaves one. */
-    ut_ad(!index->is_vector());
+    if (index->is_vector()) {
+      error = row_log_refuse_vector_index(index);
+      break;
+    }
 
     if (index->type & DICT_FTS) {
       continue;
@@ -2465,8 +2484,10 @@ flag_ok:
       break;
     }
 
-    /* No vector index reaches this log: an ONLINE alter never leaves one. */
-    ut_ad(!index->is_vector());
+    if (index->is_vector()) {
+      error = row_log_refuse_vector_index(index);
+      break;
+    }
 
     if (index->type & DICT_FTS) {
       continue;

@@ -51,7 +51,8 @@ SELECT id FROM t1 FORCE INDEX (PRIMARY) ORDER BY id;
 SET DEBUG = '-d,vec_aux_node_missing';
 
 --echo # A missing node does not come back, so the index stays refused until
---echo # it is rebuilt.
+--echo # it is rebuilt; a transient failure (vector_transient_vs_corrupt)
+--echo # is retried instead.
 --error ER_INDEX_CORRUPT
 SELECT id FROM t1
  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;

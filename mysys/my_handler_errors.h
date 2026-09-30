@@ -128,7 +128,8 @@ static const char *handler_error_messages[] = {
     "Path is too long for the OS",
     "Histogram sampling initialization failed",
     "Too many nested sub-expressions in a full-text search",
-    "Destination schema does not exist"};
+    "Destination schema does not exist",
+    "A vector does not have the dimensions its vector index needs"};
 
 // clang-format on
 

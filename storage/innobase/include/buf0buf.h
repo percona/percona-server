@@ -1184,6 +1184,9 @@ class buf_page_t {
         buf_pool_index(other.buf_pool_index),
 #ifndef UNIV_HOTBACKUP
         hash(other.hash),
+        m_space(other.m_space),
+        m_version(other.m_version),
+        freed_page_clock(other.freed_page_clock),
 #endif /* !UNIV_HOTBACKUP */
         list(other.list),
         newest_modification(other.newest_modification),
@@ -1193,9 +1196,6 @@ class buf_page_t {
 #ifndef UNIV_HOTBACKUP
         ,
         m_flush_observer(other.m_flush_observer),
-        m_space(other.m_space),
-        freed_page_clock(other.freed_page_clock),
-        m_version(other.m_version),
         access_time(other.access_time),
         m_dblwr_id(other.m_dblwr_id),
         old(other.old),
@@ -1625,6 +1625,22 @@ class buf_page_t {
 #ifndef UNIV_HOTBACKUP
   /** Node used in chaining to buf_pool->page_hash or buf_pool->zip_hash */
   buf_page_t *hash;
+
+  /** Tablespace instance that this page belongs to. It is placed close to id
+  and buf_fix_count, which are accessed together with it in the page lookup
+  (see was_stale()), and far from the frequently modified lock word of
+  buf_block_t::lock, so they can never share a cache line. */
+  fil_space_t *m_space{};
+
+  /** Version of fil_space_t when the page was updated. It can also be viewed as
+   the truncation number. */
+  uint32_t m_version{};
+
+  /** The value of buf_pool->freed_page_clock when this block was the last
+  time put to the head of the LRU list; a thread is allowed to read this
+  for heuristic purposes without holding any mutex or latch. It is placed
+  here to avoid padding after m_version. */
+  uint32_t freed_page_clock;
 #endif /* !UNIV_HOTBACKUP */
 
   /** @name Page flushing fields
@@ -1683,18 +1699,7 @@ class buf_page_t {
   /** Flush observer instance. */
   Flush_observer *m_flush_observer{};
 
-  /** Tablespace instance that this page belongs to. */
-  fil_space_t *m_space{};
-
-  /** The value of buf_pool->freed_page_clock when this block was the last
-  time put to the head of the LRU list; a thread is allowed to read this
-  for heuristic purposes without holding any mutex or latch */
-  uint32_t freed_page_clock;
-
   /** @} */
-  /** Version of fil_space_t when the page was updated. It can also be viewed as
-   the truncation number. */
-  uint32_t m_version{};
 
   /** Time of first access, or 0 if the block was never accessed in the
   buffer pool. Protected by block mutex */

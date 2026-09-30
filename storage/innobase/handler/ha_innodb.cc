@@ -188,7 +188,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
 #include "sql/auth/auth_common.h"
-#include "sql/dd_table_share.h"  // dd_is_vector_index
+#include "sql/dd_table_share.h"  // is_vector_index
 #include "sql/item.h"
 #include "sql_base.h"
 #include "srv0tmp.h"
@@ -213,6 +213,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql-common/json_binary.h"
 #include "sql-common/json_dom.h"
 
+#include "vec0aux.h"
 #include "vec0vec.h"
 
 #include "os0enc.h"
@@ -1196,8 +1197,6 @@ static MYSQL_THDVAR_STR(tmpdir,
                         "Directory for temporary non-tablespace files.",
                         innodb_tmpdir_validate, nullptr, nullptr);
 
-/* Default value is updated later in innodb_init_params due to the dependency on
---container_aware startup option */
 static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           "Number of threads to do parallel read.", nullptr,
                           nullptr, 4,                   /* Default. */
@@ -4822,14 +4821,10 @@ static bool innobase_redo_set_state(THD *thd, bool enable) {
 static bool innobase_validate_vector_index_params(
     THD *thd, const char *db_name, HA_CREATE_INFO *create_info,
     const Alter_info *alter_info) {
+  /* Every vector key, so the error does not depend on key order. */
   for (const auto *key : alter_info->key_list) {
-    switch (key->type) {
-      case KEYTYPE_VECTOR:
-        return storage::innobase::vec::validate_options(*key);
-        break;
-      default:
-        break;
-    }
+    if (key->type != KEYTYPE_VECTOR) continue;
+    if (storage::innobase::vec::validate_options(*key)) return true;
   }
 
   return false;
@@ -15300,6 +15295,21 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
   rename_file = dict_table_is_file_per_table(table);
   space = table->space;
 
+  /* A cross-schema rename also renames the vector aux tables, and
+  row_rename_table_for_mysql() opens each of them by name. They are hidden,
+  so the server took no MDL on them when it locked the parent. Lock them
+  here, as row_drop_table_for_mysql() does for DROP TABLE. There is one aux
+  table per vector index, so a table without one takes no lock. The MDL is
+  MDL_TRANSACTION and is released on commit by trans_commit_implicit(). */
+  if (!dict_tables_have_same_db(norm_from, norm_to)) {
+    error = vec_aux_lock_all_tables(thd, table);
+
+    if (error != DB_SUCCESS) {
+      dd_table_close(table, thd, nullptr, false);
+      return (convert_error_code_to_mysql(error, 0, nullptr));
+    }
+  }
+
   if (row_is_mysql_tmp_table_name(norm_from) &&
       !row_is_mysql_tmp_table_name(norm_to) &&
       !dd_table_is_partitioned(from_table->table())) {
@@ -17518,6 +17528,27 @@ int ha_innobase::rename_table(const char *from, const char *to,
     return HA_ERR_UNSUPPORTED;
   }
 
+  /* A vector aux name is reserved on RENAME as well as on CREATE.
+  Without this, a user table can be renamed into the computed shape,
+  and dict0dd.cc rebuilds DICT_TF2_VEC_AUX from the name on the next DD
+  reload, so the table comes back marked as an aux table.
+
+  The check belongs here rather than in row_rename_table_for_mysql: our
+  own cross-schema rename moves aux tables to new aux names through that
+  function, and it does not come through the handler. */
+  char norm_to[FN_REFLEN];
+  if (!create_table_info_t::normalize_table_name(norm_to, to)) {
+    /* purecov: begin inspected */
+    ut_d(ut_error);
+    ut_o(return HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
+
+  if (vec_aux_is_aux_table_name(norm_to)) {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), to);
+    return HA_ERR_WRONG_TABLE_NAME;
+  }
+
   innobase_register_trx(ht, thd, trx);
 
   return innobase_basic_ddl::rename_impl<dd::Table>(
@@ -18712,7 +18743,7 @@ static bool innobase_get_index_column_cardinality(
     }
   }
 
-  if (ib_table->is_fts_aux()) {
+  if (ib_table->is_aux()) {
     /* Server should not ask for Stats for Internal Tables */
     dd_table_close(ib_table, thd, &mdl, false);
     ut_d(ut_error);

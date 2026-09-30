@@ -162,6 +162,7 @@ SET(INNOBASE_SOURCES
   handler/p_s.cc
   handler/vec0vec.cc
   handler/xtradb_i_s.cc
+  vec/vec0arena.cc
   vec/vec0aux.cc
   vec/vec0label.cc
   ibuf/ibuf0ibuf.cc

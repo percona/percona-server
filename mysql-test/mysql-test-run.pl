@@ -317,6 +317,7 @@ our @DEFAULT_SUITES = qw(
   percona_innodb
   percona_rpl
   percona_rpl_gtid
+  percona_vector
   percona-pam-for-mysql
   component_encryption_udf
   component_js_lang

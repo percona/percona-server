@@ -264,7 +264,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /** @{ */
 /** Total number of bits in table->flags2. */
-constexpr uint32_t DICT_TF2_BITS = 11;
+constexpr uint32_t DICT_TF2_BITS = 12;
 constexpr uint32_t DICT_TF2_UNUSED_BIT_MASK = ~0U << DICT_TF2_BITS;
 constexpr uint32_t DICT_TF2_BIT_MASK = ~DICT_TF2_UNUSED_BIT_MASK;
 
@@ -288,6 +288,12 @@ constexpr uint32_t DICT_TF2_USE_FILE_PER_TABLE = 16;
 /** Set when we discard/detach the tablespace */
 constexpr uint32_t DICT_TF2_DISCARDED = 32;
 
+/** The table has an auto-added hidden percona_vec_aux_id column (BIGINT
+UNSIGNED NOT NULL) because at least one vector (HNSW) index lives, or once
+lived, on it: the column and this bit persist across an ALTER that drops
+the last vector index, mirroring DICT_TF2_FTS_HAS_DOC_ID. */
+constexpr uint32_t DICT_TF2_HAS_VEC_AUX_COL = 64;
+
 /** Intrinsic table bit
 Intrinsic table is table created internally by MySQL modules viz. Optimizer,
 FTS, etc.... Intrinsic table has all the properties of the normal table except
@@ -302,6 +308,11 @@ constexpr uint32_t DICT_TF2_AUX = 512;
 
 /** Table is opened by resurrected trx during crash recovery. */
 constexpr uint32_t DICT_TF2_RESURRECT_PREPARED = 1024;
+
+/** Vector auxiliary hidden table bit. Parallels DICT_TF2_AUX (FTS),
+but vector aux tables must remain distinguishable so handlers that
+truly need "FTS only" semantics aren't fooled by a vec aux's flag. */
+constexpr uint32_t DICT_TF2_VEC_AUX = 2048;
 /** @} */
 
 /** Tables could be chained together with Foreign key constraint. When
@@ -1076,8 +1087,6 @@ constexpr uint32_t DICT_INDEX_MAGIC_N = 76789786;
 constexpr uint32_t DICT_INDEX_MERGE_THRESHOLD_DEFAULT = 50;
 constexpr uint32_t MAX_KEY_LENGTH_BITS = 12;
 
-/** Data structure for an index.  Most fields will be
-initialized to 0, NULL or false in dict_mem_index_create(). */
 struct dict_index_t {
   /** id of the index */
   space_index_t id;
@@ -2731,10 +2740,21 @@ detect this and will eventually quit sooner. */
     return (flags2 & DICT_TF2_TEMPORARY);
   }
 
-  /** Determine if this is a FTS AUX table. */
+  /** Determine if this is an InnoDB-owned auxiliary table, FTS or
+  vector. Use the specific predicates @ref is_fts_aux / @ref is_vec_aux
+  when behavior must differ. */
+  bool is_aux() const { return is_fts_aux() || is_vec_aux(); }
+
+  /** Determine if this is specifically an FTS auxiliary table. */
   bool is_fts_aux() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
     return (flags2 & DICT_TF2_AUX);
+  }
+
+  /** Determine if this is specifically a vector auxiliary table. */
+  bool is_vec_aux() const {
+    ut_ad(magic_n == DICT_TABLE_MAGIC_N);
+    return (flags2 & DICT_TF2_VEC_AUX);
   }
 
   /** Determine whether the table is intrinsic.
@@ -2867,6 +2887,10 @@ class PersistentTableMetadata {
   @return the autoinc counter */
   uint64_t get_autoinc() const { return (m_autoinc); }
 
+  /** Set the hidden vec_idx_id counter of the table
+  @param[in]    value   vec_idx_id counter */
+  void set_vec_next_id(uint64_t value) { m_vec_next_id = value; }
+
  private:
   /** Table ID which this metadata belongs to */
   table_id_t m_id;
@@ -2879,6 +2903,10 @@ class PersistentTableMetadata {
 
   /** Autoinc counter of the table */
   uint64_t m_autoinc;
+
+  /** Hidden vec_idx_id counter of vector-indexed tables;
+  0 when the table never consumed one */
+  uint64_t m_vec_next_id;
 
   /* TODO: We will add update_time, etc. here and APIs accordingly */
 };

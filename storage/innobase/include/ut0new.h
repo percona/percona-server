@@ -339,6 +339,7 @@ static constexpr const char *auto_event_names[] = {
     "ut0pool",
     "ut0rbt",
     "ut0wqueue",
+    "vec0dml",
 };
 
 static constexpr size_t n_auto = UT_ARR_SIZE(auto_event_names);

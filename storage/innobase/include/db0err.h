@@ -243,6 +243,10 @@ enum dberr_t {
   found. Maps to HA_ERR_VECTOR_WRONG_DIMENSIONS. */
   DB_VEC_WRONG_DIMENSIONS,
 
+  /** A vector index build reached innodb_hnsw_max_memory. Only a build
+  returns it; the ALTER reports ER_CAPACITY_EXCEEDED for it. */
+  DB_VEC_MEMORY_LIMIT,
+
   /* The following are API only error codes. */
 
   /** Column update or read failed because the types mismatch */

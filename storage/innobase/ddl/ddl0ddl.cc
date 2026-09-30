@@ -29,6 +29,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
  DDL implementation misc functions.
 Created 2020-11-01 by Sunny Bains. */
 
+#include <tuple>
+
 #include "btr0load.h"
 #include "ddl0fts.h"
 #include "ddl0impl-cursor.h"
@@ -37,6 +39,8 @@ Created 2020-11-01 by Sunny Bains. */
 #include "handler0alter.h"
 #include "lock0lock.h"
 #include "row0log.h"
+#include "vec0aux.h"
+#include "vec0label.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -412,6 +416,28 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
 
           index = prev;
 
+        } else if (index->is_vector()) {
+          /* Mirror the FTS branch above for a completed-but-uncommitted
+          vector index: drop its aux table and remove it from the cache
+          immediately. Safe for the same reason as FTS - ADD VECTOR
+          INDEX is not allowed with LOCK=NONE (see the HA_VECTOR check
+          in innobase_support_inplace_alter), so no concurrent thread
+          holds an entry_list referencing this index. Deferring to the
+          ABORTED/CORRUPT path below would leak the aux .ibd: the
+          deferred-drop machinery frees B-trees, and a vec index has
+          none - its storage is the aux table. */
+          auto prev = UT_LIST_GET_PREV(indexes, index);
+          ut_ad(prev != nullptr);
+
+          /* Best effort: the callee logs the aux name and the reason
+          itself, and this path is already unwinding a failed ALTER,
+          so there is nothing left to recover to. */
+          std::ignore = vec_aux_drop_one_table(trx, table, index->id);
+
+          dict_index_remove_from_cache(table, index);
+
+          index = prev;
+
         } else {
           rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
 
@@ -472,6 +498,18 @@ static void drop_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
       if (index->type & DICT_FTS) {
         ut_a(table->fts);
         fts_drop_index(table, index, trx, nullptr);
+      }
+
+      /* Mirror the FTS aux drop above for an uncommitted vector index -
+      this is the prepare_inplace_alter_table failure path (reached via
+      error_handled: calls ddl::drop_indexes). The vec index's storage is
+      its aux table, not a B-tree, so dropping the index from the cache
+      below without this call would orphan the aux .ibd in dict_sys
+      and on disk. */
+      if (index->is_vector()) {
+        /* Best effort, as above: already logged, and this is the
+        prepare-failure path. */
+        std::ignore = vec_aux_drop_one_table(trx, table, index->id);
       }
 
       switch (dict_index_get_online_status(index)) {
@@ -536,6 +574,21 @@ dberr_t Row::build(ddl::Context &ctx, dict_index_t *index, mem_heap_t *heap,
   m_ptr = row_build_w_add_vcol(type, index, m_rec, m_offsets, ctx.m_new_table,
                                m_add_cols, ctx.m_add_v, ctx.m_col_map, &m_ext,
                                heap);
+
+  /* A rebuild that adds the hidden label column - the table's first vector
+  index - gives every copied row a fresh label, which the vector index built
+  from this same scan takes as the row's node id. Not persisted per label:
+  the new table belongs to this DDL, and commit_inplace_alter_table() writes
+  its final counter into the new definition. */
+  if (ctx.m_new_table->vec_aux_col != ULINT_UNDEFINED &&
+      ctx.m_old_table->vec_aux_col == ULINT_UNDEFINED) {
+    const uint64_t label =
+        Vec_label_counter::assign(ctx.m_new_table, /*persist=*/false);
+    auto buf = static_cast<byte *>(mem_heap_alloc(heap, sizeof(label)));
+    mach_write_to_8(buf, label);
+    dfield_set_data(dtuple_get_nth_field(m_ptr, ctx.m_new_table->vec_aux_col),
+                    buf, sizeof(label));
+  }
 
   if (!ctx.check_null_constraints(m_ptr)) {
     ctx.m_trx->error_key_num = SERVER_CLUSTER_INDEX_ID;

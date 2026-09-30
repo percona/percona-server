@@ -1,0 +1,50 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11299: no ALTER that leaves a vector index runs with LOCK=NONE.
+--echo #
+--echo # DML during an online ALTER goes to the row log, and applying the
+--echo # row log maintains neither the graph nor its aux table, so a row
+--echo # written meanwhile would be in the table and not in the index.
+--echo # LOCK=NONE is refused instead, even for an ALTER such as ADD INDEX
+--echo # that never touches the vector index.
+--echo #
+--echo # The label counter is captured at commit, under MDL_EXCLUSIVE, so
+--echo # the labels written before and after the ALTER must never repeat.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 serial BIGINT UNSIGNED AUTO_INCREMENT UNIQUE,
+                 v VECTOR(4) NOT NULL);
+INSERT INTO t1 (id, v) VALUES (1,STRING_TO_VECTOR('[1,0,0,0]')),
+                              (2,STRING_TO_VECTOR('[2,0,0,0]'));
+ALTER TABLE t1 ADD VECTOR KEY (v) TYPE hnsw (M = 8);
+
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # An ordinary secondary index: not a rebuild, does not touch the vector
+--echo # key. Refused anyway, because the table carries a vector index.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX id_idx (id), ALGORITHM=INPLACE, LOCK=NONE;
+
+--echo # The same ALTER without LOCK=NONE is supported.
+ALTER TABLE t1 ADD INDEX id_idx (id), ALGORITHM=INPLACE;
+
+--echo # Rows inserted after it keep assigning labels from where the build left
+--echo # off: 3,4,5 with no reissue.
+INSERT INTO t1 (id, v) VALUES (3,STRING_TO_VECTOR('[3,0,0,0]')),
+                              (4,STRING_TO_VECTOR('[4,0,0,0]')),
+                              (5,STRING_TO_VECTOR('[5,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # And the counter survives a restart: the next label is 6, not a reissue.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 (id, v) VALUES (6,STRING_TO_VECTOR('[6,0,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

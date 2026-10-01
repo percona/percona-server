@@ -55,11 +55,6 @@ PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key mem_key_dict_stats_index_map_t;
 PSI_memory_key mem_key_dict_stats_n_diff_on_level;
 PSI_memory_key mem_key_fil_space_t;
-PSI_memory_key mem_key_log_online_iterator_files;
-PSI_memory_key mem_key_log_online_iterator_page;
-PSI_memory_key mem_key_log_online_modified_pages;
-PSI_memory_key mem_key_log_online_read_buf;
-PSI_memory_key mem_key_log_online_sys;
 PSI_memory_key mem_key_mtr_t;
 PSI_memory_key mem_key_lock_sys;
 PSI_memory_key mem_key_other;
@@ -106,15 +101,6 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_mtr_t, "mtr_t", 0, 0,
      "Used for temporary buffer during a very large mtr commit"},
     {&mem_key_lock_sys, "lock_sys", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_log_online_iterator_files, "log_online_iterator_files", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&mem_key_log_online_iterator_page, "log_online_iterator_page", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&mem_key_log_online_modified_pages, "log_online_modified_pages", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&mem_key_log_online_read_buf, "log_online_read_buf", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&mem_key_log_online_sys, "log_online_sys", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_other, "other", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_partitioning, "partitioning", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},

@@ -362,6 +362,32 @@ void MVCC::view_add(const ReadView *view) {
   ut_ad(validate());
 }
 
+/** Insert a cloned view into the view list right after its donor. Both
+have the same m_low_limit_no, so this keeps the list ordered, which purge
+relies on when it looks for the oldest view.
+@param	view	cloned view
+@param	donor	open view it was cloned from
+@param	in_list	true if view is already in the view list */
+void MVCC::view_add_clone(const ReadView *view, const ReadView *donor,
+                          bool in_list) {
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(view != donor);
+  ut_ad(!donor->is_closed());
+  ut_ad(view->m_low_limit_no == donor->m_low_limit_no);
+
+  auto *const clone = const_cast<ReadView *>(view);
+
+  if (in_list) {
+    UT_LIST_REMOVE(m_views, clone);
+  }
+
+  UT_LIST_INSERT_AFTER(m_views, const_cast<ReadView *>(donor), clone);
+
+  ut_ad(!view->is_closed());
+
+  ut_ad(validate());
+}
+
 /**
 Copy the transaction ids from the source vector */
 

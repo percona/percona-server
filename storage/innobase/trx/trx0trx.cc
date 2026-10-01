@@ -2409,13 +2409,20 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
     return (nullptr);
   }
 
-  const bool needs_adding = (trx->read_view == nullptr);
+  /* A non-null view of the receiver, closed or not, is in the view list,
+  and clone() overwrites it in place. */
+  const bool in_list = (trx->read_view != nullptr);
 
-  from_trx->read_view->clone(trx->read_view, from_trx);
+  const ReadView *const donor_view = from_trx->read_view;
+
+  donor_view->clone(trx->read_view, from_trx);
 
   trx_mutex_exit(from_trx);
 
-  if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
+  /* The clone has the donor's m_low_limit_no, which can be older than that
+  of other open views, so it must not be put at the head of the list the way
+  view_add() puts a new view. */
+  trx_sys->mvcc->view_add_clone(trx->read_view, donor_view, in_list);
 
   trx_sys_mutex_exit();
 

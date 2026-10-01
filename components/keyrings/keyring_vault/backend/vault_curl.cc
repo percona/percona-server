@@ -203,10 +203,15 @@ bool Keyring_vault_curl::setup_curl_session(CURL *curl) {
   }
 
   pfs_string token_header = "X-Vault-Token:" + m_config->token;
+  pfs_string ns_header;
+  if (!m_config->vault_namespace.empty())
+    ns_header = "X-Vault-Namespace:" + m_config->vault_namespace;
 
   if ((m_list = curl_slist_append(m_list, token_header.c_str())) == nullptr ||
       (m_list = curl_slist_append(m_list, "Content-Type: application/json")) ==
           nullptr ||
+      (!ns_header.empty() &&
+       (m_list = curl_slist_append(m_list, ns_header.c_str())) == nullptr) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, m_curl_errbuf)) !=
           CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,

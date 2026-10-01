@@ -1,0 +1,30 @@
+#
+# Compressed LOB insert that keeps one btr mini-transaction open
+# across as many 1KiB pages as this code allows.
+#
+# z_insert() commits only every commit_freq (4) chunks of Z_CHUNK_SIZE
+# (128KiB). Each column below is exactly 3 chunks, so that commit is
+# never reached, and the next column keeps allocating on the same mtr.
+# KEY_BLOCK_SIZE=1 and compression level 0 make each chunk about 130
+# data pages, all still latched.
+#
+SET GLOBAL innodb_compression_level = 0;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+c1 LONGBLOB,
+c2 LONGBLOB,
+c3 LONGBLOB,
+c4 LONGBLOB,
+c5 LONGBLOB,
+c6 LONGBLOB,
+c7 LONGBLOB,
+c8 LONGBLOB
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SELECT LENGTH(c1), LENGTH(c2), LENGTH(c3), LENGTH(c4),
+LENGTH(c5), LENGTH(c6), LENGTH(c7), LENGTH(c8)
+FROM t1;
+LENGTH(c1)	LENGTH(c2)	LENGTH(c3)	LENGTH(c4)	LENGTH(c5)	LENGTH(c6)	LENGTH(c7)	LENGTH(c8)
+393216	393216	393216	393216	393216	393216	393216	393216
+DROP TABLE t1;
+SET GLOBAL innodb_compression_level = DEFAULT;

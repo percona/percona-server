@@ -1,0 +1,52 @@
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Compressed LOB insert that keeps one btr mini-transaction open
+--echo # across as many 1KiB pages as this code allows.
+--echo #
+--echo # z_insert() commits only every commit_freq (4) chunks of Z_CHUNK_SIZE
+--echo # (128KiB). Each column below is exactly 3 chunks, so that commit is
+--echo # never reached, and the next column keeps allocating on the same mtr.
+--echo # KEY_BLOCK_SIZE=1 and compression level 0 make each chunk about 130
+--echo # data pages, all still latched.
+--echo #
+
+SET GLOBAL innodb_compression_level = 0;
+SET GLOBAL innodb_file_per_table = ON;
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  c1 LONGBLOB,
+  c2 LONGBLOB,
+  c3 LONGBLOB,
+  c4 LONGBLOB,
+  c5 LONGBLOB,
+  c6 LONGBLOB,
+  c7 LONGBLOB,
+  c8 LONGBLOB
+) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+--disable_query_log
+# 3 * 128KiB. Not a multiple of commit_freq, so no mtr restart per column.
+let $len = 393216;
+eval INSERT INTO t1 VALUES (
+  1,
+  REPEAT('a', $len),
+  REPEAT('b', $len),
+  REPEAT('c', $len),
+  REPEAT('d', $len),
+  REPEAT('e', $len),
+  REPEAT('f', $len),
+  REPEAT('g', $len),
+  REPEAT('h', $len)
+);
+--enable_query_log
+
+SELECT LENGTH(c1), LENGTH(c2), LENGTH(c3), LENGTH(c4),
+       LENGTH(c5), LENGTH(c6), LENGTH(c7), LENGTH(c8)
+FROM t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_compression_level = DEFAULT;

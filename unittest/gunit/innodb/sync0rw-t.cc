@@ -34,6 +34,11 @@
 
 #include "os0thread.h"
 #include "sync0arr_impl.h"
+#include "sync0sync.h"
+
+#include <sys/wait.h>
+#include <unistd.h>
+#include <cstdlib>
 
 namespace innodb_sync0rw_unittest {
 
@@ -107,7 +112,7 @@ void execute_multithreaded_phase_plan(const std::vector<phase_task> phases[],
 }
 
 TEST(sync0rw, rw_lock_reader_thread) {
-  /* This test tests if the reader_thread is calculated correctly.
+  /* Sole S holder is the one left after t2 and t3 unlock, out of order.
   We have three rw_locks:
   - lock 0 is S-latched by 3 threads in this order: t2, t1, t3. Then t2
   and t3 unlocks it, so only t1 have it locked.
@@ -129,6 +134,7 @@ TEST(sync0rw, rw_lock_reader_thread) {
   }
 
   std::atomic<std::thread::id> thread_1_id;
+  std::atomic<std::thread::id> thread_2_id;
 
   auto check_reader_counts_action = [&] {
     /* Let all threads place their X-lock waits. */
@@ -137,8 +143,6 @@ TEST(sync0rw, rw_lock_reader_thread) {
     EXPECT_EQ(rw_lock_get_reader_count(rw_locks[0]), 1);
     EXPECT_EQ(rw_lock_get_reader_count(rw_locks[1]), 2);
     EXPECT_EQ(rw_lock_get_reader_count(rw_locks[2]), 0);
-    EXPECT_EQ(rw_locks[0]->reader_thread.recover_if_single(),
-              thread_1_id.load());
 
     FILE *tmp_file = tmpfile();
     EXPECT_NE(tmp_file, nullptr);
@@ -174,11 +178,10 @@ TEST(sync0rw, rw_lock_reader_thread) {
     std::string const cell_print(content.get(), len);
 
     EXPECT_THAT(cell_print, testing::HasSubstr("number of readers 0, waiters"));
-    /* Note that std::to_string(thread_id_to_uint64(thread_id) could be
-     something different than to_string(thread_id). */
-    EXPECT_THAT(cell_print, testing::HasSubstr(
-                                "number of readers 1 (thread id " +
-                                to_string(thread_1_id.load()) + "), waiters"));
+    EXPECT_THAT(cell_print, testing::HasSubstr("S-lock held by thread id " +
+                                               to_string(thread_1_id.load())));
+    EXPECT_THAT(cell_print, testing::HasSubstr("S-lock held by thread id " +
+                                               to_string(thread_2_id.load())));
     EXPECT_THAT(cell_print, testing::HasSubstr("number of readers 2, waiters"));
   };
 
@@ -191,6 +194,7 @@ TEST(sync0rw, rw_lock_reader_thread) {
     */
       {
           phase_task{1, [&] { thread_1_id = std::this_thread::get_id(); }},
+          phase_task{2, [&] { thread_2_id = std::this_thread::get_id(); }},
           phase_task{1, [&] { rw_lock_s_lock(rw_locks[1], UT_LOCATION_HERE); }},
           phase_task{1, [&] { rw_lock_x_lock(rw_locks[2], UT_LOCATION_HERE); }},
           phase_task{2, [&] { rw_lock_s_lock(rw_locks[0], UT_LOCATION_HERE); }},
@@ -245,6 +249,75 @@ TEST(sync0rw, rw_lock_reader_thread) {
 
   sync_check_close();
   os_event_global_destroy();
+}
+
+/** Three S-holders on Ls, plus a cycle mutex -> X-latch -> S-latch.
+T1 holds S on Ls and waits for mutex M.
+T2 holds M and S on Ls and waits for X on Lx.
+T3 holds X on Lx and waits for X on Ls.
+T4 holds S on Ls and does not wait.
+Reader count on Ls is 3, so naming a single S thread cannot close the cycle.
+The child _exit()s: the waiters stay blocked and must not be joined. */
+int run_three_s_deadlock() {
+  os_event_global_init();
+  sync_check_init(16);
+  /* Debug builds detect the cycle inside the X-lock wait and abort.
+  Keep the threads blocked so the slot scan can run. */
+  sync_array_set_deadlock_fatal(false);
+
+  rw_lock_t *ls = static_cast<rw_lock_t *>(malloc(sizeof(rw_lock_t)));
+  rw_lock_t *lx = static_cast<rw_lock_t *>(malloc(sizeof(rw_lock_t)));
+  rw_lock_create(PSI_NOT_INSTRUMENTED, ls, LATCH_ID_BUF_BLOCK_LOCK);
+  rw_lock_create(PSI_NOT_INSTRUMENTED, lx, LATCH_ID_BUF_BLOCK_LOCK);
+
+  ib_mutex_t mutex;
+  mutex_create(LATCH_ID_DICT_TABLE, &mutex);
+
+  std::vector<phase_task> phases[] = {
+      {
+          phase_task{2, [&] { mutex_enter(&mutex); }},
+          phase_task{3, [&] { rw_lock_x_lock(lx, UT_LOCATION_HERE); }},
+          phase_task{1, [&] { rw_lock_s_lock(ls, UT_LOCATION_HERE); }},
+          phase_task{2, [&] { rw_lock_s_lock(ls, UT_LOCATION_HERE); }},
+          phase_task{4, [&] { rw_lock_s_lock(ls, UT_LOCATION_HERE); }},
+      },
+      {
+          phase_task{1, [&] { mutex_enter(&mutex); }, false},
+          phase_task{2, [&] { rw_lock_x_lock(lx, UT_LOCATION_HERE); }, false},
+          phase_task{3, [&] { rw_lock_x_lock(ls, UT_LOCATION_HERE); }, false},
+      },
+      {
+          /* Thread 4 holds S and has no later task. Without this sleep its
+          thread-local table is destroyed while the S latch is still held. */
+          phase_task{
+              4,
+              [&] { std::this_thread::sleep_for(std::chrono::seconds(30)); }},
+          phase_task{0,
+                     [&] {
+                       std::this_thread::sleep_for(std::chrono::seconds(2));
+                       if (Rw_lock_holders::instance().s_count(ls) != 3) {
+                         _exit(3);
+                       }
+                       _exit(sync_array_detect_deadlock_holders_only() ? 0 : 2);
+                     }},
+      },
+  };
+
+  execute_multithreaded_phase_plan(phases, UT_ARR_SIZE(phases));
+  return 4;
+}
+
+TEST(sync0rw, three_s_latchers_deadlock) {
+  const pid_t pid = fork();
+  ASSERT_NE(pid, -1);
+  if (pid == 0) {
+    _exit(run_three_s_deadlock());
+  }
+  int status = 0;
+  ASSERT_EQ(pid, waitpid(pid, &status, 0));
+  ASSERT_TRUE(WIFEXITED(status));
+  /* 0: cycle found. 2: release path missed it. 3: S slots were not 3. */
+  EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
 }  // namespace innodb_sync0rw_unittest

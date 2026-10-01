@@ -42,8 +42,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
+#include <bit>
+#include <cstdio>
+#include <new>
+#include <string>
+#include <thread>
+#include <vector>
+
 #include <my_sys.h>
-#include <sys/types.h>
 
 #include "ha_prototypes.h"
 #include "mem0mem.h"
@@ -55,6 +61,69 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0types.h"
 #include "ut0core.h"
 #include "ut0lst.h"
+
+Rw_lock_holders &Rw_lock_holders::instance() {
+  static Rw_lock_holders holders;
+  return holders;
+}
+
+void Rw_lock_holders::Thread_table::grow() {
+  if (cap >= k_max_cap) {
+    /* Occupancy is already at the 50% ceiling of the largest table. */
+    ut_error;
+  }
+  const size_t new_cap = cap << 1;
+  Slot *fresh = new (std::nothrow) Slot[new_cap]{};
+  if (fresh == nullptr) {
+    ut_error;
+  }
+
+  const int shift = 64 - std::bit_width(new_cap - 1);
+  for (size_t i = 0; i < cap; ++i) {
+    Slot &src = slots[i];
+    if (src.lock == nullptr) {
+      continue;
+    }
+    const auto x = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(src.lock));
+    const size_t h = static_cast<size_t>((x * k_mix) >> shift);
+    bool placed = false;
+    for (size_t n = 0; n < new_cap; ++n) {
+      Slot &dst = fresh[(h + n) & (new_cap - 1)];
+      if (dst.lock != nullptr) {
+        continue;
+      }
+      dst = src;
+      placed = true;
+      break;
+    }
+    if (!placed) {
+      delete[] fresh;
+      ut_error;
+    }
+  }
+
+  /* Publish under m_mutex so a deadlock scan walks either the old table or
+  the new one, never a freed one. The scan holds m_mutex for the whole walk. */
+  Slot *old = nullptr;
+  {
+    std::lock_guard<std::mutex> guard(Rw_lock_holders::instance().m_mutex);
+    old = heap;
+    heap = fresh;
+    slots = fresh;
+    cap = new_cap;
+  }
+  delete[] old;
+}
+
+Rw_lock_holders::Thread_table &Rw_lock_holders::mine() {
+  struct Registered {
+    Thread_table table;
+    Registered() { Rw_lock_holders::instance().link(&table); }
+    ~Registered() { Rw_lock_holders::instance().unlink(&table); }
+  };
+  thread_local Registered registered;
+  return registered.table;
+}
 
 /*
         IMPLEMENTATION OF THE RW_LOCK
@@ -229,10 +298,6 @@ void rw_lock_create_unregistered_func(rw_lock_t *lock,
         std::numeric_limits<decltype(lock->clocation.line)>::max());
 
   lock->count_os_wait = 0;
-  lock->last_s_file_name = "not yet reserved";
-  lock->last_x_file_name = "not yet reserved";
-  lock->last_s_line = 0;
-  lock->last_x_line = 0;
   lock->event = os_event_create();
   lock->wait_ex_event = os_event_create();
 
@@ -577,9 +642,7 @@ static inline bool rw_lock_x_lock_low(
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_X, {file_name, line}));
 
-  lock->last_x_file_name = file_name;
-  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
-  lock->last_x_line = line;
+  Rw_lock_holders::instance().note(lock, pass, {file_name, line}, RW_LOCK_X);
 
   return true;
 }
@@ -638,11 +701,7 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_SX, location));
 
-  lock->last_x_file_name = location.filename;
-
-  ut_ad(location.line <=
-        std::numeric_limits<decltype(lock->last_x_line)>::max());
-  lock->last_x_line = location.line;
+  Rw_lock_holders::instance().note(lock, pass, location, RW_LOCK_SX);
 
   return true;
 }

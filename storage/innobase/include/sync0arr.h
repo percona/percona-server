@@ -93,6 +93,16 @@ bool sync_array_print_long_waits(
 
 void sync_array_detect_deadlock();
 
+/** Scan the wait arrays for a latch cycle using the release holder path
+(S slots, not the debug list) and do not abort when a cycle is found.
+@return true when a cycle exists. */
+bool sync_array_detect_deadlock_holders_only();
+
+/** When false, a detected latch cycle is reported but does not abort.
+The server default is true. The rw-lock gunit turns it off so a thread can
+stay blocked while the test inspects the cycle. */
+void sync_array_set_deadlock_fatal(bool fatal);
+
 /** Prints info of the wait array. */
 void sync_array_print(FILE *file); /*!< in: file where to print */
 

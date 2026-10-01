@@ -1,0 +1,58 @@
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # PS-11615: an ANN search while an in-place ALTER replaces the vector
+--echo # index. The ALTER's new index is in the table's index list, not yet
+--echo # committed, until the ALTER commits. Readers keep using the old index.
+--echo #
+
+CREATE TABLE t_replace (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                        VECTOR KEY vk (v) TYPE hnsw (M = 8));
+SET SESSION cte_max_recursion_depth = 1000;
+INSERT INTO t_replace
+  WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 200)
+  SELECT n, STRING_TO_VECTOR(CONCAT('[', n, ',0,0,0]')) FROM s;
+UPDATE t_replace SET v = STRING_TO_VECTOR('[1000,0,0,0]') WHERE id = 3;
+ANALYZE TABLE t_replace;
+
+--let $q = SELECT id FROM t_replace ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,0,0,0]'), 'EUCLIDEAN') LIMIT 1
+
+--connect (con1, localhost, root)
+SET DEBUG_SYNC = 'alter_table_inplace_after_lock_downgrade SIGNAL replacing WAIT_FOR go';
+--send ALTER TABLE t_replace DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 16), ALGORITHM=INPLACE, LOCK=SHARED
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR replacing';
+
+--echo # During the ALTER: the search uses the old index and finds row 3.
+--replace_column 10 # 11 #
+eval EXPLAIN $q;
+eval $q;
+
+--echo # A session that opens the table now does the same.
+--connect (con2, localhost, root)
+eval $q;
+--disconnect con2
+
+--connection default
+SET DEBUG_SYNC = 'now SIGNAL go';
+
+--connection con1
+--reap
+--disconnect con1
+
+--connection default
+--echo # After the ALTER: the new index answers.
+--replace_column 10 # 11 #
+eval EXPLAIN $q;
+eval $q;
+
+--echo # No session tried to open a runtime for the index being built.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Failed to open vector runtime for index `vk2` on table `test`.`t_replace`
+--let $assert_count = 0
+--let $assert_text = no runtime open is attempted for the uncommitted index
+--source include/assert_grep.inc
+
+DROP TABLE t_replace;
+SET DEBUG_SYNC = 'RESET';

@@ -8425,10 +8425,15 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   A failure here is not fatal to the open: without a runtime the index
   simply has no graph, and the DML path reports the problem when it
   tries to use one. Refusing the open would take the whole table
-  offline for a vector index that may not even be queried. */
-  for (dict_index_t *index = m_prebuilt->table->first_index(); index != nullptr;
-       index = index->next()) {
-    if (!index->is_vector() || vec_runtime_get(index) != nullptr) continue;
+  offline for a vector index that may not even be queried.
+
+  Walk the TABLE's vector KEYs and resolve each as every index read does,
+  through innobase_get_index(): the table's index list can also hold an
+  index an ALTER is still building, which this TABLE has no KEY for. */
+  for (uint k = 0; k < table->s->keys; k++) {
+    if (!(table->key_info[k].flags & HA_VECTOR)) continue;
+    dict_index_t *index = innobase_get_index(k);
+    if (index == nullptr || vec_runtime_get(index) != nullptr) continue;
 
     /* A failure has already reported itself on the THD and recorded its
     reason on the index, and an index with no runtime simply has no graph
@@ -10961,12 +10966,10 @@ int ha_innobase::index_init(uint keynr, /*!< in: key (index) number */
 int ha_innobase::index_end(void) {
   DBUG_TRACE;
 
-  /* Where a vector scan ends. VectorSearchIterator's destructor calls
-  ha_index_or_rnd_end(), and vec_init() went through rnd_init(), so this
-  is the one hook both the normal end and an early exit reach - including
-  the LIMIT being satisfied, where vec_read_next is simply never called
-  again. The scan holds the aux table open and its MDL ticket, so leaking
-  it would keep a concurrent ALTER waiting. */
+  /* Close a vector scan if one is open. vec_init() calls rnd_init(), not
+  ha_rnd_init(), so the handler stays uninited and VectorSearchIterator's
+  ha_index_or_rnd_end() does not reach here; end_stmt() and close() close
+  the scan instead. It holds the aux table open and its MDL ticket. */
   vec_ann_close(m_vec_search);
   m_vec_search = nullptr;
 
@@ -12169,7 +12172,7 @@ next_record:
   return (HA_ERR_END_OF_FILE);
 }
 
-int ha_innobase::vec_init() {
+int ha_innobase::vec_init(uint keynr) {
   DBUG_TRACE;
 
   /* The checks every index read gets, in change_active_index(): a vector
@@ -12177,16 +12180,19 @@ int ha_innobase::vec_init() {
   ER_TABLE_DEF_CHANGED, as a B-tree is - the graph holds what its build
   saw, so answering would leave out rows the snapshot sees - and a corrupt
   one with ER_INDEX_CORRUPT. FULLTEXT gets the same from ha_index_init(). */
-  for (uint k = 0; k < table->s->keys; k++) {
-    if (!(table->key_info[k].flags & HA_VECTOR)) continue;
-    if (const int err = change_active_index(k); err != 0) return err;
-    break;
-  }
+  ut_ad(table->key_info[keynr].flags & HA_VECTOR);
+  if (!(table->key_info[keynr].flags & HA_VECTOR)) return HA_ERR_WRONG_INDEX;
+  int err = change_active_index(keynr);
+  if (err != 0) return err;
 
   /* The ANN candidates are fetched from the base table by PRIMARY KEY
   (row_ref is the PK image); rnd_init sets up the clustered-index
-  positioning the per-candidate row_search_for_mysql below relies on. */
-  return rnd_init(false);
+  positioning the per-candidate row_search_for_mysql below relies on.
+  That fetch is internal: the scan stays on the vector key. */
+  err = rnd_init(false);
+  if (err != 0) return err;
+  active_index = keynr;
+  return 0;
 }
 
 /** Build the clustered-index search tuple for a candidate's base_pk.
@@ -12209,8 +12215,9 @@ static void innobase_vec_build_pk_tuple(dtuple_t *tuple,
 int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
   DBUG_TRACE;
 
-  dict_index_t *vindex = vec_index_of(m_prebuilt->table);
-  if (vindex == nullptr) return HA_ERR_END_OF_FILE;
+  dict_index_t *vindex = innobase_get_index(active_index);
+  ut_ad(vindex != nullptr && vindex->is_vector());
+  if (vindex == nullptr || !vindex->is_vector()) return HA_ERR_WRONG_INDEX;
 
   /* No runtime means the open that should have built one failed, and
   ha_innobase::open() carried on so the table stays readable. Answering

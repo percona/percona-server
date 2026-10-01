@@ -703,7 +703,7 @@ VectorSearchIterator::~VectorSearchIterator() {
 
 bool VectorSearchIterator::DoInit() {
   if (!table()->file->inited) {
-    int error = table()->file->vec_init();
+    int error = table()->file->vec_init(m_ref->key);
     if (error) {
       PrintError(error);
       return true;

@@ -1126,6 +1126,12 @@ dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (!index->is_vector()) continue;
+    if (dict_index_is_online_ddl(index)) {
+      /* Nothing logs rows for an online vector index build yet. */
+      ut_d(ut_error);
+      ut_o(return DB_UNSUPPORTED);
+    }
+    if (!index->is_committed()) continue;
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
     if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
@@ -1139,6 +1145,12 @@ dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd) {
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (!index->is_vector()) continue;
+    if (dict_index_is_online_ddl(index)) {
+      /* Nothing logs rows for an online vector index build yet. */
+      ut_d(ut_error);
+      ut_o(return DB_UNSUPPORTED);
+    }
+    if (!index->is_committed()) continue;
 
     /* No runtime means the open that should have built one failed, and
     ha_innobase::open() carried on so the table stays readable and

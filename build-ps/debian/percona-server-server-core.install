@@ -57,6 +57,7 @@ usr/lib/mysql/plugin/rewriter.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/connection_control.so
 usr/lib/mysql/plugin/component_keyring_file.so
+usr/lib/mysql/plugin/component_percona_keyring_encrypted_file.so
 usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
@@ -101,6 +102,7 @@ usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/keyring_udf.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/component_keyring_file.so
+usr/lib/mysql/plugin/debug/component_percona_keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/component_replication_applier_metrics.so
 usr/lib/mysql/plugin/debug/component_group_replication_flow_control_stats.so

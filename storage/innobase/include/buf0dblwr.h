@@ -444,8 +444,11 @@ void create(Pages *&pages) noexcept;
 /** Restore pages from the double write buffer to the tablespace.
 @param[in,out]  pages  Pages from the doublewrite buffer
 @param[in]   space  Tablespace pages to restore, if set to nullptr then try and
-                    restore all. */
-void recover(Pages *pages, fil_space_t *space) noexcept;
+                    restore all.
+@param[in]   page_no  Page to restore, FIL_NULL for all pages of the
+                    tablespace. */
+void recover(Pages *pages, fil_space_t *space,
+             page_no_t page_no = FIL_NULL) noexcept;
 
 /** Find a doublewrite copy of a page.
 @param[in]      pages           Pages read from the doublewrite buffer
@@ -498,9 +501,12 @@ class DBLWR {
   /** Restore pages from the double write buffer to the tablespace.
   @param[in]    space           Tablespace pages to restore,
                                   if set to nullptr then try
-                                  and restore all. */
-  void recover(fil_space_t *space = nullptr) noexcept {
-    dblwr::recv::recover(m_pages, space);
+                                  and restore all.
+  @param[in]    page_no         Page to restore, FIL_NULL for all
+                                  pages of the tablespace. */
+  void recover(fil_space_t *space = nullptr,
+               page_no_t page_no = FIL_NULL) noexcept {
+    dblwr::recv::recover(m_pages, space, page_no);
   }
 
   /** Find a doublewrite copy of a page.

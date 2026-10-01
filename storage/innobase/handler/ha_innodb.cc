@@ -12234,7 +12234,7 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
     const uint32 vec_dims =
         get_dimensions(vec->length(), Field_vector::precision);
     if (vec_dims != rt->dims) {
-      return HA_ERR_END_OF_FILE;
+      return HA_ERR_VECTOR_WRONG_DIMENSIONS;
     }
 
     /* A column cannot store NaN or infinity, but a query vector given as

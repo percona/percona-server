@@ -1,0 +1,16 @@
+CREATE USER ps11593@localhost IDENTIFIED BY 'pw';
+#
+# A failed SHARED probe must fail the login, not let it through
+#
+SET GLOBAL debug = '+d,fail_acl_external_roles_read_lock';
+ERROR 3547 (HY000): Can not lock user management caches for processing.
+SET GLOBAL debug = '';
+#
+# The server is still up and ordinary logins work again
+#
+1
+1
+SELECT 1 AS server_alive;
+server_alive
+1
+DROP USER ps11593@localhost;

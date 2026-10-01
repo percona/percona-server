@@ -1,0 +1,46 @@
+# PS-11621: after rolling back a cloned view, reopening it for an ordinary
+# transaction must clear both the donor creator id and the cloned flag.
+# The new transaction must hide donor writes and see its own later writes.
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0), (2, 0);
+
+--connect (donor,localhost,root,,)
+--connect (receiver,localhost,root,,)
+
+--connection donor
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION;
+UPDATE t1 SET c = 1 WHERE id = 1;
+SELECT * FROM t1 ORDER BY id;
+
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+SELECT * FROM t1 ORDER BY id;
+ROLLBACK;
+
+# Reprepare the closed clone without ending the donor's transaction. Later
+# promotion must assign this receiver's creator id, which m_cloned inhibits.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1 ORDER BY id;
+UPDATE t1 SET c = 2 WHERE id = 2;
+SELECT * FROM t1 ORDER BY id;
+ROLLBACK;
+
+--connection donor
+ROLLBACK;
+
+--connection receiver
+SELECT * FROM t1 ORDER BY id;
+
+--connection default
+--disconnect donor
+--disconnect receiver
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

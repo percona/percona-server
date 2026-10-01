@@ -1,0 +1,48 @@
+#
+# A view cloned by START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+# carries the creator transaction id of its donor. Once the cloning
+# transaction ends, its next autocommit read must not reuse that closed view
+# as it is, or it sees the donor's uncommitted changes.
+#
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+--connect (donor,localhost,root,,)
+--connect (receiver,localhost,root,,)
+
+# A read-write donor that opens its read view after its id was assigned, so
+# that no transaction id is allocated between that view and the next reads.
+--connection donor
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION;
+UPDATE t1 SET c = 1 WHERE id = 1;
+SELECT c FROM t1 WHERE id = 1;
+
+# The clone sees what the donor sees, including the donor's own changes.
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+SELECT c FROM t1 WHERE id = 1;
+COMMIT;
+
+# A new autocommit read must not see the uncommitted change any more.
+SELECT c FROM t1 WHERE id = 1;
+
+--connection donor
+ROLLBACK;
+
+--connection receiver
+SELECT c FROM t1 WHERE id = 1;
+
+--connection default
+--disconnect donor
+--disconnect receiver
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

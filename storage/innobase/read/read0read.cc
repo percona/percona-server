@@ -486,8 +486,10 @@ point in time are seen in the view.
 @param id               Creator transaction id */
 
 void ReadView::prepare(trx_id_t id) {
-  ut_ad(!m_cloned);
   ut_ad(trx_sys_mutex_own());
+
+  /* A closed cloned view is reopened as a normal snapshot. */
+  m_cloned = false;
 
   m_creator_trx_id = id;
 
@@ -570,7 +572,10 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
     Therefore we must set the low limit id after we reset the
     closed status after the check. */
 
-    if (trx_is_autocommit_non_locking(trx) && view->empty()) {
+    /* A closed cloned view keeps the creator id of its donor, so reopening
+    it here would make the donor's uncommitted changes visible. */
+    if (trx_is_autocommit_non_locking(trx) && view->empty() &&
+        !view->m_cloned) {
       view->m_closed = false;
 
       if (view->m_low_limit_id == trx_sys_get_next_trx_id_or_no()) {
@@ -784,7 +789,6 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
     /* Note this can be called for a read view that
     was already closed. */
     ptr->m_closed = true;
-    ptr->m_cloned = false;
 
     /* Set the view as closed. */
     view = reinterpret_cast<ReadView *>(p | 0x1);

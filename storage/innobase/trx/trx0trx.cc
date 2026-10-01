@@ -1308,6 +1308,23 @@ void trx_assign_rseg_durable(trx_t *trx) {
   trx->rsegs.m_redo.rseg = srv_read_only_mode ? nullptr : get_next_redo_rseg();
 }
 
+/** Remove an id preallocated for a cloned read view donor from
+trx_sys->reserved_rw_ids.
+@param id	preallocated transaction id */
+static void trx_erase_reserved_rw_id(trx_id_t id) {
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(id > 0);
+
+  const auto it = std::lower_bound(trx_sys->reserved_rw_ids.begin(),
+                                   trx_sys->reserved_rw_ids.end(), id);
+
+  ut_ad(it != trx_sys->reserved_rw_ids.end() && *it == id);
+
+  if (it != trx_sys->reserved_rw_ids.end() && *it == id) {
+    trx_sys->reserved_rw_ids.erase(it);
+  }
+}
+
 /** Assign an id for this RW transaction and insert it into trx_sys->rw_trx_ids
 @param trx	transaction to assign an id for */
 static void trx_assign_id_for_rw(trx_t *trx) {
@@ -1317,6 +1334,8 @@ static void trx_assign_id_for_rw(trx_t *trx) {
       trx->preallocated_id ? trx->preallocated_id : trx_sys_allocate_trx_id();
 
   if (trx->preallocated_id) {
+    trx_erase_reserved_rw_id(trx->preallocated_id);
+
     // preallocated_id might not be received in ascending order,
     // so we need to maintain ordering in rw_trx_ids and update
     // min_active_trx_id
@@ -2173,6 +2192,15 @@ written */
 
   if (trx->fts_trx != nullptr) {
     trx_finalize_for_fts(trx, trx->undo_no != 0);
+  }
+
+  /* A cloned read view donor that stayed read-only never used the id
+  preallocated for it. Release it before trx_init() forgets it. The state is
+  no longer ACTIVE, so no clone can preallocate one any more. */
+  if (trx->id == 0 && trx->preallocated_id != 0) {
+    trx_sys_mutex_enter();
+    trx_erase_reserved_rw_id(trx->preallocated_id);
+    trx_sys_mutex_exit();
   }
 
   trx_mutex_enter(trx);

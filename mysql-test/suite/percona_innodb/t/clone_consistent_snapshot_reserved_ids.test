@@ -1,0 +1,85 @@
+# PS-11621: read views must merge multiple reserved donor ids with normal
+# active ids in sorted order. Donors can consume reservations out of order.
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0), (2, 0), (3, 0);
+
+--connect (donor1,localhost,root,,)
+--connect (donor2,localhost,root,,)
+--connect (writer,localhost,root,,)
+--connect (receiver,localhost,root,,)
+--connect (observer,localhost,root,,)
+
+--connection donor1
+--let $donor1_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor1_id
+--enable_query_log
+COMMIT;
+
+# Allocate an ordinary active id between the two reserved donor ids.
+--connection writer
+START TRANSACTION;
+UPDATE t1 SET c = 10 WHERE id = 3;
+
+--connection donor2
+--let $donor2_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor2_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor2_id
+--enable_query_log
+COMMIT;
+
+# Cloning donor1 again must reuse its reservation rather than add a second
+# entry that would survive promotion or transaction completion.
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor1_id
+--enable_query_log
+COMMIT;
+
+--connection observer
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection donor2
+UPDATE t1 SET c = 20 WHERE id = 2;
+--connection donor1
+UPDATE t1 SET c = 30 WHERE id = 1;
+
+--connection observer
+SELECT * FROM t1 ORDER BY id;
+
+--connection donor2
+COMMIT;
+--connection writer
+COMMIT;
+--connection donor1
+COMMIT;
+
+--connection observer
+SELECT * FROM t1 ORDER BY id;
+COMMIT;
+
+--connection default
+SELECT * FROM t1 ORDER BY id;
+# No active writer remains. A fresh view must not retain a duplicate
+# reservation after the donors have consumed their ids and committed.
+--source suite/percona_innodb/include/clone_consistent_snapshot_check_no_active_ids.inc
+
+--disconnect donor1
+--disconnect donor2
+--disconnect writer
+--disconnect receiver
+--disconnect observer
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

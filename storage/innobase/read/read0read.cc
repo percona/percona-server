@@ -503,6 +503,14 @@ void ReadView::prepare(trx_id_t id) {
     m_ids.clear();
   }
 
+  /* Ids preallocated for read-only donors of a cloned read view are active
+  too, even though they are not in rw_trx_ids yet. */
+  for (const trx_id_t reserved_id : trx_sys->reserved_rw_ids) {
+    if (reserved_id != m_creator_trx_id) {
+      m_ids.insert(reserved_id);
+    }
+  }
+
   /* The first active transaction has the smallest id. */
   m_up_limit_id = !m_ids.empty() ? m_ids.front() : m_low_limit_id;
 
@@ -688,6 +696,10 @@ void ReadView::clone(ReadView *&result, trx_t *from_trx) const {
     if (!from_trx->preallocated_id) {
       // Preallocate a transaction id for the donor
       from_trx_id = from_trx->preallocated_id = trx_sys_allocate_trx_id();
+      // Make new read views treat it as active, see reserved_rw_ids
+      ut_ad(trx_sys->reserved_rw_ids.empty() ||
+            trx_sys->reserved_rw_ids.back() < from_trx_id);
+      trx_sys->reserved_rw_ids.push_back(from_trx_id);
     } else {
       // This transaction has already been cloned
       from_trx_id = from_trx->preallocated_id;

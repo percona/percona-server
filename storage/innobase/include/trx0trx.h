@@ -221,9 +221,9 @@ static inline ReadView *trx_get_read_view(trx_t *trx);
 /** @return the transaction's read view or NULL if one not assigned. */
 static inline const ReadView *trx_get_read_view(const trx_t *trx);
 
-/** Clones the read view from another transaction. All the consistent reads
-within the receiver transaction will get the same read view as the donor
-transaction.
+/** Clone the donor's view for all consistent reads in the receiver.
+Return nullptr in read-only server mode or if the donor is inactive, has no
+open view, or is an autocommit non-locking transaction.
 @param[in]	trx	receiver transaction
 @param[in]	from_trx	donor transaction
 @return read view clone */

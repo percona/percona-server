@@ -2380,7 +2380,8 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
 the receiver transaction will get the same read view as the donor transaction
 @param[in]	trx		receiver transaction
 @param[in]	from_trx	donor transaction
-@return read view clone */
+@return read view clone, or nullptr if the donor has no open read view or is
+an autocommit non-locking read-only transaction */
 ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
   ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
@@ -2393,7 +2394,16 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
     return (nullptr);
   }
 
-  if (from_trx->state != TRX_STATE_ACTIVE || from_trx->read_view == nullptr) {
+  /* Only an open donor view protects the undo history it needs from purge.
+  Refuse a view closed by view_close(), whose pointer is tagged, and also the
+  window in MVCC::view_open() in which trx->read_view is already untagged but
+  the view is not reopened yet. Refuse an autocommit non-locking read-only
+  donor too: its view lives only for one statement, and it reopens it without
+  trx_sys->mutex. */
+  if (from_trx->state != TRX_STATE_ACTIVE ||
+      trx_is_autocommit_non_locking(from_trx) ||
+      !MVCC::is_view_active(from_trx->read_view) ||
+      from_trx->read_view->is_closed()) {
     trx_sys_mutex_exit();
     trx_mutex_exit(from_trx);
     return (nullptr);

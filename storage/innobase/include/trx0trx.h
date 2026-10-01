@@ -226,7 +226,8 @@ within the receiver transaction will get the same read view as the donor
 transaction.
 @param[in]	trx	receiver transaction
 @param[in]	from_trx	donor transaction
-@return read view clone */
+@return read view clone, or nullptr if the donor has no open read view or is
+an autocommit non-locking read-only transaction */
 [[nodiscard]]
 ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx);
 

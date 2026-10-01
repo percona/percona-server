@@ -169,3 +169,39 @@ SELECT id FROM t_rep
 REPLACE INTO t_rep VALUES (4, STRING_TO_VECTOR('[9,9]'), 20);
 SELECT id, u FROM t_rep ORDER BY id;
 DROP TABLE t_rep;
+
+
+--echo #
+--echo # PS-11580 : Vector-index (HNSW) access path silently swallows a
+--echo #            dimension-mismatch error that DISTANCE() itself raises
+--echo #            correctly everywhere else.
+--echo #
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  v VECTOR(4) NOT NULL,
+  VECTOR KEY vk (v) TYPE hnsw (M = 8)
+);
+INSERT INTO t1 (v) VALUES
+  (STRING_TO_VECTOR('[1,0,0,0]')),
+  (STRING_TO_VECTOR('[2,0,0,0]')),
+  (STRING_TO_VECTOR('[3,0,0,0]'));
+
+--echo # In plain projection and table scan scenarios DISTANCE detected
+--echo # mismatch and reported error even before the fix.
+--error ER_WRONG_ARGUMENTS
+SELECT id, DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') AS d FROM t1;
+
+--error ER_WRONG_ARGUMENTS
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN');
+
+--echo # For ORDER BY ... LIMIT n, which used vector-index path, mismatch
+--echo # was not reported as error before the fix, empty result was returned
+--echo # instead.
+--echo # After the fix we report the same error as in the above two cases.
+--error ER_WRONG_ARGUMENTS
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 2;
+
+--echo # Run explain to confirm that ORDER BY ... LIMIT n uses vector search on vk.
+EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 2;
+
+DROP TABLE t1;

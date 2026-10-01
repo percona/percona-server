@@ -1966,11 +1966,11 @@ struct buf_block_t {
   the fields above depends on whether PFS instrumentation of mutex and rw_lock
   is enabled. */
 #if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
-  byte m_padding[16];
+  byte m_padding[48];
 #elif defined(UNIV_PFS_MUTEX)
-  byte m_padding[24];
+  byte m_padding[56];
 #else
-  byte m_padding[32];
+  byte m_padding[64];
 #endif
 
   /** Get the modified clock (version) value.

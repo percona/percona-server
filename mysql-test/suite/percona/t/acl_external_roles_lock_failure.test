@@ -1,0 +1,30 @@
+# PS-11593: when the ACL cache lock cannot be acquired during authentication,
+# the login must FAIL with ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES.
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+CREATE USER ps11593@localhost IDENTIFIED BY 'pw';
+
+--let $old_debug = `SELECT @@GLOBAL.debug`
+
+--echo #
+--echo # A failed SHARED probe must fail the login, not let it through
+--echo #
+SET GLOBAL debug = '+d,fail_acl_external_roles_read_lock';
+
+# strip the client's password-on-command-line warning, keep the server error
+--replace_regex /^mysql: \[Warning\].*\n//
+--error 1
+--exec $MYSQL -ups11593 -ppw -e "SELECT 1" 2>&1
+
+--eval SET GLOBAL debug = '$old_debug'
+
+--echo #
+--echo # The server is still up and ordinary logins work again
+--echo #
+--exec $MYSQL -ups11593 -ppw -e "SELECT 1"
+
+SELECT 1 AS server_alive;
+
+DROP USER ps11593@localhost;

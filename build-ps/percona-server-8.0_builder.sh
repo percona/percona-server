@@ -556,6 +556,15 @@ install_deps() {
 	    fi
         fi
     else
+        export DIST="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+        if [ x"${DIST}" == "xbullseye" ]; then
+           sed -i -E '/bullseye(-security|-updates)?[[:space:]]/d' /etc/apt/sources.list
+cat <<'EOF' | tee -a /etc/apt/sources.list
+deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260830T000000Z/ bullseye main
+deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/20260830T000000Z/ bullseye-updates main
+deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/20260830T000000Z/ bullseye-security main
+EOF
+        fi
         until apt-get update; do
             echo "apt-get update failed. Retrying in 5 seconds..."
             sleep 5
@@ -564,11 +573,6 @@ install_deps() {
         apt-get -y install dirmngr || true
         apt-get -y install lsb-release || true
         apt-get -y install wget git curl
-        export DIST="$(lsb_release -sc)"
-        #if [ x"${DIST}" != xnoble -o x"${DIST}" != xresolute ];then
-        #    wget https://repo.percona.com/apt/percona-release_latest."${DIST}"_all.deb && dpkg -i percona-release_latest."${DIST}"_all.deb
-        #    percona-release enable tools testing
-        #fi
         until apt-get update; do
             echo "apt-get update failed. Retrying in 5 seconds..."
             sleep 5

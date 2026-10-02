@@ -860,6 +860,11 @@ class Fil_shard {
     in meantime. If this is nullptr, the page with this page_id can't be in the
     buffer pool, as it risks race condition with a Buffer Pool-induced page
     flush.
+  @param[in,out]  trx             Transaction the read is performed on behalf
+    of, used to account the InnoDB statistics reported by the slow query log,
+    or nullptr if not on behalf of a user transaction.
+  @param[in]      should_buffer   whether to buffer an AIO request. Only used
+    by AIO read ahead.
   @param[in] postprocess_result   A callback to be called exactly once when the
     result of this IO operation is known. It may be a success if the read or
     write succeeded or a subset of `dberr_t` errors if the write or read could
@@ -867,11 +872,6 @@ class Fil_shard {
     thread before returning from this method, or can be executed asynchronously
     from another thread, when @p sync is false, before or after this call
     returns.
-  @param[in,out]  trx             Transaction the read is performed on behalf
-    of, used to account the InnoDB statistics reported by the slow query log,
-    or nullptr if not on behalf of a user transaction.
-  @param[in]      should_buffer   whether to buffer an AIO request. Only used
-    by AIO read ahead.
   @return error code
   @retval DB_SUCCESS on success
   @retval DB_TABLESPACE_DELETED if the tablespace does not exist
@@ -1683,15 +1683,14 @@ dberr_t fil_node_t::map_status_io_to_db_err(
 }
 
 dberr_t fil_node_t::post_io_sync(IORequest &type, byte *buf, size_t buffer_len,
-                                 page_no_t page_no, trx_t *trx) const {
+                                 page_no_t page_no) const {
   ut_a(is_open());
   const page_size_t page_size(this->space->flags);
 
   if (type.is_read()) {
     /* Buffer must be big enough to hold the page being read. */
     ut_a(buffer_len >= page_size.physical());
-    return map_status_io_to_db_err(
-        m_handle->read_page(type, buf, page_no, trx));
+    return map_status_io_to_db_err(m_handle->read_page(type, buf, page_no));
   }
 
   ut_ad(type.is_write());
@@ -1717,8 +1716,7 @@ dberr_t fil_node_t::write_pages(std::span<const byte *> buffers,
 #ifndef UNIV_HOTBACKUP
 dberr_t fil_node_t::post_io_async(IORequest &type, byte *buf, size_t buffer_len,
                                   page_no_t page_no,
-                                  std::function<void(dberr_t)> callback,
-                                  trx_t *trx, bool should_buffer) const {
+                                  std::function<void(dberr_t)> callback) const {
   ut_a(is_open());
   const page_size_t page_size(this->space->flags);
 
@@ -1728,8 +1726,8 @@ dberr_t fil_node_t::post_io_async(IORequest &type, byte *buf, size_t buffer_len,
     /* If the size is not equal the following method will work fine, but it is
     still not following the documentation. */
     ut_ad(buffer_len == page_size.physical());
-    return map_status_io_to_db_err(m_handle->read_page_async(
-        type, buf, page_no, trx, should_buffer, callback));
+    return map_status_io_to_db_err(
+        m_handle->read_page_async(type, buf, page_no, callback));
   }
 
   ut_ad(type.is_write());
@@ -6980,6 +6978,10 @@ dberr_t Fil_shard::do_io(const IORequest::Type type, bool sync,
                          bool should_buffer,
                          std::function<dberr_t(dberr_t)> postprocess_result) {
   IORequest req_type(type);
+  req_type.set_trx(trx);
+  if (should_buffer) {
+    req_type.set_should_buffer();
+  }
 
   ut_ad(req_type.validate());
   ut_a(!req_type.is_log());
@@ -7288,7 +7290,7 @@ dberr_t Fil_shard::do_io(const IORequest::Type type, bool sync,
 
   if (sync) {
     return assert_io_succeeded_complete_io_and_postprocess_result(
-        file->post_io_sync(req_type, buf, len, page_no, trx));
+        file->post_io_sync(req_type, buf, len, page_no));
   }
 #ifndef UNIV_HOTBACKUP
   /* Queue the io request */
@@ -7305,8 +7307,7 @@ dberr_t Fil_shard::do_io(const IORequest::Type type, bool sync,
 
   return file->post_io_async(
       req_type, buf, len, page_no,
-      std::move(ignore_postprocessing_result_code_callback), trx,
-      should_buffer);
+      std::move(ignore_postprocessing_result_code_callback));
 #else  /* UNIV_HOTBACKUP */
   ut_error;
 #endif /* UNIV_HOTBACKUP */
@@ -7344,9 +7345,9 @@ void fil_aio_wait(ulint segment) {
 
 dberr_t fil_io(IORequest::Type type, bool sync, const page_id_t &page_id,
                const page_size_t &page_size, ulint len, byte *buf,
-               buf_page_t *bpage, bool evict_after_write, trx_t *trx,
-               bool should_buffer,
-               std::function<void(dberr_t err)> pre_io_complete_callback) {
+               buf_page_t *bpage, bool evict_after_write,
+               std::function<void(dberr_t err)> pre_io_complete_callback,
+               trx_t *trx, bool should_buffer) {
   auto shard = fil_system->shard_by_id(page_id.space());
   /* evict_after_write requires the page descriptor to be specified and the IO
   to be a write. */

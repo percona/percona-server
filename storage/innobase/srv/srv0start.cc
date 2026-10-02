@@ -294,7 +294,7 @@ static dberr_t srv_undo_tablespace_read_encryption(
       ut::aligned_alloc(UNIV_PAGE_SIZE_MAX, UNIV_PAGE_SIZE));
 
   ib::fil::Tablespace_node_handle_interface::Status_IO status =
-      file_handle->read_page(request, first_page, 0, nullptr);
+      file_handle->read_page(request, first_page, 0);
 
   if (status != ib::fil::Tablespace_node_handle_interface::Status_IO::SUCCESS) {
     ib::info(ER_IB_MSG_FIRST_PAGE_READ_FAILED, space->name, ut_strerr(err));
@@ -679,7 +679,7 @@ static dberr_t srv_undo_tablespace_open_by_num(const space_id_t space_num) {
           ut::make_unique_aligned<byte[]>(srv_page_size, srv_page_size);
 
       ib::fil::Tablespace_node_handle_interface::Status_IO page_read_status =
-          handle->get()->read_page(request, first_page.get(), 0, nullptr);
+          handle->get()->read_page(request, first_page.get(), 0);
 
       if (page_read_status !=
           ib::fil::Tablespace_node_handle_interface::Status_IO::SUCCESS) {

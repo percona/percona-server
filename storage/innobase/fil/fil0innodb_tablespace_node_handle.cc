@@ -119,11 +119,11 @@ Tablespace_node_handle::map_db_err_to_status_io(dberr_t err) {
 }
 
 Tablespace_node_handle::Status_IO Tablespace_node_handle::read_page(
-    IORequest req, byte *buffer, page_no_t page_no, trx_t *trx) {
+    IORequest req, byte *buffer, page_no_t page_no) {
   const auto offset = uint64_t{page_no} * m_physical_page_size;
 
-  const auto res = os_file_read_trx(req, m_file_name.c_str(), m_handle, buffer,
-                                    offset, m_physical_page_size, trx);
+  const auto res = os_file_read(req, m_file_name.c_str(), m_handle, buffer,
+                                offset, m_physical_page_size);
 
   return map_db_err_to_status_io(res);
 }
@@ -131,8 +131,7 @@ Tablespace_node_handle::Status_IO Tablespace_node_handle::read_page(
 #ifndef UNIV_HOTBACKUP
 
 Tablespace_node_handle::Status_IO Tablespace_node_handle::read_page_async(
-    IORequest req, byte *buffer, page_no_t page_no, trx_t *trx,
-    bool should_buffer, Callback callback) {
+    IORequest req, byte *buffer, page_no_t page_no, Callback callback) {
   const auto offset = uint64_t{page_no} * m_physical_page_size;
 
   if (!recv_recovery_is_on()) {
@@ -147,7 +146,7 @@ Tablespace_node_handle::Status_IO Tablespace_node_handle::read_page_async(
   const auto res =
       os_aio(req, req.is_ibuf() ? AIO_mode::IBUF : AIO_mode::NORMAL,
              m_file_name.c_str(), m_handle, buffer, offset,
-             m_physical_page_size, callback, trx, should_buffer);
+             m_physical_page_size, callback);
 
   return map_db_err_to_status_io(res);
 }
@@ -222,7 +221,7 @@ Tablespace_node_handle::Status_IO Tablespace_node_handle::write_page_async(
   req.set_original_size(original_len);
 
   auto res = os_aio(req, AIO_mode::NORMAL, m_file_name.c_str(), m_handle,
-                    buffer, offset, buffer_len, callback, nullptr, false);
+                    buffer, offset, buffer_len, callback);
 
   return map_db_err_to_status_io(res);
 }

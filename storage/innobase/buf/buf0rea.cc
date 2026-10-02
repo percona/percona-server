@@ -126,8 +126,10 @@ ulint buf_read_page_low(dberr_t *err, bool sync, IORequest::Type type,
     dst = ((buf_block_t *)bpage)->frame;
   }
 
-  *err = fil_io(type | IORequest::Type::READ, sync, page_id, page_size,
-                page_size.physical(), dst, bpage, false, trx, should_buffer);
+  *err = fil_io(
+      type | IORequest::Type::READ, sync, page_id, page_size,
+      page_size.physical(), dst, bpage, false, [](dberr_t) {}, trx,
+      should_buffer);
 
   /* The DB_INDEX_CORRUPT is returned from fil_io's callback that is running
   buf_page_io_complete. */

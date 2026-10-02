@@ -141,7 +141,6 @@ static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                                       const char *name, pfs_os_file_t file,
                                       byte *buf, os_offset_t offset, ulint n,
                                       std::function<void(dberr_t)> callback,
-                                      trx_t *trx, bool should_buffer,
                                       ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
@@ -154,7 +153,7 @@ static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode aio_mode,
                              src_location);
 
   dberr_t result = os_aio_func(type, aio_mode, name, file, buf, offset, n,
-                               std::move(callback), trx, should_buffer);
+                               std::move(callback));
 
   register_pfs_file_io_end(locker, n);
 
@@ -174,9 +173,11 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(
-    const IORequest &type, const char *file_name, pfs_os_file_t file, byte *buf,
-    os_offset_t offset, ulint n, trx_t *trx, ut::Location src_location) {
+static inline dberr_t pfs_os_file_read_func(const IORequest &type,
+                                            const char *file_name,
+                                            pfs_os_file_t file, byte *buf,
+                                            os_offset_t offset, ulint n,
+                                            ut::Location src_location) {
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = nullptr;
 
@@ -187,7 +188,7 @@ static inline dberr_t pfs_os_file_read_func(
 
   dberr_t result;
 
-  result = os_file_read_func(type, file_name, file.m_file, buf, offset, n, trx);
+  result = os_file_read_func(type, file_name, file.m_file, buf, offset, n);
 
   register_pfs_file_io_end(locker, n);
 

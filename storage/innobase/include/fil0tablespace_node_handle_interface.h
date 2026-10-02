@@ -107,14 +107,9 @@ class Tablespace_node_handle_interface {
                           TODO : buffer to be replaced with std::span.
   @param[in]   page_no    Offset from the first page in the node to read
                           from.
-  @param[in,out] trx      Transaction the read is performed on behalf of, used
-                          to account the InnoDB statistics reported by the slow
-                          query log, or nullptr if not on behalf of a user
-                          transaction.
   @return Status_IO::SUCCESS on successful read, otherwise error code */
   [[nodiscard]] virtual Status_IO read_page(IORequest req, byte *buffer,
-                                            Page_number page_no,
-                                            trx_t *trx) = 0;
+                                            Page_number page_no) = 0;
 
 #ifndef UNIV_HOTBACKUP
   /** Reads a requested page asynchronously.
@@ -141,12 +136,6 @@ class Tablespace_node_handle_interface {
                           TODO : buffer to be replaced with std::span.
   @param[in]   page_no    Offset from the first page in the node to read
                           from.
-  @param[in,out] trx      Transaction the read is performed on behalf of, used
-                          to account the InnoDB statistics reported by the slow
-                          query log, or nullptr if not on behalf of a user
-                          transaction.
-  @param[in] should_buffer  Whether to buffer an AIO request. Only used by AIO
-                          read ahead.
   @param[in]   callback   A callback to be called exactly once when the result
                           of this IO operation is known. It may be a success if
                           the read or write succeeded or a subset of `dberr_t`
@@ -159,8 +148,6 @@ class Tablespace_node_handle_interface {
   */
   [[nodiscard]] virtual Status_IO read_page_async(IORequest req, byte *buffer,
                                                   Page_number page_no,
-                                                  trx_t *trx,
-                                                  bool should_buffer,
                                                   Callback callback) = 0;
 #endif /* !UNIV_HOTBACKUP */
 

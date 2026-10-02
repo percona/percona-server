@@ -1,0 +1,83 @@
+# PS-11621: overwriting a cached receiver view must also move it next to
+# its donor in the MVCC list. Cover both ordinary and cloned cached views.
+
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+--connect (donor,localhost,root,,)
+--connect (newer,localhost,root,,)
+--connect (receiver,localhost,root,,)
+
+--connection donor
+--let $donor_id=`SELECT CONNECTION_ID()`
+--connection newer
+--let $newer_id=`SELECT CONNECTION_ID()`
+
+--let $cached_clone= 0
+while ($cached_clone < 2)
+{
+  --echo # Reuse a cached view: cloned=$cached_clone
+  --connection default
+  UPDATE t1 SET c = 0 WHERE id = 1;
+
+  --connection donor
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+  --connection default
+  UPDATE t1 SET c = 1 WHERE id = 1;
+
+  --connection newer
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+  --connection receiver
+  if ($cached_clone)
+  {
+    --disable_query_log
+    --echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$newer_id;
+    --eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $newer_id
+    --enable_query_log
+  }
+  SELECT c FROM t1 WHERE id = 1;
+  COMMIT;
+
+  # The cached view is newer than the donor and precedes it in the list.
+  --disable_query_log
+  --echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+  --eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+  --enable_query_log
+  SELECT c FROM t1 WHERE id = 1;
+
+  # Opening another view calls MVCC::validate(). This also catches a reused
+  # clone left in its old list position without depending on purge timing.
+  --connection default
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
+  COMMIT;
+
+  --connection donor
+  COMMIT;
+
+  --connection default
+  SET GLOBAL innodb_purge_run_now=ON;
+  --source include/wait_innodb_all_purged.inc
+
+  --connection receiver
+  SELECT c FROM t1 WHERE id = 1;
+  COMMIT;
+
+  --connection newer
+  SELECT c FROM t1 WHERE id = 1;
+  COMMIT;
+
+  --inc $cached_clone
+}
+
+--connection default
+--disconnect donor
+--disconnect newer
+--disconnect receiver
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

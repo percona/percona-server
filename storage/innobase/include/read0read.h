@@ -55,6 +55,15 @@ class MVCC {
   @param	view	view to add */
   void view_add(const ReadView *view);
 
+  /** Insert a cloned view into the view list right after its donor. Both
+  have the same m_low_limit_no, so this keeps the list ordered, which purge
+  relies on when it looks for the oldest view.
+  @param	view	cloned view
+  @param	donor	open view it was cloned from
+  @param	in_list	true if view is already in the view list */
+  void view_add_clone(const ReadView *view, const ReadView *donor,
+                      bool in_list);
+
   /** Allocate and create a view.
   @param view   View owned by this class created for the caller. Must be
   freed by calling view_close()

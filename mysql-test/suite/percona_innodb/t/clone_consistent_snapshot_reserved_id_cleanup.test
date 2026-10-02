@@ -1,0 +1,91 @@
+# PS-11621: release donor reservations on read-only commit/rollback and
+# disconnect, and when an explicit READ ONLY donor writes a temporary table.
+# With all transactions ended, a fresh view must have no active ids. Checking
+# its limits detects a leaked reservation even though that id wrote no rows.
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+--connect (donor,localhost,root,,)
+--connect (receiver,localhost,root,,)
+
+--connection donor
+--let $donor_id=`SELECT CONNECTION_ID()`
+CREATE TEMPORARY TABLE tmp1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+
+--echo # Read-only donor commit
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+COMMIT;
+--connection donor
+COMMIT;
+--connection default
+--source suite/percona_innodb/include/clone_consistent_snapshot_check_no_active_ids.inc
+
+--echo # Read-only donor rollback
+--connection donor
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+ROLLBACK;
+--connection donor
+ROLLBACK;
+--connection default
+--source suite/percona_innodb/include/clone_consistent_snapshot_check_no_active_ids.inc
+
+--echo # Temporary-table write and commit
+--connection donor
+START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+COMMIT;
+--connection donor
+INSERT INTO tmp1 VALUES (1);
+COMMIT;
+SELECT * FROM tmp1;
+--connection default
+--source suite/percona_innodb/include/clone_consistent_snapshot_check_no_active_ids.inc
+
+--echo # Temporary-table write and rollback
+--connection donor
+START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+COMMIT;
+--connection donor
+INSERT INTO tmp1 VALUES (2);
+ROLLBACK;
+SELECT * FROM tmp1;
+--connection default
+--source suite/percona_innodb/include/clone_consistent_snapshot_check_no_active_ids.inc
+
+--echo # Disconnect with an unused reservation
+--connection donor
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+COMMIT;
+--connection default
+--disconnect donor
+--disconnect receiver
+--source include/wait_until_count_sessions.inc
+--source suite/percona_innodb/include/clone_consistent_snapshot_check_no_active_ids.inc
+DROP TABLE t1;

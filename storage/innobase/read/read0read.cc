@@ -362,6 +362,32 @@ void MVCC::view_add(const ReadView *view) {
   ut_ad(validate());
 }
 
+/** Insert a cloned view into the view list right after its donor. Both
+have the same m_low_limit_no, so this keeps the list ordered, which purge
+relies on when it looks for the oldest view.
+@param	view	cloned view
+@param	donor	open view it was cloned from
+@param	in_list	true if view is already in the view list */
+void MVCC::view_add_clone(const ReadView *view, const ReadView *donor,
+                          bool in_list) {
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(view != donor);
+  ut_ad(!donor->is_closed());
+  ut_ad(view->m_low_limit_no == donor->m_low_limit_no);
+
+  auto *const clone = const_cast<ReadView *>(view);
+
+  if (in_list) {
+    UT_LIST_REMOVE(m_views, clone);
+  }
+
+  UT_LIST_INSERT_AFTER(m_views, const_cast<ReadView *>(donor), clone);
+
+  ut_ad(!view->is_closed());
+
+  ut_ad(validate());
+}
+
 /**
 Copy the transaction ids from the source vector */
 
@@ -460,8 +486,10 @@ point in time are seen in the view.
 @param id               Creator transaction id */
 
 void ReadView::prepare(trx_id_t id) {
-  ut_ad(!m_cloned);
   ut_ad(trx_sys_mutex_own());
+
+  /* A closed cloned view is reopened as a normal snapshot. */
+  m_cloned = false;
 
   m_creator_trx_id = id;
 
@@ -475,6 +503,14 @@ void ReadView::prepare(trx_id_t id) {
     copy_trx_ids(trx_sys->rw_trx_ids);
   } else {
     m_ids.clear();
+  }
+
+  /* Ids preallocated for read-only donors of a cloned read view are active
+  too, even though they are not in rw_trx_ids yet. */
+  for (const trx_id_t reserved_id : trx_sys->reserved_rw_ids) {
+    if (reserved_id != m_creator_trx_id) {
+      m_ids.insert(reserved_id);
+    }
   }
 
   /* The first active transaction has the smallest id. */
@@ -524,6 +560,8 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
 
     view = reinterpret_cast<ReadView *>(p & ~1);
 
+    DEBUG_SYNC_C("mvcc_view_open_after_untag_before_reopen");
+
     ut_ad(view->m_closed);
 
     /* NOTE: This can be optimised further, for now we only
@@ -534,7 +572,10 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
     Therefore we must set the low limit id after we reset the
     closed status after the check. */
 
-    if (trx_is_autocommit_non_locking(trx) && view->empty()) {
+    /* A closed cloned view keeps the creator id of its donor, so reopening
+    it here would make the donor's uncommitted changes visible. */
+    if (trx_is_autocommit_non_locking(trx) && view->empty() &&
+        !view->m_cloned) {
       view->m_closed = false;
 
       if (view->m_low_limit_id == trx_sys_get_next_trx_id_or_no()) {
@@ -660,6 +701,10 @@ void ReadView::clone(ReadView *&result, trx_t *from_trx) const {
     if (!from_trx->preallocated_id) {
       // Preallocate a transaction id for the donor
       from_trx_id = from_trx->preallocated_id = trx_sys_allocate_trx_id();
+      // Make new read views treat it as active, see reserved_rw_ids
+      ut_ad(trx_sys->reserved_rw_ids.empty() ||
+            trx_sys->reserved_rw_ids.back() < from_trx_id);
+      trx_sys->reserved_rw_ids.push_back(from_trx_id);
     } else {
       // This transaction has already been cloned
       from_trx_id = from_trx->preallocated_id;
@@ -744,7 +789,6 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
     /* Note this can be called for a read view that
     was already closed. */
     ptr->m_closed = true;
-    ptr->m_cloned = false;
 
     /* Set the view as closed. */
     view = reinterpret_cast<ReadView *>(p | 0x1);

@@ -1,0 +1,134 @@
+#
+# PS-11308: START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION must not
+# clone a donor read view that is closed. A closed view does not protect the
+# undo history it needs from purge, so a receiver reading through a clone of it
+# could need undo records that are already gone.
+#
+# The first scenario is based on the regression test contributed by the
+# ByteDance RDS MySQL team in https://github.com/percona/percona-server/pull/6021
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+--source include/count_sessions.inc
+
+--disable_query_log
+CALL mtr.add_suppression("Required history data has been deleted");
+--enable_query_log
+
+CREATE TABLE t1(id INT PRIMARY KEY, c INT, pad VARCHAR(200)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, 0, REPEAT('a', 200));
+
+--connect (receiver,localhost,root,,)
+
+--connection default
+--let $donor_id=`SELECT CONNECTION_ID()`
+
+--echo #
+--echo # Scenario 1: an autocommit READ COMMITTED donor reopening its view.
+--echo #
+
+SET SESSION transaction_isolation='READ-COMMITTED';
+
+# The statement view is closed at statement end and kept for reuse.
+SELECT c FROM t1 WHERE id=1;
+
+# Generate undo history that the closed view would need, and purge it.
+--connection receiver
+--disable_query_log
+--let $i= 1
+while ($i <= 200)
+{
+  --eval UPDATE t1 SET c = $i, pad = REPEAT(CHAR(65 + ($i % 26)), 200) WHERE id = 1
+  --inc $i
+}
+--enable_query_log
+
+SET GLOBAL innodb_purge_run_now=ON;
+--let $wait_timeout= 60
+--source include/wait_innodb_all_purged.inc
+--source suite/innodb/include/force_purge.inc
+
+# Stop the donor's next statement in MVCC::view_open() after trx->read_view has
+# been untagged, but before the closed view is reopened.
+--connection default
+SET DEBUG_SYNC='mvcc_view_open_after_untag_before_reopen SIGNAL donor_before_reopen WAIT_FOR continue_donor TIMEOUT 120';
+--send SELECT c FROM t1 WHERE id=1
+
+--connection receiver
+SET SESSION transaction_isolation='REPEATABLE-READ';
+SET DEBUG_SYNC='now WAIT_FOR donor_before_reopen TIMEOUT 120';
+
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+
+# The clone was refused, so this read uses a fresh view.
+SELECT c FROM t1 WHERE id=1;
+
+SET DEBUG_SYNC='now SIGNAL continue_donor';
+
+--connection default
+--reap
+
+--connection receiver
+COMMIT;
+
+--echo #
+--echo # Scenario 2: an explicit transaction donor whose read view was closed
+--echo # by the commit of its previous read-only transaction.
+--echo #
+
+--connection default
+SET SESSION transaction_isolation='REPEATABLE-READ';
+START TRANSACTION;
+SELECT c FROM t1 WHERE id=1;
+COMMIT;
+
+# A locking read starts the next transaction without opening a read view, so
+# trx->read_view still holds the closed view of the previous transaction.
+START TRANSACTION;
+SELECT c FROM t1 WHERE id=1 FOR UPDATE;
+
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+SELECT c FROM t1 WHERE id=1;
+COMMIT;
+
+--echo #
+--echo # Scenario 3: the same donor opening a read view for its next consistent
+--echo # read, stopped after trx->read_view has been untagged.
+--echo #
+
+--connection default
+SET DEBUG_SYNC='mvcc_view_open_after_untag_before_reopen SIGNAL donor_before_reopen WAIT_FOR continue_donor TIMEOUT 120';
+--send SELECT c FROM t1 WHERE id=1
+
+--connection receiver
+SET DEBUG_SYNC='now WAIT_FOR donor_before_reopen TIMEOUT 120';
+
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+SELECT c FROM t1 WHERE id=1;
+COMMIT;
+
+SET DEBUG_SYNC='now SIGNAL continue_donor';
+
+--connection default
+--reap
+COMMIT;
+
+--disconnect receiver
+
+SET DEBUG_SYNC='RESET';
+SET SESSION transaction_isolation=DEFAULT;
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

@@ -23,7 +23,7 @@ handle_ok
 CREATE TABLE
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
-COM_QUERY: query[CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B))]
+COM_QUERY: query[CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B)) STATS_PERSISTENT=0]
 handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2
@@ -5183,7 +5183,7 @@ handle_ok
 CREATE TABLE
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
-COM_QUERY: query[CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B))]
+COM_QUERY: query[CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), UNIQUE(B)) STATS_PERSISTENT=0]
 handle_ok
 <<<<<<<<<<<< Current context >>>>>>>>>>>>>>>
 	[end] server status: 2

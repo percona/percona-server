@@ -1,0 +1,62 @@
+# is_fsync_required() and the flush methods below are Unix only.
+--source include/not_windows.inc
+--source include/not_valgrind.inc
+# Skips the test if the data directory does not support O_DIRECT.
+--source include/have_odirect.inc
+
+--echo #
+--echo # The doublewrite copy of a page must be durable before the page is
+--echo # written to its tablespace, so the doublewrite file is fsynced after
+--echo # each batch, unless innodb_flush_method=O_DIRECT_NO_FSYNC asks for no
+--echo # fsyncs at all.  An O_DIRECT write alone does not make the copy
+--echo # durable, so O_DIRECT must fsync the doublewrite file as well.
+--echo #
+--echo # The fsyncs of the doublewrite files show up as COUNT_MISC in
+--echo # performance_schema.file_summary_by_instance (the files are opened at
+--echo # startup, so after a TRUNCATE nothing else counts there).
+--echo #
+
+--write_file $MYSQL_TMP_DIR/dblwr_fsyncs.inc
+SELECT @@innodb_flush_method;
+TRUNCATE performance_schema.file_summary_by_instance;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+
+# Write the pages of t1 through the doublewrite buffer, and let the page
+# cleaner write every other dirty page as well.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+let $wait_condition =
+  SELECT variable_value = 0 FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_buffer_pool_pages_dirty';
+--source include/wait_condition.inc
+
+SELECT SUM(COUNT_WRITE) > 0 AS dblwr_written, SUM(COUNT_MISC) > 0 AS dblwr_fsynced
+  FROM performance_schema.file_summary_by_instance
+  WHERE FILE_NAME LIKE '%.dblwr';
+
+DROP TABLE t1;
+EOF
+
+--echo # O_DIRECT: the doublewrite file must be fsynced.
+--let $restart_parameters = restart: --innodb_flush_method=O_DIRECT
+--source include/restart_mysqld.inc
+--source $MYSQL_TMP_DIR/dblwr_fsyncs.inc
+
+--echo # O_DIRECT_NO_FSYNC: no fsync, as documented.
+--let $restart_parameters = restart: --innodb_flush_method=O_DIRECT_NO_FSYNC
+--source include/restart_mysqld.inc
+--source $MYSQL_TMP_DIR/dblwr_fsyncs.inc
+
+--echo # fsync: the doublewrite file is fsynced.
+--let $restart_parameters = restart: --innodb_flush_method=fsync
+--source include/restart_mysqld.inc
+--source $MYSQL_TMP_DIR/dblwr_fsyncs.inc
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--remove_file $MYSQL_TMP_DIR/dblwr_fsyncs.inc

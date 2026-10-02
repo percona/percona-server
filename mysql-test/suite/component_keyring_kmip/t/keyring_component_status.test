@@ -11,7 +11,35 @@ CALL mtr.add_suppression("No suitable 'keyring_component_metadata_query' service
 --echo #
 
 # Should show metadata obtained from keyring component
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+# Mirror the KMIP_* fallback defaults applied in ../inc/setup_component.inc,
+# so the expected Server_addr/Server_port/*_ca/*_key values match regardless
+# of whether KMIP_* environment variables are exported.
+--let $KMIP_ADDR_EXP = 127.0.0.1
+if ($KMIP_ADDR)
+{
+  --let $KMIP_ADDR_EXP = $KMIP_ADDR
+}
+--let $KMIP_PORT_EXP = 5696
+if ($KMIP_PORT)
+{
+  --let $KMIP_PORT_EXP = $KMIP_PORT
+}
+--let $KMIP_CLIENT_CA_EXP = /tmp/certs/mysql-client-cert.pem
+if ($KMIP_CLIENT_CA)
+{
+  --let $KMIP_CLIENT_CA_EXP = $KMIP_CLIENT_CA
+}
+--let $KMIP_CLIENT_KEY_EXP = /tmp/certs/mysql-client-key.pem
+if ($KMIP_CLIENT_KEY)
+{
+  --let $KMIP_CLIENT_KEY_EXP = $KMIP_CLIENT_KEY
+}
+--let $KMIP_SERVER_CA_EXP = /tmp/certs/vault-kmip-ca.pem
+if ($KMIP_SERVER_CA)
+{
+  --let $KMIP_SERVER_CA_EXP = $KMIP_SERVER_CA
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KMIP_ADDR_EXP KMIP_ADDR $KMIP_PORT_EXP KMIP_PORT $KMIP_CLIENT_CA_EXP KMIP_CLIENT_CA $KMIP_CLIENT_KEY_EXP KMIP_CLIENT_KEY $KMIP_SERVER_CA_EXP KMIP_SERVER_CA
 --replace_regex /test-object-group-[0-9a-f]+/test-object-group/
 SELECT * FROM performance_schema.keyring_component_status;
 

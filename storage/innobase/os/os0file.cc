@@ -2550,17 +2550,25 @@ dberr_t LinuxAIOHandler::poll(std::function<void(dberr_t)> &callback,
 
 #endif /* LINUX_NATIVE_AIO */
 
-#if defined(LINUX_NATIVE_AIO)
+#ifndef UNIV_HOTBACKUP
 /** Submit buffered AIO requests on the read arrays to the kernel.
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex */
-void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex) {
+void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex
+                                                [[maybe_unused]]) {
+  if (!srv_use_native_aio) {
+    return;
+  }
+#if defined(LINUX_NATIVE_AIO)
   os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_reads);
   if (s_ibuf != nullptr) {
     os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_ibuf);
   }
+#endif /* LINUX_NATIVE_AIO */
 }
+#endif /* !UNIV_HOTBACKUP */
 
+#if defined(LINUX_NATIVE_AIO)
 /** Submit buffered AIO requests on the array to the kernel.
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex
@@ -2568,14 +2576,11 @@ void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex) {
 void AIO::os_aio_dispatch_read_array_submit_low_for_array(
     bool acquire_mutex, const AIO *array) {
   ulint total_submitted = 0;
-  if (acquire_mutex) {
-    array->acquire();
-  }
-
+  if (acquire_mutex) array->acquire();
   /* Submit aio requests buffered on all segments. */
   ut_ad(array->m_pending);
   ut_ad(array->m_count);
-  for (ulint i = 0; i < array->m_n_segments; ++i) {
+  for (ulint i = 0; i < array->m_n_segments; i++) {
     const int count = array->m_count[i];
     int offset = 0;
     while (offset != count) {
@@ -2615,9 +2620,7 @@ void AIO::os_aio_dispatch_read_array_submit_low_for_array(
   /* Reset the aio request buffer. */
   memset(array->m_pending, 0x0, sizeof(struct iocb *) * array->m_slots.size());
   memset(array->m_count, 0x0, sizeof(ulint) * array->m_n_segments);
-  if (acquire_mutex) {
-    array->release();
-  }
+  if (acquire_mutex) array->release();
 
   srv_stats.n_aio_submitted.add(total_submitted);
 }
@@ -2625,11 +2628,9 @@ void AIO::os_aio_dispatch_read_array_submit_low_for_array(
 
 /** Submit buffered AIO requests on the given segment to the kernel. */
 void os_aio_dispatch_read_array_submit() {
-#if defined(LINUX_NATIVE_AIO)
-  if (srv_use_native_aio) {
-    AIO::os_aio_dispatch_read_array_submit_low(true);
-  }
-#endif /* LINUX_NATIVE_AIO */
+#ifndef UNIV_HOTBACKUP
+  AIO::os_aio_dispatch_read_array_submit_low(true);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #if defined(LINUX_NATIVE_AIO)

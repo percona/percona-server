@@ -1,0 +1,45 @@
+--echo #
+--echo # An ALTER that adds a vector index together with another index is
+--echo # refused cleanly when the graphs already fill innodb_hnsw_max_memory.
+--echo #
+--echo # The scan sets up one builder per index, in order. The vector builder
+--echo # refused before the scan, and the builders after it were never set
+--echo # up; tearing them down asserted that every builder had started.
+--echo #
+
+CREATE TABLE t0 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk0 (v) TYPE hnsw (M = 8));
+INSERT INTO t0 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]'));
+--echo # t0's graph is resident, and is already over the limit.
+SELECT id FROM t0
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'euclidean') LIMIT 1;
+SET @saved_max_memory = @@global.innodb_hnsw_max_memory;
+SET GLOBAL innodb_hnsw_max_memory = 1;
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 c INT, txt TEXT);
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]'), 1, 'red apple'),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]'), 2, 'green pear');
+
+--echo # A B-tree index after the vector index.
+--error ER_CAPACITY_EXCEEDED
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ADD KEY kc (c),
+  ALGORITHM=INPLACE;
+--echo # The B-tree index before it.
+--error ER_CAPACITY_EXCEEDED
+ALTER TABLE t1 ADD KEY kc (c), ADD VECTOR KEY vk (v) TYPE hnsw (M = 8),
+  ALGORITHM=INPLACE;
+--echo # The statement from the report: a FULLTEXT index with it.
+--error ER_CAPACITY_EXCEEDED
+ALTER TABLE t1 ADD FULLTEXT KEY ft (txt), ADD VECTOR KEY vk (v) TYPE hnsw (M = 8);
+SHOW CREATE TABLE t1;
+
+--echo # Once there is room, the same ALTER runs.
+SET GLOBAL innodb_hnsw_max_memory = @saved_max_memory;
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ADD KEY kc (c),
+  ALGORITHM=INPLACE;
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,1,0,0]'), 'euclidean') LIMIT 1;
+
+DROP TABLE t0, t1;

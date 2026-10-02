@@ -200,16 +200,16 @@ jobs:
 
       # Extended coverage below: built only with fullCI, or on the nightly.
 
-      # macOS 14
+      # macOS 15
       ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule'), in(parameters.targets, 'all', 'macos')) }}:
-        macOS 14 RelWithDebInfo:
-          imageName: 'macOS-14'
+        macOS 15 RelWithDebInfo:
+          imageName: 'macOS-15'
           Compiler: clang
           BuildType: RelWithDebInfo
 
       ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule'), in(parameters.targets, 'all', 'macos')) }}:
-        macOS 14 Debug:
-          imageName: 'macOS-14'
+        macOS 15 Debug:
+          imageName: 'macOS-15'
           Compiler: clang
           BuildType: Debug
 
@@ -527,9 +527,24 @@ jobs:
           REAL_COMPILER_VER=`$SELECTED_CC --version | head -1 | awk '{print $4}'`
         fi
       else
+        # The macOS agents are Intel, and Homebrew no longer publishes Intel
+        # bottles for ccache: brew would build it from source together with
+        # llvm and rust, which alone overruns the job timeout. Take ccache's
+        # own universal binary instead.
+        CCACHE_VER=4.14.1
+        CCACHE_SHA256=c279fa81e2e806b4d9e64d4a06cb569a84ef54151feef796e5d4f4e95a464563
+        CCACHE_TGZ=$(Agent.TempDirectory)/ccache-$CCACHE_VER-darwin.tar.gz
+        curl -fsSL -o $CCACHE_TGZ https://github.com/ccache/ccache/releases/download/v$CCACHE_VER/ccache-$CCACHE_VER-darwin.tar.gz || exit 1
+        echo "$CCACHE_SHA256  $CCACHE_TGZ" | shasum -a 256 -c || exit 1
+        tar xzf $CCACHE_TGZ -C $(Agent.ToolsDirectory) || exit 1
+        echo "##vso[task.prependpath]$(Agent.ToolsDirectory)/ccache-$CCACHE_VER-darwin"
+
+        # Formulae already on the image are kept as they are: with no Intel
+        # bottle for the new version, an upgrade (openssl@3, for one) would be
+        # another source build.
         brew update
-        brew install ccache protobuf@21 lz4 openssl@3 bison
-        brew link --force protobuf@21
+        HOMEBREW_NO_INSTALL_UPGRADE=1 brew install protobuf@21 lz4 openssl@3 bison || exit 1
+        brew link --force protobuf@21 || exit 1
       fi
 
       UPDATE_TIME=$SECONDS

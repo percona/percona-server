@@ -85,6 +85,12 @@ VECTOR KEY (v) TYPE hnsw (M = 4));
 CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
 v VECTOR(4) NOT NULL,
 VECTOR KEY (v) TYPE hnsw (M = 4));
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 # Both graphs are dropped by the restart.
 # restart
 # The restart reset the global and dropped the session variable.

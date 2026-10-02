@@ -29,13 +29,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vector-common/vector_distance.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
-#include <string>
-#include <variant>
+#include <tuple>
+#include <type_traits>
 
 // ut0ut.h isn't self-contained.
 #include "handler.h"
@@ -58,7 +57,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 using namespace std;
 
+namespace storage::innobase::vec {
+
 namespace {
+
 const char *alg_to_string(ha_key_alg alg) {
   switch (alg) {
     case HA_KEY_ALG_SE_SPECIFIC:
@@ -79,23 +81,92 @@ const char *alg_to_string(ha_key_alg alg) {
   ut_ad(0); /* never nullptr: the caller passes this to my_error as %s */
   return "UNKNOWN";
 }
-}  // namespace
 
-namespace storage::innobase::vec {
+/// Parses a value of type T out of a LEX_CSTRING. Returns false on failure.
+template <typename T>
+bool parse_value(const LEX_CSTRING &value, T &out) = delete;
 
-/* The shared implementation. Takes the two fields that actually matter -
-the TYPE token and the WITH(...) list - so the same parse serves DDL,
-where they arrive on a Key_spec, and table open, where they arrive on a
-KEY. */
-namespace {
-/** Upper bound on the HNSW "M" option. Each node's neighbor buffer is
-(layer + 2) * M pointers (vector-common/hnsw.h), so an unbounded M turns
-even a single-row index into a multi-gigabyte allocation; 200 keeps that
-buffer small while leaving headroom over any M a real workload would
-choose. */
+template <>
+inline bool parse_value<int>(const LEX_CSTRING &value, int &out) {
+  const auto *last = value.str + value.length;
+  auto result = std::from_chars(value.str, last, out);
+  return result.ptr == last && result.ec == std::errc();
+}
+
+template <>
+inline bool parse_value<vector_constants::Metric>(
+    const LEX_CSTRING &value, vector_constants::Metric &out) {
+  const auto *m = vector_constants::metric_from_name({value.str, value.length});
+  if (m == nullptr) return false;
+  out = *m;
+  return true;
+}
+
+/**
+  A single named option, mapping the name to a member of Param.
+  Tracks whether it has already been consumed, to reject duplicates.
+*/
+template <typename ParamType, typename T>
+struct Option {
+  const char *name;
+  T ParamType::*member;
+  /// Optional extra validation for the option, e.g., range checks.
+  std::type_identity_t<bool (*)(const T &)> validate = [](const T &) {
+    return true;
+  };
+  bool is_used = false;
+
+  [[nodiscard]] bool matches(const LEX_CSTRING &key) const {
+    return my_strcasecmp(system_charset_info, key.str, name) == 0;
+  }
+};
+
+template <typename ParamType, typename T>
+bool parse_option(Option<ParamType, T> &option, const LEX_CSTRING &key,
+                  const LEX_CSTRING &value, ParamType &param, bool &matched) {
+  if (!option.matches(key)) return false;
+  matched = true;
+
+  if (option.is_used) {
+    my_error(ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+    return true;
+  }
+  option.is_used = true;
+
+  T parsed{};
+  if (!parse_value<T>(value, parsed) || !option.validate(parsed)) {
+    my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0), value.str);
+    return true;
+  }
+
+  param.*option.member = parsed;
+  return false;
+}
+
+constexpr int kMinxHnswM = 2;
+
+/**
+  Upper bound on the HNSW "M" option. Each node's neighbor buffer is
+  (layer + 2) * M pointers (vector-common/hnsw.h), so an unbounded M turns
+  even a single-row index into a multi-gigabyte allocation; 200 keeps that
+  buffer small while leaving headroom over any M a real workload would
+  choose.
+*/
 constexpr int kMaxHnswM = 200;
+
+constexpr auto hnsw_options = std::tuple{
+    Option{"M", &HnswParam::M,
+           [](const int &v) { return v >= kMinxHnswM && v <= kMaxHnswM; }},
+    Option{"metric", &HnswParam::metric}};
+
 }  // namespace
 
+/**
+  The shared implementation. Takes the two fields that actually matter -
+  the TYPE token and the (...) list - so the same parse serves DDL,
+  where they arrive on a Key_spec, and table open, where they arrive on a
+  KEY.
+*/
 bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
                    VectorIndexParam &vip) {
   if (type.str == nullptr) {
@@ -110,29 +181,26 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
 
   auto &hnsw_param = vip.emplace<HnswParam>();
 
+  // A fresh copy is needed for each parse, since Property tracks per-parse
+  // duplicate-use state.
+  auto options = hnsw_options;
   for (const auto &[key, value] : params) {
-    if (my_strcasecmp(system_charset_info, key.str, "M") == 0) {
-      const auto *last = value.str + value.length;
-      int val;
-      auto result = std::from_chars(value.str, last, val);
-      if (result.ptr == last && result.ec == errc() && val >= 2 &&
-          val <= kMaxHnswM) {
-        hnsw_param.M = val;
-      } else {
-        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                 value.str);
-        return true;
-      }
-    } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
-      std::string_view name(value.str, value.length);
-      const auto *m = vector_constants::metric_from_name(name);
-      if (m == nullptr) {
-        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                 value.str);
-        return true;
-      }
-      hnsw_param.metric = *m;
-    } else {
+    // Offer the key to each option until one matches; it parses `value`
+    // into hnsw_param and raises its own error. The !matched guard stops
+    // calling try_one after the first match, and since try_one returns true
+    // only on error, the || fold short-circuits there and its value tells
+    // us whether that happened.
+    bool matched = false;
+    const bool failed = std::apply(
+        [&](auto &...opts) {
+          return ((!matched &&
+                   parse_option(opts, key, value, hnsw_param, matched)) ||
+                  ...);
+        },
+        options);
+    if (failed) return true;
+
+    if (!matched) {
       my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
       return true;
     }

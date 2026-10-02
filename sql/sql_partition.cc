@@ -274,11 +274,9 @@ static bool is_name_in_list(const char *name, List<String> list_names) {
     false                         Success
 */
 
-[[nodiscard]]
-static bool partition_default_handling(Partition_handler *part_handler,
-                                       partition_info *part_info,
-                                       bool is_create_table_ind,
-                                       const char *normalized_path) {
+[[nodiscard]] static bool partition_default_handling(
+    Partition_handler *part_handler, partition_info *part_info,
+    bool is_create_table_ind, const char *normalized_path) {
   DBUG_TRACE;
 
   if (!is_create_table_ind) {
@@ -4048,92 +4046,6 @@ end:
   end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client = old_character_set_client;
   return result;
-}
-
-/**
-  Fill first_name with the name of the first partition in the given
-  partition expression. The partition expression is parsed first.
-
-  @param[in]  thd                - Thread invoking the function
-  @param[in]  part_handler       - Partition handler
-  @param[in]  normalized_path    - Normalized path name of table and database
-  @param[in]  partition_info_str - The partition expression.
-  @param[in]  partition_info_len - The partition expression length.
-  @param[out] first_name         - The name of the first partition.
-                                   Must be at least FN_REFLEN bytes long.
-
-  @retval true  - On failure.
-  @retval false - On success.
-*/
-bool get_first_partition_name(THD *thd, Partition_handler *part_handler,
-                              const char *normalized_path,
-                              const char *partition_info_str,
-                              uint partition_info_len, char *first_name) {
-  // Backup query arena
-  Query_arena *backup_stmt_arena_ptr = thd->stmt_arena;
-  Query_arena backup_arena;
-  Query_arena part_func_arena(thd->mem_root, Query_arena::STMT_INITIALIZED);
-  thd->swap_query_arena(part_func_arena, &backup_arena);
-  thd->stmt_arena = &part_func_arena;
-  partition_info *part_info = nullptr;
-
-  //
-  // Parsing the partition expression.
-  //
-
-  // Save old state and prepare new LEX
-  const CHARSET_INFO *old_character_set_client =
-      thd->variables.character_set_client;
-  thd->variables.character_set_client = system_charset_info;
-  LEX *old_lex = thd->lex;
-  LEX lex;
-  Query_expression unit(CTX_NONE);
-  Query_block select(thd->mem_root, nullptr, nullptr);
-  lex.new_static_query(&unit, &select);
-  thd->lex = &lex;
-
-  sql_digest_state *parent_digest = thd->m_digest;
-  PSI_statement_locker *parent_locker = thd->m_statement_psi;
-
-  Partition_expr_parser_state parser_state;
-  bool error = true;
-  if ((error = parser_state.init(thd, partition_info_str, partition_info_len)))
-    goto end;
-
-  // Parse the string and filling the partition_info.
-  thd->m_digest = nullptr;
-  thd->m_statement_psi = nullptr;
-
-  error = parse_sql(thd, &parser_state, nullptr) ||
-          parser_state.result->fix_parser_data(thd);
-
-  if (error == 0) {
-    part_info = parser_state.result;
-  }
-
-  thd->m_digest = parent_digest;
-  thd->m_statement_psi = parent_locker;
-
-  error = error || partition_default_handling(part_handler, part_info, false,
-                                              normalized_path);
-
-  // Extract first_name from the part_info.
-  error = error ||
-          fill_first_partition_name(part_info, normalized_path, first_name);
-end:
-  // Free items from current arena.
-  thd->free_items();
-
-  // Retore the old lex.
-  lex_end(thd->lex);
-  thd->lex = old_lex;
-
-  // Restore old arena.
-  thd->stmt_arena = backup_stmt_arena_ptr;
-  thd->swap_query_arena(backup_arena, &part_func_arena);
-  thd->variables.character_set_client = old_character_set_client;
-
-  return (error);
 }
 
 /*

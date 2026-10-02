@@ -131,8 +131,6 @@ typedef HANDLE os_file_dir_t; /*!< directory stream */
 /** Use unbuffered I/O */
 #define UNIV_NON_BUFFERED_IO
 
-static const constexpr auto SRV_PATH_SEPARATOR = '\\';
-
 /** Windows file handle */
 using os_file_t = HANDLE;
 
@@ -154,8 +152,6 @@ static const os_file_t OS_FILE_CLOSED = INVALID_HANDLE_VALUE;
 #define OS_FILE_CLOSE_FD(fd) _close(fd)
 
 #else /* _WIN32 */
-
-#define SRV_PATH_SEPARATOR '/'
 
 /** File handle */
 using os_file_t = os_fd_t;
@@ -192,10 +188,6 @@ struct pfs_os_file_t {
 #endif /* UNIV_PFS_IO */
 
   os_file_t m_file;
-
-  bool is_closed() const noexcept { return m_file == OS_FILE_CLOSED; }
-
-  void set_closed() noexcept { m_file = OS_FILE_CLOSED; }
 };
 
 /** The next value should be smaller or equal to the smallest sector size used
@@ -226,21 +218,6 @@ enum os_file_create_t {
                             the log unless it is a fatal error,
                             this flag is only used if
                             ON_ERROR_NO_EXIT is set */
-};
-
-/** Options for os_file_advise_func @{ */
-enum os_file_advise_t {
-  OS_FILE_ADVISE_NORMAL = 1,     /*!< no advice on access pattern
-                                 (default) */
-  OS_FILE_ADVISE_RANDOM = 2,     /*!< access in random order */
-  OS_FILE_ADVISE_SEQUENTIAL = 4, /*!< access the specified data
-                                 sequentially (with lower offsets read
-                                 before higher ones) */
-  OS_FILE_ADVISE_WILLNEED = 8,   /*!< specified data will be accessed
-                                 in the near future */
-  OS_FILE_ADVISE_DONTNEED = 16,  /*!< specified data will not be
-                                 accessed in the near future */
-  OS_FILE_ADVISE_NOREUSE = 32    /*!< access only once */
 };
 
 static const ulint OS_FILE_READ_ONLY = 333;
@@ -841,13 +818,6 @@ os_file_get_last_error.
 @return true if success */
 bool os_file_close_func(os_file_t file);
 
-/** NOTE! Use the corresponding macro os_file_close_no_error_handling(), not
-directly this function!
-Closes a file handle.
-@param[in] file		handle to a file
-@return true if success */
-bool os_file_close_no_error_handling_func(os_file_t file);
-
 #ifdef UNIV_PFS_IO
 
 /* Keys to register InnoDB I/O with performance schema */
@@ -858,7 +828,6 @@ extern mysql_pfs_key_t innodb_arch_file_key;
 extern mysql_pfs_key_t innodb_clone_file_key;
 extern mysql_pfs_key_t innodb_data_file_key;
 extern mysql_pfs_key_t innodb_tablespace_open_file_key;
-extern mysql_pfs_key_t innodb_bmp_file_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
@@ -951,14 +920,12 @@ wrapper functions with performance schema instrumentation in such case.
 os_file_create
 os_file_create_simple_no_error_handling
 os_file_close
-os_file_close_no_error_handling
 os_file_rename
 os_aio
 os_file_read
 os_file_read_no_error_handling
 os_file_read_no_error_handling_int_fd
 os_file_write
-os_file_set_eof_at
 
 The wrapper functions have the prefix of "innodb_". */
 
@@ -986,9 +953,6 @@ The wrapper functions have the prefix of "innodb_". */
 #endif
 
 #define os_file_close_pfs(file) pfs_os_file_close_func(file, UT_LOCATION_HERE)
-
-#define os_file_close_no_error_handling_pfs(file) \
-  pfs_os_file_close_no_error_handling_func(file, UT_LOCATION_HERE)
 
 #define os_aio(type, mode, name, file, buf, offset, n, read_only, message1,    \
                message2, space_id, trx, should_buffer)                         \
@@ -1037,9 +1001,6 @@ The wrapper functions have the prefix of "innodb_". */
 
 #define os_file_delete_if_exists(key, name, exist) \
   pfs_os_file_delete_if_exists_func(key, name, exist, UT_LOCATION_HERE)
-
-#define os_file_set_eof_at_pfs(file, new_len) \
-  pfs_os_file_set_eof_at_func(file, new_len, UT_LOCATION_HERE)
 
 /** Clang on Windows warns about umask not found. */
 MY_COMPILER_DIAGNOSTIC_PUSH()
@@ -1103,15 +1064,6 @@ A performance schema instrumented wrapper function for os_file_close().
 @return true if success */
 static inline bool pfs_os_file_close_func(pfs_os_file_t file,
                                           ut::Location src_location);
-
-/** NOTE! Use the corresponding macro os_file_close_no_error_handling(), not
-directly this function!
-Closes a file handle.
-@param[in]      file            handle to a file
-@param[in]      src_location    location where func invoked
-@return true if success */
-static inline bool pfs_os_file_close_no_error_handling_func(
-    pfs_os_file_t file, ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -1326,17 +1278,6 @@ static inline bool pfs_os_file_delete_if_exists_func(mysql_pfs_key_t key,
                                                      bool *exist,
                                                      ut::Location src_location);
 
-/** NOTE! Use the corresponding macro os_file_flush(), not directly this
-function!
-Truncates a file at the specified position.
-@param[in]      file            file to truncate
-@param[in]      new_len         new file length
-@param[in]      src_location    location where func invoked
-@return true if success */
-static inline bool pfs_os_file_set_eof_at_func(pfs_os_file_t file,
-                                               uint64_t new_len,
-                                               ut::Location src_location);
-
 #else /* UNIV_PFS_IO */
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
@@ -1367,9 +1308,6 @@ to original un-instrumented file I/O APIs */
 #endif
 
 #define os_file_close_pfs(file) os_file_close_func(file)
-
-#define os_file_close_no_error_handling_pfs(file) \
-  os_file_close_no_error_handling_func(file)
 
 #define os_aio(type, mode, name, file, buf, offset, n, read_only, message1, \
                message2, space_id, trx, should_buffer)                      \
@@ -1413,23 +1351,12 @@ to original un-instrumented file I/O APIs */
 #define os_file_delete_if_exists(key, name, exist) \
   os_file_delete_if_exists_func(name, exist)
 
-#define os_file_set_eof_at_pfs(file, new_len) \
-  os_file_set_eof_at_func(file, new_len)
-
 #endif /* UNIV_PFS_IO */
 
 #ifdef UNIV_PFS_IO
 #define os_file_close(file) os_file_close_pfs(file)
 #else
 #define os_file_close(file) os_file_close_pfs((file).m_file)
-#endif
-
-#ifdef UNIV_PFS_IO
-#define os_file_close_no_error_handling(file) \
-  os_file_close_no_error_handling_pfs(file)
-#else
-#define os_file_close_no_error_handling(file) \
-  os_file_close_no_error_handling_pfs((file).m_file)
 #endif
 
 #ifdef UNIV_PFS_IO
@@ -1489,22 +1416,12 @@ to original un-instrumented file I/O APIs */
                                      offset, n, o)
 #endif
 
-#ifdef UNIV_PFS_IO
-#define os_file_set_eof_at(file, new_len) os_file_set_eof_at_pfs(file, new_len)
-#else
-#define os_file_set_eof_at(file, new_len) \
-  os_file_set_eof_at_pfs(file.m_file, new_len)
-#endif
-
-/** Announces an intention to access file data in a specific pattern in the
-future.
-@param[in,out]	file	handle to a file
-@param[in]	offset	file region offset
-@param[in]	len	file region length
-@param[in]	advice	advice for access pattern
+#ifdef UNIV_HOTBACKUP
+/** Closes a file handle.
+@param[in] file         handle to a file
 @return true if success */
-bool os_file_advise(pfs_os_file_t file, os_offset_t offset, os_offset_t len,
-                    ulint advice);
+bool os_file_close_no_error_handling(os_file_t file);
+#endif /* UNIV_HOTBACKUP */
 
 /** Gets a file size.
 @param[in]      filename        Full path to the filename to check
@@ -1563,14 +1480,6 @@ bool os_file_truncate(const char *pathname, pfs_os_file_t file,
 @param[in]      offset          read/write offset
 @return true if success */
 bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset);
-
-/** NOTE! Use the corresponding macro os_file_flush(), not directly this
-function!
-Truncates a file at the specified position.
-@param[in]	file	file to truncate
-@param[in]	new_len	new file length
-@return true if success */
-bool os_file_set_eof_at_func(os_file_t file, uint64_t new_len);
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
 function!

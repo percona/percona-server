@@ -781,6 +781,14 @@ struct trx_sys_t {
   releasing locks to ensure right order of removal and consistent snapshot. */
   trx_ids_t rw_trx_ids;
 
+  /** Ids preallocated for read-only transactions whose read view was cloned.
+  Present in new read views together with rw_trx_ids, so a later promotion of
+  the donor stays invisible to snapshots taken after the clone. Kept out of
+  rw_trx_ids until promotion: the donor is not in active_rw_trxs yet, and
+  ReadView::copy_trx_ids() waits for every rw_trx_ids entry to appear there.
+  Protected by trx_sys_t::mutex. Sorted ascending. */
+  trx_ids_t reserved_rw_ids;
+
   char pad7[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Mapping from transaction id to transaction instance. */

@@ -454,7 +454,9 @@ point in time are seen in the view.
 @param id               Creator transaction id */
 
 void ReadView::prepare(trx_id_t id) {
-  ut_ad(!m_cloned);
+  /* Reopen of a closed cloned view builds a normal snapshot. */
+  m_cloned = false;
+
   ut_ad(trx_sys_mutex_own());
 
   m_creator_trx_id = id;
@@ -469,6 +471,14 @@ void ReadView::prepare(trx_id_t id) {
     copy_trx_ids(trx_sys->rw_trx_ids);
   } else {
     m_ids.clear();
+  }
+
+  /* Ids reserved for read-only donors of a cloned snapshot. They are not
+  in rw_trx_ids until that transaction becomes read-write. */
+  for (trx_id_t reserved_id : trx_sys->reserved_rw_ids) {
+    if (reserved_id != m_creator_trx_id) {
+      m_ids.insert(reserved_id);
+    }
   }
 
   /* The first active transaction has the smallest id. */
@@ -605,7 +615,10 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
     both of which contradict definition of V2 as first such that it sees ID.
     */
 
-    if (trx_is_autocommit_non_locking(trx) && view->empty()) {
+    /* m_cloned survives close. Reopening it here would keep the donor
+    snapshot, including its privileged id. */
+    if (trx_is_autocommit_non_locking(trx) && view->empty() &&
+        !view->m_cloned) {
       view->m_closed.store(false);
       DEBUG_SYNC_C("after_setting_m_closed_false");
       if (view->m_low_limit_id == trx_sys_get_next_trx_id_or_no()) {
@@ -643,7 +656,7 @@ oldest view.
 
 @return oldest view if found or NULL */
 
-const ReadView *MVCC::get_oldest_view_stats() const {
+const Read_view_interface *MVCC::get_oldest_view_stats() const {
   const ReadView *view;
 
   ut_ad(trx_sys_mutex_own());
@@ -704,6 +717,87 @@ void ReadView::copy_complete() {
   m_creator_trx_id = 0;
 }
 
+/**
+Clones a read view object. The resulting read view has identical change
+visibility as the donor read view. Caller allocates result and inserts it
+into the MVCC view list.
+@param result            view to overwrite, must already be allocated
+@param privileged_trx_id creator id the clone must see, must be > 0 */
+
+void ReadView::clone(ReadView *result, trx_id_t privileged_trx_id) const {
+  ut_ad(result != nullptr);
+  ut_ad(result != this);
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(privileged_trx_id > 0);
+
+  result->copy_prepare(*this);
+  // Calling copy_complete would be redundant for us and would force
+  // a too early trx sys mutex release.
+  result->m_creator_trx_id = privileged_trx_id;
+  // If the clone transaction is RO and is later promoted to RW, make
+  // sure not to add its own id to its view
+  result->m_cloned = true;
+  result->m_closed.store(false);
+}
+
+trx_id_t MVCC::get_view_creator_trx_id(const Read_view_interface *view) const {
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(is_view_open(view));
+
+  return (static_cast<const ReadView *>(view)->m_creator_trx_id);
+}
+
+bool MVCC::view_clone(Read_view_interface *&dst, const Read_view_interface *src,
+                      trx_id_t privileged_trx_id) {
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(privileged_trx_id > 0);
+
+  if (!is_view_open(src)) {
+    return (false);
+  }
+
+  auto *result = static_cast<ReadView *>(dst);
+  const auto *src_view = static_cast<const ReadView *>(src);
+  ut_ad(result != src_view);
+
+  if (result == nullptr) {
+    result = get_view();
+    if (result == nullptr) {
+      return (false);
+    }
+  } else if (m_views.first_element == result ||
+             result->m_view_list.prev != nullptr) {
+    UT_LIST_REMOVE(m_views, result);
+  }
+
+  src_view->clone(result, privileged_trx_id);
+
+  /* Open views are ordered by descending m_low_limit_no from the front.
+  Purge picks the oldest by walking from the tail. A cloned view has the
+  donor's limit, so it must not be prepended the way view_open prepends
+  a brand-new view. */
+  ReadView *prev = nullptr;
+  for (ReadView *next = UT_LIST_GET_FIRST(m_views); next != nullptr;
+       next = UT_LIST_GET_NEXT(m_view_list, next)) {
+    if (!next->is_closed() && next->get_lowest_needed_trx_no() <=
+                                  result->get_lowest_needed_trx_no()) {
+      break;
+    }
+    prev = next;
+  }
+
+  if (prev == nullptr) {
+    UT_LIST_ADD_FIRST(m_views, result);
+  } else {
+    UT_LIST_INSERT_AFTER(m_views, prev, result);
+  }
+
+  ut_d(validate());
+
+  dst = result;
+  return (true);
+}
+
 void MVCC::view_free(Read_view_interface *&view) {
   if (view != nullptr) {
     /* This is a rare case in normal operation, as usually the view is already
@@ -737,78 +831,6 @@ void MVCC::view_free(Read_view_interface *&view) {
     }
     trx_sys_mutex_exit();
   }
-}
-
-/**
-Clones this read view into result, which ends up with identical change
-visibility as this, the donor read view.
-@param[out]     result          view to clone into
-@param[in,out]  from_trx        transaction owning the donor read view */
-
-void ReadView::clone(ReadView &result, trx_t *from_trx) const {
-  ut_ad(from_trx->read_view == this);
-  ut_ad(trx_sys_mutex_own());
-
-  // Set the creating trx id of the clone to that of donor.
-  trx_id_t from_trx_id;
-  if (m_creator_trx_id != 0) {
-    // The donor transaction is RO, and a clone itself
-    from_trx_id = m_creator_trx_id;
-  } else if (from_trx->id == 0) {
-    // The donor transaction is RO, thus does not have a trx ID
-    // yet which the cloned view must see, if it assigned later
-    if (!from_trx->preallocated_id) {
-      // Preallocate a transaction id for the donor
-      from_trx_id = from_trx->preallocated_id = trx_sys_allocate_trx_id();
-    } else {
-      // This transaction has already been cloned
-      from_trx_id = from_trx->preallocated_id;
-    }
-  } else {
-    // The donor transaction is RW
-    from_trx_id = from_trx->id;
-  }
-
-  result.copy_prepare(*this);
-  // Calling copy_complete would be redundant for us and would force
-  // a too early trx sys mutex release.
-  result.m_creator_trx_id = from_trx_id;
-  // If the clone transaction is RO and is later promoted to RW, make
-  // sure not to add its own id to its view
-  result.m_cloned = true;
-  result.m_closed.store(false);
-}
-
-void MVCC::clone_view(Read_view_interface *&view, trx_t *from_trx) {
-  ut_ad(trx_sys_mutex_own());
-
-  auto *const donor_view = static_cast<ReadView *>(from_trx->read_view);
-  auto *target_view = static_cast<ReadView *>(view);
-
-  ut_ad(donor_view != nullptr);
-  ut_ad(donor_view != target_view);
-
-  if (target_view == nullptr) {
-    target_view = get_view();
-
-    if (target_view == nullptr) {
-      return;
-    }
-  } else {
-    /* The view is already in m_views, but its new contents belong to a
-    different position in it, so take it out and insert it again below. */
-    UT_LIST_REMOVE(m_views, target_view);
-  }
-
-  donor_view->clone(*target_view, from_trx);
-
-  /* The clone has exactly the donor's visibility, so putting it right after
-  the donor keeps m_views ordered by low_limit_no, which validate() asserts. */
-  UT_LIST_INSERT_AFTER(m_views, donor_view, target_view);
-
-  ut_d(validate());
-
-  view = target_view;
 }
 
 void MVCC::clone_oldest_view(Read_view_interface *&view) {
@@ -887,7 +909,6 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
   if (!view->m_closed.load()) {
     view->m_closed.store(true);
   }
-  view->m_cloned = false;
 
   /* Note: The assumption here is that AC-NL-RO transactions will
   call this function with own_mutex == false. */
@@ -903,19 +924,19 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
 
 i_s_xtradb_read_view_t *read_fill_i_s_xtradb_read_view(
     i_s_xtradb_read_view_t *rv) {
-  const Read_view_interface *view;
+  const ReadView *view;
 
   mutex_enter(&trx_sys->mutex);
 
-  view = trx_sys->mvcc->get_oldest_view_stats();
+  view = dynamic_cast<const ReadView *>(trx_sys->mvcc->get_oldest_view_stats());
   if (!view) {
     mutex_exit(&trx_sys->mutex);
     return NULL;
   }
 
   rv->low_limit_no = view->get_lowest_needed_trx_no();
-  rv->up_limit_id = view->get_up_limit_id();
-  rv->low_limit_id = view->get_low_limit_id();
+  rv->up_limit_id = view->up_limit_id();
+  rv->low_limit_id = view->low_limit_id();
 
   mutex_exit(&trx_sys->mutex);
 

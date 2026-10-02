@@ -161,19 +161,6 @@ class MVCC_interface {
                      view_free(..). Do not call view_open(..) on it. */
   virtual void clone_oldest_view(Read_view_interface *&view) = 0;
 
-  /** Clones the read view owned by another transaction, so that the cloning
-  transaction sees exactly what the donor transaction sees. The caller must own
-  trx_sys->mutex and the donor transaction's mutex.
-  @param[in,out] view
-                     The cloning transaction's view. If nullptr, a view is
-                     allocated, otherwise the one provided is reused, in which
-                     case it must be a view obtained from view_open(..). Upon
-                     return it is open, unless a view could not be allocated,
-                     in which case it stays nullptr.
-  @param[in,out] from_trx
-                     Transaction owning the donor view. It must have one. */
-  virtual void clone_view(Read_view_interface *&view, trx_t *from_trx) = 0;
-
   /** Instructs the MVCC that the Undo Purge is about to start working and MVCC
   will be asked to clone the oldest Read View. */
   virtual void undo_purge_is_starting() = 0;
@@ -182,6 +169,15 @@ class MVCC_interface {
   to clone the oldest Read View or any other MVCC anymore. To be called before
   trx_sys is being destroyed. */
   virtual void undo_purge_has_shutdown() = 0;
+
+  /** Get the oldest view in the system for statistical purposes.
+
+  @note This method should be used for statistical purposes only, purge needs
+  to use more strict condition (see clone_oldest_view()) when selecting the
+  oldest view.
+
+  @return oldest view if found or NULL */
+  virtual const Read_view_interface *get_oldest_view_stats() const = 0;
 
   /** Returns the number of open views. */
   [[nodiscard]] virtual size_t get_open_views_count() const = 0;
@@ -210,17 +206,32 @@ class MVCC_interface {
                      Transaction id to set, should be the trx->id assigned to
                      the same trx for which view_open(view, trx) was called
                      earlier.
+  A view produced by view_clone() keeps the id passed to that call.
+  set_view_creator_trx_id() leaves that id in place.
   */
   virtual void set_view_creator_trx_id(Read_view_interface *&view,
                                        trx_id_t id) = 0;
 
-  /** Get the oldest view in the system for statistical purposes.
+  /** Id which this open view treats as its own changes, visible even when
+  that transaction is otherwise active. 0 when the view privileges no id.
+  Caller must own trx_sys->mutex.
+  @param[in] view open view
+  @return privileged transaction id, or 0 */
+  [[nodiscard]] virtual trx_id_t get_view_creator_trx_id(
+      const Read_view_interface *view) const = 0;
 
-  @note This method should be used for statistical purposes only, purge needs
-  to use more strict condition (see clone_oldest_view()) when selecting the
-  oldest view.
-
-  @return oldest view if found or nullptr */
-  [[nodiscard]] virtual const Read_view_interface *get_oldest_view_stats()
-      const = 0;
+  /** Open dst so it sees the same changes as the open view src, including
+  changes of privileged_trx_id. That id stays fixed for the life of this
+  open view: set_view_creator_trx_id(dst, ...) leaves it in place. dst is
+  linked among the open views by low limit number, which is the order purge
+  uses when it walks from the oldest view.
+  Caller must own trx_sys->mutex. Does not allocate transaction ids.
+  @param[in,out] dst nullptr, or a view previously returned by view_open or
+                     view_close
+  @param[in]     src open view to copy
+  @param[in]     privileged_trx_id id the clone must see, must be > 0
+  @return false if src is not open or a view object could not be allocated */
+  [[nodiscard]] virtual bool view_clone(Read_view_interface *&dst,
+                                        const Read_view_interface *src,
+                                        trx_id_t privileged_trx_id) = 0;
 };

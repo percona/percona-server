@@ -61,21 +61,26 @@ class MVCC : public MVCC_interface {
   Free all the views in the m_free list */
   ~MVCC() override;
 
-  /** Insert the view in the proper order into the view list.
-  @param view   view to add */
-  void view_add(const ReadView *view);
-
   void initialize(trx_id_t max_committed_trx_id, trx_ids_t active_ids) override;
   void view_open(Read_view_interface *&view, trx_t *trx) override;
   void view_close(Read_view_interface *&view, bool own_mutex) override;
   void clone_oldest_view(Read_view_interface *&view) override;
-  void clone_view(Read_view_interface *&view, trx_t *from_trx) override;
+  [[nodiscard]] trx_id_t get_view_creator_trx_id(
+      const Read_view_interface *view) const override;
+  [[nodiscard]] bool view_clone(Read_view_interface *&dst,
+                                const Read_view_interface *src,
+                                trx_id_t privileged_trx_id) override;
   void view_free(Read_view_interface *&view) override;
   [[nodiscard]] size_t get_open_views_count() const override;
   void undo_purge_is_starting() override;
   void undo_purge_has_shutdown() override;
+  const Read_view_interface *get_oldest_view_stats() const override;
 
  private:
+  /** Insert the view in the proper order into the view list.
+  @param	view	view to add */
+  void view_add(const ReadView *view);
+
   /** A helper for the interface method with the same name, which makes it
   cleaner to assign to the referenced pointer while using the actual
   implementation-specific type.
@@ -131,7 +136,14 @@ class MVCC : public MVCC_interface {
                                trx_id_t id) override {
     ut_ad(id > 0);
 
-    ((ReadView *)view)->creator_trx_id(id);
+    auto *read_view = static_cast<ReadView *>(view);
+    /* So that a cloned view keeps seeing the donor, and does not start
+    seeing the cloning transaction's own changes. */
+    if (read_view->is_cloned()) {
+      return;
+    }
+
+    read_view->creator_trx_id(id);
   }
 
  private:
@@ -143,16 +155,6 @@ class MVCC : public MVCC_interface {
   inline ReadView *get_view();
 
  public:
-  /** Get the oldest view in the system for statistical purposes.
-
-  @note This method should be used for statistical purposes only, purge needs
-  to use more strict condition (see clone_oldest_view()) when selecting the
-  oldest view.
-
-  @return oldest view if found or nullptr */
-  [[nodiscard]] const ReadView *get_oldest_view_stats() const override;
-
- private:
   MVCC(const MVCC &) = delete;
   MVCC &operator=(const MVCC &) = delete;
 

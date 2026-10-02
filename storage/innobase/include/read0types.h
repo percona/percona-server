@@ -196,17 +196,17 @@ class ReadView : public Read_view_interface {
       fprintf(file, "Read view trx id " TRX_ID_FMT "\n", m_ids.data()[i]);
   }
 
-  [[nodiscard]] trx_id_t get_low_limit_id() const override {
-    return m_low_limit_id;
-  }
-
-  [[nodiscard]] trx_id_t get_up_limit_id() const override {
-    return m_up_limit_id;
-  }
-
   [[nodiscard]] trx_id_t get_lowest_needed_trx_no() const override {
     return m_low_limit_no;
   }
+
+  /**
+  @return the low limit id */
+  trx_id_t low_limit_id() const { return (m_low_limit_id); }
+
+  /**
+  @return the up limit id */
+  trx_id_t up_limit_id() const noexcept { return (m_up_limit_id); }
 
   /**
   @return true if there are no transaction ids in the snapshot */
@@ -221,7 +221,7 @@ class ReadView : public Read_view_interface {
   }
 #endif /* UNIV_DEBUG */
 
-  [[nodiscard]] bool is_cloned() const override { return (m_cloned); }
+  bool is_cloned() const noexcept { return (m_cloned); }
 
  private:
   /**
@@ -240,16 +240,17 @@ class ReadView : public Read_view_interface {
   inline void copy_prepare(const ReadView &other);
 
   /**
+  Clones a read view object. The resulting read view has identical change
+  visibility as the donor read view. Caller allocates result and inserts it
+  into the MVCC view list.
+  @param result            view to overwrite, must already be allocated
+  @param privileged_trx_id creator id the clone must see, must be > 0 */
+  void clone(ReadView *result, trx_id_t privileged_trx_id) const;
+
+  /**
   Complete the copy, insert the creator transaction id into the
   m_trx_ids too and adjust the m_up_limit_id *, if required */
   inline void copy_complete();
-
-  /**
-  Clones this read view into result, which ends up with identical change
-  visibility as this, the donor read view.
-  @param[out]     result          view to clone into
-  @param[in,out]  from_trx        transaction owning the donor read view */
-  void clone(ReadView &result, trx_t *from_trx) const;
 
   /**
   Set the creator transaction id, existing id must be 0 */

@@ -270,7 +270,11 @@ Loader::~Loader() noexcept {
 
     for (auto &builder : m_builders) {
       auto stage = builder->stage();
-      ut_a(stage != nullptr);
+      /* A builder gets its stage when the scan sets it up, in index
+      order. When an earlier one refuses there, such as a vector index
+      with innodb_hnsw_max_memory already reached, the scan returns
+      before the later builders are set up, and they never start. */
+      ut_ad(stage != nullptr || builder->get_state() == Builder::State::INIT);
       if (stage) {
         alter_stages.push_back(stage);
       }

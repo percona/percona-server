@@ -479,8 +479,7 @@ class AIO {
                                 errors if the write or read could not be
                                 executed or if it failed. It will be executed
                                 asynchronously from another thread, before or
-                                after this call returns.
-  @return pointer to slot */
+                                after this call returns. */
   [[nodiscard]] Slot *reserve_slot(const IORequest &type, pfs_os_file_t file,
                                    const char *name, void *buf,
                                    os_offset_t offset, ulint len,
@@ -6423,6 +6422,7 @@ Slot *AIO::reserve_slot(const IORequest &type, pfs_os_file_t file,
     }
   }
   slot->io_already_done = false;
+
   if (!type.are_write_transformations_enabled()) {
     ut_ad(!type.is_compression_requested());
     ut_ad(!type.is_encryption_requested());

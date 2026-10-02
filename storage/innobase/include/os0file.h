@@ -1437,17 +1437,18 @@ to original un-instrumented file I/O APIs */
 #define os_file_read_first_page(type, file_name, file, buf, n_pages) \
   os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, true)
 #else
-#define os_file_read_first_page(type, file_name, file, buf, n_pages)         \
-  os_file_read_first_page_pfs(type, file_name, (file).m_file, buf, n_pages,  \
+#define os_file_read_first_page(type, file_name, file, buf, n_pages)        \
+  os_file_read_first_page_pfs(type, file_name, (file).m_file, buf, n_pages, \
                               true)
 #endif
 
 #ifdef UNIV_PFS_IO
-#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
-  os_file_read_first_page_pfs(type, file_name, file, buf, n, false)
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n_pages) \
+  os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, false)
 #else
-#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
-  os_file_read_first_page_pfs(type, file_name, file.m_file, buf, n, false)
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n_pages) \
+  os_file_read_first_page_pfs(type, file_name, (file).m_file, buf, n_pages, \
+                              false)
 #endif
 
 #ifdef UNIV_PFS_IO

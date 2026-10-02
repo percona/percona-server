@@ -1927,10 +1927,11 @@ fil_space_t *Fil_shard::space_add(ut::unique_ptr<fil_space_t> space) {
         oss << "'" << file.name << "'";
       }
 
-      ut_ad(existing_space->id != space->id);
       ib::info(ER_IB_ADDING_SPACE_WITH_NAME_ALREADY_IN_USE, space->name,
                ulong{space->id}, existing_space->name,
                ulong{existing_space->id}, oss.str().c_str());
+
+      ut_ad(space->id != existing_space->id);
 
       mutex_release();
 

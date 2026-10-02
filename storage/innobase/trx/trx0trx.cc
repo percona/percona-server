@@ -1509,6 +1509,7 @@ static void trx_start_low(
         ut_ad(!srv_read_only_mode);
 
         trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
+
         trx_assign_id_for_rw(trx);
 
         trx_sys_mutex_exit();

@@ -90,8 +90,11 @@ class LogWriterBase {
    *
    * @param record Audit record represented as an instance of
    *               @ref AuditRecordVariant
+   * @throw std::exception if the record cannot be formatted, for example
+   *        when memory cannot be allocated. Nothing is written in that case,
+   *        and the caller counts the event as lost.
    */
-  void write(const AuditRecordVariant &record) noexcept;
+  void write(const AuditRecordVariant &record);
 
   /**
    * @brief Write audit record to log.
@@ -99,9 +102,10 @@ class LogWriterBase {
    * @param record String representation of audit record
    * @param print_separator Add lor record separator before a record
    *                        if set to true
+   * @throw std::exception only before anything is written; once output has
+   *        started the write does not fail with an exception.
    */
-  virtual void write(const std::string &record,
-                     bool print_separator) noexcept = 0;
+  virtual void write(const std::string &record, bool print_separator) = 0;
 
   /**
    * @brief Rotate log file.

@@ -35,7 +35,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordGeneral &audit_record) const noexcept override;
+      const AuditRecordGeneral &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordConnection audit record.
@@ -44,7 +44,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordConnection &audit_record) const noexcept override;
+      const AuditRecordConnection &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordTableAccess audit record.
@@ -53,7 +53,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordTableAccess &audit_record) const noexcept override;
+      const AuditRecordTableAccess &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordGlobalVariable audit record.
@@ -62,7 +62,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordGlobalVariable &audit_record) const noexcept override;
+      const AuditRecordGlobalVariable &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordCommand audit record.
@@ -71,7 +71,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordCommand &audit_record) const noexcept override;
+      const AuditRecordCommand &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordQuery audit record.
@@ -80,7 +80,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordQuery &audit_record) const noexcept override;
+      const AuditRecordQuery &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordStoredProgram audit record.
@@ -89,7 +89,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordStoredProgram &audit_record) const noexcept override;
+      const AuditRecordStoredProgram &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordAuthentication audit record.
@@ -98,7 +98,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordAuthentication &audit_record) const noexcept override;
+      const AuditRecordAuthentication &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordMessage audit record.
@@ -107,7 +107,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordMessage &audit_record) const noexcept override;
+      const AuditRecordMessage &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordParse audit record.
@@ -116,7 +116,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordParse &audit_record) const noexcept override;
+      const AuditRecordParse &audit_record) const override;
 
   /**
    * @brief Apply formatting to AuditRecordAudit audit record.
@@ -125,7 +125,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return String representing formatted audit record
    */
   [[nodiscard]] AuditRecordString apply(
-      const AuditRecordAudit &audit_record) const noexcept override;
+      const AuditRecordAudit &audit_record) const override;
 
   /**
    * @brief Get log file header string.
@@ -158,7 +158,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    */
   void apply_debug_info(std::string_view event_class_name,
                         std::string_view event_subclass_name,
-                        std::string &record_str) noexcept override;
+                        std::string &record_str) override;
 
  protected:
   /**
@@ -168,7 +168,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return Timestamp string
    */
   [[nodiscard]] std::string make_timestamp(
-      std::chrono::system_clock::time_point time_point) const noexcept override;
+      std::chrono::system_clock::time_point time_point) const override;
 
  private:
   /**
@@ -289,8 +289,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    *
    * @return Escape rules
    */
-  [[nodiscard]] const EscapeRulesContainer &get_escape_rules()
-      const noexcept override;
+  [[nodiscard]] const EscapeRulesContainer &get_escape_rules() const override;
 
   /**
    * @brief Get JSON string representation of extra attributes
@@ -299,7 +298,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return JSON formatted string
    */
   [[nodiscard]] std::string extra_attrs_to_string(
-      const ExtendedInfo &info) const noexcept override;
+      const ExtendedInfo &info) const override;
 
   /**
    * @brief Get JSON string representation of extra attributes
@@ -311,7 +310,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    */
   [[nodiscard]] std::string extra_attrs_to_string(
       const ExtendedInfo &info, std::size_t tag_indent,
-      std::size_t value_indent) const noexcept;
+      std::size_t value_indent) const;
 
   /**
    * @brief Get compact single-line JSONL representation of extra attributes.
@@ -319,7 +318,7 @@ class LogRecordFormatter<AuditLogFormatType::Json>
    * @return JSONL formatted string
    */
   [[nodiscard]] std::string extra_attrs_to_string_jsonl(
-      const ExtendedInfo &info) const noexcept;
+      const ExtendedInfo &info) const;
 };
 
 using LogRecordFormatterJson = LogRecordFormatter<AuditLogFormatType::Json>;

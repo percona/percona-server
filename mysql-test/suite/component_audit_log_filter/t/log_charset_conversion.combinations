@@ -1,0 +1,15 @@
+[json]
+loose-audit_log_filter.format=JSON
+loose-audit_log_filter.file=charset.json
+
+[jsonl]
+loose-audit_log_filter.format=JSONL
+loose-audit_log_filter.file=charset.jsonl
+
+[new]
+loose-audit_log_filter.format=NEW
+loose-audit_log_filter.file=charset.xml
+
+[old]
+loose-audit_log_filter.format=OLD
+loose-audit_log_filter.file=charset.xml

@@ -1,0 +1,8 @@
+dn: cn=dn_test_group,ou=people,dc=planetexpress,dc=com
+objectClass: groupOfNames
+cn: dn_test_group
+member: cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com
+member: cn=Test\"User,ou=people,dc=planetexpress,dc=com
+member: cn=Test(User),ou=people,dc=planetexpress,dc=com
+member: cn=Test*User,ou=people,dc=planetexpress,dc=com
+member: cn=Test\5cUser,ou=people,dc=planetexpress,dc=com

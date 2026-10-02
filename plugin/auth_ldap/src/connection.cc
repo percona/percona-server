@@ -22,6 +22,37 @@
 #include "plugin/auth_ldap/include/plugin_log.h"
 
 namespace {
+
+// RFC 4515 §3 requires these octets to be escaped as \XX
+// when they appear in an LDAP filter assertion value:
+// LPAREN (0x28), RPAREN (0x29), ASTERISK (0x2a), ESC (0x5c)
+std::string ldap_filter_escape(const std::string &input) {
+  std::string out;
+  out.reserve(input.size() * 3);  // worst case every byte becomes "\XX"
+
+  for (char c : input) {
+    switch (c) {
+      case '(':
+        out += "\\28";
+        break;
+      case ')':
+        out += "\\29";
+        break;
+      case '*':
+        out += "\\2a";
+        break;
+      case '\\':
+        out += "\\5c";
+        break;
+      default:
+        out.push_back(c);
+        break;
+    }
+  }
+
+  return out;
+}
+
 // example of this callback is in the OpenLDAP's
 // servers/slapd/back-meta/bind.c (meta_back_default_urllist)
 int cb_urllist_proc(LDAP * /* ld */, LDAPURLDesc **urllist, LDAPURLDesc **url,
@@ -247,9 +278,12 @@ std::string Connection::search_dn(const std::string &user_name,
 
   std::string str;
   std::ostringstream log_stream;
-  std::string filter = user_search_attr + "=" + user_name;
+  std::string escaped_user_name = ldap_filter_escape(user_name);
+  std::string filter = user_search_attr + "=" + escaped_user_name;
 
   log_stream << "search_dn(" << base_dn << ", " << filter << ")";
+  if (escaped_user_name != user_name)
+    log_stream << " [RFC 4515 escaped, user_name: '" << user_name << "']";
   log_srv_dbg(log_stream.str());
   log_stream.str("");
 
@@ -306,11 +340,18 @@ groups_t Connection::search_groups(const std::string &user_name,
 
   groups_t list;
   std::stringstream log_stream;
-  std::string filter = std::regex_replace(group_search_filter,
-                                          std::regex("\\{UA\\}"), user_name);
-  std::string escaped_user_dn =
-      std::regex_replace(user_dn, std::regex("\\\\\""), "\\\\\"");
+  std::string escaped_user_name = ldap_filter_escape(user_name);
+  std::string escaped_user_dn = ldap_filter_escape(user_dn);
+  std::string filter = std::regex_replace(
+      group_search_filter, std::regex("\\{UA\\}"), escaped_user_name);
   filter = std::regex_replace(filter, std::regex("\\{UD\\}"), escaped_user_dn);
+
+  log_stream << "search_groups(" << base_dn << ", " << filter << ")";
+  if (escaped_user_name != user_name || escaped_user_dn != user_dn)
+    log_stream << " [RFC 4515 escaped, user_name: '" << user_name
+               << "', user_dn: '" << user_dn << "']";
+  log_srv_dbg(log_stream.str());
+  log_stream.str("");
 
   LDAPMessage *l_result;
   char *attrs[] = {const_cast<char *>(group_search_attr.c_str()), nullptr};

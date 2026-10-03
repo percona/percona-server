@@ -12364,8 +12364,10 @@ int ha_innobase::vec_read_next(uchar *buf) {
       behind, so the node is stale for anyone whose view has the new
       version. row_search_for_mysql has just read the label out of the
       visible record; the node id is what the graph returned for it.
-      Equal means the node still describes this version. */
+      Equal means the node still describes this version. A skipped row's
+      lock is released as for a row the WHERE rejects. */
       if (m_prebuilt->vec_aux_id != hit.id) {
+        unlock_row();
         continue;
       }
       return 0;

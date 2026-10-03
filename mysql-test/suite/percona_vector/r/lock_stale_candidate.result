@@ -1,0 +1,161 @@
+#
+# PS-11614: a locking vector search releases the lock of a candidate
+# it skips under READ COMMITTED, and keeps it under REPEATABLE READ.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,2,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,0,0.1]')), (4, STRING_TO_VECTOR('[10,10,10,10]')),
+(5, STRING_TO_VECTOR('[-10,-10,-10,-11]'));
+# Row 3's node near the origin is now stale: its row moved far away.
+UPDATE t SET v = STRING_TO_VECTOR('[1000,1000,1000,1000]') WHERE id = 3;
+EXPLAIN SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
+# The WHERE is evaluated above the vector index scan.
+EXPLAIN FORMAT=TREE SELECT id FROM t WHERE id <> 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=# rows=#)
+    -> Filter: (t.id <> 1)  (cost=# rows=#)
+        -> Vector index search on t using vk (v = to_vector('[0,0,0,0]'))  (cost=# rows=#)
+
+# READ COMMITTED, FOR UPDATE: rows 1 and 2 only.
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+START TRANSACTION;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+id
+1
+2
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+X,REC_NOT_GAP	1
+X,REC_NOT_GAP	2
+ROLLBACK;
+# READ COMMITTED, with a WHERE that rejects row 1: rows 2 and 4 only.
+START TRANSACTION;
+SELECT id FROM t WHERE id <> 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+id
+2
+4
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+X,REC_NOT_GAP	2
+X,REC_NOT_GAP	4
+ROLLBACK;
+# READ COMMITTED: a lock the transaction held before the search is kept.
+START TRANSACTION;
+SELECT id FROM t WHERE id = 3 FOR UPDATE;
+id
+3
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+id
+1
+2
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+X,REC_NOT_GAP	1
+X,REC_NOT_GAP	2
+X,REC_NOT_GAP	3
+ROLLBACK;
+# READ COMMITTED: so is the lock on a row the transaction updated.
+START TRANSACTION;
+UPDATE t SET v = STRING_TO_VECTOR('[2000,2000,2000,2000]') WHERE id = 3;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+id
+1
+2
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+X,REC_NOT_GAP	1
+X,REC_NOT_GAP	2
+X,REC_NOT_GAP	3
+ROLLBACK;
+# REPEATABLE READ, FOR UPDATE: the skipped row 3 stays locked.
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+START TRANSACTION;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+id
+1
+2
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+X,REC_NOT_GAP	1
+X,REC_NOT_GAP	2
+X,REC_NOT_GAP	3
+ROLLBACK;
+# REPEATABLE READ, FOR SHARE.
+START TRANSACTION;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR SHARE;
+id
+1
+2
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+S,REC_NOT_GAP	1
+S,REC_NOT_GAP	2
+S,REC_NOT_GAP	3
+ROLLBACK;
+# REPEATABLE READ, with a WHERE that rejects row 1: row 1 stays locked.
+START TRANSACTION;
+SELECT id FROM t WHERE id <> 1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+id
+2
+4
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data, lock_mode;
+lock_mode	lock_data
+X,REC_NOT_GAP	1
+X,REC_NOT_GAP	2
+X,REC_NOT_GAP	3
+X,REC_NOT_GAP	4
+ROLLBACK;
+#
+# SKIP LOCKED: under READ COMMITTED a skipped candidate's lock in one
+# session does not hide that row from another session's search. Under
+# REPEATABLE READ it does, as any row the first session read would.
+#
+CREATE TABLE q (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+# Row 10 ends near A; row 20 starts near A (a stale node there) and
+# ends near B; row 30 is near B but farther than row 20.
+INSERT INTO q VALUES (10, STRING_TO_VECTOR('[100,100,100,99.5]'));
+UPDATE q SET v = STRING_TO_VECTOR('[1,0,0,0]') WHERE id = 10;
+INSERT INTO q VALUES (20, STRING_TO_VECTOR('[0,0,0,0.5]'));
+UPDATE q SET v = STRING_TO_VECTOR('[101,100,100,100]') WHERE id = 20;
+INSERT INTO q VALUES (30, STRING_TO_VECTOR('[110,100,100,100]'));
+# Worker A searches near A under READ-COMMITTED.
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+START TRANSACTION;
+SELECT id FROM q ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 1 FOR UPDATE;
+id
+10
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 'q' AND lock_type = 'RECORD' ORDER BY lock_data;
+lock_mode	lock_data
+X,REC_NOT_GAP	10
+# Worker B searches near B.
+START TRANSACTION;
+SELECT id FROM q ORDER BY DISTANCE(v, STRING_TO_VECTOR('[100,100,100,100]'), 'EUCLIDEAN') LIMIT 1 FOR UPDATE SKIP LOCKED;
+id
+20
+ROLLBACK;
+ROLLBACK;
+# Worker A searches near A under REPEATABLE-READ.
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+START TRANSACTION;
+SELECT id FROM q ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 1 FOR UPDATE;
+id
+10
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_schema = 'test' AND object_name = 'q' AND lock_type = 'RECORD' ORDER BY lock_data;
+lock_mode	lock_data
+X,REC_NOT_GAP	10
+X,REC_NOT_GAP	20
+# Worker B searches near B.
+START TRANSACTION;
+SELECT id FROM q ORDER BY DISTANCE(v, STRING_TO_VECTOR('[100,100,100,100]'), 'EUCLIDEAN') LIMIT 1 FOR UPDATE SKIP LOCKED;
+id
+30
+ROLLBACK;
+ROLLBACK;
+DROP TABLE t, q;

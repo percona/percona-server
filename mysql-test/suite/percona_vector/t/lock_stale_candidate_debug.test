@@ -1,0 +1,26 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11614: under READ COMMITTED a locking vector search keeps no lock
+--echo # on a deleted row it skips. Purge is stopped to keep the row
+--echo # delete-marked.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES
+  (1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,2,0,0]')),
+  (4, STRING_TO_VECTOR('[10,10,10,10]'));
+
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t WHERE id = 1;
+
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+START TRANSACTION;
+SELECT id FROM t ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'EUCLIDEAN') LIMIT 2 FOR UPDATE;
+SELECT lock_mode, lock_data FROM performance_schema.data_locks WHERE object_name = 't' AND lock_type = 'RECORD' ORDER BY lock_data;
+ROLLBACK;
+SET SESSION transaction_isolation = DEFAULT;
+
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t;

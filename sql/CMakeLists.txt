@@ -673,6 +673,13 @@ SET(SQL_SHARED_SOURCES
   command_mapping.cc
 )
 
+# Fused multiply-add rounds once instead of twice, which would make DISTANCE()
+# results differ between SIMD tiers and so between machines. DISTANCE() values
+# can be stored in functional indexes and generated columns, and tables with
+# such objects must stay binary portable between machines.
+ADD_CXX_COMPILE_FLAGS_TO_FILES(-ffp-contract=off
+  FILES ../vector-common/vector_distance.cc)
+
 IF(BUILD_IS_SINGLE_CONFIG)
   GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
   IF(NOT CMAKE_CXX_FLAGS MATCHES "DENABLED_DEBUG_SYNC" AND

@@ -439,7 +439,6 @@ class ha_innobase : public handler {
                                   dd::Table *new_dd_tab) override;
   /** @} */
 
-
   using Reader = Parallel_reader_adapter;
 
   /** Initializes a parallel scan. It creates a scan_ctx that has to
@@ -1499,10 +1498,9 @@ will be closed before the index creation/drop.
 @param[in,out]	share		share structure where index translation table
                                 will be constructed in.
 @return true if index translation table built successfully */
-[[nodiscard]]
-bool innobase_build_index_translation(const TABLE *table,
-                                      dict_table_t *ib_table,
-                                      INNOBASE_SHARE *share);
+[[nodiscard]] bool innobase_build_index_translation(const TABLE *table,
+                                                    dict_table_t *ib_table,
+                                                    INNOBASE_SHARE *share);
 
 uint innodb_force_index_records_in_range(THD *thd);
 uint innodb_records_in_range(THD *thd);

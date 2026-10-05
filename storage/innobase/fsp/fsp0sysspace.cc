@@ -468,8 +468,8 @@ ut::Expected<Encryption_metadata> SysTablespace::read_encryption_metadata() {
   Encryption_key encryption_key{encryption_metadata.m_key,
                                 encryption_metadata.m_iv};
   const auto err =
-      fsp_header_validate(page.get(), space_id(), space_flags_on_disk,
-                          filepath, false, encryption_key);
+      fsp_header_validate(page.get(), space_id(), space_flags_on_disk, filepath,
+                          false, encryption_key);
   if (err != DB_SUCCESS) {
     return ut::Unexpected(err);
   }

@@ -118,8 +118,7 @@ inline size_t trim_trailing_semicolons(const CHARSET_INFO *cs, const char *str,
 
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
 void dispatch_sql_command(THD *thd, Parser_state *parser_state,
-                          bool update_userstat,
-                          bool is_retry = false);
+                          bool update_userstat, bool is_retry = false);
 void mysql_reset_thd_for_next_command(THD *thd);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void add_automatic_sp_privileges(THD *thd, enum_sp_type sp_type,

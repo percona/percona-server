@@ -63,11 +63,11 @@
 #include "sql/table.h"
 
 /* RocksDB includes */
+#include "env/composite_env_wrapper.h"
 #include "monitoring/histogram.h"
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/env.h"
-#include "env/composite_env_wrapper.h"
 #include "rocksdb/memory_allocator.h"
 #include "rocksdb/perf_level.h"
 #include "rocksdb/persistent_cache.h"
@@ -77,12 +77,12 @@
 #include "rocksdb/thread_status.h"
 #include "rocksdb/trace_reader_writer.h"
 #include "rocksdb/utilities/checkpoint.h"
-#include "utilities/fault_injection_fs.h"
 #include "rocksdb/utilities/memory_util.h"
 #include "rocksdb/utilities/options_util.h"
 #include "rocksdb/utilities/sim_cache.h"
 #include "rocksdb/utilities/write_batch_with_index.h"
 #include "util/stop_watch.h"
+#include "utilities/fault_injection_fs.h"
 
 /* MyRocks includes */
 #include "./event_listener.h"
@@ -1216,7 +1216,6 @@ static TYPELIB index_type_typelib = {array_elements(index_type_names) - 1,
                                      "index_type_typelib", index_type_names,
                                      nullptr};
 
-
 // TODO: 0 means don't wait at all, and we don't support it yet?
 static MYSQL_THDVAR_ULONG(lock_wait_timeout,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_HINTUPDATEABLE,
@@ -2063,7 +2062,8 @@ static MYSQL_SYSVAR_UINT64_T(block_size, rocksdb_tbl_options->block_size,
                              PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                              "BlockBasedTableOptions::block_size for RocksDB",
                              nullptr, nullptr, rocksdb_tbl_options->block_size,
-                             /* min */ 1024L, /* max */ std::numeric_limits<uint32_t>::max(), 0);
+                             /* min */ 1024L,
+                             /* max */ std::numeric_limits<uint32_t>::max(), 0);
 
 static MYSQL_SYSVAR_BOOL(charge_memory, rocksdb_charge_memory,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -3040,10 +3040,8 @@ static int rocksdb_compact_column_family(THD *const thd,
  * be used as a rocksdb transaction name
  */
 static std::string rdb_xid_to_string(const XID &src) {
-  assert(src.get_gtrid_length() >= 0 &&
-         src.get_gtrid_length() <= MAXGTRIDSIZE);
-  assert(src.get_bqual_length() >= 0 &&
-         src.get_bqual_length() <= MAXBQUALSIZE);
+  assert(src.get_gtrid_length() >= 0 && src.get_gtrid_length() <= MAXGTRIDSIZE);
+  assert(src.get_bqual_length() >= 0 && src.get_bqual_length() <= MAXBQUALSIZE);
 
   std::string buf;
   buf.reserve(RDB_XIDHDR_LEN + src.get_gtrid_length() + src.get_bqual_length());
@@ -5043,9 +5041,7 @@ class Rdb_writebatch_impl : public Rdb_transaction {
     return m_batch->NewIteratorWithBase(it);
   }
 
-  bool is_tx_started() const override {
-    return (m_batch != nullptr);
-  }
+  bool is_tx_started() const override { return (m_batch != nullptr); }
 
   void start_tx() override {
     reset();
@@ -6435,8 +6431,8 @@ static int rocksdb_init_internal(void *const p) {
 
   if (rdb_has_rocksdb_corruption()) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
-        "There was corruption detected in the RocksDB data files. "
-        "Check error log emitted earlier for more details.");
+                    "There was corruption detected in the RocksDB data files. "
+                    "Check error log emitted earlier for more details.");
     if (rocksdb_allow_to_start_after_corruption) {
       LogPluginErrMsg(INFORMATION_LEVEL, 0,
                       "Set rocksdb_allow_to_start_after_corruption=0 to "
@@ -6523,9 +6519,8 @@ static int rocksdb_init_internal(void *const p) {
       MY_MUTEX_INIT_FAST);
   Rdb_transaction::init_mutex();
 
-  DBUG_EXECUTE_IF("rocksdb_init_failure_mutexes_initialized", {
-    DBUG_RETURN(HA_EXIT_FAILURE);
-  });
+  DBUG_EXECUTE_IF("rocksdb_init_failure_mutexes_initialized",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
 
   rocksdb_hton->state = SHOW_OPTION_YES;
   rocksdb_hton->create = rocksdb_create_handler;
@@ -6639,9 +6634,8 @@ static int rocksdb_init_internal(void *const p) {
     }
   }
 
-  DBUG_EXECUTE_IF("rocksdb_init_failure_reads", {
-    DBUG_RETURN(HA_EXIT_FAILURE);
-  });
+  DBUG_EXECUTE_IF("rocksdb_init_failure_reads",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
 
   if (rocksdb_db_options->allow_mmap_writes &&
       rocksdb_db_options->use_direct_io_for_flush_and_compaction) {
@@ -6823,8 +6817,7 @@ static int rocksdb_init_internal(void *const p) {
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
     if (!strlen(rocksdb_persistent_cache_path)) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Specify rocksdb_persistent_cache_path");
+      LogPluginErrMsg(ERROR_LEVEL, 0, "Specify rocksdb_persistent_cache_path");
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
 
@@ -6845,9 +6838,8 @@ static int rocksdb_init_internal(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
-  DBUG_EXECUTE_IF("rocksdb_init_failure_cache", {
-    DBUG_RETURN(HA_EXIT_FAILURE);
-  });
+  DBUG_EXECUTE_IF("rocksdb_init_failure_cache",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
 
   std::unique_ptr<Rdb_cf_options> cf_options_map(new Rdb_cf_options());
   if (!cf_options_map->init(*rocksdb_tbl_options, properties_collector_factory,
@@ -6857,9 +6849,8 @@ static int rocksdb_init_internal(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
-  DBUG_EXECUTE_IF("rocksdb_init_failure_cf_options", {
-    DBUG_RETURN(HA_EXIT_FAILURE);
-  });
+  DBUG_EXECUTE_IF("rocksdb_init_failure_cf_options",
+                  { DBUG_RETURN(HA_EXIT_FAILURE); });
 
   /*
     If there are no column families, we're creating the new database.
@@ -7972,8 +7963,8 @@ int ha_rocksdb::alloc_key_buffers(const TABLE &table_arg,
   const auto m_pack_buffer_offset = buf_size;
   buf_size += max_packed_sk_len;
 
-  buffers.reset(static_cast<uchar *>(
-      my_malloc(PSI_NOT_INSTRUMENTED, buf_size, MYF(0))));
+  buffers.reset(
+      static_cast<uchar *>(my_malloc(PSI_NOT_INSTRUMENTED, buf_size, MYF(0))));
   if (buffers == nullptr) {
     free_key_buffers();
 
@@ -10148,8 +10139,8 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
       m_pk_descr->get_keyno() == m_dupp_errkey) {
     assert(m_lock_rows == RDB_LOCK_WRITE);
     assert(m_dup_key_tuple.length() == key_slice.size());
-    assert(
-        memcmp(m_dup_key_tuple.ptr(), key_slice.data(), key_slice.size()) == 0);
+    assert(memcmp(m_dup_key_tuple.ptr(), key_slice.data(), key_slice.size()) ==
+           0);
 
     // We have stored the record with duplicate key in
     // m_dup_key_retrieved_record during write_row already, so just move it
@@ -10988,9 +10979,9 @@ int ha_rocksdb::acquire_prefix_lock(const Rdb_key_def &kd, Rdb_transaction *tx,
     HA_EXIT_SUCCESS  OK
     other            HA_ERR error code (can be SE-specific)
 */
-int ha_rocksdb::check_and_lock_sk(
-    const uint key_id, const struct update_row_info &row_info,
-    bool *const found) {
+int ha_rocksdb::check_and_lock_sk(const uint key_id,
+                                  const struct update_row_info &row_info,
+                                  bool *const found) {
   assert(
       (row_info.old_data == table->record[1] &&
        row_info.new_data == table->record[0]) ||
@@ -11100,8 +11091,8 @@ int ha_rocksdb::check_and_lock_sk(
     The bloom filter may need to be disabled for this lookup.
   */
   assert(!m_key_descr_arr[key_id]->is_partial_index());
-  Rdb_iterator_base iter(ha_thd(), *m_key_descr_arr[key_id],
-                         *m_pk_descr, m_tbl_def);
+  Rdb_iterator_base iter(ha_thd(), *m_key_descr_arr[key_id], *m_pk_descr,
+                         m_tbl_def);
 
   /*
     If all_parts_used is true, then PK uniqueness check/lock would already
@@ -11131,8 +11122,7 @@ int ha_rocksdb::check_and_lock_sk(
     const rocksdb::Slice &rkey = all_parts_used ? new_slice : iter.key();
     uint pk_size =
         kd.get_primary_key_tuple(*m_pk_descr, &rkey, m_pk_packed_tuple);
-    DBUG_EXECUTE_IF(
-        "simulate_corrupt_data_update",
+    DBUG_EXECUTE_IF("simulate_corrupt_data_update",
                     { pk_size = RDB_INVALID_KEY_LEN; });
     if (pk_size == RDB_INVALID_KEY_LEN) {
       rc = handle_rocksdb_corrupt_data_error();
@@ -11913,9 +11903,8 @@ int ha_rocksdb::index_init(uint idx, bool sorted) {
         new Rdb_iterator_partial(thd, *m_key_descr_arr[active_index_pos()],
                                  *m_pk_descr, m_tbl_def, table, dd_table));
   } else {
-    m_iterator.reset(new Rdb_iterator_base(thd,
-                                           *m_key_descr_arr[active_index_pos()],
-                                           *m_pk_descr, m_tbl_def));
+    m_iterator.reset(new Rdb_iterator_base(
+        thd, *m_key_descr_arr[active_index_pos()], *m_pk_descr, m_tbl_def));
   }
 
   // If m_lock_rows is not RDB_LOCK_NONE then we will be doing a get_for_update

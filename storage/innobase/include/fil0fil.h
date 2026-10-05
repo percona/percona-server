@@ -343,10 +343,11 @@ class fil_node_t {
                               from another thread, when @p sync is false, before
                               or after this call returns.
   @return DB_SUCCESS if IO was successfully posted, error code otherwise */
-  [[nodiscard]] dberr_t post_io_async(
-      IORequest &type, byte *buf, size_t buffer_len, page_no_t page_no,
-      std::function<void(dberr_t)> callback, trx_t *trx = nullptr,
-      bool should_buffer = false) const;
+  [[nodiscard]] dberr_t post_io_async(IORequest &type, byte *buf,
+                                      size_t buffer_len, page_no_t page_no,
+                                      std::function<void(dberr_t)> callback,
+                                      trx_t *trx = nullptr,
+                                      bool should_buffer = false) const;
 #endif /* !UNIV_HOTBACKUP */
 
   /** Returns true iff the node is currently opened and allows IO operations. */

@@ -201,8 +201,7 @@ void Tablespace::decrypt() {
   rw_lock_x_unlock(&space->latch);
 }
 
-void Tablespace::rotate_encryption_key() {
-}
+void Tablespace::rotate_encryption_key() {}
 
 uint32_t Tablespace::file_id() const {
   return (m_space_id - dict_sys_t::s_min_temp_space_id);

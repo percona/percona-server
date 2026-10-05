@@ -325,8 +325,7 @@ REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2);
 BEGIN_COMPONENT_REQUIRES(component_keyring_file)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(registry_registration),
-    REQUIRES_SERVICE(status_variable_registration),
-    REQUIRES_PSI_MEMORY_SERVICE,
+    REQUIRES_SERVICE(status_variable_registration), REQUIRES_PSI_MEMORY_SERVICE,
     END_COMPONENT_REQUIRES();
 
 /** Component description */

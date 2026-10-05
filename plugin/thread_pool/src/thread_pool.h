@@ -144,7 +144,7 @@ extern MYSQL_PLUGIN_IMPORT uint threadpool_stall_limit;
     plugin supports. */
 inline ulong percona_stall_limit_to_plugin_units(uint value_ms) {
   return std::clamp<ulong>((static_cast<ulong>(value_ms) + 9) / 10,
-                            TP_MIN_STALL_LIMIT, TP_MAX_STALL_LIMIT);
+                           TP_MIN_STALL_LIMIT, TP_MAX_STALL_LIMIT);
 }
 #endif
 

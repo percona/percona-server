@@ -41,7 +41,7 @@ int heap_scan_init(HP_INFO *info) {
   info->lastinx = -1;
   info->current_record = (ulong)~0L; /* No current record */
   info->update = 0;
-  //info->next_block = 0;
+  // info->next_block = 0;
   return 0;
 }
 

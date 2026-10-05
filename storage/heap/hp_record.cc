@@ -66,9 +66,9 @@ uint hp_get_encoded_data_length(const HP_SHARE &info, const uchar *record,
       /* >= 5.0.3 true VARCHAR */
 
       pack_length = column->length_bytes;
-      length = pack_length + (pack_length == 1
-                                  ? (uint) * (const uchar *)(record + src_offset)
-                                  : uint2korr(record + src_offset));
+      length = pack_length +
+               (pack_length == 1 ? (uint) * (const uchar *)(record + src_offset)
+                                 : uint2korr(record + src_offset));
     } else if (is_blob_column(column)) {
       uint pack_length = column->length_bytes;
 
@@ -129,9 +129,9 @@ static inline bool hp_process_field_data_to_chunkset(
   while (length > 0) {
     uint to_copy = info.recordspace.chunk_dataspace_length - dst_offset;
     if (to_copy == 0) {
-    /* Jump to the next chunk */
+      /* Jump to the next chunk */
 #if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
-    dump_chunk(info, curr_chunk);
+      dump_chunk(info, curr_chunk);
 #endif
       memcpy(&curr_chunk, curr_chunk + info.recordspace.offset_link,
              sizeof(uchar *));

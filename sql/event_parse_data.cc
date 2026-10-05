@@ -537,8 +537,8 @@ void Event_parse_data::check_originator_id(THD *thd) {
                                                            to_string(name));
     if ((status == Event_parse_data::ENABLED && !event_needs_reenable) ||
         (status == Event_parse_data::DISABLED)) {
-      DBUG_PRINT(
-          "info", ("Invoked object status set to REPLICA_SIDE_DISABLED."));
+      DBUG_PRINT("info",
+                 ("Invoked object status set to REPLICA_SIDE_DISABLED."));
       status = Event_parse_data::REPLICA_SIDE_DISABLED;
       status_changed = true;
     }

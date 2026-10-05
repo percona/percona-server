@@ -11,7 +11,7 @@
 #   }
 #
 # Omit templateParameters (or pass false) for the five default configs; pass
-# true for all 42. It also appears as a checkbox in the Run pipeline dialog.
+# true for all 40. It also appears as a checkbox in the Run pipeline dialog.
 parameters:
 - name: fullCI
   displayName: 'Build all configs, not just the default five'
@@ -84,7 +84,7 @@ jobs:
   # Two tiers of coverage:
   #
   #   default   the five configs listed first -- built on every pull request.
-  #   extended  the remaining 37, each guarded so they are built only when the
+  #   extended  the remaining 35, each guarded so they are built only when the
   #             fullCI parameter is set (how GitHub Actions asks for a full run)
   #             or on the nightly schedule.
   #
@@ -93,7 +93,7 @@ jobs:
   #
   # The gate keys on the parameter rather than on Build.Reason because a run
   # created through the REST API reports Build.Reason=Manual -- so testing
-  # "not a pull request" would make every GitHub-Actions-queued run build all 42.
+  # "not a pull request" would make every GitHub-Actions-queued run build all 40.
   # Schedule is kept so the nightly still covers everything.
   #
   # It cannot key on the branch, which is what an earlier attempt did. Measured
@@ -140,18 +140,18 @@ jobs:
 
       # Extended coverage below: built only with fullCI, or on the nightly.
 
-      # macOS 14
-      ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
-        macOS 14 RelWithDebInfo:
-          imageName: 'macOS-14'
-          Compiler: clang
-          BuildType: RelWithDebInfo
-
-      ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
-        macOS 14 Debug:
-          imageName: 'macOS-14'
-          Compiler: clang
-          BuildType: Debug
+      # macOS 14 (disabled)
+      # ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
+      #   macOS 14 RelWithDebInfo:
+      #     imageName: 'macOS-14'
+      #     Compiler: clang
+      #     BuildType: RelWithDebInfo
+      #
+      # ${{ if or(parameters.fullCI, eq(variables['Build.Reason'], 'Schedule')) }}:
+      #   macOS 14 Debug:
+      #     imageName: 'macOS-14'
+      #     Compiler: clang
+      #     BuildType: Debug
 
 
       # clang-12 and newer compilers

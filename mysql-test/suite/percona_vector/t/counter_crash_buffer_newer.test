@@ -1,0 +1,35 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11591: recovery handles a buffered row newer than the redo, written
+--echo # when a table is evicted after a DDL that bumped its version.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, k INT,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 (k, v) VALUES
+  (1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,1,0,0]'));
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Counter records at the old version.
+INSERT INTO t1 (k, v) VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+
+--echo # The version is bumped; evicting the table writes the buffered row
+--echo # at the new version.
+ALTER TABLE t1 AUTO_INCREMENT = 100;
+FLUSH TABLES t1;
+SET GLOBAL debug = "+d,innodb_evict_autoinc_table";
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_ft_aux_table = "test/t1";
+SET GLOBAL debug = "-d,innodb_evict_autoinc_table";
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo # The next AUTO_INCREMENT id is 100, and the search finds the new row.
+INSERT INTO t1 (k, v) VALUES (4, STRING_TO_VECTOR('[0,0,0,1]'));
+SELECT LAST_INSERT_ID();
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 1;
+
+DROP TABLE t1;

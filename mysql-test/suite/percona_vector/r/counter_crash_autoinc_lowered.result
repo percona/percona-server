@@ -1,0 +1,26 @@
+#
+# PS-11591: an AUTO_INCREMENT recovered for an older table version must
+# not come back after a DDL that lowered it.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, k INT,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 (k, v) VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,1,0,0]'));
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# An AUTO_INCREMENT record at the old version: AUTO_INCREMENT is 11.
+INSERT INTO t1 (id, k, v) VALUES (10, 10, STRING_TO_VECTOR('[1,1,0,0]'));
+DELETE FROM t1 WHERE id = 10;
+# A DDL lowers AUTO_INCREMENT to 3 and bumps the version.
+ALTER TABLE t1 AUTO_INCREMENT = 3;
+# Label records only at the new version: an explicit id below 3.
+DELETE FROM t1 WHERE id = 2;
+INSERT INTO t1 (id, k, v) VALUES (2, 12, STRING_TO_VECTOR('[0,2,0,0]'));
+# Kill and restart
+# The next AUTO_INCREMENT id is 3, not 11.
+INSERT INTO t1 (k, v) VALUES (13, STRING_TO_VECTOR('[3,1,0,0]'));
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+3
+DROP TABLE t1;

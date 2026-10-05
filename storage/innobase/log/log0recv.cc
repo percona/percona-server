@@ -317,6 +317,11 @@ const byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
     return nullptr;
   }
 
+  /* Counters are applied at load only for the table's current version, and
+  the DDL that bumped it stored them in the definition. */
+  if (version > metadata->get_version()) {
+    metadata->start_version(version);
+  }
   persister->aggregate(*metadata, new_entry);
   return ptr + consumed;
 }
@@ -685,14 +690,33 @@ void MetadataRecover::store() {
 
   for (auto meta : m_tables) {
     table_id_t table_id = meta.first;
-    PersistentTableMetadata *metadata = meta.second;
+    const PersistentTableMetadata *recovered = meta.second;
     byte buffer[REC_MAX_DATA_SIZE];
     size_t size;
 
-    size = dict_persist->persisters->write(*metadata, buffer);
+    /* Merge into the buffered entry: redo since the checkpoint may not
+    hold every counter. Either side can be newer (an evicted table writes
+    its row at its current version), and the counters of the older side
+    are dropped, as in parseMetadataLog(). */
+    uint64_t version = 0;
+    const std::vector<byte> buffered = table_buffer->get(table_id, &version);
+    PersistentTableMetadata metadata(table_id, version);
+    if (!buffered.empty()) {
+      dict_table_read_dynamic_metadata(buffered.data(), buffered.size(),
+                                       &metadata);
+    }
+    PersistentTableMetadata incoming = *recovered;
+    if (metadata.get_version() < incoming.get_version()) {
+      metadata.start_version(incoming.get_version());
+    } else if (incoming.get_version() < metadata.get_version()) {
+      incoming.start_version(metadata.get_version());
+    }
+    dict_persist->persisters->aggregate(metadata, incoming);
+
+    size = dict_persist->persisters->write(metadata, buffer);
 
     dberr_t error =
-        table_buffer->replace(table_id, metadata->get_version(), buffer, size);
+        table_buffer->replace(table_id, metadata.get_version(), buffer, size);
     if (error != DB_SUCCESS) {
       ut_d(ut_error);
     }

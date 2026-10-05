@@ -5724,8 +5724,11 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
 void CorruptedIndexPersister::aggregate(
     PersistentTableMetadata &metadata,
     const PersistentTableMetadata &new_entry) const {
+  const corrupted_ids_t &known = metadata.get_corrupted_indexes();
   for (auto id : new_entry.get_corrupted_indexes()) {
-    metadata.add_corrupted_index(id);
+    if (std::find(known.begin(), known.end(), id) == known.end()) {
+      metadata.add_corrupted_index(id);
+    }
   }
 }
 
@@ -5842,14 +5845,8 @@ ulint VecIdxIdPersister::read(PersistentTableMetadata &metadata,
 void VecIdxIdPersister::aggregate(
     PersistentTableMetadata &metadata,
     const PersistentTableMetadata &new_entry) const {
-  /* DEVIATION FROM AutoIncPersister: the vec counter is monotonic for
-  the whole lifetime of a table_id - legitimate resets ride table_id
-  reassignment (TRUNCATE, IMPORT, rebuilds), never a version bump on
-  the same table. A newer-version redo entry written by ANOTHER
-  persister (e.g. autoinc after an INSTANT DDL) carries vec == 0;
-  taking it version-authoritatively would wipe the counter on crash
-  recovery. Always keep the maximum, and leave the shared version
-  field to the persisters whose semantics depend on it. */
+  /* The label only grows for a table id, so keep the larger value. The
+  record's version is taken by MetadataRecover::parseMetadataLog(). */
   metadata.set_vec_next_id_if_bigger(new_entry.get_vec_next_id());
 }
 
@@ -5945,6 +5942,13 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
   }
 
   return (size);
+}
+
+void Persisters::aggregate(PersistentTableMetadata &metadata,
+                           const PersistentTableMetadata &new_entry) const {
+  for (const auto &entry : m_persisters) {
+    entry.second->aggregate(metadata, new_entry);
+  }
 }
 
 void dict_sdi_close_table(dict_table_t *table) {

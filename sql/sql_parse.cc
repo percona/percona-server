@@ -5850,8 +5850,8 @@ bool Alter_info::add_field(
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
     bool has_explicit_collation, uint uint_geom_type,
     const LEX_CSTRING *zip_dict, Value_generator *gcol_info,
-    Value_generator *default_val_expr, LEX_CSTRING masking_policy, const char *opt_after,
-    std::optional<gis::srid_t> srid,
+    Value_generator *default_val_expr, LEX_CSTRING masking_policy,
+    const char *opt_after, std::optional<gis::srid_t> srid,
     Sql_check_constraint_spec_list *col_check_const_spec_list,
     dd::Column::enum_hidden_type hidden, bool is_array) {
   const uint8 datetime_precision = decimals ? atoi(decimals) : 0;
@@ -6576,11 +6576,10 @@ Table_ref *Query_block::add_table_to_list(
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(
-              lex->query_tables->db, lex->query_tables->table_name))
-&& !(dd::get_dictionary()->is_system_view_name(
-              lex->query_tables->db, lex->query_tables->table_name)
- && DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))
-        ) {
+              lex->query_tables->db, lex->query_tables->table_name)) &&
+        !(dd::get_dictionary()->is_system_view_name(
+              lex->query_tables->db, lex->query_tables->table_name) &&
+          DBUG_EVALUATE_IF("skip_dd_table_access_check", true, false))) {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
                ER_THD_NONCONST(thd, dictionary->table_type_error_code(
                                         ptr->db, ptr->table_name)),

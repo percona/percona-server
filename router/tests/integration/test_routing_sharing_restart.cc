@@ -1874,9 +1874,11 @@ TEST_P(ShareConnectionTestWithRestartedServer,
     {
       auto cmd_res = query_one<1>(cli, "SELECT @@port");
       ASSERT_ERROR(cmd_res);
-      EXPECT_TRUE(cmd_res.error().value() == 2003 || cmd_res.error().value() == 2013)
-        << "Expected either 2003 (can't connect) or 2013 (lost connection), got "
-        << cmd_res.error().value();
+      EXPECT_TRUE(cmd_res.error().value() == 2003 ||
+                  cmd_res.error().value() == 2013)
+          << "Expected either 2003 (can't connect) or 2013 (lost connection), "
+             "got "
+          << cmd_res.error().value();
     }
   }
 

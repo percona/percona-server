@@ -17,7 +17,7 @@
 
 #include <rwlock_scoped_lock.h>
 
-#define ALLOW_COMPONENT_INCLUDE // for my_io.h
+#define ALLOW_COMPONENT_INCLUDE  // for my_io.h
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 

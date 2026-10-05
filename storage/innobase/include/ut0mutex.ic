@@ -50,8 +50,8 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
   sync_cell_t *cell;
   sync_array_t *sync_arr;
   latch_id_t latch_id = m_policy.get_id();
-  ulint	type = SYNC_MUTEX;
-	
+  ulint type = SYNC_MUTEX;
+
   if (latch_id == LATCH_ID_BUF_BLOCK_MUTEX ||
       latch_id == LATCH_ID_BUF_POOL_ZIP) {
     type = SYNC_BUF_BLOCK;
@@ -180,10 +180,8 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
   So, Y2 can not load `false` neither. Contradiction ends the proof.
   */
 
-  sync_arr = sync_array_get_and_reserve_cell(
-      this,
-      type,
-      {filename, line}, &cell);
+  sync_arr =
+      sync_array_get_and_reserve_cell(this, type, {filename, line}, &cell);
 
   /* The memory order of the array reservation and
   the change in the waiters field is important: when
@@ -194,11 +192,11 @@ bool TTASEventMutex<Policy>::wait(const char *filename, uint32_t line,
 
   set_waiters();
 
-  DBUG_EXECUTE_IF("catch_autoinc_mutex_os_lock",
-    if (m_policy.get_id() == LATCH_ID_AUTOINC) {
-      DEBUG_SYNC_C("autoinc_mutex_wait");
-    }
-  );
+  DBUG_EXECUTE_IF(
+      "catch_autoinc_mutex_os_lock",
+      if (m_policy.get_id() == LATCH_ID_AUTOINC) {
+        DEBUG_SYNC_C("autoinc_mutex_wait");
+      });
 
   /* Try to reserve still a few times. */
 

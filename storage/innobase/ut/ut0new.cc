@@ -66,7 +66,6 @@ PSI_memory_key mem_key_undo_spaces;
 PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
-
 #ifdef UNIV_PFS_MEMORY
 
 /** Auxiliary array of performance schema 'PSI_memory_info'.

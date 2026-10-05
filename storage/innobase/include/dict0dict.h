@@ -52,7 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/init_mode.h"  // dict_init_mode_t
-#include "srv0mon.h" /* for dict0dict.ic */
+#include "srv0mon.h"                 /* for dict0dict.ic */
 #include "sync0rw.h"
 #include "trx0types.h"
 #include "univ.i"

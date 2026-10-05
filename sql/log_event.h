@@ -44,8 +44,8 @@
 #include <string_view>
 #include <unordered_set>
 
+#include "m_string.h"  // native_strncasecmp
 #include "my_aes.h"
-#include "m_string.h"     // native_strncasecmp
 #include "my_bitmap.h"    // MY_BITMAP
 #include "my_checksum.h"  // ha_checksum
 #include "my_dbug.h"

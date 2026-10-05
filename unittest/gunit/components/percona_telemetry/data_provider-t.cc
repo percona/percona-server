@@ -483,16 +483,16 @@ TEST_F(DataProviderTest, CollectServerConfigNondefaultSysvars) {
                         q.find("'max_connections'") != std::string::npos;
                }),
                A<QueryResult *>(), _, true))
-      .WillOnce(DoAll(WithArg<1>(Invoke([](QueryResult *qr) {
-                        qr->clear();
-                        /* not allowlisted, allowlisted, allowlisted but
-                         * path-like value */
-                        qr->push_back(Row{"datadir", "/data/mysql", "GLOBAL"});
-                        qr->push_back(Row{"max_connections", "123", "GLOBAL"});
-                        qr->push_back(
-                            Row{"thread_handling", "foo/bar", "PERSISTED"});
-                      })),
-                      Return(false)));
+      .WillOnce(
+          DoAll(WithArg<1>(Invoke([](QueryResult *qr) {
+                  qr->clear();
+                  /* not allowlisted, allowlisted, allowlisted but
+                   * path-like value */
+                  qr->push_back(Row{"datadir", "/data/mysql", "GLOBAL"});
+                  qr->push_back(Row{"max_connections", "123", "GLOBAL"});
+                  qr->push_back(Row{"thread_handling", "foo/bar", "PERSISTED"});
+                })),
+                Return(false)));
   rapidjson::Document document(rapidjson::Type::kObjectType);
   EXPECT_FALSE(dataProvider.collect_server_config(&document));
   ASSERT_TRUE(document.HasMember("server_config_info"));

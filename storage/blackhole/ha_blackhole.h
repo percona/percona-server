@@ -28,8 +28,8 @@
 #include "sql/handler.h" /* handler */
 #include "sql/key.h"
 #include "sql/sql_const.h" /* MAX_KEY */
-#include "sql/table.h" /* TABLE_SHARE */
-#include "thr_lock.h"  /* THR_LOCK */
+#include "sql/table.h"     /* TABLE_SHARE */
+#include "thr_lock.h"      /* THR_LOCK */
 
 class String;
 class THD;

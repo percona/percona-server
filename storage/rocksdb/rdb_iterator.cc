@@ -27,8 +27,7 @@ namespace myrocks {
 
 Rdb_iterator::~Rdb_iterator() {}
 
-Rdb_iterator_base::Rdb_iterator_base(THD *thd,
-                                     const Rdb_key_def &kd,
+Rdb_iterator_base::Rdb_iterator_base(THD *thd, const Rdb_key_def &kd,
                                      const Rdb_key_def &pkd,
                                      const Rdb_tbl_def *tbl_def)
     : m_kd(kd),
@@ -398,8 +397,7 @@ int Rdb_iterator_base::get(const rocksdb::Slice *key,
                               skip_wait);
   }
 
-  DBUG_EXECUTE_IF(
-      "rocksdb_return_status_corrupted",
+  DBUG_EXECUTE_IF("rocksdb_return_status_corrupted",
                   { s = rocksdb::Status::Corruption(); });
 
   return convert_get_status(*tx, s, value, skip_ttl_check);
@@ -664,8 +662,7 @@ int Rdb_iterator_partial::materialize_prefix() {
   // It is possible that someone else has already materialized this group
   // before we locked. Double check by doing a locking read on the sentinel.
   rocksdb::PinnableSlice value;
-  auto s = rdb_tx_get_for_update(tx, m_kd, cur_prefix_key, &value,
-                                 true, false);
+  auto s = rdb_tx_get_for_update(tx, m_kd, cur_prefix_key, &value, true, false);
   if (s.ok()) {
     rdb_tx_release_lock(tx, m_kd, cur_prefix_key, true /* force */);
     thd_proc_info(m_thd, old_proc_info);

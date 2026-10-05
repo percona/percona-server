@@ -1,0 +1,96 @@
+#
+# PS-11631: XA transactions in a session with rocksdb_master_skip_tx_api=ON.
+#
+# A write batch (skip tx API) cannot be prepared, so its XA PREPARE used to
+# succeed without persisting anything: detaching the prepared transaction
+# (xa_detach_on_prepare=ON, or a disconnect) dropped the writes, and the
+# later XA COMMIT reported success without them.
+#
+# Expected: a session that starts its MyRocks transaction inside an XA
+# transaction uses a real RocksDB transaction, so XA works. An idle write
+# batch that the session already owns is replaced by a RocksDB transaction
+# when the XA transaction first uses MyRocks, and the session goes back to
+# a write batch after the XA transaction.
+#
+--source include/have_rocksdb.inc
+--source include/count_sessions.inc
+
+--let $saved_global_detach = `SELECT @@GLOBAL.xa_detach_on_prepare`
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+
+--let $detach = 1
+while ($detach >= 0)
+{
+  --echo
+  --echo ### xa_detach_on_prepare = $detach
+  --eval SET GLOBAL xa_detach_on_prepare = $detach
+
+  --echo # The first MyRocks statement of the session is inside XA:
+  --echo # XA COMMIT in the same session keeps the rows.
+  --connect (con1,localhost,root,,test)
+  SET SESSION rocksdb_master_skip_tx_api = ON;
+  XA START 'xs1';
+  INSERT INTO t1 VALUES (1, 1);
+  XA END 'xs1';
+  XA PREPARE 'xs1';
+  XA COMMIT 'xs1';
+  SELECT * FROM t1 ORDER BY a;
+  --echo # The session keeps working after the XA transaction.
+  INSERT INTO t1 VALUES (2, 2);
+  SELECT * FROM t1 ORDER BY a;
+  --disconnect con1
+  --connection default
+
+  --echo # ... and the prepared rows survive a disconnect and are committed
+  --echo # from another session.
+  --connect (con1,localhost,root,,test)
+  SET SESSION rocksdb_master_skip_tx_api = ON;
+  XA START 'xs2';
+  INSERT INTO t1 VALUES (3, 3);
+  XA END 'xs2';
+  XA PREPARE 'xs2';
+  --disconnect con1
+  --connection default
+  --source include/wait_until_count_sessions.inc
+  XA RECOVER;
+  XA COMMIT 'xs2';
+  SELECT * FROM t1 ORDER BY a;
+
+  --echo # A session that already owns a write batch gets a RocksDB
+  --echo # transaction for the XA transaction too: the idle write batch is
+  --echo # replaced when the XA transaction first uses MyRocks.
+  --connect (con1,localhost,root,,test)
+  SET SESSION rocksdb_master_skip_tx_api = ON;
+  INSERT INTO t1 VALUES (4, 4);
+  XA START 'xs3';
+  INSERT INTO t1 VALUES (5, 5);
+  XA END 'xs3';
+  XA PREPARE 'xs3';
+  XA RECOVER;
+  XA COMMIT 'xs3';
+  SELECT * FROM t1 ORDER BY a;
+  --echo # The next transaction of the session uses a write batch again.
+  BEGIN;
+  INSERT INTO t1 VALUES (6, 6);
+  SELECT SKIP_TRX_API FROM information_schema.rocksdb_trx
+    WHERE THREAD_ID = CONNECTION_ID();
+  COMMIT;
+  --echo # A read-only XA transaction still works.
+  XA START 'xs4';
+  SELECT * FROM t1 WHERE a = 1;
+  XA END 'xs4';
+  XA PREPARE 'xs4';
+  XA COMMIT 'xs4';
+  --disconnect con1
+  --connection default
+  --source include/wait_until_count_sessions.inc
+
+  DELETE FROM t1;
+  --dec $detach
+}
+
+--replace_result $saved_global_detach SAVED
+--eval SET GLOBAL xa_detach_on_prepare = $saved_global_detach
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

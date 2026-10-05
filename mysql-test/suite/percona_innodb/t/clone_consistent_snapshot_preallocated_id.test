@@ -1,0 +1,57 @@
+#
+# START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION preallocates a
+# transaction id for a read-only donor, which the donor uses if it becomes
+# read-write later. Read views opened after the clone must treat that id as
+# active, or they see the donor's uncommitted changes.
+#
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+--connect (donor,localhost,root,,)
+--connect (receiver,localhost,root,,)
+--connect (observer,localhost,root,,)
+
+# A read-only donor, which does not have a transaction id yet.
+--connection donor
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection receiver
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--enable_query_log
+
+--connection observer
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+# The donor becomes read-write with the preallocated id.
+--connection donor
+UPDATE t1 SET c = 1 WHERE id = 1;
+
+--connection observer
+SELECT c FROM t1 WHERE id = 1;
+
+--connection donor
+COMMIT;
+
+--connection observer
+SELECT c FROM t1 WHERE id = 1;
+COMMIT;
+
+--connection receiver
+COMMIT;
+
+--connection default
+SELECT c FROM t1 WHERE id = 1;
+
+--disconnect donor
+--disconnect receiver
+--disconnect observer
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

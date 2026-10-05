@@ -28,7 +28,7 @@
 #include <my_inttypes.h>
 #include <mysqld_error.h>
 
-#include <mysql/components/services/bits/my_err_bits.h> // MYSQL_ERRMSG_SIZE
+#include <mysql/components/services/bits/my_err_bits.h>  // MYSQL_ERRMSG_SIZE
 
 #include <mysqlpp/common_types.hpp>
 #include <mysqlpp/udf_context.hpp>

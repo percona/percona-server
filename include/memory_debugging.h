@@ -49,8 +49,8 @@
 
 #elif defined(HAVE_ASAN)
 
-#include <cassert>
 #include <sanitizer/asan_interface.h>
+#include <cassert>
 
 #define MEM_MALLOCLIKE_BLOCK(p1, p2, p3, p4) ASAN_UNPOISON_MEMORY_REGION(p1, p2)
 #define MEM_FREELIKE_BLOCK(p1, p2, p3, p4) ASAN_POISON_MEMORY_REGION(p1, p2)

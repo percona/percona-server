@@ -3809,14 +3809,13 @@ TEST_P(ConnectionTest, classic_protocol_session_vars_nullable) {
       // ensure that no new nullable sys-vars are added.
       EXPECT_THAT(
           var[0],
-          testing::AnyOf("debug_set_operations_secondary_overflow_at",  // debug
-                         "character_set_results",                       //
-                         "innodb_ft_user_stopword_table",               //
-                         "innodb_interpreter_output",                   // debug
-                         "session_track_system_variables",
-                         "external_table_storage_engine",
-                         "external_table_secondary_storage_engine",
-                         "log_query_errors"));
+          testing::AnyOf(
+              "debug_set_operations_secondary_overflow_at",  // debug
+              "character_set_results",                       //
+              "innodb_ft_user_stopword_table",               //
+              "innodb_interpreter_output",                   // debug
+              "session_track_system_variables", "external_table_storage_engine",
+              "external_table_secondary_storage_engine", "log_query_errors"));
     }
   }
 }

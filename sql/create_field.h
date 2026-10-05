@@ -222,7 +222,8 @@ class Create_field {
             List<String> *interval_list, const CHARSET_INFO *cs,
             bool has_explicit_collation, uint uint_geom_type,
             const LEX_CSTRING *zip_dict_name, Value_generator *gcol_info,
-            Value_generator *default_val_expr, LEX_CSTRING fld_masking_policy, std::optional<gis::srid_t> srid,
+            Value_generator *default_val_expr, LEX_CSTRING fld_masking_policy,
+            std::optional<gis::srid_t> srid,
             dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {

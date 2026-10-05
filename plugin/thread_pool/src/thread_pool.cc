@@ -3018,9 +3018,10 @@ extern "C" void *tp_stall_check_thread_main(void *) {
       tp_group_t *cur_group = &(tp_group_list[i]);
 
       tp_client_low_level_t *next = nullptr;
-      DBUG_LOG("tp_scv", "SC: " << X_(cur_group->group_idx)
-                                << X_(cur_group->waiting_thread)
-                                << X_(is_query_ready_to_process(cur_group, &next)));
+      DBUG_LOG("tp_scv",
+               "SC: " << X_(cur_group->group_idx)
+                      << X_(cur_group->waiting_thread)
+                      << X_(is_query_ready_to_process(cur_group, &next)));
       mysql_mutex_lock(&cur_group->LOCK_group);
       mark_and_count_stalled_threads(cur_group, stall_check_timpt);
       auto change_active_threads = update_max_active_threads(cur_group);
@@ -3063,9 +3064,10 @@ extern "C" void *tp_stall_check_thread_main(void *) {
 
       check_trans_queue_for_prio_kickups(cur_group, new_10ms,
                                          stall_check_timpt);
-      if (change_active_threads > 0 || (cur_group->threads_for_consumer == 0 &&
-                                        cur_group->threads_for_reserve == 0 &&
-                                        is_query_ready_to_process(cur_group, &next))) {
+      if (change_active_threads > 0 ||
+          (cur_group->threads_for_consumer == 0 &&
+           cur_group->threads_for_reserve == 0 &&
+           is_query_ready_to_process(cur_group, &next))) {
         /*
           With the change in max_active_threads it might be credit available
           to start up new jobs and we might be missing threads to execute

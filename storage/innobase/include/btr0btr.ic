@@ -41,9 +41,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-static inline buf_block_t *btr_block_get_func(
-    const page_id_t &page_id, const page_size_t &page_size, ulint mode,
-    ut::Location location, const dict_index_t *index, mtr_t *mtr) {
+static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
+                                              const page_size_t &page_size,
+                                              ulint mode, ut::Location location,
+                                              const dict_index_t *index,
+                                              mtr_t *mtr) {
   buf_block_t *block;
 
   block = buf_page_get_gen(page_id, page_size, mode, nullptr,

@@ -424,8 +424,7 @@ class Sys_var_alias : public sys_var {
   void saved_value_to_string(THD *thd, set_var *var, char *def_val) override {
     return m_base_var.saved_value_to_string(thd, var, def_val);
   }
-  void persist_only_to_string(THD *thd, set_var *var,
-                              String *dest) override {
+  void persist_only_to_string(THD *thd, set_var *var, String *dest) override {
     return m_base_var.persist_only_to_string(thd, var, dest);
   }
   bool check_update_type(Item_result type) override {

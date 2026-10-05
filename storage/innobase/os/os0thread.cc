@@ -144,9 +144,8 @@ no-op on other systems.
 @param[in]      relative_priority       system-specific priority value
 
 @return An actual thread priority after the update */
-[[nodiscard]]
-ulint os_thread_set_priority(os_tid_t thread_id,
-                             ulint relative_priority) noexcept {
+[[nodiscard]] ulint os_thread_set_priority(os_tid_t thread_id,
+                                           ulint relative_priority) noexcept {
 #ifdef UNIV_LINUX
   const lint thread_nice = 19 - relative_priority;
   if (setpriority(PRIO_PROCESS, thread_id, thread_nice) == -1) {

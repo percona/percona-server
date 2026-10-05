@@ -227,8 +227,7 @@ transaction.
 @param[in]	trx	receiver transaction
 @param[in]	from_trx	donor transaction
 @return read view clone */
-[[nodiscard]]
-ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx);
+[[nodiscard]] ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx);
 
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
@@ -709,8 +708,7 @@ class trx_stats final {
    already posted read in progress
   @return value to be passed to end_io_read
   */
-  [[nodiscard]]
-  static std::chrono::steady_clock::time_point start_io_read(
+  [[nodiscard]] static std::chrono::steady_clock::time_point start_io_read(
       trx_t *trx, ulint bytes) noexcept;
 
   /**
@@ -721,8 +719,7 @@ class trx_stats final {
    already posted read in progress
   @return value to be passed to end_io_read
   */
-  [[nodiscard]]
-  static std::chrono::steady_clock::time_point start_io_read(
+  [[nodiscard]] static std::chrono::steady_clock::time_point start_io_read(
       const trx_t &trx, ulint bytes) noexcept;
 
   /**
@@ -800,8 +797,7 @@ class trx_stats final {
   @param	page_id_fold	result of page_id_t::fold */
   static void inc_page_get(const trx_t &trx, ulint page_id_fold) noexcept;
 
-  [[nodiscard]]
-  bool enabled() const noexcept { return take_stats; }
+  [[nodiscard]] bool enabled() const noexcept { return take_stats; }
 
   void set(bool take) noexcept { take_stats = take; }
 

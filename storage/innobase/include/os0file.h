@@ -1020,7 +1020,7 @@ The wrapper functions have the prefix of "innodb_". */
                         UT_LOCATION_HERE)
 
 #define os_file_read_trx_pfs(type, file_name, file, buf, offset, n, trx) \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, trx,       \
+  pfs_os_file_read_func(type, file_name, file, buf, offset, n, trx,      \
                         UT_LOCATION_HERE)
 
 #define os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, exit) \
@@ -1435,8 +1435,8 @@ to original un-instrumented file I/O APIs */
 #define os_file_read_first_page(type, file_name, file, buf, n_pages) \
   os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, true)
 #else
-#define os_file_read_first_page(type, file_name, file, buf, n_pages)         \
-  os_file_read_first_page_pfs(type, file_name, (file).m_file, buf, n_pages,  \
+#define os_file_read_first_page(type, file_name, file, buf, n_pages)        \
+  os_file_read_first_page_pfs(type, file_name, (file).m_file, buf, n_pages, \
                               true)
 #endif
 

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#define ALLOW_COMPONENT_INCLUDE // for plugin.h
+#define ALLOW_COMPONENT_INCLUDE  // for plugin.h
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/audit_error_log.h"
 #include "components/audit_log_filter/audit_psi_info.h"
@@ -101,7 +101,7 @@ class FileHandleLockGuard {
  private:
   mysql_mutex_t *m_lock;
 };
-}
+}  // namespace
 
 #if defined(HAVE_PSI_INTERFACE)
 static PSI_mutex_key key_LOCK_audit_filter_service;

@@ -1344,7 +1344,7 @@ static int get_options(int *argc, char ***argv) {
   exclude_user = new std::forward_list<string>();
   include_user =
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
-  
+
   processed_compression_dictionaries =
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
 

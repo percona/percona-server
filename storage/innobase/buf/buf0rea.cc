@@ -287,9 +287,9 @@ bool buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
   ulint count;
   dberr_t err;
 
-  count = buf_read_page_low(&err, true, IORequest::Type::UNSET,
-                            BUF_READ_ANY_PAGE, page_id, page_size, false, trx,
-                            false);
+  count =
+      buf_read_page_low(&err, true, IORequest::Type::UNSET, BUF_READ_ANY_PAGE,
+                        page_id, page_size, false, trx, false);
 
   srv_stats.buf_pool_reads.add(count);
 

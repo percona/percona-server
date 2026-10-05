@@ -658,8 +658,8 @@ void Unique::reset() {
   */
   if (elements) {
     file_ptrs.clear();
-    [[maybe_unused]]
-    int reinit_res = reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
+    [[maybe_unused]] int reinit_res =
+        reinit_io_cache(&file, WRITE_CACHE, 0L, false, true);
     assert(reinit_res == 0);
   }
   /*

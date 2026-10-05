@@ -2565,8 +2565,8 @@ void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex) {
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex
 @param[in] arr for which to submit IO */
-void AIO::os_aio_dispatch_read_array_submit_low_for_array(
-    bool acquire_mutex, const AIO *array) {
+void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex,
+                                                          const AIO *array) {
   ulint total_submitted = 0;
   if (acquire_mutex) {
     array->acquire();
@@ -5053,12 +5053,9 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[out]     o               number of bytes actually read
 @param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t os_file_read_page(const IORequest &type,
-                                               const char *file_name,
-                                               os_file_t file, byte *buf,
-                                               os_offset_t offset, ulint n,
-                                               ulint *o, bool exit_on_err,
-                                               trx_t *trx) {
+[[nodiscard]] static dberr_t os_file_read_page(
+    const IORequest &type, const char *file_name, os_file_t file, byte *buf,
+    os_offset_t offset, ulint n, ulint *o, bool exit_on_err, trx_t *trx) {
   dberr_t err(DB_ERROR_UNSET);
 
 #ifdef UNIV_HOTBACKUP

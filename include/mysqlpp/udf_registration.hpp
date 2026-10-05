@@ -131,7 +131,7 @@ void unregister_udfs(SERVICE_TYPE(udf_registration) * service,
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #define DECLARE_UDF_INFO(NAME, TYPE)                               \
   mysqlpp::udf_info {                                              \
-    #NAME, TYPE, (Udf_func_any)std::addressof(NAME),               \
+#NAME, TYPE, (Udf_func_any)std::addressof(NAME),               \
         std::addressof(NAME##_init), std::addressof(NAME##_deinit) \
   }
 

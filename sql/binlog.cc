@@ -5358,7 +5358,6 @@ done:
   DBUG_RETURN(error);
 }
 
-
 /**
   Purge old logs so that we have a total size lower than binlog_space_limit.
 

@@ -30,7 +30,6 @@
 #include "rdb_utils.h"
 #include "sql/replication.h"
 
-
 namespace myrocks {
 
 class Rdb_mutex : public rocksdb::TransactionDBMutex {

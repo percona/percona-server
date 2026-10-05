@@ -41,6 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef __WIN__
 #define get_curr_thread_id() GetCurrentThreadId()
 #else
+#include <pthread.h>
 #define get_curr_thread_id() pthread_self()
 #endif
 

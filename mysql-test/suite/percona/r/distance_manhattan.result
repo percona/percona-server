@@ -259,6 +259,58 @@ DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
 TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
 "MANHATTAN")
 1.9999999360571385e38
+# Element difference exceeds FLT_MAX (2.5e38 - (-2.5e38) = 5e38): the
+# subtraction must be done in double, not float32, for every metric.
+CREATE TABLE t_big (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+INSERT INTO t_big VALUES
+(1, STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]')),
+(2, STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'));
+SELECT DISTANCE(a.v, b.v, "MANHATTAN") FROM t_big a, t_big b
+WHERE a.id = 1 AND b.id = 2;
+DISTANCE(a.v, b.v, "MANHATTAN")
+4.000000115503192e39
+DROP TABLE t_big;
+# Same overflow in the last element only: exercises the SIMD scalar tail.
+# The 4-element SIMD head is normal-scale so the kernel does not fall back
+# to the scalar path before reaching the tail.
+SELECT DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "MANHATTAN")
+5.00000014437899e38
+# Tiny values against their negation: 1e-23 * 1e-23 is 0 in float32, so
+# the SIMD kernels must recompute sums below FLT_MIN in double.
+SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "MANHA
+3.199999999423868e-22
+# 20 dims: only the 16-element SIMD head holds the tiny values.
+SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,0,0,0]"), "MANHATTAN");
+DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,
+3.199999999423868e-22
+# 16383 dims (the maximum), elements near 1e-21: products are subnormal
+# but their float32 sums land just above FLT_MIN, so a fixed FLT_MIN
+# threshold kept ~5e-4 relative error.  The threshold scales with the
+# number of SIMD-processed elements.
+SELECT DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+"MANHATTAN");
+DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+"MANHATTAN")
+1.6382986917288503e-17
+# Subnormal float32 inputs (TO_VECTOR rejects them, binary arguments do
+# not): 16 x 1e-40 against 16 x -1e-40.  Products flush to zero in
+# float32 (recomputed in double); Manhattan differences are subnormal but
+# exact, so it needs no fallback.
+SELECT DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180', "MANHATTAN");
+DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C216018
+3.199982752356723e-39
 # Symmetry: DISTANCE(a, b) = DISTANCE(b, a).
 SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "MANHATTAN") =
 DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "MANHATTAN");

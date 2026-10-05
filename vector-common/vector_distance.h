@@ -91,6 +91,8 @@ double vector_distance_euclidean_squared(const char *a, const char *b,
   Returns +Inf when either vector is all-zeros (undefined cosine — true
   zero-denominator); returns NaN when input elements are NaN/Inf (bad-data
   propagation). The caller must distinguish these two cases.
+  +Inf only for an all-zeros vector; tiny-but-non-zero norms are recomputed
+  in double.
   Returns double; SIMD accumulates in float32, reduction uses double for
   precision on large dims and extreme float32 values.
 */

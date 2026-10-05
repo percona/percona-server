@@ -22,6 +22,7 @@
 #include <limits>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "my_pointer_arithmetic.h"
@@ -38,7 +39,7 @@ static double ref_euclidean_squared(const float *a, const float *b,
                                     uint32_t n) {
   double sum = 0.0;
   for (uint32_t i = 0; i < n; i++) {
-    const double d = a[i] - b[i];
+    const double d = (double)a[i] - b[i];
     sum += d * d;
   }
   return sum;
@@ -74,9 +75,9 @@ static double ref_dot_product(const float *a, const float *b, uint32_t n) {
 static double ref_cosine(const float *a, const float *b, uint32_t n) {
   double ab = 0.0, na = 0.0, nb = 0.0;
   for (uint32_t i = 0; i < n; i++) {
-    ab += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
+    ab += (double)a[i] * b[i];
+    na += (double)a[i] * a[i];
+    nb += (double)b[i] * b[i];
   }
   const double denom = std::sqrt(na * nb);
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
@@ -243,9 +244,8 @@ static void CheckUnalignedMatchesAligned(uint32_t dims) {
 }
 
 TEST_F(VectorDistanceTest, UnalignedMatchesAligned) {
-  // dims=8 is below VECTOR_DISTANCE_WIDE_MIN_DIMS (narrow tier: SSE4.2/NEON/
-  // scalar). dims=35 is above it and odd, so it exercises the wide tier's
-  // (AVX2/AVX-512/SVE2) loadu path together with its tail handling.
+  // dims=8 is below the 16-lane block, so only the tail loop runs.  dims=35
+  // runs two blocks and a 3-element tail.
   CheckUnalignedMatchesAligned(8);
   CheckUnalignedMatchesAligned(35);
 }
@@ -270,7 +270,7 @@ TEST_F(VectorDistanceTest, EuclideanSquaredParityWithReference) {
     const double got = vector_distance_euclidean_squared(
         (const char *)a.data(), (const char *)b.data(), dims);
     const double ref = ref_euclidean_squared(a.data(), b.data(), dims);
-    // Allow 0.01% relative tolerance for float-precision SIMD accumulation.
+    // Allow 0.01% relative tolerance for float32 lane accumulation.
     EXPECT_NEAR(got, ref, ref * 1e-4 + 1e-9) << "dims=" << dims;
   }
 }
@@ -340,16 +340,12 @@ TEST_F(VectorDistanceTest, ManhattanParityWithReference) {
 }
 
 // ---------------------------------------------------------------------------
-// Per-tier parity tests
+// Per-tier tests
 //
 // A separate parameterized fixture calls init_vector_distance_functions_tier()
 // for each registered tier, skipping tiers that are unavailable on this CPU or
-// build. This ensures every SIMD kernel is tested for correctness independently
-// — including inferior tiers on CPUs that support a higher one.
-//
-// The existing VectorDistanceTest suite is untouched; it still exercises the
-// production path via init_vector_distance_functions() (highest tier on this
-// CPU).
+// build. This ensures every SIMD kernel is tested independently — including
+// inferior tiers on CPUs that support a higher one.
 // ---------------------------------------------------------------------------
 
 static const char *tier_name(VectorDistanceTier tier) {
@@ -364,8 +360,6 @@ static const char *tier_name(VectorDistanceTier tier) {
       return "Avx512f";
     case VectorDistanceTier::Neon:
       return "Neon";
-    case VectorDistanceTier::Sve2:
-      return "Sve2";
   }
   return "Unknown";
 }
@@ -378,156 +372,217 @@ class VectorDistanceTierParityTest
     if (!vector_distance_tier_available(t))
       GTEST_SKIP() << tier_name(t) << " not available on this CPU/build";
     init_vector_distance_functions_tier(t);
-#if defined(__x86_64__) || defined(_M_X64)
-    if (t == VectorDistanceTier::Avx2 || t == VectorDistanceTier::Avx512f) {
-      EXPECT_EQ(vector_distance_wide_tier(), t);
-      EXPECT_EQ(vector_distance_narrow_tier(),
-                vector_distance_tier_available(VectorDistanceTier::Sse42)
-                    ? VectorDistanceTier::Sse42
-                    : VectorDistanceTier::Scalar);
-    }
-#endif
+    EXPECT_EQ(vector_distance_tier(), t);
   }
   void TearDown() override { init_vector_distance_functions(); }
 };
 
-TEST_P(VectorDistanceTierParityTest, EuclideanSquaredParityPerTier) {
+using metric_fn = double (*)(const char *, const char *, uint32_t);
+using ref_fn = double (*)(const float *, const float *, uint32_t);
+
+struct Metric {
+  const char *name;
+  metric_fn fn;
+  ref_fn ref;
+};
+
+static const Metric kMetrics[] = {
+    {"euclidean_squared", vector_distance_euclidean_squared,
+     ref_euclidean_squared},
+    {"cosine", vector_distance_cosine, ref_cosine},
+    {"dot", vector_distance_dot, ref_dot_product},
+    {"manhattan", vector_distance_manhattan, ref_manhattan},
+};
+
+static double call(const Metric &m, const std::vector<float> &a,
+                   const std::vector<float> &b) {
+  return m.fn((const char *)a.data(), (const char *)b.data(),
+              (uint32_t)a.size());
+}
+
+TEST_P(VectorDistanceTierParityTest, ParityWithReferencePerTier) {
   std::mt19937 rng(42);
   std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
 
-  // 16383 is
-  //   16·1023+15 for AVX-512
-  //   8·2047+7 for AVX2
-  //   4·4095+3 for SSE/NEON
-  // so every tail loop is tested.
+  // 16383 = 16·1023 + 15 runs the 16-lane blocks and the longest tail.
   for (uint32_t dims : {4u, 8u, 32u, 128u, 1024u, 16383u}) {
     std::vector<float> a(dims), b(dims);
     for (auto &x : a) x = dist(rng);
     for (auto &x : b) x = dist(rng);
-
-    const double got = vector_distance_euclidean_squared(
-        (const char *)a.data(), (const char *)b.data(), dims);
-    const double ref = ref_euclidean_squared(a.data(), b.data(), dims);
-    EXPECT_NEAR(got, ref, ref * 1e-4 + 1e-9)
-        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+    for (const Metric &m : kMetrics) {
+      // The kernels sum in float32 lanes, the reference in double.  Every
+      // term is at most 400 in magnitude (cosine: the result is <= 2).
+      const double scale = m.fn == vector_distance_cosine ? 2.0 : 400.0 * dims;
+      EXPECT_NEAR(call(m, a, b), m.ref(a.data(), b.data(), dims), scale * 1e-5)
+          << "tier=" << tier_name(GetParam()) << " metric=" << m.name
+          << " dims=" << dims;
+    }
   }
 }
 
-TEST_P(VectorDistanceTierParityTest, EuclideanParityPerTier) {
-  std::mt19937 rng(42);
+TEST_P(VectorDistanceTierParityTest, BitIdenticalToScalarPerTier) {
+  // Every tier uses the same lane layout and summation order, so it must
+  // return exactly the scalar result: for lengths around the 16-lane block and
+  // the register widths, and for magnitudes across the whole float32 range.
+  std::mt19937 rng(11);
+  std::uniform_real_distribution<float> mantissa(-1.0f, 1.0f);
+  std::uniform_int_distribution<int> exponent(-149, 127);
+  std::vector<std::pair<std::vector<float>, std::vector<float>>> inputs;
+  for (uint32_t dims : {1u, 3u, 4u, 7u, 8u, 15u, 16u, 17u, 31u, 32u, 33u, 47u,
+                        768u, 1536u, 16383u}) {
+    for (int scaled = 0; scaled < 2; scaled++) {
+      std::vector<float> a(dims), b(dims);
+      for (uint32_t i = 0; i < dims; i++) {
+        a[i] = mantissa(rng);
+        b[i] = mantissa(rng);
+        if (scaled) {
+          a[i] = std::ldexp(a[i], exponent(rng));
+          b[i] = std::ldexp(b[i], exponent(rng));
+        }
+      }
+      inputs.emplace_back(a, b);
+    }
+  }
+  inputs.emplace_back(std::vector<float>(16383, 1e-21f),
+                      std::vector<float>(16383, 2e-21f));
+  inputs.emplace_back(std::vector<float>(40, 2.5e38f),
+                      std::vector<float>(40, -2.5e38f));
+
+  std::vector<double> got;
+  for (const auto &[a, b] : inputs)
+    for (const Metric &m : kMetrics) got.push_back(call(m, a, b));
+  init_vector_distance_functions_tier(VectorDistanceTier::Scalar);
+  size_t k = 0;
+  for (const auto &[a, b] : inputs)
+    for (const Metric &m : kMetrics) {
+      EXPECT_EQ(got[k++], call(m, a, b))
+          << "tier=" << tier_name(GetParam()) << " metric=" << m.name
+          << " dims=" << a.size();
+    }
+}
+
+TEST_P(VectorDistanceTierParityTest, ExtremeValuesPerTier) {
+  // Products, squares and differences of float32 values near FLT_MAX overflow
+  // float32, so the kernels recompute them in double.  One extreme element, at
+  // the start (in a 16-lane block) or at the end (in the tail), so every result
+  // is exact.
+  constexpr float big = 2.5e38f;
+  for (uint32_t dims : {5u, 16u, 17u}) {
+    for (uint32_t pos : {0u, dims - 1}) {
+      std::vector<float> a(dims, 1.0f), b(dims, 0.0f), c(dims, 0.0f);
+      a[pos] = big;
+      b[pos] = -big;
+      c[pos] = big;
+      for (const Metric &m : kMetrics) {
+        for (const auto *y : {&b, &c}) {
+          const double got = call(m, a, *y);
+          EXPECT_TRUE(std::isfinite(got))
+              << "tier=" << tier_name(GetParam()) << " metric=" << m.name
+              << " dims=" << dims << " pos=" << pos;
+          EXPECT_NEAR(got, m.ref(a.data(), y->data(), dims),
+                      std::fabs(got) * 1e-15 + 1e-15)
+              << "tier=" << tier_name(GetParam()) << " metric=" << m.name
+              << " dims=" << dims << " pos=" << pos;
+        }
+      }
+      EXPECT_NEAR(vector_distance_cosine((const char *)a.data(),
+                                         (const char *)a.data(), dims),
+                  0.0, 1e-15)
+          << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+    }
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, TinyValuesPerTier) {
+  // Products and squares of tiny float32 values are subnormal (below
+  // sqrt(FLT_MIN) ~ 1.1e-19) or 0 (below 2^-75 ~ 2.6e-23) in float32, so the
+  // kernels recompute them in double.  Non-zero vectors must keep a non-zero
+  // norm (cosine not NULL) and distinct vectors a non-zero distance.
+  for (float tiny :
+       {1e-20f, 1e-23f, std::numeric_limits<float>::denorm_min()}) {
+    for (uint32_t dims : {4u, 16u, 20u, 16383u}) {
+      std::vector<float> a(dims, tiny), b(dims, -2 * tiny), z(dims, 0.0f);
+      const char *pa = (const char *)a.data();
+      const char *pb = (const char *)b.data();
+      const char *pz = (const char *)z.data();
+      EXPECT_NEAR(vector_distance_cosine(pa, pa, dims), 0.0, 1e-15)
+          << "tier=" << tier_name(GetParam()) << " tiny=" << tiny
+          << " dims=" << dims;
+      EXPECT_NEAR(vector_distance_cosine(pa, pb, dims), 2.0, 1e-15)
+          << "tier=" << tier_name(GetParam()) << " tiny=" << tiny
+          << " dims=" << dims;
+      EXPECT_TRUE(std::isinf(vector_distance_cosine(pz, pa, dims)))
+          << "tier=" << tier_name(GetParam()) << " tiny=" << tiny
+          << " dims=" << dims;
+      const double t2 = (double)tiny * tiny;
+      EXPECT_NEAR(vector_distance_euclidean_squared(pa, pz, dims), dims * t2,
+                  dims * t2 * 1e-12)
+          << "tier=" << tier_name(GetParam()) << " tiny=" << tiny
+          << " dims=" << dims;
+      EXPECT_NEAR(vector_distance_dot(pa, pb, dims), -2.0 * dims * t2,
+                  dims * t2 * 1e-12)
+          << "tier=" << tier_name(GetParam()) << " tiny=" << tiny
+          << " dims=" << dims;
+      // Manhattan has no products, so it stays in float32 lanes.
+      EXPECT_NEAR(vector_distance_manhattan(pa, pb, dims), 3.0 * dims * tiny,
+                  3.0 * dims * tiny * 1e-4)
+          << "tier=" << tier_name(GetParam()) << " tiny=" << tiny
+          << " dims=" << dims;
+    }
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, NonFiniteIdenticalVectorsPerTier) {
+  // NaN or Inf compared with itself is not distance 0: every metric returns a
+  // non-finite value, which SQL reports as ER_DATA_OUT_OF_RANGE.
+  for (float bad : {std::numeric_limits<float>::quiet_NaN(),
+                    std::numeric_limits<float>::infinity(),
+                    -std::numeric_limits<float>::infinity()}) {
+    for (uint32_t dims : {1u, 5u, 17u}) {
+      for (uint32_t pos : {0u, dims - 1}) {
+        std::vector<float> a(dims, 1.0f);
+        a[pos] = bad;
+        for (const Metric &m : kMetrics) {
+          EXPECT_FALSE(std::isfinite(call(m, a, a)))
+              << "tier=" << tier_name(GetParam()) << " metric=" << m.name
+              << " bad=" << bad << " dims=" << dims << " pos=" << pos;
+        }
+      }
+    }
+  }
+  // Byte-different zeros are still identical values.
+  std::vector<float> z1(20, 0.0f), z2(20, 0.0f);
+  z2[10] = -0.0f;
+  EXPECT_EQ(vector_distance_euclidean_squared((const char *)z1.data(),
+                                              (const char *)z2.data(), 20),
+            0.0)
+      << "tier=" << tier_name(GetParam());
+}
+
+TEST_P(VectorDistanceTierParityTest, CosineRangePerTier) {
+  // Rounding can put 1 - cos just below 0 for parallel vectors or above 2 for
+  // anti-parallel ones; the result is clamped so ACOS(1 - d) stays defined.
+  std::mt19937 rng(3);
   std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
-
-  for (uint32_t dims : {4u, 8u, 32u, 128u, 1024u, 16383u}) {
-    std::vector<float> a(dims), b(dims);
-    for (auto &x : a) x = dist(rng);
-    for (auto &x : b) x = dist(rng);
-
-    const double got =
-        euclidean_l2((const char *)a.data(), (const char *)b.data(), dims);
-    const double ref = ref_euclidean(a.data(), b.data(), dims);
-    EXPECT_NEAR(got, ref, ref * 1e-4 + 1e-9)
-        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+  for (uint32_t dims : {3u, 16u, 100u, 1024u}) {
+    for (int rep = 0; rep < 20; rep++) {
+      std::vector<float> a(dims), b(dims), c(dims);
+      for (uint32_t i = 0; i < dims; i++) {
+        a[i] = dist(rng);
+        b[i] = 3 * a[i];
+        c[i] = -3 * a[i];
+      }
+      const double parallel = vector_distance_cosine(
+          (const char *)a.data(), (const char *)b.data(), dims);
+      const double anti = vector_distance_cosine((const char *)a.data(),
+                                                 (const char *)c.data(), dims);
+      // 3 * a[i] rounds in float32, so the vectors are only nearly parallel.
+      EXPECT_GE(parallel, 0.0) << "tier=" << tier_name(GetParam());
+      EXPECT_NEAR(parallel, 0.0, 1e-6) << "tier=" << tier_name(GetParam());
+      EXPECT_LE(anti, 2.0) << "tier=" << tier_name(GetParam());
+      EXPECT_NEAR(anti, 2.0, 1e-6) << "tier=" << tier_name(GetParam());
+    }
   }
-}
-
-TEST_P(VectorDistanceTierParityTest, CosineParityPerTier) {
-  std::mt19937 rng(123);
-  std::uniform_real_distribution<float> dist(-5.0f, 5.0f);
-
-  for (uint32_t dims : {4u, 8u, 32u, 128u, 1024u, 16383u}) {
-    std::vector<float> a(dims), b(dims);
-    for (auto &x : a) x = dist(rng);
-    for (auto &x : b) x = dist(rng);
-
-    const double got = vector_distance_cosine((const char *)a.data(),
-                                              (const char *)b.data(), dims);
-    const double ref = ref_cosine(a.data(), b.data(), dims);
-    EXPECT_NEAR(got, ref, 1e-4)
-        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
-  }
-}
-
-TEST_P(VectorDistanceTierParityTest, DotProductParityPerTier) {
-  std::mt19937 rng(77);
-  std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
-
-  for (uint32_t dims : {4u, 8u, 32u, 128u, 1024u, 16383u}) {
-    std::vector<float> a(dims), b(dims);
-    for (auto &x : a) x = dist(rng);
-    for (auto &x : b) x = dist(rng);
-
-    const double got = vector_distance_dot((const char *)a.data(),
-                                           (const char *)b.data(), dims);
-    const double ref = ref_dot_product(a.data(), b.data(), dims);
-    EXPECT_NEAR(got, ref, std::abs(ref) * 1e-4 + 1e-9)
-        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
-  }
-}
-
-TEST_P(VectorDistanceTierParityTest, ManhattanParityPerTier) {
-  std::mt19937 rng(55);
-  std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
-
-  for (uint32_t dims : {4u, 8u, 32u, 128u, 1024u, 16383u}) {
-    std::vector<float> a(dims), b(dims);
-    for (auto &x : a) x = dist(rng);
-    for (auto &x : b) x = dist(rng);
-
-    const double got = vector_distance_manhattan((const char *)a.data(),
-                                                 (const char *)b.data(), dims);
-    const double ref = ref_manhattan(a.data(), b.data(), dims);
-    EXPECT_NEAR(got, ref, ref * 1e-4 + 1e-9)
-        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
-  }
-}
-
-TEST_P(VectorDistanceTierParityTest, OverflowFallbackPerTier) {
-  // A 16-dim vector (>= 16 triggers the wide kernel) with one element = 2e38.
-  // (2e38)^2 ~ 4e76 overflows float32 (FLT_MAX ~ 3.4e38); the SIMD accumulator
-  // becomes +Inf without the fallback.  The scalar path uses double throughout
-  // and returns a finite result.  Verify the fix: result must be finite and
-  // equal to the scalar reference.
-  constexpr uint32_t dims = 16;
-  std::vector<float> a(dims, 0.0f), b(dims, 0.0f);
-  a[0] = 2e38f;
-
-  // Euclidean squared: scalar = (2e38)^2; broken SIMD would give +Inf (-> SQL
-  // NULL).
-  const double got_e = vector_distance_euclidean_squared(
-      (const char *)a.data(), (const char *)b.data(), dims);
-  EXPECT_TRUE(std::isfinite(got_e)) << "tier=" << tier_name(GetParam());
-  EXPECT_EQ(got_e, ref_euclidean_squared(a.data(), b.data(), dims))
-      << "tier=" << tier_name(GetParam());
-
-  // Euclidean L2: scalar = 2e38; mirrors SQL EUCLIDEAN (sqrt of squared).
-  const double got_l2 =
-      euclidean_l2((const char *)a.data(), (const char *)b.data(), dims);
-  EXPECT_TRUE(std::isfinite(got_l2)) << "tier=" << tier_name(GetParam());
-  EXPECT_EQ(got_l2, ref_euclidean(a.data(), b.data(), dims))
-      << "tier=" << tier_name(GetParam());
-
-  // Manhattan: scalar = 2e38.
-  const double got_m = vector_distance_manhattan((const char *)a.data(),
-                                                 (const char *)b.data(), dims);
-  EXPECT_TRUE(std::isfinite(got_m)) << "tier=" << tier_name(GetParam());
-  EXPECT_EQ(got_m, ref_manhattan(a.data(), b.data(), dims))
-      << "tier=" << tier_name(GetParam());
-
-  // Dot: a[0]*b2[0] = 2e38*2e38 overflows float32; scalar = 4e76 (finite in
-  // double).
-  std::vector<float> b2(dims, 0.0f);
-  b2[0] = 2e38f;
-  const double got_d = vector_distance_dot((const char *)a.data(),
-                                           (const char *)b2.data(), dims);
-  EXPECT_TRUE(std::isfinite(got_d)) << "tier=" << tier_name(GetParam());
-  EXPECT_EQ(got_d, ref_dot_product(a.data(), b2.data(), dims))
-      << "tier=" << tier_name(GetParam());
-
-  // Cosine: a == a (same pointer) => cosine distance = 0.
-  // Float32 norm overflow to Inf causes 1 - Inf/Inf = NaN without the fix.
-  const double got_c = vector_distance_cosine((const char *)a.data(),
-                                              (const char *)a.data(), dims);
-  EXPECT_NEAR(got_c, 0.0, 1e-9) << "tier=" << tier_name(GetParam());
 }
 
 static std::string tier_param_name(
@@ -545,8 +600,7 @@ INSTANTIATE_TEST_SUITE_P(AllTiers, VectorDistanceTierParityTest,
 #elif defined(__aarch64__) || defined(_M_ARM64)
 INSTANTIATE_TEST_SUITE_P(AllTiers, VectorDistanceTierParityTest,
                          ::testing::Values(VectorDistanceTier::Scalar,
-                                           VectorDistanceTier::Neon,
-                                           VectorDistanceTier::Sve2),
+                                           VectorDistanceTier::Neon),
                          tier_param_name);
 #else
 INSTANTIATE_TEST_SUITE_P(AllTiers, VectorDistanceTierParityTest,
@@ -565,25 +619,20 @@ class VectorDistanceDispatchTest : public ::testing::Test {
 
 TEST_F(VectorDistanceDispatchTest, ProductionInitIsIdempotent) {
   init_vector_distance_functions();
-  const auto wide = vector_distance_wide_tier();
-  const auto narrow = vector_distance_narrow_tier();
+  const auto tier = vector_distance_tier();
   init_vector_distance_functions();
-  EXPECT_EQ(vector_distance_wide_tier(), wide);
-  EXPECT_EQ(vector_distance_narrow_tier(), narrow);
+  EXPECT_EQ(vector_distance_tier(), tier);
 }
 
 TEST_F(VectorDistanceDispatchTest, ProductionInitRestoredAfterScalarOverride) {
   init_vector_distance_functions();
-  const VectorDistanceTier prod_wide = vector_distance_wide_tier();
-  const VectorDistanceTier prod_narrow = vector_distance_narrow_tier();
+  const VectorDistanceTier prod = vector_distance_tier();
 
   init_vector_distance_functions_tier(VectorDistanceTier::Scalar);
-  EXPECT_EQ(vector_distance_wide_tier(), VectorDistanceTier::Scalar);
-  EXPECT_EQ(vector_distance_narrow_tier(), VectorDistanceTier::Scalar);
+  EXPECT_EQ(vector_distance_tier(), VectorDistanceTier::Scalar);
 
   init_vector_distance_functions();
-  EXPECT_EQ(vector_distance_wide_tier(), prod_wide);
-  EXPECT_EQ(vector_distance_narrow_tier(), prod_narrow);
+  EXPECT_EQ(vector_distance_tier(), prod);
 }
 
 TEST_F(VectorDistanceDispatchTest, DescriptionIsFragmentForLogMessage) {
@@ -596,39 +645,18 @@ TEST_F(VectorDistanceDispatchTest, DescriptionIsFragmentForLogMessage) {
   // space, no repeated "DISTANCE()"/"VECTOR_DISTANCE" wording of its own.
   EXPECT_EQ(msg[0], ' ');
   EXPECT_EQ(std::string(msg).find("DISTANCE"), std::string::npos);
+  EXPECT_NE(
+      std::string(msg).find(vector_distance_tier_label(vector_distance_tier())),
+      std::string::npos);
 }
 
 TEST_F(VectorDistanceDispatchTest, ForcedScalarTierUpdatesDescription) {
   init_vector_distance_functions_tier(VectorDistanceTier::Scalar);
-  EXPECT_EQ(vector_distance_wide_tier(), VectorDistanceTier::Scalar);
-  EXPECT_EQ(vector_distance_narrow_tier(), VectorDistanceTier::Scalar);
+  EXPECT_EQ(vector_distance_tier(), VectorDistanceTier::Scalar);
 
   char msg[256];
   vector_distance_dispatch_description(msg, sizeof(msg));
   EXPECT_NE(std::string(msg).find("software scalar"), std::string::npos);
 }
-
-#if defined(__x86_64__) || defined(_M_X64)
-TEST_F(VectorDistanceDispatchTest,
-       SplitDispatchMentionsDimensionsWhenWideDiffers) {
-  if (!vector_distance_tier_available(VectorDistanceTier::Avx2) ||
-      !vector_distance_tier_available(VectorDistanceTier::Sse42)) {
-    GTEST_SKIP() << "requires AVX2 wide path and SSE4.2 narrow path";
-  }
-
-  init_vector_distance_functions();
-  ASSERT_NE(vector_distance_wide_tier(), vector_distance_narrow_tier());
-
-  char msg[256];
-  vector_distance_dispatch_description(msg, sizeof(msg));
-  const std::string ge =
-      "dimensions >= " + std::to_string(VECTOR_DISTANCE_WIDE_MIN_DIMS);
-  const std::string lt =
-      "dimensions < " + std::to_string(VECTOR_DISTANCE_WIDE_MIN_DIMS);
-  EXPECT_NE(std::string(msg).find(ge), std::string::npos);
-  EXPECT_NE(std::string(msg).find(lt), std::string::npos);
-  EXPECT_NE(std::string(msg).find("SSE4.2"), std::string::npos);
-}
-#endif
 
 }  // namespace vector_distance_unittest

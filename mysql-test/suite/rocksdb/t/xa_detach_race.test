@@ -1,0 +1,69 @@
+#
+# PS-11631: XA COMMIT/ROLLBACK by another session while XA PREPARE is still
+# detaching the prepared transaction from its own session.
+#
+# The server makes a detached XA transaction visible to other sessions
+# before it asks MyRocks to detach it from the session that prepared it.
+# Another session can therefore finish and free the RocksDB transaction
+# while the session object still points to it; detaching must not use that
+# pointer.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--let $saved_global_detach = `SELECT @@GLOBAL.xa_detach_on_prepare`
+SET GLOBAL xa_detach_on_prepare = ON;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+
+--let $i = 2
+while ($i)
+{
+  --connect (con1,localhost,root,,test)
+  SET DEBUG_SYNC = 'rocksdb.before_detach_prepared_tx SIGNAL detaching WAIT_FOR finished';
+  XA START 'xr';
+  INSERT INTO t1 VALUES (2, 2);
+  UPDATE t1 SET b = b + 1 WHERE a = 1;
+  XA END 'xr';
+  --send XA PREPARE 'xr'
+
+  --connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR detaching';
+  if ($i == 2)
+  {
+    --echo # Committed while the preparing session is still detaching it.
+    XA COMMIT 'xr';
+  }
+  if ($i == 1)
+  {
+    --echo # Rolled back while the preparing session is still detaching it.
+    XA ROLLBACK 'xr';
+  }
+  --echo # Listing transactions must not touch the finished transaction.
+  --disable_result_log
+  SELECT * FROM information_schema.rocksdb_trx;
+  --enable_result_log
+  SET DEBUG_SYNC = 'now SIGNAL finished';
+
+  --connection con1
+  --reap
+  --echo # The preparing session keeps working.
+  SELECT * FROM t1 ORDER BY a;
+  INSERT INTO t1 VALUES (3, 3);
+  DELETE FROM t1 WHERE a = 3;
+  --disconnect con1
+
+  --connection default
+  SELECT * FROM t1 ORDER BY a;
+  DELETE FROM t1 WHERE a = 2;
+  --dec $i
+}
+
+XA RECOVER;
+SET DEBUG_SYNC = 'RESET';
+--replace_result $saved_global_detach SAVED
+--eval SET GLOBAL xa_detach_on_prepare = $saved_global_detach
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

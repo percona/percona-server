@@ -1,0 +1,34 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=RocksDB;
+XA START 'first';
+INSERT INTO t VALUES (1);
+XA END 'first';
+XA PREPARE 'first';
+Warnings:
+Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
+XA START 'second';
+INSERT INTO t VALUES (2);
+XA END 'second';
+XA PREPARE 'second';
+Warnings:
+Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
+include/rpl/sync_to_replica.inc
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	first
+1	6	0	second
+XA COMMIT 'first';
+XA ROLLBACK 'second';
+include/rpl/sync_to_replica.inc
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t;
+id
+1
+DROP TABLE t;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

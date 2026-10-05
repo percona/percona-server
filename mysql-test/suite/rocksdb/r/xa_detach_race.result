@@ -1,0 +1,58 @@
+SET GLOBAL xa_detach_on_prepare = ON;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+SET DEBUG_SYNC = 'rocksdb.before_detach_prepared_tx SIGNAL detaching WAIT_FOR finished';
+XA START 'xr';
+INSERT INTO t1 VALUES (2, 2);
+UPDATE t1 SET b = b + 1 WHERE a = 1;
+XA END 'xr';
+XA PREPARE 'xr';
+SET DEBUG_SYNC = 'now WAIT_FOR detaching';
+# Committed while the preparing session is still detaching it.
+XA COMMIT 'xr';
+# Listing transactions must not touch the finished transaction.
+SELECT * FROM information_schema.rocksdb_trx;
+SET DEBUG_SYNC = 'now SIGNAL finished';
+Warnings:
+Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
+# The preparing session keeps working.
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	2
+INSERT INTO t1 VALUES (3, 3);
+DELETE FROM t1 WHERE a = 3;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	2
+DELETE FROM t1 WHERE a = 2;
+SET DEBUG_SYNC = 'rocksdb.before_detach_prepared_tx SIGNAL detaching WAIT_FOR finished';
+XA START 'xr';
+INSERT INTO t1 VALUES (2, 2);
+UPDATE t1 SET b = b + 1 WHERE a = 1;
+XA END 'xr';
+XA PREPARE 'xr';
+SET DEBUG_SYNC = 'now WAIT_FOR detaching';
+# Rolled back while the preparing session is still detaching it.
+XA ROLLBACK 'xr';
+# Listing transactions must not touch the finished transaction.
+SELECT * FROM information_schema.rocksdb_trx;
+SET DEBUG_SYNC = 'now SIGNAL finished';
+Warnings:
+Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
+# The preparing session keeps working.
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+INSERT INTO t1 VALUES (3, 3);
+DELETE FROM t1 WHERE a = 3;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+DELETE FROM t1 WHERE a = 2;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL xa_detach_on_prepare = SAVED;
+DROP TABLE t1;

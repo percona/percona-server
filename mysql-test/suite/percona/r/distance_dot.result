@@ -249,9 +249,8 @@ DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[0]"), "DOT")
 SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "DOT");
 DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "DOT")
 -0
-# Same value in a 16-dim vector: exercises the wide-tier SIMD overflow
-# fallback (dims >= 16 dispatches to the wide kernel; squaring 2e38 in
-# float32 overflows to +Inf, but the isfinite check falls back to scalar).
+# Same value in a 16-dim vector (one full 16-lane block): squaring 2e38
+# overflows float32, so the sums must be done in double.
 SELECT DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
 TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
 "DOT");
@@ -259,6 +258,53 @@ DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
 TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
 "DOT")
 -0
+# Element difference exceeds FLT_MAX (2.5e38 - (-2.5e38) = 5e38): the
+# subtraction must be done in double, not float32, for every metric.
+SELECT DISTANCE(STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]'),
+STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'),
+"DOT");
+DISTANCE(STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]'),
+STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'),
+"DOT")
+5.000000288757985e77
+# Same overflow in the last element only.
+SELECT DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "DOT");
+DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "DOT")
+6.250000360947481e76
+# Tiny values against their negation: 1e-23 * 1e-23 is 0 in float32, so
+# the sums must be done in double.
+SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "DOT");
+DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "DOT")
+1.599999999423868e-45
+# 20 dims: only the first 16 elements hold the tiny values.
+SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,0,0,0]"), "DOT");
+DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,
+1.599999999423868e-45
+# 16383 dims (the maximum), elements near 1e-21: products are subnormal
+# in float32, so they are recomputed in double (Manhattan has no products
+# and stays in float32).  Every SIMD width sums in the same order, so the
+# result is the same on every CPU.
+SELECT DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+"DOT");
+DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+"DOT")
+-3.2765997920376256e-38
+# Subnormal float32 inputs (TO_VECTOR rejects them, binary arguments do
+# not): 16 x 1e-40 against 16 x -1e-40.  Products flush to zero in
+# float32, so they are recomputed in double.
+SELECT DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180', "DOT");
+DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C216018
+1.5999827524032045e-79
 # Symmetry: DISTANCE(a, b) = DISTANCE(b, a).
 SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "DOT") =
 DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "DOT");
@@ -273,10 +319,8 @@ SELECT DISTANCE(X'0000807F', X'00000000', "DOT");
 ERROR 22003: DOUBLE value is out of range in 'distance(0x0000807f,0x00000000,'DOT')'
 SELECT DISTANCE(X'000080FF', X'00000000', "DOT");
 ERROR 22003: DOUBLE value is out of range in 'distance(0x000080ff,0x00000000,'DOT')'
-# Wide-tier SIMD path coverage (dims >= 16 dispatches to the wide kernel).
-# Integer-valued diffs keep float32 partial sums exact, so results are
-# identical across Scalar / SSE4.2 / NEON / AVX2 / AVX-512 / SVE2.
-# 16-dim: fills one AVX-512 register / two AVX2 / four SSE4.2 -- no scalar tail.
+# Lane layout coverage: elements are summed in 16-lane blocks plus a tail.
+# 16-dim: one block, no tail.
 SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
 TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
 "DOT");
@@ -284,8 +328,7 @@ DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
 TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
 "DOT")
 -0
-# 20-dim: SSE4.2 5x4 (no tail); AVX2 2x8 + 4-elem scalar tail;
-#         AVX-512 1x16 + 4-elem scalar tail.
+# 20-dim: one block and a 4-element tail.
 SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
 TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
 "DOT");

@@ -379,6 +379,12 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
 
+# Fused multiply-add would make DISTANCE() differ between SIMD tiers. It is
+# disabled here as in the server build (sql/CMakeLists.txt), so the unit tests
+# exercise exactly the code the server runs.
+ADD_CXX_COMPILE_FLAGS_TO_FILES(-ffp-contract=off
+  FILES ${CMAKE_SOURCE_DIR}/vector-common/vector_distance.cc)
+
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 SET_TARGET_PROPERTIES(sqlgunitlib
@@ -424,7 +430,7 @@ FOREACH(test ${TESTS})
   )
 ENDFOREACH()
 
-# vector_distance per-tier benchmark — all SIMD tiers × 6 sizes × euclidean/cosine/dot_product.
+# vector_distance per-tier benchmark — all SIMD tiers × 12 sizes × all metrics.
 # Unavailable tiers (wrong ISA or CPU) are skipped at runtime via GTEST_SKIP().
 MYSQL_ADD_EXECUTABLE(vector_distance_benchmark-t vector_distance_benchmark-t.cc
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}

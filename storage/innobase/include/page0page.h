@@ -761,12 +761,22 @@ bool page_simple_validate_old(
 bool page_simple_validate_new(
     const page_t *page); /*!< in: index page in ROW_FORMAT!=REDUNDANT */
 
+/** A blob map to track the first page no of external LOB and its parent record
+which is the <page_no, heap_no>. This is used to find duplicate external LOB
+pages that is shared between two records. This can happen only on corruption
+(cause unknown yet). CHECK TABLE  t1 EXTENDED will use this map to report
+corruption and mark the table as corrupted */
+using blob_ref_map = std::unordered_map<page_no_t, std::pair<page_no_t, ulint>>;
+
 /** This function checks the consistency of an index page.
 @param[in]  page   index page
 @param[in]  index  data dictionary index containing the page record type
 definition
+@param[in]  blob_map Optional blob reference map for tracking, nullptr by
+default.
 @return true if ok */
-bool page_validate(const page_t *page, dict_index_t *index);
+bool page_validate(const page_t *page, dict_index_t *index,
+                   blob_ref_map *blob_map = nullptr);
 
 /** Looks in the page record list for a record with the given heap number.
  @return record, NULL if not found */
@@ -801,6 +811,19 @@ param[in]       rec     Btree record
 param[in]       index   index
 @return true if ok */
 bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
+
+/** Validate that the external LOB's first page is not shared between records of
+a clustered index
+@param[in] rec     physical record
+@param[in] index   index of the table
+@param[in] offsets the record offset array
+@param[in] blob_map Optional blob reference map for tracking, nullptr by
+default.
+@return true If OK else false if external LOB is found to be shared between two
+records, ie false on failure */
+bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
+                            const ulint *offsets,
+                            blob_ref_map *blob_map = nullptr);
 
 #include "page0page.ic"
 

@@ -18938,12 +18938,24 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
       continue;
     }
 
+    /* true if user uses CHECK TABLE t1 EXTENDED */
+    const bool is_extended = check_opt->flags & T_EXTEND;
+
     if (!(check_opt->flags & T_QUICK) && !index->is_corrupted()) {
       /* Enlarge the fatal lock wait timeout during
       CHECK TABLE. */
       srv_fatal_semaphore_wait_extend.fetch_add(1);
 
-      bool valid = btr_validate_index(index, m_prebuilt->trx, false);
+      blob_ref_map blob_map;
+      blob_ref_map *blob_map_ptr = nullptr;
+
+      if (is_extended && index->is_clustered()) {
+        // Setup the blob map for clustered index only.
+        blob_map_ptr = &blob_map;
+      }
+
+      bool valid =
+          btr_validate_index(index, m_prebuilt->trx, false, blob_map_ptr);
 
       /* Restore the fatal lock wait timeout after
       CHECK TABLE. */
@@ -18956,7 +18968,16 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
                             "InnoDB: The B-tree of"
                             " index %s is corrupted.",
                             index->name());
-        continue;
+
+        // with extended mode, if clustered index is corrupted, it is marked
+        // as corrupted. We skip checking other indexes. The table is not
+        // repairable and user has to drop it
+        if (is_extended && index->is_clustered()) {
+          dict_set_corrupted(index);
+          break;
+        } else {
+          continue;
+        }
       }
     }
 

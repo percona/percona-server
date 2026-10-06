@@ -39,6 +39,7 @@ TOKUDB_OPTS_RELEASE ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=OFF
 TOKUDB_OPTS_DEBUG ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=ON
 
 EXPORTED_SOURCE_TARBALL = debian/percona-server-source.tar.gz
+SBOM_UTILS = build-ps/sbom
 
 DISTRIBUTION = $(shell lsb_release -i -s)
 DISTRELEASE = $(shell lsb_release -c -s)
@@ -378,6 +379,21 @@ override_dh_shlibdeps:
 override_dh_install:
 	dh_install
 	cp js/LICENSE* debian/percona-server-js/usr/share/doc/percona-server-js/
+ifneq (,$(filter pkg.ps.sbom,$(DEB_BUILD_PROFILES)))
+	@test -n "$(DEB_VERSION)" || \
+		{ echo "SBOM: dpkg-parsechangelog produced no Version" >&2; exit 1; }
+	@test -d debian/percona-server-server || \
+		{ echo "SBOM: debian/percona-server-server is not a staging dir" >&2; exit 1; }
+	sh $(SBOM_UTILS)/check-components.sh --root .
+	install -d -m 0755 debian/percona-server-server/usr/share/percona-server/sbom
+	sh $(SBOM_UTILS)/gen-sbom.sh \
+		--pkg percona-server \
+		--version $(DEB_VERSION) \
+		--root . \
+		--pins $(SBOM_UTILS)/submodule-pins.txt \
+		--artifact package \
+		--dest debian/percona-server-server/usr/share/percona-server/sbom
+endif
 
 override_dh_installinit:
 	@echo "RULES.$@"

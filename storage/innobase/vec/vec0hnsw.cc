@@ -1119,6 +1119,38 @@ void vec_build_free(Vec_build *b) {
   if (b != nullptr) ut::delete_(b);
 }
 
+/** What a DML statement does with a vector index. */
+enum class Vec_dml { MAINTAIN, SKIP, REFUSE };
+
+/** Decide what a DML statement does with a vector index, as
+row_upd_sec_index_entry() decides for a B-tree index: a committed index,
+or one built and waiting for commit, is maintained; one being dropped is
+skipped. Where a B-tree index being built online gets its row logged
+(row_log_online_op()), the statement is refused: nothing logs rows for a
+vector index yet.
+@param[in]  index  a vector index of the table
+@return what the statement does with it */
+static Vec_dml vec_dml_action(dict_index_t *index) {
+  if (index->is_committed()) return Vec_dml::MAINTAIN;
+
+  /* online_status is protected by index->lock. */
+  rw_lock_s_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
+  const auto status = dict_index_get_online_status(index);
+  rw_lock_s_unlock(dict_index_get_lock(index));
+
+  switch (status) {
+    case ONLINE_INDEX_COMPLETE:
+      return Vec_dml::MAINTAIN;
+    case ONLINE_INDEX_CREATION:
+      return Vec_dml::REFUSE;
+    case ONLINE_INDEX_ABORTED:
+    case ONLINE_INDEX_ABORTED_DROPPED:
+      return Vec_dml::SKIP;
+  }
+  ut_d(ut_error);
+  ut_o(return Vec_dml::SKIP);
+}
+
 dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
                        ulint q_len, uint64_t base_pk, THD *thd) {
   ut_ad(label != 0);
@@ -1126,12 +1158,12 @@ dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (!index->is_vector()) continue;
-    if (dict_index_is_online_ddl(index)) {
-      /* Nothing logs rows for an online vector index build yet. */
+    const Vec_dml action = vec_dml_action(index);
+    if (action == Vec_dml::SKIP) continue;
+    if (action == Vec_dml::REFUSE) {
       ut_d(ut_error);
       ut_o(return DB_UNSUPPORTED);
     }
-    if (!index->is_committed()) continue;
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
     if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
@@ -1145,12 +1177,12 @@ dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd) {
   for (dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (!index->is_vector()) continue;
-    if (dict_index_is_online_ddl(index)) {
-      /* Nothing logs rows for an online vector index build yet. */
+    const Vec_dml action = vec_dml_action(index);
+    if (action == Vec_dml::SKIP) continue;
+    if (action == Vec_dml::REFUSE) {
       ut_d(ut_error);
       ut_o(return DB_UNSUPPORTED);
     }
-    if (!index->is_committed()) continue;
 
     /* No runtime means the open that should have built one failed, and
     ha_innobase::open() carried on so the table stays readable and

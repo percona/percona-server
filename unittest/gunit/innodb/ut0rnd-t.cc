@@ -27,16 +27,31 @@
 #include <array>
 #include <cstdint>
 #include <random>
+#include <set>
 #include "unittest/gunit/benchmark.h"
 
 #include "storage/innobase/include/mach0data.h"
 #include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0counter.h"
 #include "storage/innobase/include/ut0crc32.h"
 #include "storage/innobase/include/ut0rnd.h"
 
 #include "extra/xxhash/my_xxhash.h"
 
 namespace innodb_ut0rnd_unittest {
+
+/* Live get_rnd_index() path. On CPUs whose RDTSC low bits stick
+(strides 20-36, 64), dropping the XOR leaves few %64 buckets. */
+TEST(ut0counter, get_rnd_index_covers_mod64) {
+  if (my_timer_cycles() == 0) {
+    GTEST_SKIP() << "my_timer_cycles() is 0";
+  }
+  std::set<size_t> buckets;
+  for (size_t i = 0; i < 4096; ++i) {
+    buckets.insert(counter_indexer_t<>::get_rnd_index() % 64);
+  }
+  EXPECT_EQ(buckets.size(), 64U);
+}
 
 namespace old_impl {
 

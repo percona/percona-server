@@ -2091,6 +2091,8 @@ void page_copy_rec_list_end_to_created_page(
   ut_ad(page_align(rec) != new_page);
   ut_ad(page_rec_is_comp(rec) == page_is_comp(new_page));
 
+  const bool compact = dict_table_is_comp(index->table);
+
   if (page_rec_is_infimum(rec)) {
     rec = page_rec_get_next(rec);
   }
@@ -2134,8 +2136,8 @@ void page_copy_rec_list_end_to_created_page(
   n_recs = 0;
 
   do {
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                              UT_LOCATION_HERE, &heap);
+    offsets = rec_get_offsets_with_comp(
+        rec, index, compact, offsets, ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
     insert_rec = rec_copy(heap_top, rec, offsets);
 
     if (page_is_comp(new_page)) {

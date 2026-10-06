@@ -4788,8 +4788,9 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       to prevent phantoms in ORDER BY ... DESC queries */
       const rec_t *next_rec = page_rec_get_next_const(rec);
 
-      offsets = rec_get_offsets(next_rec, index, offsets, ULINT_UNDEFINED,
-                                UT_LOCATION_HERE, &heap);
+      offsets =
+          rec_get_offsets_with_comp(next_rec, index, comp, offsets,
+                                    ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
       err = sel_set_rec_lock(pcur, next_rec, index, offsets,
                              prebuilt->select_mode, prebuilt->select_lock_type,
                              LOCK_GAP, thr, &mtr);
@@ -4877,8 +4878,9 @@ rec_loop:
       }
 
       /** Create offsets based on prebuilt index. */
-      offsets = rec_get_offsets(prev_rec, prebuilt->index, offsets,
-                                ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
+      offsets =
+          rec_get_offsets_with_comp(prev_rec, prebuilt->index, comp, offsets,
+                                    ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
       if (row_sel_store_mysql_rec(end_range_cache, prebuilt, prev_rec,
                                   prev_vrow, clust_templ_for_sec, key_index,
@@ -4906,8 +4908,8 @@ rec_loop:
         !dict_index_is_spatial(index)) {
       /* Try to place a lock on the index record */
 
-      offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                                UT_LOCATION_HERE, &heap);
+      offsets = rec_get_offsets_with_comp(
+          rec, index, comp, offsets, ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
       err = sel_set_rec_lock(pcur, rec, index, offsets, prebuilt->select_mode,
                              prebuilt->select_lock_type, LOCK_ORDINARY, thr,
                              &mtr);
@@ -4998,8 +5000,8 @@ rec_loop:
   ut_ad(fil_page_index_page_check(pcur->get_page()));
   ut_ad(btr_page_get_index_id(pcur->get_page()) == index->id);
 
-  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                            UT_LOCATION_HERE, &heap);
+  offsets = rec_get_offsets_with_comp(rec, index, comp, offsets,
+                                      ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
 
   if (UNIV_UNLIKELY(srv_force_recovery > 0 || (index->table->is_corrupt &&
                                                srv_pass_corrupt_table == 2))) {
@@ -5628,8 +5630,9 @@ rec_loop:
       if (result_rec != rec && !prebuilt->need_to_access_clustered) {
         /* We used 'offsets' for the clust
         rec, recalculate them for 'rec' */
-        offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                                  UT_LOCATION_HERE, &heap);
+        offsets =
+            rec_get_offsets_with_comp(rec, index, comp, offsets,
+                                      ULINT_UNDEFINED, UT_LOCATION_HERE, &heap);
         result_rec = rec;
       }
 
@@ -5782,13 +5785,13 @@ next_rec:
 
         auto heap_tmp = mem_heap_create(256, UT_LOCATION_HERE);
 
-        offsets1 = rec_get_offsets(prev_rec_debug, index, nullptr,
-                                   prev_rec_debug_n_fields, UT_LOCATION_HERE,
-                                   &heap_tmp);
+        offsets1 = rec_get_offsets_with_comp(prev_rec_debug, index, comp,
+                                             nullptr, prev_rec_debug_n_fields,
+                                             UT_LOCATION_HERE, &heap_tmp);
 
-        offsets2 =
-            rec_get_offsets(prev_rec, index, nullptr, prev_rec_debug_n_fields,
-                            UT_LOCATION_HERE, &heap_tmp);
+        offsets2 = rec_get_offsets_with_comp(prev_rec, index, comp, nullptr,
+                                             prev_rec_debug_n_fields,
+                                             UT_LOCATION_HERE, &heap_tmp);
 
         ut_ad(!cmp_rec_rec(prev_rec_debug, prev_rec, offsets1, offsets2, index,
                            page_is_spatial_non_leaf(prev_rec, index), nullptr,

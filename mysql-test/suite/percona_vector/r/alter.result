@@ -262,3 +262,24 @@ DROP TABLE tg1, tg2;
 # in the community build; if it is ever published, this is where the
 # refusal belongs.
 #
+#
+# PS-11590: ALTER error refusals on a vector-indexed table ... report
+#           a misleading "building a vector index" reason even though
+#           no vector index is involved.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL, extra INT,
+VECTOR KEY vk (v) TYPE hnsw (M = 8)
+);
+# Error message below should not mention adding/building vector index
+# since statement doesn't add any. We explain that INSTANT operations
+# are not supported on tables with vector indexes instead.
+ALTER TABLE t1 ADD COLUMN newcol INT, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support ALGORITHM=INSTANT on a table with a vector index. Try ALGORITHM=COPY/INPLACE.
+# Ditto. Error message below should not mention adding/building vector
+# index as well. Instead we explain that LOCK=NONE operations are not
+# supported on tables with vector indexes.
+ALTER TABLE t1 ADD INDEX ix_extra (extra), ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
+DROP TABLE t1;

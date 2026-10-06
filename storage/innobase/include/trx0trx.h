@@ -219,9 +219,12 @@ void trx_assign_read_view(trx_t *trx);
 /** Clones the read view from another transaction. All the consistent reads
 within the receiver transaction will get the same read view as the donor
 transaction.
+Caller must own the global lock exclusive latch, trx_sys->mutex and
+from_trx->mutex. Releases trx_sys->mutex and from_trx->mutex.
 @param[in]	trx	receiver transaction
 @param[in]	from_trx	donor transaction
-@return read view clone */
+@return read view clone, or nullptr if the donor has no open read view or is
+an autocommit non-locking read-only transaction */
 [[nodiscard]] Read_view_interface *trx_clone_read_view(trx_t *trx,
                                                        trx_t *from_trx);
 
@@ -1081,8 +1084,6 @@ struct trx_t {
   /*!< if MySQL binlog is used, this
   field contains the end offset of the
   binlog entry */
-  time_t idle_start;
-  uint64_t last_stmt_start;
   /*------------------------------*/
   uint32_t n_mysql_tables_in_use; /*!< number of Innobase tables
                               used in the processing of the current

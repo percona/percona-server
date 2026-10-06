@@ -69,8 +69,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* ib::redo::handler */
 #include "log0handler_interface.h"
 
-#include "mysqld.h"
-
 /* log_t::X */
 #include "log0sys.h"
 
@@ -88,6 +86,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* DBUG_PRINT, ... */
 #include "my_dbug.h"
+
+#include "mysqld.h"
 
 /* os_event_wait_time_low */
 #include "os0event.h"

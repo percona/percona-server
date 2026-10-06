@@ -479,8 +479,7 @@ class AIO {
                                 errors if the write or read could not be
                                 executed or if it failed. It will be executed
                                 asynchronously from another thread, before or
-                                after this call returns.
-  @return pointer to slot */
+                                after this call returns. */
   [[nodiscard]] Slot *reserve_slot(const IORequest &type, pfs_os_file_t file,
                                    const char *name, void *buf,
                                    os_offset_t offset, ulint len,
@@ -2550,17 +2549,25 @@ dberr_t LinuxAIOHandler::poll(std::function<void(dberr_t)> &callback,
 
 #endif /* LINUX_NATIVE_AIO */
 
-#if defined(LINUX_NATIVE_AIO)
+#ifndef UNIV_HOTBACKUP
 /** Submit buffered AIO requests on the read arrays to the kernel.
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex */
-void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex) {
+void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex
+                                                [[maybe_unused]]) {
+  if (!srv_use_native_aio) {
+    return;
+  }
+#if defined(LINUX_NATIVE_AIO)
   os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_reads);
   if (s_ibuf != nullptr) {
     os_aio_dispatch_read_array_submit_low_for_array(acquire_mutex, s_ibuf);
   }
+#endif /* LINUX_NATIVE_AIO */
 }
+#endif /* !UNIV_HOTBACKUP */
 
+#if defined(LINUX_NATIVE_AIO)
 /** Submit buffered AIO requests on the array to the kernel.
 (low level function).
 @param[in] acquire_mutex specifies whether to lock array mutex
@@ -2568,14 +2575,11 @@ void AIO::os_aio_dispatch_read_array_submit_low(bool acquire_mutex) {
 void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex,
                                                           const AIO *array) {
   ulint total_submitted = 0;
-  if (acquire_mutex) {
-    array->acquire();
-  }
-
+  if (acquire_mutex) array->acquire();
   /* Submit aio requests buffered on all segments. */
   ut_ad(array->m_pending);
   ut_ad(array->m_count);
-  for (ulint i = 0; i < array->m_n_segments; ++i) {
+  for (ulint i = 0; i < array->m_n_segments; i++) {
     const int count = array->m_count[i];
     int offset = 0;
     while (offset != count) {
@@ -2615,9 +2619,7 @@ void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex,
   /* Reset the aio request buffer. */
   memset(array->m_pending, 0x0, sizeof(struct iocb *) * array->m_slots.size());
   memset(array->m_count, 0x0, sizeof(ulint) * array->m_n_segments);
-  if (acquire_mutex) {
-    array->release();
-  }
+  if (acquire_mutex) array->release();
 
   srv_stats.n_aio_submitted.add(total_submitted);
 }
@@ -2625,11 +2627,9 @@ void AIO::os_aio_dispatch_read_array_submit_low_for_array(bool acquire_mutex,
 
 /** Submit buffered AIO requests on the given segment to the kernel. */
 void os_aio_dispatch_read_array_submit() {
-#if defined(LINUX_NATIVE_AIO)
-  if (srv_use_native_aio) {
-    AIO::os_aio_dispatch_read_array_submit_low(true);
-  }
-#endif /* LINUX_NATIVE_AIO */
+#ifndef UNIV_HOTBACKUP
+  AIO::os_aio_dispatch_read_array_submit_low(true);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #if defined(LINUX_NATIVE_AIO)
@@ -5015,8 +5015,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @return number of bytes read, -1 if error */
 [[nodiscard]] static ssize_t os_file_pread(const IORequest &type,
                                            os_file_t file, byte *buf, ulint n,
-                                           os_offset_t offset, trx_t *trx,
-                                           dberr_t *err) {
+                                           os_offset_t offset, dberr_t *err) {
 #ifdef UNIV_HOTBACKUP
   static meb::Mutex meb_mutex;
 
@@ -5027,14 +5026,14 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-  const auto start_time = trx_stats::start_io_read(trx, n);
+  const auto start_time = trx_stats::start_io_read(type.trx(), n);
 
   os_n_pending_reads.fetch_add(1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
   ssize_t n_bytes = os_file_io(type, file, buf, n, offset, err);
 
-  trx_stats::end_io_read(trx, start_time);
+  trx_stats::end_io_read(type.trx(), start_time);
 
   os_n_pending_reads.fetch_sub(1);
   MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
@@ -5053,9 +5052,11 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[out]     o               number of bytes actually read
 @param[in]      exit_on_err     if true then exit on error
 @return DB_SUCCESS or error code */
-[[nodiscard]] static dberr_t os_file_read_page(
-    const IORequest &type, const char *file_name, os_file_t file, byte *buf,
-    os_offset_t offset, ulint n, ulint *o, bool exit_on_err, trx_t *trx) {
+[[nodiscard]] static dberr_t os_file_read_page(const IORequest &type,
+                                               const char *file_name,
+                                               os_file_t file, byte *buf,
+                                               os_offset_t offset, ulint n,
+                                               ulint *o, bool exit_on_err) {
   dberr_t err(DB_ERROR_UNSET);
 
 #ifdef UNIV_HOTBACKUP
@@ -5074,7 +5075,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   for (;;) {
     ssize_t n_bytes;
 
-    n_bytes = os_file_pread(type, file, buf, n, offset, trx, &err);
+    n_bytes = os_file_pread(type, file, buf, n, offset, &err);
 
     if (o != nullptr) {
       *o = n_bytes;
@@ -5469,11 +5470,11 @@ bool os_file_seek(const char *pathname, os_file_t file, os_offset_t offset) {
 
 dberr_t os_file_read_func(const IORequest &type, const char *file_name,
                           os_file_t file, byte *buf, os_offset_t offset,
-                          ulint n, trx_t *trx) {
+                          ulint n) {
   ut_ad(type.is_read());
 
-  return (os_file_read_page(type, file_name, file, buf, offset, n, nullptr,
-                            true, trx));
+  return (
+      os_file_read_page(type, file_name, file, buf, offset, n, nullptr, true));
 }
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
@@ -5493,9 +5494,8 @@ dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
                                      page_no_t n_pages, bool exit_on_err) {
   ut_ad(type.is_read());
 
-  dberr_t err =
-      os_file_read_page(type, file_name, file, buf, 0, UNIV_ZIP_SIZE_MIN,
-                        nullptr, exit_on_err, nullptr);
+  dberr_t err = os_file_read_page(type, file_name, file, buf, 0,
+                                  UNIV_ZIP_SIZE_MIN, nullptr, exit_on_err);
 
   if (err == DB_SUCCESS) {
     uint32_t flags = fsp_header_get_flags(buf);
@@ -5508,7 +5508,7 @@ dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
     const size_t read_size = page_size.physical() * n_pages;
     ut_ad(read_size > 0);
     err = os_file_read_page(type, file_name, file, buf, 0, read_size, nullptr,
-                            exit_on_err, nullptr);
+                            exit_on_err);
     if (err == DB_SUCCESS) {
       srv_stats.page0_read.add(1);
     }
@@ -5546,7 +5546,7 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
     }
 
     err = os_file_read_func(read_request, nullptr, src_file, buf, src_offset,
-                            request_size, nullptr);
+                            request_size);
 
     if (err != DB_SUCCESS) {
       return (err);
@@ -5644,8 +5644,7 @@ dberr_t os_file_read_no_error_handling_func(IORequest &type,
                                             ulint *o) {
   ut_ad(type.is_read());
 
-  return (os_file_read_page(type, file_name, file, buf, offset, n, o, false,
-                            nullptr));
+  return (os_file_read_page(type, file_name, file, buf, offset, n, o, false));
 }
 
 /** NOTE! Use the corresponding macro os_file_write(), not directly this
@@ -6423,6 +6422,7 @@ Slot *AIO::reserve_slot(const IORequest &type, pfs_os_file_t file,
     }
   }
   slot->io_already_done = false;
+
   if (!type.are_write_transformations_enabled()) {
     ut_ad(!type.is_compression_requested());
     ut_ad(!type.is_encryption_requested());
@@ -6753,8 +6753,7 @@ static dberr_t os_aio_native_handler(
 
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, byte *buf, os_offset_t offset, ulint n,
-                    std::function<void(dberr_t)> callback, trx_t *trx,
-                    bool should_buffer) {
+                    std::function<void(dberr_t)> callback) {
   /* We do not support os_aio() calls to redo log files. They need to use sync
   IO methods. */
   ut_a(!type.is_log());
@@ -6774,12 +6773,18 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
   bool io_dispatched = false;
   while (!io_dispatched) {
     {
-      auto slot = array->reserve_slot(type, file, name, buf, offset, n,
+      if (type.is_read()) {
+        trx_stats::bump_io_read(type.trx(), n);
+      }
+      /* The slot is visible to the simulated-AIO thread once reserve_slot()
+      drops the array mutex. A completion read goes through os_file_pread(),
+      which would charge this trx again. Async reads count bytes only. */
+      IORequest posted = type;
+      posted.set_trx(nullptr);
+      auto slot = array->reserve_slot(posted, file, name, buf, offset, n,
                                       std::move(callback));
       if (srv_use_native_aio) {
         if (type.is_read()) {
-          trx_stats::bump_io_read(trx, n);
-
           ++os_n_file_reads;
 
           os_bytes_read_since_printout += n;
@@ -6800,7 +6805,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                                    &slot->n_bytes, &slot->control) ||
                           (GetLastError() == ERROR_IO_PENDING);
 #elif defined(LINUX_NATIVE_AIO)
-          io_dispatched = array->linux_dispatch(slot, should_buffer);
+          io_dispatched = array->linux_dispatch(slot, type.is_should_buffer());
 #else
           ut_error;
 #endif /* !_WIN32 && LINUX_NATIVE_AIO */
@@ -6834,7 +6839,6 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
           ut_error;
         }
       } else {
-        if (type.is_read()) trx_stats::bump_io_read(trx, n);
         /* For simulated AIO the fact of reserving of the slot is effectively
         the dispatching. */
         io_dispatched = true;
@@ -7044,9 +7048,8 @@ class SimulatedAIOHandler {
   /** Do the file read
   @param[in,out]        slot            Slot that has the IO context */
   void read(Slot *slot) {
-    dberr_t err =
-        os_file_read_func(slot->type, slot->name, slot->file.m_file, slot->ptr,
-                          slot->offset, slot->len, nullptr);
+    dberr_t err = os_file_read_func(slot->type, slot->name, slot->file.m_file,
+                                    slot->ptr, slot->offset, slot->len);
     ut_a(err == DB_SUCCESS);
   }
 

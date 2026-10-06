@@ -332,8 +332,13 @@ class IORequest {
     /** Force raw write, do not try to compress or encrypt. */
     NO_WRITE_TRANSFORMATIONS = 1 << 13,
 
+    /** Buffer this AIO request instead of submitting it immediately.
+    AIO read-ahead uses this. If you set this flag, call
+    os_aio_dispatch_read_array_submit() when ready to commit the batch. */
+    SHOULD_BUFFER = 1 << 14,
+
     /** Force write of decrypted pages in encrypted tablespace. */
-    NO_ENCRYPTION = 1 << 14
+    NO_ENCRYPTION = 1 << 15
   };
 
   /** Default constructor */
@@ -439,6 +444,21 @@ class IORequest {
   }
 
   void set_ibuf() { m_type |= Type::IBUF; }
+
+  /** @return true if this AIO request should be buffered for later submit */
+  [[nodiscard]] bool is_should_buffer() const {
+    return (m_type & Type::SHOULD_BUFFER) == Type::SHOULD_BUFFER;
+  }
+
+  /** Buffer this AIO request for later submit. */
+  void set_should_buffer() { m_type |= Type::SHOULD_BUFFER; }
+
+  /** Transaction that requested this IO, for slow query log stats.
+  nullptr if the IO is not on behalf of a user transaction. */
+  [[nodiscard]] trx_t *trx() const { return m_trx; }
+
+  /** Set the transaction that requested this IO. */
+  void set_trx(trx_t *trx) { m_trx = trx; }
 
   /** Clear the do not wake flag */
   void clear_do_not_wake() { m_type &= ~Type::DO_NOT_WAKE; }
@@ -606,6 +626,7 @@ class IORequest {
     PRINT_MASK_ELEMENT(IGNORE_MISSING);
     PRINT_MASK_ELEMENT(DISABLE_PARTIAL_IO_WARNINGS);
     PRINT_MASK_ELEMENT(NO_WRITE_TRANSFORMATIONS);
+    PRINT_MASK_ELEMENT(SHOULD_BUFFER);
 #undef PRINT_MASK_ELEMENT
 
     os << ", comp: " << m_compression.to_string();
@@ -640,6 +661,9 @@ class IORequest {
   For writes it is a length up to which the write is to be extended with a punch
   hole, if supported. */
   uint32_t m_original_size{};
+
+  /** Transaction that requested this IO, or nullptr. */
+  trx_t *m_trx{};
 
   friend constexpr IORequest::Type operator~(const IORequest::Type type);
   friend constexpr IORequest::Type operator&(const IORequest::Type a,
@@ -1010,18 +1034,12 @@ The wrapper functions have the prefix of "innodb_". */
 
 #define os_file_close_pfs(file) pfs_os_file_close_func(file, UT_LOCATION_HERE)
 
-#define os_aio(type, mode, name, file, buf, offset, n, callback, trx,    \
-               should_buffer)                                            \
-  pfs_os_aio_func(type, mode, name, file, buf, offset, n, callback, trx, \
-                  should_buffer, UT_LOCATION_HERE)
+#define os_aio(type, mode, name, file, buf, offset, n, callback)    \
+  pfs_os_aio_func(type, mode, name, file, buf, offset, n, callback, \
+                  UT_LOCATION_HERE)
 
-#define os_file_read_pfs(type, file_name, file, buf, offset, n)         \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, nullptr, \
-                        UT_LOCATION_HERE)
-
-#define os_file_read_trx_pfs(type, file_name, file, buf, offset, n, trx) \
-  pfs_os_file_read_func(type, file_name, file, buf, offset, n, trx,      \
-                        UT_LOCATION_HERE)
+#define os_file_read_pfs(type, file_name, file, buf, offset, n) \
+  pfs_os_file_read_func(type, file_name, file, buf, offset, n, UT_LOCATION_HERE)
 
 #define os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, exit) \
   pfs_os_file_read_first_page_func(type, file_name, file, buf, n_pages,        \
@@ -1132,9 +1150,11 @@ os_file_read() which requests a synchronous read operation.
 @param[in]      n               number of bytes to read
 @param[in]      src_location    location where func invoked
 @return DB_SUCCESS if request was successful */
-static inline dberr_t pfs_os_file_read_func(
-    const IORequest &type, const char *file_name, pfs_os_file_t file, byte *buf,
-    os_offset_t offset, ulint n, trx_t *trx, ut::Location src_location);
+static inline dberr_t pfs_os_file_read_func(const IORequest &type,
+                                            const char *file_name,
+                                            pfs_os_file_t file, byte *buf,
+                                            os_offset_t offset, ulint n,
+                                            ut::Location src_location);
 
 /** NOTE! Please use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1229,21 +1249,12 @@ must not cross a file boundary; in AIO this must be a block size multiple
                                 executed or if it failed. It will be executed
                                 asynchronously from another thread, before or
                                 after this call returns.
-@param[in,out]  trx             Transaction the read is performed for, or
-                                nullptr if not on behalf of a transaction
-@param[in]      should_buffer   Whether to buffer an aio request.
-                                AIO read ahead uses this. If you plan to
-                                use this parameter, make sure you remember to
-                                call os_aio_dispatch_read_array_submit()
-                                when you're ready to commit all your
-                                requests.
 @param[in]      location    location where func invoked
 @return DB_SUCCESS if request was queued successfully, false if fail */
 static inline dberr_t pfs_os_aio_func(IORequest &type, AIO_mode mode,
                                       const char *name, pfs_os_file_t file,
                                       byte *buf, os_offset_t offset, ulint n,
                                       std::function<void(dberr_t)> callback,
-                                      trx_t *trx, bool should_buffer,
                                       ut::Location location);
 
 /** NOTE! Please use the corresponding macro os_file_write(), not directly
@@ -1369,13 +1380,11 @@ to original un-instrumented file I/O APIs */
 
 #define os_file_close_pfs(file) os_file_close_func(file)
 
-#define os_aio(type, mode, name, file, buf, offset, n, callback, trx, \
-               should_buffer)                                         \
-  os_aio_func(type, mode, name, file, buf, offset, n, callback, trx,  \
-              should_buffer)
+#define os_aio(type, mode, name, file, buf, offset, n, callback) \
+  os_aio_func(type, mode, name, file, buf, offset, n, callback)
 
 #define os_file_read_pfs(type, file_name, file, buf, offset, n) \
-  os_file_read_func(type, file_name, file, buf, offset, n, nullptr)
+  os_file_read_func(type, file_name, file, buf, offset, n)
 
 #define os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, exit) \
   os_file_read_first_page_func(type, file_name, file, buf, n_pages, exit)
@@ -1391,9 +1400,6 @@ to original un-instrumented file I/O APIs */
                                               offset, n, o)                   \
   os_file_read_no_error_handling_func(type, file_name, OS_FILE_FROM_FD(file), \
                                       buf, offset, n, o)
-
-#define os_file_read_trx_pfs(type, file_name, file, buf, offset, n, trx) \
-  os_file_read_func(type, file_name, file, buf, offset, n, trx)
 
 #define os_file_write_pfs(type, name, file, buf, offset, n) \
   os_file_write_func(type, name, file, buf, offset, n)
@@ -1422,13 +1428,9 @@ to original un-instrumented file I/O APIs */
 #ifdef UNIV_PFS_IO
 #define os_file_read(type, file_name, file, buf, offset, n) \
   os_file_read_pfs(type, file_name, file, buf, offset, n)
-#define os_file_read_trx(type, file_name, file, buf, offset, n, trx) \
-  os_file_read_trx_pfs(type, file_name, file, buf, offset, n, trx)
 #else
 #define os_file_read(type, file_name, file, buf, offset, n) \
   os_file_read_pfs(type, file_name, (file).m_file, buf, offset, n)
-#define os_file_read_trx(type, file_name, file, buf, offset, n, trx) \
-  os_file_read_trx_pfs(type, file_name, (file).m_file, buf, offset, n, trx)
 #endif
 
 #ifdef UNIV_PFS_IO
@@ -1441,11 +1443,12 @@ to original un-instrumented file I/O APIs */
 #endif
 
 #ifdef UNIV_PFS_IO
-#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
-  os_file_read_first_page_pfs(type, file_name, file, buf, n, false)
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n_pages) \
+  os_file_read_first_page_pfs(type, file_name, file, buf, n_pages, false)
 #else
-#define os_file_read_first_page_noexit(type, file_name, file, buf, n) \
-  os_file_read_first_page_pfs(type, file_name, file.m_file, buf, n, false)
+#define os_file_read_first_page_noexit(type, file_name, file, buf, n_pages) \
+  os_file_read_first_page_pfs(type, file_name, (file).m_file, buf, n_pages, \
+                              false)
 #endif
 
 #ifdef UNIV_PFS_IO
@@ -1578,8 +1581,7 @@ Requests a synchronous read operation of page 0 of IBD file.
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure */
 [[nodiscard]] dberr_t os_file_read_func(const IORequest &type,
                                         const char *file_name, os_file_t file,
-                                        byte *buf, os_offset_t offset, ulint n,
-                                        trx_t *trx);
+                                        byte *buf, os_offset_t offset, ulint n);
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(),
 not directly this function!
@@ -1761,19 +1763,11 @@ Requests an asynchronous i/o operation.
                                 executed or if it failed. It will be executed
                                 asynchronously from another thread, before or
                                 after this call returns.
-@param[in,out]  trx             Transaction the read is performed for, or
-                                nullptr if not on behalf of a transaction
-@param[in]      should_buffer   Whether to buffer an aio request.
-                                AIO read ahead uses this. If you plan to use
-                                this parameter, make sure you remember to call
-                                os_aio_dispatch_read_array_submit() when you're
-                                ready to commit all your requests.
 @return DB_SUCCESS or error code */
 [[nodiscard]] dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode,
                                   const char *name, pfs_os_file_t file,
                                   byte *buf, os_offset_t offset, ulint n,
-                                  std::function<void(dberr_t)> callback,
-                                  trx_t *trx, bool should_buffer);
+                                  std::function<void(dberr_t)> callback);
 
 /** Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */

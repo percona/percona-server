@@ -82,6 +82,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0que.h"
 #include "read0mvcc_interface.h"
 #include "read0read_view_interface.h"
+#include "read0types.h"
 #include "row0log.h"
 #include "row0mysql.h"
 #include "sql/current_thd.h"
@@ -1597,8 +1598,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   fprintf(file, "%lu RW transactions active inside InnoDB\n",
           UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 
-  const Read_view_interface *oldest_view =
-      trx_sys->mvcc->get_oldest_view_stats();
+  const auto *oldest_view = trx_sys->mvcc->get_oldest_view_stats();
   if (oldest_view) {
     fprintf(file, "---OLDEST VIEW---\n");
     oldest_view->print(file);
@@ -1803,10 +1803,10 @@ void srv_export_innodb_status(void) {
 
   mutex_enter(&trx_sys->mutex);
   auto *const oldest_view_for_low_limit_trx_id =
-      trx_sys->mvcc->get_oldest_view_stats();
+      dynamic_cast<const ReadView *>(trx_sys->mvcc->get_oldest_view_stats());
   export_vars.innodb_oldest_view_low_limit_trx_id =
       oldest_view_for_low_limit_trx_id
-          ? oldest_view_for_low_limit_trx_id->get_low_limit_id()
+          ? oldest_view_for_low_limit_trx_id->low_limit_id()
           : 0;
   mutex_exit(&trx_sys->mutex);
 

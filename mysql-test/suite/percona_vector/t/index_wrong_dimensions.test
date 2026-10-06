@@ -202,6 +202,7 @@ SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN')
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 2;
 
 --echo # Run explain to confirm that ORDER BY ... LIMIT n uses vector search on vk.
+--replace_column 10 X
 EXPLAIN SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3]'), 'EUCLIDEAN') LIMIT 2;
 
 DROP TABLE t1;

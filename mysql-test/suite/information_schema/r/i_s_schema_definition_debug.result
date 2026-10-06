@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=90500
+Current I_S_VERSION=90701
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -1197,7 +1197,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
   NULL AS PACKED,
   IF (col.is_nullable = 1, 'YES','') AS NULLABLE,
-  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' ELSE idx.algorithm END  AS INDEX_TYPE,
+  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' WHEN idx.algorithm = 'SE_SPECIFIC' AND GET_DD_PROPERTY_KEY_VALUE(idx.options, 'PS_is_vector_index') THEN 'VECTOR' ELSE idx.algorithm END  AS INDEX_TYPE,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',     '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', '')) AS COMMENT,
   idx.comment AS INDEX_COMMENT,
   IF (idx.is_visible, 'YES', 'NO') AS IS_VISIBLE,
@@ -1229,7 +1229,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
   NULL AS PACKED,
   IF (col.is_nullable = 1, 'YES','') AS NULLABLE,
-  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' ELSE idx.algorithm END  AS INDEX_TYPE,
+  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' WHEN idx.algorithm = 'SE_SPECIFIC' AND GET_DD_PROPERTY_KEY_VALUE(idx.options, 'PS_is_vector_index') THEN 'VECTOR' ELSE idx.algorithm END  AS INDEX_TYPE,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',     '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', '')) AS COMMENT,
   idx.comment AS INDEX_COMMENT,
   IF (idx.is_visible, 'YES', 'NO') AS IS_VISIBLE,
@@ -1359,7 +1359,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
   NULL AS PACKED,
   IF (col.is_nullable = 1, 'YES','') AS NULLABLE,
-  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' ELSE idx.algorithm END  AS INDEX_TYPE,
+  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' WHEN idx.algorithm = 'SE_SPECIFIC' AND GET_DD_PROPERTY_KEY_VALUE(idx.options, 'PS_is_vector_index') THEN 'VECTOR' ELSE idx.algorithm END  AS INDEX_TYPE,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',     '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', '')) AS COMMENT,
   idx.comment AS INDEX_COMMENT,
   IF (idx.is_visible, 'YES', 'NO') AS IS_VISIBLE,
@@ -1389,7 +1389,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   GET_DD_INDEX_SUB_PART_LENGTH(icu.length,col.type, col.char_length, col.collation_id,idx.type) AS SUB_PART,
   NULL AS PACKED,
   IF (col.is_nullable = 1, 'YES','') AS NULLABLE,
-  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' ELSE idx.algorithm END  AS INDEX_TYPE,
+  CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' WHEN idx.algorithm = 'SE_PRIVATE' THEN '' WHEN idx.algorithm = 'SE_SPECIFIC' AND GET_DD_PROPERTY_KEY_VALUE(idx.options, 'PS_is_vector_index') THEN 'VECTOR' ELSE idx.algorithm END  AS INDEX_TYPE,
   IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',     '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', '')) AS COMMENT,
   idx.comment AS INDEX_COMMENT,
   IF (idx.is_visible, 'YES', 'NO') AS IS_VISIBLE,
@@ -1949,8 +1949,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 90500.
+The schema checksum corresponds to I_S version 90701.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 90500 stored on disk.]
+IS_VERSION 90701 stored on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]

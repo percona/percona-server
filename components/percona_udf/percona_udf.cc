@@ -30,8 +30,10 @@
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
-#define DECLARE_UDF_INFO_NO_DEINIT(NAME, TYPE) \
-  mysqlpp::udf_info { #NAME, TYPE, (Udf_func_any)&NAME, &NAME##_init, nullptr }
+#define DECLARE_UDF_INFO_NO_DEINIT(NAME, TYPE)              \
+  mysqlpp::udf_info {                                       \
+#NAME, TYPE, (Udf_func_any)&NAME, &NAME##_init, nullptr \
+  }
 
 static const std::array known_udfs{
     DECLARE_UDF_INFO_NO_DEINIT(fnv_64, INT_RESULT),

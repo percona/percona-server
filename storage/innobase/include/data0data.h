@@ -284,8 +284,8 @@ occupied by the field structs or the tuple struct is not counted.
 @param[in]      tuple   typed data tuple
 @param[in]      comp    nonzero=ROW_FORMAT=COMPACT
 @return sum of data lens */
-[[nodiscard]]
-static inline ulint dtuple_get_data_size(const dtuple_t *tuple, ulint comp);
+[[nodiscard]] static inline ulint dtuple_get_data_size(const dtuple_t *tuple,
+                                                       ulint comp);
 /** Compare two data tuples.
 @param[in] tuple1 first data tuple
 @param[in] tuple2 second data tuple

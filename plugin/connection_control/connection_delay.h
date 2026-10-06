@@ -35,7 +35,7 @@
 #include "plugin/connection_control/connection_control_memory.h" /* Connection_control_alloc */
 #include "plugin/connection_control/connection_delay_api.h" /* Constants */
 #include "plugin/connection_control/log_rate_limiter.h"
-#include "sql/table.h"                                      /* Table_ref */
+#include "sql/table.h" /* Table_ref */
 
 namespace connection_control {
 /**

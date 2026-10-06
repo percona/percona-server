@@ -39,10 +39,12 @@ std::string query_builder::select_all_from_dictionary() const {
   // the `mysql.masking_dictionaries` table must be in `utf8mb4`. So, by
   // adding CONVERT(Term USING utf8mb4) we support other character sets in
   // the underlying table as well.
-  oss << "SELECT " << "CONVERT(" << get_dictionary_field_name() << " USING "
-      << default_result_character_set << "), " << "CONVERT("
-      << get_term_field_name() << " USING " << default_result_character_set
-      << ") FROM " << get_database_name() << '.' << get_table_name();
+  oss << "SELECT "
+      << "CONVERT(" << get_dictionary_field_name() << " USING "
+      << default_result_character_set << "), "
+      << "CONVERT(" << get_term_field_name() << " USING "
+      << default_result_character_set << ") FROM " << get_database_name() << '.'
+      << get_table_name();
   return oss.str();
 }
 

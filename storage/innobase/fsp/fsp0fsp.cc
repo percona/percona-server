@@ -999,8 +999,7 @@ bool fsp_enable_encryption(fil_space_t *space) {
   byte encrypt_info[Encryption::INFO_SIZE];
 
   memset(encrypt_info, 0, Encryption::INFO_SIZE);
-  if (!Encryption::fill_encryption_info(space->m_encryption_metadata,
-                                        true,
+  if (!Encryption::fill_encryption_info(space->m_encryption_metadata, true,
                                         encrypt_info)) {
     return (false);
   }

@@ -120,7 +120,7 @@
 #include "sql/sql_select.h"  // actual_key_parts
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/sql_zip_dict.h"
-#include "sql/strfunc.h"     // strnncmp_nopads
+#include "sql/strfunc.h"  // strnncmp_nopads
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
@@ -2507,7 +2507,8 @@ static int ha_clone_consistent_snapshot(THD *thd) {
 
   {
     Find_thd_with_id find_thd_with_id(id, true);
-    from_thd_ptr = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+    from_thd_ptr =
+        Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
 
     if (!from_thd_ptr) {
       my_error(ER_NO_SUCH_THREAD, MYF(0), id);
@@ -3629,9 +3630,9 @@ bool handler::is_using_full_key(key_part_map keypart_map,
          (keypart_map == ((key_part_map(1) << actual_key_parts) - 1));
 }
 
-bool handler::is_using_full_unique_key(uint index, key_part_map keypart_map,
-                                       enum ha_rkey_function find_flag) const
-    noexcept {
+bool handler::is_using_full_unique_key(
+    uint index, key_part_map keypart_map,
+    enum ha_rkey_function find_flag) const noexcept {
   return (
       is_using_full_key(keypart_map, table->key_info[index].actual_key_parts) &&
       find_flag == HA_READ_KEY_EXACT &&
@@ -8434,8 +8435,7 @@ int handler::ha_write_row(uchar *buf) {
 
   DBUG_TRACE;
   DEBUG_SYNC(ha_thd(), "start_ha_write_row");
-  DBUG_EXECUTE_IF("inject_error_ha_write_row",
-                  return HA_ERR_INTERNAL_ERROR;);
+  DBUG_EXECUTE_IF("inject_error_ha_write_row", return HA_ERR_INTERNAL_ERROR;);
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",
                   return HA_ERR_SE_OUT_OF_MEMORY;);
   mark_trx_read_write();
@@ -8714,9 +8714,8 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
   }
 }
 
-bool handler::is_using_prohibited_gap_locks(TABLE *table,
-                                            bool using_full_primary_key) const
-    noexcept {
+bool handler::is_using_prohibited_gap_locks(
+    TABLE *table, bool using_full_primary_key) const noexcept {
   const THD *thd = table->in_use;
   const thr_lock_type lock_type = table->reginfo.lock_type;
 

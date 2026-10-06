@@ -53,8 +53,7 @@ int heap_rsame(HP_INFO *info, uchar *record, int inx) {
         return my_errno();
       }
     }
-    if (hp_extract_record(info, record, info->current_ptr))
-      return my_errno();
+    if (hp_extract_record(info, record, info->current_ptr)) return my_errno();
     return 0;
   }
 

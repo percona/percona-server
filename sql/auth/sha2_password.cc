@@ -1488,16 +1488,14 @@ static int show_caching_sha2_password_rsa_public_key(MYSQL_THD thd
 }
 
 /** st_mysql_auth for caching_sha2_password plugin */
-static struct st_mysql_auth caching_sha2_auth_handler{
-    MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-    Cached_authentication_plugins::get_plugin_name(
-        PLUGIN_CACHING_SHA2_PASSWORD),
-    caching_sha2_password_authenticate,
-    caching_sha2_password_generate,
-    caching_sha2_password_validate,
-    caching_sha2_password_salt,
-    AUTH_FLAG_USES_INTERNAL_STORAGE,
-    compare_caching_sha2_password_with_hash};
+static struct st_mysql_auth caching_sha2_auth_handler {
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_CACHING_SHA2_PASSWORD),
+      caching_sha2_password_authenticate, caching_sha2_password_generate,
+      caching_sha2_password_validate, caching_sha2_password_salt,
+      AUTH_FLAG_USES_INTERNAL_STORAGE, compare_caching_sha2_password_with_hash
+};
 
 static MYSQL_SYSVAR_STR(
     private_key_path, caching_sha2_rsa_private_key_path,

@@ -48,8 +48,8 @@
 #include "sql/binlog.h"            // mysql_bin_log
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/table.h"
-#include "sql/debug_sync.h"        // DEBUG_SYNC
-#include "sql/filesort.h"          // Filesort
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/filesort.h"    // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/iterators/delete_rows_iterator.h"

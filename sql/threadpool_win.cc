@@ -460,9 +460,9 @@ bool tp_init(void) {
     }
   }
 
-    /*
-      Control stack size (OS must be Win7 or later, plus corresponding SDK)
-    */
+  /*
+    Control stack size (OS must be Win7 or later, plus corresponding SDK)
+  */
 #if _MSC_VER >= 1600
   if (SetThreadpoolStackInformation) {
     TP_POOL_STACK_INFORMATION stackinfo;

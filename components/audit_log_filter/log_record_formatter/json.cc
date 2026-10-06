@@ -332,9 +332,10 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto esc_proxy_user = make_escaped_string(extra.proxy_user);
   const auto esc_command = make_escaped_string(extra.command);
   const auto esc_sql_command = make_escaped_string(extra.sql_command);
-  const auto esc_query = audit_record.extended_info.digest.empty()
-                 ? make_escaped_string(extra.query)
-                 : make_escaped_string(audit_record.extended_info.digest);
+  const auto esc_query =
+      audit_record.extended_info.digest.empty()
+          ? make_escaped_string(extra.query)
+          : make_escaped_string(audit_record.extended_info.digest);
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {
@@ -391,8 +392,10 @@ AuditRecordString LogRecordFormatterJson::apply(
   const auto escaped_user = make_escaped_string(&audit_record.event->user);
   const auto escaped_host = make_escaped_string(&audit_record.event->host);
   const auto escaped_ip = make_escaped_string(&audit_record.event->ip);
-  const auto escaped_external_user = make_escaped_string(&audit_record.event->external_user);
-  const auto escaped_proxy_user = make_escaped_string(&audit_record.event->proxy_user);
+  const auto escaped_external_user =
+      make_escaped_string(&audit_record.event->external_user);
+  const auto escaped_proxy_user =
+      make_escaped_string(&audit_record.event->proxy_user);
 
   /* clang-format off */
   if (SysVars::get_format_type() == AuditLogFormatType::Json) {

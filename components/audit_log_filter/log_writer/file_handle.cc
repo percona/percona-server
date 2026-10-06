@@ -100,7 +100,7 @@ class FileHandleLockGuard {
  private:
   mysql_mutex_t *m_lock;
 };
-}
+}  // namespace
 
 #if defined(HAVE_PSI_INTERFACE)
 static PSI_mutex_key key_LOCK_audit_filter_service;

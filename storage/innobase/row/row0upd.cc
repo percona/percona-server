@@ -1887,8 +1887,8 @@ static void row_upd_store_v_row(upd_node_t *node, upd_t *update, THD *thd,
                 row_upd_dup_v_new_vals(update);
                 new_val_v_cols_dup = true;
               }
-              innobase_get_computed_value(&prebuilt->blob_heap, node->row,
-                                          col, table, &heap, node->heap, thd,
+              innobase_get_computed_value(&prebuilt->blob_heap, node->row, col,
+                                          table, &heap, node->heap, thd,
                                           mysql_table);
             }
           }

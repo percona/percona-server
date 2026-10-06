@@ -52,7 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/init_mode.h"  // dict_init_mode_t
-#include "srv0mon.h" /* for dict0dict.ic */
+#include "srv0mon.h"                 /* for dict0dict.ic */
 #include "sync0rw.h"
 #include "trx0types.h"
 #include "univ.i"
@@ -1669,9 +1669,9 @@ extern bool dict_upgrade_zip_dict_missing;
 @param[out]	dict_id		zip_dict id
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-[[nodiscard]]
-dberr_t dict_get_dictionary_id_by_key(table_id_t table_id, ulint column_pos,
-                                      ulint *dict_id);
+[[nodiscard]] dberr_t dict_get_dictionary_id_by_key(table_id_t table_id,
+                                                    ulint column_pos,
+                                                    ulint *dict_id);
 
 /** Get compression dictionary info (name and data) for the given id.
 Allocates memory in name->str and data->str on success.
@@ -1683,10 +1683,10 @@ Must be freed with mem_free().
 @param[out]	data_len	dictionary data length
 @retval	DB_SUCCESS		if OK
 @retval	DB_RECORD_NOT_FOUND	if not found */
-[[nodiscard]]
-dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
-                                       ulint *name_len, char **data,
-                                       ulint *data_len);
+[[nodiscard]] dberr_t dict_get_dictionary_info_by_id(ulint dict_id, char **name,
+                                                     ulint *name_len,
+                                                     char **data,
+                                                     ulint *data_len);
 
 /** Detect if Percona Server 5.7 mysql database has encrypted InnoDB tables.
 This can happen if Percona Server is bootstrapped with

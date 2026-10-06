@@ -38,8 +38,8 @@ my_core::PSI_thread_key rdb_background_psi_thread_key,
     rdb_drop_idx_psi_thread_key, rdb_is_psi_thread_key, rdb_mc_psi_thread_key;
 
 my_core::PSI_thread_info all_rocksdb_threads[] = {
-    {&rdb_background_psi_thread_key, "background", "rdb_bg",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_background_psi_thread_key, "background", "rdb_bg", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME},
     {&rdb_drop_idx_psi_thread_key, "drop index", "rdb_drop_ix",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_signal_is_psi_mutex_key, "signal index stats calculation",

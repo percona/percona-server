@@ -44,7 +44,6 @@
 #include "myisampack.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_pool_priv.h"
-#include "strings/m_ctype_internals.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/field.h"
 #include "sql/key.h"
@@ -52,6 +51,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"
 #include "sql/table.h"
+#include "strings/m_ctype_internals.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
@@ -4292,12 +4292,11 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // VARCHARs - are compared as if they were space-padded - but are
         // not actually space-padded (reading the value back produces the
         // original value, without the padding)
-        m_unpack_func =
-            (cs == &my_charset_utf8mb4_bin)
-                ? Rdb_key_def::unpack_utf8mb4_varlength_space_pad
-                : (cs == &my_charset_utf8mb3_bin)
-                      ? Rdb_key_def::unpack_utf8_varlength_space_pad
-                      : Rdb_key_def::unpack_binary_varlength_space_pad;
+        m_unpack_func = (cs == &my_charset_utf8mb4_bin)
+                            ? Rdb_key_def::unpack_utf8mb4_varlength_space_pad
+                        : (cs == &my_charset_utf8mb3_bin)
+                            ? Rdb_key_def::unpack_utf8_varlength_space_pad
+                            : Rdb_key_def::unpack_binary_varlength_space_pad;
 
         m_skip_func = Rdb_key_def::skip_variable_space_pad;
         m_pack_func = Rdb_key_def::pack_with_varlength_space_pad;
@@ -4313,11 +4312,10 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
         // SQL layer pads CHAR(N) values to their maximum length.
         // We just store that and restore it back.
         assert(m_make_unpack_info_func == nullptr);
-        m_unpack_func = (cs == &my_charset_utf8mb4_bin)
-                            ? Rdb_key_def::unpack_utf8mb4_str
-                            : (cs == &my_charset_utf8mb3_bin)
-                                  ? Rdb_key_def::unpack_utf8_str
-                                  : Rdb_key_def::unpack_binary_str;
+        m_unpack_func =
+            (cs == &my_charset_utf8mb4_bin)   ? Rdb_key_def::unpack_utf8mb4_str
+            : (cs == &my_charset_utf8mb3_bin) ? Rdb_key_def::unpack_utf8_str
+                                              : Rdb_key_def::unpack_binary_str;
       }
       m_covered = Rdb_key_def::KEY_COVERED;
     } else {
@@ -5768,14 +5766,14 @@ bool Rdb_dict_manager::get_index_info(
 
   if (error) {
     LogPluginErrMsg(ERROR_LEVEL, 0,
-        "Found invalid key version number (%hu"
-        ", %hhu, %hu"
-        ", %" PRIu64
-        ") from data dictionary. This should never happen "
-        "and it may be a bug.",
-        index_info->m_index_dict_version, index_info->m_index_type,
-        index_info->m_kv_version, index_info->m_ttl_duration);
-     abort();
+                    "Found invalid key version number (%hu"
+                    ", %hhu, %hu"
+                    ", %" PRIu64
+                    ") from data dictionary. This should never happen "
+                    "and it may be a bug.",
+                    index_info->m_index_dict_version, index_info->m_index_type,
+                    index_info->m_kv_version, index_info->m_ttl_duration);
+    abort();
   }
 
   return found;

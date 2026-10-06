@@ -1,0 +1,241 @@
+--echo # utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 2 steps
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+# ha_alter_info->handler_flags = ALTER_COLUMN_EQUAL_PACK_LENGTH & ALTER_COLUMN_DEFAULT
+ALTER TABLE test_table
+    MODIFY field1 varchar (10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    ALGORITHM=INPLACE;
+
+# ha_alter_info->handler_flags = CHANGE_CREATE_OPTION
+ALTER TABLE test_table COLLATE=utf8mb4_0900_ai_ci, ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 1 step
+# before the patch, this innodb created a new table
+# check with SET GLOBAL innodb_print_ddl_logs = ON; SET GLOBAL log_error_verbosity = 3;
+
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+# ha_alter_info->handler_flags = ALTER_COLUMN_EQUAL_PACK_LENGTH & ALTER_COLUMN_DEFAULT & CHANGE_CREATE_OPTION
+ALTER TABLE test_table
+    MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+--echo # with indexed columns
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+    INDEX(`field1`),
+    INDEX(`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test_table
+    MODIFY field1 varchar (10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    ALGORITHM=INPLACE;
+
+ALTER TABLE test_table COLLATE=utf8mb4_0900_ai_ci, ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 1 step
+# before the patch, innodb created a new table
+# check with SET GLOBAL innodb_print_ddl_logs = ON; SET GLOBAL log_error_verbosity = 3;
+
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+    INDEX(`field1`),
+    INDEX(`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test_table
+    MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+# Verify that combining ADD INDEX with AUTO_INCREMENT= does not crash the
+# server (regression: INNOBASE_INPLACE_NO_REBUILD incorrectly masked ADD_INDEX,
+# causing prepare/alter to early-exit while commit tried to find the unbuilt index).
+--echo # ADD INDEX + AUTO_INCREMENT= in 1 step
+CREATE TABLE test_table (a INT, b INT) ENGINE=InnoDB;
+
+ALTER TABLE test_table ADD INDEX idx_b(b), AUTO_INCREMENT=7, ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+# Verify that combining DROP INDEX with COLLATE= in one INPLACE
+# step does not silently discard the index drop.
+--echo # DROP INDEX + COLLATE= in 1 step
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    INDEX(`field1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+ALTER TABLE test_table
+    DROP INDEX field1,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo #
+--echo # Same operations with ALGORITHM=INSTANT (pure metadata changes)
+--echo #
+
+--echo # utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 2 steps, INSTANT
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+# ha_alter_info->handler_flags = ALTER_COLUMN_EQUAL_PACK_LENGTH & ALTER_COLUMN_DEFAULT
+ALTER TABLE test_table
+    MODIFY field1 varchar (10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    ALGORITHM=INSTANT;
+
+# ha_alter_info->handler_flags = CHANGE_CREATE_OPTION
+ALTER TABLE test_table COLLATE=utf8mb4_0900_ai_ci, ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # utf8mb4_general_ci ===>>> utf8mb4_0900_ai_ci ### in 1 step, INSTANT
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+# ha_alter_info->handler_flags = ALTER_COLUMN_EQUAL_PACK_LENGTH & ALTER_COLUMN_DEFAULT & CHANGE_CREATE_OPTION
+ALTER TABLE test_table
+    MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # indexed columns collation change with INSTANT must still be rejected
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `field2` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+    INDEX(`field1`),
+    INDEX(`field2`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE test_table
+    MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    MODIFY field2 text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # ADD INDEX + AUTO_INCREMENT= with INSTANT must be rejected (index work required)
+CREATE TABLE test_table (a INT, b INT) ENGINE=InnoDB;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE test_table ADD INDEX idx_b(b), AUTO_INCREMENT=7, ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # DROP INDEX + COLLATE= with INSTANT must be rejected (index work required)
+CREATE TABLE `test_table`
+(
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    INDEX(`field1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE test_table
+    DROP INDEX field1,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # standalone AUTO_INCREMENT= with INSTANT (non-rebuild CREATE OPTION)
+CREATE TABLE test_table (a INT AUTO_INCREMENT PRIMARY KEY, b INT) ENGINE=InnoDB;
+
+ALTER TABLE test_table AUTO_INCREMENT=100, ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;
+
+
+--echo # partitioned table: non-indexed column COLLATE change with INSTANT
+CREATE TABLE `test_table`
+(
+    `id` int NOT NULL,
+    `field1` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+PARTITION BY HASH(`id`) PARTITIONS 4;
+
+ALTER TABLE test_table
+    MODIFY field1 varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+    COLLATE=utf8mb4_0900_ai_ci,
+    ALGORITHM=INSTANT;
+
+SHOW CREATE TABLE test_table;
+
+DROP TABLE test_table;

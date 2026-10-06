@@ -3669,10 +3669,39 @@ static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
         case DB_SUCCESS:
           break;
 
-        case DB_UNSUPPORTED:
+        case DB_UNSUPPORTED: {
+          /* A block has the encrypt bit set, but the redo log is not
+          encrypted.  The block is trusted to be really encrypted only if
+          its header number is the one expected at this position.  A
+          torn or garbage block written just before the server was killed
+          can have any bits set; it is the abrupt end of the redo log,
+          exactly like a block with a wrong header number or checksum.
+          Hand the blocks up to and including it to recv_scan_log_recs(),
+          which rejects it by its header number and ends the scan there,
+          as it does for every other torn block.  The blocks before it
+          are valid, and there is at least one block to hand over even
+          when the torn block is the first one read. */
+          lsn_t block_lsn = start_lsn;
+
+          for (const byte *ptr = buf; ptr < buf + len;
+               ptr += OS_FILE_LOG_BLOCK_SIZE,
+                          block_lsn += OS_FILE_LOG_BLOCK_SIZE) {
+            if (!log_block_get_encrypt_bit(ptr)) {
+              continue;
+            }
+
+            if (log_block_get_hdr_no(ptr) !=
+                log_block_convert_lsn_to_hdr_no(block_lsn)) {
+              return block_lsn + OS_FILE_LOG_BLOCK_SIZE;
+            }
+
+            break;
+          }
+
           ib::error(ER_IB_MSG_CANT_DECRYPT_REDO_LOG, ulonglong{source_offset},
                     file_handle.file_path().c_str());
           return 0;
+        }
 
         default:
           return 0;

@@ -101,19 +101,23 @@
 
   Cosine distance returns +Inf as a sentinel when either vector has zero norm
   (undefined cosine); the SQL layer (Item_func_vector_distance::val_real)
-  detects it via std::isinf and maps it to NULL.
+  detects it via std::isinf and maps it to NULL.  The SIMD kernels redo tiny
+  (underflowed) sums in double, so +Inf means a real zero vector.
 */
 
 #include "vector-common/vector_distance.h"
 
+#include <bit>
 #include <cassert>
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <limits>
 
-#include "mysql/attribute.h"  // MY_ATTRIBUTE
+#include "mysql/attribute.h"                 // MY_ATTRIBUTE
+#include "vector-common/vector_constants.h"  // max_dimensions
 
 // Platform guards — mirror ut0crc32.h:53-69
 //
@@ -144,9 +148,9 @@
 // float * that is not suitably aligned is UB, so each element is fetched
 // with memcpy into a local float instead.  Compilers see the fixed 4-byte
 // size and emit a single load instruction — no function call, no overhead.
-// Scalar path accumulates in double.  Inputs are float32, but double
-// avoids overflow/precision loss (e.g. (2e38)² is Inf in float, finite
-// in double) and matches the SIMD reduction path below.
+// Scalar kernels accumulate in double, so float32 overflow ((2e38)² = Inf)
+// and underflow ((1e-23)² = 0) cannot happen.  SIMD kernels fall back here
+// when theirs does.
 // ---------------------------------------------------------------------------
 
 static double euclidean_scalar(const char *a_raw, const char *b_raw,
@@ -156,7 +160,7 @@ static double euclidean_scalar(const char *a_raw, const char *b_raw,
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
     memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
+    const double d = (double)av - bv;
     result += d * d;
   }
   return result;
@@ -203,6 +207,52 @@ static double manhattan_scalar(const char *a_raw, const char *b_raw,
   }
   return result;
 }
+
+#ifndef VECTOR_DISTANCE_DEFAULT
+// Only the SIMD kernels need this; a scalar-only build has no caller and an
+// unused static function is an error here.
+
+// Float32 products overflow to Inf near FLT_MAX and become subnormal or zero
+// for tiny inputs (elements around 1e-23).  The sum then loses precision or
+// collapses to 0: Euclidean 0 for distinct vectors, cosine NULL for non-zero
+// ones.  n subnormal products err by at most n * 2^-150, i.e. one float32
+// rounding once the sum is at least n * FLT_MIN.  The threshold is a constant
+// because n <= max_dimensions; computing n * FLT_MIN per call cost ~10% at
+// small dims.  Normally-scaled data never falls back.
+static constexpr double kMinExactSum =
+    static_cast<double>(vector_constants::max_dimensions + 1) * FLT_MIN;
+
+// |x| < kMinExactSum, Inf or NaN.  The bits of a non-negative double order
+// like its value, so this is one unsigned compare.
+static inline bool sum_out_of_range(double x) {
+  constexpr uint64_t kLo = std::bit_cast<uint64_t>(kMinExactSum);
+  constexpr uint64_t kHi = std::bit_cast<uint64_t>(DBL_MAX);
+  const uint64_t bits = std::bit_cast<uint64_t>(x) & ~(uint64_t{1} << 63);
+  return bits - kLo > kHi - kLo;
+}
+
+// Cosine: redo in double (cosine_scalar) when either norm is out of range.
+// ab is only checked for finiteness: it is legitimately 0 for orthogonal
+// vectors, and with both norms in range its error is bounded too.
+static bool cosine_needs_scalar(double ab, double norm_a, double norm_b) {
+  return !std::isfinite(ab) || sum_out_of_range(norm_a) ||
+         sum_out_of_range(norm_b);
+}
+
+// Euclidean / dot: same check on the single sum (see kMinExactSum).  Exact-zero
+// results (orthogonal dot) also fall back.
+static bool sum_needs_scalar(double sum) { return sum_out_of_range(sum); }
+
+// A zero SIMD sum may be underflow.  Byte-identical inputs are exactly 0, so
+// memcmp avoids the slow scalar pass; +0.0 vs -0.0 differences take the
+// scalar pass, which is still correct.
+static double euclidean_fallback(const char *a_raw, const char *b_raw,
+                                 uint32_t dims, double simd_sum) {
+  if (simd_sum == 0.0 && memcmp(a_raw, b_raw, dims * sizeof(float)) == 0)
+    return 0.0;
+  return euclidean_scalar(a_raw, b_raw, dims);
+}
+#endif  // !VECTOR_DISTANCE_DEFAULT
 
 // ---------------------------------------------------------------------------
 // Function pointers — initialized to scalar; init_vector_distance_functions()
@@ -268,10 +318,13 @@ static bool cpu_has_avx512f() {
 // SIMD loops accumulate in float32 registers for full vector width.
 // Each kernel promotes to double once (horizontal sum + scalar tail);
 // float32-only reduction would not be faster and loses precision.
-// However, individual float32 products (d*d for Euclidean, a[i]*b[i] for
-// cosine/dot) can overflow to +Inf for extreme float32 inputs (e.g. element
-// difference near FLT_MAX).  Each kernel checks for a non-finite horizontal
-// sum and falls back to the scalar path, which uses double throughout.
+// Overflowed or underflowed float32 sums are redone in double; see
+// kMinExactSum and the *_needs_scalar() helpers.  The check runs before the
+// tail: a zero or underflowed head (including dims below the lane width)
+// sends the whole vector to scalar, not just the head.  Scalar tails run after
+// the check, so they promote to double first ((double)av - bv).  Manhattan
+// needs only the isfinite check: it has no products, and a subnormal
+// subtraction is exact.
 
 // Tier 1 — SSE4.2, 4 floats per iteration -----------------------------------
 
@@ -296,12 +349,13 @@ static double euclidean_sse(const char *a_raw, const char *b_raw,
     sum = _mm_add_ps(sum, _mm_mul_ps(d, d));
   }
   double result = hsum128_sse(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(result)) [[unlikely]]
+    return euclidean_fallback(a_raw, b_raw, dims, result);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
     memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
+    const double d = (double)av - bv;
     result += d * d;
   }
   return result;
@@ -325,7 +379,7 @@ static double cosine_sse(const char *a_raw, const char *b_raw, uint32_t dims) {
   double ab = hsum128_sse(vec_ab);
   double norm_a = hsum128_sse(vec_norm_a);
   double norm_b = hsum128_sse(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
+  if (cosine_needs_scalar(ab, norm_a, norm_b)) [[unlikely]]
     return cosine_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
@@ -336,6 +390,7 @@ static double cosine_sse(const char *a_raw, const char *b_raw, uint32_t dims) {
     norm_b += (double)bv * bv;
   }
   const double denom = sqrt(norm_a * norm_b);
+  // +Inf sentinel: genuine zero vector (underflow handled above).
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
   return 1.0 - ab / denom;
 }
@@ -351,7 +406,8 @@ static double dot_product_sse(const char *a_raw, const char *b_raw,
     vec_ab = _mm_add_ps(vec_ab,
                         _mm_mul_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i)));
   double ab = hsum128_sse(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(ab)) [[unlikely]]
+    return dot_product_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
@@ -414,12 +470,13 @@ static double euclidean_avx2(const char *a_raw, const char *b_raw,
     sum = _mm256_fmadd_ps(d, d, sum);
   }
   double result = hsum256(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(result)) [[unlikely]]
+    return euclidean_fallback(a_raw, b_raw, dims, result);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
     memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
+    const double d = (double)av - bv;
     result += d * d;
   }
   return result;
@@ -443,7 +500,7 @@ static double cosine_avx2(const char *a_raw, const char *b_raw, uint32_t dims) {
   double ab = hsum256(vec_ab);
   double norm_a = hsum256(vec_norm_a);
   double norm_b = hsum256(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
+  if (cosine_needs_scalar(ab, norm_a, norm_b)) [[unlikely]]
     return cosine_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
@@ -454,6 +511,7 @@ static double cosine_avx2(const char *a_raw, const char *b_raw, uint32_t dims) {
     norm_b += (double)bv * bv;
   }
   const double denom = sqrt(norm_a * norm_b);
+  // +Inf sentinel: genuine zero vector (underflow handled above).
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
   return 1.0 - ab / denom;
 }
@@ -469,7 +527,8 @@ static double dot_product_avx2(const char *a_raw, const char *b_raw,
     vec_ab =
         _mm256_fmadd_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i), vec_ab);
   double ab = hsum256(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(ab)) [[unlikely]]
+    return dot_product_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
@@ -518,12 +577,13 @@ static double euclidean_avx512(const char *a_raw, const char *b_raw,
     sum = _mm512_fmadd_ps(d, d, sum);
   }
   double result = _mm512_reduce_add_ps(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(result)) [[unlikely]]
+    return euclidean_fallback(a_raw, b_raw, dims, result);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
     memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
+    const double d = (double)av - bv;
     result += d * d;
   }
   return result;
@@ -548,7 +608,7 @@ static double cosine_avx512(const char *a_raw, const char *b_raw,
   double ab = _mm512_reduce_add_ps(vec_ab);
   double norm_a = _mm512_reduce_add_ps(vec_norm_a);
   double norm_b = _mm512_reduce_add_ps(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
+  if (cosine_needs_scalar(ab, norm_a, norm_b)) [[unlikely]]
     return cosine_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
@@ -559,6 +619,7 @@ static double cosine_avx512(const char *a_raw, const char *b_raw,
     norm_b += (double)bv * bv;
   }
   const double denom = sqrt(norm_a * norm_b);
+  // +Inf sentinel: genuine zero vector (underflow handled above).
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
   return 1.0 - ab / denom;
 }
@@ -574,7 +635,8 @@ static double dot_product_avx512(const char *a_raw, const char *b_raw,
     vec_ab =
         _mm512_fmadd_ps(_mm512_loadu_ps(a + i), _mm512_loadu_ps(b + i), vec_ab);
   double ab = _mm512_reduce_add_ps(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(ab)) [[unlikely]]
+    return dot_product_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
@@ -639,12 +701,13 @@ static double euclidean_neon(const char *a_raw, const char *b_raw,
     sum = vfmaq_f32(sum, d, d);
   }
   double result = hsum4(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(result)) [[unlikely]]
+    return euclidean_fallback(a_raw, b_raw, dims, result);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
     memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
+    const double d = (double)av - bv;
     result += d * d;
   }
   return result;
@@ -668,7 +731,7 @@ static double cosine_neon(const char *a_raw, const char *b_raw, uint32_t dims) {
   double ab = hsum4(vec_ab);
   double norm_a = hsum4(vec_norm_a);
   double norm_b = hsum4(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
+  if (cosine_needs_scalar(ab, norm_a, norm_b)) [[unlikely]]
     return cosine_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
@@ -679,6 +742,7 @@ static double cosine_neon(const char *a_raw, const char *b_raw, uint32_t dims) {
     norm_b += (double)bv * bv;
   }
   const double denom = sqrt(norm_a * norm_b);
+  // +Inf sentinel: genuine zero vector (underflow handled above).
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
   return 1.0 - ab / denom;
 }
@@ -693,7 +757,8 @@ static double dot_product_neon(const char *a_raw, const char *b_raw,
   for (; i + 4 <= dims; i += 4)
     vec_ab = vfmaq_f32(vec_ab, vld1q_f32(a + i), vld1q_f32(b + i));
   double ab = hsum4(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(ab)) [[unlikely]]
+    return dot_product_scalar(a_raw, b_raw, dims);
   for (; i < dims; i++) {
     float av, bv;
     memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
@@ -764,7 +829,8 @@ static double euclidean_sve2(const char *a_raw, const char *b_raw,
     pg = svwhilelt_b32_u32(i, dims);
   }
   const double result = svaddv_f32(svptrue_b32(), sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(result)) [[unlikely]]
+    return euclidean_fallback(a_raw, b_raw, dims, result);
   return result;
 }
 
@@ -789,9 +855,10 @@ static double cosine_sve2(const char *a_raw, const char *b_raw, uint32_t dims) {
   const double ab = svaddv_f32(svptrue_b32(), vec_ab);
   const double norm_a = svaddv_f32(svptrue_b32(), vec_norm_a);
   const double norm_b = svaddv_f32(svptrue_b32(), vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
+  if (cosine_needs_scalar(ab, norm_a, norm_b)) [[unlikely]]
     return cosine_scalar(a_raw, b_raw, dims);
   const double denom = sqrt(norm_a * norm_b);
+  // +Inf sentinel: genuine zero vector (underflow handled above).
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
   return 1.0 - ab / denom;
 }
@@ -812,7 +879,8 @@ static double dot_product_sve2(const char *a_raw, const char *b_raw,
     pg = svwhilelt_b32_u32(i, dims);
   }
   const double ab = svaddv_f32(svptrue_b32(), vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
+  if (sum_needs_scalar(ab)) [[unlikely]]
+    return dot_product_scalar(a_raw, b_raw, dims);
   return ab;
 }
 

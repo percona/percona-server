@@ -561,9 +561,18 @@ pushed into the access path and the now-redundant sort is elided.
 
 | handler method | what it does |
 |---|---|
-| `vec_init()` | `rnd_init()`: sets up the clustered-index positioning the row fetch needs |
+| `vec_init()` | `rnd_init()` for the clustered-index positioning the row fetch needs; leaves `active_index` on the vector key |
 | `vec_read_first(item, buf, limit)` | evaluates the query vector, runs the first search with `k = LIMIT`, returns the first row |
 | `vec_read_next(buf)` | returns the next row, taking the next candidate from the open scan |
+
+`VectorSearchIterator::DoInit()` calls `ha_index_init()` on the vector key and then `vec_init()`,
+the same two steps `FullTextSearchIterator::DoInit()` takes with `ft_init()`. `ha_index_init()`
+marks the handler `inited = INDEX`, and InnoDB's `index_init()` → `change_active_index()` refuses a
+vector index newer than the snapshot, or a corrupt one, as it does for any index. The scan is then
+an ordinary index scan to the rest of the server: the iterator's `ha_index_or_rnd_end()` reaches
+`index_end()`, which closes the scan and releases the aux table, and the "handler already
+initialised" assertions in `ha_index_init()`, `ha_rnd_init()` and `ha_reset()` catch any other
+access started on the handler while the scan is open.
 
 They exist because the ordinary index API **cannot express the question**. `index_read` takes a
 key and a comparison operator; `index_next` walks in key order; `records_in_range` estimates a

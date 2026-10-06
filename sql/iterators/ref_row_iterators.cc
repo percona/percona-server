@@ -702,8 +702,16 @@ VectorSearchIterator::~VectorSearchIterator() {
 }
 
 bool VectorSearchIterator::DoInit() {
+  // ha_index_init() on the vector key, then vec_init(), as
+  // FullTextSearchIterator does with ft_init(): the scan is an index scan,
+  // so the destructor's ha_index_or_rnd_end() ends it.
   if (!table()->file->inited) {
-    int error = table()->file->vec_init();
+    int error = table()->file->ha_index_init(m_ref->key, false);
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+    error = table()->file->vec_init();
     if (error) {
       PrintError(error);
       return true;

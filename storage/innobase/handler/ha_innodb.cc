@@ -1332,6 +1332,8 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"dblwr_writes", (char *)&export_vars.innodb_dblwr_writes, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"hnsw_memory_used", (char *)&export_vars.innodb_hnsw_memory_used,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"ibuf_free_list", (char *)&export_vars.innodb_ibuf_free_list, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"ibuf_segment_size", (char *)&export_vars.innodb_ibuf_segment_size,

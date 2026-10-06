@@ -542,4 +542,40 @@ TEST_F(Vault_config_test, ParseFileWithValuesWithSpacesInIt) {
   EXPECT_STREQ(config_pod->vault_ca.c_str(), "/some/  path");
 }
 
+TEST_F(Vault_config_test, ParseFileWithVaultNamespace) {
+  std::ofstream my_file;
+  create_empty_credentials_file(my_file);
+  my_file << "{" << std::endl;
+  my_file << "  \"timeout\": 10," << std::endl;
+  my_file << "  \"vault_url\": \"http://127.0.0.1:8200\"," << std::endl;
+  my_file << "  \"secret_mount_point\": \"secret\"," << std::endl;
+  my_file << "  \"token\": \"123-123-123\"," << std::endl;
+  my_file << "  \"vault_namespace\": \"  myorg/myteam  \"" << std::endl;
+  my_file << "}" << std::endl;
+  my_file.close();
+
+  auto config_pod = std::make_unique<Config_pod>();
+  EXPECT_FALSE(find_and_read_config_file(config_pod));
+
+  EXPECT_STREQ(config_pod->vault_namespace.c_str(), "myorg/myteam");
+}
+
+TEST_F(Vault_config_test, ParseFileWithVaultNamespaceBeingNumeric) {
+  std::ofstream my_file;
+  create_empty_credentials_file(my_file);
+  my_file << "{" << std::endl;
+  my_file << "  \"timeout\": 10," << std::endl;
+  my_file << "  \"vault_url\": \"http://127.0.0.1:8200\"," << std::endl;
+  my_file << "  \"secret_mount_point\": \"secret\"," << std::endl;
+  my_file << "  \"token\": \"123-123-123\"," << std::endl;
+  my_file << "  \"vault_namespace\": 1" << std::endl;
+  my_file << "}" << std::endl;
+  my_file.close();
+
+  auto config_pod = std::make_unique<Config_pod>();
+  EXPECT_TRUE(find_and_read_config_file(config_pod));
+
+  EXPECT_TRUE(config_pod->vault_namespace.empty());
+}
+
 }  // namespace keyring_vault_config_unittest

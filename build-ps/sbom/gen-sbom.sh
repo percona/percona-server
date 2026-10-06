@@ -111,50 +111,6 @@ is_submodule() {
     return 1
 }
 
-: > "$COMPONENTS"
-UNPINNED=""
-EXCLUDED=""
-
-while IFS='|' read -r name version license ships linkage path; do
-    [ -n "$name" ] || continue
-
-    case "$ships" in
-        yes) ;;
-        tarball) [ "$ARTIFACT" = "tarball" ] || continue ;;
-        *) continue ;;
-    esac
-
-    case ",${EXCLUDE}," in
-        *",${name},"*) EXCLUDED="${EXCLUDED} ${name}"; continue ;;
-    esac
-
-    [ -n "$version" ] || die "$name: ships=$ships with an empty version"
-
-    commit=""
-    if [ "$path" != "-" ] && is_submodule "$path"; then
-        commit=$(resolve_commit "$path") || commit=""
-        [ -n "$commit" ] || UNPINNED="${UNPINNED} ${name}"
-    fi
-
-    [ -n "$license" ] || license="NOASSERTION"
-
-    printf '%s|%s|%s|%s|generic|vendored|%s\n' \
-        "$name" "$version" "$license" "$linkage" "$commit" >> "$COMPONENTS"
-done < "$ROWS"
-
-if [ -s "$COMPONENTS" ]; then :; else
-    die "no components selected for artifact '$ARTIFACT' - registry is empty or over-filtered"
-fi
-
-if [ -n "$EXCLUDED" ]; then
-    echo "gen-sbom: excluded by caller (resolved to a system library):${EXCLUDED}"
-fi
-
-if [ -n "$UNPINNED" ]; then
-    echo "gen-sbom: WARNING: no commit resolved for submodule component(s):${UNPINNED}" >&2
-    echo "gen-sbom: WARNING: pass --pins, or place submodule-pins.txt under <root>/build-ps/sbom/" >&2
-fi
-
 row_is_sane() {
     [ "$(printf '%s' "$1" | awk -F'|' 'END { print NF }')" = "3" ] || return 1
     case $1 in
@@ -168,33 +124,167 @@ resolve_owner() {
     if command -v rpm >/dev/null 2>&1; then
         _r=$(rpm -qf --qf '%{NAME}|%{VERSION}-%{RELEASE}|%{LICENSE}\n' "$_p" 2>/dev/null | head -1) || _r=""
         case $_r in
-            *'|'*'|'*) if row_is_sane "$_r"; then printf '%s|rpm' "$_r"; return 0; fi ;;
+            *'|'*'|'*)
+                if row_is_sane "$_r"; then
+                    _rn=$(printf '%s' "$_r" | cut -d'|' -f1)
+                    _rv=$(printf '%s' "$_r" | cut -d'|' -f2)
+                    _rl=$(printf '%s' "$_r" | cut -d'|' -f3)
+                    # rpm's %{LICENSE} is a distro-formatted summary (e.g.
+                    # "LGPLv2+ and GPLv2+"), not an SPDX license expression;
+                    # declaring it as one fails strict SPDX validation. Emit
+                    # NOASSERTION for the license slot and carry the raw
+                    # string as a 5th field for the caller to attach as a
+                    # comment/property instead.
+                    printf '%s|%s|NOASSERTION|rpm|%s' "$_rn" "$_rv" "$_rl"
+                    return 0
+                fi
+                ;;
         esac
     fi
     if command -v dpkg-query >/dev/null 2>&1; then
         _pk=$(dpkg -S "$_p" 2>/dev/null \
               | grep -v '^diversion by ' \
               | head -1 | cut -d: -f1) || _pk=""
+        if [ -z "$_pk" ]; then
+            # usrmerge systems: readlink -f canonicalizes /lib -> /usr/lib,
+            # but a package built before the merge still lists the /lib path
+            # in dpkg's database. Retry with the counterpart path.
+            case "$_p" in
+                /usr/*) _alt=${_p#/usr} ;;
+                *)      _alt="/usr$_p" ;;
+            esac
+            if [ -e "$_alt" ]; then
+                _pk=$(dpkg -S "$_alt" 2>/dev/null \
+                      | grep -v '^diversion by ' \
+                      | head -1 | cut -d: -f1) || _pk=""
+            fi
+        fi
         if [ -n "$_pk" ]; then
             _v=$(dpkg-query -W -f='${Version}\n' "$_pk" 2>/dev/null | head -1) || _v=""
             [ -n "$_v" ] || _v="unknown"
-            printf '%s|%s|NOASSERTION|deb' "$_pk" "$_v"
+            printf '%s|%s|NOASSERTION|deb|' "$_pk" "$_v"
             return 0
         fi
     fi
     return 1
 }
 
-SCANNED=0
-RESOLVED=0
+HOSTMAP="${WORK}/hostmap"
+HOSTMAP_BUILT=""
 
-if [ -n "$SCAN_LIBS" ]; then
-    HOSTMAP="${WORK}/hostmap"
+build_hostmap() {
+    [ -z "$HOSTMAP_BUILT" ] || return 0
+    HOSTMAP_BUILT=1
     ldconfig -p 2>/dev/null | awk '/=>/ { print $NF }' | while IFS= read -r _p; do
         _rp=$(readlink -f "$_p" 2>/dev/null) || continue
         [ -f "$_rp" ] || continue
         printf '%s|%s\n' "$(basename "$_rp")" "$_rp"
     done | sort -u > "$HOSTMAP" || true
+}
+
+# Logical registry name -> runtime shared-object basename, for components
+# excluded via --exclude because the build links the host's copy instead of
+# the bundled tree. Default is 'lib<name>.so'; list exceptions as they come up.
+system_lib_soname() {
+    case "$1" in
+        zlib) printf 'libz' ;;
+        *)    printf 'lib%s' "$1" ;;
+    esac
+}
+
+# Resolve an excluded component to the host package that actually provides it
+# at build time, so the SBOM still names what the binary links against.
+# Prints 'name|version|license|type|declared-license' on success (the last
+# field is a non-SPDX raw string, empty unless resolved via rpm).
+resolve_system_component() {
+    _name=$1
+    build_hostmap
+    _pat="$(system_lib_soname "$_name").so"
+    _hp=$(awk -F'|' -v p="$_pat" 'index($1, p) == 1 { print $2; exit }' "$HOSTMAP" 2>/dev/null) || _hp=""
+    [ -n "$_hp" ] || return 1
+    resolve_owner "$_hp"
+}
+
+: > "$COMPONENTS"
+UNPINNED=""
+EXCLUDED_RESOLVED=""
+EXCLUDED_UNRESOLVED=""
+
+while IFS='|' read -r name version license ships linkage path; do
+    [ -n "$name" ] || continue
+
+    # A source tarball is the whole tree (minus .git/.bzr) - every
+    # registered component is physically present in it, whether or not it
+    # is ever built/shipped in binary form, so --artifact source takes
+    # everything instead of filtering by ships=.
+    if [ "$ARTIFACT" != "source" ]; then
+        case "$ships" in
+            yes) ;;
+            tarball) [ "$ARTIFACT" = "tarball" ] || continue ;;
+            *) continue ;;
+        esac
+    fi
+
+    case ",${EXCLUDE}," in
+        *",${name},"*)
+            if owner=$(resolve_system_component "$name"); then
+                oname=$(printf '%s' "$owner" | cut -d'|' -f1)
+                over=$(printf '%s' "$owner"  | cut -d'|' -f2)
+                olic=$(printf '%s' "$owner"  | cut -d'|' -f3)
+                otype=$(printf '%s' "$owner" | cut -d'|' -f4)
+                odlic=$(printf '%s' "$owner" | cut -d'|' -f5)
+                [ -n "$olic" ] || olic="NOASSERTION"
+                if awk -F'|' -v n="$oname" '$1 == n { f = 1 } END { exit f ? 0 : 1 }' "$COMPONENTS"; then
+                    EXCLUDED_RESOLVED="${EXCLUDED_RESOLVED} ${name}(already present as ${oname})"
+                else
+                    printf '%s|%s|%s|shared-lib|%s|system||%s\n' \
+                        "$oname" "$over" "$olic" "$otype" "$odlic" >> "$COMPONENTS"
+                    EXCLUDED_RESOLVED="${EXCLUDED_RESOLVED} ${name}->${oname}"
+                fi
+            else
+                EXCLUDED_UNRESOLVED="${EXCLUDED_UNRESOLVED} ${name}"
+            fi
+            continue
+            ;;
+    esac
+
+    [ -n "$version" ] || die "$name: ships=$ships with an empty version"
+
+    commit=""
+    if [ "$path" != "-" ] && is_submodule "$path"; then
+        commit=$(resolve_commit "$path") || commit=""
+        [ -n "$commit" ] || UNPINNED="${UNPINNED} ${name}"
+    fi
+
+    [ -n "$license" ] || license="NOASSERTION"
+
+    printf '%s|%s|%s|%s|generic|vendored|%s|\n' \
+        "$name" "$version" "$license" "$linkage" "$commit" >> "$COMPONENTS"
+done < "$ROWS"
+
+if [ -s "$COMPONENTS" ]; then :; else
+    die "no components selected for artifact '$ARTIFACT' - registry is empty or over-filtered"
+fi
+
+if [ -n "$EXCLUDED_RESOLVED" ]; then
+    echo "gen-sbom: excluded vendored component(s) resolved to the host package actually linked:${EXCLUDED_RESOLVED}"
+fi
+
+if [ -n "$EXCLUDED_UNRESOLVED" ]; then
+    echo "gen-sbom: WARNING: excluded component(s) could not be resolved to a host package and are omitted from the SBOM:${EXCLUDED_UNRESOLVED}" >&2
+    echo "gen-sbom: WARNING: is rpm/dpkg-query available, and does ldconfig list the linked library?" >&2
+fi
+
+if [ -n "$UNPINNED" ]; then
+    echo "gen-sbom: WARNING: no commit resolved for submodule component(s):${UNPINNED}" >&2
+    echo "gen-sbom: WARNING: pass --pins, or place submodule-pins.txt under <root>/build-ps/sbom/" >&2
+fi
+
+SCANNED=0
+RESOLVED=0
+
+if [ -n "$SCAN_LIBS" ]; then
+    build_hostmap
 
     for f in "$SCAN_LIBS"/*; do
         [ -L "$f" ] && continue
@@ -209,10 +299,11 @@ if [ -n "$SCAN_LIBS" ]; then
         over=$(printf '%s' "$owner" | cut -d'|' -f2)
         olic=$(printf '%s' "$owner" | cut -d'|' -f3)
         otype=$(printf '%s' "$owner" | cut -d'|' -f4)
+        odlic=$(printf '%s' "$owner" | cut -d'|' -f5)
         [ -n "$olic" ] || olic="NOASSERTION"
         if ! awk -F'|' -v n="$oname" '$1 == n { found = 1 } END { exit found ? 0 : 1 }' "$COMPONENTS"; then
-            printf '%s|%s|%s|shared-lib|%s|host|\n' \
-                "$oname" "$over" "$olic" "$otype" >> "$COMPONENTS"
+            printf '%s|%s|%s|shared-lib|%s|host||%s\n' \
+                "$oname" "$over" "$olic" "$otype" "$odlic" >> "$COMPONENTS"
         fi
     done
 
@@ -275,7 +366,7 @@ awk -F'|' -v pkg="$PKG" -v ver="$VER" -v uuid="$UUID" -v created="$CREATED" \
     -v artifact="$ARTIFACT" "$AWK_LIB"'
 {
     name[NR] = $1; vers[NR] = $2; lic[NR] = $3
-    link[NR] = $4; ptype[NR] = $5; orig[NR] = $6; commit[NR] = $7
+    link[NR] = $4; ptype[NR] = $5; orig[NR] = $6; commit[NR] = $7; dlic[NR] = $8
     n = NR
 }
 END {
@@ -320,7 +411,10 @@ END {
             printf "      \"sourceInfo\": \"linkage=%s origin=%s commit=%s\",\n", jesc(link[i]), jesc(orig[i]), jesc(commit[i])
         else
             printf "      \"sourceInfo\": \"linkage=%s origin=%s\",\n", jesc(link[i]), jesc(orig[i])
-        printf "      \"comment\": \"artifact=%s\"\n", jesc(artifact)
+        if (dlic[i] != "")
+            printf "      \"comment\": \"artifact=%s; declared-license=%s\"\n", jesc(artifact), jesc(dlic[i])
+        else
+            printf "      \"comment\": \"artifact=%s\"\n", jesc(artifact)
         printf "    }"
     }
     printf "\n  ],\n"
@@ -338,7 +432,7 @@ awk -F'|' -v pkg="$PKG" -v ver="$VER" -v uuid="$UUID" -v created="$CREATED" \
     -v artifact="$ARTIFACT" "$AWK_LIB"'
 {
     name[NR] = $1; vers[NR] = $2; lic[NR] = $3
-    link[NR] = $4; ptype[NR] = $5; orig[NR] = $6; commit[NR] = $7
+    link[NR] = $4; ptype[NR] = $5; orig[NR] = $6; commit[NR] = $7; dlic[NR] = $8
     n = NR
 }
 END {
@@ -374,7 +468,11 @@ END {
         printf "        {\"name\": \"percona:origin\", \"value\": \"%s\"},\n", jesc(orig[i])
         if (commit[i] != "")
             printf "        {\"name\": \"percona:commit\", \"value\": \"%s\"},\n", jesc(commit[i])
-        printf "        {\"name\": \"percona:artifact\", \"value\": \"%s\"}\n", jesc(artifact)
+        printf "        {\"name\": \"percona:artifact\", \"value\": \"%s\"}", jesc(artifact)
+        if (dlic[i] != "")
+            printf ",\n        {\"name\": \"percona:declared-license\", \"value\": \"%s\"}\n", jesc(dlic[i])
+        else
+            printf "\n"
         printf "      ]\n"
         printf "    }%s\n", (i < n ? "," : "")
     }

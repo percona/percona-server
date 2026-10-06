@@ -4816,9 +4816,9 @@ void get_privilege_access_maps(
   boost::vector_property_map<boost::default_color_type> v_color(
       boost::num_vertices(*g_granted_roles));
 
-  const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map, sp_map,
-                      func_map, with_admin_acl, dynamic_acl, &restrictions,
-                      effective_grants);
+  const Get_access_maps vis(acl_user, access, db_map, db_wild_map, table_map,
+                            sp_map, func_map, with_admin_acl, dynamic_acl,
+                            &restrictions, effective_grants);
   if (has_granted_roles || mandatory_roles.size() > 0) {
     bool acl_user_has_vertex = (user_vertex_it != g_authid_to_vertex->end());
     if (!acl_user_has_vertex) return;

@@ -963,9 +963,9 @@ static void row_ins_foreign_fill_virtual(upd_node_t *cascade, const rec_t *rec,
       continue;
     }
 
-    const dfield_t *const vfield = innobase_get_computed_value(
-        &prebuilt->blob_heap, update->old_vrow, col, table, &v_heap,
-        update->heap, thd, nullptr);
+    const dfield_t *const vfield =
+        innobase_get_computed_value(&prebuilt->blob_heap, update->old_vrow, col,
+                                    table, &v_heap, update->heap, thd, nullptr);
 
     if (vfield == nullptr) {
       *err = DB_COMPUTE_VALUE_FAILED;

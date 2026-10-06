@@ -15,8 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* This C++ file's header file */
-#include <cinttypes>
 #include "./rdb_index_merge.h"
+#include <cinttypes>
 
 // Required for std::numeric_limits<uint32_t>::max() used in DBUG_EXECUTE_IF:
 #ifdef UNIV_DEBUG

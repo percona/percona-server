@@ -334,7 +334,7 @@ void rec_init_offsets(const rec_t *rec, const dict_index_t *index,
       } else {
         len = offs += field->fixed_len;
       }
-resolved:
+    resolved:
       rec_offs_base(offsets)[i + 1] = len;
     } while (++i < rec_offs_n_fields(offsets));
 

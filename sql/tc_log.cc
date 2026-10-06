@@ -514,8 +514,7 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all) {
   int rc = trx_coordinator::commit_in_engines(thd, all);
   sunlock();
 
-  if (rc)
-    return RESULT_INCONSISTENT;  // Transaction logged, but not committed
+  if (rc) return RESULT_INCONSISTENT;  // Transaction logged, but not committed
 
   /* If cookie is non-zero, something was logged */
   if (cookie) unlog(cookie, xid);

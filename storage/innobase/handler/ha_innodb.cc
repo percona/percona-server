@@ -5822,8 +5822,9 @@ static int innodb_init(void *p) {
       HTON_SUPPORTS_ATOMIC_DDL | HTON_CAN_RECREATE |
       HTON_SUPPORTS_SECONDARY_ENGINE | HTON_SUPPORTS_TABLE_ENCRYPTION |
       HTON_SUPPORTS_GENERATED_INVISIBLE_PK | HTON_SUPPORTS_BULK_LOAD |
-  // TODO(WL9440): to be enabled when distance scan is implemented in innodb.
-  //| HTON_SUPPORTS_DISTANCE_SCAN;
+      // TODO(WL9440): to be enabled when distance scan is implemented in
+      // innodb.
+      //| HTON_SUPPORTS_DISTANCE_SCAN;
       HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_COMPRESSED_COLUMNS;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
@@ -24921,11 +24922,11 @@ static const dfield_t *innobase_get_field_from_update_vector(
   return upd_field ? &upd_field->new_val : nullptr;
 }
 
-dfield_t *innobase_get_computed_value(mem_heap_t **compress_heap,
-    const dtuple_t *row, const dict_v_col_t *col, const dict_table_t *table,
-    mem_heap_t **local_heap, mem_heap_t *heap, THD *thd, TABLE *mysql_table,
-    const dict_field_t *ifield, const dict_table_t *old_table,
-    upd_t *row_update) {
+dfield_t *innobase_get_computed_value(
+    mem_heap_t **compress_heap, const dtuple_t *row, const dict_v_col_t *col,
+    const dict_table_t *table, mem_heap_t **local_heap, mem_heap_t *heap,
+    THD *thd, TABLE *mysql_table, const dict_field_t *ifield,
+    const dict_table_t *old_table, upd_t *row_update) {
   byte rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
   byte rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
   byte *mysql_rec;

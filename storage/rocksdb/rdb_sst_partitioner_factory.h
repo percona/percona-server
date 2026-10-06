@@ -16,12 +16,12 @@
 
 #pragma once
 
+#include <mysqld_error.h>
 #include <strings.h>
 #include <algorithm>
 #include <cassert>
 #include <map>
 #include <memory>
-#include <mysqld_error.h>
 #include <utility>
 
 #include "rocksdb/sst_partitioner.h"
@@ -29,7 +29,6 @@
 
 #include "./rdb_cf_manager.h"
 #include "./rdb_datadic.h"
-
 
 namespace myrocks {
 /**

@@ -232,7 +232,6 @@ extern PSI_memory_key mem_key_undo_spaces;
 extern PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
-
 /** Setup the internal objects needed for ut::*_withkey() to operate.
 This must be called before the first call to ut::*_withkey(). */
 void ut_new_boot();

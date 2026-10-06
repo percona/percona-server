@@ -210,12 +210,9 @@ information from the record and returns to caller.
 @param[out]	data		dict data
 @param[out]	data_len	dict data length
 @return error message, or NULL on success */
-[[nodiscard]]
-const char *dict_process_sys_zip_dict(mem_heap_t *heap,
-                                      const dict_index_t &index,
-                                      const rec_t *rec, ulint *id,
-                                      const char **name, ulint *name_len,
-                                      const char **data, ulint *data_len);
+[[nodiscard]] const char *dict_process_sys_zip_dict(
+    mem_heap_t *heap, const dict_index_t &index, const rec_t *rec, ulint *id,
+    const char **name, ulint *name_len, const char **data, ulint *data_len);
 
 /** This bool denotes if we found a Table or Partition with discarded Tablespace
 during load of SYS_TABLES (in dict_check_sys_tables).

@@ -36,11 +36,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <boost/preprocessor/stringize.hpp>
 
+#include <boost/date_time/c_time.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include <boost/date_time/c_time.hpp>
-
 
 #include <mysql/components/component_implementation.h>
 
@@ -53,7 +52,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysqlpp/udf_context_charset_extension.hpp>
 #include <mysqlpp/udf_registration.hpp>
 #include <mysqlpp/udf_wrappers.hpp>
-
 
 // defined as a macro because needed both raw and stringized
 #define CURRENT_COMPONENT_NAME uuid_vx_udf
@@ -158,7 +156,7 @@ class uuid_vx_version_impl {
  * - Returns 2 for "Microsoft Corporation backward compatibility"
  * - Returns 3 for future definitions
  */
-class uuid_vx_variant_impl { 
+class uuid_vx_variant_impl {
  public:
   explicit uuid_vx_variant_impl(mysqlpp::udf_context &ctx) {
     if (ctx.get_number_of_args() != 1) {
@@ -173,7 +171,7 @@ class uuid_vx_variant_impl {
     ctx.set_arg_type(0, STRING_RESULT);
     mysqlpp::udf_context_charset_extension charset_ext{
         mysql_service_mysql_udf_metadata};
-    charset_ext.set_arg_value_charset(ctx, 0, uuid_charset); 
+    charset_ext.set_arg_value_charset(ctx, 0, uuid_charset);
   }
 
   mysqlpp::udf_result_t<INT_RESULT> calculate(const mysqlpp::udf_context &ctx) {
@@ -781,7 +779,6 @@ class bin_to_uuid_vx_impl {
   }
 };
 
-
 /**
  *  Helper class for timestamp extracting functions
  */
@@ -835,11 +832,12 @@ class timestamp_based_uuid {
         std::chrono::milliseconds{milliseconds}};
     const auto in_time_t{std::chrono::system_clock::to_time_t(tm)};
 
-    std::tm gm_time = {}; // temp for gmtime_r inside of c_time::gmtime
+    std::tm gm_time = {};  // temp for gmtime_r inside of c_time::gmtime
     std::ostringstream oss;
-    oss << std::put_time(boost::date_time::c_time::gmtime(&in_time_t, &gm_time), "%Y-%m-%d %H:%M:%S") << '.'
-        << std::setfill('0') << std::setw(3) << milliseconds % 1000;
-      
+    oss << std::put_time(boost::date_time::c_time::gmtime(&in_time_t, &gm_time),
+                         "%Y-%m-%d %H:%M:%S")
+        << '.' << std::setfill('0') << std::setw(3) << milliseconds % 1000;
+
     return oss.str();
   }
 
@@ -853,10 +851,11 @@ class timestamp_based_uuid {
     std::chrono::system_clock::time_point tm{
         std::chrono::milliseconds{milliseconds}};
     const auto in_time_t{std::chrono::system_clock::to_time_t(tm)};
-    
+
     std::ostringstream oss;
-    std::tm gm_time = {}; // temp for gmtime_r inside of c_time::gmtime
-    oss << std::put_time(boost::date_time::c_time::gmtime(&in_time_t, &gm_time), "%c %Z");
+    std::tm gm_time = {};  // temp for gmtime_r inside of c_time::gmtime
+    oss << std::put_time(boost::date_time::c_time::gmtime(&in_time_t, &gm_time),
+                         "%c %Z");
     return oss.str();
   }
 };
@@ -1014,7 +1013,7 @@ static const std::array known_udfs{
     DECLARE_UDF_INFO_AUTO(uuid_vx_to_timestamp_tz),
     DECLARE_UDF_INFO_AUTO(uuid_vx_to_unixtime)};
 
-namespace { //anon namespace instead of using static keyword
+namespace {  // anon namespace instead of using static keyword
 using udf_bitset_type =
     mysqlpp::udf_bitset<std::tuple_size_v<decltype(known_udfs)>>;
 udf_bitset_type registered_udfs;
@@ -1052,7 +1051,7 @@ mysql_service_status_t component_uuidx_udf_deinit() {
                            registered_udfs);
   return registered_udfs.none() ? 0 : 1;
 }
-} // namespace
+}  // namespace
 
 // clang-format off
 BEGIN_COMPONENT_PROVIDES(CURRENT_COMPONENT_NAME)

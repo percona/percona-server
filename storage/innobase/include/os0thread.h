@@ -202,8 +202,7 @@ Linux. Currently a no-op on other systems.
 @param[in]	thread_id	thread id
 @param[in]	relative_priority	system-specific priority value
 @return An actual thread priority after the update  */
-[[nodiscard]]
-unsigned long int os_thread_set_priority(
+[[nodiscard]] unsigned long int os_thread_set_priority(
     os_tid_t thread_id, unsigned long int relative_priority) noexcept;
 
 #endif /* !os0thread_h */

@@ -218,3 +218,29 @@ DROP TABLE tg1, tg2;
 --echo # in the community build; if it is ever published, this is where the
 --echo # refusal belongs.
 --echo #
+
+
+--echo #
+--echo # PS-11590: ALTER error refusals on a vector-indexed table ... report
+--echo #           a misleading "building a vector index" reason even though
+--echo #           no vector index is involved.
+--echo #
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v VECTOR(4) NOT NULL, extra INT,
+  VECTOR KEY vk (v) TYPE hnsw (M = 8)
+);
+
+--echo # Error message below should not mention adding/building vector index
+--echo # since statement doesn't add any. We explain that INSTANT operations
+--echo # are not supported on tables with vector indexes instead.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN newcol INT, ALGORITHM=INSTANT;
+
+--echo # Ditto. Error message below should not mention adding/building vector
+--echo # index as well. Instead we explain that LOCK=NONE operations are not
+--echo # supported on tables with vector indexes.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX ix_extra (extra), ALGORITHM=INPLACE, LOCK=NONE;
+
+DROP TABLE t1;

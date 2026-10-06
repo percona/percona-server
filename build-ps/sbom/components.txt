@@ -22,7 +22,10 @@
 # Components at a path listed in .gitmodules are resolved to their pinned commit
 # at build time; that commit is emitted alongside the version.
 #
-# Only ships=yes and ships=tarball rows are emitted, filtered by artifact.
+# ships=yes and ships=tarball rows are emitted, filtered by artifact
+# (package/tarball builds); --artifact source takes every row, since the
+# source tarball is the whole tree and every component is present in it
+# regardless of whether it is ever built or shipped in binary form.
 
 # --- shipped: bundled libraries installed as files ---------------------------
 protobuf         | 24.4         | BSD-3-Clause | yes | shared-lib  | extra/protobuf/protobuf-24.4                 | dir | ships under lib/mysql/private and lib/mysqlrouter/private

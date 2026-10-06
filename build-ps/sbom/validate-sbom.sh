@@ -69,9 +69,18 @@ for art in "$@"; do
     fi
 
     for c in $REQUIRED_COMPONENTS; do
-        if ! grep -q "\"name\": \"${c}\"" "$spdx"; then
-            err "$name: required component missing from SPDX: ${c}"
+        if grep -q "\"name\": \"${c}\"" "$spdx"; then
+            continue
         fi
+        # gen-sbom.sh substitutes the host package actually linked (DEB links
+        # system zlib/zstd/lz4 on some distros) for a vendored component it
+        # was told to --exclude, tagging it origin=system and naming it after
+        # the host package (e.g. zlib -> zlib1g). Accept that substitute too.
+        if grep -qi "\"name\": \"[A-Za-z0-9+_.-]*${c}[A-Za-z0-9+_.-]*\"" "$spdx" \
+           && grep -q 'origin=system' "$spdx"; then
+            continue
+        fi
+        err "$name: required component missing from SPDX: ${c}"
     done
 
     if [ "$ERRORS" -eq "$errors_before" ]; then

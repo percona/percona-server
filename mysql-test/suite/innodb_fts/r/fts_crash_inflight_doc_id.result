@@ -1,0 +1,73 @@
+#
+# A committed document must survive a crash even if its FTS_DOC_ID was
+# assigned before a cache SYNC that recorded a larger synced_doc_id and
+# the document was committed only after that SYNC.
+#
+CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT(body)) ENGINE=InnoDB;
+INSERT INTO t VALUES (1, 'alpha one');
+BEGIN;
+INSERT INTO t VALUES (2, 'alpha two');
+INSERT INTO t VALUES (3, 'alpha three');
+INSERT INTO t VALUES (4, NULL), (5, 'about zebra'), (6, 'the about');
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO t
+SELECT 1000 + n, CONCAT('alpha ', REPEAT(CONCAT('w', n, 'q'), 8), ' ',
+REPEAT(CONCAT('x', n, 'q'), 8), ' ',
+REPEAT(CONCAT('y', n, 'q'), 8), ' ',
+REPEAT(CONCAT('z', n, 'q'), 8))
+FROM (WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 3000)
+SELECT n FROM s) q;
+SET GLOBAL innodb_ft_aux_table = 'test/t';
+COMMIT;
+SELECT id FROM t WHERE MATCH(body) AGAINST('alpha') AND id < 100 ORDER BY id;
+id
+1
+2
+3
+# Kill and restart
+# All three small documents must still be found after recovery.
+SELECT id FROM t WHERE MATCH(body) AGAINST('alpha') AND id < 100 ORDER BY id;
+id
+1
+2
+3
+SELECT id FROM t WHERE MATCH(body) AGAINST('zebra');
+id
+5
+SELECT COUNT(*) = (SELECT COUNT(*) FROM t WHERE MATCH(body) AGAINST('alpha'))
+AS all_indexed FROM t WHERE body LIKE '%alpha%';
+all_indexed
+1
+# Recovery must re-add only the document that was missing.  A SYNC of
+# the recovered cache must not fail with a duplicate key in the
+# auxiliary tables (that would be reported in the error log), and the
+# documents must still be found after a clean restart.
+SET GLOBAL innodb_optimize_fulltext_only = ON;
+OPTIMIZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	status	OK
+SET GLOBAL innodb_optimize_fulltext_only = OFF;
+SET GLOBAL innodb_ft_aux_table = 'test/t';
+SELECT COUNT(*) FROM information_schema.INNODB_FT_INDEX_TABLE WHERE WORD = 'two';
+COUNT(*)
+1
+# The documents that were already in the auxiliary tables must not have
+# been added a second time.
+SELECT WORD, DOC_COUNT, DOC_ID FROM information_schema.INNODB_FT_INDEX_TABLE
+WHERE WORD = 'zebra';
+WORD	DOC_COUNT	DOC_ID
+zebra	1	6
+# restart
+SELECT id FROM t WHERE MATCH(body) AGAINST('alpha') AND id < 100 ORDER BY id;
+id
+1
+2
+3
+SELECT id FROM t WHERE MATCH(body) AGAINST('zebra');
+id
+5
+SELECT COUNT(*) = (SELECT COUNT(*) FROM t WHERE MATCH(body) AGAINST('alpha'))
+AS all_indexed FROM t WHERE body LIKE '%alpha%';
+all_indexed
+1
+DROP TABLE t;

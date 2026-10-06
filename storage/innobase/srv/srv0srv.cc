@@ -105,6 +105,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #include "usr0sess.h"
 #include "ut0crc32.h"
+#include "vec0arena.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ha_innodb.h"
 #include "sql/handler.h"
@@ -1910,6 +1911,8 @@ void srv_export_innodb_status(void) {
     }
   }
   undo_truncate::spaces->s_unlock();
+
+  export_vars.innodb_hnsw_memory_used = Vec_arena::global_bytes();
 
   export_vars.innodb_n_merge_blocks_encrypted =
       srv_stats.n_merge_blocks_encrypted;

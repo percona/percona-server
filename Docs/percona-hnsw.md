@@ -1520,3 +1520,13 @@ Refusal reaches the user as `ER_CAPACITY_EXCEEDED`, naming `innodb_hnsw_max_memo
 is checked before an insert or a load starts and again as a cold search faults nodes in. InnoDB
 carries it as `DB_VEC_OUT_OF_MEMORY`, which `row_mysql_handle_errors()` handles beside
 `DB_OUT_OF_FILE_SPACE`, so the statement fails and `DB_OUT_OF_MEMORY` keeps its fatal arm. A resource ceiling is not a corrupt engine.
+
+### Seeing the memory
+
+The global status variable `Innodb_hnsw_memory_used` is the number the limit is compared with: the
+bytes held by every graph's arena on the server. It goes up as graphs are loaded and grow, and
+down by exactly a graph's bytes when that graph is freed (DROP, a rebuild, eviction of its table).
+An ALTER's build graph is counted while it exists.
+
+It does not count the node map (`HNSW::m_nodes`), which uses the normal heap, roughly 30 to 50
+bytes per node, or search scratch space.

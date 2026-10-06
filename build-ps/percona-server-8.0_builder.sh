@@ -844,7 +844,7 @@ build_rpm(){
         source /opt/rh/devtoolset-11/enable
     fi
     if [ "x${RHEL}" = "x8" ]; then
-        source /opt/rh/gcc-toolset-10/enable
+        source /opt/rh/gcc-toolset-12/enable
     fi
     build_mecab_lib
     build_mecab_dict
@@ -1076,7 +1076,7 @@ build_tarball(){
           source /opt/rh/devtoolset-11/enable
       fi
       if [ "x${RHEL}" = "x8" ]; then
-          source /opt/rh/gcc-toolset-10/enable
+          source /opt/rh/gcc-toolset-12/enable
       fi
       if [ "x${RHEL}" = "x9" ]; then
           . /opt/rh/gcc-toolset-12/enable
@@ -1134,6 +1134,10 @@ build_tarball(){
             CMAKE_OPTS="-DMINIMAL_RELWITHDEBINFO=OFF -DWITH_ROCKSDB=1" bash -xe ./build-ps/build-binary.sh --with-mecab="${MECAB_INSTALL_DIR}/usr" --with-jemalloc=../jemalloc/ ../TARGET
             DIRNAME="tarball"
         fi
+    fi
+    if ! ls ../TARGET/*.tar.gz >/dev/null 2>&1; then
+        echo "ERROR: no tarballs were built in $(cd ../TARGET && pwd)" >&2
+        exit 1
     fi
     mkdir -p ${WORKDIR}/${DIRNAME}
     mkdir -p ${CURDIR}/${DIRNAME}

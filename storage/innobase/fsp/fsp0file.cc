@@ -464,12 +464,6 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
       break;
 
     default:
-      /* For encryption tablespace, we skip the retry step,
-      since it is only because the keyring is not ready. */
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && (err != DB_CORRUPTION)) {
-        return (err);
-      }
-
       /* Re-open the file in read-write mode  Attempt to restore
       page 0 from doublewrite and read the space ID from a survey
       of the first few pages. */
@@ -550,7 +544,19 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
     }
   }
 
-  const page_size_t page_size(m_flags);
+  if (error_txt == nullptr &&
+      (!fsp_flags_is_valid(m_flags) || FSP_FLAGS_GET_TEMPORARY(m_flags))) {
+    /* Tablespace flags must be valid.  This is checked before anything
+    is derived from the flags: a torn or otherwise corrupted first page
+    has arbitrary flags, and the page size or the encryption bit read
+    from them must not turn a page that could be restored from the
+    doublewrite buffer into a fatal configuration error. */
+    error_txt = "Tablespace flags are invalid";
+  }
+
+  /* With invalid flags nothing below is reached that would use the page
+  size; do not even construct it from them. */
+  const page_size_t page_size(error_txt == nullptr ? m_flags : 0);
 
   if (error_txt != nullptr) {
     /* skip the next few tests */
@@ -566,9 +572,6 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
     free_first_page();
 
     return (DB_ERROR);
-  } else if (!fsp_flags_is_valid(m_flags) || FSP_FLAGS_GET_TEMPORARY(m_flags)) {
-    /* Tablespace flags must be valid. */
-    error_txt = "Tablespace flags are invalid";
   } else if (page_get_page_no(m_first_page) != 0) {
     /* First page must be number 0 */
     error_txt = "Header page contains inconsistent data";

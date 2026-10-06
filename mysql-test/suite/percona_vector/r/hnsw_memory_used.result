@@ -1,0 +1,80 @@
+#
+# Innodb_hnsw_memory_used: the memory of every HNSW graph on the server,
+# the number innodb_hnsw_max_memory is compared with.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]'));
+# After a restart no graph is loaded.
+# restart
+SHOW GLOBAL STATUS LIKE 'Innodb_hnsw_memory_used';
+Variable_name	Value
+Innodb_hnsw_memory_used	0
+SET @saved_max = @@global.innodb_hnsw_max_memory;
+# A search loads t1's graph.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+1
+SELECT CAST(variable_value AS UNSIGNED) INTO @t1_loaded FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_hnsw_memory_used';
+SELECT @t1_loaded > 0 AS loaded;
+loaded
+1
+# A second graph adds to it.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(8) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t2 VALUES (1, STRING_TO_VECTOR('[1,0,0,0,0,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0,0,0,0,0]'));
+SELECT CAST(variable_value AS UNSIGNED) > @t1_loaded AS grew
+FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_hnsw_memory_used';
+grew
+1
+# Dropping t2 gives back exactly what its graph held.
+DROP TABLE t2;
+SELECT CAST(variable_value AS UNSIGNED) = @t1_loaded AS back_to_t1
+FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_hnsw_memory_used';
+back_to_t1
+1
+# The size is right: 1000 nodes of VECTOR(64) with M = 16 hold at least
+# each vector (64 x 4 bytes) and a layer-0 neighbour list (2 x M x 8
+# bytes). Node layers are random, so the total varies a little between
+# runs; it stays far under twice that floor plus two 64 KB slabs.
+SET SESSION cte_max_recursion_depth = 1000;
+SELECT CAST(variable_value AS UNSIGNED) INTO @before
+FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_hnsw_memory_used';
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(64) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 16));
+INSERT INTO t3
+WITH RECURSIVE s(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+SELECT i, STRING_TO_VECTOR(CONCAT('[', REPEAT(CONCAT(i % 97, ','), 63), i, ']'))
+FROM s;
+SELECT CAST(variable_value AS UNSIGNED) - @before INTO @t3_bytes
+FROM performance_schema.global_status
+WHERE variable_name = 'Innodb_hnsw_memory_used';
+SET @floor = 1000 * (64 * 4 + 2 * 16 * 8);
+SELECT @t3_bytes >= @floor AS above_floor,
+@t3_bytes <= 2 * @floor + 2 * 65536 AS under_ceiling;
+above_floor	under_ceiling
+1	1
+DROP TABLE t3;
+# The limit is compared with this number: at it, an insert is refused,
+# one byte above it, the insert goes through.
+SET GLOBAL innodb_hnsw_max_memory = @t1_loaded;
+INSERT INTO t1 VALUES (4, STRING_TO_VECTOR('[0,0,0,1]'));
+ERROR HY000: Memory capacity of N bytes for 'innodb_hnsw_max_memory' exceeded. The vector index graph was left unchanged. Raise innodb_hnsw_max_memory and retry.
+SET GLOBAL innodb_hnsw_max_memory = @t1_loaded + 1;
+INSERT INTO t1 VALUES (4, STRING_TO_VECTOR('[0,0,0,1]'));
+SET GLOBAL innodb_hnsw_max_memory = @saved_max;
+DROP TABLE t1;
+SHOW GLOBAL STATUS LIKE 'Innodb_hnsw_memory_used';
+Variable_name	Value
+Innodb_hnsw_memory_used	0

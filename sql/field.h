@@ -118,6 +118,13 @@ struct timeval;
 #define portable_sizeof_char_ptr 8
 
 /*
+  In InnoDB, the header length of compressed columns is 2 byte. In the
+  SQL layer, this value is needed to determine whether the inplace
+  ddl algorithm can be executed in extending varchar DDL.
+*/
+#define INNOBASE_ZIP_COLUMN_HEADER_LENGTH 2
+
+/*
 
 Field class hierarchy
 

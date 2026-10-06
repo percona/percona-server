@@ -1,0 +1,79 @@
+create database database20250708;
+# basic bugfix
+# --------------------------------------------------------------------
+create table database20250708.t11(c1 varchar(253) column_format compressed)CHARACTER SET ascii;
+insert into database20250708.t11 values('qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzR');
+# test from 253 to 254
+alter table database20250708.t11 modify c1 varchar(254) column_format compressed;
+select * from database20250708.t11;
+c1
+qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzR
+SHOW CREATE TABLE database20250708.t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `c1` varchar(254) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ascii
+CHECK TABLE database20250708.t11;
+Table	Op	Msg_type	Msg_text
+database20250708.t11	check	status	OK
+alter table database20250708.t11 modify c1 varchar(250) column_format compressed;
+# test from 250 to 255
+alter table database20250708.t11 modify c1 varchar(255) column_format compressed;
+select * from database20250708.t11;
+c1
+qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzR
+SHOW CREATE TABLE database20250708.t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `c1` varchar(255) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ascii
+CHECK TABLE database20250708.t11;
+Table	Op	Msg_type	Msg_text
+database20250708.t11	check	status	OK
+# test new threshold 254 in inplace algorithm
+alter table database20250708.t11 modify c1 varchar(256) column_format compressed,algorithm=inplace;
+SHOW CREATE TABLE database20250708.t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `c1` varchar(256) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ascii
+CHECK TABLE database20250708.t11;
+Table	Op	Msg_type	Msg_text
+database20250708.t11	check	status	OK
+alter table database20250708.t11 modify c1 varchar(253) column_format compressed;
+alter table database20250708.t11 modify c1 varchar(254) column_format compressed,algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+alter table database20250708.t11 modify c1 varchar(252) column_format compressed;
+alter table database20250708.t11 modify c1 varchar(256) column_format compressed,algorithm=inplace;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+# --------------------------------------------------------------------
+# test row log
+# --------------------------------------------------------------------
+alter table database20250708.t11 modify c1 varchar(251) column_format compressed;
+SET DEBUG_SYNC='alter_table_inplace_after_lock_downgrade SIGNAL update_now WAIT_FOR update_done';
+alter table database20250708.t11 modify c1 varchar(253) column_format compressed,algorithm=inplace;
+SET DEBUG_SYNC='now WAIT_FOR update_now';
+insert into database20250708.t11 values('qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRa1');
+begin;
+insert into database20250708.t11 values('qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRa2');
+delete from database20250708.t11;
+rollback;
+begin;
+update database20250708.t11 set c1 = 'qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRgg';
+commit;
+SET DEBUG_SYNC='now SIGNAL update_done';
+SELECT * FROM database20250708.t11;
+c1
+qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRgg
+qGjZtLxVfDaKbYOpEUmNRWSiHgBcFpLaQwMrSnTzXyCvJuKdFEaBnCdRgTpMwQfJxHyUvIeOzGkSfNbPkYwVcXzAjLmDtFuQiOWdVjAyKfLpUsXnRzBmQeCiTgHoFvYwZxMkNjGbRaEpCuIdSqTFeYgIuBvNxRzQpSmTkCjHzWdVbYaMlEkFhOjZqUcXiDfPgLaRLpZkYjIxGfEdRcBnAmSqUoWtVhNjKpLmFgCvXzQaByTfEuIzRgg
+SHOW CREATE TABLE database20250708.t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `c1` varchar(253) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=ascii
+CHECK TABLE database20250708.t11;
+Table	Op	Msg_type	Msg_text
+database20250708.t11	check	status	OK
+# --------------------------------------------------------------------
+# clean up
+drop database database20250708;

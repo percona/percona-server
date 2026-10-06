@@ -155,12 +155,26 @@ bool sql_type_prevents_inplace(const Field &from, const Create_field &to) {
 */
 bool length_prevents_inplace(const Field &from, const Create_field &to) {
   DBUG_TRACE;
+  constexpr size_t kCompressedColumnHeaderLength = 2;
+  const size_t to_row_pack_length =
+      to.max_display_width_in_bytes() +
+      (to.column_format() == COLUMN_FORMAT_TYPE_COMPRESSED
+           ? kCompressedColumnHeaderLength
+           : 0);
+  const size_t from_row_pack_length =
+      from.row_pack_length() +
+      (from.column_format() == COLUMN_FORMAT_TYPE_COMPRESSED
+           ? kCompressedColumnHeaderLength
+           : 0);
+
   DBUG_PRINT(
       "inplace",
       ("from:%p, to.field:%p, to.field->row_pack_length():%u, "
-       "to.max_display_width_in_bytes():%zu",
+       "to.max_display_width_in_bytes():%zu, from_row_pack_length:%zu, "
+       "to_row_pack_length:%zu",
        &from, to.field, to.field ? to.field->row_pack_length() : (uint)-1,
-       to.max_display_width_in_bytes()));
+       to.max_display_width_in_bytes(), from_row_pack_length,
+       to_row_pack_length));
 
   if (to.pack_length() < from.pack_length()) {
     DBUG_PRINT(
@@ -170,11 +184,11 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
     return true;
   }
 
-  if (to.max_display_width_in_bytes() >= 256 && from.row_pack_length() < 256) {
+  if (to_row_pack_length >= 256 && from_row_pack_length < 256) {
     DBUG_PRINT("inplace",
                ("row_pack_length increases past the 256 threshold, from %u to "
                 "%zu, -> true for '%s'",
-                from.row_pack_length(), to.max_display_width_in_bytes(),
+                from.row_pack_length(), to_row_pack_length,
                 current_thd->query().str));
     DBUG_PRINT("inplace",
                ("from:%p, to.field:%p, to.field->row_pack_length():%u", &from,

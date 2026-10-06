@@ -1364,6 +1364,7 @@ struct export_var_t {
   // Percona-added status variables
   ulint innodb_checkpoint_age;
   ulint innodb_checkpoint_max_age;
+  uint64_t innodb_hnsw_memory_used; /*!< Vec_arena::global_bytes() */
   ulint innodb_ibuf_free_list;
   ulint innodb_ibuf_segment_size;
   lsn_t innodb_lsn_current;

@@ -421,6 +421,29 @@ EOF
     return
 }
 
+install_patchelf() {
+    # patchelf < 0.14 can't grow a file by more than 32MB and fails on mysqld
+    # with "maximum file size exceeded"; install an upstream static build instead.
+    local min_ver=0.14
+    local cur_ver=$(patchelf --version 2>/dev/null | awk '{print $2}')
+    if [ -n "${cur_ver}" ] && [ "$(printf '%s\n' "${min_ver}" "${cur_ver}" | sort -V | head -n1)" = "${min_ver}" ]; then
+        echo "patchelf ${cur_ver} is recent enough"
+        return
+    fi
+    local pv=0.18.0
+    local parch=$(uname -m)
+    local tmpdir=$(mktemp -d)
+    wget -q -O ${tmpdir}/patchelf.tar.gz https://github.com/NixOS/patchelf/releases/download/${pv}/patchelf-${pv}-${parch}.tar.gz
+    tar -xzf ${tmpdir}/patchelf.tar.gz -C /usr/local ./bin/patchelf
+    rm -rf ${tmpdir}
+    hash -r
+    echo "Installed $(patchelf --version) to $(command -v patchelf)"
+    if [ "$(printf '%s\n' "${min_ver}" "$(patchelf --version | awk '{print $2}')" | sort -V | head -n1)" != "${min_ver}" ]; then
+        echo "ERROR: patchelf >= ${min_ver} is required" >&2
+        exit 1
+    fi
+}
+
 install_deps() {
     if [ $INSTALL = 0 ]
     then
@@ -628,6 +651,7 @@ EOF
         ln -s /usr/local/percona-subunit2junitxml/subunit2junitxml /usr/bin/subunit2junitxml
         cd ${CURPLACE}
     fi
+    install_patchelf
     return;
 }
 

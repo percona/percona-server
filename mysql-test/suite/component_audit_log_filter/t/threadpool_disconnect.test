@@ -1,0 +1,98 @@
+# PS-11498: Thread pool must emit one disconnect per established session,
+# and none for a failed login, just like one-thread-per-connection.
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+--let audit_log_file = `SELECT CONCAT(@@datadir, @@global.audit_log_filter.file)`
+--let $audit_log_dir = `SELECT @@datadir`
+
+SELECT audit_log_filter_set_filter('connections',
+  '{"filter":{"class":{"name":"connection","event":{"name":["connect","disconnect"]}}}}');
+SELECT audit_log_filter_set_user('%', 'connections');
+
+CREATE USER ps11498_normal@localhost;
+CREATE USER ps11498_killed@localhost;
+CREATE USER ps11498_failed@localhost IDENTIFIED BY 'correct_password';
+CREATE USER ps11498_init@localhost;
+--source include/count_sessions.inc
+
+--echo # Normal disconnect
+--connect (con_normal,localhost,ps11498_normal,,)
+--disconnect con_normal
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--echo # Killed connection
+--connect (con_killed,localhost,ps11498_killed,,)
+--let $connection_id = `SELECT CONNECTION_ID()`
+--connection default
+--disable_query_log
+--eval KILL CONNECTION $connection_id
+--enable_query_log
+--disconnect con_killed
+--source include/wait_until_count_sessions.inc
+
+--echo # Failed authentication must not emit a disconnect
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_ACCESS_DENIED_ERROR
+--connect (con_failed,localhost,ps11498_failed,wrong_password,)
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--echo # Successful login followed by init_connect failure still needs cleanup
+SET @saved_init_connect = @@global.init_connect;
+SET GLOBAL init_connect = 'invalid init_connect statement';
+--connect (con_init,localhost,ps11498_init,,)
+--replace_regex /connection [0-9]+ to/connection to/
+--error ER_NEW_ABORTING_CONNECTION
+SELECT 1;
+--disconnect con_init
+--connection default
+SET GLOBAL init_connect = @saved_init_connect;
+--source include/wait_until_count_sessions.inc
+
+perl;
+  use strict;
+  use warnings;
+  use JSON::PP ();
+
+  open(my $fh, '<:encoding(UTF-8)', $ENV{audit_log_file})
+    or die "Cannot open audit log: $!";
+  local $/;
+  my $json = <$fh>;
+  close($fh);
+  # The active log is an unfinished JSON array.
+  $json =~ s/,?\s*$/\n]/;
+  my $events = JSON::PP::decode_json($json);
+
+  for my $user (qw(ps11498_normal ps11498_killed ps11498_failed ps11498_init)) {
+    my @records = grep {
+      $_->{class} eq 'connection' && $_->{login}->{user} eq $user
+    } @$events;
+    my @connects = grep { $_->{event} eq 'connect' } @records;
+    my @disconnects = grep { $_->{event} eq 'disconnect' } @records;
+    my $failed = $user eq 'ps11498_failed';
+    my $expected_disconnects = $failed ? 0 : 1;
+    my $expected_status = $failed ? 1045 : 0;
+
+    die "$user: expected one connect, got " . scalar(@connects) . "\n"
+      unless @connects == 1;
+    die "$user: unexpected connect status\n"
+      unless $connects[0]->{connection_data}->{status} == $expected_status;
+    die "$user: expected $expected_disconnects disconnects, got " .
+        scalar(@disconnects) . "\n"
+      unless @disconnects == $expected_disconnects;
+    if (!$failed) {
+      die "$user: connection IDs differ\n"
+        unless $connects[0]->{connection_id} == $disconnects[0]->{connection_id};
+    }
+    print "$user: 1 connect (status $expected_status), $expected_disconnects disconnects\n";
+  }
+EOF
+
+--source ../inc/audit_comp_uninstall.inc
+DROP USER ps11498_normal@localhost, ps11498_killed@localhost,
+          ps11498_failed@localhost, ps11498_init@localhost;
+--source ../inc/audit_tables_cleanup.inc
+--remove_files_wildcard $audit_log_dir threadpool_disconnect*.log

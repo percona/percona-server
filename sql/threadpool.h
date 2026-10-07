@@ -44,9 +44,9 @@ extern uint threadpool_oversubscribe; /* Maximum active threads in group */
 extern const char *threadpool_high_prio_mode_names[];
 
 /* Common thread pool routines, suitable for different implementations */
-extern void threadpool_remove_connection(THD *thd);
+extern void threadpool_remove_connection(THD *thd, bool logged_in);
 extern int threadpool_process_request(THD *thd);
-extern int threadpool_add_connection(THD *thd);
+extern int threadpool_add_connection(THD *thd, bool &logged_in);
 
 /*
   Functions used by scheduler.

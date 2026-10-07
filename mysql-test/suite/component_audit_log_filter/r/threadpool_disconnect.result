@@ -1,0 +1,29 @@
+SELECT audit_log_filter_set_filter('connections',
+'{"filter":{"class":{"name":"connection","event":{"name":["connect","disconnect"]}}}}');
+audit_log_filter_set_filter('connections',
+'{"filter":{"class":{"name":"connection","event":{"name":["connect","disconnect"]}}}}')
+OK
+SELECT audit_log_filter_set_user('%', 'connections');
+audit_log_filter_set_user('%', 'connections')
+OK
+CREATE USER ps11498_normal@localhost;
+CREATE USER ps11498_killed@localhost;
+CREATE USER ps11498_failed@localhost IDENTIFIED BY 'correct_password';
+CREATE USER ps11498_init@localhost;
+# Normal disconnect
+# Killed connection
+# Failed authentication must not emit a disconnect
+connect(localhost,ps11498_failed,wrong_password,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 28000: Access denied for user 'ps11498_failed'@'localhost' (using password: YES)
+# Successful login followed by init_connect failure still needs cleanup
+SET @saved_init_connect = @@global.init_connect;
+SET GLOBAL init_connect = 'invalid init_connect statement';
+SELECT 1;
+ERROR 08S01: Aborted connection to db: 'test' user: 'ps11498_init' host: 'localhost' (init_connect command failed)
+SET GLOBAL init_connect = @saved_init_connect;
+ps11498_normal: 1 connect (status 0), 1 disconnects
+ps11498_killed: 1 connect (status 0), 1 disconnects
+ps11498_failed: 1 connect (status 1045), 0 disconnects
+ps11498_init: 1 connect (status 0), 1 disconnects
+DROP USER ps11498_normal@localhost, ps11498_killed@localhost,
+ps11498_failed@localhost, ps11498_init@localhost;

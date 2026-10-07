@@ -123,11 +123,12 @@ QueryEntryObject::UniversalId QueryEntryObject::query_object(
   entry::UniversalId::from_raw(&object_id, (*res)[0]);
   obj->crud_operations = std::stoi((*res)[2]);
 
-  obj->user_ownership_field.reset();
   if ((*res)[3]) {
     mrs::database::entry::OwnerUserField value;
     from_user_ownership_field_id(&value, (*res)[3]);
-    obj->user_ownership_field = value;
+    obj->user_ownership_field = std::move(value);
+  } else {
+    obj->user_ownership_field.reset();
   }
 
   KindTypeConverter()(&obj->kind, (*res)[1]);

@@ -66,8 +66,8 @@ parameters:
   - clang-16
 
 schedules:
-- cron: "0 3 * * *"
-  displayName: Daily 3:00 AM UTC build
+- cron: "45 18 * * *"
+  displayName: Daily 6:45 PM UTC build
   branches:
     include:
     - trunk
@@ -78,7 +78,7 @@ pr:
   drafts: false
   branches:
     include:
-    - '*'
+    - trunk
   paths:
     exclude:
     - doc

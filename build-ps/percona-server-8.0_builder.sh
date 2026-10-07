@@ -422,26 +422,28 @@ EOF
 }
 
 install_patchelf() {
-    # patchelf < 0.14 can't grow a file by more than 32MB and fails on mysqld
-    # with "maximum file size exceeded"; install an upstream static build instead.
-    local min_ver=0.14
-    local cur_ver=$(patchelf --version 2>/dev/null | awk '{print $2}')
-    if [ -n "${cur_ver}" ] && [ "$(printf '%s\n' "${min_ver}" "${cur_ver}" | sort -V | head -n1)" = "${min_ver}" ]; then
-        echo "patchelf ${cur_ver} is recent enough"
+    # Pin patchelf to a known-good upstream static build:
+    #  - patchelf < 0.14 can't grow a file by more than 32MB and fails on mysqld
+    #    with "maximum file size exceeded";
+    #  - patchelf 0.18.x adds LOAD segments whose offset/vaddr don't match their
+    #    alignment, so glibc fails with "ELF load command address/offset not
+    #    properly aligned" (fixed upstream in 0.19.0).
+    local pv=0.17.2
+    if [ "$(patchelf --version 2>/dev/null | awk '{print $2}')" = "${pv}" ]; then
+        echo "patchelf ${pv} is already installed"
         return
     fi
-    local pv=0.18.0
     local parch=$(uname -m)
     local tmpdir=$(mktemp -d)
     wget -q -O ${tmpdir}/patchelf.tar.gz https://github.com/NixOS/patchelf/releases/download/${pv}/patchelf-${pv}-${parch}.tar.gz
     tar -xzf ${tmpdir}/patchelf.tar.gz -C /usr/local ./bin/patchelf
     rm -rf ${tmpdir}
     hash -r
-    echo "Installed $(patchelf --version) to $(command -v patchelf)"
-    if [ "$(printf '%s\n' "${min_ver}" "$(patchelf --version | awk '{print $2}')" | sort -V | head -n1)" != "${min_ver}" ]; then
-        echo "ERROR: patchelf >= ${min_ver} is required" >&2
+    if [ "$(patchelf --version 2>/dev/null | awk '{print $2}')" != "${pv}" ]; then
+        echo "ERROR: failed to install patchelf ${pv} (found: $(command -v patchelf) $(patchelf --version 2>&1))" >&2
         exit 1
     fi
+    echo "Installed $(patchelf --version) to $(command -v patchelf)"
 }
 
 install_deps() {

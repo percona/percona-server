@@ -317,11 +317,6 @@ const byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
     return nullptr;
   }
 
-  /* Counters are applied at load only for the table's current version, and
-  the DDL that bumped it stored them in the definition. */
-  if (version > metadata->get_version()) {
-    metadata->start_version(version);
-  }
   persister->aggregate(*metadata, new_entry);
   return ptr + consumed;
 }
@@ -694,10 +689,9 @@ void MetadataRecover::store() {
     byte buffer[REC_MAX_DATA_SIZE];
     size_t size;
 
-    /* Merge into the buffered entry: redo since the checkpoint may not
-    hold every counter. Either side can be newer (an evicted table writes
-    its row at its current version), and the counters of the older side
-    are dropped, as in parseMetadataLog(). */
+    /* Redo records are partial: each holds one kind of metadata. Fold them
+    into the buffered row, each kind by its own rule, instead of replacing
+    the row with them. */
     uint64_t version = 0;
     const std::vector<byte> buffered = table_buffer->get(table_id, &version);
     PersistentTableMetadata metadata(table_id, version);
@@ -705,13 +699,7 @@ void MetadataRecover::store() {
       dict_table_read_dynamic_metadata(buffered.data(), buffered.size(),
                                        &metadata);
     }
-    PersistentTableMetadata incoming = *recovered;
-    if (metadata.get_version() < incoming.get_version()) {
-      metadata.start_version(incoming.get_version());
-    } else if (incoming.get_version() < metadata.get_version()) {
-      incoming.start_version(metadata.get_version());
-    }
-    dict_persist->persisters->aggregate(metadata, incoming);
+    dict_persist->persisters->aggregate(metadata, *recovered);
 
     size = dict_persist->persisters->write(metadata, buffer);
 

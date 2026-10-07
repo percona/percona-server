@@ -2919,15 +2919,6 @@ class PersistentTableMetadata {
   @param[in]    version         dynamic metadata version */
   void set_version(uint64_t version) { m_version = version; }
 
-  /** Move to a newer version. The counters belong to the old version and
-  are dropped; corrupted index ids do not depend on the version and stay.
-  @param[in]    version new version */
-  void start_version(uint64_t version) {
-    m_version = version;
-    m_autoinc = 0;
-    m_vec_next_id = 0;
-  }
-
   /** Get the dynamic metadata version */
   uint64_t get_version() const { return (m_version); }
 
@@ -3026,8 +3017,9 @@ class Persister {
                      ulint size, bool *corrupt) const = 0;
 
   /** Aggregate metadata entries into a single metadata instance, considering
-  version numbers. Must not lose a value: MetadataRecover::store() also
-  uses it to merge the recovered entry into the buffered one.
+  version numbers. MetadataRecover::store() also uses it to fold the
+  recovered entry into the buffered one, so an entry with nothing of this
+  kind must leave metadata unchanged.
   @param[in,out] metadata        metadata object to be modified
   @param[in]     new_entry       metadata entry from logs */
   virtual void aggregate(PersistentTableMetadata &metadata,

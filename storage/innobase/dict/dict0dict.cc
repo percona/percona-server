@@ -4057,6 +4057,15 @@ static bool dict_table_apply_dynamic_metadata(
     }
   }
 
+  /* The vector next id only grows for a table id, and no DDL lowers it, so
+  it does not depend on the version: take the larger value. */
+  const uint64_t vec_next_id = metadata->get_vec_next_id();
+  if (vec_next_id > table->vec_aux_autoinc_persisted.load()) {
+    table->vec_aux_autoinc_next_id.store(vec_next_id);
+    table->vec_aux_autoinc_persisted.store(vec_next_id);
+    get_dirty = true;
+  }
+
   /* FIXME: Move this to the beginning of this function once corrupted
   index IDs are also written back to dd::Table::se_private_data. */
   /* Here is how version play role. Basically, version would be increased
@@ -4080,16 +4089,6 @@ static bool dict_table_apply_dynamic_metadata(
   if (autoinc > table->autoinc_persisted) {
     table->autoinc = autoinc;
     table->autoinc_persisted = autoinc;
-
-    get_dirty = true;
-  }
-
-  /* The hidden vec_idx_id counter - same discipline as
-  autoinc above: only ever moves forward. */
-  const uint64_t vec_next_id = metadata->get_vec_next_id();
-  if (vec_next_id > table->vec_aux_autoinc_persisted.load()) {
-    table->vec_aux_autoinc_next_id.store(vec_next_id);
-    table->vec_aux_autoinc_persisted.store(vec_next_id);
 
     get_dirty = true;
   }
@@ -5845,8 +5844,14 @@ ulint VecIdxIdPersister::read(PersistentTableMetadata &metadata,
 void VecIdxIdPersister::aggregate(
     PersistentTableMetadata &metadata,
     const PersistentTableMetadata &new_entry) const {
-  /* The label only grows for a table id, so keep the larger value. The
-  record's version is taken by MetadataRecover::parseMetadataLog(). */
+  /* DEVIATION FROM AutoIncPersister: the vec counter is monotonic for
+  the whole lifetime of a table_id - legitimate resets ride table_id
+  reassignment (TRUNCATE, IMPORT, rebuilds), never a version bump on
+  the same table. A newer-version redo entry written by ANOTHER
+  persister (e.g. autoinc after an INSTANT DDL) carries vec == 0;
+  taking it version-authoritatively would wipe the counter on crash
+  recovery. Always keep the maximum, and leave the shared version
+  field to the persisters whose semantics depend on it. */
   metadata.set_vec_next_id_if_bigger(new_entry.get_vec_next_id());
 }
 

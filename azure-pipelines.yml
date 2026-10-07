@@ -19,8 +19,8 @@ parameters:
   default: false
 
 schedules:
-- cron: "0 2 * * *"
-  displayName: Daily 2:00 AM UTC build
+- cron: "30 18 * * *"
+  displayName: Daily 6:30 PM UTC build
   branches:
     include:
     - 9.7
@@ -31,7 +31,7 @@ pr:
   drafts: false
   branches:
     include:
-    - '*'
+    - '9.7'
   paths:
     exclude:
     - doc

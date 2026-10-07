@@ -33,6 +33,7 @@
 #include <set>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "mysql/harness/string_utils.h"
 #include "mysqlrouter/mysql_session.h"
@@ -118,12 +119,12 @@ class MySQLRow {
            "Index out of boundary.");
     auto in_value = row_[field_index_++];
 
-    out_field->reset();
-
     if (in_value) {
       FieldType v;
       converter(&v, in_value);
-      *out_field = v;
+      *out_field = std::move(v);
+    } else {
+      out_field->reset();
     }
   }
 

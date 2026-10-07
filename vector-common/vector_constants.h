@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cassert>
 #include <string_view>
 
 #include "my_inttypes.h"
@@ -53,19 +54,23 @@ enum class Metric {
   kManhattan
 };
 
+/** The name each Metric is spelled with in WITH(...). One table, so that
+    metric_from_name() and metric_name() cannot drift apart. */
+struct Metric_name {
+  std::string_view name;
+  Metric metric;
+};
+inline constexpr Metric_name kMetrics[] = {
+    {"euclidean", Metric::kEuclidean},
+    {"euclidean_squared", Metric::kEuclideanSquared},
+    {"cosine", Metric::kCosine},
+    {"dot", Metric::kDotProduct},
+    {"manhattan", Metric::kManhattan},
+};
+
 /** Maps a case-insensitive metric name to a Metric value.
     Returns nullptr on no match. */
 inline const Metric *metric_from_name(std::string_view name) {
-  static constexpr struct {
-    std::string_view name;
-    Metric metric;
-  } kMetrics[] = {
-      {"euclidean", Metric::kEuclidean},
-      {"euclidean_squared", Metric::kEuclideanSquared},
-      {"cosine", Metric::kCosine},
-      {"dot", Metric::kDotProduct},
-      {"manhattan", Metric::kManhattan},
-  };
   const auto *it = std::find_if(
       std::begin(kMetrics), std::end(kMetrics), [&](const auto &candidate) {
         return !my_strnncoll(
@@ -75,6 +80,45 @@ inline const Metric *metric_from_name(std::string_view name) {
       });
   return it != std::end(kMetrics) ? &it->metric : nullptr;
 }
+
+/** The canonical (lowercase) name of a Metric, the inverse of
+    metric_from_name(). */
+inline std::string_view metric_name(Metric metric) {
+  const auto *it = std::find_if(
+      std::begin(kMetrics), std::end(kMetrics),
+      [&](const auto &candidate) { return candidate.metric == metric; });
+  assert(it != std::end(kMetrics));
+  return it->name;
+}
+
+/**
+  HNSW index parameters: the defaults and the accepted ranges.
+
+  The defaults apply only when an index is created. CREATE resolves every
+  parameter the user left out and stores the full set in the DD, so an
+  existing index never reads these again: changing a default here changes
+  new indexes only, never the graph of an index already built (PS-11612).
+*/
+namespace hnsw {
+constexpr int default_M = 25;
+constexpr int default_ef_construction = 200;
+constexpr Metric default_metric = Metric::kEuclidean;
+constexpr int default_max_elements = 10000;
+
+/** Each node's neighbor buffer is (layer + 2) * M pointers
+    (vector-common/hnsw.h), so an unbounded M turns even a single-row index
+    into a multi-gigabyte allocation; 200 keeps that buffer small while
+    leaving headroom over any M a real workload would choose. */
+constexpr int min_M = 2;
+constexpr int max_M = 200;
+
+/** The size of the candidate list an INSERT searches with. The graph raises
+    it to at least M (vector-common/hnsw.h), so the lower bound only rules out
+    nonsense; the upper bound keeps one insert's search from growing without
+    limit. */
+constexpr int min_ef_construction = 1;
+constexpr int max_ef_construction = 4096;
+}  // namespace hnsw
 
 }  // namespace vector_constants
 

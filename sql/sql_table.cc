@@ -7697,6 +7697,13 @@ static bool prepare_key(
     key_info->vector_index_type = key->key_create_info.vector_index_type;
     if (!key->key_create_info.vector_index_params.empty())
       key_info->vector_index_params = key->key_create_info.vector_index_params;
+    /*
+      Store every parameter the SE builds the index with, defaults included,
+      so that the index never depends on a compiled-in default once it exists.
+    */
+    if (auto resolve = file->ht->resolve_vector_index_params;
+        resolve != nullptr && resolve(thd->mem_root, key_info))
+      return true;
   }
 
   key_info->engine_attribute = key->key_create_info.m_engine_attribute;

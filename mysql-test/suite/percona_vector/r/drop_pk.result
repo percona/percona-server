@@ -28,7 +28,7 @@ a1	CREATE TABLE `a1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE a1;
 #
@@ -46,7 +46,7 @@ b1	CREATE TABLE `b1` (
   `id2` int NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE b1;
 #
@@ -63,7 +63,7 @@ c1	CREATE TABLE `c1` (
   `id2` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id2`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # One vector aux file present (recreated with the new table_id).
 percona_vec_hnsw_<TID>_<IID>.ibd
@@ -83,7 +83,7 @@ d1	CREATE TABLE `d1` (
   `id2` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE d1;
 #

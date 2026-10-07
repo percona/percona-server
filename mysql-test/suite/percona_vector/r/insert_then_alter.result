@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `k` int DEFAULT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # === Every row's vector data preserved byte-for-byte ===
 SELECT id, k, VECTOR_TO_STRING(v) AS v_text FROM t1 ORDER BY id;
@@ -82,7 +82,7 @@ t1	CREATE TABLE `t1` (
   `k` int DEFAULT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT COUNT(*) FROM t1 FORCE INDEX (PRIMARY);
 COUNT(*)

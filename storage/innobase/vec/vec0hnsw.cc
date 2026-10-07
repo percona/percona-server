@@ -303,6 +303,9 @@ struct Vec_index_config {
 dimension from the VECTOR column, M, ef_construction and the metric from
 WITH(...), which come back from the DD on the KEY. The one place both the
 runtime open and the index build read them, so the two cannot drift.
+CREATE stores all of them (vec::resolve_options()), so none falls back on a
+compiled-in default here: a default that changes in a later release changes
+new indexes only, never the graph of existing tables.
 @param[in]   table  the TABLE the KEY is in: the open table, or the table
                     an ALTER is producing
 @param[in]   index  the vector index
@@ -323,6 +326,9 @@ static const char *vec_index_config(const TABLE *table,
     }
   }
   if (key == nullptr) return "no matching vector KEY in the table";
+
+  /* prepare_key() resolved the full set when the KEY was created. */
+  ut_ad(!key->vector_index_params.empty());
 
   storage::innobase::vec::VectorIndexParam vip;
   if (storage::innobase::vec::parse_options(*key, vip)) {

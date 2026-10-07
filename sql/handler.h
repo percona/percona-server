@@ -2179,6 +2179,19 @@ struct HA_CREATE_INFO;
 using validate_vector_index_params_t = bool (*)(THD *thd, const char *db_name,
                                                 HA_CREATE_INFO *create_info,
                                                 const Alter_info *alter_info);
+
+/**
+  Resolve the parameters of a vector index being created, once: replace the
+  KEY's vector_index_params with the full set the SE builds the index with,
+  including every parameter the user left at its default. The KEY is what
+  goes to the DD, so the index never depends on a compiled-in default once
+  it exists, and SHOW CREATE TABLE describes it completely.
+
+  @param mem_root  where the new parameter list is allocated
+  @param key       the vector index's KEY; its parameters are replaced
+  @retval true on error, reported through my_error()
+*/
+using resolve_vector_index_params_t = bool (*)(MEM_ROOT *mem_root, KEY *key);
 /**
   @brief
   Retrieve ha_statistics from SE.
@@ -3053,6 +3066,7 @@ struct handlerton {
   fix_default_table_encryption_t fix_default_table_encryption;
   redo_log_set_state_t redo_log_set_state;
   validate_vector_index_params_t validate_vector_index_params{nullptr};
+  resolve_vector_index_params_t resolve_vector_index_params{nullptr};
 
   get_table_statistics_t get_table_statistics;
   get_column_statistics_t get_column_statistics;

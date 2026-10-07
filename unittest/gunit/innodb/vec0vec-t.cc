@@ -80,23 +80,51 @@ TEST_F(Vec0VecTest, HnswWithM) {
   EXPECT_EQ(16, get<HnswParam>(m_vip).M);
 }
 
-/* ef_construction is a field of HnswParam that the parser does not
-recognise: the loop knows only M and metric, and anything else is
-ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER. The field keeps its default and
-the statement is refused.
+/* ef_runtime is a parameter the parser does not recognise: the loop knows
+only M, metric and ef_construction, and anything else is
+ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER. The statement is refused.
 
 This asserts the refusal rather than skipping it, so that whoever wires
 the parameter up sees this test go red and knows to update the design's
 open item along with it. The percona_vector.runtime_open MTR test asserts the
 same thing at SQL level. */
-TEST_F(Vec0VecTest, HnswEfConstructionIsRefused) {
+TEST_F(Vec0VecTest, HnswEfRuntimeIsRefused) {
   EXPECT_TRUE(
       parse("CREATE TABLE t1 ("
             "  id BIGINT UNSIGNED PRIMARY KEY,"
             "  v1 VECTOR(128) NOT NULL,"
-            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 300)"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_runtime = 300)"
             ")",
             ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER));
+}
+
+TEST_F(Vec0VecTest, HnswWithEfConstruction) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 300)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(300, get<HnswParam>(m_vip).ef_construction);
+  EXPECT_EQ(vector_constants::hnsw::default_M, get<HnswParam>(m_vip).M);
+}
+
+TEST_F(Vec0VecTest, HnswEfConstructionOutOfRange) {
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 0)"
+            ")",
+            ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE));
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 4097)"
+            ")",
+            ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE));
 }
 
 /* Every parameter the parser actually supports, together. */
@@ -105,13 +133,13 @@ TEST_F(Vec0VecTest, HnswAllSupportedParams) {
       parse("CREATE TABLE t1 ("
             "  id BIGINT UNSIGNED PRIMARY KEY,"
             "  v1 VECTOR(128) NOT NULL,"
-            "  VECTOR KEY(v1) TYPE hnsw (M = 8, metric = euclidean)"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8, metric = euclidean,"
+            "                            ef_construction = 64)"
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
   EXPECT_EQ(8, get<HnswParam>(m_vip).M);
   EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
-  /* Untouched by the parser, so still the header's default. */
-  EXPECT_EQ(200, get<HnswParam>(m_vip).ef_construction);
+  EXPECT_EQ(64, get<HnswParam>(m_vip).ef_construction);
 }
 
 /* No option list at all: every parameter keeps its default. Worth its own
@@ -127,8 +155,9 @@ TEST_F(Vec0VecTest, HnswNoOptionList) {
             "  VECTOR KEY(v1) TYPE hnsw"
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
-  EXPECT_EQ(25, get<HnswParam>(m_vip).M);
-  EXPECT_EQ(200, get<HnswParam>(m_vip).ef_construction);
+  EXPECT_EQ(vector_constants::hnsw::default_M, get<HnswParam>(m_vip).M);
+  EXPECT_EQ(vector_constants::hnsw::default_ef_construction,
+            get<HnswParam>(m_vip).ef_construction);
 }
 
 /* The core overload is what table open uses; exercise it directly with
@@ -139,7 +168,7 @@ TEST_F(Vec0VecTest, ParseFieldsNoParams) {
   const Vector_index_params_YY no_params{};
   EXPECT_FALSE(parse_options(hnsw, no_params, vip));
   ASSERT_TRUE(holds_alternative<HnswParam>(vip));
-  EXPECT_EQ(25, get<HnswParam>(vip).M);
+  EXPECT_EQ(vector_constants::hnsw::default_M, get<HnswParam>(vip).M);
 }
 
 TEST_F(Vec0VecTest, HnswMetricEuclidean) {
@@ -151,6 +180,63 @@ TEST_F(Vec0VecTest, HnswMetricEuclidean) {
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
   EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
+}
+
+/* Every metric name maps to its Metric and back. */
+TEST(Vec0VecMetricNameTest, RoundTrip) {
+  for (const auto &[name, metric] : vector_constants::kMetrics) {
+    const auto *m = vector_constants::metric_from_name(name);
+    ASSERT_NE(nullptr, m);
+    EXPECT_EQ(metric, *m);
+    EXPECT_EQ(name, vector_constants::metric_name(metric));
+  }
+}
+
+/* resolve_options() fills in every parameter the user left out, under its
+canonical name - which is what goes to the DD. */
+class Vec0VecResolveTest : public Vec0VecTest {
+ protected:
+  /** Parse a CREATE TABLE, resolve its vector KEY, and render the result as
+  "k=v,k=v". */
+  std::string resolve(const char *query) {
+    ParserTest::parse(query);
+    const Key_spec *ks = find_vector_key();
+    if (ks == nullptr) {
+      ADD_FAILURE() << "No VECTOR key found in key_list";
+      return {};
+    }
+    KEY key{};
+    key.vector_index_type = ks->key_create_info.vector_index_type;
+    key.vector_index_params = ks->key_create_info.vector_index_params;
+    if (resolve_options(thd()->mem_root, &key)) {
+      ADD_FAILURE() << "resolve_options failed";
+      return {};
+    }
+    std::string out;
+    for (const auto &[k, v] : key.vector_index_params) {
+      if (!out.empty()) out += ',';
+      out.append(k.str, k.length).append("=").append(v.str, v.length);
+    }
+
+    /* Idempotent: resolving the resolved list changes nothing. */
+    const auto first = key.vector_index_params;
+    EXPECT_FALSE(resolve_options(thd()->mem_root, &key));
+    EXPECT_EQ(first.size(), key.vector_index_params.size());
+    return out;
+  }
+};
+
+TEST_F(Vec0VecResolveTest, NoOptionList) {
+  EXPECT_EQ("M=25,metric=euclidean,ef_construction=200",
+            resolve("CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,"
+                    " v1 VECTOR(4) NOT NULL, VECTOR KEY(v1) TYPE hnsw)"));
+}
+
+TEST_F(Vec0VecResolveTest, Canonicalised) {
+  EXPECT_EQ("M=6,metric=euclidean,ef_construction=64",
+            resolve("CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,"
+                    " v1 VECTOR(4) NOT NULL, VECTOR KEY(v1) TYPE hnsw"
+                    " (ef_construction = 064, metric = EUCLIDEAN, m = 006))"));
 }
 
 }  // namespace innodb_vec0vec_unittest

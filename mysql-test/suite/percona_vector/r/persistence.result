@@ -15,7 +15,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Aux tables are HT_HIDDEN_SE — invisible to user-facing catalog
 # views (SHOW TABLES, I_S.TABLES) but registered in DD and so

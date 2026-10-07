@@ -219,7 +219,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -240,7 +240,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -260,7 +260,7 @@ t2	CREATE TABLE `t2` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   UNIQUE KEY `id` (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -365,7 +365,7 @@ t4	CREATE TABLE `t4` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 DROP INDEX v1;
 SHOW CREATE TABLE t4;
@@ -412,7 +412,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vx` (`v1`) USING `hnsw`
+  VECTOR KEY `vx` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -437,7 +437,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6) COMMENT 'abc'
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`) COMMENT 'abc'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -598,7 +598,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `ix` (`v1`) USING `hnsw` (`m`=6)
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP PRIMARY KEY;
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
@@ -624,7 +624,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `ix` (`v1`) USING `hnsw` (`m`=6, `metric`=`Euclidean`)
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP INDEX ix;
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( metric = Euclidean, m = 6 );
@@ -638,7 +638,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `ix` (`v1`) USING `hnsw` (`m`=6, `metric`=`Euclidean`)
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP INDEX ix;
 ALTER TABLE t1 DROP PRIMARY KEY;
@@ -704,7 +704,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   UNIQUE KEY `u_id` (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -722,7 +722,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `metric`=`euclidean`)
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN c INT;
 SHOW CREATE TABLE t1;
@@ -732,7 +732,7 @@ t1	CREATE TABLE `t1` (
   `v1` vector(8) NOT NULL,
   `c` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `metric`=`euclidean`)
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TEMPORARY TABLE t (
@@ -771,7 +771,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1) GENERATED ALWAYS AS (to_vector(_utf8mb4'[1]')) STORED NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression

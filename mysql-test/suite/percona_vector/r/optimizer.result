@@ -24,7 +24,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(3) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw`
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CALL populate_vector_table('t1', 3, 100);
 Table	Op	Msg_type	Msg_text
@@ -390,7 +390,7 @@ t4	CREATE TABLE `t4` (
   `v1` vector(1000) NOT NULL,
   `v2` vector(2000) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1i` (`v1`) USING `hnsw`
+  VECTOR KEY `v1i` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP INDEX v1i ON t4;
 SHOW CREATE TABLE t4;

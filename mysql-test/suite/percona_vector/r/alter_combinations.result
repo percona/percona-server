@@ -27,7 +27,7 @@ t_mixed_secondary	CREATE TABLE `t_mixed_secondary` (
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `x_idx` (`x`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=8)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t_mixed_secondary ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
 id
@@ -150,7 +150,7 @@ t_drop_add	CREATE TABLE `t_drop_add` (
   `id` bigint unsigned NOT NULL,
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v2` (`v`) USING `hnsw` (`M`=16)
+  VECTOR KEY `v2` (`v`) USING `hnsw` (`M`=16, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t_drop_add ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'euclidean') LIMIT 1;
 id
@@ -214,7 +214,7 @@ t_rebuild_after	CREATE TABLE `t_rebuild_after` (
   `id` bigint unsigned NOT NULL,
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=8)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t_rebuild_after ORDER BY DISTANCE(v, STRING_TO_VECTOR('[2,0,0,0]'), 'euclidean') LIMIT 1;
 id

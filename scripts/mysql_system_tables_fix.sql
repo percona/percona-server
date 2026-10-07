@@ -1303,8 +1303,11 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CO
 # upgrade.
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_USER', 'N');
 
-set @is_mysql_encrypted = (select ENCRYPTION from information_schema.INNODB_TABLESPACES where NAME='mysql');
-
+# @is_mysql_encrypted is already set by dd::upgrade::fix_mysql_tables() from
+# mysql.tablespaces, right before these statements are executed. Do not query
+# information_schema.INNODB_TABLESPACES here: it materializes a row per
+# tablespace, which does not scale, and this file is only ever run on the
+# upgrade path.
 SET @cmd = CONCAT("ALTER TABLE mysql.db ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @cmd;
 EXECUTE stmt;

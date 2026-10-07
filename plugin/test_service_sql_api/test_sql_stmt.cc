@@ -808,7 +808,7 @@ static void setup_test(MYSQL_SESSION session, void *p) {
   WRITE_STR("CREATE TABLE\n");
   set_query_in_com_data(&cmd,
                         "CREATE TABLE t1 (a INT, b INT, c INT, UNIQUE (A), "
-                        "UNIQUE(B))");
+                        "UNIQUE(B)) STATS_PERSISTENT=0");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   WRITE_STR("INSERT VALUES INTO THE TABLE\n");

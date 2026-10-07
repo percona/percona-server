@@ -422,13 +422,15 @@ EOF
 }
 
 install_patchelf() {
-    # Pin patchelf to a known-good upstream static build:
-    #  - patchelf < 0.14 can't grow a file by more than 32MB and fails on mysqld
-    #    with "maximum file size exceeded";
-    #  - patchelf 0.18.x adds LOAD segments whose offset/vaddr don't match their
-    #    alignment, so glibc fails with "ELF load command address/offset not
-    #    properly aligned" (fixed upstream in 0.19.0).
-    local pv=0.17.2
+    # Ubuntu Focal ships patchelf 0.10, which can't grow a file by more than
+    # 32MB and fails on mysqld with "maximum file size exceeded".
+    # Install an upstream static build there; other platforms keep the distro one.
+    local codename=$(. /etc/os-release 2>/dev/null && echo "${VERSION_CODENAME}")
+    if [ "x${codename}" != "xfocal" ]; then
+        echo "Using distro patchelf $(patchelf --version 2>/dev/null | awk '{print $2}')"
+        return
+    fi
+    local pv=0.18.0
     if [ "$(patchelf --version 2>/dev/null | awk '{print $2}')" = "${pv}" ]; then
         echo "patchelf ${pv} is already installed"
         return

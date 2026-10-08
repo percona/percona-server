@@ -5286,35 +5286,30 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     uint used_key_parts;
     bool skip_quick;
 
-    const Key_use *vector_key = nullptr;
-    if (tab != nullptr && (table->key_info[nr].flags & HA_VECTOR)) {
-      for (const Key_use *ku = tab->keyuse();
-           ku != nullptr && ku->table_ref == tab->table_ref; ++ku) {
-        if (ku->key == nr && ku->keypart == VECTOR_KEYPART) {
-          vector_key = ku;
-          break;
-        }
-      }
-    }
-
-    if (vector_key != nullptr && order->src == ESC_ORDER_BY &&
-        !tab->join()->select_distinct) {
-      if (select_limit < table_records) {
-        best_key = nr;
-        best_key_parts = 1;
-        if (saved_best_key_parts) *saved_best_key_parts = 1;
-        best_key_direction = 1;
-        best_records = static_cast<ha_rows>(select_limit);
-        best_read_time = vector_constants::prohibitive_cost;
-        best_select_limit = select_limit;
-        is_best_covering = false;
-      }
-      continue;
-    }
-
     if (usable_keys.is_set(nr) &&
         (direction = test_if_order_by_key(order, table, nr, &used_key_parts,
                                           &skip_quick))) {
+      if (tab != nullptr && (table->key_info[nr].flags & HA_VECTOR)) {
+        const auto &keyuses = tab->join()->keyuse_array;
+        const auto *match =
+            std::ranges::find_if(keyuses, [tab, nr](const Key_use &ku) {
+              return ku.table_ref == tab->table_ref && ku.key == nr &&
+                     ku.keypart == VECTOR_KEYPART;
+            });
+        if (match != keyuses.end() && order->src == ESC_ORDER_BY &&
+            !tab->join()->select_distinct && select_limit < table_records) {
+          best_key = nr;
+          best_key_parts = 1;
+          if (saved_best_key_parts) *saved_best_key_parts = 1;
+          best_key_direction = 1;
+          best_records = static_cast<ha_rows>(select_limit);
+          best_read_time = vector_constants::prohibitive_cost;
+          best_select_limit = select_limit;
+          is_best_covering = false;
+        }
+        continue;
+      }
+
       const bool is_covering =
           table->covering_keys.is_set(nr) ||
           (nr == table->s->primary_key &&

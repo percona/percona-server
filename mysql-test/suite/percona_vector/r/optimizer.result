@@ -290,6 +290,43 @@ id	v	v
 1	0x000000000000000000000000	0x000000000000000000000000
 2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
 3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
+#
+# Hints, old syntax
+#
+EXPLAIN FORMAT=TREE SELECT id FROM t1 IGNORE INDEX (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 IGNORE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX (PRIMARY)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX FOR ORDER BY (PRIMARY)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+#
+# Hints, new syntax
+#
 EXPLAIN FORMAT=TREE
 SELECT /*+ NO_INDEX(t1) */ *
 FROM t1 JOIN t2 USING( id )
@@ -352,9 +389,6 @@ id	v	v
 1	0x000000000000000000000000	0x000000000000000000000000
 2	0x0000803F0000803F0000803F	0x0000803F0000803F0000803F
 3	0x0000000000000000CDCCCC3D	0x0000803F0000803F00000040
-#
-# Hints
-#
 EXPLAIN FORMAT=TREE
 SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
 EXPLAIN
@@ -366,6 +400,30 @@ SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'
 id
 1
 3
+EXPLAIN FORMAT=TREE
+SELECT /*+ INDEX(t1 PRIMARY) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+EXPLAIN FORMAT=TREE
+SELECT /*+ ORDER_INDEX (t1 PRIMARY) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+EXPLAIN FORMAT=TREE
+SELECT /*+ NO_ORDER_INDEX(t1) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[1,0,0,0]'),'EUCLIDEAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
 #
 # Error messages.
 #

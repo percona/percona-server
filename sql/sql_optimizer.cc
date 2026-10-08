@@ -1854,6 +1854,17 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   ORDER *order = order_src->order;
   *skip_quick = false;
 
+  /*
+    A vector index orders by a distance function, not a column, so handle it
+    here: forward direction, single key part.
+  */
+  if ((table->key_info[idx].flags & HA_VECTOR) && order != nullptr &&
+      is_function_of_type((*order->item)->real_item(),
+                          Item_func::VECTOR_DISTANCE_FUNC)) {
+    if (used_key_parts != nullptr) *used_key_parts = 1;
+    return 1;
+  }
+
   for (; order; order = order->next, const_key_parts >>= 1) {
     /*
       Since only fields can be indexed, ORDER BY <something> that is

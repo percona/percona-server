@@ -95,8 +95,19 @@ RegexCompile::~RegexCompile() {
                                  //   compilation stops with a syntax error.
 }
 
+// Percona: an operand set whose allocation failed is bogus and empty. Make
+// the destination bogus as well, so that the failure is detected when the
+// set is compiled, instead of silently changing what the pattern matches.
+static inline void addAllChecked(UnicodeSet &set, const UnicodeSet &other) {
+    if (other.isBogus()) {
+        set.setToBogus();
+    } else {
+        set.addAll(other);
+    }
+}
+
 static inline void addCategory(UnicodeSet *set, int32_t value, UErrorCode& ec) {
-    set->addAll(UnicodeSet().applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, value, ec));
+    addAllChecked(*set, UnicodeSet().applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, value, ec));
 }
 
 //------------------------------------------------------------------------------
@@ -1560,7 +1571,7 @@ UBool RegexCompile::doParseActions(int32_t action)
      case doSetBackslash_s:
         {
          UnicodeSet* set = static_cast<UnicodeSet*>(fSetStack.peek());
-         set->addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]);
+         addAllChecked(*set, RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]);
          break;
         }
 
@@ -1569,7 +1580,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             UnicodeSet* set = static_cast<UnicodeSet*>(fSetStack.peek());
             UnicodeSet SSet;
             SSet.addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]).complement();
-            set->addAll(SSet);
+            addAllChecked(*set, SSet);
             break;
         }
 
@@ -1588,7 +1599,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             // TODO - make a static set, ticket 6058.
             digits.applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, U_GC_ND_MASK, *fStatus);
             digits.complement();
-            set->addAll(digits);
+            addAllChecked(*set, digits);
             break;
         }
 
@@ -1598,7 +1609,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             UnicodeSet h;
             h.applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, U_GC_ZS_MASK, *fStatus);
             h.add(static_cast<UChar32>(9)); // Tab
-            set->addAll(h);
+            addAllChecked(*set, h);
             break;
         }
 
@@ -1609,7 +1620,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             h.applyIntPropertyValue(UCHAR_GENERAL_CATEGORY_MASK, U_GC_ZS_MASK, *fStatus);
             h.add(static_cast<UChar32>(9)); // Tab
             h.complement();
-            set->addAll(h);
+            addAllChecked(*set, h);
             break;
         }
 
@@ -1630,14 +1641,14 @@ UBool RegexCompile::doParseActions(int32_t action)
             v.add(static_cast<UChar32>(0x85));
             v.add(static_cast<UChar32>(0x2028), static_cast<UChar32>(0x2029));
             v.complement();
-            set->addAll(v);
+            addAllChecked(*set, v);
             break;
         }
 
     case doSetBackslash_w:
         {
             UnicodeSet* set = static_cast<UnicodeSet*>(fSetStack.peek());
-            set->addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]);
+            addAllChecked(*set, RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]);
             break;
         }
 
@@ -1646,7 +1657,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             UnicodeSet* set = static_cast<UnicodeSet*>(fSetStack.peek());
             UnicodeSet SSet;
             SSet.addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]).complement();
-            set->addAll(SSet);
+            addAllChecked(*set, SSet);
             break;
         }
 
@@ -1822,7 +1833,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             UnicodeSet *s = scanPosixProp();
             if (s != nullptr) {
                 UnicodeSet* tos = static_cast<UnicodeSet*>(fSetStack.peek());
-                tos->addAll(*s);
+                addAllChecked(*tos, *s);
                 delete s;
             }  // else error.  scanProp() reported the error status already.
         }
@@ -1834,7 +1845,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             UnicodeSet *s = scanProp();
             if (s != nullptr) {
                 UnicodeSet* tos = static_cast<UnicodeSet*>(fSetStack.peek());
-                tos->addAll(*s);
+                addAllChecked(*tos, *s);
                 delete s;
             }  // else error.  scanProp() reported the error status already.
         }
@@ -2393,6 +2404,13 @@ void        RegexCompile::compileSet(UnicodeSet *theSet)
     if (theSet == nullptr) {
         return;
     }
+    // Percona: a set whose allocation failed is bogus and empty, compiling
+    // it would silently change what the pattern matches.
+    if (theSet->isBogus()) {
+        error(U_MEMORY_ALLOCATION_ERROR);
+        delete theSet;
+        return;
+    }
     //  Remove any strings from the set.
     //  There shouldn't be any, but just in case.
     //     (Case Closure can add them; if we had a simple case closure available that
@@ -2424,6 +2442,11 @@ void        RegexCompile::compileSet(UnicodeSet *theSet)
             //  The set contains two or more chars.  (the normal case)
             //  Put it into the compiled pattern as a set.
             theSet->freeze();
+            if (theSet->isBogus()) {    // Percona: freeze() failed to allocate
+                error(U_MEMORY_ALLOCATION_ERROR);
+                delete theSet;
+                break;
+            }
             int32_t setNumber = fRXPat->fSets->size();
             fRXPat->fSets->addElement(theSet, *fStatus);
             if (U_SUCCESS(*fStatus)) {
@@ -2786,7 +2809,7 @@ void   RegexCompile::matchStartType() {
                 int32_t  sn = URX_VAL(op);
                 U_ASSERT(sn > 0 && sn < fRXPat->fSets->size());
                 const UnicodeSet* s = static_cast<UnicodeSet*>(fRXPat->fSets->elementAt(sn));
-                fRXPat->fInitialChars->addAll(*s);
+                addAllChecked(*fRXPat->fInitialChars, *s);
                 numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2800,7 +2823,7 @@ void   RegexCompile::matchStartType() {
                 int32_t  sn = URX_VAL(op);
                 U_ASSERT(sn > 0 && sn < fRXPat->fSets->size());
                 const UnicodeSet* s = static_cast<UnicodeSet*>(fRXPat->fSets->elementAt(sn));
-                fRXPat->fInitialChars->addAll(*s);
+                addAllChecked(*fRXPat->fInitialChars, *s);
                 numInitialStrings += 2;
             }
             atStart = false;
@@ -2823,7 +2846,7 @@ void   RegexCompile::matchStartType() {
                 int32_t  sn = URX_VAL(op);
                 U_ASSERT(sn>0 && sn<URX_LAST_SET);
                 const UnicodeSet &s = RegexStaticSets::gStaticSets->fPropSets[sn];
-                fRXPat->fInitialChars->addAll(s);
+                addAllChecked(*fRXPat->fInitialChars, s);
                 numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2837,7 +2860,7 @@ void   RegexCompile::matchStartType() {
                 int32_t  sn = URX_VAL(op);
                 UnicodeSet sc;
                 sc.addAll(RegexStaticSets::gStaticSets->fPropSets[sn]).complement();
-                fRXPat->fInitialChars->addAll(sc);
+                addAllChecked(*fRXPat->fInitialChars, sc);
                 numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2854,7 +2877,7 @@ void   RegexCompile::matchStartType() {
                  if (URX_VAL(op) != 0) {
                      s.complement();
                  }
-                 fRXPat->fInitialChars->addAll(s);
+                 addAllChecked(*fRXPat->fInitialChars, s);
                  numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2871,7 +2894,7 @@ void   RegexCompile::matchStartType() {
                 if (URX_VAL(op) != 0) {
                     s.complement();
                 }
-                fRXPat->fInitialChars->addAll(s);
+                addAllChecked(*fRXPat->fInitialChars, s);
                 numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2890,7 +2913,7 @@ void   RegexCompile::matchStartType() {
                      // Complement option applies to URX_BACKSLASH_V only.
                      s.complement();
                 }
-                fRXPat->fInitialChars->addAll(s);
+                addAllChecked(*fRXPat->fInitialChars, s);
                 numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2909,7 +2932,7 @@ void   RegexCompile::matchStartType() {
                     // findCaseInsensitiveStarters(c, &starters);
                     //   For ONECHAR_I, no need to worry about text chars that expand on folding into strings.
                     //   The expanded folding can't match the pattern.
-                    fRXPat->fInitialChars->addAll(starters);
+                    addAllChecked(*fRXPat->fInitialChars, starters);
                 } else {
                     // Char has no case variants.  Just add it as-is to the
                     //   set of possible starting chars.
@@ -3035,7 +3058,7 @@ void   RegexCompile::matchStartType() {
                     UChar32  c = fRXPat->fLiteralText.char32At(stringStartIdx);
                     UnicodeSet s;
                     findCaseInsensitiveStarters(c, &s);
-                    fRXPat->fInitialChars->addAll(s);
+                    addAllChecked(*fRXPat->fInitialChars, s);
                     numInitialStrings += 2;  // Matching on an initial string not possible.
                 }
                 currentLen = safeIncrement(currentLen, stringLen);
@@ -3146,6 +3169,11 @@ void   RegexCompile::matchStartType() {
     }
 
 
+    // Percona: a bogus set of initial chars would skip valid match starts.
+    if (fRXPat->fInitialChars->isBogus()) {
+        error(U_MEMORY_ALLOCATION_ERROR);
+        return;
+    }
     fRXPat->fInitialChars8->init(fRXPat->fInitialChars);
 
 
@@ -4639,20 +4667,32 @@ void RegexCompile::setEval(int32_t nextOp) {
             case setDifference2:
                 fSetStack.pop();
                 leftOperand = static_cast<UnicodeSet*>(fSetStack.peek());
-                leftOperand->removeAll(*rightOperand);
+                if (rightOperand->isBogus()) {    // Percona: see addAllChecked()
+                    leftOperand->setToBogus();
+                } else {
+                    leftOperand->removeAll(*rightOperand);
+                }
                 delete rightOperand;
                 break;
             case setIntersection1:
             case setIntersection2:
                 fSetStack.pop();
                 leftOperand = static_cast<UnicodeSet*>(fSetStack.peek());
-                leftOperand->retainAll(*rightOperand);
+                if (rightOperand->isBogus()) {    // Percona: see addAllChecked()
+                    leftOperand->setToBogus();
+                } else {
+                    leftOperand->retainAll(*rightOperand);
+                }
                 delete rightOperand;
                 break;
             case setUnion:
                 fSetStack.pop();
                 leftOperand = static_cast<UnicodeSet*>(fSetStack.peek());
-                leftOperand->addAll(*rightOperand);
+                if (rightOperand->isBogus()) {    // Percona: see addAllChecked()
+                    leftOperand->setToBogus();
+                } else {
+                    leftOperand->addAll(*rightOperand);
+                }
                 delete rightOperand;
                 break;
             default:

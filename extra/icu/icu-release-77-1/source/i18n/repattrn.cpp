@@ -230,7 +230,8 @@ void RegexPattern::zap() {
     delete fCompiledPat;
     fCompiledPat = nullptr;
     int i;
-    for (i=1; i<fSets->size(); i++) {
+    // Percona: init() leaves fSets null when its allocation fails.
+    for (i=1; fSets != nullptr && i<fSets->size(); i++) {
         UnicodeSet *s;
         s = static_cast<UnicodeSet*>(fSets->elementAt(i));
         delete s;

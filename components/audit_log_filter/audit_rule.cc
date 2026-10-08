@@ -49,6 +49,10 @@ uint64_t AuditRule::get_filter_id() const noexcept { return m_filter_id; }
 
 std::string AuditRule::get_rule_name() const noexcept { return m_rule_name; }
 
+std::string_view AuditRule::get_rule_name_view() const noexcept {
+  return m_rule_name;
+}
+
 void AuditRule::set_replacement_rule(AuditRule *rule) noexcept {
   m_replacement_rule = rule;
 }
@@ -88,6 +92,12 @@ void AuditRule::add_action_for_event(
 void AuditRule::set_parse_error(const std::string &error) noexcept {
   if (m_parse_error.empty()) {
     m_parse_error = error;
+  }
+}
+
+void AuditRule::set_parse_error(std::string &&error) noexcept {
+  if (m_parse_error.empty()) {
+    m_parse_error = std::move(error);
   }
 }
 

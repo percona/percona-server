@@ -1,0 +1,478 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Audit log filter '.*': regex '.*' on field '.*' failed");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+call mtr.add_suppression("std::bad_alloc");
+call mtr.add_suppression("Audit query output was not prepared");
+call mtr.add_suppression("Invalid audit query charset or buffer");
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY AUTO_INCREMENT, v INT);
+CREATE TABLE tpcc.history1 LIKE tpcc.orders1;
+CREATE TABLE tpcc.secret_1 LIKE tpcc.orders1;
+CREATE TABLE tpcc.temp_1 LIKE tpcc.orders1;
+CREATE USER rx_app@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO rx_app@localhost;
+# Regex match errors: +0
+#
+# Allocation failure while constructing a regex condition
+#
+SET SESSION debug = '+d,audit_log_filter_regex_compile_bad_alloc';
+SELECT audit_log_filter_set_filter('rx_oom', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: out of memory while constructing regex condition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_oom';
+stored_rows
+0
+SELECT audit_log_filter_set_filter('rx_oom_abort', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: out of memory while constructing regex condition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_oom_abort';
+stored_rows
+0
+# The injected failure precedes compilation, so it is reported also for
+# a pattern which would not compile
+SELECT audit_log_filter_set_filter('rx_oom_invalid', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^(orders"}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: out of memory while constructing regex condition
+SET SESSION debug = '-d,audit_log_filter_regex_compile_bad_alloc';
+SELECT audit_log_filter_set_filter('rx_oom', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}') AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_oom';
+stored_rows
+1
+# Registry loading
+SET SESSION debug = '+d,audit_log_filter_regex_compile_bad_alloc';
+SELECT audit_log_filter_flush() AS result;
+result
+ERROR: Filter 'rx_oom' has wrong format: out of memory while constructing regex condition
+SET SESSION debug = '-d,audit_log_filter_regex_compile_bad_alloc';
+SELECT audit_log_filter_flush() AS result;
+result
+OK
+# Regex match errors: +0
+#
+# Run time failure of a reached regex leaf in every context
+#
+# Case: positive log
+SELECT audit_log_filter_set_filter('rx_err_0', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_0') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (0);
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: negated log
+SELECT audit_log_filter_set_filter('rx_err_1', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_1') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (1);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: positive abort does not abort
+SELECT audit_log_filter_set_filter('rx_err_2', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_2') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO secret_1 (v) VALUES (2);
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+SELECT COUNT(*) - @rows AS inserted_rows FROM tpcc.secret_1;
+inserted_rows
+1
+# Case: print condition false invokes replacement
+SELECT audit_log_filter_set_filter('rx_err_3', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (3)"}}, "print": {"field": {"name": "general_query.str", "print": {"field": {"name": "general_query.str", "regex": "^INSERT"}}, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_3') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (3);
+# Records: 1
+#   1 x general INSERT INTO `orders1` ( `v` ) VALUES (?)
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: replacement filter is not activated
+SELECT audit_log_filter_set_filter('rx_err_4', '{"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_4') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO temp_1 (v) VALUES (4);
+SELECT 'rx_sentinel';
+rx_sentinel
+rx_sentinel
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: and short-circuit, regex not reached
+SELECT audit_log_filter_set_filter('rx_err_5', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_database.str", "value": "nope"}}, {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}]}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_5') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (5);
+# Records: 0
+# Regex match errors: +0
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: or short-circuit, regex not reached
+SELECT audit_log_filter_set_filter('rx_err_6', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_database.str", "value": "tpcc"}}, {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}]}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_6') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (6);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +0
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: query.str of a table access event is always present, regex reached
+SELECT audit_log_filter_set_filter('rx_err_7', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"field": {"name": "query.str", "regex": "x"}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_7') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (7);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: failures stop when the hook is cleared
+SELECT audit_log_filter_set_filter('rx_err_8', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_8') AS result;
+result
+OK
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (8);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +0
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+#
+# Each failing condition reports its first failure, repeated failures of
+# the same condition are only counted
+#
+SELECT audit_log_filter_set_filter('rx_err_two', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}]}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_two') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+INSERT INTO orders1 (v) VALUES (10);
+INSERT INTO orders1 (v) VALUES (11);
+INSERT INTO history1 (v) VALUES (12);
+# Records: 0
+# Regex match errors: +6
+# Warnings: one for the first condition
+# Warnings: one for the second condition
+# Recovery with real matching
+SET SESSION debug = '-d,audit_log_filter_regex_runtime_error';
+INSERT INTO orders1 (v) VALUES (13);
+INSERT INTO history1 (v) VALUES (14);
+# Records: 2
+#   1 x table_access insert tpcc.history1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +0
+#
+# Query output and capture failures are lost events, not regex errors
+#
+SELECT audit_log_filter_set_filter('rx_output', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "regex": "rx_marker_[0-9]+"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_output') AS result;
+result
+OK
+SELECT audit_log_filter_set_filter('rx_output_not', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"not": {"field": {"name": "general_query.str", "regex": "rx_marker_[0-9]+"}}}}}}}') AS result;
+result
+OK
+# Case: output conversion failure after a successful regex match
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_query_output_bad_alloc';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 0 AS rx_marker_0;
+rx_marker_0
+0
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+SET SESSION debug = '-d,audit_log_filter_query_output_bad_alloc';
+# Healthy session afterwards
+SELECT 0 AS rx_marker_0;
+rx_marker_0
+0
+# Records: 2
+#   1 x general SELECT 0 AS rx_marker_0
+#   1 x general SELECT 100 AS rx_marker_100
+# Regex match errors: +0
+# Case: escaping failure after a successful regex match
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_escape_bad_alloc';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 1 AS rx_marker_1;
+rx_marker_1
+1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+SET SESSION debug = '-d,audit_log_filter_escape_bad_alloc';
+# Healthy session afterwards
+SELECT 1 AS rx_marker_1;
+rx_marker_1
+1
+# Records: 2
+#   1 x general SELECT 1 AS rx_marker_1
+#   1 x general SELECT 100 AS rx_marker_100
+# Regex match errors: +0
+# Case: unknown query character set after a successful regex match
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_unknown_query_charset';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 2 AS rx_marker_2;
+rx_marker_2
+2
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+SET SESSION debug = '-d,audit_log_filter_unknown_query_charset';
+# Healthy session afterwards
+SELECT 2 AS rx_marker_2;
+rx_marker_2
+2
+# Records: 2
+#   1 x general SELECT 100 AS rx_marker_100
+#   1 x general SELECT 2 AS rx_marker_2
+# Regex match errors: +0
+# Case: query output not prepared after a successful regex match
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_query_output_not_ready';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 3 AS rx_marker_3;
+rx_marker_3
+3
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+SET SESSION debug = '-d,audit_log_filter_query_output_not_ready';
+# Healthy session afterwards
+SELECT 3 AS rx_marker_3;
+rx_marker_3
+3
+# Records: 2
+#   1 x general SELECT 100 AS rx_marker_100
+#   1 x general SELECT 3 AS rx_marker_3
+# Regex match errors: +0
+# Case: separated record allocation failure; with the JSON format,
+# the only one supported by audit_log_read_bookmark(), the bookmark
+# of the lost record is not published
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_write_payload_bad_alloc';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 4 AS rx_marker_4;
+rx_marker_4
+4
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+# JSON format: bookmark unchanged
+SET SESSION debug = '-d,audit_log_filter_write_payload_bad_alloc';
+# Healthy session afterwards
+SELECT 4 AS rx_marker_4;
+rx_marker_4
+4
+# JSON format: bookmark advanced
+# Records: 2
+#   1 x general SELECT 100 AS rx_marker_100
+#   1 x general SELECT 4 AS rx_marker_4
+# Regex match errors: +0
+# Case: query capture failure before filtering, the failing regex is
+# not evaluated
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_query_capture_bad_alloc,audit_log_filter_regex_runtime_error';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 5 AS rx_marker_5;
+rx_marker_5
+5
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+SET SESSION debug = '-d,audit_log_filter_query_capture_bad_alloc,audit_log_filter_regex_runtime_error';
+# Healthy session afterwards
+SELECT 5 AS rx_marker_5;
+rx_marker_5
+5
+# Records: 2
+#   1 x general SELECT 100 AS rx_marker_100
+#   1 x general SELECT 5 AS rx_marker_5
+# Regex match errors: +0
+# Case: query charset capture failure before filtering, the failing
+# regex is not evaluated
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_query_charset_bad_alloc,audit_log_filter_regex_runtime_error';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 6 AS rx_marker_6;
+rx_marker_6
+6
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +0
+SET SESSION debug = '-d,audit_log_filter_query_charset_bad_alloc,audit_log_filter_regex_runtime_error';
+# Healthy session afterwards
+SELECT 6 AS rx_marker_6;
+rx_marker_6
+6
+# Records: 2
+#   1 x general SELECT 100 AS rx_marker_100
+#   1 x general SELECT 6 AS rx_marker_6
+# Regex match errors: +0
+# Case: failed negated regex selects the event, output then fails
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_output_not') AS result;
+result
+OK
+# A record precedes the failing one in the log file
+SELECT 100 AS rx_marker_100;
+rx_marker_100
+100
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error,audit_log_filter_query_output_bad_alloc';
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+SELECT 7 AS rx_marker_7;
+rx_marker_7
+7
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+1
+SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+written
+0
+# Regex match errors: +1
+SET SESSION debug = '-d,audit_log_filter_regex_runtime_error,audit_log_filter_query_output_bad_alloc';
+# Healthy session afterwards
+SELECT 7 AS rx_marker_7;
+rx_marker_7
+7
+# Records: 1
+#   1 x general SET SESSION debug = '-d,audit_log_filter_regex_runtime_error,audit_log_filter_query_output_bad_alloc'
+# Regex match errors: +0
+#
+# Cleanup
+#
+DROP USER rx_app@localhost;
+DROP DATABASE tpcc;

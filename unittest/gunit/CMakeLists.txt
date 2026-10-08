@@ -560,4 +560,5 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
     ADD_TEST audit_query_charset
     LINK_LIBRARIES gunit_small
   )
+  ADD_SUBDIRECTORY(components/audit_log_filter)
 ENDIF()

@@ -1,0 +1,291 @@
+####################################################################
+# PS-11118: 'regex' field conditions across filter publication,
+# session reattachment, restart and component reinstallation.
+####################################################################
+
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Skipping disabled event");
+call mtr.add_suppression("Component audit_log_filter reported: 'Failed to load filtering rules");
+
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY AUTO_INCREMENT, v INT);
+CREATE TABLE tpcc.history1 LIKE tpcc.orders1;
+CREATE USER rx_app@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost;
+
+--let $rx_errors_base =
+--source filter_definition_regex_errors.inc
+
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_reload', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_reload') AS result;
+
+--echo #
+--echo # A failed reload keeps the last published rules for old and new sessions
+--echo #
+connect (rx_old, localhost, rx_app,, tpcc);
+INSERT INTO orders1 (v) VALUES (0);
+connection default;
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^(orders"}}}}}}' WHERE name = 'rx_reload';
+SELECT audit_log_filter_flush() AS result;
+connect (rx_new, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx_old;
+INSERT INTO orders1 (v) VALUES (1);
+connection rx_new;
+INSERT INTO orders1 (v) VALUES (2);
+connection default;
+--source filter_definition_regex_summary.inc
+
+--echo #
+--echo # A successful reload is used after reconnecting
+--echo #
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}}}}}' WHERE name = 'rx_reload';
+SELECT audit_log_filter_flush() AS result;
+disconnect rx_old;
+disconnect rx_new;
+connect (rx_old, localhost, rx_app,, tpcc);
+connect (rx_new, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx_old;
+INSERT INTO orders1 (v) VALUES (3);
+INSERT INTO history1 (v) VALUES (3);
+connection rx_new;
+INSERT INTO orders1 (v) VALUES (4);
+INSERT INTO history1 (v) VALUES (4);
+connection default;
+--source filter_definition_regex_summary.inc
+disconnect rx_old;
+disconnect rx_new;
+
+--echo #
+--echo # Removal and reassignment
+--echo #
+SELECT audit_log_filter_remove_filter('rx_reload') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+INSERT INTO history1 (v) VALUES (5);
+connection default;
+--source filter_definition_regex_summary.inc
+disconnect rx;
+eval SELECT audit_log_filter_set_filter('rx_reload', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_reload') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+INSERT INTO orders1 (v) VALUES (6);
+INSERT INTO history1 (v) VALUES (6);
+--echo # Change user keeps resolving the rule
+change_user rx_app,,tpcc;
+INSERT INTO orders1 (v) VALUES (7);
+connection default;
+--source filter_definition_regex_summary.inc
+disconnect rx;
+
+--echo #
+--echo # Concurrent clients while the rule is changed, removed and reassigned
+--echo #
+let $rx_history_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}}}}};
+DELIMITER |;
+CREATE PROCEDURE tpcc.rx_insert_rows(base INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 50 DO
+    IF i = 25 THEN
+      DO GET_LOCK('rx_overlap', 60);
+      DO RELEASE_LOCK('rx_overlap');
+    END IF;
+    INSERT INTO tpcc.orders1 (v) VALUES (base + i);
+    INSERT INTO tpcc.history1 (v) VALUES (base + i);
+    SET i = i + 1;
+  END WHILE;
+END|
+DELIMITER ;|
+connect (rx1, localhost, rx_app,, tpcc);
+connect (rx2, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+--echo # Both clients insert 25 row pairs under the published rule, then wait
+--echo # for the changes to start and insert the remaining 25 pairs
+SELECT GET_LOCK('rx_overlap', 0) AS locked;
+connection rx1;
+send CALL rx_insert_rows(1000);
+connection rx2;
+send CALL rx_insert_rows(2000);
+connection default;
+let $wait_condition = SELECT COUNT(*) = 2 FROM performance_schema.threads
+  WHERE PROCESSLIST_USER = 'rx_app' AND PROCESSLIST_STATE = 'User lock';
+--source include/wait_condition.inc
+SELECT RELEASE_LOCK('rx_overlap') AS released;
+--disable_result_log
+eval UPDATE mysql.audit_log_filter SET filter = '$rx_history_definition' WHERE name = 'rx_reload';
+SELECT audit_log_filter_flush();
+SELECT audit_log_filter_remove_filter('rx_reload');
+eval SELECT audit_log_filter_set_filter('rx_reload', '$rx_history_definition');
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_reload');
+--enable_result_log
+connection rx1;
+reap;
+connection rx2;
+reap;
+connection default;
+--echo # Evaluations overlapping the changes may use any of the rule sets, the
+--echo # 2 x 25 orders1 inserts before the changes are logged
+--let rx_allowed_records = ^table_access insert tpcc[.](orders1|history1)(?!.)
+--let rx_min_records = 50
+--source filter_definition_regex_summary.inc
+--let rx_allowed_records =
+--let rx_min_records =
+disconnect rx1;
+disconnect rx2;
+--echo # After reconnecting, each of 2 x 10 concurrent inserts is logged once
+--echo # according to the new rule
+connect (rx1, localhost, rx_app,, tpcc);
+connect (rx2, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+--disable_query_log
+--let $rx_i = 0
+while ($rx_i < 10) {
+  connection rx1;
+  send_eval INSERT INTO history1 (v) VALUES (3000 + $rx_i);
+  connection rx2;
+  send_eval INSERT INTO history1 (v) VALUES (4000 + $rx_i);
+  connection rx1;
+  reap;
+  connection rx2;
+  reap;
+  connection rx1;
+  eval INSERT INTO orders1 (v) VALUES (3000 + $rx_i);
+  --inc $rx_i
+}
+--enable_query_log
+connection default;
+--let rx_table_access_query = 1
+--source filter_definition_regex_summary.inc
+--let rx_table_access_query =
+disconnect rx1;
+disconnect rx2;
+--source filter_definition_regex_errors.inc
+
+--echo #
+--echo # REDUCED event mode skips whole disabled classes before parsing their
+--echo # conditions, conditions of disabled subclasses are still validated
+--echo #
+SELECT @@global.audit_log_filter.event_mode;
+SELECT audit_log_filter_set_filter('rx_reduced_class', '{"filter": {"class": {"name": "table_access"}}}') AS result;
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": [{"name": "query", "event": {"name": "start", "log": {"field": {"name": "query.str", "regex": "^(bad"}}}}, {"name": "table_access"}]}}' WHERE name = 'rx_reduced_class';
+SELECT audit_log_filter_flush() AS result;
+SET GLOBAL audit_log_filter.event_mode = FULL;
+SELECT audit_log_filter_flush() AS result;
+SET GLOBAL audit_log_filter.event_mode = REDUCED;
+SELECT audit_log_filter_flush() AS result;
+SELECT audit_log_filter_remove_filter('rx_reduced_class') AS result;
+SELECT audit_log_filter_set_filter('rx_reduced_subclass', '{"filter": {"class": {"name": "table_access"}}}') AS result;
+UPDATE mysql.audit_log_filter SET filter = '{"filter": {"class": {"name": "general", "event": {"name": "log", "log": {"field": {"name": "general_query.str", "regex": "^(bad"}}}}}}' WHERE name = 'rx_reduced_subclass';
+SELECT audit_log_filter_flush() AS result;
+SELECT audit_log_filter_remove_filter('rx_reduced_subclass') AS result;
+SELECT audit_log_filter_flush() AS result;
+
+--echo #
+--echo # Numeric-looking string fields are eligible in FULL mode
+--echo #
+SET GLOBAL audit_log_filter.event_mode = FULL;
+SELECT audit_log_filter_set_filter('rx_numeric_string', '{"filter": {"class": {"name": "global_variable", "event": {"name": "get", "log": {"field": {"name": "connection_id", "regex": "^[0-9]+$"}}}}}}') AS result;
+SELECT audit_log_filter_remove_filter('rx_numeric_string') AS result;
+--let $rx_case_i = 0
+while ($rx_case_i < 2) {
+  if ($rx_case_i == 0) {
+    --echo # Decimal connection ID matches
+    --let $rx_pattern = ^[0-9]+(?!.)
+  }
+  if ($rx_case_i == 1) {
+    --echo # Alphabetic pattern does not match
+    --let $rx_pattern = ^[a-z]+(?!.)
+  }
+  eval SELECT audit_log_filter_set_filter('rx_connection_id_$rx_case_i', '{"filter": {"class": {"name": "query", "event": {"name": "status_end", "log": {"and": [{"field": {"name": "connection_id", "regex": "$rx_pattern"}}, {"field": {"name": "query.str", "regex": "rx_numeric"}}]}}}}}') AS result;
+  eval SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_connection_id_$rx_case_i') AS result;
+  connect (rx, localhost, rx_app,, tpcc);
+  connection default;
+  --source filter_definition_regex_begin.inc
+  connection rx;
+  SELECT 'rx_numeric';
+  connection default;
+  --source filter_definition_regex_summary.inc
+  disconnect rx;
+  eval SELECT audit_log_filter_remove_filter('rx_connection_id_$rx_case_i') AS result;
+  --inc $rx_case_i
+}
+--source filter_definition_regex_errors.inc
+SET GLOBAL audit_log_filter.event_mode = REDUCED;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_reload') AS result;
+
+--echo #
+--echo # Restart keeps using stored regex filters
+--echo #
+--source include/restart_mysqld.inc
+# Status variables restart from zero
+--let $rx_errors_base = 0
+SELECT audit_log_filter_flush() AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+INSERT INTO orders1 (v) VALUES (8);
+INSERT INTO history1 (v) VALUES (8);
+connection default;
+--source filter_definition_regex_summary.inc
+disconnect rx;
+
+--echo #
+--echo # ICU data dependent patterns before and after component reinstallation,
+--echo # server REGEXP is not affected
+--echo #
+SELECT 'aaa' REGEXP '^\\N{LATIN SMALL LETTER A}+$' AS server_regexp;
+SELECT audit_log_filter_set_filter('rx_named', REPLACE('{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "regex": "~~N{LATIN SMALL LETTER A}{3}_named"}}}}}}', '~', CHAR(92))) AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_named') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+SELECT 'aaa_named';
+SELECT 'bbb_named';
+connection default;
+--source filter_definition_regex_summary.inc
+disconnect rx;
+--source filter_definition_regex_errors.inc
+
+--source ../inc/audit_comp_uninstall.inc
+SELECT 'aaa' REGEXP '^\\N{LATIN SMALL LETTER A}+$' AS server_regexp;
+--source ../inc/audit_comp_install.inc
+SELECT 'aaa' REGEXP '^\\N{LATIN SMALL LETTER A}+$' AS server_regexp;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+SELECT 'aaa_named';
+SELECT 'bbb_named';
+connection default;
+--source filter_definition_regex_summary.inc
+disconnect rx;
+--let $rx_errors_base =
+--source filter_definition_regex_errors.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP USER rx_app@localhost;
+DROP DATABASE tpcc;
+--source clean_all_audit_logs.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

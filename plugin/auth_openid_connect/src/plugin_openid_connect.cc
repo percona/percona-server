@@ -144,8 +144,8 @@ class User_auth_data {
   /** @return The external user name. */
   const std::string &get_ext_user() const { return ext_user; }
   /** @return The mapping of external groups to proxied accounts. */
-  const std::vector<std::pair<std::string, std::string>> &
-  get_groups_to_proxied() const {
+  const std::vector<std::pair<std::string, std::string>>
+      &get_groups_to_proxied() const {
     return groups_to_proxied;
   }
   /** @return The error message. */

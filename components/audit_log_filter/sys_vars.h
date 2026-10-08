@@ -347,6 +347,12 @@ class SysVars {
   static void inc_direct_writes() noexcept;
 
   /**
+   * @brief Increment counter of regex field condition evaluations which
+   *        failed and were treated as not matching.
+   */
+  static void inc_regex_match_errors() noexcept;
+
+  /**
    * @brief Update bookmark to latest event written to log.
    *
    * @param id ID of an audit event

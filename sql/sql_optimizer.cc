@@ -8253,6 +8253,7 @@ static bool add_vector_keys(Key_use_array *keyuse_array, JOIN *join,
     /* Use only an index whose construction metric matches this DISTANCE()
     call (euclid / euclid_squared vs cosine, etc.). */
     if ((index.flags & HA_VECTOR) && table->keys_in_use_for_query.is_set(idx) &&
+        table->keys_in_use_for_order_by.is_set(idx) &&
         index.key_part[0].field->eq(column) &&
         dist_fn->vector_index_is_metric_compatible(index.vector_index_metric)) {
       // Store the full table row count (not the query LIMIT) so the join

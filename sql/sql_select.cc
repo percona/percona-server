@@ -5313,23 +5313,22 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     uint used_key_parts;
     bool skip_quick;
 
-    const Key_use *vector_key = nullptr;
-    if (tab != nullptr && (table->key_info[nr].flags & HA_VECTOR)) {
+    if ((table->key_info[nr].flags & HA_VECTOR) != 0 && tab != nullptr &&
+        usable_keys.is_set(nr)) {
+      bool has_vector_key_use = false;
       for (const Key_use *ku = tab->keyuse();
            ku != nullptr && ku->table_ref == tab->table_ref; ++ku) {
-        if (ku->key == nr && ku->keypart == VECTOR_KEYPART) {
-          vector_key = ku;
+        if (ku->key == static_cast<uint>(nr) && ku->keypart == VECTOR_KEYPART) {
+          has_vector_key_use = true;
           break;
         }
       }
-    }
 
-    if (vector_key != nullptr && order->src == ESC_ORDER_BY &&
-        !tab->join()->select_distinct) {
-      if (select_limit < table_records) {
+      if (has_vector_key_use && order->src == ESC_ORDER_BY &&
+          !tab->join()->select_distinct && select_limit < table_records) {
         best_key = nr;
         best_key_parts = 1;
-        if (saved_best_key_parts) *saved_best_key_parts = 1;
+        if (saved_best_key_parts != nullptr) *saved_best_key_parts = 1;
         best_key_direction = 1;
         best_records = static_cast<ha_rows>(select_limit);
         best_read_time = vector_constants::prohibitive_cost;

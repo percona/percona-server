@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
@@ -20,9 +20,11 @@ jobs:
             BASE_REPO="percona-server"
             BASE_BRANCH="trunk"
             COMPILER_VERSION="19"
+            # .clang-format: "We currently use clang-format version 15."
+            CLANG_FORMAT_VERSION="15"
 
             sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1
-            sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${COMPILER_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake libicu-dev libtirpc-dev
+            sudo apt-get install -yq --no-install-suggests --allow-unauthenticated --no-install-recommends clang-${COMPILER_VERSION} clang-tidy-${COMPILER_VERSION} clang-format-${CLANG_FORMAT_VERSION} clang-tools-${COMPILER_VERSION} libc++-${COMPILER_VERSION}-dev libc++abi-${COMPILER_VERSION}-dev libldap2-dev curl libcurl4-openssl-dev bison libudev-dev libkrb5-dev libreadline-dev zlib1g-dev liblz4-dev libedit-dev libevent-dev protobuf-compiler libprotobuf-dev libprotoc-dev libldap2-dev libsasl2-dev libsasl2-modules-gssapi-mit cmake libicu-dev libtirpc-dev
 
             # Prepare compile_commands.json
             cd ~/project
@@ -91,7 +93,7 @@ jobs:
             git fetch --no-tags --no-recurse-submodules target $BASE_BRANCH
 
             echo "Checking clang-format results"
-            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-$COMPILER_VERSION -style=file -p1 >_GIT_DIFF || true
+            git diff -U0 "$(git merge-base HEAD target/$BASE_BRANCH)" *.c *.cc *.cpp *.h *.hpp *.i *.ic *.ih | clang-format-diff-${CLANG_FORMAT_VERSION} -style=file -p1 >_GIT_DIFF || true
             if [ ! -s _GIT_DIFF ]; then
               echo The last git commit is clang-formatted;
             else
@@ -109,3 +111,8 @@ jobs:
                echo The last git commit has clang-tidy warnings;
                cat _GIT_DIFF_TIDY;
             fi
+
+workflows:
+  build:
+    jobs:
+      - build

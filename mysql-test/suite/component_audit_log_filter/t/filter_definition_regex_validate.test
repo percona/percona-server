@@ -1,0 +1,291 @@
+####################################################################
+# PS-11118: validation of 'regex' field conditions.
+#
+#   "field": { "name": "<string field>", "regex": "<ICU regex>" }
+#
+# A regex-bearing field object must contain exactly one 'name' and one
+# non-empty 'regex'. Every rejected definition must leave no row behind.
+####################################################################
+
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+
+SET NAMES utf8mb4;
+
+--echo #
+--echo # Valid regex conditions
+--echo #
+--let $rx_name = rx_ok
+--let $rx_field = {"name":"table_name.str","regex":"orders[0-9]+"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_jira
+--let $rx_field = {"name":"table_name.str","regex":"^(new_orders|orders|history)[0-9]+$"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_unicode
+--let $rx_field = {"name":"table_name.str","regex":"^zam.wienia😀[0-9]+$"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_flags
+--let $rx_field = {"name":"table_name.str","regex":"(?i)~~Aorders~~d+~~z"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_nul_pattern
+--let $rx_field = {"name":"table_name.str","regex":"~u0000"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_user
+--let $rx_class = connection
+--let $rx_event = connect
+--let $rx_field = {"name":"user.str","regex":"^app_svc_"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_general
+--let $rx_class = general
+--let $rx_event = status
+--let $rx_field = {"name":"general_query.str","regex":"^SELECT"}
+--source filter_definition_regex_set.inc
+
+--echo # Pattern containing NUL built with JSON_OBJECT() is stored decoded
+SET @rx_pattern = CONCAT('nul_probe_a', CHAR(0 USING utf8mb4), 'b');
+SET @rx_definition = JSON_OBJECT('filter', JSON_OBJECT('class', JSON_OBJECT('name', 'general', 'event', JSON_OBJECT('name', 'status', 'log', JSON_OBJECT('field', JSON_OBJECT('name', 'general_query.str', 'regex', @rx_pattern))))));
+SELECT audit_log_filter_set_filter('rx_nul_json', @rx_definition) AS result;
+SELECT JSON_UNQUOTE(JSON_EXTRACT(filter, '$.filter.class.event.log.field.regex')) = @rx_pattern AS pattern_stored,
+       LENGTH(JSON_UNQUOTE(JSON_EXTRACT(filter, '$.filter.class.event.log.field.regex'))) AS pattern_length
+  FROM mysql.audit_log_filter WHERE name = 'rx_nul_json';
+
+--echo #
+--echo # Empty pattern is rejected
+--echo #
+--let $rx_name = rx_empty
+--let $rx_field = {"name":"table_name.str","regex":""}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Members
+--echo #
+--let $rx_name = rx_both
+--let $rx_field = {"name":"table_name.str","value":"orders1","regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_both_first
+--let $rx_field = {"regex":"x","foo":1,"value":"orders1","name":"table_name.str"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_unknown
+--let $rx_field = {"name":"table_name.str","regex":"x","foo":1}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_unknown_empty
+--let $rx_field = {"name":"table_name.str","regex":"x","":1}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_unknown_nul
+--let $rx_field = {"name":"table_name.str","regex":"x","regex~u0000":1}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_unknown_escaped
+--let $rx_field = {"name":"table_name.str","regex":"x","a~u0027b~~c~nd":1}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_dup_regex
+--let $rx_field = {"name":"table_name.str","regex":"x","regex":"y"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_dup_name
+--let $rx_field = {"name":"table_name.str","name":"table_name.str","regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_dup_order
+--let $rx_field = {"name":"table_name.str","regex":"x","foo":1,"regex":"y"}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Name and pattern types
+--echo #
+--let $rx_name = rx_no_name
+--let $rx_field = {"regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_int_name
+--let $rx_field = {"name":5,"regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_int_regex
+--let $rx_field = {"name":"table_name.str","regex":5}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_array_regex
+--let $rx_field = {"name":"table_name.str","regex":["x"]}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Field names and types
+--echo #
+--let $rx_name = rx_bad_field
+--let $rx_field = {"name":"no_such.str","regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_nul_field
+--let $rx_field = {"name":"table_name.str~u0000","regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_int_field
+--let $rx_field = {"name":"connection_id","regex":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_length_field
+--let $rx_field = {"name":"table_name.length","regex":"1"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_connection_type
+--let $rx_class = connection
+--let $rx_event = connect
+--let $rx_field = {"name":"connection_type","regex":"::socket"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_wrong_class_field
+--let $rx_class = general
+--let $rx_event = status
+--let $rx_field = {"name":"table_name.str","regex":"x"}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Invalid regular expressions
+--echo #
+--let $rx_name = rx_paren
+--let $rx_field = {"name":"table_name.str","regex":"^(orders"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_max_lt_min
+--let $rx_field = {"name":"table_name.str","regex":"a{2,1}"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_range
+--let $rx_field = {"name":"table_name.str","regex":"[z-a]"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_emoji_paren
+--let $rx_field = {"name":"table_name.str","regex":"😀("}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_multiline_paren
+--let $rx_field = {"name":"table_name.str","regex":"a~n😀("}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_bad_property
+--let $rx_field = {"name":"table_name.str","regex":"~~p{NoSuchProperty}"}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Lone surrogates are rejected by the JSON parser
+--echo #
+--let $rx_name = rx_high_surrogate
+--let $rx_field = {"name":"table_name.str","regex":"~ud800"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_low_surrogate
+--let $rx_field = {"name":"table_name.str","regex":"~udc00"}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Operators other than 'regex' keep the legacy diagnostic, equality stays
+--echo # literal and legacy objects still ignore extra members
+--echo #
+--let $rx_name = rx_name_only
+--let $rx_field = {"name":"table_name.str"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_re
+--let $rx_field = {"name":"table_name.str","re":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_regexp
+--let $rx_field = {"name":"table_name.str","regexp":"x"}
+--source filter_definition_regex_set.inc
+
+--let $rx_name = rx_legacy_extra
+--let $rx_field = {"name":"table_name.str","value":"orders.*","foo":1}
+--source filter_definition_regex_set.inc
+
+--echo #
+--echo # Empty pattern is rejected in every condition context
+--echo #
+let $rx_definition = {"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"and":[{"field":{"name":"table_database.str","value":"tpcc"}},{"or":[{"field":{"name":"table_name.str","value":"x"}},{"not":{"field":{"name":"table_name.str","regex":""}}}]}]}}}}};
+eval SELECT audit_log_filter_set_filter('rx_empty_nested', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_nested';
+
+let $rx_definition = {"filter":{"class":{"name":"table_access","event":{"name":"insert","abort":{"field":{"name":"table_name.str","regex":""}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_empty_abort', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_abort';
+
+let $rx_definition = {"filter":{"class":{"name":"general","event":{"name":"status","log":true,"print":{"field":{"name":"general_query.str","print":{"field":{"name":"general_query.str","regex":""}},"replace":{"function":{"name":"query_digest"}}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_empty_print', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_print';
+
+let $rx_definition = {"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":true,"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","regex":""}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_empty_activate', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_activate';
+
+let $rx_definition = {"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.str","regex":""}},"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","regex":"x"}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_empty_replacement', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_replacement';
+
+--echo # Valid patterns in the same contexts
+let $rx_definition = {"filter":{"class":{"name":"table_access","event":{"name":"insert","abort":{"field":{"name":"table_name.str","regex":"^secret_[0-9]+$"}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_abort', '$rx_definition') AS result;
+let $rx_definition = {"filter":{"class":{"name":"general","event":{"name":"status","log":true,"print":{"field":{"name":"general_query.str","print":{"field":{"name":"general_query.str","regex":"^SELECT .keep"}},"replace":{"function":{"name":"query_digest"}}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_print', '$rx_definition') AS result;
+let $rx_definition = {"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":true,"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","regex":"^temp_[0-9]+$"}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_activate', '$rx_definition') AS result;
+SELECT name FROM mysql.audit_log_filter WHERE name IN ('rx_abort', 'rx_print', 'rx_activate') ORDER BY name;
+
+--echo #
+--echo # Whole definition size gate is checked first
+--echo #
+SET @rx_definition = CONCAT('{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":"', REPEAT('a', 16400), '"}}}}}}');
+--error ER_CANT_INITIALIZE_UDF
+SELECT audit_log_filter_set_filter('rx_too_long', @rx_definition);
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_too_long';
+
+--echo #
+--echo # Stored definitions are validated when loaded
+--echo #
+SELECT audit_log_filter_flush() AS result;
+SELECT audit_log_filter_set_filter('rx_bad', '{"filter":{"class":{"name":"table_access"}}}') AS result;
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":"^(orders"}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+--let $rx_name = rx_other
+--let $rx_field = {"name":"table_name.str","regex":"other"}
+--source filter_definition_regex_set.inc
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":""}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","abort":{"field":{"name":"table_name.str","regex":""}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":"^orders[0-9]+$"}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+
+--echo #
+--echo # Upgrade inspection: rows with an actual 'regex' member anywhere,
+--echo # a string value equal to "regex" is not a member
+--echo #
+CREATE TABLE rx_inventory (name VARCHAR(64), filter JSON);
+INSERT INTO rx_inventory VALUES
+  ('value_is_regex', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","value":"regex"}}}}}}'),
+  ('both_operators', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","value":"x","regex":"y"}}}}}}'),
+  ('nested_replacement', '{"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.str","value":"x","regex":"y"}},"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","value":"temp_1"}}}}}}}');
+SELECT name FROM rx_inventory WHERE JSON_CONTAINS_PATH(filter, 'one', '$**.regex') ORDER BY name;
+DROP TABLE rx_inventory;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

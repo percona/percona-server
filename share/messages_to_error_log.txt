@@ -13468,6 +13468,12 @@ ER_AUDIT_PARSE_SKIP_DISABLED_EVENT_CLASS
 ER_AUDIT_PARSE_SKIP_DISABLED_EVENT_SUBCLASS
   eng "Skipping disabled event '%s/%s' in filter '%s'"
 
+ER_AUDIT_PARSE_CONDITION_BAD_FIELD_REGEX
+  eng "Wrong JSON filter '%s' format, bad 'regex' field condition: %s"
+
+ER_AUDIT_FILTER_REGEX_MATCH_FAILURE
+  eng "Audit log filter '%s': regex '%s' on field '%s' failed (%s: %s); condition treated as not matching. Further failures of this condition are reported at most once per 60 seconds."
+
 #
 # End of Audit Log Filter error log messages
 #

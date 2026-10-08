@@ -1,0 +1,419 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+SET NAMES utf8mb4;
+#
+# Valid regex conditions
+#
+# rx_ok: {"name":"table_name.str","regex":"orders[0-9]+"}
+SELECT audit_log_filter_set_filter('rx_ok', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_ok';
+stored_rows
+1
+# rx_jira: {"name":"table_name.str","regex":"^(new_orders|orders|history)[0-9]+$"}
+SELECT audit_log_filter_set_filter('rx_jira', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_jira';
+stored_rows
+1
+# rx_unicode: {"name":"table_name.str","regex":"^zam.wienia😀[0-9]+$"}
+SELECT audit_log_filter_set_filter('rx_unicode', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_unicode';
+stored_rows
+1
+# rx_flags: {"name":"table_name.str","regex":"(?i)~~Aorders~~d+~~z"}
+SELECT audit_log_filter_set_filter('rx_flags', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_flags';
+stored_rows
+1
+# rx_nul_pattern: {"name":"table_name.str","regex":"~u0000"}
+SELECT audit_log_filter_set_filter('rx_nul_pattern', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_nul_pattern';
+stored_rows
+1
+# rx_user: {"name":"user.str","regex":"^app_svc_"}
+SELECT audit_log_filter_set_filter('rx_user', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_user';
+stored_rows
+1
+# rx_general: {"name":"general_query.str","regex":"^SELECT"}
+SELECT audit_log_filter_set_filter('rx_general', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_general';
+stored_rows
+1
+# Pattern containing NUL built with JSON_OBJECT() is stored decoded
+SET @rx_pattern = CONCAT('nul_probe_a', CHAR(0 USING utf8mb4), 'b');
+SET @rx_definition = JSON_OBJECT('filter', JSON_OBJECT('class', JSON_OBJECT('name', 'general', 'event', JSON_OBJECT('name', 'status', 'log', JSON_OBJECT('field', JSON_OBJECT('name', 'general_query.str', 'regex', @rx_pattern))))));
+SELECT audit_log_filter_set_filter('rx_nul_json', @rx_definition) AS result;
+result
+OK
+SELECT JSON_UNQUOTE(JSON_EXTRACT(filter, '$.filter.class.event.log.field.regex')) = @rx_pattern AS pattern_stored,
+LENGTH(JSON_UNQUOTE(JSON_EXTRACT(filter, '$.filter.class.event.log.field.regex'))) AS pattern_length
+FROM mysql.audit_log_filter WHERE name = 'rx_nul_json';
+pattern_stored	pattern_length
+1	13
+#
+# Empty pattern is rejected
+#
+# rx_empty: {"name":"table_name.str","regex":""}
+SELECT audit_log_filter_set_filter('rx_empty', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty';
+stored_rows
+0
+#
+# Members
+#
+# rx_both: {"name":"table_name.str","value":"orders1","regex":"x"}
+SELECT audit_log_filter_set_filter('rx_both', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have either 'value' or 'regex', not both
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_both';
+stored_rows
+0
+# rx_both_first: {"regex":"x","foo":1,"value":"orders1","name":"table_name.str"}
+SELECT audit_log_filter_set_filter('rx_both_first', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have either 'value' or 'regex', not both
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_both_first';
+stored_rows
+0
+# rx_unknown: {"name":"table_name.str","regex":"x","foo":1}
+SELECT audit_log_filter_set_filter('rx_unknown', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: unexpected key 'foo' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_unknown';
+stored_rows
+0
+# rx_unknown_empty: {"name":"table_name.str","regex":"x","":1}
+SELECT audit_log_filter_set_filter('rx_unknown_empty', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: unexpected key '' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_unknown_empty';
+stored_rows
+0
+# rx_unknown_nul: {"name":"table_name.str","regex":"x","regex~u0000":1}
+SELECT audit_log_filter_set_filter('rx_unknown_nul', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: unexpected key 'regex\u0000' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_unknown_nul';
+stored_rows
+0
+# rx_unknown_escaped: {"name":"table_name.str","regex":"x","a~u0027b~~c~nd":1}
+SELECT audit_log_filter_set_filter('rx_unknown_escaped', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: unexpected key 'a\u0027b\\c\u000Ad' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_unknown_escaped';
+stored_rows
+0
+# rx_dup_regex: {"name":"table_name.str","regex":"x","regex":"y"}
+SELECT audit_log_filter_set_filter('rx_dup_regex', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: duplicate key 'regex' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_dup_regex';
+stored_rows
+0
+# rx_dup_name: {"name":"table_name.str","name":"table_name.str","regex":"x"}
+SELECT audit_log_filter_set_filter('rx_dup_name', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: duplicate key 'name' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_dup_name';
+stored_rows
+0
+# rx_dup_order: {"name":"table_name.str","regex":"x","foo":1,"regex":"y"}
+SELECT audit_log_filter_set_filter('rx_dup_order', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: unexpected key 'foo' in 'field' definition
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_dup_order';
+stored_rows
+0
+#
+# Name and pattern types
+#
+# rx_no_name: {"regex":"x"}
+SELECT audit_log_filter_set_filter('rx_no_name', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_no_name';
+stored_rows
+0
+# rx_int_name: {"name":5,"regex":"x"}
+SELECT audit_log_filter_set_filter('rx_int_name', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_int_name';
+stored_rows
+0
+# rx_int_regex: {"name":"table_name.str","regex":5}
+SELECT audit_log_filter_set_filter('rx_int_regex', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_int_regex';
+stored_rows
+0
+# rx_array_regex: {"name":"table_name.str","regex":["x"]}
+SELECT audit_log_filter_set_filter('rx_array_regex', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_array_regex';
+stored_rows
+0
+#
+# Field names and types
+#
+# rx_bad_field: {"name":"no_such.str","regex":"x"}
+SELECT audit_log_filter_set_filter('rx_bad_field', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: field name 'no_such.str' is not valid for event class 'table_access'
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_bad_field';
+stored_rows
+0
+# rx_nul_field: {"name":"table_name.str~u0000","regex":"x"}
+SELECT audit_log_filter_set_filter('rx_nul_field', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: field name 'table_name.str\u0000' is not valid for event class 'table_access'
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_nul_field';
+stored_rows
+0
+# rx_int_field: {"name":"connection_id","regex":"x"}
+SELECT audit_log_filter_set_filter('rx_int_field', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: field 'connection_id' is not a string field; 'regex' applies only to string fields
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_int_field';
+stored_rows
+0
+# rx_length_field: {"name":"table_name.length","regex":"1"}
+SELECT audit_log_filter_set_filter('rx_length_field', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: field 'table_name.length' is not a string field; 'regex' applies only to string fields
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_length_field';
+stored_rows
+0
+# rx_connection_type: {"name":"connection_type","regex":"::socket"}
+SELECT audit_log_filter_set_filter('rx_connection_type', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: field 'connection_type' is not a string field; 'regex' applies only to string fields
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_connection_type';
+stored_rows
+0
+# rx_wrong_class_field: {"name":"table_name.str","regex":"x"}
+SELECT audit_log_filter_set_filter('rx_wrong_class_field', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: field name 'table_name.str' is not valid for event class 'general'
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_wrong_class_field';
+stored_rows
+0
+#
+# Invalid regular expressions
+#
+# rx_paren: {"name":"table_name.str","regex":"^(orders"}
+SELECT audit_log_filter_set_filter('rx_paren', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: invalid regular expression for field 'table_name.str': U_REGEX_MISMATCHED_PAREN at line 1, offset 8
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_paren';
+stored_rows
+0
+# rx_max_lt_min: {"name":"table_name.str","regex":"a{2,1}"}
+SELECT audit_log_filter_set_filter('rx_max_lt_min', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: invalid regular expression for field 'table_name.str': U_REGEX_MAX_LT_MIN at line 1, offset 6
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_max_lt_min';
+stored_rows
+0
+# rx_range: {"name":"table_name.str","regex":"[z-a]"}
+SELECT audit_log_filter_set_filter('rx_range', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: invalid regular expression for field 'table_name.str': U_REGEX_INVALID_RANGE at line 1, offset 4
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_range';
+stored_rows
+0
+# rx_emoji_paren: {"name":"table_name.str","regex":"😀("}
+SELECT audit_log_filter_set_filter('rx_emoji_paren', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: invalid regular expression for field 'table_name.str': U_REGEX_MISMATCHED_PAREN at line 1, offset 2
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_emoji_paren';
+stored_rows
+0
+# rx_multiline_paren: {"name":"table_name.str","regex":"a~n😀("}
+SELECT audit_log_filter_set_filter('rx_multiline_paren', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: invalid regular expression for field 'table_name.str': U_REGEX_MISMATCHED_PAREN at line 2, offset 2
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_multiline_paren';
+stored_rows
+0
+# rx_bad_property: {"name":"table_name.str","regex":"~~p{NoSuchProperty}"}
+SELECT audit_log_filter_set_filter('rx_bad_property', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: invalid regular expression for field 'table_name.str': U_REGEX_PROPERTY_SYNTAX at line 1, offset 18
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_bad_property';
+stored_rows
+0
+#
+# Lone surrogates are rejected by the JSON parser
+#
+# rx_high_surrogate: {"name":"table_name.str","regex":"~ud800"}
+SELECT audit_log_filter_set_filter('rx_high_surrogate', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: JSON parse error
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_high_surrogate';
+stored_rows
+0
+# rx_low_surrogate: {"name":"table_name.str","regex":"~udc00"}
+SELECT audit_log_filter_set_filter('rx_low_surrogate', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: JSON parse error
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_low_surrogate';
+stored_rows
+0
+#
+# Operators other than 'regex' keep the legacy diagnostic, equality stays
+# literal and legacy objects still ignore extra members
+#
+# rx_name_only: {"name":"table_name.str"}
+SELECT audit_log_filter_set_filter('rx_name_only', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_name_only';
+stored_rows
+0
+# rx_re: {"name":"table_name.str","re":"x"}
+SELECT audit_log_filter_set_filter('rx_re', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_re';
+stored_rows
+0
+# rx_regexp: {"name":"table_name.str","regexp":"x"}
+SELECT audit_log_filter_set_filter('rx_regexp', @rx_definition) AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' must have field 'name' provided as a string and 'value' as a string or integer
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_regexp';
+stored_rows
+0
+# rx_legacy_extra: {"name":"table_name.str","value":"orders.*","foo":1}
+SELECT audit_log_filter_set_filter('rx_legacy_extra', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_legacy_extra';
+stored_rows
+1
+#
+# Empty pattern is rejected in every condition context
+#
+SELECT audit_log_filter_set_filter('rx_empty_nested', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"and":[{"field":{"name":"table_database.str","value":"tpcc"}},{"or":[{"field":{"name":"table_name.str","value":"x"}},{"not":{"field":{"name":"table_name.str","regex":""}}}]}]}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_nested';
+stored_rows
+0
+SELECT audit_log_filter_set_filter('rx_empty_abort', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","abort":{"field":{"name":"table_name.str","regex":""}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_abort';
+stored_rows
+0
+SELECT audit_log_filter_set_filter('rx_empty_print', '{"filter":{"class":{"name":"general","event":{"name":"status","log":true,"print":{"field":{"name":"general_query.str","print":{"field":{"name":"general_query.str","regex":""}},"replace":{"function":{"name":"query_digest"}}}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_print';
+stored_rows
+0
+SELECT audit_log_filter_set_filter('rx_empty_activate', '{"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":true,"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","regex":""}}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_activate';
+stored_rows
+0
+SELECT audit_log_filter_set_filter('rx_empty_replacement', '{"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.str","regex":""}},"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","regex":"x"}}}}}}}') AS result;
+result
+ERROR: Incorrect rule definition: event field definition 'field' 'regex' must be a non-empty string
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_empty_replacement';
+stored_rows
+0
+# Valid patterns in the same contexts
+SELECT audit_log_filter_set_filter('rx_abort', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","abort":{"field":{"name":"table_name.str","regex":"^secret_[0-9]+$"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_filter('rx_print', '{"filter":{"class":{"name":"general","event":{"name":"status","log":true,"print":{"field":{"name":"general_query.str","print":{"field":{"name":"general_query.str","regex":"^SELECT .keep"}},"replace":{"function":{"name":"query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_filter('rx_activate', '{"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":true,"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","regex":"^temp_[0-9]+$"}}}}}}}') AS result;
+result
+OK
+SELECT name FROM mysql.audit_log_filter WHERE name IN ('rx_abort', 'rx_print', 'rx_activate') ORDER BY name;
+name
+rx_abort
+rx_activate
+rx_print
+#
+# Whole definition size gate is checked first
+#
+SET @rx_definition = CONCAT('{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":"', REPEAT('a', 16400), '"}}}}}}');
+SELECT audit_log_filter_set_filter('rx_too_long', @rx_definition);
+ERROR HY000: Can't initialize function 'audit_log_filter_set_filter'; Wrong argument: definition is too long, max length is 16384
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_too_long';
+stored_rows
+0
+#
+# Stored definitions are validated when loaded
+#
+SELECT audit_log_filter_flush() AS result;
+result
+OK
+SELECT audit_log_filter_set_filter('rx_bad', '{"filter":{"class":{"name":"table_access"}}}') AS result;
+result
+OK
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":"^(orders"}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+result
+ERROR: Filter 'rx_bad' has wrong format: invalid regular expression for field 'table_name.str': U_REGEX_MISMATCHED_PAREN at line 1, offset 8
+# rx_other: {"name":"table_name.str","regex":"other"}
+SELECT audit_log_filter_set_filter('rx_other', @rx_definition) AS result;
+result
+OK
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_other';
+stored_rows
+1
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":""}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+result
+ERROR: Filter 'rx_bad' has wrong format: event field definition 'field' 'regex' must be a non-empty string
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","abort":{"field":{"name":"table_name.str","regex":""}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+result
+ERROR: Filter 'rx_bad' has wrong format: event field definition 'field' 'regex' must be a non-empty string
+UPDATE mysql.audit_log_filter SET filter = '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","regex":"^orders[0-9]+$"}}}}}}' WHERE name = 'rx_bad';
+SELECT audit_log_filter_flush() AS result;
+result
+OK
+#
+# Upgrade inspection: rows with an actual 'regex' member anywhere,
+# a string value equal to "regex" is not a member
+#
+CREATE TABLE rx_inventory (name VARCHAR(64), filter JSON);
+INSERT INTO rx_inventory VALUES
+('value_is_regex', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","value":"regex"}}}}}}'),
+('both_operators', '{"filter":{"class":{"name":"table_access","event":{"name":"insert","log":{"field":{"name":"table_name.str","value":"x","regex":"y"}}}}}}'),
+('nested_replacement', '{"filter":{"id":"main","class":{"name":"table_access","event":{"name":"insert","log":false,"filter":{"class":{"name":"general","event":{"name":"status","log":{"field":{"name":"general_query.str","value":"x","regex":"y"}},"filter":{"ref":"main"}}},"activate":{"field":{"name":"table_name.str","value":"temp_1"}}}}}}}');
+SELECT name FROM rx_inventory WHERE JSON_CONTAINS_PATH(filter, 'one', '$**.regex') ORDER BY name;
+name
+both_operators
+nested_replacement
+DROP TABLE rx_inventory;
+#
+# Cleanup
+#

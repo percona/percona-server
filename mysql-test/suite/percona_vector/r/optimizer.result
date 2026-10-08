@@ -565,17 +565,158 @@ WHERE jt.access_type = 'vector'
    AND jt.cause = 'heuristic_eqref_already_found';
 access_type	idx	chosen	cause
 vector	v	false	heuristic_eqref_already_found
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0]'))  (cost=X rows=X)
+
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+reconsidering
+[
+  {
+    "steps": [],
+    "clause": "ORDER BY",
+    "index_order_summary": {
+      "index": "v",
+      "table": "`t1`",
+      "access_type": "vector_ann",
+      "plan_changed": true,
+      "order_direction": "asc",
+      "index_provides_order": true
+    }
+  }
+]
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'EUCLIDEAN_SQUARED') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0]'))  (cost=X rows=X)
+
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+reconsidering
+[
+  {
+    "steps": [],
+    "clause": "ORDER BY",
+    "index_order_summary": {
+      "index": "v",
+      "table": "`t1`",
+      "access_type": "vector_ann",
+      "plan_changed": true,
+      "order_direction": "asc",
+      "index_provides_order": true
+    }
+  }
+]
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'DOT') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[0, 0]'),'DOT'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+reconsidering
+[
+  {
+    "steps": [],
+    "clause": "ORDER BY",
+    "index_order_summary": {
+      "index": "unknown",
+      "table": "`t1`",
+      "plan_changed": false,
+      "order_direction": "undefined",
+      "index_provides_order": false
+    }
+  }
+]
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'MANHATTAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Sort: distance(t1.v,to_vector('[0, 0]'),'MANHATTAN'), limit input to 2 row(s) per chunk  (cost=X rows=X)
+        -> Table scan on t1  (cost=X rows=X)
+
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+'$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+reconsidering
+[
+  {
+    "steps": [],
+    "clause": "ORDER BY",
+    "index_order_summary": {
+      "index": "unknown",
+      "table": "`t1`",
+      "plan_changed": false,
+      "order_direction": "undefined",
+      "index_provides_order": false
+    }
+  }
+]
 SET SESSION optimizer_trace = 'enabled=off';
 EXPLAIN FORMAT=TREE
-SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 3;
+SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 2;
 EXPLAIN
--> Limit: 3 row(s)  (cost=7.5e+99 rows=3)
-    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=7.5e+99 rows=3)
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=X rows=X)
 
-SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 3;
+SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 2;
 id	d
 1	0
 2	1.7320508075688772
-3	3.4641016151377544
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 HAVING u > 2 ORDER BY distance(t1.v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Filter: (t1.u > 2)  (cost=X rows=X)
+        -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=X rows=X)
+
+CREATE VIEW v1 AS
+SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1;
+CREATE VIEW v2 AS
+SELECT * FROM t1 ORDER BY distance(t1.v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+CREATE VIEW v3 AS
+SELECT * FROM t1 ORDER BY distance(t1.v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN');
+EXPLAIN FORMAT=TREE
+SELECT * FROM v1 ORDER BY d LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=X rows=X)
+
+SELECT * FROM v1 ORDER BY d LIMIT 2;
+id	d
+1	0
+2	1.7320508075688772
+EXPLAIN FORMAT=TREE
+SELECT * FROM v2;
+EXPLAIN
+-> Table scan on v2  (cost=X rows=X)
+    -> Materialize  (cost=X rows=X)
+        -> Limit: 2 row(s)  (cost=X rows=X)
+            -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=X rows=X)
+
+SELECT * FROM v2;
+id	u	v
+1	1	0x000000000000000000000000
+2	2	0x0000803F0000803F0000803F
+EXPLAIN FORMAT=TREE
+SELECT * FROM v3 LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=X rows=X)
+
+SELECT * FROM v3 LIMIT 2;
+id	u	v
+1	1	0x000000000000000000000000
+2	2	0x0000803F0000803F0000803F
+DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2;
 DROP PROCEDURE populate_vector_table;

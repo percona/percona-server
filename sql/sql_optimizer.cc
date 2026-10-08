@@ -166,6 +166,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
 
 static Item_func_match *test_if_ft_index_order(ORDER *order);
 
+static Item_func_vector_distance *vector_distance_order_item(const JOIN *join);
+
 static uint32 get_key_length_tmp_table(Item *item);
 static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                                          enum_order ordering,
@@ -471,7 +473,19 @@ bool JOIN::optimize(bool finalize_access_paths) {
                       (!query_expression()->is_set_operation() ||
                        query_block == set_operand_block);
   }
-  if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
+  /*
+    A HAVING clause normally forces m_select_limit to "infinite", because with
+    a plain index scan an unknown number of rows must be read to produce
+    LIMIT rows that pass HAVING. A vector index is different: it fetches
+    exactly LIMIT neighbours and HAVING post-filters them, exactly as a WHERE
+    condition does. No ordinary index can resolve an ORDER BY <distance> anyway
+    (test_if_order_by_key() only accepts a vector index for it), so keeping the
+    real limit here lets the vector index be chosen while never making a
+    non-vector index skip the sort.
+  */
+  if (calc_found_rows ||
+      (having_cond && vector_distance_order_item(this) == nullptr))
+    m_select_limit = HA_POS_ERROR;
 
   if (query_expression()->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";

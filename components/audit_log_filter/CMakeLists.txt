@@ -25,6 +25,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       audit_log_reader.cc
       audit_encryption.cc
       audit_record.cc
+      audit_regex.cc
       charset_conversion.cc
       query_output.cc
       audit_filter.cc
@@ -63,6 +64,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       json_reader/file_reader_decompressing.cc
       json_reader/file_reader_decrypting.cc
       event_field_condition/field.cc
+      event_field_condition/field_regex.cc
       event_field_condition/and.cc
       event_field_condition/or.cc
       event_field_condition/not.cc
@@ -84,6 +86,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
 
   MYSQL_ADD_COMPONENT(audit_log_filter ${AUDIT_LOG_FILTER_SOURCES}
                       LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto library_mysys extra::rapidjson ext::zlib
+                      ext::icu
                       MODULE_ONLY)
 
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)

@@ -135,7 +135,7 @@ static void threadpool_init_net_server_extension(THD *thd) {
 #endif
 }
 
-int threadpool_add_connection(THD *thd) {
+int threadpool_add_connection(THD *thd, bool &logged_in) {
   int retval = 1;
   Worker_thread_context worker_context;
 
@@ -152,7 +152,10 @@ int threadpool_add_connection(THD *thd) {
   thd->start_utime = my_micro_time();
   thd->store_globals();
 
-  if (thd_prepare_connection(thd)) {
+  // A successful login needs end_connection(), even if init_connect failed
+  // and the connection is no longer alive. Match the per-thread handler.
+  logged_in = !thd_prepare_connection(thd);
+  if (!logged_in) {
     goto end;
   }
 
@@ -179,14 +182,14 @@ end:
   return retval;
 }
 
-void threadpool_remove_connection(THD *thd) {
+void threadpool_remove_connection(THD *thd, bool logged_in) {
   Worker_thread_context worker_context;
 
   thread_attach(thd);
   thd_set_net_read_write(thd, 0);
 
-  end_connection(thd);
-  close_connection(thd, 0);
+  if (logged_in) end_connection(thd);
+  close_connection(thd, 0, false, false);
 
   thd->release_resources();
 

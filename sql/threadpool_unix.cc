@@ -1313,7 +1313,7 @@ static void connection_abort(connection_t *connection) {
   DBUG_ENTER("connection_abort");
   thread_group_t *group = connection->thread_group;
 
-  threadpool_remove_connection(connection->thd);
+  threadpool_remove_connection(connection->thd, connection->logged_in);
 
   mysql_mutex_lock(&group->mutex);
   group->connection_count--;
@@ -1471,8 +1471,7 @@ static void handle_event(connection_t *connection) {
   int err;
 
   if (!connection->logged_in) {
-    err = threadpool_add_connection(connection->thd);
-    connection->logged_in = true;
+    err = threadpool_add_connection(connection->thd, connection->logged_in);
   } else {
     err = threadpool_process_request(connection->thd);
   }

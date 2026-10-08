@@ -2541,6 +2541,18 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
         table->force_index ||
         (is_group_by ? table->force_index_group : table->force_index_order);
 
+    /*
+      A HAVING clause makes JOIN::m_select_limit "infinite", since it also
+      bounds filesort and temporary tables, which run before HAVING. A vector
+      index is the only index that can resolve ORDER BY <distance>, and it
+      resumes its search until LIMIT rows pass any filter, so it can use the
+      query's real LIMIT here. Only the choice of ordering index sees it.
+    */
+    if (select_limit == HA_POS_ERROR && join != nullptr &&
+        join->having_cond != nullptr && !join->calc_found_rows &&
+        vector_distance_order_item(join) != nullptr)
+      select_limit = join->query_expression()->select_limit_cnt;
+
     // We try to find an ordering_index alternative over the chosen plan, if:
     // 1. "prefer_ordering_index" switch is on or
     // 2. Force index for order/group is specified or

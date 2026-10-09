@@ -8176,11 +8176,6 @@ static bool add_vector_keys(Key_use_array *keyuse_array, JOIN *join,
   Item_func_vector_distance *const dist_fn = vector_distance_order_item(join);
   if (dist_fn == nullptr) return false;
 
-  /* The index's construction metric is (squared) euclidean - the only
-  one CREATE accepts today; other query metrics order differently and
-  fall back to the exact path. */
-  if (!dist_fn->l2_index_servable()) return false;
-
   const auto arg1 = dist_fn->arguments()[0]->real_item();
   const auto arg2 = dist_fn->arguments()[1]->real_item();
 
@@ -8225,8 +8220,11 @@ static bool add_vector_keys(Key_use_array *keyuse_array, JOIN *join,
 
   for (uint idx = 0; idx < table->s->keys; ++idx) {
     const KEY &index = table->key_info[idx];
+    /* Use only an index whose construction metric matches this DISTANCE()
+    call (euclid / euclid_squared vs cosine, etc.). */
     if ((index.flags & HA_VECTOR) && table->keys_in_use_for_query.is_set(idx) &&
-        index.key_part[0].field->eq(column)) {
+        index.key_part[0].field->eq(column) &&
+        dist_fn->vector_index_servable(index.vector_index_metric)) {
       // Store the full table row count (not the query LIMIT) so the join
       // planner costs a vector scan LIMIT-agnostically, like any other
       // access method. The ORDER BY <distance> LIMIT advantage of a vector

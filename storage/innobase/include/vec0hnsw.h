@@ -392,12 +392,14 @@ struct vec_t : public Vec_runtime {
   against every reader. Making them const means such a patch does not
   compile. */
   vec_t(space_index_t index_id_, dict_table_t *table_, uint32_t dims_,
-        uint32_t m_, uint32_t ef_construction_, vec_dist_func_t *dist_)
+        uint32_t m_, uint32_t ef_construction_,
+        vector_constants::Metric metric_, vec_dist_func_t *dist_)
       : index_id(index_id_),
         table(table_),
         dims(dims_),
         m(m_),
         ef_construction(ef_construction_),
+        metric(metric_),
         dist(dist_) {}
 
   ~vec_t() override;
@@ -433,6 +435,10 @@ struct vec_t : public Vec_runtime {
   const uint32_t dims;
   const uint32_t m;
   const uint32_t ef_construction;
+  /** Construction metric from the index's WITH(...) options. Same value
+  that selected `dist`; kept so DML/search can branch on the metric
+  without re-parsing the KEY. */
+  const vector_constants::Metric metric;
   /** The distance kernel this index's metric selects, resolved once by
   parse_options. The graph is built with it rather than with a kernel
   chosen here, so the index's metric option is what decides. */
@@ -511,7 +517,8 @@ at read time by looking base_pk up under the reader's view.
 @param[in,out]  table  the base table
 @param[in]      row    the inserted row, label already written
 @param[in]      thd    session
-@return DB_SUCCESS, or an error */
+@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, DB_VEC_WRONG_VALUE (cosine and
+a zero vector), or another storage error */
 dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd);
 
 /** One open streaming ANN scan.
@@ -596,8 +603,8 @@ through the DDL's first-error slot and the ALTER reports it.
 @param[in]      lob_index clustered index the scan read, which owns the
                          row's off-page values
 @param[in]      row      the base row, as the scan built it
-@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, DB_VEC_MEMORY_LIMIT or
-DB_VEC_OUT_OF_MEMORY */
+@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, DB_VEC_WRONG_VALUE (cosine and
+a zero vector), DB_VEC_MEMORY_LIMIT or DB_VEC_OUT_OF_MEMORY */
 [[nodiscard]] dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
                                         const dict_index_t *lob_index,
                                         const dtuple_t *row);
@@ -631,7 +638,8 @@ break their isolation rather than tidy up.
 @param[in]      q      the new vector, dims * sizeof(float) bytes
 @param[in]      base_pk  the row's primary key, unchanged by this update
 @param[in]      thd    session
-@return DB_SUCCESS, or an error */
+@return DB_SUCCESS, DB_VEC_WRONG_DIMENSIONS, DB_VEC_WRONG_VALUE (cosine and
+a zero vector), or another storage error */
 dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
                        ulint q_len, uint64_t base_pk, THD *thd);
 

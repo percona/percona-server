@@ -34,6 +34,7 @@
 #include "my_inttypes.h"
 #include "sql/key_spec.h"       /* fk_option */
 #include "sql/sql_plugin_ref.h" /* plugin_ref */
+#include "vector-common/vector_constants.h"
 
 class Field;
 class String;
@@ -172,6 +173,17 @@ class KEY {
   LEX_CSTRING secondary_engine_attribute{nullptr, 0};
   LEX_CSTRING vector_index_type{nullptr, 0};
   Vector_index_params_YY vector_index_params{};
+  /**
+    Distance metric used to build this vector index (meaningful when
+    flags & HA_VECTOR). Filled from the SE via handlerton::vector_index_metric
+    when the TABLE_SHARE is prepared from the DD (prepare_share). Not set on
+    the CREATE TABLE / ALTER path that builds a KEY from Key_spec: that path
+    only copies vector_index_type / vector_index_params, so the member stays
+    at its default until the table is opened from the DD. Default matches an
+    unset / euclidean index option.
+  */
+  vector_constants::Metric vector_index_metric{
+      vector_constants::Metric::kEuclidean};
 
  private:
   /**

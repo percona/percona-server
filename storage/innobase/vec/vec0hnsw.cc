@@ -296,6 +296,7 @@ struct Vec_index_config {
   uint32_t dims;
   uint32_t M;
   uint32_t ef_construction;
+  vector_constants::Metric metric;
   decltype(storage::innobase::vec::HnswParam::dist) dist;
 };
 
@@ -350,6 +351,7 @@ static const char *vec_index_config(const TABLE *table,
   out->dims = dims;
   out->M = static_cast<uint32_t>(hp.M);
   out->ef_construction = static_cast<uint32_t>(hp.ef_construction);
+  out->metric = hp.metric;
   out->dist = hp.dist;
   return nullptr;
 }
@@ -377,9 +379,9 @@ vec_t *vec_runtime_open(dict_index_t *index, const TABLE *form, THD *thd) {
     return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
 
-  auto *vec =
-      ut::new_withkey<vec_t>(UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table,
-                             cfg.dims, cfg.M, cfg.ef_construction, cfg.dist);
+  auto *vec = ut::new_withkey<vec_t>(
+      UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table, cfg.dims, cfg.M,
+      cfg.ef_construction, cfg.metric, cfg.dist);
 
   /* Publish, or lose the race and use the winner. Two sessions opening
   the same table both find dict_index_t::vec null - ha_innobase::open
@@ -885,8 +887,9 @@ void vec_ann_close(vec_search_t *s) {
 
 struct Vec_build {
   Vec_build(uint32_t dims_, uint32_t m_, uint32_t ef_construction_,
-            vec_dist_func_t *dist_, dict_index_t *index_)
-      : dims(dims_), index(index_) {
+            vector_constants::Metric metric_, vec_dist_func_t *dist_,
+            dict_index_t *index_)
+      : dims(dims_), metric(metric_), index(index_) {
     graph = ut::new_withkey<Vec_build_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims_,
                                             dist_, m_, ef_construction_);
   }
@@ -905,6 +908,9 @@ struct Vec_build {
   Vec_build_hnsw *graph{nullptr};
   Vec_null_persistor::Context null_ctx{};
   uint32_t dims{};
+  /** Same construction metric as vec_t::metric; kept for insert-time
+  checks that depend on the metric (e.g. zero vectors under cosine). */
+  vector_constants::Metric metric{vector_constants::Metric::kEuclidean};
   dict_index_t *index{nullptr};
 };
 
@@ -950,9 +956,9 @@ Vec_build *vec_build_start(dict_index_t *index, const TABLE *altered_table,
 
   if (why != nullptr) return fail_config(why);
 
-  auto *b =
-      ut::new_withkey<Vec_build>(UT_NEW_THIS_FILE_PSI_KEY, cfg.dims, cfg.M,
-                                 cfg.ef_construction, cfg.dist, index);
+  auto *b = ut::new_withkey<Vec_build>(UT_NEW_THIS_FILE_PSI_KEY, cfg.dims,
+                                       cfg.M, cfg.ef_construction, cfg.metric,
+                                       cfg.dist, index);
   *err = DB_SUCCESS;
   return b;
 }
@@ -971,6 +977,19 @@ static uint64_t vec_row_base_pk(const dict_table_t *table,
   return mach_read_from_8(static_cast<const byte *>(dfield_get_data(pk_df)));
 }
 
+/**
+  True when we have a cosine index that must refuse this vector as
+  it is all zeros.
+
+  Cosine distance is undefined on a zero vector so we block such
+  rows at least for now.
+*/
+static bool vec_reject_cosine_zero(vector_constants::Metric metric,
+                                   const char *q, uint32_t dims) {
+  return metric == vector_constants::Metric::kCosine &&
+         vector_is_zero(q, dims);
+}
+
 dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
                           const dict_index_t *lob_index, const dtuple_t *row) {
   ut_ad(b != nullptr && b->graph != nullptr);
@@ -987,6 +1006,9 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
                                        b->dims * sizeof(float), &heap);
   if (q == nullptr) return DB_SUCCESS;
   if (vec_len != b->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
+  if (vec_reject_cosine_zero(b->metric, q, b->dims)) {
+    return DB_VEC_WRONG_VALUE;
+  }
   const uint64_t base_pk = vec_row_base_pk(table, row);
 
   /* Label 0 is the empty-slot sentinel and can never be a node. A row
@@ -1129,6 +1151,9 @@ dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
     vec_t *vec = vec_runtime_get(index);
     if (vec == nullptr) return vec_runtime_unavailable(index);
     if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
+    if (vec_reject_cosine_zero(vec->metric, q, vec->dims)) {
+      return DB_VEC_WRONG_VALUE;
+    }
     const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
     if (err != DB_SUCCESS) return err;
   }
@@ -1160,6 +1185,9 @@ dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd) {
                              vec->dims * sizeof(float), &heap);
     if (q == nullptr) continue;
     if (vec_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
+    if (vec_reject_cosine_zero(vec->metric, q, vec->dims)) {
+      return DB_VEC_WRONG_VALUE;
+    }
     const uint64_t base_pk = vec_row_base_pk(table, row);
 
     /* Label 0 is the empty-slot sentinel and can never be a node. A row

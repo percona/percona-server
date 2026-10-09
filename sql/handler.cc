@@ -758,6 +758,8 @@ int ha_init_errors(void) {
          "Too many nested sub-expressions in a full-text search");
   SETMSG(HA_ERR_VECTOR_WRONG_DIMENSIONS,
          "A vector does not have the dimensions its vector index needs");
+  SETMSG(HA_ERR_VECTOR_WRONG_VALUE,
+         "A vector value is not usable by its vector index");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -4617,6 +4619,22 @@ void my_error_vector_wrong_dimensions(const TABLE *table, myf errflag) {
            table->file->table_type());
 }
 
+void my_error_vector_wrong_value(const TABLE *table, myf errflag) {
+  /* A table has at most one vector index; the column comes from the
+  definition. The precise reason (e.g. a zero vector under cosine) is
+  not carried on the error code. */
+  for (uint k = 0; k < table->s->keys; k++) {
+    const KEY &key = table->key_info[k];
+    if (!(key.flags & HA_VECTOR)) continue;
+    const Field *field = table->field[key.key_part[0].fieldnr - 1];
+    assert(field->type() == MYSQL_TYPE_VECTOR);
+    my_error(ER_VECTOR_INDEX_WRONG_VALUE, errflag, field->field_name);
+    return;
+  }
+  my_error(ER_GET_ERRNO, errflag, HA_ERR_VECTOR_WRONG_VALUE,
+           table->file->table_type());
+}
+
 void handler::print_error(int error, myf errflag) {
   THD *thd = current_thd;
   Foreign_key_error_handler foreign_key_error_handler(thd, this);
@@ -4650,6 +4668,12 @@ void handler::print_error(int error, myf errflag) {
     case HA_ERR_VECTOR_WRONG_DIMENSIONS:
       if (table != nullptr) {
         my_error_vector_wrong_dimensions(table, errflag);
+        return;
+      }
+      break;
+    case HA_ERR_VECTOR_WRONG_VALUE:
+      if (table != nullptr) {
+        my_error_vector_wrong_value(table, errflag);
         return;
       }
       break;

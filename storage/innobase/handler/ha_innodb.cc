@@ -2494,6 +2494,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_OUT_OF_MEM);
     case DB_VEC_WRONG_DIMENSIONS:
       return (HA_ERR_VECTOR_WRONG_DIMENSIONS);
+    case DB_VEC_WRONG_VALUE:
+      return (HA_ERR_VECTOR_WRONG_VALUE);
     case DB_TABLESPACE_EXISTS:
       return (HA_ERR_TABLESPACE_EXISTS);
     case DB_TABLESPACE_DELETED:
@@ -4837,6 +4839,11 @@ static bool innobase_validate_vector_index_params(
   return false;
 }
 
+static vector_constants::Metric innobase_vector_index_metric(const KEY &key) {
+  assert(key.flags & HA_VECTOR);
+  return storage::innobase::vec::metric_from_key(key);
+}
+
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
   return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
@@ -5843,6 +5850,7 @@ static int innodb_init(void *p) {
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
   innobase_hton->validate_vector_index_params =
       innobase_validate_vector_index_params;
+  innobase_hton->vector_index_metric = innobase_vector_index_metric;
 
   innobase_hton->post_ddl = innobase_post_ddl;
 
@@ -12229,8 +12237,10 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
     /* NULL query vector: every row's distance is NULL, so the ORDER BY
     imposes no order and LIMIT n asks for any n rows - which is what the
     scan without the index returns. Searching from the origin gives some
-    rows in some order, and keeps going for a filter above, as a search
-    from any vector would. */
+    rows in some order, and keeps going for a filter above. Under cosine
+    the origin is a zero vector, so every graph distance is +Inf and the
+    search walks the graph breadth-first from the entry point, which
+    still reaches every row - all that "any n rows" needs. */
     m_vec_query.assign(rt->dims * sizeof(float), '\0');
   } else {
     const uint32 vec_dims =

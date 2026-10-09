@@ -788,26 +788,25 @@ id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean_squared )
 );
-ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN metric'
-CREATE TABLE t (
+ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
+CREATE TABLE t2 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw ( metric = cosine )
 );
-ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN metric'
 CREATE TABLE t (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw ( metric = dot )
 );
-ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN metric'
+ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
 CREATE TABLE t (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw ( metric = manhattan )
 );
-ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN metric'
-DROP TABLE t1;
+ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
+DROP TABLES t1, t2;
 #
 # Every vector index in the statement is checked, not just the first
 # one found. The option check used to return on the first vector key,

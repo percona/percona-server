@@ -1,0 +1,424 @@
+#
+# Cosine metric on HNSW vector indexes: CREATE, ALTER ADD, SHOW CREATE.
+#
+# CREATE TABLE with VECTOR KEY ... metric = cosine.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8, metric = cosine)
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `metric`=`cosine`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# CREATE VECTOR INDEX ... metric = cosine.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL
+);
+CREATE VECTOR INDEX vk ON t1 (v) TYPE hnsw (M = 8, metric = cosine);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `metric`=`cosine`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# ALTER TABLE ADD VECTOR KEY ... metric = cosine on a table that
+# already has rows (rebuilds and builds the graph).
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL
+);
+INSERT INTO t1 VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]')),
+(2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]'));
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8, metric = cosine);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `metric`=`cosine`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# ALTER TABLE ADD VECTOR INDEX (alternate keyword) with cosine.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL
+);
+ALTER TABLE t1 ADD VECTOR INDEX vk (v) TYPE hnsw (M = 4, metric = cosine);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `metric`=`cosine`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# ANN search on a cosine index: ORDER BY DISTANCE(..., 'COSINE') LIMIT
+# uses vector_ann; exact path (IGNORE INDEX) returns the same order.
+# Non-zero vectors only — cosine is undefined on a zero vector.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4, metric = cosine)
+);
+INSERT INTO t1 VALUES
+(1, STRING_TO_VECTOR('[1,0]')),
+(2, STRING_TO_VECTOR('[0.9,0.1]')),
+(3, STRING_TO_VECTOR('[0,1]')),
+(4, STRING_TO_VECTOR('[-1,0]'));
+# Cosine ORDER BY ... LIMIT uses the index.
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'COSINE') limit 3
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id
+1
+2
+3
+# Exact path agrees on order.
+EXPLAIN SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` IGNORE INDEX (`vk`) order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'COSINE') limit 3
+SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id
+1
+2
+3
+# Constant may be the first DISTANCE() argument.
+SELECT id FROM t1
+ORDER BY DISTANCE(STRING_TO_VECTOR('[1,0]'), v, 'COSINE') LIMIT 2;
+id
+1
+2
+#
+# Metric mismatch: a cosine-built index must not serve EUCLIDEAN
+# (or EUCLIDEAN_SQUARED) ANN queries — fall back to the exact path.
+#
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'EUCLIDEAN') limit 3
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN_SQUARED') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'EUCLIDEAN_SQUARED') limit 3
+DROP TABLE t1;
+#
+# The reverse mismatch: an L2 (default euclidean) index must not
+# serve COSINE ORDER BY ... LIMIT.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4)
+);
+INSERT INTO t1 VALUES
+(1, STRING_TO_VECTOR('[1,0]')),
+(2, STRING_TO_VECTOR('[0,1]'));
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'COSINE') limit 1
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'EUCLIDEAN') limit 1
+DROP TABLE t1;
+#
+# Zero vectors are undefined under cosine: INSERT, UPDATE and
+# ALTER ADD VECTOR INDEX refuse them with ER_VECTOR_INDEX_WRONG_VALUE.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4, metric = cosine)
+);
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0]'));
+# INSERT.
+INSERT INTO t1 VALUES (2, STRING_TO_VECTOR('[0,0]'));
+ERROR HY000: Column 'v' has a vector value its vector index cannot use.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7043	Column 'v' has a vector value its vector index cannot use.
+# UPDATE of an existing row.
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0]') WHERE id = 1;
+ERROR HY000: Column 'v' has a vector value its vector index cannot use.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7043	Column 'v' has a vector value its vector index cannot use.
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,0.00000e+00]
+DROP TABLE t1;
+# ALTER ADD VECTOR INDEX finds a zero vector already in the table,
+# on either algorithm: INPLACE refuses it in the index build, COPY
+# when the copied row is inserted into the new table.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL
+);
+INSERT INTO t1 VALUES
+(1, STRING_TO_VECTOR('[1,0]')),
+(2, STRING_TO_VECTOR('[0,0]'));
+ALTER TABLE t1 ADD VECTOR INDEX vk (v) TYPE hnsw (M = 4, metric = cosine),
+ALGORITHM=INPLACE;
+ERROR HY000: Column 'v' has a vector value its vector index cannot use.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7043	Column 'v' has a vector value its vector index cannot use.
+ALTER TABLE t1 ADD VECTOR INDEX vk (v) TYPE hnsw (M = 4, metric = cosine),
+ALGORITHM=COPY;
+ERROR HY000: Column 'v' has a vector value its vector index cannot use.
+SHOW WARNINGS;
+Level	Code	Message
+Error	7043	Column 'v' has a vector value its vector index cannot use.
+# The failed ALTERs left the table as it was.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,0.00000e+00]
+2	[0.00000e+00,0.00000e+00]
+# Fixing the row lets the index build.
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,1]') WHERE id = 2;
+ALTER TABLE t1 ADD VECTOR INDEX vk (v) TYPE hnsw (M = 4, metric = cosine);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(2) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `metric`=`cosine`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#
+# NULL and all-zero query vectors on a cosine index.
+#
+# DISTANCE(v, <q>, 'COSINE') is NULL for every row when q is NULL or a
+# zero vector (cosine is undefined on a zero norm), so ORDER BY imposes
+# no order and LIMIT n asks for any n rows. On the index path every
+# graph distance is +Inf and the scan walks the graph breadth-first;
+# it must still return n rows, and a filter above it must still reach
+# every row that passes. Which rows come back is not specified, so only
+# counts are compared.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4, metric = cosine)
+);
+INSERT INTO t1
+WITH RECURSIVE seq (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq
+WHERE n < 100)
+SELECT n, STRING_TO_VECTOR(CONCAT('[', n, ',', 101 - n, ',', n % 7 + 1,
+',1]'))
+FROM seq;
+# NULL query vector: the optimizer keeps it on the exact path.
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, NULL, 'COSINE') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,NULL,'COSINE') limit 3
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 ORDER BY DISTANCE(v, NULL, 'COSINE') LIMIT 3) d;
+COUNT(*)
+3
+# NULL known only at execution reaches the handler, which searches
+# from the origin - a zero vector under cosine.
+SET @q = NULL;
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 ORDER BY DISTANCE(v, @q, 'COSINE') LIMIT 3) d;
+COUNT(*)
+3
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 WHERE id > 90
+ORDER BY DISTANCE(v, @q, 'COSINE') LIMIT 20) d;
+COUNT(*)
+10
+PREPARE s FROM 'SELECT COUNT(*) FROM
+  (SELECT id FROM t1 ORDER BY DISTANCE(v, ?, ''COSINE'') LIMIT 3) d';
+EXECUTE s USING @q;
+COUNT(*)
+3
+DEALLOCATE PREPARE s;
+# All-zero query vector: finite, so the index path is used.
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[0,0,0,0]'),'COSINE') limit 3
+SELECT COUNT(*) FROM
+(SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') LIMIT 3) d;
+COUNT(*)
+3
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') LIMIT 3) d;
+COUNT(*)
+3
+# A selective filter: the scan must go past its first batch and still
+# find all 10 rows that pass.
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 WHERE id > 90
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') LIMIT 20) d;
+COUNT(*)
+10
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 IGNORE INDEX (vk) WHERE id > 90
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') LIMIT 20) d;
+COUNT(*)
+10
+# LIMIT larger than the table: every row comes back, each once.
+SELECT COUNT(*), COUNT(DISTINCT id) FROM
+(SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') LIMIT 1000) d;
+COUNT(*)	COUNT(DISTINCT id)
+100	100
+# Zero vector known only at execution.
+SET @q = STRING_TO_VECTOR('[0,0,0,0]');
+SELECT COUNT(*) FROM
+(SELECT id FROM t1 ORDER BY DISTANCE(v, @q, 'COSINE') LIMIT 3) d;
+COUNT(*)
+3
+# The distance itself is NULL on the index path too.
+SELECT COUNT(*) FROM
+(SELECT id, DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'COSINE') AS d
+FROM t1 ORDER BY d LIMIT 5) x WHERE d IS NULL;
+COUNT(*)
+5
+DROP TABLE t1;
+#
+# A restart: the optimizer's view of each index's metric is rebuilt
+# from the DD when the share is opened again, and the InnoDB runtime
+# re-derives the metric when it reopens the graph from the aux table.
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4, metric = cosine)
+);
+CREATE TABLE t2 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4)
+);
+INSERT INTO t1 VALUES
+(1, STRING_TO_VECTOR('[1,0]')),
+(2, STRING_TO_VECTOR('[0.9,0.1]')),
+(3, STRING_TO_VECTOR('[0,1]')),
+(4, STRING_TO_VECTOR('[-1,0]')),
+(5, STRING_TO_VECTOR('[10,1]'));
+INSERT INTO t2 SELECT * FROM t1;
+# The row estimate must exceed the LIMIT for the vector path.
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# restart
+# The cosine index still serves COSINE, and only COSINE.
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'COSINE') limit 3
+EXPLAIN SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0]'),'EUCLIDEAN') limit 3
+# The graph, loaded back from the aux table, ranks by cosine: [10,1]
+# is far from [1,0] in L2 but close in angle. The exact path agrees.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id
+1
+5
+2
+SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id
+1
+5
+2
+# The L2 index still serves EUCLIDEAN, and not COSINE.
+EXPLAIN SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by distance(`test`.`t2`.`v`,to_vector('[1,0]'),'EUCLIDEAN') limit 3
+EXPLAIN SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by distance(`test`.`t2`.`v`,to_vector('[1,0]'),'COSINE') limit 3
+SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 3;
+id
+1
+2
+3
+# The reopened cosine runtime still refuses a zero vector; the L2 one
+# still takes it.
+INSERT INTO t1 VALUES (6, STRING_TO_VECTOR('[0,0]'));
+ERROR HY000: Column 'v' has a vector value its vector index cannot use.
+UPDATE t1 SET v = STRING_TO_VECTOR('[0,0]') WHERE id = 1;
+ERROR HY000: Column 'v' has a vector value its vector index cannot use.
+INSERT INTO t2 VALUES (6, STRING_TO_VECTOR('[0,0]'));
+# A row added after the restart is linked into the cosine graph.
+INSERT INTO t1 VALUES (7, STRING_TO_VECTOR('[0.5,0.01]'));
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id
+1
+7
+5
+SELECT id FROM t1 IGNORE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 3;
+id
+1
+7
+5
+DROP TABLE t1, t2;

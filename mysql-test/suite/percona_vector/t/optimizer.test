@@ -393,12 +393,70 @@ SELECT jt.*
  WHERE jt.access_type = 'vector'
    AND jt.cause = 'heuristic_eqref_already_found';
 
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+         '$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'EUCLIDEAN_SQUARED') LIMIT 2;
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+         '$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'DOT') LIMIT 2;
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+         '$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'MANHATTAN') LIMIT 2;
+SELECT JSON_PRETTY(JSON_EXTRACT(trace,
+         '$**.reconsidering_access_paths_for_index_ordering')) AS reconsidering
+FROM information_schema.optimizer_trace;
+
 SET SESSION optimizer_trace = 'enabled=off';
 
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
-SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 3;
-SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 3;
+SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 2;
+SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 2;
 
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT * FROM t1 HAVING u > 2 ORDER BY distance(t1.v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+CREATE VIEW v1 AS
+SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1;
+
+CREATE VIEW v2 AS
+SELECT * FROM t1 ORDER BY distance(t1.v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+CREATE VIEW v3 AS
+SELECT * FROM t1 ORDER BY distance(t1.v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN');
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT * FROM v1 ORDER BY d LIMIT 2;
+SELECT * FROM v1 ORDER BY d LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT * FROM v2;
+SELECT * FROM v2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT * FROM v3 LIMIT 2;
+SELECT * FROM v3 LIMIT 2;
+
+DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2;
 
 DROP PROCEDURE populate_vector_table;

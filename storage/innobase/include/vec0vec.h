@@ -86,6 +86,14 @@ bool parse_options(const Key_spec &index_def, VectorIndexParam &vip);
 shape was settled at DDL time - contents only. */
 bool parse_options(const KEY &key, VectorIndexParam &vip);
 
+/**
+  Read the index's construction metric from KEY::vector_index_params without
+  a full parse_options(). Looks up the "metric" option and resolves it via
+  metric_from_name(). Returns kEuclidean when the option is absent or on
+  any resolve failure (unknown name, empty value, etc.).
+*/
+vector_constants::Metric metric_from_key(const KEY &key);
+
 }  // namespace storage::innobase::vec
 
 #endif /* vec0vec_h */

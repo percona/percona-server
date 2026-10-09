@@ -138,16 +138,22 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
     }
   }
 
-  if (hnsw_param.metric != vector_constants::Metric::kEuclidean) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-             "HNSW indexes on anything but the EUCLIDEAN metric");
-    return true;
+  /* Set the distance function for the accepted metrics. EUCLIDEAN uses
+  squared L2: the graph only compares distances, so skipping the square
+  root does not change ordering. COSINE uses the cosine distance as-is. */
+  switch (hnsw_param.metric) {
+    case vector_constants::Metric::kEuclidean:
+      hnsw_param.dist = &vector_distance_euclidean_squared;
+      break;
+    case vector_constants::Metric::kCosine:
+      hnsw_param.dist = &vector_distance_cosine;
+      break;
+    default:
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "HNSW indexes on anything but the EUCLIDEAN or COSINE metric");
+      return true;
   }
 
-  /* The only metric accepted. Squared euclidean is deliberate: the graph
-  only ever compares distances, and skipping the square root costs nothing
-  in ordering. */
-  hnsw_param.dist = &vector_distance_euclidean_squared;
   return false;
 }
 
@@ -182,6 +188,18 @@ bool parse_options(const Key_spec &index_def, VectorIndexParam &vip) {
 already validated at DDL time. Parse only. */
 bool parse_options(const KEY &key, VectorIndexParam &vip) {
   return parse_options(key.vector_index_type, key.vector_index_params, vip);
+}
+
+vector_constants::Metric metric_from_key(const KEY &key) {
+  for (const auto &[opt, value] : key.vector_index_params) {
+    if (my_strcasecmp(system_charset_info, opt.str, "metric") != 0) continue;
+    if (value.str == nullptr) return vector_constants::Metric::kEuclidean;
+    const auto *m = vector_constants::metric_from_name(
+        std::string_view(value.str, value.length));
+    if (m == nullptr) return vector_constants::Metric::kEuclidean;
+    return *m;
+  }
+  return vector_constants::Metric::kEuclidean;
 }
 
 }  // namespace storage::innobase::vec

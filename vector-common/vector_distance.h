@@ -104,3 +104,11 @@ double vector_distance_dot(const char *a, const char *b, uint32_t dims);
   overflowed or underflowed; bit-identical on every tier.
 */
 double vector_distance_manhattan(const char *a, const char *b, uint32_t dims);
+
+/**
+  True when every float of a vector encoded as raw bytes is zero (-0.0
+  included). Such a vector has a zero norm, so its cosine distance to any
+  vector is undefined.
+  Accepts any byte alignment.
+*/
+bool vector_is_zero(const char *a, uint32_t dims);

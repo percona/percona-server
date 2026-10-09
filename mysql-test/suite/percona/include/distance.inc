@@ -148,16 +148,6 @@ eval SELECT DISTANCE(TO_VECTOR("[0, 1, 0]"), TO_VECTOR("[-1, 0, -1]"), "$metric"
 eval SELECT DISTANCE(TO_VECTOR("[1, 0, 3, 0, 5]"), TO_VECTOR("[0, 2, 0, 4, 0]"), "$metric");
 --echo # Anti-parallel vectors.
 eval SELECT DISTANCE(TO_VECTOR("[-1, -1]"), TO_VECTOR("[2, 2]"), "$metric");
-if ($metric != DOT)
-{
-  if ($metric != MANHATTAN)
-  {
-    if ($metric != COSINE)
-    {
-      --error ER_DATA_OUT_OF_RANGE
-    }
-  }
-}
 eval SELECT DISTANCE(TO_VECTOR("[-2e38, 1]"), TO_VECTOR("[2e38, -1]"), "$metric");
 --echo # Distance from origin.
 eval SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "$metric");
@@ -179,6 +169,40 @@ eval SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "$metric");
 eval SELECT DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
                      TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
                      "$metric");
+--echo # Element difference exceeds FLT_MAX (2.5e38 - (-2.5e38) = 5e38): the
+--echo # subtraction must be done in double, not float32, for every metric.
+CREATE TABLE t_big (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL);
+INSERT INTO t_big VALUES
+  (1, STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]')),
+  (2, STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'));
+eval SELECT DISTANCE(a.v, b.v, "$metric") FROM t_big a, t_big b
+     WHERE a.id = 1 AND b.id = 2;
+DROP TABLE t_big;
+--echo # Same overflow in the last element only: exercises the SIMD scalar tail.
+--echo # The 4-element SIMD head is normal-scale so the kernel does not fall back
+--echo # to the scalar path before reaching the tail.
+eval SELECT DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+                     TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "$metric");
+--echo # Tiny values against their negation: 1e-23 * 1e-23 is 0 in float32, so
+--echo # the SIMD kernels must recompute sums below FLT_MIN in double.
+eval SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+                     TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "$metric");
+--echo # 20 dims: only the 16-element SIMD head holds the tiny values.
+eval SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+                     TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,0,0,0]"), "$metric");
+--echo # 16383 dims (the maximum), elements near 1e-21: products are subnormal
+--echo # but their float32 sums land just above FLT_MIN, so a fixed FLT_MIN
+--echo # threshold kept ~5e-4 relative error.  The threshold scales with the
+--echo # number of SIMD-processed elements.
+eval SELECT DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+                     TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+                     "$metric");
+--echo # Subnormal float32 inputs (TO_VECTOR rejects them, binary arguments do
+--echo # not): 16 x 1e-40 against 16 x -1e-40.  Products flush to zero in
+--echo # float32 (recomputed in double); Manhattan differences are subnormal but
+--echo # exact, so it needs no fallback.
+eval SELECT DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+                     X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180', "$metric");
 --echo # Symmetry: DISTANCE(a, b) = DISTANCE(b, a).
 eval SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "$metric") =
           DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "$metric");
@@ -247,6 +271,42 @@ CREATE TABLE tt_cosine_dml (d DOUBLE);
 INSERT INTO tt_cosine_dml SELECT DISTANCE(TO_VECTOR('[0]'), TO_VECTOR('[0]'), 'COSINE');
 SELECT d FROM tt_cosine_dml;
 DROP TABLE tt_cosine_dml;
+
+--echo # Float32 underflow must not be mistaken for a zero vector.  Squaring
+--echo # 1e-23 in float32 gives 0, which collapsed the SIMD kernels' float32
+--echo # norm accumulators and returned NULL (the zero-vector sentinel) for
+--echo # non-zero vectors, only at dims >= SIMD width, so the result depended
+--echo # on the CPU.  The kernels now recompute in double instead.
+--echo # A vector against itself is distance 0.
+SELECT DISTANCE(
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  'COSINE') AS tiny_self;
+--echo # Opposite direction is distance 2.
+SELECT DISTANCE(
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  TO_VECTOR('[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]'),
+  'COSINE') AS tiny_anti;
+--echo # A genuine 16-dim zero vector is still NULL: the sentinel is intact.
+SELECT DISTANCE(
+  TO_VECTOR('[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]'),
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  'COSINE') AS tiny_vs_zero;
+--echo # 20 dims: the 16-element SIMD head underflows while the 4-element
+--echo # double scalar tail does not.  Falling back only on a zero final
+--echo # denominator would return the cosine of the tail alone (0) instead of
+--echo # 1 - 1/sqrt(17), so the check has to run before the tail.
+SELECT DISTANCE(
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0]'),
+  TO_VECTOR('[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1e-23,0,0,0]'),
+  'COSINE') AS tiny_head_tail;
+--echo # Partial underflow: float32 rounds (5e-23)^2, (1e-22)^2 and their
+--echo # product to 2, 7 and 4 subnormal steps, which gave a negative distance
+--echo # (-0.069) for parallel vectors.  Expected 0.
+SELECT DISTANCE(
+  TO_VECTOR('[5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23]'),
+  TO_VECTOR('[1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22]'),
+  'COSINE') AS tiny_parallel;
 }
 
 DROP TABLE t_metric_name;

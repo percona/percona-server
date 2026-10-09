@@ -38,7 +38,7 @@ static double ref_euclidean_squared(const float *a, const float *b,
                                     uint32_t n) {
   double sum = 0.0;
   for (uint32_t i = 0; i < n; i++) {
-    const double d = a[i] - b[i];
+    const double d = (double)a[i] - b[i];
     sum += d * d;
   }
   return sum;
@@ -74,9 +74,9 @@ static double ref_dot_product(const float *a, const float *b, uint32_t n) {
 static double ref_cosine(const float *a, const float *b, uint32_t n) {
   double ab = 0.0, na = 0.0, nb = 0.0;
   for (uint32_t i = 0; i < n; i++) {
-    ab += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
+    ab += (double)a[i] * b[i];
+    na += (double)a[i] * a[i];
+    nb += (double)b[i] * b[i];
   }
   const double denom = std::sqrt(na * nb);
   if (denom == 0.0) return std::numeric_limits<double>::infinity();
@@ -528,6 +528,202 @@ TEST_P(VectorDistanceTierParityTest, OverflowFallbackPerTier) {
   const double got_c = vector_distance_cosine((const char *)a.data(),
                                               (const char *)a.data(), dims);
   EXPECT_NEAR(got_c, 0.0, 1e-9) << "tier=" << tier_name(GetParam());
+}
+
+TEST_P(VectorDistanceTierParityTest, SubtractionOverflowPerTier) {
+  // 2.5e38 - (-2.5e38) = 5e38 exceeds FLT_MAX, so the element difference
+  // itself overflows float32; the scalar kernel and the SIMD scalar tails must
+  // promote to double before subtracting.
+  constexpr float big = 2.5e38f;
+
+  // All elements extreme: SIMD sum overflows and falls back to scalar.
+  {
+    constexpr uint32_t dims = 8;
+    std::vector<float> a(dims, big), b(dims, -big);
+    const double got = vector_distance_euclidean_squared(
+        (const char *)a.data(), (const char *)b.data(), dims);
+    EXPECT_TRUE(std::isfinite(got)) << "tier=" << tier_name(GetParam());
+    EXPECT_EQ(got, ref_euclidean_squared(a.data(), b.data(), dims))
+        << "tier=" << tier_name(GetParam());
+    const double got_l2 =
+        euclidean_l2((const char *)a.data(), (const char *)b.data(), dims);
+    EXPECT_TRUE(std::isfinite(got_l2)) << "tier=" << tier_name(GetParam());
+    EXPECT_EQ(got_l2, ref_euclidean(a.data(), b.data(), dims))
+        << "tier=" << tier_name(GetParam());
+  }
+
+  // Only the last element extreme: lands in the scalar tail of the 128-bit
+  // (dims=5) and 256/512-bit (dims=17) kernels, after the fallback check.  The
+  // head must be normal-scale: a head summing below FLT_MIN (e.g. all zeros)
+  // makes sum_needs_scalar() recompute everything in euclidean_scalar and the
+  // tail never runs.
+  for (uint32_t dims : {5u, 17u}) {
+    std::vector<float> a(dims, 1.0f), b(dims, 0.0f);
+    a[dims - 1] = big;
+    b[dims - 1] = -big;
+    const double got = vector_distance_euclidean_squared(
+        (const char *)a.data(), (const char *)b.data(), dims);
+    EXPECT_TRUE(std::isfinite(got))
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+    EXPECT_EQ(got, ref_euclidean_squared(a.data(), b.data(), dims))
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, CosineUnderflowPerTier) {
+  // (1e-23)^2 underflows to +0.0f in float32, collapsing the SIMD norm
+  // accumulators to zero.  That must not trigger the zero-norm +Inf sentinel
+  // (SQL NULL) for non-zero vectors: the kernel has to recompute in double.
+  constexpr float tiny = 1e-23f;
+
+  // A vector against itself: distance 0.  Opposite direction: distance 2.
+  for (uint32_t dims : {4u, 8u, 16u, 32u}) {
+    std::vector<float> a(dims, tiny), b(dims, -tiny);
+    const double got_self = vector_distance_cosine(
+        (const char *)a.data(), (const char *)a.data(), dims);
+    EXPECT_NEAR(got_self, 0.0, 1e-9)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+    const double got_anti = vector_distance_cosine(
+        (const char *)a.data(), (const char *)b.data(), dims);
+    EXPECT_NEAR(got_anti, 2.0, 1e-9)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+  }
+
+  // A genuine zero vector still returns the +Inf sentinel.
+  {
+    constexpr uint32_t dims = 16;
+    std::vector<float> z(dims, 0.0f), a(dims, tiny);
+    EXPECT_TRUE(std::isinf(vector_distance_cosine(
+        (const char *)z.data(), (const char *)a.data(), dims)))
+        << "tier=" << tier_name(GetParam());
+  }
+
+  // 20 dims: the SIMD head underflows, the double scalar tail does not.  A
+  // fallback keyed only on the final denominator would return the cosine of
+  // the tail alone (0) instead of 1 - 1/sqrt(17).
+  {
+    constexpr uint32_t dims = 20;
+    std::vector<float> a(dims, 0.0f), b(dims, 0.0f);
+    for (uint32_t i = 0; i < 17; i++) a[i] = tiny;
+    b[16] = tiny;
+    const double got = vector_distance_cosine((const char *)a.data(),
+                                              (const char *)b.data(), dims);
+    EXPECT_NEAR(got, 1.0 - 1.0 / std::sqrt(17.0), 1e-9)
+        << "tier=" << tier_name(GetParam());
+    EXPECT_NEAR(got, ref_cosine(a.data(), b.data(), dims), 1e-9)
+        << "tier=" << tier_name(GetParam());
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, SubnormalProductsPerTier) {
+  // Products below FLT_MIN are float32 subnormals (few significant bits) or
+  // flush to zero, so SIMD sums in that range must be redone in double.
+  for (uint32_t dims : {4u, 8u, 16u, 20u}) {
+    // Parallel vectors: cosine distance 0.  Float32 rounds (5e-23)^2, (1e-22)^2
+    // and their product to 2, 7 and 4 subnormal steps: 1 - 4/sqrt(14) < 0.
+    std::vector<float> a(dims, 5e-23f), b(dims, 1e-22f);
+    const double got_c = vector_distance_cosine((const char *)a.data(),
+                                                (const char *)b.data(), dims);
+    EXPECT_NEAR(got_c, 0.0, 1e-9)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+
+    // (1e-23)^2 is 0 in float32: distinct vectors must not be at distance 0.
+    std::vector<float> t(dims, 1e-23f), z(dims, 0.0f);
+    const double got_e = vector_distance_euclidean_squared(
+        (const char *)t.data(), (const char *)z.data(), dims);
+    const double ref_e = ref_euclidean_squared(t.data(), z.data(), dims);
+    EXPECT_NEAR(got_e, ref_e, ref_e * 1e-6)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+
+    const double got_d = vector_distance_dot((const char *)t.data(),
+                                             (const char *)t.data(), dims);
+    const double ref_d = ref_dot_product(t.data(), t.data(), dims);
+    EXPECT_NEAR(got_d, ref_d, ref_d * 1e-6)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, SubnormalProductsMaxDimsPerTier) {
+  // At the maximum dimension, elements near 1e-21 give subnormal products
+  // (~1e-42, only ~10 significant bits) whose float32 sums land just above
+  // FLT_MIN.  A fixed FLT_MIN threshold kept the SIMD result (~5e-4 relative
+  // error, cosine of parallel vectors -2.4e-4); the n * FLT_MIN threshold must
+  // recompute in double.
+  constexpr uint32_t dims = 16383;
+  for (float e : {8.6e-22f, 1e-21f, 1.13e-21f}) {
+    std::vector<float> a(dims, e), b(dims, 2 * e), z(dims, 0.0f);
+    const double got_c = vector_distance_cosine((const char *)a.data(),
+                                                (const char *)b.data(), dims);
+    EXPECT_NEAR(got_c, 0.0, 1e-9) << "tier=" << tier_name(GetParam())
+                                  << " e=" << e;
+
+    const double got_e = vector_distance_euclidean_squared(
+        (const char *)a.data(), (const char *)z.data(), dims);
+    const double ref_e = ref_euclidean_squared(a.data(), z.data(), dims);
+    EXPECT_NEAR(got_e, ref_e, ref_e * 1e-7)
+        << "tier=" << tier_name(GetParam()) << " e=" << e;
+
+    const double got_d = vector_distance_dot((const char *)a.data(),
+                                             (const char *)b.data(), dims);
+    const double ref_d = ref_dot_product(a.data(), b.data(), dims);
+    EXPECT_NEAR(got_d, ref_d, ref_d * 1e-7)
+        << "tier=" << tier_name(GetParam()) << " e=" << e;
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, ManhattanSubnormalInputsPerTier) {
+  // Manhattan has no fallback for small sums: with subnormal inputs (which
+  // VECTOR columns and binary arguments can hold) the SIMD differences are
+  // subnormal, but IEEE 754 subtraction with a subnormal result is exact and
+  // so are subnormal sums, so the SIMD result must equal double exactly.
+  const float denorm_min = std::numeric_limits<float>::denorm_min();
+  for (uint32_t dims : {4u, 8u, 16u, 20u}) {
+    std::vector<float> a(dims), b(dims);
+    for (uint32_t i = 0; i < dims; i++) {
+      a[i] = 1e-40f + static_cast<float>(i) * denorm_min;
+      b[i] = (i % 2 ? -1e-41f : 3e-41f) - static_cast<float>(i) * denorm_min;
+    }
+    ASSERT_LT(std::fabs(a[0] - b[0]), std::numeric_limits<float>::min());
+    const double got = vector_distance_manhattan((const char *)a.data(),
+                                                 (const char *)b.data(), dims);
+    EXPECT_EQ(got, ref_manhattan(a.data(), b.data(), dims))
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, EuclideanExactZeroFallbackPerTier) {
+  // An exactly-zero SIMD Euclidean sum takes the underflow fallback, which
+  // first proves identical vectors (distance 0) instead of paying the scalar
+  // pass.  Check the shortcut and that near-misses still reach the scalar path.
+  std::mt19937 rng(7);
+  std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+  for (uint32_t dims : {16u, 20u, 1024u}) {
+    std::vector<float> a(dims);
+    for (auto &x : a) x = dist(rng);
+
+    // Identical vectors: Euclidean distance exactly 0.
+    EXPECT_EQ(vector_distance_euclidean_squared((const char *)a.data(),
+                                                (const char *)a.data(), dims),
+              0.0)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+
+    // Same values but +0.0 vs -0.0 somewhere: not byte-identical, still 0.
+    std::vector<float> z1(dims, 0.0f), z2(dims, 0.0f);
+    z2[dims / 2] = -0.0f;
+    EXPECT_EQ(vector_distance_euclidean_squared((const char *)z1.data(),
+                                                (const char *)z2.data(), dims),
+              0.0)
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+
+    // A single tiny difference whose square underflows in float32: not
+    // byte-identical, so the scalar pass must supply 1e-46.
+    std::vector<float> t1(dims, 0.0f), t2(dims, 0.0f);
+    t2[dims / 2] = 1e-23f;
+    EXPECT_EQ(vector_distance_euclidean_squared((const char *)t1.data(),
+                                                (const char *)t2.data(), dims),
+              ref_euclidean_squared(t1.data(), t2.data(), dims))
+        << "tier=" << tier_name(GetParam()) << " dims=" << dims;
+  }
 }
 
 static std::string tier_param_name(

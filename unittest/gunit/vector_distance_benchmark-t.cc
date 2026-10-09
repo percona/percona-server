@@ -38,6 +38,12 @@
   Sizes benchmarked: 4, 8, 32, 128, 1024, 16383 (float32 elements).
   Metrics: Euclidean, EuclideanSquared, Cosine, DotProduct, Manhattan.
 
+  Inputs are random by default.  Two extra cases measure the SIMD kernels'
+  exact-zero fallback, where the float32 sum is 0 and the kernel must prove the
+  result exact (or recompute it in double):
+    EuclideanSquaredIdentical — both arguments are the same vector;
+    DotProductDisjoint        — a is zero at odd, b at even indices.
+
   Tiers registered per platform:
     x86_64  — Scalar, Sse42, Avx2, Avx512f
     aarch64 — Scalar, Neon, Sve2
@@ -67,6 +73,8 @@ enum class Metric {
   Manhattan
 };
 
+enum class Input { Random, Identical, DisjointSupport };
+
 static void fill_random(float *data, uint32_t n, uint32_t seed) {
   std::mt19937 rng(seed);
   std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
@@ -77,7 +85,8 @@ static void fill_random(float *data, uint32_t n, uint32_t seed) {
 // Generic benchmark body
 // ---------------------------------------------------------------------------
 
-template <VectorDistanceTier kTier, uint32_t kDims, Metric kMetric>
+template <VectorDistanceTier kTier, uint32_t kDims, Metric kMetric,
+          Input kInput = Input::Random>
 static void bench_impl(size_t num_iterations) {
 #ifndef NDEBUG
   // benchmark.cc calls StartBenchmarkTiming() before invoking func(), which
@@ -99,6 +108,9 @@ static void bench_impl(size_t num_iterations) {
   std::vector<float> a(kDims), b(kDims);
   fill_random(a.data(), kDims, 1);
   fill_random(b.data(), kDims, 2);
+  if constexpr (kInput == Input::Identical) b = a;
+  if constexpr (kInput == Input::DisjointSupport)
+    for (uint32_t i = 0; i < kDims; i++) (i % 2 ? a : b)[i] = 0.0f;
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; i++) {
@@ -211,6 +223,26 @@ static void bench_impl(size_t num_iterations) {
 #define BENCH_MANHATTAN_Neon(dims) BENCH_MANHATTAN_ONE(Neon, Neon, dims)
 #define BENCH_MANHATTAN_Sve2(dims) BENCH_MANHATTAN_ONE(Sve2, Sve2, dims)
 
+// Registers the two exact-zero fallback benchmarks for a given tier + size.
+#define BENCH_EXACT_ZERO_ONE(tier, dims)                                     \
+  static void BenchEuclideanSquaredIdentical_##tier##_##dims(size_t n) {     \
+    bench_impl<VectorDistanceTier::tier, dims, Metric::EuclideanSquared,     \
+               Input::Identical>(n);                                         \
+  }                                                                          \
+  BENCHMARK(BenchEuclideanSquaredIdentical_##tier##_##dims)                  \
+  static void BenchDotProductDisjoint_##tier##_##dims(size_t n) {            \
+    bench_impl<VectorDistanceTier::tier, dims, Metric::DotProduct,           \
+               Input::DisjointSupport>(n);                                   \
+  }                                                                          \
+  BENCHMARK(BenchDotProductDisjoint_##tier##_##dims)
+
+#define BENCH_EXACT_ZERO_Scalar(dims) BENCH_EXACT_ZERO_ONE(Scalar, dims)
+#define BENCH_EXACT_ZERO_Sse42(dims) BENCH_EXACT_ZERO_ONE(Sse42, dims)
+#define BENCH_EXACT_ZERO_Avx2(dims) BENCH_EXACT_ZERO_ONE(Avx2, dims)
+#define BENCH_EXACT_ZERO_Avx512f(dims) BENCH_EXACT_ZERO_ONE(Avx512f, dims)
+#define BENCH_EXACT_ZERO_Neon(dims) BENCH_EXACT_ZERO_ONE(Neon, dims)
+#define BENCH_EXACT_ZERO_Sve2(dims) BENCH_EXACT_ZERO_ONE(Sve2, dims)
+
 // ---------------------------------------------------------------------------
 // Tier registrations — all tiers are always declared; unavailable ones skip.
 // ---------------------------------------------------------------------------
@@ -221,6 +253,7 @@ FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Scalar)
 FOR_EACH_SIZE(BENCH_COSINE_Scalar)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Scalar)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Scalar)
+FOR_EACH_SIZE(BENCH_EXACT_ZERO_Scalar)
 
 // x86_64 tiers
 #if defined(__x86_64__) || defined(_M_X64)
@@ -230,18 +263,21 @@ FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Sse42)
 FOR_EACH_SIZE(BENCH_COSINE_Sse42)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Sse42)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Sse42)
+FOR_EACH_SIZE(BENCH_EXACT_ZERO_Sse42)
 
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Avx2)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Avx2)
 FOR_EACH_SIZE(BENCH_COSINE_Avx2)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Avx2)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Avx2)
+FOR_EACH_SIZE(BENCH_EXACT_ZERO_Avx2)
 
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Avx512f)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Avx512f)
 FOR_EACH_SIZE(BENCH_COSINE_Avx512f)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Avx512f)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Avx512f)
+FOR_EACH_SIZE(BENCH_EXACT_ZERO_Avx512f)
 
 #endif  // x86_64
 
@@ -253,12 +289,14 @@ FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Neon)
 FOR_EACH_SIZE(BENCH_COSINE_Neon)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Neon)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Neon)
+FOR_EACH_SIZE(BENCH_EXACT_ZERO_Neon)
 
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Sve2)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Sve2)
 FOR_EACH_SIZE(BENCH_COSINE_Sve2)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Sve2)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Sve2)
+FOR_EACH_SIZE(BENCH_EXACT_ZERO_Sve2)
 
 #endif  // aarch64
 
@@ -266,6 +304,13 @@ FOR_EACH_SIZE(BENCH_MANHATTAN_Sve2)
 // Cleanup macros
 // ---------------------------------------------------------------------------
 
+#undef BENCH_EXACT_ZERO_Sve2
+#undef BENCH_EXACT_ZERO_Neon
+#undef BENCH_EXACT_ZERO_Avx512f
+#undef BENCH_EXACT_ZERO_Avx2
+#undef BENCH_EXACT_ZERO_Sse42
+#undef BENCH_EXACT_ZERO_Scalar
+#undef BENCH_EXACT_ZERO_ONE
 #undef BENCH_MANHATTAN_Sve2
 #undef BENCH_MANHATTAN_Neon
 #undef BENCH_MANHATTAN_Avx512f

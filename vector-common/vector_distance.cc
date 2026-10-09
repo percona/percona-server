@@ -1104,3 +1104,17 @@ double vector_distance_manhattan(const char *a, const char *b, uint32_t dims) {
   return (dims < VECTOR_DISTANCE_WIDE_MIN_DIMS ? g_manhattan_narrow
                                                : g_manhattan)(a, b, dims);
 }
+
+// Scalar only: a real-world vector almost always has a non-zero element
+// near the start, so the loop exits early and SIMD would gain little. In
+// the future we might want to add SIMD tiers for it as well, dispatched
+// like the distance kernels above, should all-zero or zero-prefixed
+// vectors turn out to be common.
+bool vector_is_zero(const char *a, uint32_t dims) {
+  for (uint32_t i = 0; i < dims; i++) {
+    float v;
+    memcpy(&v, a + i * sizeof(float), sizeof(float));
+    if (v != 0.0f) return false;
+  }
+  return true;
+}

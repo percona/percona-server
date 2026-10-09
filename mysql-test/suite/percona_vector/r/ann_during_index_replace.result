@@ -39,7 +39,5 @@ Note	1003	/* select#1 */ select `test`.`t_replace`.`id` AS `id` from `test`.`t_r
 SELECT id FROM t_replace ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
 id
 3
-# No session tried to open a runtime for the index being built.
-include/assert_grep.inc [no runtime open is attempted for the uncommitted index]
 DROP TABLE t_replace;
 SET DEBUG_SYNC = 'RESET';

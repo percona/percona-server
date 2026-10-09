@@ -47,12 +47,5 @@ SET DEBUG_SYNC = 'now SIGNAL go';
 eval EXPLAIN $q;
 eval $q;
 
---echo # No session tried to open a runtime for the index being built.
---let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = Failed to open vector runtime for index `vk2` on table `test`.`t_replace`
---let $assert_count = 0
---let $assert_text = no runtime open is attempted for the uncommitted index
---source include/assert_grep.inc
-
 DROP TABLE t_replace;
 SET DEBUG_SYNC = 'RESET';

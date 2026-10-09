@@ -19851,11 +19851,11 @@ exists for readability only. ha_innobase::reset() doesn't give any
 clue about the method. */
 
 int ha_innobase::end_stmt() {
-  /* An open vector scan cannot outlive the statement. index_end() is the
-  ordinary end, reached through the iterator's destructor, but that runs
-  ha_index_or_rnd_end() - a no-op once ha_reset() has cleared `inited`,
-  which happens first. The scan pins the aux table, so leaking it here
-  makes the next DROP of that table fail its reference-count assertion. */
+  /* An open vector scan cannot outlive the statement, and this is where it
+  ends. vec_init() leaves the handler uninited, so VectorSearchIterator's
+  ha_index_or_rnd_end() does not reach index_end(). The scan pins the aux
+  table, so leaking it makes the next DROP of that table fail its
+  reference-count assertion. */
   vec_ann_close(m_vec_search);
   m_vec_search = nullptr;
 

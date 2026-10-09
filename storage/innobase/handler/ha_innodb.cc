@@ -10961,14 +10961,19 @@ int ha_innobase::index_init(uint keynr, /*!< in: key (index) number */
 int ha_innobase::index_end(void) {
   DBUG_TRACE;
 
-  /* Where a vector scan ends. VectorSearchIterator's destructor calls
-  ha_index_or_rnd_end(), and vec_init() went through rnd_init(), so this
-  is the one hook both the normal end and an early exit reach - including
-  the LIMIT being satisfied, where vec_read_next is simply never called
-  again. The scan holds the aux table open and its MDL ticket, so leaking
-  it would keep a concurrent ALTER waiting. */
-  vec_ann_close(m_vec_search);
-  m_vec_search = nullptr;
+  /* Where a vector scan ends. VectorSearchIterator::DoInit() started the
+  scan with ha_index_init(), so the executor's ha_index_or_rnd_end() -
+  from JOIN::cleanup() once the query block is done, or from the
+  iterator's destructor - lands here, while the statement is still
+  running: this is the one hook both the normal end and an early exit
+  reach - including the LIMIT being satisfied, where vec_read_next is
+  simply never called again. The scan holds the aux table open and its
+  MDL ticket, so leaking it would keep a concurrent ALTER waiting. */
+  if (m_vec_search != nullptr) {
+    vec_ann_close(m_vec_search);
+    m_vec_search = nullptr;
+    DEBUG_SYNC_C("ib_vec_scan_closed");
+  }
 
   if (m_prebuilt->index->last_sel_cur) {
     m_prebuilt->index->last_sel_cur->release();
@@ -12172,21 +12177,29 @@ next_record:
 int ha_innobase::vec_init() {
   DBUG_TRACE;
 
-  /* The checks every index read gets, in change_active_index(): a vector
-  index newer than this transaction's snapshot is refused with
-  ER_TABLE_DEF_CHANGED, as a B-tree is - the graph holds what its build
-  saw, so answering would leave out rows the snapshot sees - and a corrupt
-  one with ER_INDEX_CORRUPT. FULLTEXT gets the same from ha_index_init(). */
-  for (uint k = 0; k < table->s->keys; k++) {
-    if (!(table->key_info[k].flags & HA_VECTOR)) continue;
-    if (const int err = change_active_index(k); err != 0) return err;
-    break;
-  }
+  /* The caller has already run ha_index_init() on the vector key, so
+  index_init() -> change_active_index() has made the checks every index
+  read gets: a vector index newer than this transaction's snapshot is
+  refused with ER_TABLE_DEF_CHANGED, as a B-tree is - the graph holds
+  what its build saw, so answering would leave out rows the snapshot
+  sees - and a corrupt one with ER_INDEX_CORRUPT. */
+  ut_ad(inited == INDEX);
+  ut_ad(active_index < table->s->keys);
+  ut_ad(table->key_info[active_index].flags & HA_VECTOR);
+  const uint vec_key = active_index;
 
   /* The ANN candidates are fetched from the base table by PRIMARY KEY
   (row_ref is the PK image); rnd_init sets up the clustered-index
   positioning the per-candidate row_search_for_mysql below relies on. */
-  return rnd_init(false);
+  if (const int err = rnd_init(false); err != 0) return err;
+
+  /* The handler is INDEX, so the scan is an index scan over the vector
+  key and ha_index_end() ends it. rnd_init() moved active_index to the
+  primary key; put it back on the vector key. Only active_index
+  changes: m_prebuilt->index and the template stay on the clustered
+  index, which the fetches need. */
+  active_index = vec_key;
+  return 0;
 }
 
 /** Build the clustered-index search tuple for a candidate's base_pk.
@@ -12208,6 +12221,9 @@ static void innobase_vec_build_pk_tuple(dtuple_t *tuple,
 
 int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
   DBUG_TRACE;
+  ut_ad(inited == INDEX);
+  ut_ad(active_index < table->s->keys);
+  ut_ad(table->key_info[active_index].flags & HA_VECTOR);
 
   dict_index_t *vindex = vec_index_of(m_prebuilt->table);
   if (vindex == nullptr) return HA_ERR_END_OF_FILE;
@@ -12275,6 +12291,9 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
 
 int ha_innobase::vec_read_next(uchar *buf) {
   DBUG_TRACE;
+  ut_ad(inited == INDEX);
+  ut_ad(active_index < table->s->keys);
+  ut_ad(table->key_info[active_index].flags & HA_VECTOR);
 
   dict_table_t *table = m_prebuilt->table;
   if (m_vec_search == nullptr) return HA_ERR_END_OF_FILE;

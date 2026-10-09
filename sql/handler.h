@@ -6158,7 +6158,11 @@ class handler {
   are produced in ascending distance from the constant query vector.
   `limit` is the initial batch size (the query's LIMIT); readers must
   keep producing past it - the engine widens the search - because
-  filters above the iterator may consume arbitrarily many rows. */
+  filters above the iterator may consume arbitrarily many rows.
+  Callers call ha_index_init() on the vector key, then vec_init(), as
+  FullTextSearchIterator does with ft_init(); ha_index_or_rnd_end()
+  ends the scan. The handler is then INDEX, so vec_init() must leave
+  active_index on the vector key. */
   virtual int vec_init() { return HA_ERR_WRONG_COMMAND; }
   virtual int vec_read_first(Item *, uchar *, ha_rows) {
     return HA_ERR_WRONG_COMMAND;

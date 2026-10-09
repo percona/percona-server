@@ -1,0 +1,92 @@
+--echo #
+--echo # PS-11756: re-running a vector search within one statement.
+--echo #
+--echo # Now that the scan is started with ha_index_init(), every re-run must
+--echo # still restart the search; each answer is checked against the exact
+--echo # scan. The debug assertions on inited and active_index in
+--echo # vec_read_first() and vec_read_next() run on every re-run. That the
+--echo # scan is ended through ha_index_end() while the statement runs is
+--echo # checked by percona_vector.vector_scan_close.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[1,0]')),
+                      (3, STRING_TO_VECTOR('[3,0]')),
+                      (4, STRING_TO_VECTOR('[6,0]')),
+                      (5, STRING_TO_VECTOR('[10,0]')),
+                      (6, STRING_TO_VECTOR('[15,0]')),
+                      (7, STRING_TO_VECTOR('[21,0]')),
+                      (8, STRING_TO_VECTOR('[28,0]'));
+
+--echo # The query vector must be constant for the vector index to be used,
+--echo # so each outer row of q changes a filter on the scan instead: the
+--echo # scan is re-run per outer row and skips the first lo-1 candidates.
+CREATE TABLE q (qid INT PRIMARY KEY, lo INT);
+INSERT INTO q VALUES (1, 1), (2, 3), (3, 6), (4, 2), (5, 8), (6, 9), (7, 4);
+
+--echo # 1. Dependent subquery: the inner vector search re-runs per outer row.
+--replace_regex /cost=[0-9.e+-]+ /cost=X / /rows=[0-9.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT qid,
+  (SELECT id FROM t1 FORCE INDEX (vk)
+     WHERE t1.id >= q.lo
+     ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN')
+     LIMIT 1) AS nn
+FROM q ORDER BY qid;
+CREATE TABLE r_ann AS
+SELECT qid,
+  (SELECT id FROM t1 FORCE INDEX (vk)
+     WHERE t1.id >= q.lo
+     ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN')
+     LIMIT 1) AS nn
+FROM q ORDER BY qid;
+CREATE TABLE r_exact AS
+SELECT qid,
+  (SELECT id FROM t1 IGNORE INDEX (vk)
+     WHERE t1.id >= q.lo
+     ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN')
+     LIMIT 1) AS nn
+FROM q ORDER BY qid;
+SELECT * FROM r_ann;
+--echo # Rows that differ from the exact scan (expect none):
+SELECT * FROM r_ann a JOIN r_exact e USING (qid) WHERE NOT (a.nn <=> e.nn);
+DROP TABLE r_ann, r_exact;
+
+--echo # 2. LATERAL derived table: the vector search re-runs per outer row and
+--echo #    returns several rows each time, so the scan is read past its first
+--echo #    row before being re-initialised.
+--replace_regex /cost=[0-9.e+-]+ /cost=X / /rows=[0-9.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT q.qid, d.id
+FROM q, LATERAL (SELECT id FROM t1 FORCE INDEX (vk)
+                 WHERE t1.id >= q.lo
+                 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN')
+                 LIMIT 3) AS d
+ORDER BY q.qid, d.id;
+CREATE TABLE r_ann AS
+SELECT q.qid, d.id
+FROM q, LATERAL (SELECT id FROM t1 FORCE INDEX (vk)
+                 WHERE t1.id >= q.lo
+                 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN')
+                 LIMIT 3) AS d
+ORDER BY q.qid, d.id;
+CREATE TABLE r_exact AS
+SELECT q.qid, d.id
+FROM q, LATERAL (SELECT id FROM t1 IGNORE INDEX (vk)
+                 WHERE t1.id >= q.lo
+                 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN')
+                 LIMIT 3) AS d
+ORDER BY q.qid, d.id;
+SELECT qid, GROUP_CONCAT(id ORDER BY id) AS ids FROM r_ann GROUP BY qid;
+--echo # Rows that differ from the exact scan (expect none):
+(SELECT 'ann only' AS side, a.* FROM r_ann a
+   WHERE (a.qid, a.id) NOT IN (SELECT qid, id FROM r_exact))
+UNION ALL
+(SELECT 'exact only', e.* FROM r_exact e
+   WHERE (e.qid, e.id) NOT IN (SELECT qid, id FROM r_ann));
+DROP TABLE r_ann, r_exact;
+
+DROP TABLE t1, q;

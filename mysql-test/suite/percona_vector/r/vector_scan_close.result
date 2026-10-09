@@ -1,0 +1,62 @@
+#
+# PS-11756: a vector scan is ended through the handler API while its
+# statement is still running.
+#
+# VectorSearchIterator used to call handler::vec_init() directly, and
+# InnoDB's vec_init() called rnd_init() directly, so handler::inited
+# stayed NONE for the whole scan. The executor's ha_index_or_rnd_end()
+# (from JOIN::cleanup() and from the iterator's destructor) then did
+# nothing, and the open scan, which holds the aux table, was only closed
+# at statement cleanup, by ha_reset() -> end_stmt().
+#
+# The iterator now calls ha_index_init() on the vector key, then
+# vec_init(), so ha_index_or_rnd_end() reaches index_end(), which
+# closes the scan. The sync point ib_vec_scan_closed fires in
+# index_end() only when it closes an open scan. Each case below parks
+# the statement there and checks that it is still running. Without
+# the fix the sync point is never reached: the wait below times out and
+# the statement has already finished.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+(2, STRING_TO_VECTOR('[1,0]')),
+(3, STRING_TO_VECTOR('[3,0]')),
+(4, STRING_TO_VECTOR('[6,0]'));
+# 1. Scan abandoned early: LIMIT is satisfied from the first batch,
+#    so vec_read_next is never called again.
+EXPLAIN FORMAT=TREE SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+EXPLAIN
+-> Limit: 1 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using vk (v = to_vector('[0,0]'))  (cost=X rows=X)
+
+SET DEBUG_SYNC = 'ib_vec_scan_closed SIGNAL scan_closed WAIT_FOR go';
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+SET DEBUG_SYNC = 'now WAIT_FOR scan_closed TIMEOUT 30';
+# The scan is closed and the SELECT is still the running statement.
+SELECT command, state, info FROM performance_schema.processlist WHERE id = CON1_ID;
+command	state	info
+Query	executing	SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1
+SET DEBUG_SYNC = 'now SIGNAL go';
+id
+1
+# 2. Scan run to exhaustion: the filter rejects every candidate, so
+#    the scan reads the whole graph and returns no rows.
+EXPLAIN FORMAT=TREE SELECT id FROM t1 WHERE id > 100 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+EXPLAIN
+-> Limit: 2 row(s)  (cost=X rows=X)
+    -> Filter: (t1.id > 100)  (cost=X rows=X)
+        -> Vector index search on t1 using vk (v = to_vector('[0,0]'))  (cost=X rows=X)
+
+SET DEBUG_SYNC = 'ib_vec_scan_closed SIGNAL scan_closed WAIT_FOR go';
+SELECT id FROM t1 WHERE id > 100 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
+SET DEBUG_SYNC = 'now WAIT_FOR scan_closed TIMEOUT 30';
+SELECT command, state, info FROM performance_schema.processlist WHERE id = CON1_ID;
+command	state	info
+Query	executing	SELECT id FROM t1 WHERE id > 100 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2
+SET DEBUG_SYNC = 'now SIGNAL go';
+id
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;

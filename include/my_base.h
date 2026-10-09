@@ -1090,8 +1090,10 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_DEST_SCHEMA_NOT_EXIST 210
 /** A vector does not have the dimensions its vector index needs */
 #define HA_ERR_VECTOR_WRONG_DIMENSIONS 211
+/** A vector value is not usable by its vector index */
+#define HA_ERR_VECTOR_WRONG_VALUE 212
 /** Copy of last error number */
-#define HA_ERR_LAST 211
+#define HA_ERR_LAST 212
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

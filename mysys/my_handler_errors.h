@@ -129,7 +129,8 @@ static const char *handler_error_messages[] = {
     "Histogram sampling initialization failed",
     "Too many nested sub-expressions in a full-text search",
     "Destination schema does not exist",
-    "A vector does not have the dimensions its vector index needs"};
+    "A vector does not have the dimensions its vector index needs",
+    "A vector value is not usable by its vector index"};
 
 // clang-format on
 

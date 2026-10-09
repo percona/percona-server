@@ -243,6 +243,10 @@ enum dberr_t {
   found. Maps to HA_ERR_VECTOR_WRONG_DIMENSIONS. */
   DB_VEC_WRONG_DIMENSIONS,
 
+  /** A row's vector value is not usable by its vector index (e.g. a zero
+  vector under the cosine metric). Maps to HA_ERR_VECTOR_WRONG_VALUE. */
+  DB_VEC_WRONG_VALUE,
+
   /** A vector index build reached innodb_hnsw_max_memory. Only a build
   returns it; the ALTER reports ER_CAPACITY_EXCEEDED for it. */
   DB_VEC_MEMORY_LIMIT,

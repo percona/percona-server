@@ -507,6 +507,12 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
         share->max_unique_length =
             std::max(share->max_unique_length, keyinfo->key_length);
 
+      if ((keyinfo->flags & HA_VECTOR) &&
+          share->db_type()->vector_index_metric != nullptr) {
+        keyinfo->vector_index_metric =
+            share->db_type()->vector_index_metric(*keyinfo);
+      }
+
       ++idx_it;
     }
     if (primary_key < MAX_KEY && (share->keys_in_use.is_set(primary_key))) {

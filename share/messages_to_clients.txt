@@ -11139,6 +11139,9 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT
   eng "InnoDB does not support ALGORITHM=INSTANT on a table with a vector index"
 
+ER_VECTOR_INDEX_WRONG_VALUE
+  eng "Column '%-.192s' has a vector value its vector index cannot use."
+
 start-error-number 7100
 
 #

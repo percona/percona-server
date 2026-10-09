@@ -2179,6 +2179,15 @@ struct HA_CREATE_INFO;
 using validate_vector_index_params_t = bool (*)(THD *thd, const char *db_name,
                                                 HA_CREATE_INFO *create_info,
                                                 const Alter_info *alter_info);
+
+/**
+  Resolve the distance metric used by a vector index from its KEY definition
+  (type token and WITH(...) params already filled on @p key).
+
+  Called from prepare_share() for each HA_VECTOR key so the SQL layer can
+  compare query DISTANCE() metrics to the index without re-parsing options.
+*/
+using vector_index_metric_t = vector_constants::Metric (*)(const KEY &key);
 /**
   @brief
   Retrieve ha_statistics from SE.
@@ -3053,6 +3062,7 @@ struct handlerton {
   fix_default_table_encryption_t fix_default_table_encryption;
   redo_log_set_state_t redo_log_set_state;
   validate_vector_index_params_t validate_vector_index_params{nullptr};
+  vector_index_metric_t vector_index_metric{nullptr};
 
   get_table_statistics_t get_table_statistics;
   get_column_statistics_t get_column_statistics;
@@ -8269,6 +8279,12 @@ a row's vector does not have the dimensions the index needs.
 @param[in]  table     the table whose vector index refused the row
 @param[in]  errflag   flags for my_error() */
 void my_error_vector_wrong_dimensions(const TABLE *table, myf errflag);
+
+/** Report ER_VECTOR_INDEX_WRONG_VALUE for a table's vector index:
+a row's vector value is not usable by the index (e.g. zero under cosine).
+@param[in]  table     the table whose vector index refused the row
+@param[in]  errflag   flags for my_error() */
+void my_error_vector_wrong_value(const TABLE *table, myf errflag);
 
 inline void print_keydup_error(TABLE *table, KEY *key, const char *msg,
                                myf errflag) {

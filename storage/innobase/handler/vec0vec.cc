@@ -88,16 +88,35 @@ the TYPE token and the WITH(...) list - so the same parse serves DDL,
 where they arrive on a Key_spec, and table open, where they arrive on a
 KEY. */
 namespace {
-/** Upper bound on the HNSW "M" option. Each node's neighbor buffer is
-(layer + 2) * M pointers (vector-common/hnsw.h), so an unbounded M turns
-even a single-row index into a multi-gigabyte allocation; 200 keeps that
-buffer small while leaving headroom over any M a real workload would
-choose. */
-constexpr int kMaxHnswM = 200;
+/** Parse an integer WITH(...) value: the whole string, within [min, max].
+@return true on error, reported through my_error() */
+bool parse_int_option(const LEX_CSTRING &value, int min, int max, int *out) {
+  const auto *last = value.str + value.length;
+  int val;
+  auto result = std::from_chars(value.str, last, val);
+  if (result.ptr != last || result.ec != errc() || val < min || val > max) {
+    my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
+             value.str);
+    return true;
+  }
+  *out = val;
+  return false;
+}
+
+/** Copy a string onto a MEM_ROOT as a LEX_CSTRING.
+@return false on OOM */
+bool dup_lex_cstring(MEM_ROOT *mem_root, std::string_view s,
+                     LEX_CSTRING *out) {
+  out->str = strmake_root(mem_root, s.data(), s.size());
+  out->length = s.size();
+  return out->str != nullptr;
+}
 }  // namespace
 
 bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
                    VectorIndexParam &vip) {
+  namespace hnsw = vector_constants::hnsw;
+
   if (type.str == nullptr) {
     my_error(ER_NO_INDEX_TYPE, MYF(0), "");
     return true;
@@ -112,17 +131,14 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
 
   for (const auto &[key, value] : params) {
     if (my_strcasecmp(system_charset_info, key.str, "M") == 0) {
-      const auto *last = value.str + value.length;
-      int val;
-      auto result = std::from_chars(value.str, last, val);
-      if (result.ptr == last && result.ec == errc() && val >= 2 &&
-          val <= kMaxHnswM) {
-        hnsw_param.M = val;
-      } else {
-        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                 value.str);
+      if (parse_int_option(value, hnsw::min_M, hnsw::max_M, &hnsw_param.M))
         return true;
-      }
+    } else if (my_strcasecmp(system_charset_info, key.str,
+                             "ef_construction") == 0) {
+      if (parse_int_option(value, hnsw::min_ef_construction,
+                           hnsw::max_ef_construction,
+                           &hnsw_param.ef_construction))
+        return true;
     } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
       std::string_view name(value.str, value.length);
       const auto *m = vector_constants::metric_from_name(name);
@@ -182,6 +198,36 @@ bool parse_options(const Key_spec &index_def, VectorIndexParam &vip) {
 already validated at DDL time. Parse only. */
 bool parse_options(const KEY &key, VectorIndexParam &vip) {
   return parse_options(key.vector_index_type, key.vector_index_params, vip);
+}
+
+/* DDL-time: the one place the defaults turn into stored values. */
+bool resolve_options(MEM_ROOT *mem_root, KEY *key) {
+  VectorIndexParam vip;
+  if (parse_options(*key, vip)) return true;
+  const auto &hp = std::get<HnswParam>(vip);
+
+  const std::string m = std::to_string(hp.M);
+  const std::string efc = std::to_string(hp.ef_construction);
+  const std::pair<std::string_view, std::string_view> resolved[] = {
+      {"M", m},
+      {"metric", vector_constants::metric_name(hp.metric)},
+      {"ef_construction", efc},
+  };
+
+  /* A new list rather than an edit in place: the old one may be shared with
+  the Key_spec, which a prepared statement executes again. */
+  Vector_index_params_YY params;
+  params.init(mem_root);
+  for (const auto &[k, v] : resolved) {
+    std::pair<LEX_CSTRING, LEX_CSTRING> param;
+    if (!dup_lex_cstring(mem_root, k, &param.first) ||
+        !dup_lex_cstring(mem_root, v, &param.second) ||
+        params.push_back(param)) {
+      return true; /* OOM, already reported by the mem_root */
+    }
+  }
+  key->vector_index_params = params;
+  return false;
 }
 
 }  // namespace storage::innobase::vec

@@ -4837,6 +4837,11 @@ static bool innobase_validate_vector_index_params(
   return false;
 }
 
+static bool innobase_resolve_vector_index_params(MEM_ROOT *mem_root,
+                                                 KEY *key) {
+  return storage::innobase::vec::resolve_options(mem_root, key);
+}
+
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
   return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
@@ -5843,6 +5848,8 @@ static int innodb_init(void *p) {
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
   innobase_hton->validate_vector_index_params =
       innobase_validate_vector_index_params;
+  innobase_hton->resolve_vector_index_params =
+      innobase_resolve_vector_index_params;
 
   innobase_hton->post_ddl = innobase_post_ddl;
 

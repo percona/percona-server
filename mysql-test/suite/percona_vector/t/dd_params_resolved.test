@@ -1,0 +1,81 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11612: an HNSW index stores every parameter it is built with in
+--echo # the DD - the defaults too - so a compiled-in default that changes in
+--echo # a later release can never change the graph of an existing index.
+--echo #
+
+--let $dd_options = SELECT t.name AS tbl, i.name AS idx, i.options FROM mysql.indexes i JOIN mysql.tables t ON i.table_id = t.id WHERE t.name IN ('t1', 't2') AND i.name = 'vk' ORDER BY t.name
+
+--echo # No option list, and the same index with the default written out:
+--echo # both are stored, and shown, identically.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw);
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 25));
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+SET SESSION debug = '+d,skip_dd_table_access_check';
+--eval $dd_options
+SET SESSION debug = '-d,skip_dd_table_access_check';
+
+--echo # The stored values survive a restart.
+--source include/restart_mysqld.inc
+SHOW CREATE TABLE t1;
+DROP TABLE t1, t2;
+
+--echo # Names and values are stored in canonical form, in a fixed order.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw
+                   (ef_construction = 064, metric = EUCLIDEAN, m = 006));
+SHOW CREATE TABLE t1;
+
+--echo # SHOW CREATE TABLE round-trips.
+let $create = query_get_value(SHOW CREATE TABLE t1, Create Table, 1);
+DROP TABLE t1;
+eval $create;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # ef_construction is checked like M.
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (ef_construction = 0));
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (ef_construction = 4097));
+--error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (ef_construction = abc));
+
+--echo # A vector index added later by ALTER TABLE or CREATE INDEX is resolved
+--echo # too.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw;
+SHOW CREATE TABLE t1;
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+CREATE VECTOR INDEX vk ON t2 (v) TYPE hnsw (M = 8);
+SHOW CREATE TABLE t2;
+
+--echo # ... and an ALTER that rebuilds the table keeps the stored values.
+ALTER TABLE t2 ADD COLUMN c INT, ALGORITHM = COPY;
+SHOW CREATE TABLE t2;
+
+SET SESSION debug = '+d,skip_dd_table_access_check';
+--eval $dd_options
+SET SESSION debug = '-d,skip_dd_table_access_check';
+DROP TABLE t1, t2;
+
+--echo # A prepared statement resolves afresh on each execution.
+PREPARE stmt FROM 'CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                                    v VECTOR(4) NOT NULL,
+                                    VECTOR KEY vk (v) TYPE hnsw (m = 6))';
+EXECUTE stmt;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+EXECUTE stmt;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+DEALLOCATE PREPARE stmt;

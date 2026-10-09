@@ -33,6 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "key_spec.h"
 #include "vector-common/vector_constants.h"
 
+struct MEM_ROOT;
+
 namespace storage::innobase::vec {
 
 /** A distance kernel: the signature vector-common's kernels have and the
@@ -41,11 +43,15 @@ not have to pull in the graph template. */
 using vec_metric_func_t = double (*)(const char *a, const char *b,
                                      uint32_t dims);
 
+/** An HNSW index's parameters. The initial values are the defaults from
+vector_constants::hnsw, and they matter only while an index is being
+created: resolve_options() then writes the full set to the KEY, and so to
+the DD, so an index that exists never falls back on them. */
 struct HnswParam {
-  int M{25};
-  int max_elements{10000};
-  int ef_construction{200};
-  vector_constants::Metric metric{vector_constants::Metric::kEuclidean};
+  int M{vector_constants::hnsw::default_M};
+  int max_elements{vector_constants::hnsw::default_max_elements};
+  int ef_construction{vector_constants::hnsw::default_ef_construction};
+  vector_constants::Metric metric{vector_constants::hnsw::default_metric};
   /** The kernel `metric` selects, resolved by the parser so that the
   metric and the function cannot drift apart: whoever builds a graph uses
   this rather than picking a kernel of its own. Never null once
@@ -85,6 +91,18 @@ bool parse_options(const Key_spec &index_def, VectorIndexParam &vip);
 /** Open-time overload: the definition came back from the DD, so its
 shape was settled at DDL time - contents only. */
 bool parse_options(const KEY &key, VectorIndexParam &vip);
+
+/** Resolve a vector index's parameters once, at DDL time, and replace the
+KEY's WITH(...) list with the full canonical set: every parameter, the ones
+the user left out at their default, with canonical names and values. (The
+DD stores them sorted by name, so SHOW CREATE TABLE lists them in that
+order whatever the user wrote.) The KEY is what goes to the DD, so
+an index never relies on a compiled-in default after it has been created,
+and SHOW CREATE TABLE describes it completely. Idempotent.
+@param[in]      mem_root  where the new list is allocated, the KEY's own
+@param[in,out]  key       the vector index's KEY, as prepare_key() built it
+@return true on error, reported through my_error() */
+bool resolve_options(MEM_ROOT *mem_root, KEY *key);
 
 }  // namespace storage::innobase::vec
 

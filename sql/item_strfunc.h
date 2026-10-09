@@ -1324,12 +1324,28 @@ class Item_func_vector_distance final : public Item_real_func {
   enum Functype functype() const override { return VECTOR_DISTANCE_FUNC; }
   double val_real() override;
 
-  /** @return true if an L2 (euclidean) HNSW index orders rows the same
-  way this call does - EUCLIDEAN is a monotonic (sqrt) transform of the
-  index's native squared metric, so both are servable. */
-  bool l2_index_servable() const {
-    return m_metric == Metric::kEuclidean ||
-           m_metric == Metric::kEuclideanSquared;
+  /**
+    Check if ORDER BY clause using this DISTANCE() call can be handled by
+    a vector index.
+
+    @param index_metric The metric of the vector index.
+
+    @return true if a vector index has the same or equivalent metric as
+            this DISTANCE() call, false otherwise.
+
+    EUCLIDEAN and EUCLIDEAN_SQUARED are served by an euclidean index.
+    COSINE requires a cosine index.
+  */
+  bool vector_index_servable(Metric index_metric) const {
+    switch (index_metric) {
+      case Metric::kEuclidean:
+        return m_metric == Metric::kEuclidean ||
+               m_metric == Metric::kEuclideanSquared;
+      case Metric::kCosine:
+        return m_metric == Metric::kCosine;
+      default:
+        return false;
+    }
   }
 };
 

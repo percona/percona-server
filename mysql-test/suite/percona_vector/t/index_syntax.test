@@ -643,8 +643,7 @@ CREATE TABLE t (
   VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean_squared )
 );
 
---error ER_NOT_SUPPORTED_YET
-CREATE TABLE t (
+CREATE TABLE t2 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR ( 1234 ) NOT NULL,
   VECTOR KEY ( v1 ) TYPE hnsw ( metric = cosine )
@@ -665,7 +664,7 @@ CREATE TABLE t (
 );
 
 
-DROP TABLE t1;
+DROP TABLES t1, t2;
 
 --echo #
 --echo # Every vector index in the statement is checked, not just the first

@@ -1165,6 +1165,7 @@ handle_new_error:
     /* A ceiling, not a failed allocation: fail the statement. */
     case DB_VEC_OUT_OF_MEMORY:
     case DB_VEC_WRONG_DIMENSIONS:
+    case DB_VEC_WRONG_VALUE:
     case DB_READ_ONLY:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:

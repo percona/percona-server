@@ -202,6 +202,61 @@ TEST_F(VectorDistanceTest, CosineZeroVectorReturnsInf) {
 }
 
 // ---------------------------------------------------------------------------
+// vector_is_zero(): exactly-zero test, used to refuse zero vectors on a
+// cosine index
+// ---------------------------------------------------------------------------
+
+TEST_F(VectorDistanceTest, IsZeroKnownValues) {
+  alignas(32) float z1[] = {0.0f};
+  alignas(32) float z4[] = {0.0f, 0.0f, 0.0f, 0.0f};
+  EXPECT_TRUE(vector_is_zero((const char *)z1, 1));
+  EXPECT_TRUE(vector_is_zero((const char *)z4, 4));
+
+  // -0.0 compares equal to 0.0, and its norm is zero too.
+  alignas(32) float neg[] = {-0.0f, 0.0f, -0.0f, 0.0f};
+  EXPECT_TRUE(vector_is_zero((const char *)neg, 4));
+
+  // A non-zero element anywhere makes the vector non-zero: first, middle
+  // and last position, so an early exit or an off-by-one in the loop
+  // bound shows.
+  for (uint32_t pos = 0; pos < 4; pos++) {
+    SCOPED_TRACE(::testing::Message() << "pos=" << pos);
+    alignas(32) float v[] = {0.0f, 0.0f, 0.0f, 0.0f};
+    v[pos] = 1.0f;
+    EXPECT_FALSE(vector_is_zero((const char *)v, 4));
+  }
+
+  // Only the first dims floats are inspected.
+  alignas(32) float prefix[] = {0.0f, 0.0f, 0.0f, 5.0f};
+  EXPECT_TRUE(vector_is_zero((const char *)prefix, 3));
+
+  // The test is exact, not a norm threshold: the smallest denormal is
+  // not zero.
+  alignas(32) float tiny[] = {0.0f, std::numeric_limits<float>::denorm_min()};
+  EXPECT_FALSE(vector_is_zero((const char *)tiny, 2));
+}
+
+TEST_F(VectorDistanceTest, IsZeroUnaligned) {
+  // dims=35 is above VECTOR_DISTANCE_WIDE_MIN_DIMS, so this stays valid if
+  // vector_is_zero() later gets SIMD tiers with a wide loop and a tail.
+  const uint32_t dims = 35;
+  std::vector<float> f(dims, 0.0f);
+  std::vector<char> buf(dims * sizeof(float) + alignof(float));
+  const size_t off =
+      misaligned_float_offset(reinterpret_cast<uintptr_t>(buf.data()));
+  char *m = buf.data() + off;
+  ASSERT_FALSE(is_aligned_to(m, alignof(float)));
+
+  std::memcpy(m, f.data(), dims * sizeof(float));
+  EXPECT_TRUE(vector_is_zero(m, dims));
+
+  // Non-zero only in the tail element.
+  f[dims - 1] = 1.0f;
+  std::memcpy(m, f.data(), dims * sizeof(float));
+  EXPECT_FALSE(vector_is_zero(m, dims));
+}
+
+// ---------------------------------------------------------------------------
 // Unaligned path: misaligned buffer must give the same result as aligned
 // ---------------------------------------------------------------------------
 

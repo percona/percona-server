@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "storage/innobase/include/vec0vec.h"
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
+#include "vector-common/vector_distance.h"
 
 namespace innodb_vec0vec_unittest {
 
@@ -110,6 +111,7 @@ TEST_F(Vec0VecTest, HnswAllSupportedParams) {
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
   EXPECT_EQ(8, get<HnswParam>(m_vip).M);
   EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_euclidean_squared, get<HnswParam>(m_vip).dist);
   /* Untouched by the parser, so still the header's default. */
   EXPECT_EQ(200, get<HnswParam>(m_vip).ef_construction);
 }
@@ -151,6 +153,89 @@ TEST_F(Vec0VecTest, HnswMetricEuclidean) {
             ")"));
   ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
   EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_euclidean_squared, get<HnswParam>(m_vip).dist);
+}
+
+TEST_F(Vec0VecTest, HnswMetricCosine) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (metric = cosine)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(vector_constants::Metric::kCosine, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_cosine, get<HnswParam>(m_vip).dist);
+}
+
+TEST_F(Vec0VecTest, HnswMetricEuclideanSquaredRefused) {
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (metric = euclidean_squared)"
+            ")",
+            ER_NOT_SUPPORTED_YET));
+}
+
+TEST_F(Vec0VecTest, MetricFromKeyCosine) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8, metric = cosine)"
+            ")"));
+  const Key_spec *ks = find_vector_key();
+  ASSERT_NE(nullptr, ks);
+
+  KEY key{};
+  key.flags = HA_VECTOR;
+  key.vector_index_type = ks->key_create_info.vector_index_type;
+  key.vector_index_params = ks->key_create_info.vector_index_params;
+  EXPECT_EQ(vector_constants::Metric::kCosine, metric_from_key(key));
+}
+
+TEST_F(Vec0VecTest, MetricFromKeyDefaultEuclidean) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8)"
+            ")"));
+  const Key_spec *ks = find_vector_key();
+  ASSERT_NE(nullptr, ks);
+
+  KEY key{};
+  key.flags = HA_VECTOR;
+  key.vector_index_type = ks->key_create_info.vector_index_type;
+  key.vector_index_params = ks->key_create_info.vector_index_params;
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, metric_from_key(key));
+}
+
+/* Option names and values are case-insensitive for both readers of the
+options: parse_options(), which picks the kernel the graph is built with,
+and metric_from_key(), which tells the optimizer which DISTANCE() the
+index serves. If they disagreed, the index would serve queries under a
+metric it was not built with. */
+TEST_F(Vec0VecTest, MetricFromKeyMixedCase) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE HNSW (M = 8, Metric = Cosine)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(vector_constants::Metric::kCosine, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_cosine, get<HnswParam>(m_vip).dist);
+
+  const Key_spec *ks = find_vector_key();
+  ASSERT_NE(nullptr, ks);
+
+  KEY key{};
+  key.flags = HA_VECTOR;
+  key.vector_index_type = ks->key_create_info.vector_index_type;
+  key.vector_index_params = ks->key_create_info.vector_index_params;
+  EXPECT_EQ(vector_constants::Metric::kCosine, metric_from_key(key));
 }
 
 }  // namespace innodb_vec0vec_unittest

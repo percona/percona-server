@@ -6810,6 +6810,9 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
       case DB_VEC_WRONG_DIMENSIONS:
         my_error_vector_wrong_dimensions(altered_table, MYF(0));
         break;
+      case DB_VEC_WRONG_VALUE:
+        my_error_vector_wrong_value(altered_table, MYF(0));
+        break;
       default:
         my_error_innodb(err, table_share->table_name.str,
                         m_prebuilt->table->flags);
@@ -7525,6 +7528,9 @@ when rebuilding the table.
         return true;
       case DB_VEC_WRONG_DIMENSIONS:
         my_error_vector_wrong_dimensions(altered_table, MYF(0));
+        return true;
+      case DB_VEC_WRONG_VALUE:
+        my_error_vector_wrong_value(altered_table, MYF(0));
         return true;
       default:
         my_error_innodb(error, table_name, user_table->flags);

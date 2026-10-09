@@ -4057,6 +4057,15 @@ static bool dict_table_apply_dynamic_metadata(
     }
   }
 
+  /* The vector next id only grows for a table id, and no DDL lowers it, so
+  it does not depend on the version: take the larger value. */
+  const uint64_t vec_next_id = metadata->get_vec_next_id();
+  if (vec_next_id > table->vec_aux_autoinc_persisted.load()) {
+    table->vec_aux_autoinc_next_id.store(vec_next_id);
+    table->vec_aux_autoinc_persisted.store(vec_next_id);
+    get_dirty = true;
+  }
+
   /* FIXME: Move this to the beginning of this function once corrupted
   index IDs are also written back to dd::Table::se_private_data. */
   /* Here is how version play role. Basically, version would be increased
@@ -4080,16 +4089,6 @@ static bool dict_table_apply_dynamic_metadata(
   if (autoinc > table->autoinc_persisted) {
     table->autoinc = autoinc;
     table->autoinc_persisted = autoinc;
-
-    get_dirty = true;
-  }
-
-  /* The hidden vec_idx_id counter - same discipline as
-  autoinc above: only ever moves forward. */
-  const uint64_t vec_next_id = metadata->get_vec_next_id();
-  if (vec_next_id > table->vec_aux_autoinc_persisted.load()) {
-    table->vec_aux_autoinc_next_id.store(vec_next_id);
-    table->vec_aux_autoinc_persisted.store(vec_next_id);
 
     get_dirty = true;
   }
@@ -5724,8 +5723,11 @@ ulint CorruptedIndexPersister::read(PersistentTableMetadata &metadata,
 void CorruptedIndexPersister::aggregate(
     PersistentTableMetadata &metadata,
     const PersistentTableMetadata &new_entry) const {
+  const corrupted_ids_t &known = metadata.get_corrupted_indexes();
   for (auto id : new_entry.get_corrupted_indexes()) {
-    metadata.add_corrupted_index(id);
+    if (std::find(known.begin(), known.end(), id) == known.end()) {
+      metadata.add_corrupted_index(id);
+    }
   }
 }
 
@@ -5945,6 +5947,13 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
   }
 
   return (size);
+}
+
+void Persisters::aggregate(PersistentTableMetadata &metadata,
+                           const PersistentTableMetadata &new_entry) const {
+  for (const auto &entry : m_persisters) {
+    entry.second->aggregate(metadata, new_entry);
+  }
 }
 
 void dict_sdi_close_table(dict_table_t *table) {

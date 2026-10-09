@@ -1,0 +1,38 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11591: a crash with only label records after a checkpoint must
+--echo # keep the checkpointed AUTO_INCREMENT.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, k INT,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 (k, v) VALUES
+  (1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,1,0,0]')),
+  (3, STRING_TO_VECTOR('[0,0,1,0]')), (4, STRING_TO_VECTOR('[0,0,0,1]'));
+ALTER TABLE t1 ADD INDEX ik (k);
+
+--echo # AUTO_INCREMENT moves past the value the ALTER stored, and is
+--echo # checkpointed.
+INSERT INTO t1 (k, v) VALUES
+  (5, STRING_TO_VECTOR('[1,1,0,0]')), (6, STRING_TO_VECTOR('[0,1,1,0]')),
+  (7, STRING_TO_VECTOR('[0,0,1,1]'));
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Label records only: explicit ids below AUTO_INCREMENT.
+DELETE FROM t1 WHERE id <= 2;
+INSERT INTO t1 (id, k, v) VALUES
+  (1, 11, STRING_TO_VECTOR('[2,0,0,0]')), (2, 12, STRING_TO_VECTOR('[0,2,0,0]'));
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo # The next AUTO_INCREMENT id is 8. The INSERT takes label 10, so the
+--echo # next label is 11.
+INSERT INTO t1 (k, v) VALUES (13, STRING_TO_VECTOR('[3,1,0,0]'));
+SELECT LAST_INSERT_ID();
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+
+DROP TABLE t1;

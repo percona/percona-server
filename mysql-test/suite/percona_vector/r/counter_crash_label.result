@@ -1,0 +1,31 @@
+#
+# PS-11591: after a DDL bumps the table version, a crash with only
+# label records in the redo must not reuse a label.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, k INT,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 (k, v) VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]')), (4, STRING_TO_VECTOR('[0,0,0,1]')),
+(5, STRING_TO_VECTOR('[1,1,0,0]')), (6, STRING_TO_VECTOR('[0,1,1,0]'));
+ALTER TABLE t1 ADD INDEX ik (k);
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Labels 7..9, and no AUTO_INCREMENT advance.
+DELETE FROM t1 WHERE id <= 3;
+INSERT INTO t1 (id, k, v) VALUES
+(1, 11, STRING_TO_VECTOR('[2,0,0,0]')), (2, 12, STRING_TO_VECTOR('[0,2,0,0]')),
+(3, 13, STRING_TO_VECTOR('[0,0,2,0]'));
+# Kill and restart
+# The next label is 10, and the INSERT takes a new one after it.
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=10
+INSERT INTO t1 (k, v) VALUES (14, STRING_TO_VECTOR('[3,1,0,0]'));
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=10 distinct_ids=10 distinct_base_pks=7 dup_ids=0 dup_base_pks=3 labels_contiguous_from_1=0
+DROP TABLE t1;

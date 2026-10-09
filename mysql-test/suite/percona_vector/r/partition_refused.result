@@ -1,0 +1,19 @@
+#
+# A vector index cannot be created on a partitioned table, and a table
+# with one cannot be partitioned: the label counter's crash safety
+# relies on no partition DDL path ever touching such a table.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4))
+PARTITION BY HASH (id) PARTITIONS 2;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL)
+PARTITION BY HASH (id) PARTITIONS 2;
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'
+DROP TABLE t2;
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+ALTER TABLE t3 PARTITION BY HASH (id) PARTITIONS 2;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'
+DROP TABLE t3;

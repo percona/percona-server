@@ -1,0 +1,24 @@
+#
+# PS-11591: a corrupted-index flag recovered from redo survives a DDL
+# that bumped the table version.
+#
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, k INT, KEY kk (k));
+INSERT INTO t1 (k) VALUES (1), (2), (3);
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Flag the secondary index corrupt: a redo record at the old version.
+SET SESSION debug = "+d,dict_set_index_corrupted";
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index kk is corrupted.
+test.t1	check	error	Corrupt
+SET SESSION debug = "-d,dict_set_index_corrupted";
+# A DDL that bumps the version and keeps the index, then an
+# AUTO_INCREMENT record at the new version.
+ALTER TABLE t1 AUTO_INCREMENT = 100;
+INSERT INTO t1 (k) VALUES (4);
+# Kill and restart
+# The index is still corrupt.
+SELECT k FROM t1 FORCE INDEX (kk) WHERE k > 0;
+ERROR HY000: Index kk is corrupted
+DROP TABLE t1;

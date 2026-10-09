@@ -256,6 +256,12 @@ void UnicodeSet::closeOverCaseInsensitive(bool simple) {
 
     UnicodeSet subset(0, 0x10ffff);
     const UnicodeSet &codePoints = maybeOnlyCaseSensitive(*this, subset);
+    // Percona: a failed allocation leaves the set bogus and empty, which would
+    // silently skip the closure.
+    if (codePoints.isBogus()) {
+        setToBogus();
+        return;
+    }
 
     // Iterate over the ranges of single code points. Nested loop for each code point.
     int32_t n = codePoints.getRangeCount();

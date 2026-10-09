@@ -53,6 +53,13 @@ class AuditRule {
   [[nodiscard]] std::string get_rule_name() const noexcept;
 
   /**
+   * @brief Get filtering rule name without copying it.
+   *
+   * @return Filtering rule name, valid while the rule exists
+   */
+  [[nodiscard]] std::string_view get_rule_name_view() const noexcept;
+
+  /**
    * @brief Set temporary replacement filtering rule.
    *
    * @param rule Pointer to replacement filtering rule
@@ -119,6 +126,14 @@ class AuditRule {
    * @param error Human-readable parse error description
    */
   void set_parse_error(const std::string &error) noexcept;
+
+  /**
+   * @brief Set parse error description (only stores the first error)
+   *        without allocating.
+   *
+   * @param error Human-readable parse error description
+   */
+  void set_parse_error(std::string &&error) noexcept;
 
   /**
    * @brief Get parse error description, empty if no error.

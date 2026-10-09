@@ -155,6 +155,20 @@ class AuditRuleParser {
       const std::string &class_name, AuditRule *audit_rule) noexcept;
 
   /**
+   * @brief Parse audit event field condition using a regular expression.
+   *
+   * "field": { "name": "table_name.str", "regex": "^orders[0-9]+$" }
+   *
+   * @param field_json JSON object representing 'field' definition
+   * @param class_name Audit event class name for field name validation
+   * @param audit_rule Audit filtering rule instance to be initialized
+   * @return Logical condition instance or nullptr in case of an error
+   */
+  static std::shared_ptr<EventFieldConditionBase> parse_field_regex_json(
+      const rapidjson::Value &field_json, const std::string &class_name,
+      AuditRule *audit_rule) noexcept;
+
+  /**
    * @brief Parse function definition in a filtering rule represented by
    *        a JSON string.
    *

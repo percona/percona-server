@@ -1,0 +1,301 @@
+####################################################################
+# PS-11118: injected failures of 'regex' field conditions.
+#
+# audit_log_filter_regex_compile_bad_alloc
+#   std::bad_alloc while constructing a regex condition.
+# audit_log_filter_regex_runtime_error
+#   a reached regex leaf fails with U_MEMORY_ALLOCATION_ERROR.
+#
+# A failed leaf is false, is counted exactly once in
+# Audit_log_filter_regex_match_errors and is reported in the error log at
+# most once per 60 seconds per condition. It is not a lost event.
+####################################################################
+
+--source include/have_component_audit_log.inc
+--source include/have_debug.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong JSON filter '.*' format");
+call mtr.add_suppression("Component audit_log_filter reported: 'Wrong argument: incorrect rule definition");
+call mtr.add_suppression("Component audit_log_filter reported: 'Audit log filter '.*': regex '.*' on field '.*' failed");
+call mtr.add_suppression("Component audit_log_filter reported: 'audit_log_filter name: .*, filter: .* has wrong format");
+call mtr.add_suppression("std::bad_alloc");
+call mtr.add_suppression("Audit query output was not prepared");
+call mtr.add_suppression("Invalid audit query charset or buffer");
+
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY AUTO_INCREMENT, v INT);
+CREATE TABLE tpcc.history1 LIKE tpcc.orders1;
+CREATE TABLE tpcc.secret_1 LIKE tpcc.orders1;
+CREATE TABLE tpcc.temp_1 LIKE tpcc.orders1;
+CREATE USER rx_app@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO rx_app@localhost;
+
+--let $rx_errors_base =
+--source filter_definition_regex_errors.inc
+
+--echo #
+--echo # Allocation failure while constructing a regex condition
+--echo #
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}};
+SET SESSION debug = '+d,audit_log_filter_regex_compile_bad_alloc';
+eval SELECT audit_log_filter_set_filter('rx_oom', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_oom';
+let $rx_abort_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_oom_abort', '$rx_abort_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_oom_abort';
+--echo # The injected failure precedes compilation, so it is reported also for
+--echo # a pattern which would not compile
+SELECT audit_log_filter_set_filter('rx_oom_invalid', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^(orders"}}}}}}') AS result;
+SET SESSION debug = '-d,audit_log_filter_regex_compile_bad_alloc';
+eval SELECT audit_log_filter_set_filter('rx_oom', '$rx_definition') AS result;
+SELECT COUNT(*) AS stored_rows FROM mysql.audit_log_filter WHERE name = 'rx_oom';
+--echo # Registry loading
+SET SESSION debug = '+d,audit_log_filter_regex_compile_bad_alloc';
+SELECT audit_log_filter_flush() AS result;
+SET SESSION debug = '-d,audit_log_filter_regex_compile_bad_alloc';
+SELECT audit_log_filter_flush() AS result;
+--source filter_definition_regex_errors.inc
+
+--echo #
+--echo # Run time failure of a reached regex leaf in every context
+--echo #
+--let $rx_case_i = 0
+while ($rx_case_i < 9) {
+  --let $rx_target = orders1
+  if ($rx_case_i == 0) {
+    --let $rx_case = positive log
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}
+  }
+  if ($rx_case_i == 1) {
+    --let $rx_case = negated log
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}
+  }
+  if ($rx_case_i == 2) {
+    --let $rx_case = positive abort does not abort
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}}}}}
+    --let $rx_target = secret_1
+  }
+  if ($rx_case_i == 3) {
+    --let $rx_case = print condition false invokes replacement
+    --let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (3)"}}, "print": {"field": {"name": "general_query.str", "print": {"field": {"name": "general_query.str", "regex": "^INSERT"}}, "replace": {"function": {"name": "query_digest"}}}}}}}}
+  }
+  if ($rx_case_i == 4) {
+    --let $rx_case = replacement filter is not activated
+    --let $rx_definition = {"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}}}}}}
+    --let $rx_target = temp_1
+  }
+  if ($rx_case_i == 5) {
+    --let $rx_case = and short-circuit, regex not reached
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_database.str", "value": "nope"}}, {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}]}}}}}
+  }
+  if ($rx_case_i == 6) {
+    --let $rx_case = or short-circuit, regex not reached
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_database.str", "value": "tpcc"}}, {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}]}}}}}
+  }
+  if ($rx_case_i == 7) {
+    --let $rx_case = query.str of a table access event is always present, regex reached
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"field": {"name": "query.str", "regex": "x"}}}}}}}
+  }
+  if ($rx_case_i == 8) {
+    --let $rx_case = failures stop when the hook is cleared
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}
+  }
+  --echo # Case: $rx_case
+  eval SELECT audit_log_filter_set_filter('rx_err_$rx_case_i', '$rx_definition') AS result;
+  eval SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_$rx_case_i') AS result;
+  connect (rx, localhost, rx_app,, tpcc);
+  if ($rx_case_i != 8) {
+    SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+  }
+  connection default;
+  --source filter_definition_regex_sync.inc
+  --let $rx_errors_base = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_regex_match_errors', Value, 1)
+  SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+  SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+  --source filter_definition_regex_begin.inc
+  connection rx;
+  if ($rx_case_i == 3) {
+    INSERT INTO orders1 (v) VALUES (3);
+  }
+  if ($rx_case_i != 3) {
+    eval INSERT INTO $rx_target (v) VALUES ($rx_case_i);
+  }
+  if ($rx_case_i == 4) {
+    SELECT 'rx_sentinel';
+  }
+  connection default;
+  --source filter_definition_regex_summary.inc
+  --source filter_definition_regex_errors.inc
+  SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+  if ($rx_case_i == 2) {
+    SELECT COUNT(*) - @rows AS inserted_rows FROM tpcc.secret_1;
+  }
+  disconnect rx;
+  --inc $rx_case_i
+}
+
+--echo #
+--echo # Each failing condition reports its first failure, repeated failures of
+--echo # the same condition are only counted
+--echo #
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}]}}}}};
+eval SELECT audit_log_filter_set_filter('rx_err_two', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_two') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+connection default;
+--source filter_definition_regex_begin.inc
+--source filter_definition_regex_warnings_mark.inc
+connection rx;
+INSERT INTO orders1 (v) VALUES (10);
+INSERT INTO orders1 (v) VALUES (11);
+INSERT INTO history1 (v) VALUES (12);
+connection default;
+--source filter_definition_regex_summary.inc
+--source filter_definition_regex_errors.inc
+--let rx_warning_label = one for the first condition
+--let rx_warning_text = Audit log filter 'rx_err_two': regex '^orders[0-9]+$' on field 'table_name.str' failed (allocation: U_MEMORY_ALLOCATION_ERROR); condition treated as not matching. Further failures of this condition are reported at most once per 60 seconds.
+--let rx_warning_count = 1
+--let rx_warning_slow_max = 3
+--let rx_warning_keep_mark = 1
+--source filter_definition_regex_warnings.inc
+--let rx_warning_keep_mark =
+--let rx_warning_label = one for the second condition
+--let rx_warning_text = Audit log filter 'rx_err_two': regex '^history[0-9]+$' on field 'table_name.str' failed (allocation: U_MEMORY_ALLOCATION_ERROR); condition treated as not matching. Further failures of this condition are reported at most once per 60 seconds.
+--let rx_warning_count = 1
+--let rx_warning_slow_max = 3
+--source filter_definition_regex_warnings.inc
+--echo # Recovery with real matching
+connection rx;
+SET SESSION debug = '-d,audit_log_filter_regex_runtime_error';
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+INSERT INTO orders1 (v) VALUES (13);
+INSERT INTO history1 (v) VALUES (14);
+connection default;
+--source filter_definition_regex_summary.inc
+--source filter_definition_regex_errors.inc
+disconnect rx;
+
+--echo #
+--echo # Query output and capture failures are lost events, not regex errors
+--echo #
+let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "regex": "rx_marker_[0-9]+"}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_output', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_output') AS result;
+let $rx_negated_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"not": {"field": {"name": "general_query.str", "regex": "rx_marker_[0-9]+"}}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_output_not', '$rx_negated_definition') AS result;
+--let $rx_format = query_get_value(SELECT @@global.audit_log_filter.format AS f, f, 1)
+
+--let $rx_case_i = 0
+while ($rx_case_i < 8) {
+  if ($rx_case_i == 0) {
+    --echo # Case: output conversion failure after a successful regex match
+    --let $rx_hooks = audit_log_filter_query_output_bad_alloc
+  }
+  if ($rx_case_i == 1) {
+    --echo # Case: escaping failure after a successful regex match
+    --let $rx_hooks = audit_log_filter_escape_bad_alloc
+  }
+  if ($rx_case_i == 2) {
+    --echo # Case: unknown query character set after a successful regex match
+    --let $rx_hooks = audit_log_filter_unknown_query_charset
+  }
+  if ($rx_case_i == 3) {
+    --echo # Case: query output not prepared after a successful regex match
+    --let $rx_hooks = audit_log_filter_query_output_not_ready
+  }
+  if ($rx_case_i == 4) {
+    --echo # Case: separated record allocation failure; with the JSON format,
+    --echo # the only one supported by audit_log_read_bookmark(), the bookmark
+    --echo # of the lost record is not published
+    --let $rx_hooks = audit_log_filter_write_payload_bad_alloc
+  }
+  if ($rx_case_i == 5) {
+    --echo # Case: query capture failure before filtering, the failing regex is
+    --echo # not evaluated
+    --let $rx_hooks = audit_log_filter_query_capture_bad_alloc,audit_log_filter_regex_runtime_error
+  }
+  if ($rx_case_i == 6) {
+    --echo # Case: query charset capture failure before filtering, the failing
+    --echo # regex is not evaluated
+    --let $rx_hooks = audit_log_filter_query_charset_bad_alloc,audit_log_filter_regex_runtime_error
+  }
+  if ($rx_case_i == 7) {
+    --echo # Case: failed negated regex selects the event, output then fails
+    --let $rx_hooks = audit_log_filter_regex_runtime_error,audit_log_filter_query_output_bad_alloc
+    SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_output_not') AS result;
+  }
+  connect (rx, localhost, rx_app,, tpcc);
+  connect (rx_hooked, localhost, rx_app,, tpcc);
+  connection default;
+  --source filter_definition_regex_begin.inc
+  --echo # A record precedes the failing one in the log file
+  connection rx;
+  SELECT 100 AS rx_marker_100;
+  connection rx_hooked;
+  eval SET SESSION debug = '+d,$rx_hooks';
+  connection default;
+  --source filter_definition_regex_sync.inc
+  SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+  SET @written = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written');
+  if ($rx_format == JSON) {
+    --disable_query_log
+    SET @bookmark = audit_log_read_bookmark();
+    --enable_query_log
+  }
+  --let $rx_errors_base = query_get_value(SHOW GLOBAL STATUS LIKE 'Audit_log_filter_regex_match_errors', Value, 1)
+  connection rx_hooked;
+  eval SELECT $rx_case_i AS rx_marker_$rx_case_i;
+  connection default;
+  --source filter_definition_regex_sync.inc
+  SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+  SELECT VARIABLE_VALUE - @written AS written FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_written';
+  --source filter_definition_regex_errors.inc
+  if ($rx_case_i == 4) {
+    # The bookmark lines are printed for both combinations, which share the
+    # result file, but are checked by the JSON combination only
+    if ($rx_format == JSON) {
+      --let $rx_bookmark_unchanged = `SELECT audit_log_read_bookmark() = @bookmark`
+      if ($rx_bookmark_unchanged != 1) {
+        --die The bookmark of the lost record was published
+      }
+    }
+    --echo # JSON format: bookmark unchanged
+  }
+  connection rx_hooked;
+  eval SET SESSION debug = '-d,$rx_hooks';
+  connection default;
+  disconnect rx_hooked;
+  --echo # Healthy session afterwards
+  connection rx;
+  eval SELECT $rx_case_i AS rx_marker_$rx_case_i;
+  connection default;
+  if ($rx_case_i == 4) {
+    --source filter_definition_regex_sync.inc
+    if ($rx_format == JSON) {
+      --let $rx_bookmark_unchanged = `SELECT audit_log_read_bookmark() = @bookmark`
+      if ($rx_bookmark_unchanged != 0) {
+        --die The bookmark of the next record was not published
+      }
+    }
+    --echo # JSON format: bookmark advanced
+  }
+  --source filter_definition_regex_summary.inc
+  --source filter_definition_regex_errors.inc
+  disconnect rx;
+  --inc $rx_case_i
+}
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP USER rx_app@localhost;
+DROP DATABASE tpcc;
+--source clean_all_audit_logs.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

@@ -107,6 +107,7 @@ std::atomic<uint64_t> event_max_drop_size{0};
 std::atomic<uint64_t> current_log_size{0};
 std::atomic<uint64_t> total_log_size{0};
 std::atomic<uint64_t> direct_writes{0};
+std::atomic<uint64_t> regex_match_errors{0};
 
 int show_events_total(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
@@ -180,6 +181,14 @@ int show_direct_writes(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+int show_regex_match_errors(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONG;
+  var->value = buff;
+  auto *value = reinterpret_cast<uint64_t *>(buff);
+  *value = regex_match_errors.load(std::memory_order_relaxed);
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Audit_log_filter_events", reinterpret_cast<char *>(&show_events_total),
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
@@ -204,6 +213,9 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Audit_log_filter_direct_writes",
      reinterpret_cast<char *>(&show_direct_writes), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_log_filter_regex_match_errors",
+     reinterpret_cast<char *>(&show_regex_match_errors), SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
@@ -1201,6 +1213,10 @@ void SysVars::update_total_log_size(uint64_t size) noexcept {
 
 void SysVars::inc_direct_writes() noexcept {
   direct_writes.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SysVars::inc_regex_match_errors() noexcept {
+  regex_match_errors.fetch_add(1, std::memory_order_relaxed);
 }
 
 #ifndef NDEBUG

@@ -25,6 +25,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       audit_log_reader.cc
       audit_encryption.cc
       audit_record.cc
+      audit_regex.cc
       charset_conversion.cc
       query_output.cc
       audit_filter.cc
@@ -63,6 +64,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       json_reader/file_reader_decompressing.cc
       json_reader/file_reader_decrypting.cc
       event_field_condition/field.cc
+      event_field_condition/field_regex.cc
       event_field_condition/and.cc
       event_field_condition/or.cc
       event_field_condition/not.cc
@@ -82,9 +84,23 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       event_filter_function/query_digest.cc
   )
 
+  # On Linux mysqld exports the ICU it is linked with, use it instead of
+  # embedding a second, never executed static copy into the component.
+  IF(LINUX)
+    SET(AUDIT_LOG_FILTER_ICU_LIBRARY)
+  ELSE()
+    SET(AUDIT_LOG_FILTER_ICU_LIBRARY ext::icu)
+  ENDIF()
+
   MYSQL_ADD_COMPONENT(audit_log_filter ${AUDIT_LOG_FILTER_SOURCES}
                       LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto library_mysys extra::rapidjson ext::zlib
+                      ${AUDIT_LOG_FILTER_ICU_LIBRARY}
                       MODULE_ONLY)
+
+  IF(LINUX)
+    TARGET_INCLUDE_DIRECTORIES(component_audit_log_filter SYSTEM PRIVATE
+      $<TARGET_PROPERTY:ext::icu,INTERFACE_INCLUDE_DIRECTORIES>)
+  ENDIF()
 
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
     TARGET_LINK_LIBRARIES(component_audit_log_filter stdc++fs)

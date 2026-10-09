@@ -11139,6 +11139,9 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_NOLOCK
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT
   eng "InnoDB does not support ALGORITHM=INSTANT on a table with a vector index"
 
+ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+  eng "Duplicate index construction parameter: %.20s."
+
 start-error-number 7100
 
 #

@@ -30,11 +30,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "vector-common/vector_distance.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
-#include <string>
+#include <type_traits>
 #include <variant>
 
 // ut0ut.h isn't self-contained.
@@ -58,7 +59,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 using namespace std;
 
+namespace storage::innobase::vec {
+
 namespace {
+
 const char *alg_to_string(ha_key_alg alg) {
   switch (alg) {
     case HA_KEY_ALG_SE_SPECIFIC:
@@ -79,23 +83,101 @@ const char *alg_to_string(ha_key_alg alg) {
   ut_ad(0); /* never nullptr: the caller passes this to my_error as %s */
   return "UNKNOWN";
 }
-}  // namespace
 
-namespace storage::innobase::vec {
+/// Parses a value of type T out of a LEX_CSTRING. Returns false on failure.
+template <typename T>
+bool parse_value(const LEX_CSTRING &value, T &out) = delete;
 
-/* The shared implementation. Takes the two fields that actually matter -
-the TYPE token and the WITH(...) list - so the same parse serves DDL,
-where they arrive on a Key_spec, and table open, where they arrive on a
-KEY. */
-namespace {
-/** Upper bound on the HNSW "M" option. Each node's neighbor buffer is
-(layer + 2) * M pointers (vector-common/hnsw.h), so an unbounded M turns
-even a single-row index into a multi-gigabyte allocation; 200 keeps that
-buffer small while leaving headroom over any M a real workload would
-choose. */
+template <>
+inline bool parse_value<int>(const LEX_CSTRING &value, int &out) {
+  const auto *last = value.str + value.length;
+  auto result = std::from_chars(value.str, last, out);
+  return result.ptr == last && result.ec == std::errc();
+}
+
+template <>
+inline bool parse_value<vector_constants::Metric>(
+    const LEX_CSTRING &value, vector_constants::Metric &out) {
+  const auto *m = vector_constants::metric_from_name({value.str, value.length});
+  if (m == nullptr) return false;
+  out = *m;
+  return true;
+}
+
+/**
+  A single named option, mapping the name to a member of Param.
+*/
+template <typename ParamType, typename T>
+struct Option {
+  const char *name;
+  T ParamType::*member;
+  /// Optional extra validation for the option, e.g., range checks.
+  std::type_identity_t<bool (*)(const T &)> validate = [](const T &) {
+    return true;
+  };
+
+  [[nodiscard]] bool matches(const LEX_CSTRING &key) const {
+    return my_strcasecmp(system_charset_info, key.str, name) == 0;
+  }
+
+  [[nodiscard]] bool parse(const LEX_CSTRING &value, ParamType &param) const {
+    T parsed{};
+    if (!parse_value<T>(value, parsed) || !validate(parsed)) return false;
+    param.*member = parsed;
+    return true;
+  }
+};
+
+constexpr int kMinHnswM = 2;
+
+/**
+  Upper bound on the HNSW "M" option. Each node's neighbor buffer is
+  (layer + 2) * M pointers (vector-common/hnsw.h), so an unbounded M turns
+  even a single-row index into a multi-gigabyte allocation; 200 keeps that
+  buffer small while leaving headroom over any M a real workload would
+  choose.
+*/
 constexpr int kMaxHnswM = 200;
+
+/// Template magic so that we don't have to explicitly add a new member to the
+/// options variant for each option type
+template <typename T, typename Variant>
+struct variant_prepend_unique;
+template <typename T, typename... Ts>
+struct variant_prepend_unique<T, std::variant<Ts...>> {
+  using type = std::conditional_t<(std::is_same_v<T, Ts> || ...),
+                                  std::variant<Ts...>, std::variant<T, Ts...>>;
+};
+
+template <typename... Ts>
+struct unique_variant {
+  using type = std::variant<>;
+};
+template <typename T, typename... Ts>
+struct unique_variant<T, Ts...> {
+  using type = typename variant_prepend_unique<
+      T, typename unique_variant<Ts...>::type>::type;
+};
+
+template <typename... Opts>
+constexpr auto make_options(const Opts &...opts) {
+  using Variant = typename unique_variant<Opts...>::type;
+  return std::array<Variant, sizeof...(Opts)>{Variant{opts}...};
+}
+
+constexpr auto hnsw_options = make_options(
+    Option{"M", &HnswParam::M,
+           [](const int &v) { return v >= kMinHnswM && v <= kMaxHnswM; }},
+    Option{"metric", &HnswParam::metric});
+
 }  // namespace
 
+/**
+  The shared implementation. Takes the two fields that actually matter -
+  the TYPE token and the (...) list - so the same parse serves DDL,
+  where they arrive on a Key_spec, and table open, where they arrive on a
+  KEY.
+*/
 bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
                    VectorIndexParam &vip) {
   if (type.str == nullptr) {
@@ -110,30 +192,32 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
 
   auto &hnsw_param = vip.emplace<HnswParam>();
 
+  std::array<bool, std::size(hnsw_options)> used_options{};
   for (const auto &[key, value] : params) {
-    if (my_strcasecmp(system_charset_info, key.str, "M") == 0) {
-      const auto *last = value.str + value.length;
-      int val;
-      auto result = std::from_chars(value.str, last, val);
-      if (result.ptr == last && result.ec == errc() && val >= 2 &&
-          val <= kMaxHnswM) {
-        hnsw_param.M = val;
-      } else {
-        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                 value.str);
-        return true;
-      }
-    } else if (my_strcasecmp(system_charset_info, key.str, "metric") == 0) {
-      std::string_view name(value.str, value.length);
-      const auto *m = vector_constants::metric_from_name(name);
-      if (m == nullptr) {
-        my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-                 value.str);
-        return true;
-      }
-      hnsw_param.metric = *m;
-    } else {
+    const auto it = std::find_if(
+        std::begin(hnsw_options), std::end(hnsw_options),
+        [&](const auto &option) {
+          return std::visit([&](const auto &opt) { return opt.matches(key); },
+                            option);
+        });
+
+    if (it == std::end(hnsw_options)) {
       my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+      return true;
+    }
+
+    bool &is_used = used_options[std::distance(std::begin(hnsw_options), it)];
+    if (is_used) {
+      my_error(ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
+      return true;
+    }
+    is_used = true;
+
+    if (!std::visit(
+            [&](const auto &opt) { return opt.parse(value, hnsw_param); },
+            *it)) {
+      my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
+               value.str);
       return true;
     }
   }

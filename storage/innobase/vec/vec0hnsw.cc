@@ -1123,64 +1123,56 @@ dberr_t vec_update_row(dict_table_t *table, uint64_t label, const char *q,
                        ulint q_len, uint64_t base_pk, THD *thd) {
   ut_ad(label != 0);
 
-  for (dict_index_t *index = table->first_index(); index != nullptr;
-       index = index->next()) {
-    if (!index->is_vector()) continue;
-    vec_t *vec = vec_runtime_get(index);
-    if (vec == nullptr) return vec_runtime_unavailable(index);
-    if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
-    const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
-    if (err != DB_SUCCESS) return err;
-  }
-  return DB_SUCCESS;
+  dict_index_t *index = vec_index_of(table);
+  if (index == nullptr) return DB_SUCCESS;
+  vec_t *vec = vec_runtime_get(index);
+  if (vec == nullptr) return vec_runtime_unavailable(index);
+  if (q_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
+  return vec_add_node(vec, index, table, label, base_pk, q, thd);
 }
 
 dberr_t vec_insert_row(dict_table_t *table, const dtuple_t *row, THD *thd) {
-  for (dict_index_t *index = table->first_index(); index != nullptr;
-       index = index->next()) {
-    if (!index->is_vector()) continue;
+  dict_index_t *index = vec_index_of(table);
+  if (index == nullptr) return DB_SUCCESS;
 
-    /* No runtime means the open that should have built one failed, and
-    ha_innobase::open() carried on so the table stays readable and
-    droppable. This statement cannot carry on: the row would be written
-    with a hidden label that no node is ever created under, the index
-    would answer without it for good, and nothing reconciles the two
-    afterwards. */
-    vec_t *vec = vec_runtime_get(index);
-    if (vec == nullptr) return vec_runtime_unavailable(index);
+  /* No runtime means the open that should have built one failed, and
+  ha_innobase::open() carried on so the table stays readable and
+  droppable. This statement cannot carry on: the row would be written
+  with a hidden label that no node is ever created under, the index
+  would answer without it for good, and nothing reconciles the two
+  afterwards. */
+  vec_t *vec = vec_runtime_get(index);
+  if (vec == nullptr) return vec_runtime_unavailable(index);
 
-    mem_heap_t *heap = nullptr;
-    auto heap_guard = create_scope_guard([&heap]() {
-      if (heap != nullptr) mem_heap_free(heap);
-    });
+  mem_heap_t *heap = nullptr;
+  auto heap_guard = create_scope_guard([&heap]() {
+    if (heap != nullptr) mem_heap_free(heap);
+  });
 
-    ulint vec_len = 0;
-    const char *q =
-        vec_row_vector_bytes(index, row, &vec_len, table->first_index(),
-                             vec->dims * sizeof(float), &heap);
-    if (q == nullptr) continue;
-    if (vec_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
-    const uint64_t base_pk = vec_row_base_pk(table, row);
+  ulint vec_len = 0;
+  const char *q =
+      vec_row_vector_bytes(index, row, &vec_len, table->first_index(),
+                           vec->dims * sizeof(float), &heap);
+  if (q == nullptr) return DB_SUCCESS;
+  if (vec_len != vec->dims * sizeof(float)) return DB_VEC_WRONG_DIMENSIONS;
+  const uint64_t base_pk = vec_row_base_pk(table, row);
 
-    /* Label 0 is the empty-slot sentinel and can never be a node. A row
-    carrying it means the writing path missed it: refuse the row rather than
-    build a node under the id of the aux's metadata record, or skip it and
-    leave the row out of the index. */
-    const uint64_t label = vec_label_from_dtuple(table, row);
-    ut_ad(label != 0);
-    if (label == 0) {
-      ib::error(ER_IB_MSG_456)
-          << "Vector index " << index->name << " on table " << table->name
-          << ": a row reached the index with label 0; the statement fails.";
-      return DB_INDEX_CORRUPT;
-    }
-
-    /* base_pk is the base row's PRIMARY KEY, not the label. A search
-    returns base_pk so the caller can fetch the row; the label
-    identifies the node and is what the read path compares against the
-    row's hidden column. */
-    const dberr_t err = vec_add_node(vec, index, table, label, base_pk, q, thd);
-    if (err != DB_SUCCESS) return err;
+  /* Label 0 is the empty-slot sentinel and can never be a node. A row
+  carrying it means the writing path missed it: refuse the row rather than
+  build a node under the id of the aux's metadata record, or skip it and
+  leave the row out of the index. */
+  const uint64_t label = vec_label_from_dtuple(table, row);
+  ut_ad(label != 0);
+  if (label == 0) {
+    ib::error(ER_IB_MSG_456)
+        << "Vector index " << index->name << " on table " << table->name
+        << ": a row reached the index with label 0; the statement fails.";
+    return DB_INDEX_CORRUPT;
   }
-  return DB_SUCCESS;
+
+  /* base_pk is the base row's PRIMARY KEY, not the label. A search
+  returns base_pk so the caller can fetch the row; the label
+  identifies the node and is what the read path compares against the
+  row's hidden column. */
+  return vec_add_node(vec, index, table, label, base_pk, q, thd);
 }

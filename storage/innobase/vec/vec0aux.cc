@@ -198,15 +198,22 @@ bool vec_aux_is_aux_table_name(const char *name) {
 }
 
 const dict_index_t *vec_index_of(const dict_table_t *table) {
+  /* An index an ALTER is still building is in the list too, uncommitted,
+  while other sessions read and write the table. It is not this table's
+  index until the ALTER commits. Nothing logs rows for a vector index, so
+  it is never built online: LOCK=NONE is refused for it. */
   for (const dict_index_t *index = table->first_index(); index != nullptr;
        index = index->next()) {
     if (!index->is_vector()) continue;
+    ut_ad(!dict_index_is_online_ddl(index));
+    if (!index->is_committed()) continue;
 #ifdef UNIV_DEBUG
     /* MVP: one vector index per table, refused at CREATE and ALTER. Every
     caller takes the first one it finds. */
     for (const dict_index_t *other = index->next(); other != nullptr;
          other = other->next()) {
-      ut_ad(!other->is_vector());
+      ut_ad(!other->is_vector() ||
+            (!other->is_committed() && !dict_index_is_online_ddl(other)));
     }
 #endif /* UNIV_DEBUG */
     return index;

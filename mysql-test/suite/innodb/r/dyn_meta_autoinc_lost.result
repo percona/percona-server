@@ -1,0 +1,27 @@
+#
+# A checkpointed AUTO_INCREMENT survives a crash when only a
+# corrupted-index redo record follows the checkpoint.
+#
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, k INT, KEY kk (k));
+INSERT INTO t1 (k) VALUES (1), (2);
+# Bumps the table version; the definition stores AUTO_INCREMENT 3.
+ALTER TABLE t1 ADD INDEX k2 (k, id);
+INSERT INTO t1 (k) VALUES (3), (4), (5), (6);
+# The checkpoint writes {autoinc 6} to the buffer row.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# After it only a corrupted-index record.
+SET SESSION debug = "+d,dict_set_index_corrupted";
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index kk is corrupted.
+test.t1	check	Warning	InnoDB: The B-tree of index k2 is corrupted.
+test.t1	check	error	Corrupt
+SET SESSION debug = "-d,dict_set_index_corrupted";
+# Kill and restart
+# Expected: id 7.
+INSERT INTO t1 (k) VALUES (7);
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+7
+DROP TABLE t1;

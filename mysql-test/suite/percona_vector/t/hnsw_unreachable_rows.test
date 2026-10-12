@@ -1,0 +1,27 @@
+--echo #
+--echo # Rows whose HNSW node is unreachable from the entry point are never
+--echo # returned by the vector index path, not even when a filter makes the
+--echo # scan run until the graph is exhausted (sql_optimizer.cc add_vector_keys
+--echo # comment: "the rows that come back are the nearest ones that pass").
+--echo # PS-11828, found by pstress. The test asserts the correct result.
+--echo #
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL,
+                VECTOR KEY vk (v) USING hnsw);
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO t WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 1500)
+SELECT n, STRING_TO_VECTOR(CONCAT('[', RAND(n), ',', RAND(n+1), ',', RAND(n+2), ',',
+  RAND(n+3), ',', RAND(n+4), ',', RAND(n+5), ',', RAND(n+6), ',', RAND(n+7), ']')) FROM seq;
+
+--echo # A filter that matches one row: the index path must find it.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t WHERE id + 0 = 513
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t WHERE id + 0 = 513
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # Every row comes back once with a LIMIT above the row count.
+SET SESSION innodb_hnsw_ef_search = 100000;
+SELECT COUNT(*) FROM (SELECT id FROM t FORCE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'EUCLIDEAN') LIMIT 100000) x;
+SET SESSION innodb_hnsw_ef_search = DEFAULT;
+DROP TABLE t;

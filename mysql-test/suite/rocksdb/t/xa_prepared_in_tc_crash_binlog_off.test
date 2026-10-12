@@ -1,0 +1,139 @@
+#
+# PS-11632: crashes around the "prepared in TC" state of a MyRocks XA
+# transaction, binary log off: the MyRocks marker is the only record of it.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/not_log_bin.inc
+--source include/not_valgrind.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+
+--echo # Crash before XA PREPARE completed in TC: the transaction is only
+--echo # prepared in the engine and recovery rolls it back.
+XA START 'c1';
+INSERT INTO t1 VALUES (1, 1);
+XA END 'c1';
+SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+XA PREPARE 'c1';
+--source include/start_mysqld.inc
+XA RECOVER;
+SELECT * FROM t1 ORDER BY a;
+
+--echo # rocksdb_flush_log_at_trx_commit = 2: XA PREPARE writes the marker
+--echo # to the OS, so the transaction stays prepared after a kill.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+XA START 'c3';
+INSERT INTO t1 VALUES (4, 4);
+XA END 'c3';
+XA PREPARE 'c3';
+--source include/kill_and_restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'c3';
+SELECT * FROM t1 ORDER BY a;
+DELETE FROM t1;
+
+--echo # XA COMMIT and XA ROLLBACK write the engine log to the OS too, so a
+--echo # kill does not bring the finished transactions back as prepared.
+--let $detach = 1
+while ($detach >= 0)
+{
+  --echo ### xa_detach_on_prepare = $detach
+  SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+  --eval SET SESSION xa_detach_on_prepare = $detach
+  XA START 'f1';
+  INSERT INTO t1 VALUES (5, 5);
+  XA END 'f1';
+  XA PREPARE 'f1';
+  XA COMMIT 'f1';
+  XA START 'f2';
+  INSERT INTO t1 VALUES (6, 6);
+  XA END 'f2';
+  XA PREPARE 'f2';
+  XA ROLLBACK 'f2';
+  --source include/kill_and_restart_mysqld.inc
+  XA RECOVER;
+  SELECT * FROM t1 ORDER BY a;
+  DELETE FROM t1;
+  --dec $detach
+}
+
+--let $stale_markers = 0
+--let $detach = 1
+while ($detach >= 0)
+{
+  --echo
+  --echo ### xa_detach_on_prepare = $detach
+  --eval SET SESSION xa_detach_on_prepare = $detach
+  --echo # Crash after XA COMMIT committed the transaction but before its
+  --echo # marker was deleted.
+  XA START 'c2';
+  INSERT INTO t1 VALUES (2, 2);
+  XA END 'c2';
+  XA PREPARE 'c2';
+  SET SESSION debug = "+d,myrocks_crash_before_xa_marker_delete";
+  --source include/expect_crash.inc
+  --error CR_SERVER_LOST
+  XA COMMIT 'c2';
+  --source include/start_mysqld.inc
+  XA RECOVER;
+  SELECT * FROM t1 ORDER BY a;
+  --echo # Recovery removed the marker of the committed transaction.
+  --inc $stale_markers
+  --let $assert_text = Stale XA marker removed at recovery
+  --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+  --let $assert_select = Removed 1 marker\(s\) of finished XA transactions
+  --let $assert_count = $stale_markers
+  --source include/assert_grep.inc
+
+  --echo # The same XID is reused and the server crashes before XA PREPARE
+  --echo # completed in TC: recovery must not keep the new transaction
+  --echo # prepared.
+  --eval SET SESSION xa_detach_on_prepare = $detach
+  XA START 'c2';
+  INSERT INTO t1 VALUES (3, 3);
+  XA END 'c2';
+  SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+  --source include/expect_crash.inc
+  --error CR_SERVER_LOST
+  XA PREPARE 'c2';
+  --source include/start_mysqld.inc
+  XA RECOVER;
+  SELECT * FROM t1 ORDER BY a;
+  DELETE FROM t1;
+  --dec $detach
+}
+
+# Last: the kill without a flush below may leave a stale marker, which
+# would change the counts asserted above.
+--echo # rocksdb_flush_log_at_trx_commit = 0: the engine log is written by a
+--echo # background timer. A prepared transaction survives a kill after
+--echo # FLUSH ENGINE LOGS.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z1';
+INSERT INTO t1 VALUES (20, 20);
+XA END 'z1';
+XA PREPARE 'z1';
+FLUSH ENGINE LOGS;
+--source include/kill_and_restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'z1';
+SELECT * FROM t1 ORDER BY a;
+
+--echo # Without a flush a kill may lose the prepared transaction, but it
+--echo # never leaves it half done: it is either prepared and can be
+--echo # committed, or gone with its row.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z2';
+INSERT INTO t1 VALUES (21, 21);
+XA END 'z2';
+XA PREPARE 'z2';
+--source include/kill_and_restart_mysqld.inc
+--source suite/rocksdb/include/xa_check_lost_or_prepared.inc
+DELETE FROM t1;
+
+DROP TABLE t1;

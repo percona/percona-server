@@ -1,0 +1,242 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CALL mtr.add_suppression("Prepared XA transaction .* has no XA marker");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, u INT, UNIQUE KEY ku (u)) ENGINE=ROCKSDB;
+# Crash after the XA PREPARE was binlogged but before MyRocks marked it
+# prepared in TC: recovery finds it in the binary log and marks it, so
+# it also survives a later clean restart. It keeps its locks, including
+# the unique key value and a locking read.
+XA START 'c1';
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 10);
+SELECT * FROM t2 WHERE id = 5 FOR UPDATE;
+id	u
+XA END 'c1';
+SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+XA PREPARE 'c1';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	c1
+SET SESSION rocksdb_lock_wait_timeout = 1;
+INSERT INTO t2 VALUES (3, 10);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t2 VALUES (5, 50);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	c1
+SET SESSION rocksdb_lock_wait_timeout = 1;
+INSERT INTO t2 VALUES (3, 10);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t2 VALUES (5, 50);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+XA COMMIT 'c1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+SELECT * FROM t2 ORDER BY id;
+id	u
+2	10
+DROP TABLE t2;
+# Crash after XA COMMIT committed the transaction but before its
+# marker was deleted. With the binary log the engine commit is not
+# synced, so recovery either commits the transaction from the XA COMMIT
+# event (which deletes the marker) or finds it committed and removes
+# the stale marker.
+XA START 'c2';
+INSERT INTO t1 VALUES (2, 2);
+XA END 'c2';
+XA PREPARE 'c2';
+SET SESSION debug = "+d,myrocks_crash_before_xa_marker_delete";
+XA COMMIT 'c2';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+include/assert_grep.inc [Recovery committed the transaction or removed its stale marker]
+# A transaction prepared without an XA marker (by an older server)
+# is kept prepared through the binary log after a kill. Its written
+# rows are locked again, and so are its unique secondary key values
+# when the table is first opened; a warning says that locks taken by
+# locking reads are not.
+CREATE TABLE t3 (id INT PRIMARY KEY, u INT, v VARCHAR(10), w INT,
+UNIQUE KEY ku (u), UNIQUE KEY kvw (v, w)) ENGINE=ROCKSDB;
+INSERT INTO t3 VALUES (1, 1, 'a', 1);
+XA START 'c3';
+INSERT INTO t1 VALUES (7, 7);
+INSERT INTO t3 VALUES (2, 10, 'b', 2);
+INSERT INTO t3 VALUES (3, NULL, 'c', NULL);
+UPDATE t3 SET u = 11 WHERE id = 1;
+XA END 'c3';
+SET SESSION debug = "+d,myrocks_skip_xa_marker";
+XA PREPARE 'c3';
+SET SESSION debug = "-d,myrocks_skip_xa_marker";
+# Kill and restart
+# A restart before the table is opened keeps the unique key
+# locks to be rebuilt.
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	c3
+SET SESSION rocksdb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES (7, 70);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t3 VALUES (4, 10, 'd', 4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t3 VALUES (5, 50, 'b', 2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t3 VALUES (6, 11, 'e', 6);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# The old value of the updated unique key is locked too.
+INSERT INTO t3 VALUES (6, 1, 'e', 6);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# A unique key value with a NULL part is not locked.
+INSERT INTO t3 VALUES (8, 80, 'c', NULL);
+DELETE FROM t3 WHERE id = 8;
+# The rebuilt unique key locks are kept over a restart.
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	c3
+SET SESSION rocksdb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES (7, 70);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t3 VALUES (4, 10, 'd', 4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t3 VALUES (5, 50, 'b', 2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t3 VALUES (6, 11, 'e', 6);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# The old value of the updated unique key is locked too.
+INSERT INTO t3 VALUES (6, 1, 'e', 6);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# A unique key value with a NULL part is not locked.
+INSERT INTO t3 VALUES (8, 80, 'c', NULL);
+DELETE FROM t3 WHERE id = 8;
+include/assert_grep.inc [Warning about the missing XA marker]
+XA COMMIT 'c3';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+7	7
+SELECT * FROM t3 ORDER BY id;
+id	u	v	w
+1	11	a	1
+2	10	b	2
+3	NULL	c	NULL
+INSERT INTO t3 VALUES (4, 10, 'd', 4);
+ERROR 23000: Duplicate entry '10' for key 't3.ku'
+INSERT INTO t3 VALUES (5, 50, 'b', 2);
+ERROR 23000: Duplicate entry 'b-2' for key 't3.kvw'
+INSERT INTO t3 VALUES (6, 1, 'e', 6);
+SELECT * FROM t3 ORDER BY id;
+id	u	v	w
+1	11	a	1
+2	10	b	2
+3	NULL	c	NULL
+6	1	e	6
+DROP TABLE t3;
+DELETE FROM t1;
+# A transaction prepared without an XA marker keeps the partial index
+# group of the rows it writes locked: the group is not materialized
+# without its new row.
+CREATE TABLE tp (g INT, id INT, v INT, PRIMARY KEY (g, id),
+KEY kg (g, v) COMMENT 'partial_group_keyparts=1;partial_group_threshold=1')
+ENGINE=ROCKSDB;
+INSERT INTO tp VALUES (1, 1, 1), (1, 2, 2), (2, 1, 1), (2, 2, 2);
+XA START 'c4';
+INSERT INTO tp VALUES (1, 3, 3);
+XA END 'c4';
+SET SESSION debug = "+d,myrocks_skip_xa_marker";
+XA PREPARE 'c4';
+SET SESSION debug = "-d,myrocks_skip_xa_marker";
+# Kill and restart
+SET SESSION rocksdb_lock_wait_timeout = 1;
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 2;
+g	id	v
+2	1	1
+2	2	2
+# restart
+SET SESSION rocksdb_lock_wait_timeout = 1;
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+XA COMMIT 'c4';
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 1;
+g	id	v
+1	1	1
+1	2	2
+1	3	3
+SELECT * FROM tp FORCE INDEX (PRIMARY) WHERE g = 1;
+g	id	v
+1	1	1
+1	2	2
+1	3	3
+DROP TABLE tp;
+# rocksdb_flush_log_at_trx_commit = 2: the binary log group commit
+# writes the engine log to the OS, so XA PREPARE, XA COMMIT and
+# XA ROLLBACK survive a kill.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+XA START 'f1';
+INSERT INTO t1 VALUES (10, 10);
+XA END 'f1';
+XA PREPARE 'f1';
+XA START 'f2';
+INSERT INTO t1 VALUES (11, 11);
+XA END 'f2';
+XA PREPARE 'f2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	f1
+1	2	0	f2
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+XA COMMIT 'f1';
+XA ROLLBACK 'f2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+10	10
+# rocksdb_flush_log_at_trx_commit = 0: the engine log is written by a
+# background timer. A prepared transaction survives a kill after
+# FLUSH ENGINE LOGS.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z1';
+INSERT INTO t1 VALUES (20, 20);
+XA END 'z1';
+XA PREPARE 'z1';
+FLUSH ENGINE LOGS;
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	z1
+XA COMMIT 'z1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+10	10
+20	20
+# Without a flush a kill may lose the prepared transaction, but it
+# never leaves it half done: it is either prepared and can be
+# committed, or gone with its row.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z2';
+INSERT INTO t1 VALUES (21, 21);
+XA END 'z2';
+XA PREPARE 'z2';
+# Kill and restart
+include/assert.inc [The row is not visible before the transaction is committed]
+include/assert.inc [The transaction is either kept prepared or lost with its row]
+include/assert.inc [Nothing else is prepared]
+DELETE FROM t1 WHERE a = 21;
+DROP TABLE t1;

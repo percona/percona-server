@@ -11,8 +11,6 @@ SET DEBUG_SYNC = 'now WAIT_FOR reading';
 SET DEBUG_SYNC = 'now SIGNAL go';
 named
 1
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA COMMIT 'race';
 SET DEBUG_SYNC = 'RESET';
 SELECT * FROM t1;

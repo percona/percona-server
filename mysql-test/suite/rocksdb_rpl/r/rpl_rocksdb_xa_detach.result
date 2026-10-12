@@ -8,14 +8,10 @@ XA START 'first';
 INSERT INTO t VALUES (1);
 XA END 'first';
 XA PREPARE 'first';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA START 'second';
 INSERT INTO t VALUES (2);
 XA END 'second';
 XA PREPARE 'second';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 include/rpl/sync_to_replica.inc
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data

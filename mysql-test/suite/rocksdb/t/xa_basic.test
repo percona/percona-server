@@ -157,10 +157,6 @@ while ($detach >= 0)
   --dec $detach
 }
 
-# A prepared XA transaction does not survive a server restart yet: MyRocks
-# does not implement handlerton::set_prepared_in_tc /
-# recover_prepared_in_tc, so recovery rolls it back.
-
 --replace_result $saved_global_detach SAVED
 --eval SET GLOBAL xa_detach_on_prepare = $saved_global_detach
 DROP TABLE t1;

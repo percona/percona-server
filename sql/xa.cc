@@ -322,6 +322,8 @@ int ha_recover(Xid_commit_list *commit_list, Xa_state_list *xa_list) {
     return 1;
   }
   auto clean_up_guard = create_scope_guard([&] { delete[] info.list; });
+  // Read prepared transactions from the engines in batches of 2.
+  DBUG_EXECUTE_IF("recovery_xid_list_size_2", info.len = 2;);
 
   if (plugin_foreach(nullptr, xa::recovery::recover_prepared_in_tc_one_ht,
                      MYSQL_STORAGE_ENGINE_PLUGIN, &info)) {

@@ -303,6 +303,8 @@ class Rdb_key_def {
                    std::size_t *const column_index) const;
 
   size_t key_length(const TABLE *const table, const rocksdb::Slice &key) const;
+  int unique_sk_prefix(const rocksdb::Slice &key,
+                       rocksdb::Slice *const prefix) const;
 
   /* Get the key that is the "infimum" for this index */
   inline void get_infimum_key(uchar *const key, uint *const size) const {
@@ -484,6 +486,9 @@ class Rdb_key_def {
     AUTO_INC = 9,
     DROPPED_CF = 10,
     MAX_DD_INDEX_ID = 11,
+    // Not used by Percona Server. Reserved, as Facebook MySQL uses it.
+    SERVER_VERSION = 12,
+    XA_PREPARED = 13,
     END_DICT_INDEX_ID = 255
   };
 
@@ -499,6 +504,7 @@ class Rdb_key_def {
     DDL_CREATE_INDEX_ONGOING_VERSION = 1,
     AUTO_INCREMENT_VERSION = 1,
     DROPPED_CF_VERSION = 1,
+    XA_PREPARED_VERSION = 1,
     // Version for index stats is stored in IndexStats struct
   };
 
@@ -1621,6 +1627,22 @@ class Rdb_ddl_manager : public Ensure_initialized {
   value: version, index_id
   index_id is 4 bytes
 
+  12. reserved (SERVER_VERSION in Facebook MySQL, not used)
+
+  13. prepared XA transactions
+  key: Rdb_key_def::XA_PREPARED(0xd) + XID (RocksDB transaction name)
+  value: version, flags, {cf_id, exclusive, key_length, key}*
+  flags and exclusive are 1 byte, cf_id and key_length are 4 bytes.
+  flags: XA_PREPARED_IN_TC (XA PREPARE completed in the transaction
+  coordinator), XA_LOCKS_INCOMPLETE (the transaction was prepared without
+  a marker, by an older server: its unique secondary key locks are rebuilt
+  from its writes when the tables are opened). The entries are row locks
+  of the transaction that recovery cannot derive from its writes (for
+  example unique secondary key prefixes).
+  An externally coordinated (XA) transaction whose XA PREPARE completed in
+  the server's transaction coordinator, kept until it is committed or
+  rolled back, so that recovery keeps it prepared.
+
   Data dictionary operations are atomic inside RocksDB. For example,
   when creating a table with two indexes, it is necessary to call Put
   three times. They have to be atomic. Rdb_dict_manager has a wrapper function
@@ -1715,6 +1737,21 @@ class Rdb_dict_manager : public Ensure_initialized {
   void delete_dropped_cf(rocksdb::WriteBatch &batch, uint cf_id) const;
   bool get_dropped_cf(const uint cf_id) const;
   void get_all_dropped_cfs(std::unordered_set<uint32> *dropped_cf_ids) const;
+
+  /* Prepared XA transactions, by RocksDB transaction name */
+  /* XA PREPARE completed in the transaction coordinator */
+  static constexpr uint XA_PREPARED_IN_TC = 1;
+  /* Unique secondary key locks must be rebuilt from the writes */
+  static constexpr uint XA_LOCKS_INCOMPLETE = 2;
+  void add_xa_prepared(rocksdb::WriteBatch &batch, const std::string &trx_name,
+                       uint flags, const std::string &locks) const;
+  void delete_xa_prepared(rocksdb::WriteBatch &batch,
+                          const std::string &trx_name) const;
+  rocksdb::Status get_xa_prepared(const std::string &trx_name,
+                                  uint *const flags,
+                                  std::string *const locks) const;
+  rocksdb::Status get_all_xa_prepared(
+      std::vector<std::pair<std::string, uint>> *trx_names) const;
 
   void delete_dropped_cf_and_flags(rocksdb::WriteBatch &batch,
                                    uint cf_id) const;

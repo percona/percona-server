@@ -1,0 +1,179 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+# Crash before XA PREPARE completed in TC: the transaction is only
+# prepared in the engine and recovery rolls it back.
+XA START 'c1';
+INSERT INTO t1 VALUES (1, 1);
+XA END 'c1';
+SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+XA PREPARE 'c1';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+# rocksdb_flush_log_at_trx_commit = 2: XA PREPARE writes the marker
+# to the OS, so the transaction stays prepared after a kill.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+XA START 'c3';
+INSERT INTO t1 VALUES (4, 4);
+XA END 'c3';
+XA PREPARE 'c3';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	c3
+XA COMMIT 'c3';
+SELECT * FROM t1 ORDER BY a;
+a	b
+4	4
+DELETE FROM t1;
+# XA COMMIT and XA ROLLBACK write the engine log to the OS too, so a
+# kill does not bring the finished transactions back as prepared.
+### xa_detach_on_prepare = 1
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+SET SESSION xa_detach_on_prepare = 1;
+XA START 'f1';
+INSERT INTO t1 VALUES (5, 5);
+XA END 'f1';
+XA PREPARE 'f1';
+XA COMMIT 'f1';
+XA START 'f2';
+INSERT INTO t1 VALUES (6, 6);
+XA END 'f2';
+XA PREPARE 'f2';
+XA ROLLBACK 'f2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+5	5
+DELETE FROM t1;
+### xa_detach_on_prepare = 0
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+SET SESSION xa_detach_on_prepare = 0;
+XA START 'f1';
+INSERT INTO t1 VALUES (5, 5);
+XA END 'f1';
+XA PREPARE 'f1';
+XA COMMIT 'f1';
+XA START 'f2';
+INSERT INTO t1 VALUES (6, 6);
+XA END 'f2';
+XA PREPARE 'f2';
+XA ROLLBACK 'f2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+5	5
+DELETE FROM t1;
+
+### xa_detach_on_prepare = 1
+SET SESSION xa_detach_on_prepare = 1;
+# Crash after XA COMMIT committed the transaction but before its
+# marker was deleted.
+XA START 'c2';
+INSERT INTO t1 VALUES (2, 2);
+XA END 'c2';
+XA PREPARE 'c2';
+SET SESSION debug = "+d,myrocks_crash_before_xa_marker_delete";
+XA COMMIT 'c2';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	2
+# Recovery removed the marker of the committed transaction.
+include/assert_grep.inc [Stale XA marker removed at recovery]
+# The same XID is reused and the server crashes before XA PREPARE
+# completed in TC: recovery must not keep the new transaction
+# prepared.
+SET SESSION xa_detach_on_prepare = 1;
+XA START 'c2';
+INSERT INTO t1 VALUES (3, 3);
+XA END 'c2';
+SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+XA PREPARE 'c2';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	2
+DELETE FROM t1;
+
+### xa_detach_on_prepare = 0
+SET SESSION xa_detach_on_prepare = 0;
+# Crash after XA COMMIT committed the transaction but before its
+# marker was deleted.
+XA START 'c2';
+INSERT INTO t1 VALUES (2, 2);
+XA END 'c2';
+XA PREPARE 'c2';
+SET SESSION debug = "+d,myrocks_crash_before_xa_marker_delete";
+XA COMMIT 'c2';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	2
+# Recovery removed the marker of the committed transaction.
+include/assert_grep.inc [Stale XA marker removed at recovery]
+# The same XID is reused and the server crashes before XA PREPARE
+# completed in TC: recovery must not keep the new transaction
+# prepared.
+SET SESSION xa_detach_on_prepare = 0;
+XA START 'c2';
+INSERT INTO t1 VALUES (3, 3);
+XA END 'c2';
+SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+XA PREPARE 'c2';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+2	2
+DELETE FROM t1;
+# rocksdb_flush_log_at_trx_commit = 0: the engine log is written by a
+# background timer. A prepared transaction survives a kill after
+# FLUSH ENGINE LOGS.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z1';
+INSERT INTO t1 VALUES (20, 20);
+XA END 'z1';
+XA PREPARE 'z1';
+FLUSH ENGINE LOGS;
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	z1
+XA COMMIT 'z1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+20	20
+# Without a flush a kill may lose the prepared transaction, but it
+# never leaves it half done: it is either prepared and can be
+# committed, or gone with its row.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z2';
+INSERT INTO t1 VALUES (21, 21);
+XA END 'z2';
+XA PREPARE 'z2';
+# Kill and restart
+include/assert.inc [The row is not visible before the transaction is committed]
+include/assert.inc [The transaction is either kept prepared or lost with its row]
+include/assert.inc [Nothing else is prepared]
+DELETE FROM t1 WHERE a = 21;
+DELETE FROM t1;
+DROP TABLE t1;

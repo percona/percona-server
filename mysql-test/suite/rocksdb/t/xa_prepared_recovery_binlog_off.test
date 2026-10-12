@@ -1,0 +1,10 @@
+#
+# PS-11632: prepared XA transactions on MyRocks tables survive server kills,
+# keep their row locks and can then be committed or rolled back, under every
+# write policy (binary log off).
+#
+--source include/have_rocksdb.inc
+--source include/not_log_bin.inc
+
+--let $xa_with_binlog = 0
+--source suite/rocksdb/include/xa_prepared_recovery.inc

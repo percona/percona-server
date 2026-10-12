@@ -20,8 +20,6 @@ INSERT INTO t1 VALUES (2, 2);
 UPDATE t1 SET b = 10 WHERE a = 1;
 XA END 'r1';
 XA PREPARE 'r1';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 include/rpl/sync_to_replica.inc
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -33,8 +31,6 @@ XA START 'r2';
 INSERT INTO t1 VALUES (3, 3);
 XA END 'r2';
 XA PREPARE 'r2';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA ROLLBACK 'r2';
 # One phase commit.
 XA START 'r3';

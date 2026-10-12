@@ -1,0 +1,21 @@
+show create table performance_schema.events_waits_summary_by_source;
+Table	Create Table
+events_waits_summary_by_source	CREATE TABLE `events_waits_summary_by_source` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) NOT NULL,
+  `OPERATION` varchar(32) NOT NULL,
+  `COUNT_STAR` bigint unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint unsigned NOT NULL,
+  `COUNT_HOLD` bigint unsigned NOT NULL,
+  `SUM_TIMER_HOLD` bigint unsigned NOT NULL,
+  `MIN_TIMER_HOLD` bigint unsigned NOT NULL,
+  `AVG_TIMER_HOLD` bigint unsigned NOT NULL,
+  `MAX_TIMER_HOLD` bigint unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+select * from INFORMATION_SCHEMA.STATISTICS
+where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "events_waits_summary_by_source";
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT	IS_VISIBLE	EXPRESSION

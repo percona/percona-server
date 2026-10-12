@@ -1,0 +1,88 @@
+#
+# PS-11673: a cross-schema RENAME TABLE must hold an exclusive MDL on
+# the vector aux tables before it opens them.
+#
+# The aux tables are hidden, so the server took no metadata lock on
+# them when it locked the parent. A cross-schema rename also renames
+# each aux table, and row_rename_table_for_mysql() opens it by name.
+# After a restart the aux table is not in the InnoDB dictionary cache,
+# so it is loaded from the data dictionary, which needs the MDL.
+# A table that also has a FULLTEXT index is covered by
+# aux_rename_fts_after_restart.
+#
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t_vec (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw);
+CREATE TABLE d1.t_empty LIKE d1.t_vec;
+CREATE TABLE d1.t_multi1 LIKE d1.t_vec;
+CREATE TABLE d1.t_multi2 LIKE d1.t_vec;
+CREATE TABLE d1.t_alter LIKE d1.t_vec;
+CREATE TABLE d1.t_locked LIKE d1.t_vec;
+INSERT INTO d1.t_vec VALUES (1, STRING_TO_VECTOR('[1,2,3,4]'));
+INSERT INTO d1.t_multi1 SELECT * FROM d1.t_vec;
+INSERT INTO d1.t_multi2 SELECT * FROM d1.t_vec;
+INSERT INTO d1.t_alter SELECT * FROM d1.t_vec;
+INSERT INTO d1.t_locked SELECT * FROM d1.t_vec;
+# restart
+RENAME TABLE d1.t_vec TO d2.t_vec;
+RENAME TABLE d1.t_empty TO d2.t_empty;
+RENAME TABLE d1.t_multi1 TO d2.t_multi1, d1.t_multi2 TO d2.t_multi2;
+ALTER TABLE d1.t_alter RENAME TO d2.t_alter;
+LOCK TABLES d1.t_locked WRITE;
+ALTER TABLE d1.t_locked RENAME TO d2.t_locked;
+# The aux locks are transactional: released when the statement ends,
+# also under LOCK TABLES.
+SELECT COUNT(*) AS aux_locks FROM performance_schema.metadata_locks
+WHERE object_name LIKE 'percona\_vec\_hnsw%';
+aux_locks
+0
+UNLOCK TABLES;
+SELECT COUNT(*) AS aux_locks FROM performance_schema.metadata_locks
+WHERE object_name LIKE 'percona\_vec\_hnsw%';
+aux_locks
+0
+# The aux tables moved along with their parents.
+# d1:
+# d2:
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+percona_vec_hnsw_<TID>_<IID>.ibd
+SELECT id, VECTOR_TO_STRING(v) FROM d2.t_vec;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+SELECT id FROM d2.t_vec
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+SELECT COUNT(*) FROM d2.t_empty;
+COUNT(*)
+0
+SELECT id FROM d2.t_multi1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+SELECT id FROM d2.t_multi2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+SELECT id FROM d2.t_alter
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+SELECT id FROM d2.t_locked
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+# Same results after another restart.
+# restart
+SELECT id FROM d2.t_vec
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+DROP DATABASE d1;
+DROP DATABASE d2;

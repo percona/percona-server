@@ -1,0 +1,60 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+# XA PREPARE must not warn
+XA START 'x1';
+INSERT INTO t1 VALUES (2, 2);
+UPDATE t1 SET b = 10 WHERE a = 1;
+XA END 'x1';
+XA PREPARE 'x1';
+SHOW WARNINGS;
+Level	Code	Message
+# Prepared transaction survives a clean restart and can be committed
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	x1
+XA COMMIT 'x1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	2
+SELECT * FROM t1 FORCE INDEX (kb) ORDER BY b;
+a	b
+2	2
+1	10
+# Prepared transaction survives a kill and can be rolled back
+XA START 'x2';
+INSERT INTO t1 VALUES (3, 3);
+DELETE FROM t1 WHERE a = 2;
+XA END 'x2';
+XA PREPARE 'x2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	x2
+# The prepared rows are locked until the XA transaction is resolved
+SET SESSION rocksdb_lock_wait_timeout = 1;
+DELETE FROM t1 WHERE a = 3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+XA ROLLBACK 'x2';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	2
+# Prepared transaction survives a kill and can be committed
+XA START 'x3';
+INSERT INTO t1 VALUES (4, 4);
+XA END 'x3';
+XA PREPARE 'x3';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	x3
+XA COMMIT 'x3';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	2
+4	4
+DROP TABLE t1;

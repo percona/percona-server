@@ -69,6 +69,7 @@
 #include "sql/xa.h"
 
 /* RocksDB includes */
+#include "env/composite_env_wrapper.h"
 #include "monitoring/histogram.h"
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/convenience.h"
@@ -88,6 +89,8 @@
 #include "rocksdb/utilities/sim_cache.h"
 #include "rocksdb/utilities/write_batch_with_index.h"
 #include "util/stop_watch.h"
+#include "utilities/fault_injection_fs.h"
+#include "utilities/transactions/transaction_base.h"
 
 /* MyRocks includes */
 #include "./event_listener.h"
@@ -3093,6 +3096,195 @@ static std::string rdb_xid_to_string(const XID &src) {
   return buf;
 }
 
+/*
+  Prepared XA transactions.
+
+  The server keeps an externally coordinated (XA) transaction prepared across
+  a restart only if an engine reports it as prepared in the transaction
+  coordinator (TC) (handlerton::recover_prepared_in_tc) or it is found in the
+  last binary log. RocksDB knows only that a transaction is prepared, so
+  MyRocks keeps a marker per XA transaction in the __system__ column family
+  (Rdb_key_def::XA_PREPARED):
+  - written at XA PREPARE before the transaction is prepared in RocksDB, with
+    the row locks that recovery cannot derive from the transaction's writes,
+    so it is durable whenever the prepared transaction is;
+  - marked prepared in TC when XA PREPARE completes in TC
+    (set_prepared_in_tc, after the binary log write);
+  - deleted after the transaction is committed or rolled back.
+*/
+static Rdb_dict_manager *rdb_xa_dict_manager() {
+  return dict_manager.get_dict_manager_selector_non_const(
+      false /*is_tmp_table*/);
+}
+
+namespace {
+/* Calls a function for each key that a write batch writes. */
+class Rdb_xa_write_keys : public rocksdb::WriteBatch::Handler {
+ public:
+  using Fn = std::function<rocksdb::Status(uint32_t, const rocksdb::Slice &)>;
+  explicit Rdb_xa_write_keys(Fn fn) : m_fn(std::move(fn)) {}
+
+  rocksdb::Status PutCF(uint32_t cf_id, const rocksdb::Slice &key,
+                        const rocksdb::Slice &) override {
+    return m_fn(cf_id, key);
+  }
+  rocksdb::Status PutEntityCF(uint32_t cf_id, const rocksdb::Slice &key,
+                              const rocksdb::Slice &) override {
+    return m_fn(cf_id, key);
+  }
+  rocksdb::Status DeleteCF(uint32_t cf_id, const rocksdb::Slice &key) override {
+    return m_fn(cf_id, key);
+  }
+  rocksdb::Status SingleDeleteCF(uint32_t cf_id,
+                                 const rocksdb::Slice &key) override {
+    return m_fn(cf_id, key);
+  }
+  // Merges (auto-increment values in the __system__ column family) and
+  // range deletes do not lock rows.
+  rocksdb::Status MergeCF(uint32_t, const rocksdb::Slice &,
+                          const rocksdb::Slice &) override {
+    return rocksdb::Status::OK();
+  }
+  rocksdb::Status DeleteRangeCF(uint32_t, const rocksdb::Slice &,
+                                const rocksdb::Slice &) override {
+    return rocksdb::Status::OK();
+  }
+  rocksdb::Status MarkBeginPrepare(bool) override {
+    return rocksdb::Status::OK();
+  }
+  rocksdb::Status MarkEndPrepare(const rocksdb::Slice &) override {
+    return rocksdb::Status::OK();
+  }
+  rocksdb::Status MarkNoop(bool) override { return rocksdb::Status::OK(); }
+  rocksdb::Status MarkRollback(const rocksdb::Slice &) override {
+    return rocksdb::Status::OK();
+  }
+  rocksdb::Status MarkCommit(const rocksdb::Slice &) override {
+    return rocksdb::Status::OK();
+  }
+
+ private:
+  const Fn m_fn;
+};
+}  // namespace
+
+/*
+  Row locks of a prepared XA transaction that recovery cannot derive from its
+  writes, serialized for the marker: locks without a write in the
+  transaction's write batch, such as the unique secondary key prefixes that
+  MyRocks locks to enforce uniqueness, and locking reads.
+
+  Under write_unprepared the write batch keeps only the writes that are not
+  flushed yet. Recovery tracks the keys of every batch the transaction wrote,
+  so written_keys, the keys it wrote (if known), are left out as well.
+*/
+using Rdb_xa_key_set = std::set<std::pair<uint32_t, std::string>>;
+
+static void rdb_xa_append_lock(std::string *const locks, uint32_t cf_id,
+                               bool exclusive, const rocksdb::Slice &key) {
+  uchar buf[sizeof(uint32)];
+  rdb_netbuf_store_uint32(buf, cf_id);
+  locks->append(reinterpret_cast<const char *>(buf), sizeof(buf));
+  locks->push_back(exclusive ? 1 : 0);
+  rdb_netbuf_store_uint32(buf, key.size());
+  locks->append(reinterpret_cast<const char *>(buf), sizeof(buf));
+  locks->append(key.data(), key.size());
+}
+
+static std::string rdb_xa_locks_to_keep(
+    rocksdb::Transaction *const trx, const Rdb_xa_key_set *const written_keys) {
+  Rdb_xa_key_set written;
+  Rdb_xa_write_keys collect(
+      [&written](uint32_t cf_id, const rocksdb::Slice &key) {
+        written.emplace(cf_id, key.ToString());
+        return rocksdb::Status::OK();
+      });
+  (void)trx->GetWriteBatch()->GetWriteBatch()->Iterate(&collect);
+  if (written_keys != nullptr) {
+    written.insert(written_keys->begin(), written_keys->end());
+  }
+
+  std::string locks;
+#ifndef NDEBUG
+  uint n_locks = 0;
+#endif
+  const rocksdb::LockTracker &tracker =
+      static_cast<rocksdb::TransactionBaseImpl *>(trx)->GetTrackedLocks();
+  const std::unique_ptr<rocksdb::LockTracker::ColumnFamilyIterator> cf_it(
+      tracker.GetColumnFamilyIterator());
+  while (cf_it->HasNext()) {
+    const rocksdb::ColumnFamilyId cf_id = cf_it->Next();
+    const std::unique_ptr<rocksdb::LockTracker::KeyIterator> key_it(
+        tracker.GetKeyIterator(cf_id));
+    while (key_it->HasNext()) {
+      const std::string &key = key_it->Next();
+      if (written.count({cf_id, key}) != 0) continue;
+      const rocksdb::PointLockStatus status =
+          tracker.GetPointLockStatus(cf_id, key);
+      if (!status.locked) continue;
+      rdb_xa_append_lock(&locks, cf_id, status.exclusive, key);
+#ifndef NDEBUG
+      n_locks++;
+#endif
+    }
+  }
+  DBUG_EXECUTE_IF("myrocks_xa_log_marker_locks", {
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "XA marker keeps %u row locks", n_locks);
+  });
+  return locks;
+}
+
+/* Write the marker of a prepared XA transaction. @return true on error */
+[[nodiscard]] static bool rdb_xa_marker_write(const std::string &name,
+                                              uint flags,
+                                              const std::string &locks,
+                                              bool sync) {
+  Rdb_dict_manager *const dm = rdb_xa_dict_manager();
+  auto wb = Rdb_dict_manager::begin();
+  dm->add_xa_prepared(wb, name, flags, locks);
+  return dm->commit(wb, sync) != HA_EXIT_SUCCESS;
+}
+
+/*
+  Delete the marker of a finished XA transaction. Not synced: a later
+  durable write makes the delete durable too, and recovery removes markers
+  of transactions that are no longer prepared.
+*/
+static void rdb_xa_marker_delete(const std::string &name) {
+  DBUG_EXECUTE_IF("myrocks_crash_before_xa_marker_delete", DBUG_SUICIDE(););
+  Rdb_dict_manager *const dm = rdb_xa_dict_manager();
+  auto wb = Rdb_dict_manager::begin();
+  dm->delete_xa_prepared(wb, name);
+  (void)dm->commit(wb, false /*sync*/);
+}
+
+/*
+  Write the engine log to the OS after XA COMMIT or XA ROLLBACK finished a
+  prepared XA transaction, as rocksdb_set_prepared_in_tc() does for its XA
+  PREPARE. With rocksdb_flush_log_at_trx_commit=2, manual_wal_flush keeps the
+  completion in a RocksDB buffer, and a process crash would bring back the
+  acknowledged transaction as prepared. With the binary log
+  (HA_IGNORE_DURABILITY in its group commit) recovery finishes it from the
+  binary log; with 1 the completion is synced, and with 0 it is written by
+  the background thread, as any commit.
+
+  @return true on error
+*/
+[[nodiscard]] static bool rdb_xa_flush_completion(THD *const thd) {
+  if (rocksdb_flush_log_at_trx_commit != FLUSH_LOG_BACKGROUND ||
+      (thd != nullptr &&
+       thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)) {
+    return false;
+  }
+  const rocksdb::Status s = rdb->FlushWAL(false);
+  if (!s.ok()) {
+    rdb_log_status_error(s);
+    return true;
+  }
+  return false;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -3695,6 +3887,23 @@ class Rdb_transaction {
   */
   virtual void forget_prepared_tx(const rocksdb::Transaction *trx
                                   [[maybe_unused]]) {}
+
+  /**
+    Mark the prepared XA transaction as prepared in the transaction
+    coordinator (handlerton::set_prepared_in_tc).
+
+    @return HA_EXIT_SUCCESS or an error code
+  */
+  virtual int set_prepared_in_tc(bool sync [[maybe_unused]]) {
+    return HA_EXIT_SUCCESS;
+  }
+
+  /**
+    Write the marker of an XA transaction that is about to be prepared.
+
+    @return true on error
+  */
+  virtual bool write_xa_marker() { return false; }
 
   [[nodiscard]] bool can_acquire_snapshot_without_conflicts() const {
     return my_core::thd_tx_isolation(m_thd) <= ISO_READ_COMMITTED;
@@ -4753,6 +4962,32 @@ class Rdb_transaction_impl : public Rdb_transaction {
   // detach_prepared_tx(). A new read of m_rocksdb_tx after XA PREPARE must
   // take the mutex too.
   mutable mysql_mutex_t m_rdb_tx_mutex;
+  // Name of the XA transaction for which this object wrote the XA_PREPARED
+  // marker; the marker is deleted after commit/rollback.
+  std::string m_xa_marker;
+  // Keys an XA transaction wrote under write_unprepared, left out of its
+  // marker (see rdb_xa_locks_to_keep()). A rollback to a savepoint can undo
+  // some writes and keep their locks, so it stops the tracking until the
+  // transaction ends.
+  Rdb_xa_key_set m_xa_written_keys;
+  bool m_xa_written_keys_valid = true;
+
+  void track_xa_write(rocksdb::ColumnFamilyHandle *const column_family,
+                      const rocksdb::Slice &key) {
+    if (rocksdb_write_policy == rocksdb::TxnDBWritePolicy::WRITE_UNPREPARED &&
+        m_xa_written_keys_valid && thd_holds_xa_transaction(m_thd)) {
+      m_xa_written_keys.emplace(column_family->GetID(), key.ToString());
+    }
+  }
+
+  void reset_xa_written_keys() {
+    m_xa_written_keys.clear();
+    m_xa_written_keys_valid = true;
+  }
+
+  [[nodiscard]] const Rdb_xa_key_set *xa_written_keys() const {
+    return m_xa_written_keys_valid ? &m_xa_written_keys : nullptr;
+  }
 
  public:
   void set_lock_timeout(int timeout_sec_arg) override {
@@ -4884,7 +5119,13 @@ class Rdb_transaction_impl : public Rdb_transaction {
     }
 
     on_commit();
+    if (!m_xa_marker.empty()) {
+      rdb_xa_marker_delete(m_xa_marker);
+      res = rdb_xa_flush_completion(m_thd);
+    }
   error:
+    m_xa_marker.clear();
+    reset_xa_written_keys();
     on_rollback();
     /* Save the transaction object to be reused */
     release_tx(wb_size);
@@ -4921,13 +5162,21 @@ class Rdb_transaction_impl : public Rdb_transaction {
         status = rocksdb::Status::InvalidArgument(
             "Two phase transaction is not in state for rollback.");
       });
-      if (status.IsIOError() || status.IsCorruption()) {
+      if (status.ok()) {
+        if (!m_xa_marker.empty()) {
+          rdb_xa_marker_delete(m_xa_marker);
+          // The rollback is done; a failure to write the log is logged.
+          std::ignore = rdb_xa_flush_completion(m_thd);
+        }
+      } else if (status.IsIOError() || status.IsCorruption()) {
         rdb_handle_io_error(status, RDB_IO_ERROR_TX_COMMIT);
-      } else if (!status.ok()) {
+      } else {
         // For example InvalidArgument when a failed prepare write left the
         // transaction in AWAITING_PREPARE. The original error was reported.
         rdb_log_status_error(status, "Failed to roll back transaction");
       }
+      m_xa_marker.clear();
+      reset_xa_written_keys();
 
       /* Save the transaction object to be reused */
       release_tx(wb_size);
@@ -4937,7 +5186,45 @@ class Rdb_transaction_impl : public Rdb_transaction {
     }
   }
 
+  bool write_xa_marker() override {
+    assert(m_rocksdb_tx != nullptr);
+    const std::string name = m_rocksdb_tx->GetName();
+    assert(!name.empty());
+    // Simulates a transaction prepared by a server without XA markers.
+    DBUG_EXECUTE_IF("myrocks_skip_xa_marker", return false;);
+    // Not synced: the WAL keeps it before the prepare record, which is made
+    // durable later.
+    if (rdb_xa_marker_write(
+            name, 0 /*flags*/,
+            rdb_xa_locks_to_keep(m_rocksdb_tx.get(), xa_written_keys()),
+            false /*sync*/)) {
+      return true;
+    }
+    m_xa_marker = name;
+    return false;
+  }
+
+  int set_prepared_in_tc(bool sync) override {
+    if (m_rocksdb_tx == nullptr ||
+        m_rocksdb_tx->GetState() != rocksdb::Transaction::PREPARED ||
+        m_xa_marker.empty()) {
+      return HA_EXIT_SUCCESS;
+    }
+    assert(m_xa_marker == m_rocksdb_tx->GetName());
+    DBUG_EXECUTE_IF("myrocks_crash_before_xa_prepared_in_tc", DBUG_SUICIDE(););
+    if (rdb_xa_marker_write(
+            m_xa_marker, Rdb_dict_manager::XA_PREPARED_IN_TC,
+            rdb_xa_locks_to_keep(m_rocksdb_tx.get(), xa_written_keys()),
+            sync)) {
+      return HA_ERR_ROCKSDB_COMMIT_FAILED;
+    }
+    return HA_EXIT_SUCCESS;
+  }
+
   bool detach_prepared_tx() override {
+    // The XA marker, if any, is now deleted by XID.
+    m_xa_marker.clear();
+    reset_xa_written_keys();
     // Once the server has published the prepared transaction, another
     // session may finish and delete it by XID.
     // Rdb_transaction_list::take_prepared_tx_by_name() clears m_rocksdb_tx
@@ -5016,7 +5303,10 @@ class Rdb_transaction_impl : public Rdb_transaction {
     assert(!is_ac_nl_ro_rc_transaction());
 
     private_ctr_inc(m_write_count);
-    return m_rocksdb_tx->Put(column_family, key, value, assume_tracked);
+    const rocksdb::Status s =
+        m_rocksdb_tx->Put(column_family, key, value, assume_tracked);
+    if (s.ok()) track_xa_write(column_family, key);
+    return s;
   }
 
   rocksdb::Status delete_key(rocksdb::ColumnFamilyHandle *const column_family,
@@ -5025,7 +5315,10 @@ class Rdb_transaction_impl : public Rdb_transaction {
     assert(!is_ac_nl_ro_rc_transaction());
 
     private_ctr_inc(m_write_count);
-    return m_rocksdb_tx->Delete(column_family, key, assume_tracked);
+    const rocksdb::Status s =
+        m_rocksdb_tx->Delete(column_family, key, assume_tracked);
+    if (s.ok()) track_xa_write(column_family, key);
+    return s;
   }
 
   rocksdb::Status single_delete(
@@ -5034,7 +5327,10 @@ class Rdb_transaction_impl : public Rdb_transaction {
     assert(!is_ac_nl_ro_rc_transaction());
 
     private_ctr_inc(m_write_count);
-    return m_rocksdb_tx->SingleDelete(column_family, key, assume_tracked);
+    const rocksdb::Status s =
+        m_rocksdb_tx->SingleDelete(column_family, key, assume_tracked);
+    if (s.ok()) track_xa_write(column_family, key);
+    return s;
   }
 
   bool has_modifications() const override {
@@ -5210,6 +5506,8 @@ class Rdb_transaction_impl : public Rdb_transaction {
   }
 
   void do_rollback_to_savepoint() override {
+    m_xa_written_keys.clear();
+    m_xa_written_keys_valid = false;
     m_rocksdb_tx->RollbackToSavePoint();
   }
 
@@ -6153,6 +6451,9 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
         return HA_EXIT_FAILURE;
       }
     }
+    if (is_xa_prepare(thd) && tx->write_xa_marker()) {
+      return HA_EXIT_FAILURE;
+    }
     if (!tx->prepare()) {
       return HA_EXIT_FAILURE;
     }
@@ -6168,6 +6469,353 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
     tx->make_stmt_savepoint_permanent();
 
   return HA_EXIT_SUCCESS;
+}
+
+/*
+  Row locks of XA transactions kept prepared across a restart.
+
+  RocksDB rebuilds a prepared transaction at startup without locking its keys
+  (skip_concurrency_control in PessimisticTransactionDB::Initialize()): it
+  expects the application to finish recovered transactions before new ones
+  start. An XA transaction that recovery keeps prepared must keep its row
+  locks until XA COMMIT/ROLLBACK, so MyRocks locks its keys with a separate
+  lock-holder transaction, released when the XA transaction is finished.
+
+  A transaction prepared without a marker (by an older server) has no record
+  of the unique secondary key values and partial index groups it locked.
+  They are locked again from its secondary and primary key writes when each
+  table is first opened (rdb_xa_relock_table()): which indexes are unique or
+  partial, and their key formats, are known only then (Rdb_key_def::setup()),
+  and every uniqueness check and partial index group materialization runs on
+  an opened table. Locks of its locking reads cannot be rebuilt.
+
+  If recovery cannot lock every key of a transaction, the keys are locked
+  again when their table is opened, and the table cannot be opened until
+  they are, so that no other transaction can change the rows first.
+*/
+static std::mutex rdb_xa_lock_holders_mutex;
+static std::unordered_map<std::string, rocksdb::Transaction *>
+    rdb_xa_lock_holders;
+
+/*
+  A key of a recovered XA transaction to lock when its table is opened.
+*/
+struct Rdb_xa_relock_key {
+  enum Kind {
+    // A secondary key it writes: if the index is unique, the unique
+    // secondary key value (prefix) is locked exclusively, as
+    // ha_rocksdb::check_and_lock_sk() does.
+    UNIQUE_SK,
+    // A primary key it writes: the group of the row in each partial index
+    // is locked shared, as ha_rocksdb::acquire_prefix_lock() does.
+    PARTIAL_GROUP,
+    // A key recovery could not lock, locked as is.
+    EXACT
+  };
+  std::string name;  // XA transaction (RocksDB transaction name)
+  GL_INDEX_ID index;
+  std::string key;
+  Kind kind;
+  bool exclusive;
+};
+// Protected by rdb_xa_lock_holders_mutex.
+static std::vector<Rdb_xa_relock_key> rdb_xa_relock_keys;
+// Whether rdb_xa_relock_keys is not empty; read without the mutex.
+static std::atomic<bool> rdb_xa_relock_pending{false};
+
+using Rdb_xa_key_fn = std::function<rocksdb::Status(
+    uint32_t cf_id, const rocksdb::Slice &key, bool exclusive)>;
+
+/**
+  Call fn for each key that the recovered prepared transaction trx locks:
+  the keys it writes, from its write batch (write_committed, write_prepared)
+  or its tracked keys (write_unprepared), and the locks kept in its marker.
+*/
+[[nodiscard]] static rocksdb::Status rdb_xa_for_each_key(
+    rocksdb::Transaction *const trx, const std::string &locks,
+    const Rdb_xa_key_fn &fn) {
+  Rdb_xa_write_keys writes([&fn](uint32_t cf_id, const rocksdb::Slice &key) {
+    return fn(cf_id, key, true);
+  });
+  rocksdb::Status s = trx->GetWriteBatch()->GetWriteBatch()->Iterate(&writes);
+
+  rocksdb::LockTracker &tracker =
+      static_cast<rocksdb::TransactionBaseImpl *>(trx)->GetTrackedLocks();
+  const std::unique_ptr<rocksdb::LockTracker::ColumnFamilyIterator> cf_it(
+      tracker.GetColumnFamilyIterator());
+  while (s.ok() && cf_it->HasNext()) {
+    const rocksdb::ColumnFamilyId cf_id = cf_it->Next();
+    const std::unique_ptr<rocksdb::LockTracker::KeyIterator> key_it(
+        tracker.GetKeyIterator(cf_id));
+    while (s.ok() && key_it->HasNext()) s = fn(cf_id, key_it->Next(), true);
+  }
+
+  Rdb_string_reader reader(locks);
+  while (s.ok() && reader.remaining_bytes() > 0) {
+    const char *cf_id_buf = reader.read(sizeof(uint32));
+    uint exclusive = 0;
+    const char *len_buf = nullptr;
+    if (cf_id_buf == nullptr || reader.read_uint8(&exclusive) ||
+        (len_buf = reader.read(sizeof(uint32))) == nullptr) {
+      return rocksdb::Status::Corruption("XA marker");
+    }
+    const uint len =
+        rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(len_buf));
+    const char *key = reader.read(len);
+    if (key == nullptr) return rocksdb::Status::Corruption("XA marker");
+    s = fn(rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(cf_id_buf)),
+           rocksdb::Slice(key, len), exclusive != 0);
+  }
+  return s;
+}
+
+/* @return the index of a key, if it is long enough to have one */
+static bool rdb_xa_key_index(uint32_t cf_id, const rocksdb::Slice &key,
+                             GL_INDEX_ID *const index) {
+  if (key.size() < Rdb_key_def::INDEX_NUMBER_SIZE) return false;
+  *index = {cf_id,
+            rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(key.data()))};
+  return true;
+}
+
+/**
+  The secondary and primary keys that the recovered prepared transaction trx
+  writes, to rebuild its unique secondary key and partial index group locks
+  from.
+*/
+static std::vector<Rdb_xa_relock_key> rdb_xa_relock_collect(
+    const std::string &name, rocksdb::Transaction *const trx) {
+  std::vector<Rdb_xa_relock_key> keys;
+  const rocksdb::Status s = rdb_xa_for_each_key(
+      trx, std::string(), [&](uint32_t cf_id, const rocksdb::Slice &key, bool) {
+        GL_INDEX_ID index;
+        if (!rdb_xa_key_index(cf_id, key, &index)) return rocksdb::Status::OK();
+        // At recovery no key definition is set up yet (safe_find() finds
+        // none), but the index type is known.
+        const Rdb_tbl_def *const tbl =
+            ddl_manager.find(ddl_manager.safe_get_table_name(index));
+        if (tbl == nullptr) return rocksdb::Status::OK();
+        for (uint i = 0; i < tbl->m_key_count; i++) {
+          const auto &kd = tbl->m_key_descr_arr[i];
+          if (kd->get_gl_index_id() != index) continue;
+          if (kd->m_index_type == Rdb_key_def::INDEX_TYPE_SECONDARY) {
+            keys.push_back({name, index, key.ToString(),
+                            Rdb_xa_relock_key::UNIQUE_SK, true});
+          } else if (kd->m_index_type == Rdb_key_def::INDEX_TYPE_PRIMARY) {
+            keys.push_back({name, index, key.ToString(),
+                            Rdb_xa_relock_key::PARTIAL_GROUP, false});
+          }
+        }
+        return rocksdb::Status::OK();
+      });
+  assert(s.ok());
+  (void)s;
+  return keys;
+}
+
+/**
+  Lock the rows of the recovered prepared transaction trx (see
+  rdb_xa_for_each_key()) and queue the keys in relock for
+  rdb_xa_relock_table().
+*/
+[[nodiscard]] static bool rdb_xa_lock_recovered(
+    const std::string &name, rocksdb::Transaction *const trx,
+    const std::string &locks, std::vector<Rdb_xa_relock_key> &&relock) {
+  {
+    const std::lock_guard<std::mutex> guard(rdb_xa_lock_holders_mutex);
+    if (rdb_xa_lock_holders.count(name) != 0) return false;
+  }
+  rocksdb::WriteOptions write_opts;
+  rocksdb::TransactionOptions tx_opts;
+  rocksdb::Transaction *const holder =
+      rdb->BeginTransaction(write_opts, tx_opts);
+#ifndef NDEBUG
+  uint n_locks = 0;
+#endif
+  const rocksdb::Status s = rdb_xa_for_each_key(
+      trx, locks,
+      [&](uint32_t cf_id, const rocksdb::Slice &key, bool exclusive) {
+        const auto cfh = cf_manager.get_cf(cf_id);
+        if (cfh == nullptr) return rocksdb::Status::OK();
+        DBUG_EXECUTE_IF("myrocks_xa_lock_recovered_fail_2", {
+          if (++n_locks == 2) return rocksdb::Status::Busy("injected");
+        });
+        return holder->GetForUpdate(rocksdb::ReadOptions(), cfh.get(), key,
+                                    static_cast<std::string *>(nullptr),
+                                    exclusive);
+      });
+
+  if (!s.ok()) {
+    // The transaction stays prepared anyway (the server only logs the
+    // failure): keep the locks that were taken, and lock every key again
+    // when its table is opened; the table cannot be opened before.
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Could not lock all rows of a prepared XA transaction "
+                    "after recovery: %s. They are locked when their tables "
+                    "are opened.",
+                    s.ToString().c_str());
+    const rocksdb::Status s2 = rdb_xa_for_each_key(
+        trx, locks,
+        [&](uint32_t cf_id, const rocksdb::Slice &key, bool exclusive) {
+          GL_INDEX_ID index;
+          if (rdb_xa_key_index(cf_id, key, &index)) {
+            relock.push_back({name, index, key.ToString(),
+                              Rdb_xa_relock_key::EXACT, exclusive});
+          }
+          return rocksdb::Status::OK();
+        });
+    assert(s2.ok());
+    (void)s2;
+  }
+  const std::lock_guard<std::mutex> guard(rdb_xa_lock_holders_mutex);
+  rdb_xa_lock_holders.emplace(name, holder);
+  if (!relock.empty()) {
+    std::move(relock.begin(), relock.end(),
+              std::back_inserter(rdb_xa_relock_keys));
+    rdb_xa_relock_pending = true;
+  }
+  return !s.ok();
+}
+
+/**
+  Lock the queued keys of recovered XA transactions (see Rdb_xa_relock_key)
+  in the indexes of tbl, whose key definitions are set up, and keep the
+  unique secondary key locks in their markers.
+
+  @return true on error
+*/
+[[nodiscard]] static bool rdb_xa_relock_table(const Rdb_tbl_def &tbl) {
+  if (!rdb_xa_relock_pending) return false;
+  const std::lock_guard<std::mutex> guard(rdb_xa_lock_holders_mutex);
+
+  std::vector<Rdb_xa_relock_key> remaining;
+  std::map<std::string, std::string> new_locks;
+  rocksdb::Status s;
+  for (const auto &rk : rdb_xa_relock_keys) {
+    const Rdb_key_def *kd = nullptr;
+    for (uint i = 0; i < tbl.m_key_count; i++) {
+      if (tbl.m_key_descr_arr[i]->get_gl_index_id() == rk.index) {
+        kd = tbl.m_key_descr_arr[i].get();
+        break;
+      }
+    }
+    if (kd == nullptr) {
+      remaining.push_back(rk);
+      continue;
+    }
+    const auto holder = rdb_xa_lock_holders.find(rk.name);
+    if (holder == rdb_xa_lock_holders.end()) continue;
+    const auto cfh = cf_manager.get_cf(rk.index.cf_id);
+    if (cfh == nullptr) continue;
+    const auto lock = [&](rocksdb::ColumnFamilyHandle *const cf,
+                          const rocksdb::Slice &key, bool exclusive) {
+      return holder->second->GetForUpdate(rocksdb::ReadOptions(), cf, key,
+                                          static_cast<std::string *>(nullptr),
+                                          exclusive);
+    };
+    if (rk.kind == Rdb_xa_relock_key::EXACT) {
+      s = lock(cfh.get(), rk.key, rk.exclusive);
+      DBUG_EXECUTE_IF("myrocks_xa_relock_fail",
+                      s = rocksdb::Status::Busy("injected"););
+      if (!s.ok()) break;
+    } else if (rk.kind == Rdb_xa_relock_key::UNIQUE_SK) {
+      if (!kd->is_unique_sk()) continue;
+      rocksdb::Slice prefix;
+      const int rc = kd->unique_sk_prefix(rk.key, &prefix);
+      if (rc == 1) continue;  // a NULL value is not locked
+      if (rc != 0) {
+        s = rocksdb::Status::Corruption("XA unique secondary key");
+        break;
+      }
+      s = lock(cfh.get(), prefix, true);
+      if (!s.ok()) break;
+      rdb_xa_append_lock(&new_locks[rk.name], rk.index.cf_id, true, prefix);
+    } else {
+      // The group key parts of a partial index are a prefix of the primary
+      // key, packed the same way.
+      for (uint i = 0; s.ok() && i < tbl.m_key_count; i++) {
+        const Rdb_key_def &skd = *tbl.m_key_descr_arr[i];
+        if (!skd.is_partial_index()) continue;
+        Rdb_string_reader reader(rk.key);
+        if (!reader.read(Rdb_key_def::INDEX_NUMBER_SIZE)) {
+          s = rocksdb::Status::Corruption("XA primary key");
+          break;
+        }
+        for (uint part = 0; part < skd.partial_index_keyparts(); part++) {
+          if (kd->read_memcmp_key_part(&reader, part) != 0) {
+            s = rocksdb::Status::Corruption("XA primary key");
+            break;
+          }
+        }
+        if (!s.ok()) break;
+        uchar index_buf[Rdb_key_def::INDEX_NUMBER_SIZE];
+        rdb_netbuf_store_index(index_buf, skd.get_index_number());
+        std::string group(reinterpret_cast<const char *>(index_buf),
+                          sizeof(index_buf));
+        group.append(rk.key.data() + Rdb_key_def::INDEX_NUMBER_SIZE,
+                     rk.key.size() - reader.remaining_bytes() -
+                         Rdb_key_def::INDEX_NUMBER_SIZE);
+        s = lock(skd.get_cf(), group, false);
+        if (s.ok()) {
+          rdb_xa_append_lock(&new_locks[rk.name], skd.get_cf()->GetID(), false,
+                             group);
+        }
+      }
+      if (!s.ok()) break;
+    }
+  }
+
+  // Keep the new locks in the markers, so that a restart takes them again.
+  Rdb_dict_manager *const dm = rdb_xa_dict_manager();
+  for (auto it = new_locks.begin(); s.ok() && it != new_locks.end(); ++it) {
+    uint flags = 0;
+    std::string locks;
+    s = dm->get_xa_prepared(it->first, &flags, &locks);
+    if (!s.ok()) break;
+    if (std::none_of(remaining.begin(), remaining.end(),
+                     [&it](const Rdb_xa_relock_key &rk) {
+                       return rk.kind != Rdb_xa_relock_key::EXACT &&
+                              rk.name == it->first;
+                     })) {
+      flags &= ~Rdb_dict_manager::XA_LOCKS_INCOMPLETE;
+    }
+    if (rdb_xa_marker_write(it->first, flags, locks + it->second,
+                            true /*sync*/)) {
+      s = rocksdb::Status::IOError("XA marker write");
+    }
+  }
+
+  if (!s.ok()) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Could not lock the rows of a prepared XA transaction "
+                    "in table %s, which cannot be opened until they are "
+                    "locked or the transaction is finished: %s",
+                    tbl.full_tablename().c_str(), s.ToString().c_str());
+    return true;
+  }
+  rdb_xa_relock_keys.swap(remaining);
+  rdb_xa_relock_pending = !rdb_xa_relock_keys.empty();
+  return false;
+}
+
+/** Release the row locks taken by rdb_xa_lock_recovered(), if any. */
+static void rdb_xa_unlock_recovered(const std::string &name) {
+  rocksdb::Transaction *holder = nullptr;
+  {
+    const std::lock_guard<std::mutex> guard(rdb_xa_lock_holders_mutex);
+    const auto it = rdb_xa_lock_holders.find(name);
+    if (it == rdb_xa_lock_holders.end()) return;
+    holder = it->second;
+    rdb_xa_lock_holders.erase(it);
+    rdb_xa_relock_keys.erase(
+        std::remove_if(
+            rdb_xa_relock_keys.begin(), rdb_xa_relock_keys.end(),
+            [&name](const Rdb_xa_relock_key &rk) { return rk.name == name; }),
+        rdb_xa_relock_keys.end());
+    rdb_xa_relock_pending = !rdb_xa_relock_keys.empty();
+  }
+  holder->Rollback();
+  delete holder;
 }
 
 static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
@@ -6200,6 +6848,16 @@ static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
 
   delete trx;
 
+  if (xid->get_my_xid() == 0) {
+    // Release the locks first: rdb_xa_relock_table() writes the
+    // marker only while the lock holder exists.
+    rdb_xa_unlock_recovered(name);
+    rdb_xa_marker_delete(name);
+    if (rdb_xa_flush_completion(my_core::thd_get_current_thd())) {
+      DBUG_RETURN(XAER_RMERR);
+    }
+  }
+
   // `Add()` is implemented in a thread-safe manner.
   commit_latency_stats->Add(timer.ElapsedNanos() / 1000);
 
@@ -6231,6 +6889,16 @@ static xa_status_code rocksdb_rollback_by_xid(
   }
 
   delete trx;
+
+  if (xid->get_my_xid() == 0) {
+    // Release the locks first: rdb_xa_relock_table() writes the
+    // marker only while the lock holder exists.
+    rdb_xa_unlock_recovered(name);
+    rdb_xa_marker_delete(name);
+    if (rdb_xa_flush_completion(my_core::thd_get_current_thd())) {
+      DBUG_RETURN(XAER_RMERR);
+    }
+  }
 
   DBUG_RETURN(XA_OK);
 }
@@ -6289,27 +6957,246 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   dst->set_data(tmp_data.data(), tmp_data.length());
 }
 
+/**
+  handlerton::set_prepared_in_tc: XA PREPARE completed in the transaction
+  coordinator (after the binary log write, if any). Write the marker.
+*/
+static int rocksdb_set_prepared_in_tc(handlerton *const hton [[maybe_unused]],
+                                      THD *const thd) {
+  Rdb_transaction *const tx = get_tx_from_thd(thd);
+  if (tx == nullptr) return HA_EXIT_SUCCESS;
+
+  // With the binary log (HA_IGNORE_DURABILITY in its group commit) the XA
+  // PREPARE event is durable in the last binary log until the binary log
+  // rotates, and rotation flushes the engine logs first; the marker is
+  // only written to the OS here, so that a process crash keeps it with its
+  // locks. Without the binary log the marker is made as durable as a commit.
+  const bool sync = rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC &&
+                    thd_get_durability_property(thd) != HA_IGNORE_DURABILITY;
+  const int rc = tx->set_prepared_in_tc(sync);
+  if (rc == HA_EXIT_SUCCESS && !sync &&
+      rocksdb_flush_log_at_trx_commit != FLUSH_LOG_NEVER) {
+    // manual_wal_flush keeps the write in a RocksDB buffer until FlushWAL.
+    const rocksdb::Status s = rdb->FlushWAL(false);
+    if (!s.ok()) {
+      rdb_log_status_error(s);
+      return HA_ERR_ROCKSDB_COMMIT_FAILED;
+    }
+  }
+  return rc;
+}
+
+/**
+  handlerton::set_prepared_in_tc_by_xid: recovery keeps the XA transaction
+  prepared (it is prepared in TC, by its marker or the binary log): make sure
+  it stays so and lock its rows again.
+*/
+static xa_status_code rocksdb_set_prepared_in_tc_by_xid(handlerton *const hton
+                                                        [[maybe_unused]],
+                                                        XID *const xid) {
+  assert(xid != nullptr);
+  const auto name = rdb_xid_to_string(*xid);
+  rocksdb::Transaction *const trx = rdb->GetTransactionByName(name);
+  if (trx == nullptr) return XAER_NOTA;
+  uint flags = 0;
+  std::string locks;
+  const rocksdb::Status s =
+      rdb_xa_dict_manager()->get_xa_prepared(name, &flags, &locks);
+  const bool no_marker = s.IsNotFound();
+  if (no_marker) {
+    // Prepared by a server without XA markers (an upgrade), found in the
+    // binary log.
+    char xid_buf[XID::ser_buf_size];
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Prepared XA transaction %s has no XA marker (prepared "
+                    "by an older server): its unique secondary key values "
+                    "are locked again when each table is first opened, but "
+                    "rows it read with a locking read are not locked. "
+                    "Commit or roll it back before running new writes.",
+                    xid->serialize(xid_buf));
+    flags = Rdb_dict_manager::XA_LOCKS_INCOMPLETE;
+    locks.clear();
+  } else if (!s.ok()) {
+    rdb_log_status_error(s);
+    return XAER_RMERR;
+  }
+  std::vector<Rdb_xa_relock_key> relock;
+  uint new_flags = flags | Rdb_dict_manager::XA_PREPARED_IN_TC;
+  if (flags & Rdb_dict_manager::XA_LOCKS_INCOMPLETE) {
+    relock = rdb_xa_relock_collect(name, trx);
+    if (relock.empty()) new_flags &= ~Rdb_dict_manager::XA_LOCKS_INCOMPLETE;
+  }
+  if ((no_marker || new_flags != flags) &&
+      rdb_xa_marker_write(name, new_flags, locks, true /*sync*/)) {
+    return XAER_RMERR;
+  }
+  return rdb_xa_lock_recovered(name, trx, locks, std::move(relock)) ? XAER_RMERR
+                                                                    : XA_OK;
+}
+
+/*
+  The prepared transactions that rocksdb_recover() returns in batches in one
+  recovery pass (ha_recover()), and the next one to return.
+*/
+static std::vector<std::string> rdb_xa_recover_names;
+static size_t rdb_xa_recover_next = 0;
+static bool rdb_xa_recover_active = false;
+
+/**
+  handlerton::recover_prepared_in_tc: report every prepared XA transaction
+  as PREPARED_IN_TC if it has a marker and as PREPARED_IN_SE otherwise, and
+  delete markers of transactions that are no longer prepared.
+*/
+static int rocksdb_recover_prepared_in_tc(handlerton *const hton
+                                          [[maybe_unused]],
+                                          Xa_state_list &xa_list) {
+  // A new recovery pass starts: rocksdb_recover() starts from the first
+  // prepared transaction.
+  rdb_xa_recover_active = false;
+
+  std::vector<rocksdb::Transaction *> trans_list;
+  rdb->GetAllPreparedTransactions(&trans_list);
+  std::unordered_set<std::string> prepared;
+  for (const auto trx : trans_list) prepared.insert(trx->GetName());
+
+  Rdb_dict_manager *const dm = rdb_xa_dict_manager();
+  std::vector<std::pair<std::string, uint>> markers;
+  const rocksdb::Status s = dm->get_all_xa_prepared(&markers);
+  if (!s.ok()) {
+    // Without the markers, prepared XA transactions would be rolled back.
+    rdb_log_status_error(s);
+    return HA_EXIT_FAILURE;
+  }
+  std::unordered_set<std::string> prepared_in_tc;
+  auto wb = Rdb_dict_manager::begin();
+  for (const auto &[name, flags] : markers) {
+    if (prepared.count(name) == 0) {
+      dm->delete_xa_prepared(wb, name);
+    } else if (flags & Rdb_dict_manager::XA_PREPARED_IN_TC) {
+      prepared_in_tc.insert(name);
+    }
+  }
+  const uint stale = wb.Count();
+  if (stale > 0) {
+    if (dm->commit(wb, true /*sync*/)) return HA_EXIT_FAILURE;
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Removed %u marker(s) of finished XA transactions", stale);
+  }
+
+  for (const auto &name : prepared) {
+    XID xid;
+    rdb_xid_from_string(name, &xid);
+    if (xid.get_my_xid() != 0) continue;  // internally coordinated
+    xa_list.add(xid, prepared_in_tc.count(name) != 0
+                         ? enum_ha_recover_xa_state::PREPARED_IN_TC
+                         : enum_ha_recover_xa_state::PREPARED_IN_SE);
+  }
+  return HA_EXIT_SUCCESS;
+}
+
+/**
+  The tables of the recovered prepared XA transaction trx, for the metadata
+  locks that the server takes for it: the tables of the keys it locks (see
+  rdb_xa_for_each_key()).
+
+  @return true on error
+*/
+[[nodiscard]] static bool rdb_xa_recovered_tables(
+    const std::string &name, rocksdb::Transaction *const trx,
+    List<st_handler_tablename> *const tables, MEM_ROOT *const mem_root) {
+  uint flags = 0;
+  std::string locks;
+  rocksdb::Status s =
+      rdb_xa_dict_manager()->get_xa_prepared(name, &flags, &locks);
+  if (s.IsNotFound()) {
+    locks.clear();
+  } else if (!s.ok()) {
+    rdb_log_status_error(s);
+    return true;
+  }
+  std::set<GL_INDEX_ID> indexes;
+  s = rdb_xa_for_each_key(
+      trx, locks, [&indexes](uint32_t cf_id, const rocksdb::Slice &key, bool) {
+        GL_INDEX_ID index;
+        if (rdb_xa_key_index(cf_id, key, &index)) indexes.insert(index);
+        return rocksdb::Status::OK();
+      });
+  if (!s.ok()) {
+    rdb_log_status_error(s);
+    return true;
+  }
+  // Partitions of a table are one table for metadata locks.
+  std::set<std::pair<std::string, std::string>> names;
+  for (const auto &index : indexes) {
+    const std::string full_name = ddl_manager.safe_get_table_name(index);
+    std::string db, table, partition;
+    if (full_name.empty() ||
+        rdb_split_normalized_tablename(full_name, &db, &table, &partition)) {
+      continue;
+    }
+    names.emplace(db, table);
+  }
+  for (const auto &[db, table] : names) {
+    auto *const tbl = new (mem_root) st_handler_tablename();
+    if (tbl == nullptr) return true;
+    tbl->db = strmake_root(mem_root, db.c_str(), db.size());
+    tbl->tablename = strmake_root(mem_root, table.c_str(), table.size());
+    if (tbl->db == nullptr || tbl->tablename == nullptr ||
+        tables->push_back(tbl, mem_root)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+  handlerton::recover: return the prepared transactions, at most len per
+  call. Recovery calls it until it returns fewer than len, so each call
+  continues where the previous one stopped.
+*/
 static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
                            MEM_ROOT *mem_root) {
   if (len == 0 || txn_list == nullptr) {
     return HA_EXIT_SUCCESS;
   }
 
-  std::vector<rocksdb::Transaction *> trans_list;
-  rdb->GetAllPreparedTransactions(&trans_list);
+  if (!rdb_xa_recover_active) {
+    std::vector<rocksdb::Transaction *> trans_list;
+    rdb->GetAllPreparedTransactions(&trans_list);
+    rdb_xa_recover_names.clear();
+    for (const auto trx : trans_list) {
+      rdb_xa_recover_names.push_back(trx->GetName());
+    }
+    rdb_xa_recover_next = 0;
+    rdb_xa_recover_active = true;
+  }
 
   uint count = 0;
-  for (auto &trans : trans_list) {
-    if (count >= len) {
-      break;
-    }
-    auto name = trans->GetName();
+  while (count < len && rdb_xa_recover_next < rdb_xa_recover_names.size()) {
+    const std::string &name = rdb_xa_recover_names[rdb_xa_recover_next++];
+    // Recovery commits or rolls back transactions between calls.
+    rocksdb::Transaction *const trx = rdb->GetTransactionByName(name);
+    if (trx == nullptr) continue;
     rdb_xid_from_string(name, &(txn_list[count].id));
 
     txn_list[count].mod_tables = new (mem_root) List<st_handler_tablename>();
     if (!txn_list[count].mod_tables) break;
+    if (txn_list[count].id.get_my_xid() == 0 &&
+        rdb_xa_recovered_tables(name, trx, txn_list[count].mod_tables,
+                                mem_root)) {
+      // Still return the transaction, so that recovery keeps it prepared
+      // and locks its rows, but without all its metadata locks.
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Could not get the tables of a prepared XA "
+                      "transaction: they are not locked against DDL");
+    }
 
     count++;
+  }
+  if (count < len) {
+    // The pass is over; the next call starts a new one.
+    rdb_xa_recover_active = false;
+    rdb_xa_recover_names.clear();
   }
   return count;
 }
@@ -7531,6 +8418,12 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_hton->replace_native_transaction_in_thd =
       rocksdb_replace_native_transaction_in_thd;
   rocksdb_hton->recover = rocksdb_recover;
+  rocksdb_hton->recover_prepared_in_tc = rocksdb_recover_prepared_in_tc;
+  rocksdb_hton->set_prepared_in_tc = rocksdb_set_prepared_in_tc;
+  rocksdb_hton->set_prepared_in_tc_by_xid = rocksdb_set_prepared_in_tc_by_xid;
+  // Lets a test recover XA transactions as an engine without the callback.
+  DBUG_EXECUTE_IF("myrocks_no_set_prepared_in_tc_by_xid",
+                  rocksdb_hton->set_prepared_in_tc_by_xid = nullptr;);
   rocksdb_hton->commit = rocksdb_commit;
   rocksdb_hton->rollback = rocksdb_rollback;
   rocksdb_hton->db_type = DB_TYPE_ROCKSDB;
@@ -8249,6 +9142,11 @@ static int rocksdb_shutdown(bool minimalShutdown) {
     ddl_manager.cleanup();
     dict_manager.cleanup();
     cf_manager.cleanup();
+
+    for (const auto &it : rdb_xa_lock_holders) delete it.second;
+    rdb_xa_lock_holders.clear();
+    rdb_xa_relock_keys.clear();
+    rdb_xa_relock_pending = false;
 
     delete rdb;
     rdb = nullptr;
@@ -9178,6 +10076,13 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
 
   if (err) {
     DBUG_RETURN(err);
+  }
+
+  // Lock the keys of recovered XA transactions that recovery could not lock
+  // (see Rdb_xa_relock_key), before anything is read or written.
+  // The cleanup guard closes the handler.
+  if (rdb_xa_relock_table(*m_tbl_def)) {
+    DBUG_RETURN(HA_ERR_LOCK_WAIT_TIMEOUT);
   }
 
   /*

@@ -15628,6 +15628,21 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
   rename_file = dict_table_is_file_per_table(table);
   space = table->space;
 
+  /* A cross-schema rename also renames the vector aux tables, and
+  row_rename_table_for_mysql() opens each of them by name. They are hidden,
+  so the server took no MDL on them when it locked the parent. Lock them
+  here, as row_drop_table_for_mysql() does for DROP TABLE. There is one aux
+  table per vector index, so a table without one takes no lock. The MDL is
+  MDL_TRANSACTION and is released on commit by trans_commit_implicit(). */
+  if (!dict_tables_have_same_db(norm_from, norm_to)) {
+    error = vec_aux_lock_all_tables(thd, table);
+
+    if (error != DB_SUCCESS) {
+      dd_table_close(table, thd, nullptr, false);
+      return (convert_error_code_to_mysql(error, 0, nullptr));
+    }
+  }
+
   if (row_is_mysql_tmp_table_name(norm_from) &&
       !row_is_mysql_tmp_table_name(norm_to) &&
       !dd_table_is_partitioned(from_table->table())) {

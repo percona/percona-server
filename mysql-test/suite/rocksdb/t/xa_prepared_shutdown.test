@@ -1,0 +1,23 @@
+#
+# A prepared XA transaction survives a clean restart with the
+# write_prepared and write_unprepared policies.
+#
+# RocksDB used to assert in a debug build that no transaction is prepared
+# when a WritePreparedTxnDB is closed (PreparedHeap::~PreparedHeap()); its
+# destructor now discards the prepared sequence numbers (PS-9766). MyRocks
+# keeps prepared XA transactions across restarts since PS-11631/PS-11632.
+#
+--source include/have_rocksdb.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+XA START 's1';
+INSERT INTO t1 VALUES (1);
+XA END 's1';
+XA PREPARE 's1';
+--source include/restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 's1';
+SELECT * FROM t1;
+DROP TABLE t1;

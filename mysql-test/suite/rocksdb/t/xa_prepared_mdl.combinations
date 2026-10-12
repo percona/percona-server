@@ -1,0 +1,14 @@
+[log_bin]
+log-bin
+
+[skip_log_bin]
+skip-log-bin
+
+[write_prepared]
+skip-log-bin
+rocksdb-write-policy=write_prepared
+
+[write_unprepared]
+skip-log-bin
+rocksdb-write-policy=write_unprepared
+rocksdb-write-batch-flush-threshold=1

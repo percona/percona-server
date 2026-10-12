@@ -30,10 +30,11 @@
 # `contents: read` on this repository.
 #
 # FORKS: cron fires on every fork's own default branch too, and forks don't
-# (and shouldn't) carry GHA_RUNNER_PAT, so the job's `if:` below restricts
-# actual dispatch to the upstream repo and skips cleanly elsewhere instead of
-# failing nightly with a missing-token error. The pull_request self-test still
-# runs on forks since it only dry-runs and needs no secret.
+# (and shouldn't) carry GHA_RUNNER_PAT. The dispatch step therefore skips with
+# a ::notice:: when the PAT is missing outside percona/percona-server, and
+# still fails loudly if it is missing upstream. A fork that does set
+# GHA_RUNNER_PAT can exercise the real dispatch path. The pull_request
+# self-test always dry-runs and needs no secret.
 
 name: builds-nightly
 
@@ -62,7 +63,6 @@ permissions:
 
 jobs:
   dispatch-nightly:
-    if: github.event_name == 'pull_request' || github.repository == 'percona/percona-server'
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -77,6 +77,15 @@ jobs:
           DRY_RUN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
         run: |
           set -euo pipefail
+          if [ "$DRY_RUN" != "1" ] && [ -z "$GH_TOKEN" ]; then
+            if [ "$REPO" = "percona/percona-server" ]; then
+              echo "::error::GHA_RUNNER_PAT is not set; cannot dispatch the nightly"
+              exit 1
+            fi
+            echo "::notice::Skipping nightly dispatch on $REPO: GHA_RUNNER_PAT is not set (fork)"
+            echo "- Skipped: \`GHA_RUNNER_PAT\` not set on \`$REPO\`" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           # Staged rollout: try the new filename first, then the old one. The
           # `builds` workflow is builds.yml on migrated branches (8.4) and may
           # still be build.yml on not-yet-migrated ones (8.0, 9.7). Remove

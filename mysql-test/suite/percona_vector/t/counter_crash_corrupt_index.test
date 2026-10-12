@@ -1,0 +1,34 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11591: a corrupted-index flag recovered from redo survives a DDL
+--echo # that bumped the table version.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Flagged corruption of.* in table .* in CHECK TABLE");
+call mtr.add_suppression("Index .* is marked as corrupted");
+--enable_query_log
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, k INT, KEY kk (k));
+INSERT INTO t1 (k) VALUES (1), (2), (3);
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--echo # Flag the secondary index corrupt: a redo record at the old version.
+SET SESSION debug = "+d,dict_set_index_corrupted";
+CHECK TABLE t1;
+SET SESSION debug = "-d,dict_set_index_corrupted";
+
+--echo # A DDL that bumps the version and keeps the index, then an
+--echo # AUTO_INCREMENT record at the new version.
+ALTER TABLE t1 AUTO_INCREMENT = 100;
+INSERT INTO t1 (k) VALUES (4);
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo # The index is still corrupt.
+--error ER_INDEX_CORRUPT
+SELECT k FROM t1 FORCE INDEX (kk) WHERE k > 0;
+
+DROP TABLE t1;

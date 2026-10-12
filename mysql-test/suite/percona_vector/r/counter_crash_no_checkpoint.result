@@ -1,0 +1,28 @@
+#
+# PS-11591: the same as counter_crash_label, with no checkpoint after
+# the DDL.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, k INT,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 (k, v) VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,1,0,0]')),
+(3, STRING_TO_VECTOR('[0,0,1,0]')), (4, STRING_TO_VECTOR('[0,0,0,1]'));
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+ALTER TABLE t1 ADD INDEX ik (k);
+# Labels 5 and 6, and no AUTO_INCREMENT advance.
+DELETE FROM t1 WHERE id <= 2;
+INSERT INTO t1 (id, k, v) VALUES
+(1, 11, STRING_TO_VECTOR('[2,0,0,0]')), (2, 12, STRING_TO_VECTOR('[0,2,0,0]'));
+# Kill and restart
+# The next label is 7, and the next AUTO_INCREMENT id 5.
+SET SESSION innodb_interpreter = 'vec_next_id test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+id=7
+INSERT INTO t1 (k, v) VALUES (13, STRING_TO_VECTOR('[3,1,0,0]'));
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+5
+DROP TABLE t1;

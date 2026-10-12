@@ -1,0 +1,64 @@
+#
+# PS-11632: recovery reads prepared transactions from the engine in batches.
+# MyRocks must return every prepared transaction once, also when they span
+# several batches; recovery used to get the first batch again and again.
+# The debug point recovery_xid_list_size_2 makes the batches 2 transactions
+# long.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/not_log_bin.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (100);
+
+--let $i = 5
+while ($i)
+{
+  --eval XA START 'b$i'
+  --eval INSERT INTO t1 VALUES ($i)
+  --eval XA END 'b$i'
+  --eval XA PREPARE 'b$i'
+  --dec $i
+}
+
+--let $restart_parameters = restart: --debug=+d,recovery_xid_list_size_2
+--source include/restart_mysqld.inc
+--sorted_result
+XA RECOVER;
+--let $assert_text = Recovery read 3 batches from MyRocks
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Found [0-9] prepared transaction\(s\) in ROCKSDB
+--let $assert_count = 3
+--source include/assert_grep.inc
+--let $assert_text = Recovery kept the 5 transactions prepared
+--let $assert_select = Crash recovery finished in ROCKSDB engine. Successfully prepared 5 XA transaction
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # Committed and rolled back transactions are not returned again.
+XA COMMIT 'b1';
+XA ROLLBACK 'b2';
+--source include/kill_and_restart_mysqld.inc
+--sorted_result
+XA RECOVER;
+--let $assert_text = Recovery read 2 more batches from MyRocks
+--let $assert_select = Found [0-9] prepared transaction\(s\) in ROCKSDB
+--let $assert_count = 5
+--source include/assert_grep.inc
+--let $assert_text = Recovery kept the 3 transactions prepared
+--let $assert_select = Crash recovery finished in ROCKSDB engine. Successfully prepared 3 XA transaction
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+XA COMMIT 'b3';
+XA COMMIT 'b4';
+XA ROLLBACK 'b5';
+SELECT * FROM t1 ORDER BY a;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+XA RECOVER;
+DROP TABLE t1;

@@ -1,0 +1,73 @@
+#
+# PS-11632: the marker of a prepared XA transaction keeps only the row locks
+# that recovery cannot derive from the transaction's writes. Under
+# write_unprepared the keys written in flushed batches are left out too, as
+# recovery tracks the keys of every batch. A rollback to a savepoint keeps
+# the locks of the writes it undoes, so they stay in the marker.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE KEY ub (b)) ENGINE=ROCKSDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, UNIQUE KEY ub (b)) ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (1, 1), (5, 5), (6, 6), (7, 7);
+
+--echo # 20 rows written, with 20 unique key values locked, and a locking read
+SET SESSION debug = "+d,myrocks_xa_log_marker_locks";
+XA START 'm1';
+--disable_query_log
+--let $i = 20
+while ($i)
+{
+  --eval INSERT INTO t1 VALUES ($i, $i)
+  --dec $i
+}
+--enable_query_log
+SELECT * FROM t2 WHERE a = 1 FOR UPDATE;
+XA END 'm1';
+XA PREPARE 'm1';
+SET SESSION debug = "-d,myrocks_xa_log_marker_locks";
+--echo # Written at XA PREPARE and when it completes in TC
+--let $assert_text = The marker keeps the unique key values and the locking read
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = XA marker keeps 21 row locks
+--let $assert_count = 2
+--source include/assert_grep.inc
+--let $assert_text = The marker keeps no other row locks
+--let $assert_select = XA marker keeps
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+--echo # A row locked by a locking read and then written by a statement that
+--echo # is rolled back stays locked. The write of another row takes the
+--echo # savepoint the failed statement rolls back to after the locking read.
+XA START 'm2';
+SET SESSION rocksdb_write_batch_flush_threshold = 0;
+SELECT * FROM t2 WHERE a = 5 FOR UPDATE;
+INSERT INTO t1 VALUES (200, 200);
+--error ER_DUP_ENTRY
+UPDATE t2 SET b = IF(a = 5, 50, 7) WHERE a IN (5, 6) ORDER BY a;
+XA END 'm2';
+XA PREPARE 'm2';
+
+--source include/kill_and_restart_mysqld.inc
+--sorted_result
+XA RECOVER;
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE a = 10;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1 VALUES (100, 10);
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t2 WHERE a = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t2 WHERE a = 5;
+DELETE FROM t2 WHERE a = 6;
+XA COMMIT 'm1';
+XA COMMIT 'm2';
+SELECT COUNT(*) FROM t1;
+SELECT * FROM t2 ORDER BY a;
+
+DROP TABLE t1, t2;

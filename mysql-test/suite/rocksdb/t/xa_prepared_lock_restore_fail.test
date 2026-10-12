@@ -1,0 +1,78 @@
+#
+# PS-11632: recovery cannot lock every row of a prepared XA transaction
+# again. The transaction stays prepared (the server only reports the
+# failure) and its rows are locked when the table is opened; until they
+# are, the table cannot be opened.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/not_log_bin.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CALL mtr.add_suppression("Could not lock all rows of a prepared XA transaction");
+CALL mtr.add_suppression("Could not lock the rows of a prepared XA transaction in table");
+CALL mtr.add_suppression("Failed to prepare .* in ROCKSDB");
+CALL mtr.add_suppression("Crash recovery finished in ROCKSDB engine. .*Failed to prepare");
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+
+XA START 'l1';
+UPDATE t1 SET b = 10 WHERE a = 1;
+UPDATE t1 SET b = 20 WHERE a = 2;
+XA END 'l1';
+XA PREPARE 'l1';
+
+--echo # Locking the second row fails.
+--let $restart_parameters = restart: --debug=+d,myrocks_xa_lock_recovered_fail_2
+--source include/restart_mysqld.inc
+XA RECOVER;
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = MyRocks reported the failure
+--let $assert_select = Could not lock all rows of a prepared XA transaction after recovery
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = The server reported the failure
+--let $assert_select = Failed to prepare .* in ROCKSDB
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--echo # Opening the table locks the rows recovery could not lock.
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b = 100 WHERE a = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b = 200 WHERE a = 2;
+--echo # Rows the transaction did not touch are not locked.
+UPDATE t1 SET b = 30 WHERE a = 3;
+XA COMMIT 'l1';
+SELECT * FROM t1 ORDER BY a;
+--echo # XA COMMIT released the locks.
+UPDATE t1 SET b = 100 WHERE a = 1;
+UPDATE t1 SET b = 200 WHERE a = 2;
+SELECT * FROM t1 ORDER BY a;
+
+--echo # The rows cannot be locked when the table is opened either: the
+--echo # table cannot be opened until the transaction is finished.
+XA START 'l2';
+UPDATE t1 SET b = 10 WHERE a = 1;
+UPDATE t1 SET b = 20 WHERE a = 2;
+XA END 'l2';
+XA PREPARE 'l2';
+--let $restart_parameters = restart: --debug=+d,myrocks_xa_lock_recovered_fail_2,myrocks_xa_relock_fail
+--source include/restart_mysqld.inc
+XA RECOVER;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1 ORDER BY a;
+--error ER_LOCK_WAIT_TIMEOUT
+UPDATE t1 SET b = 30 WHERE a = 3;
+--let $assert_text = MyRocks reported that the table cannot be opened
+--let $assert_select = Could not lock the rows of a prepared XA transaction in table test.t1
+--let $assert_count = 2
+--source include/assert_grep.inc
+XA COMMIT 'l2';
+SELECT * FROM t1 ORDER BY a;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+DROP TABLE t1;

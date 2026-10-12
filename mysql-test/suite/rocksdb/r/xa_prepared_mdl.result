@@ -1,0 +1,120 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+CREATE TABLE `t-2` (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE tp (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB
+PARTITION BY HASH(a) PARTITIONS 2;
+CREATE TABLE tr (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE tn (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO tr VALUES (1);
+INSERT INTO tn VALUES (1);
+# Clean restart (write_committed), then XA COMMIT.
+XA START 'm1';
+INSERT INTO t1 VALUES (2, 2);
+INSERT INTO `t-2` VALUES (1);
+INSERT INTO tp VALUES (3, 3), (4, 4);
+# Locking read only.
+SELECT * FROM tr WHERE a = 1 FOR UPDATE;
+a
+1
+# Plain read only.
+SELECT * FROM tn;
+a
+1
+XA END 'm1';
+XA PREPARE 'm1';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	m1
+SET SESSION lock_wait_timeout = 1;
+TRUNCATE TABLE t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 ADD COLUMN c INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP TABLE `t-2`;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+TRUNCATE TABLE tp;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE tp TRUNCATE PARTITION p1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+TRUNCATE TABLE tr;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# A table the transaction did not lock is not locked.
+ALTER TABLE tn ADD COLUMN c INT;
+ALTER TABLE tn DROP COLUMN c;
+XA COMMIT 'm1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 FORCE INDEX (kb) ORDER BY b;
+a	b
+1	1
+2	2
+SELECT * FROM `t-2` ORDER BY a;
+a
+1
+SELECT * FROM tp ORDER BY a;
+a	b
+3	3
+4	4
+# DDL runs after the transaction is finished.
+TRUNCATE TABLE `t-2`;
+TRUNCATE TABLE tp;
+DELETE FROM t1 WHERE a = 2;
+TRUNCATE TABLE tr;
+INSERT INTO tr VALUES (1);
+SET SESSION lock_wait_timeout = DEFAULT;
+# Kill, then XA ROLLBACK.
+XA START 'm1';
+INSERT INTO t1 VALUES (2, 2);
+INSERT INTO `t-2` VALUES (1);
+INSERT INTO tp VALUES (3, 3), (4, 4);
+# Locking read only.
+SELECT * FROM tr WHERE a = 1 FOR UPDATE;
+a
+1
+# Plain read only.
+SELECT * FROM tn;
+a
+1
+XA END 'm1';
+XA PREPARE 'm1';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	m1
+SET SESSION lock_wait_timeout = 1;
+TRUNCATE TABLE t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 ADD COLUMN c INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DROP TABLE `t-2`;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+TRUNCATE TABLE tp;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE tp TRUNCATE PARTITION p1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+TRUNCATE TABLE tr;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# A table the transaction did not lock is not locked.
+ALTER TABLE tn ADD COLUMN c INT;
+ALTER TABLE tn DROP COLUMN c;
+XA ROLLBACK 'm1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+SELECT * FROM t1 FORCE INDEX (kb) ORDER BY b;
+a	b
+1	1
+SELECT * FROM `t-2` ORDER BY a;
+a
+SELECT * FROM tp ORDER BY a;
+a	b
+# DDL runs after the transaction is finished.
+TRUNCATE TABLE `t-2`;
+TRUNCATE TABLE tp;
+DELETE FROM t1 WHERE a = 2;
+TRUNCATE TABLE tr;
+INSERT INTO tr VALUES (1);
+SET SESSION lock_wait_timeout = DEFAULT;
+DROP TABLE t1, `t-2`, tp, tr, tn;

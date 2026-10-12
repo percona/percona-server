@@ -2128,6 +2128,28 @@ size_t Rdb_key_def::key_length(const TABLE *const table,
 }
 
 /*
+  For a unique secondary key, get the prefix of a key of this index with the
+  user-defined key parts: the value that MyRocks locks to enforce uniqueness
+  (see ha_rocksdb::check_and_lock_sk).
+
+  @return 0 on success, 1 if a key part is NULL (the value is not locked),
+          -1 if the key is malformed
+*/
+int Rdb_key_def::unique_sk_prefix(const rocksdb::Slice &key,
+                                  rocksdb::Slice *const prefix) const {
+  assert(m_is_unique_sk);
+  Rdb_string_reader reader(&key);
+  if (!reader.read(INDEX_NUMBER_SIZE)) return -1;
+  for (uint i = 0; i < m_user_defined_sk_parts; i++) {
+    const int rc = read_memcmp_key_part(&reader, i);
+    if (rc == -1) return 1;
+    if (rc != 0) return -1;
+  }
+  *prefix = rocksdb::Slice(key.data(), key.size() - reader.remaining_bytes());
+  return 0;
+}
+
+/*
   Decode unpack info in value
 
   @return
@@ -5939,6 +5961,106 @@ void Rdb_dict_manager::get_all_dropped_cfs(
   }
 
   delete it;
+}
+
+static std::string rdb_xa_prepared_key(const std::string &trx_name) {
+  uchar type_buf[Rdb_key_def::INDEX_NUMBER_SIZE];
+  rdb_netbuf_store_uint32(type_buf, Rdb_key_def::XA_PREPARED);
+  std::string key(reinterpret_cast<const char *>(type_buf), sizeof(type_buf));
+  key.append(trx_name);
+  return key;
+}
+
+void Rdb_dict_manager::add_xa_prepared(rocksdb::WriteBatch &batch,
+                                       const std::string &trx_name, uint flags,
+                                       const std::string &locks) const {
+  assert(!trx_name.empty());
+
+  uchar version_buf[Rdb_key_def::VERSION_SIZE] = {0};
+  rdb_netbuf_store_uint16(version_buf, Rdb_key_def::XA_PREPARED_VERSION);
+  std::string value(reinterpret_cast<const char *>(version_buf),
+                    sizeof(version_buf));
+  assert(flags <= (XA_PREPARED_IN_TC | XA_LOCKS_INCOMPLETE));
+  value.push_back(static_cast<char>(flags));
+  value.append(locks);
+  batch.Put(m_system_cfh, rdb_xa_prepared_key(trx_name), value);
+}
+
+void Rdb_dict_manager::delete_xa_prepared(rocksdb::WriteBatch &batch,
+                                          const std::string &trx_name) const {
+  assert(!trx_name.empty());
+
+  delete_key(batch, rdb_xa_prepared_key(trx_name));
+}
+
+/*
+  Parse and validate a prepared XA value (see Rdb_key_def::XA_PREPARED).
+  @return false if it is malformed or of an unknown version
+*/
+static bool rdb_xa_prepared_parse(const std::string &value, uint *const flags,
+                                  std::string *const locks) {
+  Rdb_string_reader reader(value);
+  uint version = 0;
+  uint flag = 0;
+  if (reader.read_uint16(&version) ||
+      version != Rdb_key_def::XA_PREPARED_VERSION || reader.read_uint8(&flag) ||
+      flag > (Rdb_dict_manager::XA_PREPARED_IN_TC |
+              Rdb_dict_manager::XA_LOCKS_INCOMPLETE)) {
+    return false;
+  }
+  const size_t locks_offset = value.size() - reader.remaining_bytes();
+  while (reader.remaining_bytes() > 0) {
+    uint exclusive = 0;
+    const char *len_buf = nullptr;
+    if (reader.read(sizeof(uint32)) == nullptr ||
+        reader.read_uint8(&exclusive) || exclusive > 1 ||
+        (len_buf = reader.read(sizeof(uint32))) == nullptr ||
+        reader.read(rdb_netbuf_to_uint32(
+            reinterpret_cast<const uchar *>(len_buf))) == nullptr) {
+      return false;
+    }
+  }
+  *flags = flag;
+  if (locks != nullptr) locks->assign(value, locks_offset, std::string::npos);
+  return true;
+}
+
+rocksdb::Status Rdb_dict_manager::get_xa_prepared(
+    const std::string &trx_name, uint *const flags,
+    std::string *const locks) const {
+  assert(flags != nullptr);
+  assert(locks != nullptr);
+  std::string value;
+  const rocksdb::Status s = get_value(rdb_xa_prepared_key(trx_name), &value);
+  if (!s.ok()) return s;
+  if (!rdb_xa_prepared_parse(value, flags, locks)) {
+    return rocksdb::Status::Corruption("malformed XA_PREPARED value");
+  }
+  return s;
+}
+
+rocksdb::Status Rdb_dict_manager::get_all_xa_prepared(
+    std::vector<std::pair<std::string, uint>> *trx_names) const {
+  assert(trx_names != nullptr);
+
+  uchar type_buf[Rdb_key_def::INDEX_NUMBER_SIZE];
+  rdb_netbuf_store_uint32(type_buf, Rdb_key_def::XA_PREPARED);
+  const rocksdb::Slice prefix(reinterpret_cast<char *>(type_buf),
+                              sizeof(type_buf));
+
+  std::unique_ptr<rocksdb::Iterator> it(new_iterator());
+  for (it->Seek(prefix); it->Valid() && it->key().starts_with(prefix);
+       it->Next()) {
+    const rocksdb::Slice key = it->key();
+    uint flags = 0;
+    if (!rdb_xa_prepared_parse(it->value().ToString(), &flags, nullptr)) {
+      return rocksdb::Status::Corruption("malformed XA_PREPARED value");
+    }
+    trx_names->emplace_back(
+        std::string(key.data() + prefix.size(), key.size() - prefix.size()),
+        flags);
+  }
+  return it->status();
 }
 
 /*

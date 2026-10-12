@@ -1,0 +1,57 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (100);
+XA START 'b5';
+INSERT INTO t1 VALUES (5);
+XA END 'b5';
+XA PREPARE 'b5';
+XA START 'b4';
+INSERT INTO t1 VALUES (4);
+XA END 'b4';
+XA PREPARE 'b4';
+XA START 'b3';
+INSERT INTO t1 VALUES (3);
+XA END 'b3';
+XA PREPARE 'b3';
+XA START 'b2';
+INSERT INTO t1 VALUES (2);
+XA END 'b2';
+XA PREPARE 'b2';
+XA START 'b1';
+INSERT INTO t1 VALUES (1);
+XA END 'b1';
+XA PREPARE 'b1';
+# restart: --debug=+d,recovery_xid_list_size_2
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	b1
+1	2	0	b2
+1	2	0	b3
+1	2	0	b4
+1	2	0	b5
+include/assert_grep.inc [Recovery read 3 batches from MyRocks]
+include/assert_grep.inc [Recovery kept the 5 transactions prepared]
+# Committed and rolled back transactions are not returned again.
+XA COMMIT 'b1';
+XA ROLLBACK 'b2';
+# Kill and restart: --debug=+d,recovery_xid_list_size_2
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	b3
+1	2	0	b4
+1	2	0	b5
+include/assert_grep.inc [Recovery read 2 more batches from MyRocks]
+include/assert_grep.inc [Recovery kept the 3 transactions prepared]
+XA COMMIT 'b3';
+XA COMMIT 'b4';
+XA ROLLBACK 'b5';
+SELECT * FROM t1 ORDER BY a;
+a
+1
+3
+4
+100
+# restart:
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+DROP TABLE t1;

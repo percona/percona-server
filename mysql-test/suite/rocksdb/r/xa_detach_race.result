@@ -13,8 +13,6 @@ XA COMMIT 'xr';
 # Listing transactions must not touch the finished transaction.
 SELECT * FROM information_schema.rocksdb_trx;
 SET DEBUG_SYNC = 'now SIGNAL finished';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 # The preparing session keeps working.
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -39,8 +37,6 @@ XA ROLLBACK 'xr';
 # Listing transactions must not touch the finished transaction.
 SELECT * FROM information_schema.rocksdb_trx;
 SET DEBUG_SYNC = 'now SIGNAL finished';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 # The preparing session keeps working.
 SELECT * FROM t1 ORDER BY a;
 a	b

@@ -1,0 +1,9 @@
+[write_committed]
+rocksdb-write-policy=write_committed
+
+[write_prepared]
+rocksdb-write-policy=write_prepared
+
+[write_unprepared]
+rocksdb-write-policy=write_unprepared
+rocksdb-write-batch-flush-threshold=1

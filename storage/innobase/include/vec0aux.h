@@ -189,7 +189,7 @@ Safe on aux tables that aren't currently cached (skips silently).
 @param[in]  dict_locked     true iff caller already holds dict_sys mutex */
 void vec_aux_detach_tables(const dict_table_t *parent, bool dict_locked);
 
-/** The vector index on @p table, or nullptr. At most one exists. */
+/** The committed vector index on @p table, or nullptr. At most one exists. */
 [[nodiscard]] const dict_index_t *vec_index_of(const dict_table_t *table);
 
 [[nodiscard]] inline dict_index_t *vec_index_of(dict_table_t *table) {

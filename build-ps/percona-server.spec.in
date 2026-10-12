@@ -551,7 +551,8 @@ fi
   rpm2cpio $(basename %{compatsrc}) | cpio --extract --make-directories --verbose
   popd
 )
-%endif # rhel == 7
+# rhel == 7
+%endif
 
 %if 0%{?rhel} == 8 || 0%{?rhel} == 9
 # EL8/9: download prebuilt Percona Server 8.0 shared lib (.so.21)
@@ -571,8 +572,10 @@ fi
   rpm2cpio $(basename %{compatsrc}) | cpio --extract --make-directories --verbose
   popd
 )
-%endif # rhel == 8 || rhel == 9
-%endif # compatlib
+# rhel == 8 || rhel == 9
+%endif
+# compatlib
+%endif
 
 # Common cmake flags shared across debug, release, and PGO builds.
 # Conditional parts are resolved here once; the macro is then reused below.
@@ -680,7 +683,8 @@ mkdir release
   make %{?_smp_mflags} VERBOSE=1
   popd
 )
-%endif # pgo
+# pgo
+%endif
 
 %install
 %ifarch x86_64
@@ -695,8 +699,10 @@ mkdir release
       install -D -m 0755 "$lib" %{buildroot}%{_libdir}/mysql/$(basename "$lib")
     done
     %endif
-  %endif # 0%{?compatlib}
-%endif # arch x86_64
+  # 0%{?compatlib}
+  %endif
+# arch x86_64
+%endif
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
@@ -767,6 +773,18 @@ rm -rf %{buildroot}/usr/lib/libkmipcore.a
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
+
+%if 0%{?with_sbom}
+sh $MBD/%{src_dir}/build-ps/sbom/check-components.sh --root $MBD/%{src_dir}
+install -d -m 0755 %{buildroot}%{_datadir}/percona-server/sbom
+sh $MBD/%{src_dir}/build-ps/sbom/gen-sbom.sh \
+  --pkg percona-server \
+  --version %{version}-%{percona_server_version} \
+  --root $MBD/%{src_dir} \
+  --pins $MBD/%{src_dir}/build-ps/sbom/submodule-pins.txt \
+  --artifact package \
+  --dest %{buildroot}%{_datadir}/percona-server/sbom
+%endif
 
 %check
 %if 0%{?runselftest}
@@ -956,6 +974,9 @@ fi
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
+%if 0%{?with_sbom}
+%{_datadir}/percona-server/sbom
+%endif
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
 %attr(644, root, root) %{_mandir}/man1/ibd2sdi.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*
@@ -1228,7 +1249,8 @@ fi
 #%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 #%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 #%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
@@ -1375,9 +1397,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_oci_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_openid_connect.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_openid_connect.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %if 0%{?add_fido_plugins}
 %attr(755, root, root) %{_libdir}/mysql/private/libfido2.so.1.15.0

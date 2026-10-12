@@ -685,14 +685,26 @@ void MetadataRecover::store() {
 
   for (auto meta : m_tables) {
     table_id_t table_id = meta.first;
-    PersistentTableMetadata *metadata = meta.second;
+    const PersistentTableMetadata *recovered = meta.second;
     byte buffer[REC_MAX_DATA_SIZE];
     size_t size;
 
-    size = dict_persist->persisters->write(*metadata, buffer);
+    /* Redo records are partial: each holds one kind of metadata. Fold them
+    into the buffered row, each kind by its own rule, instead of replacing
+    the row with them. */
+    uint64_t version = 0;
+    const std::vector<byte> buffered = table_buffer->get(table_id, &version);
+    PersistentTableMetadata metadata(table_id, version);
+    if (!buffered.empty()) {
+      dict_table_read_dynamic_metadata(buffered.data(), buffered.size(),
+                                       &metadata);
+    }
+    dict_persist->persisters->aggregate(metadata, *recovered);
+
+    size = dict_persist->persisters->write(metadata, buffer);
 
     dberr_t error =
-        table_buffer->replace(table_id, metadata->get_version(), buffer, size);
+        table_buffer->replace(table_id, metadata.get_version(), buffer, size);
     if (error != DB_SUCCESS) {
       ut_d(ut_error);
     }

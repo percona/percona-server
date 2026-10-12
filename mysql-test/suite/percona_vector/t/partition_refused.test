@@ -1,0 +1,22 @@
+--echo #
+--echo # A vector index cannot be created on a partitioned table, and a table
+--echo # with one cannot be partitioned: the label counter's crash safety
+--echo # relies on no partition DDL path ever touching such a table.
+--echo #
+
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4))
+  PARTITION BY HASH (id) PARTITIONS 2;
+
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL)
+  PARTITION BY HASH (id) PARTITIONS 2;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+DROP TABLE t2;
+
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t3 PARTITION BY HASH (id) PARTITIONS 2;
+DROP TABLE t3;

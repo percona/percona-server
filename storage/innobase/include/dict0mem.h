@@ -3017,7 +3017,9 @@ class Persister {
                      ulint size, bool *corrupt) const = 0;
 
   /** Aggregate metadata entries into a single metadata instance, considering
-  version numbers
+  version numbers. MetadataRecover::store() also uses it to fold the
+  recovered entry into the buffered one, so an entry with nothing of this
+  kind must leave metadata unchanged.
   @param[in,out] metadata        metadata object to be modified
   @param[in]     new_entry       metadata entry from logs */
   virtual void aggregate(PersistentTableMetadata &metadata,
@@ -3185,6 +3187,12 @@ class Persisters {
   @param[out]   buffer          buffer to store the serialized metadata
   @return the length of serialized metadata */
   size_t write(PersistentTableMetadata &metadata, byte *buffer);
+
+  /** Merge new_entry into metadata, each persister by its own rule.
+  @param[in,out]  metadata   entry to fold into
+  @param[in]      new_entry  entry to fold in */
+  void aggregate(PersistentTableMetadata &metadata,
+                 const PersistentTableMetadata &new_entry) const;
 
  private:
   /** A map to store all persisters needed */

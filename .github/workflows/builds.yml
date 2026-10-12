@@ -160,6 +160,19 @@ jobs:
           AUTHOR:    ${{ github.event.pull_request.user.login }}
         run: |
           set -u
+          # PS-11078: forks without GHA_RUNNER_PAT would otherwise sail through
+          # this gate (schedule/workflow_dispatch always authorize; a same-repo
+          # pull_request -- including one opened inside a fork -- authorizes
+          # too) and only fail downstream, in pick-target / create-runner-*,
+          # once those jobs discover they have no infra secrets either.
+          # pull_request_target is excluded: it needs GH_TOKEN below for the
+          # collaborator-permission lookup, and an empty token there already
+          # resolves to ok=false via the normal case below.
+          if [ -z "$GH_TOKEN" ] && [ "$EVENT" != "pull_request_target" ]; then
+            echo "::notice::GHA_RUNNER_PAT is not set on $BASE_REPO; skipping (fork?)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           ok=false
           case "$EVENT" in
             schedule|workflow_dispatch)

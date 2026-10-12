@@ -1,0 +1,15 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+XA START 's1';
+INSERT INTO t1 VALUES (1);
+XA END 's1';
+XA PREPARE 's1';
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	s1
+XA COMMIT 's1';
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;

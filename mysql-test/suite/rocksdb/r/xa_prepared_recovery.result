@@ -1,0 +1,146 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+# The prepared transaction keeps its row locks after a kill and is
+# then committed.
+XA START 'p1';
+INSERT INTO t1 VALUES (4, 4);
+UPDATE t1 SET b = 20 WHERE a = 2;
+DELETE FROM t1 WHERE a = 3;
+XA END 'p1';
+XA PREPARE 'p1';
+SHOW WARNINGS;
+Level	Code	Message
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	p1
+SET SESSION rocksdb_lock_wait_timeout = 1;
+INSERT INTO t1 VALUES (4, 40);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET b = 200 WHERE a = 2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t1 WHERE a = 3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Rows the transaction did not touch are not locked.
+UPDATE t1 SET b = 10 WHERE a = 1;
+XA COMMIT 'p1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	20
+4	4
+SELECT * FROM t1 FORCE INDEX (kb) ORDER BY b;
+a	b
+4	4
+1	10
+2	20
+# The locks are released by XA COMMIT.
+UPDATE t1 SET b = 21 WHERE a = 2;
+# Locks that are not row writes survive a kill too: the unique
+# secondary key value and a locking read.
+CREATE TABLE t2 (id INT PRIMARY KEY, u INT, UNIQUE KEY ku (u)) ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (1, 1);
+XA START 'u1';
+INSERT INTO t2 VALUES (2, 10);
+SELECT * FROM t2 WHERE id = 5 FOR UPDATE;
+id	u
+XA END 'u1';
+XA PREPARE 'u1';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	u1
+SET SESSION rocksdb_lock_wait_timeout = 1;
+INSERT INTO t2 VALUES (3, 10);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t2 VALUES (5, 50);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t2 VALUES (4, 40);
+XA COMMIT 'u1';
+INSERT INTO t2 VALUES (3, 10);
+ERROR 23000: Duplicate entry '10' for key 't2.ku'
+INSERT INTO t2 VALUES (5, 50);
+SELECT * FROM t2 ORDER BY id;
+id	u
+1	1
+2	10
+4	40
+5	50
+DROP TABLE t2;
+# A prepared transaction keeps its row locks after a kill and is
+# rolled back.
+XA START 'p2';
+INSERT INTO t1 VALUES (5, 5);
+DELETE FROM t1 WHERE a = 1;
+XA END 'p2';
+XA PREPARE 'p2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	p2
+DELETE FROM t1 WHERE a = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+XA ROLLBACK 'p2';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	21
+4	4
+DELETE FROM t1 WHERE a = 1;
+INSERT INTO t1 VALUES (1, 1);
+# The prepared transaction survives two kills; before the second one
+# its XA PREPARE is no longer in the last binary log.
+XA START 'p3';
+INSERT INTO t1 VALUES (6, 6);
+XA END 'p3';
+XA PREPARE 'p3';
+FLUSH BINARY LOGS;
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	p3
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	p3
+XA COMMIT 'p3';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	21
+4	4
+6	6
+# Several prepared transactions from several sessions, detached and
+# not; a committed XID is reused.
+XA START 'p1';
+INSERT INTO t1 VALUES (7, 7);
+XA END 'p1';
+XA PREPARE 'p1';
+SET SESSION xa_detach_on_prepare = OFF;
+XA START 'p5';
+UPDATE t1 SET b = 40 WHERE a = 4;
+XA END 'p5';
+XA PREPARE 'p5';
+XA START 'p6';
+DELETE FROM t1 WHERE a = 6;
+XA END 'p6';
+XA PREPARE 'p6';
+XA COMMIT 'p6';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	p1
+1	2	0	p5
+XA COMMIT 'p1';
+XA ROLLBACK 'p5';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+2	21
+4	4
+7	7
+DROP TABLE t1;

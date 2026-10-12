@@ -1,0 +1,66 @@
+#
+# PS-11632:
+# a prepared XA transaction on a MyRocks table does not survive a server
+# restart.
+#
+# MyRocks does not implement handlerton::set_prepared_in_tc,
+# set_prepared_in_tc_by_xid and recover_prepared_in_tc, so XA recovery
+# classifies the transaction as unknown and rolls it back. A later
+# XA COMMIT of that XID then succeeds and the data is lost. The same gap is
+# the source of "Warning 1031" on every XA PREPARE of a MyRocks transaction.
+#
+# Expected (as with InnoDB): XA PREPARE raises no warning, the prepared
+# transaction is listed by XA RECOVER after a clean restart and after a
+# kill, and XA COMMIT / XA ROLLBACK then apply or discard its changes.
+#
+# Needs the XA crash fix (PS-11631) to get past the first XA PREPARE.
+#
+--source include/have_rocksdb.inc
+--source include/have_log_bin.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+
+--echo # XA PREPARE must not warn
+XA START 'x1';
+INSERT INTO t1 VALUES (2, 2);
+UPDATE t1 SET b = 10 WHERE a = 1;
+XA END 'x1';
+XA PREPARE 'x1';
+SHOW WARNINGS;
+
+--echo # Prepared transaction survives a clean restart and can be committed
+--source include/restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'x1';
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t1 FORCE INDEX (kb) ORDER BY b;
+
+--echo # Prepared transaction survives a kill and can be rolled back
+XA START 'x2';
+INSERT INTO t1 VALUES (3, 3);
+DELETE FROM t1 WHERE a = 2;
+XA END 'x2';
+XA PREPARE 'x2';
+--source include/kill_and_restart_mysqld.inc
+XA RECOVER;
+--echo # The prepared rows are locked until the XA transaction is resolved
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t1 WHERE a = 3;
+XA ROLLBACK 'x2';
+SELECT * FROM t1 ORDER BY a;
+
+--echo # Prepared transaction survives a kill and can be committed
+XA START 'x3';
+INSERT INTO t1 VALUES (4, 4);
+XA END 'x3';
+XA PREPARE 'x3';
+--source include/kill_and_restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'x3';
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1;

@@ -13,8 +13,6 @@ XA START 'xr';
 INSERT INTO t1 VALUES (10, 10);
 XA END 'xr';
 XA PREPARE 'xr';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	xr
@@ -30,8 +28,6 @@ INSERT INTO t1 VALUES (20, 20);
 UPDATE t1 SET b = b + 1 WHERE a = 1;
 XA END 'xc';
 XA PREPARE 'xc';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA COMMIT 'xc';
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -52,8 +48,6 @@ XA START 'xl';
 UPDATE t1 SET b = 100 WHERE a = 1;
 XA END 'xl';
 XA PREPARE 'xl';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 UPDATE t1 SET b = 200 WHERE a = 1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 XA COMMIT 'xl';
@@ -68,8 +62,6 @@ XA START 'xo';
 INSERT INTO t1 VALUES (60, 60);
 XA END 'xo';
 XA PREPARE 'xo';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA COMMIT 'xo';
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -87,14 +79,10 @@ XA START 'xa1';
 INSERT INTO t1 VALUES (70, 70);
 XA END 'xa1';
 XA PREPARE 'xa1';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA START 'xa2';
 INSERT INTO t1 VALUES (71, 71);
 XA END 'xa2';
 XA PREPARE 'xa2';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 INSERT INTO t1 VALUES (72, 72);
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
@@ -118,8 +106,6 @@ XA START 'xd';
 INSERT INTO t1 VALUES (40, 40);
 XA END 'xd';
 XA PREPARE 'xd';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	xd
@@ -136,8 +122,6 @@ XA START 'xe';
 INSERT INTO t1 VALUES (50, 50);
 XA END 'xe';
 XA PREPARE 'xe';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	xe
@@ -168,8 +152,6 @@ XA START 'xr';
 INSERT INTO t1 VALUES (10, 10);
 XA END 'xr';
 XA PREPARE 'xr';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	xr
@@ -185,8 +167,6 @@ INSERT INTO t1 VALUES (20, 20);
 UPDATE t1 SET b = b + 1 WHERE a = 1;
 XA END 'xc';
 XA PREPARE 'xc';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA COMMIT 'xc';
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -207,8 +187,6 @@ XA START 'xl';
 UPDATE t1 SET b = 100 WHERE a = 1;
 XA END 'xl';
 XA PREPARE 'xl';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 UPDATE t1 SET b = 200 WHERE a = 1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 XA COMMIT 'xl';
@@ -223,8 +201,6 @@ XA START 'xo';
 INSERT INTO t1 VALUES (60, 60);
 XA END 'xo';
 XA PREPARE 'xo';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 # Not detached: the XID is still owned by the default session.
 XA COMMIT 'xo';
 ERROR XAE04: XAER_NOTA: Unknown XID
@@ -245,8 +221,6 @@ XA START 'xa1';
 INSERT INTO t1 VALUES (70, 70);
 XA END 'xa1';
 XA PREPARE 'xa1';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA START 'xa2';
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 XA COMMIT 'xa1';
@@ -265,8 +239,6 @@ XA START 'xd';
 INSERT INTO t1 VALUES (40, 40);
 XA END 'xd';
 XA PREPARE 'xd';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	xd
@@ -283,8 +255,6 @@ XA START 'xe';
 INSERT INTO t1 VALUES (50, 50);
 XA END 'xe';
 XA PREPARE 'xe';
-Warnings:
-Warning	1031	Table storage engine for 'ROCKSDB' doesn't have this option
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	2	0	xe

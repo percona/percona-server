@@ -1,0 +1,210 @@
+#
+# PS-11632: crashes around the "prepared in TC" state of a MyRocks XA
+# transaction, binary log on.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/not_valgrind.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CALL mtr.add_suppression("Prepared XA transaction .* has no XA marker");
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, u INT, UNIQUE KEY ku (u)) ENGINE=ROCKSDB;
+
+--echo # Crash after the XA PREPARE was binlogged but before MyRocks marked it
+--echo # prepared in TC: recovery finds it in the binary log and marks it, so
+--echo # it also survives a later clean restart. It keeps its locks, including
+--echo # the unique key value and a locking read.
+XA START 'c1';
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 10);
+SELECT * FROM t2 WHERE id = 5 FOR UPDATE;
+XA END 'c1';
+SET SESSION debug = "+d,myrocks_crash_before_xa_prepared_in_tc";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+XA PREPARE 'c1';
+--source include/start_mysqld.inc
+XA RECOVER;
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t2 VALUES (3, 10);
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t2 VALUES (5, 50);
+--source include/restart_mysqld.inc
+XA RECOVER;
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t2 VALUES (3, 10);
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t2 VALUES (5, 50);
+XA COMMIT 'c1';
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY id;
+DROP TABLE t2;
+
+--echo # Crash after XA COMMIT committed the transaction but before its
+--echo # marker was deleted. With the binary log the engine commit is not
+--echo # synced, so recovery either commits the transaction from the XA COMMIT
+--echo # event (which deletes the marker) or finds it committed and removes
+--echo # the stale marker.
+XA START 'c2';
+INSERT INTO t1 VALUES (2, 2);
+XA END 'c2';
+XA PREPARE 'c2';
+SET SESSION debug = "+d,myrocks_crash_before_xa_marker_delete";
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+XA COMMIT 'c2';
+--source include/start_mysqld.inc
+XA RECOVER;
+SELECT * FROM t1 ORDER BY a;
+--let $assert_text = Recovery committed the transaction or removed its stale marker
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Removed 1 marker\(s\) of finished XA transactions|ROCKSDB engine. Successfully committed 1 XA transaction
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # A transaction prepared without an XA marker (by an older server)
+--echo # is kept prepared through the binary log after a kill. Its written
+--echo # rows are locked again, and so are its unique secondary key values
+--echo # when the table is first opened; a warning says that locks taken by
+--echo # locking reads are not.
+CREATE TABLE t3 (id INT PRIMARY KEY, u INT, v VARCHAR(10), w INT,
+  UNIQUE KEY ku (u), UNIQUE KEY kvw (v, w)) ENGINE=ROCKSDB;
+INSERT INTO t3 VALUES (1, 1, 'a', 1);
+XA START 'c3';
+INSERT INTO t1 VALUES (7, 7);
+INSERT INTO t3 VALUES (2, 10, 'b', 2);
+INSERT INTO t3 VALUES (3, NULL, 'c', NULL);
+UPDATE t3 SET u = 11 WHERE id = 1;
+XA END 'c3';
+SET SESSION debug = "+d,myrocks_skip_xa_marker";
+XA PREPARE 'c3';
+SET SESSION debug = "-d,myrocks_skip_xa_marker";
+--let $i = 2
+while ($i)
+{
+  if ($i == 2)
+  {
+    --source include/kill_and_restart_mysqld.inc
+    --echo # A restart before the table is opened keeps the unique key
+    --echo # locks to be rebuilt.
+    --source include/restart_mysqld.inc
+  }
+  if ($i == 1)
+  {
+    --echo # The rebuilt unique key locks are kept over a restart.
+    --source include/restart_mysqld.inc
+  }
+  XA RECOVER;
+  SET SESSION rocksdb_lock_wait_timeout = 1;
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO t1 VALUES (7, 70);
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO t3 VALUES (4, 10, 'd', 4);
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO t3 VALUES (5, 50, 'b', 2);
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO t3 VALUES (6, 11, 'e', 6);
+  --echo # The old value of the updated unique key is locked too.
+  --error ER_LOCK_WAIT_TIMEOUT
+  INSERT INTO t3 VALUES (6, 1, 'e', 6);
+  --echo # A unique key value with a NULL part is not locked.
+  INSERT INTO t3 VALUES (8, 80, 'c', NULL);
+  DELETE FROM t3 WHERE id = 8;
+  --dec $i
+}
+--let $assert_text = Warning about the missing XA marker
+--let $assert_select = Prepared XA transaction .* has no XA marker
+--let $assert_count = 1
+--source include/assert_grep.inc
+XA COMMIT 'c3';
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t3 ORDER BY id;
+--error ER_DUP_ENTRY
+INSERT INTO t3 VALUES (4, 10, 'd', 4);
+--error ER_DUP_ENTRY
+INSERT INTO t3 VALUES (5, 50, 'b', 2);
+INSERT INTO t3 VALUES (6, 1, 'e', 6);
+SELECT * FROM t3 ORDER BY id;
+DROP TABLE t3;
+DELETE FROM t1;
+
+--echo # A transaction prepared without an XA marker keeps the partial index
+--echo # group of the rows it writes locked: the group is not materialized
+--echo # without its new row.
+CREATE TABLE tp (g INT, id INT, v INT, PRIMARY KEY (g, id),
+  KEY kg (g, v) COMMENT 'partial_group_keyparts=1;partial_group_threshold=1')
+  ENGINE=ROCKSDB;
+INSERT INTO tp VALUES (1, 1, 1), (1, 2, 2), (2, 1, 1), (2, 2, 2);
+XA START 'c4';
+INSERT INTO tp VALUES (1, 3, 3);
+XA END 'c4';
+SET SESSION debug = "+d,myrocks_skip_xa_marker";
+XA PREPARE 'c4';
+SET SESSION debug = "-d,myrocks_skip_xa_marker";
+--source include/kill_and_restart_mysqld.inc
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 1;
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 2;
+--source include/restart_mysqld.inc
+SET SESSION rocksdb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 1;
+XA COMMIT 'c4';
+SELECT * FROM tp FORCE INDEX (kg) WHERE g = 1;
+SELECT * FROM tp FORCE INDEX (PRIMARY) WHERE g = 1;
+DROP TABLE tp;
+
+--echo # rocksdb_flush_log_at_trx_commit = 2: the binary log group commit
+--echo # writes the engine log to the OS, so XA PREPARE, XA COMMIT and
+--echo # XA ROLLBACK survive a kill.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+XA START 'f1';
+INSERT INTO t1 VALUES (10, 10);
+XA END 'f1';
+XA PREPARE 'f1';
+XA START 'f2';
+INSERT INTO t1 VALUES (11, 11);
+XA END 'f2';
+XA PREPARE 'f2';
+--source include/kill_and_restart_mysqld.inc
+--sorted_result
+XA RECOVER;
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 2;
+XA COMMIT 'f1';
+XA ROLLBACK 'f2';
+--source include/kill_and_restart_mysqld.inc
+XA RECOVER;
+SELECT * FROM t1 ORDER BY a;
+
+--echo # rocksdb_flush_log_at_trx_commit = 0: the engine log is written by a
+--echo # background timer. A prepared transaction survives a kill after
+--echo # FLUSH ENGINE LOGS.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z1';
+INSERT INTO t1 VALUES (20, 20);
+XA END 'z1';
+XA PREPARE 'z1';
+FLUSH ENGINE LOGS;
+--source include/kill_and_restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'z1';
+SELECT * FROM t1 ORDER BY a;
+
+--echo # Without a flush a kill may lose the prepared transaction, but it
+--echo # never leaves it half done: it is either prepared and can be
+--echo # committed, or gone with its row.
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+XA START 'z2';
+INSERT INTO t1 VALUES (21, 21);
+XA END 'z2';
+XA PREPARE 'z2';
+--source include/kill_and_restart_mysqld.inc
+--source suite/rocksdb/include/xa_check_lost_or_prepared.inc
+
+DROP TABLE t1;

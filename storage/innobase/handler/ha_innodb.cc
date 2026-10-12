@@ -8442,10 +8442,15 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   A failure here is not fatal to the open: without a runtime the index
   simply has no graph, and the DML path reports the problem when it
   tries to use one. Refusing the open would take the whole table
-  offline for a vector index that may not even be queried. */
-  for (dict_index_t *index = m_prebuilt->table->first_index(); index != nullptr;
-       index = index->next()) {
-    if (!index->is_vector() || vec_runtime_get(index) != nullptr) continue;
+  offline for a vector index that may not even be queried.
+
+  Walk the TABLE's vector KEYs and resolve each as every index read does,
+  through innobase_get_index(): the table's index list can also hold an
+  index an ALTER is still building, which this TABLE has no KEY for. */
+  for (uint k = 0; k < table->s->keys; k++) {
+    if (!(table->key_info[k].flags & HA_VECTOR)) continue;
+    dict_index_t *index = innobase_get_index(k);
+    if (index == nullptr || vec_runtime_get(index) != nullptr) continue;
 
     /* A failure has already reported itself on the THD and recorded its
     reason on the index, and an index with no runtime simply has no graph
@@ -12244,8 +12249,14 @@ int ha_innobase::vec_read_first(Item *item, uchar *buf, ha_rows limit) {
   ut_ad(active_index < table->s->keys);
   ut_ad(table->key_info[active_index].flags & HA_VECTOR);
 
-  dict_index_t *vindex = vec_index_of(m_prebuilt->table);
-  if (vindex == nullptr) return HA_ERR_END_OF_FILE;
+  /* The scan's key, resolved as every index read resolves it. An index an
+  ALTER is still building is in the table's index list too, but no KEY of
+  this TABLE names it. */
+  dict_index_t *vindex = innobase_get_index(active_index);
+  ut_ad(vindex != nullptr && vindex->is_vector() && vindex->is_committed());
+  if (vindex == nullptr || !vindex->is_vector() || !vindex->is_committed()) {
+    return HA_ERR_WRONG_INDEX;
+  }
 
   /* No runtime means the open that should have built one failed, and
   ha_innobase::open() carried on so the table stays readable. Answering

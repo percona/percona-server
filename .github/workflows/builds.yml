@@ -157,6 +157,30 @@ jobs:
           AUTHOR:    ${{ github.event.pull_request.user.login }}
         run: |
           set -u
+          # PS-11078: forks without GHA_RUNNER_PAT would otherwise sail through
+          # this gate (schedule/workflow_dispatch always authorize; a same-repo
+          # pull_request -- including one opened inside a fork -- authorizes
+          # too) and only fail downstream, in pick-target / create-runner-*,
+          # once those jobs discover they have no infra secrets either.
+          # Two cases are left to the existing logic below instead of this
+          # early check: pull_request_target needs GH_TOKEN for the
+          # collaborator-permission lookup (an empty token there already
+          # resolves to ok=false), and a fork PR into this repo via plain
+          # pull_request already gets ok=false from HEAD_REPO != BASE_REPO --
+          # folding it in here would print a misleading "skipping (fork?)"
+          # notice on every such PR even though the outcome is unchanged.
+          # On percona/percona-server itself a missing PAT fails loudly
+          # instead of silently skipping, same as builds-nightly.yml.
+          if [ -z "$GH_TOKEN" ] && [ "$EVENT" != "pull_request_target" ] \
+             && ! { [ "$EVENT" = "pull_request" ] && [ "$HEAD_REPO" != "$BASE_REPO" ]; }; then
+            if [ "$BASE_REPO" = "percona/percona-server" ]; then
+              echo "::error::GHA_RUNNER_PAT is not set on $BASE_REPO"
+              exit 1
+            fi
+            echo "::notice::GHA_RUNNER_PAT is not set on $BASE_REPO; skipping (fork)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           ok=false
           case "$EVENT" in
             schedule|workflow_dispatch)

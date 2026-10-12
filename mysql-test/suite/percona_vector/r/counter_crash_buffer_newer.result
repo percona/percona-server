@@ -1,0 +1,31 @@
+#
+# PS-11591: recovery handles a buffered row newer than the redo, written
+# when a table is evicted after a DDL that bumped its version.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, k INT,
+v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 (k, v) VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]')), (2, STRING_TO_VECTOR('[0,1,0,0]'));
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Counter records at the old version.
+INSERT INTO t1 (k, v) VALUES (3, STRING_TO_VECTOR('[0,0,1,0]'));
+# The version is bumped; evicting the table writes the buffered row
+# at the new version.
+ALTER TABLE t1 AUTO_INCREMENT = 100;
+FLUSH TABLES t1;
+SET GLOBAL debug = "+d,innodb_evict_autoinc_table";
+SET GLOBAL innodb_ft_aux_table = "test/t1";
+ERROR 42000: Variable 'innodb_ft_aux_table' can't be set to the value of 'test/t1'
+SET GLOBAL debug = "-d,innodb_evict_autoinc_table";
+# Kill and restart
+# The next AUTO_INCREMENT id is 100, and the search finds the new row.
+INSERT INTO t1 (k, v) VALUES (4, STRING_TO_VECTOR('[0,0,0,1]'));
+SELECT LAST_INSERT_ID();
+LAST_INSERT_ID()
+100
+SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,1]'), 'euclidean') LIMIT 1;
+id
+100
+DROP TABLE t1;

@@ -7697,6 +7697,14 @@ static bool prepare_key(
     key_info->vector_index_type = key->key_create_info.vector_index_type;
     if (!key->key_create_info.vector_index_params.empty())
       key_info->vector_index_params = key->key_create_info.vector_index_params;
+    /*
+      Let the SE check the index and store every parameter it builds the
+      index with, defaults included, so that the index never depends on a
+      compiled-in default once it exists.
+    */
+    if (auto prepare = file->ht->prepare_vector_index_params;
+        prepare != nullptr && prepare(thd->mem_root, *key, key_info))
+      return true;
   }
 
   key_info->engine_attribute = key->key_create_info.m_engine_attribute;
@@ -20751,11 +20759,6 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "ENCRYPTION");
       return true;
     }
-  }
-
-  if (auto vea = (*new_engine)->validate_vector_index_params;
-      vea != nullptr && vea(thd, db_name, create_info, alter_info)) {
-    return true;
   }
 
   return false;

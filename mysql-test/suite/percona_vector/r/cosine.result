@@ -13,7 +13,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `metric`=`cosine`)
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`cosine`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # CREATE VECTOR INDEX ... metric = cosine.
@@ -28,7 +28,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `metric`=`cosine`)
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`cosine`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # ALTER TABLE ADD VECTOR KEY ... metric = cosine on a table that
@@ -48,7 +48,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `metric`=`cosine`)
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`cosine`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # ALTER TABLE ADD VECTOR INDEX (alternate keyword) with cosine.
@@ -63,7 +63,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(4) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `metric`=`cosine`)
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `ef_construction`=200, `metric`=`cosine`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -224,7 +224,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(2) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `metric`=`cosine`)
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `ef_construction`=200, `metric`=`cosine`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #

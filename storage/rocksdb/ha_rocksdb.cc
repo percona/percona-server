@@ -6283,7 +6283,8 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
     }
   }
 
-  std::vector<Rdb_deadlock_info> get_deadlock_info() {
+  // Only reads the RocksDB deadlock buffer, no transaction-list walk needed
+  static std::vector<Rdb_deadlock_info> get_deadlock_info() {
     std::vector<Rdb_deadlock_info> deadlock_info;
     const auto &dlock_buffer = rdb->GetDeadlockInfoBuffer();
     for (const auto &path_entry : dlock_buffer) {
@@ -6393,9 +6394,7 @@ std::vector<Rdb_trx_info> rdb_get_all_trx_info() {
   for use by information_schema.rocksdb_deadlock
 */
 std::vector<Rdb_deadlock_info> rdb_get_deadlock_info() {
-  Rdb_snapshot_status showStatus;
-  Rdb_transaction_list::for_each(showStatus);
-  return showStatus.get_deadlock_info();
+  return Rdb_snapshot_status::get_deadlock_info();
 }
 
 /*

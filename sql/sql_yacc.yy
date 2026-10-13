@@ -2082,6 +2082,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         show_engine_logs_stmt
         show_engine_mutex_stmt
         show_engine_status_stmt
+        show_engine_trx_status_stmt
         show_engines_stmt
         show_errors_stmt
         show_events_stmt
@@ -2628,6 +2629,7 @@ simple_statement:
         | show_engine_logs_stmt
         | show_engine_mutex_stmt
         | show_engine_status_stmt
+        | show_engine_trx_status_stmt
         | show_engines_stmt
         | show_errors_stmt
         | show_events_stmt
@@ -14428,6 +14430,13 @@ show_engine_status_stmt:
           SHOW ENGINE_SYM engine_or_all STATUS_SYM
           {
             $$ = NEW_PTN PT_show_engine_status(@$, $3);
+          }
+        ;
+
+show_engine_trx_status_stmt:
+          SHOW ENGINE_SYM engine_or_all TRANSACTION_SYM STATUS_SYM
+          {
+            $$ = NEW_PTN PT_show_engine_trx_status(@$, $3);
           }
         ;
 

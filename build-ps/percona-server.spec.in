@@ -145,6 +145,12 @@
 %global _find_debuginfo_dwz_opts %{nil}
 %endif
 
+# A tool that crashes during post-install processing (seen on EL8) drops a
+# core dump into BUILDROOT; it embeds the BUILDROOT path and makes
+# check-buildroot abort. Remove core dumps right before the stock
+# __arch_install_post (check-rpaths/check-buildroot) runs.
+%{expand:%%global __arch_install_post find %%{buildroot} -type f -name core -delete; find %%{buildroot} -type f -name 'core.[0-9]*' -delete; %{__arch_install_post}}
+
 %global license_files_server  %{src_dir}/README.md
 %global license_type          GPLv2
 

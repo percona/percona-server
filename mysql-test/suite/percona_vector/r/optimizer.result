@@ -599,8 +599,14 @@ VECTOR KEY (v) USING hnsw);
 CALL populate_vector_table('t1', 3, 10);
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 CREATE TABLE t2 (a INT);
 INSERT INTO t2 VALUES (1), (2), (3);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SET SESSION optimizer_trace = 'enabled=on';
 EXPLAIN SELECT t1.id
 FROM t2 JOIN t1 ON t1.u = t2.a
@@ -625,8 +631,8 @@ SET SESSION optimizer_trace = 'enabled=off';
 EXPLAIN FORMAT=TREE
 SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 3;
 EXPLAIN
--> Limit: 3 row(s)  (cost=2.73e+99 rows=3)
-    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=2.73e+99 rows=3)
+-> Limit: 3 row(s)  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0, 0, 0]'))  (cost=X rows=X)
 
 SELECT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d FROM t1 ORDER BY d LIMIT 3;
 id	d

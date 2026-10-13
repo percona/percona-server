@@ -2,13 +2,15 @@
 
 create table a (id int, value int,  primary key (id) comment 'cfname=cf_a') engine=rocksdb;
 
+# One statement instead of 100,000 autocommit inserts (each of which would
+# sync the WAL and the binlog).
 --disable_query_log
-let $i = 1;
-while ($i <= 100000) {
-  let $insert = INSERT INTO a VALUES($i, $i);
-  inc $i;
-  eval $insert;
-}
+SET @saved_cte_depth = @@session.cte_max_recursion_depth;
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO a
+  WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 100000)
+  SELECT n, n FROM seq;
+SET SESSION cte_max_recursion_depth = @saved_cte_depth;
 --enable_query_log
 
 set rocksdb_bulk_load=1;

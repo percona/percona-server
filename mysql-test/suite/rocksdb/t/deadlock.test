@@ -1,7 +1,10 @@
 #
 # NOTE:
-# This test takes A LOT of time. 5k queries and concurency of 50 takes c.a. 6 minutes on 6 CPU (12 threads)
-# with SSD drive. Here we test with 50k queries...
+# Every query updates the same row, so the runs are serialized on one row
+# lock and the test time is the number of queries times the commit latency.
+# Per-commit WAL and binlog syncs are disabled below because the test checks
+# locking, not durability; 5k queries at concurrency 50 are enough to catch
+# deadlock errors and lost updates.
 #
 
 --echo #
@@ -14,7 +17,7 @@
 --source include/not_valgrind.inc
 --source include/big_test.inc
 
---let $queries_count = 50000
+--let $queries_count = 5000
 --let $conc = 50
 --let $common_params = --silent --concurrency=$conc --number-of-queries=$queries_count
 
@@ -24,7 +27,11 @@ CREATE TABLE t1(id1 BIGINT, id2 BIGINT, count INT, PRIMARY KEY(id1, id2), KEY(id
 CREATE TABLE t1rev(id1 BIGINT, id2 BIGINT, count INT, PRIMARY KEY(id1, id2) COMMENT "cfname=rev:cf2", KEY(id2) COMMENT "cfname=rev:cf2") ENGINE=ROCKSDB;
 
 SET @save = @@global.rocksdb_lock_wait_timeout;
+SET @save_flush = @@global.rocksdb_flush_log_at_trx_commit;
+SET @save_sync_binlog = @@global.sync_binlog;
 SET GLOBAL rocksdb_lock_wait_timeout = 60;
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+SET GLOBAL sync_binlog = 0;
 
 --exec $MYSQL_SLAP $common_params --query="INSERT INTO t1 VALUES(1, 1, 1) ON DUPLICATE KEY UPDATE count=count+1"
 SELECT count from t1;
@@ -46,5 +53,7 @@ SELECT count from t1rev;
 SELECT count from t1rev;
 
 SET GLOBAL rocksdb_lock_wait_timeout = @save;
+SET GLOBAL rocksdb_flush_log_at_trx_commit = @save_flush;
+SET GLOBAL sync_binlog = @save_sync_binlog;
 
 DROP DATABASE mysqlslap;

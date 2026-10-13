@@ -156,6 +156,71 @@ CREATE TABLE t1 (
   VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
 ) ENGINE = memory;
 
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( m = 6, metric = euclidean, M = 7 )
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, M = 7, Metric = euclidean )
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, EF_CONSTRUCTION = 200 )
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 6, M = 1 )
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, ef_construction = 0 )
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL,
+  VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, metric = no_such_metric )
+);
+
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v1 VECTOR ( 1234 ) NOT NULL
+);
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+--error ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
 CREATE TABLE t1 (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR ( 1234 ) NOT NULL,
@@ -667,13 +732,12 @@ CREATE TABLE t (
 DROP TABLES t1, t2;
 
 --echo #
---echo # Every vector index in the statement is checked, not just the first
---echo # one found. The option check used to return on the first vector key,
---echo # so a bad option on a later key went unreported and the statement
---echo # failed for some other reason - which made the error depend on the
---echo # order the keys were written in.
+--echo # A vector index is checked when its key is prepared, in the order the
+--echo # keys are written. A second vector key is refused before its options
+--echo # are looked at, so a bad option on it goes unreported, while a bad
+--echo # option on the first one is reported.
 --echo #
---error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
+--error ER_NOT_SUPPORTED_YET
 CREATE TABLE t (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR( 8 ) NOT NULL,
@@ -682,7 +746,7 @@ CREATE TABLE t (
   VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 )
 );
 
---echo # Same statement, keys the other way round: same error.
+--echo # Same statement, keys the other way round: the bad option comes first.
 --error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER
 CREATE TABLE t (
   id BIGINT UNSIGNED PRIMARY KEY,
@@ -692,12 +756,12 @@ CREATE TABLE t (
   VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
 );
 
---echo # An illegal VALUE on the later key is reported too.
+--echo # An illegal VALUE on the first key is reported too.
 --error ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE
 CREATE TABLE t (
   id BIGINT UNSIGNED PRIMARY KEY,
   v1 VECTOR( 8 ) NOT NULL,
   v2 VECTOR( 8 ) NOT NULL,
-  VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 ),
-  VECTOR KEY ( v2 ) TYPE hnsw ( M = abc )
+  VECTOR KEY ( v2 ) TYPE hnsw ( M = abc ),
+  VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
 );

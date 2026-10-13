@@ -211,6 +211,66 @@ ERROR HY000: The used table type doesn't support vector indexes
 CREATE TABLE t1 (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( m = 6, metric = euclidean, M = 7 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, M = 7, Metric = euclidean )
+);
+ERROR HY000: Duplicate index construction parameter: Metric.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, EF_CONSTRUCTION = 200 )
+);
+ERROR HY000: Duplicate index construction parameter: EF_CONSTRUCTION.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6, M = 1 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, ef_construction = 0 )
+);
+ERROR HY000: Duplicate index construction parameter: ef_construction.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, metric = no_such_metric )
+);
+ERROR HY000: Duplicate index construction parameter: metric.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL
+);
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+ERROR HY000: Duplicate index construction parameter: m.
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+ERROR HY000: Duplicate index construction parameter: Ef_Construction.
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+ERROR HY000: Duplicate index construction parameter: METRIC.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+ERROR HY000: Duplicate index construction parameter: m.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+ERROR HY000: Duplicate index construction parameter: Ef_Construction.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+ERROR HY000: Duplicate index construction parameter: METRIC.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw
 );
 SHOW CREATE TABLE t1;
@@ -219,7 +279,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -240,7 +300,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -260,7 +320,7 @@ t2	CREATE TABLE `t2` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   UNIQUE KEY `id` (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -365,7 +425,7 @@ t4	CREATE TABLE `t4` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 DROP INDEX v1;
 SHOW CREATE TABLE t4;
@@ -412,7 +472,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vx` (`v1`) USING `hnsw`
+  VECTOR KEY `vx` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -437,7 +497,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6) COMMENT 'abc'
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`) COMMENT 'abc'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -598,7 +658,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `ix` (`v1`) USING `hnsw` (`m`=6)
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP PRIMARY KEY;
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
@@ -624,7 +684,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `ix` (`v1`) USING `hnsw` (`m`=6, `metric`=`Euclidean`)
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP INDEX ix;
 CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( metric = Euclidean, m = 6 );
@@ -638,7 +698,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1234) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `ix` (`v1`) USING `hnsw` (`m`=6, `metric`=`Euclidean`)
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP INDEX ix;
 ALTER TABLE t1 DROP PRIMARY KEY;
@@ -704,7 +764,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   UNIQUE KEY `u_id` (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -722,7 +782,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `metric`=`euclidean`)
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN c INT;
 SHOW CREATE TABLE t1;
@@ -732,7 +792,7 @@ t1	CREATE TABLE `t1` (
   `v1` vector(8) NOT NULL,
   `c` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `metric`=`euclidean`)
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TEMPORARY TABLE t (
@@ -771,7 +831,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v1` vector(1) GENERATED ALWAYS AS (to_vector(_utf8mb4'[1]')) STORED NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v1` (`v1`) USING `hnsw`
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW KEYS FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -808,11 +868,10 @@ VECTOR KEY ( v1 ) TYPE hnsw ( metric = manhattan )
 ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
 DROP TABLES t1, t2;
 #
-# Every vector index in the statement is checked, not just the first
-# one found. The option check used to return on the first vector key,
-# so a bad option on a later key went unreported and the statement
-# failed for some other reason - which made the error depend on the
-# order the keys were written in.
+# A vector index is checked when its key is prepared, in the order the
+# keys are written. A second vector key is refused before its options
+# are looked at, so a bad option on it goes unreported, while a bad
+# option on the first one is reported.
 #
 CREATE TABLE t (
 id BIGINT UNSIGNED PRIMARY KEY,
@@ -821,8 +880,8 @@ v2 VECTOR( 8 ) NOT NULL,
 VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 ),
 VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 )
 );
-ERROR HY000: Illegal index construction parameter: bogus.
-# Same statement, keys the other way round: same error.
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
+# Same statement, keys the other way round: the bad option comes first.
 CREATE TABLE t (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR( 8 ) NOT NULL,
@@ -831,12 +890,12 @@ VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 ),
 VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
 );
 ERROR HY000: Illegal index construction parameter: bogus.
-# An illegal VALUE on the later key is reported too.
+# An illegal VALUE on the first key is reported too.
 CREATE TABLE t (
 id BIGINT UNSIGNED PRIMARY KEY,
 v1 VECTOR( 8 ) NOT NULL,
 v2 VECTOR( 8 ) NOT NULL,
-VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 ),
-VECTOR KEY ( v2 ) TYPE hnsw ( M = abc )
+VECTOR KEY ( v2 ) TYPE hnsw ( M = abc ),
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
 );
 ERROR HY000: Illegal index construction parameter value: abc.

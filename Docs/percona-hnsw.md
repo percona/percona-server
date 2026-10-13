@@ -1163,11 +1163,6 @@ virtual generated column, on a partitioned table, or on a temporary table. `sql_
 `ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN` for the first and `ER_NOT_SUPPORTED_YET` for the other
 two, so none of them reach the aux code.
 
-**`max_elements` is unread and unsettable.** `HnswParam` carries a default of 10000, the parser
-never assigns it (§19), and nothing in the tree looks at it — not the HNSW class, not the arena. Whether it is a hard cap or a sizing hint is
-open, and it matters here: the arena has no per-block free (§22), so a cap that is actually
-enforced would need an answer for the insert that exceeds it.
-
 **The aux is not transactional with the base table.** By design (§13). A count of aux rows will
 not equal a count of base rows, and that is correct behaviour rather than corruption.
 
@@ -1206,11 +1201,10 @@ rather than half-building it.
 `ON UPDATE`. Only an `ON UPDATE CASCADE` that changes the primary key actually moves a `base_pk`;
 the refusal is broader than that.
 
-**`ef_construction` cannot be set.** The option list accepts `M` and `metric` only, so
-every graph is built at `ef_construction = 200`. It reaches the graph - it is the width of the
-candidate search inside `insert()` - and graph quality is fixed at insert time: raising
-`ef_search` later cannot recover edges that were never created. `ef_search` itself is the session
-variable `innodb_hnsw_ef_search`.
+**`ef_construction`** It is set in the option list like `M` (1 to 4096, default 200) and stored
+with the index. It reaches the graph - it is the width of the candidate searchinside `insert()` -
+and graph quality is fixed at insert time: raising `ef_search` later cannot recover edges that
+were never created. `ef_search` itself is the session variable `innodb_hnsw_ef_search`.
 
 **The read path is the old optimizer's, with no cost model.** A session using the hypergraph
 optimizer plans scan-plus-sort, with correct results and no index. Recognition is a shape match,
@@ -1281,19 +1275,32 @@ survives on disk.
 The parameter side is upstream's, and is a variant rather than a vtable:
 
 ```c
-struct HnswParam { int M{25}; int max_elements{10000}; int ef_construction{200};
-                   vector_constants::Metric metric{vector_constants::Metric::kEuclidean};
+struct HnswParam { int M{hnsw::default_M};
+                   int ef_construction{hnsw::default_ef_construction};
+                   vector_constants::Metric metric{hnsw::default_metric};
                    vec_metric_func_t dist; };
 using VectorIndexParam = std::variant<std::monostate, HnswParam>;
 ```
 
-Adding a type there means adding an alternative. `parse_options()` is split into a shared
-implementation with two overloads — `Key_spec` for DDL, `KEY` for table open — so the same parse
-both validates at DDL time and carries the parameters into the runtime at open.
+The defaults and the accepted ranges live in `storage::innobase::vec::hnsw`
+(`storage/innobase/include/vec0vec.h`), next to `HnswParam`.
 
-Only `M` and `metric` are actually settable. `ef_construction` and `max_elements` are fields of
-`HnswParam` that the parser does not accept, so both are unreachable defaults — 200 and 10000
-(§18).
+Adding a type there means adding an alternative. `parse_options()` is a shared implementation
+over the TYPE token and the WITH(...) list, with a `KEY` overload, so the same parse validates
+at DDL time (through `resolve_options()`) and carries the parameters into the runtime at open.
+A `Key_spec` overload adds the DDL-time shape check, for the unit tests.
+
+`M`, `metric` and `ef_construction` are settable, and they are all the parameters there are.
+
+**The defaults are applied once, at create time.** `prepare_key()` calls the handlerton's
+`prepare_vector_index_params` hook, and InnoDB's `vec::prepare_options()` checks the
+index's shape and its parameters, then `vec::resolve_options()` replaces the KEY's option
+list with the full canonical set - `M`, `metric` and `ef_construction`, defaults included - before
+the KEY is written to the DD. The open-time parse therefore always finds every parameter stored
+and never falls back on a compiled-in default: a default that changes in a later release changes
+new indexes only, never the graph of one already built, which a different `M` or metric would
+corrupt. `SHOW CREATE TABLE` shows the full set, so a dump reloads with the same
+parameters on any server version.
 
 An option value is a bare identifier or a number, never a quoted string — the grammar rule is
 `ident EQ ident | ident EQ NUM`. So it is `metric = euclidean`, and `metric = 'euclidean'` is a

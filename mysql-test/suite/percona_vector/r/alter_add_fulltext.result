@@ -25,7 +25,7 @@ t1	CREATE TABLE `t1` (
   `body` text,
   `v` vector(2) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=4, `ef_construction`=200, `metric`=`euclidean`),
   FULLTEXT KEY `ft` (`body`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # The vector index must still answer, which it cannot if the labels

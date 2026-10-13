@@ -5198,7 +5198,15 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
 
   hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
+  DEBUG_SYNC_C("buf_page_init_for_read_before_hash_lock");
+
   rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
+
+  /* We do not hold the LRU list mutex, so a concurrent buffer pool resize
+  may have rehashed page_hash and remapped this page id to a different shard
+  latch between computing hash_lock and latching it; re-confirm and re-latch
+  the correct shard. */
+  hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
 
   buf_page_t *watch_page;
 
@@ -5283,6 +5291,8 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     DBUG_EXECUTE_IF(
         "buf_page_init_for_read_delay_lru_add",
         std::this_thread::sleep_for(std::chrono::microseconds(100)););
+
+    DEBUG_SYNC_C("buf_page_init_for_read_before_lru_add");
 
     mutex_enter(&buf_pool->LRU_list_mutex);
 

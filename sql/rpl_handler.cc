@@ -1361,6 +1361,7 @@ static bool is_show_status(enum_sql_command sql_command) {
     case SQLCOM_SHOW_STATUS:
     case SQLCOM_SHOW_ENGINE_LOGS:
     case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ENGINE_TRX:
     case SQLCOM_SHOW_ENGINE_MUTEX:
     case SQLCOM_SHOW_PROCESSLIST:
     case SQLCOM_SHOW_BINLOG_STATUS:

@@ -20844,6 +20844,7 @@ static bool innobase_show_status(handlerton *hton, THD *thd,
       return (innodb_show_latch_status(hton, thd, stat_print) != 0);
 
     case HA_ENGINE_LOGS:
+    case HA_ENGINE_TRX:
       /* Not handled */
       break;
   }

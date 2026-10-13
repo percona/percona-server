@@ -430,4 +430,51 @@ DROP TABLE t4;
 SHOW ENGINE rocksdb MUTEX;
 Type	Name	Status
 SHOW ENGINE ALL MUTEX;
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot never created
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---SNAPSHOT, ACTIVE NUM sec
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot created NUM sec ago
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
+ROLLBACK;
+PREPARE stmt1 FROM 'SHOW ENGINE ROCKSDB TRANSACTION STATUS';
+EXECUTE stmt1;
+# EXECUTE PREPARE complete
 SET GLOBAL rocksdb_max_background_jobs= @save.rocksdb_max_background_jobs;

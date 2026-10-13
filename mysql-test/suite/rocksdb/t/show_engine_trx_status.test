@@ -1,0 +1,61 @@
+--source include/have_rocksdb.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # SHOW ENGINE ROCKSDB TRANSACTION STATUS
+--echo #
+
+set @prior_lock_wait_timeout = @@rocksdb_lock_wait_timeout;
+set @prior_deadlock_detect = @@rocksdb_deadlock_detect;
+set @prior_max_latest_deadlocks = @@rocksdb_max_latest_deadlocks;
+set global rocksdb_deadlock_detect = on;
+set global rocksdb_lock_wait_timeout = 10000;
+--echo # Clears deadlock buffer of any prior deadlocks.
+set global rocksdb_max_latest_deadlocks = 0;
+set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;
+
+--echo # The command requires the PROCESS privilege
+CREATE USER test_user@localhost;
+connect (con_nopriv, localhost, test_user,,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+disconnect con_nopriv;
+connection default;
+DROP USER test_user@localhost;
+
+create table t (i int primary key) engine=rocksdb;
+insert into t values (1), (2), (3);
+
+--echo # No other sessions, no snapshot, no deadlocks
+--source suite/rocksdb/include/show_transaction_status.inc
+
+--echo # A session holding an active snapshot
+connect (con1,localhost,root,,);
+let $con1= `SELECT CONNECTION_ID()`;
+begin;
+select * from t where i = 1;
+connection default;
+--source suite/rocksdb/include/show_transaction_status.inc
+connection con1;
+rollback;
+--echo # The same session after its snapshot was released
+connection default;
+--source suite/rocksdb/include/show_transaction_status.inc
+
+--echo # A detected deadlock is listed
+connect (con2,localhost,root,,);
+let $con2= `SELECT CONNECTION_ID()`;
+--source suite/rocksdb/include/simple_deadlock.inc
+disconnect con1;
+disconnect con2;
+connection default;
+--source include/wait_until_count_sessions.inc
+--source suite/rocksdb/include/show_transaction_status.inc
+
+--echo # Other engines do not provide a transaction status
+SHOW ENGINE INNODB TRANSACTION STATUS;
+
+drop table t;
+set global rocksdb_lock_wait_timeout = @prior_lock_wait_timeout;
+set global rocksdb_deadlock_detect = @prior_deadlock_detect;
+set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;

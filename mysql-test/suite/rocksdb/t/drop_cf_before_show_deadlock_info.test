@@ -69,6 +69,8 @@ set global rocksdb_max_latest_deadlocks = 0;
 --echo # Clears deadlock buffer of any existent deadlocks.
 set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;
 
+--source ../include/show_transaction_status.inc
+
 set @@global.debug = @old_debug;
 
 --connection default

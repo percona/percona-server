@@ -3,6 +3,27 @@ create table t1 (id1 bigint, id2 bigint, c1 bigint, c2 bigint, c3 bigint, c4 big
 begin;
 select * from t1 where c3=1 for update;
 id1	id2	c1	c2	c3	c4	c5	c6	c7
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot created NUM sec ago
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
 select * from t1 where c7 between 101 and 110 for update;
 id1	id2	c1	c2	c3	c4	c5	c6	c7
 101	0	101	0	0	0	0	0	101
@@ -15,9 +36,53 @@ id1	id2	c1	c2	c3	c4	c5	c6	c7
 108	0	108	0	0	0	0	0	108
 109	0	109	0	0	0	0	0	109
 110	0	110	0	0	0	0	0	110
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot created NUM sec ago
+lock count 10, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
 rollback;
 set session rocksdb_lock_scanned_rows=on;
 begin;
+select * from t1 where c3=1 for update;
+id1	id2	c1	c2	c3	c4	c5	c6	c7
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot created NUM sec ago
+lock count 1000, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
 rollback;
 set session rocksdb_lock_scanned_rows=off;
 set session rocksdb_max_row_locks = 20;

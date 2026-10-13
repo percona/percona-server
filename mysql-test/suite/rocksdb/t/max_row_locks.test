@@ -16,12 +16,24 @@ while ($i<1000)
 # by default, no matching row should not have any row lock.
 begin;
 select * from t1 where c3=1 for update;
+
+# This should report 0 row lock
+--source ../include/show_transaction_status.inc
+
 select * from t1 where c7 between 101 and 110 for update;
+
+# This should report 10 row locks
+--source ../include/show_transaction_status.inc
+
 rollback;
 
 set session rocksdb_lock_scanned_rows=on;
 
 begin;
+select * from t1 where c3=1 for update;
+# This should report 1000 row locks
+--source ../include/show_transaction_status.inc
+
 rollback;
 set session rocksdb_lock_scanned_rows=off;
 

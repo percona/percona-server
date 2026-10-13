@@ -1369,6 +1369,7 @@ bool Prepared_statement::prepare_query(THD *thd) {
     case SQLCOM_SHOW_ENGINE_LOGS:
     case SQLCOM_SHOW_ENGINE_MUTEX:
     case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ENGINE_TRX:
     case SQLCOM_SHOW_ERRORS:
     case SQLCOM_SHOW_EVENTS:
     case SQLCOM_SHOW_FIELDS:

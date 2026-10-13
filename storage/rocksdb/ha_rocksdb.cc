@@ -5753,13 +5753,18 @@ static int rocksdb_create_temporary_checkpoint_validate(
   assert(rdb != nullptr);
   assert(thd != nullptr);
 
-  const char *current_checkpoint_dir = THDVAR(thd, create_temporary_checkpoint);
+  // Do not rely on the session variable to learn whether this session owns a
+  // temporary checkpoint: SET ... = DEFAULT resets the variable without going
+  // through this callback, which would leave the checkpoint on disk. The
+  // engine-side tracking in Rdb_ha_data is the source of truth.
+  const auto current_checkpoint_dir = get_ha_data(thd)->get_checkpoint_dir();
   char buf[FN_REFLEN];
   int len = sizeof(buf);
   const char *new_checkpoint_dir = value->val_str(value, buf, &len);
 
-  if (current_checkpoint_dir != nullptr && new_checkpoint_dir != nullptr) {
-    *reinterpret_cast<const char **>(save) = current_checkpoint_dir;
+  if (!current_checkpoint_dir.empty() && new_checkpoint_dir != nullptr) {
+    *reinterpret_cast<const char **>(save) =
+        THDVAR(thd, create_temporary_checkpoint);
     my_error(
         ER_GET_ERRMSG, MYF(0), HA_ERR_ROCKSDB_STATUS_INVALID_ARGUMENT,
         "Invalid argument: Temporary checkpoint already exists for session",
@@ -5773,8 +5778,9 @@ static int rocksdb_create_temporary_checkpoint_validate(
     } else {
       return res;
     }
-  } else if (current_checkpoint_dir != nullptr) {
-    const auto res = rocksdb_remove_checkpoint(current_checkpoint_dir);
+  } else if (!current_checkpoint_dir.empty()) {
+    const auto res =
+        rocksdb_remove_checkpoint(std::string{current_checkpoint_dir}.c_str());
     *reinterpret_cast<const char **>(save) = nullptr;
     get_ha_data(thd)->set_checkpoint_dir("");
     if (res != HA_EXIT_SUCCESS) {

@@ -88,6 +88,7 @@ class Field;
 class Item;
 class JOIN;
 class Json_dom;
+class Key_spec;
 class Partition_handler;
 class PT_create_external_file_format;
 class PT_create_external_files;
@@ -2167,20 +2168,28 @@ using fix_default_table_encryption_t = bool (*)(ulong value, bool is_starting);
 */
 typedef bool (*redo_log_set_state_t)(THD *thd, bool enable);
 
-struct HA_CREATE_INFO;
-
 /**
-  Check vector index parameters for table being created.
-  This hook allows a SE to reject invalid parameters early in the
-  CREATE/ALTER TABLE process. This hook can be used when introducing dedicated
-  methods to SE API is not feasible, for instance the properties might be
-  dynamic in nature or make sense only for a particular SE.
-  This similar to how it's done, for example, for key lengths and algorithms,
-  or postponing check until handler::create() is reached.
+  Prepare a vector index of a table being created or altered, called from
+  prepare_key() for every vector KEY. The SE checks the index - its shape
+  and its parameters - and resolves the parameters once: it replaces the
+  KEY's vector_index_params with the full set it builds the index with,
+  including every parameter the user left at its default. The KEY is what
+  goes to the DD, so the index never depends on a compiled-in default once
+  it exists, and SHOW CREATE TABLE describes it completely.
+
+  This hook is used rather than dedicated methods in the SE API, because
+  the parameters are dynamic in nature and make sense only for a
+  particular SE. It is similar to how key lengths and algorithms are
+  checked.
+
+  @param mem_root  where the new parameter list is allocated
+  @param key_spec  the index as the statement defines it
+  @param key       the vector index's KEY; its parameters are replaced
+  @retval true on error, reported through my_error()
 */
-using validate_vector_index_params_t = bool (*)(THD *thd, const char *db_name,
-                                                HA_CREATE_INFO *create_info,
-                                                const Alter_info *alter_info);
+using prepare_vector_index_params_t = bool (*)(MEM_ROOT *mem_root,
+                                               const Key_spec &key_spec,
+                                               KEY *key);
 
 /**
   Resolve the distance metric used by a vector index from its KEY definition
@@ -2190,6 +2199,21 @@ using validate_vector_index_params_t = bool (*)(THD *thd, const char *db_name,
   compare query DISTANCE() metrics to the index without re-parsing options.
 */
 using vector_index_metric_t = vector_constants::Metric (*)(const KEY &key);
+
+/**
+  Compare two definitions of a vector index: the one in the table and the one
+  an ALTER TABLE gives the index of the same name. Called from
+  has_index_def_changed(), so that an index whose type or parameters change
+  is rebuilt rather than kept. Both KEYs carry the full parameter set that
+  prepare_vector_index_params resolved, which the SE compares in its own
+  format.
+
+  @param old_key  the vector index's KEY in the table
+  @param new_key  the vector index's KEY in the new version of the table
+  @retval true if the two definitions build different indexes
+*/
+using compare_vector_index_params_t = bool (*)(const KEY &old_key,
+                                               const KEY &new_key);
 /**
   @brief
   Retrieve ha_statistics from SE.
@@ -3063,8 +3087,9 @@ struct handlerton {
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;
   redo_log_set_state_t redo_log_set_state;
-  validate_vector_index_params_t validate_vector_index_params{nullptr};
+  prepare_vector_index_params_t prepare_vector_index_params{nullptr};
   vector_index_metric_t vector_index_metric{nullptr};
+  compare_vector_index_params_t compare_vector_index_params{nullptr};
 
   get_table_statistics_t get_table_statistics;
   get_column_statistics_t get_column_statistics;

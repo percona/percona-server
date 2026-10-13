@@ -33,6 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "key_spec.h"
 #include "vector-common/vector_constants.h"
 
+struct MEM_ROOT;
+
 namespace storage::innobase::vec {
 
 /** A distance kernel: the signature vector-common's kernels have and the
@@ -41,11 +43,43 @@ not have to pull in the graph template. */
 using vec_metric_func_t = double (*)(const char *a, const char *b,
                                      uint32_t dims);
 
+/**
+  HNSW index parameters: the defaults and the accepted ranges.
+
+  The defaults apply only when an index is created. CREATE resolves every
+  parameter the user left out and stores the full set in the DD, so an
+  existing index never reads these again: changing a default here changes
+  new indexes only, never the graph of an index already built (PS-11612).
+*/
+namespace hnsw {
+constexpr int default_M = 25;
+constexpr int default_ef_construction = 200;
+constexpr vector_constants::Metric default_metric =
+    vector_constants::Metric::kEuclidean;
+
+/** Each node's neighbor buffer is (layer + 2) * M pointers
+    (vector-common/hnsw.h), so an unbounded M turns even a single-row index
+    into a multi-gigabyte allocation; 200 keeps that buffer small while
+    leaving headroom over any M a real workload would choose. */
+constexpr int min_M = 2;
+constexpr int max_M = 200;
+
+/** The size of the candidate list an INSERT searches with. The graph raises
+    it to at least M (vector-common/hnsw.h), so the lower bound only rules out
+    nonsense; the upper bound keeps one insert's search from growing without
+    limit. */
+constexpr int min_ef_construction = 1;
+constexpr int max_ef_construction = 4096;
+}  // namespace hnsw
+
+/** An HNSW index's parameters. The initial values are the hnsw defaults
+above, and they matter only while an index is being created:
+resolve_options() then writes the full set to the KEY, and so to the DD,
+so an index that exists never falls back on them. */
 struct HnswParam {
-  int M{25};
-  int max_elements{10000};
-  int ef_construction{200};
-  vector_constants::Metric metric{vector_constants::Metric::kEuclidean};
+  int M{hnsw::default_M};
+  int ef_construction{hnsw::default_ef_construction};
+  vector_constants::Metric metric{hnsw::default_metric};
   /** The kernel `metric` selects, resolved by the parser so that the
   metric and the function cannot drift apart: whoever builds a graph uses
   this rather than picking a kernel of its own. Never null once
@@ -55,23 +89,13 @@ struct HnswParam {
 
 using VectorIndexParam = std::variant<std::monostate, HnswParam>;
 
-/** Check the SHAPE of a vector index as the user wrote it: a
-non-prefixed column and an SE-specific algorithm. Not the column count -
-this runs from check_engine(), ahead of prepare_key(), so a multi-column
-vector key is still standing here and the server rejects it later.
-Only meaningful at DDL time, which is why it takes a Key_spec: by the
-time a table is opened the definition has already been through here and
-come back from the DD. Reports through my_error().
-@return true on error */
-bool validate_options(const Key_spec &index_def);
-
 /** Turn a TYPE token plus its WITH(...) list into typed parameters.
 
 This checks the CONTENTS - that the TYPE token is one we implement, that
 every WITH key is a parameter we support, and that its value is legal -
-and reports through my_error() like the shape check above. What it does
-not look at is the shape, which is what lets it serve both DDL and table
-open; "parse" here is not a promise that nothing is rejected.
+and reports through my_error() like the shape check in prepare_options().
+What it does not look at is the shape, which is what lets it serve both
+DDL and table open; "parse" here is not a promise that nothing is rejected.
 @param[in]   type    the TYPE token, e.g. "hnsw"
 @param[in]   params  the WITH(...) pairs, empty for none
 @param[out]  vip     the parameters, on success
@@ -79,7 +103,8 @@ open; "parse" here is not a promise that nothing is rejected.
 bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
                    VectorIndexParam &vip);
 
-/** DDL-time overload: checks the shape, then the contents. */
+/** DDL-time overload: checks the shape, then the contents, as
+prepare_options() does, but without touching a KEY. */
 bool parse_options(const Key_spec &index_def, VectorIndexParam &vip);
 
 /** Open-time overload: the definition came back from the DD, so its
@@ -93,6 +118,41 @@ bool parse_options(const KEY &key, VectorIndexParam &vip);
   any resolve failure (unknown name, empty value, etc.).
 */
 vector_constants::Metric metric_from_key(const KEY &key);
+
+/** Compare two definitions of a vector index - the table's and the one an
+ALTER TABLE gives the index of the same name - by their parsed parameters,
+so that names and values are compared in their native format, whatever
+their spelling or order in the list.
+@param[in]  old_key  the index's KEY in the table
+@param[in]  new_key  the index's KEY in the new version of the table
+@return true if they build different indexes */
+bool params_differ(const KEY &old_key, const KEY &new_key);
+
+/** Resolve a vector index's parameters once, at DDL time, and replace the
+KEY's WITH(...) list with the full canonical set: every parameter, the ones
+the user left out at their default, with canonical names and values. (The
+DD stores them sorted by name, so SHOW CREATE TABLE lists them in that
+order whatever the user wrote.) The KEY is what goes to the DD, so
+an index never relies on a compiled-in default after it has been created,
+and SHOW CREATE TABLE describes it completely. Idempotent.
+@param[in]      mem_root  where the new list is allocated, the KEY's own
+@param[in,out]  key       the vector index's KEY, as prepare_key() built it
+@return true on error, reported through my_error() */
+bool resolve_options(MEM_ROOT *mem_root, KEY *key);
+
+/** The DDL-time entry point, called from prepare_key() for every vector
+KEY: check the SHAPE of the index as the user wrote it - a non-prefixed
+column and an SE-specific algorithm - then resolve_options(), which checks
+the contents. Not the column count: the server rejects a multi-column
+vector key after this. The shape is only meaningful at DDL time, which is
+why it is read from the Key_spec: by the time a table is opened the
+definition has already been through here and come back from the DD.
+@param[in]      mem_root   where the new list is allocated, the KEY's own
+@param[in]      index_def  the index as the statement defines it
+@param[in,out]  key        the vector index's KEY, as prepare_key() built
+                           it from index_def
+@return true on error, reported through my_error() */
+bool prepare_options(MEM_ROOT *mem_root, const Key_spec &index_def, KEY *key);
 
 }  // namespace storage::innobase::vec
 

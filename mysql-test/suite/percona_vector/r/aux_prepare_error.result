@@ -46,7 +46,7 @@ tva	CREATE TABLE `tva` (
   `id` bigint unsigned NOT NULL,
   `v` vector(8) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6)
+  VECTOR KEY `v` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 percona_vec_hnsw_<TID>_<IID>.ibd
 DROP TABLE tva;

@@ -11145,6 +11145,9 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT
 ER_VECTOR_INDEX_WRONG_VALUE
   eng "Column '%-.192s' has a vector value its vector index cannot use."
 
+ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
+  eng "Duplicate index construction parameter: %.20s."
+
 start-error-number 7100
 
 #

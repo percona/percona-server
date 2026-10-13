@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cassert>
 #include <string_view>
 
 #include "my_inttypes.h"
@@ -53,19 +54,23 @@ enum class Metric {
   kManhattan
 };
 
+/** The name each Metric is spelled with in WITH(...). One table, so that
+    metric_from_name() and metric_name() cannot drift apart. */
+struct Metric_name {
+  std::string_view name;
+  Metric metric;
+};
+inline constexpr Metric_name kMetrics[] = {
+    {"euclidean", Metric::kEuclidean},
+    {"euclidean_squared", Metric::kEuclideanSquared},
+    {"cosine", Metric::kCosine},
+    {"dot", Metric::kDotProduct},
+    {"manhattan", Metric::kManhattan},
+};
+
 /** Maps a case-insensitive metric name to a Metric value.
     Returns nullptr on no match. */
 inline const Metric *metric_from_name(std::string_view name) {
-  static constexpr struct {
-    std::string_view name;
-    Metric metric;
-  } kMetrics[] = {
-      {"euclidean", Metric::kEuclidean},
-      {"euclidean_squared", Metric::kEuclideanSquared},
-      {"cosine", Metric::kCosine},
-      {"dot", Metric::kDotProduct},
-      {"manhattan", Metric::kManhattan},
-  };
   const auto *it = std::find_if(
       std::begin(kMetrics), std::end(kMetrics), [&](const auto &candidate) {
         return !my_strnncoll(
@@ -74,6 +79,16 @@ inline const Metric *metric_from_name(std::string_view name) {
             candidate.name.size());
       });
   return it != std::end(kMetrics) ? &it->metric : nullptr;
+}
+
+/** The canonical (lowercase) name of a Metric, the inverse of
+    metric_from_name(). */
+inline std::string_view metric_name(Metric metric) {
+  const auto *it = std::find_if(
+      std::begin(kMetrics), std::end(kMetrics),
+      [&](const auto &candidate) { return candidate.metric == metric; });
+  assert(it != std::end(kMetrics));
+  return it->name;
 }
 
 }  // namespace vector_constants

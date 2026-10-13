@@ -44,14 +44,14 @@ create table t1(
        index t1_4(c1, c2),
        index t1_5(c2, c1)
 ) engine=rocksdb;
---disable_query_log
-let $i=0;
-while ($i<100000)
-{
-  inc $i;
-  eval insert t1(id, i1, i2, c1, c2) values($i, $i, $i div 10, $i, $i div 10);
-}
---enable_query_log
+# One statement instead of 100,000 autocommit inserts (each of which would
+# sync the WAL and the binlog); the row values are unchanged.
+SET @saved_cte_depth = @@session.cte_max_recursion_depth;
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO t1(id, i1, i2, c1, c2)
+  WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 100000)
+  SELECT n, n, n DIV 10, n, n DIV 10 FROM seq;
+SET SESSION cte_max_recursion_depth = @saved_cte_depth;
 
 # Flush memtable out to SST and display index cardinalities
 optimize table t1;
@@ -68,14 +68,9 @@ SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema 
 CREATE TABLE t2 (a INT, b INT, c INT, d INT, e INT, f INT, g INT,
                  PRIMARY KEY (a), KEY (c, b, a, d, e, f, g))
                  ENGINE=ROCKSDB;
---disable_query_log
-let $i=0;
-while ($i<100)
-{
-  inc $i;
-  eval insert t2 values($i, $i div 10, 1, 1, 1, 1, 1);
-}
---enable_query_log
+INSERT INTO t2
+  WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 100)
+  SELECT n, n DIV 10, 1, 1, 1, 1, 1 FROM seq;
 
 # Cardinality of key c should be 1 for c, 10 for b, 100 for a and the other fields.
 SET GLOBAL rocksdb_force_flush_memtable_now = 1;

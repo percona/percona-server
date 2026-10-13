@@ -3297,6 +3297,9 @@ class Rdb_transaction {
   std::atomic<std::int64_t> m_snapshot_ts = 0;
 
   std::atomic<ulonglong> m_write_count = 0;
+  std::atomic<ulonglong> m_insert_count = 0;
+  std::atomic<ulonglong> m_update_count = 0;
+  std::atomic<ulonglong> m_delete_count = 0;
   // per row data
   std::atomic<ulonglong> m_row_lock_count = 0;
 
@@ -3534,8 +3537,47 @@ class Rdb_transaction {
   }
 
   // Safe to call from other threads
+  [[nodiscard]] ulonglong get_insert_count() const noexcept {
+    return m_insert_count.load(std::memory_order_relaxed);
+  }
+
+  // Safe to call from other threads
+  [[nodiscard]] ulonglong get_update_count() const noexcept {
+    return m_update_count.load(std::memory_order_relaxed);
+  }
+
+  // Safe to call from other threads
+  [[nodiscard]] ulonglong get_delete_count() const noexcept {
+    return m_delete_count.load(std::memory_order_relaxed);
+  }
+
+  // Safe to call from other threads
   [[nodiscard]] ulonglong get_row_lock_count() const noexcept {
     return m_row_lock_count.load(std::memory_order_relaxed);
+  }
+
+  void incr_insert_count() {
+    assert(!is_ac_nl_ro_rc_transaction());
+    // Unlike with incr_update_count and incr_delete_count below, inserts may
+    // happen without a snapshot, i.e. during a bulk load.
+
+    private_ctr_inc(m_insert_count);
+  }
+
+  void incr_update_count() {
+    assert(!is_ac_nl_ro_rc_transaction());
+    assert(get_snapshot_ts() != 0);
+
+    private_ctr_inc(m_update_count);
+  }
+
+  void incr_delete_count() {
+    assert(!is_ac_nl_ro_rc_transaction());
+    // A write batch (rocksdb_rpl_skip_tx_api) applies read-free replication
+    // deletes without a snapshot.
+    assert(get_snapshot_ts() != 0 || is_writebatch_trx());
+
+    private_ctr_inc(m_delete_count);
   }
 
   void incr_row_lock_count() {
@@ -4775,6 +4817,9 @@ class Rdb_transaction_impl : public Rdb_transaction {
     release_tx(wb_size);
 
     m_write_count = 0;
+    m_insert_count.store(0, std::memory_order_relaxed);
+    m_update_count.store(0, std::memory_order_relaxed);
+    m_delete_count.store(0, std::memory_order_relaxed);
     m_row_lock_count = 0;
     set_tx_read_only(false);
     m_rollback_only = false;
@@ -4785,6 +4830,9 @@ class Rdb_transaction_impl : public Rdb_transaction {
   void rollback() override {
     on_rollback();
     m_write_count = 0;
+    m_insert_count.store(0, std::memory_order_relaxed);
+    m_update_count.store(0, std::memory_order_relaxed);
+    m_delete_count.store(0, std::memory_order_relaxed);
     m_row_lock_count = 0;
     m_auto_incr_map.clear();
     reset_ddl_transaction();
@@ -5157,6 +5205,9 @@ class Rdb_writebatch_impl : public Rdb_transaction {
     reset();
 
     m_write_count = 0;
+    m_insert_count.store(0, std::memory_order_relaxed);
+    m_update_count.store(0, std::memory_order_relaxed);
+    m_delete_count.store(0, std::memory_order_relaxed);
     set_tx_read_only(false);
     m_rollback_only = false;
     return res;
@@ -5190,6 +5241,9 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   void rollback() override {
     on_rollback();
     m_write_count = 0;
+    m_insert_count.store(0, std::memory_order_relaxed);
+    m_update_count.store(0, std::memory_order_relaxed);
+    m_delete_count.store(0, std::memory_order_relaxed);
     m_row_lock_count = 0;
     release_snapshot();
 
@@ -6266,9 +6320,11 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
           "%s\n"
           "earliest snapshot created %" PRId64
           " sec ago\n"
-          "lock count %llu, write count %llu\n",
+          "lock count %llu, write count %llu\n"
+          "insert count %llu, update count %llu, delete count %llu\n",
           buffer, earliest_snapshot_age, tx->get_row_lock_count(),
-          tx->get_write_count());
+          tx->get_write_count(), tx->get_insert_count(), tx->get_update_count(),
+          tx->get_delete_count());
     } else {
       m_data += format_string("---NO ACTIVE SNAPSHOT\n");
 
@@ -6278,8 +6334,52 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker {
       m_data += format_string(
           "%s\n"
           "earliest snapshot never created\n"
-          "lock count %llu, write count %llu\n",
-          buffer, tx->get_row_lock_count(), tx->get_write_count());
+          "lock count %llu, write count %llu\n"
+          "insert count %llu, update count %llu, delete count %llu\n",
+          buffer, tx->get_row_lock_count(), tx->get_write_count(),
+          tx->get_insert_count(), tx->get_update_count(),
+          tx->get_delete_count());
+    }
+  }
+
+  void populate_deadlock_buffer() {
+    const auto &dlock_buffer = rdb->GetDeadlockInfoBuffer();
+    m_data += "----------LATEST DETECTED DEADLOCKS----------\n";
+
+    for (const auto &path_entry : dlock_buffer) {
+      std::string path_data;
+      if (path_entry.limit_exceeded) {
+        path_data += "\n-------DEADLOCK EXCEEDED MAX DEPTH-------\n";
+      } else {
+        path_data +=
+            "\n*** DEADLOCK PATH\n"
+            "=========================================\n";
+        const auto dl_info = get_dl_path_trx_info(path_entry);
+        const auto deadlock_time = dl_info.deadlock_time;
+        for (auto it = dl_info.path.begin(); it != dl_info.path.end(); it++) {
+          const auto &trx_info = *it;
+          path_data += format_string(
+              "TIMESTAMP: %" PRId64
+              "\n"
+              "TRANSACTION ID: %llu\n"
+              "COLUMN FAMILY NAME: %s\n"
+              "WAITING KEY: %s\n"
+              "LOCK TYPE: %s\n"
+              "INDEX NAME: %s\n"
+              "TABLE NAME: %s\n",
+              deadlock_time, trx_info.trx_id, trx_info.cf_name.c_str(),
+              trx_info.waiting_key.c_str(),
+              trx_info.exclusive_lock ? "EXCLUSIVE" : "SHARED",
+              trx_info.index_name.c_str(), trx_info.table_name.c_str());
+          if (it != dl_info.path.end() - 1) {
+            path_data += "---------------WAITING FOR---------------\n";
+          }
+        }
+        path_data += format_string(
+            "\n--------TRANSACTION ID: %llu GOT DEADLOCK---------\n",
+            dl_info.victim_trx_id);
+      }
+      m_data += path_data;
     }
   }
 
@@ -6395,6 +6495,18 @@ std::vector<Rdb_trx_info> rdb_get_all_trx_info() {
 */
 std::vector<Rdb_deadlock_info> rdb_get_deadlock_info() {
   return Rdb_snapshot_status::get_deadlock_info();
+}
+
+/* Generate the output of SHOW ENGINE ROCKSDB TRANSACTION STATUS */
+static bool rocksdb_show_snapshot_status(THD *const thd,
+                                         stat_print_fn *const stat_print) {
+  Rdb_snapshot_status showStatus;
+
+  Rdb_transaction_list::for_each(showStatus);
+  showStatus.populate_deadlock_buffer();
+
+  /* Send the result data back to MySQL */
+  return print_stats(thd, "rocksdb", "", showStatus.getResult(), stat_print);
 }
 
 /*
@@ -6579,6 +6691,9 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
                            stat_print);
       }
     }
+  } else if (stat_type == HA_ENGINE_TRX) {
+    /* Handle the SHOW ENGINE ROCKSDB TRANSACTION STATUS command */
+    res |= rocksdb_show_snapshot_status(thd, stat_print);
   }
 
   if (res) {
@@ -12222,6 +12337,12 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
     DBUG_RETURN(rc);
   }
 
+  if (old_data != nullptr) {
+    row_info.tx->incr_update_count();
+  } else {
+    row_info.tx->incr_insert_count();
+  }
+
   row_info.tx->log_table_write_op(m_tbl_def);
 
   if (do_bulk_commit(row_info.tx)) {
@@ -12622,6 +12743,7 @@ int ha_rocksdb::delete_row(const uchar *const buf) {
     }
   }
 
+  tx->incr_delete_count();
   tx->log_table_write_op(m_tbl_def);
 
   if (do_bulk_commit(tx)) {

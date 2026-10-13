@@ -1,0 +1,29 @@
+#
+# Read-free replication with rocksdb_rpl_skip_tx_api applies updates and
+# deletes without a snapshot.
+#
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, a INT, KEY ka(a)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30);
+UPDATE t1 SET a = a + 1 WHERE id = 2;
+DELETE FROM t1 WHERE id = 1;
+include/rpl/sync_to_replica.inc
+SELECT @@global.rocksdb_rpl_skip_tx_api, @@global.rocksdb_read_free_rpl;
+@@global.rocksdb_rpl_skip_tx_api	@@global.rocksdb_read_free_rpl
+1	PK_SK
+SELECT * FROM t1 ORDER BY id;
+id	a
+2	21
+3	30
+SELECT * FROM t1 FORCE INDEX(ka) ORDER BY a;
+id	a
+2	21
+3	30
+[connection master]
+DROP TABLE t1;
+include/rpl/deinit.inc

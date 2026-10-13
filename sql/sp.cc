@@ -2323,6 +2323,7 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_SHOW_FUNC_CODE:
     case SQLCOM_SHOW_GRANTS:
     case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ENGINE_TRX:
     case SQLCOM_SHOW_ENGINE_LOGS:
     case SQLCOM_SHOW_ENGINE_MUTEX:
     case SQLCOM_SHOW_EVENTS:

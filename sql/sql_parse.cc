@@ -664,6 +664,7 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_SHOW_ERRORS] =
       CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
   sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_TRX] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROCESSLIST] = CF_STATUS_COMMAND;
@@ -960,6 +961,7 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_SHOW_STATUS] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_ENGINE_LOGS] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_ENGINE_STATUS] |= CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_SHOW_ENGINE_TRX] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_ENGINE_MUTEX] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_PROCESSLIST] |= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_SHOW_BINLOG_STATUS] |= CF_ALLOW_PROTOCOL_PLUGIN;
@@ -4952,6 +4954,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SHOW_ENGINE_LOGS:
     case SQLCOM_SHOW_ENGINE_MUTEX:
     case SQLCOM_SHOW_ENGINE_STATUS:
+    case SQLCOM_SHOW_ENGINE_TRX:
     case SQLCOM_SHOW_ERRORS:
     case SQLCOM_SHOW_EVENTS:
     case SQLCOM_SHOW_FIELDS:

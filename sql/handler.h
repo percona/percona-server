@@ -954,7 +954,12 @@ enum enum_schema_tables : int {
   SCH_LAST = SCH_USER_STATS
 };
 
-enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
+enum ha_stat_type {
+  HA_ENGINE_STATUS,
+  HA_ENGINE_LOGS,
+  HA_ENGINE_MUTEX,
+  HA_ENGINE_TRX
+};
 enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 enum ha_ddl_type : int {
   HA_INVALID_DDL,

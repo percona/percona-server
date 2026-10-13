@@ -1,0 +1,58 @@
+#
+# A column family creation that fails after RocksDB has already created
+# the column family (for example while persisting the OPTIONS file)
+# must be reported as an error and rolled back.
+#
+set @old_debug = @@global.debug;
+set @@global.debug = '+d,rocksdb_create_cf_persist_options_failure';
+create table t1 (id int, primary key (id) comment 'cfname=cf_create_failure') engine=rocksdb;
+ERROR HY000: Got error 5 'IO error: Simulated failure to persist the OPTIONS file (Error creating column family)' from ROCKSDB
+show tables;
+Tables_in_test
+select distinct cf_name from information_schema.rocksdb_cfstats where cf_name = 'cf_create_failure';
+cf_name
+set @@global.debug = @old_debug;
+# The partially created column family was dropped again, so creating it
+# once the failure is gone succeeds instead of reporting that it exists
+create table t1 (id int, primary key (id) comment 'cfname=cf_create_failure') engine=rocksdb;
+insert into t1 values (1), (2);
+select distinct cf_name from information_schema.rocksdb_cfstats where cf_name = 'cf_create_failure';
+cf_name
+cf_create_failure
+select * from t1;
+id
+1
+2
+drop table t1;
+# If rollback also fails, retain the live CF handle for retry
+SET GLOBAL debug='+d,rocksdb_create_cf_persist_options_failure,rocksdb_create_cf_rollback_failure';
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_failure') ENGINE=ROCKSDB;
+ERROR HY000: Got error 5 'IO error: Simulated failure to persist the OPTIONS file (Error creating column family)' from ROCKSDB
+SET GLOBAL debug=@old_debug;
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_failure') ENGINE=ROCKSDB;
+INSERT INTO retry_t VALUES (1),(2);
+SELECT * FROM retry_t ORDER BY id;
+id
+1
+2
+DROP TABLE retry_t;
+# If the rollback drop fails only while persisting the OPTIONS file, the
+# CF is already dropped: don't register it, create it again on retry
+SET GLOBAL debug='+d,rocksdb_create_cf_persist_options_failure,rocksdb_create_cf_rollback_options_failure';
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_options_failure') ENGINE=ROCKSDB;
+ERROR HY000: Got error 5 'IO error: Simulated failure to persist the OPTIONS file (Error creating column family)' from ROCKSDB
+SET GLOBAL debug=@old_debug;
+SELECT DISTINCT cf_name FROM information_schema.rocksdb_cfstats WHERE cf_name = 'cf_rollback_options_failure';
+cf_name
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_options_failure') ENGINE=ROCKSDB;
+INSERT INTO retry_t VALUES (1),(2);
+SELECT * FROM retry_t ORDER BY id;
+id
+1
+2
+# restart
+SELECT * FROM retry_t ORDER BY id;
+id
+1
+2
+DROP TABLE retry_t;

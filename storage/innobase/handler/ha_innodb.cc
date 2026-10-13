@@ -4836,21 +4836,20 @@ static bool innobase_redo_set_state(THD *thd, bool enable) {
   return (false);
 }
 
-static bool innobase_validate_vector_index_params(
-    THD *thd, const char *db_name, HA_CREATE_INFO *create_info,
-    const Alter_info *alter_info) {
-  /* Every vector key, so the error does not depend on key order. */
-  for (const auto *key : alter_info->key_list) {
-    if (key->type != KEYTYPE_VECTOR) continue;
-    if (storage::innobase::vec::validate_options(*key)) return true;
-  }
-
-  return false;
+static bool innobase_prepare_vector_index_params(MEM_ROOT *mem_root,
+                                                 const Key_spec &key_spec,
+                                                 KEY *key) {
+  return storage::innobase::vec::prepare_options(mem_root, key_spec, key);
 }
 
 static vector_constants::Metric innobase_vector_index_metric(const KEY &key) {
   assert(key.flags & HA_VECTOR);
   return storage::innobase::vec::metric_from_key(key);
+}
+
+static bool innobase_compare_vector_index_params(const KEY &old_key,
+                                                 const KEY &new_key) {
+  return storage::innobase::vec::params_differ(old_key, new_key);
 }
 
 /** Return partitioning flags. */
@@ -5857,9 +5856,11 @@ static int innodb_init(void *p) {
       innobase_fix_default_table_encryption;
 
   innobase_hton->redo_log_set_state = innobase_redo_set_state;
-  innobase_hton->validate_vector_index_params =
-      innobase_validate_vector_index_params;
+  innobase_hton->prepare_vector_index_params =
+      innobase_prepare_vector_index_params;
   innobase_hton->vector_index_metric = innobase_vector_index_metric;
+  innobase_hton->compare_vector_index_params =
+      innobase_compare_vector_index_params;
 
   innobase_hton->post_ddl = innobase_post_ddl;
 

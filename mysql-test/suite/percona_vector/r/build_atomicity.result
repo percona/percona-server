@@ -64,7 +64,7 @@ t1	CREATE TABLE `t1` (
   `id` bigint unsigned NOT NULL,
   `v` vector(2) NOT NULL,
   PRIMARY KEY (`id`),
-  VECTOR KEY `vk3` (`v`) USING `hnsw` (`M`=4)
+  VECTOR KEY `vk3` (`v`) USING `hnsw` (`M`=4, `ef_construction`=200, `metric`=`euclidean`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 5;
 id

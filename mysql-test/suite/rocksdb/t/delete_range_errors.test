@@ -1,0 +1,59 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--disable_query_log
+CALL mtr.add_suppression("Ignoring I/O errors.*injected DeleteRange");
+--enable_query_log
+SET @saved_debug = @@global.debug;
+SET @saved_io_action = @@global.rocksdb_io_error_action;
+SET @saved_delete_range = @@global.rocksdb_enable_delete_range_for_drop_index;
+SET GLOBAL rocksdb_enable_delete_range_for_drop_index = ON;
+SET GLOBAL rocksdb_io_error_action = 'IGNORE_ERROR';
+
+--echo # A failed cleanup write cannot leave a readable table with deleted SSTs
+CREATE TABLE t (id INT, PRIMARY KEY(id) COMMENT 'cfname=delete_range_errors')
+  ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1),(2);
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+SET GLOBAL rocksdb_compact_cf='delete_range_errors';
+SET GLOBAL debug = '+d,rocksdb_delete_range_write_failure';
+DROP TABLE t;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t;
+--let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern = injected DeleteRange write error
+--let $wait_timeout = 60
+--source include/wait_for_pattern_in_file.inc
+SELECT COUNT(*) > 0 AS cleanup_pending FROM information_schema.rocksdb_global_info
+  WHERE type='DDL_DROP_INDEX_ONGOING';
+
+--echo # A failed cleanup flush must not leave a visible emptied secondary index
+CREATE TABLE pt (id INT PRIMARY KEY, v INT, KEY vi(v)) ENGINE=ROCKSDB
+  PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO pt VALUES (1,10),(2,20);
+SET GLOBAL debug = '-d,rocksdb_delete_range_write_failure';
+SET GLOBAL debug = '+d,rocksdb_delete_range_flush_failure';
+ALTER TABLE pt DROP INDEX vi, ALGORITHM=INPLACE;
+SELECT * FROM pt FORCE INDEX(PRIMARY) ORDER BY id;
+--error ER_KEY_DOES_NOT_EXITS
+SELECT * FROM pt FORCE INDEX(vi) WHERE v >= 10;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+  WHERE table_schema='test' AND table_name='pt';
+--let $grep_pattern = injected DeleteRange flush error
+--source include/wait_for_pattern_in_file.inc
+SELECT COUNT(*) > 0 AS cleanup_pending FROM information_schema.rocksdb_global_info
+  WHERE type='DDL_DROP_INDEX_ONGOING';
+SET GLOBAL debug = @saved_debug;
+
+--echo # Persistent pending cleanup survives restart and can finish later
+--source include/restart_mysqld.inc
+SELECT * FROM pt ORDER BY id;
+--error ER_KEY_DOES_NOT_EXITS
+SELECT * FROM pt FORCE INDEX(vi) WHERE v >= 10;
+SET GLOBAL rocksdb_enable_delete_range_for_drop_index = ON;
+SET GLOBAL rocksdb_signal_drop_index_thread = 1;
+--let $wait_timeout = 120
+--let $wait_condition = SELECT COUNT(*) = 0 FROM information_schema.rocksdb_global_info WHERE type='DDL_DROP_INDEX_ONGOING'
+--source include/wait_condition.inc
+DROP TABLE pt;
+SET GLOBAL rocksdb_enable_delete_range_for_drop_index = DEFAULT;
+SET GLOBAL rocksdb_io_error_action = DEFAULT;

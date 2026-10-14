@@ -214,6 +214,9 @@ TEST(Vec0HnswErrorTest, EveryResultMapsToItsOwnError) {
   no retry changes that. Index-scoped, not DB_CORRUPTION, which would
   report the base table as crashed. */
   EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_NOT_FOUND, &ctx));
+  /* Structural inconsistency in the in-memory graph is the same kind of
+  permanent, index-scoped failure. */
+  EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_CORRUPTED, &ctx));
 
   /* Both OOM results are transient, and neither may be DB_OUT_OF_MEMORY. */
   EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, &ctx));
@@ -237,11 +240,13 @@ TEST(Vec0HnswErrorTest, EveryResultMapsToItsOwnError) {
   Vec_ctx noisy;
   noisy.err = DB_LOCK_WAIT_TIMEOUT;
   EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_NOT_FOUND, &noisy));
+  EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_CORRUPTED, &noisy));
   EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, &noisy));
 
   /* An index build has no context to report through - its persistor
   cannot fail - and every result it can see maps without one. */
   EXPECT_EQ(DB_SUCCESS, vec_hnsw_dberr(HNSW_SUCCESS, nullptr));
+  EXPECT_EQ(DB_INDEX_CORRUPT, vec_hnsw_dberr(HNSW_CORRUPTED, nullptr));
   EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_GRAPH, nullptr));
   EXPECT_EQ(DB_VEC_OUT_OF_MEMORY, vec_hnsw_dberr(HNSW_OOM_CONTEXT, nullptr));
 }
@@ -253,7 +258,7 @@ that matters here. */
 TEST(Vec0HnswErrorTest, NoResultMapsToAFatalError) {
   Vec_ctx ctx;
   for (const HnswResult rc :
-       {HNSW_NOT_FOUND, HNSW_OOM_GRAPH, HNSW_OOM_CONTEXT}) {
+       {HNSW_NOT_FOUND, HNSW_CORRUPTED, HNSW_OOM_GRAPH, HNSW_OOM_CONTEXT}) {
     const dberr_t err = vec_hnsw_dberr(rc, &ctx);
     EXPECT_NE(DB_OUT_OF_MEMORY, err) << "result " << rc;
     EXPECT_NE(DB_ERROR, err) << "result " << rc;

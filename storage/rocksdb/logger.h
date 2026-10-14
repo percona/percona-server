@@ -45,7 +45,10 @@ class Rdb_logger : public rocksdb::Logger {
     enum loglevel mysql_log_level;
 
     if (m_logger) {
-      m_logger->Logv(log_level, format, ap);
+      va_list logger_ap;
+      va_copy(logger_ap, ap);
+      m_logger->Logv(log_level, format, logger_ap);
+      va_end(logger_ap);
     }
 
     if (log_level < m_mysql_log_level) {
@@ -61,9 +64,10 @@ class Rdb_logger : public rocksdb::Logger {
     }
 
     // log to MySQL
-    char buffer[1024];
+    // Match the server logger's capacity instead of truncating at 1 KiB.
+    char buffer[LOG_BUFF_MAX];
     vsnprintf(buffer, sizeof(buffer), format, ap);
-    LogPluginErrMsg(mysql_log_level, 0, "%s", buffer);
+    LogPluginErrMsg(mysql_log_level, ER_LOG_PRINTF_MSG, "%s", buffer);
   }
 
   void Logv(const char *format, va_list ap) override {

@@ -1532,6 +1532,8 @@ class Rdb_ddl_manager : public Ensure_initialized {
   /* Modify the mapping and write it to on-disk storage */
   [[nodiscard]] int put_and_write(Rdb_tbl_def *const key_descr,
                                   rocksdb::WriteBatch &batch);
+  // Commit a replacement before changing the cache. Takes ownership on success.
+  [[nodiscard]] int replace_and_commit(Rdb_tbl_def *tbl);
   void remove(Rdb_tbl_def *rec, rocksdb::WriteBatch &batch,
               uint table_default_cf_id, bool lock = true);
   [[nodiscard]] bool rename(const std::string &from, const std::string &to,
@@ -1553,6 +1555,9 @@ class Rdb_ddl_manager : public Ensure_initialized {
   [[nodiscard]] int find_in_uncommitted_keydef(uint32_t cf_id) const;
 
  private:
+  [[nodiscard]] int write_to_batch(Rdb_tbl_def *tbl,
+                                   rocksdb::WriteBatch &batch);
+
   /* Put the data into in-memory table (only) */
   int put(Rdb_tbl_def *const key_descr, const bool lock = true);
 

@@ -870,6 +870,7 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
       MY_ATTRIBUTE((__warn_unused_result__));
 
   bool get_error_message(const int error, String *const buf) override;
+  bool is_temporary_error(const int error) const override;
 
   static int rdb_error_to_mysql(const rocksdb::Status &s,
                                 const char *msg = nullptr)

@@ -1,0 +1,16 @@
+CREATE TABLE t (id INT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,1);
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT * FROM t WHERE id=1;
+id	value
+1	1
+UPDATE t SET value=2 WHERE id=1;
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+SELECT * FROM t;
+id	value
+1	2
+include/assert_grep.inc [Snapshot conflicts must not pollute the server error log]
+DROP TABLE t;

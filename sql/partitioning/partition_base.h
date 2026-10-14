@@ -530,6 +530,9 @@ class Partition_base : public handler,
   */
   void print_error(int error, myf errflag) override;
   bool get_error_message(int error, String *buf) override;
+  bool is_temporary_error(int error) const override {
+    return m_file != nullptr && m_file[0]->is_temporary_error(error);
+  }
   /*
    -------------------------------------------------------------------------
     MODULE handler characteristics

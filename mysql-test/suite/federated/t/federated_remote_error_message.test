@@ -1,0 +1,31 @@
+#
+# A read error reported through report_handler_error() (here by COUNT(*))
+# must keep the remote error text, as a plain scan does.
+#
+--source suite/federated/include/federated.inc
+
+connection slave;
+CREATE TABLE federated.t1 (id INT PRIMARY KEY, v INT);
+INSERT INTO federated.t1 VALUES (1,1),(2,2);
+
+connection master;
+CALL mtr.add_suppression("Got error .* when reading table");
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (id INT PRIMARY KEY, v INT) ENGINE=FEDERATED
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+SELECT COUNT(*) FROM federated.t1;
+
+connection slave;
+ALTER TABLE federated.t1 RENAME COLUMN v TO w;
+
+connection master;
+--error ER_GET_ERRMSG
+SELECT * FROM federated.t1;
+--error ER_GET_ERRMSG
+SELECT COUNT(*) FROM federated.t1;
+DROP TABLE federated.t1;
+
+connection slave;
+DROP TABLE federated.t1;
+
+--source suite/federated/include/federated_cleanup.inc

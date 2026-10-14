@@ -1,0 +1,28 @@
+--source include/have_rocksdb.inc
+--source include/have_perfschema.inc
+
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1);
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+INSERT INTO t VALUES (2);
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+
+# Prove that archived WALs exist, so the exclusion check is not vacuous.
+--let rocksdb_dir = `SELECT CONCAT(@@datadir, @@rocksdb_datadir)`
+--perl
+  my $dir = $ENV{'rocksdb_dir'};
+  my @archived;
+  for (1..100) {
+    @archived = glob("$dir/archive/*.log");
+    last if @archived;
+    select undef, undef, undef, 0.1;
+  }
+  die "No archived WAL was produced" unless @archived;
+EOF
+
+INSERT INTO t VALUES (3);
+SELECT JSON_LENGTH(storage_engines->'$.RocksDB.wal_files') > 0 AS has_live_wals,
+       JSON_SEARCH(storage_engines->'$.RocksDB.wal_files', 'one', '%archive%') IS NULL
+         AS excludes_archived_wals
+  FROM performance_schema.log_status;
+DROP TABLE t;

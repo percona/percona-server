@@ -987,6 +987,7 @@ rocksdb_force_compute_memtable_stats_cachetime	0
 rocksdb_force_flush_memtable_and_lzero_now	OFF
 rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
+rocksdb_gap_lock_raise_error	ERROR
 rocksdb_ignore_unknown_options	ON
 rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level

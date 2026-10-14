@@ -282,7 +282,8 @@ bool Rdb_cf_options::parse_cf_options(std::string_view cf_options,
                 << cf_options << ')';
       if (print_warnings) {
         // NO_LINT_DEBUG
-        LogPluginErrMsg(WARNING_LEVEL, 0, "%s", output->str().c_str());
+        LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG, "%s",
+                        output->str().c_str());
       }
       return false;
     }
@@ -292,7 +293,8 @@ bool Rdb_cf_options::parse_cf_options(std::string_view cf_options,
       (*output) << "Duplicate entry for '" << cf.c_str()
                 << "' in override options (options: " << cf_options << ')';
       if (print_warnings) {
-        LogPluginErrMsg(WARNING_LEVEL, 0, "%s", output->str().c_str());
+        LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG, "%s",
+                        output->str().c_str());
       }
       return false;
     }
@@ -305,7 +307,8 @@ bool Rdb_cf_options::parse_cf_options(std::string_view cf_options,
                 << "' in override options: " << s.getState()
                 << " (options: " << cf_options << ')';
       if (print_warnings) {
-        LogPluginErrMsg(WARNING_LEVEL, 0, "%s", output->str().c_str());
+        LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG, "%s",
+                        output->str().c_str());
       }
       return false;
     }

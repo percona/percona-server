@@ -2284,12 +2284,12 @@ bool Rdb_key_def::table_has_hidden_pk(const TABLE &table) {
 void Rdb_key_def::report_checksum_mismatch(const bool is_key,
                                            const char *const data,
                                            const size_t data_size) const {
-  LogPluginErrMsg(ERROR_LEVEL, 0,
+  LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                   "Checksum mismatch in %s of key-value pair for index 0x%x",
                   is_key ? "key" : "value", get_index_number());
 
   const auto buf = rdb_hexdump(data, data_size);
-  LogPluginErrMsg(ERROR_LEVEL, 0,
+  LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                   "Data with incorrect checksum (%" PRIu64 " bytes): %s",
                   (uint64_t)data_size, buf.c_str());
 
@@ -4381,10 +4381,10 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
                                        &space_mb_len);
         } else {
           LogPluginErrMsg(
-              WARNING_LEVEL, 0,
+              WARNING_LEVEL, ER_LOG_PRINTF_MSG,
               "Trying to create an index with a multi-level collation %s",
               cs->m_coll_name);
-          LogPluginErrMsg(WARNING_LEVEL, 0,
+          LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                           "Will handle this collation internally as if it had "
                           "a NO_PAD attribute.");
         }
@@ -4779,7 +4779,7 @@ bool Rdb_validate_tbls::compare_to_mysql_dd_tables(bool *has_errors) {
       */
       if (m_list.count(expected_db_name) == 0 ||
           m_list[expected_db_name].erase(expected_tbl_name) == 0) {
-        LogPluginErrMsg(WARNING_LEVEL, 0,
+        LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                         "RocksDB: Schema mismatch - "
                         "A DD table exists for table %s.%s, "
                         "but that table is not registered in RocksDB",
@@ -4822,7 +4822,7 @@ bool Rdb_ddl_manager::validate_schemas(void) const {
   */
   for (const auto &db : table_list.m_list) {
     for (const auto &table : db.second) {
-      LogPluginErrMsg(WARNING_LEVEL, 0,
+      LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                       "Schema mismatch - Table %s.%s is registered in RocksDB "
                       "but does not have a corresponding DD table",
                       db.first.c_str(), table.c_str());
@@ -4871,7 +4871,7 @@ bool Rdb_ddl_manager::validate_auto_incr() const {
     ptr += Rdb_key_def::INDEX_NUMBER_SIZE;
     rdb_netbuf_read_gl_index(&ptr, &gl_index_id);
     if (!dict_user_table->get_index_info(gl_index_id, nullptr)) {
-      LogPluginErrMsg(WARNING_LEVEL, 0,
+      LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                       "AUTOINC mismatch - Index number (%u, %u) found in "
                       "AUTOINC but does not exist as a DDL entry for table %s",
                       gl_index_id.cf_id, gl_index_id.index_id,
@@ -4882,7 +4882,7 @@ bool Rdb_ddl_manager::validate_auto_incr() const {
     ptr = reinterpret_cast<const uchar *>(val.data());
     const int version = rdb_netbuf_read_uint16(&ptr);
     if (version > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-      LogPluginErrMsg(WARNING_LEVEL, 0,
+      LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                       "AUTOINC mismatch - Index number (%u, %u) found in "
                       "AUTOINC is on unsupported version %d for table %s",
                       gl_index_id.cf_id, gl_index_id.index_id, version,
@@ -4947,7 +4947,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     }
 
     if (key.size() <= Rdb_key_def::INDEX_NUMBER_SIZE) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Table_store: key has length %d (corruption?)",
                       static_cast<int>(key.size()));
       return true;
@@ -4959,7 +4959,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     // Now, read the DDLs.
     const int real_val_size = val.size() - Rdb_key_def::VERSION_SIZE;
     if (real_val_size % Rdb_key_def::PACKED_SIZE * 2 > 0) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Table_store: invalid keylist for table %s",
                       tdef->full_tablename().c_str());
       return true;
@@ -4972,7 +4972,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     const int version = rdb_netbuf_read_uint16(&ptr);
     if (version != Rdb_key_def::DDL_ENTRY_INDEX_VERSION) {
       LogPluginErrMsg(
-          ERROR_LEVEL, 0,
+          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
           "DDL ENTRY Version was not expected. Expected: %d, Actual: %d",
           Rdb_key_def::DDL_ENTRY_INDEX_VERSION, version);
       return true;
@@ -4984,7 +4984,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       uint flags = 0;
       struct Rdb_index_info index_info;
       if (!dict_user_table->get_index_info(gl_index_id, &index_info)) {
-        LogPluginErrMsg(ERROR_LEVEL, 0,
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Could not get index information for Index Number "
                         "(%u,%u), table %s",
                         gl_index_id.cf_id, gl_index_id.index_id,
@@ -4996,7 +4996,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
                                   ? max_dd_index_id_in_dict
                                   : max_index_id_in_dict;
       if (cur_max_index_id < gl_index_id.index_id) {
-        LogPluginErrMsg(ERROR_LEVEL, 0,
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Found max index id %u from data dictionary but also "
                         "found larger index id %u from dictionary. This should "
                         "never happen and possibly a bug.",
@@ -5005,7 +5005,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       }
       if (!dict_user_table->get_cf_flags(gl_index_id.cf_id, &flags)) {
         LogPluginErrMsg(
-            ERROR_LEVEL, 0,
+            ERROR_LEVEL, ER_LOG_PRINTF_MSG,
             "Could not get Column Family Flags for CF Number %d, table %s",
             gl_index_id.cf_id, tdef->full_tablename().c_str());
         return true;
@@ -5015,7 +5015,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
         // The per-index cf option is deprecated.  Make sure we don't have the
         // flag set in any existing database.
         LogPluginErrMsg(
-            ERROR_LEVEL, 0,
+            ERROR_LEVEL, ER_LOG_PRINTF_MSG,
             "The defunct AUTO_CF_FLAG is enabled for CF number %d, table %s",
             gl_index_id.cf_id, tdef->full_tablename().c_str());
       }
@@ -5079,7 +5079,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     return true;
   }
   delete it;
-  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Table_store: loaded DDL data for %d tables", i);
 
   initialized = true;
@@ -5102,7 +5102,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     }
     if (validate_tables == 1 && !msg.empty()) {
       LogPluginErrMsg(
-          ERROR_LEVEL, 0,
+          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
           "%s. Use \"rocksdb_validate_tables=2\" to ignore this error.",
           msg.c_str());
       return true;
@@ -5804,7 +5804,7 @@ bool Rdb_dict_manager::get_index_info(
   }
 
   if (error) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Found invalid key version number (%hu"
                     ", %hhu, %hu"
                     ", %" PRIu64
@@ -5997,7 +5997,7 @@ int Rdb_dict_manager::remove_orphaned_dropped_cfs(
   get_all_dropped_cfs(&dropped_cf_ids);
   for (const auto cf_id : dropped_cf_ids) {
     if (!cf_manager->get_cf(cf_id)) {
-      LogPluginErrMsg(WARNING_LEVEL, 0,
+      LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                       "Column family with id %u doesn't exist in "
                       "cf manager, but it is listed to be dropped",
                       cf_id);
@@ -6121,8 +6121,9 @@ void Rdb_dict_manager::add_create_index(
     const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
     rocksdb::WriteBatch &batch) const {
   for (const auto &gl_index_id : gl_index_ids) {
-    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Begin index creation (%u,%u)",
-                    gl_index_id.cf_id, gl_index_id.index_id);
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Begin index creation (%u,%u)", gl_index_id.cf_id,
+                    gl_index_id.index_id);
     start_create_index(batch, gl_index_id);
   }
 }
@@ -6181,7 +6182,7 @@ void Rdb_dict_manager::resume_drop_indexes() const {
     log_start_drop_index(gl_index_id, "Resume");
     if (max_index_id_in_dict < gl_index_id.index_id) {
       LogPluginErrMsg(
-          ERROR_LEVEL, 0,
+          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
           "Found max index id %u from data dictionary but also found dropped "
           "index id (%u,%u) from drop_index dictionary. This should never "
           "happen and is possibly a bug.",
@@ -6203,7 +6204,7 @@ void Rdb_dict_manager::rollback_ongoing_index_creation(
   auto batch = Rdb_dict_manager::begin();
 
   for (const auto &gl_index_id : gl_index_ids) {
-    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Removing incomplete create index (%u,%u)",
                     gl_index_id.cf_id, gl_index_id.index_id);
 
@@ -6235,7 +6236,7 @@ void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,
 
     if (!incomplete_create_indexes.count(gl_index_id)) {
       /* If it's not a partially created index, something is very wrong. */
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Failed to get column family info from index id (%u,%u). "
                       "MyRocks data dictionary may get corrupted.",
                       gl_index_id.cf_id, gl_index_id.index_id);
@@ -6271,7 +6272,7 @@ bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch &batch,
   uint32_t old_index_id = -1;
   if (get_max_index_id(&old_index_id, is_dd_tbl)) {
     if (old_index_id > index_id) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Found max index id %u from data dictionary but trying "
                       "to update to older value %u. This should never happen "
                       "and possibly a bug.",

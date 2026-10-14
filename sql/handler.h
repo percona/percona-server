@@ -5268,6 +5268,14 @@ class handler {
   int update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
+  /**
+    Return true if the error is a temporary condition, such as a lock
+    conflict, that should not be written to the error log. Unlike
+    get_error_message(), this must not change the handler state.
+  */
+  virtual bool is_temporary_error(int error [[maybe_unused]]) const {
+    return false;
+  }
   uint get_dup_key(int error);
   /**
     Retrieves the names of the table and the key for which there was a

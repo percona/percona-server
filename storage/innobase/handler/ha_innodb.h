@@ -199,6 +199,7 @@ class ha_innobase : public handler {
 
   int ft_read(uchar *buf) override;
 
+ protected:
   int vec_init() override;
   int vec_read_first(Item *item, uchar *buf, ha_rows limit) override;
   int vec_read_next(uchar *buf) override;

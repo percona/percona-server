@@ -6209,20 +6209,15 @@ class handler {
   int ha_ft_read(uchar *buf);
   int ha_read_first_row(uchar *buf, uint primary_key);
 
-  /** Approximate ANN read path over a vector index: rows
-  are produced in ascending distance from the constant query vector.
-  `limit` is the initial batch size (the query's LIMIT); readers must
-  keep producing past it - the engine widens the search - because
-  filters above the iterator may consume arbitrarily many rows.
-  Callers call ha_index_init() on the vector key, then vec_init() on
-  every (re)initialization, as FullTextSearchIterator does with
-  ft_init(); ha_index_or_rnd_end() ends the scan. The handler is then
-  INDEX, so vec_init() must leave active_index on the vector key. */
-  virtual int vec_init() { return HA_ERR_WRONG_COMMAND; }
-  virtual int vec_read_first(Item *, uchar *, ha_rows) {
-    return HA_ERR_WRONG_COMMAND;
-  }
-  virtual int vec_read_next(uchar *) { return HA_ERR_WRONG_COMMAND; }
+  /** Approximate ANN read path over a vector index: rows are
+  produced in ascending distance from the constant query vector.
+  The ha_* functions are wrappers for the actual implementation
+  in the storage engine. They are responsible for auxiliary
+  work such as computing values of virtual generated columns and
+  updating row status. */
+  int ha_vec_init();
+  int ha_vec_read_first(Item *item, uchar *buf, ha_rows limit);
+  int ha_vec_read_next(uchar *buf);
 
  protected:
   /// @see index_read_map().
@@ -6231,6 +6226,21 @@ class handler {
   virtual int rnd_pos(uchar *buf, uchar *pos) = 0;
 
   virtual int ft_read(uchar *) { return HA_ERR_WRONG_COMMAND; }
+
+  /** Implementation of approximate ANN read path over a vector index.
+  Rows are produced in ascending distance from the constant query vector.
+  `limit` is the initial batch size (the query's LIMIT); readers must
+  keep producing past it - the engine widens the search - because
+  filters above the iterator may consume arbitrarily many rows.
+  Callers call ha_index_init() on the vector key, then ha_vec_init() on
+  every (re)initialization, as FullTextSearchIterator does with
+  ft_init(); ha_index_or_rnd_end() ends the scan. The handler is then
+  INDEX, so vec_init() must leave active_index on the vector key. */
+  virtual int vec_init() { return HA_ERR_WRONG_COMMAND; }
+  virtual int vec_read_first(Item *, uchar *, ha_rows) {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  virtual int vec_read_next(uchar *) { return HA_ERR_WRONG_COMMAND; }
 
  public:
   /**

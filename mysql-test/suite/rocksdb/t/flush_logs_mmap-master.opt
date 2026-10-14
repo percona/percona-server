@@ -1,0 +1,3 @@
+--rocksdb-allow-mmap-writes=ON
+--rocksdb-flush-log-at-trx-commit=0
+--rocksdb-use-direct-io-for-flush-and-compaction=OFF

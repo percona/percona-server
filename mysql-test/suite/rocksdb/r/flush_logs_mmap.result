@@ -1,0 +1,9 @@
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1);
+FLUSH ENGINE LOGS;
+FLUSH LOGS;
+include/assert.inc [FLUSH LOGS must not request WAL sync with memory-mapped writes]
+SELECT * FROM t;
+id
+1
+DROP TABLE t;

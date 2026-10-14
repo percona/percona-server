@@ -5358,12 +5358,12 @@ uint Rdb_ddl_manager::get_and_update_next_number(uint cf_id, bool is_dd_tbl) {
 }
 
 /*
-  Put table definition of `tbl` into the mapping, and also write it to the
-  on-disk data dictionary.
+  Append the table definition to a dictionary batch without publishing it in
+  the in-memory mapping. The caller commits the batch.
 */
 
-int Rdb_ddl_manager::put_and_write(Rdb_tbl_def *const tbl,
-                                   rocksdb::WriteBatch &batch) {
+int Rdb_ddl_manager::write_to_batch(Rdb_tbl_def *const tbl,
+                                    rocksdb::WriteBatch &batch) {
   Rdb_buf_writer<FN_LEN * 2 + Rdb_key_def::INDEX_NUMBER_SIZE> buf_writer;
 
   buf_writer.write_index(Rdb_key_def::DDL_ENTRY_INDEX_START_NUMBER);
@@ -5378,10 +5378,30 @@ int Rdb_ddl_manager::put_and_write(Rdb_tbl_def *const tbl,
                            buf_writer.to_slice()))) {
     return res;
   }
-  if ((res = put(tbl))) {
-    return res;
-  }
   return HA_EXIT_SUCCESS;
+}
+
+int Rdb_ddl_manager::put_and_write(Rdb_tbl_def *const tbl,
+                                   rocksdb::WriteBatch &batch) {
+  const int res = write_to_batch(tbl, batch);
+  return res ? res : put(tbl);
+}
+
+int Rdb_ddl_manager::replace_and_commit(Rdb_tbl_def *tbl) {
+  auto dict = m_dict->get_dict_manager_selector_non_const(
+      tbl->m_key_descr_arr[0]->get_gl_index_id().cf_id);
+  std::lock_guard<Rdb_dict_manager> lock(*dict);
+  auto batch = Rdb_dict_manager::begin();
+
+  DBUG_EXECUTE_IF("rocksdb_rebuild_write_failure", { return HA_EXIT_FAILURE; });
+  int res = write_to_batch(tbl, batch);
+  if (res) return res;
+  res = dict->commit(batch);
+  if (res) return res;
+
+  // The old on-disk entry is overwritten atomically. Only now retire the old
+  // cached definition and publish the replacement and its index mappings.
+  return put(tbl);
 }
 
 /* Return 0 - ok, other value - error */
@@ -5602,7 +5622,10 @@ int Rdb_dict_manager::commit(rocksdb::WriteBatch &batch, bool sync) const {
   options.sync = (sync && rdb_sync_wal_supported());
   rocksdb::TransactionDBWriteOptimizations optimize;
   optimize.skip_concurrency_control = true;
-  const auto s = m_db->Write(options, optimize, &batch);
+  const auto s = DBUG_EVALUATE_IF(
+      "rocksdb_dict_commit_failure",
+      rocksdb::Status::IOError("injected dictionary write error"),
+      m_db->Write(options, optimize, &batch));
   res = !s.ok();  // we return true when something failed
   if (res) {
     rdb_handle_io_error(s, RDB_IO_ERROR_DICT_COMMIT);

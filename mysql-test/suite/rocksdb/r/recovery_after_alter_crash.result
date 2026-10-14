@@ -17,6 +17,36 @@ ERROR HY000: Lost connection to MySQL server during query
 # 6. Wait until the server is fully disconnected due to the crash
 # 7. Restart the MySQL server; MyRocks should automatically rebuild the corrupted table definition
 # restart
+# Failed reconstruction must preserve the original definition for retry
+SET @saved_debug = @@session.debug;
+SET @saved_io_action = @@global.rocksdb_io_error_action;
+SET GLOBAL rocksdb_io_error_action = 'IGNORE_ERROR';
+SET SESSION debug = '+d,rocksdb_rebuild_key_defs_failure';
+SELECT * FROM t;
+ERROR HY000: MyRocks failed creating new key definitions during alter.
+SET SESSION debug = @saved_debug;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+WHERE table_schema = 'test' AND table_name = 't';
+dictionary_indexes
+3
+SET SESSION debug = '+d,rocksdb_rebuild_write_failure';
+SELECT * FROM t;
+ERROR HY000: MyRocks failed creating new key definitions during alter.
+SET SESSION debug = @saved_debug;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+WHERE table_schema = 'test' AND table_name = 't';
+dictionary_indexes
+3
+SET SESSION debug = '+d,rocksdb_dict_commit_failure';
+SELECT * FROM t;
+ERROR HY000: MyRocks failed creating new key definitions during alter.
+SET SESSION debug = @saved_debug;
+SET GLOBAL rocksdb_io_error_action = @saved_io_action;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+WHERE table_schema = 'test' AND table_name = 't';
+dictionary_indexes
+3
+# restart
 # 8. Verify that the data in the table is intact after reconstruction
 SELECT * FROM t ORDER BY i;
 i	c1	c2

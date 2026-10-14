@@ -436,6 +436,10 @@ class Partition_base : public handler,
     return Partition_helper::ph_read_range_next();
   }
   bool has_gap_locks() const noexcept override;
+  bool report_unsupported_gap_lock(THD *thd) const noexcept override {
+    /* All partitions use the same engine and its gap lock policy. */
+    return m_file[0]->report_unsupported_gap_lock(thd);
+  }
 
  public:
   /*

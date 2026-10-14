@@ -1,0 +1,257 @@
+# The startup option initializes the global and session values.
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+@@global.rocksdb_gap_lock_raise_error	@@session.rocksdb_gap_lock_raise_error
+WARNING	WARNING
+CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY v_idx(v)) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,10),(2,20),(3,30);
+CREATE TABLE t2 LIKE t;
+INSERT INTO t2 SELECT * FROM t;
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SET @saved_mode = @@session.rocksdb_gap_lock_raise_error;
+SET @saved_isolation = @@session.transaction_isolation;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+# OFF permits locking scans and range DML without diagnostics.
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+BEGIN;
+SELECT * FROM t ORDER BY id FOR UPDATE;
+id	v
+1	10
+2	20
+3	30
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+UPDATE t SET v=v+1 WHERE id >= 2;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+SELECT * FROM t ORDER BY id;
+id	v
+1	10
+2	21
+3	31
+ROLLBACK;
+# WARNING must return rows and apply DML, rather than fail as a deadlock.
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+BEGIN;
+SELECT * FROM t IGNORE INDEX(PRIMARY,v_idx) FOR UPDATE;
+id	v
+1	10
+2	20
+3	30
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id LIMIT 1 FOR UPDATE;
+id	v
+1	10
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id DESC LIMIT 1 FOR UPDATE;
+id	v
+3	30
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM t FORCE INDEX(v_idx) WHERE v >= 20 ORDER BY v FOR UPDATE;
+id	v
+2	20
+3	30
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+UPDATE t SET v=v+1 WHERE id >= 2;
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM t ORDER BY id;
+id	v
+1	10
+2	21
+3	31
+DELETE FROM t WHERE id >= 3;
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM t ORDER BY id;
+id	v
+1	10
+2	21
+ROLLBACK;
+# Full unique-key reads and nonlocking reads remain warning-free.
+BEGIN;
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+id	v
+1	10
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+SELECT * FROM t ORDER BY id;
+id	v
+1	10
+2	20
+3	30
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+ROLLBACK;
+# Multi-table DML in autocommit also continues in WARNING mode.
+UPDATE t JOIN t2 ON t.id=t2.id SET t.v=t.v+1;
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM t ORDER BY id;
+id	v
+1	11
+2	21
+3	31
+# ERROR keeps the existing diagnostic and prevents writes.
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+BEGIN;
+SELECT * FROM t ORDER BY id FOR UPDATE;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: SELECT * FROM t ORDER BY id FOR UPDATE
+UPDATE t SET v=v+100 WHERE id >= 2;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t SET v=v+100 WHERE id >= 2
+SELECT * FROM t ORDER BY id;
+id	v
+1	11
+2	21
+3	31
+ROLLBACK;
+UPDATE t JOIN t2 ON t.id=t2.id SET t.v=t.v+100;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: UPDATE t JOIN t2 ON t.id=t2.id SET t.v=t.v+100
+SELECT * FROM t ORDER BY id;
+id	v
+1	11
+2	21
+3	31
+# The same connection can switch modes without stale diagnostics.
+BEGIN;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SELECT * FROM t ORDER BY id FOR UPDATE;
+id	v
+1	11
+2	21
+3	31
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+SELECT * FROM t ORDER BY id FOR UPDATE;
+id	v
+1	11
+2	21
+3	31
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+id	v
+1	11
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+ROLLBACK;
+# READ COMMITTED remains exempt, including in ERROR mode.
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+SELECT * FROM t ORDER BY id FOR UPDATE;
+id	v
+1	11
+2	21
+3	31
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+UPDATE t SET v=v+1 WHERE id >= 2;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+ROLLBACK;
+# InnoDB supports gap locks and is unaffected by all three modes.
+CREATE TABLE ti (id INT PRIMARY KEY, v INT) ENGINE=INNODB;
+INSERT INTO ti VALUES (1,10),(2,20);
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+SELECT * FROM ti ORDER BY id FOR UPDATE;
+id	v
+1	10
+2	20
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+UPDATE ti SET v=v+1 WHERE id >= 1;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SELECT * FROM ti ORDER BY id FOR UPDATE;
+id	v
+1	11
+2	21
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+UPDATE ti SET v=v+1 WHERE id >= 1;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+SELECT * FROM ti ORDER BY id FOR UPDATE;
+id	v
+1	12
+2	22
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+UPDATE ti SET v=v+1 WHERE id >= 1;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+ROLLBACK;
+DROP TABLE ti;
+# Partitioned tables follow the same policy, also for full scans.
+CREATE TABLE tp (id INT PRIMARY KEY, v INT, KEY v_idx(v)) ENGINE=ROCKSDB
+PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO tp VALUES (1,10),(2,20),(3,30);
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+BEGIN;
+SELECT * FROM tp ORDER BY id FOR UPDATE;
+id	v
+1	10
+2	20
+3	30
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+UPDATE tp SET v=v+1 WHERE id >= 2;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+0
+ROLLBACK;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+BEGIN;
+SELECT * FROM tp ORDER BY id FOR UPDATE;
+id	v
+1	10
+2	20
+3	30
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+UPDATE tp SET v=v+1 WHERE id >= 2;
+Warnings:
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+SELECT * FROM tp ORDER BY id;
+id	v
+1	10
+2	21
+3	31
+ROLLBACK;
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+BEGIN;
+SELECT * FROM tp ORDER BY id FOR UPDATE;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: SELECT * FROM tp ORDER BY id FOR UPDATE
+ROLLBACK;
+DROP TABLE tp;
+SET SESSION rocksdb_gap_lock_raise_error = @saved_mode;
+SET SESSION transaction_isolation = @saved_isolation;
+DROP TABLE t, t2;

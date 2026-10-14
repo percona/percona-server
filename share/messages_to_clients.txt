@@ -10631,6 +10631,9 @@ ER_CF_DROPPED
 ER_CANT_DROP_CF
   eng "Cannot drop Column family ('%s') because it is in use or does not exist."
 
+ER_GAP_LOCK_USED
+  eng "This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction."
+
 #
 # End of MyRocks specific client messages
 #

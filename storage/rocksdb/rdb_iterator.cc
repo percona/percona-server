@@ -69,7 +69,16 @@ int Rdb_iterator_base::read_before_key(const bool full_key_match,
   */
   rocksdb_smart_seek(!m_kd.m_is_reverse_cf, m_scan_it, key_slice);
 
-  while (is_valid_iterator(m_scan_it)) {
+  DBUG_EXECUTE_IF("rocksdb_iterator_seek_error", {
+    delete m_scan_it;
+    m_scan_it = rocksdb::NewErrorIterator(DBUG_EVALUATE_IF(
+        "rocksdb_iterator_io_error",
+        rocksdb::Status::IOError("injected iterator error"),
+        rocksdb::Status::Incomplete("injected iterator error")));
+  });
+
+  int rc;
+  while ((rc = convert_iterator_status()) == HA_EXIT_SUCCESS) {
     if (!m_ignore_killed && thd_killed(m_thd)) {
       return HA_ERR_QUERY_INTERRUPTED;
     }
@@ -85,7 +94,7 @@ int Rdb_iterator_base::read_before_key(const bool full_key_match,
     return HA_EXIT_SUCCESS;
   }
 
-  return HA_ERR_END_OF_FILE;
+  return rc;
 }
 
 int Rdb_iterator_base::read_after_key(const rocksdb::Slice &key_slice) {
@@ -100,7 +109,15 @@ int Rdb_iterator_base::read_after_key(const rocksdb::Slice &key_slice) {
   */
   rocksdb_smart_seek(m_kd.m_is_reverse_cf, m_scan_it, key_slice);
 
-  return is_valid_iterator(m_scan_it) ? HA_EXIT_SUCCESS : HA_ERR_END_OF_FILE;
+  DBUG_EXECUTE_IF("rocksdb_iterator_seek_error", {
+    delete m_scan_it;
+    m_scan_it = rocksdb::NewErrorIterator(DBUG_EVALUATE_IF(
+        "rocksdb_iterator_io_error",
+        rocksdb::Status::IOError("injected iterator error"),
+        rocksdb::Status::Incomplete("injected iterator error")));
+  });
+
+  return convert_iterator_status();
 }
 
 void Rdb_iterator_base::release_scan_iterator() {
@@ -268,12 +285,17 @@ int Rdb_iterator_base::next_with_direction(bool move_forward, bool skip_next) {
       } else {
         rocksdb_smart_prev(m_kd.m_is_reverse_cf, m_scan_it);
       }
+      DBUG_EXECUTE_IF("rocksdb_iterator_next_error", {
+        delete m_scan_it;
+        m_scan_it = rocksdb::NewErrorIterator(DBUG_EVALUATE_IF(
+            "rocksdb_iterator_io_error",
+            rocksdb::Status::IOError("injected iterator error"),
+            rocksdb::Status::Incomplete("injected iterator error")));
+      });
     }
 
-    if (!is_valid_iterator(m_scan_it)) {
-      rc = HA_ERR_END_OF_FILE;
-      break;
-    }
+    rc = convert_iterator_status();
+    if (rc != HA_EXIT_SUCCESS) break;
 
     const rocksdb::Slice &key = m_scan_it->key();
     const rocksdb::Slice &value = m_scan_it->value();
@@ -367,6 +389,23 @@ int Rdb_iterator_base::seek(enum ha_rkey_function find_flag,
 
   m_valid = !rc;
   return rc;
+}
+
+// An invalid iterator can mean EOF or a failed read. Preserve errors for SQL.
+int Rdb_iterator_base::convert_iterator_status() const {
+  if (m_scan_it->Valid()) return HA_EXIT_SUCCESS;
+
+  const auto status =
+      DBUG_EVALUATE_IF("rocksdb_return_status_corrupted",
+                       rocksdb::Status::Corruption(), m_scan_it->status());
+  if (status.ok() || status.IsNotFound()) return HA_ERR_END_OF_FILE;
+
+  // Record the corruption also when rocksdb_io_error_action=IGNORE_ERROR
+  // keeps rdb_handle_io_error() from doing it.
+  if (status.IsCorruption()) rdb_persist_corruption_marker();
+
+  return rdb_tx_set_status_error(*get_tx_from_thd(m_thd), status, m_kd,
+                                 m_tbl_def);
 }
 
 int Rdb_iterator_base::convert_get_status(myrocks::Rdb_transaction &tx,
@@ -797,6 +836,8 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
     if (rc == HA_ERR_END_OF_FILE) {
       m_iterator_pk_position = Iterator_position::END_OF_FILE;
       break;
+    } else if (rc) {
+      goto exit;
     } else if (!m_pkd.value_matches_prefix(m_iterator_pk.key(),
                                            cur_prefix_key)) {
       rc = HA_ERR_END_OF_FILE;

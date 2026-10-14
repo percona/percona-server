@@ -3373,6 +3373,48 @@ int handler::ha_ft_read(uchar *buf) {
   return result;
 }
 
+int handler::ha_vec_init() {
+  DBUG_TRACE;
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == INDEX);
+
+  return vec_init();
+}
+
+int handler::ha_vec_read_first(Item *item, uchar *buf, ha_rows limit) {
+  DBUG_TRACE;
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == INDEX);
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields = table->has_gcol();
+
+  int result = vec_read_first(item, buf, limit);
+  if (!result && m_update_generated_read_fields) {
+    result = update_generated_read_fields(buf, table);
+    m_update_generated_read_fields = false;
+  }
+  table->set_row_status_from_handler(result);
+  return result;
+}
+
+int handler::ha_vec_read_next(uchar *buf) {
+  DBUG_TRACE;
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == INDEX);
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields = table->has_gcol();
+
+  int result = vec_read_next(buf);
+  if (!result && m_update_generated_read_fields) {
+    result = update_generated_read_fields(buf, table);
+    m_update_generated_read_fields = false;
+  }
+  table->set_row_status_from_handler(result);
+  return result;
+}
+
 int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
                             int sampling_seed,
                             enum_sampling_method sampling_method,

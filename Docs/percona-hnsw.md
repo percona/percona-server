@@ -577,7 +577,7 @@ pushed into the access path and the now-redundant sort is elided.
 | `vec_read_next(buf)` | returns the next row, taking the next candidate from the open scan |
 
 `VectorSearchIterator::DoInit()` calls `ha_index_init()` on the vector key, unless the handler is
-already initialised from an earlier run of the iterator, and then `vec_init()` on every run: the
+already initialised from an earlier run of the iterator, and then `ha_vec_init()` on every run: the
 same two steps `FullTextSearchIterator::DoInit()` takes with `ft_init()`. `ha_index_init()`
 marks the handler `inited = INDEX`, and InnoDB's `index_init()` → `change_active_index()` refuses a
 vector index newer than the snapshot, or a corrupt one, as it does for any index. The scan is then

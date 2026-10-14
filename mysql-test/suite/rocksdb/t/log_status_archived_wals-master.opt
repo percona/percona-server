@@ -1,0 +1,1 @@
+--rocksdb-wal-ttl-seconds=3600

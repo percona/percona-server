@@ -702,7 +702,7 @@ VectorSearchIterator::~VectorSearchIterator() {
 }
 
 bool VectorSearchIterator::DoInit() {
-  // ha_index_init() on the vector key, then vec_init() on every
+  // ha_index_init() on the vector key, then ha_vec_init() on every
   // (re)initialization, as FullTextSearchIterator does with ft_init(): the
   // scan is an index scan, so the destructor's ha_index_or_rnd_end() ends it.
   if (!table()->file->inited) {
@@ -713,7 +713,7 @@ bool VectorSearchIterator::DoInit() {
     }
   }
 
-  if (int error = table()->file->vec_init(); error != 0) {
+  if (int error = table()->file->ha_vec_init(); error != 0) {
     PrintError(error);
     return true;
   }
@@ -726,7 +726,7 @@ bool VectorSearchIterator::DoInit() {
 int VectorSearchIterator::DoRead() {
   if (m_first) {
     int error =
-        table()->file->vec_read_first(m_item, table()->record[0], m_limit);
+        table()->file->ha_vec_read_first(m_item, table()->record[0], m_limit);
     if (error) {
       /*
         When the query vector has the wrong dimensions we override the
@@ -742,7 +742,7 @@ int VectorSearchIterator::DoRead() {
     }
     m_first = false;
   } else {
-    int error = table()->file->vec_read_next(table()->record[0]);
+    int error = table()->file->ha_vec_read_next(table()->record[0]);
     if (error) {
       return HandleError(error);
     }

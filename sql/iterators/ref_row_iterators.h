@@ -70,13 +70,9 @@ class RefIterator final : public TableRowIterator {
 };
 
 /**
-  Like RefIterator, but after it's returned all its rows, will also search for
-  rows that match NULL, i.e., WHERE column=\<ref\> OR column IS NULL.
- */
-/**
   Approximate ANN over a vector index: DoRead() returns base rows in
   ascending distance from a constant query vector, via the handler's
-  vec_read_first/vec_read_next.
+  ha_vec_read_first/ha_vec_read_next.
 */
 class VectorSearchIterator final : public TableRowIterator {
  public:
@@ -97,6 +93,10 @@ class VectorSearchIterator final : public TableRowIterator {
   const ha_rows m_limit;
 };
 
+/**
+  Like RefIterator, but after it's returned all its rows, will also search for
+  rows that match NULL, i.e., WHERE column=\<ref\> OR column IS NULL.
+*/
 class RefOrNullIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().

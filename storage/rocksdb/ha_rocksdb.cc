@@ -3116,6 +3116,66 @@ static std::string rdb_xid_to_string(const XID &src) {
   return buf;
 }
 
+static void rdb_xid_from_string(const std::string &src, XID *dst);
+
+static std::string rocksdb_xa_marker_key(const std::string &name) {
+  uchar prefix[Rdb_key_def::INDEX_NUMBER_SIZE];
+  rdb_netbuf_store_uint32(prefix, Rdb_key_def::XA_PREPARED_IN_TC);
+  return std::string(reinterpret_cast<const char *>(prefix), sizeof(prefix)) +
+         name;
+}
+
+static rocksdb::Status rocksdb_get_xa_marker(const std::string &name,
+                                             bool *prepared) {
+  auto *dict = dict_manager.get_dict_manager_selector_non_const(false);
+  std::string value;
+  auto status = dict->get_value(rocksdb_xa_marker_key(name), &value);
+  *prepared = false;
+  if (status.IsNotFound()) return rocksdb::Status::OK();
+  if (status.ok()) {
+    if (value != "1")
+      return rocksdb::Status::Corruption("Invalid XA TC marker");
+    *prepared = true;
+  }
+  return status;
+}
+
+// The TC marker is independent of the prepared transaction's uncommitted batch.
+// Flush it durably before acknowledging XA PREPARE. Cleanup can leave an orphan
+// after a crash; recovery only consults markers for actually prepared XIDs, and
+// a new PREPARE clears any old marker before reusing the same XID.
+static int rocksdb_write_xa_marker(const std::string &name, bool prepared) {
+  if (name.empty()) return HA_EXIT_SUCCESS;
+  XID xid;
+  rdb_xid_from_string(name, &xid);
+  if (xid.is_null() || xid.get_my_xid() != 0) return HA_EXIT_SUCCESS;
+
+  bool exists = false;
+  auto status = rocksdb_get_xa_marker(name, &exists);
+  if (status.ok() && exists == prepared) return HA_EXIT_SUCCESS;
+  if (status.ok()) {
+    auto *dict = dict_manager.get_dict_manager_selector_non_const(false);
+    auto batch = Rdb_dict_manager::begin();
+    const auto key = rocksdb_xa_marker_key(name);
+    if (prepared) {
+      dict->put_key(batch, key, "1");
+    } else {
+      dict->delete_key(batch, key);
+    }
+    rocksdb::WriteOptions options;
+    options.sync = rdb_sync_wal_supported();
+    rocksdb::TransactionDBWriteOptimizations optimize;
+    optimize.skip_concurrency_control = true;
+    status = rdb->Write(options, optimize, &batch);
+    if (status.ok() && !options.sync) status = rdb->FlushWAL(false);
+  }
+  if (!status.ok()) {
+    rdb_handle_io_error(status, RDB_IO_ERROR_DICT_COMMIT);
+    return HA_EXIT_FAILURE;
+  }
+  return HA_EXIT_SUCCESS;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -3636,6 +3696,7 @@ class Rdb_transaction {
                             const std::string &rowkey, bool force = false) = 0;
 
   virtual bool prepare() = 0;
+  virtual void detach_prepared() {}
 
   bool commit() {
     if (get_write_count() == 0) {
@@ -4768,6 +4829,18 @@ class Rdb_transaction_impl : public Rdb_transaction {
     m_rocksdb_reuse_tx = std::move(tx);
   }
 
+  void detach_prepared() override {
+    if (m_rocksdb_tx &&
+        m_rocksdb_tx->GetState() == rocksdb::Transaction::PREPARED) {
+      release_snapshot();
+      mysql_mutex_lock(&m_rdb_tx_mutex);
+      // TransactionDB keeps named prepared transactions alive. Its XID
+      // completion callbacks (or DB shutdown) will destroy the native object.
+      std::ignore = m_rocksdb_tx.release();
+      mysql_mutex_unlock(&m_rdb_tx_mutex);
+    }
+  }
+
   bool prepare() override {
     rocksdb::Status s;
 
@@ -4785,6 +4858,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
       return false;
     }
 
+    if (rocksdb_write_xa_marker(m_rocksdb_tx->GetName(), false)) return false;
     s = m_rocksdb_tx->Prepare();
     if (!s.ok()) {
       std::string msg = "RocksDB error on COMMIT (Prepare): " + s.ToString();
@@ -4799,6 +4873,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
 
     bool res = false;
     rocksdb::Status s;
+    const auto name = m_rocksdb_tx->GetName();
     // Record the writebatch size before it is committed. The size changes
     // after commit
     size_t wb_size = m_rocksdb_tx->GetWriteBatch()->GetDataSize();
@@ -4830,6 +4905,7 @@ class Rdb_transaction_impl : public Rdb_transaction {
       goto error;
     }
 
+    res = rocksdb_write_xa_marker(name, false) != HA_EXIT_SUCCESS;
     on_commit();
   error:
     on_rollback();
@@ -4862,7 +4938,21 @@ class Rdb_transaction_impl : public Rdb_transaction {
       // after rollback
       size_t wb_size = m_rocksdb_tx->GetWriteBatch()->GetDataSize();
       /* This will also release all of the locks: */
-      m_rocksdb_tx->Rollback();
+      const auto name = m_rocksdb_tx->GetName();
+      auto status = m_rocksdb_tx->Rollback();
+      DBUG_EXECUTE_IF("rocksdb_rollback_invalid_state", {
+        status = rocksdb::Status::InvalidArgument(
+            "Two phase transaction is not in state for rollback.");
+      });
+      if (status.ok()) {
+        std::ignore = rocksdb_write_xa_marker(name, false);
+      } else if (status.IsIOError() || status.IsCorruption()) {
+        rdb_handle_io_error(status, RDB_IO_ERROR_TX_COMMIT);
+      } else {
+        // For example InvalidArgument when a failed prepare write left the
+        // transaction in AWAITING_PREPARE. The original error was reported.
+        rdb_log_status_error(status, "Failed to roll back transaction");
+      }
 
       /* Save the transaction object to be reused */
       release_tx(wb_size);
@@ -5829,9 +5919,22 @@ static Rdb_transaction *get_or_create_tx(THD *const thd) {
   return tx;
 }
 
+static void rocksdb_replace_trx_in_thd(THD *thd, void *new_trx,
+                                       void **old_trx) {
+  auto *tx = get_tx_from_thd(thd);
+  if (old_trx != nullptr) {
+    *old_trx = tx;
+  } else if (tx != nullptr) {
+    tx->detach_prepared();
+    delete tx;
+  }
+  set_tx_on_thd(thd, static_cast<Rdb_transaction *>(new_trx));
+}
+
 static int rocksdb_close_connection(handlerton *const hton, THD *const thd) {
   Rdb_transaction *tx = get_tx_from_thd(thd);
   if (tx != nullptr) {
+    tx->detach_prepared();
     delete tx;
     set_tx_on_thd(thd, nullptr);
   }
@@ -5968,6 +6071,16 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
   if (!tx->can_prepare()) {
     return HA_EXIT_FAILURE;
   }
+  if (tx->is_writebatch_trx() && tx->has_modifications() &&
+      thd_sql_command(thd) == SQLCOM_XA_PREPARE) {
+    // A write batch cannot be prepared and detached from the session, so
+    // XA PREPARE would lose its writes. A batch without writes, from a
+    // transaction that only read MyRocks tables, has nothing to lose.
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "XA PREPARE with rocksdb_master_skip_tx_api or "
+             "rocksdb_rpl_skip_tx_api");
+    return HA_EXIT_FAILURE;
+  }
   if (prepare_tx || is_autocommit(*thd)) {
     if (thd->durability_property == HA_IGNORE_DURABILITY) {
       tx->set_sync(false);
@@ -6016,12 +6129,13 @@ static xa_status_code rocksdb_commit_by_xid(handlerton *const hton,
     DBUG_RETURN(XAER_RMERR);
   }
 
+  const int marker_error = rocksdb_write_xa_marker(name, false);
   delete trx;
 
   // `Add()` is implemented in a thread-safe manner.
   commit_latency_stats->Add(timer.ElapsedNanos() / 1000);
 
-  DBUG_RETURN(XA_OK);
+  DBUG_RETURN(marker_error ? XAER_RMERR : XA_OK);
 }
 
 static xa_status_code rocksdb_rollback_by_xid(
@@ -6047,9 +6161,10 @@ static xa_status_code rocksdb_rollback_by_xid(
     DBUG_RETURN(XAER_RMERR);
   }
 
+  const int marker_error = rocksdb_write_xa_marker(name, false);
   delete trx;
 
-  DBUG_RETURN(XA_OK);
+  DBUG_RETURN(marker_error ? XAER_RMERR : XA_OK);
 }
 
 /**
@@ -6076,6 +6191,44 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   const std::string &tmp_data = src.substr(
       RDB_XIDHDR_LEN, (dst->get_gtrid_length()) + (dst->get_bqual_length()));
   dst->set_data(tmp_data.data(), tmp_data.length());
+}
+
+static xa_status_code rocksdb_set_prepared_in_tc_by_xid(handlerton *,
+                                                        XID *xid) {
+  const auto name = rdb_xid_to_string(*xid);
+  if (rdb->GetTransactionByName(name) == nullptr) return XAER_NOTA;
+  return rocksdb_write_xa_marker(name, true) ? XAER_RMERR : XA_OK;
+}
+
+static int rocksdb_set_prepared_in_tc(handlerton *hton, THD *thd) {
+  auto *tx = get_tx_from_thd(thd);
+  if (tx == nullptr || !tx->is_tx_started()) return HA_EXIT_SUCCESS;
+  XID xid;
+  thd_get_xid(thd, reinterpret_cast<MYSQL_XID *>(&xid));
+  return rocksdb_set_prepared_in_tc_by_xid(hton, &xid) == XA_OK
+             ? HA_EXIT_SUCCESS
+             : HA_EXIT_FAILURE;
+}
+
+static int rocksdb_recover_prepared_in_tc(handlerton *,
+                                          Xa_state_list &xa_list) {
+  std::vector<rocksdb::Transaction *> transactions;
+  rdb->GetAllPreparedTransactions(&transactions);
+  for (const auto *tx : transactions) {
+    XID xid;
+    const auto name = tx->GetName();
+    rdb_xid_from_string(name, &xid);
+    if (xid.get_my_xid() != 0) continue;
+    bool prepared = false;
+    const auto status = rocksdb_get_xa_marker(name, &prepared);
+    if (!status.ok()) {
+      rdb_handle_io_error(status, RDB_IO_ERROR_DICT_COMMIT);
+      return HA_EXIT_FAILURE;
+    }
+    xa_list.add(xid, prepared ? enum_ha_recover_xa_state::PREPARED_IN_TC
+                              : enum_ha_recover_xa_state::PREPARED_IN_SE);
+  }
+  return HA_EXIT_SUCCESS;
 }
 
 static int rocksdb_recover(handlerton *hton, XA_recover_txn *txn_list, uint len,
@@ -7278,10 +7431,14 @@ static int rocksdb_init_internal(void *const p) {
   rocksdb_hton->state = SHOW_OPTION_YES;
   rocksdb_hton->create = rocksdb_create_handler;
   rocksdb_hton->close_connection = rocksdb_close_connection;
+  rocksdb_hton->replace_native_transaction_in_thd = rocksdb_replace_trx_in_thd;
   rocksdb_hton->prepare = rocksdb_prepare;
   rocksdb_hton->commit_by_xid = rocksdb_commit_by_xid;
   rocksdb_hton->rollback_by_xid = rocksdb_rollback_by_xid;
   rocksdb_hton->recover = rocksdb_recover;
+  rocksdb_hton->recover_prepared_in_tc = rocksdb_recover_prepared_in_tc;
+  rocksdb_hton->set_prepared_in_tc = rocksdb_set_prepared_in_tc;
+  rocksdb_hton->set_prepared_in_tc_by_xid = rocksdb_set_prepared_in_tc_by_xid;
   rocksdb_hton->commit = rocksdb_commit;
   rocksdb_hton->rollback = rocksdb_rollback;
   rocksdb_hton->db_type = DB_TYPE_ROCKSDB;

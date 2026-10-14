@@ -1,0 +1,17 @@
+CALL mtr.add_suppression('Found 1 prepared XA transactions');
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+XA START 'rocksdb-recover';
+INSERT INTO t VALUES (1);
+XA END 'rocksdb-recover';
+XA PREPARE 'rocksdb-recover';
+# Kill the server
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	15	0	rocksdb-recover
+XA COMMIT 'rocksdb-recover';
+SELECT * FROM t;
+id
+1
+include/assert_grep.inc [Successful MyRocks XA recovery must not report a prepare failure]
+DROP TABLE t;

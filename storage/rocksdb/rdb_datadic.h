@@ -486,6 +486,7 @@ class Rdb_key_def {
     AUTO_INC = 9,
     DROPPED_CF = 10,
     MAX_DD_INDEX_ID = 11,
+    XA_PREPARED_IN_TC = 12,
     END_DICT_INDEX_ID = 255
   };
 

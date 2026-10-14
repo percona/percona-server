@@ -328,22 +328,27 @@ void recover_one_external_trx(xarecover_st const &info, handlerton &ht,
     case enum_ha_recover_xa_state::PREPARED_IN_TC: {
       if (!Recovered_xa_transactions::instance().add_prepared_xa_transaction(
               &xa_trx)) {
-        if (ht.set_prepared_in_tc_by_xid != nullptr) {
-          enum xa_status_code exec_status;
-          if (DBUG_EVALUATE_IF("xa_recovery_error_reporting", true, false))
-            exec_status = ::generate_xa_recovery_error();
-          else
-            exec_status = ht.set_prepared_in_tc_by_xid(
-                &ht, const_cast<XID *>(&xa_trx.id));
-
-          if (exec_status == XA_OK) {
-            ::add_to_stats<STATS_SUCCESS, STATS_PREPARED>(stats);
-            break;
-          } else
-            ::report_trx_recovery_error(ER_BINLOG_CRASH_RECOVERY_PREPARE_FAILED,
-                                        xa_trx.id, ht, exec_status,
-                                        /*is_xa*/ true);
+        // Engines without a separate prepared-in-TC state have no marker to
+        // update. Registering the recovered transaction above is sufficient;
+        // an absent optional callback is not a failed recovery operation.
+        if (ht.set_prepared_in_tc_by_xid == nullptr) {
+          ::add_to_stats<STATS_SUCCESS, STATS_PREPARED>(stats);
+          break;
         }
+        enum xa_status_code exec_status;
+        if (DBUG_EVALUATE_IF("xa_recovery_error_reporting", true, false))
+          exec_status = ::generate_xa_recovery_error();
+        else
+          exec_status =
+              ht.set_prepared_in_tc_by_xid(&ht, const_cast<XID *>(&xa_trx.id));
+
+        if (exec_status == XA_OK) {
+          ::add_to_stats<STATS_SUCCESS, STATS_PREPARED>(stats);
+          break;
+        } else
+          ::report_trx_recovery_error(ER_BINLOG_CRASH_RECOVERY_PREPARE_FAILED,
+                                      xa_trx.id, ht, exec_status,
+                                      /*is_xa*/ true);
       }
       ::add_to_stats<STATS_FAILURE, STATS_PREPARED>(stats);
       break;

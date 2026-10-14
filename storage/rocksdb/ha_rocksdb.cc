@@ -6016,7 +6016,7 @@ static bool rocksdb_flush_wal(handlerton *const hton MY_ATTRIBUTE((__unused__)),
     DBUG_RETURN(false);
   }
 
-  if (!binlog_group_flush || !rocksdb_db_options->allow_mmap_writes ||
+  if ((!binlog_group_flush && !rocksdb_db_options->allow_mmap_writes) ||
       rocksdb_flush_log_at_trx_commit != FLUSH_LOG_NEVER) {
     /**
       Sync the WAL if we are in FLUSH LOGS, or if

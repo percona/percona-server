@@ -1,0 +1,48 @@
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+CREATE TABLE o (id INT PRIMARY KEY, k INT) ENGINE=ROCKSDB;
+CREATE TABLE i (id INT PRIMARY KEY, k INT, KEY(k)) ENGINE=ROCKSDB;
+INSERT INTO o
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<300)
+SELECT n,n FROM seq;
+INSERT INTO i SELECT * FROM o;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+# Hundreds of probes across two handlers emit only one warning.
+BEGIN;
+SELECT STRAIGHT_JOIN o.id FROM o JOIN i FORCE INDEX(k) ON i.k=o.k FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+SHOW WARNINGS;
+Level	Code	Message
+Warning	8020	This query may rely on gap locks, which MyRocks does not support. Use equality predicates on all columns of a unique key, or use a single-table, single-statement transaction.
+# Each subsequent execution in the same transaction warns again.
+PREPARE stmt FROM 'SELECT STRAIGHT_JOIN o.id FROM o JOIN i FORCE INDEX(k) ON i.k=o.k FOR UPDATE';
+EXECUTE stmt;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+EXECUTE stmt;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+# Deduplication also works when diagnostics are not stored.
+SET @saved_max_error_count=@@max_error_count;
+SET SESSION max_error_count=0;
+EXECUTE stmt;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+SET SESSION max_error_count=@saved_max_error_count;
+DEALLOCATE PREPARE stmt;
+ROLLBACK;
+# The warning state belongs to the connection, not a cached handler.
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT STRAIGHT_JOIN o.id FROM o JOIN i FORCE INDEX(k) ON i.k=o.k FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+ROLLBACK;
+DROP TABLE o,i;

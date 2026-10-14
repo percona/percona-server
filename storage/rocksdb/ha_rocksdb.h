@@ -922,6 +922,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   void check_build_decoder();
 
  protected:
+  bool report_unsupported_gap_lock(THD *thd) const noexcept override;
+
   int records(ha_rows *num_rows) override;
   int records_from_index(ha_rows *num_rows, uint index) override;
 

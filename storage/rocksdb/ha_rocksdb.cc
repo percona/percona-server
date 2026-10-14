@@ -17917,11 +17917,10 @@ static int rocksdb_validate_update_cf_options(
     THD *thd MY_ATTRIBUTE((__unused__)),
     struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
     struct st_mysql_value *value) {
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  const char *str;
-  int length;
-  length = sizeof(buff);
-  str = value->val_str(value, buff, &length);
+  // A null buffer makes val_str allocate statement-lifetime storage. The saved
+  // value must survive this check callback until the update callback runs.
+  int length = 0;
+  const char *str = value->val_str(value, nullptr, &length);
   *static_cast<const char **>(save) = str;
 
   if (str == nullptr) {

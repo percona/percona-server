@@ -56,6 +56,15 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
                     expected on a healthy store; marks the stub NODE_LOST.
                     From nn_search_next(): end of the streaming search (no
                     more hits).
+  HNSW_CORRUPTED    Graph structure is inconsistent: a reference to a
+                    neighbor was found on a layer where that node is not
+                    present (node->layer() is below the layer being searched
+                    or rewired), or load_node_cb supplied a neighbor list
+                    whose size does not match the node's layer and M (see
+                    load_node_neighbors()). Not expected on a healthy store;
+                    typically means a bug or durable corruption. Callers
+                    should treat it like a permanent index failure (not
+                    retryable).
   HNSW_ERROR_CB     A Persistor callback reported failure.
   HNSW_OOM_GRAPH    Arena or in-memory graph map allocation failed
                     (Node::create, alloc_neighbors, m_nodes.emplace, or
@@ -69,6 +78,7 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
 enum HnswResult {
   HNSW_SUCCESS,
   HNSW_NOT_FOUND,
+  HNSW_CORRUPTED,
   HNSW_ERROR_CB,
   HNSW_OOM_GRAPH,
   HNSW_OOM_CONTEXT
@@ -131,6 +141,9 @@ enum HnswResult {
         HNSW marks the stub as NODE_LOST and search/insert skip it.
         Return HNSW_ERROR_CB on other callback failures (e.g. I/O);
         HNSW leaves the stub NODE_DUMMY and propagates the error.
+        HNSW_CORRUPTED from load_node_neighbors (neighbor ids of the wrong
+        size for the layer) also leaves the stub NODE_DUMMY, but a retry
+        reading the same data fails the same way.
         HNSW_OOM_GRAPH from load_node_neighbors likewise leaves the stub
         NODE_DUMMY so load_node_cb may be retried; a successful retry
         re-allocates neighbor storage and leaks the prior arena block
@@ -346,8 +359,11 @@ class HNSW {
             fails (insert_cb / update_neighbors_cb / update_entry_point_cb, or
             load_node_cb during neighbor search / reverse-link prune; missing
             nodes via HNSW_NOT_FOUND are skipped and do not fail insert);
-            HNSW_OOM_GRAPH if arena / graph-map allocation fails; or
-            HNSW_OOM_CONTEXT if per-insert scratch allocation fails.
+            HNSW_CORRUPTED if a neighbor reference is found on a layer where
+            that node is not present (during descent, construction search, or
+            reverse-link prune); HNSW_OOM_GRAPH if arena / graph-map
+            allocation fails; or HNSW_OOM_CONTEXT if per-insert scratch
+            allocation fails.
             Even failed insert() call consumes @p id and it must not be reused
             for a later insert() — including early HNSW_OOM_GRAPH before the
             node is entered into the map (where a reuse might appear to work).
@@ -447,6 +463,9 @@ class HNSW {
 
       // search_layer_ef_1() post condition: the nearest entry node is complete.
       assert(nearest_entry.node->state() == NODE_COMPLETE);
+      // And also present on the layer we have searched last (if any).
+      assert(nearest_entry.node->layer() >=
+             std::min<uint8_t>(max_layer, target_layer + 1));
 
       SearchLayerResult nearest{nearest_entry};
 
@@ -482,9 +501,11 @@ class HNSW {
         for (Node *const *it = new_node_neighbors;
              it != new_node->neighbors_end(*this, l) && *it != nullptr; ++it) {
           Node *neighbor = *it;
-          // search_layer() + select_neighbors() post condition:
-          // all neighbors of the newly inserted node are complete.
+          // search_layer() + select_neighbors() post conditions:
+          // all neighbors of the newly inserted node are complete
+          // and are present on the current layer.
           assert(neighbor->state() == NODE_COMPLETE);
+          assert(neighbor->layer() >= l);
 
           {
             // Back-linking neighbors requires locking though.
@@ -554,6 +575,17 @@ class HNSW {
                     return load_rc;
                   }
                   assert(nb->state() == NODE_COMPLETE);
+                }
+
+                // In a healthy graph neighbors must be present on the layer
+                // which we are processing. But bugs and data corruptions
+                // happen. Although select_neighbors() below does not call
+                // neighbors_begin(layer) for candidates at the moment, it
+                // might start doing so one day. So we avoid UB in future by
+                // checking and reporting graph corruption if we encounter a
+                // misplaced node.
+                if (nb->layer() < l) {
+                  return HNSW_CORRUPTED;
                 }
 
                 candidate_neighbors.push_back({nb, dist(neighbor->vec(), nb)});
@@ -705,7 +737,8 @@ class HNSW {
             id + base_pk) ordered by increasing distance} on success (empty
             index yields an empty vector). On failure, .first is the HnswResult
             from load_node_cb / search (typically HNSW_ERROR_CB,
-            HNSW_OOM_GRAPH, or HNSW_OOM_CONTEXT) and .second is empty.
+            HNSW_CORRUPTED, HNSW_OOM_GRAPH, or HNSW_OOM_CONTEXT) and .second
+            is empty.
   */
   std::pair<HnswResult, std::vector<SearchHit>> k_nn_search(
       const char *q, size_t k, size_t ef_search,
@@ -832,9 +865,9 @@ class HNSW {
     Owned by the caller. Pass the same instance to nn_search_start() and
     repeated nn_search_next() calls. Call reset() before every subsequent
     nn_search_start() on the same context (including after a failed start,
-    after nn_search_next() returned HNSW_ERROR_CB / HNSW_OOM_GRAPH /
-    HNSW_OOM_CONTEXT / other failure, or after a normal end-of-stream
-    HNSW_NOT_FOUND). Destruction also releases resources.
+    after nn_search_next() returned HNSW_ERROR_CB / HNSW_CORRUPTED /
+    HNSW_OOM_GRAPH / HNSW_OOM_CONTEXT / other failure, or after a normal
+    end-of-stream HNSW_NOT_FOUND). Destruction also releases resources.
 
     Not thread-safe: a single NNSearchContext must not be shared across
     threads. Concurrent streaming searches need a distinct context each.
@@ -859,7 +892,8 @@ class HNSW {
       Required before every subsequent nn_search_start() on this context
       (debug builds assert a clean context in init). That includes retrying
       after a failed nn_search_start() or after nn_search_next() returned
-      HNSW_ERROR_CB / HNSW_OOM_GRAPH / HNSW_OOM_CONTEXT / other failure —
+      HNSW_ERROR_CB / HNSW_CORRUPTED / HNSW_OOM_GRAPH / HNSW_OOM_CONTEXT /
+      other failure —
       do not call next() again in those cases; the context is unspecified
       until reset().
     */
@@ -962,10 +996,10 @@ class HNSW {
     @return HNSW_SUCCESS when the first batch is ready (empty index yields
             success with no results for nn_search_next()). On failure, the
             HnswResult from load_node_cb / search (typically HNSW_ERROR_CB,
-            HNSW_OOM_GRAPH, or HNSW_OOM_CONTEXT). Do not call nn_search_next()
-            after a non-success return; the context is left unspecified —
-            call reset() before nn_search_start() again on the same context
-            (debug builds assert a clean context in init).
+            HNSW_CORRUPTED, HNSW_OOM_GRAPH, or HNSW_OOM_CONTEXT). Do not call
+            nn_search_next() after a non-success return; the context is left
+            unspecified — call reset() before nn_search_start() again on the
+            same context (debug builds assert a clean context in init).
 
     @note This API is not intended to scan the entire or large part of the
           index as it is approximate and likely to omit some nodes.
@@ -1276,7 +1310,9 @@ class HNSW {
     Called from Persistor::load_node_cb after load_set_layer().
     @p ids must cover exactly all neighbor slots (size (layer+2)*M).
 
-    @return HNSW_SUCCESS on success, or HNSW_OOM_GRAPH if arena / map
+    @return HNSW_SUCCESS on success; HNSW_CORRUPTED if @p ids does not have
+            exactly (layer+2)*M elements (nothing is allocated and the node
+            remains NODE_DUMMY); or HNSW_OOM_GRAPH if arena / map
             allocation fails. On OOM the node remains NODE_DUMMY. Neighbor
             storage already allocated is abandoned: a later load_node_cb
             retry always re-allocates a fresh array (stubs already in
@@ -1286,10 +1322,20 @@ class HNSW {
             so the required neighbor-array size may differ.
   */
   template <typename Range>
-  HnswResult load_node_neighbors(LoadNodeHandle handle, Range ids) {
+  HnswResult load_node_neighbors(LoadNodeHandle handle, const Range &ids) {
     Node *node = static_cast<Node *>(handle);
     assert(node != nullptr);
     assert(node->state() == NODE_DUMMY);
+
+    // The persisted neighbor list must cover exactly the slots implied by
+    // the node's layer (set by load_set_layer()) and M. Otherwise the store
+    // and the graph disagree about the node's shape, and filling slots from
+    // it would either overrun the neighbor array or leave slots
+    // uninitialized. Check before allocating, so nothing is leaked.
+    if (static_cast<size_t>(std::end(ids) - std::begin(ids)) !=
+        node->all_neighbors_size(*this)) {
+      return HNSW_CORRUPTED;
+    }
 
     // Protect all allocations and nodes map ops in this function.
     std::scoped_lock lock(m_global_lock);
@@ -1615,6 +1661,7 @@ class HNSW {
     // Neighbor slot range for a layer: [neighbors_begin, neighbors_end).
     // Layout and per-layer width: see Node class comment / get_Mmax().
     Node **neighbors_begin(const HNSW &hnsw, uint8_t layer) const {
+      assert(layer <= m_layer);
       return all_neighbors_begin(hnsw) + (m_layer - layer) * hnsw.m_M;
     }
     Node **neighbors_end(const HNSW &hnsw, uint8_t layer) const {
@@ -1979,8 +2026,10 @@ class HNSW {
                            holding the node stripe lock. Not reentrant: must
                            not be shared across concurrent calls.
 
-    @note Pre condition: @p result node is complete.
-          Post condition: @p result node is complete.
+    @note Pre conditions: @p result node is complete.
+                          @p result node is present on @p layer.
+          Post conditions: @p result node is complete.
+                           @p result node is present on @p layer.
 
     @return HNSW_SUCCESS on success, or an HnswResult from load_node() /
             load_node_cb (HNSW_NOT_FOUND is skipped per neighbor; other
@@ -1997,6 +2046,8 @@ class HNSW {
 
       // The node we are currently inspecting must be complete.
       assert(cur_node->state() == NODE_COMPLETE);
+      // It also must be present on the layer where we are searching.
+      assert(cur_node->layer() >= layer);
 
       // Copy neighbors to scratch buffer to avoid expensive distance
       // calculations under the lock and complex handling of not yet
@@ -2035,6 +2086,15 @@ class HNSW {
 
         assert(neighbor->state() == NODE_COMPLETE);
 
+        // In a healthy graph a neighbor must be present on the layer where we
+        // are searching. But bugs and data corruptions happen. Calling
+        // Node::neighbors_begin(layer) for a node which is not present on the
+        // layer is UB. Play it safe and report graph corruption if we
+        // encounter such a node.
+        if (neighbor->layer() < layer) {
+          return HNSW_CORRUPTED;
+        }
+
         const double neighbor_dist = dist(q, neighbor);
         if (neighbor_dist < result->distance) {
           result->node = neighbor;
@@ -2066,8 +2126,10 @@ class HNSW {
     @param scratch_buffer  Caller-owned neighbor scratch; see
                            search_layer_ef_1().
 
-    @note Pre condition: @p result nodes are complete.
-          Post condition: all nodes in @p result are complete.
+    @note Pre conditions: @p result nodes are complete.
+                          @p result nodes are present on @p layer.
+          Post conditions: all nodes in @p result are complete.
+                           all nodes in @p result are present on @p layer.
 
     @return HNSW_SUCCESS on success, or an HnswResult from load_node() /
             load_node_cb (HNSW_NOT_FOUND is skipped per neighbor; other
@@ -2091,6 +2153,8 @@ class HNSW {
       assert(res == true);
       // Entry point nodes must be complete.
       assert(entry.node->state() == NODE_COMPLETE);
+      // It also must be present on the current layer.
+      assert(entry.node->layer() >= layer);
       candidates.push(entry);
     }
 
@@ -2117,9 +2181,15 @@ class HNSW {
     @param scratch_buffer  Caller-owned neighbor scratch; see
                            search_layer_ef_1().
 
-    @note Pre condition: @p result nodes are complete.
-          Post condition: all nodes in the result set are complete.
-          Post condition: all nodes in the discarded heap are complete.
+    @note Pre conditions: @p result nodes are complete.
+                          @p result nodes are present on @p layer.
+          Post conditions: all nodes in the @p result are complete.
+                           all nodes in the @p result are present on
+                           @p layer.
+                           all nodes in the @p discarded heap are
+                           complete.
+                           all nodes in the @p discarded heap are
+                           present on @p layer.
 
     @return HNSW_SUCCESS on success, or an HnswResult from load_node() /
             load_node_cb (HNSW_NOT_FOUND is skipped per neighbor; other
@@ -2149,6 +2219,8 @@ class HNSW {
 
       // The node we are currently inspecting must be complete.
       assert(c.node->state() == NODE_COMPLETE);
+      // It also must be present on the layer where we are searching.
+      assert(c.node->layer() >= layer);
 
       {
         std::scoped_lock lock(node_lock(c.node));
@@ -2200,6 +2272,15 @@ class HNSW {
         }
 
         assert(e->state() == NODE_COMPLETE);
+
+        // In a healthy graph a neighbor must be present on the layer where we
+        // are searching. But bugs and data corruptions happen. Calling
+        // Node::neighbors_begin(layer) for a node which is not present on the
+        // layer is UB. Play it safe and report graph corruption if we
+        // encounter such a node.
+        if (e->layer() < layer) {
+          return HNSW_CORRUPTED;
+        }
 
         if (!visited->insert(e)) {
           continue;
@@ -2319,7 +2400,8 @@ class HNSW {
           node->set_lost();
         }
         // On HNSW_ERROR_CB / HNSW_OOM_GRAPH leave the stub as NODE_DUMMY for
-        // a possible retry.
+        // a possible retry. HNSW_CORRUPTED leaves it NODE_DUMMY too; the
+        // caller is expected to treat it as a permanent index failure.
         return loaded;
       }
       case NODE_COMPLETE:

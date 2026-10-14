@@ -140,13 +140,19 @@ dberr_t vec_persist_update_neighbors(Vec_ctx *ctx, uint64_t id,
 
 /** The InnoDB error for a graph result that is not HNSW_SUCCESS.
 
-One mapping in one place, rather than every call site deciding. Only the
-two OOM results are the graph's own failure; the other two mean something
-about the caller:
+One mapping in one place, rather than every call site deciding. The two
+OOM results are the graph's own transient failures; the others mean
+something about the store or the caller:
 
-  HNSW_NOT_FOUND    the graph names a node the aux does not have. The one
-                    permanent failure here: the two disagree, and no retry
-                    changes that.
+  HNSW_NOT_FOUND    the graph names a node the aux does not have.
+  HNSW_CORRUPTED    the in-memory graph is structurally inconsistent
+                    (a neighbour reference on a layer where that node
+                    is not present).
+
+                    Both are permanent: no retry repairs them. Both map
+                    to DB_INDEX_CORRUPT so the statement fails and the
+                    runtime can be marked unusable
+                    (vec_runtime_set_corrupted).
   HNSW_OOM_GRAPH    the arena or the node map could not grow.
   HNSW_OOM_CONTEXT  a per-operation scratch allocation failed.
 
@@ -179,6 +185,7 @@ dberr_t vec_hnsw_dberr(HnswResult rc, const Vec_ctx *ctx) {
     case HNSW_SUCCESS:
       return DB_SUCCESS;
     case HNSW_NOT_FOUND:
+    case HNSW_CORRUPTED:
       return DB_INDEX_CORRUPT;
     case HNSW_OOM_GRAPH:
     case HNSW_OOM_CONTEXT:
@@ -740,12 +747,12 @@ static dberr_t vec_add_node(vec_t *vec, dict_index_t *index,
   if (ctx.err == DB_SUCCESS) {
     trx_commit_for_mysql(aux_trx);
   } else {
-    /* Only the graph and the aux disagreeing makes the runtime unusable:
-    a node it named is gone, the class has marked that stub NODE_LOST, and
-    nothing retries a lost node - so every later search would answer with
-    fewer rows and no error at all. Everything else that reaches here is
-    transient (a failed allocation, a lock wait, an I/O error) and leaves a
-    stub NODE_DUMMY, which the next statement retries.
+    /* Permanent index failures make the runtime unusable: either the graph
+    named a node the aux does not have (HNSW_NOT_FOUND → NODE_LOST, never
+    retried), or the in-memory graph is structurally inconsistent
+    (HNSW_CORRUPTED). Both map to DB_INDEX_CORRUPT. Everything else that
+    reaches here is transient (a failed allocation, a lock wait, an I/O
+    error) and leaves a stub NODE_DUMMY, which the next statement retries.
 
     This marked the runtime corrupt for any failure at all, which was the
     honest reading while a callback could only say "gone": one lock wait
@@ -790,10 +797,10 @@ struct vec_search_t {
   Vec_hnsw::NNSearchContext nn;
 };
 
-/** Keep a search that found the graph and the aux disagreeing to the rule
-the load path follows: the index is marked corrupt, and stays refused until
-it is rebuilt. HNSW has marked the node lost and will not retry it, so a
-later search would otherwise answer without it.
+/** Keep a search that hit a permanent index failure to the rule the load
+path follows: the index is marked corrupt, and stays refused until it is
+rebuilt. That covers graph/aux disagreement (HNSW_NOT_FOUND → NODE_LOST,
+never retried) and structural inconsistency (HNSW_CORRUPTED).
 @param[in,out]  s  the scan whose ctx.err is set */
 static void vec_ann_set_corrupted(vec_search_t *s) {
   if (s->ctx.err != DB_INDEX_CORRUPT) return;
@@ -1025,8 +1032,11 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
   if (irc != HNSW_SUCCESS) {
     /* Out of memory, and nothing else: Vec_null_persistor's write
     callbacks all return HNSW_SUCCESS, and its load_node_cb is ut_error
-    because a build never faults a node in. So the ALTER fails on a graph
-    that could not grow, and the statement rolls the aux back with it. */
+    because a build never faults a node in. HNSW_CORRUPTED is not reachable
+    here either: the build constructs a fresh in-memory graph and never
+    loads neighbour lists from a store that could disagree with node
+    layers. So the ALTER fails on a graph that could not grow, and the
+    statement rolls the aux back with it. */
     ut_ad(irc == HNSW_OOM_GRAPH || irc == HNSW_OOM_CONTEXT);
     return vec_hnsw_dberr(irc, nullptr);
   }

@@ -1,0 +1,31 @@
+--source include/have_debug.inc
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # A Rollback() failure that is not an I/O error, as after a failed
+--echo # prepare write, must be logged without aborting the server.
+--echo #
+
+call mtr.add_suppression("Failed to roll back transaction");
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1);
+
+SET @old_debug = @@session.debug;
+SET SESSION debug = '+d,rocksdb_rollback_invalid_state';
+BEGIN;
+INSERT INTO t1 VALUES (2);
+ROLLBACK;
+SET SESSION debug = @old_debug;
+
+SELECT * FROM t1;
+INSERT INTO t1 VALUES (3);
+SELECT * FROM t1;
+
+--let $assert_text = The rollback failure was logged
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Failed to roll back transaction
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+DROP TABLE t1;

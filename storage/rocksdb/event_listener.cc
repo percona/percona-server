@@ -110,7 +110,8 @@ void Rdb_event_listener::OnExternalFileIngested(
 void Rdb_event_listener::OnBackgroundError(
     rocksdb::BackgroundErrorReason reason, rocksdb::Status *status) {
   rdb_log_status_error(*status, "Error detected in background");
-  LogPluginErrMsg(ERROR_LEVEL, 0, "BackgroundErrorReason: %d", (int)reason);
+  LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "BackgroundErrorReason: %d",
+                  (int)reason);
   if (status->IsCorruption()) {
     rdb_handle_io_error(*status, RDB_IO_ERROR_BG_THREAD);
   }

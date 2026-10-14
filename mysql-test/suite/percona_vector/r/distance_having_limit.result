@@ -135,8 +135,7 @@ SELECT SQL_CALC_FOUND_ROWS id FROM t1 FORCE INDEX (v)
 ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 5;
 EXPLAIN
 -> Limit: 5 row(s) (no early end due to SQL_CALC_FOUND_ROWS)  (cost=X rows=X)
-    -> Sort: distance(t1.v,to_vector('[0,0,0]'),'EUCLIDEAN')  (cost=X rows=X)
-        -> Vector index search on t1 using v (v = to_vector('[0,0,0]'))  (cost=X rows=X)
+    -> Vector index search on t1 using v (v = to_vector('[0,0,0]'))  (cost=X rows=X)
 
 # Expect ids 1-5 and 500 found rows
 SELECT SQL_CALC_FOUND_ROWS id FROM t1 FORCE INDEX (v)

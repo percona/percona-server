@@ -29,6 +29,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 
 #include "my_stacktrace.h"
+#include "mysqld_error.h"
 #include "sql_string.h"
 
 /* RocksDB header files */
@@ -249,9 +250,10 @@ inline void rdb_check_mutex_call_result(const char *function_name,
                                         const bool attempt_lock,
                                         const int result) {
   if (unlikely(result)) {
-    LogPluginErrMsg(
-        ERROR_LEVEL, 0, "%s a mutex inside %s failed with an error code %d.",
-        attempt_lock ? "Locking" : "Unlocking", function_name, result);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "%s a mutex inside %s failed with an error code %d.",
+                    attempt_lock ? "Locking" : "Unlocking", function_name,
+                    result);
 
     // This will hopefully result in a meaningful stack trace which we can use
     // to efficiently debug the root cause.
@@ -426,8 +428,8 @@ class Rdb_exec_time {
 
     result += "}";
 
-    LogPluginErrMsg(INFORMATION_LEVEL, 0, "rdb execution report (microsec): %s",
-                    result.c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "rdb execution report (microsec): %s", result.c_str());
   }
 };
 

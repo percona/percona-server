@@ -78,7 +78,7 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
 
   s = m_sst_file_writer->Open(m_name);
   if (m_tracing) {
-    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "SST Tracing: Open(%s) returned %s, "
                     "compression_parallel_threads=%u",
                     m_name.c_str(), s.ok() ? "ok" : "not ok",
@@ -130,13 +130,14 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
   // Close out the sst file
   s = m_sst_file_writer->Finish(&fileinfo);
   if (m_tracing) {
-    LogPluginErrMsg(INFORMATION_LEVEL, 0, "SST Tracing: Finish returned %s",
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                    "SST Tracing: Finish returned %s",
                     s.ok() ? "ok" : "not ok");
   }
 
   if (s.ok()) {
     if (m_tracing) {
-      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                       "SST Tracing: Adding file %s, smallest key: %s, "
                       "largest key: %s, file size: %" PRIu64
                       ", num_entries: %" PRIu64,
@@ -530,8 +531,8 @@ void Rdb_sst_info::init(const rocksdb::DB *const db) {
   rocksdb::IOStatus s =
       fs->GetChildren(dir, rocksdb::IOOptions(), &files_in_dir, nullptr);
   if (!s.ok()) {
-    LogPluginErrMsg(WARNING_LEVEL, 0, "Could not access database directory: %s",
-                    dir.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Could not access database directory: %s", dir.c_str());
     return;
   }
 

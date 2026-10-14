@@ -1,0 +1,6 @@
+CALL mtr.add_suppression('MyRocks logger regression:');
+SET SESSION debug='+d,rocksdb_test_log_message';
+SET GLOBAL rocksdb_info_log_level='warn_level';
+SET SESSION debug='-d,rocksdb_test_log_message';
+include/assert_grep.inc [Server log preserves the full message and a valid error code]
+include/assert_grep.inc [RocksDB log receives the same complete message]

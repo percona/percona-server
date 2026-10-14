@@ -167,7 +167,7 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
       stats->m_entry_others++;
       break;
     default:
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Unexpected entry type found: %u. This should not happen "
                       "so aborting the system.",
                       type);
@@ -399,7 +399,7 @@ int Rdb_index_stats::unmaterialize(const std::string &s,
   // Make sure version is within supported range.
   if (version < INDEX_STATS_VERSION_INITIAL ||
       version > INDEX_STATS_VERSION_ENTRY_TYPES) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Index stats version %d was outside of supported range. "
                     "This should not happen so aborting the system.",
                     version);

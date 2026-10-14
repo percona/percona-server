@@ -79,7 +79,7 @@ bool Rdb_cf_manager::init(
     if (std::find(tmp_cfs.begin(), tmp_cfs.end(), cf_name) != tmp_cfs.end()) {
       uint cf_id = cfh_ptr->GetID();
       LogPluginErrMsg(
-          INFORMATION_LEVEL, 0,
+          INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
           "Dropping column family %s with id %u on RocksDB for temp "
           "table",
           cf_name.c_str(), cf_id);
@@ -90,7 +90,7 @@ bool Rdb_cf_manager::init(
       }
       // NO_LINT_DEBUG
       LogPluginErrMsg(
-          ERROR_LEVEL, 0,
+          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
           "Dropping column family %s with id %u on RocksDB failed for "
           "temp table",
           cf_name.c_str(), cf_id);
@@ -185,11 +185,11 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_or_create_cf(
     }
 
     if (create || cf_name_found) {
-      LogPluginErrMsg(INFORMATION_LEVEL, 0, "Creating a column family %s",
-                      cf_name.c_str());
-      LogPluginErrMsg(INFORMATION_LEVEL, 0, "    write_buffer_size=%ld",
-                      opts.write_buffer_size);
-      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Creating a column family %s", cf_name.c_str());
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                      "    write_buffer_size=%ld", opts.write_buffer_size);
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                       "    target_file_size_base=%" PRIu64,
                       opts.target_file_size_base);
 
@@ -293,8 +293,8 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_cf(
   }
 
   if (!cf_handle) {
-    LogPluginErrMsg(WARNING_LEVEL, 0, "Column family '%s' not found.",
-                    cf_name.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Column family '%s' not found.", cf_name.c_str());
   }
 
   if (!lock_held_by_caller) {
@@ -356,7 +356,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
     dict_manager->commit(batch);
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Column family with id %u is marked as dropped, "
                     "but doesn't exist in cf manager",
                     cf_id);
@@ -369,7 +369,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
 
   if (!dict_manager->get_dropped_cf(cf_id)) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Column family %s with id %u is not in "
                     "the list of cf ids to be dropped",
                     cf_name.c_str(), cf_id);
@@ -399,7 +399,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
     dict_manager->commit(batch);
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Dropping column family %s with id %u on RocksDB failed",
                     cf_name.c_str(), cf_id);
 
@@ -429,7 +429,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
   dict_manager->commit(batch);
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Column family %s with id %u has been dropped successfully",
                   cf_name.c_str(), cf_id);
 
@@ -478,7 +478,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   auto cf_handle = get_cf(cf_name, true /* lock_held_by_caller */).get();
   if (cf_handle == nullptr) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot mark Column family %s to be dropped, "
                     "because it doesn't exist in cf manager",
                     cf_name.c_str());
@@ -492,7 +492,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   auto ret = ddl_manager->scan_for_tables(&scanner);
   if (ret) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot mark Column family %s with id %u to be dropped, "
                     "because it is in use",
                     cf_name.c_str(), cf_id);
@@ -502,7 +502,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   ret = ddl_manager->find_in_uncommitted_keydef(cf_id);
   if (ret) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot mark Column family %s with id %u to be dropped, "
                     "because it is used by an ongoing add index command",
                     cf_name.c_str(), cf_id);
@@ -520,7 +520,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
 
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Column family %s with id %u has been marked to be dropped",
                   cf_name.c_str(), cf_id);
 

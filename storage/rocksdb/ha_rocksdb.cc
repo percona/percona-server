@@ -390,7 +390,8 @@ static void rocksdb_max_compaction_history_update(
     my_core::THD *const thd, my_core::SYS_VAR *const /* unused */,
     void *const var_ptr, const void *const save);
 
-static int delete_range(const std::unordered_set<GL_INDEX_ID> &indices);
+static rocksdb::Status delete_range(rocksdb::ColumnFamilyHandle *cfh,
+                                    const rocksdb::Range &range);
 
 static int rocksdb_force_flush_memtable_now(
     THD *const thd, struct SYS_VAR *const var, void *const var_ptr,
@@ -13411,64 +13412,33 @@ rocksdb::Range ha_rocksdb::get_range(int i, uchar *buf) const {
   return get_range(*m_key_descr_arr[i], buf);
 }
 
-static int delete_range(const std::unordered_set<GL_INDEX_ID> &indices) {
-  int ret = 0;
+// Only called for indexes whose persistent pending-drop record is committed.
+// Failures leave that record in place so cleanup can be retried after restart.
+static rocksdb::Status delete_range(rocksdb::ColumnFamilyHandle *cfh,
+                                    const rocksdb::Range &range) {
   rocksdb::WriteBatch batch;
-  for (const auto &d : indices) {
-    auto local_dict_manager =
-        dict_manager.get_dict_manager_selector_non_const(d.cf_id);
-    uint32 cf_flags = 0;
-    if (!local_dict_manager->get_cf_flags(d.cf_id, &cf_flags)) {
-      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
-                      "Failed to get column family flags "
-                      "from cf id %u. MyRocks data dictionary may "
-                      "get corrupted.",
-                      d.cf_id);
-      ret = 1;
-      return ret;
-    }
-    std::shared_ptr<rocksdb::ColumnFamilyHandle> cfh =
-        cf_manager.get_cf(d.cf_id);
-    assert(cfh);
-    const bool is_reverse_cf = cf_flags & Rdb_key_def::REVERSE_CF_FLAG;
-
-    uchar buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2];
-    rocksdb::Range range = get_range(d.index_id, buf, is_reverse_cf ? 1 : 0,
-                                     is_reverse_cf ? 0 : 1);
-    rocksdb::Status status = DeleteFilesInRange(rdb->GetBaseDB(), cfh.get(),
-                                                &range.start, &range.limit);
-    if (!status.ok()) {
-      LogPluginErrMsg(
-          WARNING_LEVEL, 0,
-          "Failed to call DeleteFilesInRange for [cf_id %u, index_id "
-          "%u] with status [%s]",
-          d.cf_id, d.index_id, status.ToString().c_str());
-    }
-    status = batch.DeleteRange(cfh.get(), range.start, range.limit);
-    if (!status.ok()) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
-                      "Failed to call DeleteRange for [cf_id %u, index_id %u] "
-                      "with status [%s]",
-                      d.cf_id, d.index_id, status.ToString().c_str());
-      ret = 1;
-      return ret;
-    }
-  }
+  auto status = batch.DeleteRange(cfh, range.start, range.limit);
+  if (!status.ok()) return status;
 
   // Followed the same policy as we do in Rdb_dict_manager::commit.
   rocksdb::TransactionDBWriteOptimizations optimize;
   optimize.skip_concurrency_control = true;
   optimize.skip_duplicate_key_check = true;
-  rocksdb::Status status =
-      rdb->Write(rocksdb::WriteOptions(), optimize, &batch);
+  status = DBUG_EVALUATE_IF(
+      "rocksdb_delete_range_write_failure",
+      rocksdb::Status::IOError("injected DeleteRange write error"),
+      rdb->Write(rocksdb::WriteOptions(), optimize, &batch));
 
-  if (status.ok()) {
-    if (!rdb_sync_wal_supported()) {
-      // If we don't support SyncWAL, do a flush at least
-      rdb->FlushWAL(false);
-    }
+  if (status.ok() &&
+      (!rdb_sync_wal_supported() ||
+       DBUG_EVALUATE_IF("rocksdb_delete_range_flush_failure", true, false))) {
+    // If we don't support SyncWAL, do a flush at least.
+    status = DBUG_EVALUATE_IF(
+        "rocksdb_delete_range_flush_failure",
+        rocksdb::Status::IOError("injected DeleteRange flush error"),
+        rdb->FlushWAL(false));
   }
-  return HA_EXIT_SUCCESS;
+  return status;
 }
 
 /*
@@ -13581,8 +13551,10 @@ void Rdb_drop_index_thread::run() {
             rdb_handle_io_error(status, RDB_IO_ERROR_BG_THREAD);
           }
 
-          status = rdb->CompactRange(getCompactRangeOptions(), cfh.get(),
-                                     &range.start, &range.limit);
+          status = rocksdb_enable_delete_range_for_drop_index
+                       ? delete_range(cfh.get(), range)
+                       : rdb->CompactRange(getCompactRangeOptions(), cfh.get(),
+                                           &range.start, &range.limit);
           if (!status.ok()) {
             if (status.IsIncomplete()) {
               continue;
@@ -13590,6 +13562,7 @@ void Rdb_drop_index_thread::run() {
               break;
             }
             rdb_handle_io_error(status, RDB_IO_ERROR_BG_THREAD);
+            continue;
           }
           if (is_myrocks_index_empty(cfh.get(), is_reverse_cf, read_opts,
                                      d.index_id)) {
@@ -13710,21 +13683,10 @@ int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
 
   {
     std::lock_guard<Rdb_dict_manager> dm_lock(*local_dict_manager);
-    if (rocksdb_enable_delete_range_for_drop_index) {
-      std::unordered_set<GL_INDEX_ID> dropped_index_ids;
-      for (uint32 i = 0; i < tbl->m_key_count; i++) {
-        dropped_index_ids.insert(tbl->m_key_descr_arr[i]->get_gl_index_id());
-        local_dict_manager->delete_index_info(
-            batch, tbl->m_key_descr_arr[i]->get_gl_index_id());
-      }
-      int err = delete_range(dropped_index_ids);
-      if (err) {
-        DBUG_RETURN(err);
-      }
-    } else {
-      local_dict_manager->add_drop_table(tbl->m_key_descr_arr, tbl->m_key_count,
-                                         batch);
-    }
+    // Commit the pending-drop records with the dictionary change before any
+    // destructive cleanup. The worker owns retries, including after restart.
+    local_dict_manager->add_drop_table(tbl->m_key_descr_arr, tbl->m_key_count,
+                                       batch);
     /*
       Remove the table entry in data dictionary (this will also remove it from
       the persistent data dictionary).
@@ -13744,9 +13706,7 @@ int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
     assert(!debug_sync_set_action(ha_thd(), STRING_WITH_LEN(act)));
   });
 
-  if (!rocksdb_enable_delete_range_for_drop_index) {
-    rdb_drop_idx_thread.signal();
-  }
+  rdb_drop_idx_thread.signal();
   // avoid dangling pointer
   m_tbl_def = nullptr;
   m_iterator = nullptr;
@@ -15764,10 +15724,9 @@ bool ha_rocksdb::commit_inplace_alter_table(
   DEBUG_SYNC(ha_thd(), "rocksdb.commit_in_place_alter_table");
 
   /*
-    IMPORTANT: When rollback is requested, mysql will abort with
-    an assertion failure. That means every failed commit during inplace alter
-    table will result in a fatal error on the server. Indexes ongoing creation
-    will be detected when the server restarts, and dropped.
+    A failed commit must report a SQL error before requesting rollback. Any
+    unpublished definitions remain owned by the ALTER context and are freed
+    below without removing the original dictionary's index mappings.
 
     For partitioned tables, a rollback call to this function (commit == false)
     is done for each partition.  A successful commit call only executes once
@@ -15876,10 +15835,6 @@ bool ha_rocksdb::commit_inplace_alter_table(
     auto batch = Rdb_dict_manager::begin();
     std::unordered_set<GL_INDEX_ID> create_index_ids;
 
-    m_tbl_def = ctx0->m_new_tdef;
-    m_key_descr_arr = m_tbl_def->m_key_descr_arr;
-    m_pk_descr = m_key_descr_arr[pk_index(*altered_table, *m_tbl_def)];
-
     DBUG_EXECUTE_IF("rocksdb_commit_alter_table", {
       static constexpr char act[] =
           "now signal ready_to_mark_cf_dropped_before_commit_alter_table "
@@ -15894,17 +15849,7 @@ bool ha_rocksdb::commit_inplace_alter_table(
             static_cast<Rdb_inplace_alter_ctx *>(*pctx);
 
         /* Mark indexes to be dropped */
-        if (rocksdb_enable_delete_range_for_drop_index) {
-          int err = delete_range(ctx->m_dropped_index_ids);
-          for (auto &index_id : ctx->m_dropped_index_ids) {
-            local_dict_manager->delete_index_info(batch, index_id);
-          }
-          if (err) {
-            DBUG_RETURN(err);
-          }
-        } else {
-          local_dict_manager->add_drop_index(ctx->m_dropped_index_ids, batch);
-        }
+        local_dict_manager->add_drop_index(ctx->m_dropped_index_ids, batch);
 
         for (const auto &index : ctx->m_added_indexes) {
           create_index_ids.insert(index->get_gl_index_id());
@@ -15938,15 +15883,17 @@ bool ha_rocksdb::commit_inplace_alter_table(
           create_index_ids, Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
     }
 
+    m_tbl_def = ctx0->m_new_tdef;
+    m_key_descr_arr = m_tbl_def->m_key_descr_arr;
+    m_pk_descr = m_key_descr_arr[pk_index(*altered_table, *m_tbl_def)];
+
     DBUG_EXECUTE_IF("rocksdb_delete_index", {
       static constexpr char act[] =
           "now signal ready_to_mark_cf_dropped_after_commit_alter_table "
           "wait_for mark_cf_dropped_done_after_commit_alter_table";
       assert(!debug_sync_set_action(ha_thd(), STRING_WITH_LEN(act)));
     });
-    if (!rocksdb_enable_delete_range_for_drop_index) {
-      rdb_drop_idx_thread.signal();
-    }
+    rdb_drop_idx_thread.signal();
 
     if (rocksdb_table_stats_use_table_scan && !ctx0->m_added_indexes.empty()) {
       // If new indexes are created, add the table to the recalc queue

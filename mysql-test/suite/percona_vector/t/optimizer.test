@@ -186,13 +186,60 @@ WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
 --echo #
 
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT *
+FROM t1 IGNORE INDEX (PRIMARY, v) JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT *
+FROM t1 IGNORE INDEX (PRIMARY, v) JOIN t2 USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT *
+FROM t1 JOIN t2 IGNORE INDEX (PRIMARY, v) USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT *
+FROM t1 JOIN t2 IGNORE INDEX (PRIMARY, v) USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT *
+FROM t1 IGNORE INDEX (PRIMARY, v) JOIN t2 IGNORE INDEX (PRIMARY, v) USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+SELECT *
+FROM t1 IGNORE INDEX (PRIMARY, v) JOIN t2 IGNORE INDEX (PRIMARY, v) USING( id )
+WHERE distance(t1.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5 AND
+      distance(t2.v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') <= 2.5;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 IGNORE INDEX (PRIMARY, v) ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+SELECT id FROM t1 IGNORE INDEX (PRIMARY, v) ORDER BY distance(v, to_vector('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE SELECT id FROM t1 IGNORE INDEX (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, v)
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
 
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
 SELECT id FROM t1 IGNORE INDEX FOR ORDER BY (v)
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
 
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
@@ -201,8 +248,70 @@ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
 
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 3;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN');
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
 SELECT id FROM t1 USE INDEX FOR ORDER BY (PRIMARY)
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 3;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 USE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN');
+
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 FORCE INDEX (PRIMARY)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 FORCE INDEX FOR ORDER BY (PRIMARY)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 FORCE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 FORCE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 3;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT id FROM t1 FORCE INDEX FOR ORDER BY (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN');
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN')
+FROM t1 FORCE INDEX (v)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 3;
 
 
 --echo #
@@ -252,6 +361,21 @@ SELECT /*+ NO_INDEX(t1) */ id FROM t1 ORDER BY distance(v, to_vector('[0, 0, 0]'
 
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
+SELECT /*+ NO_INDEX(t1 v) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT /*+ NO_ORDER_INDEX(t1) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT /*+ NO_ORDER_INDEX(t1 v) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
 SELECT /*+ INDEX(t1 PRIMARY) */ id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
 
@@ -262,8 +386,24 @@ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
 
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
-SELECT /*+ NO_ORDER_INDEX(t1) */ id FROM t1
+SELECT /*+ ORDER_INDEX(t1 v) */ id FROM t1
 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT /*+ ORDER_INDEX(t1 v) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 3;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT /*+ ORDER_INDEX(t1 v) */ id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN');
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT /*+ INDEX(t1 v) */ DISTINCT DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN')
+FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 3;
 
 --echo #
 --echo # Error messages.
@@ -392,8 +532,19 @@ FROM information_schema.optimizer_trace;
 --replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
 EXPLAIN FORMAT=TREE
 SELECT id FROM t1 WHERE c >= 12 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0]'), 'EUCLIDEAN') LIMIT 2;
-SELECT JSON_EXTRACT(trace,'$**.index_order_summary') FROM information_schema.optimizer_trace;
+SELECT JSON_EXTRACT(trace, '$**.index_order_summary') FROM information_schema.optimizer_trace;
 SET SESSION optimizer_trace='enabled=off';
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT c, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d
+FROM t1
+ORDER BY d LIMIT 3;
+
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT c, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d
+FROM t1
+ORDER BY d LIMIT 3;
 
 DROP TABLE t1;
 
@@ -437,6 +588,22 @@ EXPLAIN FORMAT=TREE
 SELECT id FROM t1 IGNORE INDEX FOR ORDER BY (v)
 WHERE u >= 0
 ORDER BY DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT /*+ NO_ORDER_INDEX(t1 v) */ id FROM t1
+WHERE u >= 0
+ORDER BY DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') LIMIT 2;
+
+--replace_regex /cost=[0-9\.e+-]+/cost=X/ /rows=[0-9\.e+-]+/rows=X/
+EXPLAIN FORMAT=TREE
+SELECT DISTINCT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d
+FROM t1
+ORDER BY d LIMIT 3;
+
+SELECT DISTINCT id, DISTANCE(v, TO_VECTOR('[0, 0, 0]'), 'EUCLIDEAN') AS d
+FROM t1
+ORDER BY d LIMIT 3;
 
 DROP TABLE t1, t2;
 

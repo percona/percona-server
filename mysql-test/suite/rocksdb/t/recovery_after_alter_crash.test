@@ -32,6 +32,40 @@ ALTER TABLE t ADD INDEX k2 (c2), ALGORITHM=INPLACE;
 --echo # 7. Restart the MySQL server; MyRocks should automatically rebuild the corrupted table definition
 --source include/start_mysqld.inc
 
+--echo # Failed reconstruction must preserve the original definition for retry
+--disable_query_log
+CALL mtr.add_suppression("Failed to rebuild table definition for table 'test.t'");
+CALL mtr.add_suppression("Ignoring I/O errors.*injected dictionary write error");
+--enable_query_log
+SET @saved_debug = @@session.debug;
+SET @saved_io_action = @@global.rocksdb_io_error_action;
+SET GLOBAL rocksdb_io_error_action = 'IGNORE_ERROR';
+
+SET SESSION debug = '+d,rocksdb_rebuild_key_defs_failure';
+--error ER_KEY_CREATE_DURING_ALTER
+SELECT * FROM t;
+SET SESSION debug = @saved_debug;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+  WHERE table_schema = 'test' AND table_name = 't';
+
+SET SESSION debug = '+d,rocksdb_rebuild_write_failure';
+--error ER_KEY_CREATE_DURING_ALTER
+SELECT * FROM t;
+SET SESSION debug = @saved_debug;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+  WHERE table_schema = 'test' AND table_name = 't';
+
+SET SESSION debug = '+d,rocksdb_dict_commit_failure';
+--error ER_KEY_CREATE_DURING_ALTER
+SELECT * FROM t;
+SET SESSION debug = @saved_debug;
+SET GLOBAL rocksdb_io_error_action = @saved_io_action;
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+  WHERE table_schema = 'test' AND table_name = 't';
+
+# Restart before the successful retry to check the persisted definition too.
+--source include/restart_mysqld.inc
+
 --echo # 8. Verify that the data in the table is intact after reconstruction
 SELECT * FROM t ORDER BY i;
 

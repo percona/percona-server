@@ -1,0 +1,55 @@
+--source include/have_rocksdb.inc
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+CREATE TABLE o (id INT PRIMARY KEY, k INT) ENGINE=ROCKSDB;
+CREATE TABLE i (id INT PRIMARY KEY, k INT, KEY(k)) ENGINE=ROCKSDB;
+INSERT INTO o
+  WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<300)
+  SELECT n,n FROM seq;
+INSERT INTO i SELECT * FROM o;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+--echo # Hundreds of probes across two handlers emit only one warning.
+BEGIN;
+--disable_result_log
+SELECT STRAIGHT_JOIN o.id FROM o JOIN i FORCE INDEX(k) ON i.k=o.k FOR UPDATE;
+--enable_result_log
+SHOW COUNT(*) WARNINGS;
+SHOW WARNINGS;
+
+--echo # Each subsequent execution in the same transaction warns again.
+PREPARE stmt FROM 'SELECT STRAIGHT_JOIN o.id FROM o JOIN i FORCE INDEX(k) ON i.k=o.k FOR UPDATE';
+--disable_result_log
+EXECUTE stmt;
+--enable_result_log
+SHOW COUNT(*) WARNINGS;
+--disable_result_log
+EXECUTE stmt;
+--enable_result_log
+SHOW COUNT(*) WARNINGS;
+
+--echo # Deduplication also works when diagnostics are not stored.
+SET @saved_max_error_count=@@max_error_count;
+SET SESSION max_error_count=0;
+--disable_result_log
+EXECUTE stmt;
+--enable_result_log
+SHOW COUNT(*) WARNINGS;
+SET SESSION max_error_count=@saved_max_error_count;
+DEALLOCATE PREPARE stmt;
+ROLLBACK;
+
+--echo # The warning state belongs to the connection, not a cached handler.
+--connect (other,localhost,root,,test)
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+--disable_result_log
+SELECT STRAIGHT_JOIN o.id FROM o JOIN i FORCE INDEX(k) ON i.k=o.k FOR UPDATE;
+--enable_result_log
+SHOW COUNT(*) WARNINGS;
+ROLLBACK;
+--disconnect other
+--connection default
+DROP TABLE o,i;

@@ -1,0 +1,1 @@
+--rocksdb-gap-lock-raise-error=WARNING

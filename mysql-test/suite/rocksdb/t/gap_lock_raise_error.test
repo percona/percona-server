@@ -1,0 +1,134 @@
+--source include/have_rocksdb.inc
+
+--echo # The startup option initializes the global and session values.
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+
+CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY v_idx(v)) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,10),(2,20),(3,30);
+CREATE TABLE t2 LIKE t;
+INSERT INTO t2 SELECT * FROM t;
+SET @saved_mode = @@session.rocksdb_gap_lock_raise_error;
+SET @saved_isolation = @@session.transaction_isolation;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+--echo # OFF permits locking scans and range DML without diagnostics.
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+BEGIN;
+SELECT * FROM t ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+UPDATE t SET v=v+1 WHERE id >= 2;
+SHOW COUNT(*) WARNINGS;
+SELECT * FROM t ORDER BY id;
+ROLLBACK;
+
+--echo # WARNING must return rows and apply DML, rather than fail as a deadlock.
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+BEGIN;
+# Full scan, forward/backward index scans, and index range lookup.
+SELECT * FROM t IGNORE INDEX(PRIMARY,v_idx) FOR UPDATE;
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id LIMIT 1 FOR UPDATE;
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id DESC LIMIT 1 FOR UPDATE;
+SELECT * FROM t FORCE INDEX(v_idx) WHERE v >= 20 ORDER BY v FOR UPDATE;
+UPDATE t SET v=v+1 WHERE id >= 2;
+SELECT * FROM t ORDER BY id;
+DELETE FROM t WHERE id >= 3;
+SELECT * FROM t ORDER BY id;
+ROLLBACK;
+
+--echo # Full unique-key reads and nonlocking reads remain warning-free.
+BEGIN;
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+SELECT * FROM t ORDER BY id;
+SHOW COUNT(*) WARNINGS;
+ROLLBACK;
+
+--echo # Multi-table DML in autocommit also continues in WARNING mode.
+UPDATE t JOIN t2 ON t.id=t2.id SET t.v=t.v+1;
+SELECT * FROM t ORDER BY id;
+
+--echo # ERROR keeps the existing diagnostic and prevents writes.
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+BEGIN;
+--error ER_UNKNOWN_ERROR
+SELECT * FROM t ORDER BY id FOR UPDATE;
+--error ER_UNKNOWN_ERROR
+UPDATE t SET v=v+100 WHERE id >= 2;
+SELECT * FROM t ORDER BY id;
+ROLLBACK;
+--error ER_UNKNOWN_ERROR
+UPDATE t JOIN t2 ON t.id=t2.id SET t.v=t.v+100;
+SELECT * FROM t ORDER BY id;
+
+--echo # The same connection can switch modes without stale diagnostics.
+BEGIN;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SELECT * FROM t ORDER BY id FOR UPDATE;
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+SELECT * FROM t ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+ROLLBACK;
+
+--echo # READ COMMITTED remains exempt, including in ERROR mode.
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+SELECT * FROM t ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+UPDATE t SET v=v+1 WHERE id >= 2;
+SHOW COUNT(*) WARNINGS;
+ROLLBACK;
+
+--echo # InnoDB supports gap locks and is unaffected by all three modes.
+CREATE TABLE ti (id INT PRIMARY KEY, v INT) ENGINE=INNODB;
+INSERT INTO ti VALUES (1,10),(2,20);
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+SELECT * FROM ti ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+UPDATE ti SET v=v+1 WHERE id >= 1;
+SHOW COUNT(*) WARNINGS;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+SELECT * FROM ti ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+UPDATE ti SET v=v+1 WHERE id >= 1;
+SHOW COUNT(*) WARNINGS;
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+SELECT * FROM ti ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+UPDATE ti SET v=v+1 WHERE id >= 1;
+SHOW COUNT(*) WARNINGS;
+ROLLBACK;
+DROP TABLE ti;
+
+--echo # Partitioned tables follow the same policy, also for full scans.
+CREATE TABLE tp (id INT PRIMARY KEY, v INT, KEY v_idx(v)) ENGINE=ROCKSDB
+  PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO tp VALUES (1,10),(2,20),(3,30);
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+BEGIN;
+SELECT * FROM tp ORDER BY id FOR UPDATE;
+SHOW COUNT(*) WARNINGS;
+UPDATE tp SET v=v+1 WHERE id >= 2;
+SHOW COUNT(*) WARNINGS;
+ROLLBACK;
+SET SESSION rocksdb_gap_lock_raise_error = 'WARNING';
+BEGIN;
+SELECT * FROM tp ORDER BY id FOR UPDATE;
+SHOW WARNINGS;
+UPDATE tp SET v=v+1 WHERE id >= 2;
+SELECT * FROM tp ORDER BY id;
+ROLLBACK;
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+BEGIN;
+--error ER_UNKNOWN_ERROR
+SELECT * FROM tp ORDER BY id FOR UPDATE;
+ROLLBACK;
+DROP TABLE tp;
+
+SET SESSION rocksdb_gap_lock_raise_error = @saved_mode;
+SET SESSION transaction_isolation = @saved_isolation;
+DROP TABLE t, t2;

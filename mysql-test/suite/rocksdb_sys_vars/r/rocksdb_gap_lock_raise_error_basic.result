@@ -1,0 +1,63 @@
+SET @saved_global = @@global.rocksdb_gap_lock_raise_error;
+SET @saved_session = @@session.rocksdb_gap_lock_raise_error;
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+@@global.rocksdb_gap_lock_raise_error	@@session.rocksdb_gap_lock_raise_error
+ERROR	ERROR
+SET SESSION rocksdb_gap_lock_raise_error = OFF;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+OFF
+SET SESSION rocksdb_gap_lock_raise_error = 'warning';
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+WARNING
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+ERROR
+SET SESSION rocksdb_gap_lock_raise_error = 0;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+OFF
+SET SESSION rocksdb_gap_lock_raise_error = 1;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+WARNING
+SET SESSION rocksdb_gap_lock_raise_error = 2;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+ERROR
+SET SESSION rocksdb_gap_lock_raise_error = 3;
+ERROR 42000: Variable 'rocksdb_gap_lock_raise_error' can't be set to the value of '3'
+SET SESSION rocksdb_gap_lock_raise_error = -1;
+ERROR 42000: Variable 'rocksdb_gap_lock_raise_error' can't be set to the value of '-1'
+SET SESSION rocksdb_gap_lock_raise_error = 'ON';
+ERROR 42000: Variable 'rocksdb_gap_lock_raise_error' can't be set to the value of 'ON'
+SET GLOBAL rocksdb_gap_lock_raise_error = 'invalid';
+ERROR 42000: Variable 'rocksdb_gap_lock_raise_error' can't be set to the value of 'invalid'
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+@@global.rocksdb_gap_lock_raise_error	@@session.rocksdb_gap_lock_raise_error
+ERROR	ERROR
+SET GLOBAL rocksdb_gap_lock_raise_error = 'WARNING';
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+@@global.rocksdb_gap_lock_raise_error	@@session.rocksdb_gap_lock_raise_error
+WARNING	WARNING
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+@@global.rocksdb_gap_lock_raise_error	@@session.rocksdb_gap_lock_raise_error
+WARNING	OFF
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+ERROR
+SET SESSION rocksdb_gap_lock_raise_error = DEFAULT;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+@@session.rocksdb_gap_lock_raise_error
+WARNING
+SET GLOBAL rocksdb_gap_lock_raise_error = DEFAULT;
+SELECT @@global.rocksdb_gap_lock_raise_error;
+@@global.rocksdb_gap_lock_raise_error
+ERROR
+SET GLOBAL rocksdb_gap_lock_raise_error = @saved_global;
+SET SESSION rocksdb_gap_lock_raise_error = @saved_session;
+SELECT @@session.gap_lock_raise_error;
+ERROR HY000: Unknown system variable 'gap_lock_raise_error'

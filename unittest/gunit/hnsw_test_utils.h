@@ -87,6 +87,26 @@ struct NullPersistor {
 using TestHnsw = HNSW<ArenaAllocator, NullPersistor, std::mt19937>;
 
 /**
+  RNG that makes random_layer() always take the layer cap (grows / keeps
+  high layers). Returning the engine's minimum drives u near 0 so -log(u)
+  is large.
+*/
+struct MaxLayerEngine {
+  using result_type = uint32_t;
+  explicit MaxLayerEngine(uint32_t = 0) {}
+  static constexpr result_type min() { return 0; }
+  static constexpr result_type max() {
+    return std::numeric_limits<uint32_t>::max();
+  }
+  result_type operator()() const { return min(); }
+};
+
+/** Empty neighbor-id vector sized for a node whose top layer is @p layer. */
+inline std::vector<uint64_t> empty_neighbor_ids(uint8_t layer, size_t M) {
+  return std::vector<uint64_t>((static_cast<size_t>(layer) + 2) * M, 0);
+}
+
+/**
   Thread-safe UniformRandomBitGenerator for concurrent insert() tests.
 
   HNSW does not synchronize RandomEngine access; concurrent inserts require

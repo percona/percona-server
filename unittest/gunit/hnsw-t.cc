@@ -1490,4 +1490,98 @@ TEST(HnswDeathTest, MTooSmallAsserts) {
 }
 #endif  // NDEBUG
 
+/*
+  Structural corruption: a COMPLETE neighbor referenced on layer L whose
+  own top layer is < L. Hand-built RecordingPersistor stores exercise the
+  search_layer_ef_1 and search_layer_core checks. The reverse-link prune
+  check is the same predicate on the same neighbor lists; a single-threaded
+  insert always expands those nodes during search_layer first, so a distinct
+  reverse-link-only failure is not reachable without mutating the graph
+  between search and prune.
+*/
+namespace {
+
+constexpr size_t kCorruptM = 2;
+
+/** EP (id=1) on layer 1 points at id=2; id=2 is only on layer 0. */
+RecordingPersistor::Context make_misplaced_neighbor_store() {
+  RecordingPersistor::Context store;
+  store.dims = 2;
+  store.entry_point = 1;
+
+  StoredNode ep;
+  ep.base_pk = 100;
+  ep.layer = 1;
+  ep.vec = make_vec({0.0f, 0.0f});
+  // Layout: layer 1 uses M slots, then layer 0 uses 2*M.
+  ep.neighbor_ids = empty_neighbor_ids(1, kCorruptM);
+  ep.neighbor_ids[0] = 2;  // layer-1 slot 0 → node 2
+  store.nodes[1] = ep;
+
+  StoredNode low;
+  low.base_pk = 200;
+  low.layer = 0;
+  low.vec = make_vec({1.0f, 0.0f});
+  low.neighbor_ids = empty_neighbor_ids(0, kCorruptM);
+  store.nodes[2] = low;
+
+  return store;
+}
+
+using MaxLayerLoadHnsw =
+    HNSW<ArenaAllocator, RecordingPersistor, MaxLayerEngine>;
+
+}  // namespace
+
+TEST_F(HnswTest, CorruptedLayerNeighborSearchLayerEf1) {
+  auto store = make_misplaced_neighbor_store();
+  LoadTestHnsw index(kDims, euclidean, kCorruptM, kEfConstruction);
+  ASSERT_EQ(index.init_from_entry_point(1, &store), LoadTestHnsw::HNSW_SUCCESS);
+
+  // Descent on layer 1 uses search_layer_ef_1; EP's neighbor has layer 0.
+  const auto q = make_vec({0.5f, 0.0f});
+  const auto [rc, hits] =
+      index.k_nn_search(as_bytes(q), /*k=*/1, /*ef_search=*/8, &store);
+  EXPECT_EQ(rc, LoadTestHnsw::HNSW_CORRUPTED);
+  EXPECT_TRUE(hits.empty());
+}
+
+TEST_F(HnswTest, CorruptedLayerNeighborSearchLayerCore) {
+  auto store = make_misplaced_neighbor_store();
+  MaxLayerLoadHnsw index(kDims, euclidean, kCorruptM, kEfConstruction);
+  ASSERT_EQ(index.init_from_entry_point(1, &store),
+            MaxLayerLoadHnsw::HNSW_SUCCESS);
+
+  // MaxLayerEngine places the new node on a layer >= 1, so insert skips
+  // ef_1 descent and runs search_layer / search_layer_core on layer 1.
+  const auto q = make_vec({0.5f, 0.0f});
+  EXPECT_EQ(index.insert(3, 300, as_bytes(q), &store),
+            MaxLayerLoadHnsw::HNSW_CORRUPTED);
+}
+
+/*
+  load_node_neighbors() rejects a neighbor-id list whose size does not match
+  (layer + 2) * M for the node being loaded, before allocating anything.
+*/
+TEST_F(HnswTest, LoadNodeNeighborsWrongSize) {
+  for (const int delta : {-1, +1}) {
+    RecordingPersistor::Context store;
+    store.dims = 2;
+    store.entry_point = 1;
+
+    StoredNode ep;
+    ep.base_pk = 100;
+    ep.layer = 1;
+    ep.vec = make_vec({0.0f, 0.0f});
+    ep.neighbor_ids = empty_neighbor_ids(1, kCorruptM);
+    ep.neighbor_ids.resize(ep.neighbor_ids.size() + delta, 0);
+    store.nodes[1] = ep;
+
+    LoadTestHnsw index(kDims, euclidean, kCorruptM, kEfConstruction);
+    EXPECT_EQ(index.init_from_entry_point(1, &store),
+              LoadTestHnsw::HNSW_CORRUPTED)
+        << "delta " << delta;
+  }
+}
+
 }  // namespace hnsw_unittest

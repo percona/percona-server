@@ -1,0 +1,292 @@
+#
+# PS-11751: VIRTUAL generated column returns a stale, identical value for
+#           every row when read through an HNSW vector index (ANN query).
+#
+#
+# Virtual generated columns must be computed for rows returned by
+# the vector index scan. The scan read rows without computing them, so
+# a VIRTUAL column kept whatever value was left in the record buffer:
+# the select list showed a stale, repeating value and a WHERE filter on
+# it rejected or accepted the wrong rows. STORED columns were fine.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+g INT GENERATED ALWAYS AS (id * 2) VIRTUAL,
+s INT GENERATED ALWAYS AS (id * 3) STORED,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, v)
+WITH RECURSIVE ids (id) AS (
+SELECT 1
+UNION ALL
+SELECT id + 1
+FROM ids
+WHERE id < 50
+)
+SELECT
+id,
+STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'))
+FROM ids;
+# Virtual column in the select list must be computed for each row
+# returned by the vector index scan.
+EXPLAIN SELECT id, g, s FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`s` AS `s` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3
+SELECT id, g, s FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+33	66	99
+34	68	102
+32	64	96
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+33	66	99
+34	68	102
+32	64	96
+# Virtual column used in a WHERE filter on top of the vector index scan.
+EXPLAIN SELECT id, g, s FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`s` AS `s` from `test`.`t1` where (`test`.`t1`.`g` > 66) order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3
+SELECT id, g, s FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+35	70	105
+36	72	108
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+35	70	105
+36	72	108
+SELECT id, g, s FROM t1 WHERE g % 4 = 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+32	64	96
+36	72	108
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) WHERE g % 4 = 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+32	64	96
+36	72	108
+DROP TABLE t1;
+#
+# Virtual column which is also indexed by a secondary index, read
+# through the vector index, including locking reads. The row comes
+# from the clustered index, so the secondary index does not provide
+# the value: it must be computed for every row.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+a INT NOT NULL DEFAULT 0,
+g INT GENERATED ALWAYS AS (id * 2 + a) VIRTUAL,
+KEY kg (g),
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, v)
+WITH RECURSIVE ids (id) AS (
+SELECT 1
+UNION ALL
+SELECT id + 1
+FROM ids
+WHERE id < 50
+)
+SELECT
+id,
+STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'))
+FROM ids;
+UPDATE t1 SET a = 100 WHERE id IN (32, 35);
+EXPLAIN SELECT id, g FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk,kg	vk	0	const	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g` from `test`.`t1` where (`test`.`t1`.`g` > 66) order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3
+SELECT id, g FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g
+34	68
+32	164
+35	170
+SELECT id, g FROM t1 IGNORE INDEX (vk) WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g
+34	68
+32	164
+35	170
+EXPLAIN SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3 FOR UPDATE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3
+BEGIN;
+SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3 FOR UPDATE;
+id	g
+33	66
+34	68
+32	164
+ROLLBACK;
+BEGIN;
+SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3 FOR SHARE;
+id	g
+33	66
+34	68
+32	164
+ROLLBACK;
+SELECT id, g FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g
+33	66
+34	68
+32	164
+DROP TABLE t1;
+#
+# Multi-table UPDATE/DELETE. ORDER BY ... LIMIT is not allowed there, so
+# the vector index is used in a derived table or subquery, which reads
+# virtual columns through it; the updated table itself is read by
+# PRIMARY KEY. t1/t2 run each statement through the vector index,
+# u1/u2 run the same statement with IGNORE INDEX (vk).
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+a INT NOT NULL DEFAULT 0,
+g INT GENERATED ALWAYS AS (id * 2 + a) VIRTUAL,
+KEY kg (g),
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, v)
+WITH RECURSIVE ids (id) AS (
+SELECT 1
+UNION ALL
+SELECT id + 1
+FROM ids
+WHERE id < 50
+)
+SELECT
+id,
+STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'))
+FROM ids;
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, b INT NOT NULL);
+INSERT INTO t2 SELECT id, 0 FROM t1;
+CREATE TABLE u1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+a INT NOT NULL DEFAULT 0,
+g INT GENERATED ALWAYS AS (id * 2 + a) VIRTUAL,
+KEY kg (g),
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO u1 (id, v)
+WITH RECURSIVE ids (id) AS (
+SELECT 1
+UNION ALL
+SELECT id + 1
+FROM ids
+WHERE id < 50
+)
+SELECT
+id,
+STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'))
+FROM ids;
+CREATE TABLE u2 (id BIGINT UNSIGNED PRIMARY KEY, b INT NOT NULL);
+INSERT INTO u2 SELECT id, 0 FROM u1;
+EXPLAIN UPDATE t2 JOIN (SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3) d USING (id) SET t2.b = d.g;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	UPDATE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	d.id	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	update `test`.`t2` join (/* select#2 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3) `d` set `test`.`t2`.`b` = `d`.`g` where (`test`.`t2`.`id` = `d`.`id`)
+UPDATE t2 JOIN (SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3) d USING (id) SET t2.b = d.g;
+EXPLAIN UPDATE t1 JOIN (SELECT id FROM t1 WHERE g > 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[20.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) d USING (id) SET t1.a = t1.a + 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	UPDATE	t1	NULL	eq_ref	PRIMARY	PRIMARY	8	d.id	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk,kg	vk	0	const	#	#	Using where
+Warnings:
+Note	1003	update `test`.`t1` join (/* select#2 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`g` > 0) order by distance(`test`.`t1`.`v`,to_vector('[20.4,0,0,0]'),'EUCLIDEAN') limit 2) `d` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 100) where (`test`.`t1`.`id` = `d`.`id`)
+UPDATE t1 JOIN (SELECT id FROM t1 WHERE g > 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[20.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) d USING (id) SET t1.a = t1.a + 100;
+EXPLAIN UPDATE /*+ JOIN_ORDER(t2, t1) */ t1, t2 SET t1.a = t1.a + 7, t2.b = t1.g WHERE t1.id = t2.id AND t1.id IN (SELECT id FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	UPDATE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	<subquery2>.id	#	#	NULL
+1	UPDATE	t1	NULL	eq_ref	PRIMARY	PRIMARY	8	<subquery2>.id	#	#	NULL
+2	MATERIALIZED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+3	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`t1`) */ `test`.`t1` join `test`.`t2` semi join ((/* select#3 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[5.4,0,0,0]'),'EUCLIDEAN') limit 2) `x`) set `test`.`t1`.`a` = (`test`.`t1`.`a` + 7),`test`.`t2`.`b` = `test`.`t1`.`g` where ((`test`.`t2`.`id` = `<subquery2>`.`id`) and (`test`.`t1`.`id` = `<subquery2>`.`id`))
+UPDATE /*+ JOIN_ORDER(t2, t1) */ t1, t2 SET t1.a = t1.a + 7, t2.b = t1.g WHERE t1.id = t2.id AND t1.id IN (SELECT id FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
+EXPLAIN UPDATE t2 SET b = (SELECT g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[25.4,0,0,0]'), 'EUCLIDEAN') LIMIT 1) WHERE id = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	NULL	range	PRIMARY	PRIMARY	8	const	#	#	Using where
+2	SUBQUERY	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`b` = (/* select#2 */ select `test`.`t1`.`g` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[25.4,0,0,0]'),'EUCLIDEAN') limit 1) where (`test`.`t2`.`id` = 1)
+UPDATE t2 SET b = (SELECT g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[25.4,0,0,0]'), 'EUCLIDEAN') LIMIT 1) WHERE id = 1;
+EXPLAIN DELETE t1 FROM t1 JOIN (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[40.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) d USING (id);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	DELETE	t1	NULL	eq_ref	PRIMARY	PRIMARY	8	d.id	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	delete `test`.`t1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[40.4,0,0,0]'),'EUCLIDEAN') limit 2) `d` where (`test`.`t1`.`id` = `d`.`id`)
+DELETE t1 FROM t1 JOIN (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[40.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) d USING (id);
+EXPLAIN DELETE t2 FROM t2 JOIN (SELECT id, g FROM t1 WHERE g > 90 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[45.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) d USING (id);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	DELETE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	d.id	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk,kg	vk	0	const	#	#	Using where
+Warnings:
+Note	1003	delete `test`.`t2` from `test`.`t2` join (/* select#2 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g` from `test`.`t1` where (`test`.`t1`.`g` > 90) order by distance(`test`.`t1`.`v`,to_vector('[45.4,0,0,0]'),'EUCLIDEAN') limit 2) `d` where (`test`.`t2`.`id` = `d`.`id`)
+DELETE t2 FROM t2 JOIN (SELECT id, g FROM t1 WHERE g > 90 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[45.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) d USING (id);
+SELECT id, a, g FROM t1 WHERE a > 0 ORDER BY id;
+id	a	g
+5	7	17
+6	7	19
+20	100	140
+21	100	142
+SELECT id, b FROM t2 WHERE b <> 0 ORDER BY id;
+id	b
+1	50
+5	10
+6	12
+32	64
+33	66
+34	68
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+48
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+48
+# Same result with and without the vector index (both must be 0).
+SELECT COUNT(*) FROM ((SELECT id, a, g FROM t1 EXCEPT SELECT id, a, g FROM u1)
+UNION ALL (SELECT id, a, g FROM u1 EXCEPT SELECT id, a, g FROM t1)) d;
+COUNT(*)
+0
+SELECT COUNT(*) FROM ((SELECT id, b FROM t2 EXCEPT SELECT id, b FROM u2)
+UNION ALL (SELECT id, b FROM u2 EXCEPT SELECT id, b FROM t2)) d;
+COUNT(*)
+0
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1, t2, u1, u2;
+#
+# Error in a virtual column expression for a row returned by the
+# vector index scan is reported as it is for any other access path.
+# The column is added after the rows, so the bad row could be stored.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+j VARCHAR(20), VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, v, j) VALUES
+(1, STRING_TO_VECTOR('[1,0,0,0]'), '{"a": 1}'),
+(2, STRING_TO_VECTOR('[2,0,0,0]'), '{"a": 2}'),
+(3, STRING_TO_VECTOR('[3,0,0,0]'), 'not json');
+ALTER TABLE t1 ADD COLUMN g INT GENERATED ALWAYS AS (JSON_EXTRACT(j, '$.a')) VIRTUAL, ALGORITHM=INPLACE;
+# Rows 1 and 2 are nearest and fine.
+SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,0,0]'), 'EUCLIDEAN') LIMIT 2;
+id	g
+1	1
+2	2
+SELECT id, g FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3141	Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+Error	1030	Got error 1 - 'Operation not permitted' from storage engine
+SELECT id, g FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[3,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3141	Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+Error	1030	Got error 1 - 'Operation not permitted' from storage engine
+DROP TABLE t1;

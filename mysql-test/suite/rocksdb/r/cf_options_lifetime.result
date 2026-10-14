@@ -1,0 +1,14 @@
+CREATE TABLE t (id INT, PRIMARY KEY(id) COMMENT 'cfname=lifetime_cf') ENGINE=ROCKSDB;
+SET GLOBAL rocksdb_update_cf_options = CHAR(100,101,102,97,117,108,116,61,123,119,114,105,116,101,95,98,117,102,102,101,114,95,115,105,122,101,61,49,48,52,56,53,55,54,125),
+GLOBAL rocksdb_update_cf_options = CHAR(108,105,102,101,116,105,109,101,95,99,102,61,123,119,114,105,116,101,95,98,117,102,102,101,114,95,115,105,122,101,61,50,48,57,55,49,53,50,125);
+SELECT CF_NAME, VALUE FROM information_schema.rocksdb_cf_options
+WHERE CF_NAME IN ('default','lifetime_cf') AND OPTION_TYPE='WRITE_BUFFER_SIZE'
+  ORDER BY CF_NAME;
+CF_NAME	VALUE
+default	1048576
+lifetime_cf	2097152
+SELECT @@global.rocksdb_update_cf_options;
+@@global.rocksdb_update_cf_options
+lifetime_cf={write_buffer_size=2097152}
+SET GLOBAL rocksdb_update_cf_options=NULL;
+DROP TABLE t;

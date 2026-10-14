@@ -4894,7 +4894,18 @@ class Rdb_transaction_impl : public Rdb_transaction {
       size_t wb_size = rdb_write_batch_memory(
           *m_rocksdb_tx->GetWriteBatch()->GetWriteBatch());
       /* This will also release all of the locks: */
-      m_rocksdb_tx->Rollback();
+      auto status = m_rocksdb_tx->Rollback();
+      DBUG_EXECUTE_IF("rocksdb_rollback_invalid_state", {
+        status = rocksdb::Status::InvalidArgument(
+            "Two phase transaction is not in state for rollback.");
+      });
+      if (status.IsIOError() || status.IsCorruption()) {
+        rdb_handle_io_error(status, RDB_IO_ERROR_TX_COMMIT);
+      } else if (!status.ok()) {
+        // For example InvalidArgument when a failed prepare write left the
+        // transaction in AWAITING_PREPARE. The original error was reported.
+        rdb_log_status_error(status, "Failed to roll back transaction");
+      }
 
       /* Save the transaction object to be reused */
       release_tx(wb_size);

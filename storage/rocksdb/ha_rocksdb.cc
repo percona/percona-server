@@ -54,6 +54,7 @@
 #include "sql/dd/dd.h"                       // dd::get_dictionary
 #include "sql/dd/dictionary.h"               // dd::Dictionary
 #include "sql/debug_sync.h"
+#include "sql/derror.h"
 #include "sql/mysqld.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_lex.h"
@@ -1050,6 +1051,13 @@ static std::unique_ptr<rocksdb::DBOptions> rocksdb_db_options =
 
 static std::shared_ptr<rocksdb::RateLimiter> rocksdb_rate_limiter;
 
+enum class Rdb_gap_lock_raise_mode : ulong { OFF, WARNING, ERROR };
+
+static const char *gap_lock_raise_names[] = {"OFF", "WARNING", "ERROR", NullS};
+static TYPELIB gap_lock_raise_typelib = {
+    array_elements(gap_lock_raise_names) - 1, "gap_lock_raise_typelib",
+    gap_lock_raise_names, nullptr};
+
 /* This enum needs to be kept up to date with rocksdb::TxnDBWritePolicy */
 static const char *write_policy_names[] = {"write_committed", "write_prepared",
                                            "write_unprepared", NullS};
@@ -1231,6 +1239,14 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout,
                           "Number of seconds to wait for lock", nullptr,
                           nullptr, /*default*/ 1, /*min*/ 1,
                           /*max*/ RDB_MAX_LOCK_WAIT_SECONDS, 0);
+
+static MYSQL_THDVAR_ENUM(
+    gap_lock_raise_error, PLUGIN_VAR_RQCMDARG,
+    "Controls MyRocks queries that may require unsupported gap locks: OFF "
+    "allows them, WARNING allows them with a warning, ERROR rejects them. "
+    "Default is ERROR.",
+    nullptr, nullptr, static_cast<ulong>(Rdb_gap_lock_raise_mode::ERROR),
+    &gap_lock_raise_typelib);
 
 static MYSQL_THDVAR_BOOL(deadlock_detect, PLUGIN_VAR_RQCMDARG,
                          "Enables deadlock detection", nullptr, nullptr, false);
@@ -2751,6 +2767,7 @@ static MYSQL_THDVAR_BOOL(
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct SYS_VAR *rocksdb_system_variables[] = {
+    MYSQL_SYSVAR(gap_lock_raise_error),
     MYSQL_SYSVAR(lock_wait_timeout),
     MYSQL_SYSVAR(deadlock_detect),
     MYSQL_SYSVAR(deadlock_detect_depth),
@@ -5718,6 +5735,12 @@ class [[nodiscard]] Rdb_ha_data {
 
   void set_disable_file_deletions(bool d) { disable_file_deletions = d; }
 
+  bool should_warn_gap_lock(query_id_t query_id) {
+    if (gap_lock_warning_query_id == query_id) return false;
+    gap_lock_warning_query_id = query_id;
+    return true;
+  }
+
   Rdb_bulk_load_context *get_or_create_bulk_load_ctx(THD *thd) {
     if (!m_bulk_load_ctx) {
       m_bulk_load_ctx = std::make_unique<Rdb_bulk_load_context>(thd);
@@ -5729,6 +5752,9 @@ class [[nodiscard]] Rdb_ha_data {
   std::string checkpoint_dir;
   Rdb_transaction *trx{nullptr};
   bool disable_file_deletions{false};
+  // Shared by all handlers on this connection, including nested-loop probes.
+  // Query IDs change on each execution, including prepared statements.
+  query_id_t gap_lock_warning_query_id{0};
   std::unique_ptr<Rdb_bulk_load_context> m_bulk_load_ctx;
 };
 
@@ -5744,6 +5770,22 @@ static Rdb_ha_data *&get_ha_data(THD *const thd) {
     ha_data = new Rdb_ha_data();
   }
   return ha_data;
+}
+
+bool ha_rocksdb::report_unsupported_gap_lock(THD *thd) const noexcept {
+  const auto mode =
+      static_cast<Rdb_gap_lock_raise_mode>(THDVAR(thd, gap_lock_raise_error));
+  if (mode == Rdb_gap_lock_raise_mode::OFF) return false;
+  if (mode == Rdb_gap_lock_raise_mode::WARNING) {
+    if (get_ha_data(thd)->should_warn_gap_lock(thd->query_id)) {
+      push_warning(thd, Sql_condition::SL_WARNING, ER_GAP_LOCK_USED,
+                   ER_THD(thd, ER_GAP_LOCK_USED));
+    }
+    // Returning true makes callers fail with HA_ERR_LOCK_DEADLOCK, even
+    // when no SQL error was raised. Warning mode must allow the operation.
+    return false;
+  }
+  return handler::report_unsupported_gap_lock(thd);
 }
 
 static void destroy_ha_data(THD *const thd) {

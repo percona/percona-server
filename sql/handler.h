@@ -5828,6 +5828,9 @@ class handler {
   */
   virtual bool has_gap_locks() const noexcept { return false; }
 
+  /** Report an unsupported gap lock; return true to reject the operation. */
+  virtual bool report_unsupported_gap_lock(THD *thd) const noexcept;
+
   /**
     Query storage engine to see if it can support handling specific replication
     method in its current configuration.

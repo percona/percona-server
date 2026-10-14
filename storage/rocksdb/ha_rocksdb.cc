@@ -6964,6 +6964,7 @@ static bool rocksdb_collect_hton_log_info(handlerton *const /* unused */,
 
   size_t index = 0;
   for (const auto &wal : live_wal_files) {
+    if (wal->Type() != rocksdb::WalFileType::kAliveLogFile) continue;
     Json_uint json_log_number(wal->LogNumber());
     Json_string json_path_name(wal->PathName());
     Json_uint json_size_file_bytes(wal->SizeFileBytes());

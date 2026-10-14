@@ -8962,7 +8962,10 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
                           "Failed to rebuild table definition for table '%s'",
                           tbl_name.c_str());
           my_error(ER_KEY_CREATE_DURING_ALTER, MYF(0));
-          return HA_EXIT_FAILURE;
+          err = close();
+          assert(err == HA_EXIT_SUCCESS);
+          m_tbl_def = nullptr;
+          DBUG_RETURN(HA_EXIT_FAILURE);
         }
 
         LogPluginErrMsg(
@@ -13808,39 +13811,6 @@ int ha_rocksdb::delete_table(Rdb_tbl_def *const tbl) {
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
-// A simplified version of ha_rocksdb::delete_table
-// that leaves the table's data intact
-int ha_rocksdb::delete_table_def(Rdb_tbl_def *const tbl) {
-  DBUG_ENTER_FUNC();
-
-  assert(tbl != nullptr);
-  assert(m_tbl_def == nullptr || m_tbl_def == tbl);
-  uint table_default_cf_id = tbl->m_key_descr_arr[0]->get_gl_index_id().cf_id;
-  auto local_dict_manager =
-      dict_manager.get_dict_manager_selector_non_const(table_default_cf_id);
-  auto batch = Rdb_dict_manager::begin();
-
-  {
-    /*
-      Remove the table entry in data dictionary (this will also remove it from
-      the persistent data dictionary).
-    */
-    ddl_manager.remove(tbl, batch, table_default_cf_id, true);
-
-    int err = local_dict_manager->commit(batch);
-    if (err) {
-      DBUG_RETURN(err);
-    }
-  }
-
-  // avoid dangling pointer
-  m_tbl_def = nullptr;
-  m_iterator = nullptr;
-  m_pk_iterator = nullptr;
-  inited = NONE;
-  DBUG_RETURN(HA_EXIT_SUCCESS);
-}
-
 /*
   Note: the following function is called when the table is not open. That is,
   this->table==nullptr, pk_key_descr==nullptr, etc.
@@ -15432,6 +15402,12 @@ bool ha_rocksdb::rebuild_table_def_from_table(TABLE *altered_table) {
   }
 
   new_tdef->m_key_descr_arr = new_key_descr.get();
+  // Until publication the array belongs only to new_key_descr. In particular,
+  // destroying a failed replacement must not erase the old definition's index
+  // mappings through Rdb_tbl_def::~Rdb_tbl_def().
+  auto detach_unpublished_keys = create_scope_guard([&] {
+    if (new_tdef) new_tdef->m_key_descr_arr = nullptr;
+  });
   new_tdef->m_key_count = new_n_keys;
   new_tdef->m_pk_index = altered_table->s->primary_key;
   new_tdef->m_auto_incr_val =
@@ -15445,30 +15421,12 @@ bool ha_rocksdb::rebuild_table_def_from_table(TABLE *altered_table) {
     goto error;
   }
 
-  // delete old table_def but keep data
-  if (delete_table_def(m_tbl_def) != HA_EXIT_SUCCESS) {
-    LogPluginErrMsg(ERROR_LEVEL, 0, "Failure when trying to drop table %s",
-                    tbl_name.c_str());
-    goto error;
-  }
+  DBUG_EXECUTE_IF("rocksdb_rebuild_key_defs_failure", { goto error; });
 
-  {
-    auto local_dict_manager =
-        dict_manager.get_dict_manager_selector_non_const(false);
-    auto batch = Rdb_dict_manager::begin();
+  if (ddl_manager.replace_and_commit(new_tdef.get())) goto error;
 
-    std::lock_guard<Rdb_dict_manager> dm_lock(*local_dict_manager);
-
-    int err = ddl_manager.put_and_write(new_tdef.get(), batch);
-    if (err != HA_EXIT_SUCCESS) goto error;
-
-    err = local_dict_manager->commit(batch);
-    if (err != HA_EXIT_SUCCESS) goto error;
-  }
-
-  m_tbl_def = new_tdef.release();  // transfer ownership
-  new_key_descr.release();         // release ownership as above we used
-                            // new_tdef->m_key_descr_arr = new_key_descr.get();
+  m_tbl_def = new_tdef.release();
+  new_key_descr.release();
   m_key_descr_arr = m_tbl_def->m_key_descr_arr;
   m_pk_descr = m_key_descr_arr[pk_index(*altered_table, *m_tbl_def)];
 

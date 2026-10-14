@@ -850,7 +850,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  int delete_table_def(Rdb_tbl_def *const tbl);
   int delete_table(Rdb_tbl_def *const tbl);
   int delete_table(const char *const from, const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));

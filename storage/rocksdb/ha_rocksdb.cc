@@ -9019,11 +9019,22 @@ bool ha_rocksdb::get_error_message(const int error, String *const buf) {
 
   buf->append(rdb_get_error_messages(error));
 
+  if (is_temporary_error(error)) {
+    DBUG_RETURN(true);
+  }
+
   // We can be called with the values which are < HA_ERR_FIRST because most
   // MySQL internal functions will just return HA_EXIT_FAILURE in case of
   // an error.
 
   DBUG_RETURN(false);
+}
+
+// Lock waits, deadlocks and snapshot conflicts are temporary errors. Tell
+// the server so that read failures do not generate error-log noise.
+bool ha_rocksdb::is_temporary_error(const int error) const {
+  return error == HA_ERR_LOCK_WAIT_TIMEOUT || error == HA_ERR_LOCK_DEADLOCK ||
+         error == HA_ERR_ROCKSDB_STATUS_BUSY;
 }
 
 /*

@@ -1,0 +1,25 @@
+--source include/have_rocksdb.inc
+
+CREATE TABLE t (id INT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,1);
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+SELECT * FROM t WHERE id=1;
+
+--connect (writer,localhost,root,,test)
+UPDATE t SET value=2 WHERE id=1;
+--disconnect writer
+--connection default
+
+# The failed locking read must still report the snapshot conflict to the
+# client, but a transient conflict is not a server error-log event.
+--error ER_LOCK_DEADLOCK
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+ROLLBACK;
+SELECT * FROM t;
+--let $assert_text = Snapshot conflicts must not pollute the server error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Got error 522 when reading table
+--let $assert_count = 0
+--source include/assert_grep.inc
+DROP TABLE t;

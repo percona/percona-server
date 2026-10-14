@@ -8716,7 +8716,7 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
 
 bool handler::is_using_prohibited_gap_locks(
     TABLE *table, bool using_full_primary_key) const noexcept {
-  const THD *thd = table->in_use;
+  THD *thd = table->in_use;
   const thr_lock_type lock_type = table->reginfo.lock_type;
 
   if (!using_full_primary_key && has_transactions() && !has_gap_locks() &&
@@ -8730,17 +8730,21 @@ bool handler::is_using_prohibited_gap_locks(
       thd->lex->sql_command != SQLCOM_CREATE_INDEX &&
       thd->lex->sql_command != SQLCOM_CHECK &&
       thd->lex->sql_command != SQLCOM_OPTIMIZE) {
-    my_printf_error(ER_UNKNOWN_ERROR,
-                    "Using Gap Lock without full unique key in multi-table "
-                    "or multi-statement transactions is not "
-                    "allowed. You need to either rewrite queries to use "
-                    "all unique key columns in WHERE equal conditions, or "
-                    "rewrite to single-table, single-statement "
-                    "transaction.  Query: %s",
-                    MYF(0), thd->query().str);
-    return true;
+    return report_unsupported_gap_lock(thd);
   }
   return false;
+}
+
+bool handler::report_unsupported_gap_lock(THD *thd) const noexcept {
+  my_printf_error(ER_UNKNOWN_ERROR,
+                  "Using Gap Lock without full unique key in multi-table "
+                  "or multi-statement transactions is not "
+                  "allowed. You need to either rewrite queries to use "
+                  "all unique key columns in WHERE equal conditions, or "
+                  "rewrite to single-table, single-statement "
+                  "transaction.  Query: %s",
+                  MYF(0), thd->query().str);
+  return true;
 }
 
 /*

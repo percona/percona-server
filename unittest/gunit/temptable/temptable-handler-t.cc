@@ -106,6 +106,16 @@ class Handler_test : public testing::Test {
   }
 };
 
+TEST_F(Handler_test, ReadErrorMessage) {
+  Table_helper table_helper("error_table", thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+  temptable::Handler handler(hton(), table_helper.table_share());
+  String message;
+  EXPECT_FALSE(handler.get_error_message(HA_ERR_OUT_OF_MEM, &message));
+  EXPECT_EQ(0U, message.length());
+}
+
 TEST_F(Handler_test, SimpleTableCreate) {
   const char *table_name = "t1";
 

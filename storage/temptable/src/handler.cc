@@ -1079,7 +1079,8 @@ void Handler::init_table_handle_for_HANDLER() {
 
 bool Handler::get_error_message(int, String *) {
   DBUG_TRACE;
-  DBUG_ABORT();
+  // TempTable uses standard handler errors, with no engine-specific message.
+  // The SQL error reporter can query this for any non-EOF read failure.
   return false;
 }
 

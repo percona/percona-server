@@ -1,0 +1,21 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+CREATE TABLE federated.t1 (id INT PRIMARY KEY, v INT);
+INSERT INTO federated.t1 VALUES (1,1),(2,2);
+CALL mtr.add_suppression("Got error .* when reading table");
+CREATE TABLE federated.t1 (id INT PRIMARY KEY, v INT) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+SELECT COUNT(*) FROM federated.t1;
+COUNT(*)
+2
+ALTER TABLE federated.t1 RENAME COLUMN v TO w;
+SELECT * FROM federated.t1;
+ERROR HY000: Got error 10000 'Error on remote system: 1054: Unknown column 'v' in 'field list'' from FEDERATED
+SELECT COUNT(*) FROM federated.t1;
+ERROR HY000: Got error 10000 'Error on remote system: 1054: Unknown column 'v' in 'field list'' from FEDERATED
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;

@@ -1,0 +1,131 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # load_node_neighbors() should detect situation when neighbor id count
+--echo # does not match the node's layer and M and report as HNSW_CORRUPTED.
+--echo # This must fail the statement as index corruption and refuse the
+--echo # index until it is rebuilt.
+--echo #
+--echo # The mismatch is injected in vec_persist_load_node after the on-disk
+--echo # neighbors_len check has passed and before load_node_neighbors, so
+--echo # the graph sees a length it must reject rather than a malformed aux
+--echo # row (that path is aux_level_corruption / other DB_INDEX_CORRUPT
+--echo # checks in vec_persist_load_node itself).
+--echo #
+--echo # The corruption is injected on the entry-point node's own load, so
+--echo # this also covers HNSW::init_from_entry_point() surfacing a
+--echo # load_node_cb failure as an error return.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[10,0]')),
+                      (3, STRING_TO_VECTOR('[20,0]'));
+
+--echo # Drop the in-memory graph so the next access rebuilds it from the
+--echo # aux table, through vec_persist_load_node, rather than reusing
+--echo # nodes already resident from the inserts above.
+--source include/restart_mysqld.inc
+
+SET SESSION debug = '+d,vec_persist_corrupt_neighbor_count';
+
+--echo # The entry-point node is read here via init_from_entry_point(); with
+--echo # the hook active its neighbor id list is one short of (layer+2)*M.
+--error ER_INDEX_CORRUPT
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+SET SESSION debug = '-d,vec_persist_corrupt_neighbor_count';
+
+--echo # The index stays refused - a retry would read the same shape - while
+--echo # the base table is untouched.
+--error ER_INDEX_CORRUPT
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+SELECT id FROM t1 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+--echo # Rebuilding the index is the remedy. Under a new name: the same name
+--echo # and definition in one statement is no change at all to the server.
+ALTER TABLE t1 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4);
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # search_layer_ef_1() must detect situation when a neighbor
+--echo # is referenced on a layer where that node is not present and
+--echo # report as HNSW_CORRUPTED. This must fail the
+--echo # statement as index corruption and refuse the index until
+--echo # it is rebuilt.
+--echo #
+--echo # On load, copy each node's layer-0 neighbor ids into its top-layer
+--echo # slots so layer-0-only nodes appear on upper layers.
+--echo # Needs a graph tall enough that someone sits on layer >= 1.
+--echo # Layer assignment is random: such a graph is very likely, not guaranteed.
+--echo #
+
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 2));
+
+INSERT INTO t2 VALUES
+  (1, STRING_TO_VECTOR('[0,0]')),
+  (2, STRING_TO_VECTOR('[1,0]')),
+  (3, STRING_TO_VECTOR('[2,0]')),
+  (4, STRING_TO_VECTOR('[3,0]')),
+  (5, STRING_TO_VECTOR('[4,0]')),
+  (6, STRING_TO_VECTOR('[5,0]')),
+  (7, STRING_TO_VECTOR('[6,0]')),
+  (8, STRING_TO_VECTOR('[7,0]')),
+  (9, STRING_TO_VECTOR('[8,0]')),
+  (10, STRING_TO_VECTOR('[9,0]')),
+  (11, STRING_TO_VECTOR('[10,0]')),
+  (12, STRING_TO_VECTOR('[11,0]')),
+  (13, STRING_TO_VECTOR('[12,0]')),
+  (14, STRING_TO_VECTOR('[13,0]')),
+  (15, STRING_TO_VECTOR('[14,0]')),
+  (16, STRING_TO_VECTOR('[15,0]')),
+  (17, STRING_TO_VECTOR('[16,0]')),
+  (18, STRING_TO_VECTOR('[17,0]')),
+  (19, STRING_TO_VECTOR('[18,0]')),
+  (20, STRING_TO_VECTOR('[19,0]')),
+  (21, STRING_TO_VECTOR('[20,0]')),
+  (22, STRING_TO_VECTOR('[21,0]')),
+  (23, STRING_TO_VECTOR('[22,0]')),
+  (24, STRING_TO_VECTOR('[23,0]')),
+  (25, STRING_TO_VECTOR('[24,0]')),
+  (26, STRING_TO_VECTOR('[25,0]')),
+  (27, STRING_TO_VECTOR('[26,0]')),
+  (28, STRING_TO_VECTOR('[27,0]')),
+  (29, STRING_TO_VECTOR('[28,0]')),
+  (30, STRING_TO_VECTOR('[29,0]')),
+  (31, STRING_TO_VECTOR('[30,0]')),
+  (32, STRING_TO_VECTOR('[31,0]'));
+
+ANALYZE TABLE t2;
+--source include/restart_mysqld.inc
+
+SET SESSION debug = '+d,vec_persist_copy_l0_neighbors_to_l1';
+
+--error ER_INDEX_CORRUPT
+SELECT id FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+SET SESSION debug = '-d,vec_persist_copy_l0_neighbors_to_l1';
+
+--error ER_INDEX_CORRUPT
+SELECT id FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id FROM t2 IGNORE INDEX (vk)
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+ALTER TABLE t2 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 2);
+SELECT id FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
+
+DROP TABLE t2;

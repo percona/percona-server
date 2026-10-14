@@ -194,6 +194,27 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   for (ulint off = 0; off + 8 <= node.neighbors_len; off += 8) {
     ids.push_back(mach_read_from_8(node.neighbors + off));
   }
+
+  /* Inject a neighbor-list length that no longer matches the node's
+  layer, after the on-disk neighbors_len check above has already passed.
+  load_node_neighbors must then return HNSW_CORRUPTED so the mapping
+  below is exercised. */
+  DBUG_EXECUTE_IF("vec_persist_corrupt_neighbor_count", {
+    if (!ids.empty()) ids.pop_back();
+  });
+  /* Copy layer-0 neighbor ids into the top-layer slots (the first M).
+  Nodes that only exist on layer 0 then appear as top-layer neighbors,
+  which search reports as HNSW_CORRUPTED. */
+  DBUG_EXECUTE_IF("vec_persist_copy_l0_neighbors_to_l1", {
+    if (node.level >= 1) {
+      const size_t M = ctx->m;
+      const size_t l0 = static_cast<size_t>(node.level) * M;
+      for (size_t i = 0; i < M && l0 + i < ids.size(); ++i) {
+        ids[i] = ids[l0 + i];
+      }
+    }
+  });
+
   /* The only load_* helper that allocates, so the only one that can fail.
   Its HNSW_OOM_GRAPH leaves the stub NODE_DUMMY and retryable, which is
   what an out-of-memory deserves - unlike a missing row, which is not
@@ -201,9 +222,17 @@ dberr_t vec_persist_load_node(Vec_ctx *ctx, Hnsw &hnsw,
   const HnswResult nrc = hnsw.load_node_neighbors(handle, ids);
 
   mem_heap_free(heap);
+
+  /* Normally the neighbors_len check above already guarantees the
+  size load_node_neighbors expects. So currently mismatch can
+  only happen thanks to DBUG hook. Kept so a mismatch can never be
+  reported as an out-of-memory if something changes in future. */
+  if (nrc == HNSW_CORRUPTED) return DB_INDEX_CORRUPT;
+
   /* DB_VEC_OUT_OF_MEMORY, not DB_OUT_OF_MEMORY: this runs on the INSERT
   path, where row_mysql_handle_errors does not list the latter and so
   reaches its ib::fatal arm. */
+  ut_ad(nrc == HNSW_SUCCESS || nrc == HNSW_OOM_GRAPH);
   if (nrc != HNSW_SUCCESS) return DB_VEC_OUT_OF_MEMORY;
   return DB_SUCCESS;
 }

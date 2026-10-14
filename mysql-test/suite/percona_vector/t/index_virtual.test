@@ -1,0 +1,52 @@
+--echo #
+--echo # PS-11751: VIRTUAL generated column returns a stale, identical value for
+--echo #           every row when read through an HNSW vector index (ANN query).
+--echo #
+--echo #
+--echo # Virtual generated columns must be computed for rows returned by
+--echo # the vector index scan. The scan read rows without computing them, so
+--echo # a VIRTUAL column kept whatever value was left in the record buffer:
+--echo # the select list showed a stale, repeating value and a WHERE filter on
+--echo # it rejected or accepted the wrong rows. STORED columns were fine.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+  g INT GENERATED ALWAYS AS (id * 2) VIRTUAL,
+  s INT GENERATED ALWAYS AS (id * 3) STORED,
+  VECTOR KEY vk (v) TYPE hnsw (M = 8));
+
+# insert ids 1..50 with v = [id,0,0,0]
+INSERT INTO t1 (id, v)
+WITH RECURSIVE ids (id) AS (
+    SELECT 1
+    UNION ALL
+    SELECT id + 1
+    FROM ids
+    WHERE id < 50
+)
+SELECT
+    id,
+    STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'))
+FROM ids;
+
+# The query vector [33.4,0,0,0] is off the grid, so no two rows are at the
+# same distance from it and the order of the result is deterministic:
+# 33 (0.4), 34 (0.6), 32 (1.4), 35 (1.6), 31 (2.4), 36 (2.6), ...
+
+--echo # Virtual column in the select list must be computed for each row
+--echo # returned by the vector index scan.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id, g, s FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id, g, s FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+--echo # Virtual column used in a WHERE filter on top of the vector index scan.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id, g, s FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id, g, s FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+SELECT id, g, s FROM t1 WHERE g % 4 = 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) WHERE g % 4 = 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+
+DROP TABLE t1;

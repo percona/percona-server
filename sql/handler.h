@@ -6183,10 +6183,8 @@ class handler {
   ft_init(); ha_index_or_rnd_end() ends the scan. The handler is then
   INDEX, so vec_init() must leave active_index on the vector key. */
   virtual int vec_init() { return HA_ERR_WRONG_COMMAND; }
-  virtual int vec_read_first(Item *, uchar *, ha_rows) {
-    return HA_ERR_WRONG_COMMAND;
-  }
-  virtual int vec_read_next(uchar *) { return HA_ERR_WRONG_COMMAND; }
+  int ha_vec_read_first(Item *item, uchar *buf, ha_rows limit);
+  int ha_vec_read_next(uchar *buf);
 
  protected:
   /// @see index_read_map().
@@ -6195,6 +6193,11 @@ class handler {
   virtual int rnd_pos(uchar *buf, uchar *pos) = 0;
 
   virtual int ft_read(uchar *) { return HA_ERR_WRONG_COMMAND; }
+
+  virtual int vec_read_first(Item *, uchar *, ha_rows) {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  virtual int vec_read_next(uchar *) { return HA_ERR_WRONG_COMMAND; }
 
  public:
   /**

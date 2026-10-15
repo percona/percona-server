@@ -6223,17 +6223,8 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter) {
     the del_ren_cre_table method.
 */
 
-void create_partition_name(char *out, const char *in1, const char *in2,
-                           bool translate) {
-  char transl_part_name[FN_REFLEN];
-  const char *transl_part;
-
-  if (translate) {
-    tablename_to_filename(in2, transl_part_name, FN_REFLEN);
-    transl_part = transl_part_name;
-  } else
-    transl_part = in2;
-  strxmov(out, in1, "#P#", transl_part, NullS);
+void create_partition_name(char *out, const char *in1, const char *in2) {
+  strxmov(out, in1, "#P#", in2, NullS);
 }
 
 /*

@@ -4753,22 +4753,24 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_ad(rw_latch == RW_S_LATCH || rw_latch == RW_X_LATCH ||
         rw_latch == RW_NO_LATCH);
 
-  buf_page_mutex_enter(block);
+  /* The block mutex is not needed here, because the caller keeps the block
+  buffer-fixed. Eviction and relocation require buf_fix_count == 0, so the
+  state cannot leave BUF_BLOCK_FILE_PAGE and they cannot modify modify_clock.
+  The remaining modify_clock writers hold X-latch on the block, which the
+  mutex never excluded: this check is only a hint, and modify_clock is
+  re-checked below after acquiring the page latch. */
+  ut_ad(block->page.buf_fix_count > 0);
 
   if (UNIV_UNLIKELY(block->modify_clock != modify_clock ||
                     (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE))) {
-    buf_page_mutex_exit(block);
-
     return (false);
   }
 
   buf_block_buf_fix_inc(block, ut::Location{file, line});
 
-  /* Grab the access time while we have the mutex to potentially
-  avoid the need to acquire the mutex the second time (below). */
+  /* Read the access time without the mutex, to potentially avoid the need
+  to acquire it (below). */
   auto access_time = buf_page_is_accessed(&block->page);
-
-  buf_page_mutex_exit(block);
 
   ut_ad(!ibuf_inside(mtr) ||
         ibuf_page(block->page.id, block->page.size, UT_LOCATION_HERE, nullptr));

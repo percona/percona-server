@@ -4635,8 +4635,11 @@ void Rdb_tbl_def::check_if_is_mysql_system_table() {
 }
 
 void Rdb_tbl_def::check_and_set_read_free_rpl_table() {
-  m_is_read_free_rpl_table =
-      rdb_read_free_regex_handler.matches(base_tablename());
+  // Match the SQL name, such as t-1, not the filename-encoded one (t@002d1)
+  char tablename_sys[NAME_LEN + 1];
+  my_core::filename_to_tablename(base_tablename().c_str(), tablename_sys,
+                                 sizeof(tablename_sys), true);
+  m_is_read_free_rpl_table = rdb_read_free_regex_handler.matches(tablename_sys);
 }
 
 void Rdb_tbl_def::set_name(const std::string &name) {

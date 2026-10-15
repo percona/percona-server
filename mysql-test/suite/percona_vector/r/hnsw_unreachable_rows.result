@@ -1,0 +1,32 @@
+#
+# Rows whose HNSW node is unreachable from the entry point are never
+# returned by the vector index path, not even when a filter makes the
+# scan run until the graph is exhausted (sql_optimizer.cc add_vector_keys
+# comment: "the rows that come back are the nearest ones that pass").
+# PS-11828, found by pstress. The test asserts the correct result.
+#
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(8) NOT NULL,
+VECTOR KEY vk (v) USING hnsw);
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO t WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 1500)
+SELECT n, STRING_TO_VECTOR(CONCAT('[', RAND(n), ',', RAND(n+1), ',', RAND(n+2), ',',
+RAND(n+3), ',', RAND(n+4), ',', RAND(n+5), ',', RAND(n+6), ',', RAND(n+7), ']')) FROM seq;
+# A filter that matches one row: the index path must find it.
+EXPLAIN SELECT id FROM t WHERE id + 0 = 513
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	vector_ann	vk	vk	0	const	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` where ((`test`.`t`.`id` + 0) = 513) order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0,0,0,0,0]'),'EUCLIDEAN') limit 1
+SELECT id FROM t WHERE id + 0 = 513
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'EUCLIDEAN') LIMIT 1;
+id
+513
+# Every row comes back once with a LIMIT above the row count.
+SET SESSION innodb_hnsw_ef_search = 100000;
+SELECT COUNT(*) FROM (SELECT id FROM t FORCE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'EUCLIDEAN') LIMIT 100000) x;
+COUNT(*)
+1500
+SET SESSION innodb_hnsw_ef_search = DEFAULT;
+DROP TABLE t;

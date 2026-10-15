@@ -1,0 +1,30 @@
+# PS-11881: deeply nested groups in rocksdb_read_free_rpl_tables must not
+# overflow the thread stack when the pattern is compiled. ICU rejects
+# patterns nested deeper than its parser stack instead.
+--source include/have_rocksdb.inc
+
+call mtr.add_suppression("Invalid pattern in rocksdb_read_free_rpl_tables");
+
+SET @saved_tables = @@global.rocksdb_read_free_rpl_tables;
+
+--echo # 90 nested groups are accepted
+SET @p = CONCAT(REPEAT('(', 90), 't', REPEAT(')', 90));
+SET GLOBAL rocksdb_read_free_rpl_tables = @p;
+SELECT LENGTH(@@global.rocksdb_read_free_rpl_tables);
+
+--echo # Deeper nesting is rejected instead of crashing the server
+SET @p = CONCAT(REPEAT('(', 10000), 't', REPEAT(')', 10000));
+--disable_query_log
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL rocksdb_read_free_rpl_tables = @p;
+SET @p = CONCAT(REPEAT('(', 100000), 't', REPEAT(')', 100000));
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL rocksdb_read_free_rpl_tables = @p;
+--enable_query_log
+SELECT LENGTH(@@global.rocksdb_read_free_rpl_tables);
+
+--echo # The server is still up and matches table names with the pattern
+CREATE TABLE t (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+DROP TABLE t;
+
+SET GLOBAL rocksdb_read_free_rpl_tables = @saved_tables;

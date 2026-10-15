@@ -1,0 +1,14 @@
+call mtr.add_suppression("Matching '.*' against the regular expression '.*' failed");
+SET @saved_tables = @@global.rocksdb_read_free_rpl_tables;
+# CREATE TABLE matches the new table name
+SET GLOBAL rocksdb_read_free_rpl_tables = '(a*)*b';
+CREATE TABLE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (pk INT PRIMARY KEY)
+ENGINE=ROCKSDB;
+# Other MyRocks DDL is not blocked
+CREATE TABLE t2 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+# SET matches every existing table name
+SET GLOBAL rocksdb_read_free_rpl_tables = '.*';
+SET GLOBAL rocksdb_read_free_rpl_tables = '(a*)*b';
+include/assert_grep.inc [A timed out match is logged once per pattern]
+DROP TABLE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, t2;
+SET GLOBAL rocksdb_read_free_rpl_tables = @saved_tables;

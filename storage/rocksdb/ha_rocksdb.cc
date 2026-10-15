@@ -12532,6 +12532,17 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
 
     /* Determine which indexes need updating. */
     calc_updated_indexes();
+
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+    // Read-free replication does not read the old row, so m_ttl_bytes does
+    // not hold its TTL timestamp, which tells whether the secondary keys must
+    // be rewritten. Take it from the TTL column in the old row image. Tables
+    // with an implicit TTL read the row (PS-11903).
+    if (m_in_rpl_update_rows && m_rpl_read_free && m_pk_descr->has_ttl() &&
+        !m_pk_descr->m_ttl_column.empty()) {
+      m_converter->get_ttl_column_bytes(*m_pk_descr, old_data, m_ttl_bytes);
+    }
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
   }
 
   /*
@@ -18199,7 +18210,11 @@ void ha_rocksdb::rpl_after_delete_rows() {
 void ha_rocksdb::rpl_before_update_rows() {
   DBUG_ENTER_FUNC();
 
-  m_rpl_read_free = use_read_free_rpl();
+  // An UPDATE keeps the implicit TTL timestamp of the stored row, which the
+  // row image does not carry, so the row must be read (PS-11903). Deletes and
+  // inserts do not need it.
+  m_rpl_read_free = use_read_free_rpl() && !(m_pk_descr->has_ttl() &&
+                                             m_pk_descr->m_ttl_column.empty());
   m_in_rpl_update_rows = true;
 
   DBUG_VOID_RETURN;

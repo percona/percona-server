@@ -1,0 +1,64 @@
+--source include/not_valgrind.inc
+
+--echo #
+--echo # A small tablespace whose every page was being written when the server
+--echo # lost power has no page that passes the checksum check, so the space id
+--echo # cannot be determined from the pages of the file.  The redo log names the tablespace
+--echo # and the doublewrite buffer holds all of its pages: recovery must use
+--echo # the space id it already knows and restore the file, instead of
+--echo # refusing to start.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Tablespace flags are invalid in datafile");
+call mtr.add_suppression("Space ID in fsp header is");
+call mtr.add_suppression("Checksum mismatch in datafile");
+call mtr.add_suppression("Cannot determine the space ID from the first 64 pages");
+call mtr.add_suppression("A page in the doublewrite buffer is not within space bounds");
+--enable_query_log
+
+let MYSQLD_DATADIR=`select @@datadir`;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+                      (3, repeat('/', 12)), (4, repeat('-', 12));
+
+--echo # Write all dirty pages of t1 through the doublewrite buffer, then kill
+--echo # the server before anything else can reuse the doublewrite slots.  A
+--echo # committed change of a data page, which the page cleaner is not
+--echo # allowed to write, keeps redo for the tablespace ahead of the
+--echo # checkpoint, so that recovery is the one to open the file.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('*', 12) WHERE f1 = 1;
+
+--source include/kill_mysqld.inc
+
+--echo # Tear every page: only the first sector of page 0, which carries the
+--echo # space id the directory scan reads, survives; the rest of the file is
+--echo # garbage.
+perl;
+use IO::Handle;
+my $fname = "$ENV{'MYSQLD_DATADIR'}/test/t1.ibd";
+my $size = -s $fname;
+open(FILE, "+<", $fname) or die "cannot open $fname: $!";
+binmode FILE;
+seek(FILE, 512, SEEK_SET);
+print FILE chr(0xff) x ($size - 512);
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Restoring page \\[page id: space=\\d+, page number=0\\] of datafile .*t1.ibd. from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;

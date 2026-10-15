@@ -367,13 +367,13 @@ Partition_base::~Partition_base() {
     m_new_partitions_share_refs.delete_elements();
   if (m_file != nullptr) {
     for (uint i = 0; i < m_tot_parts; i++) {
-      destroy_at(m_file[i]);
+      if (m_file[i] != nullptr) destroy_at(m_file[i]);
       m_file[i] = nullptr;
     }
   }
   if (m_new_file != nullptr) {
     for (uint i = 0; i < m_num_new_partitions; i++) {
-      destroy_at(m_new_file[i]);
+      if (m_new_file[i] != nullptr) destroy_at(m_new_file[i]);
       m_new_file[i] = nullptr;
     }
   }

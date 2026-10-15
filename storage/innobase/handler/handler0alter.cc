@@ -931,10 +931,12 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
     return (false);
   }
 
-  Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
-      ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE);
+  bool has_change_create_option =
+      (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE &
+       ~Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ==
+      Alter_inplace_info::CHANGE_CREATE_OPTION;
 
-  if (alter_inplace_flags == Alter_inplace_info::CHANGE_CREATE_OPTION &&
+  if (has_change_create_option &&
       !(ha_alter_info->create_info->used_fields &
         (HA_CREATE_USED_ROW_FORMAT | HA_CREATE_USED_KEY_BLOCK_SIZE |
          HA_CREATE_USED_TABLESPACE))) {
@@ -1102,6 +1104,40 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
       case Instant_Type::INSTANT_COLUMN_RENAME:
         ha_alter_info->handler_trivial_ctx = instant_type_to_int(instant_type);
         return HA_ALTER_INPLACE_INSTANT;
+    }
+  }
+
+  /* A change of only the column collation (ALTER_COLUMN_EQUAL_PACK_LENGTH is
+  set instead of ALTER_STORED_COLUMN_TYPE precisely when the column is not
+  indexed) and/or CREATE OPTIONs that do not require a table rebuild
+  (table-level COLLATE, AUTO_INCREMENT, COMMENT, ...) is a metadata-only change.
+  It is already performed in-place without rebuilding the table, so report it as
+  INSTANT in order to accept an explicit ALGORITHM=INSTANT request.
+
+  Note we deliberately do NOT set handler_trivial_ctx here: is_instant() stays
+  false so the regular no-rebuild commit path runs, which correctly updates the
+  in-memory column metadata (length/charset), AUTO_INCREMENT and other CREATE
+  OPTIONs. Routing these through the instant commit executor would skip those
+  fix-ups. error_if_not_empty is excluded because the SQL layer forbids INSTANT
+  in that case (see assert in mysql_inplace_alter_table()). */
+  {
+    const Alter_inplace_info::HA_ALTER_FLAGS meta_only_flags =
+        ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE;
+    /** CREATE OPTIONs which are not pure metadata as far as ALGORITHM=INSTANT
+     is concerned. Engine attributes are opaque values a (secondary) engine may
+     need to act on, so an explicit ALGORITHM=INSTANT for them must be
+     rejected, (see main.engine_attribute / main.engine_attribute_debug). */
+    const uint64_t INNOBASE_NON_INSTANT_CREATE_OPTIONS =
+        HA_CREATE_USED_ENGINE_ATTRIBUTE |
+        HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE;
+    if (meta_only_flags != 0 && !ha_alter_info->error_if_not_empty &&
+        (meta_only_flags &
+         ~(Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH |
+           Alter_inplace_info::CHANGE_CREATE_OPTION)) == 0 &&
+        !(ha_alter_info->create_info->used_fields &
+          INNOBASE_NON_INSTANT_CREATE_OPTIONS) &&
+        !innobase_need_rebuild(ha_alter_info)) {
+      return HA_ALTER_INPLACE_INSTANT;
     }
   }
 
@@ -5960,7 +5996,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   }
 
   if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
-      ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
+      ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE &
+        ~Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ==
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
        !innobase_need_rebuild(ha_alter_info))) {
     if (heap) {
@@ -6002,9 +6039,8 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       }
       return dd_prepare_inplace_alter_table(m_user_thd, ctx->old_table,
                                             ctx->new_table, old_dd_tab);
-    } else {
-      return false;
     }
+    return false;
   }
 
   /* If we are to build a full-text search index, check whether
@@ -6214,7 +6250,8 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     return all_ok();
   }
 
-  if (((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
+  if (((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE &
+        ~Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ==
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
        !innobase_need_rebuild(ha_alter_info))) {
     return all_ok();

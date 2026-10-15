@@ -45,8 +45,7 @@ std::string_view rdb_bulk_load_type_to_string(Rdb_bulk_load_type type);
 
 class Rdb_bulk_load_worker {
  public:
-  Rdb_bulk_load_worker(my_thread_id thread_id)
-      : m_thread_id{thread_id}, m_status{Rdb_bulk_load_status::ACTIVE} {
+  Rdb_bulk_load_worker() : m_status{Rdb_bulk_load_status::ACTIVE} {
     m_created_micro = my_micro_time();
   }
 
@@ -69,7 +68,6 @@ class Rdb_bulk_load_worker {
   }
 
  private:
-  my_thread_id m_thread_id = 0;
   int m_rtn_code = 0;
   std::uint64_t m_created_micro = 0;
   std::uint64_t m_completed_micro = 0;
@@ -83,7 +81,7 @@ class Rdb_bulk_load_session {
                         Rdb_bulk_load_type type)
       : m_id{id}, m_type{type}, m_status{Rdb_bulk_load_status::ACTIVE} {
     m_created_micro = my_micro_time();
-    m_workers.emplace(thread_id, Rdb_bulk_load_worker(thread_id));
+    m_workers.emplace(thread_id, Rdb_bulk_load_worker());
   }
 
   // simple copy constructor

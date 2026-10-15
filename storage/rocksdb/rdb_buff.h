@@ -379,12 +379,6 @@ class Rdb_string_writer {
   uchar *ptr() { return m_data.data(); }
   size_t get_current_pos() const { return m_data.size(); }
 
-  void write_uint8_at(const size_t pos, const uint new_val) {
-    // This function will only overwrite what was written
-    assert(pos < get_current_pos());
-    m_data.data()[pos] = new_val;
-  }
-
   void write_uint16_at(const size_t pos, const uint new_val) {
     // This function will only overwrite what was written
     assert(pos < get_current_pos());

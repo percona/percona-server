@@ -8974,22 +8974,30 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
+  bool opened = false;
+  // Declared before the perf guard so failure cleanup runs after it records
+  // its counters into the table handler.
+  auto cleanup = create_scope_guard([&]() {
+    if (!opened) std::ignore = close();
+  });
+
   m_io_perf.init(&m_table_handler->m_table_perf_context,
                  &m_table_handler->m_io_perf_read, &stats);
 
   Rdb_perf_context_guard guard(&m_io_perf,
                                rocksdb_perf_context_level(ha_thd()));
 
+  DBUG_EXECUTE_IF("rocksdb_open_perf_failure",
+                  { DBUG_RETURN(HA_ERR_INTERNAL_ERROR); });
+
   std::string fullname;
   err = rdb_normalize_tablename(name, &fullname);
   if (err != HA_EXIT_SUCCESS) {
-    rdb_open_tables.release_table_handler(m_table_handler);
     DBUG_RETURN(err);
   }
 
   m_tbl_def = ddl_manager.find(fullname);
   if (m_tbl_def == nullptr) {
-    rdb_open_tables.release_table_handler(m_table_handler);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Attempt to open a table that is not present in RocksDB-SE data "
              "dictionary");
@@ -9065,8 +9073,6 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
                           "Failed to rebuild table definition for table '%s'",
                           tbl_name.c_str());
           my_error(ER_KEY_CREATE_DURING_ALTER, MYF(0));
-          err = close();
-          assert(err == HA_EXIT_SUCCESS);
           m_tbl_def = nullptr;
           DBUG_RETURN(HA_EXIT_FAILURE);
         }
@@ -9084,7 +9090,6 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
   err = alloc_key_buffers(*table, *m_tbl_def);
 
   if (err) {
-    rdb_open_tables.release_table_handler(m_table_handler);
     DBUG_RETURN(err);
   }
 
@@ -9129,14 +9134,13 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
   /* Load hidden pk only once on first use. */
   if (has_hidden_pk(*table) && m_tbl_def->m_hidden_pk_val == 0 &&
       (err = load_hidden_pk_value()) != HA_EXIT_SUCCESS) {
-    rdb_open_tables.release_table_handler(m_table_handler);
-    free_key_buffers();
     DBUG_RETURN(err);
   }
 
   /* Index block size in MyRocks: used by MySQL in query optimization */
   stats.block_size = rocksdb_tbl_options->block_size;
 
+  opened = true;
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 

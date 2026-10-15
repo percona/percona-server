@@ -1,0 +1,35 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/have_lowercase1.inc
+
+# With lower_case_table_names, rocksdb_read_free_rpl_tables matches table
+# names case-insensitively: the pattern T1 matches the table t1.
+
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE=RocksDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, value INT) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (1,1), (2,2);
+INSERT INTO t2 VALUES (1,1), (2,2);
+--source include/rpl/sync_to_replica.inc
+
+SELECT @@global.rocksdb_read_free_rpl, @@global.rocksdb_read_free_rpl_tables;
+
+--let $t = 1
+while ($t <= 2)
+{
+  --source include/rpl/connection_replica.inc
+  SELECT variable_value INTO @get_for_update FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+  --source include/rpl/connection_source.inc
+  --eval UPDATE t$t SET value = value + 1 WHERE id = 1
+  --source include/rpl/sync_to_replica.inc
+  --echo # t1 matches T1 and is read free, t2 is not
+  --eval SELECT 't$t' AS tbl, IF(variable_value - @get_for_update > 0, 'lookup', 'read free') AS rpl FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls'
+  --inc $t
+}
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1, t2;
+--source include/rpl/deinit.inc

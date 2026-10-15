@@ -1,0 +1,12 @@
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1);
+FLUSH TABLES;
+SET rocksdb_perf_context_level=4;
+SET SESSION debug='+d,rocksdb_open_perf_failure';
+SELECT * FROM t;
+ERROR HY000: Got error 122 - 'Internal (unspecified) error in handler' from storage engine
+SET SESSION debug='-d,rocksdb_open_perf_failure';
+SELECT * FROM t;
+id
+1
+DROP TABLE t;

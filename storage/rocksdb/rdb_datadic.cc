@@ -5417,7 +5417,19 @@ int Rdb_ddl_manager::replace_and_commit(Rdb_tbl_def *tbl) {
 int Rdb_ddl_manager::put(Rdb_tbl_def *const tbl, const bool lock) {
   const std::string &dbname_tablename = tbl->full_tablename();
 
+  // 'tbl' is not visible to other threads yet, so match the user-supplied
+  // regular expression before blocking them.
+  const auto generation = rdb_read_free_regex_handler.generation();
+  tbl->check_and_set_read_free_rpl_table();
+
   if (lock) mysql_rwlock_wrlock(&m_rwlock);
+
+  // SET rocksdb_read_free_rpl_tables installs the patterns before it rescans
+  // the published tables under m_rwlock. If it did so after the match above,
+  // that rescan may already be over, so match again.
+  if (generation != rdb_read_free_regex_handler.generation()) {
+    tbl->check_and_set_read_free_rpl_table();
+  }
 
   // We have to do this find because 'tbl' is not yet in the list.  We need
   // to find the one we are replacing ('rec')
@@ -5432,7 +5444,6 @@ int Rdb_ddl_manager::put(Rdb_tbl_def *const tbl, const bool lock) {
     m_index_num_to_keydef[tbl->m_key_descr_arr[keyno]->get_gl_index_id()] =
         std::make_pair(dbname_tablename, keyno);
   }
-  tbl->check_and_set_read_free_rpl_table();
 
   if (lock) mysql_rwlock_unlock(&m_rwlock);
   return 0;

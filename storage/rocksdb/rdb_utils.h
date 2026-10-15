@@ -16,12 +16,21 @@
 #pragma once
 
 /* C++ standard header files */
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <functional>
-#include <regex>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+/* ICU header files */
+#include <unicode/uversion.h>
+
+U_NAMESPACE_BEGIN
+class RegexPattern;
+U_NAMESPACE_END
 
 /* MySQL header files */
 #define LOG_COMPONENT_TAG "rocksdb"
@@ -318,39 +327,50 @@ std::string rdb_concat_paths(const std::string &dir, const std::string &file);
  */
 bool rdb_database_exists(const std::string &db_name);
 
+/*
+  A list of regular expressions matched with ICU, under the server's
+  regexp_time_limit and regexp_stack_limit, so that no pattern can exhaust
+  the thread stack or backtrack without bound.
+*/
 class Regex_list_handler {
  private:
   const PSI_rwlock_key &m_key;
 
   char m_delimiter;
   std::string m_bad_pattern_str;
-  std::unique_ptr<const std::regex> m_pattern;
+  std::string m_pattern_str;
+  // UTF-16 copy of the pattern. The compiled pattern keeps a shallow clone of
+  // its text, so the copy must live as long as m_pattern.
+  std::unique_ptr<char16_t[]> m_pattern16;
+  // Immutable once compiled, so concurrent matches can share it.
+  std::unique_ptr<const icu::RegexPattern> m_pattern;
+  // A failed match is logged once per pattern.
+  mutable std::atomic<bool> m_match_error_logged{false};
+  // Incremented whenever new patterns are installed.
+  std::atomic<std::uint64_t> m_generation{0};
 
-  mutable mysql_rwlock_t m_rwlock;
+  mutable mysql_rwlock_t m_rwlock{};
 
   Regex_list_handler(const Regex_list_handler &other) = delete;
   Regex_list_handler &operator=(const Regex_list_handler &other) = delete;
 
  public:
-  Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',')
-      : m_key(key),
-        m_delimiter(delimiter),
-        m_bad_pattern_str(""),
-        m_pattern(nullptr) {
-    mysql_rwlock_init(key, &m_rwlock);
-  }
+  Regex_list_handler(const PSI_rwlock_key &key, char delimiter = ',');
 
-  ~Regex_list_handler() { mysql_rwlock_destroy(&m_rwlock); }
+  ~Regex_list_handler();
 
-  // Set the list of patterns
-  bool set_patterns(const std::string &patterns,
-                    std::regex_constants::syntax_option_type flags);
+  // Set the list of patterns, flags are ICU URegexpFlag values
+  bool set_patterns(const std::string &patterns, uint32_t flags);
 
-  // See if a string matches at least one pattern
+  // See if a string fully matches at least one pattern. A match that fails,
+  // for example because it hits regexp_time_limit, counts as no match.
   bool matches(const std::string &str) const;
 
   // See the list of bad patterns
   const std::string &bad_pattern() const { return m_bad_pattern_str; }
+
+  // Changes after each successful set_patterns()
+  std::uint64_t generation() const { return m_generation.load(); }
 };
 
 void warn_about_bad_patterns(const Regex_list_handler *regex_list_handler,

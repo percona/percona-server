@@ -322,10 +322,10 @@ TARGET_LINK_LIBRARIES(rocksdb_sources ${rocksdb_static_libs})
 
 IF (ROCKSDB_DYNAMIC_PLUGIN)
   MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE DEFAULT
-    MODULE_ONLY LINK_LIBRARIES rocksdb_sources)
+    MODULE_ONLY LINK_LIBRARIES rocksdb_sources ext::icu)
 ELSE()
   MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE MANDATORY
-    STATIC_ONLY LINK_LIBRARIES rocksdb_sources)
+    STATIC_ONLY LINK_LIBRARIES rocksdb_sources ext::icu)
   # to fix linkage error on partition_base
   TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
 ENDIF()

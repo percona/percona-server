@@ -13481,6 +13481,9 @@ start-error-number 48300
 ER_LOG_REPLICA_TRANSLATED_DEPRECATED_PRIVILEGE
   eng "Replica applier rewrote removed dynamic privilege '%s' into '%s' before applying the query received from an older source server. Original query: %s"
 
+ER_IB_MSG_FTS_RECOVER_RETRY
+  eng "(%s) recovering the FULLTEXT index of table %s; the next operation on the table will retry"
+
 #
 # End of Percona Server 8.4 error log messages
 #

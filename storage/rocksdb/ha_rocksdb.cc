@@ -8278,8 +8278,6 @@ Rdb_table_handler *Rdb_open_tables_map::get_table_handler(
     my_stpmov(table_handler->m_table_name, table_name_str.c_str());
 
     m_table_map.emplace(table_name_str, table_handler);
-
-    table_handler->m_io_perf_read.init();
   }
   assert(table_handler->m_ref_count >= 0);
   table_handler->m_ref_count++;
@@ -8973,8 +8971,7 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
     if (!opened) std::ignore = close();
   });
 
-  m_io_perf.init(&m_table_handler->m_table_perf_context,
-                 &m_table_handler->m_io_perf_read, &stats);
+  m_io_perf.init(&m_table_handler->m_table_perf_context, &stats);
 
   Rdb_perf_context_guard guard(&m_io_perf,
                                rocksdb_perf_context_level(ha_thd()));

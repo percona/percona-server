@@ -18,13 +18,21 @@
 #include "./rdb_utils.h"
 
 /* C++ standard header files */
+#include <algorithm>
 #include <array>
+#include <new>
 #include <sstream>
 #include <string>
 #include <vector>
 
 /* C standard header files */
 #include <ctype.h>
+
+/* ICU header files */
+#include <unicode/regex.h>
+#include <unicode/ustring.h>
+#include <unicode/utext.h>
+#include <unicode/utypes.h>
 
 /* MySQL header files */
 #include "my_dir.h"
@@ -325,15 +333,58 @@ void rdb_log_status_error(const rocksdb::Status &s, const char *msg) {
   be stored in m_bad_patterns and the result will be false, otherwise the
   result will be true.
 */
-bool Regex_list_handler::set_patterns(
-    const std::string &pattern_str,
-    std::regex_constants::syntax_option_type flags) {
-  bool pattern_valid = true;
+Regex_list_handler::Regex_list_handler(const PSI_rwlock_key &key,
+                                       char delimiter)
+    : m_key(key), m_delimiter(delimiter) {
+  mysql_rwlock_init(key, &m_rwlock);
+}
 
-  // Create a normalized version of the pattern string with all delimiters
-  // replaced by the '|' character
+Regex_list_handler::~Regex_list_handler() { mysql_rwlock_destroy(&m_rwlock); }
+
+bool Regex_list_handler::set_patterns(const std::string &pattern_str,
+                                      uint32_t flags) {
+  // Replace all delimiters with the '|' operator to create one regex. Note
+  // that this means the delimiter can not be part of a regular expression.
+  // This is currently not a problem as we are using the comma character as a
+  // delimiter and commas are not valid in table names.
   std::string norm_pattern = pattern_str;
   std::replace(norm_pattern.begin(), norm_pattern.end(), m_delimiter, '|');
+
+  // Strictly convert the pattern to UTF-16; invalid UTF-8 is an error.
+  UErrorCode status = U_ZERO_ERROR;
+  int32_t length16 = 0;
+  u_strFromUTF8(nullptr, 0, &length16, norm_pattern.data(),
+                static_cast<int32_t>(norm_pattern.size()), &status);
+  if (status == U_BUFFER_OVERFLOW_ERROR) status = U_ZERO_ERROR;
+  std::unique_ptr<char16_t[]> pattern16;
+  if (U_SUCCESS(status)) {
+    pattern16.reset(new (std::nothrow) char16_t[length16 + 1]);
+    if (pattern16 == nullptr) status = U_MEMORY_ALLOCATION_ERROR;
+  }
+  if (U_SUCCESS(status)) {
+    u_strFromUTF8(pattern16.get(), length16 + 1, nullptr, norm_pattern.data(),
+                  static_cast<int32_t>(norm_pattern.size()), &status);
+  }
+
+  // ICU compiles iteratively, so deeply nested groups cannot overflow the
+  // thread stack the way they do with std::regex; it rejects nesting deeper
+  // than its parser stack instead. The UText overload is used because the
+  // UnicodeString one does not check the allocation of its pattern copy.
+  std::unique_ptr<icu::RegexPattern> pattern;
+  if (U_SUCCESS(status)) {
+    UText text_storage = UTEXT_INITIALIZER;
+    UText *const text =
+        utext_openUChars(&text_storage, pattern16.get(), length16, &status);
+    UParseError parse_error;
+    if (U_SUCCESS(status)) {
+      pattern.reset(
+          icu::RegexPattern::compile(text, flags, parse_error, status));
+    }
+    utext_close(text);
+    if (U_SUCCESS(status) && pattern == nullptr)
+      status = U_MEMORY_ALLOCATION_ERROR;
+  }
+  const bool pattern_valid = U_SUCCESS(status);
 
   // Make sure no one else is accessing the list while we are changing it.
   mysql_rwlock_wrlock(&m_rwlock);
@@ -341,40 +392,61 @@ bool Regex_list_handler::set_patterns(
   // Clear out any old error information
   m_bad_pattern_str.clear();
 
-  try {
-    // Replace all delimiters with the '|' operator and create the regex
-    // Note that this means the delimiter can not be part of a regular
-    // expression.  This is currently not a problem as we are using the comma
-    // character as a delimiter and commas are not valid in table names.
-
-    // std::regex implementation on MacOS X does not allow empty strings in
-    // constructors
-    if (norm_pattern.empty())
-      m_pattern.reset(new std::regex);
-    else
-      m_pattern.reset(new std::regex(norm_pattern, flags));
-  } catch (const std::regex_error &e) {
-    // This pattern is invalid.
-    pattern_valid = false;
-
+  if (pattern_valid) {
+    m_pattern = std::move(pattern);
+    m_pattern16 = std::move(pattern16);
+    m_pattern_str = norm_pattern;
+    m_match_error_logged.store(false, std::memory_order_relaxed);
+    m_generation.fetch_add(1);
+  } else {
     // Put the bad pattern into a member variable so it can be retrieved later.
     m_bad_pattern_str = pattern_str;
   }
 
-  // Release the lock
   mysql_rwlock_unlock(&m_rwlock);
 
   return pattern_valid;
 }
 
 bool Regex_list_handler::matches(const std::string &str) const {
-  assert(m_pattern != nullptr);
-
   // Make sure no one else changes the list while we are accessing it.
   mysql_rwlock_rdlock(&m_rwlock);
+  assert(m_pattern != nullptr);
 
-  // See if the table name matches the regex we have created
-  bool found = std::regex_match(str, *m_pattern);
+  UErrorCode status = U_ZERO_ERROR;
+  bool found = false;
+  UText text_storage = UTEXT_INITIALIZER;
+  UText *const text = utext_openUTF8(&text_storage, str.data(),
+                                     static_cast<int64_t>(str.size()), &status);
+  {
+    // Each match gets its own matcher, so concurrent matches share no
+    // mutable state. The matcher refers to the text, so it goes first.
+    std::unique_ptr<icu::RegexMatcher> matcher;
+    if (U_SUCCESS(status)) {
+      matcher.reset(m_pattern->matcher(status));
+      if (U_SUCCESS(status) && matcher == nullptr)
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
+    if (U_SUCCESS(status)) {
+      matcher->reset(text);
+      matcher->setTimeLimit(opt_regexp_time_limit, status);
+      matcher->setStackLimit(opt_regexp_stack_limit, status);
+    }
+    if (U_SUCCESS(status)) found = matcher->matches(status);
+  }
+  utext_close(text);
+
+  if (U_FAILURE(status)) {
+    found = false;
+    if (!m_match_error_logged.exchange(true, std::memory_order_relaxed)) {
+      LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Matching '%s' against the regular expression '%s' "
+                      "failed (%s) and is treated as no match. Check "
+                      "regexp_time_limit and regexp_stack_limit. Further "
+                      "failures of this pattern are not logged.",
+                      str.c_str(), m_pattern_str.c_str(), u_errorName(status));
+    }
+  }
 
   // Release the lock
   mysql_rwlock_unlock(&m_rwlock);

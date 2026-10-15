@@ -1,0 +1,22 @@
+#
+# The snapshot that opening a table takes to read the last auto-increment
+# value must not become the session's TTL read time.
+#
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, b INT) ENGINE=ROCKSDB
+COMMENT='ttl_duration=1;';
+FLUSH TABLES;
+# Opens the table outside of any transaction
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	NULL	NULL	NULL		SE_SPECIFIC			YES	NULL
+INSERT INTO t1 (b) VALUES (100);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+# A new transaction must not see the expired rows
+BEGIN;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+COMMIT;
+DROP TABLE t1;

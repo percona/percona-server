@@ -1,0 +1,25 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+CREATE TABLE hidden_t (v INT) ENGINE=ROCKSDB;
+CREATE TABLE auto_t (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v INT) ENGINE=ROCKSDB;
+INSERT INTO hidden_t VALUES (10),(20);
+INSERT INTO auto_t VALUES (100,10),(200,20);
+--source include/restart_mysqld.inc
+SET rocksdb_perf_context_level=4;
+SET SESSION debug='+d,rocksdb_iterator_seek_error';
+--error ER_GET_ERRMSG
+INSERT INTO hidden_t VALUES (30);
+--error ER_GET_ERRMSG
+INSERT INTO auto_t(v) VALUES (30);
+SET SESSION debug='-d,rocksdb_iterator_seek_error';
+INSERT INTO hidden_t VALUES (30);
+INSERT INTO auto_t(v) VALUES (30);
+SELECT * FROM hidden_t ORDER BY v;
+SELECT * FROM auto_t ORDER BY id;
+SET SESSION debug='+d,rocksdb_iterator_seek_error';
+--error ER_GET_ERRMSG
+ALTER TABLE auto_t AUTO_INCREMENT=1, ALGORITHM=INPLACE;
+SET SESSION debug='-d,rocksdb_iterator_seek_error';
+INSERT INTO auto_t(v) VALUES (40);
+SELECT * FROM auto_t ORDER BY id;
+DROP TABLE hidden_t, auto_t;

@@ -1,0 +1,29 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # The snapshot that opening a table takes to read the last auto-increment
+--echo # value must not become the session's TTL read time.
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, b INT) ENGINE=ROCKSDB
+  COMMENT='ttl_duration=1;';
+FLUSH TABLES;
+
+--connect (con1,localhost,root,,test)
+--echo # Opens the table outside of any transaction
+SHOW INDEX FROM t1;
+
+--connection default
+INSERT INTO t1 (b) VALUES (100);
+--sleep 3
+SELECT COUNT(*) FROM t1;
+
+--connection con1
+--echo # A new transaction must not see the expired rows
+BEGIN;
+SELECT COUNT(*) FROM t1;
+COMMIT;
+
+--disconnect con1
+--connection default
+DROP TABLE t1;

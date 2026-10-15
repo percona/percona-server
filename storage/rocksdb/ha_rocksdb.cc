@@ -18232,7 +18232,11 @@ void ha_rocksdb::rpl_after_delete_rows() {
 void ha_rocksdb::rpl_before_update_rows() {
   DBUG_ENTER_FUNC();
 
-  m_rpl_read_free = use_read_free_rpl();
+  // An UPDATE keeps the implicit TTL timestamp of the stored row, which the
+  // row image does not carry, so the row must be read (PS-11903). Deletes and
+  // inserts do not need it.
+  m_rpl_read_free = use_read_free_rpl() && !(m_pk_descr->has_ttl() &&
+                                             m_pk_descr->m_ttl_column.empty());
   m_in_rpl_update_rows = true;
 
   DBUG_VOID_RETURN;

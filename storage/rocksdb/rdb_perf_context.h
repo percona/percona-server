@@ -22,7 +22,6 @@
 #include <string>
 
 /* MySQL header files */
-#include "my_io_perf.h"
 #include "sql/handler.h"
 
 namespace myrocks {
@@ -121,7 +120,6 @@ extern std::string rdb_pc_stat_types[PC_MAX_IDX];
 class Rdb_io_perf {
   // Context management
   Rdb_atomic_perf_counters *m_atomic_counters = nullptr;
-  my_io_perf_atomic_t *m_shared_io_perf_read = nullptr;
   ha_statistics *m_stats = nullptr;
 
  public:
@@ -129,24 +127,18 @@ class Rdb_io_perf {
   Rdb_io_perf &operator=(const Rdb_io_perf &) = delete;
 
   void init(Rdb_atomic_perf_counters *const atomic_counters,
-            my_io_perf_atomic_t *const shared_io_perf_read,
             ha_statistics *const stats) {
     assert(atomic_counters != nullptr);
-    assert(shared_io_perf_read != nullptr);
     assert(stats != nullptr);
 
     m_atomic_counters = atomic_counters;
-    m_shared_io_perf_read = shared_io_perf_read;
     m_stats = stats;
   }
 
   bool start(const uint32_t perf_context_level);
   void end_and_record(const uint32_t perf_context_level);
 
-  explicit Rdb_io_perf()
-      : m_atomic_counters(nullptr),
-        m_shared_io_perf_read(nullptr),
-        m_stats(nullptr) {}
+  explicit Rdb_io_perf() : m_atomic_counters(nullptr), m_stats(nullptr) {}
 };
 
 }  // namespace myrocks

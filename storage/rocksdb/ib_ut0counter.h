@@ -32,6 +32,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <cstdint>
 #include "my_dbug.h"
 
+#ifndef __WIN__
+#include <pthread.h>
+#endif
+
 /** CPU cache line size */
 #define INNOBASE_CACHE_LINE_SIZE 64
 

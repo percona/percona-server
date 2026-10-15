@@ -323,9 +323,14 @@ TARGET_LINK_LIBRARIES(rocksdb_sources ${rocksdb_static_libs})
 IF (ROCKSDB_DYNAMIC_PLUGIN)
   MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE DEFAULT
     MODULE_ONLY LINK_LIBRARIES rocksdb_sources)
+  # Use the ICU of mysqld, which exports its symbols. Linking ext::icu would
+  # put a second copy of the bundled ICU into the plugin, with duplicate
+  # globals (an ODR violation that AddressSanitizer reports on load).
+  TARGET_INCLUDE_DIRECTORIES(rocksdb SYSTEM PRIVATE
+    $<TARGET_PROPERTY:icu_interface,INTERFACE_INCLUDE_DIRECTORIES>)
 ELSE()
   MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE MANDATORY
-    STATIC_ONLY LINK_LIBRARIES rocksdb_sources)
+    STATIC_ONLY LINK_LIBRARIES rocksdb_sources ext::icu)
   # to fix linkage error on partition_base
   TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
 ENDIF()

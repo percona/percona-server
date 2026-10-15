@@ -43,6 +43,9 @@
 #include <string>
 #include <vector>
 
+/* ICU header files */
+#include <unicode/uregex.h>
+
 /* MySQL includes */
 #include "my_sys.h"
 #include "mysql/thread_pool_priv.h"
@@ -1386,13 +1389,8 @@ static MYSQL_THDVAR_BOOL(
 
 static const char *const DEFAULT_READ_FREE_RPL_TABLES = ".*";
 
-static std::regex_constants::syntax_option_type get_regex_flags() {
-  std::regex_constants::syntax_option_type flags =
-      std::regex::nosubs | std::regex::extended;
-  if (lower_case_table_names) {
-    flags |= std::regex::icase;
-  }
-  return flags;
+static uint32_t get_regex_flags() {
+  return lower_case_table_names ? UREGEX_CASE_INSENSITIVE : 0;
 }
 
 static int rocksdb_validate_read_free_rpl_tables(

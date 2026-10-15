@@ -1,0 +1,19 @@
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=RocksDB;
+SET @deletes = (SELECT VARIABLE_VALUE FROM performance_schema.global_status
+WHERE VARIABLE_NAME='Rocksdb_number_sst_entry_delete');
+SET SESSION debug='+d,rocksdb_timestamped_delete';
+SET SESSION rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (1), (2), (3);
+SET SESSION rocksdb_bulk_load=0;
+SET SESSION debug='-d,rocksdb_timestamped_delete';
+SELECT VARIABLE_VALUE >= @deletes + 3 AS counted_deletes
+FROM performance_schema.global_status
+WHERE VARIABLE_NAME='Rocksdb_number_sst_entry_delete';
+counted_deletes
+1
+SELECT * FROM t1;
+id
+1
+2
+3
+DROP TABLE t1;

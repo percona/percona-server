@@ -348,8 +348,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   int get_row_by_sk(uchar *buf, const Rdb_key_def &kd,
                     const rocksdb::Slice *key);
 
-  void load_auto_incr_value();
-  ulonglong load_auto_incr_value_from_index();
+  int load_auto_incr_value();
+  int load_auto_incr_value_from_index(ulonglong *value);
   void update_auto_incr_val(ulonglong val);
   void update_auto_incr_val_from_field();
   rocksdb::Status get_datadic_auto_incr(Rdb_transaction *const tx,

@@ -4971,13 +4971,14 @@ class handler {
   /** This is called after create to allow us to set up cached variables */
   void init() { cached_table_flags = table_flags(); }
   /**
-    For MyRocks, secondary initialization that happens after frm is parsed into
-    field information from within open_binary_frm. MyRocks uses this secondary
-    init phase to analyze the key and field definitions to determine if
-    HA_PRIMARY_KEY_IN_READ_INDEX flag is available for the table as it only
-    supports that behavior for certain types of key combinations. The
-    HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default till this method
-    invocation and can be disabled here in case it isn't supported.
+    For MyRocks, secondary initialization that happens once the field and key
+    definitions are known; MyRocks and Partition_base call it from open().
+    MyRocks uses this secondary init phase to analyze the key and field
+    definitions to determine if HA_PRIMARY_KEY_IN_READ_INDEX flag is available
+    for the table as it only supports that behavior for certain types of key
+    combinations. The HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default
+    till this method invocation and can be disabled here in case it isn't
+    supported.
     Return values: false success, true failure.
   */
   virtual bool init_with_fields() { return false; }

@@ -9087,13 +9087,8 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
 
   /*
     init_with_fields() is used to initialize table flags based on the field
-    definitions in table->field[].
-    It is called by open_binary_frm(), but that function calls the method for
-    a temporary ha_rocksdb object which is later destroyed.
-
-    If we are here in ::open(), then init_with_fields() has not been called
-    for this object. Call it ourselves, we want all member variables to be
-    properly initialized.
+    definitions in table->field[]. The server does not call it, so call it
+    ourselves, we want all member variables to be properly initialized.
   */
   init_with_fields();
 

@@ -3720,6 +3720,17 @@ class Rdb_transaction {
 
   bool has_snapshot() const { return m_read_opts.snapshot != nullptr; }
 
+  /*
+    Release a snapshot that was taken only for an internal read, such as
+    ha_rocksdb::open() loading the auto-increment or hidden PK value. Such a
+    read is not part of a registered transaction, so it must not leave the
+    first-snapshot time behind for TTL filtering and compaction.
+  */
+  void release_internal_snapshot(bool had_snapshot_ts) {
+    release_snapshot();
+    if (!had_snapshot_ts) Rdb_transaction_list::reinsert_without_snapshot(this);
+  }
+
  private:
   Rdb_bulk_load_context *m_bulk_load_ctx = nullptr;
 
@@ -8325,7 +8336,7 @@ static ulonglong rdb_get_int_col_max_value(const Field *field) {
   return max_value;
 }
 
-void ha_rocksdb::load_auto_incr_value() {
+int ha_rocksdb::load_auto_incr_value() {
   ulonglong auto_incr = 0;
 
   // fetch auto incr value from dd
@@ -8336,11 +8347,14 @@ void ha_rocksdb::load_auto_incr_value() {
                               &auto_incr)) {
 #ifndef NDEBUG
     // For debug mode, verify the value against the last value in the index.
-    load_auto_incr_value_from_index();
+    ulonglong index_value;
+    const int err = load_auto_incr_value_from_index(&index_value);
+    if (err) return err;
 #endif
   } else {
     // if not found, fetch auto incr value from index_last
-    auto_incr = load_auto_incr_value_from_index();
+    const int err = load_auto_incr_value_from_index(&auto_incr);
+    if (err) return err;
   }
 
   // If we failed to find anything from the data dictionary and index, then
@@ -8349,9 +8363,10 @@ void ha_rocksdb::load_auto_incr_value() {
     auto_incr = 1;
   }
   update_auto_incr_val(auto_incr);
+  return HA_EXIT_SUCCESS;
 }
 
-ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
+int ha_rocksdb::load_auto_incr_value_from_index(ulonglong *value) {
   const int save_active_index = active_index;
   active_index = table->s->next_number_index;
 
@@ -8364,6 +8379,7 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
 
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
   const bool is_new_snapshot = !tx->has_snapshot();
+  const bool had_snapshot_ts = tx->get_earliest_snapshot_ts() != 0;
   if (is_new_snapshot) {
     tx->acquire_snapshot(true);
   }
@@ -8375,7 +8391,8 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
   m_keyread_only = true;
   m_converter->set_is_key_requested(true);
 
-  if (!index_last(table->record[0])) {
+  int rc = index_last(table->record[0]);
+  if (rc == HA_EXIT_SUCCESS) {
     Field *field =
         table->key_info[table->s->next_number_index].key_part[0].field;
     ulonglong max_val = rdb_get_int_col_max_value(field);
@@ -8401,7 +8418,7 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
 
   m_keyread_only = save_keyread_only;
   if (is_new_snapshot) {
-    tx->release_snapshot();
+    tx->release_internal_snapshot(had_snapshot_ts);
   }
 
   active_index = save_active_index;
@@ -8413,7 +8430,9 @@ ulonglong ha_rocksdb::load_auto_incr_value_from_index() {
     */
   std::swap(m_iterator, save_iterator);
 
-  return last_val;
+  if (rc == HA_ERR_END_OF_FILE) rc = HA_EXIT_SUCCESS;
+  if (rc == HA_EXIT_SUCCESS) *value = last_val;
+  return rc;
 }
 
 void ha_rocksdb::update_auto_incr_val(ulonglong val) {
@@ -8462,12 +8481,12 @@ int ha_rocksdb::load_hidden_pk_value() {
 
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
   const bool is_new_snapshot = !tx->has_snapshot();
+  const bool had_snapshot_ts = tx->get_earliest_snapshot_ts() != 0;
 
   longlong hidden_pk_id = 1;
   longlong old = 0;
-  int rc = 0;
-  // Do a lookup.
-  if (!index_last(table->record[0])) {
+  int rc = index_last(table->record[0]);
+  if (rc == HA_EXIT_SUCCESS) {
     /*
       Decode PK field from the key
     */
@@ -8477,6 +8496,10 @@ int ha_rocksdb::load_hidden_pk_value() {
     }
 
     hidden_pk_id++;
+  } else if (rc == HA_ERR_END_OF_FILE) {
+    rc = HA_EXIT_SUCCESS;
+  } else {
+    goto exit;
   }
 
   old = m_tbl_def->m_hidden_pk_val;
@@ -8486,7 +8509,7 @@ int ha_rocksdb::load_hidden_pk_value() {
 
 exit:
   if (is_new_snapshot) {
-    tx->release_snapshot();
+    tx->release_internal_snapshot(had_snapshot_ts);
   }
 
   active_index = save_active_index;
@@ -9077,7 +9100,8 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
 
   /* Load auto_increment value only once on first use. */
   if (table->found_next_number_field && m_tbl_def->m_auto_incr_val == 0) {
-    load_auto_incr_value();
+    err = load_auto_incr_value();
+    if (err) DBUG_RETURN(err);
   }
 
   /* Load hidden pk only once on first use. */
@@ -15328,6 +15352,19 @@ bool ha_rocksdb::prepare_inplace_alter_table(
   uint n_added_keys = 0;
   ulonglong max_auto_incr = 0;
 
+  // Read before allocating replacement definitions, so a failed read cannot
+  // initialize a counter from an incomplete index or leak an ALTER context.
+  if ((ha_alter_info->handler_flags &
+       Alter_inplace_info::CHANGE_CREATE_OPTION) &&
+      (ha_alter_info->create_info->used_fields & HA_CREATE_USED_AUTO) &&
+      table->found_next_number_field) {
+    const int err = load_auto_incr_value_from_index(&max_auto_incr);
+    if (err) {
+      print_error(err, MYF(0));
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+  }
+
   bool update_comment =
       ((ha_alter_info->handler_flags &
         my_core::Alter_inplace_info::CHANGE_CREATE_OPTION) &&
@@ -15432,9 +15469,6 @@ bool ha_rocksdb::prepare_inplace_alter_table(
       (ha_alter_info->create_info->used_fields & HA_CREATE_USED_AUTO)) {
     if (!new_tdef) {
       new_tdef = m_tbl_def;
-    }
-    if (table->found_next_number_field) {
-      max_auto_incr = load_auto_incr_value_from_index();
     }
   }
 

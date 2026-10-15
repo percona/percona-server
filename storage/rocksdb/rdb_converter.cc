@@ -713,7 +713,9 @@ int Rdb_converter::convert_record_from_storage_format(
     const Rdb_key_def &pk_def, const rocksdb::Slice *const key_slice,
     const rocksdb::Slice *const value_slice, uchar *const dst,
     bool decode_value = true) {
-  bool skip_value = !decode_value || get_decode_fields()->size() == 0;
+  // Even a primary-key-only row can have checksum bytes in its value.
+  bool skip_value = !m_verify_row_debug_checksums &&
+                    (!decode_value || get_decode_fields()->size() == 0);
   if (!m_key_requested && skip_value) {
     return HA_EXIT_SUCCESS;
   }

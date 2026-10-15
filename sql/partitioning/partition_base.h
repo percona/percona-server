@@ -47,11 +47,6 @@ class Partition_base_share : public Partition_share {
 class Partition_base : public handler,
                        public Partition_helper,
                        public Partition_handler {
- public:
-  bool init_partitioning(MEM_ROOT *mem_root) {
-    return Partition_helper::init_partitioning(mem_root);
-  }
-
  private:
   virtual handler *get_file_handler(TABLE_SHARE *share,
                                     MEM_ROOT *alloc) const = 0;
@@ -83,16 +78,8 @@ class Partition_base : public handler,
 
   /** Maximum of new partitions in m_new_file. */
   uint m_num_new_partitions;
-  /** True if the new partitions should be created but not opened and locked. */
-  bool m_new_parts_open_only;
-  /** cached value of indexes_are_disabled(). */
-  int m_indexes_are_disabled;
 
   void init_handler_variables();
-  /*
-    Variables for lock structures.
-  */
-  THR_LOCK_DATA lock; /* MySQL lock */
 
   /** For optimizing ha_start_bulk_insert calls */
   MY_BITMAP m_bulk_insert_started;
@@ -103,13 +90,8 @@ class Partition_base : public handler,
   MY_BITMAP m_locked_partitions;
   /** Stores shared auto_increment etc. */
   Partition_base_share *part_share;
-  /** Temporary storage for new partitions Handler_shares during ALTER */
-  List<Parts_share_refs> m_new_partitions_share_refs;
   /** Sorted array of partition ids in descending order of number of rows. */
   uint32 *m_part_ids_sorted_by_num_of_records;
-  /* Compare function for my_qsort2, for reversed order. */
-  static int compare_number_of_records(Partition_base *me, const uint32 *a,
-                                       const uint32 *b);
   /** keep track of partitions to call ha_reset */
   MY_BITMAP m_partitions_to_reset;
 
@@ -183,14 +165,10 @@ class Partition_base : public handler,
   */
   int del_ren_table(const char *from, const char *to,
                     const dd::Table *table_def_from, dd::Table *table_def_to);
-  bool setup_engine_array(MEM_ROOT *mem_root);
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
-  partition_element *find_partition_element(uint part_id);
-  bool populate_partition_name_hash();
   Partition_base_share *get_share();
   bool set_ha_share_ref(Handler_share **ha_share) override;
   bool init_part_share();
-  void fix_data_dir(char *path);
   bool init_partition_bitmaps();
   void free_partition_bitmaps();
 
@@ -731,7 +709,6 @@ class Partition_base : public handler,
 
     The maximum supported values is the minimum of all handlers in the table
   */
-  uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
   uint max_supported_record_length() const override;
   uint max_supported_keys() const override;
   uint max_supported_key_parts() const override;

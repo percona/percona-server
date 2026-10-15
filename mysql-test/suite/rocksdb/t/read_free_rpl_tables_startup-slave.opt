@@ -1,0 +1,3 @@
+--binlog_format=row
+--rocksdb_read_free_rpl=PK_SK
+--rocksdb_read_free_rpl_tables=t1

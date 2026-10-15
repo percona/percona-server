@@ -941,6 +941,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   /* Flags tracking if we are inside different replication operation */
   bool m_in_rpl_delete_rows;
   bool m_in_rpl_update_rows;
+  // use_read_free_rpl() for the rows event being applied
+  bool m_rpl_read_free;
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
   /* Need to build decoder on next read operation */

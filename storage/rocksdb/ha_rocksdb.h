@@ -88,8 +88,6 @@ struct Rdb_table_handler {
   char *m_table_name;
   int m_ref_count;
 
-  /* Stores cumulative table statistics */
-  my_io_perf_atomic_t m_io_perf_read;
   Rdb_atomic_perf_counters m_table_perf_context;
 };
 

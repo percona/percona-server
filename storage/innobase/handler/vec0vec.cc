@@ -250,6 +250,24 @@ vector_constants::Metric metric_from_key(const KEY &key) {
   return vector_constants::Metric::kEuclidean;
 }
 
+/* DDL-time: both KEYs hold the full set resolve_options() stored, so the
+parse cannot fail. */
+bool params_differ(const KEY &old_key, const KEY &new_key) {
+  VectorIndexParam old_vip;
+  VectorIndexParam new_vip;
+  if (parse_options(old_key, old_vip) || parse_options(new_key, new_vip)) {
+    ut_d(ut_error);
+    ut_o(return true);
+  }
+  if (old_vip.index() != new_vip.index()) return true;
+
+  const auto &old_hp = std::get<HnswParam>(old_vip);
+  const auto &new_hp = std::get<HnswParam>(new_vip);
+  return old_hp.M != new_hp.M ||
+         old_hp.ef_construction != new_hp.ef_construction ||
+         old_hp.metric != new_hp.metric;
+}
+
 /* DDL-time: the one place the defaults turn into stored values. */
 bool resolve_options(MEM_ROOT *mem_root, KEY *key) {
   VectorIndexParam vip;

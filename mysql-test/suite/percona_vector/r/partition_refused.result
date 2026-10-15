@@ -17,3 +17,11 @@ VECTOR KEY vk (v) TYPE hnsw (M = 4));
 ALTER TABLE t3 PARTITION BY HASH (id) PARTITIONS 2;
 ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'
 DROP TABLE t3;
+# Nor can a table with one be swapped into a partitioned table.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL)
+PARTITION BY HASH (id) PARTITIONS 2;
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 4));
+ALTER TABLE t2 EXCHANGE PARTITION p0 WITH TABLE t3;
+ERROR HY000: Tables have different definitions
+DROP TABLE t2, t3;

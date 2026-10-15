@@ -2197,6 +2197,21 @@ using prepare_vector_index_params_t = bool (*)(MEM_ROOT *mem_root,
   compare query DISTANCE() metrics to the index without re-parsing options.
 */
 using vector_index_metric_t = vector_constants::Metric (*)(const KEY &key);
+
+/**
+  Compare two definitions of a vector index: the one in the table and the one
+  an ALTER TABLE gives the index of the same name. Called from
+  has_index_def_changed(), so that an index whose type or parameters change
+  is rebuilt rather than kept. Both KEYs carry the full parameter set that
+  prepare_vector_index_params resolved, which the SE compares in its own
+  format.
+
+  @param old_key  the vector index's KEY in the table
+  @param new_key  the vector index's KEY in the new version of the table
+  @retval true if the two definitions build different indexes
+*/
+using compare_vector_index_params_t = bool (*)(const KEY &old_key,
+                                               const KEY &new_key);
 /**
   @brief
   Retrieve ha_statistics from SE.
@@ -3072,6 +3087,7 @@ struct handlerton {
   redo_log_set_state_t redo_log_set_state;
   prepare_vector_index_params_t prepare_vector_index_params{nullptr};
   vector_index_metric_t vector_index_metric{nullptr};
+  compare_vector_index_params_t compare_vector_index_params{nullptr};
 
   get_table_statistics_t get_table_statistics;
   get_column_statistics_t get_column_statistics;

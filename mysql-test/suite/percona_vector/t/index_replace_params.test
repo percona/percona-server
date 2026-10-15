@@ -1,0 +1,63 @@
+--echo #
+--echo # PS-11617: DROP + ADD of a vector index under the same name, with new
+--echo # parameters, rebuilds the index.
+--echo #
+
+--let $index_id = SELECT INDEX_ID FROM INFORMATION_SCHEMA.INNODB_INDEXES WHERE NAME = 'vk'
+--let $l2 = SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'EUCLIDEAN') LIMIT 1
+--let $cosine = SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0]'), 'COSINE') LIMIT 1
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]')),
+                      (2, STRING_TO_VECTOR('[1,0]'));
+SHOW CREATE TABLE t1;
+
+--echo # New parameters rebuild the index, which is then used.
+--let $id_before = `$index_id`
+ALTER TABLE t1 DROP KEY vk,
+  ADD VECTOR KEY vk (v) TYPE hnsw (M = 12, ef_construction = 64);
+SHOW CREATE TABLE t1;
+--let $id_after = `$index_id`
+--let $assert_text = The index was rebuilt
+--let $assert_cond = $id_before <> $id_after
+--source include/assert.inc
+--replace_column 10 # 11 #
+eval EXPLAIN $l2;
+eval $l2;
+
+--echo # The same parameters, written differently, keep it.
+--let $id_before = `$index_id`
+ALTER TABLE t1 DROP KEY vk,
+  ADD VECTOR KEY vk (v) TYPE HNSW
+    (EF_CONSTRUCTION = 064, Metric = Euclidean, m = 012);
+--let $id_after = `$index_id`
+--let $assert_text = The index was kept
+--let $assert_cond = $id_before = $id_after
+--source include/assert.inc
+
+--echo # A new metric rebuilds it too. The euclidean index serves only
+--echo # EUCLIDEAN queries.
+--replace_column 10 # 11 #
+eval EXPLAIN $l2;
+--replace_column 10 # 11 #
+eval EXPLAIN $cosine;
+
+--echo # Under cosine, the zero vector is refused.
+--error ER_VECTOR_INDEX_WRONG_VALUE
+ALTER TABLE t1 DROP KEY vk,
+  ADD VECTOR KEY vk (v) TYPE hnsw (M = 12, metric = cosine);
+DELETE FROM t1 WHERE id = 1;
+ALTER TABLE t1 DROP KEY vk,
+  ADD VECTOR KEY vk (v) TYPE hnsw (M = 12, metric = cosine);
+SHOW CREATE TABLE t1;
+--error ER_VECTOR_INDEX_WRONG_VALUE
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[0,0]'));
+
+--echo # The cosine index serves only COSINE queries.
+--replace_column 10 # 11 #
+eval EXPLAIN $l2;
+--replace_column 10 # 11 #
+eval EXPLAIN $cosine;
+
+DROP TABLE t1;

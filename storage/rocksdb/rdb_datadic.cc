@@ -80,10 +80,6 @@ inline uint my_bit_log2(ulong value) {
 
 namespace myrocks {
 
-void get_mem_comparable_space(const CHARSET_INFO *cs,
-                              const std::vector<uchar> **xfrm, size_t *xfrm_len,
-                              size_t *mb_len);
-
 /*
   Decode  current key field
   @param  fpi               IN      data structure contains field metadata
@@ -6240,14 +6236,6 @@ void Rdb_dict_manager::rollback_ongoing_index_creation(
   }
 
   commit(batch);
-}
-
-void Rdb_dict_manager::log_start_drop_table(
-    const std::shared_ptr<Rdb_key_def> *const key_descr, const uint32 n_keys,
-    const char *const log_action) const {
-  for (uint32 i = 0; i < n_keys; i++) {
-    log_start_drop_index(key_descr[i]->get_gl_index_id(), log_action);
-  }
 }
 
 void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,

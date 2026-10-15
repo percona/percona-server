@@ -4753,22 +4753,18 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   ut_ad(rw_latch == RW_S_LATCH || rw_latch == RW_X_LATCH ||
         rw_latch == RW_NO_LATCH);
 
-  buf_page_mutex_enter(block);
+  std::atomic_thread_fence(std::memory_order_acquire);
 
   if (UNIV_UNLIKELY(block->modify_clock != modify_clock ||
                     (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE))) {
-    buf_page_mutex_exit(block);
-
     return (false);
   }
 
   buf_block_buf_fix_inc(block, ut::Location{file, line});
 
-  /* Grab the access time while we have the mutex to potentially
-  avoid the need to acquire the mutex the second time (below). */
+  /* Grab the access time to potentially avoid the need to acquire
+  the mutex the second time (below). */
   auto access_time = buf_page_is_accessed(&block->page);
-
-  buf_page_mutex_exit(block);
 
   ut_ad(!ibuf_inside(mtr) ||
         ibuf_page(block->page.id, block->page.size, UT_LOCATION_HERE, nullptr));

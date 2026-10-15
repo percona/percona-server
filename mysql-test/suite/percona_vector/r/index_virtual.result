@@ -1,0 +1,71 @@
+#
+# PS-11751: VIRTUAL generated column returns a stale, identical value for
+#           every row when read through an HNSW vector index (ANN query).
+#
+#
+# Virtual generated columns must be computed for rows returned by
+# the vector index scan. The scan read rows without computing them, so
+# a VIRTUAL column kept whatever value was left in the record buffer:
+# the select list showed a stale, repeating value and a WHERE filter on
+# it rejected or accepted the wrong rows. STORED columns were fine.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+g INT GENERATED ALWAYS AS (id * 2) VIRTUAL,
+s INT GENERATED ALWAYS AS (id * 3) STORED,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (id, v)
+WITH RECURSIVE ids (id) AS (
+SELECT 1
+UNION ALL
+SELECT id + 1
+FROM ids
+WHERE id < 50
+)
+SELECT
+id,
+STRING_TO_VECTOR(CONCAT('[', id, ',0,0,0]'))
+FROM ids;
+# Virtual column in the select list must be computed for each row
+# returned by the vector index scan.
+EXPLAIN SELECT id, g, s FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`s` AS `s` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3
+SELECT id, g, s FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+33	66	99
+34	68	102
+32	64	96
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+33	66	99
+34	68	102
+32	64	96
+# Virtual column used in a WHERE filter on top of the vector index scan.
+EXPLAIN SELECT id, g, s FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	vector_ann	vk	vk	0	const	#	#	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`g` AS `g`,`test`.`t1`.`s` AS `s` from `test`.`t1` where (`test`.`t1`.`g` > 66) order by distance(`test`.`t1`.`v`,to_vector('[33.4,0,0,0]'),'EUCLIDEAN') limit 3
+SELECT id, g, s FROM t1 WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+35	70	105
+36	72	108
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) WHERE g > 66 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+35	70	105
+36	72	108
+SELECT id, g, s FROM t1 WHERE g % 4 = 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+32	64	96
+36	72	108
+SELECT id, g, s FROM t1 IGNORE INDEX (vk) WHERE g % 4 = 0 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[33.4,0,0,0]'), 'EUCLIDEAN') LIMIT 3;
+id	g	s
+34	68	102
+32	64	96
+36	72	108
+DROP TABLE t1;

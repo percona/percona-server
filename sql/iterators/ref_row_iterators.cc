@@ -726,7 +726,7 @@ bool VectorSearchIterator::DoInit() {
 int VectorSearchIterator::DoRead() {
   if (m_first) {
     int error =
-        table()->file->vec_read_first(m_item, table()->record[0], m_limit);
+        table()->file->ha_vec_read_first(m_item, table()->record[0], m_limit);
     if (error) {
       /*
         When the query vector has the wrong dimensions we override the
@@ -742,7 +742,7 @@ int VectorSearchIterator::DoRead() {
     }
     m_first = false;
   } else {
-    int error = table()->file->vec_read_next(table()->record[0]);
+    int error = table()->file->ha_vec_read_next(table()->record[0]);
     if (error) {
       return HandleError(error);
     }

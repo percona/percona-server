@@ -1,0 +1,118 @@
+#
+# Bug#37387633 Users without any privileges can access
+#              INFORMATION_SCHEMA.INNODB_FIELDS to retrieve column names
+#              of other users' tables
+# Bug#35243416 INFORMATION_SCHEMA.INNODB_FOREIGN shows all db's on a
+#              shared server
+#
+# Every INFORMATION_SCHEMA table exposing InnoDB dictionary metadata
+# requires the PROCESS privilege. Two mechanisms enforce it:
+#   - DD based system views (INNODB_FIELDS, INNODB_FOREIGN,
+#     INNODB_FOREIGN_COLS, INNODB_DATAFILES, INNODB_TABLESPACES_BRIEF,
+#     FILES) are checked in Query_block::add_table_to_list(),
+#   - the remaining tables are checked in the fill functions in
+#     storage/innobase/handler/i_s.cc.
+# Each table is queried by a user without PROCESS (must fail with
+# ER_SPECIFIC_ACCESS_DENIED_ERROR), by the same user after
+# GRANT PROCESS and by root (must succeed in both cases).
+#
+
+--source include/count_sessions.inc
+
+CREATE DATABASE isp_db;
+USE isp_db;
+
+# Fixture, so that every table has rows to return when access is granted.
+CREATE TABLE parent_t (id INT PRIMARY KEY, payload VARCHAR(32)) ENGINE=InnoDB;
+CREATE TABLE child_t (
+  id INT PRIMARY KEY,
+  parent_id INT,
+  KEY ix_child_parent (parent_id),
+  CONSTRAINT fk_child_parent FOREIGN KEY (parent_id) REFERENCES parent_t (id)
+) ENGINE=InnoDB;
+CREATE TABLE virt_t (
+  id INT PRIMARY KEY,
+  a INT,
+  b INT,
+  s INT AS (a + b) VIRTUAL,
+  KEY ix_s (s)
+) ENGINE=InnoDB;
+
+CREATE TABLE gated_tables (id INT PRIMARY KEY, name VARCHAR(64));
+INSERT INTO gated_tables VALUES
+  (1, 'INNODB_TABLES'),
+  (2, 'INNODB_TABLESTATS'),
+  (3, 'INNODB_INDEXES'),
+  (4, 'INNODB_COLUMNS'),
+  (5, 'INNODB_VIRTUAL'),
+  (6, 'INNODB_FIELDS'),
+  (7, 'INNODB_FOREIGN'),
+  (8, 'INNODB_FOREIGN_COLS'),
+  (9, 'INNODB_TABLESPACES'),
+  (10, 'INNODB_DATAFILES'),
+  (11, 'INNODB_TABLESPACES_BRIEF'),
+  (12, 'FILES');
+--let $n_tables = `SELECT COUNT(*) FROM gated_tables`
+
+CREATE USER 'isp_user'@'localhost';
+GRANT SELECT ON isp_db.* TO 'isp_user'@'localhost';
+
+--let $join_query = SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS f JOIN INFORMATION_SCHEMA.INNODB_INDEXES i ON i.INDEX_ID = f.INDEX_ID JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.TABLE_ID = i.TABLE_ID WHERE t.NAME LIKE 'isp_db/%'
+--let $join_server_query = SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.TABLES s JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.NAME = CONCAT(s.TABLE_SCHEMA, '/', s.TABLE_NAME) WHERE s.TABLE_SCHEMA = 'isp_db'
+
+--echo #
+--echo # As isp_user without PROCESS: access denied.
+--echo #
+--connect (con_nopriv, localhost, isp_user,, isp_db)
+--let $i = 1
+while ($i <= $n_tables)
+{
+  --let $table = `SELECT name FROM gated_tables WHERE id = $i`
+  --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+  --eval SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.$table
+  --inc $i
+}
+--echo # Join of InnoDB tables.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--eval $join_query
+--echo # Join of a server table with an InnoDB table.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--eval $join_server_query
+--disconnect con_nopriv
+--connection default
+
+--echo #
+--echo # As isp_user after GRANT PROCESS: access granted.
+--echo #
+GRANT PROCESS ON *.* TO 'isp_user'@'localhost';
+--connect (con_proc, localhost, isp_user,, isp_db)
+--let $i = 1
+while ($i <= $n_tables)
+{
+  --let $table = `SELECT name FROM gated_tables WHERE id = $i`
+  --eval SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.$table
+  --inc $i
+}
+--eval $join_query
+--eval $join_server_query
+--disconnect con_proc
+--connection default
+
+--echo #
+--echo # As root: access granted.
+--echo #
+--let $i = 1
+while ($i <= $n_tables)
+{
+  --let $table = `SELECT name FROM gated_tables WHERE id = $i`
+  --eval SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.$table
+  --inc $i
+}
+--eval $join_query
+--eval $join_server_query
+
+# Cleanup.
+DROP USER 'isp_user'@'localhost';
+DROP DATABASE isp_db;
+
+--source include/wait_until_count_sessions.inc

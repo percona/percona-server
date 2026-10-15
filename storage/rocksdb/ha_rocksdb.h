@@ -86,7 +86,6 @@ extern bool rocksdb_column_default_value_as_expression;
 */
 struct Rdb_table_handler {
   char *m_table_name;
-  uint m_table_name_length;
   int m_ref_count;
 
   /* Stores cumulative table statistics */
@@ -351,9 +350,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   int load_auto_incr_value_from_index(ulonglong *value);
   void update_auto_incr_val(ulonglong val);
   void update_auto_incr_val_from_field();
-  rocksdb::Status get_datadic_auto_incr(Rdb_transaction *const tx,
-                                        const GL_INDEX_ID &gl_index_id,
-                                        ulonglong *new_val) const;
   longlong update_hidden_pk_val();
   int load_hidden_pk_value() MY_ATTRIBUTE((__warn_unused_result__));
   int read_hidden_pk_id_from_rowkey(longlong *const hidden_pk_id)
@@ -914,7 +910,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   static int adjust_handler_stats_table_scan(ha_statistics *ha_stats,
                                              Rdb_tbl_def *tbl_def);
 
-  void update_row_read(ulonglong count);
   static void inc_covered_sk_lookup();
 
   void build_decoder();
@@ -956,17 +951,8 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
   /* The new table definition */
   Rdb_tbl_def *const m_new_tdef;
 
-  /* Stores the original key definitions */
-  std::shared_ptr<Rdb_key_def> *const m_old_key_descr;
-
   /* Stores the new key definitions */
   std::shared_ptr<Rdb_key_def> *m_new_key_descr;
-
-  /* Stores the old number of key definitions */
-  const uint m_old_n_keys;
-
-  /* Stores the new number of key definitions */
-  const uint m_new_n_keys;
 
   /* Stores the added key glids */
   const std::unordered_set<std::shared_ptr<Rdb_key_def>> m_added_indexes;
@@ -974,32 +960,19 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
   /* Stores the dropped key glids */
   const std::unordered_set<GL_INDEX_ID> m_dropped_index_ids;
 
-  /* Stores number of keys to add */
-  const uint m_n_added_keys;
-
-  /* Stores number of keys to drop */
-  const uint m_n_dropped_keys;
-
   /* Stores the largest current auto increment value in the index */
   const ulonglong m_max_auto_incr;
 
   Rdb_inplace_alter_ctx(
-      Rdb_tbl_def *new_tdef, std::shared_ptr<Rdb_key_def> *old_key_descr,
-      std::shared_ptr<Rdb_key_def> *new_key_descr, uint old_n_keys,
-      uint new_n_keys,
+      Rdb_tbl_def *new_tdef, std::shared_ptr<Rdb_key_def> *new_key_descr,
       std::unordered_set<std::shared_ptr<Rdb_key_def>> added_indexes,
-      std::unordered_set<GL_INDEX_ID> dropped_index_ids, uint n_added_keys,
-      uint n_dropped_keys, ulonglong max_auto_incr)
+      std::unordered_set<GL_INDEX_ID> dropped_index_ids,
+      ulonglong max_auto_incr)
       : my_core::inplace_alter_handler_ctx(),
         m_new_tdef(new_tdef),
-        m_old_key_descr(old_key_descr),
         m_new_key_descr(new_key_descr),
-        m_old_n_keys(old_n_keys),
-        m_new_n_keys(new_n_keys),
         m_added_indexes(added_indexes),
         m_dropped_index_ids(dropped_index_ids),
-        m_n_added_keys(n_added_keys),
-        m_n_dropped_keys(n_dropped_keys),
         m_max_auto_incr(max_auto_incr) {}
 
   ~Rdb_inplace_alter_ctx() {}
@@ -1117,8 +1090,6 @@ unsigned long long get_partial_index_sort_max_mem(THD *thd);
 Rdb_transaction *get_tx_from_thd(THD *const thd);
 Rdb_bulk_load_context *get_bulk_load_ctx_from_thd(THD *const thd);
 
-void rdb_tx_acquire_snapshot(Rdb_transaction &tx);
-
 rocksdb::Iterator *rdb_tx_get_iterator(
     THD *thd, rocksdb::ColumnFamilyHandle *const cf, bool skip_bloom_filter,
     const rocksdb::Slice &eq_cond_lower_bound,
@@ -1177,7 +1148,6 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
                              const rocksdb::Slice *const ttl_rec_val,
                              Rdb_transaction *tx);
 
-bool rdb_tx_started(Rdb_transaction *tx);
 int rdb_tx_set_status_error(Rdb_transaction &tx, const rocksdb::Status &s,
                             const Rdb_key_def &kd,
                             const Rdb_tbl_def *const tbl_def);

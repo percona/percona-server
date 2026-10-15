@@ -42,8 +42,7 @@ enum RDB_IO_ERROR_TYPE {
   RDB_IO_ERROR_TX_COMMIT,
   RDB_IO_ERROR_DICT_COMMIT,
   RDB_IO_ERROR_BG_THREAD,
-  RDB_IO_ERROR_GENERAL,
-  RDB_IO_ERROR_LAST
+  RDB_IO_ERROR_GENERAL
 };
 
 void rdb_handle_io_error(const rocksdb::Status status,

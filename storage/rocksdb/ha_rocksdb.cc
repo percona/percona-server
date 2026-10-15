@@ -769,7 +769,6 @@ static int rocksdb_debug_ttl_snapshot_ts = 0;
 static int rocksdb_debug_ttl_read_filter_ts = 0;
 static bool rocksdb_debug_ttl_ignore_pk = false;
 static bool rocksdb_reset_stats = false;
-static uint32_t rocksdb_seconds_between_stat_computes = 3600;
 static uint64_t rocksdb_compaction_sequential_deletes = 0;
 static uint64_t rocksdb_compaction_sequential_deletes_window = 0;
 static long long rocksdb_compaction_sequential_deletes_file_size = 0LL;
@@ -794,7 +793,6 @@ static bool rocksdb_skip_bulk_load_notify_ddl = false;
 static uint rocksdb_bulk_load_history_size = RDB_BULK_LOAD_HISTORY_DEFAULT_SIZE;
 static bool rocksdb_enable_remove_orphaned_dropped_cfs = true;
 static bool rpl_skip_tx_api_var = false;
-static bool rocksdb_enable_udt_in_mem = false;
 static bool rocksdb_print_snapshot_conflict_queries = false;
 static bool rocksdb_allow_to_start_after_corruption = false;
 static ulong rocksdb_write_policy = rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
@@ -828,7 +826,6 @@ static bool rocksdb_alter_column_default_inplace = false;
 static bool rocksdb_alter_table_comment_inplace = false;
 static bool rocksdb_partial_index_blind_delete = true;
 bool rocksdb_partial_index_ignore_killed = true;
-bool rocksdb_disable_instant_ddl = false;
 bool rocksdb_enable_instant_ddl = false;
 bool rocksdb_enable_instant_ddl_for_append_column = false;
 bool rocksdb_enable_instant_ddl_for_column_default_changes = false;
@@ -839,7 +836,6 @@ bool rocksdb_enable_tmp_table = false;
 bool rocksdb_enable_delete_range_for_drop_index = false;
 unsigned long long rocksdb_converter_record_cached_length = 0;
 static bool rocksdb_debug_skip_bloom_filter_check_on_iterator_bounds = 0;
-bool rocksdb_enable_autoinc_compact_mode = false;
 char max_timestamp_uint64[ROCKSDB_SIZEOF_TTL_RECORD];
 static unsigned long long rocksdb_write_batch_mem_free_threshold = 0;
 
@@ -1352,12 +1348,6 @@ static MYSQL_SYSVAR_BOOL(enable_remove_orphaned_dropped_cfs,
                          "doesn't exist in cf manager",
                          nullptr, nullptr,
                          rocksdb_enable_remove_orphaned_dropped_cfs);
-
-static MYSQL_SYSVAR_BOOL(enable_udt_in_mem, rocksdb_enable_udt_in_mem,
-                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                         "Enabled user define timestamp in memtable feature to "
-                         "support HLC snapshot reads in MyRocks",
-                         nullptr, nullptr, rocksdb_enable_udt_in_mem);
 
 static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Directory for temporary files during DDL operations.",
@@ -2428,14 +2418,6 @@ static MYSQL_SYSVAR_BOOL(cancel_manual_compactions,
                          rocksdb_cancel_manual_compactions,
                          rocksdb_rw_sysvar_update_noop, false);
 
-static MYSQL_SYSVAR_UINT(
-    seconds_between_stat_computes, rocksdb_seconds_between_stat_computes,
-    PLUGIN_VAR_RQCMDARG,
-    "Sets a number of seconds to wait between optimizer stats recomputation. "
-    "Only changed indexes will be refreshed.",
-    nullptr, nullptr, rocksdb_seconds_between_stat_computes,
-    /* min */ 0L, /* max */ UINT_MAX, 0);
-
 static MYSQL_SYSVAR_UINT64_T(compaction_sequential_deletes,
                              rocksdb_compaction_sequential_deletes,
                              PLUGIN_VAR_RQCMDARG,
@@ -2683,11 +2665,6 @@ static MYSQL_SYSVAR_BOOL(
     "problem.",
     nullptr, nullptr, true);
 
-static MYSQL_SYSVAR_BOOL(
-    disable_instant_ddl, rocksdb_disable_instant_ddl, PLUGIN_VAR_RQCMDARG,
-    "Disable instant ddl during alter table, This variable is deprecated",
-    nullptr, nullptr, false);
-
 static MYSQL_SYSVAR_BOOL(enable_instant_ddl, rocksdb_enable_instant_ddl,
                          PLUGIN_VAR_RQCMDARG,
                          "Enable instant ddl during alter table if possible. "
@@ -2809,7 +2786,6 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_pipelined_write),
     MYSQL_SYSVAR(skip_bulk_load_notify_ddl),
     MYSQL_SYSVAR(enable_remove_orphaned_dropped_cfs),
-    MYSQL_SYSVAR(enable_udt_in_mem),
     MYSQL_SYSVAR(tmpdir),
     MYSQL_SYSVAR(merge_combine_read_size),
     MYSQL_SYSVAR(merge_tmp_file_removal_delay_ms),
@@ -2931,7 +2907,6 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(debug_ttl_read_filter_ts),
     MYSQL_SYSVAR(debug_ttl_ignore_pk),
     MYSQL_SYSVAR(reset_stats),
-    MYSQL_SYSVAR(seconds_between_stat_computes),
 
     MYSQL_SYSVAR(compaction_sequential_deletes),
     MYSQL_SYSVAR(compaction_sequential_deletes_window),
@@ -2979,7 +2954,6 @@ static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(partial_index_sort_max_mem),
     MYSQL_SYSVAR(partial_index_blind_delete),
     MYSQL_SYSVAR(partial_index_ignore_killed),
-    MYSQL_SYSVAR(disable_instant_ddl),
     MYSQL_SYSVAR(enable_instant_ddl),
     MYSQL_SYSVAR(enable_instant_ddl_for_append_column),
     MYSQL_SYSVAR(enable_instant_ddl_for_column_default_changes),

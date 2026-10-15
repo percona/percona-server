@@ -1188,7 +1188,6 @@ extern std::atomic<uint64_t> rocksdb_partial_index_rows_sorted;
 extern std::atomic<uint64_t> rocksdb_partial_index_rows_materialized;
 extern bool rocksdb_enable_tmp_table;
 extern bool rocksdb_enable_delete_range_for_drop_index;
-extern bool rocksdb_disable_instant_ddl;
 extern bool rocksdb_enable_instant_ddl;
 extern bool rocksdb_partial_index_ignore_killed;
 

@@ -1,0 +1,19 @@
+call mtr.add_suppression("Invalid pattern in rocksdb_read_free_rpl_tables");
+SET @saved_tables = @@global.rocksdb_read_free_rpl_tables;
+# 90 nested groups are accepted
+SET @p = CONCAT(REPEAT('(', 90), 't', REPEAT(')', 90));
+SET GLOBAL rocksdb_read_free_rpl_tables = @p;
+SELECT LENGTH(@@global.rocksdb_read_free_rpl_tables);
+LENGTH(@@global.rocksdb_read_free_rpl_tables)
+181
+# Deeper nesting is rejected instead of crashing the server
+SET @p = CONCAT(REPEAT('(', 10000), 't', REPEAT(')', 10000));
+ERROR 42000: Variable 'rocksdb_read_free_rpl_tables' can't be set to the value of '(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((('
+ERROR 42000: Variable 'rocksdb_read_free_rpl_tables' can't be set to the value of '(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((('
+SELECT LENGTH(@@global.rocksdb_read_free_rpl_tables);
+LENGTH(@@global.rocksdb_read_free_rpl_tables)
+181
+# The server is still up and matches table names with the pattern
+CREATE TABLE t (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+DROP TABLE t;
+SET GLOBAL rocksdb_read_free_rpl_tables = @saved_tables;

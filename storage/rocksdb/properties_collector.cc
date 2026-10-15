@@ -68,6 +68,9 @@ rocksdb::Status Rdb_tbl_prop_coll::AddUserKey(const rocksdb::Slice &key,
                                               rocksdb::EntryType type,
                                               rocksdb::SequenceNumber seq,
                                               uint64_t file_size) {
+  // Exercise timestamped-delete callbacks without a timestamp-enabled CF.
+  DBUG_EXECUTE_IF("rocksdb_timestamped_delete",
+                  { type = rocksdb::kEntryDeleteWithTimestamp; });
   if (key.size() >= 4) {
     AdjustDeletedRows(type);
 
@@ -88,7 +91,8 @@ void Rdb_tbl_prop_coll::AdjustDeletedRows(rocksdb::EntryType type) {
     // --update the counter for the element which will be overridden
     const bool is_delete = (type == rocksdb::kEntryDelete ||
                             (type == rocksdb::kEntrySingleDelete &&
-                             rocksdb_compaction_sequential_deletes_count_sd));
+                             rocksdb_compaction_sequential_deletes_count_sd) ||
+                            type == rocksdb::kEntryDeleteWithTimestamp);
 
     // Only make changes if the value at the current position needs to change
     if (is_delete != m_deleted_rows_window[m_window_pos]) {
@@ -153,6 +157,7 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
     case rocksdb::kEntryPut:
       stats->m_rows++;
       break;
+    case rocksdb::kEntryDeleteWithTimestamp:
     case rocksdb::kEntryDelete:
       stats->m_entry_deletes++;
       break;

@@ -1,0 +1,158 @@
+CREATE DATABASE isp_db;
+USE isp_db;
+CREATE TABLE parent_t (id INT PRIMARY KEY, payload VARCHAR(32)) ENGINE=InnoDB;
+CREATE TABLE child_t (
+id INT PRIMARY KEY,
+parent_id INT,
+KEY ix_child_parent (parent_id),
+CONSTRAINT fk_child_parent FOREIGN KEY (parent_id) REFERENCES parent_t (id)
+) ENGINE=InnoDB;
+CREATE TABLE virt_t (
+id INT PRIMARY KEY,
+a INT,
+b INT,
+s INT AS (a + b) VIRTUAL,
+KEY ix_s (s)
+) ENGINE=InnoDB;
+CREATE TABLE gated_tables (id INT PRIMARY KEY, name VARCHAR(64));
+INSERT INTO gated_tables VALUES
+(1, 'INNODB_TABLES'),
+(2, 'INNODB_TABLESTATS'),
+(3, 'INNODB_INDEXES'),
+(4, 'INNODB_COLUMNS'),
+(5, 'INNODB_VIRTUAL'),
+(6, 'INNODB_FIELDS'),
+(7, 'INNODB_FOREIGN'),
+(8, 'INNODB_FOREIGN_COLS'),
+(9, 'INNODB_TABLESPACES'),
+(10, 'INNODB_DATAFILES'),
+(11, 'INNODB_TABLESPACES_BRIEF'),
+(12, 'FILES');
+CREATE USER 'isp_user'@'localhost';
+GRANT SELECT ON isp_db.* TO 'isp_user'@'localhost';
+#
+# As isp_user without PROCESS: access denied.
+#
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESTATS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_INDEXES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_COLUMNS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_VIRTUAL;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESPACES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_DATAFILES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_BRIEF;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.FILES;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# Join of InnoDB tables.
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS f JOIN INFORMATION_SCHEMA.INNODB_INDEXES i ON i.INDEX_ID = f.INDEX_ID JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.TABLE_ID = i.TABLE_ID WHERE t.NAME LIKE 'isp_db/%';
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+# Join of a server table with an InnoDB table.
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.TABLES s JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.NAME = CONCAT(s.TABLE_SCHEMA, '/', s.TABLE_NAME) WHERE s.TABLE_SCHEMA = 'isp_db';
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+#
+# As isp_user after GRANT PROCESS: access granted.
+#
+GRANT PROCESS ON *.* TO 'isp_user'@'localhost';
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESTATS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_INDEXES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_COLUMNS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_VIRTUAL;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESPACES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_DATAFILES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_BRIEF;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.FILES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS f JOIN INFORMATION_SCHEMA.INNODB_INDEXES i ON i.INDEX_ID = f.INDEX_ID JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.TABLE_ID = i.TABLE_ID WHERE t.NAME LIKE 'isp_db/%';
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.TABLES s JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.NAME = CONCAT(s.TABLE_SCHEMA, '/', s.TABLE_NAME) WHERE s.TABLE_SCHEMA = 'isp_db';
+has_rows
+1
+#
+# As root: access granted.
+#
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESTATS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_INDEXES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_COLUMNS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_VIRTUAL;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESPACES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_DATAFILES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_BRIEF;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.FILES;
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.INNODB_FIELDS f JOIN INFORMATION_SCHEMA.INNODB_INDEXES i ON i.INDEX_ID = f.INDEX_ID JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.TABLE_ID = i.TABLE_ID WHERE t.NAME LIKE 'isp_db/%';
+has_rows
+1
+SELECT COUNT(*) > 0 AS has_rows FROM INFORMATION_SCHEMA.TABLES s JOIN INFORMATION_SCHEMA.INNODB_TABLES t ON t.NAME = CONCAT(s.TABLE_SCHEMA, '/', s.TABLE_NAME) WHERE s.TABLE_SCHEMA = 'isp_db';
+has_rows
+1
+DROP USER 'isp_user'@'localhost';
+DROP DATABASE isp_db;

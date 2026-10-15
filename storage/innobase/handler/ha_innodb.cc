@@ -11835,6 +11835,20 @@ FT_INFO *ha_innobase::ft_init_ext(uint flags,  /* in: */
     ft_table->fts->fts_status |= ADDED_TABLE_SYNCED;
   }
 
+  /* A locking read (SERIALIZABLE, FOR SHARE, FOR UPDATE) locks the rows
+  it returns, but the FTS inverted index has no gap or predicate locks,
+  so a concurrent INSERT of a matching document would be a phantom.  The
+  only granule that covers the predicate is the table: take an S lock,
+  which conflicts with the IX held by writers. */
+  if (m_prebuilt->select_lock_type != LOCK_NONE) {
+    dberr_t lock_err = row_lock_table(m_prebuilt, LOCK_S);
+
+    if (lock_err != DB_SUCCESS) {
+      my_error(convert_error_code_to_mysql(lock_err, 0, m_user_thd), MYF(0));
+      return (nullptr);
+    }
+  }
+
   const byte *q = reinterpret_cast<const byte *>(const_cast<char *>(query));
 
   dberr_t error = fts_query(trx, index, flags, q, query_len, &result,

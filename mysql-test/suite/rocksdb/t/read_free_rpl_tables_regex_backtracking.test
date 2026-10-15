@@ -1,0 +1,29 @@
+# PS-11881: a pattern that backtracks exponentially in
+# rocksdb_read_free_rpl_tables must not hang DDL. The match stops at
+# regexp_time_limit and counts as no match.
+--source include/have_rocksdb.inc
+
+call mtr.add_suppression("Matching '.*' against the regular expression '.*' failed");
+
+SET @saved_tables = @@global.rocksdb_read_free_rpl_tables;
+
+--echo # CREATE TABLE matches the new table name
+SET GLOBAL rocksdb_read_free_rpl_tables = '(a*)*b';
+CREATE TABLE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (pk INT PRIMARY KEY)
+  ENGINE=ROCKSDB;
+
+--echo # Other MyRocks DDL is not blocked
+CREATE TABLE t2 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+
+--echo # SET matches every existing table name
+SET GLOBAL rocksdb_read_free_rpl_tables = '.*';
+SET GLOBAL rocksdb_read_free_rpl_tables = '(a*)*b';
+
+--let $assert_text = A timed out match is logged once per pattern
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = Matching 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' against the regular expression '\(a\*\)\*b' failed \(U_REGEX_TIME_OUT\)
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+DROP TABLE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, t2;
+SET GLOBAL rocksdb_read_free_rpl_tables = @saved_tables;

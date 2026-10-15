@@ -7457,8 +7457,16 @@ static int rocksdb_init_internal(void *const p) {
     rocksdb_db_options->max_open_files = open_files_limit / 2;
   }
 
-  rdb_read_free_regex_handler.set_patterns(DEFAULT_READ_FREE_RPL_TABLES,
-                                           get_regex_flags());
+  // The update callback does not run for a value given at startup.
+  if (!rdb_read_free_regex_handler.set_patterns(
+          rocksdb_read_free_rpl_tables != nullptr
+              ? rocksdb_read_free_rpl_tables
+              : DEFAULT_READ_FREE_RPL_TABLES,
+          get_regex_flags())) {
+    warn_about_bad_patterns(&rdb_read_free_regex_handler,
+                            "rocksdb_read_free_rpl_tables");
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
 
   rocksdb_stats = rocksdb::CreateDBStatistics();
   rocksdb_stats->set_stats_level(
@@ -8611,6 +8619,7 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
       m_in_rpl_delete_rows(false),
       m_in_rpl_update_rows(false),
+      m_rpl_read_free(false),
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
       m_need_build_decoder(false) {
 }
@@ -18173,6 +18182,7 @@ void rdb_queue_save_stats_request() { rdb_bg_thread.request_save_stats(); }
 void ha_rocksdb::rpl_before_delete_rows() {
   DBUG_ENTER_FUNC();
 
+  m_rpl_read_free = use_read_free_rpl();
   m_in_rpl_delete_rows = true;
 
   DBUG_VOID_RETURN;
@@ -18189,6 +18199,7 @@ void ha_rocksdb::rpl_after_delete_rows() {
 void ha_rocksdb::rpl_before_update_rows() {
   DBUG_ENTER_FUNC();
 
+  m_rpl_read_free = use_read_free_rpl();
   m_in_rpl_update_rows = true;
 
   DBUG_VOID_RETURN;
@@ -18205,12 +18216,7 @@ void ha_rocksdb::rpl_after_update_rows() {
 bool ha_rocksdb::rpl_lookup_rows() { return !use_read_free_rpl(); }
 
 bool ha_rocksdb::is_read_free_rpl_table() const {
-#if 1  // Percona Server disabled rocksdb_read_free_rpl_tables as it's dangerous
-       // to use
-  return true;
-#else
   return table->s && m_tbl_def->m_is_read_free_rpl_table;
-#endif
 }
 
 /**
@@ -18220,6 +18226,13 @@ bool ha_rocksdb::is_read_free_rpl_table() const {
 */
 bool ha_rocksdb::use_read_free_rpl() const {
   DBUG_ENTER_FUNC();
+
+  // Decide once per rows event: if a SET of the variables changed the answer
+  // between the row lookup and the writes, an update could use the key of
+  // the previous row.
+  if (m_in_rpl_delete_rows || m_in_rpl_update_rows) {
+    DBUG_RETURN(m_rpl_read_free);
+  }
 
   if (!ha_thd()->rli_slave || table->triggers ||
       ha_thd()->m_rbr_exec_mode != RBR_EXEC_MODE_STRICT ||

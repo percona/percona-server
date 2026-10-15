@@ -119,6 +119,15 @@ bool parse_options(const KEY &key, VectorIndexParam &vip);
 */
 vector_constants::Metric metric_from_key(const KEY &key);
 
+/** Compare two definitions of a vector index - the table's and the one an
+ALTER TABLE gives the index of the same name - by their parsed parameters,
+so that names and values are compared in their native format, whatever
+their spelling or order in the list.
+@param[in]  old_key  the index's KEY in the table
+@param[in]  new_key  the index's KEY in the new version of the table
+@return true if they build different indexes */
+bool params_differ(const KEY &old_key, const KEY &new_key);
+
 /** Resolve a vector index's parameters once, at DDL time, and replace the
 KEY's WITH(...) list with the full canonical set: every parameter, the ones
 the user left out at their default, with canonical names and values. (The

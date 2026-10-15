@@ -13162,6 +13162,18 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
     return true;
 
   /*
+    A vector index is built with its parameters (M, metric, ...), so a new
+    value for any of them means the index has to be rebuilt. The SE owns
+    the parameters, so it compares them.
+  */
+  if (table_key->flags & HA_VECTOR) {
+    const handlerton *hton = table_key->table->s->db_type();
+    if (hton->compare_vector_index_params != nullptr &&
+        hton->compare_vector_index_params(*table_key, *new_key))
+      return true;
+  }
+
+  /*
     If an index comment is added/dropped/changed, then mark it for a
     fast/INPLACE alteration.
   */
@@ -14020,6 +14032,13 @@ bool mysql_compare_tables(THD *thd, TABLE *table, Alter_info *alter_info,
          (new_key->flags & HA_KEYFLAG_MASK)) ||
         (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
       return false;
+
+    /*
+      A partitioned table cannot have a vector index, so two vector keys
+      never meet here. If they ever do, their parameters must be compared
+      too, as has_index_def_changed() does.
+    */
+    assert(!(table_key->flags & HA_VECTOR));
 
     /* Check that the key parts remain compatible. */
     KEY_PART_INFO *table_part;

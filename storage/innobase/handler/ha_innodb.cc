@@ -4847,6 +4847,11 @@ static vector_constants::Metric innobase_vector_index_metric(const KEY &key) {
   return storage::innobase::vec::metric_from_key(key);
 }
 
+static bool innobase_compare_vector_index_params(const KEY &old_key,
+                                                 const KEY &new_key) {
+  return storage::innobase::vec::params_differ(old_key, new_key);
+}
+
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
   return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
@@ -5854,6 +5859,8 @@ static int innodb_init(void *p) {
   innobase_hton->prepare_vector_index_params =
       innobase_prepare_vector_index_params;
   innobase_hton->vector_index_metric = innobase_vector_index_metric;
+  innobase_hton->compare_vector_index_params =
+      innobase_compare_vector_index_params;
 
   innobase_hton->post_ddl = innobase_post_ddl;
 

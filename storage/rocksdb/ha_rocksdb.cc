@@ -152,10 +152,6 @@ void ha_rocksdb::update_row_stats(const operation_type &type, ulonglong count) {
   }
 }
 
-void ha_rocksdb::update_row_read(ulonglong count) {
-  update_row_stats(ROWS_READ, count);
-}
-
 void ha_rocksdb::inc_covered_sk_lookup() {
   global_stats.covered_secondary_key_lookups.inc();
 }
@@ -4497,13 +4493,6 @@ class Rdb_transaction {
   virtual bool has_modifications() const = 0;
 
   [[nodiscard]] virtual rocksdb::WriteBatchBase &get_indexed_write_batch() = 0;
-  /*
-    Return a WriteBatch that one can write to. The writes will skip any
-    transaction locking. The writes will NOT be visible to the transaction.
-  */
-  rocksdb::WriteBatchBase *get_blind_write_batch() {
-    return get_indexed_write_batch().GetWriteBatch();
-  }
 
   virtual rocksdb::Status get(rocksdb::ColumnFamilyHandle *const column_family,
                               const rocksdb::Slice &key,
@@ -8285,7 +8274,6 @@ Rdb_table_handler *Rdb_open_tables_map::get_table_handler(
     }
 
     table_handler->m_ref_count = 0;
-    table_handler->m_table_name_length = table_name_str.length();
     table_handler->m_table_name = tmp_name;
     my_stpmov(table_handler->m_table_name, table_name_str.c_str());
 
@@ -15362,8 +15350,6 @@ bool ha_rocksdb::prepare_inplace_alter_table(
   uint new_n_keys = altered_table->s->keys;
   std::unordered_set<std::shared_ptr<Rdb_key_def>> added_indexes;
   std::unordered_set<GL_INDEX_ID> dropped_index_ids;
-  uint n_dropped_keys = 0;
-  uint n_added_keys = 0;
   ulonglong max_auto_incr = 0;
 
   // Read before allocating replacement definitions, so a failed read cannot
@@ -15472,8 +15458,10 @@ bool ha_rocksdb::prepare_inplace_alter_table(
       }
     }
 
-    n_dropped_keys = ha_alter_info->index_drop_count - identical_indexes_found;
-    n_added_keys = ha_alter_info->index_add_count - identical_indexes_found;
+    [[maybe_unused]] const uint n_dropped_keys =
+        ha_alter_info->index_drop_count - identical_indexes_found;
+    [[maybe_unused]] const uint n_added_keys =
+        ha_alter_info->index_add_count - identical_indexes_found;
     assert(dropped_index_ids.size() == n_dropped_keys);
     assert(added_indexes.size() == n_added_keys);
     assert(new_n_keys == (old_n_keys - n_dropped_keys + n_added_keys));
@@ -15486,10 +15474,8 @@ bool ha_rocksdb::prepare_inplace_alter_table(
     }
   }
 
-  ha_alter_info->handler_ctx = new (*THR_MALLOC)
-      Rdb_inplace_alter_ctx(new_tdef, old_key_descr, new_key_descr, old_n_keys,
-                            new_n_keys, added_indexes, dropped_index_ids,
-                            n_added_keys, n_dropped_keys, max_auto_incr);
+  ha_alter_info->handler_ctx = new (*THR_MALLOC) Rdb_inplace_alter_ctx(
+      new_tdef, new_key_descr, added_indexes, dropped_index_ids, max_auto_incr);
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
@@ -17443,27 +17429,6 @@ int rdb_get_table_perf_counters(const char *const tablename,
   return HA_EXIT_SUCCESS;
 }
 
-const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type) {
-  // If this assertion fails then this means that a member has been either added
-  // to or removed from RDB_IO_ERROR_TYPE enum and this function needs to be
-  // changed to return the appropriate value.
-  static_assert(RDB_IO_ERROR_LAST == 4, "Please handle all the error types.");
-
-  switch (err_type) {
-    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_TX_COMMIT:
-      return "RDB_IO_ERROR_TX_COMMIT";
-    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_DICT_COMMIT:
-      return "RDB_IO_ERROR_DICT_COMMIT";
-    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_BG_THREAD:
-      return "RDB_IO_ERROR_BG_THREAD";
-    case RDB_IO_ERROR_TYPE::RDB_IO_ERROR_GENERAL:
-      return "RDB_IO_ERROR_GENERAL";
-    default:
-      assert(false);
-      return "(unknown)";
-  }
-}
-
 // In case of core dump generation we want this function NOT to be optimized
 // so that we can capture as much data as possible to debug the root cause
 // more efficiently.
@@ -18416,8 +18381,6 @@ unsigned long long get_partial_index_sort_max_mem(THD *thd) {
   return THDVAR(thd, partial_index_sort_max_mem);
 }
 
-void rdb_tx_acquire_snapshot(Rdb_transaction &tx) { tx.acquire_snapshot(true); }
-
 rocksdb::Iterator *rdb_tx_get_iterator(
     THD *thd, rocksdb::ColumnFamilyHandle *const cf, bool skip_bloom_filter,
     const rocksdb::Slice &eq_cond_lower_bound,
@@ -18442,8 +18405,6 @@ rocksdb::Iterator *rdb_tx_get_iterator(
                             eq_cond_upper_bound, read_current, create_snapshot);
   }
 }
-
-bool rdb_tx_started(Rdb_transaction *tx) { return tx->is_tx_started(); }
 
 rocksdb::Status rdb_tx_get(Rdb_transaction *tx,
                            rocksdb::ColumnFamilyHandle *const column_family,

@@ -447,8 +447,6 @@ class Rdb_key_def {
   enum {
     INDEX_NUMBER_SIZE = 4,
     VERSION_SIZE = 2,
-    CF_NUMBER_SIZE = 4,
-    CF_FLAG_SIZE = 4,
     PACKED_SIZE = 4,  // one int
   };
 
@@ -717,11 +715,6 @@ class Rdb_key_def {
                            uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
                            Rdb_pack_field_context *const pack_ctx
                                MY_ATTRIBUTE((__unused__)));
-
-  static void pack_blob(Rdb_field_packing *const fpi, Field *const field,
-                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
-                        Rdb_pack_field_context *const pack_ctx
-                            MY_ATTRIBUTE((__unused__)));
 
   static void pack_with_make_sort_key(
       Rdb_field_packing *const fpi, Field *const field,
@@ -1091,7 +1084,6 @@ class Rdb_field_packing {
   int m_unpack_data_len;
   int m_unpack_data_offset;
 
-  bool m_maybe_null; /* TRUE <=> NULL-byte is stored */
   /*
     Cached field information for faster access
   */
@@ -1241,7 +1233,6 @@ class Rdb_field_encoder {
   */
   my_core::enum_field_types m_field_type;
   uchar m_field_null_mask;
-  uint16 m_field_index;
   uint m_field_pack_length;
   uint m_field_length_bytes;
   uint m_field_length;
@@ -1559,11 +1550,6 @@ class Rdb_ddl_manager : public Ensure_initialized {
   /* Put the data into in-memory table (only) */
   int put(Rdb_tbl_def *const key_descr, const bool lock = true);
 
-  /* Helper functions to be passed to my_core::HASH object */
-  static const uchar *get_hash_key(Rdb_tbl_def *const rec, size_t *const length,
-                                   bool not_used [[maybe_unused]]);
-  static void free_hash_elem(void *const data);
-
 #if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   [[nodiscard]] bool validate_schemas() const;
 
@@ -1669,9 +1655,6 @@ class Rdb_dict_manager : public Ensure_initialized {
                           const GL_INDEX_ID &gl_index_id) const;
   /* Functions for fast DROP TABLE/INDEX */
   void resume_drop_indexes() const;
-  void log_start_drop_table(const std::shared_ptr<Rdb_key_def> *const key_descr,
-                            const uint32 n_keys,
-                            const char *const log_action) const;
   void log_start_drop_index(GL_INDEX_ID gl_index_id,
                             const char *log_action) const;
 
@@ -1788,10 +1771,6 @@ class Rdb_dict_manager : public Ensure_initialized {
     return is_index_operation_ongoing(gl_index_id,
                                       Rdb_key_def::DDL_DROP_INDEX_ONGOING);
   }
-  inline bool is_create_index_ongoing(const GL_INDEX_ID &gl_index_id) const {
-    return is_index_operation_ongoing(gl_index_id,
-                                      Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
-  }
 
   bool get_max_index_id(uint32_t *const index_id, bool is_dd_tbl = false) const;
   bool update_max_index_id(rocksdb::WriteBatch &batch, uint32_t index_id,
@@ -1827,8 +1806,6 @@ struct Rdb_index_info {
   uint32 m_index_flags = 0;
   uint64 m_ttl_duration = 0;
 };
-
-bool rdb_is_collation_supported(const my_core::CHARSET_INFO *const cs);
 
 /*
   @brief

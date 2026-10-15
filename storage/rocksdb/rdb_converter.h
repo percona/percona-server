@@ -160,6 +160,9 @@ class Rdb_converter {
       bool store_row_debug_checksums, char *ttl_bytes,
       bool *is_ttl_bytes_updated, rocksdb::Slice *const value_slice);
 
+  void get_ttl_column_bytes(const Rdb_key_def &pk_def, const uchar *record,
+                            char *ttl_bytes) const;
+
   my_core::ha_rows get_row_checksums_checked() const {
     return m_row_checksums_checked;
   }

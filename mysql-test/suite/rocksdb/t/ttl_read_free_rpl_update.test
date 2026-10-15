@@ -1,0 +1,80 @@
+# PS-11903: read-free replication must not be used for an UPDATE of an
+# implicit-TTL row, because the row image does not carry the stored TTL
+# timestamp that the UPDATE keeps.
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, KEY(b)) ENGINE=ROCKSDB
+  COMMENT 'ttl_duration=3600;';
+INSERT INTO t1 VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+--echo # Explicit TTL column: the timestamp is part of the row image
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, ts BIGINT UNSIGNED NOT NULL, KEY(b))
+  ENGINE=ROCKSDB COMMENT 'ttl_duration=3600;ttl_col=ts;';
+INSERT INTO t2 VALUES (1, 1, UNIX_TIMESTAMP()), (2, 2, UNIX_TIMESTAMP());
+--source include/rpl/sync_to_replica.inc
+
+--echo # A fresh handler has no TTL timestamp left over from an earlier read
+FLUSH TABLES;
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--source include/rpl/connection_source.inc
+UPDATE t1 SET c = c + 10 WHERE a = 1;
+UPDATE t1 SET b = b + 10 WHERE a = 2;
+--source include/rpl/sync_to_replica.inc
+
+--echo # All rows stay visible and both indexes agree
+SELECT * FROM t1;
+SELECT * FROM t1 FORCE INDEX(b);
+SELECT variable_value - @get_for_update > 0 AS rows_looked_up
+  FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--echo # A table with ttl_col still uses read-free replication
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+--source include/rpl/connection_source.inc
+UPDATE t2 SET b = b + 10 WHERE a = 1;
+--source include/rpl/sync_to_replica.inc
+SELECT a, b FROM t2;
+SELECT a, b FROM t2 FORCE INDEX(b);
+SELECT variable_value - @get_for_update > 0 AS rows_looked_up
+  FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--echo # A DELETE of an implicit-TTL row does not need the stored row
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+--source include/rpl/connection_source.inc
+DELETE FROM t1 WHERE a = 3;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1;
+SELECT * FROM t1 FORCE INDEX(b);
+SELECT variable_value - @get_for_update > 0 AS rows_looked_up
+  FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--echo # A read-free UPDATE that changes only the TTL column rewrites the
+--echo # secondary keys with the new TTL, also for a row that follows another
+--echo # row of the same event
+--source include/rpl/connection_source.inc
+CREATE TABLE t3 (a INT PRIMARY KEY, b INT, ts BIGINT UNSIGNED NOT NULL, KEY(b))
+  ENGINE=ROCKSDB COMMENT 'ttl_duration=1;ttl_col=ts;';
+SET @future = UNIX_TIMESTAMP() + 3000;
+INSERT INTO t3 VALUES (1, 1, @future - 1), (2, 2, @future - 2000);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_source.inc
+UPDATE t3 SET ts = @future ORDER BY a;
+--source include/rpl/sync_to_replica.inc
+--echo # Expire the old TTL of row 2, not its new one
+SET GLOBAL rocksdb_debug_ttl_read_filter_ts = -2500;
+SELECT a, b FROM t3 FORCE INDEX(PRIMARY) ORDER BY a;
+SELECT a, b FROM t3 FORCE INDEX(b) ORDER BY a;
+SET GLOBAL rocksdb_debug_ttl_read_filter_ts = DEFAULT;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1, t2, t3;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

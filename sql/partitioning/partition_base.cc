@@ -24,16 +24,14 @@
 #define MYSQL_SERVER 1
 #define LOG_SUBSYSTEM_TAG "partition_base"
 
-#include "mysql/psi/mysql_file.h"
 #include "partition_base.h"
-#include "pfs_file_provider.h"
 #include "scope_guard.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // append_file_to_dir
 
-#include "myisam.h"                                  // TT_FOR_UPGRADE
+#include "myisam.h"                                  // MI_MAX_MSG_BUF
 #include "mysql/components/services/log_builtins.h"  // print error messages
 #include "sql/key.h"         // key_rec_cmp, field_unpack
 #include "sql/sql_admin.h"   // SQL_ADMIN_MSG_TEXT_SIZE
@@ -56,22 +54,8 @@
 #include "sql/sql_test.h"  // print_where
 #endif
 
-#include "mysql/psi/mysql_file.h"
-#include "pfs_file_provider.h"
-
-using std::max;
-using std::min;
-
 namespace native_part {
 
-/* First 4 bytes in the .par file is the number of 32-bit words in the file */
-#define PAR_WORD_SIZE 4
-/* offset to the .par file checksum */
-#define PAR_CHECKSUM_OFFSET 4
-/* offset to the total number of partitions */
-#define PAR_NUM_PARTS_OFFSET 8
-/* offset to the engines array */
-#define PAR_ENGINES_OFFSET 12
 #define PARTITION_ENABLED_TABLE_FLAGS (HA_FILE_BASED | HA_CAN_REPAIR)
 #define PARTITION_DISABLED_TABLE_FLAGS                    \
   (HA_CAN_GEOMETRY | HA_CAN_FULLTEXT | HA_DUPLICATE_POS | \
@@ -86,7 +70,6 @@ static const char *opt_op_name[] = {
 ****************************************************************************/
 
 static PSI_memory_key key_memory_Partition_base_part_ids;
-PSI_file_key key_file_Partition_base_par;
 
 void part_name(char *out_buf, const char *path, const char *parent_elem_name,
                const char *elem_name) {
@@ -108,7 +91,7 @@ void part_name(char *out_buf, const char *path, const char *parent_elem_name,
     part_name_length += subpart_name_length;
   }
 
-  create_partition_name(out_buf, path, part_name, false);
+  create_partition_name(out_buf, path, part_name);
 }
 
 Parts_share_refs::Parts_share_refs() : num_parts(0), ha_shares(nullptr) {}
@@ -339,11 +322,9 @@ void Partition_base::init_handler_variables() {
     this allows blackhole to work properly
   */
   part_share = nullptr;
-  m_new_partitions_share_refs.clear();
   m_part_ids_sorted_by_num_of_records = nullptr;
   m_new_file = nullptr;
   m_num_new_partitions = 0;
-  m_indexes_are_disabled = false;
 }
 
 const char *Partition_base::table_type() const {
@@ -363,8 +344,6 @@ const char *Partition_base::table_type() const {
 
 Partition_base::~Partition_base() {
   DBUG_ENTER("Partition_base::~Partition_base()");
-  if (m_new_partitions_share_refs.elements)
-    m_new_partitions_share_refs.delete_elements();
   if (m_file != nullptr) {
     for (uint i = 0; i < m_tot_parts; i++) {
       if (m_file[i] != nullptr) destroy_at(m_file[i]);
@@ -1039,7 +1018,6 @@ int Partition_base::prepare_for_new_partitions(MEM_ROOT *mem_root,
   }
   memset(m_new_partitions_name, 0, partition_name_size);
   m_num_new_partitions = num_partitions;
-  m_indexes_are_disabled = indexes_are_disabled();
   DBUG_RETURN(0);
 }
 
@@ -2760,20 +2738,6 @@ bool Partition_base::has_gap_locks() const noexcept {
   and read_time calls
 */
 
-/**
-  Helper function for sorting according to number of rows in descending order.
-*/
-
-int Partition_base::compare_number_of_records(Partition_base *me,
-                                              const uint32 *a,
-                                              const uint32 *b) {
-  handler **file = me->m_file;
-  /* Note: sorting in descending order! */
-  if (file[*a]->stats.records > file[*b]->stats.records) return -1;
-  if (file[*a]->stats.records < file[*b]->stats.records) return 1;
-  return 0;
-}
-
 /*
   General method to gather info from handler
 
@@ -3838,11 +3802,6 @@ bool Partition_base::get_error_message(int error, String *buf) {
 handler::Table_flags Partition_base::table_flags() const {
   uint first_used_partition = 0;
   DBUG_ENTER("Partition_base::table_flags");
-  /*
-    if (m_handler_status < handler_initialized ||
-        m_handler_status >= handler_closed)
-      DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
-  */
   if (!m_file) {
     std::unique_ptr<handler, Destroy_only<handler>> file(
         get_file_handler(nullptr, ha_thd()->mem_root));
@@ -4147,7 +4106,7 @@ bool Partition_base::commit_inplace_alter_table(
             } else {
               char name[FN_REFLEN];
               create_partition_name(name, table->s->normalized_path.str,
-                                    part_elem->partition_name, false);
+                                    part_elem->partition_name);
               error = (*file)->ha_external_lock(get_thd(), F_UNLCK);
               if (error) goto end;
               error = (*file)->ha_delete_table(name, old_table_def);
@@ -4269,7 +4228,7 @@ bool Partition_base::commit_inplace_alter_table(
               // Create and init partition
               char name[FN_REFLEN];
               create_partition_name(name, table->s->normalized_path.str,
-                                    part_elem->partition_name, false);
+                                    part_elem->partition_name);
               // save parition name for error case
               m_new_partitions_name[part_index] =
                   (char *)altered_table->s->mem_root.Alloc(FN_REFLEN *
@@ -4772,20 +4731,8 @@ int Partition_base::indexes_are_disabled(void) {
   return error;
 }
 
-int Partition_base::check_for_upgrade(HA_CHECK_OPT *check_opt) {
-  int error = HA_ADMIN_NEEDS_CHECK;
-  DBUG_ENTER("Partition_base::check_for_upgrade");
-
-  /*
-    This is called even without FOR UPGRADE,
-    if the .frm version is lower than the current version.
-    In that case return that it needs checking!
-  */
-  if (!(check_opt->sql_flags & TT_FOR_UPGRADE)) {
-    DBUG_RETURN(error);
-  }
-
-  DBUG_RETURN(error);
+int Partition_base::check_for_upgrade(HA_CHECK_OPT *) {
+  return HA_ADMIN_NEEDS_CHECK;
 }
 
 /*

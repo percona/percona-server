@@ -114,7 +114,6 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
     }
 
     if (m_should_delete) {
-      m_num_deleted++;
       return true;
     } else if (m_ttl_duration > 0 &&
                should_filter_ttl_rec(key, existing_value)) {
@@ -215,8 +214,6 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
   const uint32_t m_cf_id;
   // Index id of the previous record
   mutable GL_INDEX_ID m_prev_index = {0, 0};
-  // Number of rows deleted for the same index id
-  mutable uint64 m_num_deleted = 0;
   // Number of rows expired for the TTL index
   mutable uint64 m_num_expired = 0;
   // Current index id should be deleted or not (should be deleted if true)

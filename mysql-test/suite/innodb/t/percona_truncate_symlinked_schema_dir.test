@@ -1,0 +1,65 @@
+--source include/not_windows.inc
+
+--echo #
+--echo # Bug#38169053 MySQL 8.0.39/40 crashed due to Assertion failure error
+--echo #              when running TRUNCATE
+--echo # (public bug report: Bug#120156 TRUNCATE TABLE crashes when the
+--echo #  database directory is a symlink)
+--echo #
+--echo # A schema directory replaced with a symlink to a directory outside of
+--echo # the datadir must still be treated as the default location of its
+--echo # file-per-table tablespaces. The data dictionary must keep the
+--echo # implicit path and TRUNCATE TABLE must succeed.
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+# The external directory must be named as the schema, otherwise the
+# resolved path is not accepted as a valid location of the schema.
+--let $EXTERNAL_DIR = $MYSQL_TMP_DIR/bug120156db
+# The tablespace path stored in the DD and the DATA DIRECTORY flag of the
+# table (DICT_TF_MASK_DATA_DIR, value 64 in INNODB_TABLES.FLAG).
+--let $path_query = SELECT PATH FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE PATH LIKE '%bug120156db%'
+--let $flag_query = SELECT NAME, FLAG & 64 AS data_dir_flag FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE 'bug120156db/%'
+
+CREATE DATABASE bug120156db;
+CREATE TABLE bug120156db.t1 (id INT PRIMARY KEY, val VARCHAR(100)) ENGINE=InnoDB;
+INSERT INTO bug120156db.t1 VALUES (1,'hello'),(2,'world');
+
+--source include/shutdown_mysqld.inc
+
+--mkdir $EXTERNAL_DIR
+--exec cp -a $MYSQLD_DATADIR/bug120156db/. $EXTERNAL_DIR/
+--force-rmdir $MYSQLD_DATADIR/bug120156db
+--exec ln -s $EXTERNAL_DIR $MYSQLD_DATADIR/bug120156db
+
+--source include/start_mysqld.inc
+
+--echo # The tablespace must still be registered at its default location
+--echo # and the table must not be marked as having a DATA DIRECTORY.
+--eval $path_query
+--eval $flag_query
+SHOW CREATE TABLE bug120156db.t1;
+
+--echo # TRUNCATE must succeed.
+TRUNCATE TABLE bug120156db.t1;
+
+INSERT INTO bug120156db.t1 VALUES (1,'after'),(2,'truncate');
+SELECT * FROM bug120156db.t1 ORDER BY id;
+--eval $path_query
+--eval $flag_query
+
+--echo # The table must be usable after another restart.
+--source include/restart_mysqld.inc
+
+--eval $path_query
+--eval $flag_query
+TRUNCATE TABLE bug120156db.t1;
+INSERT INTO bug120156db.t1 VALUES (3,'after restart');
+SELECT * FROM bug120156db.t1 ORDER BY id;
+
+# Cleanup.
+DROP DATABASE bug120156db;
+--error 0,1
+--force-rmdir $EXTERNAL_DIR
+--error 0,1
+--remove_file $MYSQLD_DATADIR/bug120156db

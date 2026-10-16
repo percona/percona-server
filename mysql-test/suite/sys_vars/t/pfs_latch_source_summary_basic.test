@@ -1,0 +1,74 @@
+# Percona: PS-11822 performance_schema_latch_source_summary.
+
+#
+# Only global
+#
+select @@global.performance_schema_latch_source_summary into @save;
+select @@global.performance_schema_latch_source_summary;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_latch_source_summary;
+
+show global variables like 'performance_schema_latch_source_summary';
+
+show session variables like 'performance_schema_latch_source_summary';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_latch_source_summary';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_latch_source_summary';
+--enable_warnings
+
+--error ER_GLOBAL_VARIABLE
+set session performance_schema_latch_source_summary = SOURCE;
+
+#
+# Wrong value
+#
+--error ER_WRONG_VALUE_FOR_VAR
+set global performance_schema_latch_source_summary = 2;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global performance_schema_latch_source_summary = 'FOO';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global performance_schema_latch_source_summary = '';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global performance_schema_latch_source_summary = ON;
+
+--error ER_WRONG_TYPE_FOR_VAR
+set global performance_schema_latch_source_summary = 1.5;
+
+#
+# Right value
+#
+set global performance_schema_latch_source_summary = SOURCE;
+select @@global.performance_schema_latch_source_summary;
+
+set global performance_schema_latch_source_summary = OFF;
+select @@global.performance_schema_latch_source_summary;
+
+set global performance_schema_latch_source_summary = 'source';
+select @@global.performance_schema_latch_source_summary;
+
+set global performance_schema_latch_source_summary = 0;
+select @@global.performance_schema_latch_source_summary;
+
+set global performance_schema_latch_source_summary = 1;
+select @@global.performance_schema_latch_source_summary;
+
+set global performance_schema_latch_source_summary = DEFAULT;
+select @@global.performance_schema_latch_source_summary;
+
+#
+# SET PERSIST
+#
+set persist performance_schema_latch_source_summary = SOURCE;
+select * from performance_schema.persisted_variables
+  where variable_name='performance_schema_latch_source_summary';
+reset persist performance_schema_latch_source_summary;
+
+set @@global.performance_schema_latch_source_summary = @save;

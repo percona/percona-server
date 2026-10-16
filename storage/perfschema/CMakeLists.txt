@@ -387,6 +387,10 @@ table_malloc_stats.cc
 table_malloc_stats.h
 table_account_failed_login_lock_status.cc
 table_account_failed_login_lock_status.h
+pfs_latch_source.cc
+pfs_latch_source.h
+table_ews_by_source.cc
+table_ews_by_source.h
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY

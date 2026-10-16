@@ -1,0 +1,9 @@
+# Tests for PERFORMANCE_SCHEMA (Percona, PS-11822)
+
+# There are no indexes on this table.
+
+show create table performance_schema.events_waits_summary_by_source;
+
+select * from INFORMATION_SCHEMA.STATISTICS
+  where TABLE_SCHEMA = "performance_schema"
+  and TABLE_NAME = "events_waits_summary_by_source";

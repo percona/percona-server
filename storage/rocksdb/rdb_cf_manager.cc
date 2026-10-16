@@ -377,6 +377,22 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
   }
 
   auto status = m_db->DropColumnFamily(cf_handle);
+  DBUG_EXECUTE_IF("rocksdb_remove_dropped_cf_options_failure", {
+    if (status.ok()) {
+      status = rocksdb::Status::IOError(
+          "Simulated failure to persist the OPTIONS file");
+    }
+  });
+
+  // DropColumnFamily() records the drop in the MANIFEST before it persists the
+  // OPTIONS file, so it can fail after the CF is gone. Forget such a CF, as
+  // after a successful drop: its handle can no longer be written to.
+  if (!status.ok() && static_cast<rocksdb::ColumnFamilyHandleImpl *>(cf_handle)
+                          ->cfd()
+                          ->IsDropped()) {
+    rdb_log_status_error(status, "Error persisting a dropped column family");
+    status = rocksdb::Status::OK();
+  }
 
   if (!status.ok()) {
     dict_manager->delete_dropped_cf(batch, cf_id);
@@ -449,7 +465,8 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   dict_manager->assert_lock_held();
   uint32_t cf_id = 0;
 
-  if (cf_name == DEFAULT_SYSTEM_CF_NAME || cf_name == DEFAULT_CF_NAME) {
+  if (cf_name == DEFAULT_SYSTEM_CF_NAME || cf_name == DEFAULT_CF_NAME ||
+      cf_name == DEFAULT_TMP_CF_NAME || cf_name == DEFAULT_TMP_SYSTEM_CF_NAME) {
     return HA_EXIT_FAILURE;
   }
 

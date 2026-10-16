@@ -246,8 +246,10 @@ static int rocksdb_delete_column_family(THD *const /* thd */,
   if (cf == nullptr) return HA_EXIT_SUCCESS;
 
   std::string cf_name = std::string(cf);
-  // Forbid to remove these built-in CFs
+  // Forbid to remove these built-in CFs. The temporary-table CFs are in use
+  // by cached ids and handles while the server runs.
   if (cf_name == DEFAULT_SYSTEM_CF_NAME || cf_name == DEFAULT_CF_NAME ||
+      cf_name == DEFAULT_TMP_CF_NAME || cf_name == DEFAULT_TMP_SYSTEM_CF_NAME ||
       cf_name.empty() ||
       (cf_name == DEFAULT_SK_CF_NAME && rocksdb_use_default_sk_cf)) {
     my_error(ER_CANT_DROP_CF, MYF(0), cf);

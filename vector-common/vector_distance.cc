@@ -16,104 +16,97 @@
 /**
   @file vector-common/vector_distance.cc
 
-  Euclidean, cosine and dot-product distance for VECTOR columns (float32).
+  Euclidean, cosine, dot-product and Manhattan distance for VECTOR columns
+  (float32).
 
   Public entry points — vector_distance_euclidean_squared(),
   vector_distance_cosine(), vector_distance_dot(), vector_distance_manhattan()
-  — are declared in
-  vector-common/vector_distance.h.  Call init_vector_distance_functions() once
-  before first use so the dispatch pointers are set to the best kernel for the
-  host CPU.
+  — are declared in vector-common/vector_distance.h.  Call
+  init_vector_distance_functions() once before first use so the dispatch
+  pointers are set to the best kernel for the host CPU.
 
-  All kernels accept const char * and any byte alignment.  SIMD paths use
-  unaligned load intrinsics (_mm_loadu_ps, _mm256_loadu_ps, _mm512_loadu_ps,
-  vld1q_f32, svld1_f32) rather than aligned variants: VECTOR payloads may
-  come from columns or misaligned SUBSTR blobs, and on modern x86/ARM CPUs
-  unaligned loads have the same throughput as aligned loads when the data
-  happens to be aligned.  Aligned intrinsics would fault on misaligned
-  addresses without improving performance.  The one remaining slowdown is
-  cache-line crossing: if a load spans a 64-byte cache-line boundary the
-  CPU must fetch from two lines, which costs extra regardless of whether
-  the instruction is MOVUPS or MOVAPS — that penalty depends on runtime
-  address, not on choosing loadu vs load.  Scalar tails use memcpy to
-  avoid UB on misaligned float *.
+  Same result on every tier
+  -------------------------
+  DISTANCE() may be stored (functional indexes, stored generated columns), so
+  its value must not depend on the CPU.  Every tier therefore computes in the
+  same fixed number of lanes, kLanes = 16, and only spreads them over a
+  different number of registers: one 16-float register for AVX-512F, two
+  8-float registers for AVX2, four 4-float registers for SSE4.2 and NEON, and
+  16 single floats for scalar.  Every kernel is one instantiation of the same
+  templates with the tier's register width:
 
-  Dim-aware dispatch (Opt 2)
-  --------------------------
-  Wide-tier kernels (AVX2, AVX-512, SVE2) have a minimum useful dimension: the
-  SIMD body only fires when dims ≥ register_width (8 for AVX2, 16 for AVX-512).
-  Below that threshold, calling a wide-tier kernel pays register-init overhead
-  with no SIMD benefit.
+  - Element i goes into lane i % kLanes, in index order, so after the main
+    loop lane l holds the partial sum of elements l, l + 16, l + 32, ...  The
+    SIMD kernels keep the lanes in registers in index order.
+  - At the end the 16 lane sums are converted to double and added as a fixed
+    binary tree: lane l += lane l + 8 for l < 8, then lane l += lane l + 4
+    for l < 4, then + 2, then + 1; lane 0 holds the total.  Every tier adds
+    the same pairs in the same order, whatever its register width.
+  - The last dims % kLanes elements are added in order in double.
 
-  To avoid this regression, the public wrappers use two function pointer sets:
-    g_*        — the widest available tier; used for dims ≥
-  VECTOR_DISTANCE_WIDE_MIN_DIMS g_*_narrow — SSE4.2 / NEON (fills at dim ≥ 4);
-  used for dims < VECTOR_DISTANCE_WIDE_MIN_DIMS
+  IEEE 754 rounds each of these operations the same way everywhere, so the
+  result depends only on this layout, not on the register width.  The file
+  must be compiled with -ffp-contract=off: a fused multiply-add rounds once
+  instead of twice and would make FMA-capable tiers differ.
 
-  SIMD tier model
-  ---------------
-  Kernels are grouped into four tiers. init_vector_distance_functions() selects
-  the highest tier the CPU and OS support at runtime. Each SIMD function is
-  compiled with its own GCC/Clang target attribute so this translation unit
-  stays at the baseline ISA; no global -mavx2 / -march=native is required.
+  Fast path and exact fallback
+  ----------------------------
+  lanes_kernel() accumulates the lanes in float32, which is as fast as the
+  loads allow.  Float32 products and squares overflow to Inf near FLT_MAX and
+  become subnormal or 0 for tiny elements, so when a float32 sum is non-finite
+  or below kMinExactSum, double_lanes_kernel() recomputes the result with the
+  lanes in double.  The decision depends only on the float32 lane sums, which
+  are the same on every tier, so the fallback keeps the result identical too.
+  In double, products of float32 values are exact and neither they nor their
+  sums can overflow or underflow.  Other float32 rounding is kept: it is the
+  precision of the float32 VECTOR type (e.g. 1e8 + 4 - 1e8 in one lane gives
+  0 or 8, as in any float32 sum).
 
-  +------+----------+--------------------------------+-------------------+
-  | Tier | Name     | Optimization target            | Register width    |
-  +------+----------+--------------------------------+-------------------+
-  |  0   | Scalar   | Any x86_64 / ARM64 (fallback)  | 32/64-bit         |
-  |  1   | Legacy   | SSE4.2 (Intel/AMD) / NEON (ARM)| 128-bit           |
-  |  2   | Standard | AVX2 + FMA (Intel/AMD)         | 256-bit           |
-  |  3   | Ultra    | AVX-512 (Intel/AMD) / SVE2(ARM)| 512-bit+ (VLA)    |
-  +------+----------+--------------------------------+-------------------+
+  All kernels accept const char * and any byte alignment: loads use memcpy,
+  which compiles to an unaligned load.
 
-  Tier 0 — Scalar (all architectures)
-    euclidean_scalar, cosine_scalar, dot_product_scalar, manhattan_scalar
-    Default function pointers; also forced by
-    init_vector_distance_functions_tier(VectorDistanceTier::Scalar).
+  Tiers
+  -----
+  +----------+---------------------------------+---------------------------+
+  | Tier     | Platform                        | Floats per register       |
+  +----------+---------------------------------+---------------------------+
+  | Scalar   | any (the only one on _WIN32)    | 1                         |
+  | Sse42    | x86_64 with SSE4.2              | 4                         |
+  | Avx2     | x86_64 with AVX2                | 8                         |
+  | Avx512f  | x86_64 with AVX-512F            | 16                        |
+  | Neon     | aarch64 (baseline)              | 4                         |
+  +----------+---------------------------------+---------------------------+
 
-  Tier 1 — Legacy
-    x86_64: euclidean_sse, cosine_sse, dot_product_sse, manhattan_sse
-            (target("sse4.2"), 4 floats/iter)  cpu_has_sse42()
-    aarch64: euclidean_neon, cosine_neon, dot_product_neon, manhattan_neon
-             (target("+simd"), 4 floats/iter)  Always enabled on ARMv8.
+  The SIMD tiers use GCC/Clang vector extensions; the kernel templates are
+  inlined into one function per tier with the tier's target attribute, so this
+  translation unit stays at the baseline ISA.  SVE2 hosts use NEON: a fixed
+  lane layout does not map onto SVE's runtime vector length.
 
-  Tier 2 — Standard (x86_64 only)
-    euclidean_avx2, cosine_avx2, dot_product_avx2, manhattan_avx2
-    (target("avx2"), 8 floats/iter)  cpu_has_avx2_fma()
-
-  Tier 3 — Ultra
-    x86_64: euclidean_avx512, cosine_avx512, dot_product_avx512,
-  manhattan_avx512 (target("avx512f"), 16 floats/iter)  cpu_has_avx512f()
-    aarch64: euclidean_sve2, cosine_sve2, dot_product_sve2, manhattan_sve2
-             (target("+sve2"), scalable VLA)
-
-  Runtime dispatch (init_vector_distance_functions)
-  ------------------------------------
-    x86_64:  AVX-512 -> AVX2+FMA -> SSE4.2 -> scalar (wide)
-             SSE4.2 -> scalar (narrow, dims < VECTOR_DISTANCE_WIDE_MIN_DIMS)
-    aarch64: NEON or SVE2 (wide); NEON (narrow)
-    other:   scalar only (no-op init)
-    _WIN32 (x64 and ARM64): scalar only — SIMD tiers compiled out at build time.
-
-  Euclidean kernels (euclidean_*) return sum((a[i]-b[i])²) without sqrt.
-  SQL applies std::sqrt for the EUCLIDEAN metric; EUCLIDEAN_SQUARED uses the
-  kernel result directly.
+  Euclidean kernels return sum((a[i]-b[i])²) without sqrt.  SQL applies
+  std::sqrt for the EUCLIDEAN metric; EUCLIDEAN_SQUARED uses the kernel result
+  directly.
 
   Cosine distance returns +Inf as a sentinel when either vector has zero norm
   (undefined cosine); the SQL layer (Item_func_vector_distance::val_real)
-  detects it via std::isinf and maps it to NULL.
+  detects it via std::isinf and maps it to NULL.  Other results are clamped to
+  [0, 2], the range of 1 - cos.
 */
 
 #include "vector-common/vector_distance.h"
 
+#include <algorithm>
+#include <bit>
 #include <cassert>
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <type_traits>
 
-#include "mysql/attribute.h"  // MY_ATTRIBUTE
+#include "mysql/attribute.h"                 // MY_ATTRIBUTE
+#include "vector-common/vector_constants.h"  // max_dimensions
 
 // Platform guards — mirror ut0crc32.h:53-69
 //
@@ -127,89 +120,329 @@
 #endif
 #endif
 
-#if !defined(VECTOR_DISTANCE_x86_64) && !defined(VECTOR_DISTANCE_AARCH64)
-#define VECTOR_DISTANCE_DEFAULT
+// GCC and Clang (which also defines __GNUC__); MSVC takes the #else branch.
+#if defined(__GNUC__)
+#define VECTOR_DISTANCE_UNROLL _Pragma("GCC unroll 16")
+// Converts a float vector to the double vector type T, lane by lane.
+#define VECTOR_DISTANCE_TO_DOUBLE(v, T) __builtin_convertvector(v, T)
+#else
+#define VECTOR_DISTANCE_UNROLL
+// Only the scalar tier is built here and never instantiates the conversion,
+// but MSVC parses template bodies, and __builtin_convertvector takes a type.
+#define VECTOR_DISTANCE_TO_DOUBLE(v, T) static_cast<T>(v)
 #endif
 
-// SVE2 is opt-in: it requires the toolchain to compile the unit with
-// __ARM_FEATURE_SVE2 (e.g. -march=armv8-a+sve2 or armv9-a). Without that we
-// keep NEON-only behaviour and avoid pulling in <arm_sve.h>.
-#if defined(VECTOR_DISTANCE_AARCH64) && defined(__ARM_FEATURE_SVE2)
-#define VECTOR_DISTANCE_HAS_SVE2
+namespace {
+
+enum class Metric { Euclidean, Cosine, Dot, Manhattan };
+
+// Sums per metric: cosine needs ab, |a|² and |b|².
+template <Metric M>
+constexpr uint32_t kSums = M == Metric::Cosine ? 3 : 1;
+
+// Number of lanes; see the file comment.
+constexpr uint32_t kLanes = 16;
+
+// Register types of a tier:
+//   float_width  - number of float lanes in one register
+//   double_width - number of double lanes in one register (half of
+//                  float_width; 1 for scalar)
+//   F  - float vector that fills one register
+//   H  - float vector of double_width floats (half of F; the same as F for
+//        scalar), converted into one D
+//   D  - double vector that fills one register
+//   FI, DI - integer vectors of the same size as F and D (used to clear sign
+//            bits for Manhattan)
+struct ScalarLanes {
+  static constexpr uint32_t float_width = 1;
+  static constexpr uint32_t double_width = 1;
+  using F = float;
+  using H = float;
+  using D = double;
+  using FI = int32_t;
+  using DI = int64_t;
+};
+
+#if defined(VECTOR_DISTANCE_x86_64) || defined(VECTOR_DISTANCE_AARCH64)
+template <uint32_t N>
+struct VectorLanes {
+  static constexpr uint32_t float_width = N;
+  static constexpr uint32_t double_width = N / 2;
+  typedef float F __attribute__((vector_size(N * sizeof(float))));
+  typedef float H __attribute__((vector_size(N / 2 * sizeof(float))));
+  typedef double D __attribute__((vector_size(N / 2 * sizeof(double))));
+  typedef int32_t FI __attribute__((vector_size(N * sizeof(int32_t))));
+  typedef int64_t DI __attribute__((vector_size(N / 2 * sizeof(int64_t))));
+};
 #endif
 
-// ---------------------------------------------------------------------------
-// Scalar kernels — always compiled, safe on every architecture.
-// Take const char * so they can handle any byte alignment: dereferencing a
-// float * that is not suitably aligned is UB, so each element is fetched
-// with memcpy into a local float instead.  Compilers see the fixed 4-byte
-// size and emit a single load instruction — no function call, no overhead.
-// Scalar path accumulates in double.  Inputs are float32, but double
-// avoids overflow/precision loss (e.g. (2e38)² is Inf in float, finite
-// in double) and matches the SIMD reduction path below.
-// ---------------------------------------------------------------------------
+// Float32 products overflow to Inf near FLT_MAX.  Below FLT_MIN (2^-126) they
+// are subnormal, and a subnormal product can be off by up to 2^-150 whatever
+// its size (for equal elements below sqrt(FLT_MIN) ~ 1.1e-19; below
+// 2^-75 ~ 2.6e-23 the square is 0).  So n products lose at most n * 2^-150
+// to underflow.
+//
+// A float32 value already has a rounding error of up to value * 2^-24, so we
+// accept the underflow error as long as it stays below that natural error of
+// the sum:
+//   n * 2^-150 <= sum * 2^-24
+//   sum >= n * 2^-150 / 2^-24 = n * 2^-126 = n * FLT_MIN
+// n <= max_dimensions, so the threshold below is a constant.  Normally-scaled
+// data never falls back.
+constexpr double kMinExactSum =
+    static_cast<double>(vector_constants::max_dimensions + 1) * FLT_MIN;
 
-static double euclidean_scalar(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  double result = 0.0;
-  for (uint32_t i = 0; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
-    result += d * d;
-  }
-  return result;
+// |x| < kMinExactSum, Inf or NaN, as one unsigned compare.  With the sign bit
+// cleared, the bits of a double order like its magnitude, and Inf/NaN sort
+// above DBL_MAX.  bits - kLo maps [kLo, kHi] onto [0, kHi - kLo]: Inf/NaN
+// (bits > kHi) land above that range, and bits < kLo wrap around to near 2^64.
+inline bool sum_out_of_range(double x) {
+  constexpr uint64_t kLo = std::bit_cast<uint64_t>(kMinExactSum);
+  constexpr uint64_t kHi = std::bit_cast<uint64_t>(DBL_MAX);
+  const uint64_t bits = std::bit_cast<uint64_t>(x) & ~(uint64_t{1} << 63);
+  return bits - kLo > kHi - kLo;
 }
 
-static double cosine_scalar(const char *a_raw, const char *b_raw,
-                            uint32_t dims) {
-  double ab = 0.0, norm_a = 0.0, norm_b = 0.0;
-  for (uint32_t i = 0; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-    norm_a += (double)av * av;
-    norm_b += (double)bv * bv;
+// True when the float32 lane sums may be inexact beyond float32 rounding.
+template <Metric M>
+inline bool needs_double(const double (&sum)[kSums<M>]) {
+  if constexpr (M == Metric::Cosine) {
+    // ab is legitimately 0 for orthogonal vectors; with both norms in range
+    // its error is bounded relative to them.
+    return !std::isfinite(sum[0]) || sum_out_of_range(sum[1]) ||
+           sum_out_of_range(sum[2]);
+  } else if constexpr (M == Metric::Manhattan) {
+    // No products: subnormal differences and their sums are exact.
+    return !std::isfinite(sum[0]);
+  } else {  // Euclidean and Dot
+    // The result is the sum itself, so a tiny sum may be underflow (or an
+    // orthogonal dot product, which the double pass returns exactly).
+    return sum_out_of_range(sum[0]);
   }
-  const double denom = sqrt(norm_a * norm_b);
-  // +Inf sentinel: zero-denom means undefined cosine (zero-vector input).
-  if (denom == 0.0) return std::numeric_limits<double>::infinity();
-  return 1.0 - ab / denom;
 }
 
-static double dot_product_scalar(const char *a_raw, const char *b_raw,
-                                 uint32_t dims) {
-  double ab = 0.0;
-  for (uint32_t i = 0; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
+// acc[s][r] += term s of the elements x and y (s = 0 for one-sum metrics;
+// ab, |a|^2, |b|^2 for cosine).  V is the register type the lanes are held
+// in (L::F in the float32 pass, L::D in the double pass), IV the integer
+// vector type of the same size, and R the number of V registers that hold
+// the kLanes lanes, so r selects the register.
+template <Metric M, class IV, class V, uint32_t R>
+MY_ATTRIBUTE((always_inline))
+inline void accumulate(V (&acc)[kSums<M>][R], uint32_t r, const V &x,
+                       const V &y) {
+  if constexpr (M == Metric::Euclidean) {
+    const V d = x - y;
+    acc[0][r] += d * d;
+  } else if constexpr (M == Metric::Cosine) {
+    acc[0][r] += x * y;
+    acc[1][r] += x * x;
+    acc[2][r] += y * y;
+  } else if constexpr (M == Metric::Dot) {
+    acc[0][r] += x * y;
+  } else if constexpr (std::is_floating_point_v<V>) {  // Manhattan
+    acc[0][r] += std::fabs(x - y);
+  } else {
+    // Manhattan: std::fabs takes no vectors, so clear each lane's sign bit.
+    // Casting between equal-size vector types reinterprets the bits, so
+    // (IV)d is d's bits as integers.  -V{} is -0.0 in every lane, whose only
+    // set bit is the sign bit; ~(IV)(-V{}) is therefore every bit but the
+    // sign, and the AND keeps |d| (NaN stays NaN).
+    acc[0][r] += (V)((IV)(x - y) & ~(IV)(-V{}));
   }
-  return ab;
 }
 
-static double manhattan_scalar(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  double result = 0.0;
-  for (uint32_t i = 0; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = (double)av - bv;
-    result += std::fabs(d);
+// sum[s] = the kLanes lanes of acc[s], converted to double and added as the
+// fixed tree from the file comment (lane l += lane l + w, w = 8, 4, 2, 1).
+// It runs once per call, but a scalar version is measurably slower for short
+// vectors, so it is done in registers:
+//  1. The lanes are copied out of acc[s] half a float register (L::H) at a
+//     time and widened into RD double registers d[0..RD-1] (in the double
+//     pass they are already doubles and are copied as is), in lane order, so
+//     d[r] holds lanes r*W .. r*W+W-1.
+//  2. Tree steps whose stride covers whole double registers are register
+//     additions: d[r] += d[r + w] adds W lane pairs in one instruction.
+//  3. The steps inside d[0] (stride < W) are done on a scalar copy.
+// The pairs added are the same on every tier; only how many are added per
+// instruction differs.
+template <class L, class V, uint32_t S, uint32_t R>
+MY_ATTRIBUTE((always_inline))
+inline void reduce_lanes(const V (&acc)[S][R], double (&sum)[S]) {
+  using D = typename L::D;
+  constexpr uint32_t W = L::double_width;
+  constexpr uint32_t RD = kLanes / W;
+  for (uint32_t s = 0; s < S; s++) {
+    D d[RD];  // the lanes in double, in order
+    if constexpr (sizeof(V) * R == sizeof(d)) {  // already double
+      memcpy(d, acc[s], sizeof(d));
+    } else {
+      VECTOR_DISTANCE_UNROLL
+      for (uint32_t r = 0; r < RD; r++) {
+        typename L::H h;
+        memcpy(&h, (const char *)acc[s] + r * sizeof(h), sizeof(h));
+        if constexpr (W == 1)
+          d[r] = h;
+        else
+          d[r] = VECTOR_DISTANCE_TO_DOUBLE(h, D);
+      }
+    }
+    VECTOR_DISTANCE_UNROLL
+    for (uint32_t w = RD / 2; w > 0; w /= 2) {
+      VECTOR_DISTANCE_UNROLL
+      for (uint32_t r = 0; r < w; r++) d[r] += d[r + w];
+    }
+    double lane[W];
+    memcpy(lane, &d[0], sizeof(lane));
+    VECTOR_DISTANCE_UNROLL
+    for (uint32_t w = W / 2; w > 0; w /= 2) {
+      VECTOR_DISTANCE_UNROLL
+      for (uint32_t l = 0; l < w; l++) lane[l] += lane[l + w];
+    }
+    sum[s] = lane[0];
   }
-  return result;
 }
+
+// Adds elements [i, dims) to sum in order, in double, and returns the result.
+template <Metric M>
+inline double finish(double (&sum)[kSums<M>], const char *a_raw,
+                     const char *b_raw, uint32_t i, uint32_t dims) {
+  for (; i < dims; i++) {
+    float af, bf;
+    memcpy(&af, a_raw + i * sizeof(float), sizeof(float));
+    memcpy(&bf, b_raw + i * sizeof(float), sizeof(float));
+    const double x = af, y = bf;
+    if constexpr (M == Metric::Euclidean) {
+      const double d = x - y;
+      sum[0] += d * d;
+    } else if constexpr (M == Metric::Cosine) {
+      sum[0] += x * y;
+      sum[1] += x * x;
+      sum[2] += y * y;
+    } else if constexpr (M == Metric::Dot) {
+      sum[0] += x * y;
+    } else {
+      sum[0] += std::fabs(x - y);
+    }
+  }
+
+  if constexpr (M == Metric::Cosine) {
+    const double denom = std::sqrt(sum[1] * sum[2]);
+    // +Inf sentinel: zero-denom means undefined cosine (zero-vector input).
+    if (denom == 0.0) return std::numeric_limits<double>::infinity();
+    // Rounding can put 1 - cos just outside [0, 2]; NaN stays NaN.
+    return std::clamp(1.0 - sum[0] / denom, 0.0, 2.0);
+  } else {
+    return sum[0];
+  }
+}
+
+// Exact fallback: the lanes in double.  always_inline (also below): the
+// vector code must be generated in the caller, which has the tier's target
+// attribute.
+template <class L, Metric M>
+MY_ATTRIBUTE((always_inline))
+inline double double_lanes_kernel(const char *a_raw, const char *b_raw,
+                                  uint32_t dims) {
+  using D = typename L::D;
+  constexpr uint32_t W = L::double_width;
+  constexpr uint32_t R = kLanes / W;
+  D acc[kSums<M>][R] = {};
+  uint32_t i = 0;
+  for (; i + kLanes <= dims; i += kLanes) {
+    VECTOR_DISTANCE_UNROLL
+    for (uint32_t r = 0; r < R; r++) {
+      typename L::H af, bf;
+      memcpy(&af, a_raw + (i + r * W) * sizeof(float), sizeof(af));
+      memcpy(&bf, b_raw + (i + r * W) * sizeof(float), sizeof(bf));
+      D x, y;
+      if constexpr (W == 1) {
+        x = af;
+        y = bf;
+      } else {
+        x = VECTOR_DISTANCE_TO_DOUBLE(af, D);
+        y = VECTOR_DISTANCE_TO_DOUBLE(bf, D);
+      }
+      accumulate<M, typename L::DI>(acc, r, x, y);
+    }
+  }
+  double sum[kSums<M>] = {};
+  // Without a block the lanes are all +0.0: skip reducing them.
+  if (i > 0) reduce_lanes<L>(acc, sum);
+  return finish<M>(sum, a_raw, b_raw, i, dims);
+}
+
+// Fast path: the lanes in float32, see the file comment.
+template <class L, Metric M>
+MY_ATTRIBUTE((always_inline))
+inline double lanes_kernel(const char *a_raw, const char *b_raw,
+                           uint32_t dims) {
+  using F = typename L::F;
+  constexpr uint32_t W = L::float_width;
+  constexpr uint32_t R = kLanes / W;
+  F acc[kSums<M>][R] = {};
+  uint32_t i = 0;
+  for (; i + kLanes <= dims; i += kLanes) {
+    VECTOR_DISTANCE_UNROLL
+    for (uint32_t r = 0; r < R; r++) {
+      F x, y;
+      memcpy(&x, a_raw + (i + r * W) * sizeof(float), sizeof(x));
+      memcpy(&y, b_raw + (i + r * W) * sizeof(float), sizeof(y));
+      accumulate<M, typename L::FI>(acc, r, x, y);
+    }
+  }
+  double sum[kSums<M>] = {};
+  if (i > 0) {
+    reduce_lanes<L>(acc, sum);
+    if (needs_double<M>(sum)) [[unlikely]]
+      return double_lanes_kernel<L, M>(a_raw, b_raw, dims);
+  }
+  return finish<M>(sum, a_raw, b_raw, i, dims);
+}
+
+}  // namespace
+
+// Defines euclidean_<tier>, cosine_<tier>, dot_product_<tier> and
+// manhattan_<tier> for one tier.
+#define VECTOR_DISTANCE_KERNELS(tier, attributes, lanes)                    \
+  attributes static double euclidean_##tier(const char *a, const char *b,   \
+                                            uint32_t dims) {                \
+    return lanes_kernel<lanes, Metric::Euclidean>(a, b, dims);              \
+  }                                                                         \
+  attributes static double cosine_##tier(const char *a, const char *b,      \
+                                         uint32_t dims) {                   \
+    return lanes_kernel<lanes, Metric::Cosine>(a, b, dims);                 \
+  }                                                                         \
+  attributes static double dot_product_##tier(const char *a, const char *b, \
+                                              uint32_t dims) {              \
+    return lanes_kernel<lanes, Metric::Dot>(a, b, dims);                    \
+  }                                                                         \
+  attributes static double manhattan_##tier(const char *a, const char *b,   \
+                                            uint32_t dims) {                \
+    return lanes_kernel<lanes, Metric::Manhattan>(a, b, dims);              \
+  }
+
+VECTOR_DISTANCE_KERNELS(scalar, , ScalarLanes)
+
+#ifdef VECTOR_DISTANCE_x86_64
+VECTOR_DISTANCE_KERNELS(sse, MY_ATTRIBUTE((target("sse4.2"))), VectorLanes<4>)
+VECTOR_DISTANCE_KERNELS(avx2, MY_ATTRIBUTE((target("avx2"))), VectorLanes<8>)
+VECTOR_DISTANCE_KERNELS(avx512, MY_ATTRIBUTE((target("avx512f"))),
+                        VectorLanes<16>)
+
+static bool cpu_has_sse42() { return __builtin_cpu_supports("sse4.2"); }
+
+static bool cpu_has_avx2() { return __builtin_cpu_supports("avx2"); }
+
+static bool cpu_has_avx512f() { return __builtin_cpu_supports("avx512f"); }
+#endif
+
+#ifdef VECTOR_DISTANCE_AARCH64
+// Advanced SIMD is baseline ARMv8-A.
+VECTOR_DISTANCE_KERNELS(neon, , VectorLanes<4>)
+#endif
 
 // ---------------------------------------------------------------------------
 // Function pointers — initialized to scalar; init_vector_distance_functions()
-// may promote. Wide pointers (g_*) are used for dims ≥
-// VECTOR_DISTANCE_WIDE_MIN_DIMS. Narrow pointers (g_*_narrow) are used for dims
-// < VECTOR_DISTANCE_WIDE_MIN_DIMS to avoid dispatching to AVX-512/AVX2 when the
-// SIMD loop cannot fire (needs ≥ 16/8 elements).
+// may promote.
 // ---------------------------------------------------------------------------
 
 using vector_distance_fn_t = double (*)(const char *, const char *, uint32_t);
@@ -219,748 +452,15 @@ static vector_distance_fn_t g_cosine = cosine_scalar;
 static vector_distance_fn_t g_dot_product = dot_product_scalar;
 static vector_distance_fn_t g_manhattan = manhattan_scalar;
 
-static vector_distance_fn_t g_euclidean_narrow = euclidean_scalar;
-static vector_distance_fn_t g_cosine_narrow = cosine_scalar;
-static vector_distance_fn_t g_dot_product_narrow = dot_product_scalar;
-static vector_distance_fn_t g_manhattan_narrow = manhattan_scalar;
+static VectorDistanceTier g_tier = VectorDistanceTier::Scalar;
 
-static VectorDistanceTier g_wide_tier = VectorDistanceTier::Scalar;
-static VectorDistanceTier g_narrow_tier = VectorDistanceTier::Scalar;
-
-// ---------------------------------------------------------------------------
-// SIMD kernels — see file header for the full tier table and dispatch order.
-// ---------------------------------------------------------------------------
-
-#ifdef VECTOR_DISTANCE_x86_64
-
-#include <immintrin.h>
-
-// CPU feature detection -----------------------------------------------------
-
-static bool cpu_has_sse42() {
-#if defined(__GNUC__) || defined(__clang__)
-  return __builtin_cpu_supports("sse4.2");
-#else
-  return false;
-#endif
-}
-
-static bool cpu_has_avx2_fma() {
-#if defined(__GNUC__) || defined(__clang__)
-  return __builtin_cpu_supports("avx2") && __builtin_cpu_supports("fma");
-#else
-  return false;
-#endif
-}
-
-// __builtin_cpu_supports already gates AVX-512 on OS support: libgcc and
-// compiler-rt only report the feature when OSXSAVE is set and XCR0 enables
-// the full ZMM/opmask state, so no manual XGETBV check is needed (hnswlib
-// does it by hand only because it reads raw CPUID bits).
-static bool cpu_has_avx512f() {
-#if defined(__GNUC__) || defined(__clang__)
-  return __builtin_cpu_supports("avx512f");
-#else
-  return false;
-#endif
-}
-
-// SIMD loops accumulate in float32 registers for full vector width.
-// Each kernel promotes to double once (horizontal sum + scalar tail);
-// float32-only reduction would not be faster and loses precision.
-// However, individual float32 products (d*d for Euclidean, a[i]*b[i] for
-// cosine/dot) can overflow to +Inf for extreme float32 inputs (e.g. element
-// difference near FLT_MAX).  Each kernel checks for a non-finite horizontal
-// sum and falls back to the scalar path, which uses double throughout.
-
-// Tier 1 — SSE4.2, 4 floats per iteration -----------------------------------
-
-// Horizontal sum: reduce the 4 float lanes of an SSE register to one float
-// (SSE counterpart of the AVX-512 _mm512_reduce_add_ps intrinsic).
-MY_ATTRIBUTE((target("sse4.2")))
-static float hsum128_sse(__m128 v) {
-  __m128 s = _mm_hadd_ps(v, v);
-  s = _mm_hadd_ps(s, s);
-  return _mm_cvtss_f32(s);
-}
-
-MY_ATTRIBUTE((target("sse4.2")))
-static double euclidean_sse(const char *a_raw, const char *b_raw,
-                            uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m128 sum = _mm_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4) {
-    __m128 d = _mm_sub_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i));
-    sum = _mm_add_ps(sum, _mm_mul_ps(d, d));
-  }
-  double result = hsum128_sse(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
-    result += d * d;
-  }
-  return result;
-}
-
-MY_ATTRIBUTE((target("sse4.2")))
-static double cosine_sse(const char *a_raw, const char *b_raw, uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m128 vec_ab = _mm_setzero_ps();
-  __m128 vec_norm_a = _mm_setzero_ps();
-  __m128 vec_norm_b = _mm_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4) {
-    __m128 vec_a = _mm_loadu_ps(a + i);
-    __m128 vec_b = _mm_loadu_ps(b + i);
-    vec_ab = _mm_add_ps(vec_ab, _mm_mul_ps(vec_a, vec_b));
-    vec_norm_a = _mm_add_ps(vec_norm_a, _mm_mul_ps(vec_a, vec_a));
-    vec_norm_b = _mm_add_ps(vec_norm_b, _mm_mul_ps(vec_b, vec_b));
-  }
-  double ab = hsum128_sse(vec_ab);
-  double norm_a = hsum128_sse(vec_norm_a);
-  double norm_b = hsum128_sse(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
-    return cosine_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-    norm_a += (double)av * av;
-    norm_b += (double)bv * bv;
-  }
-  const double denom = sqrt(norm_a * norm_b);
-  if (denom == 0.0) return std::numeric_limits<double>::infinity();
-  return 1.0 - ab / denom;
-}
-
-MY_ATTRIBUTE((target("sse4.2")))
-static double dot_product_sse(const char *a_raw, const char *b_raw,
-                              uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m128 vec_ab = _mm_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4)
-    vec_ab = _mm_add_ps(vec_ab,
-                        _mm_mul_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i)));
-  double ab = hsum128_sse(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-  }
-  return ab;
-}
-
-MY_ATTRIBUTE((target("sse4.2")))
-static double manhattan_sse(const char *a_raw, const char *b_raw,
-                            uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  // SSE has no float abs intrinsic.  -0.0f is a float with only the sign bit
-  // set, so andnot(sign_mask, d) clears each lane's sign bit: fabs(d) per lane.
-  const __m128 sign_mask = _mm_set1_ps(-0.0f);
-  __m128 sum = _mm_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4) {
-    __m128 d = _mm_sub_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i));
-    sum = _mm_add_ps(sum, _mm_andnot_ps(sign_mask, d));
-  }
-  double result = hsum128_sse(sum);
-  if (!std::isfinite(result)) return manhattan_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    result += std::fabs((double)av - bv);
-  }
-  return result;
-}
-
-// Tier 2 — AVX2 + FMA, 8 floats per iteration -------------------------------
-
-// Horizontal sum: reduce the 8 float lanes of an AVX2 register to one float
-// (AVX2 counterpart of the AVX-512 _mm512_reduce_add_ps intrinsic).
-// Lambdas don't inherit a function's target attribute in GCC; use a static
-// helper so _mm_hadd_ps and friends are compiled with the AVX2 ISA.
-MY_ATTRIBUTE((target("avx2")))
-static float hsum256(__m256 v) {
-  __m128 lo = _mm256_castps256_ps128(v);
-  __m128 hi = _mm256_extractf128_ps(v, 1);
-  __m128 s = _mm_add_ps(lo, hi);
-  s = _mm_hadd_ps(s, s);
-  s = _mm_hadd_ps(s, s);
-  return _mm_cvtss_f32(s);
-}
-
-MY_ATTRIBUTE((target("avx2,fma")))
-static double euclidean_avx2(const char *a_raw, const char *b_raw,
-                             uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m256 sum = _mm256_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 8 <= dims; i += 8) {
-    __m256 d = _mm256_sub_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i));
-    sum = _mm256_fmadd_ps(d, d, sum);
-  }
-  double result = hsum256(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
-    result += d * d;
-  }
-  return result;
-}
-
-MY_ATTRIBUTE((target("avx2,fma")))
-static double cosine_avx2(const char *a_raw, const char *b_raw, uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m256 vec_ab = _mm256_setzero_ps();
-  __m256 vec_norm_a = _mm256_setzero_ps();
-  __m256 vec_norm_b = _mm256_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 8 <= dims; i += 8) {
-    __m256 vec_a = _mm256_loadu_ps(a + i);
-    __m256 vec_b = _mm256_loadu_ps(b + i);
-    vec_ab = _mm256_fmadd_ps(vec_a, vec_b, vec_ab);
-    vec_norm_a = _mm256_fmadd_ps(vec_a, vec_a, vec_norm_a);
-    vec_norm_b = _mm256_fmadd_ps(vec_b, vec_b, vec_norm_b);
-  }
-  double ab = hsum256(vec_ab);
-  double norm_a = hsum256(vec_norm_a);
-  double norm_b = hsum256(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
-    return cosine_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-    norm_a += (double)av * av;
-    norm_b += (double)bv * bv;
-  }
-  const double denom = sqrt(norm_a * norm_b);
-  if (denom == 0.0) return std::numeric_limits<double>::infinity();
-  return 1.0 - ab / denom;
-}
-
-MY_ATTRIBUTE((target("avx2,fma")))
-static double dot_product_avx2(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m256 vec_ab = _mm256_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 8 <= dims; i += 8)
-    vec_ab =
-        _mm256_fmadd_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i), vec_ab);
-  double ab = hsum256(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-  }
-  return ab;
-}
-
-MY_ATTRIBUTE((target("avx2")))
-static double manhattan_avx2(const char *a_raw, const char *b_raw,
-                             uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  // AVX2 has no float abs intrinsic.  -0.0f is a float with only the sign bit
-  // set, so andnot(sign_mask, d) clears each lane's sign bit: fabs(d) per lane.
-  const __m256 sign_mask = _mm256_set1_ps(-0.0f);
-  __m256 sum = _mm256_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 8 <= dims; i += 8) {
-    __m256 d = _mm256_sub_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i));
-    sum = _mm256_add_ps(sum, _mm256_andnot_ps(sign_mask, d));
-  }
-  double result = hsum256(sum);
-  if (!std::isfinite(result)) return manhattan_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    result += std::fabs((double)av - bv);
-  }
-  return result;
-}
-
-// Tier 3 — AVX-512F, 16 floats per iteration --------------------------------
-
-MY_ATTRIBUTE((target("avx512f")))
-static double euclidean_avx512(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m512 sum = _mm512_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 16 <= dims; i += 16) {
-    __m512 d = _mm512_sub_ps(_mm512_loadu_ps(a + i), _mm512_loadu_ps(b + i));
-    sum = _mm512_fmadd_ps(d, d, sum);
-  }
-  double result = _mm512_reduce_add_ps(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
-    result += d * d;
-  }
-  return result;
-}
-
-MY_ATTRIBUTE((target("avx512f")))
-static double cosine_avx512(const char *a_raw, const char *b_raw,
-                            uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m512 vec_ab = _mm512_setzero_ps();
-  __m512 vec_norm_a = _mm512_setzero_ps();
-  __m512 vec_norm_b = _mm512_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 16 <= dims; i += 16) {
-    __m512 vec_a = _mm512_loadu_ps(a + i);
-    __m512 vec_b = _mm512_loadu_ps(b + i);
-    vec_ab = _mm512_fmadd_ps(vec_a, vec_b, vec_ab);
-    vec_norm_a = _mm512_fmadd_ps(vec_a, vec_a, vec_norm_a);
-    vec_norm_b = _mm512_fmadd_ps(vec_b, vec_b, vec_norm_b);
-  }
-  double ab = _mm512_reduce_add_ps(vec_ab);
-  double norm_a = _mm512_reduce_add_ps(vec_norm_a);
-  double norm_b = _mm512_reduce_add_ps(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
-    return cosine_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-    norm_a += (double)av * av;
-    norm_b += (double)bv * bv;
-  }
-  const double denom = sqrt(norm_a * norm_b);
-  if (denom == 0.0) return std::numeric_limits<double>::infinity();
-  return 1.0 - ab / denom;
-}
-
-MY_ATTRIBUTE((target("avx512f")))
-static double dot_product_avx512(const char *a_raw, const char *b_raw,
-                                 uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m512 vec_ab = _mm512_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 16 <= dims; i += 16)
-    vec_ab =
-        _mm512_fmadd_ps(_mm512_loadu_ps(a + i), _mm512_loadu_ps(b + i), vec_ab);
-  double ab = _mm512_reduce_add_ps(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-  }
-  return ab;
-}
-
-MY_ATTRIBUTE((target("avx512f")))
-static double manhattan_avx512(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  __m512 sum = _mm512_setzero_ps();
-  uint32_t i = 0;
-  for (; i + 16 <= dims; i += 16) {
-    __m512 d = _mm512_sub_ps(_mm512_loadu_ps(a + i), _mm512_loadu_ps(b + i));
-    sum = _mm512_add_ps(sum, _mm512_abs_ps(d));
-  }
-  double result = _mm512_reduce_add_ps(sum);
-  if (!std::isfinite(result)) return manhattan_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    result += std::fabs((double)av - bv);
-  }
-  return result;
-}
-
-#endif  // VECTOR_DISTANCE_x86_64
-
-#ifdef VECTOR_DISTANCE_AARCH64
-
-#include <arm_neon.h>
-
-// Tier 1 — NEON (Advanced SIMD), 4 floats per iteration ---------------------
-// Fused multiply-add (vfmaq_f32 -> FMLA) is baseline ARMv8-A, so unlike the
-// x86 SSE4.2 tier no separate feature gate is needed; single rounding matches
-// the AVX2/AVX-512/SVE2 tiers.
-
-// Horizontal sum: reduce the 4 float lanes of a NEON register to one float
-// (NEON counterpart of the AVX-512 _mm512_reduce_add_ps intrinsic).
-// Same lambda issue applies on NEON; extract as a static attributed helper.
-MY_ATTRIBUTE((target("+simd")))
-static float hsum4(float32x4_t v) {
-  float32x2_t s = vadd_f32(vget_low_f32(v), vget_high_f32(v));
-  s = vpadd_f32(s, s);
-  return vget_lane_f32(s, 0);
-}
-
-MY_ATTRIBUTE((target("+simd")))
-static double euclidean_neon(const char *a_raw, const char *b_raw,
-                             uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  float32x4_t sum = vdupq_n_f32(0.0f);
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4) {
-    float32x4_t d = vsubq_f32(vld1q_f32(a + i), vld1q_f32(b + i));
-    sum = vfmaq_f32(sum, d, d);
-  }
-  double result = hsum4(sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    const double d = av - bv;
-    result += d * d;
-  }
-  return result;
-}
-
-MY_ATTRIBUTE((target("+simd")))
-static double cosine_neon(const char *a_raw, const char *b_raw, uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  float32x4_t vec_ab = vdupq_n_f32(0.0f);
-  float32x4_t vec_norm_a = vdupq_n_f32(0.0f);
-  float32x4_t vec_norm_b = vdupq_n_f32(0.0f);
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4) {
-    float32x4_t vec_a = vld1q_f32(a + i);
-    float32x4_t vec_b = vld1q_f32(b + i);
-    vec_ab = vfmaq_f32(vec_ab, vec_a, vec_b);
-    vec_norm_a = vfmaq_f32(vec_norm_a, vec_a, vec_a);
-    vec_norm_b = vfmaq_f32(vec_norm_b, vec_b, vec_b);
-  }
-  double ab = hsum4(vec_ab);
-  double norm_a = hsum4(vec_norm_a);
-  double norm_b = hsum4(vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
-    return cosine_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-    norm_a += (double)av * av;
-    norm_b += (double)bv * bv;
-  }
-  const double denom = sqrt(norm_a * norm_b);
-  if (denom == 0.0) return std::numeric_limits<double>::infinity();
-  return 1.0 - ab / denom;
-}
-
-MY_ATTRIBUTE((target("+simd")))
-static double dot_product_neon(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  float32x4_t vec_ab = vdupq_n_f32(0.0f);
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4)
-    vec_ab = vfmaq_f32(vec_ab, vld1q_f32(a + i), vld1q_f32(b + i));
-  double ab = hsum4(vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    ab += (double)av * bv;
-  }
-  return ab;
-}
-
-MY_ATTRIBUTE((target("+simd")))
-static double manhattan_neon(const char *a_raw, const char *b_raw,
-                             uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  float32x4_t sum = vdupq_n_f32(0.0f);
-  uint32_t i = 0;
-  for (; i + 4 <= dims; i += 4) {
-    float32x4_t d = vsubq_f32(vld1q_f32(a + i), vld1q_f32(b + i));
-    sum = vaddq_f32(sum, vabsq_f32(d));
-  }
-  double result = hsum4(sum);
-  if (!std::isfinite(result)) return manhattan_scalar(a_raw, b_raw, dims);
-  for (; i < dims; i++) {
-    float av, bv;
-    memcpy(&av, a_raw + i * sizeof(float), sizeof(float));
-    memcpy(&bv, b_raw + i * sizeof(float), sizeof(float));
-    result += std::fabs((double)av - bv);
-  }
-  return result;
-}
-
-#ifdef VECTOR_DISTANCE_HAS_SVE2
-
-#include <arm_sve.h>
-#include <sys/auxv.h>
-
-// HWCAP2_SVE2 may not be exposed by older libc headers; the bit is stable
-// in the Linux kernel UAPI (linux/include/uapi/asm-generic/hwcap.h).
-#ifndef HWCAP2_SVE2
-#define HWCAP2_SVE2 (1UL << 1)
-#endif
-
-// Tier 3 — SVE2, scalable (VLA) — predicated loads handle any alignment -----
-
-static bool cpu_has_sve2() {
-#if defined(__linux__)
-  return (getauxval(AT_HWCAP2) & HWCAP2_SVE2) != 0;
-#else
-  return false;
-#endif
-}
-
-MY_ATTRIBUTE((target("+sve2")))
-static double euclidean_sve2(const char *a_raw, const char *b_raw,
-                             uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  svfloat32_t sum = svdup_n_f32(0.0f);
-  uint32_t i = 0;
-  svbool_t pg = svwhilelt_b32_u32(i, dims);
-  while (svptest_first(svptrue_b32(), pg)) {
-    svfloat32_t vec_a = svld1_f32(pg, a + i);
-    svfloat32_t vec_b = svld1_f32(pg, b + i);
-    svfloat32_t d = svsub_f32_x(pg, vec_a, vec_b);
-    // Merging form keeps inactive lanes of sum unchanged on the tail.
-    sum = svmla_f32_m(pg, sum, d, d);
-    i += svcntw();
-    pg = svwhilelt_b32_u32(i, dims);
-  }
-  const double result = svaddv_f32(svptrue_b32(), sum);
-  if (!std::isfinite(result)) return euclidean_scalar(a_raw, b_raw, dims);
-  return result;
-}
-
-MY_ATTRIBUTE((target("+sve2")))
-static double cosine_sve2(const char *a_raw, const char *b_raw, uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  svfloat32_t vec_ab = svdup_n_f32(0.0f);
-  svfloat32_t vec_norm_a = svdup_n_f32(0.0f);
-  svfloat32_t vec_norm_b = svdup_n_f32(0.0f);
-  uint32_t i = 0;
-  svbool_t pg = svwhilelt_b32_u32(i, dims);
-  while (svptest_first(svptrue_b32(), pg)) {
-    svfloat32_t vec_a = svld1_f32(pg, a + i);
-    svfloat32_t vec_b = svld1_f32(pg, b + i);
-    vec_ab = svmla_f32_m(pg, vec_ab, vec_a, vec_b);
-    vec_norm_a = svmla_f32_m(pg, vec_norm_a, vec_a, vec_a);
-    vec_norm_b = svmla_f32_m(pg, vec_norm_b, vec_b, vec_b);
-    i += svcntw();
-    pg = svwhilelt_b32_u32(i, dims);
-  }
-  const double ab = svaddv_f32(svptrue_b32(), vec_ab);
-  const double norm_a = svaddv_f32(svptrue_b32(), vec_norm_a);
-  const double norm_b = svaddv_f32(svptrue_b32(), vec_norm_b);
-  if (!std::isfinite(ab) || !std::isfinite(norm_a) || !std::isfinite(norm_b))
-    return cosine_scalar(a_raw, b_raw, dims);
-  const double denom = sqrt(norm_a * norm_b);
-  if (denom == 0.0) return std::numeric_limits<double>::infinity();
-  return 1.0 - ab / denom;
-}
-
-MY_ATTRIBUTE((target("+sve2")))
-static double dot_product_sve2(const char *a_raw, const char *b_raw,
-                               uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  svfloat32_t vec_ab = svdup_n_f32(0.0f);
-  uint32_t i = 0;
-  svbool_t pg = svwhilelt_b32_u32(i, dims);
-  while (svptest_first(svptrue_b32(), pg)) {
-    svfloat32_t vec_a = svld1_f32(pg, a + i);
-    svfloat32_t vec_b = svld1_f32(pg, b + i);
-    vec_ab = svmla_f32_m(pg, vec_ab, vec_a, vec_b);
-    i += svcntw();
-    pg = svwhilelt_b32_u32(i, dims);
-  }
-  const double ab = svaddv_f32(svptrue_b32(), vec_ab);
-  if (!std::isfinite(ab)) return dot_product_scalar(a_raw, b_raw, dims);
-  return ab;
-}
-
-MY_ATTRIBUTE((target("+sve2")))
-static double manhattan_sve2(const char *a_raw, const char *b_raw,
-                             uint32_t dims) {
-  const float *a = reinterpret_cast<const float *>(a_raw);
-  const float *b = reinterpret_cast<const float *>(b_raw);
-  svfloat32_t sum = svdup_n_f32(0.0f);
-  uint32_t i = 0;
-  svbool_t pg = svwhilelt_b32_u32(i, dims);
-  while (svptest_first(svptrue_b32(), pg)) {
-    svfloat32_t vec_a = svld1_f32(pg, a + i);
-    svfloat32_t vec_b = svld1_f32(pg, b + i);
-    svfloat32_t d = svsub_f32_x(pg, vec_a, vec_b);
-    sum = svadd_f32_m(pg, sum, svabs_f32_x(pg, d));
-    i += svcntw();
-    pg = svwhilelt_b32_u32(i, dims);
-  }
-  const double result = svaddv_f32(svptrue_b32(), sum);
-  if (!std::isfinite(result)) return manhattan_scalar(a_raw, b_raw, dims);
-  return result;
-}
-
-#endif  // VECTOR_DISTANCE_HAS_SVE2
-
-#endif  // VECTOR_DISTANCE_AARCH64
-
-// Tier dispatch helpers — must follow all kernel definitions above.
-
-static void apply_wide_tier(VectorDistanceTier tier) {
-  g_wide_tier = tier;
-  switch (tier) {
-    case VectorDistanceTier::Scalar:
-      g_euclidean = euclidean_scalar;
-      g_cosine = cosine_scalar;
-      g_dot_product = dot_product_scalar;
-      g_manhattan = manhattan_scalar;
-      break;
-#ifdef VECTOR_DISTANCE_x86_64
-    case VectorDistanceTier::Sse42:
-      g_euclidean = euclidean_sse;
-      g_cosine = cosine_sse;
-      g_dot_product = dot_product_sse;
-      g_manhattan = manhattan_sse;
-      break;
-    case VectorDistanceTier::Avx2:
-      g_euclidean = euclidean_avx2;
-      g_cosine = cosine_avx2;
-      g_dot_product = dot_product_avx2;
-      g_manhattan = manhattan_avx2;
-      break;
-    case VectorDistanceTier::Avx512f:
-      g_euclidean = euclidean_avx512;
-      g_cosine = cosine_avx512;
-      g_dot_product = dot_product_avx512;
-      g_manhattan = manhattan_avx512;
-      break;
-#endif
-#ifdef VECTOR_DISTANCE_AARCH64
-    case VectorDistanceTier::Neon:
-      g_euclidean = euclidean_neon;
-      g_cosine = cosine_neon;
-      g_dot_product = dot_product_neon;
-      g_manhattan = manhattan_neon;
-      break;
-#ifdef VECTOR_DISTANCE_HAS_SVE2
-    case VectorDistanceTier::Sve2:
-      g_euclidean = euclidean_sve2;
-      g_cosine = cosine_sve2;
-      g_dot_product = dot_product_sve2;
-      g_manhattan = manhattan_sve2;
-      break;
-#endif
-#endif
-    default:
-      break;
-  }
-}
-
-static void apply_narrow_tier(VectorDistanceTier tier) {
-  g_narrow_tier = tier;
-  switch (tier) {
-    case VectorDistanceTier::Scalar:
-      g_euclidean_narrow = euclidean_scalar;
-      g_cosine_narrow = cosine_scalar;
-      g_dot_product_narrow = dot_product_scalar;
-      g_manhattan_narrow = manhattan_scalar;
-      break;
-#ifdef VECTOR_DISTANCE_x86_64
-    case VectorDistanceTier::Sse42:
-      g_euclidean_narrow = euclidean_sse;
-      g_cosine_narrow = cosine_sse;
-      g_dot_product_narrow = dot_product_sse;
-      g_manhattan_narrow = manhattan_sse;
-      break;
-#endif
-#ifdef VECTOR_DISTANCE_AARCH64
-    case VectorDistanceTier::Neon:
-      g_euclidean_narrow = euclidean_neon;
-      g_cosine_narrow = cosine_neon;
-      g_dot_product_narrow = dot_product_neon;
-      g_manhattan_narrow = manhattan_neon;
-      break;
-#ifdef VECTOR_DISTANCE_HAS_SVE2
-    case VectorDistanceTier::Sve2:
-      g_euclidean_narrow = euclidean_sve2;
-      g_cosine_narrow = cosine_sve2;
-      g_dot_product_narrow = dot_product_sve2;
-      g_manhattan_narrow = manhattan_sve2;
-      break;
-#endif
-#endif
-    default:
-      break;
-  }
-}
-
-// init_vector_distance_functions — promote g_* and g_*_narrow (see file header)
-
-void init_vector_distance_functions() {
-  apply_wide_tier(VectorDistanceTier::Scalar);
-  apply_narrow_tier(VectorDistanceTier::Scalar);
-#ifdef VECTOR_DISTANCE_x86_64
-  // x86_64: Tier 3 -> Tier 2 -> Tier 1 -> Tier 0 (wide)
-  if (cpu_has_avx512f()) {
-    apply_wide_tier(VectorDistanceTier::Avx512f);
-  } else if (cpu_has_avx2_fma()) {
-    apply_wide_tier(VectorDistanceTier::Avx2);
-  } else if (cpu_has_sse42()) {
-    apply_wide_tier(VectorDistanceTier::Sse42);
-  }
-  // Narrow path: SSE4.2 fills at dim ≥ 4; use it when available.
-  if (cpu_has_sse42()) {
-    apply_narrow_tier(VectorDistanceTier::Sse42);
-  }
-#endif
-#ifdef VECTOR_DISTANCE_AARCH64
-  // Tier 1 (NEON), optionally Tier 3 (SVE2)
-  apply_wide_tier(VectorDistanceTier::Neon);
-  apply_narrow_tier(VectorDistanceTier::Neon);
-#ifdef VECTOR_DISTANCE_HAS_SVE2
-  if (cpu_has_sve2()) {  // Tier 3 over Tier 1 (wide only)
-    apply_wide_tier(VectorDistanceTier::Sve2);
-  }
-#endif
-#endif
-}
+#define VECTOR_DISTANCE_APPLY(tier)     \
+  do {                                  \
+    g_euclidean = euclidean_##tier;     \
+    g_cosine = cosine_##tier;           \
+    g_dot_product = dot_product_##tier; \
+    g_manhattan = manhattan_##tier;     \
+  } while (0)
 
 bool vector_distance_tier_available(VectorDistanceTier tier) {
   switch (tier) {
@@ -970,19 +470,13 @@ bool vector_distance_tier_available(VectorDistanceTier tier) {
     case VectorDistanceTier::Sse42:
       return cpu_has_sse42();
     case VectorDistanceTier::Avx2:
-      return cpu_has_avx2_fma();
+      return cpu_has_avx2();
     case VectorDistanceTier::Avx512f:
       return cpu_has_avx512f();
 #endif
 #ifdef VECTOR_DISTANCE_AARCH64
     case VectorDistanceTier::Neon:
       return true;  // mandatory on ARMv8
-    case VectorDistanceTier::Sve2:
-#ifdef VECTOR_DISTANCE_HAS_SVE2
-      return cpu_has_sve2();
-#else
-      return false;
-#endif
 #endif
     default:
       return false;
@@ -990,48 +484,48 @@ bool vector_distance_tier_available(VectorDistanceTier tier) {
 }
 
 void init_vector_distance_functions_tier(VectorDistanceTier tier) {
+  // Unsupported tier on this build; callers must check
+  // vector_distance_tier_available() first.
+  assert(vector_distance_tier_available(tier));
   switch (tier) {
-    case VectorDistanceTier::Scalar:
-      apply_wide_tier(VectorDistanceTier::Scalar);
-      apply_narrow_tier(VectorDistanceTier::Scalar);
-      break;
 #ifdef VECTOR_DISTANCE_x86_64
     case VectorDistanceTier::Sse42:
-      apply_wide_tier(VectorDistanceTier::Sse42);
-      apply_narrow_tier(VectorDistanceTier::Sse42);
+      VECTOR_DISTANCE_APPLY(sse);
       break;
     case VectorDistanceTier::Avx2:
-      apply_wide_tier(VectorDistanceTier::Avx2);
-      if (cpu_has_sse42()) apply_narrow_tier(VectorDistanceTier::Sse42);
+      VECTOR_DISTANCE_APPLY(avx2);
       break;
     case VectorDistanceTier::Avx512f:
-      apply_wide_tier(VectorDistanceTier::Avx512f);
-      if (cpu_has_sse42()) apply_narrow_tier(VectorDistanceTier::Sse42);
+      VECTOR_DISTANCE_APPLY(avx512);
       break;
 #endif
 #ifdef VECTOR_DISTANCE_AARCH64
     case VectorDistanceTier::Neon:
-      apply_wide_tier(VectorDistanceTier::Neon);
-      apply_narrow_tier(VectorDistanceTier::Neon);
+      VECTOR_DISTANCE_APPLY(neon);
       break;
-#ifdef VECTOR_DISTANCE_HAS_SVE2
-    case VectorDistanceTier::Sve2:
-      apply_wide_tier(VectorDistanceTier::Sve2);
-      apply_narrow_tier(VectorDistanceTier::Neon);
-      break;
-#endif
 #endif
     default:
-      // Unsupported tier on this build; callers must check
-      // vector_distance_tier_available() first.
-      assert(false);
+      VECTOR_DISTANCE_APPLY(scalar);
+      tier = VectorDistanceTier::Scalar;
       break;
   }
+  g_tier = tier;
 }
 
-VectorDistanceTier vector_distance_wide_tier() { return g_wide_tier; }
+void init_vector_distance_functions() {
+  VectorDistanceTier tier = VectorDistanceTier::Scalar;
+  for (VectorDistanceTier t :
+       {VectorDistanceTier::Avx512f, VectorDistanceTier::Avx2,
+        VectorDistanceTier::Sse42, VectorDistanceTier::Neon}) {
+    if (vector_distance_tier_available(t)) {
+      tier = t;
+      break;
+    }
+  }
+  init_vector_distance_functions_tier(tier);
+}
 
-VectorDistanceTier vector_distance_narrow_tier() { return g_narrow_tier; }
+VectorDistanceTier vector_distance_tier() { return g_tier; }
 
 const char *vector_distance_tier_label(VectorDistanceTier tier) {
   switch (tier) {
@@ -1040,13 +534,11 @@ const char *vector_distance_tier_label(VectorDistanceTier tier) {
     case VectorDistanceTier::Sse42:
       return "SSE4.2";
     case VectorDistanceTier::Avx2:
-      return "AVX2 and FMA";
+      return "AVX2";
     case VectorDistanceTier::Avx512f:
       return "AVX-512F";
     case VectorDistanceTier::Neon:
       return "NEON";
-    case VectorDistanceTier::Sve2:
-      return "SVE2";
   }
   return "unknown";
 }
@@ -1054,23 +546,12 @@ const char *vector_distance_tier_label(VectorDistanceTier tier) {
 size_t vector_distance_dispatch_description(char *buf, size_t buf_len) {
   if (buf == nullptr || buf_len == 0) return 0;
 
-  const VectorDistanceTier wide = g_wide_tier;
-  const VectorDistanceTier narrow = g_narrow_tier;
   int n;
-  if (wide == narrow) {
-    if (wide == VectorDistanceTier::Scalar) {
-      n = snprintf(buf, buf_len, " software scalar.");
-    } else {
-      n = snprintf(buf, buf_len, " hardware accelerated %s.",
-                   vector_distance_tier_label(wide));
-    }
+  if (g_tier == VectorDistanceTier::Scalar) {
+    n = snprintf(buf, buf_len, " software scalar.");
   } else {
-    n = snprintf(
-        buf, buf_len,
-        " hardware accelerated %s "
-        "(dimensions >= %u) and %s (dimensions < %u).",
-        vector_distance_tier_label(wide), VECTOR_DISTANCE_WIDE_MIN_DIMS,
-        vector_distance_tier_label(narrow), VECTOR_DISTANCE_WIDE_MIN_DIMS);
+    n = snprintf(buf, buf_len, " hardware accelerated %s.",
+                 vector_distance_tier_label(g_tier));
   }
   if (n < 0) {
     buf[0] = '\0';
@@ -1080,27 +561,21 @@ size_t vector_distance_dispatch_description(char *buf, size_t buf_len) {
   return static_cast<size_t>(n);
 }
 
-// Public wrappers — dim-aware dispatch: narrow path for dims <
-// VECTOR_DISTANCE_WIDE_MIN_DIMS avoids sending small inputs to AVX-512/AVX2
-// where the SIMD loop cannot fire.
+// Public wrappers
 
 double vector_distance_euclidean_squared(const char *a, const char *b,
                                          uint32_t dims) {
-  return (dims < VECTOR_DISTANCE_WIDE_MIN_DIMS ? g_euclidean_narrow
-                                               : g_euclidean)(a, b, dims);
+  return g_euclidean(a, b, dims);
 }
 
 double vector_distance_cosine(const char *a, const char *b, uint32_t dims) {
-  return (dims < VECTOR_DISTANCE_WIDE_MIN_DIMS ? g_cosine_narrow : g_cosine)(
-      a, b, dims);
+  return g_cosine(a, b, dims);
 }
 
 double vector_distance_dot(const char *a, const char *b, uint32_t dims) {
-  return (dims < VECTOR_DISTANCE_WIDE_MIN_DIMS ? g_dot_product_narrow
-                                               : g_dot_product)(a, b, dims);
+  return g_dot_product(a, b, dims);
 }
 
 double vector_distance_manhattan(const char *a, const char *b, uint32_t dims) {
-  return (dims < VECTOR_DISTANCE_WIDE_MIN_DIMS ? g_manhattan_narrow
-                                               : g_manhattan)(a, b, dims);
+  return g_manhattan(a, b, dims);
 }

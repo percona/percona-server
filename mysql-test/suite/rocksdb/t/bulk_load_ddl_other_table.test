@@ -1,0 +1,37 @@
+--source include/have_rocksdb.inc
+
+#
+# An active bulk load refuses DDL only on the table it is loading.
+# DDL of other tables in the same session, in MyRocks or in another engine,
+# must keep working, because a mysqldump restore runs DROP TABLE IF EXISTS
+# and CREATE TABLE for the next table while the bulk load of the previous
+# table is still active.
+#
+
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE t3 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t4 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+
+SET rocksdb_bulk_load = 1;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo # DDL of the table being loaded is refused
+--error ER_LOCK_REFUSED_BY_ENGINE
+ALTER TABLE t1 ADD COLUMN c INT;
+--error ER_LOCK_REFUSED_BY_ENGINE
+DROP TABLE t1;
+
+--echo # DDL of another MyRocks table succeeds
+ALTER TABLE t2 ADD COLUMN c INT;
+DROP TABLE t2;
+CREATE TABLE t2 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+
+--echo # DDL of InnoDB tables succeeds
+ALTER TABLE t3 ADD COLUMN c INT;
+DROP TABLE t4;
+
+SET rocksdb_bulk_load = 0;
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1, t2, t3;

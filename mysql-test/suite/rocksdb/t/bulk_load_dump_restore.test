@@ -1,0 +1,42 @@
+--source include/have_rocksdb.inc
+
+#
+# A dump of MyRocks tables restores all rows.
+#
+# mysqldump writes a header that enables rocksdb_bulk_load for the restore
+# session. Bulk-loaded data of a table is committed when the session switches
+# to another table, when rocksdb_bulk_load is set to 0, or when the session
+# disconnects. The last table of a dump therefore depends on the footer
+# disabling bulk load or on the commit at disconnect.
+#
+# The first part restores into an empty schema. The second part restores over
+# the existing tables, so the restore session runs DROP TABLE IF EXISTS and
+# CREATE TABLE while its bulk load of the previous table is still active.
+#
+
+CREATE DATABASE dump_db;
+CREATE TABLE dump_db.t1 (pk INT PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+CREATE TABLE dump_db.t2 (pk INT PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+CREATE TABLE dump_db.t3 (pk INT PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+INSERT INTO dump_db.t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO dump_db.t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+INSERT INTO dump_db.t3 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+--let $dump_file = $MYSQLTEST_VARDIR/tmp/bulk_load_dump_restore.sql
+--exec $MYSQL_DUMP --skip-comments --databases dump_db > $dump_file
+
+--echo # Restore into an empty schema
+DROP DATABASE dump_db;
+--exec $MYSQL < $dump_file
+SELECT COUNT(*) FROM dump_db.t1;
+SELECT COUNT(*) FROM dump_db.t2;
+SELECT COUNT(*) FROM dump_db.t3;
+
+--echo # Restore over the existing tables
+--exec $MYSQL < $dump_file
+SELECT COUNT(*) FROM dump_db.t1;
+SELECT COUNT(*) FROM dump_db.t2;
+SELECT COUNT(*) FROM dump_db.t3;
+
+--remove_file $dump_file
+DROP DATABASE dump_db;

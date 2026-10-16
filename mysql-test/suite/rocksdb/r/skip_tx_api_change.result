@@ -1,0 +1,65 @@
+#
+# A session follows a change of rocksdb_master_skip_tx_api at its next
+# transaction, also after it used MyRocks with the other kind.
+#
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1);
+SET SESSION rocksdb_master_skip_tx_api = 1;
+BEGIN;
+INSERT INTO t VALUES (2);
+# a write batch
+SELECT SKIP_TRX_API FROM information_schema.rocksdb_trx WHERE THREAD_ID = CONNECTION_ID();
+SKIP_TRX_API
+1
+COMMIT;
+SET SESSION rocksdb_master_skip_tx_api = 0;
+BEGIN;
+INSERT INTO t VALUES (3);
+# the transaction API
+SELECT SKIP_TRX_API FROM information_schema.rocksdb_trx WHERE THREAD_ID = CONNECTION_ID();
+SKIP_TRX_API
+0
+COMMIT;
+SET SESSION rocksdb_master_skip_tx_api = 1;
+BEGIN;
+INSERT INTO t VALUES (4);
+# a write batch again
+SELECT SKIP_TRX_API FROM information_schema.rocksdb_trx WHERE THREAD_ID = CONNECTION_ID();
+SKIP_TRX_API
+1
+COMMIT;
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+id
+1
+2
+3
+4
+# The kind does not change inside an open read-only transaction
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION rocksdb_master_skip_tx_api = 1;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+Warnings:
+Warning	138	RocksDB: Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+INSERT INTO t VALUES (12);
+ERROR HY000: Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT.
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+id
+1
+2
+3
+4
+INSERT INTO t VALUES (13);
+ERROR HY000: Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT.
+COMMIT;
+INSERT INTO t VALUES (14);
+SELECT * FROM t;
+id
+1
+2
+3
+4
+14
+DROP TABLE t;

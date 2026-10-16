@@ -22,15 +22,22 @@ BEGIN;
 INSERT INTO t VALUES (2);
 COMMIT;
 SET SESSION rocksdb_master_skip_tx_api = 0;
---echo # A session keeps its kind of transaction, so use a new one
-connect (con1,localhost,root,,);
+--echo # The session uses the transaction API again after the change
 XA START 'tx';
 INSERT INTO t VALUES (3);
 XA END 'tx';
 XA PREPARE 'tx';
 XA COMMIT 'tx';
-disconnect con1;
-connection default;
+SELECT * FROM t;
+
+--echo # and a write batch again after the next change
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'sw';
+INSERT INTO t VALUES (4);
+XA END 'sw';
+--error ER_NOT_SUPPORTED_YET
+XA PREPARE 'sw';
+SET SESSION rocksdb_master_skip_tx_api = 0;
 SELECT * FROM t;
 
 --echo # An XA that only reads MyRocks tables loses nothing and can be prepared

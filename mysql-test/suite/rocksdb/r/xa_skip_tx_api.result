@@ -20,12 +20,24 @@ BEGIN;
 INSERT INTO t VALUES (2);
 COMMIT;
 SET SESSION rocksdb_master_skip_tx_api = 0;
-# A session keeps its kind of transaction, so use a new one
+# The session uses the transaction API again after the change
 XA START 'tx';
 INSERT INTO t VALUES (3);
 XA END 'tx';
 XA PREPARE 'tx';
 XA COMMIT 'tx';
+SELECT * FROM t;
+id
+2
+3
+# and a write batch again after the next change
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'sw';
+INSERT INTO t VALUES (4);
+XA END 'sw';
+XA PREPARE 'sw';
+ERROR 42000: This version of MySQL doesn't yet support 'XA PREPARE with rocksdb_master_skip_tx_api or rocksdb_rpl_skip_tx_api'
+SET SESSION rocksdb_master_skip_tx_api = 0;
 SELECT * FROM t;
 id
 2

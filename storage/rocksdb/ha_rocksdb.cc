@@ -5859,10 +5859,26 @@ class Rdb_perf_context_guard {
 
 static Rdb_transaction *get_or_create_tx(THD *const thd) {
   Rdb_transaction *tx = get_tx_from_thd(thd);
+  const bool use_write_batch =
+      (rpl_skip_tx_api_var && thd->rli_slave) ||
+      (THDVAR(thd, master_skip_tx_api) && !thd->rli_slave);
+  // Follow a change of rocksdb_master_skip_tx_api or rocksdb_rpl_skip_tx_api
+  // between transactions: the session keeps its transaction object, which
+  // would otherwise keep the kind it was created with. A write batch counts
+  // as started all the time, so check that it has no writes and no snapshot.
+  // A read-only transaction (START TRANSACTION WITH CONSISTENT SNAPSHOT) may
+  // have no snapshot between its statements, so check that it is not one.
+  if (tx != nullptr && tx->is_writebatch_trx() != use_write_batch &&
+      tx->m_n_mysql_tables_in_use == 0 && !tx->is_tx_read_only() &&
+      (tx->is_writebatch_trx() ? !tx->has_modifications() && !tx->has_snapshot()
+                               : !tx->is_tx_started())) {
+    delete tx;
+    set_tx_on_thd(thd, nullptr);
+    tx = nullptr;
+  }
   // TODO: this is called too many times.. O(#rows)
   if (tx == nullptr) {
-    if ((rpl_skip_tx_api_var && thd->rli_slave) ||
-        (THDVAR(thd, master_skip_tx_api) && !thd->rli_slave)) {
+    if (use_write_batch) {
       tx = new Rdb_writebatch_impl(thd);
     } else {
       tx = new Rdb_transaction_impl(thd);

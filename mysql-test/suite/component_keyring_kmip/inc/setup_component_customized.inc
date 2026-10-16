@@ -26,7 +26,12 @@
   $uuid =~ s/-//g;
   $uuid = substr($uuid, 0, 16);
   my $keyring_path = $vardir . '/keyring_kmip_customized_' . $uuid;
-  my $config_content = '{ "path": "' . $keyring_path . '", "server_addr": "127.0.0.1", "server_port": "5696", "client_ca": "/tmp/certs/mysql-client-cert.pem", "client_key": "/tmp/certs/mysql-client-key.pem", "server_ca": "/tmp/certs/vault-kmip-ca.pem", "object_group": "test-object-group-customized-' . $uuid . '" }';
+  my $server_addr = $ENV{'KMIP_ADDR'} || '127.0.0.1';
+  my $server_port = $ENV{'KMIP_PORT'} || '5696';
+  my $client_ca = $ENV{'KMIP_CLIENT_CA'} || '/tmp/certs/mysql-client-cert.pem';
+  my $client_key = $ENV{'KMIP_CLIENT_KEY'} || '/tmp/certs/mysql-client-key.pem';
+  my $server_ca = $ENV{'KMIP_SERVER_CA'} || '/tmp/certs/vault-kmip-ca.pem';
+  my $config_content = '{ "path": "' . $keyring_path . '", "server_addr": "' . $server_addr . '", "server_port": "' . $server_port . '", "client_ca": "' . $client_ca . '", "client_key": "' . $client_key . '", "server_ca": "' . $server_ca . '", "object_group": "test-object-group-customized-' . $uuid . '" }';
   open my $cfh, '>', $config_file or die "Cannot write $config_file: $!";
   print $cfh $config_content or die "Cannot write $config_file: $!";
   close $cfh or die "Cannot close $config_file: $!";

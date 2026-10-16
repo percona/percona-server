@@ -18,11 +18,11 @@ License	GPL
 Implementation_name	component_keyring_kmip
 Version	1.0
 Component_status	Active
-Server_addr	127.0.0.1
-Server_port	5696
-Client_ca	/tmp/certs/mysql-client-cert.pem
-Client_key	/tmp/certs/mysql-client-key.pem
-Server_ca	/tmp/certs/vault-kmip-ca.pem
+Server_addr	KMIP_ADDR
+Server_port	KMIP_PORT
+Client_ca	KMIP_CLIENT_CA
+Client_key	KMIP_CLIENT_KEY
+Server_ca	KMIP_SERVER_CA
 Object_group	test-object-group
 Max_objects	65535
 Kmip_timeout_ms	5000

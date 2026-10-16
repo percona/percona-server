@@ -148,16 +148,6 @@ eval SELECT DISTANCE(TO_VECTOR("[0, 1, 0]"), TO_VECTOR("[-1, 0, -1]"), "$metric"
 eval SELECT DISTANCE(TO_VECTOR("[1, 0, 3, 0, 5]"), TO_VECTOR("[0, 2, 0, 4, 0]"), "$metric");
 --echo # Anti-parallel vectors.
 eval SELECT DISTANCE(TO_VECTOR("[-1, -1]"), TO_VECTOR("[2, 2]"), "$metric");
-if ($metric != DOT)
-{
-  if ($metric != MANHATTAN)
-  {
-    if ($metric != COSINE)
-    {
-      --error ER_DATA_OUT_OF_RANGE
-    }
-  }
-}
 eval SELECT DISTANCE(TO_VECTOR("[-2e38, 1]"), TO_VECTOR("[2e38, -1]"), "$metric");
 --echo # Distance from origin.
 eval SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[1, 0]"), "$metric");
@@ -173,12 +163,38 @@ eval SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[0, 0]"), "$metric");
 eval SELECT DISTANCE(TO_VECTOR("[0]"), TO_VECTOR("[0]"), "$metric");
 --echo # Large values near float32 max.
 eval SELECT DISTANCE(TO_VECTOR("[0, 0]"), TO_VECTOR("[2e38, 0]"), "$metric");
---echo # Same value in a 16-dim vector: exercises the wide-tier SIMD overflow
---echo # fallback (dims >= 16 dispatches to the wide kernel; squaring 2e38 in
---echo # float32 overflows to +Inf, but the isfinite check falls back to scalar).
+--echo # Same value in a 16-dim vector (one full 16-lane block): squaring 2e38
+--echo # overflows float32, so the sums must be done in double.
 eval SELECT DISTANCE(TO_VECTOR("[2e38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
                      TO_VECTOR("[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"),
                      "$metric");
+--echo # Element difference exceeds FLT_MAX (2.5e38 - (-2.5e38) = 5e38): the
+--echo # subtraction must be done in double, not float32, for every metric.
+eval SELECT DISTANCE(STRING_TO_VECTOR('[2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38,2.5e38]'),
+                     STRING_TO_VECTOR('[-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38,-2.5e38]'),
+                     "$metric");
+--echo # Same overflow in the last element only.
+eval SELECT DISTANCE(TO_VECTOR("[1, 1, 1, 1, 2.5e38]"),
+                     TO_VECTOR("[0, 0, 0, 0, -2.5e38]"), "$metric");
+--echo # Tiny values against their negation: 1e-23 * 1e-23 is 0 in float32, so
+--echo # the sums must be done in double.
+eval SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]"),
+                     TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]"), "$metric");
+--echo # 20 dims: only the first 16 elements hold the tiny values.
+eval SELECT DISTANCE(TO_VECTOR("[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0,0]"),
+                     TO_VECTOR("[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,0,0,0,0]"), "$metric");
+--echo # 16383 dims (the maximum), elements near 1e-21: products are subnormal
+--echo # in float32, so they are recomputed in double (Manhattan has no products
+--echo # and stays in float32).  Every SIMD width sums in the same order, so the
+--echo # result is the same on every CPU.
+eval SELECT DISTANCE(TO_VECTOR(CONCAT('[', REPEAT('1e-21,', 16382), '1e-21]')),
+                     TO_VECTOR(CONCAT('[', REPEAT('2e-21,', 16382), '2e-21]')),
+                     "$metric");
+--echo # Subnormal float32 inputs (TO_VECTOR rejects them, binary arguments do
+--echo # not): 16 x 1e-40 against 16 x -1e-40.  Products flush to zero in
+--echo # float32, so they are recomputed in double.
+eval SELECT DISTANCE(X'C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100C2160100',
+                     X'C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180C2160180', "$metric");
 --echo # Symmetry: DISTANCE(a, b) = DISTANCE(b, a).
 eval SELECT DISTANCE(TO_VECTOR("[1, 2, 3]"), TO_VECTOR("[4, 5, 6]"), "$metric") =
           DISTANCE(TO_VECTOR("[4, 5, 6]"), TO_VECTOR("[1, 2, 3]"), "$metric");
@@ -190,15 +206,12 @@ eval SELECT DISTANCE(X'0000C07F', X'00000000', "$metric");
 eval SELECT DISTANCE(X'0000807F', X'00000000', "$metric");
 --error ER_DATA_OUT_OF_RANGE
 eval SELECT DISTANCE(X'000080FF', X'00000000', "$metric");
---echo # Wide-tier SIMD path coverage (dims >= 16 dispatches to the wide kernel).
---echo # Integer-valued diffs keep float32 partial sums exact, so results are
---echo # identical across Scalar / SSE4.2 / NEON / AVX2 / AVX-512 / SVE2.
---echo # 16-dim: fills one AVX-512 register / two AVX2 / four SSE4.2 -- no scalar tail.
+--echo # Lane layout coverage: elements are summed in 16-lane blocks plus a tail.
+--echo # 16-dim: one block, no tail.
 eval SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
                      TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
                      "$metric");
---echo # 20-dim: SSE4.2 5x4 (no tail); AVX2 2x8 + 4-elem scalar tail;
---echo #         AVX-512 1x16 + 4-elem scalar tail.
+--echo # 20-dim: one block and a 4-element tail.
 eval SELECT DISTANCE(TO_VECTOR("[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]"),
                      TO_VECTOR("[0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1]"),
                      "$metric");
@@ -247,6 +260,39 @@ CREATE TABLE tt_cosine_dml (d DOUBLE);
 INSERT INTO tt_cosine_dml SELECT DISTANCE(TO_VECTOR('[0]'), TO_VECTOR('[0]'), 'COSINE');
 SELECT d FROM tt_cosine_dml;
 DROP TABLE tt_cosine_dml;
+
+--echo # Float32 underflow must not be mistaken for a zero vector.  Squaring
+--echo # 1e-23 in float32 gives 0, which collapsed float32 norm accumulators and
+--echo # returned NULL (the zero-vector sentinel) for non-zero vectors, only at
+--echo # some dims, so the result depended on the CPU.
+--echo # A vector against itself is distance 0.
+SELECT DISTANCE(
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  'COSINE') AS tiny_self;
+--echo # Opposite direction is distance 2.
+SELECT DISTANCE(
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  TO_VECTOR('[-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23,-1e-23]'),
+  'COSINE') AS tiny_anti;
+--echo # A genuine 16-dim zero vector is still NULL: the sentinel is intact.
+SELECT DISTANCE(
+  TO_VECTOR('[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]'),
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23]'),
+  'COSINE') AS tiny_vs_zero;
+--echo # 20 dims: tiny values in the 16-element block and in the tail.  Expected
+--echo # 1 - 1/sqrt(17).
+SELECT DISTANCE(
+  TO_VECTOR('[1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,1e-23,0,0,0]'),
+  TO_VECTOR('[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1e-23,0,0,0]'),
+  'COSINE') AS tiny_head_tail;
+--echo # Partial underflow: float32 rounds (5e-23)^2, (1e-22)^2 and their
+--echo # product to 2, 7 and 4 subnormal steps, which gave a negative distance
+--echo # (-0.069) for parallel vectors.  Expected 0.
+SELECT DISTANCE(
+  TO_VECTOR('[5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23,5e-23]'),
+  TO_VECTOR('[1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22,1e-22]'),
+  'COSINE') AS tiny_parallel;
 }
 
 DROP TABLE t_metric_name;

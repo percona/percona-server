@@ -33,14 +33,14 @@
     are skipped.
   - On an AVX-512 capable host: all four x86 tiers run, so inferior-tier
     throughput is also measured.
-  - On aarch64 without a SVE2 build: Neon runs, Sve2 is skipped.
 
-  Sizes benchmarked: 4, 8, 32, 128, 1024, 16383 (float32 elements).
+  Sizes benchmarked: 4, 8, 32, 128, common embedding sizes (384, 768, 1024,
+  1536, 2048, 3072, 4096) and the maximum, 16383 (float32 elements).
   Metrics: Euclidean, EuclideanSquared, Cosine, DotProduct, Manhattan.
 
   Tiers registered per platform:
     x86_64  — Scalar, Sse42, Avx2, Avx512f
-    aarch64 — Scalar, Neon, Sve2
+    aarch64 — Scalar, Neon
     other   — Scalar only
 */
 
@@ -88,8 +88,7 @@ static void bench_impl(size_t num_iterations) {
                   "(build with -DWITH_DEBUG=OFF for meaningful results)";
 #endif
   if (!vector_distance_tier_available(kTier)) {
-    const char *names[] = {"Scalar",  "Sse42", "Avx2",
-                           "Avx512f", "Neon",  "Sve2"};
+    const char *names[] = {"Scalar", "Sse42", "Avx2", "Avx512f", "Neon"};
     const int idx = static_cast<int>(kTier);
     GTEST_SKIP() << names[idx] << " not available on this CPU/build";
   }
@@ -126,8 +125,12 @@ static void bench_impl(size_t num_iterations) {
 // Macro machinery
 // ---------------------------------------------------------------------------
 
-// Expands M(size) for each of the six benchmark sizes.
-#define FOR_EACH_SIZE(M) M(4) M(8) M(32) M(128) M(1024) M(16383)
+// Expands M(size) for each benchmark size.
+// clang-format off
+#define FOR_EACH_SIZE(M)                                                    \
+  M(4) M(8) M(32) M(128) M(384) M(768) M(1024) M(1536) M(2048) M(3072)      \
+  M(4096) M(16383)
+// clang-format on
 
 // Registers one Euclidean (L2 with sqrt) benchmark for a given tier + size.
 #define BENCH_EUCLIDEAN_ONE(tier_enum, tier_label, dims)                   \
@@ -158,7 +161,6 @@ static void bench_impl(size_t num_iterations) {
 #define BENCH_EUCLIDEAN_Avx512f(dims) \
   BENCH_EUCLIDEAN_ONE(Avx512f, Avx512f, dims)
 #define BENCH_EUCLIDEAN_Neon(dims) BENCH_EUCLIDEAN_ONE(Neon, Neon, dims)
-#define BENCH_EUCLIDEAN_Sve2(dims) BENCH_EUCLIDEAN_ONE(Sve2, Sve2, dims)
 
 #define BENCH_EUCLIDEAN_SQUARED_Scalar(dims) \
   BENCH_EUCLIDEAN_SQUARED_ONE(Scalar, Scalar, dims)
@@ -170,15 +172,12 @@ static void bench_impl(size_t num_iterations) {
   BENCH_EUCLIDEAN_SQUARED_ONE(Avx512f, Avx512f, dims)
 #define BENCH_EUCLIDEAN_SQUARED_Neon(dims) \
   BENCH_EUCLIDEAN_SQUARED_ONE(Neon, Neon, dims)
-#define BENCH_EUCLIDEAN_SQUARED_Sve2(dims) \
-  BENCH_EUCLIDEAN_SQUARED_ONE(Sve2, Sve2, dims)
 
 #define BENCH_COSINE_Scalar(dims) BENCH_COSINE_ONE(Scalar, Scalar, dims)
 #define BENCH_COSINE_Sse42(dims) BENCH_COSINE_ONE(Sse42, Sse42, dims)
 #define BENCH_COSINE_Avx2(dims) BENCH_COSINE_ONE(Avx2, Avx2, dims)
 #define BENCH_COSINE_Avx512f(dims) BENCH_COSINE_ONE(Avx512f, Avx512f, dims)
 #define BENCH_COSINE_Neon(dims) BENCH_COSINE_ONE(Neon, Neon, dims)
-#define BENCH_COSINE_Sve2(dims) BENCH_COSINE_ONE(Sve2, Sve2, dims)
 
 // Registers one DotProduct benchmark function for a given tier + size.
 #define BENCH_DOT_PRODUCT_ONE(tier_enum, tier_label, dims)                  \
@@ -194,7 +193,6 @@ static void bench_impl(size_t num_iterations) {
 #define BENCH_DOT_PRODUCT_Avx512f(dims) \
   BENCH_DOT_PRODUCT_ONE(Avx512f, Avx512f, dims)
 #define BENCH_DOT_PRODUCT_Neon(dims) BENCH_DOT_PRODUCT_ONE(Neon, Neon, dims)
-#define BENCH_DOT_PRODUCT_Sve2(dims) BENCH_DOT_PRODUCT_ONE(Sve2, Sve2, dims)
 
 // Registers one Manhattan benchmark function for a given tier + size.
 #define BENCH_MANHATTAN_ONE(tier_enum, tier_label, dims)                   \
@@ -209,7 +207,6 @@ static void bench_impl(size_t num_iterations) {
 #define BENCH_MANHATTAN_Avx512f(dims) \
   BENCH_MANHATTAN_ONE(Avx512f, Avx512f, dims)
 #define BENCH_MANHATTAN_Neon(dims) BENCH_MANHATTAN_ONE(Neon, Neon, dims)
-#define BENCH_MANHATTAN_Sve2(dims) BENCH_MANHATTAN_ONE(Sve2, Sve2, dims)
 
 // ---------------------------------------------------------------------------
 // Tier registrations — all tiers are always declared; unavailable ones skip.
@@ -254,46 +251,35 @@ FOR_EACH_SIZE(BENCH_COSINE_Neon)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Neon)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Neon)
 
-FOR_EACH_SIZE(BENCH_EUCLIDEAN_Sve2)
-FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Sve2)
-FOR_EACH_SIZE(BENCH_COSINE_Sve2)
-FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Sve2)
-FOR_EACH_SIZE(BENCH_MANHATTAN_Sve2)
-
 #endif  // aarch64
 
 // ---------------------------------------------------------------------------
 // Cleanup macros
 // ---------------------------------------------------------------------------
 
-#undef BENCH_MANHATTAN_Sve2
 #undef BENCH_MANHATTAN_Neon
 #undef BENCH_MANHATTAN_Avx512f
 #undef BENCH_MANHATTAN_Avx2
 #undef BENCH_MANHATTAN_Sse42
 #undef BENCH_MANHATTAN_Scalar
 #undef BENCH_MANHATTAN_ONE
-#undef BENCH_DOT_PRODUCT_Sve2
 #undef BENCH_DOT_PRODUCT_Neon
 #undef BENCH_DOT_PRODUCT_Avx512f
 #undef BENCH_DOT_PRODUCT_Avx2
 #undef BENCH_DOT_PRODUCT_Sse42
 #undef BENCH_DOT_PRODUCT_Scalar
 #undef BENCH_DOT_PRODUCT_ONE
-#undef BENCH_COSINE_Sve2
 #undef BENCH_COSINE_Neon
 #undef BENCH_COSINE_Avx512f
 #undef BENCH_COSINE_Avx2
 #undef BENCH_COSINE_Sse42
 #undef BENCH_COSINE_Scalar
-#undef BENCH_EUCLIDEAN_SQUARED_Sve2
 #undef BENCH_EUCLIDEAN_SQUARED_Neon
 #undef BENCH_EUCLIDEAN_SQUARED_Avx512f
 #undef BENCH_EUCLIDEAN_SQUARED_Avx2
 #undef BENCH_EUCLIDEAN_SQUARED_Sse42
 #undef BENCH_EUCLIDEAN_SQUARED_Scalar
 #undef BENCH_EUCLIDEAN_SQUARED_ONE
-#undef BENCH_EUCLIDEAN_Sve2
 #undef BENCH_EUCLIDEAN_Neon
 #undef BENCH_EUCLIDEAN_Avx512f
 #undef BENCH_EUCLIDEAN_Avx2

@@ -1,0 +1,40 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY k(v)) ENGINE=RocksDB;
+--disable_query_log
+let $i=1;
+while ($i <= 1000) {
+  eval INSERT INTO t VALUES ($i, $i);
+  inc $i;
+}
+--enable_query_log
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+ANALYZE TABLE t;
+--connect (snapshot,localhost,root,,test)
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT v FROM t WHERE id=101;
+--connection default
+# Retain many old versions of one key within an otherwise inexpensive range.
+--disable_query_log
+let $i=1;
+while ($i <= 30) {
+  UPDATE t SET v=1001 WHERE id=101;
+  UPDATE t SET v=101 WHERE id=101;
+  inc $i;
+}
+--enable_query_log
+SET SESSION debug='+d,myrocks_zero_records_in_range_estimate';
+SET SESSION rocksdb_records_in_range_dive_threshold=100;
+SET SESSION rocksdb_force_index_records_in_range=0;
+--let $rows = query_get_value(EXPLAIN SELECT * FROM t WHERE v >= 100 AND v < 120, rows, 1)
+--let $assert_text = A hot key must not exhaust the per-dive skip budget
+--let $assert_cond = $rows = 20
+--source include/assert.inc
+--echo # The range estimate is 20 despite retained versions of one key.
+SET SESSION debug='-d,myrocks_zero_records_in_range_estimate';
+--connection snapshot
+ROLLBACK;
+--disconnect snapshot
+--connection default
+DROP TABLE t;

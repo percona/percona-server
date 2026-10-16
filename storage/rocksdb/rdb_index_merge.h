@@ -164,6 +164,8 @@ class Rdb_index_merge {
 
  private:
   const char *m_tmpfile_path;
+  const std::string m_table_name;
+  const std::string m_index_name;
   const ulonglong m_merge_buf_size;
   const ulonglong m_merge_combine_read_size;
   const ulonglong m_merge_tmp_file_removal_delay;
@@ -206,7 +208,8 @@ class Rdb_index_merge {
       MY_ATTRIBUTE((__nonnull__));
 
  public:
-  Rdb_index_merge(const char *const tmpfile_path,
+  Rdb_index_merge(const std::string table_name, const std::string index_name,
+                  const char *const tmpfile_path,
                   const ulonglong merge_buf_size,
                   const ulonglong merge_combine_read_size,
                   const ulonglong merge_tmp_file_removal_delay,
@@ -237,6 +240,10 @@ class Rdb_index_merge {
   void merge_reset();
 
   rocksdb::ColumnFamilyHandle *get_cf() const { return m_cf_handle; }
+
+  [[nodiscard]] std::string get_table_name() const { return m_table_name; }
+
+  [[nodiscard]] std::string get_index_name() const { return m_index_name; }
 };
 
 }  // namespace myrocks

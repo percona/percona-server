@@ -226,26 +226,6 @@ void Rdb_io_perf::end_and_record(const uint32_t perf_context_level) {
     harvest_diffs(m_atomic_counters);
   }
   harvest_diffs(&rdb_global_perf_counters);
-
-  if (m_shared_io_perf_read &&
-      (rocksdb::get_perf_context()->block_read_byte != 0 ||
-       rocksdb::get_perf_context()->block_read_count != 0 ||
-       rocksdb::get_perf_context()->block_read_time != 0)) {
-    my_io_perf_t io_perf_read;
-
-    io_perf_read.init();
-    io_perf_read.bytes = rocksdb::get_perf_context()->block_read_byte;
-    io_perf_read.requests = rocksdb::get_perf_context()->block_read_count;
-
-    /*
-      Rocksdb does not distinguish between I/O service and wait time, so just
-      use svc time.
-     */
-    io_perf_read.svc_time_max = io_perf_read.svc_time =
-        rocksdb::get_perf_context()->block_read_time;
-
-    m_shared_io_perf_read->sum(io_perf_read);
-  }
 }
 
 }  // namespace myrocks

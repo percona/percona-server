@@ -1,0 +1,57 @@
+--source include/have_debug.inc
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # A column family creation that fails after RocksDB has already created
+--echo # the column family (for example while persisting the OPTIONS file)
+--echo # must be reported as an error and rolled back.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Error creating column family, Status Code: 5");
+--enable_query_log
+
+set @old_debug = @@global.debug;
+set @@global.debug = '+d,rocksdb_create_cf_persist_options_failure';
+
+--error ER_GET_ERRMSG
+create table t1 (id int, primary key (id) comment 'cfname=cf_create_failure') engine=rocksdb;
+show tables;
+select distinct cf_name from information_schema.rocksdb_cfstats where cf_name = 'cf_create_failure';
+
+set @@global.debug = @old_debug;
+
+--echo # The partially created column family was dropped again, so creating it
+--echo # once the failure is gone succeeds instead of reporting that it exists
+create table t1 (id int, primary key (id) comment 'cfname=cf_create_failure') engine=rocksdb;
+insert into t1 values (1), (2);
+select distinct cf_name from information_schema.rocksdb_cfstats where cf_name = 'cf_create_failure';
+select * from t1;
+drop table t1;
+
+--echo # If rollback also fails, retain the live CF handle for retry
+--disable_query_log
+CALL mtr.add_suppression("Error dropping partially created column family");
+--enable_query_log
+SET GLOBAL debug='+d,rocksdb_create_cf_persist_options_failure,rocksdb_create_cf_rollback_failure';
+--error ER_GET_ERRMSG
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_failure') ENGINE=ROCKSDB;
+SET GLOBAL debug=@old_debug;
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_failure') ENGINE=ROCKSDB;
+INSERT INTO retry_t VALUES (1),(2);
+SELECT * FROM retry_t ORDER BY id;
+DROP TABLE retry_t;
+
+--echo # If the rollback drop fails only while persisting the OPTIONS file, the
+--echo # CF is already dropped: don't register it, create it again on retry
+SET GLOBAL debug='+d,rocksdb_create_cf_persist_options_failure,rocksdb_create_cf_rollback_options_failure';
+--error ER_GET_ERRMSG
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_options_failure') ENGINE=ROCKSDB;
+SET GLOBAL debug=@old_debug;
+SELECT DISTINCT cf_name FROM information_schema.rocksdb_cfstats WHERE cf_name = 'cf_rollback_options_failure';
+CREATE TABLE retry_t (id INT, PRIMARY KEY(id) COMMENT 'cfname=cf_rollback_options_failure') ENGINE=ROCKSDB;
+INSERT INTO retry_t VALUES (1),(2);
+SELECT * FROM retry_t ORDER BY id;
+--source include/restart_mysqld.inc
+SELECT * FROM retry_t ORDER BY id;
+DROP TABLE retry_t;

@@ -1,0 +1,41 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+# rocksdb_read_free_rpl_tables is matched against the table name as written in
+# SQL (t-x), not against its filename-encoded form (t@002dx).
+
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE `t-x` (id INT PRIMARY KEY, value INT) ENGINE=RocksDB;
+INSERT INTO `t-x` VALUES (1,1), (2,2);
+--source include/rpl/sync_to_replica.inc
+
+SET @saved_rfr = @@global.rocksdb_read_free_rpl;
+SET @saved_rfr_tables = @@global.rocksdb_read_free_rpl_tables;
+SET GLOBAL rocksdb_read_free_rpl = PK_SK;
+
+--let $i = 1
+while ($i <= 3)
+{
+  --source include/rpl/connection_replica.inc
+  if ($i == 1) { SET GLOBAL rocksdb_read_free_rpl_tables = 't-x'; }
+  if ($i == 2) { SET GLOBAL rocksdb_read_free_rpl_tables = 't@002dx'; }
+  if ($i == 3) { SET GLOBAL rocksdb_read_free_rpl_tables = 't[^-]*'; }
+  SELECT @@global.rocksdb_read_free_rpl_tables AS pattern;
+  SELECT variable_value INTO @get_for_update FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+  --source include/rpl/connection_source.inc
+  UPDATE `t-x` SET value = value + 1 WHERE id = 1;
+  --source include/rpl/sync_to_replica.inc
+  SELECT IF(variable_value - @get_for_update > 0, 'lookup', 'read free') AS rpl FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+  --inc $i
+}
+SELECT * FROM `t-x`;
+
+SET GLOBAL rocksdb_read_free_rpl = @saved_rfr;
+SET GLOBAL rocksdb_read_free_rpl_tables = @saved_rfr_tables;
+
+--source include/rpl/connection_source.inc
+DROP TABLE `t-x`;
+--source include/rpl/deinit.inc

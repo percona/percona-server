@@ -1,0 +1,61 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # XA PREPARE of a write batch (rocksdb_master_skip_tx_api) must fail
+--echo # instead of losing the writes.
+--echo #
+
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'sk';
+INSERT INTO t VALUES (1);
+XA END 'sk';
+--error ER_NOT_SUPPORTED_YET
+XA PREPARE 'sk';
+XA RECOVER;
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+
+--echo # Plain transactions and XA with the transaction API still work
+SET SESSION rocksdb_master_skip_tx_api = 1;
+BEGIN;
+INSERT INTO t VALUES (2);
+COMMIT;
+SET SESSION rocksdb_master_skip_tx_api = 0;
+--echo # The session uses the transaction API again after the change
+XA START 'tx';
+INSERT INTO t VALUES (3);
+XA END 'tx';
+XA PREPARE 'tx';
+XA COMMIT 'tx';
+SELECT * FROM t;
+
+--echo # and a write batch again after the next change
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'sw';
+INSERT INTO t VALUES (4);
+XA END 'sw';
+--error ER_NOT_SUPPORTED_YET
+XA PREPARE 'sw';
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+
+--echo # An XA that only reads MyRocks tables loses nothing and can be prepared
+CREATE TABLE ti (id INT PRIMARY KEY) ENGINE=InnoDB;
+connect (con2,localhost,root,,);
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'ro';
+SELECT * FROM t;
+INSERT INTO ti VALUES (1);
+XA END 'ro';
+XA PREPARE 'ro';
+XA COMMIT 'ro';
+XA START 'ro2';
+SELECT * FROM t;
+XA END 'ro2';
+XA PREPARE 'ro2';
+XA ROLLBACK 'ro2';
+disconnect con2;
+connection default;
+SELECT * FROM ti;
+DROP TABLE t, ti;

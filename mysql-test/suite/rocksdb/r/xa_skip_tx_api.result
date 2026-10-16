@@ -1,0 +1,68 @@
+#
+# XA PREPARE of a write batch (rocksdb_master_skip_tx_api) must fail
+# instead of losing the writes.
+#
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'sk';
+INSERT INTO t VALUES (1);
+XA END 'sk';
+XA PREPARE 'sk';
+ERROR 42000: This version of MySQL doesn't yet support 'XA PREPARE with rocksdb_master_skip_tx_api or rocksdb_rpl_skip_tx_api'
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+id
+# Plain transactions and XA with the transaction API still work
+SET SESSION rocksdb_master_skip_tx_api = 1;
+BEGIN;
+INSERT INTO t VALUES (2);
+COMMIT;
+SET SESSION rocksdb_master_skip_tx_api = 0;
+# The session uses the transaction API again after the change
+XA START 'tx';
+INSERT INTO t VALUES (3);
+XA END 'tx';
+XA PREPARE 'tx';
+XA COMMIT 'tx';
+SELECT * FROM t;
+id
+2
+3
+# and a write batch again after the next change
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'sw';
+INSERT INTO t VALUES (4);
+XA END 'sw';
+XA PREPARE 'sw';
+ERROR 42000: This version of MySQL doesn't yet support 'XA PREPARE with rocksdb_master_skip_tx_api or rocksdb_rpl_skip_tx_api'
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+id
+2
+3
+# An XA that only reads MyRocks tables loses nothing and can be prepared
+CREATE TABLE ti (id INT PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION rocksdb_master_skip_tx_api = 1;
+XA START 'ro';
+SELECT * FROM t;
+id
+2
+3
+INSERT INTO ti VALUES (1);
+XA END 'ro';
+XA PREPARE 'ro';
+XA COMMIT 'ro';
+XA START 'ro2';
+SELECT * FROM t;
+id
+2
+3
+XA END 'ro2';
+XA PREPARE 'ro2';
+XA ROLLBACK 'ro2';
+SELECT * FROM ti;
+id
+1
+DROP TABLE t, ti;

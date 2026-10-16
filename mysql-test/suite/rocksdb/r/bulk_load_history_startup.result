@@ -1,0 +1,30 @@
+SELECT @@global.rocksdb_bulk_load_history_size;
+@@global.rocksdb_bulk_load_history_size
+0
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+DROP TABLE t;
+SELECT COUNT(*) FROM information_schema.rocksdb_bulk_load_history;
+COUNT(*)
+0
+# restart: --rocksdb-bulk-load-history-size=2
+SELECT @@global.rocksdb_bulk_load_history_size;
+@@global.rocksdb_bulk_load_history_size
+2
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (1);
+SET rocksdb_bulk_load=OFF;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (2);
+SET rocksdb_bulk_load=OFF;
+SET rocksdb_bulk_load=ON;
+INSERT INTO t VALUES (3);
+SET rocksdb_bulk_load=OFF;
+SELECT COUNT(*) FROM information_schema.rocksdb_bulk_load_history;
+COUNT(*)
+2
+SET GLOBAL rocksdb_bulk_load_history_size=0;
+SELECT COUNT(*) FROM information_schema.rocksdb_bulk_load_history;
+COUNT(*)
+0
+DROP TABLE t;

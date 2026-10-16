@@ -1,0 +1,120 @@
+CALL mtr.add_suppression('Found .* prepared XA transactions');
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE ti (id INT PRIMARY KEY) ENGINE=InnoDB;
+XA START 'commit-me';
+INSERT INTO t VALUES (1);
+INSERT INTO ti VALUES (1);
+XA END 'commit-me';
+XA PREPARE 'commit-me';
+XA START 'rollback-me';
+INSERT INTO t VALUES (2);
+XA END 'rollback-me';
+XA PREPARE 'rollback-me';
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	11	0	rollback-me
+1	9	0	commit-me
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	11	0	rollback-me
+1	9	0	commit-me
+XA COMMIT 'commit-me';
+XA ROLLBACK 'rollback-me';
+SELECT * FROM t;
+id
+1
+SELECT * FROM ti;
+id
+1
+XA START 'rollback-me';
+INSERT INTO t VALUES (3);
+XA END 'rollback-me';
+XA PREPARE 'rollback-me';
+# Kill the server
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	11	0	rollback-me
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	11	0	rollback-me
+XA COMMIT 'rollback-me';
+SELECT * FROM t ORDER BY id;
+id
+1
+3
+SET SESSION xa_detach_on_prepare=OFF;
+XA START 'attached';
+INSERT INTO t VALUES (4);
+XA END 'attached';
+XA PREPARE 'attached';
+XA COMMIT 'attached';
+XA START 'attached';
+INSERT INTO t VALUES (5);
+XA END 'attached';
+XA PREPARE 'attached';
+XA ROLLBACK 'attached';
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t ORDER BY id;
+id
+1
+3
+4
+XA START 'rollback-me';
+INSERT INTO t VALUES (6);
+XA END 'rollback-me';
+SET DEBUG_SYNC='rocksdb.prepared SIGNAL prepared_in_se WAIT_FOR never';
+XA PREPARE 'rollback-me';
+SET DEBUG_SYNC='now WAIT_FOR prepared_in_se';
+# Kill the server
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t ORDER BY id;
+id
+1
+3
+4
+SET SESSION xa_detach_on_prepare=OFF;
+XA START 'disconnected';
+INSERT INTO t VALUES (7);
+XA END 'disconnected';
+XA PREPARE 'disconnected';
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	12	0	disconnected
+XA COMMIT 'disconnected';
+XA START 'read-only';
+SELECT * FROM t ORDER BY id;
+id
+1
+3
+4
+7
+XA END 'read-only';
+XA PREPARE 'read-only';
+XA COMMIT 'read-only';
+SET SESSION sql_log_bin=OFF;
+XA START 'unlogged';
+INSERT INTO t VALUES (8);
+XA END 'unlogged';
+XA PREPARE 'unlogged';
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+XA COMMIT 'unlogged';
+ERROR XAE04: XAER_NOTA: Unknown XID
+SELECT * FROM t ORDER BY id;
+id
+1
+3
+4
+7
+DROP TABLE t, ti;

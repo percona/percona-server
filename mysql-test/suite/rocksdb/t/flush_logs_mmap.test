@@ -1,0 +1,13 @@
+--source include/have_rocksdb.inc
+
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1);
+--let $syncs_before = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Rocksdb_wal_group_syncs'`
+FLUSH ENGINE LOGS;
+FLUSH LOGS;
+--let $syncs_after = `SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Rocksdb_wal_group_syncs'`
+--let $assert_text = FLUSH LOGS must not request WAL sync with memory-mapped writes
+--let $assert_cond = $syncs_after = $syncs_before
+--source include/assert.inc
+SELECT * FROM t;
+DROP TABLE t;

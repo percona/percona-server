@@ -34,6 +34,12 @@ index t1_3(i2, i1),
 index t1_4(c1, c2),
 index t1_5(c2, c1)
 ) engine=rocksdb;
+SET @saved_cte_depth = @@session.cte_max_recursion_depth;
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO t1(id, i1, i2, c1, c2)
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 100000)
+SELECT n, n, n DIV 10, n, n DIV 10 FROM seq;
+SET SESSION cte_max_recursion_depth = @saved_cte_depth;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
@@ -74,6 +80,9 @@ t1	100000
 CREATE TABLE t2 (a INT, b INT, c INT, d INT, e INT, f INT, g INT,
 PRIMARY KEY (a), KEY (c, b, a, d, e, f, g))
 ENGINE=ROCKSDB;
+INSERT INTO t2
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 100)
+SELECT n, n DIV 10, 1, 1, 1, 1, 1 FROM seq;
 SET GLOBAL rocksdb_force_flush_memtable_now = 1;
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text

@@ -1,0 +1,101 @@
+--source include/have_rocksdb.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+CALL mtr.add_suppression('Found .* prepared XA transactions');
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE ti (id INT PRIMARY KEY) ENGINE=InnoDB;
+XA START 'commit-me';
+INSERT INTO t VALUES (1);
+INSERT INTO ti VALUES (1);
+XA END 'commit-me';
+XA PREPARE 'commit-me';
+XA START 'rollback-me';
+INSERT INTO t VALUES (2);
+XA END 'rollback-me';
+XA PREPARE 'rollback-me';
+--source include/restart_mysqld.inc
+--sorted_result
+XA RECOVER;
+--source include/restart_mysqld.inc
+--sorted_result
+XA RECOVER;
+XA COMMIT 'commit-me';
+XA ROLLBACK 'rollback-me';
+SELECT * FROM t;
+SELECT * FROM ti;
+# Reusing an XID must not reuse a completed transaction's marker.
+XA START 'rollback-me';
+INSERT INTO t VALUES (3);
+XA END 'rollback-me';
+XA PREPARE 'rollback-me';
+--source include/kill_mysqld.inc
+--source include/start_mysqld.inc
+XA RECOVER;
+--source include/restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'rollback-me';
+SELECT * FROM t ORDER BY id;
+SET SESSION xa_detach_on_prepare=OFF;
+XA START 'attached';
+INSERT INTO t VALUES (4);
+XA END 'attached';
+XA PREPARE 'attached';
+XA COMMIT 'attached';
+XA START 'attached';
+INSERT INTO t VALUES (5);
+XA END 'attached';
+XA PREPARE 'attached';
+XA ROLLBACK 'attached';
+--source include/restart_mysqld.inc
+XA RECOVER;
+SELECT * FROM t ORDER BY id;
+# A reused XID prepared only in the SE must still roll back after a crash.
+--connect (preparer,localhost,root,,test)
+XA START 'rollback-me';
+INSERT INTO t VALUES (6);
+XA END 'rollback-me';
+SET DEBUG_SYNC='rocksdb.prepared SIGNAL prepared_in_se WAIT_FOR never';
+--send XA PREPARE 'rollback-me'
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR prepared_in_se';
+--source include/kill_mysqld.inc
+--connection preparer
+--error CR_SERVER_LOST
+--reap
+--disconnect preparer
+--connection default
+--source include/start_mysqld.inc
+XA RECOVER;
+SELECT * FROM t ORDER BY id;
+# Prepared transactions survive a disconnect with automatic detach disabled.
+--connect (attached,localhost,root,,test)
+SET SESSION xa_detach_on_prepare=OFF;
+XA START 'disconnected';
+INSERT INTO t VALUES (7);
+XA END 'disconnected';
+XA PREPARE 'disconnected';
+--disconnect attached
+--connection default
+--source include/restart_mysqld.inc
+XA RECOVER;
+XA COMMIT 'disconnected';
+# Read-only XA and sessions with binary logging disabled use the same callbacks.
+XA START 'read-only';
+SELECT * FROM t ORDER BY id;
+XA END 'read-only';
+XA PREPARE 'read-only';
+XA COMMIT 'read-only';
+# An XA PREPARE that is not binary logged is rolled back at restart, as by
+# InnoDB: after restart, an XA COMMIT would be logged without its XA PREPARE.
+SET SESSION sql_log_bin=OFF;
+XA START 'unlogged';
+INSERT INTO t VALUES (8);
+XA END 'unlogged';
+XA PREPARE 'unlogged';
+--source include/restart_mysqld.inc
+XA RECOVER;
+--error ER_XAER_NOTA
+XA COMMIT 'unlogged';
+SELECT * FROM t ORDER BY id;
+DROP TABLE t, ti;

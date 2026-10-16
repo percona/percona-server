@@ -912,6 +912,7 @@ rocksdb_bulk_load_allow_unsorted	OFF
 rocksdb_bulk_load_compression_parallel_threads	1
 rocksdb_bulk_load_enable_unique_key_check	OFF
 rocksdb_bulk_load_fail_if_not_bottommost_level	OFF
+rocksdb_bulk_load_history_size	10
 rocksdb_bulk_load_partial_index	ON
 rocksdb_bulk_load_size	1000
 rocksdb_bulk_load_use_sst_partitioner	OFF
@@ -959,7 +960,7 @@ rocksdb_delayed_write_rate	0
 rocksdb_delete_cf	
 rocksdb_delete_obsolete_files_period_micros	21600000000
 rocksdb_disable_file_deletions	OFF
-rocksdb_disable_instant_ddl	OFF
+rocksdb_enable_autoinc_compat_mode	OFF
 rocksdb_enable_bulk_load_api	ON
 rocksdb_enable_delete_range_for_drop_index	OFF
 rocksdb_enable_insert_with_update_caching	ON
@@ -975,11 +976,8 @@ rocksdb_enable_thread_tracking	ON
 rocksdb_enable_tmp_table	OFF
 rocksdb_enable_ttl	ON
 rocksdb_enable_ttl_read_filtering	ON
-rocksdb_enable_udt_in_mem	OFF
 rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
-rocksdb_error_on_suboptimal_collation	OFF
-rocksdb_fault_injection_options	
 rocksdb_file_checksums	CHECKSUMS_OFF
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_force_compute_memtable_stats	ON
@@ -987,6 +985,7 @@ rocksdb_force_compute_memtable_stats_cachetime	0
 rocksdb_force_flush_memtable_and_lzero_now	OFF
 rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
+rocksdb_gap_lock_raise_error	ERROR
 rocksdb_ignore_unknown_options	ON
 rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level
@@ -1015,6 +1014,7 @@ rocksdb_max_manual_compactions	10
 rocksdb_max_row_locks	1048576
 rocksdb_max_subcompactions	1
 rocksdb_max_total_wal_size	2147483648
+rocksdb_max_trash_db_ratio_pct	100000000000
 rocksdb_merge_buf_size	67108864
 rocksdb_merge_combine_read_size	1073741824
 rocksdb_merge_tmp_file_removal_delay_ms	0
@@ -1040,10 +1040,10 @@ rocksdb_records_in_range_dive_threshold	100
 rocksdb_reset_stats	OFF
 rocksdb_rollback_on_timeout	OFF
 rocksdb_rpl_skip_tx_api	OFF
-rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
 rocksdb_sim_cache_size	0
 rocksdb_skip_bloom_filter_on_read	OFF
+rocksdb_skip_bulk_load_notify_ddl	OFF
 rocksdb_skip_fill_cache	OFF
 rocksdb_skip_locks_if_skip_unique_check	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0
@@ -1084,6 +1084,7 @@ rocksdb_wal_ttl_seconds	0
 rocksdb_whole_key_filtering	ON
 rocksdb_write_batch_flush_threshold	0
 rocksdb_write_batch_max_bytes	0
+rocksdb_write_batch_mem_free_threshold	0
 rocksdb_write_disable_wal	OFF
 rocksdb_write_ignore_missing_column_families	OFF
 rocksdb_write_policy	write_committed
@@ -1102,14 +1103,13 @@ insert into t47 values (100, 'row100'),(101, 'row101');
 disconnect con1;
 connection default;
 set rocksdb_bulk_load=0;
+Timeout in wait_condition.inc for select count(*) = 8 as c from t47
 select * from t47;
 pk	col1
 1	row1
 2	row2
 3	row3
 4	row4
-10	row10
-11	row11
 100	row100
 101	row101
 drop table t47;
@@ -2841,6 +2841,50 @@ a
 10
 11
 DROP TABLE t1;
+SET rocksdb_enable_autoinc_compat_mode = 1;
+CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=RocksDB CHARSET=latin1;
+INSERT INTO t1 VALUES(0),(-1),(0);
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	ROCKSDB	10	Dynamic	1000	#	#	#	#	#	4	#	#	NULL	latin1_swedish_ci	NULL		
+SELECT * FROM t1;
+a
+-1
+1
+2
+DROP TABLE t1;
+CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=RocksDB CHARSET=latin1;
+INSERT INTO t1 VALUES(0),(10),(0);
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	ROCKSDB	10	Dynamic	1000	#	#	#	#	#	13	#	#	NULL	latin1_swedish_ci	NULL		
+SELECT * FROM t1;
+a
+1
+10
+11
+INSERT INTO t1 VALUES (NULL), (NULL), (10), (NULL), (20), (NULL);
+ERROR 23000: Duplicate entry '10' for key 't1.PRIMARY'
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	ROCKSDB	10	Dynamic	1000	#	#	#	#	#	19	#	#	NULL	latin1_swedish_ci	NULL		
+INSERT INTO t1 VALUES (NULL), (NULL), (40), (NULL), (30), (NULL);
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	ROCKSDB	10	Dynamic	1000	#	#	#	#	#	43	#	#	NULL	latin1_swedish_ci	NULL		
+SELECT * FROM t1;
+a
+1
+10
+11
+19
+20
+30
+40
+41
+42
+DROP TABLE t1;
+SET rocksdb_enable_autoinc_compat_mode = 0;
 #
 # Issue #411: Setting rocksdb_commit_in_the_middle commits transaction
 # without releasing iterator

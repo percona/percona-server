@@ -1,0 +1,25 @@
+CREATE TABLE bulk_abort (id INT, v VARBINARY(1024),
+PRIMARY KEY(id) COMMENT 'cfname=bulk_abort_cf')
+ENGINE=ROCKSDB;
+SET @saved_cf_options=@@GLOBAL.rocksdb_update_cf_options;
+SET GLOBAL rocksdb_update_cf_options=
+'bulk_abort_cf={target_file_size_base=16384}';
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort
+WITH RECURSIVE seq(n) AS (
+SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<128
+)
+SELECT n,REPEAT('a',1024) FROM seq ORDER BY n;
+SELECT COUNT(*) FROM bulk_abort;
+COUNT(*)
+0
+# Successful ingestion must keep the data and remove temporary files
+SET rocksdb_bulk_load=1;
+INSERT INTO bulk_abort VALUES (1,'a'),(2,'b');
+SET rocksdb_bulk_load=0;
+SELECT * FROM bulk_abort ORDER BY id;
+id	v
+1	a
+2	b
+DROP TABLE bulk_abort;
+SET GLOBAL rocksdb_update_cf_options=@saved_cf_options;

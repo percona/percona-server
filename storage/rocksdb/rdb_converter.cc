@@ -330,19 +330,6 @@ bool Rdb_value_field_iterator<value_field_decoder>::end_of_fields() const {
 }
 
 template <typename value_field_decoder>
-int Rdb_value_field_iterator<value_field_decoder>::get_field_index() const {
-  assert(m_field_dec != nullptr);
-  return m_field_dec->m_field_index;
-}
-
-template <typename value_field_decoder>
-enum_field_types Rdb_value_field_iterator<value_field_decoder>::get_field_type()
-    const {
-  assert(m_field_dec != nullptr);
-  return m_field_dec->m_field_type;
-}
-
-template <typename value_field_decoder>
 bool Rdb_value_field_iterator<value_field_decoder>::is_null() const {
   return m_is_null;
 }
@@ -558,10 +545,8 @@ void Rdb_converter::setup_field_encoders(const dd::Table *dd_table) {
 
     auto field_type = field->real_type();
     m_encoder_arr[i].m_field_type = field_type;
-    m_encoder_arr[i].m_field_index = i;
     m_encoder_arr[i].m_field_pack_length = field->pack_length();
     m_encoder_arr[i].m_field_offset = field->field_ptr() - m_table->record[0];
-    m_encoder_arr[i].m_field_type = field_type;
     m_encoder_arr[i].m_is_virtual_gcol = field->is_virtual_gcol();
 
     if (field_type == MYSQL_TYPE_VARCHAR) {
@@ -713,7 +698,9 @@ int Rdb_converter::convert_record_from_storage_format(
     const Rdb_key_def &pk_def, const rocksdb::Slice *const key_slice,
     const rocksdb::Slice *const value_slice, uchar *const dst,
     bool decode_value = true) {
-  bool skip_value = !decode_value || get_decode_fields()->size() == 0;
+  // Even a primary-key-only row can have checksum bytes in its value.
+  bool skip_value = !m_verify_row_debug_checksums &&
+                    (!decode_value || get_decode_fields()->size() == 0);
   if (!m_key_requested && skip_value) {
     return HA_EXIT_SUCCESS;
   }

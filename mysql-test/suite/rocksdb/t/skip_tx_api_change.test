@@ -1,0 +1,51 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # A session follows a change of rocksdb_master_skip_tx_api at its next
+--echo # transaction, also after it used MyRocks with the other kind.
+--echo #
+
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+let $kind = SELECT SKIP_TRX_API FROM information_schema.rocksdb_trx WHERE THREAD_ID = CONNECTION_ID();
+
+INSERT INTO t VALUES (1);
+SET SESSION rocksdb_master_skip_tx_api = 1;
+BEGIN;
+INSERT INTO t VALUES (2);
+--echo # a write batch
+eval $kind;
+COMMIT;
+
+SET SESSION rocksdb_master_skip_tx_api = 0;
+BEGIN;
+INSERT INTO t VALUES (3);
+--echo # the transaction API
+eval $kind;
+COMMIT;
+
+SET SESSION rocksdb_master_skip_tx_api = 1;
+BEGIN;
+INSERT INTO t VALUES (4);
+--echo # a write batch again
+eval $kind;
+COMMIT;
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+
+--echo # The kind does not change inside an open read-only transaction
+connect (con1,localhost,root,,);
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION rocksdb_master_skip_tx_api = 1;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--error ER_UPDATES_WITH_CONSISTENT_SNAPSHOT
+INSERT INTO t VALUES (12);
+SET SESSION rocksdb_master_skip_tx_api = 0;
+SELECT * FROM t;
+--error ER_UPDATES_WITH_CONSISTENT_SNAPSHOT
+INSERT INTO t VALUES (13);
+COMMIT;
+INSERT INTO t VALUES (14);
+SELECT * FROM t;
+disconnect con1;
+connection default;
+DROP TABLE t;

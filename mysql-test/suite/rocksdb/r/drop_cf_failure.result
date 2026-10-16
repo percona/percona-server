@@ -1,0 +1,43 @@
+#
+# The temporary-table column families cannot be dropped: they are in use
+# while the server runs.
+#
+SET GLOBAL rocksdb_delete_cf = '__tmp_system__';
+ERROR HY000: Cannot drop Column family ('__tmp_system__') because it is in use or does not exist.
+SET GLOBAL rocksdb_delete_cf = '__tmp__';
+ERROR HY000: Cannot drop Column family ('__tmp__') because it is in use or does not exist.
+CREATE TEMPORARY TABLE tt (id INT AUTO_INCREMENT PRIMARY KEY, v INT)
+ENGINE=ROCKSDB;
+INSERT INTO tt (v) VALUES (1), (2);
+SELECT * FROM tt;
+id	v
+1	1
+2	2
+DROP TEMPORARY TABLE tt;
+#
+# A background column family drop that fails only when persisting the
+# OPTIONS file has dropped the column family: forget it.
+#
+CREATE TABLE t1 (a INT, PRIMARY KEY (a) COMMENT 'cfname=cf_drop_failure')
+ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+SET GLOBAL rocksdb_signal_drop_index_thread = 1;
+SET @old_debug = @@global.debug;
+SET GLOBAL debug = '+d,rocksdb_remove_dropped_cf_options_failure';
+SET GLOBAL rocksdb_delete_cf = 'cf_drop_failure';
+SET GLOBAL debug = @old_debug;
+SELECT COUNT(*) AS dropped_marks FROM information_schema.rocksdb_global_info
+WHERE type = 'DROPPED_CF';
+dropped_marks
+0
+# The name can be used again, also after a restart
+CREATE TABLE t2 (a INT, PRIMARY KEY (a) COMMENT 'cfname=cf_drop_failure')
+ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (1), (2);
+# restart
+SELECT * FROM t2;
+a
+1
+2
+DROP TABLE t2;

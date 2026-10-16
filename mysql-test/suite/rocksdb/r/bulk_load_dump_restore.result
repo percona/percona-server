@@ -1,0 +1,29 @@
+CREATE DATABASE dump_db;
+CREATE TABLE dump_db.t1 (pk INT PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+CREATE TABLE dump_db.t2 (pk INT PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+CREATE TABLE dump_db.t3 (pk INT PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+INSERT INTO dump_db.t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO dump_db.t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+INSERT INTO dump_db.t3 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+# Restore into an empty schema
+DROP DATABASE dump_db;
+SELECT COUNT(*) FROM dump_db.t1;
+COUNT(*)
+3
+SELECT COUNT(*) FROM dump_db.t2;
+COUNT(*)
+4
+SELECT COUNT(*) FROM dump_db.t3;
+COUNT(*)
+5
+# Restore over the existing tables
+SELECT COUNT(*) FROM dump_db.t1;
+COUNT(*)
+3
+SELECT COUNT(*) FROM dump_db.t2;
+COUNT(*)
+4
+SELECT COUNT(*) FROM dump_db.t3;
+COUNT(*)
+5
+DROP DATABASE dump_db;

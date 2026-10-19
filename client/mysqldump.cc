@@ -1037,7 +1037,8 @@ static void write_header(FILE *sql_file, char *db_name) {
             "/*!50717 EXECUTE s */;\n"
             "/*!50717 DEALLOCATE PREPARE s */;\n"
             "/*!50717 SET @rocksdb_enable_bulk_load = IF"
-            " (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = 1',"
+            " (@rocksdb_is_supported, 'SET @old_rocksdb_bulk_load ="
+            " @@SESSION.rocksdb_bulk_load, SESSION rocksdb_bulk_load = 1',"
             " 'SET @rocksdb_dummy_bulk_load = 0') */;\n"
             "/*!50717 PREPARE s FROM @rocksdb_enable_bulk_load */;\n"
             "/*!50717 EXECUTE s */;\n"
@@ -1052,7 +1053,7 @@ static void write_footer(FILE *sql_file) {
     check_io(sql_file);
   } else if (!opt_compact) {
     fprintf(sql_file,
-            "/*!50112 SET @disable_bulk_load = IF (@is_rocksdb_supported,"
+            "/*!50112 SET @disable_bulk_load = IF (@rocksdb_is_supported,"
             " 'SET SESSION rocksdb_bulk_load = @old_rocksdb_bulk_load',"
             " 'SET @dummy_rocksdb_bulk_load = 0') */;\n"
             "/*!50112 PREPARE s FROM @disable_bulk_load */;\n"

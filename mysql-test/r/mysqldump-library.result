@@ -42,7 +42,7 @@ def	mysqldump_test_db	sp1	FUNCTION	def	mysqldump_test_db	sp1	NULL
 /*!50717 PREPARE s FROM @rocksdb_get_is_supported */;
 /*!50717 EXECUTE s */;
 /*!50717 DEALLOCATE PREPARE s */;
-/*!50717 SET @rocksdb_enable_bulk_load = IF (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = 1', 'SET @rocksdb_dummy_bulk_load = 0') */;
+/*!50717 SET @rocksdb_enable_bulk_load = IF (@rocksdb_is_supported, 'SET @old_rocksdb_bulk_load = @@SESSION.rocksdb_bulk_load, SESSION rocksdb_bulk_load = 1', 'SET @rocksdb_dummy_bulk_load = 0') */;
 /*!50717 PREPARE s FROM @rocksdb_enable_bulk_load */;
 /*!50717 EXECUTE s */;
 /*!50717 DEALLOCATE PREPARE s */;
@@ -134,7 +134,7 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50112 SET @disable_bulk_load = IF (@is_rocksdb_supported, 'SET SESSION rocksdb_bulk_load = @old_rocksdb_bulk_load', 'SET @dummy_rocksdb_bulk_load = 0') */;
+/*!50112 SET @disable_bulk_load = IF (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = @old_rocksdb_bulk_load', 'SET @dummy_rocksdb_bulk_load = 0') */;
 /*!50112 PREPARE s FROM @disable_bulk_load */;
 /*!50112 EXECUTE s */;
 /*!50112 DEALLOCATE PREPARE s */;

@@ -30,6 +30,7 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
       query_output.cc
       audit_filter.cc
       audit_keyring.cc
+      audit_password.cc
       audit_rule.cc
       audit_rule_parser.cc
       audit_rule_registry.cc

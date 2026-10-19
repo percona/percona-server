@@ -52,7 +52,12 @@ std::size_t get_random_iterations() noexcept {
 SaltType get_random_salt() noexcept {
   SaltType salt(PKCS5_SALT_LEN);
   assert(salt.size() == PKCS5_SALT_LEN);
-  RAND_bytes(salt.data(), PKCS5_SALT_LEN);
+
+  // An empty salt makes the options invalid, see check_valid()
+  if (RAND_bytes(salt.data(), PKCS5_SALT_LEN) != 1) {
+    salt.clear();
+  }
+
   return salt;
 }
 

@@ -16,6 +16,7 @@
 #include "components/audit_log_filter/audit_keyring.h"
 
 #include "components/audit_log_filter/audit_error_log.h"
+#include "components/audit_log_filter/audit_password.h"
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/sys_vars.h"
 
@@ -53,20 +54,6 @@ struct OptionInfo {
 };
 
 using OptionsIdList = std::vector<OptionInfo>;
-
-void get_random_string(std::string &str) {
-  static const char alphanumerics[] =
-      "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
-  static const auto alphanumerics_size = sizeof(alphanumerics) - 1;
-  static const auto rand_string_size = 126;
-
-  str.clear();
-  str.reserve(rand_string_size);
-
-  for (int i = rand_string_size; i > 0; i--) {
-    str.push_back(alphanumerics[random() % alphanumerics_size]);
-  }
-}
 
 bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   list.clear();
@@ -313,7 +300,12 @@ bool generate_keyring_options(std::string &options_id) {
   }
 
   std::string password;
-  get_random_string(password);
+
+  if (!encryption::generate_password(password)) {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to generate password");
+    return false;
+  }
 
   const auto options = encryption::EncryptionOptions::generate(password);
 

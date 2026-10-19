@@ -85,8 +85,13 @@ IF(WITH_COMPONENT_AUDIT_LOG_FILTER)
 
   MYSQL_ADD_COMPONENT(audit_log_filter ${AUDIT_LOG_FILTER_SOURCES}
                       LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto library_mysys extra::rapidjson ext::zlib
-                      ext::icu
                       MODULE_ONLY)
+
+  # Use the ICU of mysqld, which exports its symbols. Linking ext::icu would
+  # put a second copy of the bundled ICU into the component, with duplicate
+  # globals (an ODR violation that AddressSanitizer reports on load).
+  TARGET_INCLUDE_DIRECTORIES(component_audit_log_filter SYSTEM PRIVATE
+    $<TARGET_PROPERTY:icu_interface,INTERFACE_INCLUDE_DIRECTORIES>)
 
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
     TARGET_LINK_LIBRARIES(component_audit_log_filter stdc++fs)

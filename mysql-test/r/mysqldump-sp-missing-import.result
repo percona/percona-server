@@ -40,7 +40,7 @@ mysqldump: Routine mysqldump_test_db.orphaned_function is missing one or more of
 /*!50717 PREPARE s FROM @rocksdb_get_is_supported */;
 /*!50717 EXECUTE s */;
 /*!50717 DEALLOCATE PREPARE s */;
-/*!50717 SET @rocksdb_enable_bulk_load = IF (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = 1', 'SET @rocksdb_dummy_bulk_load = 0') */;
+/*!50717 SET @rocksdb_enable_bulk_load = IF (@rocksdb_is_supported, 'SET @old_rocksdb_bulk_load = @@SESSION.rocksdb_bulk_load, SESSION rocksdb_bulk_load = 1', 'SET @rocksdb_dummy_bulk_load = 0') */;
 /*!50717 PREPARE s FROM @rocksdb_enable_bulk_load */;
 /*!50717 EXECUTE s */;
 /*!50717 DEALLOCATE PREPARE s */;

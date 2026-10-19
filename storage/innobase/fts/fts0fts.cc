@@ -255,6 +255,8 @@ void fts_cache_destroy(fts_cache_t *cache) {
     rbt_free(cache->stopword_info.cached_stopword);
   }
 
+  ut::delete_(cache->inflight_doc_ids);
+
   if (cache->sync_heap->arg) {
     mem_heap_free(static_cast<mem_heap_t *>(cache->sync_heap->arg));
   }
@@ -565,6 +567,9 @@ fts_cache_t *fts_cache_create(
 
   cache->sync->table = table;
   cache->sync->event = os_event_create();
+
+  cache->inflight_doc_ids =
+      ut::new_withkey<std::multiset<doc_id_t>>(UT_NEW_THIS_FILE_PSI_KEY);
 
   /* Create the index cache vector that will hold the inverted indexes. */
   cache->indexes =
@@ -2511,6 +2516,9 @@ fts_trx_t *fts_trx_create(trx_t *trx) {
   ftt->last_stmt = static_cast<ib_vector_t *>(
       ib_vector_create(heap_alloc, sizeof(fts_savepoint_t), 4));
 
+  ftt->inflight = static_cast<ib_vector_t *>(
+      ib_vector_create(heap_alloc, sizeof(fts_trx_inflight_t), 4));
+
   /* Default instance has no name and no heap. */
   fts_savepoint_create(ftt->savepoints, nullptr, nullptr);
   fts_savepoint_create(ftt->last_stmt, nullptr, nullptr);
@@ -2779,10 +2787,79 @@ void fts_update_next_doc_id(
                          trx);
 }
 
+/** Remember that trx has assigned doc_id to a row of table that it has not
+committed yet.  Until the transaction ends, fts_sync_commit() will not record
+a synced_doc_id above it: the document is added to the cache only at commit,
+and if that happens after a SYNC that already recorded a larger doc id, a
+crash would lose the document, because recovery re-adds only documents with
+a doc id above the recorded one.  Only the smallest doc id per transaction
+and table is kept; the caller holds cache->doc_id_lock. */
+static void fts_trx_note_doc_id(trx_t *trx, const dict_table_t *table,
+                                doc_id_t doc_id) {
+  fts_cache_t *cache = table->fts->cache;
+
+  ut_ad(mutex_own(&cache->doc_id_lock));
+
+  if (doc_id == FTS_NULL_DOC_ID) {
+    return;
+  }
+
+  if (trx->fts_trx == nullptr) {
+    trx->fts_trx = fts_trx_create(trx);
+  }
+
+  ib_vector_t *inflight = trx->fts_trx->inflight;
+
+  for (ulint i = 0; i < ib_vector_size(inflight); ++i) {
+    const fts_trx_inflight_t *e =
+        static_cast<const fts_trx_inflight_t *>(ib_vector_get(inflight, i));
+
+    if (e->table == table) {
+      /* Doc ids of one transaction are increasing except for
+      user supplied FTS_DOC_ID values; keep the smallest. */
+      if (doc_id < e->doc_id) {
+        cache->inflight_doc_ids->erase(
+            cache->inflight_doc_ids->find(e->doc_id));
+        const_cast<fts_trx_inflight_t *>(e)->doc_id = doc_id;
+        cache->inflight_doc_ids->insert(doc_id);
+      }
+      return;
+    }
+  }
+
+  fts_trx_inflight_t e;
+  e.table = table;
+  e.doc_id = doc_id;
+  ib_vector_push(inflight, &e);
+  cache->inflight_doc_ids->insert(doc_id);
+}
+
+/** Forget the doc ids registered by fts_trx_note_doc_id(); called when the
+transaction ends (commit or rollback). */
+static void fts_trx_forget_doc_ids(fts_trx_t *fts_trx) {
+  ib_vector_t *inflight = fts_trx->inflight;
+
+  for (ulint i = 0; i < ib_vector_size(inflight); ++i) {
+    const fts_trx_inflight_t *e =
+        static_cast<const fts_trx_inflight_t *>(ib_vector_get(inflight, i));
+    fts_cache_t *cache = e->table->fts->cache;
+
+    mutex_enter(&cache->doc_id_lock);
+    auto it = cache->inflight_doc_ids->find(e->doc_id);
+    ut_a(it != cache->inflight_doc_ids->end());
+    cache->inflight_doc_ids->erase(it);
+    mutex_exit(&cache->doc_id_lock);
+  }
+
+  ib_vector_reset(inflight);
+}
+
 /** Get the next available document id.
  @return DB_SUCCESS if OK */
 dberr_t fts_get_next_doc_id(const dict_table_t *table, /*!< in: table */
-                            doc_id_t *doc_id) /*!< out: new document id */
+                            doc_id_t *doc_id, /*!< out: new document id */
+                            trx_t *trx)       /*!< in: transaction that will
+                                              insert the document, or NULL */
 {
   fts_cache_t *cache = table->fts->cache;
 
@@ -2800,6 +2877,9 @@ dberr_t fts_get_next_doc_id(const dict_table_t *table, /*!< in: table */
 
   mutex_enter(&cache->doc_id_lock);
   *doc_id = ++cache->next_doc_id;
+  if (trx != nullptr) {
+    fts_trx_note_doc_id(trx, table, *doc_id);
+  }
   mutex_exit(&cache->doc_id_lock);
 
   return (DB_SUCCESS);
@@ -3171,8 +3251,8 @@ static void fts_add(fts_trx_table_t *ftt, fts_trx_row_t *row) {
   return (error);
 }
 
-dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row,
-                          mem_heap_t *heap) {
+dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row, mem_heap_t *heap,
+                          trx_t *trx) {
   doc_id_t doc_id;
   dberr_t error = DB_SUCCESS;
 
@@ -3182,10 +3262,21 @@ dberr_t fts_create_doc_id(dict_table_t *table, dtuple_t *row,
     if (table->fts->cache->first_doc_id == FTS_NULL_DOC_ID) {
       error = fts_get_next_doc_id(table, &doc_id);
     }
+
+    /* User supplied FTS_DOC_ID: register it as in flight too. */
+    if (error == DB_SUCCESS && trx != nullptr) {
+      fts_cache_t *cache = table->fts->cache;
+
+      doc_id = fts_get_doc_id_from_row(table, row);
+
+      mutex_enter(&cache->doc_id_lock);
+      fts_trx_note_doc_id(trx, table, doc_id);
+      mutex_exit(&cache->doc_id_lock);
+    }
     return (error);
   }
 
-  error = fts_get_next_doc_id(table, &doc_id);
+  error = fts_get_next_doc_id(table, &doc_id, trx);
 
   if (error == DB_SUCCESS) {
     dfield_t *dfield;
@@ -4294,6 +4385,33 @@ static void fts_sync_index_reset(fts_index_cache_t *index_cache) {
   error = fts_cmp_set_sync_doc_id(sync->table, sync->max_doc_id, false,
                                   &last_doc_id, trx);
 
+  /* Documents whose doc id was assigned by a transaction that has not
+  ended are not in the cache yet.  Such a document may have a smaller
+  doc id than what we just synced, and after a crash recovery re-adds
+  only documents with a doc id above synced_doc_id.  Record the
+  smallest such doc id so that fts_init_index() knows where the
+  auxiliary tables may be incomplete. */
+  if (error == DB_SUCCESS) {
+    doc_id_t oldest = 0;
+
+    mutex_enter(&cache->doc_id_lock);
+    if (!cache->inflight_doc_ids->empty()) {
+      oldest = *cache->inflight_doc_ids->begin();
+    }
+    mutex_exit(&cache->doc_id_lock);
+
+    if (oldest > sync->max_doc_id) {
+      oldest = 0;
+    }
+
+    fts_table_t fts_table;
+
+    FTS_INIT_FTS_TABLE(&fts_table, FTS_SUFFIX_CONFIG, FTS_COMMON_TABLE,
+                       sync->table);
+
+    error = fts_config_set_ulint(trx, &fts_table, FTS_UNSYNCED_DOC_ID, oldest);
+  }
+
   /* Get the list of deleted documents that are either in the
   cache or were headed there but were deleted before the add
   thread got to them. */
@@ -5198,6 +5316,8 @@ void fts_trx_free(fts_trx_t *fts_trx) /* in, own: FTS trx */
     fts_savepoint_free(savepoint);
   }
 
+  fts_trx_forget_doc_ids(fts_trx);
+
   if (fts_trx->heap) {
     mem_heap_free(fts_trx->heap);
   }
@@ -5402,15 +5522,23 @@ void fts_add_doc_id_column(dict_table_t *table, mem_heap_t *heap) {
                                 memory matches that of the update vector.
 @return the fts doc id used in the update vector */
 doc_id_t fts_update_doc_id(dict_table_t *table, upd_field_t *ufield,
-                           doc_id_t *next_doc_id) {
+                           doc_id_t *next_doc_id, trx_t *trx) {
   doc_id_t doc_id;
   dberr_t error = DB_SUCCESS;
 
   if (*next_doc_id) {
     doc_id = *next_doc_id;
+
+    if (trx != nullptr) {
+      fts_cache_t *cache = table->fts->cache;
+
+      mutex_enter(&cache->doc_id_lock);
+      fts_trx_note_doc_id(trx, table, doc_id);
+      mutex_exit(&cache->doc_id_lock);
+    }
   } else {
     /* Get the new document id that will be added. */
-    error = fts_get_next_doc_id(table, &doc_id);
+    error = fts_get_next_doc_id(table, &doc_id, trx);
   }
 
   if (error == DB_SUCCESS) {
@@ -6143,6 +6271,186 @@ static bool fts_init_get_doc_id(void *row,      /*!< in: sel_node_t* */
   return true;
 }
 
+/** Read the smallest doc id that was assigned but not yet committed at the
+time of the last SYNC, as recorded by fts_sync_commit().
+@param[in]      table   table with FTS index
+@param[out]     doc_id  the doc id; 0 if there was none, or if the CONFIG
+                        table has no such row because it was last written
+                        by a server without this record
+@return DB_SUCCESS or error code of the read */
+static dberr_t fts_get_unsynced_doc_id(dict_table_t *table, doc_id_t *doc_id) {
+  fts_table_t fts_table;
+  ulint value = 0;
+
+  FTS_INIT_FTS_TABLE(&fts_table, FTS_SUFFIX_CONFIG, FTS_COMMON_TABLE, table);
+
+  trx_t *trx = trx_allocate_for_background();
+  trx->op_info = "reading FTS unsynced doc id";
+
+  /* A missing row reads as an empty value, i.e. 0, with DB_SUCCESS. */
+  dberr_t error =
+      fts_config_get_ulint(trx, &fts_table, FTS_UNSYNCED_DOC_ID, &value);
+
+  if (error == DB_SUCCESS) {
+    fts_sql_commit(trx);
+  } else {
+    fts_sql_rollback(trx);
+    value = 0;
+  }
+
+  trx_free_for_background(trx);
+
+  *doc_id = static_cast<doc_id_t>(value);
+
+  return error;
+}
+
+/** State of the lookup done by fts_recover_doc_is_synced(). */
+struct fts_recover_lookup_t {
+  doc_id_t doc_id; /*!< doc id to look for */
+  bool found;      /*!< whether an ilist contained it */
+};
+
+/** Callback for fts_index_fetch_nodes(): check whether the node's ilist
+contains the doc id we are looking for.
+@param[in]      row             sel_node_t*
+@param[in]      user_arg        fts_fetch_t* with fts_recover_lookup_t*
+@return always true */
+static bool fts_recover_fetch_node(void *row, void *user_arg) {
+  sel_node_t *sel_node = static_cast<sel_node_t *>(row);
+  fts_fetch_t *fetch = static_cast<fts_fetch_t *>(user_arg);
+  fts_recover_lookup_t *lookup =
+      static_cast<fts_recover_lookup_t *>(fetch->read_arg);
+  doc_id_t first_doc_id = 0;
+  doc_id_t last_doc_id = 0;
+  byte *ilist = nullptr;
+  ulint ilist_len = 0;
+  int i = 0;
+
+  if (lookup->found) {
+    return true;
+  }
+
+  /* Note: The column numbers below must match the SELECT in
+  fts_index_fetch_nodes(). */
+  for (que_node_t *exp = sel_node->select_list; exp;
+       exp = que_node_get_next(exp), ++i) {
+    dfield_t *dfield = que_node_get_val(exp);
+    byte *data = static_cast<byte *>(dfield_get_data(dfield));
+
+    switch (i) {
+      case 2: /* FIRST_DOC_ID */
+        first_doc_id = fts_read_doc_id(data);
+        break;
+      case 3: /* LAST_DOC_ID */
+        last_doc_id = fts_read_doc_id(data);
+        break;
+      case 4: /* ILIST */
+        ilist = data;
+        ilist_len = dfield_get_len(dfield);
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (lookup->doc_id < first_doc_id || lookup->doc_id > last_doc_id) {
+    return true;
+  }
+
+  /* Decode the ilist: a doc id delta followed by position deltas and a
+  0 terminator, see fts_cache_node_add_positions(). */
+  byte *ptr = ilist;
+  const byte *end = ilist + ilist_len;
+  doc_id_t doc_id = 0;
+
+  while (ptr < end) {
+    doc_id += fts_decode_vlc(&ptr);
+
+    if (doc_id >= lookup->doc_id) {
+      lookup->found = (doc_id == lookup->doc_id);
+      break;
+    }
+
+    while (*ptr) {
+      fts_decode_vlc(&ptr);
+    }
+
+    ++ptr;
+  }
+
+  return true;
+}
+
+/** Check whether a document is already in the auxiliary index tables.
+A SYNC writes all words of a document in one transaction, so it is enough
+to look for the doc id in the nodes of one of its words.
+@param[in]      cache           FTS cache of the table
+@param[in]      index_cache     FTS index the document belongs to
+@param[in]      doc_id          the document
+@param[in]      tokens          its words, as produced by the tokenizer;
+                                NULL if all indexed columns are NULL
+@param[out]     synced          true if the document is in the auxiliary
+                                tables, or has no word that would be indexed
+@return DB_SUCCESS or error code of the lookup */
+static dberr_t fts_recover_doc_is_synced(fts_cache_t *cache,
+                                         fts_index_cache_t *index_cache,
+                                         doc_id_t doc_id, ib_rbt_t *tokens,
+                                         bool *synced) {
+  const fts_token_t *token = nullptr;
+
+  /* The tokenizer keeps stopwords; fts_cache_add_doc() drops them through
+  fts_tokenizer_word_get().  Look up the first word that is indexed under
+  the same rules, since a stopword has no node in the auxiliary tables. */
+  for (const ib_rbt_node_t *node = tokens ? rbt_first(tokens) : nullptr;
+       node != nullptr; node = rbt_next(tokens, node)) {
+    const fts_token_t *t = rbt_value(fts_token_t, node);
+
+    if (fts_check_token(&t->text, cache->stopword_info.cached_stopword,
+                        index_cache->index->is_ngram, index_cache->charset,
+                        thd_has_ft_ignore_stopwords(current_thd))) {
+      token = t;
+      break;
+    }
+  }
+
+  if (token == nullptr) {
+    /* Nothing would be indexed: nothing to recover either. */
+    *synced = true;
+    return DB_SUCCESS;
+  }
+
+  fts_table_t fts_table;
+  fts_recover_lookup_t lookup;
+  fts_fetch_t fetch;
+  que_t *graph = nullptr;
+
+  FTS_INIT_INDEX_TABLE(&fts_table, nullptr, FTS_INDEX_TABLE,
+                       index_cache->index);
+  fts_table.charset = index_cache->charset;
+
+  lookup.doc_id = doc_id;
+  lookup.found = false;
+
+  fetch.read_arg = &lookup;
+  fetch.read_record = fts_recover_fetch_node;
+  fetch.total_memory = 0;
+
+  trx_t *trx = trx_allocate_for_background();
+  trx->op_info = "checking FTS index for a recovered document";
+
+  dberr_t error = fts_index_fetch_nodes(trx, &graph, &fts_table, &token->text,
+                                        &fetch, true);
+
+  fts_que_graph_free(graph);
+
+  trx_free_for_background(trx);
+
+  *synced = lookup.found;
+
+  return error;
+}
+
 /** Callback function when we initialize the FTS at the start up
  time. It recovers Doc IDs that have not sync-ed to the auxiliary
  table, and require to bring them back into FTS index.
@@ -6227,11 +6535,34 @@ static bool fts_init_recover_doc(void *row,      /*!< in: sel_node_t* */
     field_no++;
   }
 
-  fts_cache_add_doc(cache, get_doc->index_cache, doc_id, doc.tokens);
+  /* Documents up to recover_check_doc_id were mostly written by the
+  last SYNC; only the ones that committed after it are missing.  Adding
+  a document twice would make the next SYNC fail with a duplicate key
+  in the auxiliary table, so add only what is not there yet. */
+  bool synced = false;
+
+  if (doc_id <= cache->recover_check_doc_id) {
+    dberr_t error = fts_recover_doc_is_synced(cache, get_doc->index_cache,
+                                              doc_id, doc.tokens, &synced);
+
+    if (error != DB_SUCCESS) {
+      /* Neither adding nor skipping the document is safe without an
+      answer; stop, and let fts_init_index() retry later. */
+      cache->recover_error = error;
+
+      fts_doc_free(&doc);
+
+      return false;
+    }
+  }
+
+  if (!synced) {
+    fts_cache_add_doc(cache, get_doc->index_cache, doc_id, doc.tokens);
+
+    cache->added++;
+  }
 
   fts_doc_free(&doc);
-
-  cache->added++;
 
   if (doc_id >= cache->next_doc_id) {
     cache->next_doc_id = doc_id + 1;
@@ -6254,6 +6585,7 @@ bool fts_init_index(dict_table_t *table, /*!< in: Table with FTS */
   fts_get_doc_t *get_doc = nullptr;
   fts_cache_t *cache = table->fts->cache;
   bool need_init = false;
+  bool ok = true;
 
   ut_ad(!dict_sys_mutex_own());
 
@@ -6276,9 +6608,44 @@ bool fts_init_index(dict_table_t *table, /*!< in: Table with FTS */
 
   start_doc = cache->synced_doc_id;
 
+  cache->recover_check_doc_id = 0;
+  cache->recover_error = DB_SUCCESS;
+
   if (!start_doc) {
     fts_cmp_set_sync_doc_id(table, 0, true, &start_doc);
+
+    /* The CONFIG table stores the last synced doc id + 1, and the
+    fetch below re-adds documents with a doc id greater than start_doc,
+    so step back by one; otherwise the document that got exactly that
+    doc id, if the server was killed before the next SYNC, is never
+    recovered. */
+    if (start_doc) {
+      start_doc--;
+    }
     cache->synced_doc_id = start_doc;
+
+    /* A transaction that assigned a doc id before the last SYNC and
+    committed after it has a document with a doc id below start_doc
+    that is not in the auxiliary tables.  fts_sync_commit() recorded
+    the smallest such doc id; re-add from there, skipping the documents
+    in between that the SYNC did write (see fts_init_recover_doc()). */
+    if (start_doc) {
+      doc_id_t unsynced;
+
+      if (fts_get_unsynced_doc_id(table, &unsynced) != DB_SUCCESS) {
+        /* Without the value the documents to re-add are unknown.  Leave
+        the table uninitialized; the next FTS operation on it retries. */
+        cache->synced_doc_id = 0;
+        need_init = false;
+        ok = false;
+        goto func_exit;
+      }
+
+      if (unsynced != 0 && unsynced <= start_doc) {
+        cache->recover_check_doc_id = start_doc;
+        start_doc = unsynced - 1;
+      }
+    }
   }
 
   /* No FTS index, this is the case when previous FTS index
@@ -6305,12 +6672,31 @@ bool fts_init_index(dict_table_t *table, /*!< in: Table with FTS */
       fts_doc_fetch_by_doc_id(nullptr, start_doc, index,
                               FTS_FETCH_DOC_BY_ID_LARGE, fts_init_recover_doc,
                               get_doc);
+
+      if (cache->recover_error != DB_SUCCESS) {
+        break;
+      }
     }
   }
 
-  table->fts->fts_status |= ADDED_TABLE_SYNCED;
-
   fts_get_docs_clear(cache->get_docs);
+
+  if (cache->recover_error != DB_SUCCESS) {
+    /* A lookup in the auxiliary tables failed part way; the cache holds
+    an unknown subset of the documents.  Drop it and leave the table
+    uninitialized, so that the next FTS operation on it starts over. */
+    ib::error(ER_IB_MSG_FTS_RECOVER_RETRY, ut_strerr(cache->recover_error),
+              table->name.m_name);
+
+    fts_cache_clear(cache);
+    fts_cache_init(cache);
+    cache->synced_doc_id = 0;
+    need_init = false;
+    ok = false;
+    goto func_exit;
+  }
+
+  table->fts->fts_status |= ADDED_TABLE_SYNCED;
 
 func_exit:
   if (!has_cache_lock) {
@@ -6324,7 +6710,7 @@ func_exit:
     dict_sys_mutex_exit();
   }
 
-  return true;
+  return ok;
 }
 
 /** Rename old FTS common and aux tables with the new table_id

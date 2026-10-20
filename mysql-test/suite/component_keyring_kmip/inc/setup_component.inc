@@ -38,22 +38,10 @@ EOF
 # Create local keyring config
 --let KEYRING_KMIP_PATH = `SELECT CONCAT( '$MYSQLTEST_VARDIR', '/keyring_kmip')`
 --echo # Creating local configuration file for keyring component: $COMPONENT_NAME
---perl
-  use strict;
-  my $vardir = $ENV{'MYSQLTEST_VARDIR'};
-  my $config_file = $ENV{'CURRENT_DATADIR'} . "/" . $ENV{'COMPONENT_NAME'} . ".cnf";
-  open my $uuid_fh, '<', '/proc/sys/kernel/random/uuid' or die "Cannot open /proc/sys/kernel/random/uuid: $!";
-  my $uuid = <$uuid_fh>;
-  close $uuid_fh or die "Cannot close /proc/sys/kernel/random/uuid: $!";
-  chomp $uuid;
-  $uuid =~ s/-//g;
-  $uuid = substr($uuid, 0, 24);
-  my $keyring_path = $vardir . '/keyring_kmip_' . $uuid;
-  my $config_content = '{ "path": "' . $keyring_path . '", "server_addr": "127.0.0.1", "server_port": "5696", "client_ca": "/tmp/certs/mysql-client-cert.pem", "client_key": "/tmp/certs/mysql-client-key.pem", "server_ca": "/tmp/certs/vault-kmip-ca.pem", "object_group": "test-object-group-' . $uuid . '" }';
-  open my $cfh, '>', $config_file or die "Cannot write $config_file: $!";
-  print $cfh $config_content or die "Cannot write $config_file: $!";
-  close $cfh or die "Cannot close $config_file: $!";
-EOF
+--let KMIP_COMPONENT_CONFIG_FILE = $CURRENT_DATADIR/$COMPONENT_NAME.cnf
+--let KMIP_COMPONENT_NAME_PART =
+--let KMIP_COMPONENT_ID_LENGTH = 24
+--source create_component_config.inc
 
 # Create local manifest file for current server instance
 --let LOCAL_MANIFEST_CONTENT = `SELECT CONCAT('{ \"components\": \"file://', '$COMPONENT_NAME', '\" }')`

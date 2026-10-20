@@ -10,7 +10,16 @@ CALL mtr.add_suppression("No suitable 'keyring_component_metadata_query' service
 # Bug#32390719: QUERYING KEYRING_COMPONENT_STATUS TABLE
 #               GENERATES AN ERROR IN THE SERVER LOG
 #
-SELECT * FROM performance_schema.keyring_component_status;
+SELECT STATUS_KEY,
+CASE STATUS_KEY
+WHEN 'Server_addr' THEN 'KMIP_ADDR'
+         WHEN 'Server_port' THEN 'KMIP_PORT'
+         WHEN 'Client_ca'   THEN 'KMIP_CLIENT_CA'
+         WHEN 'Client_key'  THEN 'KMIP_CLIENT_KEY'
+         WHEN 'Server_ca'   THEN 'KMIP_SERVER_CA'
+         ELSE STATUS_VALUE
+END AS STATUS_VALUE
+FROM performance_schema.keyring_component_status;
 STATUS_KEY	STATUS_VALUE
 Component_name	component_keyring_kmip
 Author	Percona Corporation
@@ -18,11 +27,11 @@ License	GPL
 Implementation_name	component_keyring_kmip
 Version	1.0
 Component_status	Active
-Server_addr	127.0.0.1
-Server_port	5696
-Client_ca	/tmp/certs/mysql-client-cert.pem
-Client_key	/tmp/certs/mysql-client-key.pem
-Server_ca	/tmp/certs/vault-kmip-ca.pem
+Server_addr	KMIP_ADDR
+Server_port	KMIP_PORT
+Client_ca	KMIP_CLIENT_CA
+Client_key	KMIP_CLIENT_KEY
+Server_ca	KMIP_SERVER_CA
 Object_group	test-object-group
 Max_objects	65535
 Kmip_timeout_ms	5000

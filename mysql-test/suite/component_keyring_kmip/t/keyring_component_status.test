@@ -10,10 +10,24 @@ CALL mtr.add_suppression("No suitable 'keyring_component_metadata_query' service
 --echo #               GENERATES AN ERROR IN THE SERVER LOG
 --echo #
 
-# Should show metadata obtained from keyring component
+# Should show metadata obtained from keyring component.
+# The connection settings depend on the KMIP_* environment variables (see
+# ../inc/create_component_config.inc), so they are masked here, by key, in
+# SQL. mysqltest's --replace_result and --replace_regex see one field at a
+# time, so they cannot tell these rows apart, and an unanchored replacement
+# of a value such as KMIP_ADDR=kmip would also rewrite other rows.
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /test-object-group-[0-9a-f]+/test-object-group/
-SELECT * FROM performance_schema.keyring_component_status;
+SELECT STATUS_KEY,
+       CASE STATUS_KEY
+         WHEN 'Server_addr' THEN 'KMIP_ADDR'
+         WHEN 'Server_port' THEN 'KMIP_PORT'
+         WHEN 'Client_ca'   THEN 'KMIP_CLIENT_CA'
+         WHEN 'Client_key'  THEN 'KMIP_CLIENT_KEY'
+         WHEN 'Server_ca'   THEN 'KMIP_SERVER_CA'
+         ELSE STATUS_VALUE
+       END AS STATUS_VALUE
+FROM performance_schema.keyring_component_status;
 
 # Should be empty
 SELECT PRIO, ERROR_CODE, SUBSYSTEM, DATA FROM performance_schema.error_log WHERE ERROR_CODE='MY-013712';

@@ -2568,6 +2568,19 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     if (best_key < 0 && order_direction < 0) goto check_reverse_order;
 
     if (best_key < 0) {
+      /*
+        A vector search chosen by the join planner (typically activated
+        with a hint) already returns rows in ascending distance order of
+        the ORDER BY DISTANCE() expression.
+      */
+      if (tab->type() == JT_VECTOR && order.src == ESC_ORDER_BY &&
+          !tab->join()->select_distinct) {
+        if (!no_changes && select_limit != HA_POS_ERROR)
+          tab->set_vec_limit(select_limit);
+        ref_key = tab->index();
+        can_skip_sorting = true;
+        goto fix_ICP;
+      }
       // No usable key has been found
       can_skip_sorting = false;
       goto fix_ICP;

@@ -744,12 +744,9 @@ rm -f %{buildroot}%{_datadir}/percona-server/audit_log_filter_win_install.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
 rm -rf %{buildroot}/usr/cmake/coredumper.cmake
-rm -rf %{buildroot}/usr/include/kmip.h
-rm -rf %{buildroot}/usr/include/kmippp.h
-rm -rf %{buildroot}/usr/lib/libkmip.a
-rm -rf %{buildroot}/usr/lib/libkmippp.a
-rm -rf %{buildroot}/usr/lib/libkmipclient.a
-rm -rf %{buildroot}/usr/lib/libkmipcore.a
+# extra/libkmip (kmipcore, kmipclient, kmiputil) installs nothing here:
+# vendored with add_subdirectory(), its KMIPCLIENT_INSTALL defaults to OFF,
+# and component_keyring_kmip.so links it statically.
 %if 0%{?tokudb}
   rm -f %{buildroot}%{_prefix}/README.md
   rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3

@@ -20,9 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <fstream>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 
 #include "backend.h"
 #include "kmipclient/Kmip.hpp"
@@ -131,7 +131,7 @@ bool Keyring_kmip_backend::load_cache(
         auto key_obj = with_kmip_operation(
             [&kmip, &id]() { return kmip.client().op_get_key(id, true); });
 
-        auto key = key_obj->value();
+        const auto &key = key_obj->value();
         if (key.empty()) {
           std::string err_msg = "Cannot get key value for ID: " + id;
           LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
@@ -139,7 +139,7 @@ bool Keyring_kmip_backend::load_cache(
           continue;
         }
 
-        auto key_name =
+        const auto &key_name =
             key_obj->attribute_value(kmipclient::KMIP_ATTR_NAME_NAME);
         if (key_name.empty()) {
           std::string err_msg = "Cannot get key name for ID: " + id;
@@ -174,7 +174,7 @@ bool Keyring_kmip_backend::load_cache(
         auto secret_obj = with_kmip_operation(
             [&kmip, &id]() { return kmip.client().op_get_secret(id); });
 
-        auto secret = secret_obj.value();
+        const auto &secret = secret_obj.value();
         if (secret.empty()) {
           std::string err_msg = "Cannot get secret value for ID: " + id;
           LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, err_msg.c_str());
@@ -182,7 +182,7 @@ bool Keyring_kmip_backend::load_cache(
           continue;
         }
 
-        auto secret_name =
+        const auto &secret_name =
             secret_obj.attribute_value(kmipclient::KMIP_ATTR_NAME_NAME);
         if (secret_name.empty()) {
           std::string err_msg = "Cannot get secret name for ID: " + id;
@@ -250,8 +250,8 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
 
     if (data.type() == "AES") {
       // Register and activate AES key
-      auto key_vec = std::vector<unsigned char>(key.begin(), key.end());
-      auto sym_key = kmiputil::KeyReader::aes_from_value(key_vec);
+      auto sym_key = kmiputil::KeyReader::aes_from_value(
+          {reinterpret_cast<const unsigned char *>(key.data()), key.size()});
 
       with_kmip_operation([&kmip, &metadata, &sym_key, &id, this]() {
         id = kmip.client().op_register_key(metadata.key_id(),
@@ -270,9 +270,9 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
       }
     } else if (data.type() == "SECRET") {
       // Register and activate secret (password type)
-      auto secret_str = std::string(key.begin(), key.end());
       auto secret = kmipclient::Secret::from_text(
-          secret_str, kmipclient::secret_data_type::KMIP_SECDATA_PASSWORD);
+          std::string_view{key.data(), key.size()},
+          kmipclient::secret_data_type::KMIP_SECDATA_PASSWORD);
 
       with_kmip_operation([&kmip, &metadata, &secret, &id, this]() {
         id = kmip.client().op_register_secret(metadata.key_id(),

@@ -26,6 +26,7 @@
 
 #include "backend.h"
 #include "kmipclient/Kmip.hpp"
+#include "kmiputil/KeyReader.hpp"
 
 #include <mysql/components/minimal_chassis.h>
 
@@ -250,7 +251,7 @@ bool Keyring_kmip_backend::store(const Metadata &metadata,
     if (data.type() == "AES") {
       // Register and activate AES key
       auto key_vec = std::vector<unsigned char>(key.begin(), key.end());
-      auto sym_key = kmipclient::SymmetricKey::aes_from_value(key_vec);
+      auto sym_key = kmiputil::KeyReader::aes_from_value(key_vec);
 
       with_kmip_operation([&kmip, &metadata, &sym_key, &id, this]() {
         id = kmip.client().op_register_key(metadata.key_id(),

@@ -1,0 +1,73 @@
+#
+# START TRANSACTION WITH CONSISTENT SNAPSHOT sends the snapshot
+# gtid_executed in the OK packet when session_track_gtids=ALL_GTIDS.
+#
+# Session tracker output is not filtered by --replace_result, so the
+# server runs with a deterministic server_uuid (see -master.opt).
+#
+--source include/have_debug.inc
+--source include/rpl/assert_gtid_mode_on.inc
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+RESET BINARY LOGS AND GTIDS;
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo # ALL_GTIDS: must return UUID:1-2
+SET SESSION session_track_gtids='ALL_GTIDS';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+
+--echo # Implicit commit of an open transaction: must return UUID:1-3,
+--echo # the snapshot, and not a mix with the committed GTID.
+START TRANSACTION;
+INSERT INTO t1 VALUES (2);
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+--let $donor_id= `SELECT CONNECTION_ID()`
+
+--echo # Other session commits UUID:4
+--connect (con1,localhost,root,,)
+INSERT INTO t1 VALUES (3);
+
+--echo # FROM SESSION: must return the donor snapshot UUID:1-3, not UUID:1-4
+SET SESSION session_track_gtids='ALL_GTIDS';
+--enable_session_track_info
+--replace_result $donor_id DONOR_ID
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--disable_session_track_info
+COMMIT;
+
+--echo # OWN_GTID: must return nothing
+SET SESSION session_track_gtids='OWN_GTID';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+
+--echo # OFF: must return nothing
+SET SESSION session_track_gtids='OFF';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+
+--echo # Plain START TRANSACTION: must return nothing
+SET SESSION session_track_gtids='ALL_GTIDS';
+--enable_session_track_info
+START TRANSACTION;
+--disable_session_track_info
+COMMIT;
+
+--disconnect con1
+--connection default
+COMMIT;
+SET SESSION session_track_gtids='OFF';
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

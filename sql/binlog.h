@@ -1213,6 +1213,16 @@ bool mysql_show_binlog_events(THD *thd);
 void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
+
+/**
+  Returns gtid_executed captured by START TRANSACTION WITH CONSISTENT
+  SNAPSHOT for this session.
+
+  @param thd The session context.
+  @return the snapshot gtid_executed, or nullptr if the session has no
+          consistent snapshot of the binary log.
+*/
+const std::string *binlog_get_snapshot_gtid_executed(THD *thd);
 int query_error_code(const THD *thd, bool not_killed);
 
 extern const char *log_bin_index;

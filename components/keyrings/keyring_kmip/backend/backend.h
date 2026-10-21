@@ -35,10 +35,6 @@
 #include "config/config.h"
 #include "kmipclient/Kmip.hpp"
 
-namespace kmipclient {
-class Kmip;
-}
-
 namespace keyring_kmip {
 
 struct IdExt {

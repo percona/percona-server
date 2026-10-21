@@ -45,13 +45,13 @@ class Config_pod {
   std::string client_key;
   std::string server_ca;
 
-  std::string object_group = "";
+  std::string object_group;
 
   /** KMIP connection timeout in milliseconds (default: 5000 ms for
    * compatibility) */
   int kmip_timeout_ms = 5000;
 
-  /** Maximum number of objects to retrieve per type (default: 32768) */
+  /** Maximum number of objects to retrieve per type (default: 65535) */
   size_t max_objects = 65535;
 
   /** Enable TLS peer verification (default: false for legacy compatibility) */

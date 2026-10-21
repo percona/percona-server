@@ -4,6 +4,7 @@
 
 --echo #
 --echo # AUDIT_ADMIN privilege required to use any filtering function
+--echo # and to read the audit log or its encryption password (PS-11926)
 
 CREATE USER 'user1'@'%' IDENTIFIED BY '111';
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
@@ -20,6 +21,39 @@ SELECT audit_log_filter_remove_user('%');
 SELECT audit_log_filter_remove_filter('log_all');
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SELECT audit_log_filter_flush();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_rotate();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_read();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_read('{"start": {"timestamp": "2000-01-01 00:00:00"}}');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_read_bookmark();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_encryption_password_get();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_encryption_password_get('audit_log-20000101T000000-1');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT audit_log_encryption_password_set('pwd');
+
+--disconnect conn1
+--connection default
+
+--echo #
+--echo # With AUDIT_ADMIN the privilege check passes and a later check of
+--echo # each function reports its own error
+GRANT AUDIT_ADMIN ON *.* to 'user1'@'%';
+
+connect(conn1, localhost, user1, 111, test);
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT audit_log_read('a', 'b');
+--error ER_CANT_INITIALIZE_UDF
+SELECT audit_log_read_bookmark(1);
+--error ER_CANT_INITIALIZE_UDF
+SELECT audit_log_encryption_password_get();
+--error ER_CANT_INITIALIZE_UDF
+SELECT audit_log_encryption_password_set('pwd');
 
 --disconnect conn1
 --connection default

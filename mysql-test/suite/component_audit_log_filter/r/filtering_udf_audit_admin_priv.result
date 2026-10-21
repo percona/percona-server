@@ -1,5 +1,6 @@
 #
 # AUDIT_ADMIN privilege required to use any filtering function
+# and to read the audit log or its encryption password (PS-11926)
 CREATE USER 'user1'@'%' IDENTIFIED BY '111';
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* to 'user1'@'%';
 SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
@@ -12,6 +13,32 @@ SELECT audit_log_filter_remove_filter('log_all');
 ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
 SELECT audit_log_filter_flush();
 ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_rotate();
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_read();
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_read('{"start": {"timestamp": "2000-01-01 00:00:00"}}');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_read_bookmark();
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_encryption_password_get();
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_encryption_password_get('audit_log-20000101T000000-1');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+SELECT audit_log_encryption_password_set('pwd');
+ERROR 42000: Access denied; you need (at least one of) the AUDIT_ADMIN privilege(s) for this operation
+#
+# With AUDIT_ADMIN the privilege check passes and a later check of
+# each function reports its own error
+GRANT AUDIT_ADMIN ON *.* to 'user1'@'%';
+SELECT audit_log_read('a', 'b');
+ERROR HY000: Can't initialize function 'audit_log_read'; Wrong argument list: audit_log_read([arg])
+SELECT audit_log_read_bookmark(1);
+ERROR HY000: Can't initialize function 'audit_log_read_bookmark'; Wrong argument list: audit_log_read_bookmark()
+SELECT audit_log_encryption_password_get();
+ERROR HY000: Can't initialize function 'audit_log_encryption_password_get'; Keyring component not initialized
+SELECT audit_log_encryption_password_set('pwd');
+ERROR HY000: Can't initialize function 'audit_log_encryption_password_set'; Keyring component not initialized
 #
 # Cleanup
 DROP USER user1;

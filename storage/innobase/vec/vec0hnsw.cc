@@ -392,9 +392,9 @@ vec_t *vec_runtime_open(dict_index_t *index, const TABLE *form, THD *thd) {
     return vec_runtime_open_failed(index, DB_INDEX_CORRUPT);
   }
 
-  auto *vec = ut::new_withkey<vec_t>(
-      UT_NEW_THIS_FILE_PSI_KEY, index->id, index->table, cfg.dims, cfg.M,
-      cfg.ef_construction, cfg.metric, cfg.dist);
+  auto *vec = ut::new_withkey<vec_t>(UT_NEW_THIS_FILE_PSI_KEY, index->id,
+                                     index->table, cfg.dims, cfg.M,
+                                     cfg.ef_construction, cfg.metric, cfg.dist);
 
   /* Publish, or lose the race and use the winner. Two sessions opening
   the same table both find dict_index_t::vec null - ha_innobase::open
@@ -999,8 +999,7 @@ static uint64_t vec_row_base_pk(const dict_table_t *table,
 */
 static bool vec_reject_cosine_zero(vector_constants::Metric metric,
                                    const char *q, uint32_t dims) {
-  return metric == vector_constants::Metric::kCosine &&
-         vector_is_zero(q, dims);
+  return metric == vector_constants::Metric::kCosine && vector_is_zero(q, dims);
 }
 
 dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,

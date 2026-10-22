@@ -257,8 +257,8 @@ below is what that switch handles as statement-level, for the memory case
 that matters here. */
 TEST(Vec0HnswErrorTest, NoResultMapsToAFatalError) {
   Vec_ctx ctx;
-  for (const HnswResult rc : {HNSW_NOT_FOUND, HNSW_CORRUPTED, HNSW_OOM_GRAPH,
-                              HNSW_OOM_CONTEXT}) {
+  for (const HnswResult rc :
+       {HNSW_NOT_FOUND, HNSW_CORRUPTED, HNSW_OOM_GRAPH, HNSW_OOM_CONTEXT}) {
     const dberr_t err = vec_hnsw_dberr(rc, &ctx);
     EXPECT_NE(DB_OUT_OF_MEMORY, err) << "result " << rc;
     EXPECT_NE(DB_ERROR, err) << "result " << rc;

@@ -97,8 +97,7 @@ bool parse_int_option(const LEX_CSTRING &value, int min, int max, int *out) {
   int val;
   auto result = std::from_chars(value.str, last, val);
   if (result.ptr != last || result.ec != errc() || val < min || val > max) {
-    my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0),
-             value.str);
+    my_error(ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE, MYF(0), value.str);
     return true;
   }
   *out = val;
@@ -107,8 +106,7 @@ bool parse_int_option(const LEX_CSTRING &value, int min, int max, int *out) {
 
 /** Copy a string onto a MEM_ROOT as a LEX_CSTRING.
 @return false on OOM */
-bool dup_lex_cstring(MEM_ROOT *mem_root, std::string_view s,
-                     LEX_CSTRING *out) {
+bool dup_lex_cstring(MEM_ROOT *mem_root, std::string_view s, LEX_CSTRING *out) {
   out->str = strmake_root(mem_root, s.data(), s.size());
   out->length = s.size();
   return out->str != nullptr;
@@ -147,8 +145,8 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
       }
       if (parse_int_option(value, hnsw::min_M, hnsw::max_M, &hnsw_param.M))
         return true;
-    } else if (my_strcasecmp(system_charset_info, key.str,
-                             "ef_construction") == 0) {
+    } else if (my_strcasecmp(system_charset_info, key.str, "ef_construction") ==
+               0) {
       if (bool &used = is_used("ef_construction"); used) {
         my_error(ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER, MYF(0), key.str);
         return true;
@@ -298,8 +296,7 @@ bool resolve_options(MEM_ROOT *mem_root, KEY *key) {
   return false;
 }
 
-bool prepare_options(MEM_ROOT *mem_root, const Key_spec &index_def,
-                     KEY *key) {
+bool prepare_options(MEM_ROOT *mem_root, const Key_spec &index_def, KEY *key) {
   /* The KEY carries the Key_spec's TYPE and WITH(...) list, so resolving
   it checks the contents. */
   return check_shape(index_def) || resolve_options(mem_root, key);

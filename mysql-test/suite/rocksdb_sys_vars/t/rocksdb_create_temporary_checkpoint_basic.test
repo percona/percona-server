@@ -52,3 +52,55 @@ connection default;
 # error, checkpoint removed upon disconnect
 --error 1
 file_exists $MYSQL_TMP_DIR/ghj/CURRENT;
+
+# release the checkpoint still owned by the default connection
+SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = NULL;
+--error 1
+file_exists $MYSQL_TMP_DIR/def/CURRENT;
+
+# SET ... = DEFAULT bypasses the validation callback and only resets the
+# session variable. The session still owns the checkpoint, so a new one must
+# be refused and SET ... = NULL must still remove the existing one.
+--replace_result $MYSQL_TMP_DIR TMP
+eval SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = '$MYSQL_TMP_DIR/klm';
+file_exists $MYSQL_TMP_DIR/klm/CURRENT;
+SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = DEFAULT;
+SELECT @@ROCKSDB_CREATE_TEMPORARY_CHECKPOINT;
+file_exists $MYSQL_TMP_DIR/klm/CURRENT;
+--replace_result $MYSQL_TMP_DIR TMP
+--error ER_GET_ERRMSG
+eval SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = '$MYSQL_TMP_DIR/nop';
+--error 1
+file_exists $MYSQL_TMP_DIR/nop/CURRENT;
+SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = NULL;
+--error 1
+file_exists $MYSQL_TMP_DIR/klm/CURRENT;
+
+# A checkpoint reset with DEFAULT is still removed upon disconnect
+connect(con2,localhost,root,,test,,);
+connection con2;
+--replace_result $MYSQL_TMP_DIR TMP
+eval SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = '$MYSQL_TMP_DIR/qrs';
+file_exists $MYSQL_TMP_DIR/qrs/CURRENT;
+SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = DEFAULT;
+disconnect con2;
+
+connection default;
+--source include/wait_until_count_sessions.inc
+--error 1
+file_exists $MYSQL_TMP_DIR/qrs/CURRENT;
+
+# A value computed into the validation callback's buffer, as CHAR() is, must
+# be kept until the update
+let $ckpt = $MYSQL_TMP_DIR/tuv;
+let $codes = `WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n < LENGTH('$ckpt')) SELECT GROUP_CONCAT(ORD(SUBSTRING('$ckpt', n, 1)) ORDER BY n) FROM seq`;
+--echo SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = CHAR(<codes of TMP/tuv>);
+--disable_query_log
+eval SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = CHAR($codes);
+--enable_query_log
+file_exists $MYSQL_TMP_DIR/tuv/CURRENT;
+--replace_result $MYSQL_TMP_DIR TMP
+SELECT @@SESSION.ROCKSDB_CREATE_TEMPORARY_CHECKPOINT;
+SET SESSION ROCKSDB_CREATE_TEMPORARY_CHECKPOINT = NULL;
+--error 1
+file_exists $MYSQL_TMP_DIR/tuv/CURRENT;

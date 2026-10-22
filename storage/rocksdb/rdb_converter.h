@@ -89,8 +89,6 @@ class Rdb_value_field_iterator {
   const char *m_null_bytes;
   // The current open table
   TABLE *m_table;
-  // The current field
-  Field *m_field;
   Rdb_field_encoder *m_field_dec;
   uchar *const m_buf;
   uint m_offset;
@@ -111,13 +109,8 @@ class Rdb_value_field_iterator {
   int next();
   // Whether current field is the end of fields
   bool end_of_fields() const;
-  void *get_dst() const;
   // Whether the value of current field is null
   bool is_null() const;
-  // get current field index
-  int get_field_index() const;
-  // get current field type
-  enum_field_types get_field_type() const;
 };
 
 /**
@@ -160,6 +153,9 @@ class Rdb_converter {
       bool store_row_debug_checksums, char *ttl_bytes,
       bool *is_ttl_bytes_updated, rocksdb::Slice *const value_slice);
 
+  void get_ttl_column_bytes(const Rdb_key_def &pk_def, const uchar *record,
+                            char *ttl_bytes) const;
+
   my_core::ha_rows get_row_checksums_checked() const {
     return m_row_checksums_checked;
   }
@@ -170,13 +166,10 @@ class Rdb_converter {
     m_verify_row_debug_checksums = verify_row_debug_checksums;
   }
 
-  const Rdb_field_encoder *get_encoder_arr() const { return m_encoder_arr; }
-  int get_null_bytes_in_record() { return m_null_bytes_length_in_record; }
   const char *get_null_bytes() const { return m_null_bytes; }
   void set_is_key_requested(bool key_requested) {
     m_key_requested = key_requested;
   }
-  bool get_maybe_unpack_info() const { return m_maybe_unpack_info; }
 
   char *get_ttl_bytes_buffer() { return m_ttl_bytes; }
 

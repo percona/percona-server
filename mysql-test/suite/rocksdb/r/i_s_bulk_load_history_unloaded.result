@@ -1,0 +1,17 @@
+show create table information_schema.rocksdb_bulk_load_history;
+Table	Create Table
+ROCKSDB_BULK_LOAD_HISTORY	CREATE TEMPORARY TABLE `ROCKSDB_BULK_LOAD_HISTORY` (
+  `SESSION_ID` varchar(128) NOT NULL DEFAULT '',
+  `TYPE` varchar(64) NOT NULL DEFAULT '',
+  `STATUS` varchar(64) NOT NULL DEFAULT '',
+  `RETURN_CODE` bigint NOT NULL DEFAULT '0',
+  `TABLE_COUNT` bigint NOT NULL DEFAULT '0',
+  `TABLES` longtext NOT NULL,
+  `SST_FILES` bigint NOT NULL DEFAULT '0',
+  `CREATED_TIME` timestamp(3) NOT NULL DEFAULT '0000-00-00 00:00:00.000',
+  `COMPLETED_TIME` timestamp(3) NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
+uninstall plugin rocksdb;
+select * from information_schema.rocksdb_bulk_load_history;
+ERROR HY000: Plugin 'ROCKSDB' is not loaded
+# restart

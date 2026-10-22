@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2014, SkySQL Ab
+   Portions Copyright (c) 2016-Present, Facebook, Inc.
+   Portions Copyright (c) 2014, SkySQL Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +29,9 @@
 #include "./rdb_cf_manager.h"
 #include "./rdb_threads.h"
 
+/* RocksDB includes */
+#include "db/column_family.h"
+
 /* MyRocks header files */
 #include <string>
 #include <vector>
@@ -46,7 +50,7 @@ bool Rdb_cf_manager::is_cf_name_reverse(std::string_view name) {
 }
 
 bool Rdb_cf_manager::init(
-    rocksdb::DB *const rdb, std::unique_ptr<Rdb_cf_options> &&cf_options,
+    rocksdb::DB *const db, std::unique_ptr<Rdb_cf_options> &&cf_options,
     std::vector<rocksdb::ColumnFamilyHandle *> *const handles) {
 #ifdef HAVE_PSI_INTERFACE
   mysql_mutex_init(rdb_cfm_mutex_key, &m_mutex, MY_MUTEX_INIT_FAST);
@@ -54,10 +58,12 @@ bool Rdb_cf_manager::init(
   mysql_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
 #endif
 
+  assert(db != nullptr);
   assert(cf_options != nullptr);
   assert(handles != nullptr);
   assert(handles->size() > 0);
 
+  m_db = db;
   m_cf_options = std::move(cf_options);
   std::vector<std::string> tmp_cfs = {DEFAULT_TMP_CF_NAME,
                                       DEFAULT_TMP_SYSTEM_CF_NAME};
@@ -73,18 +79,18 @@ bool Rdb_cf_manager::init(
     if (std::find(tmp_cfs.begin(), tmp_cfs.end(), cf_name) != tmp_cfs.end()) {
       uint cf_id = cfh_ptr->GetID();
       LogPluginErrMsg(
-          INFORMATION_LEVEL, 0,
+          INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
           "Dropping column family %s with id %u on RocksDB for temp "
           "table",
           cf_name.c_str(), cf_id);
-      auto status = rdb->DropColumnFamily(cfh_ptr);
+      auto status = m_db->DropColumnFamily(cfh_ptr);
       if (status.ok()) {
         delete (cfh_ptr);
         continue;
       }
       // NO_LINT_DEBUG
       LogPluginErrMsg(
-          ERROR_LEVEL, 0,
+          ERROR_LEVEL, ER_LOG_PRINTF_MSG,
           "Dropping column family %s with id %u on RocksDB failed for "
           "temp table",
           cf_name.c_str(), cf_id);
@@ -102,7 +108,7 @@ bool Rdb_cf_manager::init(
   // Step2 : Create the hardcoded default column families.
   for (const auto &cf_name : default_cfs) {
     if (m_cf_name_map.find(cf_name) == m_cf_name_map.end()) {
-      get_or_create_cf(rdb, cf_name, true);
+      get_or_create_cf(cf_name, true);
     }
     // verify cf is created
     if (m_cf_name_map.find(cf_name) == m_cf_name_map.end()) {
@@ -113,7 +119,7 @@ bool Rdb_cf_manager::init(
   // Step3 : Create the hardcoded tmp column families.
   if (rocksdb_enable_tmp_table) {
     for (const auto &cf_name : tmp_cfs) {
-      get_or_create_cf(rdb, cf_name, true);
+      get_or_create_cf(cf_name, true);
       // verify cf is created
       if (m_cf_name_map.find(cf_name) == m_cf_name_map.end()) {
         return HA_EXIT_FAILURE;
@@ -152,8 +158,8 @@ void Rdb_cf_manager::cleanup() {
     See Rdb_cf_manager::get_cf
 */
 std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_or_create_cf(
-    rocksdb::DB *const rdb, const std::string &cf_name, bool create) {
-  assert(rdb != nullptr);
+    const std::string &cf_name, bool create) {
+  assert(m_db != nullptr);
   assert(!cf_name.empty());
   std::shared_ptr<rocksdb::ColumnFamilyHandle> cf_handle;
 
@@ -179,23 +185,75 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_or_create_cf(
     }
 
     if (create || cf_name_found) {
-      LogPluginErrMsg(INFORMATION_LEVEL, 0, "Creating a column family %s",
-                      cf_name.c_str());
-      LogPluginErrMsg(INFORMATION_LEVEL, 0, "    write_buffer_size=%ld",
-                      opts.write_buffer_size);
-      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Creating a column family %s", cf_name.c_str());
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                      "    write_buffer_size=%ld", opts.write_buffer_size);
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                       "    target_file_size_base=%" PRIu64,
                       opts.target_file_size_base);
 
-      rocksdb::ColumnFamilyHandle *cf_handle_ptr = nullptr;
-      const rocksdb::Status s =
-          rdb->CreateColumnFamily(opts, cf_name, &cf_handle_ptr);
+      rocksdb::ColumnFamilyHandle *new_cf_handle = nullptr;
+      rocksdb::Status s =
+          m_db->CreateColumnFamily(opts, cf_name, &new_cf_handle);
+      DBUG_EXECUTE_IF("rocksdb_create_cf_persist_options_failure", {
+        if (s.ok()) {
+          s = rocksdb::Status::IOError(
+              "Simulated failure to persist the OPTIONS file");
+        }
+      });
 
       if (s.ok()) {
-        assert(cf_handle_ptr != nullptr);
-        cf_handle.reset(cf_handle_ptr);
-        m_cf_name_map[cf_handle_ptr->GetName()] = cf_handle;
-        m_cf_id_map[cf_handle_ptr->GetID()] = cf_handle;
+        assert(new_cf_handle != nullptr);
+        cf_handle.reset(new_cf_handle);
+        m_cf_name_map[new_cf_handle->GetName()] = cf_handle;
+        m_cf_id_map[new_cf_handle->GetID()] = cf_handle;
+      } else {
+        rdb_log_status_error(s, "Error creating column family");
+        if (new_cf_handle != nullptr) {
+          // RocksDB has already created the column family but failed
+          // afterwards, typically while persisting the OPTIONS file. Drop it
+          // again so that the database matches what this manager knows about,
+          // and release the handle instead of leaking it.
+          auto drop_status = DBUG_EVALUATE_IF(
+              "rocksdb_create_cf_rollback_failure",
+              rocksdb::Status::IOError("injected CF rollback failure"),
+              m_db->DropColumnFamily(new_cf_handle));
+          DBUG_EXECUTE_IF("rocksdb_create_cf_rollback_options_failure", {
+            if (drop_status.ok()) {
+              drop_status = rocksdb::Status::IOError(
+                  "Simulated failure to persist the OPTIONS file");
+            }
+          });
+          if (!drop_status.ok()) {
+            rdb_log_status_error(drop_status,
+                                 "Error dropping partially created column "
+                                 "family");
+          }
+          // DropColumnFamily() records the drop in the MANIFEST before it
+          // persists the OPTIONS file, so it can fail after the CF is gone.
+          if (!drop_status.ok() &&
+              !static_cast<rocksdb::ColumnFamilyHandleImpl *>(new_cf_handle)
+                   ->cfd()
+                   ->IsDropped()) {
+            // The CF still exists in RocksDB. Retain ownership and make it
+            // discoverable for a later CREATE instead of orphaning its name.
+            const std::shared_ptr<rocksdb::ColumnFamilyHandle> live_cf_handle(
+                new_cf_handle);
+            m_cf_name_map[new_cf_handle->GetName()] = live_cf_handle;
+            m_cf_id_map[new_cf_handle->GetID()] = live_cf_handle;
+          } else {
+            const auto destroy_status =
+                m_db->DestroyColumnFamilyHandle(new_cf_handle);
+            if (!destroy_status.ok()) {
+              rdb_log_status_error(destroy_status,
+                                   "Error releasing partially created column "
+                                   "family handle");
+            }
+          }
+        }
+        std::ignore =
+            ha_rocksdb::rdb_error_to_mysql(s, "Error creating column family");
       }
     } else {
       my_error(ER_WRONG_ARGUMENTS, MYF(0),
@@ -235,8 +293,8 @@ std::shared_ptr<rocksdb::ColumnFamilyHandle> Rdb_cf_manager::get_cf(
   }
 
   if (!cf_handle) {
-    LogPluginErrMsg(WARNING_LEVEL, 0, "Column family '%s' not found.",
-                    cf_name.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Column family '%s' not found.", cf_name.c_str());
   }
 
   if (!lock_held_by_caller) {
@@ -287,12 +345,10 @@ Rdb_cf_manager::get_all_cf(void) const {
 }
 
 int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
-                                      rocksdb::TransactionDB *const rdb,
                                       const uint32 &cf_id) {
   dict_manager->assert_lock_held();
   RDB_MUTEX_LOCK_CHECK(m_mutex);
-  const std::unique_ptr<rocksdb::WriteBatch> wb = dict_manager->begin();
-  rocksdb::WriteBatch *const batch = wb.get();
+  auto batch = Rdb_dict_manager::begin();
 
   const auto it = m_cf_id_map.find(cf_id);
   if (it == m_cf_id_map.end()) {
@@ -300,7 +356,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
     dict_manager->commit(batch);
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Column family with id %u is marked as dropped, "
                     "but doesn't exist in cf manager",
                     cf_id);
@@ -313,21 +369,37 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
 
   if (!dict_manager->get_dropped_cf(cf_id)) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Column family %s with id %u is not in "
                     "the list of cf ids to be dropped",
                     cf_name.c_str(), cf_id);
     return HA_EXIT_FAILURE;
   }
 
-  auto status = rdb->DropColumnFamily(cf_handle);
+  auto status = m_db->DropColumnFamily(cf_handle);
+  DBUG_EXECUTE_IF("rocksdb_remove_dropped_cf_options_failure", {
+    if (status.ok()) {
+      status = rocksdb::Status::IOError(
+          "Simulated failure to persist the OPTIONS file");
+    }
+  });
+
+  // DropColumnFamily() records the drop in the MANIFEST before it persists the
+  // OPTIONS file, so it can fail after the CF is gone. Forget such a CF, as
+  // after a successful drop: its handle can no longer be written to.
+  if (!status.ok() && static_cast<rocksdb::ColumnFamilyHandleImpl *>(cf_handle)
+                          ->cfd()
+                          ->IsDropped()) {
+    rdb_log_status_error(status, "Error persisting a dropped column family");
+    status = rocksdb::Status::OK();
+  }
 
   if (!status.ok()) {
     dict_manager->delete_dropped_cf(batch, cf_id);
     dict_manager->commit(batch);
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Dropping column family %s with id %u on RocksDB failed",
                     cf_name.c_str(), cf_id);
 
@@ -357,7 +429,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
   dict_manager->commit(batch);
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Column family %s with id %u has been dropped successfully",
                   cf_name.c_str(), cf_id);
 
@@ -393,7 +465,8 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   dict_manager->assert_lock_held();
   uint32_t cf_id = 0;
 
-  if (cf_name == DEFAULT_SYSTEM_CF_NAME || cf_name == DEFAULT_CF_NAME) {
+  if (cf_name == DEFAULT_SYSTEM_CF_NAME || cf_name == DEFAULT_CF_NAME ||
+      cf_name == DEFAULT_TMP_CF_NAME || cf_name == DEFAULT_TMP_SYSTEM_CF_NAME) {
     return HA_EXIT_FAILURE;
   }
 
@@ -405,7 +478,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   auto cf_handle = get_cf(cf_name, true /* lock_held_by_caller */).get();
   if (cf_handle == nullptr) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot mark Column family %s to be dropped, "
                     "because it doesn't exist in cf manager",
                     cf_name.c_str());
@@ -419,7 +492,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   auto ret = ddl_manager->scan_for_tables(&scanner);
   if (ret) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(WARNING_LEVEL, 0,
+    LogPluginErrMsg(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot mark Column family %s with id %u to be dropped, "
                     "because it is in use",
                     cf_name.c_str(), cf_id);
@@ -429,7 +502,7 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   ret = ddl_manager->find_in_uncommitted_keydef(cf_id);
   if (ret) {
     RDB_MUTEX_UNLOCK_CHECK(m_mutex);
-    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+    LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                     "Cannot mark Column family %s with id %u to be dropped, "
                     "because it is used by an ongoing add index command",
                     cf_name.c_str(), cf_id);
@@ -440,15 +513,14 @@ int Rdb_cf_manager::drop_cf(Rdb_ddl_manager *const ddl_manager,
   // we don't delete handle object. Here we mark the column family
   // as dropped.
 
-  const std::unique_ptr<rocksdb::WriteBatch> wb = dict_manager->begin();
-  rocksdb::WriteBatch *const batch = wb.get();
+  auto batch = Rdb_dict_manager::begin();
 
   dict_manager->add_dropped_cf(batch, cf_id);
   dict_manager->commit(batch);
 
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 
-  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Column family %s with id %u has been marked to be dropped",
                   cf_name.c_str(), cf_id);
 
@@ -478,8 +550,7 @@ int Rdb_cf_manager::create_cf_flags_if_needed(
       return HA_EXIT_FAILURE;
     }
   } else {
-    const auto wb = dict_manager.begin();
-    rocksdb::WriteBatch *const batch = wb.get();
+    auto batch = Rdb_dict_manager::begin();
 
     dict_manager.add_cf_flags(batch, cf_id, flags);
     dict_manager.commit(batch);

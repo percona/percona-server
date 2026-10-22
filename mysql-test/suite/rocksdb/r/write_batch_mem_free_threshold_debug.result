@@ -1,0 +1,35 @@
+SET @saved_threshold = @@GLOBAL.rocksdb_write_batch_mem_free_threshold;
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(200)) ENGINE=ROCKSDB;
+SET GLOBAL rocksdb_write_batch_mem_free_threshold = 16384;
+SET SESSION debug = '+d,myrocks_trace_write_batch_mem_free';
+# A small transaction keeps its write batch
+INSERT INTO t1 VALUES (1, 'a');
+include/assert_grep.inc [A small write batch is kept]
+# A large transaction frees it
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 2 UNION ALL SELECT n+1 FROM seq WHERE n<500)
+SELECT n, REPEAT('b', 200) FROM seq;
+include/assert_grep.inc [A large write batch is freed]
+# A large statement rolled back to a savepoint leaves a large buffer
+BEGIN;
+SAVEPOINT s;
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 2001 UNION ALL SELECT n+1 FROM seq WHERE n<2500)
+SELECT n, REPEAT('c', 200) FROM seq;
+ROLLBACK TO SAVEPOINT s;
+INSERT INTO t1 VALUES (1000, 'd');
+COMMIT;
+include/assert_grep.inc [A write batch shrunk by a rollback to a savepoint is freed]
+# A write batch of rocksdb_master_skip_tx_api
+SET SESSION rocksdb_master_skip_tx_api = 1;
+SET SESSION debug = '+d,myrocks_trace_write_batch_mem_free';
+INSERT INTO t1 VALUES (1001, 'e');
+UPDATE t1 SET v = REPEAT('f', 200);
+INSERT INTO t1 VALUES (1002, 'g');
+include/assert_grep.inc [A large write batch of rocksdb_master_skip_tx_api is freed]
+SELECT COUNT(*), MIN(v), MAX(v) FROM t1;
+COUNT(*)	MIN(v)	MAX(v)
+503	ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff	g
+SET SESSION debug = '-d,myrocks_trace_write_batch_mem_free';
+SET GLOBAL rocksdb_write_batch_mem_free_threshold = @saved_threshold;
+DROP TABLE t1;

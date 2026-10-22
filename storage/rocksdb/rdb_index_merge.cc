@@ -38,12 +38,16 @@
 
 namespace myrocks {
 
-Rdb_index_merge::Rdb_index_merge(const char *const tmpfile_path,
+Rdb_index_merge::Rdb_index_merge(const std::string table_name,
+                                 const std::string index_name,
+                                 const char *const tmpfile_path,
                                  const ulonglong merge_buf_size,
                                  const ulonglong merge_combine_read_size,
                                  const ulonglong merge_tmp_file_removal_delay,
                                  rocksdb::ColumnFamilyHandle *cf)
     : m_tmpfile_path(tmpfile_path),
+      m_table_name(table_name),
+      m_index_name(index_name),
       m_merge_buf_size(merge_buf_size),
       m_merge_combine_read_size(merge_combine_read_size),
       m_merge_tmp_file_removal_delay(merge_tmp_file_removal_delay),
@@ -62,14 +66,14 @@ Rdb_index_merge::~Rdb_index_merge() {
     uint64 curr_size = m_merge_buf_size * m_merge_file.m_num_sort_buffers;
     for (uint i = 0; i < m_merge_file.m_num_sort_buffers; i++) {
       if (my_chsize(m_merge_file.m_fd, curr_size, 0, MYF(MY_WME))) {
-        LogPluginErrMsg(ERROR_LEVEL, 0,
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Error truncating file during fast index creation.");
       }
 
       my_sleep(m_merge_tmp_file_removal_delay * 1000);
       // Not aborting on fsync error since the tmp file is not used anymore
       if (mysql_file_sync(m_merge_file.m_fd, MYF(MY_WME))) {
-        LogPluginErrMsg(ERROR_LEVEL, 0,
+        LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                         "Error flushing truncated MyRocks merge buffer.");
       }
       curr_size -= m_merge_buf_size;
@@ -102,7 +106,7 @@ int Rdb_index_merge::init() {
         std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
 
   } catch (const std::bad_alloc &) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to allocate memory for merge buffer.");
     return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
@@ -117,7 +121,7 @@ int Rdb_index_merge::init() {
 
   } catch (const std::bad_alloc &) {
     m_rec_buf_unsorted.reset();
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to allocate memory for output buffer.");
     return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
@@ -152,7 +156,7 @@ int Rdb_index_merge::merge_file_create() {
   }
 
   if (fd < 0) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to create temp file during fast index creation.");
     return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
@@ -210,7 +214,8 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
     }
 
     if (merge_buf_write()) {
-      LogPluginErrMsg(ERROR_LEVEL, 0, "Error writing sort buffer to disk.");
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Error writing sort buffer to disk.");
       return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
 
@@ -289,7 +294,7 @@ int Rdb_index_merge::merge_buf_write() {
   if (my_seek(m_merge_file.m_fd,
               m_merge_file.m_num_sort_buffers * m_merge_buf_size, SEEK_SET,
               MYF(0)) == MY_FILEPOS_ERROR) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Error seeking to location in merge file on disk.");
     return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
@@ -302,7 +307,7 @@ int Rdb_index_merge::merge_buf_write() {
   if (my_write(m_merge_file.m_fd, m_output_buf->m_block.get(),
                m_output_buf->m_total_size, MYF(MY_WME | MY_NABP)) ||
       mysql_file_sync(m_merge_file.m_fd, MYF(MY_WME))) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Error writing sorted merge buffer to disk.");
     return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
@@ -366,7 +371,7 @@ int Rdb_index_merge::merge_heap_prepare() {
 
     /* Read the first record from each buffer to initially populate the heap */
     if (entry->read_rec(&entry->m_key, &entry->m_val)) {
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Chunk size is too small to process merge.");
       return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
@@ -413,7 +418,8 @@ int Rdb_index_merge::next(rocksdb::Slice *const key,
   */
   if (m_merge_min_heap.empty()) {
     if ((res = merge_heap_prepare())) {
-      LogPluginErrMsg(ERROR_LEVEL, 0, "Error during preparation of heap.");
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Error during preparation of heap.");
       return res;
     }
 
@@ -513,7 +519,7 @@ int Rdb_index_merge::merge_buf_info::read_next_chunk_from_disk(File fd) {
   m_disk_curr_offset += m_curr_offset;
 
   if (my_seek(fd, m_disk_curr_offset, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Error seeking to location in merge file on disk.");
     return HA_EXIT_FAILURE;
   }
@@ -522,7 +528,8 @@ int Rdb_index_merge::merge_buf_info::read_next_chunk_from_disk(File fd) {
   const size_t bytes_read =
       my_read(fd, m_block.get(), m_block_len, MYF(MY_WME));
   if (bytes_read == (size_t)-1) {
-    LogPluginErrMsg(ERROR_LEVEL, 0, "Error reading merge file from disk.");
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Error reading merge file from disk.");
     return HA_EXIT_FAILURE;
   }
 
@@ -624,7 +631,7 @@ size_t Rdb_index_merge::merge_buf_info::prepare(File fd, ulonglong f_offset) {
     then read 'chunk_size' bytes into the respective chunk buffer.
   */
   if (my_seek(fd, f_offset, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Error seeking to location in merge file on disk.");
     return (size_t)-1;
   }
@@ -632,7 +639,8 @@ size_t Rdb_index_merge::merge_buf_info::prepare(File fd, ulonglong f_offset) {
   const size_t bytes_read =
       my_read(fd, m_block.get(), m_total_size, MYF(MY_WME));
   if (bytes_read == (size_t)-1) {
-    LogPluginErrMsg(ERROR_LEVEL, 0, "Error reading merge file from disk.");
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Error reading merge file from disk.");
     return (size_t)-1;
   }
 

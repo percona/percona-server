@@ -21,9 +21,8 @@
 #endif
 
 /* C++ system header files */
-#ifndef NDEBUG
+#include <algorithm>
 #include <ctime>
-#endif
 #include <string>
 
 /* RocksDB includes */
@@ -69,17 +68,36 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
       if (!m_should_delete) {
         get_ttl_duration_and_offset(gl_index_id, &m_ttl_duration,
                                     &m_ttl_offset);
+        m_partial_index = false;
+        if (m_ttl_duration != 0) {
+          const auto kd = rdb_get_ddl_manager()->safe_find(gl_index_id);
+          m_partial_index = kd != nullptr && kd->is_partial_index();
+        }
 
         if (m_ttl_duration != 0 && m_snapshot_timestamp == 0) {
-          /*
-            For efficiency reasons, we lazily call GetIntProperty to get the
-            oldest snapshot time (occurs once per compaction).
-          */
-          rocksdb::DB *const rdb = rdb_get_rocksdb_db();
-          if (!rdb->GetIntProperty(rocksdb::DB::Properties::kOldestSnapshotTime,
-                                   &m_snapshot_timestamp) ||
-              m_snapshot_timestamp == 0) {
-            m_snapshot_timestamp = static_cast<uint64_t>(std::time(nullptr));
+          // Capture the cutoff before inspecting snapshots so snapshots
+          // acquired after these checks cannot observe rows expired by this
+          // compaction.
+          m_snapshot_timestamp = static_cast<uint64_t>(std::time(nullptr));
+          uint64_t oldest_snapshot = 0;
+          if (!rdb_get_rocksdb_db()->GetIntProperty(
+                  rocksdb::DB::Properties::kOldestSnapshotTime,
+                  &oldest_snapshot)) {
+            // Without the snapshot information, retain TTL rows conservatively.
+            m_snapshot_timestamp = 1;
+          } else if (oldest_snapshot != 0) {
+            m_snapshot_timestamp =
+                std::min(m_snapshot_timestamp, oldest_snapshot);
+          }
+          // Read the transaction list AFTER RocksDB's snapshot list: a snapshot
+          // is registered there before snapshot_created() publishes it here,
+          // and cannot be released before that publication. The transaction
+          // timestamp also protects earlier snapshots released by a statement
+          // rollback. Do not hold either list's lock while reading the other.
+          const auto oldest_transaction = oldest_transaction_timestamp();
+          if (oldest_transaction != 0) {
+            m_snapshot_timestamp =
+                std::min(m_snapshot_timestamp, oldest_transaction);
           }
 
 #if !defined(NDEBUG)
@@ -96,7 +114,6 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
     }
 
     if (m_should_delete) {
-      m_num_deleted++;
       return true;
     } else if (m_ttl_duration > 0 &&
                should_filter_ttl_rec(key, existing_value)) {
@@ -164,13 +181,24 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
     uint64 ttl_timestamp;
     Rdb_string_reader reader(&existing_value);
     if (!reader.read(m_ttl_offset) || reader.read_uint64(&ttl_timestamp)) {
+      // A partial-index sentinel written by an older MyRocks, which did not
+      // allow partial indexes on TTL tables, has no TTL. Keep it.
+      if (m_partial_index) return false;
       std::string buf;
       buf = rdb_hexdump(existing_value.data(), existing_value.size());
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Decoding ttl from PK value failed in compaction filter, "
                       "for index (%u,%u), val: %s",
                       m_prev_index.cf_id, m_prev_index.index_id, buf.c_str());
       abort();
+    }
+
+    /*
+      If the timestamp is max value, it means that this record will never expire
+      and should not be deleted. We will early return here to avoid overflow.
+    */
+    if (ttl_timestamp == std::numeric_limits<uint64_t>::max()) {
+      return false;
     }
 
     /*
@@ -186,8 +214,6 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
   const uint32_t m_cf_id;
   // Index id of the previous record
   mutable GL_INDEX_ID m_prev_index = {0, 0};
-  // Number of rows deleted for the same index id
-  mutable uint64 m_num_deleted = 0;
   // Number of rows expired for the TTL index
   mutable uint64 m_num_expired = 0;
   // Current index id should be deleted or not (should be deleted if true)
@@ -196,6 +222,8 @@ class Rdb_compact_filter : public rocksdb::CompactionFilter {
   mutable uint64 m_ttl_duration = 0;
   // TTL offset for all records in the current index
   mutable uint32 m_ttl_offset = 0;
+  // Current index is a partial index
+  mutable bool m_partial_index = false;
   // Oldest snapshot timestamp at the time a TTL index is discovered
   mutable uint64_t m_snapshot_timestamp = 0;
 };
@@ -205,9 +233,11 @@ class Rdb_compact_filter_factory : public rocksdb::CompactionFilterFactory {
   Rdb_compact_filter_factory(const Rdb_compact_filter_factory &) = delete;
   Rdb_compact_filter_factory &operator=(const Rdb_compact_filter_factory &) =
       delete;
-  Rdb_compact_filter_factory() {}
+  Rdb_compact_filter_factory(Rdb_compact_filter_factory &&) = delete;
+  Rdb_compact_filter_factory &operator=(Rdb_compact_filter_factory &&) = delete;
+  Rdb_compact_filter_factory() = default;
 
-  ~Rdb_compact_filter_factory() {}
+  ~Rdb_compact_filter_factory() = default;
 
   const char *Name() const override { return "Rdb_compact_filter_factory"; }
 

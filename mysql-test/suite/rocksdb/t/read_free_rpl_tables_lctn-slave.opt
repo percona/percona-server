@@ -1,0 +1,5 @@
+--initialize=--lower_case_table_names=1
+--lower_case_table_names=1
+--binlog_format=row
+--rocksdb_read_free_rpl=PK_SK
+--rocksdb_read_free_rpl_tables=T1

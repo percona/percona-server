@@ -1,0 +1,65 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CALL mtr.add_suppression("Could not lock all rows of a prepared XA transaction");
+CALL mtr.add_suppression("Could not lock the rows of a prepared XA transaction in table");
+CALL mtr.add_suppression("Failed to prepare .* in ROCKSDB");
+CALL mtr.add_suppression("Crash recovery finished in ROCKSDB engine. .*Failed to prepare");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+XA START 'l1';
+UPDATE t1 SET b = 10 WHERE a = 1;
+UPDATE t1 SET b = 20 WHERE a = 2;
+XA END 'l1';
+XA PREPARE 'l1';
+# Locking the second row fails.
+# restart: --debug=+d,myrocks_xa_lock_recovered_fail_2
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	l1
+include/assert_grep.inc [MyRocks reported the failure]
+include/assert_grep.inc [The server reported the failure]
+SET SESSION rocksdb_lock_wait_timeout = 1;
+# Opening the table locks the rows recovery could not lock.
+UPDATE t1 SET b = 100 WHERE a = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET b = 200 WHERE a = 2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Rows the transaction did not touch are not locked.
+UPDATE t1 SET b = 30 WHERE a = 3;
+XA COMMIT 'l1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	20
+3	30
+# XA COMMIT released the locks.
+UPDATE t1 SET b = 100 WHERE a = 1;
+UPDATE t1 SET b = 200 WHERE a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+2	200
+3	30
+# The rows cannot be locked when the table is opened either: the
+# table cannot be opened until the transaction is finished.
+XA START 'l2';
+UPDATE t1 SET b = 10 WHERE a = 1;
+UPDATE t1 SET b = 20 WHERE a = 2;
+XA END 'l2';
+XA PREPARE 'l2';
+# restart: --debug=+d,myrocks_xa_lock_recovered_fail_2,myrocks_xa_relock_fail
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	l2
+SELECT * FROM t1 ORDER BY a;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET b = 30 WHERE a = 3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+include/assert_grep.inc [MyRocks reported that the table cannot be opened]
+XA COMMIT 'l2';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	10
+2	20
+3	30
+# restart:
+DROP TABLE t1;

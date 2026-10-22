@@ -7,30 +7,36 @@ USE mysqlslap;
 CREATE TABLE t1(id1 BIGINT, id2 BIGINT, count INT, PRIMARY KEY(id1, id2), KEY(id2)) ENGINE=ROCKSDB;
 CREATE TABLE t1rev(id1 BIGINT, id2 BIGINT, count INT, PRIMARY KEY(id1, id2) COMMENT "cfname=rev:cf2", KEY(id2) COMMENT "cfname=rev:cf2") ENGINE=ROCKSDB;
 SET @save = @@global.rocksdb_lock_wait_timeout;
+SET @save_flush = @@global.rocksdb_flush_log_at_trx_commit;
+SET @save_sync_binlog = @@global.sync_binlog;
 SET GLOBAL rocksdb_lock_wait_timeout = 60;
+SET GLOBAL rocksdb_flush_log_at_trx_commit = 0;
+SET GLOBAL sync_binlog = 0;
 SELECT count from t1;
 count
-50000
+5000
 SELECT count from t1;
 count
-100000
+10000
 SELECT count from t1;
 count
-150000
+15000
 SELECT count from t1;
 count
-200000
+20000
 SELECT count from t1rev;
 count
-50000
+5000
 SELECT count from t1rev;
 count
-100000
+10000
 SELECT count from t1rev;
 count
-150000
+15000
 SELECT count from t1rev;
 count
-200000
+20000
 SET GLOBAL rocksdb_lock_wait_timeout = @save;
+SET GLOBAL rocksdb_flush_log_at_trx_commit = @save_flush;
+SET GLOBAL sync_binlog = @save_sync_binlog;
 DROP DATABASE mysqlslap;

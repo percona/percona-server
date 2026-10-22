@@ -182,7 +182,7 @@ ENDIF()
 
 # Suppress warnings for clang-21 or newer
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 21)
-  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-format-attribute FILES rocksdb/env/file_system.cc rocksdb/env/env.cc rocksdb/env/mock_env.cc rocksdb/logging/auto_roll_logger.cc rocksdb/util/stderr_logger.cc rocksdb/logging/log_buffer.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-missing-format-attribute FILES rocksdb/env/file_system.cc rocksdb/env/env.cc rocksdb/env/mock_env.cc rocksdb/logging/auto_roll_logger.cc rocksdb/util/stderr_logger.cc rocksdb/logging/log_buffer.cc rocksdb/db/c.cc)
 ENDIF()
 
 # Suppress warnings for clang-15 or newer
@@ -288,6 +288,7 @@ SET(ROCKSDB_SE_SOURCES
   rdb_threads.cc rdb_threads.h
   ha_rockspart.cc ha_rockspart.h
   sql_dd.cc sql_dd.h
+  rdb_bulk_load.cc rdb_bulk_load.h
 )
 
 IF(WITH_FB_TSAN OR ROCKSDB_DYNAMIC_PLUGIN)
@@ -322,9 +323,14 @@ TARGET_LINK_LIBRARIES(rocksdb_sources ${rocksdb_static_libs})
 IF (ROCKSDB_DYNAMIC_PLUGIN)
   MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE DEFAULT
     MODULE_ONLY LINK_LIBRARIES rocksdb_sources)
+  # Use the ICU of mysqld, which exports its symbols. Linking ext::icu would
+  # put a second copy of the bundled ICU into the plugin, with duplicate
+  # globals (an ODR violation that AddressSanitizer reports on load).
+  TARGET_INCLUDE_DIRECTORIES(rocksdb SYSTEM PRIVATE
+    $<TARGET_PROPERTY:icu_interface,INTERFACE_INCLUDE_DIRECTORIES>)
 ELSE()
   MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SE_SOURCES} STORAGE_ENGINE MANDATORY
-    STATIC_ONLY LINK_LIBRARIES rocksdb_sources)
+    STATIC_ONLY LINK_LIBRARIES rocksdb_sources ext::icu)
   # to fix linkage error on partition_base
   TARGET_LINK_LIBRARIES(rocksdb_se sql_main)
 ENDIF()

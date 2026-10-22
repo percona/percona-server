@@ -1,0 +1,55 @@
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE KEY ub (b)) ENGINE=ROCKSDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, UNIQUE KEY ub (b)) ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (1, 1), (5, 5), (6, 6), (7, 7);
+# 20 rows written, with 20 unique key values locked, and a locking read
+SET SESSION debug = "+d,myrocks_xa_log_marker_locks";
+XA START 'm1';
+SELECT * FROM t2 WHERE a = 1 FOR UPDATE;
+a	b
+1	1
+XA END 'm1';
+XA PREPARE 'm1';
+SET SESSION debug = "-d,myrocks_xa_log_marker_locks";
+# Written at XA PREPARE and when it completes in TC
+include/assert_grep.inc [The marker keeps the unique key values and the locking read]
+include/assert_grep.inc [The marker keeps no other row locks]
+# A row locked by a locking read and then written by a statement that
+# is rolled back stays locked. The write of another row takes the
+# savepoint the failed statement rolls back to after the locking read.
+XA START 'm2';
+SET SESSION rocksdb_write_batch_flush_threshold = 0;
+SELECT * FROM t2 WHERE a = 5 FOR UPDATE;
+a	b
+5	5
+INSERT INTO t1 VALUES (200, 200);
+UPDATE t2 SET b = IF(a = 5, 50, 7) WHERE a IN (5, 6) ORDER BY a;
+ERROR 23000: Duplicate entry '7' for key 't2.ub'
+XA END 'm2';
+XA PREPARE 'm2';
+# Kill and restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	m1
+1	2	0	m2
+SET SESSION rocksdb_lock_wait_timeout = 1;
+DELETE FROM t1 WHERE a = 10;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES (100, 10);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t2 WHERE a = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t2 WHERE a = 5;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t2 WHERE a = 6;
+XA COMMIT 'm1';
+XA COMMIT 'm2';
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+21
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	1
+5	5
+7	7
+DROP TABLE t1, t2;

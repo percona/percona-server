@@ -1,0 +1,35 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE=RocksDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, value INT) ENGINE=RocksDB;
+INSERT INTO t1 VALUES (1,1), (2,2);
+INSERT INTO t2 VALUES (1,1), (2,2);
+include/rpl/sync_to_replica.inc
+SELECT @@global.rocksdb_read_free_rpl, @@global.rocksdb_read_free_rpl_tables;
+@@global.rocksdb_read_free_rpl	@@global.rocksdb_read_free_rpl_tables
+PK_SK	t1
+[connection slave]
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+[connection master]
+UPDATE t1 SET value = value + 1 WHERE id = 1;
+include/rpl/sync_to_replica.inc
+# t1 matches the startup value and is read free, t2 is not
+SELECT 't1' AS tbl, IF(variable_value - @get_for_update > 0, 'lookup', 'read free') AS rpl FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+tbl	rpl
+t1	read free
+[connection slave]
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+[connection master]
+UPDATE t2 SET value = value + 1 WHERE id = 1;
+include/rpl/sync_to_replica.inc
+# t1 matches the startup value and is read free, t2 is not
+SELECT 't2' AS tbl, IF(variable_value - @get_for_update > 0, 'lookup', 'read free') AS rpl FROM performance_schema.global_status WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+tbl	rpl
+t2	lookup
+[connection master]
+DROP TABLE t1, t2;
+include/rpl/deinit.inc

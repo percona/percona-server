@@ -215,7 +215,8 @@ const char *Command_maps::sql_commands[] = {"select",
                                             "show_thread_stats",
                                             "lock_tables_for_backup",
                                             "create_compression_dictionary",
-                                            "drop_compression_dictionary"};
+                                            "drop_compression_dictionary",
+                                            "show_engine_trans"};
 
 Command_maps *g_command_maps{nullptr};
 }  // namespace

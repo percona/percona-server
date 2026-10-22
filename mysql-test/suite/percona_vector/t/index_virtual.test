@@ -155,8 +155,8 @@ UPDATE u1 JOIN (SELECT id FROM u1 IGNORE INDEX (vk) WHERE g > 0 ORDER BY DISTANC
 --enable_query_log
 
 --replace_column 10 # 11 #
-EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 7, t2.b = t1.g WHERE t1.id = t2.id AND t1.id IN (SELECT id FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
-UPDATE t1, t2 SET t1.a = t1.a + 7, t2.b = t1.g WHERE t1.id = t2.id AND t1.id IN (SELECT id FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
+EXPLAIN UPDATE /*+ JOIN_ORDER(t2, t1) */ t1, t2 SET t1.a = t1.a + 7, t2.b = t1.g WHERE t1.id = t2.id AND t1.id IN (SELECT id FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
+UPDATE /*+ JOIN_ORDER(t2, t1) */ t1, t2 SET t1.a = t1.a + 7, t2.b = t1.g WHERE t1.id = t2.id AND t1.id IN (SELECT id FROM (SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
 --disable_query_log
 UPDATE u1, u2 SET u1.a = u1.a + 7, u2.b = u1.g WHERE u1.id = u2.id AND u1.id IN (SELECT id FROM (SELECT id FROM u1 IGNORE INDEX (vk) ORDER BY DISTANCE(v, STRING_TO_VECTOR('[5.4,0,0,0]'), 'EUCLIDEAN') LIMIT 2) x);
 --enable_query_log

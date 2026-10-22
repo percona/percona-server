@@ -305,7 +305,7 @@ namespace info_schema {
   Changed definition of I_S.STATISTICS view to correctly display vector indexes.
 */
 
-static const uint IS_DD_VERSION = 90701;
+static const uint IS_DD_VERSION = 90702;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

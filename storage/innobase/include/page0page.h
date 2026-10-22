@@ -807,6 +807,24 @@ bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
 
 page_t *page_create_low(buf_block_t *block, ulint comp, page_type_t page_type);
 
+/** A blob map to track the first page no of external LOB and its parent record
+which is the <page_no, heap_no>. This is used to find duplicate external LOB
+pages that is shared between two records. This can happen only on corruption
+(cause unknown yet). CHECK TABLE  t1 EXTENDED will use this map to report
+corruption and mark the table as corrupted */
+using blob_ref_map = std::unordered_map<page_no_t, std::pair<page_no_t, ulint>>;
+extern thread_local blob_ref_map *thread_local_blob_map;
+
+/** Validate that the external LOB's first page is not shared between records of
+a clustered index
+@param[in] rec     physical record
+@param[in] index   index of the table
+@param[in] offsets the record offset array
+@return true If OK else false if external LOB is found to be shared between two
+records, ie false on failure */
+bool page_rec_blob_validate(const rec_t *rec, const dict_index_t *index,
+                            const ulint *offsets);
+
 #include "page0page.ic"
 
 #endif

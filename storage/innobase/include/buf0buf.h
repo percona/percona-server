@@ -1964,14 +1964,34 @@ struct buf_block_t {
   BPageMutex mutex;
 
   /** Padding, see the static_assert on sizeof(buf_block_t) below. The size of
-  the fields above depends on whether PFS instrumentation of mutex and rw_lock
-  is enabled. */
+  the fields above depends on the mutex type (MUTEXTYPE cmake option) and on
+  whether PFS instrumentation of mutex and rw_lock is enabled. Compared to the
+  default event mutex, BPageMutex is 16 bytes larger for the sys mutex and 16
+  bytes smaller for the futex mutex. */
+#if defined(MUTEX_FUTEX)
+#if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
+  byte m_padding[64];
+#elif defined(UNIV_PFS_MUTEX)
+  byte m_padding[72];
+#else
+  byte m_padding[80];
+#endif
+#elif defined(MUTEX_SYS)
+#if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
+  byte m_padding[32];
+#elif defined(UNIV_PFS_MUTEX)
+  byte m_padding[40];
+#else
+  byte m_padding[48];
+#endif
+#else
 #if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
   byte m_padding[48];
 #elif defined(UNIV_PFS_MUTEX)
   byte m_padding[56];
 #else
   byte m_padding[64];
+#endif
 #endif
 
   /** Get the modified clock (version) value.

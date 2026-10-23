@@ -4295,6 +4295,18 @@ bool Item_func_vector_distance::do_itemize(Parse_context *pc, Item **res) {
   // between source and replica hardware and yield slightly different
   // floating-point results.
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+
+  /* Register with the query block so the optimizer can consider the
+  vector index for the canonical ANN shape (ORDER BY ... LIMIT). WHERE
+  placement is registered too, but only the ORDER BY shape activates
+  the index - an approximate index inside a filter would silently drop
+  qualifying rows. */
+  const auto select = pc->select;
+  if (select->parsing_place == CTX_WHERE ||
+      select->parsing_place == CTX_ORDER_BY) {
+    select->add_vector_func_to_list(this);
+  }
+
   return false;
 }
 
@@ -4327,29 +4339,13 @@ bool Item_func_vector_distance::resolve_type(THD *thd) {
     return true;
   }
 
-  static constexpr struct {
-    std::string_view name;
-    metric_type metric;
-  } kMetrics[] = {
-      {"euclidean", EUCLIDEAN}, {"euclidean_squared", EUCLIDEAN_SQUARED},
-      {"cosine", COSINE},       {"dot", DOT_PRODUCT},
-      {"manhattan", MANHATTAN},
-  };
-
-  // my_strnncoll is length-aware: embedded NUL + trailing bytes cannot match.
-  const auto *it = std::find_if(
-      std::begin(kMetrics), std::end(kMetrics), [&](const auto &candidate) {
-        return !my_strnncoll(&my_charset_latin1,
-                             pointer_cast<const uchar *>(metric_n->ptr()),
-                             metric_n->length(),
-                             pointer_cast<const uchar *>(candidate.name.data()),
-                             candidate.name.size());
-      });
-  if (it == std::end(kMetrics)) {
+  std::string_view name(metric_n->ptr(), metric_n->length());
+  const auto *m = vector_constants::metric_from_name(name);
+  if (m == nullptr) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }
-  m_metric = it->metric;
+  m_metric = *m;
 
   // Cosine can return NULL for zero-length vectors at runtime. Mark nullable
   // unconditionally so that derived columns and metadata (SHOW CREATE TABLE)
@@ -4401,13 +4397,13 @@ double Item_func_vector_distance::val_real() {
   }
 
   switch (m_metric) {
-    case EUCLIDEAN:
+    case Metric::kEuclidean:
       return check_float_overflow(std::sqrt(
           vector_distance_euclidean_squared(a->ptr(), b->ptr(), a_dims)));
-    case EUCLIDEAN_SQUARED:
+    case Metric::kEuclideanSquared:
       return check_float_overflow(
           vector_distance_euclidean_squared(a->ptr(), b->ptr(), a_dims));
-    case COSINE: {
+    case Metric::kCosine: {
       const double dist = vector_distance_cosine(a->ptr(), b->ptr(), a_dims);
       if (std::isinf(dist)) {
         // +Inf sentinel from vector_distance_cosine: zero-vector(s) → undefined
@@ -4418,10 +4414,10 @@ double Item_func_vector_distance::val_real() {
       // NaN/Inf input elements propagated through → ER_DATA_OUT_OF_RANGE
       return check_float_overflow(dist);
     }
-    case DOT_PRODUCT:
+    case Metric::kDotProduct:
       return check_float_overflow(
           -vector_distance_dot(a->ptr(), b->ptr(), a_dims));
-    case MANHATTAN:
+    case Metric::kManhattan:
       return check_float_overflow(
           vector_distance_manhattan(a->ptr(), b->ptr(), a_dims));
     default:

@@ -357,6 +357,11 @@ bool setup_range_optimizer_param(THD *thd, MEM_ROOT *return_mem_root,
         continue;  // ToDo: ft-keys in non-ft ranges, if possible   SerG
       }
 
+      if (key_info->flags & HA_VECTOR) {
+        trace_idx_details.add("usable", false).add_alnum("cause", "vector");
+        continue;
+      }
+
       trace_idx_details.add("usable", true);
 
       param->key[param->keys] = key_parts;

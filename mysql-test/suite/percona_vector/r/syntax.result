@@ -1,0 +1,901 @@
+#
+# PS-11264: Vector Index support in Data Dictionary
+# PS-11203: Vector Index Syntax
+#
+#
+# Legacy Syntax: keyword used a identifier
+#
+CREATE TABLE vector ( a INTEGER );
+SHOW CREATE TABLE vector;
+Table	Create Table
+vector	CREATE TABLE `vector` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE vector;
+CREATE TABLE t1 ( vector INT );
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 ( a INT, INDEX vector ( a ) );
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int DEFAULT NULL,
+  KEY `vector` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 ( a INT );
+CREATE INDEX vector ON t3(a);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int DEFAULT NULL,
+  KEY `vector` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t4 ( a INT );
+ALTER TABLE t4 ADD vector INT;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int DEFAULT NULL,
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t5 ( a INT );
+ALTER TABLE t5 ADD COLUMN vector INT;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int DEFAULT NULL,
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t6 ( a INT );
+ALTER TABLE t6 ADD (vector INT);
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int DEFAULT NULL,
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t7 ( a INT );
+ALTER TABLE t7 ADD INDEX vector (a);
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a` int DEFAULT NULL,
+  KEY `vector` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t8 ( a INT, vector INT );
+ALTER TABLE t8 CHANGE vector b INT;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t8 CHANGE b vector INT;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int DEFAULT NULL,
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t8 CHANGE COLUMN vector b INT;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t8 CHANGE COLUMN b vector INT;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` int DEFAULT NULL,
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t9 ( a INT, vector INT );
+ALTER TABLE t9 MODIFY vector INT FIRST;
+ALTER TABLE t9 MODIFY COLUMN vector INT AFTER a;
+SHOW CREATE TABLE t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` int DEFAULT NULL,
+  `vector` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t10 ( a INT, vector INT );
+ALTER TABLE t10 DROP COLUMN vector;
+SHOW CREATE TABLE t10;
+Table	Create Table
+t10	CREATE TABLE `t10` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t11 ( a INT, vector INT );
+ALTER TABLE t11 DROP vector;
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t12 ( vector VECTOR ( 1 ) );
+SHOW CREATE TABLE t12;
+Table	Create Table
+t12	CREATE TABLE `t12` (
+  `vector` vector(1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t13 ( a INT );
+ALTER TABLE t13 ADD vector VECTOR ( 2 );
+SHOW CREATE TABLE t13;
+Table	Create Table
+t13	CREATE TABLE `t13` (
+  `a` int DEFAULT NULL,
+  `vector` vector(2) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t14 ( a INT );
+ALTER TABLE t14 ADD COLUMN vector VECTOR ( 3 );
+SHOW CREATE TABLE t14;
+Table	Create Table
+t14	CREATE TABLE `t14` (
+  `a` int DEFAULT NULL,
+  `vector` vector(3) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE vector (
+id BIGINT UNSIGNED PRIMARY KEY,
+vector VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY vector ( vector ) TYPE hnsw
+);
+CREATE ROLE vector;
+CREATE PROCEDURE p1() BEGIN DECLARE vector INT; SET vector = 1; END//
+CREATE PROCEDURE p2() BEGIN vector: LOOP LEAVE vector; END LOOP vector; END//
+SET @vector = 1;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP ROLE vector;
+DROP TABLE vector, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
+#
+# New Syntax
+#
+CREATE TABLE t (
+v1 VECTOR ( 1234 ),
+VECTOR KEY ( v1 ) TYPE hnsw TYPE HNSW
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TYPE HNSW
+)' at line 3
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR ( v1 ) TYPE hnsw
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( v1 ) TYPE hnsw
+)' at line 4
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw TYPE hnsw;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TYPE hnsw' at line 1
+ALTER TABLE t ADD VECTOR INDEX v1 (v1) TYPE hnsw TYPE hnsw;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TYPE hnsw' at line 1
+CREATE TABLE t1 (
+v1 VECTOR ( 1234 ),
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
+);
+ERROR HY000: A VECTOR index may only contain a VECTOR NOT NULL type column.
+CREATE TABLE t1 (
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE t1 (
+id BIGINT PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE t1 (
+id INT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE t1 (
+id1 BIGINT UNSIGNED,
+id2 BIGINT UNSIGNED,
+v1 VECTOR ( 1234 ) NOT NULL,
+PRIMARY KEY (id1, id2),
+VECTOR KEY ( v1 ) TYPE hnsw
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE t1 (
+id INT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 )
+) ENGINE = memory;
+ERROR HY000: The used table type doesn't support vector indexes
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( m = 6, metric = euclidean, M = 7 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, M = 7, Metric = euclidean )
+);
+ERROR HY000: Duplicate index construction parameter: Metric.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, EF_CONSTRUCTION = 200 )
+);
+ERROR HY000: Duplicate index construction parameter: EF_CONSTRUCTION.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6, M = 1 )
+);
+ERROR HY000: Duplicate index construction parameter: M.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( ef_construction = 100, ef_construction = 0 )
+);
+ERROR HY000: Duplicate index construction parameter: ef_construction.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean, metric = no_such_metric )
+);
+ERROR HY000: Duplicate index construction parameter: metric.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL
+);
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+ERROR HY000: Duplicate index construction parameter: m.
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+ERROR HY000: Duplicate index construction parameter: Ef_Construction.
+ALTER TABLE t1 ADD VECTOR INDEX ix ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+ERROR HY000: Duplicate index construction parameter: METRIC.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( M = 6, m = 7 );
+ERROR HY000: Duplicate index construction parameter: m.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( ef_construction = 100, M = 6, Ef_Construction = 200 );
+ERROR HY000: Duplicate index construction parameter: Ef_Construction.
+CREATE VECTOR INDEX ix ON t1 ( v1 ) TYPE hnsw ( metric = euclidean, METRIC = cosine );
+ERROR HY000: Duplicate index construction parameter: METRIC.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SHOW INDEXES FROM t1 WHERE Index_type = 'VECTOR';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) USING hnsw ( M = 6 )
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SHOW INDEXES FROM t1 WHERE Index_type = 'VECTOR';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+CREATE TABLE t2 (
+id BIGINT UNSIGNED UNIQUE NOT NULL,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw
+);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  UNIQUE KEY `id` (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	0	id	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t2	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SHOW INDEXES FROM t2 WHERE Index_type = 'VECTOR';
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t2	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SET sql_mode='ANSI';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "id" bigint unsigned NOT NULL,
+  "v1" vector(1234) NOT NULL,
+  PRIMARY KEY ("id"),
+  VECTOR KEY "v1" ("v1") USING "hnsw"
+)
+SET sql_mode=default;
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+ALTER TABLE t1 CHANGE id id INT UNSIGNED;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+ALTER TABLE t1 CHANGE id id BIGINT;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+v2 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1, v2 ) TYPE hnsw
+);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+v2 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw,
+VECTOR INDEX ( v2 ) TYPE hnsw
+);
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+v2 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw,
+VECTOR INDEX ( v1 ) TYPE hnsw
+);
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw INVISIBLE
+);
+ERROR 42000: This version of MySQL doesn't yet support 'invisible vector indexes'
+CREATE TABLE t3 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw
+);
+ALTER TABLE t3 ALTER INDEX v1 INVISIBLE;
+ERROR 42000: This version of MySQL doesn't yet support 'invisible vector indexes'
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1( 1 ) ) TYPE hnsw
+);
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE FUNCTION foo( v VECTOR ) RETURNS VECTOR DETERMINISTIC
+RETURN to_VECTOR ('[1]');
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR (1) NOT NULL,
+INDEX (( foo ( v1 ) ))
+);
+ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
+DROP FUNCTION foo;
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR (1) UNIQUE,
+VECTOR INDEX ( v1 ) TYPE hnsw
+);
+ERROR HY000: Non-scalar (e.g., vector) column 'v1' cannot be used as key.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR (1) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw KEY_BLOCK_SIZE 1
+);
+ERROR 42000: This version of MySQL doesn't yet support 'KEY_BLOCK_SIZE for vector indexes'
+CREATE TABLE t4 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL
+);
+ALTER TABLE t4 ADD VECTOR INDEX v1 (v1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER TABLE t4 ADD UNIQUE (v1);
+ERROR HY000: Non-scalar (e.g., vector) column 'v1' cannot be used as key.
+ALTER TABLE t4 ADD UNIQUE (v1(1)) TYPE hnsw;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'hnsw' at line 1
+ALTER TABLE t4 ADD VECTOR INDEX v1 (v1) TYPE hnsw;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t4 DROP INDEX v1;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t4;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t4	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 8 ) NOT NULL
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+ALTER TABLE t1 ADD VECTOR INDEX ix (v1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+ALTER TABLE t1 ADD VECTOR INDEX vx (v1) TYPE hnsw;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vx` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	vx	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw COMMENT 'abc' ( M = 6 )
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( M = 6 )
+)' at line 4
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6 ) COMMENT 'abc'
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`) COMMENT 'abc'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR		abc	YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ()
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')
+)' at line 4
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6.0 )
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '6.0 )
+)' at line 4
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = "6" )
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"6" )
+)' at line 4
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( `M = 1` = 1 )
+);
+ERROR HY000: Illegal index construction parameter: M = 1.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( bogus = 1 )
+);
+ERROR HY000: Illegal index construction parameter: bogus.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = nosuchmetric )
+);
+ERROR HY000: Illegal index construction parameter value: nosuchmetric.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = abc )
+);
+ERROR HY000: Illegal index construction parameter value: abc.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = `M = 1`)
+);
+ERROR HY000: Illegal index construction parameter value: M = 1.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 0 )
+);
+ERROR HY000: Illegal index construction parameter value: 0.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 1 )
+);
+ERROR HY000: Illegal index construction parameter value: 1.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 2 )
+);
+DROP TABLE t;
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 200 )
+);
+DROP TABLE t;
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 201 )
+);
+ERROR HY000: Illegal index construction parameter value: 201.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 2147483647 )
+);
+ERROR HY000: Illegal index construction parameter value: 2147483647.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = 6.0 );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '6.0 )' at line 1
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = "6" );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"6" )' at line 1
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( `M = 1` = 1 );
+ERROR HY000: Illegal index construction parameter: M = 1.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( bogus = 1 );
+ERROR HY000: Illegal index construction parameter: bogus.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( metric = nosuchmetric );
+ERROR HY000: Illegal index construction parameter value: nosuchmetric.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = abc );
+ERROR HY000: Illegal index construction parameter value: abc.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( M = `M = 1` );
+ERROR HY000: Illegal index construction parameter value: M = 1.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 0 );
+ERROR HY000: Illegal index construction parameter value: 0.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 1 );
+ERROR HY000: Illegal index construction parameter value: 1.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 2 );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+ALTER TABLE t1 DROP INDEX ix;
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 200 );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+ALTER TABLE t1 DROP INDEX ix;
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 201 );
+ERROR HY000: Illegal index construction parameter value: 201.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE Hnsw ( M = 2147483647 );
+ERROR HY000: Illegal index construction parameter value: 2147483647.
+CREATE VECTOR INDEX ix ON t1(v1) TYPE no_such_type;
+ERROR HY000: The index type no_such_type is not supported for vector indexes.
+CREATE VECTOR INDEX ix ON t1(v1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+CREATE VECTOR INDEX ix ON t1(v1(1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( m = 6 );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on tables lacking a BIGINT UNSIGNED single column primary key'
+ALTER TABLE t1 DROP INDEX ix;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( m = 6, metric = Euclidean );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP INDEX ix;
+CREATE VECTOR INDEX ix ON t1(v1) TYPE hnsw ( metric = Euclidean, m = 6 );
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	ix	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `ix` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 DROP INDEX ix;
+ALTER TABLE t1 DROP PRIMARY KEY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1234) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 )
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 5
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) USING btree
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'btree
+)' at line 4
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) USING rtree
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'rtree
+)' at line 4
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) USING hash
+);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'hash
+)' at line 4
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+c INT,
+VECTOR KEY (c) TYPE hnsw
+);
+ERROR HY000: A VECTOR index may only contain a VECTOR NOT NULL type column.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+v2 VECTOR ( 1234 )
+);
+CREATE VECTOR INDEX ix ON t1( v1, v2 ) TYPE hnsw;
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED NOT NULL,
+v1 VECTOR (8) NOT NULL,
+UNIQUE KEY u_id (id),
+VECTOR KEY (v1) TYPE hnsw
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  UNIQUE KEY `u_id` (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	u_id	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 8 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 6, metric = euclidean )
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ADD COLUMN c INT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(8) NOT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw
+);
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on temporary tables'
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL
+) PARTITION BY KEY (id) PARTITIONS 1;
+ALTER TABLE t1 ADD VECTOR INDEX v1 ( v1 ) TYPE hnsw;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'
+DROP TABLE t1;
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw
+) PARTITION BY KEY (id) PARTITIONS 1;
+ERROR 42000: This version of MySQL doesn't yet support 'vector indexes on partitioned tables'
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) GENERATED ALWAYS AS (to_VECTOR ('[1]')) VIRTUAL NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw
+);
+ERROR HY000: 'Vector index on virtual generated column' is not supported for generated columns.
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1 ) GENERATED ALWAYS AS (to_VECTOR ('[1]')) STORED NOT NULL,
+VECTOR INDEX ( v1 ) TYPE hnsw
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v1` vector(1) GENERATED ALWAYS AS (to_vector(_utf8mb4'[1]')) STORED NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `v1` (`v1`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW KEYS FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	v1	1	v1	NULL	0	NULL	NULL		VECTOR			YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean )
+);
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = euclidean_squared )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
+CREATE TABLE t2 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = cosine )
+);
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = dot )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR ( 1234 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( metric = manhattan )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'HNSW indexes on anything but the EUCLIDEAN or COSINE metric'
+DROP TABLES t1, t2;
+#
+# A vector index is checked when its key is prepared, in the order the
+# keys are written. A second vector key is refused before its options
+# are looked at, so a bad option on it goes unreported, while a bad
+# option on the first one is reported.
+#
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR( 8 ) NOT NULL,
+v2 VECTOR( 8 ) NOT NULL,
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 ),
+VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 )
+);
+ERROR 42000: This version of MySQL doesn't yet support 'multiple vector indexes on a single table'
+# Same statement, keys the other way round: the bad option comes first.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR( 8 ) NOT NULL,
+v2 VECTOR( 8 ) NOT NULL,
+VECTOR KEY ( v2 ) TYPE hnsw ( bogus = 1 ),
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
+);
+ERROR HY000: Illegal index construction parameter: bogus.
+# An illegal VALUE on the first key is reported too.
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+v1 VECTOR( 8 ) NOT NULL,
+v2 VECTOR( 8 ) NOT NULL,
+VECTOR KEY ( v2 ) TYPE hnsw ( M = abc ),
+VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
+);
+ERROR HY000: Illegal index construction parameter value: abc.

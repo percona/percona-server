@@ -51,6 +51,7 @@
 #include "sql/sql_const.h"
 #include "sql_string.h"
 #include "template_utils.h"  // pointer_cast
+#include "vector-common/vector_constants.h"
 
 #include <openssl/evp.h>
 
@@ -1311,14 +1312,8 @@ class Item_func_from_vector final : public Item_str_ascii_func {
 };
 
 class Item_func_vector_distance final : public Item_real_func {
-  enum metric_type {
-    EUCLIDEAN,
-    EUCLIDEAN_SQUARED,
-    COSINE,
-    DOT_PRODUCT,
-    MANHATTAN
-  };
-  metric_type m_metric{EUCLIDEAN};
+  using Metric = vector_constants::Metric;
+  Metric m_metric{Metric::kEuclidean};
 
  public:
   Item_func_vector_distance(const POS &pos, Item *a, Item *b, Item *c)
@@ -1328,6 +1323,30 @@ class Item_func_vector_distance final : public Item_real_func {
   const char *func_name() const override { return "distance"; }
   enum Functype functype() const override { return VECTOR_DISTANCE_FUNC; }
   double val_real() override;
+
+  /**
+    Check if ORDER BY clause using this DISTANCE() call can be handled by
+    a vector index.
+
+    @param index_metric The metric of the vector index.
+
+    @return true if a vector index has the same or equivalent metric as
+            this DISTANCE() call, false otherwise.
+
+    EUCLIDEAN and EUCLIDEAN_SQUARED are served by an euclidean index.
+    COSINE requires a cosine index.
+  */
+  bool vector_index_is_metric_compatible(Metric index_metric) const {
+    switch (index_metric) {
+      case Metric::kEuclidean:
+        return m_metric == Metric::kEuclidean ||
+               m_metric == Metric::kEuclideanSquared;
+      case Metric::kCosine:
+        return m_metric == Metric::kCosine;
+      default:
+        return false;
+    }
+  }
 };
 
 class Item_func_uncompress final : public Item_str_func {

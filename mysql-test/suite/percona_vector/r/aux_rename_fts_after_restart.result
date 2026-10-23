@@ -1,0 +1,37 @@
+#
+# A cross-schema RENAME TABLE of a table with a vector and a FULLTEXT
+# index, after a restart. The vector aux tables are locked
+# (PS-11673), but the FTS aux tables are renamed first and are still
+# opened without an MDL (PS-11827), so a debug server aborts in
+# Dictionary_client::acquire(). Once PS-11827 is fixed, the rename
+# succeeds and this test must expect that.
+#
+call mtr.add_suppression("Assertion .*is_dd_system_thread.* failed");
+call mtr.add_suppression("Attempting backtrace");
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t (id BIGINT UNSIGNED PRIMARY KEY,
+v VECTOR(4) NOT NULL,
+s VARCHAR(64),
+VECTOR KEY vk (v) TYPE hnsw,
+FULLTEXT KEY fk (s));
+INSERT INTO d1.t VALUES (1, STRING_TO_VECTOR('[1,2,3,4]'), 'hello world');
+# restart
+RENAME TABLE d1.t TO d2.t;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+# The rename was rolled back.
+SHOW TABLES FROM d1;
+Tables_in_d1
+t
+SHOW TABLES FROM d2;
+Tables_in_d2
+SELECT id FROM d1.t WHERE MATCH(s) AGAINST('hello');
+id
+1
+SELECT id FROM d1.t
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,2,3,4]'), 'euclidean') LIMIT 1;
+id
+1
+DROP DATABASE d1;
+DROP DATABASE d2;

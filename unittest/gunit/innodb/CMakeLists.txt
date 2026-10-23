@@ -63,6 +63,9 @@ SET(TESTS
   ut0object_cache
   ut0rbt
   ut0rnd
+  vec0arena
+  vec0aux
+  vec0vec
 )
 
 # Treat warnings as errors on MSVC for InnoDB's unittests

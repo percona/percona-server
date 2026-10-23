@@ -746,6 +746,10 @@ If innodb_fast_shutdown=2, shutdown will effectively 'crash' InnoDB
 extern ulong srv_fast_shutdown;
 extern bool srv_innodb_status;
 
+/** Upper bound in bytes on memory held by HNSW vector index graphs across
+all tables and indexes; 0 means no limit. */
+extern unsigned long long srv_hnsw_max_memory;
+
 extern unsigned long long srv_stats_transient_sample_pages;
 extern bool srv_stats_persistent;
 extern unsigned long long srv_stats_persistent_sample_pages;
@@ -1359,6 +1363,7 @@ struct export_var_t {
   // Percona-added status variables
   ulint innodb_checkpoint_age;
   ulint innodb_checkpoint_max_age;
+  uint64_t innodb_hnsw_memory_used; /*!< Vec_arena::global_bytes() */
   ulint innodb_ibuf_free_list;
   ulint innodb_ibuf_segment_size;
   lsn_t innodb_lsn_current;

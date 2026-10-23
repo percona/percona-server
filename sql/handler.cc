@@ -756,6 +756,10 @@ int ha_init_errors(void) {
   SETMSG(HA_ERR_TOO_LONG_PATH, ER_DEFAULT(ER_TABLE_NAME_CAUSES_TOO_LONG_PATH));
   SETMSG(HA_ERR_FTS_TOO_MANY_NESTED_EXP,
          "Too many nested sub-expressions in a full-text search");
+  SETMSG(HA_ERR_VECTOR_WRONG_DIMENSIONS,
+         "A vector does not have the dimensions its vector index needs");
+  SETMSG(HA_ERR_VECTOR_WRONG_VALUE,
+         "A vector value is not usable by its vector index");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -3369,6 +3373,48 @@ int handler::ha_ft_read(uchar *buf) {
   return result;
 }
 
+int handler::ha_vec_init() {
+  DBUG_TRACE;
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == INDEX);
+
+  return vec_init();
+}
+
+int handler::ha_vec_read_first(Item *item, uchar *buf, ha_rows limit) {
+  DBUG_TRACE;
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == INDEX);
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields = table->has_gcol();
+
+  int result = vec_read_first(item, buf, limit);
+  if (!result && m_update_generated_read_fields) {
+    result = update_generated_read_fields(buf, table);
+    m_update_generated_read_fields = false;
+  }
+  table->set_row_status_from_handler(result);
+  return result;
+}
+
+int handler::ha_vec_read_next(uchar *buf) {
+  DBUG_TRACE;
+  assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
+  assert(inited == INDEX);
+
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields = table->has_gcol();
+
+  int result = vec_read_next(buf);
+  if (!result && m_update_generated_read_fields) {
+    result = update_generated_read_fields(buf, table);
+    m_update_generated_read_fields = false;
+  }
+  table->set_row_status_from_handler(result);
+  return result;
+}
+
 int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
                             int sampling_seed,
                             enum_sampling_method sampling_method,
@@ -4605,6 +4651,40 @@ bool handler::is_fatal_error(int error) {
     - table->s->path
     - table->alias
 */
+void my_error_vector_wrong_dimensions(const TABLE *table, myf errflag) {
+  /* A table has at most one vector index, so the column and the
+  dimensions it needs come from the definition, not from the row. */
+  for (uint k = 0; k < table->s->keys; k++) {
+    const KEY &key = table->key_info[k];
+    if (!(key.flags & HA_VECTOR)) continue;
+    /* The table's own field: KEY_PART_INFO::field is a key-image copy,
+    whose length is not the column's. */
+    const Field *field = table->field[key.key_part[0].fieldnr - 1];
+    assert(field->type() == MYSQL_TYPE_VECTOR);
+    my_error(ER_VECTOR_INDEX_WRONG_DIMENSIONS, errflag, field->field_name,
+             down_cast<const Field_vector *>(field)->get_max_dimensions());
+    return;
+  }
+  my_error(ER_GET_ERRNO, errflag, HA_ERR_VECTOR_WRONG_DIMENSIONS,
+           table->file->table_type());
+}
+
+void my_error_vector_wrong_value(const TABLE *table, myf errflag) {
+  /* A table has at most one vector index; the column comes from the
+  definition. The precise reason (e.g. a zero vector under cosine) is
+  not carried on the error code. */
+  for (uint k = 0; k < table->s->keys; k++) {
+    const KEY &key = table->key_info[k];
+    if (!(key.flags & HA_VECTOR)) continue;
+    const Field *field = table->field[key.key_part[0].fieldnr - 1];
+    assert(field->type() == MYSQL_TYPE_VECTOR);
+    my_error(ER_VECTOR_INDEX_WRONG_VALUE, errflag, field->field_name);
+    return;
+  }
+  my_error(ER_GET_ERRNO, errflag, HA_ERR_VECTOR_WRONG_VALUE,
+           table->file->table_type());
+}
+
 void handler::print_error(int error, myf errflag) {
   THD *thd = current_thd;
   Foreign_key_error_handler foreign_key_error_handler(thd, this);
@@ -4634,6 +4714,18 @@ void handler::print_error(int error, myf errflag) {
       break;
     case HA_ERR_WRONG_MRG_TABLE_DEF:
       textno = ER_WRONG_MRG_TABLE;
+      break;
+    case HA_ERR_VECTOR_WRONG_DIMENSIONS:
+      if (table != nullptr) {
+        my_error_vector_wrong_dimensions(table, errflag);
+        return;
+      }
+      break;
+    case HA_ERR_VECTOR_WRONG_VALUE:
+      if (table != nullptr) {
+        my_error_vector_wrong_value(table, errflag);
+        return;
+      }
       break;
     case HA_ERR_FOUND_DUPP_KEY: {
       const uint key_nr = table ? get_dup_key(error) : -1;

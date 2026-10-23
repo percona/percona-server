@@ -1,0 +1,48 @@
+--echo #
+--echo # A NULL query vector must not empty the result on the vector index path.
+--echo #
+--echo # DISTANCE(v, NULL, ...) is NULL for every row, so ORDER BY it imposes
+--echo # no order and LIMIT n asks for any n rows. The scan without the index
+--echo # returns n rows; the index path used to return none. Which rows come
+--echo # back is not specified, so only the count is compared.
+--echo #
+
+CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+                VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                     (2, STRING_TO_VECTOR('[2,0,0,0]')),
+                     (3, STRING_TO_VECTOR('[3,0,0,0]')),
+                     (4, STRING_TO_VECTOR('[4,0,0,0]'));
+
+--echo # The shape that would use the index: the optimizer keeps a NULL query
+--echo # vector on the exact path, which answers it as the table without the
+--echo # index does.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 2;
+
+SELECT COUNT(*) FROM
+  (SELECT id FROM t ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 2) d;
+SELECT COUNT(*) FROM
+  (SELECT id FROM t IGNORE INDEX (vk)
+   ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 2) d;
+
+--echo # A filter alongside still sees every row that passes it.
+SELECT COUNT(*) FROM
+  (SELECT id FROM t WHERE id > 1
+   ORDER BY DISTANCE(v, NULL, 'EUCLIDEAN') LIMIT 10) d;
+
+--echo # Known only at execution: a user variable, and a statement parameter.
+SET @q = NULL;
+SELECT COUNT(*) FROM
+  (SELECT id FROM t ORDER BY DISTANCE(v, @q, 'EUCLIDEAN') LIMIT 3) d;
+PREPARE s FROM 'SELECT COUNT(*) FROM
+  (SELECT id FROM t ORDER BY DISTANCE(v, ?, ''EUCLIDEAN'') LIMIT 3) d';
+EXECUTE s USING @q;
+DEALLOCATE PREPARE s;
+
+--echo # The distance itself is still NULL.
+SELECT COUNT(*) FROM
+  (SELECT id, DISTANCE(v, NULL, 'EUCLIDEAN') AS d FROM t
+   ORDER BY d LIMIT 4) x WHERE d IS NULL;
+
+DROP TABLE t;

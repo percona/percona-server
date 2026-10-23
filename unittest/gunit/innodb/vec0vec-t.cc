@@ -1,0 +1,327 @@
+/*****************************************************************************
+
+Copyright (c) 2026, Percona Inc.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is designed to work with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have either included with
+the program or referenced in the documentation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+*****************************************************************************/
+
+#include <gtest/gtest.h>
+
+#include "mysqld_error.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_lex.h"
+#include "storage/innobase/include/vec0vec.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
+#include "vector-common/vector_distance.h"
+
+namespace innodb_vec0vec_unittest {
+
+using namespace std;
+using namespace storage::innobase::vec;
+using my_testing::Server_initializer;
+
+class Vec0VecTest : public ParserTest {
+ protected:
+  bool parse(const char *query, int expected_error = 0) {
+    ParserTest::parse(query);
+
+    const Key_spec *ks = find_vector_key();
+    if (ks == nullptr) {
+      ADD_FAILURE() << "No VECTOR key found in key_list";
+      return true;
+    }
+
+    Server_initializer::set_expected_error(expected_error);
+    bool err = parse_options(*ks, m_vip);
+    Server_initializer::set_expected_error(0);
+    return err;
+  }
+
+  const Key_spec *find_vector_key() {
+    const Alter_info *alter_info = thd()->lex->alter_info;
+    if (alter_info == nullptr) return nullptr;
+    for (const Key_spec *ks : alter_info->key_list) {
+      if (ks->type == KEYTYPE_VECTOR) return ks;
+    }
+    return nullptr;
+  }
+
+  VectorIndexParam m_vip;
+};
+
+TEST_F(Vec0VecTest, HnswWithM) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 16)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(16, get<HnswParam>(m_vip).M);
+}
+
+/* ef_runtime is a parameter the parser does not recognise: the loop knows
+only M, metric and ef_construction, and anything else is
+ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER. The statement is refused.
+
+This asserts the refusal rather than skipping it, so that whoever wires
+the parameter up sees this test go red and knows to update the design's
+open item along with it. The percona_vector.runtime_open MTR test asserts the
+same thing at SQL level. */
+TEST_F(Vec0VecTest, HnswEfRuntimeIsRefused) {
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_runtime = 300)"
+            ")",
+            ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER));
+}
+
+TEST_F(Vec0VecTest, HnswWithEfConstruction) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 300)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(300, get<HnswParam>(m_vip).ef_construction);
+  EXPECT_EQ(hnsw::default_M, get<HnswParam>(m_vip).M);
+}
+
+TEST_F(Vec0VecTest, HnswEfConstructionOutOfRange) {
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 0)"
+            ")",
+            ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE));
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (ef_construction = 4097)"
+            ")",
+            ER_ILLEGAL_INDEX_CONSTRUCTION_PARAMETER_VALUE));
+}
+
+/* Every parameter the parser actually supports, together. */
+TEST_F(Vec0VecTest, HnswAllSupportedParams) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8, metric = euclidean,"
+            "                            ef_construction = 64)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(8, get<HnswParam>(m_vip).M);
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_euclidean_squared, get<HnswParam>(m_vip).dist);
+  EXPECT_EQ(64, get<HnswParam>(m_vip).ef_construction);
+}
+
+/* No option list at all: every parameter keeps its default. Worth its own
+case because the parameter container (Vector_index_params_YY, a
+Mem_root_array_YY of name/value pairs) is then empty and its backing
+array is null - both overloads reach the parser that way, and parsing
+must leave every default alone. */
+TEST_F(Vec0VecTest, HnswNoOptionList) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(hnsw::default_M, get<HnswParam>(m_vip).M);
+  EXPECT_EQ(hnsw::default_ef_construction,
+            get<HnswParam>(m_vip).ef_construction);
+}
+
+/* The core overload is what table open uses; exercise it directly with
+no WITH(...) options, which gives the defaults. */
+TEST_F(Vec0VecTest, ParseFieldsNoParams) {
+  VectorIndexParam vip;
+  LEX_CSTRING hnsw{STRING_WITH_LEN("hnsw")};
+  const Vector_index_params_YY no_params{};
+  EXPECT_FALSE(parse_options(hnsw, no_params, vip));
+  ASSERT_TRUE(holds_alternative<HnswParam>(vip));
+  EXPECT_EQ(hnsw::default_M, get<HnswParam>(vip).M);
+}
+
+TEST_F(Vec0VecTest, HnswMetricEuclidean) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (metric = euclidean)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_euclidean_squared, get<HnswParam>(m_vip).dist);
+}
+
+TEST_F(Vec0VecTest, HnswMetricCosine) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (metric = cosine)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(vector_constants::Metric::kCosine, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_cosine, get<HnswParam>(m_vip).dist);
+}
+
+TEST_F(Vec0VecTest, HnswMetricEuclideanSquaredRefused) {
+  EXPECT_TRUE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (metric = euclidean_squared)"
+            ")",
+            ER_NOT_SUPPORTED_YET));
+}
+
+TEST_F(Vec0VecTest, MetricFromKeyCosine) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8, metric = cosine)"
+            ")"));
+  const Key_spec *ks = find_vector_key();
+  ASSERT_NE(nullptr, ks);
+
+  KEY key{};
+  key.flags = HA_VECTOR;
+  key.vector_index_type = ks->key_create_info.vector_index_type;
+  key.vector_index_params = ks->key_create_info.vector_index_params;
+  EXPECT_EQ(vector_constants::Metric::kCosine, metric_from_key(key));
+}
+
+TEST_F(Vec0VecTest, MetricFromKeyDefaultEuclidean) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE hnsw (M = 8)"
+            ")"));
+  const Key_spec *ks = find_vector_key();
+  ASSERT_NE(nullptr, ks);
+
+  KEY key{};
+  key.flags = HA_VECTOR;
+  key.vector_index_type = ks->key_create_info.vector_index_type;
+  key.vector_index_params = ks->key_create_info.vector_index_params;
+  EXPECT_EQ(vector_constants::Metric::kEuclidean, metric_from_key(key));
+}
+
+/* Option names and values are case-insensitive for both readers of the
+options: parse_options(), which picks the kernel the graph is built with,
+and metric_from_key(), which tells the optimizer which DISTANCE() the
+index serves. If they disagreed, the index would serve queries under a
+metric it was not built with. */
+TEST_F(Vec0VecTest, MetricFromKeyMixedCase) {
+  EXPECT_FALSE(
+      parse("CREATE TABLE t1 ("
+            "  id BIGINT UNSIGNED PRIMARY KEY,"
+            "  v1 VECTOR(128) NOT NULL,"
+            "  VECTOR KEY(v1) TYPE HNSW (M = 8, Metric = Cosine)"
+            ")"));
+  ASSERT_TRUE(holds_alternative<HnswParam>(m_vip));
+  EXPECT_EQ(vector_constants::Metric::kCosine, get<HnswParam>(m_vip).metric);
+  EXPECT_EQ(&vector_distance_cosine, get<HnswParam>(m_vip).dist);
+
+  const Key_spec *ks = find_vector_key();
+  ASSERT_NE(nullptr, ks);
+
+  KEY key{};
+  key.flags = HA_VECTOR;
+  key.vector_index_type = ks->key_create_info.vector_index_type;
+  key.vector_index_params = ks->key_create_info.vector_index_params;
+  EXPECT_EQ(vector_constants::Metric::kCosine, metric_from_key(key));
+}
+
+/* Every metric name maps to its Metric and back. */
+TEST(Vec0VecMetricNameTest, RoundTrip) {
+  for (const auto &[name, metric] : vector_constants::kMetrics) {
+    const auto *m = vector_constants::metric_from_name(name);
+    ASSERT_NE(nullptr, m);
+    EXPECT_EQ(metric, *m);
+    EXPECT_EQ(name, vector_constants::metric_name(metric));
+  }
+}
+
+/* resolve_options() fills in every parameter the user left out, under its
+canonical name - which is what goes to the DD. */
+class Vec0VecResolveTest : public Vec0VecTest {
+ protected:
+  /** Parse a CREATE TABLE, resolve its vector KEY, and render the result as
+  "k=v,k=v". */
+  std::string resolve(const char *query) {
+    ParserTest::parse(query);
+    const Key_spec *ks = find_vector_key();
+    if (ks == nullptr) {
+      ADD_FAILURE() << "No VECTOR key found in key_list";
+      return {};
+    }
+    KEY key{};
+    key.vector_index_type = ks->key_create_info.vector_index_type;
+    key.vector_index_params = ks->key_create_info.vector_index_params;
+    if (resolve_options(thd()->mem_root, &key)) {
+      ADD_FAILURE() << "resolve_options failed";
+      return {};
+    }
+    std::string out;
+    for (const auto &[k, v] : key.vector_index_params) {
+      if (!out.empty()) out += ',';
+      out.append(k.str, k.length).append("=").append(v.str, v.length);
+    }
+
+    /* Idempotent: resolving the resolved list changes nothing. */
+    const auto first = key.vector_index_params;
+    EXPECT_FALSE(resolve_options(thd()->mem_root, &key));
+    EXPECT_EQ(first.size(), key.vector_index_params.size());
+    return out;
+  }
+};
+
+TEST_F(Vec0VecResolveTest, NoOptionList) {
+  EXPECT_EQ("M=25,metric=euclidean,ef_construction=200",
+            resolve("CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,"
+                    " v1 VECTOR(4) NOT NULL, VECTOR KEY(v1) TYPE hnsw)"));
+}
+
+TEST_F(Vec0VecResolveTest, Canonicalised) {
+  EXPECT_EQ("M=6,metric=euclidean,ef_construction=64",
+            resolve("CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,"
+                    " v1 VECTOR(4) NOT NULL, VECTOR KEY(v1) TYPE hnsw"
+                    " (ef_construction = 064, metric = EUCLIDEAN, m = 006))"));
+}
+
+}  // namespace innodb_vec0vec_unittest

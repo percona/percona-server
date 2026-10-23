@@ -1,0 +1,574 @@
+/* Copyright (c) 2026 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
+#ifndef HNSW_TEST_UTILS_INCLUDED
+#define HNSW_TEST_UTILS_INCLUDED
+
+/**
+  @file
+
+  Helpers shared by the HNSW unit tests (hnsw-t.cc, hnsw_concurrency-t.cc)
+  and the HNSW benchmark (hnsw_bench-t.cc). Everything here is inline rather
+  than static: those *-t.cc files are compiled into merge_small_tests-t, and
+  a static helper that one including translation unit happens not to use is a
+  -Wunused-function error under maintainer mode.
+*/
+
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <initializer_list>
+#include <limits>
+#include <map>
+#include <mutex>
+#include <random>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "my_alloc.h"
+#include "vector-common/hnsw.h"
+
+namespace hnsw_unittest {
+
+/**
+  Arena allocator backed by MEM_ROOT for HNSW unit tests.
+  All blocks are freed when the allocator (and its MEM_ROOT) is destroyed.
+*/
+class ArenaAllocator {
+ public:
+  ArenaAllocator() : m_mem_root(PSI_NOT_INSTRUMENTED, 4096) {}
+
+  void *allocate(size_t size) { return m_mem_root.Alloc(size); }
+
+ private:
+  MEM_ROOT m_mem_root;
+};
+
+/**
+  No-op Persistor for unit tests and benchmarks.
+
+  Stateless: no members. Context is an empty tag type; callers may pass nullptr.
+*/
+struct NullPersistor {
+  struct Context {};
+
+  template <typename NeighborIds>
+  HnswResult insert_cb(Context *, uint64_t, uint64_t, const char *, uint8_t,
+                       NeighborIds) {
+    return HNSW_SUCCESS;
+  }
+  template <typename NeighborIds>
+  HnswResult update_neighbors_cb(Context *, uint64_t, NeighborIds) {
+    return HNSW_SUCCESS;
+  }
+  HnswResult update_entry_point_cb(Context *, uint64_t) { return HNSW_SUCCESS; }
+  template <typename Hnsw>
+  HnswResult load_node_cb(Context *, Hnsw &, typename Hnsw::LoadNodeHandle) {
+    assert(false);
+    return HNSW_ERROR_CB;
+  }
+};
+
+/** Pin mt19937 so layer assignment matches across libstdc++/libc++. */
+using TestHnsw = HNSW<ArenaAllocator, NullPersistor, std::mt19937>;
+
+/**
+  RNG that makes random_layer() always take the layer cap (grows / keeps
+  high layers). Returning the engine's minimum drives u near 0 so -log(u)
+  is large.
+*/
+struct MaxLayerEngine {
+  using result_type = uint32_t;
+  explicit MaxLayerEngine(uint32_t = 0) {}
+  static constexpr result_type min() { return 0; }
+  static constexpr result_type max() {
+    return std::numeric_limits<uint32_t>::max();
+  }
+  result_type operator()() const { return min(); }
+};
+
+/** Empty neighbor-id vector sized for a node whose top layer is @p layer. */
+inline std::vector<uint64_t> empty_neighbor_ids(uint8_t layer, size_t M) {
+  return std::vector<uint64_t>((static_cast<size_t>(layer) + 2) * M, 0);
+}
+
+/**
+  Thread-safe UniformRandomBitGenerator for concurrent insert() tests.
+
+  HNSW does not synchronize RandomEngine access; concurrent inserts require
+  an engine that is safe to call from multiple threads. Constructible from
+  uint32_t like std::mt19937.
+*/
+class MutexRandomEngine {
+ public:
+  using result_type = std::mt19937::result_type;
+
+  explicit MutexRandomEngine(result_type seed = 42) : m_engine(seed) {}
+
+  static constexpr result_type min() { return std::mt19937::min(); }
+  static constexpr result_type max() { return std::mt19937::max(); }
+
+  result_type operator()() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_engine();
+  }
+
+ private:
+  std::mutex m_mutex;
+  std::mt19937 m_engine;
+};
+
+using ConcurrentTestHnsw =
+    HNSW<ArenaAllocator, NullPersistor, MutexRandomEngine>;
+
+inline const char *as_bytes(const std::vector<float> &v) {
+  return reinterpret_cast<const char *>(v.data());
+}
+
+inline std::vector<float> make_vec(std::initializer_list<float> values) {
+  return std::vector<float>(values);
+}
+
+/** Snapshot of one graph node as persisted by RecordingPersistor. */
+struct StoredNode {
+  uint64_t base_pk = 0;
+  uint8_t layer = 0;
+  std::vector<float> vec;
+  /// Latest neighbor slot ids ((layer + 2) * M); 0 = empty slot.
+  std::vector<uint64_t> neighbor_ids;
+};
+
+/**
+  In-memory Persistor for round-trip / lazy-load tests.
+
+  Stateless: all data lives in Context. Captures insert and neighbor updates
+  into Context::nodes; replays via load_node_cb using HNSW load_* helpers.
+*/
+struct RecordingPersistor {
+  struct Context {
+    size_t dims = 0;
+    std::unordered_map<uint64_t, StoredNode> nodes;
+    uint64_t entry_point = 0;
+    /// Number of load_node_cb invocations per graph id (lazy-load tests).
+    std::unordered_map<uint64_t, size_t> load_counts;
+    /**
+      Graph ids for which load_node_cb should return HNSW_NOT_FOUND
+      (simulates crash / incomplete persist; marks NODE_LOST).
+      Used by adjacent-prune / lost-neighbor tests.
+    */
+    std::unordered_set<uint64_t> fail_load_ids;
+    /**
+      Graph ids for which load_node_cb should return HNSW_ERROR_CB (e.g. I/O).
+      Stub stays NODE_DUMMY so a later load can retry after clearing the id.
+    */
+    std::unordered_set<uint64_t> fail_load_error_ids;
+    /**
+      One-shot failure injection for insert_cb / update_entry_point_cb /
+      update_neighbors_cb (callback-failure unit tests). Cleared when the
+      failing call returns.
+    */
+    bool fail_next_insert_cb = false;
+    bool fail_next_update_entry_point_cb = false;
+    bool fail_next_update_neighbors_cb = false;
+    /**
+      When > 0, insert_cb returns HNSW_ERROR_CB for about this percent of
+      calls (id % 100 < percent). Used by concurrent insert-failure stress
+      tests. 0 disables. Set before concurrent work (or under @c guard).
+    */
+    int fail_insert_cb_percent = 0;
+    /**
+      Optional lock for concurrent insert/search against a shared Context.
+      When non-null, all RecordingPersistor callbacks lock it. Serial tests
+      leave this nullptr.
+    */
+    std::mutex *guard = nullptr;
+  };
+
+  template <typename NeighborIds>
+  HnswResult insert_cb(Context *ctx, uint64_t id, uint64_t base_pk,
+                       const char *q, uint8_t layer, NeighborIds neighbors) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_insert_cb) {
+      ctx->fail_next_insert_cb = false;
+      return HNSW_ERROR_CB;
+    }
+    if (ctx->fail_insert_cb_percent > 0 &&
+        static_cast<int>(id % 100) < ctx->fail_insert_cb_percent) {
+      return HNSW_ERROR_CB;
+    }
+    StoredNode &row = ctx->nodes[id];
+    row.base_pk = base_pk;
+    row.layer = layer;
+    row.vec.assign(reinterpret_cast<const float *>(q),
+                   reinterpret_cast<const float *>(q) + ctx->dims);
+    row.neighbor_ids.assign(neighbors.begin(), neighbors.end());
+    return HNSW_SUCCESS;
+  }
+
+  template <typename NeighborIds>
+  HnswResult update_neighbors_cb(Context *ctx, uint64_t id,
+                                 NeighborIds neighbors) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_update_neighbors_cb) {
+      ctx->fail_next_update_neighbors_cb = false;
+      return HNSW_ERROR_CB;
+    }
+    ctx->nodes.at(id).neighbor_ids.assign(neighbors.begin(), neighbors.end());
+    return HNSW_SUCCESS;
+  }
+
+  HnswResult update_entry_point_cb(Context *ctx, uint64_t id) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    if (ctx->fail_next_update_entry_point_cb) {
+      ctx->fail_next_update_entry_point_cb = false;
+      return HNSW_ERROR_CB;
+    }
+    ctx->entry_point = id;
+    return HNSW_SUCCESS;
+  }
+
+  template <typename Hnsw>
+  HnswResult load_node_cb(Context *ctx, Hnsw &hnsw,
+                          typename Hnsw::LoadNodeHandle handle) {
+    std::unique_lock<std::mutex> lock;
+    if (ctx->guard != nullptr) {
+      lock = std::unique_lock<std::mutex>(*ctx->guard);
+    }
+    const uint64_t id = hnsw.load_node_id(handle);
+    ++ctx->load_counts[id];
+    if (ctx->fail_load_error_ids.count(id) != 0) {
+      return HNSW_ERROR_CB;
+    }
+    if (ctx->fail_load_ids.count(id) != 0) {
+      return HNSW_NOT_FOUND;
+    }
+    const StoredNode &row = ctx->nodes.at(id);
+    // Copy out under the lock so load_* can run without holding it across
+    // HNSW internal locks (load_node_neighbors takes m_global_lock).
+    const uint8_t layer = row.layer;
+    const uint64_t base_pk = row.base_pk;
+    const std::vector<float> vec = row.vec;
+    const std::vector<uint64_t> neighbor_ids = row.neighbor_ids;
+    if (lock.owns_lock()) {
+      lock.unlock();
+    }
+    hnsw.load_set_layer(handle, layer);
+    hnsw.load_set_vec(handle, as_bytes(vec));
+    hnsw.load_set_base_pk(handle, base_pk);
+    // Propagate load_node_neighbors HnswResult unchanged (e.g. HNSW_OOM_GRAPH).
+    return hnsw.load_node_neighbors(handle, neighbor_ids);
+  }
+};
+
+using LoadTestHnsw = HNSW<ArenaAllocator, RecordingPersistor, std::mt19937>;
+
+using ConcurrentLoadHnsw =
+    HNSW<ArenaAllocator, RecordingPersistor, MutexRandomEngine>;
+
+/** Graph data used by round-trip persistence tests. */
+struct RoundTripFixture {
+  RecordingPersistor::Context store;
+  std::vector<std::vector<float>> points;
+  std::vector<uint64_t> graph_ids;
+  std::vector<uint64_t> base_pks;
+  std::vector<float> query;
+};
+
+/** Fixed 4-node corner graph (regression-friendly). */
+inline RoundTripFixture make_fixed_round_trip_fixture(size_t dims) {
+  assert(dims == 2);
+  RoundTripFixture fixture;
+  fixture.store.dims = dims;
+  fixture.points = {make_vec({0.0f, 0.0f}), make_vec({10.0f, 0.0f}),
+                    make_vec({0.0f, 10.0f}), make_vec({10.0f, 10.0f})};
+  fixture.graph_ids = {101, 102, 103, 104};
+  fixture.base_pks = {2001, 2002, 2003, 2004};
+  fixture.query = make_vec({9.5f, 9.5f});
+  return fixture;
+}
+
+template <typename Hnsw>
+inline void populate_round_trip_index(Hnsw &index, RoundTripFixture *fixture) {
+  for (size_t i = 0; i < fixture->points.size(); ++i) {
+    index.insert(fixture->graph_ids[i], fixture->base_pks[i],
+                 as_bytes(fixture->points[i]), &fixture->store);
+  }
+}
+
+/** Flat NeighborIdRange offset of layer 0 for a node with top layer @p layer.
+ */
+inline size_t stored_layer0_begin(uint8_t layer, size_t M) {
+  return static_cast<size_t>(layer) * M;
+}
+
+inline size_t stored_layer0_end(uint8_t layer, size_t M) {
+  return stored_layer0_begin(layer, M) + 2 * M;
+}
+
+/**
+  First graph id whose persisted layer-0 neighbor slots are all non-zero
+  (full list of width 2*M). Returns 0 if none.
+*/
+inline uint64_t find_full_layer0_hub(const RecordingPersistor::Context &store,
+                                     size_t M) {
+  // Order the nodes by id to ensure that the result does not depend on
+  // the unordered_map implementation.
+  std::map<uint64_t, StoredNode> ordered_nodes(store.nodes.begin(),
+                                               store.nodes.end());
+
+  for (const auto &kv : ordered_nodes) {
+    const StoredNode &row = kv.second;
+    const size_t begin = stored_layer0_begin(row.layer, M);
+    const size_t end = stored_layer0_end(row.layer, M);
+    if (row.neighbor_ids.size() < end) {
+      continue;
+    }
+    bool full = true;
+    for (size_t i = begin; i < end; ++i) {
+      if (row.neighbor_ids[i] == 0) {
+        full = false;
+        break;
+      }
+    }
+    if (full) {
+      return kv.first;
+    }
+  }
+  return 0;
+}
+
+/**
+  Caller-owned arena plus request counters, for measuring an index's memory.
+
+  MEM_ROOT::allocated_size() reports what was taken from the OS, which includes
+  the unused tail of the last (exponentially grown) block; bytes_requested is
+  what the index actually asked for. Reporting both separates the index's own
+  footprint from the allocator's slack.
+
+  alloc_successes_remaining limits successful allocate() calls for OOM tests:
+  SIZE_MAX means unlimited; 0 means the next allocate() returns nullptr.
+*/
+struct ArenaStats {
+  explicit ArenaStats(size_t block_size)
+      : mem_root(PSI_NOT_INSTRUMENTED, block_size) {}
+
+  MEM_ROOT mem_root;
+  size_t bytes_requested = 0;
+  size_t requests_number = 0;
+  size_t alloc_successes_remaining = std::numeric_limits<size_t>::max();
+};
+
+/**
+  Arena handed to the next HNSW constructed on this thread.
+
+  HNSW holds its allocator by value as a private member and default-constructs
+  it, so there is no way to pass an arena in. This slot lets a caller keep
+  ownership of the arena anyway, which is what makes the index's memory
+  footprint observable from outside. Set it with ArenaHandover, never directly.
+*/
+inline ArenaStats *g_pending_arena = nullptr;
+
+/**
+  Allocator that borrows a caller-owned arena instead of owning one.
+
+  The ArenaStats must outlive the index, since nodes point into its MEM_ROOT.
+*/
+class BorrowedArenaAllocator {
+ public:
+  BorrowedArenaAllocator() : m_arena(g_pending_arena) {
+    assert(m_arena != nullptr);  // no ArenaHandover in scope
+    g_pending_arena = nullptr;
+  }
+
+  void *allocate(size_t size) {
+    if (m_arena->alloc_successes_remaining == 0) {
+      return nullptr;
+    }
+    m_arena->bytes_requested += size;
+    ++m_arena->requests_number;
+    void *const p = m_arena->mem_root.Alloc(size);
+    if (p != nullptr && m_arena->alloc_successes_remaining !=
+                            std::numeric_limits<size_t>::max()) {
+      --m_arena->alloc_successes_remaining;
+    }
+    return p;
+  }
+
+ private:
+  ArenaStats *m_arena;
+};
+
+using BorrowedHnsw = HNSW<BorrowedArenaAllocator, NullPersistor, std::mt19937>;
+using BorrowedLoadHnsw =
+    HNSW<BorrowedArenaAllocator, RecordingPersistor, std::mt19937>;
+
+/** Scoped arm of g_pending_arena; construct the index inside its scope. */
+class ArenaHandover {
+ public:
+  explicit ArenaHandover(ArenaStats *arena) { g_pending_arena = arena; }
+  ~ArenaHandover() { g_pending_arena = nullptr; }
+
+  ArenaHandover(const ArenaHandover &) = delete;
+  ArenaHandover &operator=(const ArenaHandover &) = delete;
+};
+
+inline double euclidean(const char *a_raw, const char *b_raw, uint32_t dims) {
+  const float *a = reinterpret_cast<const float *>(a_raw);
+  const float *b = reinterpret_cast<const float *>(b_raw);
+  double sum = 0.0;
+  for (uint32_t i = 0; i < dims; ++i) {
+    const double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
+    sum += d * d;
+  }
+  return std::sqrt(sum);
+}
+
+/**
+  Deterministic pseudo-random coordinate in [-1, 1).
+
+  Used instead of std::mt19937 / std::uniform_real_distribution so point
+  clouds are identical across standard libraries.
+*/
+inline float pseudo_coord(uint64_t *state) {
+  *state = *state * 6364136223846793005ULL + 1442695040888963407ULL;
+  return static_cast<float>((*state >> 40) & 0xFFFF) / 32768.0f - 1.0f;
+}
+
+inline std::vector<std::vector<float>> make_pseudo_random_points(
+    size_t count, size_t dims, uint64_t *state) {
+  std::vector<std::vector<float>> points(count);
+  for (size_t i = 0; i < count; ++i) {
+    points[i].resize(dims);
+    for (size_t d = 0; d < dims; ++d) {
+      points[i][d] = pseudo_coord(state);
+    }
+  }
+  return points;
+}
+
+/**
+  Pseudo-random graph: @p count nodes, deterministic given @p seed.
+  Graph ids are 1..count; base_pk equals graph id - 1.
+*/
+inline RoundTripFixture make_random_round_trip_fixture(size_t dims,
+                                                       size_t count,
+                                                       uint64_t seed) {
+  RoundTripFixture fixture;
+  fixture.store.dims = dims;
+  uint64_t state = seed;
+  fixture.points = make_pseudo_random_points(count, dims, &state);
+  fixture.graph_ids.resize(count);
+  fixture.base_pks.resize(count);
+  for (size_t i = 0; i < count; ++i) {
+    fixture.graph_ids[i] = i + 1;
+    fixture.base_pks[i] = i;
+  }
+  fixture.query = make_pseudo_random_points(/*count=*/1, dims, &state)[0];
+  return fixture;
+}
+
+/**
+  Deterministic point cloud drawn from the given cluster centers.
+
+  Uniform points in a high-dimensional cube are close to the worst case for any
+  approximate nearest-neighbor index: distances concentrate, so the "nearest"
+  neighbors are barely nearer than the rest and recall is low even for a
+  correct implementation. Real embeddings are clustered, so benchmark numbers
+  taken on clustered data are both more representative and more stable.
+
+  Members sit within @p spread of their center (sum of four draws, so roughly
+  bell-shaped). Queries must be drawn from the same centers as the indexed
+  points, or they land in empty space and the measurement says more about
+  out-of-distribution behavior than about the index.
+*/
+inline std::vector<std::vector<float>> make_clustered_points(
+    const std::vector<std::vector<float>> &centers, size_t count, float spread,
+    uint64_t *state) {
+  assert(!centers.empty());
+  const size_t dims = centers[0].size();
+
+  std::vector<std::vector<float>> points(count);
+  for (size_t i = 0; i < count; ++i) {
+    const std::vector<float> &center = centers[i % centers.size()];
+    points[i].resize(dims);
+    for (size_t d = 0; d < dims; ++d) {
+      float offset = 0.0f;
+      for (int j = 0; j < 4; ++j) {
+        offset += pseudo_coord(state);
+      }
+      points[i][d] = center[d] + spread * offset * 0.25f;
+    }
+  }
+  return points;
+}
+
+/**
+  Run a streaming search to completion (or @p max_results rows).
+
+  @return {.first = HNSW_SUCCESS, .second = hits in stream order} on normal
+          completion (including an empty index). On nn_search_start() /
+          nn_search_next() failure, .first is that HnswResult and .second is
+          empty.
+*/
+template <typename Hnsw>
+inline std::pair<HnswResult, std::vector<typename Hnsw::SearchHit>>
+drain_stream(Hnsw &index, const char *query, size_t batch_size,
+             size_t ef_search, size_t max_results = 1000,
+             typename Hnsw::PersistorContext *persistor_ctx = nullptr) {
+  typename Hnsw::NNSearchContext ctx;
+  const HnswResult start_rc =
+      index.nn_search_start(&ctx, query, batch_size, ef_search, persistor_ctx);
+  if (start_rc != HNSW_SUCCESS) {
+    return {start_rc, {}};
+  }
+  std::vector<typename Hnsw::SearchHit> out;
+  for (size_t i = 0; i < max_results; ++i) {
+    const auto [rc, hit] = index.nn_search_next(&ctx);
+    if (rc == HNSW_NOT_FOUND) {
+      break;
+    }
+    if (rc != HNSW_SUCCESS) {
+      return {rc, {}};
+    }
+    out.push_back(hit);
+  }
+  return {HNSW_SUCCESS, std::move(out)};
+}
+
+/** Extract base_pk values from a SearchHit list (for recall helpers). */
+template <typename HitRange>
+inline std::vector<uint64_t> base_pks_of(const HitRange &hits) {
+  std::vector<uint64_t> out;
+  out.reserve(hits.size());
+  for (const auto &hit : hits) {
+    out.push_back(hit.base_pk);
+  }
+  return out;
+}
+
+}  // namespace hnsw_unittest
+
+#endif  // HNSW_TEST_UTILS_INCLUDED

@@ -25,9 +25,72 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <cassert>
+#include <string_view>
+
+#include "my_inttypes.h"
+#include "mysql/strings/m_ctype.h"
+#include "template_utils.h"
+
 namespace vector_constants {
 // maximum dimensions in a vector column
 constexpr unsigned int max_dimensions = 16383;
+
+/**
+  Cost and row estimate assigned to vector index access in the cost-based
+  optimizer. Chosen so that it always loses against any other access method,
+  since a vector index is only ever activated for ORDER BY ... LIMIT. Large but
+  finite, because std::numeric_limits<double>::max() overflows when the
+  optimizer adds costs together.
+*/
+constexpr double prohibitive_cost = 1e100;
+
+enum class Metric {
+  kEuclidean,
+  kEuclideanSquared,
+  kCosine,
+  kDotProduct,
+  kManhattan
+};
+
+/** The name each Metric is spelled with in WITH(...). One table, so that
+    metric_from_name() and metric_name() cannot drift apart. */
+struct Metric_name {
+  std::string_view name;
+  Metric metric;
+};
+inline constexpr Metric_name kMetrics[] = {
+    {"euclidean", Metric::kEuclidean},
+    {"euclidean_squared", Metric::kEuclideanSquared},
+    {"cosine", Metric::kCosine},
+    {"dot", Metric::kDotProduct},
+    {"manhattan", Metric::kManhattan},
+};
+
+/** Maps a case-insensitive metric name to a Metric value.
+    Returns nullptr on no match. */
+inline const Metric *metric_from_name(std::string_view name) {
+  const auto *it = std::find_if(
+      std::begin(kMetrics), std::end(kMetrics), [&](const auto &candidate) {
+        return !my_strnncoll(
+            &my_charset_latin1, pointer_cast<const uchar *>(name.data()),
+            name.size(), pointer_cast<const uchar *>(candidate.name.data()),
+            candidate.name.size());
+      });
+  return it != std::end(kMetrics) ? &it->metric : nullptr;
+}
+
+/** The canonical (lowercase) name of a Metric, the inverse of
+    metric_from_name(). */
+inline std::string_view metric_name(Metric metric) {
+  const auto *it = std::find_if(
+      std::begin(kMetrics), std::end(kMetrics),
+      [&](const auto &candidate) { return candidate.metric == metric; });
+  assert(it != std::end(kMetrics));
+  return it->name;
+}
+
 }  // namespace vector_constants
 
 static inline uint32_t get_dimensions(const uint32_t length,

@@ -1,0 +1,148 @@
+#
+# PS-11612: an HNSW index stores every parameter it is built with in
+# the DD - the defaults too - so a compiled-in default that changes in
+# a later release can never change the graph of an existing index.
+#
+# No option list, and the same index with the default written out:
+# both are stored, and shown, identically.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw);
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 25));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug = '+d,skip_dd_table_access_check';
+SELECT t.name AS tbl, i.name AS idx, i.options FROM mysql.indexes i JOIN mysql.tables t ON i.table_id = t.id WHERE t.name IN ('t1', 't2') AND i.name = 'vk' ORDER BY t.name;
+tbl	idx	options
+t1	vk	PS_is_vector_index=1;PS_vector_index_params=M\=25\;ef_construction\=200\;metric\=euclidean\;;PS_vector_index_type=hnsw;flags=0;
+t2	vk	PS_is_vector_index=1;PS_vector_index_params=M\=25\;ef_construction\=200\;metric\=euclidean\;;PS_vector_index_type=hnsw;flags=0;
+SET SESSION debug = '-d,skip_dd_table_access_check';
+# The stored values survive a restart.
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+# Names and values are stored in canonical form, in a fixed order.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw
+(ef_construction = 064, metric = EUCLIDEAN, m = 006));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=6, `ef_construction`=64, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# SHOW CREATE TABLE round-trips.
+DROP TABLE t1;
+CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=6, `ef_construction`=64, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=6, `ef_construction`=64, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# ef_construction is checked like M.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (ef_construction = 0));
+ERROR HY000: Illegal index construction parameter value: 0.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (ef_construction = 4097));
+ERROR HY000: Illegal index construction parameter value: 4097.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (ef_construction = abc));
+ERROR HY000: Illegal index construction parameter value: abc.
+# A vector index added later by ALTER TABLE or CREATE INDEX is resolved
+# too.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=25, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+CREATE VECTOR INDEX vk ON t2 (v) TYPE hnsw (M = 8);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# ... and an ALTER that rebuilds the table keeps the stored values.
+ALTER TABLE t2 ADD COLUMN c INT, ALGORITHM = COPY;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=8, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug = '+d,skip_dd_table_access_check';
+SELECT t.name AS tbl, i.name AS idx, i.options FROM mysql.indexes i JOIN mysql.tables t ON i.table_id = t.id WHERE t.name IN ('t1', 't2') AND i.name = 'vk' ORDER BY t.name;
+tbl	idx	options
+t1	vk	PS_is_vector_index=1;PS_vector_index_params=M\=25\;ef_construction\=200\;metric\=euclidean\;;PS_vector_index_type=hnsw;flags=0;
+t2	vk	PS_is_vector_index=1;PS_vector_index_params=M\=8\;ef_construction\=200\;metric\=euclidean\;;PS_vector_index_type=hnsw;flags=0;
+SET SESSION debug = '-d,skip_dd_table_access_check';
+DROP TABLE t1, t2;
+# A prepared statement resolves afresh on each execution.
+PREPARE stmt FROM 'CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                                    v VECTOR(4) NOT NULL,
+                                    VECTOR KEY vk (v) TYPE hnsw (m = 6))';
+EXECUTE stmt;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+EXECUTE stmt;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint unsigned NOT NULL,
+  `v` vector(4) NOT NULL,
+  PRIMARY KEY (`id`),
+  VECTOR KEY `vk` (`v`) USING `hnsw` (`M`=6, `ef_construction`=200, `metric`=`euclidean`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DEALLOCATE PREPARE stmt;

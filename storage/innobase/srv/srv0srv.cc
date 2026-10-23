@@ -98,6 +98,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #include "usr0sess.h"
 #include "ut0crc32.h"
+#include "vec0arena.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "ha_innodb.h"
 #include "sql/handler.h"
@@ -630,6 +631,11 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 unsigned long long srv_stats_transient_sample_pages = 8;
+
+/** Upper bound in bytes on the node arenas of HNSW vector index graphs,
+across all tables and indexes; 0 means no limit. */
+unsigned long long srv_hnsw_max_memory = 1ULL << 30;
+
 bool srv_stats_persistent = true;
 bool srv_stats_include_delete_marked = false;
 unsigned long long srv_stats_persistent_sample_pages = 20;
@@ -1896,6 +1902,8 @@ void srv_export_innodb_status(void) {
     }
   }
   undo::spaces->s_unlock();
+
+  export_vars.innodb_hnsw_memory_used = Vec_arena::global_bytes();
 
   export_vars.innodb_n_merge_blocks_encrypted =
       srv_stats.n_merge_blocks_encrypted;

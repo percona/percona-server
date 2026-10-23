@@ -1,0 +1,38 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A vector aux table's record 0 stores the graph's entry-point id.
+--echo # Graph node id 0 is a reserved empty-slot sentinel that no real
+--echo # node is ever assigned, so a record 0 naming entry point 0 is
+--echo # corrupt (bit-flip, torn page, crafted data). vec_runtime_load()
+--echo # must reject it with an error rather than hand it to the graph.
+--echo #
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                 v VECTOR(4) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 4));
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
+                      (2, STRING_TO_VECTOR('[0,1,0,0]')),
+                      (3, STRING_TO_VECTOR('[0,0,1,0]')),
+                      (4, STRING_TO_VECTOR('[0,0,0,1]'));
+
+--echo # Drop the in-memory graph so the next query has to read the aux.
+--source include/restart_mysqld.inc
+
+--echo # The load reads a real record 0; the hook makes it name entry point 0.
+--echo # The error is index-scoped: the base table is not reported as crashed.
+SET DEBUG = '+d,vec_aux_entry_point_zero';
+--error ER_INDEX_CORRUPT
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'euclidean') LIMIT 1;
+SET DEBUG = '-d,vec_aux_entry_point_zero';
+
+--echo # The index stays refused once the hook is gone.
+--error ER_INDEX_CORRUPT
+SELECT id FROM t1
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'euclidean') LIMIT 1;
+
+--echo # The base table is unaffected.
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;

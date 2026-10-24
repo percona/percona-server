@@ -1774,8 +1774,17 @@ struct alignas(alignof(uint64_t)) btr_search_prefix_info_t {
   }
 };
 
-/** The buffer control block structure */
-struct buf_block_t {
+/** The buffer control block structure.
+
+Blocks are stored in an array at the page-aligned start of each buffer pool
+chunk. The alignment makes sizeof(buf_block_t) a multiple of 128 bytes, so all
+blocks have the same layout with regard to cache lines and to the 128-byte
+pairs of cache lines fetched by the x86 adjacent-line prefetcher. Otherwise, for
+some blocks, page.m_space and page.m_version, which buf_page_t::was_stale()
+reads on every page lookup, would share the cache line, or the pair of cache
+lines, with the lock word of buf_block_t::lock, which is modified on every latch
+acquisition and release. */
+struct alignas(128) buf_block_t {
   /** @name General fields */
   /** @{ */
 
@@ -1963,17 +1972,6 @@ struct buf_block_t {
   new mutex in InnoDB-5.1 to relieve contention on the buffer pool mutex */
   BPageMutex mutex;
 
-  /** Padding, see the static_assert on sizeof(buf_block_t) below. The size of
-  the fields above depends on whether PFS instrumentation of mutex and rw_lock
-  is enabled. */
-#if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
-  byte m_padding[48];
-#elif defined(UNIV_PFS_MUTEX)
-  byte m_padding[56];
-#else
-  byte m_padding[64];
-#endif
-
   /** Get the modified clock (version) value.
   @param[in] single_threaded    Thread can only be written to or read by a
                                 single thread
@@ -2061,18 +2059,6 @@ struct buf_block_t {
 
   [[nodiscard]] bool is_memory() const noexcept { return page.is_memory(); }
 };
-
-#ifndef UNIV_DEBUG
-/* Blocks are stored in an array at the page-aligned start of each buffer pool
-chunk. When sizeof(buf_block_t) is a multiple of the cache line size, all
-blocks have the same layout with regard to cache lines. Otherwise, for most
-blocks, page.m_space and page.m_version, which buf_page_t::was_stale() reads
-on every page lookup, would share the cache line with the lock word of
-buf_block_t::lock, which is modified on every latch acquisition and release.
-Adjust buf_block_t::m_padding when fields of buf_block_t change. */
-static_assert(sizeof(buf_block_t) == 384,
-              "sizeof(buf_block_t) must be a multiple of the cache line size");
-#endif /* !UNIV_DEBUG */
 
 inline bool buf_block_t::is_root() const {
   return ((get_next_page_no() == FIL_NULL) && (get_prev_page_no() == FIL_NULL));

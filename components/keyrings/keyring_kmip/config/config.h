@@ -45,7 +45,7 @@ class Config_pod {
   std::string client_key;
   std::string server_ca;
 
-  std::string object_group = "";
+  std::string object_group;
 
   /** KMIP connection timeout in milliseconds (default: 5000 ms for
    * compatibility) */

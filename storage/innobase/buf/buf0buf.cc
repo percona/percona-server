@@ -3838,27 +3838,34 @@ struct Buf_fetch {
   buf_block_t *single_page();
 
  private:
-  /**  Lookup page in the hash table.
-  @return block if found or nullptr if not found. */
-  buf_block_t *lookup();
+  /**  Lookup page in the hash table. The page can be a compressed-only page
+  descriptor, which is not a buf_block_t.
+  @return page if found or nullptr if not found. */
+  buf_page_t *lookup();
 
   /** Get page if it's in the buffer pool or set a watch on it.
-  @return block that is being watched or nullptr. */
-  buf_block_t *is_on_watch();
+  @return page that is being watched or nullptr. */
+  buf_page_t *is_on_watch();
 
   /** Initiate a read request from persistent store. */
   void read_page();
 
-  dberr_t zip_page_handler(buf_block_t *&fix_block);
-
-  /** Check block state.
+  /** Decompress a buffer-fixed compressed-only page into a new block.
+  @param[in]  bpage             Buffer-fixed compressed-only page.
+  @param[out] block             Block with the uncompressed page.
   @return DB_SUCCESS or error code. */
-  dberr_t check_state(buf_block_t *&block);
+  dberr_t zip_page_handler(buf_page_t *bpage, buf_block_t *&block);
+
+  /** Check page state.
+  @param[in]  bpage             Buffer-fixed page.
+  @param[out] block             Block of the page, on DB_SUCCESS.
+  @return DB_SUCCESS or error code. */
+  dberr_t check_state(buf_page_t *bpage, buf_block_t *&block);
 
   /** Temporary table pages have different latching rules because they are
   not redo logged.
-  @param[in,out] block          Temporary tablespace to fetch. */
-  void temp_space_page_handler(buf_block_t *block);
+  @param[in,out] bpage          Temporary tablespace page to fetch. */
+  void temp_space_page_handler(buf_page_t *bpage);
 
   /** Add the page to the mini-transaction along with latching context.
   @param[in,out] block          Block for which to add the latching context. */
@@ -3915,13 +3922,13 @@ struct Buf_fetch_normal : public Buf_fetch<Buf_fetch_normal> {
   Buf_fetch_normal(const page_id_t &page_id, const page_size_t &page_size)
       : Buf_fetch(page_id, page_size) {}
 
-  /** Fetch a block from the hash table or read from disk if necessary.
-  @param[out] block             Block to fetch.
+  /** Fetch a page from the hash table or read from disk if necessary.
+  @param[out] bpage             Page to fetch.
   @return DB_SUCCESS or error code. */
-  dberr_t get(buf_block_t *&block) noexcept;
+  dberr_t get(buf_page_t *&bpage) noexcept;
 };
 
-dberr_t Buf_fetch_normal::get(buf_block_t *&block) noexcept {
+dberr_t Buf_fetch_normal::get(buf_page_t *&bpage) noexcept {
   /* Keep this path as simple as possible. */
   for (;;) {
     /* Lookup the page in the page hash. If it doesn't exist in the
@@ -3930,11 +3937,11 @@ dberr_t Buf_fetch_normal::get(buf_block_t *&block) noexcept {
     ut_ad(
         !rw_lock_own(buf_page_hash_lock_get(m_buf_pool, m_page_id), RW_LOCK_S));
 
-    block = lookup();
+    bpage = lookup();
 
-    if (block != nullptr) {
-      if (block->page.was_stale()) {
-        if (!buf_page_free_stale(m_buf_pool, &block->page, m_hash_lock)) {
+    if (bpage != nullptr) {
+      if (bpage->was_stale()) {
+        if (!buf_page_free_stale(m_buf_pool, bpage, m_hash_lock)) {
           /* The page is during IO and can't be released. We wait some to not go
            into loop that would consume CPU. This is not something that will be
            hit frequently. */
@@ -3945,7 +3952,7 @@ dberr_t Buf_fetch_normal::get(buf_block_t *&block) noexcept {
         continue;
       }
 
-      buf_block_fix(block);
+      buf_block_fix(bpage);
 
       /* Now safe to release page_hash S lock. */
       rw_lock_s_unlock(m_hash_lock);
@@ -3966,13 +3973,13 @@ struct Buf_fetch_other : public Buf_fetch<Buf_fetch_other> {
   Buf_fetch_other(const page_id_t &page_id, const page_size_t &page_size)
       : Buf_fetch(page_id, page_size) {}
 
-  /** Fetch a block from the hash table or read from disk if necessary.
-  @param[out] block             Block to fetch.
+  /** Fetch a page from the hash table or read from disk if necessary.
+  @param[out] bpage             Page to fetch.
   @return DB_SUCCESS or error code. */
-  dberr_t get(buf_block_t *&block) noexcept;
+  dberr_t get(buf_page_t *&bpage) noexcept;
 };
 
-dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
+dberr_t Buf_fetch_other::get(buf_page_t *&bpage) noexcept {
   for (;;) {
     /* Lookup the page in the page hash. If it doesn't exist in the
     buffer pool then try and read it in from disk. */
@@ -3980,12 +3987,12 @@ dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
     ut_ad(
         !rw_lock_own(buf_page_hash_lock_get(m_buf_pool, m_page_id), RW_LOCK_S));
 
-    block = lookup();
+    bpage = lookup();
 
-    if (block != nullptr) {
+    if (bpage != nullptr) {
       /* Here we have MDL latches making the stale status to not change. */
-      if (block->page.was_stale()) {
-        if (!buf_page_free_stale(m_buf_pool, &block->page, m_hash_lock)) {
+      if (bpage->was_stale()) {
+        if (!buf_page_free_stale(m_buf_pool, bpage, m_hash_lock)) {
           /* The page is during IO and can't be released. We wait some to not go
           into loop that would consume CPU. This is not something that will be
           hit frequently. */
@@ -3997,9 +4004,9 @@ dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
       }
 
       if (m_is_temp_space) {
-        temp_space_page_handler(block);
+        temp_space_page_handler(bpage);
       } else {
-        buf_block_fix(block);
+        buf_block_fix(bpage);
       }
 
       /* Now safe to release page_hash S lock. */
@@ -4008,10 +4015,10 @@ dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
     }
 
     if (m_mode == Page_fetch::IF_IN_POOL_OR_WATCH) {
-      block = is_on_watch();
+      bpage = is_on_watch();
     }
 
-    if (block != nullptr) {
+    if (bpage != nullptr) {
       break;
     }
 
@@ -4034,10 +4041,11 @@ dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
 }
 
 template <typename T>
-buf_block_t *Buf_fetch<T>::lookup() {
+buf_page_t *Buf_fetch<T>::lookup() {
   m_hash_lock = buf_page_hash_lock_get(m_buf_pool, m_page_id);
 
   auto block = m_guess;
+  buf_page_t *bpage = nullptr;
 
   rw_lock_s_lock(m_hash_lock, UT_LOCATION_HERE);
 
@@ -4062,21 +4070,21 @@ buf_block_t *Buf_fetch<T>::lookup() {
 
     } else {
       ut_ad(!block->page.in_zip_hash);
+      bpage = &block->page;
     }
   }
 
-  if (block == nullptr) {
-    block = reinterpret_cast<buf_block_t *>(
-        buf_page_hash_get_low(m_buf_pool, m_page_id));
+  if (bpage == nullptr) {
+    /* This can be a compressed-only page descriptor or a watch sentinel, so it
+    must not be accessed as a buf_block_t before its state is checked. */
+    bpage = buf_page_hash_get_low(m_buf_pool, m_page_id);
   }
 
-  if (block == nullptr) {
+  if (bpage == nullptr) {
     rw_lock_s_unlock(m_hash_lock);
 
     return (nullptr);
   }
-
-  const auto bpage = &block->page;
 
   if (buf_pool_watch_is_sentinel(m_buf_pool, bpage)) {
     rw_lock_s_unlock(m_hash_lock);
@@ -4084,11 +4092,11 @@ buf_block_t *Buf_fetch<T>::lookup() {
     return (nullptr);
   }
 
-  return (block);
+  return (bpage);
 }
 
 template <typename T>
-buf_block_t *Buf_fetch<T>::is_on_watch() {
+buf_page_t *Buf_fetch<T>::is_on_watch() {
   ut_ad(m_mode == Page_fetch::IF_IN_POOL_OR_WATCH);
 
   rw_lock_x_lock(m_hash_lock, UT_LOCATION_HERE);
@@ -4100,10 +4108,9 @@ buf_block_t *Buf_fetch<T>::is_on_watch() {
   m_hash_lock =
       buf_page_hash_lock_x_confirm(m_hash_lock, m_buf_pool, m_page_id);
 
-  auto block = reinterpret_cast<buf_block_t *>(
-      buf_pool_watch_set(m_page_id, &m_hash_lock));
+  auto bpage = buf_pool_watch_set(m_page_id, &m_hash_lock);
 
-  if (block == nullptr) {
+  if (bpage == nullptr) {
     rw_lock_x_unlock(m_hash_lock);
     return (nullptr);
   }
@@ -4112,33 +4119,32 @@ buf_block_t *Buf_fetch<T>::is_on_watch() {
   sure that no state change takes place. */
 
   if (m_is_temp_space) {
-    temp_space_page_handler(block);
+    temp_space_page_handler(bpage);
   } else {
-    buf_block_fix(block);
+    buf_block_fix(bpage);
   }
 
   rw_lock_x_unlock(m_hash_lock);
 
-  return (block);
+  return (bpage);
 }
 
 template <typename T>
-dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
+dberr_t Buf_fetch<T>::zip_page_handler(buf_page_t *bpage,
+                                       buf_block_t *&fix_block) {
   if (m_mode == Page_fetch::PEEK_IF_IN_POOL) {
     /* This m_mode is only used for dropping an adaptive hash index.  There
     cannot be an adaptive hash index for a compressed-only page, so do
     not bother decompressing the page. */
 
-    buf_block_unfix(fix_block);
+    buf_block_unfix(bpage);
 
     return (DB_NOT_FOUND);
   }
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-  ut_ad(buf_page_get_mutex(&fix_block->page) == &m_buf_pool->zip_mutex);
+  ut_ad(buf_page_get_mutex(bpage) == &m_buf_pool->zip_mutex);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-
-  const auto bpage = &fix_block->page;
 
   /* Note: We have already buffer fixed this block. */
   /* We do not hold latches required to prevent io_fix from changing, but this
@@ -4149,7 +4155,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
     /* This condition often occurs when the buffer is not buffer-fixed, but
     I/O-fixed by buf_page_init_for_read(). */
 
-    buf_block_unfix(fix_block);
+    buf_block_unfix(bpage);
 
     /* The block is buffer-fixed or I/O-fixed.  Try again later. */
     std::this_thread::sleep_for(WAIT_FOR_READ);
@@ -4172,7 +4178,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   /* Buffer-fixing prevents the page_hash from changing. */
   ut_ad(bpage == buf_page_hash_get_low(m_buf_pool, m_page_id));
 
-  buf_block_unfix(fix_block);
+  buf_block_unfix(bpage);
 
   buf_page_mutex_enter(block);
 
@@ -4292,9 +4298,12 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
 }
 
 template <typename T>
-dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
-  switch (buf_block_get_state(block)) {
+dberr_t Buf_fetch<T>::check_state(buf_page_t *bpage, buf_block_t *&block) {
+  switch (buf_page_get_state(bpage)) {
     case BUF_BLOCK_FILE_PAGE:
+      /* Only now it is known that bpage is the page field of a block. */
+      block = reinterpret_cast<buf_block_t *>(bpage);
+
       ut_ad(buf_page_get_mutex(&block->page) != &m_buf_pool->zip_mutex);
 
       {
@@ -4325,7 +4334,7 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
     case BUF_BLOCK_ZIP_PAGE:
     case BUF_BLOCK_ZIP_DIRTY:
 
-      return (zip_page_handler(block));
+      return (zip_page_handler(bpage, block));
 
     case BUF_BLOCK_POOL_WATCH:
     case BUF_BLOCK_NOT_USED:
@@ -4424,15 +4433,15 @@ template <typename T>
 }
 
 template <typename T>
-void Buf_fetch<T>::temp_space_page_handler(buf_block_t *block) {
+void Buf_fetch<T>::temp_space_page_handler(buf_page_t *bpage) {
   /* For temporary tablespace, the mutex is being used for synchronization
   between user thread and flush thread, instead of block->lock. See
   buf_flush_page() for the flush thread counterpart. */
-  auto block_mutex = buf_page_get_mutex(&block->page);
+  auto block_mutex = buf_page_get_mutex(bpage);
 
   mutex_enter(block_mutex);
 
-  buf_block_fix(block);
+  buf_block_fix(bpage);
 
   mutex_exit(block_mutex);
 }
@@ -4472,28 +4481,24 @@ dberr_t Buf_fetch<T>::debug_check(buf_block_t *fix_block) {
       m_hash_lock =
           buf_page_hash_lock_x_confirm(m_hash_lock, m_buf_pool, m_page_id);
 
-      buf_block_t *block;
+      buf_page_t *bpage;
 
       if (m_mode == Page_fetch::IF_IN_POOL_OR_WATCH) {
         /* Set the watch, as it would have been set if the page were not in the
         buffer pool in the first place. */
 
-        block = reinterpret_cast<buf_block_t *>(
-            buf_pool_watch_set(m_page_id, &m_hash_lock));
+        bpage = buf_pool_watch_set(m_page_id, &m_hash_lock);
 
       } else {
-        block = reinterpret_cast<buf_block_t *>(
-            buf_page_hash_get_low(m_buf_pool, m_page_id));
+        bpage = buf_page_hash_get_low(m_buf_pool, m_page_id);
       }
 
       rw_lock_x_unlock(m_hash_lock);
 
-      if (block != nullptr) {
+      if (bpage != nullptr) {
         /* Either the page has been read in or a watch was set on that in the
         window where we released the buf_pool::mutex and before we acquire
         the m_hash_lock above. Try again. */
-        m_guess = block;
-
         return (DB_FAIL);
       }
 
@@ -4533,31 +4538,31 @@ buf_block_t *Buf_fetch<T>::single_page() {
   Counter::inc(m_buf_pool->stat.m_n_page_gets, m_page_id.page_no());
 
   for (;;) {
-    if (static_cast<T *>(this)->get(block) == DB_NOT_FOUND) {
+    buf_page_t *bpage;
+
+    if (static_cast<T *>(this)->get(bpage) == DB_NOT_FOUND) {
       return (nullptr);
     }
-    ut_a(!block->page.was_stale());
+    ut_a(!bpage->was_stale());
 
     if (is_optimistic()) {
-      const auto bpage = &block->page;
-
       if (bpage->was_io_fix_read()) {
         /* The page is being read to buffer pool, but we cannot wait around for
         the read to complete. */
 
-        buf_block_unfix(block);
+        buf_block_unfix(bpage);
 
         return (nullptr);
       }
     }
 
-    if (UNIV_UNLIKELY(block->page.is_corrupt && srv_pass_corrupt_table <= 1)) {
-      buf_block_unfix(block);
+    if (UNIV_UNLIKELY(bpage->is_corrupt && srv_pass_corrupt_table <= 1)) {
+      buf_block_unfix(bpage);
 
       return (nullptr);
     }
 
-    switch (check_state(block)) {
+    switch (check_state(bpage, block)) {
       case DB_NOT_FOUND:
         return (nullptr);
       case DB_FAIL:
@@ -5451,16 +5456,18 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
     rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
 
-    block = (buf_block_t *)buf_page_hash_get_low(buf_pool, page_id);
+    /* This can be a compressed-only page descriptor or a watch sentinel, so it
+    must not be accessed as a buf_block_t. */
+    auto bpage = buf_page_hash_get_low(buf_pool, page_id);
 
-    if (block && buf_page_in_file(&block->page) &&
-        !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
-      if (block->page.was_stale()) {
+    if (bpage && buf_page_in_file(bpage) &&
+        !buf_pool_watch_is_sentinel(buf_pool, bpage)) {
+      if (bpage->was_stale()) {
         /* We must release page hash latch. The LRU mutex protects the block
         from being relocated or freed. */
         rw_lock_x_unlock(hash_lock);
 
-        if (!buf_page_free_stale(buf_pool, &block->page)) {
+        if (!buf_page_free_stale(buf_pool, bpage)) {
           /* The page is during IO and can't be released. We wait some to not go
           into loop that would consume CPU. This is not something that will be
           hit frequently. */
@@ -5476,9 +5483,9 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
       ut_a(ibuf_count_get(page_id) == 0);
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
-      ut_d(block->page.file_page_was_freed = false);
+      ut_d(bpage->file_page_was_freed = false);
 
-      ut_ad(!block->page.was_stale());
+      ut_ad(!bpage->was_stale());
 
       /* Page can be found in buf_pool */
       mutex_exit(&buf_pool->LRU_list_mutex);
@@ -6119,11 +6126,9 @@ matches the page_id in the memory buffer block.
 @return false if page id is correct in the frame. */
 static bool sync_read_page_verify_pageid(buf_page_t *bpage, IORequest *type,
                                          fil_node_t *node) {
-  buf_block_t *block = reinterpret_cast<buf_block_t *>(bpage);
   const bool is_compressed = bpage->size.is_compressed();
   const page_no_t page_no = bpage->id.page_no();
   const space_id_t space_id = bpage->id.space();
-  buf_frame_t *frame = buf_block_get_frame(block);
   bool is_wrong_page_id = true;
 
   if (recv_recovery_is_on() || is_compressed || node == nullptr ||
@@ -6131,6 +6136,11 @@ static bool sync_read_page_verify_pageid(buf_page_t *bpage, IORequest *type,
     /* We don't attempt to read the page from disk to verify page id. */
     return is_wrong_page_id;
   }
+
+  /* An uncompressed page is always the page field of a block. A compressed
+  page can be a compressed-only page descriptor, which is not a buf_block_t. */
+  buf_block_t *block = reinterpret_cast<buf_block_t *>(bpage);
+  buf_frame_t *frame = buf_block_get_frame(block);
 
   /* Let us do a sync read and check once. */
   page_no_t read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);

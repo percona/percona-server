@@ -1305,14 +1305,15 @@ Double_write::~Double_write() noexcept {
 
 void Double_write::prepare(const buf_page_t *bpage, void **ptr,
                            uint32_t *len) noexcept {
-  auto block = reinterpret_cast<const buf_block_t *>(bpage);
-  auto state = buf_block_get_state(block);
+  /* bpage can be a compressed-only page descriptor, so it must not be accessed
+  as a buf_block_t unless its state is BUF_BLOCK_FILE_PAGE. */
+  const auto state = buf_page_get_state(bpage);
 
   /* No simple validate for compressed pages exists. */
-  if (state == BUF_BLOCK_FILE_PAGE && block->page.zip.data == nullptr) {
+  if (state == BUF_BLOCK_FILE_PAGE && bpage->zip.data == nullptr) {
     /* Check that the actual page in the buffer pool is
     not corrupt and the LSN values are sane. */
-    check_block(block);
+    check_block(reinterpret_cast<const buf_block_t *>(bpage));
   }
 
   if (bpage->size.is_compressed()) {
@@ -1327,8 +1328,6 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr,
           << "Invalid page state: state: " << static_cast<unsigned>(state)
           << " block state: "
           << static_cast<unsigned>(buf_page_get_state(bpage));
-    } else {
-      ut_ad(state == buf_block_get_state(block));
     }
 
     *ptr =
@@ -1650,8 +1649,10 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage,
   ut_d(auto page_id = bpage->id);
 
   if (dblwr::Force_crash == page_id) {
-    auto frame = reinterpret_cast<const buf_block_t *>(bpage)->frame;
-    const auto p = reinterpret_cast<byte *>(frame);
+    /* A compressed-only page has no uncompressed frame. */
+    const auto p = buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE
+                       ? reinterpret_cast<const buf_block_t *>(bpage)->frame
+                       : bpage->zip.data;
 
     ut_ad(page_get_space_id(p) == dblwr::Force_crash.space());
     ut_ad(page_get_page_no(p) == dblwr::Force_crash.page_no());

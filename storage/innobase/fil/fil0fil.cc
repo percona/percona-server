@@ -8699,8 +8699,8 @@ dberr_t fil_tablespace_iterate(const Encryption_metadata &encryption_metadata,
   /* The block we will use for every physical page */
   buf_block_t *block;
 
-  block = reinterpret_cast<buf_block_t *>(
-      ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*block)));
+  block = reinterpret_cast<buf_block_t *>(ut::aligned_zalloc_withkey(
+      UT_NEW_THIS_FILE_PSI_KEY, sizeof(*block), alignof(buf_block_t)));
 
   mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
@@ -8798,7 +8798,7 @@ dberr_t fil_tablespace_iterate(const Encryption_metadata &encryption_metadata,
 
   mutex_free(&block->mutex);
 
-  ut::free(block);
+  ut::aligned_free(block);
 
   return err;
 }

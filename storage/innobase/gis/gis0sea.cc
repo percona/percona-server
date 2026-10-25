@@ -840,10 +840,12 @@ rtr_info_t *rtr_create_rtr_info(bool need_prdt, bool init_matches,
   rtr_info->is_dup = nullptr;
 
   if (init_matches) {
-    rtr_info->heap =
-        mem_heap_create(sizeof(*(rtr_info->matches)), UT_LOCATION_HERE);
-    rtr_info->matches = static_cast<matched_rec_t *>(
-        mem_heap_zalloc(rtr_info->heap, sizeof(*rtr_info->matches)));
+    /* mem_heap_zalloc() does not guarantee the alignment of matched_rec_t,
+    which embeds a buf_block_t, so allocate extra space and align. */
+    const auto size = sizeof(*rtr_info->matches) + alignof(matched_rec_t) - 1;
+    rtr_info->heap = mem_heap_create(size, UT_LOCATION_HERE);
+    rtr_info->matches = static_cast<matched_rec_t *>(ut_align(
+        mem_heap_zalloc(rtr_info->heap, size), alignof(matched_rec_t)));
 
     rtr_info->matches->matched_recs =
         ut::new_withkey<rtr_rec_vector>(UT_NEW_THIS_FILE_PSI_KEY);

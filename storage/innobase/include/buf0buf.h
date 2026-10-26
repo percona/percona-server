@@ -1773,8 +1773,8 @@ struct alignas(alignof(uint64_t)) btr_search_prefix_info_t {
   }
 };
 
-/** The buffer control block structure */
-struct buf_block_t {
+/** The data fields of the buffer control block structure, see buf_block_t. */
+struct buf_block_fields_t {
   /** @name General fields */
   /** @{ */
 
@@ -1961,17 +1961,37 @@ struct buf_block_t {
   pool mutex), io_fix, buf_fix_count, and accessed; we introduce this
   new mutex in InnoDB-5.1 to relieve contention on the buffer pool mutex */
   BPageMutex mutex;
+};
 
-  /** Padding, see the static_assert on sizeof(buf_block_t) below. The size of
-  the fields above depends on whether PFS instrumentation of mutex and rw_lock
-  is enabled. */
-#if defined(UNIV_PFS_MUTEX) && defined(UNIV_PFS_RWLOCK)
-  byte m_padding[48];
-#elif defined(UNIV_PFS_MUTEX)
-  byte m_padding[56];
-#else
-  byte m_padding[64];
-#endif
+/** Padding of buf_block_t, see buf_block_t. It is empty when no padding is
+needed, because an array of size zero is not valid C++. */
+template <size_t N>
+struct buf_block_padding_t {
+  byte m_bytes[N];
+};
+
+template <>
+struct buf_block_padding_t<0> {};
+
+/** The buffer control block structure.
+
+Blocks are stored in an array at the page-aligned start of each buffer pool
+chunk. When sizeof(buf_block_t) is a multiple of 128 bytes, all blocks have the
+same layout with regard to cache lines and to the 128-byte pairs of cache lines
+fetched by the x86 adjacent-line prefetcher. Otherwise, for some blocks,
+page.m_space and page.m_version, which buf_page_t::was_stale() reads on every
+page lookup, would share the cache line, or the pair of cache lines, with the
+lock word of buf_block_t::lock, which is modified on every latch acquisition
+and release. The size of the data fields depends on the build configuration
+(mutex type, PFS instrumentation, debug), so the padding is computed from it. */
+struct buf_block_t : buf_block_fields_t {
+  /** Size of the padding to a multiple of 128 bytes, see above. */
+  static constexpr size_t PADDING_SIZE =
+      ut_calc_align(sizeof(buf_block_fields_t), 128) -
+      sizeof(buf_block_fields_t);
+
+  /** Padding to a multiple of 128 bytes, see above. */
+  [[no_unique_address]] buf_block_padding_t<PADDING_SIZE> m_padding;
 
   /** Get the modified clock (version) value.
   @param[in] single_threaded    Thread can only be written to or read by a
@@ -2061,17 +2081,18 @@ struct buf_block_t {
   [[nodiscard]] bool is_memory() const noexcept { return page.is_memory(); }
 };
 
-#ifndef UNIV_DEBUG
-/* Blocks are stored in an array at the page-aligned start of each buffer pool
-chunk. When sizeof(buf_block_t) is a multiple of the cache line size, all
-blocks have the same layout with regard to cache lines. Otherwise, for most
-blocks, page.m_space and page.m_version, which buf_page_t::was_stale() reads
-on every page lookup, would share the cache line with the lock word of
-buf_block_t::lock, which is modified on every latch acquisition and release.
-Adjust buf_block_t::m_padding when fields of buf_block_t change. */
-static_assert(sizeof(buf_block_t) == 384,
-              "sizeof(buf_block_t) must be a multiple of the cache line size");
-#endif /* !UNIV_DEBUG */
+/* New data fields go to buf_block_fields_t, so that the padding covers them. */
+static_assert(sizeof(buf_block_t) % 128 == 0,
+              "sizeof(buf_block_t) must be a multiple of 128 bytes");
+
+/** Node getter for the buf_pool_t::unzip_LRU list. UT_LIST_BASE_NODE_T can not
+be used for it, because unzip_LRU is a member of the base class of buf_block_t.
+*/
+struct UT_LIST_NODE_GETTER(buf_block_t, unzip_LRU) {
+  static const ut_list_node<buf_block_t> &get_node(const buf_block_t &block) {
+    return block.unzip_LRU;
+  }
+};
 
 inline bool buf_block_t::is_root() const {
   return ((get_next_page_no() == FIL_NULL) && (get_prev_page_no() == FIL_NULL));
@@ -2625,7 +2646,7 @@ struct buf_pool_t {
 
   /** Base node of the unzip_LRU list. The list is protected by the
   LRU_list_mutex. */
-  UT_LIST_BASE_NODE_T(buf_block_t, unzip_LRU) unzip_LRU;
+  UT_LIST_BASE_NODE_T_EXTERN(buf_block_t, unzip_LRU) unzip_LRU;
 
   /** @} */
   /** @name Buddy allocator fields

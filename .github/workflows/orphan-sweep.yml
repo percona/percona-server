@@ -51,7 +51,7 @@ jobs:
           MAX_AGE_SECONDS=$(( MAX_AGE_HOURS * 3600 ))
           echo "Threshold: ${MAX_AGE_HOURS}h (${MAX_AGE_SECONDS}s); dry_run=${DRY_RUN}"
 
-          # Page through all servers (max 50/page). Servers we own start with ps-arm64- or cap-probe-.
+          # Page through all servers (max 50/page). Servers we own start with ps-arm64-, ps-amd64- or cap-probe-.
           PAGE=1
           : > /tmp/candidates.tsv
           while :; do
@@ -60,7 +60,7 @@ jobs:
             echo "$RESP" \
               | jq -r --arg now "$NOW" --arg age "$MAX_AGE_SECONDS" '
                   .servers[]
-                  | select(.name | test("^(ps-arm64-|cap-probe-)"))
+                  | select(.name | test("^(ps-arm64-|ps-amd64-|cap-probe-)"))
                   | select(($now|tonumber) - (.created | fromdateiso8601) > ($age|tonumber))
                   | [.id, .name, .created] | @tsv' \
               >> /tmp/candidates.tsv
@@ -113,7 +113,7 @@ jobs:
           mapfile -t LINES < <(
             curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/repos/${{ github.repository }}/actions/runners?per_page=100" \
-              | jq -r '.runners[] | select(.status=="offline") | select(.name | test("^ps-arm64-")) | "\(.id)\t\(.name)"'
+              | jq -r '.runners[] | select(.status=="offline") | select(.name | test("^ps-(arm64|amd64)-")) | "\(.id)\t\(.name)"'
           )
           for line in "${LINES[@]}"; do
             [ -z "$line" ] && continue

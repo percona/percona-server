@@ -862,6 +862,8 @@ jobs:
           # A versioned g++-NN provides cpp-NN but not the bare `cpp` that
           # XCom's rpcgen invokes for xcom_vp.h codegen; without it codegen
           # silently emits an empty header. Unversioned g++ already pulls cpp.
+          # The bare `cpp` comes from gcc-defaults (cpp-15 on Ubuntu 26.04), so
+          # rpcgen preprocesses with gcc-15. That is fine for an RPC .x file.
           [ -n "$COMPILER_VER" ] && PACKAGES="$PACKAGES cpp"
           sudo apt-get -yq update
           sudo apt-get -yq --no-install-suggests --no-install-recommends install \

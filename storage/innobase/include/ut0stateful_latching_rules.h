@@ -35,7 +35,10 @@ changing. */
 #ifndef ut0stateful_latching_rules
 #define ut0stateful_latching_rules
 
+#include <algorithm>
+#include <array>
 #include <bitset>
+#include <set>
 
 namespace ut {
 /** This is a generic mechanism for verifying correctness of latching rules for
@@ -86,8 +89,10 @@ I hope this example shows that verifying correctness case by case like that is
 possible to do manually, but seems error prone, subject to code rot, and would
 benefit from automation.
 
-You specify the type of nodes and number of latches by template instatiation,
-and shape of the graph in the constructor.
+You specify the type of nodes, the number of latches and the numbers of states
+and edges by template instantiation, and shape of the graph in the constructor.
+The rules own no heap memory, so with a trivially destructible Node they stay
+usable from threads which outlive exit() and the static destructors it runs.
 
 This class then can then offer you two things:
 1. If you call on_transition(from, to, owned_latches) it will verify for you
@@ -110,7 +115,8 @@ Note that this might be a smaller set of latches than needed to prevent any
 activity at all. For example we don't care about changes from BUF_IO_PIN to
 BUF_IO_FIX. Also, in this example A and B are both singletons, but the mechanism
 works for arbitrarily large sets. */
-template <typename Node, size_t LATCHES_COUNT>
+template <typename Node, size_t LATCHES_COUNT, size_t STATES_COUNT,
+          size_t EDGES_COUNT>
 class Stateful_latching_rules {
  public:
   /** The type for a state in our automata */
@@ -156,10 +162,10 @@ class Stateful_latching_rules {
  private:
   /** The set of all possible states. Useful for computing the complement of
   any given set */
-  const nodes_set_t m_states;
+  const std::array<node_t, STATES_COUNT> m_states;
 
   /** The list of allowed state transitions. */
-  const std::vector<edge_t> m_edges;
+  const std::array<edge_t, EDGES_COUNT> m_edges;
 
   /** A helper function which prints the ids of latches from the set of latches
   to an ostream-like object (such as our ib::logger).
@@ -223,9 +229,11 @@ class Stateful_latching_rules {
   @return the complement of the set of states */
   nodes_set_t complement(const nodes_set_t &states) const {
     nodes_set_t other_states;
-    std::set_difference(m_states.begin(), m_states.end(), states.begin(),
-                        states.end(),
-                        std::inserter(other_states, other_states.end()));
+    for (const node_t &state : m_states) {
+      if (!states.count(state)) {
+        other_states.insert(state);
+      }
+    }
     return other_states;
   }
 
@@ -257,10 +265,16 @@ class Stateful_latching_rules {
                                   holds #0 and #2 can, and so does a thread
                                   which holds just #1 or #0 and #1 or #1 and #2
                                   or all three or even more. */
-  Stateful_latching_rules(nodes_set_t all_states,
-                          std::vector<edge_t> allowed_transitions)
-      : m_states(std::move(all_states)),
-        m_edges(std::move(allowed_transitions)) {}
+  template <size_t N_STATES, size_t N_EDGES>
+  Stateful_latching_rules(const node_t (&all_states)[N_STATES],
+                          const edge_t (&allowed_transitions)[N_EDGES])
+      : m_states(std::to_array(all_states)),
+        m_edges(std::to_array(allowed_transitions)) {
+    /* std::array would fill the rest of a shorter list with value-initialized
+    elements, so the lists must have exactly STATES_COUNT and EDGES_COUNT. */
+    static_assert(N_STATES == STATES_COUNT);
+    static_assert(N_EDGES == EDGES_COUNT);
+  }
 
   /** Checks if `owned_latches` (presumably held by the current thread) are
   enough to meaningfully ask a question if current state belongs to set A as

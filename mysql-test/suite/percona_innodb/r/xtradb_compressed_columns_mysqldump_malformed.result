@@ -1,0 +1,46 @@
+CREATE TABLE t1 (a INT);
+# Extension without " */" is left as is
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`
+) ENGINE=InnoDB;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d1`
+) ENGINE=InnoDB;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# Extension without the dictionary keyword references no dictionary
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED UNKNOWN `d1` */
+) ENGINE=InnoDB;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# Quoted dictionary keyword references no dictionary
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED UNKNOWN ` WITH COMPRESSION_DICTIONARY d1` */
+) ENGINE=InnoDB;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# Dictionary keyword of a later extension is not used for an earlier one
+CREATE COMPRESSION_DICTIONARY d2 ('data2');
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d2` */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d2` ('data2') */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED UNKNOWN `d1` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d2` */
+) ENGINE=InnoDB;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP COMPRESSION_DICTIONARY d2;
+# 386 byte dictionary name is looked up
+mysqldump: Couldn't read data for compression dictionary xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ()
+
+# 387 byte dictionary name is rejected
+mysqldump: Compression dictionary name exceeds the maximum length of 386 bytes
+DROP TABLE t1;

@@ -1,4 +1,5 @@
 CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+CALL mtr.add_suppression("Aborting");
 ### Shutdown
 ### Start with invalid option
 # restart_abort: --authentication-policy=mysql_native_password --mysql_native_password=OFF

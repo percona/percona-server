@@ -1,6 +1,7 @@
 --source include/have_percona_telemetry.inc
 
 CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+CALL mtr.add_suppression("Aborting");
 
 --echo ### Shutdown
 --source include/shutdown_mysqld.inc

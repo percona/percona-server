@@ -9361,7 +9361,7 @@ int mysqld_main(int argc, char **argv)
   {
     LogErr(ERROR_LEVEL, ER_MYINIT_FAILED);
     flush_error_log_messages();
-    return 1;
+    return MYSQLD_ABORT_EXIT;
   }
 #endif /* _WIN32 */
 
@@ -9372,7 +9372,7 @@ int mysqld_main(int argc, char **argv)
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv,
                     &argv_alloc)) {
     flush_error_log_messages();
-    return 1;
+    return MYSQLD_ABORT_EXIT;
   }
 
   argc_cached = argc;
@@ -9413,7 +9413,7 @@ int mysqld_main(int argc, char **argv)
       persisted_variables_cache.append_parse_early_variables(
           &argc, &argv, arg_separator_added)) {
     flush_error_log_messages();
-    return 1;
+    return MYSQLD_ABORT_EXIT;
   }
 
   remaining_argc = argc;
@@ -9686,7 +9686,7 @@ int mysqld_main(int argc, char **argv)
   */
   if (component_infrastructure_init()) {
     flush_error_log_messages();
-    return 1;
+    return MYSQLD_ABORT_EXIT;
   }
 
   {
@@ -9697,12 +9697,12 @@ int mysqld_main(int argc, char **argv)
 
     if (keyring_helper->valid() == false) {
       flush_error_log_messages();
-      return 1;
+      return MYSQLD_ABORT_EXIT;
     }
 
     if (initialize_manifest_file_components()) {
       flush_error_log_messages();
-      return 1;
+      return MYSQLD_ABORT_EXIT;
     }
 
     /*
@@ -9721,7 +9721,7 @@ int mysqld_main(int argc, char **argv)
   if (persisted_variables_cache.append_read_only_variables(
           &remaining_argc, &remaining_argv, arg_separator_added, false)) {
     flush_error_log_messages();
-    return 1;
+    return MYSQLD_ABORT_EXIT;
   }
   my_getopt_use_args_separator = false;
 
@@ -10293,13 +10293,13 @@ int mysqld_main(int argc, char **argv)
   if (authentication_policy::init(opt_authentication_policy)) {
     /* --authentication_policy is set to invalid value */
     LogErr(ERROR_LEVEL, ER_INVALID_AUTHENTICATION_POLICY);
-    return 1;
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
   /* set all persistent options */
   if (persisted_variables_cache.set_persisted_options(false)) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);
     flush_error_log_messages();
-    return 1;
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   /*

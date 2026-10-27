@@ -64,6 +64,7 @@
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_latch_source.h" /* Percona */
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_setup_object.h"
@@ -1332,12 +1333,34 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         size = logger_class_max * sizeof(PFS_logger_class);
         total_memory += size;
         break;
+      /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE. */
+      case 256:
+        name = "events_waits_summary_by_source.size";
+        size = sizeof(PFS_latch_source_stat);
+        break;
+      case 257:
+        name = "events_waits_summary_by_source.count";
+        size = latch_source_max;
+        break;
+      case 258:
+        name = "events_waits_summary_by_source.memory";
+        size = latch_source_max * sizeof(PFS_latch_source_stat);
+        total_memory += size;
+        break;
+      case 259:
+        name = "events_waits_summary_by_source.lost";
+        size = latch_source_lost.load(std::memory_order_relaxed);
+        break;
+      case 260:
+        name = "events_waits_summary_by_source.holds_lost";
+        size = latch_source_holds_lost.load(std::memory_order_relaxed);
+        break;
 
       /*
         This case must be last,
         for aggregation in total_memory.
       */
-      case 256:
+      case 261:
         name = "performance_schema.memory";
         size = total_memory;
         break;

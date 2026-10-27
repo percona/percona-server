@@ -64,6 +64,7 @@ SET(TESTS
   ut0object_cache
   ut0rbt
   ut0rnd
+  ut0stateful_latching_rules
   vec0arena
   vec0aux
   vec0vec

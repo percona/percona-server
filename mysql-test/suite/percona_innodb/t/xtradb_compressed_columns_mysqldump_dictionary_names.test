@@ -1,0 +1,145 @@
+#
+# mysqldump --enable-compressed-columns-with-dictionaries must dump
+# compression dictionaries whose names contain quote characters,
+# backslashes, spaces or non-ASCII characters, or are keywords or numbers,
+# and restore them with the same names and data whatever
+# --default-character-set is. Dictionary data must also be restored when the
+# mysql client reads the dump in sjis or gbk, where a byte before an escaping
+# backslash can make one character with it.
+#
+
+SET NAMES utf8mb4;
+CREATE COMPRESSION_DICTIONARY `d``x` ('data1');
+CREATE COMPRESSION_DICTIONARY `d``` ('data2');
+CREATE COMPRESSION_DICTIONARY `a````` ('data3');
+CREATE COMPRESSION_DICTIONARY `d'x` ('da''ta\\4');
+CREATE COMPRESSION_DICTIONARY `d\x` ('data5');
+CREATE COMPRESSION_DICTIONARY `d x` ('data6');
+CREATE COMPRESSION_DICTIONARY `d"x` ('data7');
+CREATE COMPRESSION_DICTIONARY `dあ` ('dataあ\\8');
+CREATE COMPRESSION_DICTIONARY `select` ('data9');
+CREATE COMPRESSION_DICTIONARY `123` ('data10');
+CREATE COMPRESSION_DICTIONARY `d©` ('data©11');
+CREATE COMPRESSION_DICTIONARY `dé` ('data\\é12''');
+CREATE TABLE t1 (
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x`,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d```,
+  c BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a`````,
+  d BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x`,
+  e BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x`,
+  f BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x`,
+  g BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x`,
+  h BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ`,
+  i BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select`,
+  j BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123`,
+  k BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©`,
+  l BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé`);
+SELECT DICT_NAME, DICT_DATA FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY
+  ORDER BY HEX(DICT_NAME);
+--let $checksum_query= SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY
+--eval $checksum_query
+
+--let $dump_file= $MYSQLTEST_VARDIR/tmp/xtradb_compressed_columns_mysqldump_dictionary_names.sql
+--let $i= 5
+while ($i)
+{
+  if ($i == 5)
+  {
+    --let $options= --skip-comments
+  }
+  if ($i == 4)
+  {
+    --let $options= --skip-comments --skip-quote-names
+  }
+  if ($i == 3)
+  {
+    --let $options= --skip-comments --default-character-set=sjis
+  }
+  if ($i == 2)
+  {
+    --let $options= --skip-comments --default-character-set=gbk
+  }
+  if ($i == 1)
+  {
+    --let $options= --skip-comments --default-character-set=latin1
+  }
+  --echo # Dump and restore with $options
+  --exec $MYSQL_DUMP $options --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1 > $dump_file
+  DROP TABLE t1;
+  DROP COMPRESSION_DICTIONARY `d``x`;
+  DROP COMPRESSION_DICTIONARY `d```;
+  DROP COMPRESSION_DICTIONARY `a`````;
+  DROP COMPRESSION_DICTIONARY `d'x`;
+  DROP COMPRESSION_DICTIONARY `d\x`;
+  DROP COMPRESSION_DICTIONARY `d x`;
+  DROP COMPRESSION_DICTIONARY `d"x`;
+  DROP COMPRESSION_DICTIONARY `dあ`;
+  DROP COMPRESSION_DICTIONARY `select`;
+  DROP COMPRESSION_DICTIONARY `123`;
+  DROP COMPRESSION_DICTIONARY `d©`;
+  DROP COMPRESSION_DICTIONARY `dé`;
+  --exec $MYSQL test < $dump_file
+  --remove_file $dump_file
+  --eval $checksum_query
+  SHOW CREATE TABLE t1;
+  --dec $i
+}
+
+--echo # Dictionary statements of a non-UTF-8 dump
+--exec $MYSQL_DUMP --compact --default-character-set=sjis --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1
+
+--echo # Keyword and number names with --skip-quote-names
+--exec $MYSQL_DUMP --compact --skip-quote-names --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1
+
+--echo # ANSI quotes
+--exec $MYSQL_DUMP --compact --compatible=ansi --no-tablespaces --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1
+
+--echo # Dictionary data read by a mysql client in sjis and gbk
+# 'あ' (E3 81 82) and sjis 'ソ' (83 5C) before a quote and a backslash
+CREATE COMPRESSION_DICTIONARY mb1 ('あ''あ\\');
+SET @data = X'835C27835C5C';
+CREATE COMPRESSION_DICTIONARY mb2 (@data);
+CREATE TABLE t2 (
+  a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY mb1,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY mb2);
+--let $mb_query= SELECT DICT_NAME, HEX(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY WHERE DICT_NAME IN ('mb1', 'mb2') ORDER BY DICT_NAME
+--eval $mb_query
+--let $i= 2
+while ($i)
+{
+  if ($i == 2)
+  {
+    --let $charset= sjis
+  }
+  if ($i == 1)
+  {
+    --let $charset= gbk
+  }
+  --echo # Dump and restore with --default-character-set=$charset
+  --exec $MYSQL_DUMP --skip-comments --default-character-set=$charset --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t2 > $dump_file
+  DROP TABLE t2;
+  DROP COMPRESSION_DICTIONARY mb1;
+  DROP COMPRESSION_DICTIONARY mb2;
+  --exec $MYSQL --default-character-set=$charset test < $dump_file
+  --remove_file $dump_file
+  --eval $mb_query
+  SHOW CREATE TABLE t2;
+  --dec $i
+}
+DROP TABLE t2;
+DROP COMPRESSION_DICTIONARY mb1;
+DROP COMPRESSION_DICTIONARY mb2;
+
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;

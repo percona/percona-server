@@ -117,8 +117,13 @@ CREATE TABLE `t6` (
   `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 /*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d */ x` */;
-/*!50633 CREATE COMPRESSION_DICTIONARY `d */ x` ('abcdef') */;
+/*!50633 SET @compression_dictionary_data = X'616263646566' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d */ x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t6` (
@@ -144,8 +149,13 @@ CREATE TABLE `t8` (
   `b` int DEFAULT NULL COMMENT 'keep ` /*!50633 COLUMN_FORMAT COMPRESSED this */ text'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 /*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d */ x` */;
-/*!50633 CREATE COMPRESSION_DICTIONARY `d */ x` ('abcdef') */;
+/*!50633 SET @compression_dictionary_data = X'616263646566' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d */ x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t8` (

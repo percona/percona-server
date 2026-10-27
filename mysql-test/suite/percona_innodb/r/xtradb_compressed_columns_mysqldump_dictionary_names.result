@@ -1,0 +1,570 @@
+SET NAMES utf8mb4;
+CREATE COMPRESSION_DICTIONARY `d``x` ('data1');
+CREATE COMPRESSION_DICTIONARY `d``` ('data2');
+CREATE COMPRESSION_DICTIONARY `a````` ('data3');
+CREATE COMPRESSION_DICTIONARY `d'x` ('da''ta\\4');
+CREATE COMPRESSION_DICTIONARY `d\x` ('data5');
+CREATE COMPRESSION_DICTIONARY `d x` ('data6');
+CREATE COMPRESSION_DICTIONARY `d"x` ('data7');
+CREATE COMPRESSION_DICTIONARY `dあ` ('dataあ\\8');
+CREATE COMPRESSION_DICTIONARY `select` ('data9');
+CREATE COMPRESSION_DICTIONARY `123` ('data10');
+CREATE COMPRESSION_DICTIONARY `d©` ('data©11');
+CREATE COMPRESSION_DICTIONARY `dé` ('data\\é12''');
+CREATE TABLE t1 (
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x`,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d```,
+c BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a`````,
+d BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x`,
+e BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x`,
+f BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x`,
+g BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x`,
+h BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ`,
+i BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select`,
+j BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123`,
+k BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©`,
+l BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé`);
+SELECT DICT_NAME, DICT_DATA FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY
+ORDER BY HEX(DICT_NAME);
+DICT_NAME	DICT_DATA
+123	data10
+a``	data3
+d x	data6
+d"x	data7
+d'x	da'ta\4
+d\x	data5
+d`	data2
+d`x	data1
+d©	data©11
+dé	data\é12'
+dあ	dataあ\8
+select	data9
+SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+COUNT(*)	checksum
+12	d9605fe9ca2378b7f74bca0ffc35809b042e584391b3f60e0c69c3b2059c6122
+# Dump and restore with --skip-comments
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;
+SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+COUNT(*)	checksum
+12	d9605fe9ca2378b7f74bca0ffc35809b042e584391b3f60e0c69c3b2059c6122
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  `f` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  `g` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  `h` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  `i` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  `j` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  `k` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  `l` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dump and restore with --skip-comments --skip-quote-names
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;
+SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+COUNT(*)	checksum
+12	d9605fe9ca2378b7f74bca0ffc35809b042e584391b3f60e0c69c3b2059c6122
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  `f` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  `g` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  `h` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  `i` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  `j` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  `k` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  `l` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dump and restore with --skip-comments --default-character-set=sjis
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;
+SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+COUNT(*)	checksum
+12	d9605fe9ca2378b7f74bca0ffc35809b042e584391b3f60e0c69c3b2059c6122
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  `f` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  `g` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  `h` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  `i` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  `j` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  `k` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  `l` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dump and restore with --skip-comments --default-character-set=gbk
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;
+SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+COUNT(*)	checksum
+12	d9605fe9ca2378b7f74bca0ffc35809b042e584391b3f60e0c69c3b2059c6122
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  `f` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  `g` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  `h` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  `i` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  `j` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  `k` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  `l` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dump and restore with --skip-comments --default-character-set=latin1
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;
+SELECT COUNT(*), SHA2(GROUP_CONCAT(HEX(DICT_NAME), ':', HEX(DICT_DATA) ORDER BY HEX(DICT_NAME)), 256) AS checksum FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY;
+COUNT(*)	checksum
+12	d9605fe9ca2378b7f74bca0ffc35809b042e584391b3f60e0c69c3b2059c6122
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  `f` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  `g` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  `h` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  `i` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  `j` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  `k` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  `l` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dictionary statements of a non-UTF-8 dump
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `dé` */;
+/*!50633 SET @compression_dictionary_data = X'646174615CC3A9313227' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `dé` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d©` */;
+/*!50633 SET @compression_dictionary_data = X'64617461C2A93131' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d©` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `123` */;
+/*!50633 SET @compression_dictionary_data = X'646174613130' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `123` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `select` */;
+/*!50633 SET @compression_dictionary_data = X'6461746139' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `select` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `dあ` */;
+/*!50633 SET @compression_dictionary_data = X'64617461E381825C38' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `dあ` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d"x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746137' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d"x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746136' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d\x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746135' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d\x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d'x` */;
+/*!50633 SET @compression_dictionary_data = X'64612774615C34' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d'x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `a````` */;
+/*!50633 SET @compression_dictionary_data = X'6461746133' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `a````` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d``` */;
+/*!50633 SET @compression_dictionary_data = X'6461746132' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d``` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d``x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746131' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d``x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  `c` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  `f` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  `g` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  `h` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  `i` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  `j` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  `k` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  `l` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# Keyword and number names with --skip-quote-names
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `dé` */;
+/*!50633 SET @compression_dictionary_data = X'646174615CC3A9313227' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `dé` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d©` */;
+/*!50633 SET @compression_dictionary_data = X'64617461C2A93131' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d©` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `123` */;
+/*!50633 SET @compression_dictionary_data = X'646174613130' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `123` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `select` */;
+/*!50633 SET @compression_dictionary_data = X'6461746139' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `select` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `dあ` */;
+/*!50633 SET @compression_dictionary_data = X'64617461E381825C38' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `dあ` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d"x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746137' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d"x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746136' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d\x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746135' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d\x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d'x` */;
+/*!50633 SET @compression_dictionary_data = X'64612774615C34' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d'x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `a````` */;
+/*!50633 SET @compression_dictionary_data = X'6461746133' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `a````` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d``` */;
+/*!50633 SET @compression_dictionary_data = X'6461746132' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d``` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d``x` */;
+/*!50633 SET @compression_dictionary_data = X'6461746131' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d``x` (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE t1 (
+  a blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``x` */,
+  b blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d``` */,
+  c blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `a````` */,
+  d blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d'x` */,
+  e blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d\x` */,
+  f blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d x` */,
+  g blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d"x` */,
+  h blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dあ` */,
+  i blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `select` */,
+  j blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `123` */,
+  k blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d©` */,
+  l blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `dé` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# ANSI quotes
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "dé" */;
+/*!50633 SET @compression_dictionary_data = X'646174615CC3A9313227' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "dé" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d©" */;
+/*!50633 SET @compression_dictionary_data = X'64617461C2A93131' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d©" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "123" */;
+/*!50633 SET @compression_dictionary_data = X'646174613130' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "123" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "select" */;
+/*!50633 SET @compression_dictionary_data = X'6461746139' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "select" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "dあ" */;
+/*!50633 SET @compression_dictionary_data = X'64617461E381825C38' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "dあ" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d""x" */;
+/*!50633 SET @compression_dictionary_data = X'6461746137' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d""x" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d x" */;
+/*!50633 SET @compression_dictionary_data = X'6461746136' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d x" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d\x" */;
+/*!50633 SET @compression_dictionary_data = X'6461746135' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d\x" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d'x" */;
+/*!50633 SET @compression_dictionary_data = X'64612774615C34' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d'x" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "a``" */;
+/*!50633 SET @compression_dictionary_data = X'6461746133' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "a``" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d`" */;
+/*!50633 SET @compression_dictionary_data = X'6461746132' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d`" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS "d`x" */;
+/*!50633 SET @compression_dictionary_data = X'6461746131' */;
+/*!50633 CREATE COMPRESSION_DICTIONARY "d`x" (@compression_dictionary_data) */;
+/*!50633 SET @compression_dictionary_data = NULL */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE "t1" (
+  "a" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d`x" */,
+  "b" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d`" */,
+  "c" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "a``" */,
+  "d" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d'x" */,
+  "e" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d\x" */,
+  "f" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d x" */,
+  "g" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d""x" */,
+  "h" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "dあ" */,
+  "i" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "select" */,
+  "j" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "123" */,
+  "k" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "d©" */,
+  "l" blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY "dé" */
+);
+/*!40101 SET character_set_client = @saved_cs_client */;
+# Dictionary data read by a mysql client in sjis and gbk
+CREATE COMPRESSION_DICTIONARY mb1 ('あ''あ\\');
+SET @data = X'835C27835C5C';
+CREATE COMPRESSION_DICTIONARY mb2 (@data);
+CREATE TABLE t2 (
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY mb1,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY mb2);
+SELECT DICT_NAME, HEX(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY WHERE DICT_NAME IN ('mb1', 'mb2') ORDER BY DICT_NAME;
+DICT_NAME	HEX(DICT_DATA)
+mb1	E3818227E381825C
+mb2	835C27835C5C
+# Dump and restore with --default-character-set=sjis
+DROP TABLE t2;
+DROP COMPRESSION_DICTIONARY mb1;
+DROP COMPRESSION_DICTIONARY mb2;
+SELECT DICT_NAME, HEX(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY WHERE DICT_NAME IN ('mb1', 'mb2') ORDER BY DICT_NAME;
+DICT_NAME	HEX(DICT_DATA)
+mb1	E3818227E381825C
+mb2	835C27835C5C
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `mb1` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `mb2` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Dump and restore with --default-character-set=gbk
+DROP TABLE t2;
+DROP COMPRESSION_DICTIONARY mb1;
+DROP COMPRESSION_DICTIONARY mb2;
+SELECT DICT_NAME, HEX(DICT_DATA) FROM INFORMATION_SCHEMA.COMPRESSION_DICTIONARY WHERE DICT_NAME IN ('mb1', 'mb2') ORDER BY DICT_NAME;
+DICT_NAME	HEX(DICT_DATA)
+mb1	E3818227E381825C
+mb2	835C27835C5C
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `mb1` */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `mb2` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+DROP COMPRESSION_DICTIONARY mb1;
+DROP COMPRESSION_DICTIONARY mb2;
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY `d``x`;
+DROP COMPRESSION_DICTIONARY `d```;
+DROP COMPRESSION_DICTIONARY `a`````;
+DROP COMPRESSION_DICTIONARY `d'x`;
+DROP COMPRESSION_DICTIONARY `d\x`;
+DROP COMPRESSION_DICTIONARY `d x`;
+DROP COMPRESSION_DICTIONARY `d"x`;
+DROP COMPRESSION_DICTIONARY `dあ`;
+DROP COMPRESSION_DICTIONARY `select`;
+DROP COMPRESSION_DICTIONARY `123`;
+DROP COMPRESSION_DICTIONARY `d©`;
+DROP COMPRESSION_DICTIONARY `dé`;

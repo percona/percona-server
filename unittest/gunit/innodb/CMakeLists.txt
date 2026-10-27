@@ -55,6 +55,7 @@ SET(TESTS
   ut0new
   ut0rbt
   ut0rnd
+  ut0stateful_latching_rules
 )
 
 # Treat warnings as errors on MSVC for InnoDB's unittests

@@ -1,0 +1,34 @@
+#
+# mysqldump must handle compressed column extensions that the server never
+# returns: a missing " */", a missing dictionary keyword, a dictionary keyword
+# that is quoted or belongs to a later extension, and dictionary names that do
+# not fit the 386 byte buffer for a quoted name.
+#
+--source include/have_debug.inc
+
+CREATE TABLE t1 (a INT);
+
+--echo # Extension without " */" is left as is
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_no_suffix test t1
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_no_suffix --enable-compressed-columns-with-dictionaries test t1
+
+--echo # Extension without the dictionary keyword references no dictionary
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_no_keyword --enable-compressed-columns-with-dictionaries test t1
+
+--echo # Quoted dictionary keyword references no dictionary
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_quoted_keyword --enable-compressed-columns-with-dictionaries test t1
+
+--echo # Dictionary keyword of a later extension is not used for an earlier one
+CREATE COMPRESSION_DICTIONARY d2 ('data2');
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_later_keyword --enable-compressed-columns-with-dictionaries test t1
+DROP COMPRESSION_DICTIONARY d2;
+
+--echo # 386 byte dictionary name is looked up
+--error 2
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_name_386 --enable-compressed-columns-with-dictionaries test t1 2>&1
+
+--echo # 387 byte dictionary name is rejected
+--error 3
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --debug=d,compressed_columns_name_387 --enable-compressed-columns-with-dictionaries test t1 2>&1
+
+DROP TABLE t1;

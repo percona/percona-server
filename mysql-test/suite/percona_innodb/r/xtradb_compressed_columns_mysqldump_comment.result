@@ -1,12 +1,157 @@
 CREATE TABLE t1 (a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */');
 CREATE TABLE t2 (a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED');
-# Extension prefix without the closing suffix is left as is
+CREATE TABLE t3 (a INT COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text');
+CREATE TABLE t4 (
+a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED',
+b BLOB COLUMN_FORMAT COMPRESSED,
+c INT COMMENT ') ENGINE=InnoDB; CREATE TABLE t_injected (y INT); CREATE TABLE t5 (y INT -- ');
+CREATE TABLE t7 (
+a VARCHAR(100) DEFAULT ('q\' /*!50633 COLUMN_FORMAT COMPRESSED z */'),
+  b BLOB COLUMN_FORMAT COMPRESSED,
+  c INT COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text',
+  d VARCHAR(20) GENERATED ALWAYS AS (CONCAT('it''s', ' /*!50633 COLUMN_FORMAT COMPRESSED */')) VIRTUAL,
+  e BLOB COLUMN_FORMAT COMPRESSED);
+# Extension text inside comments is left as is
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` int DEFAULT NULL COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t2` (
   `a` int DEFAULT NULL COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-# Oversized compression dictionary name is rejected
-mysqldump: Compression dictionary name exceeds the maximum length of 386 bytes
-DROP TABLE t1, t2;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t3` (
+  `a` int DEFAULT NULL COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t4` (
+  `a` int DEFAULT NULL COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED',
+  `b` blob,
+  `c` int DEFAULT NULL COMMENT ') ENGINE=InnoDB; CREATE TABLE t_injected (y INT); CREATE TABLE t5 (y INT -- '
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t7` (
+  `a` varchar(100) DEFAULT (_utf8mb4'q\' /*!50633 COLUMN_FORMAT COMPRESSED z */'),
+  `b` blob,
+  `c` int DEFAULT NULL COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text',
+  `d` varchar(20) GENERATED ALWAYS AS (concat(_utf8mb4'it\'s',_utf8mb4' /*!50633 COLUMN_FORMAT COMPRESSED */')) VIRTUAL,
+  `e` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t3` (
+  `a` int DEFAULT NULL COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t4` (
+  `a` int DEFAULT NULL COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED',
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `c` int DEFAULT NULL COMMENT ') ENGINE=InnoDB; CREATE TABLE t_injected (y INT); CREATE TABLE t5 (y INT -- '
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t7` (
+  `a` varchar(100) DEFAULT (_utf8mb4'q\' /*!50633 COLUMN_FORMAT COMPRESSED z */'),
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `c` int DEFAULT NULL COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text',
+  `d` varchar(20) GENERATED ALWAYS AS (concat(_utf8mb4'it\'s',_utf8mb4' /*!50633 COLUMN_FORMAT COMPRESSED */')) VIRTUAL,
+  `e` blob /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t1` (
+  `a` int DEFAULT NULL COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx */'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# Restored dump creates only the dumped tables
+CREATE DATABASE restored;
+SHOW TABLES FROM restored;
+Tables_in_restored
+t3
+t4
+t7
+SHOW CREATE TABLE restored.t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int DEFAULT NULL COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED',
+  `b` blob,
+  `c` int DEFAULT NULL COMMENT ') ENGINE=InnoDB; CREATE TABLE t_injected (y INT); CREATE TABLE t5 (y INT -- '
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE restored.t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a` varchar(100) DEFAULT (_utf8mb4'q\' /*!50633 COLUMN_FORMAT COMPRESSED z */'),
+  `b` blob,
+  `c` int DEFAULT NULL COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text',
+  `d` varchar(20) GENERATED ALWAYS AS (concat(_utf8mb4'it\'s',_utf8mb4' /*!50633 COLUMN_FORMAT COMPRESSED */')) VIRTUAL,
+  `e` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE restored;
+# Compression dictionary name that contains the extension suffix
+CREATE COMPRESSION_DICTIONARY `d */ x` ('abcdef');
+CREATE TABLE t6 (a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d */ x`);
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t6` (
+  `a` blob
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t6` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d */ x` */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d */ x` ('abcdef') */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t6` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d */ x` */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+# SHOW CREATE TABLE is UTF-8 whatever --default-character-set is
+SET NAMES utf8mb4;
+CREATE TABLE t8 (
+`あ` BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d */ x`,
+b INT COMMENT 'keep ` /*!50633 COLUMN_FORMAT COMPRESSED this */ text');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t8` (
+  `あ` blob,
+  `b` int DEFAULT NULL COMMENT 'keep ` /*!50633 COLUMN_FORMAT COMPRESSED this */ text'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t8` (
+  `あ` blob,
+  `b` int DEFAULT NULL COMMENT 'keep ` /*!50633 COLUMN_FORMAT COMPRESSED this */ text'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50633 DROP COMPRESSION_DICTIONARY IF EXISTS `d */ x` */;
+/*!50633 CREATE COMPRESSION_DICTIONARY `d */ x` ('abcdef') */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t8` (
+  `あ` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d */ x` */,
+  `b` int DEFAULT NULL COMMENT 'keep ` /*!50633 COLUMN_FORMAT COMPRESSED this */ text'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE t1, t2, t3, t4, t6, t7, t8;
+DROP COMPRESSION_DICTIONARY `d */ x`;

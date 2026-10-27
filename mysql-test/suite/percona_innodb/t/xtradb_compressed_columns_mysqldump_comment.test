@@ -1,17 +1,56 @@
 #
-# mysqldump must not trust compressed column extensions found in
-# SHOW CREATE TABLE output: column comments can contain the same text.
+# mysqldump must only treat compressed column extensions outside quotes in
+# SHOW CREATE TABLE output as extensions: column comments and quoted
+# compression dictionary names can contain the same text.
 #
 
 --let $name= `SELECT REPEAT('x', 500)`
 eval CREATE TABLE t1 (a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $name */');
 CREATE TABLE t2 (a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED');
+CREATE TABLE t3 (a INT COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text');
+CREATE TABLE t4 (
+  a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED',
+  b BLOB COLUMN_FORMAT COMPRESSED,
+  c INT COMMENT ') ENGINE=InnoDB; CREATE TABLE t_injected (y INT); CREATE TABLE t5 (y INT -- ');
+# Escaped quotes in an expression, and extension text after a real extension
+CREATE TABLE t7 (
+  a VARCHAR(100) DEFAULT ('q\' /*!50633 COLUMN_FORMAT COMPRESSED z */'),
+  b BLOB COLUMN_FORMAT COMPRESSED,
+  c INT COMMENT 'keep /*!50633 COLUMN_FORMAT COMPRESSED this */ text',
+  d VARCHAR(20) GENERATED ALWAYS AS (CONCAT('it''s', ' /*!50633 COLUMN_FORMAT COMPRESSED */')) VIRTUAL,
+  e BLOB COLUMN_FORMAT COMPRESSED);
 
---echo # Extension prefix without the closing suffix is left as is
---exec $MYSQL_DUMP --compact --set-gtid-purged=OFF test t2
+--echo # Extension text inside comments is left as is
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF test t1 t2 t3 t4 t7
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --enable-compressed-columns test t3 t4 t7
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1
 
---echo # Oversized compression dictionary name is rejected
---error 3
---exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1 2>&1
+--echo # Restored dump creates only the dumped tables
+--let $dump_file= $MYSQLTEST_VARDIR/tmp/xtradb_compressed_columns_mysqldump_comment.sql
+--exec $MYSQL_DUMP --skip-comments --set-gtid-purged=OFF test t3 t4 t7 > $dump_file
+CREATE DATABASE restored;
+--exec $MYSQL restored < $dump_file
+SHOW TABLES FROM restored;
+SHOW CREATE TABLE restored.t4;
+SHOW CREATE TABLE restored.t7;
+DROP DATABASE restored;
+--remove_file $dump_file
 
-DROP TABLE t1, t2;
+--echo # Compression dictionary name that contains the extension suffix
+CREATE COMPRESSION_DICTIONARY `d */ x` ('abcdef');
+CREATE TABLE t6 (a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d */ x`);
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF test t6
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --enable-compressed-columns test t6
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t6
+
+--echo # SHOW CREATE TABLE is UTF-8 whatever --default-character-set is
+SET NAMES utf8mb4;
+CREATE TABLE t8 (
+  `あ` BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `d */ x`,
+  b INT COMMENT 'keep ` /*!50633 COLUMN_FORMAT COMPRESSED this */ text');
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --default-character-set=sjis test t8
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --default-character-set=gbk test t8
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --default-character-set=sjis --enable-compressed-columns-with-dictionaries test t8
+
+DROP TABLE t1, t2, t3, t4, t6, t7, t8;
+DROP COMPRESSION_DICTIONARY `d */ x`;

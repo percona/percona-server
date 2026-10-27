@@ -3675,6 +3675,45 @@ static void skip_secondary_keys(const char *table, char *create_str,
 using dict_list_t = std::forward_list<std::string>;
 
 /**
+   Finds the first occurrence of needle in a SHOW CREATE TABLE string that
+   is not inside a quoted string or identifier.
+
+   String literals from COMMENT and DEFAULT values double the quote
+   character, and literals in expressions escape it with a backslash
+   (connect_to_db() never sets NO_BACKSLASH_ESCAPES). Identifiers double
+   their quote character. A doubled quote is handled as leaving and entering
+   the string or identifier again.
+
+   The string is scanned byte by byte: get_table_structure() reads SHOW
+   CREATE TABLE with character_set_results=binary, so it is UTF-8, whose
+   multibyte characters never contain ASCII bytes. It must not be decoded
+   with charset_info, which follows --default-character-set.
+
+   @param str     position in SHOW CREATE TABLE output, outside of quotes
+   @param needle  text to look for; must not contain quote characters
+
+   @return the position of needle, or nullptr if not found
+*/
+static char *find_unquoted(char *str, const char *needle) {
+  const size_t needle_length = strlen(needle);
+  const char *const end = str + strlen(str);
+  char quote = '\0';
+  for (char *pos = str; pos < end; ++pos) {
+    if (quote == '\0') {
+      if (*pos == '\'' || *pos == '`' || *pos == '"')
+        quote = *pos;
+      else if (strncmp(pos, needle, needle_length) == 0)
+        return pos;
+    } else if (quote == '\'' && *pos == '\\') {
+      if (pos + 1 < end) ++pos;
+    } else if (*pos == quote) {
+      quote = '\0';
+    }
+  }
+  return nullptr;
+}
+
+/**
    Removes some compressed columns extensions from the create table
    definition (a string produced by SHOW CREATE TABLE) depending on
    opt_compressed_columns and opt_compressed_columns_with_dictionaries flags.
@@ -3705,10 +3744,14 @@ static void skip_compressed_columns(char *create_str,
 
   char *ptr = create_str;
   char *end_ptr = ptr + strlen(create_str);
-  char *prefix_ptr = strstr(ptr, prefix);
+  /*
+    Only look outside quotes: the same text can be part of a COMMENT,
+    a default value or a quoted dictionary name.
+  */
+  char *prefix_ptr = find_unquoted(ptr, prefix);
   while (prefix_ptr != nullptr) {
-    char *const suffix_ptr = strstr(prefix_ptr + prefix_length, suffix);
-    /* Not a column format extension, e.g. text inside a COMMENT. */
+    char *const suffix_ptr = find_unquoted(prefix_ptr + prefix_length, suffix);
+    /* Not a complete column format extension. */
     if (suffix_ptr == nullptr) break;
     if (!opt_compressed_columns_with_dictionaries) {
       if (!opt_compressed_columns) {
@@ -3728,7 +3771,7 @@ static void skip_compressed_columns(char *create_str,
       /* Do not strip out anything. Leave full column definition as is. */
       if (dictionaries != nullptr && prefix_ptr + prefix_length != suffix_ptr) {
         const char *dictionary_keyword_ptr =
-            strstr(prefix_ptr + prefix_length, dictionary_keyword);
+            find_unquoted(prefix_ptr + prefix_length, dictionary_keyword);
         if (dictionary_keyword_ptr != nullptr &&
             dictionary_keyword_ptr + dictionary_keyword_length <= suffix_ptr) {
           const size_t dictionary_name_length =
@@ -3753,7 +3796,7 @@ static void skip_compressed_columns(char *create_str,
       }
       ptr = suffix_ptr + suffix_length;
     }
-    prefix_ptr = strstr(ptr, prefix);
+    prefix_ptr = find_unquoted(ptr, prefix);
   }
   DBUG_VOID_RETURN;
 }
@@ -3837,7 +3880,7 @@ static void print_optional_create_compression_dictionary(
     if (row == nullptr) {
       mysql_free_result(result);
       maybe_die(EX_MYSQLERR,
-                "Couldn't read data for compresion dictionary %s (%s)\n",
+                "Couldn't read data for compression dictionary %s (%s)\n",
                 dictionary_name, mysql_error(mysql));
       DBUG_VOID_RETURN;
     }
@@ -4226,6 +4269,47 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
         */
 
         dict_list_t referenced_dictionaries, current_dictionary;
+
+#ifndef NDEBUG
+        /* Malformed extensions, which the server never returns. */
+        static std::string debug_create;
+        debug_create.clear();
+        const auto debug_column = [](const char *name,
+                                     const std::string &extension) {
+          return std::string("  `") + name + "` blob /*!" STRINGIFY_ARG(
+                     FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION) " "
+                 "COLUMN_FORMAT COMPRESSED" +
+                 extension;
+        };
+        const auto debug_table = [](const std::string &columns) {
+          debug_create =
+              "CREATE TABLE `t1` (\n" + columns + "\n) ENGINE=InnoDB";
+        };
+        DBUG_EXECUTE_IF("compressed_columns_no_suffix", {
+          debug_table(debug_column("a", " WITH COMPRESSION_DICTIONARY `d1`"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_no_keyword", {
+          debug_table(debug_column("a", " UNKNOWN `d1` */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_quoted_keyword", {
+          debug_table(debug_column(
+              "a", " UNKNOWN ` WITH COMPRESSION_DICTIONARY d1` */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_later_keyword", {
+          debug_table(
+              debug_column("a", " UNKNOWN `d1` */") + ",\n" +
+              debug_column("b", " WITH COMPRESSION_DICTIONARY `d2` */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_name_386", {
+          debug_table(debug_column("a", " WITH COMPRESSION_DICTIONARY " +
+                                            std::string(386, 'x') + " */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_name_387", {
+          debug_table(debug_column("a", " WITH COMPRESSION_DICTIONARY " +
+                                            std::string(387, 'x') + " */"));
+        });
+        if (!debug_create.empty()) row[1] = debug_create.data();
+#endif
 
         skip_compressed_columns(row[1], &referenced_dictionaries);
         for (const auto &it : referenced_dictionaries)

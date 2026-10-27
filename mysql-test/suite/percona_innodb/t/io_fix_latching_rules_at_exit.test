@@ -2,10 +2,11 @@
 # The io_fix latching rules (buf_io_fix_latching_rules, debug builds only) must
 # outlive exit().
 #
-# When the server gives up during startup after InnoDB has started, as in
-# component_audit_log_filter.abort_during_startup, mysqld_main() returns and
-# exit() runs the static destructors while InnoDB background threads such as
-# ib_buf_dump still check io_fix transitions against the rules.
+# When the server exits without shutting InnoDB down, as mysqld_main() did when
+# it rejected --authentication-policy (see
+# shutdown_on_invalid_authentication_policy), exit() runs the static destructors
+# while InnoDB background threads such as ib_buf_dump still check io_fix
+# transitions against the rules.
 #
 # ib_io_fix_rules_check_at_exit makes a static destructor consult the rules
 # after their own destructor has run. Rules which own heap memory no longer

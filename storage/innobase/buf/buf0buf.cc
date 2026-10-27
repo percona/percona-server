@@ -5993,9 +5993,9 @@ the numbers on edges.
 */
 using Buf_io_fix_latching_rules =
     ut::Stateful_latching_rules<buf_io_fix, 3, 4, 6>;
-/* When the server aborts during startup, exit() runs the static destructors
-while background threads such as ib_buf_dump can still check io_fix transitions
-against the rules, so destroying them must leave them intact. */
+/* When the server exits without shutting InnoDB down, exit() runs the static
+destructors while background threads such as ib_buf_dump can still check io_fix
+transitions against the rules, so destroying them must leave them intact. */
 static_assert(std::is_trivially_destructible_v<Buf_io_fix_latching_rules>);
 /** Consults buf_io_fix_latching_rules from a static destructor, the way a
 background thread does when it outlives exit(). It is declared before the rules,

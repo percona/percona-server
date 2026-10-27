@@ -1,0 +1,6 @@
+# Restart with the exit-time check of the io_fix latching rules
+# restart: --debug=d,ib_io_fix_rules_check_at_exit
+# Shut down, which runs the check from a static destructor
+# restart:
+include/assert_grep.inc [The io_fix latching rules were checked at exit]
+include/assert_grep.inc [The rules were still alive when they were checked]

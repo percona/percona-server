@@ -1,0 +1,37 @@
+################################################################################
+# The io_fix latching rules (buf_io_fix_latching_rules, debug builds only) must
+# outlive exit().
+#
+# When the server exits without shutting InnoDB down, exit() runs the static
+# destructors while InnoDB background threads such as ib_buf_dump still check
+# io_fix transitions against the rules.
+#
+# ib_io_fix_rules_check_at_exit makes a static destructor consult the rules
+# after their own destructor has run. Rules which own heap memory no longer
+# allow the checked transition then, so the server dies at the shutdown below
+# and the check never reports; Valgrind or ASan also see the invalid read.
+################################################################################
+
+--source include/have_debug.inc
+
+--echo # Restart with the exit-time check of the io_fix latching rules
+--let $restart_parameters = restart: --debug=d,ib_io_fix_rules_check_at_exit
+--source include/restart_mysqld.inc
+
+--echo # Shut down, which runs the check from a static destructor
+--source include/shutdown_mysqld.inc
+
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: percona_innodb.io_fix_latching_rules_at_exit
+--let $assert_text = The io_fix latching rules were checked at exit
+--let $assert_select = io_fix latching rules checked at exit
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = The rules were still alive when they were checked
+--let $assert_select = Invalid read of size|heap-use-after-free
+--let $assert_count = 0
+--source include/assert_grep.inc

@@ -1648,6 +1648,13 @@ static void buf_pool_free() {
   buf_flush_list_added.reset(nullptr);
 }
 
+#ifdef UNIV_DEBUG
+/** Whether io_fix_latching_rules_exit_check consults the io_fix latching rules
+at exit. Set from the ib_io_fix_rules_check_at_exit debug keyword when the
+buffer pool is created, as DBUG is shut down before exit() runs. */
+static bool check_io_fix_latching_rules_at_exit = false;
+#endif /* UNIV_DEBUG */
+
 /** Creates the buffer pool.
 @param[in]  total_size    Size of the total pool in bytes.
 @param[in]  populate	  Virtual page preallocation
@@ -1672,6 +1679,11 @@ dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
   buf_pool_should_madvise = innobase_should_madvise_buf_pool();
 
   buf_pool_resizing = false;
+
+#ifdef UNIV_DEBUG
+  DBUG_EXECUTE_IF("ib_io_fix_rules_check_at_exit",
+                  check_io_fix_latching_rules_at_exit = true;);
+#endif /* UNIV_DEBUG */
 
   buf_pool_ptr = (buf_pool_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, n_instances * sizeof *buf_pool_ptr);
@@ -5963,7 +5975,18 @@ the numbers on edges.
 |           |  ---------0-------->  | BUF_IO_PIN |
 +-----------+  <--------0---------  +------------+
 */
-using Buf_io_fix_latching_rules = ut::Stateful_latching_rules<buf_io_fix, 3>;
+using Buf_io_fix_latching_rules =
+    ut::Stateful_latching_rules<buf_io_fix, 3, 4, 6>;
+/* When the server exits without shutting InnoDB down, exit() runs the static
+destructors while background threads such as ib_buf_dump can still check io_fix
+transitions against the rules, so destroying them must leave them intact. */
+static_assert(std::is_trivially_destructible_v<Buf_io_fix_latching_rules>);
+/** Consults buf_io_fix_latching_rules from a static destructor, the way a
+background thread does when it outlives exit(). It is declared before the rules,
+so it runs after their destructor would have freed any memory they own. */
+static struct Io_fix_latching_rules_exit_check {
+  ~Io_fix_latching_rules_exit_check();
+} io_fix_latching_rules_exit_check;
 Buf_io_fix_latching_rules buf_io_fix_latching_rules{
     {BUF_IO_NONE, BUF_IO_READ, BUF_IO_WRITE, BUF_IO_PIN},
     {
@@ -5975,6 +5998,20 @@ Buf_io_fix_latching_rules buf_io_fix_latching_rules{
         {BUF_IO_PIN, {0}, BUF_IO_NONE},
     },
 };
+
+Io_fix_latching_rules_exit_check::~Io_fix_latching_rules_exit_check() {
+  if (!check_io_fix_latching_rules_at_exit) {
+    return;
+  }
+  Buf_io_fix_latching_rules::latches_set_t all_latches;
+  all_latches.set();
+  buf_io_fix_latching_rules.on_transition(BUF_IO_NONE, BUF_IO_READ,
+                                          all_latches);
+  buf_io_fix_latching_rules.assert_latches_let_distinguish(all_latches,
+                                                           {BUF_IO_READ});
+  fprintf(stderr, "InnoDB: io_fix latching rules checked at exit\n");
+}
+
 /** The purpose of this class is to hide the knowledge that
 Buf_io_fix_latching_rules even exists from users of buf_page_t class, while also
 avoiding having to tediously repeat yourself in each place where buf_page_t's

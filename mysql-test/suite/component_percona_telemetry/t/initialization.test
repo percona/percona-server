@@ -1,12 +1,18 @@
 --source include/have_percona_telemetry.inc
 
 CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+CALL mtr.add_suppression("\\[MY-010119\\] \\[Server\\] Aborting");
 
 --echo ### Shutdown
 --source include/shutdown_mysqld.inc
 
 --echo ### Start with invalid option
---let $restart_parameters=--authentication-policy=mysql_native_password --mysql_native_password=OFF
+# The policy names a plugin that does not exist, so authentication_policy::init()
+# rejects it and the server aborts. A server variable such as
+# --mysql_native_password=OFF would not do: once the variable is gone, the
+# server rejects it as unknown while parsing options and never logs the message
+# waited for below.
+--let $restart_parameters=--authentication-policy=no_such_auth_plugin
 --source include/start_mysqld_expecting_crash.inc
 
 --echo ### Waiting for the error message to occur

@@ -414,7 +414,6 @@ TEST_F(XComNetworkProviderManagerTest,
 
   free(connection_to);
 }
-<<<<<<< HEAD
 
 TEST_F(XComNetworkProviderManagerTest, CloseNullConnectionDoesNotCallProvider) {
   std::shared_ptr<mock_network_provider> const mock_provider =
@@ -433,8 +432,3 @@ TEST_F(XComNetworkProviderManagerTest, CloseNullConnectionDoesNotCallProvider) {
       XCOM_PROTOCOL);
 }
 }  // namespace gcs_xcom_networkprovidermamangertest
-||||||| 99960bf74fa
-}  // namespace gcs_xcom_networkprovidermamangertest
-=======
-}  // namespace gcs_xcom_networkprovidermamangertest
->>>>>>> mysql-8.4.13

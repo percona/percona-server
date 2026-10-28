@@ -33,17 +33,7 @@
 --echo
 --echo # Verify processlist user name is 'system_user'.
 --echo
-<<<<<<< HEAD
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
---replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
-select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
-||||||| 99960bf74fa
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
---replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
-select * from performance_schema.processlist order by user, id;
-=======
 --let $user1_count = `select count(*) from performance_schema.processlist where user = 'system user'`
->>>>>>> mysql-8.4.13
 
 --echo
 --echo # Create user 'test_processlist' then restart the replica and verify that
@@ -65,15 +55,6 @@ GRANT ALL ON *.* TO 'test_processlist'@'localhost';
 --echo
 --echo # Verify processlist user name is 'system_user' for the replica threads.
 --echo
-<<<<<<< HEAD
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
---replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
-select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
-||||||| 99960bf74fa
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
---replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
-select * from performance_schema.processlist order by user, id;
-=======
 --let $user2_count = `select count(*) from performance_schema.processlist where user = 'system user'`
 
 --echo
@@ -98,7 +79,6 @@ if ($user1_count != $user2_count)
   --echo user2_count == $user2_count
   --assert(0)
 }
->>>>>>> mysql-8.4.13
 
 --echo
 --echo # Clean up.

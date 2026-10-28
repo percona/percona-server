@@ -3446,15 +3446,9 @@ to column numbers in altered_table */
 [[nodiscard]] static const ulint *innobase_build_col_map(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
-<<<<<<< HEAD
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap,
-    row_prebuilt_t *prebuilt) {
-||||||| 99960bf74fa
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
-=======
     const dict_table_t *old_table, dtuple_t *add_cols,
-    const bool **col_has_compatible_charset_change, mem_heap_t *heap) {
->>>>>>> mysql-8.4.13
+    const bool **col_has_compatible_charset_change, mem_heap_t *heap,
+    row_prebuilt_t *prebuilt) {
   DBUG_TRACE;
   assert(altered_table != table);
   assert(new_table != old_table);
@@ -5008,19 +5002,9 @@ template <typename Table>
       add_cols = nullptr;
     }
 
-<<<<<<< HEAD
-    ctx->col_map = innobase_build_col_map(ha_alter_info, altered_table,
-                                          old_table, ctx->new_table, user_table,
-                                          add_cols, ctx->heap, prebuilt);
-||||||| 99960bf74fa
-    ctx->col_map =
-        innobase_build_col_map(ha_alter_info, altered_table, old_table,
-                               ctx->new_table, user_table, add_cols, ctx->heap);
-=======
     ctx->col_map = innobase_build_col_map(
         ha_alter_info, altered_table, old_table, ctx->new_table, user_table,
-        add_cols, &ctx->col_has_compatible_charset_change, ctx->heap);
->>>>>>> mysql-8.4.13
+        add_cols, &ctx->col_has_compatible_charset_change, ctx->heap, prebuilt);
     ctx->add_cols = add_cols;
   } else {
     assert(!innobase_need_rebuild(ha_alter_info));

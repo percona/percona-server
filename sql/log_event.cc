@@ -7283,13 +7283,6 @@ void User_var_log_event::print(FILE *,
     quoted_len = my_strmov_quoted_identifier(quoted_id, name, name_len);
   }
   quoted_id[quoted_len] = '\0';
-<<<<<<< HEAD
-  [[maybe_unused]] int write_res =
-      my_b_write(head, (uchar *)quoted_id, quoted_len);
-  assert(write_res == 0);
-||||||| 99960bf74fa
-  my_b_write(head, (uchar *)quoted_id, quoted_len);
-=======
   const auto restore_sql_mode = [&]() {
     if (!has_nul) return;
     if (saved_sql_mode_inited) {
@@ -7325,8 +7318,9 @@ void User_var_log_event::print(FILE *,
   };
 
   my_b_printf(head, "SET @");
-  my_b_write(head, (uchar *)quoted_id, quoted_len);
->>>>>>> mysql-8.4.13
+  [[maybe_unused]] int write_res =
+      my_b_write(head, (uchar *)quoted_id, quoted_len);
+  assert(write_res == 0);
 
   if (is_null) {
     my_b_printf(head, ":=NULL%s\n", print_event_info->delimiter);

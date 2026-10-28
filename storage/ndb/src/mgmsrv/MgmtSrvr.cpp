@@ -1135,7 +1135,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId, bool abort, bool stop, bool restart,
   NdbMgmHandle h = ndb_mgm_create_handle();
   if (h && connect_string.length() > 0) {
     ndb_mgm_set_connectstring(h, connect_string.c_str());
-    ndb_mgm_set_ssl_ctx(h, ssl_ctx());
+    ndb_mgm_set_ssl_ctx(h, tlsKeyManager()->ctx());
     if (ndb_mgm_connect_tls(h, 1, 0, 0, m_client_tls_req)) {
       DBUG_PRINT("info", ("failed ndb_mgm_connect"));
       ndb_mgm_destroy_handle(&h);
@@ -3795,6 +3795,14 @@ bool MgmtSrvr::alloc_node_id_impl(NodeId &nodeid, enum ndb_mgm_node_type type,
     return true;
   }
 
+  /* Error insert codes starting at 17000 -> temporary DNS error */
+  if (ERROR_INSERTED(17000 + nodeid)) {
+    error_code = NDB_MGM_ALLOCID_CONFIG_RETRY;
+    error_string.appfmt("Error %d inserted", g_errorInsert);
+    g_errorInsert = 0;  // clear error insert; succeed on retry
+    return false;
+  }
+
   /* Check the node id request. There are several stages of checks:
       1) Fundamental checks: is the cluster configuration available, does the
          requested id exist in it, does its configured type match the requested
@@ -4473,7 +4481,7 @@ bool MgmtSrvr::connect_to_self() {
              m_port);
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());
 
-  ndb_mgm_set_ssl_ctx(mgm_handle, ssl_ctx());
+  ndb_mgm_set_ssl_ctx(mgm_handle, tlsKeyManager()->ctx());
   if (ndb_mgm_connect_tls(mgm_handle, 0, 0, 0, m_client_tls_req) < 0) {
     g_eventLogger->warning("%d %s", ndb_mgm_get_latest_error(mgm_handle),
                            ndb_mgm_get_latest_error_desc(mgm_handle));

@@ -6214,7 +6214,14 @@ void TABLE::move_tmp_key(int old_idx, bool modify_share) {
     const int new_idx = s->first_unused_tmp_key++;
     s->key_info[new_idx] = s->key_info[old_idx];
     TRASH(pointer_cast<void *>(s->key_info + old_idx), sizeof(KEY));
-    s->key_names[new_idx] = s->key_names[old_idx];
+    /*
+      Regenerate the key name from the new slot index instead of carrying
+      over the old name. add_tmp_key() names a new key after its slot, so a
+      later query block adding a key at old_idx would otherwise create a
+      duplicate name, which breaks name-based index lookup in the storage
+      engine when the temporary table is instantiated on disk.
+    */
+    sprintf(s->key_names[new_idx].name, "<auto_key%d>", new_idx);
     TRASH(pointer_cast<void *>(s->key_names + old_idx), sizeof(Key_name));
     s->key_info[new_idx].name = s->key_names[new_idx].name;
   }

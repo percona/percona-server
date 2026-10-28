@@ -331,11 +331,6 @@ std::vector<std::string> TlsServerContext::default_ciphers() {
       "ECDHE-RSA-CHACHA20-POLY1305",
       "ECDHE-ECDSA-AES256-CCM",
       "ECDHE-ECDSA-AES128-CCM",
-      "DHE-RSA-AES128-GCM-SHA256",
-      "DHE-RSA-AES256-GCM-SHA384",
-      "DHE-RSA-AES128-CCM",
-      "DHE-RSA-AES256-CCM",
-      "DHE-RSA-CHACHA20-POLY1305",
   };
 }
 

@@ -847,14 +847,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (query_block->has_ft_funcs() && optimize_fts_query()) return true;
 
   /*
-    By setting child_subquery_can_materialize so late we gain the following:
-    JOIN::compare_costs_of_subquery_strategies() can test this variable to
-    know if we are have finished evaluating constant conditions, which itself
-    helps determining fanouts.
-  */
-  child_subquery_can_materialize = true;
-
-  /*
     It's necessary to check const part of HAVING cond as
     there is a chance that some cond parts may become
     const items after make_join_plan() (for example
@@ -882,6 +874,14 @@ bool JOIN::optimize(bool finalize_access_paths) {
       goto setup_subq_exit;
     }
   }
+
+  /*
+    By setting child_subquery_can_materialize after constant-condition
+    evaluation, JOIN::compare_costs_of_subquery_strategies() can use it to
+    determine whether parent fanouts are available. Constant folding can
+    execute nested subqueries before qep_tab is built.
+  */
+  child_subquery_can_materialize = true;
 
   // Inject cast nodes into the HAVING conditions
   if (having_cond != nullptr &&

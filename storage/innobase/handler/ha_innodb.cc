@@ -8105,10 +8105,9 @@ int ha_innobase::open(const char *name, int, uint open_flags,
                   table->s->table_name.str);
     }
 
-    /* Allow an open because a proper DISCARD should have set
-    all the flags and index root page numbers to FIL_NULL that
-    should prevent any DML from running but it should allow DDL
-    operations. */
+    /* Allow opening a discarded table so DDL such as IMPORT can run. DML
+    checks the discarded state and does not access the unavailable
+    tablespace. */
     no_tablespace = false;
 
   } else if (ib_table->ibd_file_missing) {
@@ -10080,7 +10079,7 @@ static dberr_t calc_row_difference(
     TABLE *table,             /*!< in: table in MySQL data
                               dictionary */
     uchar *upd_buff,          /*!< in: buffer to use */
-    ulint buff_len,           /*!< in: buffer length */
+    size_t buff_len,          /*!< in: buffer length */
     row_prebuilt_t *prebuilt, /*!< in: InnoDB prebuilt struct */
     THD *thd)                 /*!< in: user thread */
 {
@@ -10556,6 +10555,21 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
 
     m_upd_buf_size =
         table->s->reclength + table->s->max_key_length + MAX_REF_PARTS * 3;
+
+    /*
+      Reserve an extra packed value for every virtual column.
+      calc_row_difference() may retain both new and old values for indexed
+      virtual columns, including columns indexed by an online rebuild.
+      The buffer is reused, so its capacity must also cover virtual columns
+      that become indexed after the initial allocation.
+    */
+    for (uint i = 0; i < table->s->fields; i++) {
+      Field *field = table->field[i];
+
+      if (innobase_is_v_fld(field)) {
+        m_upd_buf_size += field->pack_length();
+      }
+    }
 
     m_upd_buf = reinterpret_cast<uchar *>(
         my_malloc(PSI_INSTRUMENT_ME, m_upd_buf_size, MYF(MY_WME)));
@@ -14658,6 +14672,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table,
   size_t stmt_len;
 
   DBUG_TRACE;
+  DEBUG_SYNC_C("before_copy_ddl_tmp_table_fk_inserted");
   assert(m_form->s->keys <= MAX_KEY);
 
   /* Check if dd table has hidden fts doc id index.
@@ -15053,6 +15068,9 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
   error = info.create_table_update_dict();
 
   if (evictable && !(info.is_temp_table() || info.is_intrinsic_temp_table())) {
+    /* COPY ALTER test sync point: the table and its FK metadata are in
+    the dictionary cache, but detach() below has not yet made it evictable. */
+    DEBUG_SYNC_C("after_copy_ddl_tmp_table_fk_inserted");
     info.detach();
   }
 
@@ -22439,6 +22457,11 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   if (srv_redo_log_encrypt == target) {
     /* No change */
     return (0);
+  }
+
+  /* Complete a physical redo block boundary using the current setting. */
+  if (!srv_read_only_mode) {
+    log_encryption_write_dummy_barrier();
   }
 
   /* If encryption is to be disabled. This will just make sure I/O doesn't

@@ -86,6 +86,7 @@ while ($j > 0) {
 
     --source include/rpl/connection_replica.inc
 
+<<<<<<< HEAD
     let $ps_query_suffix = FROM performance_schema.threads AS t, performance_schema.events_statements_current AS esc
       WHERE t.thread_id = esc.thread_id AND t.name IN ('thread/sql/replica_sql', 'thread/sql/replica_worker') AND esc.sql_text LIKE 'XA START%';
     # wait for the applier thread to start applying
@@ -95,8 +96,18 @@ while ($j > 0) {
     # get the exact thread id for the applier thread
     --let $worker_thread_id=`SELECT esc.thread_id $ps_query_suffix`
 
+||||||| 99960bf74fa
+    # wait for the applier thread to start applying
+    --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'
+    --source include/wait_condition.inc
+
+    # get the exact thread id for the applier thread
+    --let $worker_thread_id=`SELECT thread_id FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'`
+
+=======
+>>>>>>> mysql-8.4.13
     # wait for the applier thread to start retrying
-    --let $wait_condition=SELECT APPLYING_TRANSACTION_RETRIES_COUNT > 0 FROM performance_schema.replication_applier_status_by_worker WHERE thread_id = $worker_thread_id
+    --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.replication_applier_status_by_worker WHERE APPLYING_TRANSACTION_RETRIES_COUNT > 0
     --source include/wait_condition.inc
 
     --source include/rpl/connection_replica1.inc

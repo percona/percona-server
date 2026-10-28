@@ -72,7 +72,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+<<<<<<< HEAD
 #include "log0ddl.h"
+||||||| 99960bf74fa
+=======
+#include "log0encryption.h"
+>>>>>>> mysql-8.4.13
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"
@@ -2118,6 +2123,15 @@ dberr_t srv_start(bool create_new_db) {
       records in such mode. If upgrade was forced, or the data
       directory was cloned, we will start redo threads later. */
       log_start_background_threads(*log_sys);
+
+      if (srv_recovered_redo_block_was_encrypted != srv_redo_log_encrypt) {
+        /* Seal the recovered partial block using its physical encryption mode
+        before recovery can generate new redo through change-buffer merges. */
+        const bool configured_encryption = srv_redo_log_encrypt;
+        srv_redo_log_encrypt = srv_recovered_redo_block_was_encrypted;
+        log_encryption_write_dummy_barrier();
+        srv_redo_log_encrypt = configured_encryption;
+      }
     }
 
     if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {

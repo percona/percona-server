@@ -3526,7 +3526,16 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
     if (bpage) {
       ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
-      ut_ad(!bpage->was_stale());
+      if (bpage->was_stale()) {
+        if (!buf_page_free_stale(buf_pool, bpage, hash_lock)) {
+          /* The stale page is IO-fixed. Back off before retrying so the
+           pending IO can finish without a tight CPU loop. */
+          std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        /* buf_page_free_stale() released the hash lock. Repeat the lookup until
+        the stale page is gone or replaced with a usable page. */
+        continue;
+      }
       break;
     }
 

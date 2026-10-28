@@ -45,6 +45,7 @@ SET(TESTS
   mem0mem
   os0file
   os0thread-create
+  rem0rec
   srv0conc
   sync0rw
   ut0bitset

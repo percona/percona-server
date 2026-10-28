@@ -711,7 +711,7 @@ class TransporterRegistry {
 
   Uint32 get_num_trps();
   TlsKeyManager *getTlsKeyManager() { return &m_tls_keys; }
-  bool hasTlsCert() const { return (bool)m_tls_keys.ctx(); }
+  bool canUseTls() const { return (bool)m_tls_keys.ctx(); }
 
  private:
   /**

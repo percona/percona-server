@@ -3098,7 +3098,8 @@ const char *Item_ident::full_name() const {
 void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
                        const char *db_name_arg,
                        const char *table_name_arg) const {
-  char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
+  StringBuffer<MAX_ALIAS_NAME> d_name_buff(files_charset_info);
+  StringBuffer<MAX_ALIAS_NAME> t_name_buff(files_charset_info);
   const char *d_name = db_name_arg;
   const char *t_name = table_name_arg;
   const char *f_name =
@@ -3108,14 +3109,26 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used())) {
     if (!(query_type & QT_NO_TABLE) && table_name_arg && table_name_arg[0]) {
-      my_stpcpy(t_name_buff, table_name_arg);
-      my_casedn_str(files_charset_info, t_name_buff);
-      t_name = t_name_buff;
+      // A table alias used as a column qualifier is not length-capped at parse
+      // time. Lower-case it in a StringBuffer, which keeps the common case in
+      // its inline buffer and spills an over-long identifier to the heap
+      // instead of overflowing a fixed stack buffer.
+      if (t_name_buff.copy(table_name_arg, strlen(table_name_arg),
+                           files_charset_info)) {
+        return; /* purecov: inspected */
+      }
+      char *const buff = t_name_buff.c_ptr_safe();
+      my_casedn_str(files_charset_info, buff);
+      t_name = buff;
     }
     if (!(query_type & QT_NO_DB) && db_name_arg && db_name_arg[0]) {
-      my_stpcpy(d_name_buff, db_name_arg);
-      my_casedn_str(files_charset_info, d_name_buff);
-      d_name = d_name_buff;
+      if (d_name_buff.copy(db_name_arg, strlen(db_name_arg),
+                           files_charset_info)) {
+        return; /* purecov: inspected */
+      }
+      char *const buff = d_name_buff.c_ptr_safe();
+      my_casedn_str(files_charset_info, buff);
+      d_name = buff;
     }
   }
 
@@ -8931,28 +8944,41 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
   Item *item = outer_ref;
   Item **item_ref = ref_pointer();
 
-  /*
-    TODO: this field item already might be present in the select list.
-    In this case instead of adding new field item we could use an
-    existing one. The change will lead to less operations for copying fields,
-    smaller temporary tables and less data passed through filesort.
-  */
   assert(!qualifying->base_ref_items.is_null());
   if (!found_in_select_list) {
     /*
-      Add the field item to the select list of the current select.
-      If it's needed reset each Item_ref item that refers this field with
-      a new reference taken from ref_item_array.
+      The same outer field may be resolved several times, for example when it
+      occurs repeatedly in the ORDER BY of a correlated set operation. Reuse
+      the existing reference instead of adding duplicate hidden items, which
+      could exhaust the preallocated base_ref_items array. Only the entries
+      corresponding to fields are populated at this stage.
     */
-    item_ref = qualifying->add_hidden_item(item);
-    /*
-      Now the item is in the all_fields list, which elements are used to fill
-      temporary tables created by the optimizer; thus it will be read and must
-      be marked as such. Outer references are never written to.
-    */
-    if (item->fixed) {
-      Mark_field mf(MARK_COLUMNS_READ);
-      item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
+    for (size_t i = 0; i < qualifying->fields.size(); ++i) {
+      Item *const select_item = qualifying->base_ref_items[i];
+      if (select_item != nullptr &&
+          select_item->eq(item, /*binary_cmp=*/false)) {
+        item_ref = &qualifying->base_ref_items[i];
+        found_in_select_list = true;
+        break;
+      }
+    }
+    if (!found_in_select_list) {
+      /*
+        Add the field item to the select list of the current query block.
+        If it's needed reset each Item_ref item that refers this field with
+        a new reference taken from ref_item_array.
+      */
+      item_ref = qualifying->add_hidden_item(item);
+      /*
+        Now the item is in the all_fields list, whose elements are used to fill
+        temporary tables created by the optimizer; thus it will be read and
+        must be marked as such. Outer references are never written to.
+      */
+      if (item->fixed) {
+        Mark_field mf(MARK_COLUMNS_READ);
+        item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
+                   pointer_cast<uchar *>(&mf));
+      }
     }
   }
 
@@ -10956,17 +10982,26 @@ String *Item_values_column::val_str(String *tmp) {
   return tmp;
 }
 
+/**
+  Item_values_column is dualistic in nature: It represents both a set
+  of values, and, during evaluation, an individual value in this set.
+  Note that setting RAND_TABLE_BIT in the constructor prevents this
+  function from being called during resolving.
+
+  Returns true if the "current" value is NULL, false otherwise. When the values
+  list is empty (indicated with m_value_ref = nullptr), null_value is set
+  as false. This is required for the logic in Item_func_equal::val_int().
+*/
 bool Item_values_column::is_null() {
   assert(fixed);
   /*
-    Item_values_column is dualistic in nature: It represents both a set
-    of values, and, during evaluation, an individual value in this set.
-    This assert will ensure that we only check nullability of individual
-    values, since a set of values is never NULL. Note that setting
-    RAND_TABLE_BIT in the constructor prevents this function from being called
-    during resolving.
+    If VALUES list after processing contains zero elements, the whole value
+    is NULL, indicated with m_value_ref being NULL.
   */
-  assert(m_value_ref != nullptr);
+  if (m_value_ref == nullptr) {
+    null_value = false;
+    return false;
+  }
   const bool tmp = m_value_ref->is_null();
   null_value = m_value_ref->null_value;
   return tmp;

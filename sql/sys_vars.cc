@@ -5469,6 +5469,13 @@ static Sys_var_charptr Sys_version_suffix("version_suffix", "version_suffix",
                                           IN_SYSTEM_CHARSET,
                                           DEFAULT(server_version_suffix));
 
+static char *server_version_with_update_ptr;
+static Sys_var_charptr Sys_version_with_update(
+    "version_with_update",
+    "Full four-part server version including the update component",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_with_update_ptr),
+    NO_CMD_LINE, IN_SYSTEM_CHARSET, DEFAULT(server_version_with_update));
+
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
     "version_comment", "version_comment",

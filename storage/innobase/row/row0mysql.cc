@@ -1168,6 +1168,10 @@ handle_new_error:
         or update */
 
         trx_rollback_to_savepoint(trx, savept);
+        if (trx->fts_trx != nullptr) {
+          fts_savepoint_rollback_last_stmt(trx);
+          fts_savepoint_laststmt_refresh(trx);
+        }
       }
       /* MySQL will roll back the latest SQL statement */
       break;

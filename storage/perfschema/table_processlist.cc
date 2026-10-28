@@ -178,8 +178,7 @@ int table_processlist::make_row(PFS_thread *pfs) {
   }
 
   /* Ignore background threads. */
-  if (pfs->m_user_name.length() == 0 || pfs->m_processlist_id == 0)
-    return HA_ERR_RECORD_DELETED;
+  if (pfs->m_processlist_id == 0) return HA_ERR_RECORD_DELETED;
 
   m_row.m_processlist_id = pfs->m_processlist_id;
 
@@ -192,13 +191,12 @@ int table_processlist::make_row(PFS_thread *pfs) {
   uint hostname_len = pfs->m_host_name.length();
   bool user_name_set = false;
 
-  if (pfs->m_class->is_system_thread()) {
+  if (pfs->m_class->is_system_thread() || pfs->m_system_thread) {
     bool is_named = username_len > 0;
 
     // Assign 'system user' if:
     // - user is not named, or
-    // -user is named and thread is not a singleton (e.g. event_scheduler)
-
+    // - user is named and thread is not a singleton (e.g. event_scheduler)
     if (!is_named || (is_named && !(pfs->m_class->is_singleton()))) {
       username = "system user";
       hostname_len = 0;

@@ -33,9 +33,17 @@
 --echo
 --echo # Verify processlist user name is 'system_user'.
 --echo
+<<<<<<< HEAD
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
 select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
+||||||| 99960bf74fa
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
+select * from performance_schema.processlist order by user, id;
+=======
+--let $user1_count = `select count(*) from performance_schema.processlist where user = 'system user'`
+>>>>>>> mysql-8.4.13
 
 --echo
 --echo # Create user 'test_processlist' then restart the replica and verify that
@@ -57,9 +65,40 @@ GRANT ALL ON *.* TO 'test_processlist'@'localhost';
 --echo
 --echo # Verify processlist user name is 'system_user' for the replica threads.
 --echo
+<<<<<<< HEAD
 --replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
 --replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
 select ID,USER, HOST,DB,COMMAND,TIME,STATE,INFO,EXECUTION_ENGINE from performance_schema.processlist order by user, id;
+||||||| 99960bf74fa
+--replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
+--replace_regex /Daemon/<Command>/ /Connect/<Command>/ /Sleep/<Command>/
+select * from performance_schema.processlist order by user, id;
+=======
+--let $user2_count = `select count(*) from performance_schema.processlist where user = 'system user'`
+
+--echo
+--echo # Compare the count of 'system user' threads. The number of threads may vary, so we compare
+--echo # the counts rather than list rows in the table.
+
+if ($user1_count == 1)
+{
+  --echo "FAIL: At least one 'system user' required"
+  --assert(0)
+}
+
+if ($user1_count == $user2_count)
+{
+  --echo "SUCCESS: User1 count == User2 count"
+}
+
+if ($user1_count != $user2_count)
+{
+  --echo "FAIL: User1 count <> User2 count"
+  --echo user1_count == $user1_count
+  --echo user2_count == $user2_count
+  --assert(0)
+}
+>>>>>>> mysql-8.4.13
 
 --echo
 --echo # Clean up.

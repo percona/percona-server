@@ -1,0 +1,9 @@
+CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+CALL mtr.add_suppression("Aborting");
+# Start with an authentication policy the server has to reject
+# restart_abort: --authentication-policy=no_such_auth_plugin
+include/wait_for_pattern_in_file.inc [authentication-policy is set to an invalid value]
+# Start again, which waits for the rejected server to exit
+# restart:
+include/assert_grep.inc [InnoDB was shut down after the policy was rejected]
+include/assert_grep.inc [The rejected server did not crash]

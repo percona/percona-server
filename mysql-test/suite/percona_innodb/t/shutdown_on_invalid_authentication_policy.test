@@ -1,0 +1,42 @@
+################################################################################
+# InnoDB must be shut down when the server rejects --authentication-policy.
+#
+# Before upstream Bug#36600793, mysqld_main() returned right after logging the
+# invalid policy, without unireg_abort(), so exit() ran the static destructors
+# while InnoDB background threads were still running. They then used destroyed
+# globals, for example rw_lock_debug_mutex or buf_io_fix_latching_rules in
+# debug builds, and the server could crash on top of the configuration error.
+#
+# The policy names a plugin that does not exist. A server variable such as
+# --mysql_native_password=OFF would not do: once the variable is gone, the
+# server rejects it while parsing options, before InnoDB starts.
+################################################################################
+
+CALL mtr.add_suppression("Option --authentication-policy is set to an invalid value");
+CALL mtr.add_suppression("Aborting");
+
+--source include/shutdown_mysqld.inc
+
+--echo # Start with an authentication policy the server has to reject
+--let $restart_parameters = --authentication-policy=no_such_auth_plugin
+--source include/start_mysqld_expecting_crash.inc
+
+--let $grep_pattern = authentication-policy is set to an invalid value
+--let $grep_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/wait_for_pattern_in_file.inc
+
+--echo # Start again, which waits for the rejected server to exit
+--let $restart_parameters = restart:
+--source include/start_mysqld.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = authentication-policy is set to an invalid value
+--let $assert_text = InnoDB was shut down after the policy was rejected
+--let $assert_select = \[InnoDB\] Shutdown completed
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = The rejected server did not crash
+--let $assert_select = mysqld got signal
+--let $assert_count = 0
+--source include/assert_grep.inc

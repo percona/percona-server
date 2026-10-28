@@ -847,6 +847,18 @@ rm -rf %{buildroot}/usr/cmake/coredumper.cmake
 
 # Remove removed manpages here until they are removed from the docs repo
 
+%if 0%{?with_sbom}
+sh $MBD/build-ps/sbom/check-components.sh --root $MBD
+install -d -m 0755 %{buildroot}%{_datadir}/percona-server/sbom
+sh $MBD/build-ps/sbom/gen-sbom.sh \
+  --pkg percona-server \
+  --version %{version}-%{percona_server_version} \
+  --root $MBD \
+  --pins $MBD/build-ps/sbom/submodule-pins.txt \
+  --artifact package \
+  --dest %{buildroot}%{_datadir}/percona-server/sbom
+%endif
+
 %check
 %if 0%{?runselftest}
   pushd release
@@ -1087,6 +1099,9 @@ fi
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
+%if 0%{?with_sbom}
+%{_datadir}/percona-server/sbom
+%endif
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
 %attr(644, root, root) %{_mandir}/man1/ibd2sdi.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*

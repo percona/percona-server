@@ -1,0 +1,54 @@
+#
+# A redo log block that was being written when the server lost power
+# contains arbitrary bytes.  If the encryption bit in its header
+# happens to be set, recovery must treat the block as the torn end of
+# the log, as it does for a block with a bad checksum, and not fail
+# with a decryption error because no keyring is configured.
+#
+# The blocks destroyed hold only redo of a transaction that was not
+# committed: everything acknowledged before is checkpointed, and no
+# page on disk carries an lsn from them.  All of it is checked after
+# recovery.  The block holding the checkpoint lsn is left alone: the
+# torn tail begins with the block after it.
+#
+SET GLOBAL innodb_monitor_enable = module_log;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB
+STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+(3, repeat('/', 12)), (4, repeat('-', 12));
+# Every page written from now on until the kill must have an lsn
+# below the redo about to be destroyed, or it would be "in the
+# future" after recovery.  Have the page cleaner write everything
+# and wait until no dirty page is left and a checkpoint covers all of
+# them; then forbid it to write anything, so that whatever is dirtied
+# afterwards stays in the buffer pool, and take the checkpoint lsn.
+# (The table has no persistent statistics: their background update
+# would write to mysql.ibd behind the test's back.)
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+# The first block to destroy is the one after the checkpoint block.
+# Redo after the checkpoint that nobody was told is durable: an
+# uncommitted insert, long enough to reach past the checkpoint block.
+# Wait until it was written to the log files.
+BEGIN;
+INSERT INTO t1 VALUES (99, repeat('?', 3000));
+include/assert.inc [the redo of the insert reaches past the checkpoint block]
+# Kill the server
+# Destroy the blocks from the one after the checkpoint block to the
+# last one written.
+destroyed the redo log blocks
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+# Everything committed before the kill, and nothing else.
+SELECT f1, f2 FROM t1 ORDER BY f1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+DROP TABLE t1;

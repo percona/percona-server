@@ -81,6 +81,7 @@ inline constexpr std::string_view kStatusAllowlistCsv =
     "'Innodb_data_written',"
     "'Innodb_dblwr_pages_written',"
     "'Innodb_dblwr_writes',"
+    "'Innodb_hnsw_memory_used',"
     "'Innodb_log_waits',"
     "'Innodb_log_write_requests',"
     "'Innodb_log_writes',"

@@ -1331,6 +1331,11 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"dblwr_writes", (char *)&export_vars.innodb_dblwr_writes, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    /* The Innodb_hnsw_memory_used global status variable is referenced by
+    name in components/percona_telemetry/telemetry_status_allowlist.h so that
+    it is reported by the Percona telemetry component. If this status variable
+    is renamed or removed, update that allowlist accordingly, otherwise the
+    telemetry collection for it will silently stop working. */
     {"hnsw_memory_used", (char *)&export_vars.innodb_hnsw_memory_used,
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"ibuf_free_list", (char *)&export_vars.innodb_ibuf_free_list, SHOW_LONG,

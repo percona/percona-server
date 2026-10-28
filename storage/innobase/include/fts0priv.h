@@ -83,6 +83,11 @@ constexpr std::chrono::milliseconds FTS_MAX_BACKGROUND_THREAD_WAIT{10};
 /** The next doc id */
 #define FTS_SYNCED_DOC_ID "synced_doc_id"
 
+/** The smallest doc id that had been assigned but not committed when the
+last SYNC ran; 0 if there was none.  Documents from it up to synced_doc_id
+may be missing from the auxiliary tables after a crash. */
+#define FTS_UNSYNCED_DOC_ID "unsynced_doc_id"
+
 /** The last word that was OPTIMIZED */
 #define FTS_LAST_OPTIMIZED_WORD "last_optimized_word"
 

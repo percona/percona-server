@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNOBASE_FTS0TYPES_H
 
 #include <cstdint>
+#include <set>
 #include "fts0fts.h"
 #include "fut0fut.h"
 #include "pars0pars.h"
@@ -192,6 +193,24 @@ struct fts_cache_t {
                          of the cache */
 
   doc_id_t next_doc_id; /*!< Next doc id */
+
+  std::multiset<doc_id_t> *inflight_doc_ids;
+  /*!< Doc IDs assigned to rows of transactions that
+  have not ended yet, one entry per transaction (its
+  smallest one).  A SYNC records the smallest of them
+  in the CONFIG table: such a document may commit into
+  the cache only after the SYNC, and crash recovery has
+  to re-add it from the table.  Covered by doc_id_lock. */
+
+  doc_id_t recover_check_doc_id;
+  /*!< During fts_init_index(): documents with a doc id
+  not above this value may already be in the auxiliary
+  tables and are re-added only if they are not.  0 when
+  no such check is needed. */
+
+  dberr_t recover_error;
+  /*!< During fts_init_index(): first error of a lookup in
+  the auxiliary tables, DB_SUCCESS if none. */
 
   doc_id_t synced_doc_id; /*!< Doc ID sync-ed to CONFIG table */
 

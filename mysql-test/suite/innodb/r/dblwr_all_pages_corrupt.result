@@ -1,0 +1,39 @@
+#
+# A small tablespace whose every page was being written when the server
+# lost power has no page that passes the checksum check, so the space id
+# cannot be determined from the pages of the file.  The redo log names the tablespace
+# and the doublewrite buffer holds all of its pages: recovery must use
+# the space id it already knows and restore the file, instead of
+# refusing to start.
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+(3, repeat('/', 12)), (4, repeat('-', 12));
+# Write all dirty pages of t1 through the doublewrite buffer, then kill
+# the server before anything else can reuse the doublewrite slots.  A
+# committed change of a data page, which the page cleaner is not
+# allowed to write, keeps redo for the tablespace ahead of the
+# checkpoint, so that recovery is the one to open the file.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = repeat('*', 12) WHERE f1 = 1;
+# Kill the server
+# Tear every page: only the first sector of page 0, which carries the
+# space id the directory scan reads, survives; the rest of the file is
+# garbage.
+# restart
+Pattern "Restoring page \[page id: space=\d+, page number=0\] of datafile .*t1.ibd. from the doublewrite buffer" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	************
+2	++++++++++++
+3	////////////
+4	------------
+DROP TABLE t1;

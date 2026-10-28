@@ -1,0 +1,95 @@
+#
+# The doublewrite files hold several copies of a page that was flushed
+# more than once.  When the page is torn, recovery must restore the
+# newest copy, not the first one it finds in the files: an older copy
+# misses the changes between its LSN and the checkpoint, and those are
+# not in the redo log any more.
+#
+#
+# Round 1: an older copy precedes the newest one in the files.
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'old');
+# Write the pages of the table: a first copy of its root page goes to
+# the doublewrite buffer.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t1 SET f2 = 'new' WHERE f1 = 1;
+# Write the root page again: a newer copy goes to a later doublewrite
+# slot; the older one stays behind.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+# Wait for a checkpoint past the UPDATE, so that its redo record is no
+# longer applied at recovery.  The lsns are read from INNODB_METRICS;
+# the Innodb_redo_log_*_lsn status variables are refreshed only now
+# and then.
+SET GLOBAL innodb_monitor_enable = module_log;
+# A change after the checkpoint, so that recovery has a redo record
+# for the tablespace and opens it.  The page cleaner is not allowed to
+# write the page, so the checkpoint cannot move past the change before
+# the server is killed.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+INSERT INTO t1 VALUES (2, 'add');
+# Kill the server
+# Check the premise: two copies with different LSNs.  Which slots they
+# went to depends on the flushing threads, so put them in the order
+# recovery reads them, the older one first.  Then tear page 4 of t1:
+# its second half is garbage.
+the first copy of the page in the doublewrite files is the older one
+# restart
+Pattern "Recovered page \[page id: space=\d+, page number=4\] from the doublewrite buffer" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1 ORDER BY f1;
+f1	f2
+1	new
+2	add
+DROP TABLE t1;
+#
+# Round 2: two copies with the same, highest LSN, of which the first
+# one in the files is torn.  The intact one must be used.
+#
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 'old');
+# Write the pages of the table: a first copy of its root page goes to
+# the doublewrite buffer.
+FLUSH TABLES t2 FOR EXPORT;
+UNLOCK TABLES;
+UPDATE t2 SET f2 = 'new' WHERE f1 = 1;
+# Write the root page again: a newer copy goes to a later doublewrite
+# slot; the older one stays behind.
+FLUSH TABLES t2 FOR EXPORT;
+UNLOCK TABLES;
+# Wait for a checkpoint past the UPDATE, so that its redo record is no
+# longer applied at recovery.  The lsns are read from INNODB_METRICS;
+# the Innodb_redo_log_*_lsn status variables are refreshed only now
+# and then.
+SET GLOBAL innodb_monitor_enable = module_log;
+# A change after the checkpoint, so that recovery has a redo record
+# for the tablespace and opens it.  The page cleaner is not allowed to
+# write the page, so the checkpoint cannot move past the change before
+# the server is killed.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+INSERT INTO t2 VALUES (2, 'add');
+# Kill the server
+# Overwrite the older copy with the newest one, damage the copy that
+# comes first in the files (keeping its first sector, with the page
+# id and LSN), and tear page 4 of t2.
+the copies of the page in the doublewrite files now have 1 distinct LSN
+# restart
+Pattern "Recovered page \[page id: space=\d+, page number=4\] from the doublewrite buffer" found
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+SELECT f1, f2 FROM t2 ORDER BY f1;
+f1	f2
+1	new
+2	add
+DROP TABLE t2;

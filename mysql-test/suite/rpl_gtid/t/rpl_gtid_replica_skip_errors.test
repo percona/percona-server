@@ -322,7 +322,8 @@ XA PREPARE 'a';
 
 --let $expected_prepared_xa_count = 1
 --source common/xa_crash_safe/assert_xa_recover.inc
-XA ROLLBACK 'a';
+--let $xa_rollback_xid = 'a'
+--source include/rpl/xa_rollback_detached.inc
 --source include/rpl/save_binlog_file_position.inc
 
 --source include/rpl/connection_source.inc
@@ -348,7 +349,8 @@ XA PREPARE 'a';
 --source include/rpl/sync_to_replica.inc
 --let $expected_prepared_xa_count = 1
 --source common/xa_crash_safe/assert_xa_recover.inc
-XA ROLLBACK 'a';
+--let $xa_rollback_xid = 'a'
+--source include/rpl/xa_rollback_detached.inc
 --source include/rpl/save_binlog_file_position.inc
 
 --source include/rpl/connection_source.inc

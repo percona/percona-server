@@ -60,6 +60,32 @@ select name, row_format from information_schema.innodb_tablespaces
 
 let $MYSQLD_DATADIR = `select @@datadir`;
 
+# Undo truncation runs in the purge coordinator after purge has caught up,
+# so wait_innodb_all_purged.inc may return while a truncation is still in
+# progress and undo_<n>_trunc.log still exists. Wait for it to finish.
+--let $wait_counter = 600
+while ($wait_counter)
+{
+  --error 0,1
+  --file_exists $MYSQLD_DATADIR/undo_1_trunc.log
+  --let $trunc1_gone = $__error
+  --error 0,1
+  --file_exists $MYSQLD_DATADIR/undo_2_trunc.log
+  --let $trunc2_gone = $__error
+  if ($trunc1_gone)
+  {
+    if ($trunc2_gone)
+    {
+      --let $wait_counter = 0
+    }
+  }
+  if ($wait_counter)
+  {
+    --sleep 0.1
+    --dec $wait_counter
+  }
+}
+
 --echo # 5: undo files undo_001 and undo_002 are expected to exist,
 --echo #    while files undo_001_trunc.log and undo_002_trunc.log are expected to not exist
 list_files $MYSQLD_DATADIR undo*;

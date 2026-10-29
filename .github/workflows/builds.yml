@@ -1,4 +1,5 @@
-# PS-11078: GitHub Actions build for percona-server 9.7 on Hetzner cax* arm64.
+# PS-11078: GitHub Actions build for percona-server 9.7 on Hetzner cax* arm64,
+# plus a nightly x86_64 gcc-16 build on Hetzner cpx62 (PS-11298).
 # Replaces the Cirrus arm64 tasks before Cirrus shuts down 2026-06-01.
 #
 # PS-11179 (2026-05-28): AWS Graviton fallback path added. Hetzner remains the
@@ -38,8 +39,9 @@
 # resolve secrets in base-repo context. This is safe ONLY because the
 # secret-bearing jobs do NO checkout; the chain's build job is the sole job
 # that checks out PR code, and it holds no secrets. The `authorize` gate limits
-# pull_request_target to fork PRs whose author is a percona org member
-# (author_association MEMBER/OWNER/COLLABORATOR). INVARIANT: never add a PR-code
+# pull_request_target to fork PRs whose author has admin/maintain/write repo
+# permission, checked through the collaborators API with GHA_RUNNER_PAT (not
+# author_association, see the authorize job). INVARIANT: never add a PR-code
 # checkout to a secret-bearing job.
 
 name: builds
@@ -97,7 +99,7 @@ concurrency:
   # PR runs (pull_request + pull_request_target) are cancellable so superseded
   # pushes do not waste Hetzner cycles; workflow_dispatch runs (including the
   # nightly dispatched from the default branch) stay protected
-  # (cancel-in-progress: false) because they bill paid arm64 minutes.
+  # (cancel-in-progress: false) because they bill paid Hetzner and EC2 minutes.
   # event_name is in the key so a fork PR's (skipped) pull_request run and its
   # real pull_request_target run do not share a group.
   group: build-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
@@ -248,8 +250,8 @@ jobs:
       AWS_ROLE_ARN:            ${{ secrets.AWS_ROLE_ARN }}
 
   # amd64 gcc-16 on the RelWithDebInfo dispatch path only (the nightly), never
-  # on per-PR Debug builds. Early gcc-16 coverage that Azure Pipelines cannot
-  # give yet (no Ubuntu 26.04 image there).
+  # on per-PR Debug builds. Adds gcc-16 on Ubuntu 26.04 plus x86_64 MTR. Azure
+  # Pipelines builds gcc-16 only on 24.04 and runs no MTR on x86_64.
   amd64:
     needs: dispatch
     if: github.event_name == 'workflow_dispatch' && inputs.build_type == 'RelWithDebInfo'

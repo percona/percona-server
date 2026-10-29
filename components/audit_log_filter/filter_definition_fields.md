@@ -58,9 +58,10 @@ filter-definition validation through `audit_log_filter_set_filter()`.
   `server_shutdown` are not valid filter-definition targets. Startup and
   shutdown lifecycle events are ignored by the audit log filter if they are
   received.
-- For `connection.connection_type`, the validator accepts numeric values `0..5`
+- For `connection.connection_type`, the validator accepts numeric values `0..7`
   and the pseudo-constants `::undefined`, `::tcp/ip`, `::socket`,
-  `::named_pipe`, `::ssl`, and `::shared_memory`.
+  `::named_pipe`, `::ssl`, `::shared_memory`, `::internal`, and `::plugin`.
+  `7`/`::plugin` is reported, for example, for X Protocol connections.
 
 ### Differences from MySQL Enterprise Audit 8.4.7
 
@@ -262,6 +263,8 @@ REDUCED mode: `connect`, `disconnect`, `change_user`
 |  |  | `3` or `::named_pipe`: Named pipe |
 |  |  | `4` or `::ssl`: TCP/IP with encryption |
 |  |  | `5` or `::shared_memory`: Shared memory |
+|  |  | `6` or `::internal`: Internal |
+|  |  | `7` or `::plugin`: Plugin (e.g. X Protocol connections) |
 
 ## `table_access`
 

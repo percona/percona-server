@@ -91,6 +91,8 @@ const std::string_view kAuditConnectionTypeNameSock{"socket"};
 const std::string_view kAuditConnectionTypeNamePipe{"named_pipe"};
 const std::string_view kAuditConnectionTypeNameSsl{"ssl"};
 const std::string_view kAuditConnectionTypeNameShared{"shared_memory"};
+const std::string_view kAuditConnectionTypeNameInternal{"internal"};
+const std::string_view kAuditConnectionTypeNamePlugin{"plugin"};
 
 const std::string_view kAuditEventNameAuditStart{"startup"};
 const std::string_view kAuditEventNameAuditStop{"shutdown"};
@@ -310,6 +312,10 @@ std::string_view LogRecordFormatterJson::connection_type_name_to_string(
       return kAuditConnectionTypeNameSsl;
     case 5:
       return kAuditConnectionTypeNameShared;
+    case 6:
+      return kAuditConnectionTypeNameInternal;
+    case 7:
+      return kAuditConnectionTypeNamePlugin;
     default:
       assert(false);
   }

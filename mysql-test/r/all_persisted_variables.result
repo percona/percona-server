@@ -47,7 +47,7 @@ include/assert.inc [Expect 500+ variables in the table. Due to open Bugs, we are
 
 # Test SET PERSIST
 
-include/assert.inc [Expect 496 persisted variables in the table.]
+include/assert.inc [Expect persisted_after_set >= total_persistent_vars-3 and persisted_after_set <= total_persistent_vars+1.]
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable

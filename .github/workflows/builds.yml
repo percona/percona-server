@@ -561,11 +561,11 @@ jobs:
           # release); a deprecated runner registers fine but is immediately
           # rejected with "cannot receive messages" and exits. Verify the pin
           # against https://github.com/actions/runner/releases periodically.
-          # Last bump 2026-05-28 (v2.328.0 -> v2.334.0; 2.328.0 was deprecated).
-          RUNNER_VERSION: '2.334.0'
-          # SHA256 of actions-runner-linux-arm64-2.334.0.tar.gz from the
+          # Last bump 2026-10-27 (v2.334.0 -> v2.338.2; 2.334.0 was deprecated).
+          RUNNER_VERSION: '2.338.2'
+          # SHA256 of actions-runner-linux-arm64-2.338.2.tar.gz from the
           # actions/runner GitHub release page (BEGIN/END SHA linux-arm64 markers).
-          RUNNER_SHA256: 'f44255bd3e80160eb25f71bc83d06ea025f6908748807a584687b3184759f7e4'
+          RUNNER_SHA256: '670adb2f268fe21dcbb58b3db0e0aa9d5b3bddfe2c651481336e561ff86de945'
         run: |
           set -euo pipefail
           mkdir -p /tmp/ec2

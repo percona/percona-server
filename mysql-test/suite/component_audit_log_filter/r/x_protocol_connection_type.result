@@ -1,0 +1,100 @@
+#
+# PS-10434: Mysql shell connection with X protocol crashes the mysql server running with audit log.
+#
+# Connection events generated for X Protocol sessions should not cause
+# assertion failure in audit_log_filter log record formatters.
+#
+# X Plugin sessions are Srv_session based, so connection_type reported
+# for them is VIO_TYPE_PLUGIN, which was not handled by formatters.
+#
+CREATE USER xuser@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xpass';
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+# Successful authentication over TCP/IP with TLS
+RUN SELECT USER()
+USER()
+xuser@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Successful authentication over Unix socket
+RUN SELECT USER()
+USER()
+xuser@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Successful authentication over TCP/IP without TLS
+RUN SELECT USER()
+USER()
+xuser@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Failed authentication
+in main, line 0:ERROR: Access denied for user 'xuser'@'localhost' (using password: YES) (code 1045)
+not ok
+# Server is still alive
+SELECT 1;
+1
+1
+# Connection type of every logged event is recognized
+Connection types: plugin
+#
+# Filter "connection" events by connection_type using '::plugin'
+# pseudo-constant
+SELECT audit_log_filter_set_filter('log_conn_type_plugin', '{
+"filter": {
+"class": {
+"name": "connection",
+"event": {
+"name": "connect",
+"log": {
+"field": {"name": "connection_type", "value": "::plugin"}
+}
+}
+}
+}
+}');
+audit_log_filter_set_filter('log_conn_type_plugin', '{
+"filter": {
+"class": {
+"name": "connection",
+"event": {
+"name": "connect",
+"log": {
+"field": {"name": "connection_type", "value": "::plugin"}
+}
+}
+}
+}
+}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_conn_type_plugin');
+audit_log_filter_set_user('%', 'log_conn_type_plugin')
+OK
+# Use new connection so that it picks up the new filter
+# Classic protocol connection should not be logged
+# X Protocol connection should be logged
+RUN SELECT USER()
+USER()
+xuser@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Connection types: plugin
+#
+# Cleanup
+DROP USER xuser@localhost;

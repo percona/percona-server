@@ -1,0 +1,88 @@
+--echo #
+--echo # PS-10434: Mysql shell connection with X protocol crashes the mysql server running with audit log.
+--echo #
+--echo # Connection events generated for X Protocol sessions should not cause
+--echo # assertion failure in audit_log_filter log record formatters.
+--echo #
+--echo # X Plugin sessions are Srv_session based, so connection_type reported
+--echo # for them is VIO_TYPE_PLUGIN, which was not handled by formatters.
+--echo #
+--source include/have_component_audit_log.inc
+--source include/xplugin_preamble.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+CREATE USER xuser@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xpass';
+
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+
+--source clean_current_audit_log.inc
+
+--write_file $MYSQL_TMP_DIR/x_protocol_connection_type.xpl
+-->sql
+SELECT USER();
+-->endsql
+EOF
+
+--echo # Successful authentication over TCP/IP with TLS
+--exec $MYSQLXTEST -u xuser --password='xpass' --ssl-mode=REQUIRED --file=$MYSQL_TMP_DIR/x_protocol_connection_type.xpl 2>&1
+
+--echo # Successful authentication over Unix socket
+--exec $MYSQLXTEST -u xuser --password='xpass' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/x_protocol_connection_type.xpl 2>&1
+
+--echo # Successful authentication over TCP/IP without TLS
+--exec $MYSQLXTEST -u xuser --password='xpass' --ssl-mode=DISABLED --cached-auth --file=$MYSQL_TMP_DIR/x_protocol_connection_type.xpl 2>&1
+
+--echo # Failed authentication
+--error 1
+--exec $MYSQLXTEST --history-protocol false -u xuser --password='wrong' --ssl-mode=REQUIRED --file=$MYSQL_TMP_DIR/x_protocol_connection_type.xpl 2>&1
+
+--echo # Server is still alive
+SELECT 1;
+
+--echo # Connection type of every logged event is recognized
+--source print_connection_types.inc
+
+--echo #
+--echo # Filter "connection" events by connection_type using '::plugin'
+--echo # pseudo-constant
+let $filter = {
+  "filter": {
+    "class": {
+      "name": "connection",
+      "event": {
+        "name": "connect",
+        "log": {
+          "field": {"name": "connection_type", "value": "::plugin"}
+        }
+      }
+    }
+  }
+};
+
+eval SELECT audit_log_filter_set_filter('log_conn_type_plugin', '$filter');
+SELECT audit_log_filter_set_user('%', 'log_conn_type_plugin');
+
+--echo # Use new connection so that it picks up the new filter
+--connect(con_root, localhost, root,,)
+--source clean_current_audit_log.inc
+
+--echo # Classic protocol connection should not be logged
+--connect(con_classic, localhost, xuser, xpass,,,,)
+--disconnect con_classic
+--connection con_root
+
+--echo # X Protocol connection should be logged
+--exec $MYSQLXTEST -u xuser --password='xpass' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/x_protocol_connection_type.xpl 2>&1
+
+--source print_connection_types.inc
+--disconnect con_root
+--connection default
+
+--echo #
+--echo # Cleanup
+--remove_file $MYSQL_TMP_DIR/x_protocol_connection_type.xpl
+DROP USER xuser@localhost;
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

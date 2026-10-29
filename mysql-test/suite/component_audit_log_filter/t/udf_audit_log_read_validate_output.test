@@ -4,11 +4,18 @@
 --echo #
 
 --source include/have_component_audit_log.inc
+
+# Remove audit log files left by previous tests. Event ids restart from 0 in
+# every log file and timestamps have one-second resolution, so the "shutdown"
+# event logged by a previous test's UNINSTALL COMPONENT may get the same
+# {timestamp, id} bookmark as the "startup" event logged below. audit_log_read()
+# would then start reading from the old "shutdown" event.
+--let $audit_filter_log_path = `SELECT @@global.datadir`
+--remove_files_wildcard $audit_filter_log_path audit_filter.*
+
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
 SET GLOBAL audit_log_filter.event_mode=FULL;
-
---let $audit_filter_log_path = `SELECT @@global.datadir`
 
 CREATE TABLE t1 (c1 INT);
 CREATE USER user1@localhost IDENTIFIED BY 'pass';
@@ -84,6 +91,7 @@ SELECT audit_log_read();
 --echo # Cleanup
 --source ../inc/audit_comp_uninstall.inc
 --source ../inc/audit_tables_cleanup.inc
+--remove_files_wildcard $audit_filter_log_path audit_filter.*
 
 DROP TABLE t1;
 DROP USER user1@localhost;

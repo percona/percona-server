@@ -132,6 +132,44 @@ audit_log_filter_set_filter('filter_con_connType_sharedMem', '{"filter": { "clas
           "field": { "name": "connection_type", "
 OK
 #
+# Valid: connection_type "::internal" (alias for 6)
+SELECT audit_log_filter_set_filter('filter_con_connType_internal', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::internal" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_internal', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "v
+OK
+#
+# Valid: connection_type "::plugin" (alias for 7)
+SELECT audit_log_filter_set_filter('filter_con_connType_plugin', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::plugin" }
+        }
+      }
+  }
+] } }');
+audit_log_filter_set_filter('filter_con_connType_plugin', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "val
+OK
+#
 # Backward compatible: string value "1" for integer field connection_type (OK)
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_str', '{"filter": { "class": [
   { "name": "connection",
@@ -187,7 +225,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_nonnumeric', '{"filter":
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_
-ERROR: Incorrect rule definition: invalid 'connection_type' value 'abc'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value 'abc'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: trailing text "1abc" for connection_type
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_trailing', '{"filter": { "class": [
@@ -206,7 +244,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_trailing', '{"filter": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_ty
-ERROR: Incorrect rule definition: invalid 'connection_type' value '1abc'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '1abc'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: empty string for connection_type
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_empty', '{"filter": { "class": [
@@ -225,7 +263,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_empty', '{"filter": { "c
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_type"
-ERROR: Incorrect rule definition: invalid 'connection_type' value ''; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value ''; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: string "-1" for connection_type
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_negstr', '{"filter": { "class": [
@@ -244,26 +282,26 @@ audit_log_filter_set_filter('filter_broken_con_connType_negstr', '{"filter": { "
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_type
-ERROR: Incorrect rule definition: invalid 'connection_type' value '-1'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '-1'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
-# Invalid: string "6" for connection_type (out of range)
-SELECT audit_log_filter_set_filter('filter_broken_con_connType_str6', '{"filter": { "class": [
+# Invalid: string "8" for connection_type (out of range)
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_str8', '{"filter": { "class": [
   { "name": "connection",
       "event": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
-          "field": { "name": "connection_type", "value": "6" }
+          "field": { "name": "connection_type", "value": "8" }
         }
       }
   }
 ] } }');
-audit_log_filter_set_filter('filter_broken_con_connType_str6', '{"filter": { "class": [
+audit_log_filter_set_filter('filter_broken_con_connType_str8', '{"filter": { "class": [
   { "name": "connection",
       "event": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_type",
-ERROR: Incorrect rule definition: invalid 'connection_type' value '6'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '8'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: unknown "::"-prefixed alias
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_invalidAlias', '{"filter": { "class": [
@@ -282,7 +320,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_invalidAlias', '{"filter
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connectio
-ERROR: Incorrect rule definition: invalid 'connection_type' value '::invalid'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::invalid'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: "::TCP/IP" wrong case
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_wrongCase', '{"filter": { "class": [
@@ -301,7 +339,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_wrongCase', '{"filter": 
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_t
-ERROR: Incorrect rule definition: invalid 'connection_type' value '::TCP/IP'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::TCP/IP'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: "::tcpip" missing slash
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_noSlash', '{"filter": { "class": [
@@ -320,7 +358,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_noSlash', '{"filter": { 
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_typ
-ERROR: Incorrect rule definition: invalid 'connection_type' value '::tcpip'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::tcpip'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: "::named pipe" space instead of underscore
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_space', '{"filter": { "class": [
@@ -339,7 +377,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_space', '{"filter": { "c
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_type"
-ERROR: Incorrect rule definition: invalid 'connection_type' value '::named pipe'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::named pipe'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: "::shared" truncated alias
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_truncated', '{"filter": { "class": [
@@ -358,7 +396,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_truncated', '{"filter": 
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_t
-ERROR: Incorrect rule definition: invalid 'connection_type' value '::shared'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '::shared'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: "socket" missing "::" prefix
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_noPrefix', '{"filter": { "class": [
@@ -377,15 +415,15 @@ audit_log_filter_set_filter('filter_broken_con_connType_noPrefix', '{"filter": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_ty
-ERROR: Incorrect rule definition: invalid 'connection_type' value 'socket'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value 'socket'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
-# Invalid: out-of-range integer (6, max valid is 5)
+# Invalid: out-of-range integer (8, max valid is 7)
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_outOfRange', '{"filter": { "class": [
   { "name": "connection",
       "event": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
-          "field": { "name": "connection_type", "value": 6 }
+          "field": { "name": "connection_type", "value": 8 }
         }
       }
   }
@@ -396,7 +434,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_outOfRange', '{"filter":
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_
-ERROR: Incorrect rule definition: invalid 'connection_type' value '6'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '8'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: negative integer
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_neg', '{"filter": { "class": [
@@ -415,7 +453,7 @@ audit_log_filter_set_filter('filter_broken_con_connType_neg', '{"filter": { "cla
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
           "field": { "name": "connection_type", 
-ERROR: Incorrect rule definition: invalid 'connection_type' value '-1'; expected integer 0..5 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory"
+ERROR: Incorrect rule definition: invalid 'connection_type' value '-1'; expected integer 0..7 or one of "::undefined", "::tcp/ip", "::socket", "::named_pipe", "::ssl", "::shared_memory", "::internal", "::plugin"
 #
 # Invalid: float value
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_float', '{"filter": { "class": [

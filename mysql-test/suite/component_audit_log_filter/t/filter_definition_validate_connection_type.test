@@ -99,6 +99,32 @@ SELECT audit_log_filter_set_filter('filter_con_connType_sharedMem', '{"filter": 
 ] } }');
 
 --echo #
+--echo # Valid: connection_type "::internal" (alias for 6)
+SELECT audit_log_filter_set_filter('filter_con_connType_internal', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::internal" }
+        }
+      }
+  }
+] } }');
+
+--echo #
+--echo # Valid: connection_type "::plugin" (alias for 7)
+SELECT audit_log_filter_set_filter('filter_con_connType_plugin', '{"filter": { "class": [
+  { "name": "connection",
+      "event": {
+        "name": [ "connect", "change_user", "disconnect" ],
+        "log": {
+          "field": { "name": "connection_type", "value": "::plugin" }
+        }
+      }
+  }
+] } }');
+
+--echo #
 --echo # Backward compatible: string value "1" for integer field connection_type (OK)
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_str', '{"filter": { "class": [
   { "name": "connection",
@@ -177,13 +203,13 @@ SELECT audit_log_filter_set_filter('filter_broken_con_connType_negstr', '{"filte
 ] } }');
 
 --echo #
---echo # Invalid: string "6" for connection_type (out of range)
-SELECT audit_log_filter_set_filter('filter_broken_con_connType_str6', '{"filter": { "class": [
+--echo # Invalid: string "8" for connection_type (out of range)
+SELECT audit_log_filter_set_filter('filter_broken_con_connType_str8', '{"filter": { "class": [
   { "name": "connection",
       "event": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
-          "field": { "name": "connection_type", "value": "6" }
+          "field": { "name": "connection_type", "value": "8" }
         }
       }
   }
@@ -268,13 +294,13 @@ SELECT audit_log_filter_set_filter('filter_broken_con_connType_noPrefix', '{"fil
 ] } }');
 
 --echo #
---echo # Invalid: out-of-range integer (6, max valid is 5)
+--echo # Invalid: out-of-range integer (8, max valid is 7)
 SELECT audit_log_filter_set_filter('filter_broken_con_connType_outOfRange', '{"filter": { "class": [
   { "name": "connection",
       "event": {
         "name": [ "connect", "change_user", "disconnect" ],
         "log": {
-          "field": { "name": "connection_type", "value": 6 }
+          "field": { "name": "connection_type", "value": 8 }
         }
       }
   }

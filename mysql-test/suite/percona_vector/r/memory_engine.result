@@ -1,0 +1,114 @@
+#
+# PS-11969: VECTOR columns in MEMORY-engine tables return the wrong vector.
+#
+# A VECTOR column in a MEMORY table must keep each row's own value.
+#
+# Field_vector is a Field_blob and carries BLOB_FLAG, so ha_heap counts
+# it as a blob and switches the table to variable-size records. The heap
+# record code recognized blob columns by type, though, and knew only
+# MYSQL_TYPE_BLOB and MYSQL_TYPE_JSON. A VECTOR column was copied as a
+# fixed-size field: its length and the pointer to the server's buffer,
+# not the data. Every row then read whatever that buffer held last, the
+# last vector written or, once the buffer was freed, garbage.
+#
+# The problem is specific to Percona Server, whose MEMORY engine supports
+# BLOB columns. Upstream MySQL doesn't have it, because its MEMORY engine
+# sets HA_NO_BLOBS and so rejects all BLOB columns, VECTOR included.
+#
+# Rows inserted directly into a MEMORY table.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=MEMORY;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+# Rows copied into a MEMORY table by ALTER TABLE.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+ALTER TABLE t1 ENGINE=MEMORY;
+SELECT id, VECTOR_TO_STRING(v) FROM t1;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+# UPDATE of a vector value, and DELETE followed by an INSERT that
+# reuses the freed chunks.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=MEMORY;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[21,22,23,24]') WHERE id = 2;
+SELECT id, VECTOR_TO_STRING(v) FROM t1;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[2.10000e+01,2.20000e+01,2.30000e+01,2.40000e+01]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DELETE FROM t1 WHERE id = 1;
+INSERT INTO t1 VALUES (4, STRING_TO_VECTOR('[13,14,15,16]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1;
+id	VECTOR_TO_STRING(v)
+2	[2.10000e+01,2.20000e+01,2.30000e+01,2.40000e+01]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+4	[1.30000e+01,1.40000e+01,1.50000e+01,1.60000e+01]
+DROP TABLE t1;
+# Like a BLOB, a VECTOR column can't precede the last key column.
+CREATE TABLE t1 (v VECTOR(4) NOT NULL, id BIGINT UNSIGNED PRIMARY KEY) ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+CREATE TABLE t1 (v VECTOR(4) NOT NULL, id BIGINT UNSIGNED PRIMARY KEY);
+ALTER TABLE t1 ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;
+# A nullable VECTOR column.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, NULL), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	NULL
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+UPDATE t1 SET v = NULL WHERE id = 1;
+UPDATE t1 SET v = STRING_TO_VECTOR('[5,6,7,8]') WHERE id = 2;
+SELECT id, VECTOR_TO_STRING(v) FROM t1;
+id	VECTOR_TO_STRING(v)
+1	NULL
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+# Two VECTOR columns and a LONGBLOB in one row.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v1 VECTOR(4) NOT NULL, b LONGBLOB, v2 VECTOR(2) NOT NULL) ENGINE=MEMORY;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]'), 'first', STRING_TO_VECTOR('[-1,-2]')), (2, STRING_TO_VECTOR('[5,6,7,8]'), REPEAT('x', 1000), STRING_TO_VECTOR('[-3,-4]')), (3, STRING_TO_VECTOR('[9,10,11,12]'), NULL, STRING_TO_VECTOR('[-5,-6]'));
+SELECT id, VECTOR_TO_STRING(v1), LEFT(b, 10), LENGTH(b), VECTOR_TO_STRING(v2) FROM t1;
+id	VECTOR_TO_STRING(v1)	LEFT(b, 10)	LENGTH(b)	VECTOR_TO_STRING(v2)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]	first	5	[-1.00000e+00,-2.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]	xxxxxxxxxx	1000	[-3.00000e+00,-4.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]	NULL	NULL	[-5.00000e+00,-6.00000e+00]
+DROP TABLE t1;
+# Vectors that span several 256-byte chunks, and the trip back to
+# InnoDB.
+SET @saved_group_concat_max_len = @@session.group_concat_max_len;
+SET @saved_cte_max_recursion_depth = @@session.cte_max_recursion_depth;
+SET SESSION group_concat_max_len = 65536;
+SET SESSION cte_max_recursion_depth = 1024;
+CREATE TABLE t_ref (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1024) NOT NULL);
+INSERT INTO t_ref
+WITH RECURSIVE seq (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 1024)
+SELECT r.id, STRING_TO_VECTOR(CONCAT('[', GROUP_CONCAT(seq.n * r.id ORDER BY seq.n), ']'))
+FROM seq, (SELECT 1 AS id UNION ALL SELECT 2 UNION ALL SELECT 3) AS r
+GROUP BY r.id;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1024) NOT NULL) ENGINE=MEMORY;
+INSERT INTO t1 SELECT * FROM t_ref;
+SELECT t1.id, VECTOR_DIM(t1.v), VECTOR_TO_STRING(t1.v) = VECTOR_TO_STRING(t_ref.v) AS same FROM t1 JOIN t_ref USING (id);
+id	VECTOR_DIM(t1.v)	same
+1	1024	1
+2	1024	1
+3	1024	1
+ALTER TABLE t1 ENGINE=InnoDB;
+SELECT t1.id, VECTOR_DIM(t1.v), VECTOR_TO_STRING(t1.v) = VECTOR_TO_STRING(t_ref.v) AS same FROM t1 JOIN t_ref USING (id);
+id	VECTOR_DIM(t1.v)	same
+1	1024	1
+2	1024	1
+3	1024	1
+DROP TABLE t1, t_ref;
+SET SESSION group_concat_max_len = @saved_group_concat_max_len;
+SET SESSION cte_max_recursion_depth = @saved_cte_max_recursion_depth;

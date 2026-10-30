@@ -1,0 +1,61 @@
+--source include/have_rocksdb.inc
+# Use enough rows to choose a range plan. Alternating between a short key
+# (iterator bounds)
+# and a long key (bloom filter) must not reuse stale bounds.
+create table t3(
+  a int,
+  b varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  c int,
+  primary key(a), key b(b, c)
+) engine=rocksdb;
+insert into t3 values(1, "11",1),(2,"22",2),(3,"33",3);
+--disable_query_log
+BEGIN;
+let $i = 100;
+while ($i < 400)
+{
+  eval insert into t3 values($i, concat("row", $i), $i);
+  inc $i;
+}
+COMMIT;
+--enable_query_log
+set global rocksdb_force_flush_memtable_now = 1;
+analyze table t3;
+--replace_column 10 # 11 #
+explain select count(*) from t3 force index(b) where b in ("", "33");
+--let $assert_text = Mixed short/long ranges must retain the matching row
+--let $actual = `SELECT COUNT(*) FROM t3 FORCE INDEX(b) WHERE b IN ('', '33')`
+--let $assert_cond = $actual = 1
+--source include/assert.inc
+select count(*) from t3 force index(b) where b in ("", "33");
+select count(*) from t3 force index(b) where b in ("33", "");
+select a from t3 force index(b) where b in ("", "22", "33") order by a;
+select a from t3 force index(b) where b in ("22", "33", "") order by a;
+drop table t3;
+
+create table t2(
+  a int,
+  b int,
+  c bigint,
+  d bigint,
+  primary key(a), key b(b,c,d)
+) engine=rocksdb;
+insert into t2 values(1,1,1,1),(2,2,2,2),(3,3,3,3);
+--disable_query_log
+BEGIN;
+let $i = 100;
+while ($i < 400)
+{
+  eval insert into t2 values($i, $i, $i, $i);
+  inc $i;
+}
+COMMIT;
+--enable_query_log
+set global rocksdb_force_flush_memtable_now = 1;
+analyze table t2;
+--replace_column 10 # 11 #
+explain select count(*) from t2 force index(b) where b = 2 or (b = 3 and c=3);
+select count(*) from t2 force index(b) where b = 2 or (b = 3 and c=3);
+select count(*) from t2 force index(b) where (b = 3 and c=3) or b = 2;
+select a from t2 force index(b) where b = 2 or (b = 3 and c=3) order by a;
+drop table t2;

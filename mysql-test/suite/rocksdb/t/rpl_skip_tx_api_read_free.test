@@ -1,0 +1,37 @@
+--source include/have_rocksdb.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Read-free replication with rocksdb_rpl_skip_tx_api applies updates and
+--echo # deletes without a snapshot.
+--echo #
+
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, a INT, KEY ka(a)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 10), (2, 20), (3, 30);
+UPDATE t1 SET a = a + 1 WHERE id = 2;
+DELETE FROM t1 WHERE id = 1;
+--source include/rpl/sync_to_replica.inc
+
+SELECT @@global.rocksdb_rpl_skip_tx_api, @@global.rocksdb_read_free_rpl;
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t1 FORCE INDEX(ka) ORDER BY a;
+
+--echo # The same with rocksdb_skip_locks_if_skip_unique_check, which skips the
+--echo # snapshot taken by the uniqueness check of an update
+SET GLOBAL rocksdb_skip_locks_if_skip_unique_check = ON;
+--source include/rpl/connection_source.inc
+UPDATE t1 SET a = a + 1 WHERE id = 2;
+UPDATE t1 SET id = 4 WHERE id = 3;
+DELETE FROM t1 WHERE id = 2;
+INSERT INTO t1 VALUES (5, 50);
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t1 FORCE INDEX(ka) ORDER BY a;
+SET GLOBAL rocksdb_skip_locks_if_skip_unique_check = OFF;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

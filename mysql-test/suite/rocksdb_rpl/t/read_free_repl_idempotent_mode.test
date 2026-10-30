@@ -1,0 +1,61 @@
+# Read-free replication trusts the before image of the row event. In
+# idempotent mode the replica's row may differ from it, so the replica must
+# look the row up instead.
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--connection master
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, KEY sk(b, c)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4);
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 FORCE INDEX(PRIMARY);
+SELECT * FROM t1 FORCE INDEX(sk);
+
+--echo # Make the replica diverge from the source
+SET sql_log_bin = 0;
+# Idempotent mode skips the update of the row that no longer exists.
+CALL mtr.add_suppression("Could not execute Update_rows event on table test.t1; Can't find record in 't1'");
+UPDATE t1 SET a = 10 WHERE a = 1;
+UPDATE t1 SET b = 20, c = 20 WHERE a = 2;
+SET sql_log_bin = 1;
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--connection master
+UPDATE t1 SET a = 100 WHERE a = 1;
+UPDATE t1 SET b = 200, c = 200 WHERE a = 2;
+--source include/rpl/sync_to_replica.inc
+
+--echo # Idempotent mode looked the rows up, so both indexes agree
+SELECT * FROM t1 FORCE INDEX(PRIMARY);
+SELECT * FROM t1 FORCE INDEX(sk);
+SELECT variable_value - @get_for_update > 0 AS rows_looked_up
+  FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--echo # Strict mode still uses read-free replication
+--source include/rpl/stop_replica.inc
+SET @saved_replica_exec_mode = @@global.replica_exec_mode;
+SET GLOBAL replica_exec_mode = STRICT;
+--source include/rpl/start_replica.inc
+SELECT variable_value INTO @get_for_update FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--connection master
+UPDATE t1 SET b = 30, c = 30 WHERE a = 3;
+--source include/rpl/sync_to_replica.inc
+SELECT * FROM t1 FORCE INDEX(sk);
+SELECT variable_value - @get_for_update > 0 AS rows_looked_up
+  FROM performance_schema.global_status
+  WHERE variable_name = 'rocksdb_num_get_for_update_calls';
+
+--source include/rpl/stop_replica.inc
+SET GLOBAL replica_exec_mode = @saved_replica_exec_mode;
+--source include/rpl/start_replica.inc
+
+--connection master
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

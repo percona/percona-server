@@ -1,0 +1,48 @@
+--source include/have_rocksdb.inc
+
+# Dynamic global/session enum, including numeric values and inheritance.
+SET @saved_global = @@global.rocksdb_gap_lock_raise_error;
+SET @saved_session = @@session.rocksdb_gap_lock_raise_error;
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+
+SET SESSION rocksdb_gap_lock_raise_error = OFF;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = 'warning';
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = 'ERROR';
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = 0;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = 1;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = 2;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION rocksdb_gap_lock_raise_error = 3;
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION rocksdb_gap_lock_raise_error = -1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION rocksdb_gap_lock_raise_error = 'ON';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL rocksdb_gap_lock_raise_error = 'invalid';
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+
+SET GLOBAL rocksdb_gap_lock_raise_error = 'WARNING';
+--connect (inherited,localhost,root,,)
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = 'OFF';
+SELECT @@global.rocksdb_gap_lock_raise_error, @@session.rocksdb_gap_lock_raise_error;
+--disconnect inherited
+--connection default
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET SESSION rocksdb_gap_lock_raise_error = DEFAULT;
+SELECT @@session.rocksdb_gap_lock_raise_error;
+SET GLOBAL rocksdb_gap_lock_raise_error = DEFAULT;
+SELECT @@global.rocksdb_gap_lock_raise_error;
+SET GLOBAL rocksdb_gap_lock_raise_error = @saved_global;
+SET SESSION rocksdb_gap_lock_raise_error = @saved_session;
+
+# The setting is owned by MyRocks, without an unprefixed server alias.
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SELECT @@session.gap_lock_raise_error;

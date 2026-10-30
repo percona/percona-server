@@ -68,6 +68,9 @@ rocksdb::Status Rdb_tbl_prop_coll::AddUserKey(const rocksdb::Slice &key,
                                               rocksdb::EntryType type,
                                               rocksdb::SequenceNumber seq,
                                               uint64_t file_size) {
+  // Exercise timestamped-delete callbacks without a timestamp-enabled CF.
+  DBUG_EXECUTE_IF("rocksdb_timestamped_delete",
+                  { type = rocksdb::kEntryDeleteWithTimestamp; });
   if (key.size() >= 4) {
     AdjustDeletedRows(type);
 
@@ -88,7 +91,8 @@ void Rdb_tbl_prop_coll::AdjustDeletedRows(rocksdb::EntryType type) {
     // --update the counter for the element which will be overridden
     const bool is_delete = (type == rocksdb::kEntryDelete ||
                             (type == rocksdb::kEntrySingleDelete &&
-                             rocksdb_compaction_sequential_deletes_count_sd));
+                             rocksdb_compaction_sequential_deletes_count_sd) ||
+                            type == rocksdb::kEntryDeleteWithTimestamp);
 
     // Only make changes if the value at the current position needs to change
     if (is_delete != m_deleted_rows_window[m_window_pos]) {
@@ -153,6 +157,7 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
     case rocksdb::kEntryPut:
       stats->m_rows++;
       break;
+    case rocksdb::kEntryDeleteWithTimestamp:
     case rocksdb::kEntryDelete:
       stats->m_entry_deletes++;
       break;
@@ -167,7 +172,7 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
       stats->m_entry_others++;
       break;
     default:
-      LogPluginErrMsg(ERROR_LEVEL, 0,
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "Unexpected entry type found: %u. This should not happen "
                       "so aborting the system.",
                       type);
@@ -399,7 +404,7 @@ int Rdb_index_stats::unmaterialize(const std::string &s,
   // Make sure version is within supported range.
   if (version < INDEX_STATS_VERSION_INITIAL ||
       version > INDEX_STATS_VERSION_ENTRY_TYPES) {
-    LogPluginErrMsg(ERROR_LEVEL, 0,
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Index stats version %d was outside of supported range. "
                     "This should not happen so aborting the system.",
                     version);

@@ -1,0 +1,29 @@
+--source include/have_rocksdb.inc
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--connection master
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=RocksDB;
+XA START 'first';
+INSERT INTO t VALUES (1);
+XA END 'first';
+XA PREPARE 'first';
+XA START 'second';
+INSERT INTO t VALUES (2);
+XA END 'second';
+XA PREPARE 'second';
+--source include/rpl/sync_to_replica.inc
+--connection slave
+--sorted_result
+XA RECOVER;
+--connection master
+XA COMMIT 'first';
+XA ROLLBACK 'second';
+--source include/rpl/sync_to_replica.inc
+--connection slave
+XA RECOVER;
+SELECT * FROM t;
+--connection master
+DROP TABLE t;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

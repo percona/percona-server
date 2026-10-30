@@ -1,0 +1,26 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+--let $original_level = `SELECT @@global.rocksdb_info_log_level`
+CALL mtr.add_suppression('MyRocks logger regression:');
+SET SESSION debug='+d,rocksdb_test_log_message';
+SET GLOBAL rocksdb_info_log_level='warn_level';
+SET SESSION debug='-d,rocksdb_test_log_message';
+--disable_query_log
+--eval SET GLOBAL rocksdb_info_log_level='$original_level'
+--enable_query_log
+
+# The file logger consumes its va_list. The server logger must still receive
+# every argument, and must not truncate the message at 1024 bytes.
+--let $assert_text = Server log preserves the full message and a valid error code
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = MyRocks logger regression:
+--let $assert_match = \[MY-\d*[1-9]\d*\].*MyRocks logger regression: x{2048} 42 complete
+--source include/assert_grep.inc
+
+--let $rocksdb_dir = `SELECT CONCAT(@@datadir, @@rocksdb_datadir)`
+--let $assert_text = RocksDB log receives the same complete message
+--let $assert_file = $rocksdb_dir/LOG
+--let $assert_select = MyRocks logger regression:
+--let $assert_match = MyRocks logger regression: x{2048} 42 complete
+--source include/assert_grep.inc

@@ -954,13 +954,19 @@ enum enum_schema_tables : int {
   SCH_LAST = SCH_USER_STATS
 };
 
-enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
+enum ha_stat_type {
+  HA_ENGINE_STATUS,
+  HA_ENGINE_LOGS,
+  HA_ENGINE_MUTEX,
+  HA_ENGINE_TRX
+};
 enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 enum ha_ddl_type : int {
   HA_INVALID_DDL,
   HA_ALTER_DDL,
   HA_TRUNCATE_DDL,
-  HA_RENAME_DDL
+  HA_RENAME_DDL,
+  HA_DROP_DDL
 };
 
 /** Clone start operation mode */
@@ -2063,6 +2069,7 @@ typedef bool (*notify_exclusive_mdl_t)(THD *thd, const MDL_key *mdl_key,
           True - if it has failed/ALTER TABLE should be aborted.
 */
 typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
+                                     ulonglong alter_info_flags,
                                      ha_notification_type notification_type);
 
 /**
@@ -2085,6 +2092,19 @@ typedef bool (*notify_rename_table_t)(THD *thd, const MDL_key *mdl_key,
                                       const char *old_table_name,
                                       const char *new_db_name,
                                       const char *new_table_name);
+
+/**
+  Notify/get permission from storage engine before or after execution of
+  DROP TABLE operation on the table identified by the MDL key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was DROPPED.
+  @param notification_type  Indicates whether this is pre-DROP TABLE or
+                            post-DROP TABLE notification.
+*/
+typedef bool (*notify_drop_table_ddl_t)(THD *thd, const MDL_key *mdl_key,
+                                        ha_notification_type notification_type);
 
 /**
   Notify/get permission from storage engine before or after execution of
@@ -2913,6 +2933,7 @@ struct handlerton {
   notify_alter_table_t notify_alter_table;
   notify_rename_table_t notify_rename_table;
   notify_truncate_table_t notify_truncate_table;
+  notify_drop_table_ddl_t notify_drop_table_ddl;
   rotate_encryption_master_key_t rotate_encryption_master_key;
   fix_tablespaces_empty_uuid_t fix_tablespaces_empty_uuid;
   fix_default_table_encryption_t fix_default_table_encryption;
@@ -4950,13 +4971,14 @@ class handler {
   /** This is called after create to allow us to set up cached variables */
   void init() { cached_table_flags = table_flags(); }
   /**
-    For MyRocks, secondary initialization that happens after frm is parsed into
-    field information from within open_binary_frm. MyRocks uses this secondary
-    init phase to analyze the key and field definitions to determine if
-    HA_PRIMARY_KEY_IN_READ_INDEX flag is available for the table as it only
-    supports that behavior for certain types of key combinations. The
-    HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default till this method
-    invocation and can be disabled here in case it isn't supported.
+    For MyRocks, secondary initialization that happens once the field and key
+    definitions are known; MyRocks and Partition_base call it from open().
+    MyRocks uses this secondary init phase to analyze the key and field
+    definitions to determine if HA_PRIMARY_KEY_IN_READ_INDEX flag is available
+    for the table as it only supports that behavior for certain types of key
+    combinations. The HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default
+    till this method invocation and can be disabled here in case it isn't
+    supported.
     Return values: false success, true failure.
   */
   virtual bool init_with_fields() { return false; }
@@ -5247,6 +5269,14 @@ class handler {
   int update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
+  /**
+    Return true if the error is a temporary condition, such as a lock
+    conflict, that should not be written to the error log. Unlike
+    get_error_message(), this must not change the handler state.
+  */
+  virtual bool is_temporary_error(int error [[maybe_unused]]) const {
+    return false;
+  }
   uint get_dup_key(int error);
   /**
     Retrieves the names of the table and the key for which there was a
@@ -5806,6 +5836,9 @@ class handler {
     Query storage engine to see if it supports gap locks on this table.
   */
   virtual bool has_gap_locks() const noexcept { return false; }
+
+  /** Report an unsupported gap lock; return true to reject the operation. */
+  virtual bool report_unsupported_gap_lock(THD *thd) const noexcept;
 
   /**
     Query storage engine to see if it can support handling specific replication
@@ -7956,7 +7989,8 @@ bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
                          ha_notification_type notification_type,
                          ha_ddl_type ddl_type, const char *old_db_name,
                          const char *old_table_name, const char *new_db_name,
-                         const char *new_table_name);
+                         const char *new_table_name,
+                         ulonglong alter_info_flags);
 
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);

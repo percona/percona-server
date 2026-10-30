@@ -1,0 +1,68 @@
+#
+# PS-11631: a replica with rocksdb_rpl_skip_tx_api=ON applies XA transactions
+# on MyRocks tables without losing their rows.
+#
+# The applier used a write batch for the XA transaction. A write batch has
+# nothing to prepare, so detaching the prepared XA transaction dropped its
+# writes, and the replicated XA COMMIT succeeded without them.
+#
+--source include/have_rocksdb.inc
+--source include/have_binlog_format_row.inc
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+SET @saved_skip_tx_api = @@GLOBAL.rocksdb_rpl_skip_tx_api;
+SET @saved_super_read_only = @@GLOBAL.super_read_only;
+SET @saved_read_only = @@GLOBAL.read_only;
+--source include/rpl/stop_replica.inc
+SET GLOBAL rocksdb_rpl_skip_tx_api = ON;
+SET GLOBAL super_read_only = ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+
+--echo # Prepared, then committed.
+XA START 'r1';
+INSERT INTO t1 VALUES (2, 2);
+UPDATE t1 SET b = 10 WHERE a = 1;
+XA END 'r1';
+XA PREPARE 'r1';
+--source include/rpl/sync_to_replica.inc
+XA RECOVER;
+--source include/rpl/connection_source.inc
+XA COMMIT 'r1';
+
+--echo # Prepared, then rolled back.
+XA START 'r2';
+INSERT INTO t1 VALUES (3, 3);
+XA END 'r2';
+XA PREPARE 'r2';
+XA ROLLBACK 'r2';
+
+--echo # One phase commit.
+XA START 'r3';
+INSERT INTO t1 VALUES (4, 4);
+XA END 'r3';
+XA COMMIT 'r3' ONE PHASE;
+
+--echo # A regular transaction after the XA transactions.
+INSERT INTO t1 VALUES (5, 5);
+
+--source include/rpl/sync_to_replica.inc
+XA RECOVER;
+SELECT * FROM t1 ORDER BY a;
+
+--let $diff_tables = master:t1, slave:t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/stop_replica.inc
+SET GLOBAL rocksdb_rpl_skip_tx_api = @saved_skip_tx_api;
+SET GLOBAL super_read_only = @saved_super_read_only;
+SET GLOBAL read_only = @saved_read_only;
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc

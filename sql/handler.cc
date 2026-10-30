@@ -8716,7 +8716,7 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
 
 bool handler::is_using_prohibited_gap_locks(
     TABLE *table, bool using_full_primary_key) const noexcept {
-  const THD *thd = table->in_use;
+  THD *thd = table->in_use;
   const thr_lock_type lock_type = table->reginfo.lock_type;
 
   if (!using_full_primary_key && has_transactions() && !has_gap_locks() &&
@@ -8730,17 +8730,21 @@ bool handler::is_using_prohibited_gap_locks(
       thd->lex->sql_command != SQLCOM_CREATE_INDEX &&
       thd->lex->sql_command != SQLCOM_CHECK &&
       thd->lex->sql_command != SQLCOM_OPTIMIZE) {
-    my_printf_error(ER_UNKNOWN_ERROR,
-                    "Using Gap Lock without full unique key in multi-table "
-                    "or multi-statement transactions is not "
-                    "allowed. You need to either rewrite queries to use "
-                    "all unique key columns in WHERE equal conditions, or "
-                    "rewrite to single-table, single-statement "
-                    "transaction.  Query: %s",
-                    MYF(0), thd->query().str);
-    return true;
+    return report_unsupported_gap_lock(thd);
   }
   return false;
+}
+
+bool handler::report_unsupported_gap_lock(THD *thd) const noexcept {
+  my_printf_error(ER_UNKNOWN_ERROR,
+                  "Using Gap Lock without full unique key in multi-table "
+                  "or multi-statement transactions is not "
+                  "allowed. You need to either rewrite queries to use "
+                  "all unique key columns in WHERE equal conditions, or "
+                  "rewrite to single-table, single-statement "
+                  "transaction.  Query: %s",
+                  MYF(0), thd->query().str);
+  return true;
 }
 
 /*
@@ -9045,7 +9049,8 @@ struct HTON_NOTIFY_PARAMS {
                      const char *old_db_name = nullptr,
                      const char *old_table_name = nullptr,
                      const char *new_db_name = nullptr,
-                     const char *new_table_name = nullptr)
+                     const char *new_table_name = nullptr,
+                     ulonglong alter_info_flags = 0)
       : key(mdl_key),
         notification_type(mdl_type),
         ddl_type{ddl_type},
@@ -9054,7 +9059,8 @@ struct HTON_NOTIFY_PARAMS {
         m_old_db_name(old_db_name),
         m_old_table_name(old_table_name),
         m_new_db_name(new_db_name),
-        m_new_table_name(new_table_name) {}
+        m_new_table_name(new_table_name),
+        m_alter_info_flags(alter_info_flags) {}
 
   const MDL_key *key;
   const ha_notification_type notification_type;
@@ -9066,6 +9072,8 @@ struct HTON_NOTIFY_PARAMS {
   const char *m_old_table_name;
   const char *m_new_db_name;
   const char *m_new_table_name;
+  // alter info flags
+  const ulonglong m_alter_info_flags;
 };
 
 static bool notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin,
@@ -9133,14 +9141,15 @@ static bool notify_table_ddl_helper(THD *thd, plugin_ref plugin, void *arg) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton->state == SHOW_OPTION_YES &&
       (hton->notify_alter_table || hton->notify_rename_table ||
-       hton->notify_truncate_table)) {
+       hton->notify_truncate_table || hton->notify_drop_table_ddl)) {
     HTON_NOTIFY_PARAMS *params = reinterpret_cast<HTON_NOTIFY_PARAMS *>(arg);
 
     bool notify_ret{false};
 
     /* If the DDL is ALTER or TRUNCATE, it shouldn't have the names set. */
     assert(((params->ddl_type == HA_ALTER_DDL ||
-             params->ddl_type == HA_TRUNCATE_DDL) &&
+             params->ddl_type == HA_TRUNCATE_DDL ||
+             params->ddl_type == HA_DROP_DDL) &&
             (params->m_old_db_name == nullptr &&
              params->m_old_table_name == nullptr &&
              params->m_new_db_name == nullptr &&
@@ -9151,6 +9160,7 @@ static bool notify_table_ddl_helper(THD *thd, plugin_ref plugin, void *arg) {
       case HA_ALTER_DDL:
         if (hton->notify_alter_table) {
           notify_ret = hton->notify_alter_table(thd, params->key,
+                                                params->m_alter_info_flags,
                                                 params->notification_type);
         }
         break;
@@ -9166,6 +9176,12 @@ static bool notify_table_ddl_helper(THD *thd, plugin_ref plugin, void *arg) {
               thd, params->key, params->notification_type,
               params->m_old_db_name, params->m_old_table_name,
               params->m_new_db_name, params->m_new_table_name);
+        }
+        break;
+      case HA_DROP_DDL:
+        if (hton->notify_drop_table_ddl) {
+          notify_ret = hton->notify_drop_table_ddl(thd, params->key,
+                                                   params->notification_type);
         }
         break;
       default:
@@ -9206,17 +9222,19 @@ bool ha_notify_table_ddl(THD *thd, const MDL_key *mdl_key,
                          ha_notification_type notification_type,
                          ha_ddl_type ddl_type, const char *old_db_name,
                          const char *old_table_name, const char *new_db_name,
-                         const char *new_table_name) {
+                         const char *new_table_name,
+                         ulonglong alter_info_flags) {
   HTON_NOTIFY_PARAMS params(mdl_key, notification_type, ddl_type, old_db_name,
-                            old_table_name, new_db_name, new_table_name);
+                            old_table_name, new_db_name, new_table_name,
+                            alter_info_flags);
 
   if (plugin_foreach(thd, notify_table_ddl_helper, MYSQL_STORAGE_ENGINE_PLUGIN,
                      &params)) {
     if (notification_type == HA_NOTIFY_PRE_EVENT &&
         params.some_htons_were_notified) {
-      HTON_NOTIFY_PARAMS rollback_params(mdl_key, HA_NOTIFY_POST_EVENT,
-                                         ddl_type, old_db_name, old_table_name,
-                                         new_db_name, new_table_name);
+      HTON_NOTIFY_PARAMS rollback_params(
+          mdl_key, HA_NOTIFY_POST_EVENT, ddl_type, old_db_name, old_table_name,
+          new_db_name, new_table_name, alter_info_flags);
       (void)plugin_foreach(thd, notify_table_ddl_helper,
                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }

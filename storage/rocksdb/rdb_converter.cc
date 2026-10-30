@@ -330,19 +330,6 @@ bool Rdb_value_field_iterator<value_field_decoder>::end_of_fields() const {
 }
 
 template <typename value_field_decoder>
-int Rdb_value_field_iterator<value_field_decoder>::get_field_index() const {
-  assert(m_field_dec != nullptr);
-  return m_field_dec->m_field_index;
-}
-
-template <typename value_field_decoder>
-enum_field_types Rdb_value_field_iterator<value_field_decoder>::get_field_type()
-    const {
-  assert(m_field_dec != nullptr);
-  return m_field_dec->m_field_type;
-}
-
-template <typename value_field_decoder>
 bool Rdb_value_field_iterator<value_field_decoder>::is_null() const {
   return m_is_null;
 }
@@ -558,10 +545,8 @@ void Rdb_converter::setup_field_encoders(const dd::Table *dd_table) {
 
     auto field_type = field->real_type();
     m_encoder_arr[i].m_field_type = field_type;
-    m_encoder_arr[i].m_field_index = i;
     m_encoder_arr[i].m_field_pack_length = field->pack_length();
     m_encoder_arr[i].m_field_offset = field->field_ptr() - m_table->record[0];
-    m_encoder_arr[i].m_field_type = field_type;
     m_encoder_arr[i].m_is_virtual_gcol = field->is_virtual_gcol();
 
     if (field_type == MYSQL_TYPE_VARCHAR) {
@@ -713,7 +698,9 @@ int Rdb_converter::convert_record_from_storage_format(
     const Rdb_key_def &pk_def, const rocksdb::Slice *const key_slice,
     const rocksdb::Slice *const value_slice, uchar *const dst,
     bool decode_value = true) {
-  bool skip_value = !decode_value || get_decode_fields()->size() == 0;
+  // Even a primary-key-only row can have checksum bytes in its value.
+  bool skip_value = !m_verify_row_debug_checksums &&
+                    (!decode_value || get_decode_fields()->size() == 0);
   if (!m_key_requested && skip_value) {
     return HA_EXIT_SUCCESS;
   }
@@ -812,6 +799,46 @@ int Rdb_converter::verify_row_debug_checksum(const Rdb_key_def &pk_def,
   return HA_EXIT_SUCCESS;
 }
 
+/*
+  Store in ttl_bytes the TTL timestamp that encode_value_slice() writes for
+  record, a row of a table with a TTL column.
+*/
+void Rdb_converter::get_ttl_column_bytes(const Rdb_key_def &pk_def,
+                                         const uchar *record,
+                                         char *ttl_bytes) const {
+  assert(pk_def.get_ttl_field_index() != UINT_MAX);
+  const auto *const field = m_table->field[pk_def.get_ttl_field_index()];
+  assert(field->real_type() == MYSQL_TYPE_LONGLONG ||
+         field->type() == MYSQL_TYPE_TIMESTAMP);
+  const uchar *const field_ptr = record + field->offset(m_table->record[0]);
+
+  uint64 ts;
+
+  if (field->type() == MYSQL_TYPE_TIMESTAMP) {
+    /*
+      Timestamp packed length can be 4 to 7 bytes depending on precision.
+      The first four bytes is the unix time network byte order and is used
+      for MYSQL_TYPE_TIMESTAMP and MYSQL_TYPE_TIMESTAMP2. The optional
+      remaining bytes are for fractional seconds. Only the first four bytes
+      are needed.
+     */
+    assert(field->real_type() == MYSQL_TYPE_TIMESTAMP ||
+           field->real_type() == MYSQL_TYPE_TIMESTAMP2);
+    assert(field->pack_length_in_rec() >= 4);
+    assert(field->key_type() == HA_KEYTYPE_BINARY);
+    ts = (uint64)rdb_netbuf_to_uint32(field_ptr);
+  } else {
+    assert(field->key_type() == HA_KEYTYPE_ULONGLONG);
+    assert(field->pack_length_in_rec() == ROCKSDB_SIZEOF_TTL_RECORD);
+    ts = uint8korr(field_ptr);
+  }
+
+#ifndef NDEBUG
+  ts += rdb_dbug_set_ttl_rec_ts();
+#endif
+  rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(ttl_bytes), ts);
+}
+
 /**
   Convert record from table->record[0] form into a form that can be written
   into rocksdb.
@@ -851,36 +878,7 @@ int Rdb_converter::encode_value_slice(
     *is_ttl_bytes_updated = false;
     char *const data = const_cast<char *>(m_storage_record.ptr());
     if (has_ttl_column) {
-      assert(pk_def.get_ttl_field_index() != UINT_MAX);
-      const auto *const field = m_table->field[pk_def.get_ttl_field_index()];
-      assert(field->real_type() == MYSQL_TYPE_LONGLONG ||
-             field->type() == MYSQL_TYPE_TIMESTAMP);
-
-      uint64 ts;
-
-      if (field->type() == MYSQL_TYPE_TIMESTAMP) {
-        /*
-          Timestamp packed length can be 4 to 7 bytes depending on precision.
-          The first four bytes is the unix time network byte order and is used
-          for MYSQL_TYPE_TIMESTAMP and MYSQL_TYPE_TIMESTAMP2. The optional
-          remaining bytes are for fractional seconds. Only the first four bytes
-          are needed.
-         */
-        assert(field->real_type() == MYSQL_TYPE_TIMESTAMP ||
-               field->real_type() == MYSQL_TYPE_TIMESTAMP2);
-        assert(field->pack_length_in_rec() >= 4);
-        assert(field->key_type() == HA_KEYTYPE_BINARY);
-        ts = (uint64)rdb_netbuf_to_uint32(field->field_ptr());
-      } else {
-        assert(field->key_type() == HA_KEYTYPE_ULONGLONG);
-        assert(field->pack_length_in_rec() == ROCKSDB_SIZEOF_TTL_RECORD);
-        ts = uint8korr(field->field_ptr());
-      }
-
-#ifndef NDEBUG
-      ts += rdb_dbug_set_ttl_rec_ts();
-#endif
-      rdb_netbuf_store_uint64(reinterpret_cast<uchar *>(data), ts);
+      get_ttl_column_bytes(pk_def, m_table->record[0], data);
       if (is_update_row) {
         *is_ttl_bytes_updated =
             memcmp(ttl_bytes, data, ROCKSDB_SIZEOF_TTL_RECORD);

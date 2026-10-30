@@ -1,0 +1,2 @@
+--binlog_format=row
+--loose-rocksdb_read_free_rpl=PK_SK

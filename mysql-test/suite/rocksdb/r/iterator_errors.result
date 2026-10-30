@@ -1,0 +1,65 @@
+CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY v_idx(v)) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,10),(2,20),(3,30);
+SET @saved_debug = @@session.debug;
+SET @saved_io_action = @@global.rocksdb_io_error_action;
+# Seek failures must not look like an empty forward or backward range
+SET SESSION debug = '+d,rocksdb_iterator_seek_error';
+SELECT * FROM t FORCE INDEX(PRIMARY) WHERE id >= 1 ORDER BY id;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+SELECT * FROM t FORCE INDEX(PRIMARY) WHERE id < 4 ORDER BY id DESC;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+SET SESSION debug = @saved_debug;
+# Next/Prev failures must not turn a partial scan into successful DML
+SET SESSION debug = '+d,rocksdb_iterator_next_error';
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id DESC;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+UPDATE t FORCE INDEX(PRIMARY) SET v=v+1 WHERE id >= 1;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+SET SESSION debug = @saved_debug;
+SELECT * FROM t ORDER BY id;
+id	v
+1	10
+2	20
+3	30
+# IGNORE_ERROR keeps the server alive but the SQL operation must fail
+SET GLOBAL rocksdb_io_error_action = 'IGNORE_ERROR';
+SET SESSION debug = '+d,rocksdb_iterator_seek_error,rocksdb_iterator_io_error';
+SELECT v FROM t FORCE INDEX(v_idx) WHERE v >= 10 ORDER BY v;
+ERROR HY000: Got error 5 'IO error: injected iterator error' from ROCKSDB
+SET SESSION debug = '+d,rocksdb_iterator_next_error,rocksdb_iterator_io_error';
+SELECT v FROM t FORCE INDEX(v_idx) ORDER BY v DESC;
+ERROR HY000: Got error 5 'IO error: injected iterator error' from ROCKSDB
+SET SESSION debug = @saved_debug;
+# IGNORE_ERROR still marks an iterator corruption for the next restart
+SET SESSION debug = '+d,rocksdb_return_status_corrupted';
+SELECT * FROM t FORCE INDEX(PRIMARY) ORDER BY id;
+ERROR HY000: Got error 2 'Corruption: ' from ROCKSDB
+SET SESSION debug = @saved_debug;
+SET GLOBAL rocksdb_io_error_action = @saved_io_action;
+SELECT * FROM t ORDER BY id;
+id	v
+1	10
+2	20
+3	30
+DROP TABLE t;
+# Partial-index materialization must propagate seek and advancement errors
+CREATE TABLE partial_t (id1 INT, id2 INT, v INT, PRIMARY KEY(id1,id2),
+KEY k(id1,v) COMMENT 'partial_group_keyparts=1;partial_group_threshold=100')
+ENGINE=ROCKSDB;
+INSERT INTO partial_t VALUES (1,1,1),(1,2,2),(1,3,3);
+SET SESSION debug='+d,rocksdb_iterator_seek_error';
+SELECT * FROM partial_t FORCE INDEX(k) WHERE id1=1;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+SET SESSION debug = @saved_debug;
+SET SESSION debug='+d,rocksdb_iterator_next_error';
+SELECT * FROM partial_t FORCE INDEX(k) WHERE id1=1;
+ERROR HY000: Got error 7 'Result incomplete: injected iterator error' from ROCKSDB
+SET SESSION debug = @saved_debug;
+SELECT * FROM partial_t FORCE INDEX(k) WHERE id1=1 ORDER BY id2;
+id1	id2	v
+1	1	1
+1	2	2
+1	3	3
+DROP TABLE partial_t;

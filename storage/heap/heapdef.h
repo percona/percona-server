@@ -72,8 +72,9 @@ extern LIST *heap_open_list, *heap_share_list;
   ((rec_length + (info)->chunk_dataspace_length - 1) / \
    (info)->chunk_dataspace_length)
 
-#define is_blob_column(c) \
-  ((c)->type == MYSQL_TYPE_BLOB || (c)->type == MYSQL_TYPE_JSON)
+#define is_blob_column(c)                                          \
+  ((c)->type == MYSQL_TYPE_BLOB || (c)->type == MYSQL_TYPE_JSON || \
+   (c)->type == MYSQL_TYPE_VECTOR)
 
 struct HASH_INFO {
   HASH_INFO *next_key;

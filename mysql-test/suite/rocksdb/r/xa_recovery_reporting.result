@@ -1,0 +1,37 @@
+CALL mtr.add_suppression('Found 1 prepared XA transactions');
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+# MyRocks marks the recovered transaction prepared in TC
+XA START 'rocksdb-recover';
+INSERT INTO t VALUES (2);
+XA END 'rocksdb-recover';
+XA PREPARE 'rocksdb-recover';
+# Kill the server
+# restart
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	15	0	rocksdb-recover
+XA COMMIT 'rocksdb-recover';
+SELECT * FROM t ORDER BY id;
+id
+2
+include/assert_grep.inc [Successful MyRocks XA recovery must not report a prepare failure]
+include/assert_grep.inc [MyRocks XA recovery reports the prepared transaction]
+# An engine without set_prepared_in_tc_by_xid
+XA START 'rocksdb-recover';
+INSERT INTO t VALUES (1);
+XA END 'rocksdb-recover';
+XA PREPARE 'rocksdb-recover';
+# Kill the server
+# restart: --debug=+d,myrocks_no_set_prepared_in_tc_by_xid
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	15	0	rocksdb-recover
+XA COMMIT 'rocksdb-recover';
+SELECT * FROM t ORDER BY id;
+id
+1
+2
+include/assert_grep.inc [Successful MyRocks XA recovery must not report a prepare failure]
+include/assert_grep.inc [MyRocks XA recovery reports the prepared transaction]
+# restart
+DROP TABLE t;

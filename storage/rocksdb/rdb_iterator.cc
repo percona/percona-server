@@ -69,7 +69,16 @@ int Rdb_iterator_base::read_before_key(const bool full_key_match,
   */
   rocksdb_smart_seek(!m_kd.m_is_reverse_cf, m_scan_it, key_slice);
 
-  while (is_valid_iterator(m_scan_it)) {
+  DBUG_EXECUTE_IF("rocksdb_iterator_seek_error", {
+    delete m_scan_it;
+    m_scan_it = rocksdb::NewErrorIterator(DBUG_EVALUATE_IF(
+        "rocksdb_iterator_io_error",
+        rocksdb::Status::IOError("injected iterator error"),
+        rocksdb::Status::Incomplete("injected iterator error")));
+  });
+
+  int rc;
+  while ((rc = convert_iterator_status()) == HA_EXIT_SUCCESS) {
     if (!m_ignore_killed && thd_killed(m_thd)) {
       return HA_ERR_QUERY_INTERRUPTED;
     }
@@ -85,7 +94,7 @@ int Rdb_iterator_base::read_before_key(const bool full_key_match,
     return HA_EXIT_SUCCESS;
   }
 
-  return HA_ERR_END_OF_FILE;
+  return rc;
 }
 
 int Rdb_iterator_base::read_after_key(const rocksdb::Slice &key_slice) {
@@ -100,7 +109,15 @@ int Rdb_iterator_base::read_after_key(const rocksdb::Slice &key_slice) {
   */
   rocksdb_smart_seek(m_kd.m_is_reverse_cf, m_scan_it, key_slice);
 
-  return is_valid_iterator(m_scan_it) ? HA_EXIT_SUCCESS : HA_ERR_END_OF_FILE;
+  DBUG_EXECUTE_IF("rocksdb_iterator_seek_error", {
+    delete m_scan_it;
+    m_scan_it = rocksdb::NewErrorIterator(DBUG_EVALUATE_IF(
+        "rocksdb_iterator_io_error",
+        rocksdb::Status::IOError("injected iterator error"),
+        rocksdb::Status::Incomplete("injected iterator error")));
+  });
+
+  return convert_iterator_status();
 }
 
 void Rdb_iterator_base::release_scan_iterator() {
@@ -124,6 +141,7 @@ void Rdb_iterator_base::setup_scan_iterator(
   bool skip_bloom = true;
 
   const rocksdb::Slice eq_cond(slice->data(), eq_cond_len);
+  const bool had_bounds = !m_scan_it_lower_bound_slice.empty();
 
   // The size of m_scan_it_lower_bound (and upper) is technically
   // max_packed_sk_len as calculated in ha_rocksdb::alloc_key_buffers.  Rather
@@ -157,7 +175,11 @@ void Rdb_iterator_base::setup_scan_iterator(
     and
     re-create Iterator.
     */
-  if (m_scan_it_skips_bloom != skip_bloom) {
+  // ReadOptions retains pointers to bound slices. Recreate the iterator when
+  // a dynamic option changes whether bounds exist; clearing a bound on a live
+  // iterator would instead turn it into an empty interval.
+  if (m_scan_it_skips_bloom != skip_bloom ||
+      had_bounds != !m_scan_it_lower_bound_slice.empty()) {
     release_scan_iterator();
   }
 
@@ -263,12 +285,17 @@ int Rdb_iterator_base::next_with_direction(bool move_forward, bool skip_next) {
       } else {
         rocksdb_smart_prev(m_kd.m_is_reverse_cf, m_scan_it);
       }
+      DBUG_EXECUTE_IF("rocksdb_iterator_next_error", {
+        delete m_scan_it;
+        m_scan_it = rocksdb::NewErrorIterator(DBUG_EVALUATE_IF(
+            "rocksdb_iterator_io_error",
+            rocksdb::Status::IOError("injected iterator error"),
+            rocksdb::Status::Incomplete("injected iterator error")));
+      });
     }
 
-    if (!is_valid_iterator(m_scan_it)) {
-      rc = HA_ERR_END_OF_FILE;
-      break;
-    }
+    rc = convert_iterator_status();
+    if (rc != HA_EXIT_SUCCESS) break;
 
     const rocksdb::Slice &key = m_scan_it->key();
     const rocksdb::Slice &value = m_scan_it->value();
@@ -362,6 +389,23 @@ int Rdb_iterator_base::seek(enum ha_rkey_function find_flag,
 
   m_valid = !rc;
   return rc;
+}
+
+// An invalid iterator can mean EOF or a failed read. Preserve errors for SQL.
+int Rdb_iterator_base::convert_iterator_status() const {
+  if (m_scan_it->Valid()) return HA_EXIT_SUCCESS;
+
+  const auto status =
+      DBUG_EVALUATE_IF("rocksdb_return_status_corrupted",
+                       rocksdb::Status::Corruption(), m_scan_it->status());
+  if (status.ok() || status.IsNotFound()) return HA_ERR_END_OF_FILE;
+
+  // Record the corruption also when rocksdb_io_error_action=IGNORE_ERROR
+  // keeps rdb_handle_io_error() from doing it.
+  if (status.IsCorruption()) rdb_persist_corruption_marker();
+
+  return rdb_tx_set_status_error(*get_tx_from_thd(m_thd), status, m_kd,
+                                 m_tbl_def);
 }
 
 int Rdb_iterator_base::convert_get_status(myrocks::Rdb_transaction &tx,
@@ -593,7 +637,7 @@ int Rdb_iterator_partial::seek_next_prefix(bool direction) {
 
   rocksdb::PinnableSlice value;
   rc = Rdb_iterator_base::get(&cur_prefix_key, &value, RDB_LOCK_NONE,
-                              true /* skip ttl check*/);
+                              true /* sentinel timestamps never expire */);
 
   if (rc == HA_ERR_KEY_NOT_FOUND) {
     // Nothing in SK, so check PK.
@@ -616,7 +660,9 @@ int Rdb_iterator_partial::seek_next_prefix(bool direction) {
   } else if (rc == 0) {
     // Found rows in SK, so use them
     m_materialized = true;
-    assert(value.size() == 0);
+    // A sentinel written by an older MyRocks has no TTL, also in a TTL table.
+    assert(value.size() == 0 ||
+           (m_pkd.has_ttl() && value.size() == ROCKSDB_SIZEOF_TTL_RECORD));
 
     // Rdb_iterator_base::seek below will overwrite m_prefix_tuple, so we save a
     // copy here.
@@ -679,7 +725,13 @@ int Rdb_iterator_partial::materialize_prefix() {
 
   auto wb = std::unique_ptr<rocksdb::WriteBatch>(new rocksdb::WriteBatch);
   // Write sentinel key with empty value.
-  s = wb->Put(m_kd.get_cf(), cur_prefix_key, rocksdb::Slice());
+  auto val = m_pkd.has_ttl() ? rocksdb::Slice(max_timestamp_uint64,
+                                              ROCKSDB_SIZEOF_TTL_RECORD)
+                             : rocksdb::Slice();
+  // Write the sentinel without a TTL, as MyRocks 9.3.1 and older did
+  DBUG_EXECUTE_IF("myrocks_partial_index_sentinel_without_ttl",
+                  { val = rocksdb::Slice(); });
+  s = wb->Put(m_kd.get_cf(), cur_prefix_key, val);
   if (!s.ok()) {
     rc = rdb_tx_set_status_error(*tx, s, m_kd, m_tbl_def);
     rdb_tx_release_lock(tx, m_kd, cur_prefix_key, true /* force */);
@@ -789,6 +841,8 @@ int Rdb_iterator_partial::read_prefix_from_pk() {
     if (rc == HA_ERR_END_OF_FILE) {
       m_iterator_pk_position = Iterator_position::END_OF_FILE;
       break;
+    } else if (rc) {
+      goto exit;
     } else if (!m_pkd.value_matches_prefix(m_iterator_pk.key(),
                                            cur_prefix_key)) {
       rc = HA_ERR_END_OF_FILE;
@@ -884,7 +938,7 @@ int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
 
   rocksdb::PinnableSlice value;
   rc = Rdb_iterator_base::get(&cur_prefix_key, &value, RDB_LOCK_NONE,
-                              true /* skip ttl check*/);
+                              true /* sentinel timestamps never expire */);
 
   bool next_prefix = false;
   if (rc == HA_ERR_KEY_NOT_FOUND) {
@@ -951,7 +1005,9 @@ int Rdb_iterator_partial::seek(enum ha_rkey_function find_flag,
       }
     }
   } else if (rc == 0) {
-    assert(value.size() == 0);
+    // A sentinel written by an older MyRocks has no TTL, also in a TTL table.
+    assert(value.size() == 0 ||
+           (m_pkd.has_ttl() && value.size() == ROCKSDB_SIZEOF_TTL_RECORD));
     m_materialized = true;
 
     rc = Rdb_iterator_base::seek(find_flag, start_key, true, end_key,

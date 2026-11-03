@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2012,2013 Monty Program Ab
+   Portions Copyright (c) 2016-Present, Facebook, Inc.
+   Portions Copyright (c) 2012,2013 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +26,6 @@
 #include <cinttypes>
 #include <deque>
 #include <map>
-#include <regex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -70,6 +70,7 @@ class Rdb_transaction_impl;
 class Rdb_writebatch_impl;
 class Rdb_field_encoder;
 class Regex_list_handler;
+class Rdb_bulk_load_context;
 
 #if defined(HAVE_PSI_INTERFACE)
 extern PSI_rwlock_key key_rwlock_read_free_rpl_tables;
@@ -85,11 +86,8 @@ extern bool rocksdb_column_default_value_as_expression;
 */
 struct Rdb_table_handler {
   char *m_table_name;
-  uint m_table_name_length;
   int m_ref_count;
 
-  /* Stores cumulative table statistics */
-  my_io_perf_atomic_t m_io_perf_read;
   Rdb_atomic_perf_counters m_table_perf_context;
 };
 
@@ -308,9 +306,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   */
   my_core::Bitmap<((MAX_INDEXES + 7) / 8 * 8)> m_update_scope;
 
-  /* SST information used for bulk loading the primary key */
-  std::shared_ptr<Rdb_sst_info> m_sst_info;
-
   /*
     MySQL index number for duplicate key error
   */
@@ -349,13 +344,10 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   int get_row_by_sk(uchar *buf, const Rdb_key_def &kd,
                     const rocksdb::Slice *key);
 
-  void load_auto_incr_value();
-  ulonglong load_auto_incr_value_from_index();
+  int load_auto_incr_value();
+  int load_auto_incr_value_from_index(ulonglong *value);
   void update_auto_incr_val(ulonglong val);
   void update_auto_incr_val_from_field();
-  rocksdb::Status get_datadic_auto_incr(Rdb_transaction *const tx,
-                                        const GL_INDEX_ID &gl_index_id,
-                                        ulonglong *new_val) const;
   longlong update_hidden_pk_val();
   int load_hidden_pk_value() MY_ATTRIBUTE((__warn_unused_result__));
   int read_hidden_pk_id_from_rowkey(longlong *const hidden_pk_id)
@@ -424,11 +416,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
 
     DBUG_RETURN(rocksdb_hton_name);
   }
-
-  /*
-    Returns the name of the table's base name
-  */
-  const std::string &get_table_basename() const;
 
   /** @brief
     This is a list of flags that indicate what functionality the storage engine
@@ -762,8 +749,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
                                       bool *const found);
   [[nodiscard]] int check_uniqueness_and_lock(
       const struct update_row_info &row_info, bool pk_changed);
-  bool over_bulk_load_threshold(int *err)
-      MY_ATTRIBUTE((__warn_unused_result__));
   int check_duplicate_sk(const TABLE *table_arg, const Rdb_key_def &key_def,
                          const rocksdb::Slice *key,
                          struct unique_sk_buf_info *sk_info)
@@ -799,9 +784,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
       TABLE *const table_arg,
       const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-
-  int finalize_bulk_load(bool print_client_error = true)
-      MY_ATTRIBUTE((__warn_unused_result__));
 
   void inc_table_n_rows();
   void dec_table_n_rows();
@@ -861,7 +843,6 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  int delete_table_def(Rdb_tbl_def *const tbl);
   int delete_table(Rdb_tbl_def *const tbl);
   int delete_table(const char *const from, const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -882,6 +863,7 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
       MY_ATTRIBUTE((__warn_unused_result__));
 
   bool get_error_message(const int error, String *const buf) override;
+  bool is_temporary_error(const int error) const override;
 
   static int rdb_error_to_mysql(const rocksdb::Status &s,
                                 const char *msg = nullptr)
@@ -926,13 +908,14 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   static int adjust_handler_stats_table_scan(ha_statistics *ha_stats,
                                              Rdb_tbl_def *tbl_def);
 
-  void update_row_read(ulonglong count);
   static void inc_covered_sk_lookup();
 
   void build_decoder();
   void check_build_decoder();
 
  protected:
+  bool report_unsupported_gap_lock(THD *thd) const noexcept override;
+
   int records(ha_rows *num_rows) override;
   int records_from_index(ha_rows *num_rows, uint index) override;
 
@@ -950,6 +933,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   /* Flags tracking if we are inside different replication operation */
   bool m_in_rpl_delete_rows;
   bool m_in_rpl_update_rows;
+  // use_read_free_rpl() for the rows event being applied
+  bool m_rpl_read_free;
 #endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
   /* Need to build decoder on next read operation */
@@ -964,17 +949,8 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
   /* The new table definition */
   Rdb_tbl_def *const m_new_tdef;
 
-  /* Stores the original key definitions */
-  std::shared_ptr<Rdb_key_def> *const m_old_key_descr;
-
   /* Stores the new key definitions */
   std::shared_ptr<Rdb_key_def> *m_new_key_descr;
-
-  /* Stores the old number of key definitions */
-  const uint m_old_n_keys;
-
-  /* Stores the new number of key definitions */
-  const uint m_new_n_keys;
 
   /* Stores the added key glids */
   const std::unordered_set<std::shared_ptr<Rdb_key_def>> m_added_indexes;
@@ -982,32 +958,19 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
   /* Stores the dropped key glids */
   const std::unordered_set<GL_INDEX_ID> m_dropped_index_ids;
 
-  /* Stores number of keys to add */
-  const uint m_n_added_keys;
-
-  /* Stores number of keys to drop */
-  const uint m_n_dropped_keys;
-
   /* Stores the largest current auto increment value in the index */
   const ulonglong m_max_auto_incr;
 
   Rdb_inplace_alter_ctx(
-      Rdb_tbl_def *new_tdef, std::shared_ptr<Rdb_key_def> *old_key_descr,
-      std::shared_ptr<Rdb_key_def> *new_key_descr, uint old_n_keys,
-      uint new_n_keys,
+      Rdb_tbl_def *new_tdef, std::shared_ptr<Rdb_key_def> *new_key_descr,
       std::unordered_set<std::shared_ptr<Rdb_key_def>> added_indexes,
-      std::unordered_set<GL_INDEX_ID> dropped_index_ids, uint n_added_keys,
-      uint n_dropped_keys, ulonglong max_auto_incr)
+      std::unordered_set<GL_INDEX_ID> dropped_index_ids,
+      ulonglong max_auto_incr)
       : my_core::inplace_alter_handler_ctx(),
         m_new_tdef(new_tdef),
-        m_old_key_descr(old_key_descr),
         m_new_key_descr(new_key_descr),
-        m_old_n_keys(old_n_keys),
-        m_new_n_keys(new_n_keys),
         m_added_indexes(added_indexes),
         m_dropped_index_ids(dropped_index_ids),
-        m_n_added_keys(n_added_keys),
-        m_n_dropped_keys(n_dropped_keys),
         m_max_auto_incr(max_auto_incr) {}
 
   ~Rdb_inplace_alter_ctx() {}
@@ -1123,8 +1086,7 @@ extern Rdb_compaction_stats compaction_stats;
 unsigned long long get_partial_index_sort_max_mem(THD *thd);
 
 Rdb_transaction *get_tx_from_thd(THD *const thd);
-
-const rocksdb::ReadOptions &rdb_tx_acquire_snapshot(Rdb_transaction *tx);
+Rdb_bulk_load_context *get_bulk_load_ctx_from_thd(THD *const thd);
 
 rocksdb::Iterator *rdb_tx_get_iterator(
     THD *thd, rocksdb::ColumnFamilyHandle *const cf, bool skip_bloom_filter,
@@ -1184,7 +1146,6 @@ bool rdb_should_hide_ttl_rec(const Rdb_key_def &kd,
                              const rocksdb::Slice *const ttl_rec_val,
                              Rdb_transaction *tx);
 
-bool rdb_tx_started(Rdb_transaction *tx);
 int rdb_tx_set_status_error(Rdb_transaction &tx, const rocksdb::Status &s,
                             const Rdb_key_def &kd,
                             const Rdb_tbl_def *const tbl_def);
@@ -1195,7 +1156,6 @@ extern std::atomic<uint64_t> rocksdb_partial_index_rows_sorted;
 extern std::atomic<uint64_t> rocksdb_partial_index_rows_materialized;
 extern bool rocksdb_enable_tmp_table;
 extern bool rocksdb_enable_delete_range_for_drop_index;
-extern bool rocksdb_disable_instant_ddl;
 extern bool rocksdb_enable_instant_ddl;
 extern bool rocksdb_partial_index_ignore_killed;
 
@@ -1205,4 +1165,10 @@ extern bool rocksdb_enable_instant_ddl_for_table_comment_changes;
 extern bool rocksdb_enable_instant_ddl_for_drop_index_changes;
 
 extern unsigned long long rocksdb_converter_record_cached_length;
+
+/*
+  The max value timestamp that is used to construct timestamp slice. This will
+  be used in the case of using max timestamp as a special value.
+*/
+extern char max_timestamp_uint64[ROCKSDB_SIZEOF_TTL_RECORD];
 }  // namespace myrocks

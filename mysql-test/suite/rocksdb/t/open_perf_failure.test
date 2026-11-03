@@ -1,0 +1,12 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1);
+FLUSH TABLES;
+SET rocksdb_perf_context_level=4;
+SET SESSION debug='+d,rocksdb_open_perf_failure';
+--error ER_GET_ERRNO
+SELECT * FROM t;
+SET SESSION debug='-d,rocksdb_open_perf_failure';
+SELECT * FROM t;
+DROP TABLE t;

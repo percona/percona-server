@@ -1,0 +1,93 @@
+#
+# PS-11632: a prepared XA transaction that recovery keeps prepared holds
+# metadata locks on the tables it wrote or read with a locking read, so DDL
+# on them waits until XA COMMIT/ROLLBACK.
+#
+--source include/have_rocksdb.inc
+
+CALL mtr.add_suppression("Found [0-9]+ prepared XA transactions");
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB;
+CREATE TABLE `t-2` (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE tp (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB
+  PARTITION BY HASH(a) PARTITIONS 2;
+CREATE TABLE tr (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+CREATE TABLE tn (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO tr VALUES (1);
+INSERT INTO tn VALUES (1);
+
+--let $i = 2
+while ($i)
+{
+  if ($i == 2)
+  {
+    --echo # Clean restart (write_committed), then XA COMMIT.
+  }
+  if ($i == 1)
+  {
+    --echo # Kill, then XA ROLLBACK.
+  }
+  XA START 'm1';
+  INSERT INTO t1 VALUES (2, 2);
+  INSERT INTO `t-2` VALUES (1);
+  INSERT INTO tp VALUES (3, 3), (4, 4);
+  --echo # Locking read only.
+  SELECT * FROM tr WHERE a = 1 FOR UPDATE;
+  --echo # Plain read only.
+  SELECT * FROM tn;
+  XA END 'm1';
+  XA PREPARE 'm1';
+  # A clean shutdown with a prepared transaction asserts in RocksDB under
+  # write_prepared and write_unprepared (PS-11830): kill instead.
+  --let $clean = `SELECT $i = 2 AND @@rocksdb_write_policy = 'write_committed'`
+  --disable_result_log
+  if ($clean)
+  {
+    --source include/restart_mysqld.inc
+  }
+  if (!$clean)
+  {
+    --source include/kill_and_restart_mysqld.inc
+  }
+  --enable_result_log
+  XA RECOVER;
+  SET SESSION lock_wait_timeout = 1;
+  --error ER_LOCK_WAIT_TIMEOUT
+  TRUNCATE TABLE t1;
+  --error ER_LOCK_WAIT_TIMEOUT
+  ALTER TABLE t1 ADD COLUMN c INT;
+  --error ER_LOCK_WAIT_TIMEOUT
+  DROP TABLE `t-2`;
+  --error ER_LOCK_WAIT_TIMEOUT
+  TRUNCATE TABLE tp;
+  --error ER_LOCK_WAIT_TIMEOUT
+  ALTER TABLE tp TRUNCATE PARTITION p1;
+  --error ER_LOCK_WAIT_TIMEOUT
+  TRUNCATE TABLE tr;
+  --echo # A table the transaction did not lock is not locked.
+  ALTER TABLE tn ADD COLUMN c INT;
+  ALTER TABLE tn DROP COLUMN c;
+  if ($i == 2)
+  {
+    XA COMMIT 'm1';
+  }
+  if ($i == 1)
+  {
+    XA ROLLBACK 'm1';
+  }
+  SELECT * FROM t1 ORDER BY a;
+  SELECT * FROM t1 FORCE INDEX (kb) ORDER BY b;
+  SELECT * FROM `t-2` ORDER BY a;
+  SELECT * FROM tp ORDER BY a;
+  --echo # DDL runs after the transaction is finished.
+  TRUNCATE TABLE `t-2`;
+  TRUNCATE TABLE tp;
+  DELETE FROM t1 WHERE a = 2;
+  TRUNCATE TABLE tr;
+  INSERT INTO tr VALUES (1);
+  SET SESSION lock_wait_timeout = DEFAULT;
+  --dec $i
+}
+
+DROP TABLE t1, `t-2`, tp, tr, tn;

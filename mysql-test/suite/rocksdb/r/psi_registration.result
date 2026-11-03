@@ -1,0 +1,13 @@
+SELECT COUNT(*) AS index_stats_threads FROM performance_schema.threads
+WHERE NAME='thread/rocksdb/signal index stats calculation';
+index_stats_threads
+1
+SELECT COUNT(*) AS index_stats_mutexes FROM performance_schema.mutex_instances
+WHERE NAME='wait/synch/mutex/rocksdb/signal index stats calculation';
+index_stats_mutexes
+1
+SELECT COUNT(*) AS collation_instruments FROM performance_schema.setup_instruments
+WHERE NAME='wait/synch/mutex/rocksdb/collation data init';
+collation_instruments
+1
+include/assert.inc [The MyRocks index stats thread must be instrumented]

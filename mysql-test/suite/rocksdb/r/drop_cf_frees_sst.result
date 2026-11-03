@@ -1,0 +1,20 @@
+#
+# Dropping a column family releases its SST files without a restart.
+#
+CREATE TABLE t (id INT, v VARCHAR(100), PRIMARY KEY(id) COMMENT 'cfname=cf_dropped_sst') ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1,'retained');
+SET GLOBAL rocksdb_force_flush_memtable_now=ON;
+SET GLOBAL debug='+d,rocksdb_after_delete_table,rocksdb_drop_cf';
+DROP TABLE t;
+SET DEBUG_SYNC='now WAIT_FOR ready_to_mark_cf_dropped_after_delete_table';
+SET GLOBAL rocksdb_delete_cf='cf_dropped_sst';
+SET DEBUG_SYNC='now SIGNAL ready_to_drop_cf';
+SET DEBUG_SYNC='now WAIT_FOR drop_cf_done';
+SELECT COUNT(*) FROM information_schema.rocksdb_cfstats WHERE CF_NAME='cf_dropped_sst';
+COUNT(*)
+0
+SET DEBUG_SYNC='now SIGNAL mark_cf_dropped_done_after_delete_table';
+SET GLOBAL debug='';
+SET DEBUG_SYNC='now SIGNAL ready_to_drop_cf';
+# The dropped column family's SST file is removed
+SST file removed

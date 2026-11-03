@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2012,2013 Monty Program Ab
+   Portions Copyright (c) 2016-Present, Facebook, Inc.
+   Portions Copyright (c) 2012,2013 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,4 +38,5 @@ extern struct st_mysql_plugin rdb_i_s_lock_info;
 extern struct st_mysql_plugin rdb_i_s_trx_info;
 extern struct st_mysql_plugin rdb_i_s_deadlock_info;
 extern struct st_mysql_plugin rdb_i_s_live_files_metadata;
+extern struct st_mysql_plugin rdb_i_s_bulk_load_history_config;
 }  // namespace myrocks

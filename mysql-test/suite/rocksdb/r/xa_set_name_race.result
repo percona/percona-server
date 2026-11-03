@@ -1,0 +1,19 @@
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
+XA START 'race';
+INSERT INTO t1 VALUES (1);
+XA END 'race';
+SET DEBUG_SYNC = 'rocksdb_set_name_locked SIGNAL named WAIT_FOR go';
+XA PREPARE 'race';
+SET DEBUG_SYNC = 'now WAIT_FOR named';
+SET DEBUG_SYNC = 'myrocks_in_rocksdb_trx_before_trx SIGNAL reading';
+SELECT LENGTH(NAME) > 0 AS named FROM information_schema.rocksdb_trx WHERE QUERY = "XA PREPARE 'race'";
+SET DEBUG_SYNC = 'now WAIT_FOR reading';
+SET DEBUG_SYNC = 'now SIGNAL go';
+named
+1
+XA COMMIT 'race';
+SET DEBUG_SYNC = 'RESET';
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;

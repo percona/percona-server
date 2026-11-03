@@ -1,0 +1,56 @@
+SET @saved_debug = @@global.debug;
+SET @saved_io_action = @@global.rocksdb_io_error_action;
+SET @saved_delete_range = @@global.rocksdb_enable_delete_range_for_drop_index;
+SET GLOBAL rocksdb_enable_delete_range_for_drop_index = ON;
+SET GLOBAL rocksdb_io_error_action = 'IGNORE_ERROR';
+# A failed cleanup write cannot leave a readable table with deleted SSTs
+CREATE TABLE t (id INT, PRIMARY KEY(id) COMMENT 'cfname=delete_range_errors')
+ENGINE=ROCKSDB;
+INSERT INTO t VALUES (1),(2);
+SET GLOBAL rocksdb_force_flush_memtable_now=1;
+SET GLOBAL rocksdb_compact_cf='delete_range_errors';
+SET GLOBAL debug = '+d,rocksdb_delete_range_write_failure';
+DROP TABLE t;
+SELECT * FROM t;
+ERROR 42S02: Table 'test.t' doesn't exist
+include/wait_for_pattern_in_file.inc [injected DeleteRange write error]
+SELECT COUNT(*) > 0 AS cleanup_pending FROM information_schema.rocksdb_global_info
+WHERE type='DDL_DROP_INDEX_ONGOING';
+cleanup_pending
+1
+# A failed cleanup flush must not leave a visible emptied secondary index
+CREATE TABLE pt (id INT PRIMARY KEY, v INT, KEY vi(v)) ENGINE=ROCKSDB
+PARTITION BY HASH(id) PARTITIONS 2;
+INSERT INTO pt VALUES (1,10),(2,20);
+SET GLOBAL debug = '-d,rocksdb_delete_range_write_failure';
+SET GLOBAL debug = '+d,rocksdb_delete_range_flush_failure';
+ALTER TABLE pt DROP INDEX vi, ALGORITHM=INPLACE;
+SELECT * FROM pt FORCE INDEX(PRIMARY) ORDER BY id;
+id	v
+1	10
+2	20
+SELECT * FROM pt FORCE INDEX(vi) WHERE v >= 10;
+ERROR 42000: Key 'vi' doesn't exist in table 'pt'
+SELECT COUNT(*) AS dictionary_indexes FROM information_schema.rocksdb_ddl
+WHERE table_schema='test' AND table_name='pt';
+dictionary_indexes
+2
+include/wait_for_pattern_in_file.inc [injected DeleteRange flush error]
+SELECT COUNT(*) > 0 AS cleanup_pending FROM information_schema.rocksdb_global_info
+WHERE type='DDL_DROP_INDEX_ONGOING';
+cleanup_pending
+1
+SET GLOBAL debug = @saved_debug;
+# Persistent pending cleanup survives restart and can finish later
+# restart
+SELECT * FROM pt ORDER BY id;
+id	v
+1	10
+2	20
+SELECT * FROM pt FORCE INDEX(vi) WHERE v >= 10;
+ERROR 42000: Key 'vi' doesn't exist in table 'pt'
+SET GLOBAL rocksdb_enable_delete_range_for_drop_index = ON;
+SET GLOBAL rocksdb_signal_drop_index_thread = 1;
+DROP TABLE pt;
+SET GLOBAL rocksdb_enable_delete_range_for_drop_index = DEFAULT;
+SET GLOBAL rocksdb_io_error_action = DEFAULT;

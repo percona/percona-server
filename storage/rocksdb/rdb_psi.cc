@@ -42,8 +42,8 @@ my_core::PSI_thread_info all_rocksdb_threads[] = {
      0, PSI_DOCUMENT_ME},
     {&rdb_drop_idx_psi_thread_key, "drop index", "rdb_drop_ix",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&rdb_signal_is_psi_mutex_key, "signal index stats calculation",
-     "rdb_ix_st", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&rdb_is_psi_thread_key, "signal index stats calculation", "rdb_ix_st",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_mc_psi_thread_key, "manual compaction", "rdb_compact",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
@@ -53,7 +53,8 @@ my_core::PSI_mutex_key rdb_psi_open_tbls_mutex_key, rdb_signal_bg_psi_mutex_key,
     rdb_signal_mc_psi_mutex_key, rdb_collation_data_mutex_key,
     rdb_mem_cmp_space_mutex_key, key_mutex_tx_list, rdb_cfm_mutex_key,
     rdb_sst_commit_key, rdb_block_cache_resize_mutex_key,
-    rdb_bottom_pri_background_compactions_resize_mutex_key;
+    rdb_bottom_pri_background_compactions_resize_mutex_key,
+    i_s_transaction_access_mutex_key;
 
 my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
     {&rdb_psi_open_tbls_mutex_key, "open tables", PSI_FLAG_SINGLETON, 0,
@@ -68,8 +69,6 @@ my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
      0, PSI_DOCUMENT_ME},
     {&rdb_signal_mc_psi_mutex_key, "signal manual compaction",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_SINGLETON,
-     0, PSI_DOCUMENT_ME},
     {&rdb_mem_cmp_space_mutex_key, "collation space char data init",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_mutex_tx_list, "tx_list", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -80,6 +79,8 @@ my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&rdb_bottom_pri_background_compactions_resize_mutex_key,
      "resizing bottom pri compaction threads", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&i_s_transaction_access_mutex_key, "transaction access from I_S", 0, 0,
      PSI_DOCUMENT_ME},
 };
 

@@ -1,0 +1,279 @@
+#
+# XA transactions on MyRocks tables
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+
+### xa_detach_on_prepare = 1
+SET GLOBAL xa_detach_on_prepare = 1;
+SET SESSION xa_detach_on_prepare = 1;
+# XA ROLLBACK of a prepared transaction in the same session,
+# then use the table again in that session.
+XA START 'xr';
+INSERT INTO t1 VALUES (10, 10);
+XA END 'xr';
+XA PREPARE 'xr';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	xr
+XA ROLLBACK 'xr';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+INSERT INTO t1 VALUES (11, 11);
+DELETE FROM t1 WHERE a = 11;
+# XA COMMIT of a prepared transaction in the same session.
+XA START 'xc';
+INSERT INTO t1 VALUES (20, 20);
+UPDATE t1 SET b = b + 1 WHERE a = 1;
+XA END 'xc';
+XA PREPARE 'xc';
+XA COMMIT 'xc';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+20	20
+# XA COMMIT ONE PHASE.
+XA START 'x1';
+INSERT INTO t1 VALUES (30, 30);
+XA END 'x1';
+XA COMMIT 'x1' ONE PHASE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+20	20
+30	30
+# A prepared transaction keeps its row locks.
+XA START 'xl';
+UPDATE t1 SET b = 100 WHERE a = 1;
+XA END 'xl';
+XA PREPARE 'xl';
+UPDATE t1 SET b = 200 WHERE a = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+XA COMMIT 'xl';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+# A prepared transaction is finished by another session while its
+# own session stays connected; the own session then keeps working.
+XA START 'xo';
+INSERT INTO t1 VALUES (60, 60);
+XA END 'xo';
+XA PREPARE 'xo';
+XA COMMIT 'xo';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+60	60
+UPDATE t1 SET b = b + 1 WHERE a = 60;
+SELECT * FROM t1 WHERE a = 60;
+a	b
+60	61
+# A second XA transaction in the same session while the first one is
+# prepared (only possible when prepared transactions are detached).
+XA START 'xa1';
+INSERT INTO t1 VALUES (70, 70);
+XA END 'xa1';
+XA PREPARE 'xa1';
+XA START 'xa2';
+INSERT INTO t1 VALUES (71, 71);
+XA END 'xa2';
+XA PREPARE 'xa2';
+INSERT INTO t1 VALUES (72, 72);
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	3	0	xa1
+1	3	0	xa2
+XA COMMIT 'xa2';
+XA ROLLBACK 'xa1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+60	61
+71	71
+72	72
+DELETE FROM t1 WHERE a >= 60;
+# A prepared transaction survives the disconnect of its session and
+# is committed from another session.
+SET SESSION xa_detach_on_prepare = 1;
+XA START 'xd';
+INSERT INTO t1 VALUES (40, 40);
+XA END 'xd';
+XA PREPARE 'xd';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	xd
+XA COMMIT 'xd';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+40	40
+# ... and rolled back from another session.
+SET SESSION xa_detach_on_prepare = 1;
+XA START 'xe';
+INSERT INTO t1 VALUES (50, 50);
+XA END 'xe';
+XA PREPARE 'xe';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	xe
+XA ROLLBACK 'xe';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+40	40
+# Read-only XA transaction.
+XA START 'xro';
+SELECT * FROM t1 WHERE a = 1;
+a	b
+1	100
+XA END 'xro';
+XA PREPARE 'xro';
+XA COMMIT 'xro';
+DELETE FROM t1 WHERE a > 1;
+UPDATE t1 SET b = 1;
+
+### xa_detach_on_prepare = 0
+SET GLOBAL xa_detach_on_prepare = 0;
+SET SESSION xa_detach_on_prepare = 0;
+# XA ROLLBACK of a prepared transaction in the same session,
+# then use the table again in that session.
+XA START 'xr';
+INSERT INTO t1 VALUES (10, 10);
+XA END 'xr';
+XA PREPARE 'xr';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	xr
+XA ROLLBACK 'xr';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	1
+INSERT INTO t1 VALUES (11, 11);
+DELETE FROM t1 WHERE a = 11;
+# XA COMMIT of a prepared transaction in the same session.
+XA START 'xc';
+INSERT INTO t1 VALUES (20, 20);
+UPDATE t1 SET b = b + 1 WHERE a = 1;
+XA END 'xc';
+XA PREPARE 'xc';
+XA COMMIT 'xc';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+20	20
+# XA COMMIT ONE PHASE.
+XA START 'x1';
+INSERT INTO t1 VALUES (30, 30);
+XA END 'x1';
+XA COMMIT 'x1' ONE PHASE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+20	20
+30	30
+# A prepared transaction keeps its row locks.
+XA START 'xl';
+UPDATE t1 SET b = 100 WHERE a = 1;
+XA END 'xl';
+XA PREPARE 'xl';
+UPDATE t1 SET b = 200 WHERE a = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+XA COMMIT 'xl';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+# A prepared transaction is finished by another session while its
+# own session stays connected; the own session then keeps working.
+XA START 'xo';
+INSERT INTO t1 VALUES (60, 60);
+XA END 'xo';
+XA PREPARE 'xo';
+# Not detached: the XID is still owned by the default session.
+XA COMMIT 'xo';
+ERROR XAE04: XAER_NOTA: Unknown XID
+XA COMMIT 'xo';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+60	60
+UPDATE t1 SET b = b + 1 WHERE a = 60;
+SELECT * FROM t1 WHERE a = 60;
+a	b
+60	61
+# A second XA transaction in the same session while the first one is
+# prepared (only possible when prepared transactions are detached).
+XA START 'xa1';
+INSERT INTO t1 VALUES (70, 70);
+XA END 'xa1';
+XA PREPARE 'xa1';
+XA START 'xa2';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+XA COMMIT 'xa1';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+60	61
+70	70
+DELETE FROM t1 WHERE a >= 60;
+# A prepared transaction survives the disconnect of its session and
+# is committed from another session.
+SET SESSION xa_detach_on_prepare = 0;
+XA START 'xd';
+INSERT INTO t1 VALUES (40, 40);
+XA END 'xd';
+XA PREPARE 'xd';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	xd
+XA COMMIT 'xd';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+40	40
+# ... and rolled back from another session.
+SET SESSION xa_detach_on_prepare = 0;
+XA START 'xe';
+INSERT INTO t1 VALUES (50, 50);
+XA END 'xe';
+XA PREPARE 'xe';
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	2	0	xe
+XA ROLLBACK 'xe';
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	100
+20	20
+30	30
+40	40
+# Read-only XA transaction.
+XA START 'xro';
+SELECT * FROM t1 WHERE a = 1;
+a	b
+1	100
+XA END 'xro';
+XA PREPARE 'xro';
+XA COMMIT 'xro';
+DELETE FROM t1 WHERE a > 1;
+UPDATE t1 SET b = 1;
+SET GLOBAL xa_detach_on_prepare = SAVED;
+DROP TABLE t1;

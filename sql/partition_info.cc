@@ -2838,7 +2838,7 @@ bool fill_first_partition_name(const partition_info *part_info,
     while ((part_elem = part_it++)) {
       if (part_elem->partition_name != nullptr) {
         create_partition_name(first_name, normalized_path,
-                              part_elem->partition_name, false);
+                              part_elem->partition_name);
         return false;
       }
     }

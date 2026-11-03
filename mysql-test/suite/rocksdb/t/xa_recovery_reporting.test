@@ -1,0 +1,48 @@
+--source include/have_rocksdb.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+
+CALL mtr.add_suppression('Found 1 prepared XA transactions');
+
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE=ROCKSDB;
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $i = 2
+while ($i)
+{
+  if ($i == 2)
+  {
+    --echo # MyRocks marks the recovered transaction prepared in TC
+    --let $restart_parameters = restart
+    --let $prepared = 1
+  }
+  if ($i == 1)
+  {
+    --echo # An engine without set_prepared_in_tc_by_xid
+    --let $restart_parameters = restart: --debug=+d,myrocks_no_set_prepared_in_tc_by_xid
+    --let $prepared = 2
+  }
+  XA START 'rocksdb-recover';
+  --eval INSERT INTO t VALUES ($i)
+  XA END 'rocksdb-recover';
+  XA PREPARE 'rocksdb-recover';
+  --source include/kill_mysqld.inc
+  --source include/start_mysqld.inc
+  XA RECOVER;
+  XA COMMIT 'rocksdb-recover';
+  SELECT * FROM t ORDER BY id;
+  --let $assert_only_after = CURRENT_TEST: rocksdb.xa_recovery_reporting
+  --let $assert_text = Successful MyRocks XA recovery must not report a prepare failure
+  --let $assert_select = Crash recovery finished in ROCKSDB engine. Failed to prepare
+  --let $assert_count = 0
+  --source include/assert_grep.inc
+  --let $assert_text = MyRocks XA recovery reports the prepared transaction
+  --let $assert_select = Crash recovery finished in ROCKSDB engine. Successfully prepared 1 XA transaction
+  --let $assert_count = $prepared
+  --source include/assert_grep.inc
+  --dec $i
+}
+
+--let $restart_parameters = restart
+--source include/restart_mysqld.inc
+DROP TABLE t;

@@ -233,8 +233,10 @@ INSERT INTO t1 values (1, 1);
 
 connection con1;
 --echo # Creating Snapshot (start transaction)
-# For Percona Server, portiion of this session activity requires gap lock
+# For Percona Server, part of this session activity requires gap locks
 # which is not yet supported in REPEATABLE-READ in MyRocks
+# TTL filtering retains the first snapshot time for the whole transaction,
+# including READ COMMITTED transactions whose RocksDB snapshots are renewed.
 set session transaction_isolation=`READ-COMMITTED`;
 BEGIN;
 

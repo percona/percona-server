@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2012,2013 Monty Program Ab
+   Portions Copyright (c) 2016-Present, Facebook, Inc.
+   Portions Copyright (c) 2012,2013 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,8 +42,7 @@ enum RDB_IO_ERROR_TYPE {
   RDB_IO_ERROR_TX_COMMIT,
   RDB_IO_ERROR_DICT_COMMIT,
   RDB_IO_ERROR_BG_THREAD,
-  RDB_IO_ERROR_GENERAL,
-  RDB_IO_ERROR_LAST
+  RDB_IO_ERROR_GENERAL
 };
 
 void rdb_handle_io_error(const rocksdb::Status status,
@@ -90,6 +90,8 @@ bool rdb_has_wsenv();
 
 /* Whether SyncWAL is supported in current scenario */
 bool rdb_sync_wal_supported();
+
+[[nodiscard]] std::uint64_t oldest_transaction_timestamp();
 
 enum operation_type : int;
 void rdb_update_global_stats(const operation_type &type, uint count,

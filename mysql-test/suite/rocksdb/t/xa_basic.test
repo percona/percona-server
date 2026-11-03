@@ -1,0 +1,163 @@
+--source include/have_rocksdb.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # XA transactions on MyRocks tables
+--echo #
+
+--let $saved_global_detach = `SELECT @@GLOBAL.xa_detach_on_prepare`
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1);
+
+--let $detach = 1
+while ($detach >= 0)
+{
+  --echo
+  --echo ### xa_detach_on_prepare = $detach
+  --eval SET GLOBAL xa_detach_on_prepare = $detach
+  --eval SET SESSION xa_detach_on_prepare = $detach
+
+  --echo # XA ROLLBACK of a prepared transaction in the same session,
+  --echo # then use the table again in that session.
+  XA START 'xr';
+  INSERT INTO t1 VALUES (10, 10);
+  XA END 'xr';
+  XA PREPARE 'xr';
+  XA RECOVER;
+  XA ROLLBACK 'xr';
+  SELECT * FROM t1 ORDER BY a;
+  INSERT INTO t1 VALUES (11, 11);
+  DELETE FROM t1 WHERE a = 11;
+
+  --echo # XA COMMIT of a prepared transaction in the same session.
+  XA START 'xc';
+  INSERT INTO t1 VALUES (20, 20);
+  UPDATE t1 SET b = b + 1 WHERE a = 1;
+  XA END 'xc';
+  XA PREPARE 'xc';
+  XA COMMIT 'xc';
+  SELECT * FROM t1 ORDER BY a;
+
+  --echo # XA COMMIT ONE PHASE.
+  XA START 'x1';
+  INSERT INTO t1 VALUES (30, 30);
+  XA END 'x1';
+  XA COMMIT 'x1' ONE PHASE;
+  SELECT * FROM t1 ORDER BY a;
+
+  --echo # A prepared transaction keeps its row locks.
+  XA START 'xl';
+  UPDATE t1 SET b = 100 WHERE a = 1;
+  XA END 'xl';
+  XA PREPARE 'xl';
+  --connect (con1,localhost,root,,test)
+  --error ER_LOCK_WAIT_TIMEOUT
+  UPDATE t1 SET b = 200 WHERE a = 1;
+  --disconnect con1
+  --connection default
+  XA COMMIT 'xl';
+  SELECT * FROM t1 ORDER BY a;
+
+  --echo # A prepared transaction is finished by another session while its
+  --echo # own session stays connected; the own session then keeps working.
+  XA START 'xo';
+  INSERT INTO t1 VALUES (60, 60);
+  XA END 'xo';
+  XA PREPARE 'xo';
+  --connect (con2,localhost,root,,test)
+  if ($detach)
+  {
+    XA COMMIT 'xo';
+  }
+  if (!$detach)
+  {
+    --echo # Not detached: the XID is still owned by the default session.
+    --error ER_XAER_NOTA
+    XA COMMIT 'xo';
+  }
+  --disconnect con2
+  --connection default
+  if (!$detach)
+  {
+    XA COMMIT 'xo';
+  }
+  SELECT * FROM t1 ORDER BY a;
+  UPDATE t1 SET b = b + 1 WHERE a = 60;
+  SELECT * FROM t1 WHERE a = 60;
+
+  --echo # A second XA transaction in the same session while the first one is
+  --echo # prepared (only possible when prepared transactions are detached).
+  XA START 'xa1';
+  INSERT INTO t1 VALUES (70, 70);
+  XA END 'xa1';
+  XA PREPARE 'xa1';
+  if ($detach)
+  {
+    XA START 'xa2';
+    INSERT INTO t1 VALUES (71, 71);
+    XA END 'xa2';
+    XA PREPARE 'xa2';
+    INSERT INTO t1 VALUES (72, 72);
+    --sorted_result
+    XA RECOVER;
+    --connect (con2,localhost,root,,test)
+    XA COMMIT 'xa2';
+    --disconnect con2
+    --connection default
+    XA ROLLBACK 'xa1';
+  }
+  if (!$detach)
+  {
+    --error ER_XAER_RMFAIL
+    XA START 'xa2';
+    XA COMMIT 'xa1';
+  }
+  SELECT * FROM t1 ORDER BY a;
+  DELETE FROM t1 WHERE a >= 60;
+
+  --echo # A prepared transaction survives the disconnect of its session and
+  --echo # is committed from another session.
+  --connect (con1,localhost,root,,test)
+  --eval SET SESSION xa_detach_on_prepare = $detach
+  XA START 'xd';
+  INSERT INTO t1 VALUES (40, 40);
+  XA END 'xd';
+  XA PREPARE 'xd';
+  --disconnect con1
+  --connection default
+  --source include/wait_until_count_sessions.inc
+  XA RECOVER;
+  XA COMMIT 'xd';
+  SELECT * FROM t1 ORDER BY a;
+
+  --echo # ... and rolled back from another session.
+  --connect (con1,localhost,root,,test)
+  --eval SET SESSION xa_detach_on_prepare = $detach
+  XA START 'xe';
+  INSERT INTO t1 VALUES (50, 50);
+  XA END 'xe';
+  XA PREPARE 'xe';
+  --disconnect con1
+  --connection default
+  --source include/wait_until_count_sessions.inc
+  XA RECOVER;
+  XA ROLLBACK 'xe';
+  SELECT * FROM t1 ORDER BY a;
+
+  --echo # Read-only XA transaction.
+  XA START 'xro';
+  SELECT * FROM t1 WHERE a = 1;
+  XA END 'xro';
+  XA PREPARE 'xro';
+  XA COMMIT 'xro';
+
+  DELETE FROM t1 WHERE a > 1;
+  UPDATE t1 SET b = 1;
+  --dec $detach
+}
+
+--replace_result $saved_global_detach SAVED
+--eval SET GLOBAL xa_detach_on_prepare = $saved_global_detach
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,163 @@
+#
+# SHOW ENGINE ROCKSDB TRANSACTION STATUS
+#
+set @prior_lock_wait_timeout = @@rocksdb_lock_wait_timeout;
+set @prior_deadlock_detect = @@rocksdb_deadlock_detect;
+set @prior_max_latest_deadlocks = @@rocksdb_max_latest_deadlocks;
+set global rocksdb_deadlock_detect = on;
+set global rocksdb_lock_wait_timeout = 10000;
+# Clears deadlock buffer of any prior deadlocks.
+set global rocksdb_max_latest_deadlocks = 0;
+set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;
+# The command requires the PROCESS privilege
+CREATE USER test_user@localhost;
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+DROP USER test_user@localhost;
+create table t (i int primary key) engine=rocksdb;
+insert into t values (1), (2), (3);
+# No other sessions, no snapshot, no deadlocks
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot never created
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
+# A session holding an active snapshot
+begin;
+select * from t where i = 1;
+i
+1
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---SNAPSHOT, ACTIVE NUM sec
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root
+earliest snapshot created NUM sec ago
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot never created
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
+rollback;
+# The same session after its snapshot was released
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot never created
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root
+earliest snapshot never created
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
+# A detected deadlock is listed
+begin;
+select * from t where i=1 for update;
+i
+1
+begin;
+select * from t where i=2 for update;
+i
+2
+select * from t where i=2 for update;
+select * from t where i=1 for update;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+rollback;
+i
+2
+rollback;
+SHOW ENGINE ROCKSDB TRANSACTION STATUS;
+Type	Name	Status
+rocksdb		
+============================================================
+TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
+============================================================
+---------
+SNAPSHOTS
+---------
+LIST OF SNAPSHOTS FOR EACH SESSION:
+---NO ACTIVE SNAPSHOT
+MySQL thread id TID, OS thread handle PTR, query id QID localhost root ACTION
+SHOW ENGINE ROCKSDB TRANSACTION STATUS
+earliest snapshot never created
+lock count 0, write count 0
+insert count 0, update count 0, delete count 0
+----------LATEST DETECTED DEADLOCKS----------
+
+*** DEADLOCK PATH
+=========================================
+TSTAMP
+TXN_ID
+COLUMN FAMILY NAME: default
+KEY
+LOCK TYPE: EXCLUSIVE
+INDEX NAME: PRIMARY
+TABLE NAME: test.t
+---------------WAITING FOR---------------
+TSTAMP
+TXN_ID
+COLUMN FAMILY NAME: default
+KEY
+LOCK TYPE: EXCLUSIVE
+INDEX NAME: PRIMARY
+TABLE NAME: test.t
+
+--------TXN_ID GOT DEADLOCK---------
+-----------------------------------------
+END OF ROCKSDB TRANSACTION MONITOR OUTPUT
+=========================================
+
+# Other engines do not provide a transaction status
+SHOW ENGINE INNODB TRANSACTION STATUS;
+Type	Name	Status
+drop table t;
+set global rocksdb_lock_wait_timeout = @prior_lock_wait_timeout;
+set global rocksdb_deadlock_detect = @prior_deadlock_detect;
+set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;

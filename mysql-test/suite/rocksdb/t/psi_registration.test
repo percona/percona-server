@@ -1,0 +1,13 @@
+--source include/have_rocksdb.inc
+--source include/have_perfschema.inc
+
+SELECT COUNT(*) AS index_stats_threads FROM performance_schema.threads
+  WHERE NAME='thread/rocksdb/signal index stats calculation';
+SELECT COUNT(*) AS index_stats_mutexes FROM performance_schema.mutex_instances
+  WHERE NAME='wait/synch/mutex/rocksdb/signal index stats calculation';
+SELECT COUNT(*) AS collation_instruments FROM performance_schema.setup_instruments
+  WHERE NAME='wait/synch/mutex/rocksdb/collation data init';
+--let $assert_text = The MyRocks index stats thread must be instrumented
+--let $actual = `SELECT COUNT(*) FROM performance_schema.threads WHERE NAME='thread/rocksdb/signal index stats calculation'`
+--let $assert_cond = $actual = 1
+--source include/assert.inc

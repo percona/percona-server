@@ -1,0 +1,75 @@
+set global rocksdb_bulk_load_history_size=1;
+CREATE TABLE t1(c1 INT primary key, c2 int, index k2(c2)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES(1, 1), (2, 2);
+
+sst commit failure should fail the alter copy
+
+SET DEBUG='+d,myrocks_end_alter_copy_failure';
+SET rocksdb_bulk_load_allow_sk=1;
+SET rocksdb_bulk_load=1;
+ALTER TABLE t1 ADD column c3 int default 42 after c1;
+ERROR HY000: Got error 1 - 'Operation not permitted' from storage engine
+select TYPE, STATUS, RETURN_CODE, SST_FILES from information_schema.rocksdb_bulk_load_history  where TABLES like '%test.t1';
+TYPE	STATUS	RETURN_CODE	SST_FILES
+DDL	FAILED	1	2
+select * from t1;
+c1	c2
+1	1
+2	2
+SET rocksdb_bulk_load=0;
+select * from t1;
+c1	c2
+1	1
+2	2
+
+alter copy should commit sst file on statement complete
+
+SET DEBUG='-d,myrocks_end_alter_copy_failure';
+SET rocksdb_bulk_load=1;
+ALTER TABLE t1 ADD column c3 int default 42 after c1;
+select TYPE, STATUS, RETURN_CODE, SST_FILES from information_schema.rocksdb_bulk_load_history  where TABLES like '%test.t1';
+TYPE	STATUS	RETURN_CODE	SST_FILES
+DDL	COMPLETED	0	2
+select * from t1;
+c1	c3	c2
+1	42	1
+2	42	2
+SET rocksdb_bulk_load=0;
+select * from t1;
+c1	c3	c2
+1	42	1
+2	42	2
+
+a duplicate in a new unique key fails the alter copy
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (1, 1), (2, 1);
+SET rocksdb_bulk_load_allow_sk=1;
+SET rocksdb_bulk_load_enable_unique_key_check=1;
+SET rocksdb_bulk_load=1;
+ALTER TABLE t2 ADD UNIQUE KEY ub(b), ALGORITHM=COPY;
+ERROR 23000: Duplicate entry found for key name: ub, key:KEY
+SET rocksdb_bulk_load=0;
+SET rocksdb_bulk_load_enable_unique_key_check=0;
+SET rocksdb_bulk_load=1;
+ALTER TABLE t2 ADD UNIQUE KEY ub(b), ALGORITHM=COPY;
+ERROR 23000: Duplicate entry '1' for key 't2.ub'
+SET rocksdb_bulk_load=0;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ROCKSDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+a	b
+1	1
+2	1
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+DROP TABLE t2;
+SET rocksdb_bulk_load_allow_sk=default;
+set global rocksdb_bulk_load_history_size=default;
+DROP TABLE t1;
